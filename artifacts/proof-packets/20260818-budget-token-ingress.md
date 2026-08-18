@@ -2,14 +2,15 @@
 
 Date: 2026-08-18  
 Repository: `szl-holdings/a11oy`  
+Pull request: `#1331`  
 Branch: `feat/budget-token-ingress-20260818`  
-Protected base: `8ca0321cbbb072a3c841e69e3d4d9ae874ff363d`
+Protected base: `b51f66add89755642c97deaa8acaeb2cc94a6bf4`
 
 ## Disposition
 
-`SOURCE_APPLIED / HOSTED_VERIFICATION_PENDING`
+`SOURCE_VERIFIED / REVIEW_AND_PROTECTED_PROMOTION_PENDING`
 
-This packet records source implementation on an isolated current-main branch. It does not claim
+This packet records source implementation and hosted exact-source qualification. It does not claim
 protected merge, deployment, Hugging Face publication, live traffic routing, tokenizer promotion,
 measured performance, provider mutation, or production readback.
 
@@ -26,7 +27,7 @@ copied and registered by the production application. Tokenizer throughput, cache
 reuse, and verifier reinvestment are resource-budget signals, so this is one coherent controller
 rather than a parallel subsystem.
 
-No Dockerfile COPY source, automatic Hugging Face writer, route registration loop, or managed-file
+No Dockerfile COPY source, automatic Hugging Face writer, route-registration loop, or managed-file
 count is added by this successor.
 
 ## Runtime implementation
@@ -38,7 +39,7 @@ count is added by this successor.
 - a digest-bound Semantic Token Contract over tokenizer family, vocabulary, normalization,
   special tokens, added tokens, chat template, and document separator;
 - exact token-ID and decoded-text representative-case qualification;
-- a bounded content-addressed Prefix Foundry bound to the semantic contract digest;
+- a bounded content-addressed Prefix Foundry bound to the semantic-contract digest;
 - deterministic file-native repository ingestion with path containment, symlink refusal,
   file-count and byte budgets, binary classification, per-file SHA-256 rows, and a batch digest;
 - verifier-budget reinvestment with explicit `MODELED` or trusted-internal `MEASURED` authority;
@@ -70,10 +71,41 @@ signing, database, or deployment effectors.
 
 A candidate tokenizer is ineligible unless both conditions pass:
 
-1. every semantic component digest matches the declared oracle; and
+1. every semantic-component digest matches the declared oracle; and
 2. every representative case has identical token IDs and identical decoded text.
 
 Throughput, cache warmth, provider identity, and benchmark speed cannot override semantic mismatch.
+
+## Hosted evidence
+
+Exact source/runtime head qualified: `f61e68ece1c1875d91acf28d28fb7db64319fa18`.
+
+Focused workflow:
+
+- workflow: `Budget and token ingress contracts`;
+- run: `32089486241`;
+- job: `95568722008`;
+- exact candidate-head checkout: passed;
+- hash-locked dependency installation: passed;
+- Python compilation: passed;
+- focused core, HTTP, and assembled-app tests: **15 passed** in 5.25 seconds;
+- scoped `git diff --check`: passed.
+
+The same source head also completed the repository-wide gates fetched for this PR, including:
+
+- Tests;
+- container build and local smoke test;
+- CodeQL for Actions and JavaScript/TypeScript;
+- Trivy and Grype;
+- Gitleaks;
+- DCO;
+- Doctrine and overclaim checks;
+- Dockerfile/COPY completeness and registration invocation;
+- canonical Hugging Face source parity and single-writer controls;
+- manifest, shared-source, namespace, private-IP, lockfile, and action-pin guards.
+
+All observed jobs above concluded successfully. The proof/workflow update that contains this record is
+non-runtime evidence-only and intentionally re-triggers the same exact-head admission before review.
 
 ## Verification contracts
 
@@ -94,10 +126,8 @@ Throughput, cache warmth, provider identity, and benchmark speed cannot override
   - hash-locked Python dependency installation;
   - Python compilation;
   - focused core, HTTP, and assembled-app tests;
-  - scoped whitespace rejection against current protected main.
-
-Local source construction completed Python compilation and 13 focused tests before publication.
-Hosted exact-head evidence remains pending until GitHub Actions completes.
+  - scoped whitespace rejection against current protected main;
+  - proof-packet changes included in the exact-head trigger and whitespace scope.
 
 ## Honest non-claims
 
@@ -110,9 +140,9 @@ Hosted exact-head evidence remains pending until GitHub Actions completes.
 
 ## Promotion gates
 
-Before any ready or merge transition:
+Before any merge transition:
 
-1. exact-head hosted checks must be terminal and green;
+1. the final exact head must have terminal green hosted checks;
 2. independent exact-head review must have no actionable P0/P1 finding;
 3. DCO, doctrine, secret, supply-chain, container, route, and Hugging Face parity gates must pass;
 4. protected merge remains separate authority;
@@ -120,7 +150,7 @@ Before any ready or merge transition:
 
 ## Rollback
 
-Close the draft PR without merge, or revert the one successor commit changing or adding:
+Close the draft PR without merge, or revert the successor commits changing or adding:
 
 - `szl_budget_router.py`;
 - `tests/test_budget_token_ingress.py`;

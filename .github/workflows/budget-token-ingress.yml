@@ -7,6 +7,7 @@ on:
       - "szl_budget_router.py"
       - "tests/test_budget_token_ingress.py"
       - "tests/test_budget_token_ingress_assembled.py"
+      - "artifacts/proof-packets/20260818-budget-token-ingress.md"
       - ".github/workflows/budget-token-ingress.yml"
 
 permissions:
@@ -54,4 +55,5 @@ jobs:
             szl_budget_router.py \
             tests/test_budget_token_ingress.py \
             tests/test_budget_token_ingress_assembled.py \
+            artifacts/proof-packets/20260818-budget-token-ingress.md \
             .github/workflows/budget-token-ingress.yml
