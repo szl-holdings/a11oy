@@ -1,7 +1,6 @@
 name: Docs audit root-cause capture
 
 on:
-  workflow_dispatch:
   pull_request:
     branches: [main]
     paths:
@@ -11,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 jobs:
@@ -22,8 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: protected-main-9d56cb9
-            ref: 9d56cb9a8639e170a34696f96fb3e91012f9cb1a
+          - label: protected-pr-base
+            ref: ${{ github.event.pull_request.base.sha }}
           - label: pr-1308-head-5b0d6d6
             ref: 5b0d6d6923c95f3a4cb916d2a7546fa3608a6357
     steps:
