@@ -61,6 +61,24 @@ jobs:
       - name: Prove payload closure, canonical bytes, and path containment
         run: pytest tests/test_prepare_huggingface_payload.py -q
 
+  frontdoor-source-integrity:
+    name: HF workflow shape and public UTF-8 integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      # This job lives outside hf-module-drift.yml so collapse or comment-out of
+      # that workflow cannot disable the independent shape guard.
+      - name: Prove the guard rejects workflow collapse and encoding corruption
+        run: python3 scripts/test_frontdoor_source_integrity.py
+      - name: Prove protected-base candidate admission stays digest-bound and fail closed
+        run: python3 -m unittest tests.test_verify_hf_repository_parity
+      - name: Validate the committed workflow and public source bytes
+        run: python3 scripts/validate_frontdoor_source_integrity.py
+
   python-nemo-owner-dispatch:
     name: Nemo owner dispatch immutable-selection contract
     runs-on: ubuntu-latest
