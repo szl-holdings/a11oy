@@ -1,0 +1,285 @@
+name: P0 post-merge activation controller
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-post-merge-activation-controller.yml
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: p0-post-merge-activation-controller
+  cancel-in-progress: false
+
+jobs:
+  observe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Resolve successor PR
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          record="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$TARGET_BRANCH" \
+            --state all \
+            --json number,state,mergedAt,mergeCommit,headRefOid,url \
+            --jq '.[0] // empty')"
+          test -n "$record"
+          echo "number=$(jq -r '.number' <<<"$record")" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r '.url' <<<"$record")" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for protected merge
+        id: merge
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 300); do
+            record="$(gh pr view "$PR" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json state,mergedAt,mergeCommit,headRefOid,url)"
+            merged="$(jq -r '.mergedAt // empty' <<<"$record")"
+            state="$(jq -r '.state' <<<"$record")"
+            if [ -n "$merged" ]; then
+              merge_sha="$(jq -r '.mergeCommit.oid' <<<"$record")"
+              test -n "$merge_sha" && test "$merge_sha" != "null"
+              echo "result=MERGED" >> "$GITHUB_OUTPUT"
+              echo "sha=$merge_sha" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [ "$state" = "CLOSED" ]; then
+              echo "result=CLOSED_UNMERGED" >> "$GITHUB_OUTPUT"
+              exit 4
+            fi
+            sleep 10
+          done
+          echo "result=MERGE_TIMEOUT" >> "$GITHUB_OUTPUT"
+          exit 5
+
+      - name: Checkout exact protected merge
+        if: success()
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.merge.outputs.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify expected source reached protected main
+        if: success()
+        shell: bash
+        env:
+          MERGE_SHA: ${{ steps.merge.outputs.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$MERGE_SHA"
+          test -f routers/memory_covenant.py
+          test -f routers/memory_worker.py
+          test -f routers/token_ingress.py
+          test -f migrations/20260817_memory_covenant_relational_integrity.sql
+          test -f migrations/20260817_memory_covenant_worker_completion.sql
+          test -f migrations/20260817_memory_receipt_signing_integrity.sql
+          grep -q 'A11OY_MEMORY_API_HMAC_KEY' routers/memory_covenant.py
+          grep -q 'A11OY_MEMORY_WORKER_API_HMAC_KEY' routers/memory_worker.py
+          grep -q 'VERIFIED_BEFORE_COMMIT' routers/memory_covenant.py
+          git status --short --untracked-files=no | test "$(cat)" = ""
+
+      - name: Wait for canonical main workflows to settle
+        if: success()
+        id: workflows
+        shell: bash
+        env:
+          MERGE_SHA: ${{ steps.merge.outputs.sha }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          for attempt in $(seq 1 240); do
+            gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --commit "$MERGE_SHA" \
+              --limit 100 \
+              --json databaseId,name,status,conclusion,url,headSha,event \
+              > artifacts/main-runs.json
+            count="$(jq 'length' artifacts/main-runs.json)"
+            pending="$(jq '[.[] | select(.status != "completed")] | length' artifacts/main-runs.json)"
+            failed="$(jq '[.[] | select(.status == "completed" and (.conclusion != "success" and .conclusion != "neutral" and .conclusion != "skipped"))] | length' artifacts/main-runs.json)"
+            echo "attempt=$attempt runs=$count pending=$pending failed=$failed"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              echo "count=$count" >> "$GITHUB_OUTPUT"
+              echo "failed=$failed" >> "$GITHUB_OUTPUT"
+              if [ "$failed" -gt 0 ]; then exit 6; fi
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "failed=-1" >> "$GITHUB_OUTPUT"
+          exit 5
+
+      - name: Perform bounded public live readback
+        if: success()
+        id: readback
+        shell: bash
+        env:
+          MERGE_SHA: ${{ steps.merge.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from datetime import datetime, timezone
+          from pathlib import Path
+          import hashlib
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+
+          expected = os.environ["MERGE_SHA"].lower()
+          surfaces = [
+              "https://a-11-oy.com",
+              "https://a11oy.net",
+              "https://szlholdings-a11oy.hf.space",
+          ]
+          paths = [
+              "/api/build-info",
+              "/api/a11oy/build-info",
+              "/api/a11oy/healthz",
+              "/api/a11oy/readyz",
+          ]
+          observations = []
+
+          def find_sha(value):
+              if isinstance(value, str):
+                  candidate = value.strip().lower()
+                  if len(candidate) == 40 and all(ch in "0123456789abcdef" for ch in candidate):
+                      return candidate
+                  return None
+              if isinstance(value, dict):
+                  for key in ("revision", "git_sha", "gitSha", "sha", "source_sha", "sourceSha", "commit"):
+                      if key in value:
+                          found = find_sha(value[key])
+                          if found:
+                              return found
+                  for child in value.values():
+                      found = find_sha(child)
+                      if found:
+                          return found
+              if isinstance(value, list):
+                  for child in value:
+                      found = find_sha(child)
+                      if found:
+                          return found
+              return None
+
+          for base in surfaces:
+              for path in paths:
+                  url = base + path
+                  observed = {
+                      "url": url,
+                      "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                      "status": None,
+                      "content_type": None,
+                      "body_sha256": None,
+                      "source_sha": None,
+                      "matches_merge": False,
+                      "error": None,
+                  }
+                  try:
+                      request = urllib.request.Request(
+                          url,
+                          headers={"Accept": "application/json", "User-Agent": "a11oy-post-merge-controller"},
+                          method="GET",
+                      )
+                      with urllib.request.urlopen(request, timeout=15) as response:
+                          body = response.read(512 * 1024 + 1)
+                          if len(body) > 512 * 1024:
+                              raise ValueError("response exceeds 512 KiB")
+                          observed["status"] = response.status
+                          observed["content_type"] = response.headers.get("content-type")
+                          observed["body_sha256"] = hashlib.sha256(body).hexdigest()
+                          if "json" in (observed["content_type"] or "").lower():
+                              payload = json.loads(body)
+                              source_sha = find_sha(payload)
+                              observed["source_sha"] = source_sha
+                              observed["matches_merge"] = source_sha == expected
+                  except Exception as exc:
+                      observed["error"] = f"{type(exc).__name__}: {str(exc)[:180]}"
+                  observations.append(observed)
+
+          report = {
+              "schema": "szl.post-merge-public-readback/v1",
+              "expected_merge_sha": expected,
+              "observations": observations,
+              "exact_revision_matches": sum(1 for item in observations if item["matches_merge"]),
+              "healthy_json_responses": sum(
+                  1 for item in observations
+                  if item["status"] == 200 and "json" in (item["content_type"] or "").lower()
+              ),
+          }
+          Path("artifacts").mkdir(exist_ok=True)
+          Path("artifacts/post-merge-readback.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+          )
+          if report["exact_revision_matches"] < 1:
+              raise SystemExit("no public surface exposed the exact protected merge SHA")
+          PY
+          echo "result=EXACT_REVISION_OBSERVED" >> "$GITHUB_OUTPUT"
+
+      - name: Publish merged and read-back evidence to the PR
+        if: success()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          MERGE_SHA: ${{ steps.merge.outputs.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          matches="$(jq '.exact_revision_matches' artifacts/post-merge-readback.json)"
+          healthy="$(jq '.healthy_json_responses' artifacts/post-merge-readback.json)"
+          cat > /tmp/complete.md <<EOF
+          ## Protected merge and bounded public readback completed
+
+          - Protected merge commit: \`${MERGE_SHA}\`
+          - Main workflows observed: \`${{ steps.workflows.outputs.count }}\`, terminal with no failed result
+          - Healthy JSON observations: \`${healthy}\`
+          - Exact protected-revision observations: \`${matches}\`
+
+          The controller verified the expected source files at the protected merge commit and observed at least one public JSON surface reporting that exact revision. Production database/HMAC/signing credentials, embedding-provider execution, vector-index durability, Fireworks mutation, and GPU/model work are not inferred from this readback.
+          EOF
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/complete.md
+
+      - name: Publish unresolved post-merge boundary
+        if: failure()
+        env:
+          PR: ${{ steps.pr.outputs.number }}
+          MERGE_RESULT: ${{ steps.merge.outputs.result }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## Post-merge activation remains blocked'
+            echo
+            echo "- Merge observation: \`${MERGE_RESULT:-UNKNOWN}\`"
+            if [ -f artifacts/main-runs.json ]; then
+              echo
+              echo '| Workflow | Status | Conclusion |'
+              echo '|---|---|---|'
+              jq -r '.[] | "| [\(.name)](\(.url)) | \(.status) | \(.conclusion // "") |"' artifacts/main-runs.json
+            fi
+            if [ -f artifacts/post-merge-readback.json ]; then
+              echo
+              echo 'A public readback report was generated, but exact protected revision parity was not proven.'
+            fi
+            echo
+            echo 'No deployment bypass, provider mutation, or production-complete label was performed.'
+          } > /tmp/blocked.md
+          gh pr comment "$PR" --repo "$GITHUB_REPOSITORY" --body-file /tmp/blocked.md
