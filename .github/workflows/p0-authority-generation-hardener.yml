@@ -1,0 +1,345 @@
+name: P0 memory authority and generation hardener
+
+on:
+  push:
+    branches:
+      - codex/p0-a11oy-stage-20260811
+    paths:
+      - .github/workflows/p0-authority-generation-hardener.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: p0-memory-authority-generation-hardener
+  cancel-in-progress: false
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TARGET_BRANCH: codex/p0-a11oy-successor-20260817
+    steps:
+      - name: Checkout controller lineage
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Bind bearer authority to context and active generation
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "a11oy-work-agent[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --no-tags origin main "$TARGET_BRANCH"
+          git switch --force-create "$TARGET_BRANCH" "origin/$TARGET_BRANCH"
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          def read(path: str) -> str:
+              return Path(path).read_text(encoding="utf-8")
+
+          def write(path: str, text: str) -> None:
+              Path(path).write_text(text, encoding="utf-8")
+
+          def replace_once(text: str, old: str, new: str, label: str) -> str:
+              if old not in text:
+                  raise SystemExit(f"missing hardening anchor: {label}")
+              return text.replace(old, new, 1)
+
+          memory_path = "routers/memory_covenant.py"
+          memory = read(memory_path)
+          memory = memory.replace(
+              "* ``A11OY_MEMORY_API_TOKEN`` — an internal service bearer token.",
+              "* ``A11OY_MEMORY_API_HMAC_KEY`` — a managed root used to derive one bearer token per tenant and security domain.",
+          )
+
+          context_pattern = re.compile(
+              r"def _context\(request: Request\) -> tuple\[str, str\]:\n.*?    return tenant, domain\n",
+              re.DOTALL,
+          )
+          context_replacement = '''def _context_token(secret: str, tenant: str, domain: str) -> str:\n    message = tenant.encode("utf-8") + b"\\0" + domain.encode("utf-8")\n    digest = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()\n    return "v1." + digest\n\n\ndef _context(request: Request) -> tuple[str, str]:\n    tenant = request.headers.get("x-a11oy-tenant", "").strip()\n    domain = request.headers.get("x-a11oy-security-domain", "").strip()\n    if not CONTEXT_RE.fullmatch(tenant):\n        raise MemoryContractError("x-a11oy-tenant is required and must match the closed identifier contract")\n    if not CONTEXT_RE.fullmatch(domain):\n        raise MemoryContractError(\n            "x-a11oy-security-domain is required and must match the closed identifier contract"\n        )\n\n    secret = (os.environ.get("A11OY_MEMORY_API_HMAC_KEY") or "").strip()\n    if len(secret.encode("utf-8")) < 32:\n        raise MemoryUnavailable("memory API HMAC authority is not configured with at least 32 bytes")\n    authorization = request.headers.get("authorization", "")\n    if not authorization.startswith("Bearer "):\n        raise MemoryUnauthorized("bearer authorization is required")\n    expected = _context_token(secret, tenant, domain)\n    if not hmac.compare_digest(expected, authorization[7:]):\n        raise MemoryUnauthorized("bearer authorization is invalid for this tenant and security domain")\n    return tenant, domain\n'''
+          memory, count = context_pattern.subn(context_replacement, memory, count=1)
+          if count != 1:
+              raise SystemExit("failed to replace Memory Covenant context authority")
+
+          old_signature = "def _build_record(payload: dict[str, Any], tenant: str, domain: str) -> dict[str, Any]:\n"
+          new_signature = '''def _build_record(\n    payload: dict[str, Any],\n    tenant: str,\n    domain: str,\n    generation: dict[str, Any] | None = None,\n) -> dict[str, Any]:\n'''
+          if old_signature in memory:
+              memory = memory.replace(old_signature, new_signature, 1)
+          old_generation = '''    generation = payload.get("active_index_generation", "unassigned")\n    if not isinstance(generation, str) or not CONTEXT_RE.fullmatch(generation):\n        raise MemoryContractError("active_index_generation is outside the closed identifier contract")\n'''
+          new_generation = '''    generation_id = payload.get("active_index_generation")\n    if generation is not None:\n        generation_id = generation["generation_id"]\n    if not isinstance(generation_id, str) or not CONTEXT_RE.fullmatch(generation_id):\n        raise MemoryContractError("active_index_generation is required and outside the closed identifier contract")\n'''
+          if old_generation in memory:
+              memory = memory.replace(old_generation, new_generation, 1)
+          memory = memory.replace(
+              '        "active_index_generation": generation,\n',
+              '        "active_index_generation": generation_id,\n',
+              1,
+          )
+          record_digest_anchor = '''    record["content_sha256"] = _sha(content)\n    record["record_sha256"] = _sha(record)\n'''
+          record_digest_replacement = '''    record["content_sha256"] = _sha(content)\n    if generation is not None:\n        record["index_generation"] = {\n            "generation_id": generation["generation_id"],\n            "identity_digest": generation["identity_digest"],\n            "provider": generation["provider"],\n            "model": generation["model"],\n            "revision": generation["revision"],\n            "dimension": generation["dimension"],\n            "metric": generation["metric"],\n            "normalization": generation["normalization"],\n        }\n    record["record_sha256"] = _sha(record)\n'''
+          if record_digest_anchor in memory:
+              memory = memory.replace(record_digest_anchor, record_digest_replacement, 1)
+
+          resolver = '''\ndef _resolve_active_generation(\n    connection,\n    tenant: str,\n    domain: str,\n    requested_generation: str | None,\n) -> dict[str, Any]:\n    if requested_generation is not None and not CONTEXT_RE.fullmatch(requested_generation):\n        raise MemoryContractError("active_index_generation is outside the closed identifier contract")\n    row = connection.execute(\n        """\n        SELECT generation_id, identity_digest, provider, model, revision,\n               dimension, metric, normalization\n          FROM memory_index_generations\n         WHERE tenant_id=%s AND security_domain=%s AND status='ACTIVE'\n           AND (%s::text IS NULL OR generation_id=%s)\n         LIMIT 1\n        """,\n        (tenant, domain, requested_generation, requested_generation),\n    ).fetchone()\n    if not row:\n        raise MemoryUnavailable("an ACTIVE index generation is unavailable for this context")\n    return dict(row)\n\n'''
+          receipt_anchor = "\ndef _build_receipt(\n"
+          if "def _resolve_active_generation(" not in memory:
+              memory = replace_once(memory, receipt_anchor, resolver + receipt_anchor, "generation resolver")
+
+          initial = '''    request_digest = _sha(payload)\n    record = _build_record(payload, tenant, domain)\n    namespace = f"{tenant}:{domain}"\n\n    connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (namespace,))\n'''
+          initial_replacement = '''    request_digest = _sha(payload)\n    namespace = f"{tenant}:{domain}"\n\n    connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, 0))", (namespace,))\n'''
+          if initial in memory:
+              memory = memory.replace(initial, initial_replacement, 1)
+          prior_anchor = '''        result = dict(prior["response_json"])\n        result["idempotent_replay"] = True\n        return result\n\n    existing = connection.execute(\n'''
+          prior_replacement = '''        result = dict(prior["response_json"])\n        result["idempotent_replay"] = True\n        return result\n\n    requested_generation = payload.get("active_index_generation")\n    if requested_generation is not None and not isinstance(requested_generation, str):\n        raise MemoryContractError("active_index_generation must be a string when supplied")\n    generation = _resolve_active_generation(\n        connection, tenant, domain, requested_generation\n    )\n    resolved_payload = dict(payload)\n    resolved_payload["active_index_generation"] = generation["generation_id"]\n    record = _build_record(\n        resolved_payload, tenant, domain, generation=generation\n    )\n\n    existing = connection.execute(\n'''
+          if prior_anchor in memory:
+              memory = memory.replace(prior_anchor, prior_replacement, 1)
+
+          memory = memory.replace(
+              '        "active_index_generation": record["active_index_generation"],\n',
+              '        "active_index_generation": record["active_index_generation"],\n'
+              '        "index_generation_identity_digest": record["index_generation"]["identity_digest"],\n',
+              1,
+          )
+          outbox_anchor = '''                    "generation_id": record["active_index_generation"],\n'''
+          if '"generation_identity_digest": record["index_generation"]["identity_digest"]' not in memory:
+              memory = memory.replace(
+                  outbox_anchor,
+                  outbox_anchor
+                  + '                    "generation_identity_digest": record["index_generation"]["identity_digest"],\n',
+                  1,
+              )
+
+          table_query_anchor = '''                    row = connection.execute(\n                        """\n                        SELECT COUNT(*) FILTER (WHERE table_name LIKE 'memory_%') AS memory_tables,\n                               to_regclass('public.memory_records') IS NOT NULL AS records_ready,\n                               to_regclass('public.memory_receipts') IS NOT NULL AS receipts_ready,\n                               to_regclass('public.memory_outbox') IS NOT NULL AS outbox_ready\n                          FROM information_schema.tables\n                         WHERE table_schema='public'\n                        """\n                    ).fetchone()\n'''
+          if "generation = _resolve_active_generation(connection, tenant, domain, None)" not in memory:
+              memory = replace_once(
+                  memory,
+                  table_query_anchor,
+                  table_query_anchor
+                  + "                    generation = _resolve_active_generation(connection, tenant, domain, None)\n",
+                  "status active generation",
+              )
+          memory = memory.replace(
+              '                    "memory_tables": int(row["memory_tables"]) if row else 0,\n',
+              '                    "memory_tables": int(row["memory_tables"]) if row else 0,\n'
+              '                    "active_index_generation": generation,\n',
+              1,
+          )
+
+          create_route_anchor = '''    @app.post(f"{prefix}/records", include_in_schema=False)\n'''
+          generation_route = '''    @app.get(f"{prefix}/generations/active", include_in_schema=False)\n    async def active_generation(request: Request) -> JSONResponse:\n        try:\n            tenant, domain = _context(request)\n            with _open_connection() as connection:\n                with connection.transaction():\n                    _prepare_transaction(connection, tenant, domain)\n                    generation = _resolve_active_generation(connection, tenant, domain, None)\n            return JSONResponse(\n                {\n                    "ready": True,\n                    "accepted": True,\n                    "generation": generation,\n                    "receipt_side_effect": False,\n                    "provider_calls": 0,\n                }\n            )\n        except MemoryUnauthorized as exc:\n            return _error(401, "memory_unauthorized", str(exc))\n        except MemoryContractError as exc:\n            return _error(422, "invalid_memory_context", str(exc))\n        except MemoryUnavailable as exc:\n            return _error(503, "memory_unavailable", str(exc))\n        except Exception as exc:  # pragma: no cover - provider/runtime boundary\n            return _error(503, "generation_read_failed", type(exc).__name__)\n\n'''
+          if "generations/active" not in memory:
+              memory = replace_once(
+                  memory,
+                  create_route_anchor,
+                  generation_route + create_route_anchor,
+                  "active generation route",
+              )
+          memory = memory.replace(
+              '            f"{prefix}/records",\n',
+              '            f"{prefix}/generations/active",\n            f"{prefix}/records",\n',
+              1,
+          )
+          write(memory_path, memory)
+
+          worker_path = "routers/memory_worker.py"
+          worker = read(worker_path)
+          worker = worker.replace(
+              "* ``A11OY_MEMORY_WORKER_API_TOKEN`` — an internal bearer token.",
+              "* ``A11OY_MEMORY_WORKER_API_HMAC_KEY`` — a managed root used to derive one bearer token per worker identity.",
+          )
+          worker_pattern = re.compile(
+              r"def _worker_identity\(request: Request\) -> str:\n.*?    return worker_id\n",
+              re.DOTALL,
+          )
+          worker_replacement = '''def _worker_token(secret: str, worker_id: str) -> str:\n    digest = hmac.new(\n        secret.encode("utf-8"),\n        worker_id.encode("utf-8"),\n        "sha256",\n    ).hexdigest()\n    return "v1." + digest\n\n\ndef _worker_identity(request: Request) -> str:\n    worker_id = request.headers.get("x-a11oy-worker-id", "").strip()\n    if not WORKER_ID_RE.fullmatch(worker_id):\n        raise WorkerContractError("x-a11oy-worker-id is required and outside the closed identifier contract")\n    secret = (os.environ.get("A11OY_MEMORY_WORKER_API_HMAC_KEY") or "").strip()\n    if len(secret.encode("utf-8")) < 32:\n        raise WorkerUnavailable("memory worker API HMAC authority is not configured with at least 32 bytes")\n    authorization = request.headers.get("authorization", "")\n    if not authorization.startswith("Bearer "):\n        raise WorkerUnauthorized("bearer authorization is required")\n    expected = _worker_token(secret, worker_id)\n    if not hmac.compare_digest(expected, authorization[7:]):\n        raise WorkerUnauthorized("bearer authorization is invalid for this worker identity")\n    return worker_id\n'''
+          worker, count = worker_pattern.subn(worker_replacement, worker, count=1)
+          if count != 1:
+              raise SystemExit("failed to replace worker identity authority")
+          write(worker_path, worker)
+
+          memory_test_path = "tests/test_memory_covenant_runtime.py"
+          memory_test = read(memory_test_path)
+          if "AUTHORITY_KEY =" not in memory_test:
+              memory_test = replace_once(
+                  memory_test,
+                  "from routers import memory_covenant as memory\n\n",
+                  "from routers import memory_covenant as memory\n\n\nAUTHORITY_KEY = \"m\" * 32\n",
+                  "memory authority fixture",
+              )
+          headers_pattern = re.compile(
+              r"def _headers\(token=.*?\n    return \{.*?\n    \}\n",
+              re.DOTALL,
+          )
+          headers_replacement = '''def _headers(\n    key: str = AUTHORITY_KEY,\n    tenant: str = "tenant-a",\n    domain: str = "domain-a",\n) -> dict[str, str]:\n    return {\n        "authorization": f"Bearer {memory._context_token(key, tenant, domain)}",\n        "x-a11oy-tenant": tenant,\n        "x-a11oy-security-domain": domain,\n    }\n'''
+          memory_test, count = headers_pattern.subn(headers_replacement, memory_test, count=1)
+          if count != 1:
+              raise SystemExit("failed to update memory test headers")
+          memory_test = memory_test.replace("A11OY_MEMORY_API_TOKEN", "A11OY_MEMORY_API_HMAC_KEY")
+          memory_test = memory_test.replace('"internal-token"', "AUTHORITY_KEY")
+          memory_test = memory_test.replace('headers=_headers("wrong-token")', 'headers={**_headers(), "authorization": "Bearer wrong-token"}')
+          memory_test = memory_test.replace(
+              'headers={"authorization": "Bearer internal-token"}',
+              'headers={"authorization": f"Bearer {memory._context_token(AUTHORITY_KEY, \'tenant-a\', \'domain-a\')}"}',
+          )
+          generation_case = '''        if "FROM memory_index_generations" in normalized:\n            return _Result(\n                {\n                    "generation_id": "generation-001",\n                    "identity_digest": "e" * 64,\n                    "provider": "acceptance",\n                    "model": "deterministic-digest",\n                    "revision": "v1",\n                    "dimension": 1,\n                    "metric": "dot",\n                    "normalization": "none",\n                }\n            )\n'''
+          if generation_case not in memory_test:
+              anchor = '        if "FROM memory_idempotency" in normalized:\n'
+              memory_test = replace_once(
+                  memory_test,
+                  anchor,
+                  generation_case + anchor,
+                  "fake active generation",
+              )
+          if "test_context_token_is_bound_to_tenant_and_domain" not in memory_test:
+              test_anchor = "\ndef test_canonical_json_is_stable_and_rejects_nonfinite_values() -> None:\n"
+              test_block = '''\ndef test_context_token_is_bound_to_tenant_and_domain() -> None:\n    first = memory._context_token(AUTHORITY_KEY, "tenant-a", "domain-a")\n    assert first.startswith("v1.")\n    assert first != memory._context_token(AUTHORITY_KEY, "tenant-b", "domain-a")\n    assert first != memory._context_token(AUTHORITY_KEY, "tenant-a", "domain-b")\n\n\ndef test_active_generation_resolution_is_identity_bound() -> None:\n    connection = _CreateConnection()\n    generation = memory._resolve_active_generation(\n        connection, "tenant-a", "domain-a", "generation-001"\n    )\n    assert generation["generation_id"] == "generation-001"\n    assert generation["identity_digest"] == "e" * 64\n\n'''
+              memory_test = replace_once(
+                  memory_test,
+                  test_anchor,
+                  test_block + test_anchor,
+                  "memory authority tests",
+              )
+          write(memory_test_path, memory_test)
+
+          worker_test_path = "tests/test_memory_worker_runtime.py"
+          worker_test = read(worker_test_path)
+          if "WORKER_AUTHORITY_KEY =" not in worker_test:
+              worker_test = replace_once(
+                  worker_test,
+                  "from routers import memory_worker as worker\n\n",
+                  "from routers import memory_worker as worker\n\n\nWORKER_AUTHORITY_KEY = \"w\" * 32\n",
+                  "worker authority fixture",
+              )
+          worker_headers_pattern = re.compile(
+              r"def _headers\(token: str = .*?\n    return \{.*?\n    \}\n",
+              re.DOTALL,
+          )
+          worker_headers_replacement = '''def _headers(\n    key: str = WORKER_AUTHORITY_KEY,\n    worker_id: str = "worker-01",\n) -> dict[str, str]:\n    return {\n        "authorization": f"Bearer {worker._worker_token(key, worker_id)}",\n        "x-a11oy-worker-id": worker_id,\n    }\n'''
+          worker_test, count = worker_headers_pattern.subn(worker_headers_replacement, worker_test, count=1)
+          if count != 1:
+              raise SystemExit("failed to update worker test headers")
+          worker_test = worker_test.replace("A11OY_MEMORY_WORKER_API_TOKEN", "A11OY_MEMORY_WORKER_API_HMAC_KEY")
+          worker_test = worker_test.replace('"worker-token"', "WORKER_AUTHORITY_KEY")
+          worker_test = worker_test.replace('headers=_headers(token="wrong-token")', 'headers={**_headers(), "authorization": "Bearer wrong-token"}')
+          worker_test = worker_test.replace(
+              'headers={"authorization": "Bearer worker-token"}',
+              'headers={"authorization": f"Bearer {worker._worker_token(WORKER_AUTHORITY_KEY, \'worker-01\')}"}',
+          )
+          if "test_worker_token_is_identity_bound" not in worker_test:
+              anchor = "\ndef test_worker_principal_gate_rejects_superuser() -> None:\n"
+              block = '''\ndef test_worker_token_is_identity_bound() -> None:\n    first = worker._worker_token(WORKER_AUTHORITY_KEY, "worker-01")\n    assert first.startswith("v1.")\n    assert first != worker._worker_token(WORKER_AUTHORITY_KEY, "worker-02")\n\n'''
+              worker_test = replace_once(worker_test, anchor, block + anchor, "worker HMAC test")
+          write(worker_test_path, worker_test)
+
+          demo_path = "tests/test_demo_critical_routes.py"
+          demo = read(demo_path)
+          if "/api/a11oy/v1/memory-covenant/generations/active" not in demo:
+              anchor = '    "/api/a11oy/v1/memory-covenant/status",\n'
+              demo = replace_once(
+                  demo,
+                  anchor,
+                  anchor + '    "/api/a11oy/v1/memory-covenant/generations/active",\n',
+                  "active generation demo route",
+              )
+              write(demo_path, demo)
+
+          frontier_path = "routers/frontier_reads.py"
+          frontier = read(frontier_path)
+          if "/api/a11oy/v1/memory-covenant/generations/active" not in frontier:
+              anchor = '            "/api/a11oy/v1/memory-covenant/status",\n'
+              frontier = replace_once(
+                  frontier,
+                  anchor,
+                  anchor + '            "/api/a11oy/v1/memory-covenant/generations/active",\n',
+                  "active generation frontier route",
+              )
+              write(frontier_path, frontier)
+
+          for proof_path in (
+              "artifacts/proof-packets/20260817-memory-covenant-runtime.md",
+              "artifacts/proof-packets/20260817-memory-worker-runtime.md",
+          ):
+              proof = read(proof_path)
+              proof = proof.replace("A11OY_MEMORY_API_TOKEN", "A11OY_MEMORY_API_HMAC_KEY")
+              proof = proof.replace("A11OY_MEMORY_WORKER_API_TOKEN", "A11OY_MEMORY_WORKER_API_HMAC_KEY")
+              write(proof_path, proof)
+
+          for workflow_path in (
+              ".github/workflows/memory-covenant-runtime.yml",
+              ".github/workflows/memory-worker-runtime.yml",
+          ):
+              workflow = read(workflow_path)
+              if "HMAC_KEY" not in workflow:
+                  marker = "          assert \"NOT_EXECUTED_BY_CONTROL_API\" in runtime\n"
+                  if marker in workflow:
+                      workflow = workflow.replace(
+                          marker,
+                          marker + '          assert "A11OY_MEMORY_WORKER_API_HMAC_KEY" in runtime\n',
+                          1,
+                      )
+                  marker = '          assert "/api/a11oy/v1/memory-covenant/records" in routes\n'
+                  if marker in workflow:
+                      workflow = workflow.replace(
+                          marker,
+                          marker + '          assert "A11OY_MEMORY_API_HMAC_KEY" in Path("routers/memory_covenant.py").read_text(encoding="utf-8")\n',
+                          1,
+                      )
+                  write(workflow_path, workflow)
+          PY
+
+          git add \
+            routers/memory_covenant.py \
+            routers/memory_worker.py \
+            routers/frontier_reads.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_demo_critical_routes.py \
+            .github/workflows/memory-covenant-runtime.yml \
+            .github/workflows/memory-worker-runtime.yml \
+            artifacts/proof-packets/20260817-memory-covenant-runtime.md \
+            artifacts/proof-packets/20260817-memory-worker-runtime.md
+          git diff --cached --check
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact repository test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Qualify authority and generation hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            routers/memory_covenant.py \
+            routers/memory_worker.py \
+            routers/token_ingress_core.py \
+            routers/token_ingress.py \
+            routers/frontier_reads.py \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          pytest -q \
+            tests/test_memory_covenant_runtime.py \
+            tests/test_memory_worker_runtime.py \
+            tests/test_token_ingress.py \
+            tests/test_demo_critical_routes.py
+          git diff --cached --check
+
+      - name: Commit and push hardened authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          git commit \
+            -m "feat(memory): bind context authority and active generation" \
+            -m "Derives per-context and per-worker bearer tokens from managed HMAC roots, requires a verified active index generation before memory admission, and exposes an honest read-only generation status route." \
+            -m "Signed-off-by: a11oy-work-agent[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+          git push origin "$TARGET_BRANCH"
