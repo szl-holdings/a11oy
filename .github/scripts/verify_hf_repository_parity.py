@@ -37,6 +37,7 @@ EXPECTED_COMPATIBILITY_WARNING = {
 }
 PROTECTED_CANDIDATE_INPUTS = (
     "Dockerfile",
+    ".dockerignore",
     ".well-known/security.txt",
     ".github/scripts/verify_hf_repository_parity.py",
 )
