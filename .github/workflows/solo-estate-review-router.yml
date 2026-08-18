@@ -1,0 +1,67 @@
+name: Solo Estate Exact-Head Review Router
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/solo-estate-policy.json'
+      - '.github/scripts/solo_estate_control_plane.py'
+      - '.github/workflows/solo-estate-control-plane.yml'
+      - '.github/workflows/solo-estate-review-router.yml'
+      - 'docs/operations/SOLO_ESTATE_CONTROL_PLANE.md'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
+concurrency:
+  group: solo-estate-review-router-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: true
+
+jobs:
+  route-review:
+    name: Request independent Codex review of the exact head
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Request one exact-head Codex review
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        with:
+          script: |
+            const marker = `<!-- solo-estate-codex-review:${process.env.HEAD_SHA} -->`;
+            const comments = await github.paginate(
+              github.rest.issues.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                per_page: 100,
+              },
+            );
+            if (comments.some(comment => String(comment.body || '').includes(marker))) {
+              core.info('Exact-head Codex review was already requested.');
+              return;
+            }
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: [
+                marker,
+                '@codex review',
+                '',
+                `Review exact head \`${process.env.HEAD_SHA}\` for security, solo-operator continuity, fail-closed provider handling, credential redaction, issue-mutation safety, Hugging Face card/runtime correctness, mobile-card polish, and workflow privilege minimization.`,
+                '',
+                'Do not approve or merge. Report actionable defects against this exact head.',
+              ].join('\n'),
+            });
