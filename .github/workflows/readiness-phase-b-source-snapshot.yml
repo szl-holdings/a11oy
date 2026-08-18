@@ -42,10 +42,10 @@ jobs:
             tools/readiness-harness/gen_tabs_matrix.py \
             tools/readiness-harness/tabs.json \
             /tmp/phase-b-source/
-          rg -n -C 12 'kevgate|live KEV IDs/dates/vendors|data_kind.*EPSS' . \
+          rg -ni -C 12 'kevgate|live KEV IDs/dates/vendors|data_kind.*EPSS|sec/.{0,24}kev' . \
             --glob '!tools/readiness-harness/readiness-verdict.json' \
             > /tmp/phase-b-source/kevgate-search.txt || true
-          mapfile -t owners < <(rg -l 'kevgate|live KEV IDs/dates/vendors|data_kind.*EPSS' . \
+          mapfile -t owners < <(rg -li 'kevgate|live KEV IDs/dates/vendors|data_kind.*EPSS|sec/.{0,24}kev' . \
             --glob '!tools/readiness-harness/readiness-verdict.json' | sort -u)
           for file in "${owners[@]}"; do
             test -f "$file" && cp --parents "$file" /tmp/phase-b-source/
