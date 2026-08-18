@@ -811,6 +811,7 @@ class HfSyncWorkflowContractTests(unittest.TestCase):
             self.workflow,
         )
         self.assertIn("ref: ${{ github.sha }}", self.workflow)
+        self.assertIn("restart-space: true", self.workflow)
         self.assertIn("source-revision-variable: SZL_GIT_SHA", self.workflow)
         self.assertIn("source-revision-probe-path: /api/build-info", self.workflow)
         self.assertIn("HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}", self.workflow)
