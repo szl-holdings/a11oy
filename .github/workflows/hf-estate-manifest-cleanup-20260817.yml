@@ -1,0 +1,65 @@
+name: HF estate manifest refresh cleanup 2026-08-17
+
+on:
+  push:
+    branches:
+      - ops/hf-estate-manifest-refresh-20260817
+    paths:
+      - .github/workflows/hf-estate-manifest-cleanup-20260817.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hf-estate-manifest-cleanup-20260817
+  cancel-in-progress: false
+
+jobs:
+  cleanup:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/ops/hf-estate-manifest-refresh-20260817'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Prove refreshed manifest is current
+        run: |
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+
+      - name: Remove one-shot mutation machinery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm \
+            .github/workflows/hf-estate-manifest-refresh-20260817.yml \
+            .github/workflows/hf-estate-manifest-cleanup-20260817.yml
+          unexpected=$(git diff --cached --name-only | grep -Ev '^\.github/workflows/hf-estate-manifest-(refresh|cleanup)-20260817\.yml$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "::error::Unexpected staged paths:"
+            printf '%s\n' "$unexpected"
+            exit 1
+          fi
+
+      - name: Commit branch cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Stephen P. Lutar Jr.'
+          git config user.email 'stephen@szlholdings.com'
+          git commit \
+            -m 'chore(hf): retire one-shot manifest refresh workflows' \
+            -m 'Signed-off-by: Stephen P. Lutar Jr. <stephen@szlholdings.com>'
+          git push origin HEAD:ops/hf-estate-manifest-refresh-20260817
