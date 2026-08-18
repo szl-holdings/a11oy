@@ -1,0 +1,230 @@
+name: Solo Estate Security and Hugging Face Control Plane
+
+# This workflow is intentionally solo-operator safe. It uses current provider
+# readback, exact-source receipts, additive issue labels, and one control issue.
+# It never dismisses alerts, auto-closes issues, weakens protected-main policy,
+# reads secret values back, or changes Hugging Face visibility/hardware.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/solo-estate-policy.json'
+      - '.github/scripts/solo_estate_control_plane.py'
+      - '.github/workflows/solo-estate-control-plane.yml'
+      - 'docs/operations/SOLO_ESTATE_CONTROL_PLANE.md'
+  push:
+    branches: [main]
+    paths:
+      - '.github/solo-estate-policy.json'
+      - '.github/scripts/solo_estate_control_plane.py'
+      - '.github/workflows/solo-estate-control-plane.yml'
+      - 'docs/operations/SOLO_ESTATE_CONTROL_PLANE.md'
+  schedule:
+    - cron: '17 8 * * 1'
+  workflow_dispatch:
+    inputs:
+      apply_labels:
+        description: 'Apply additive solo-safe priority/domain labels to open issues.'
+        type: boolean
+        required: false
+        default: true
+      apply_safe_hf_cards:
+        description: 'Create README.md only where a HF card is entirely missing. Never overwrite or infer a license.'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  actions: read
+  contents: read
+  issues: write
+  pull-requests: read
+  security-events: read
+
+concurrency:
+  group: solo-estate-control-plane-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Prove solo-safe control-plane contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Validate policy JSON and Python syntax
+        run: |
+          set -euo pipefail
+          python -m json.tool .github/solo-estate-policy.json >/dev/null
+          python -m py_compile .github/scripts/solo_estate_control_plane.py
+
+      - name: Prove classification, card, redaction, and solo-authority invariants
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          import json
+          from pathlib import Path
+
+          path = Path('.github/scripts/solo_estate_control_plane.py')
+          spec = importlib.util.spec_from_file_location('solo_estate', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(module)
+          policy = json.loads(Path('.github/solo-estate-policy.json').read_text())
+
+          classified = module.classify_issue(
+              {
+                  'number': 1,
+                  'title': 'Critical Hugging Face production drift',
+                  'body': 'External blocker and breaking change',
+                  'html_url': 'https://example.invalid/1',
+                  'labels': [],
+              },
+              policy,
+          )
+          assert classified['priority'] == 'P0'
+          assert 'domain:huggingface' in classified['recommended_labels']
+          assert 'domain:deployment' in classified['recommended_labels']
+          assert 'blocked:external-authority' in classified['recommended_labels']
+          assert 'upgrade:major' in classified['recommended_labels']
+
+          card = module.audit_card(
+              text=(
+                  '---\ntags: [test]\n---\n# Demo\n## Overview\n' 
+                  '## Status\n## Usage\n## Limitations\n' + ('Measured evidence.\n' * 30)
+              ),
+              resource_type='model',
+              policy=policy,
+              is_kernel=False,
+          )
+          assert card['present'] is True
+          assert card['missing_sections'] == []
+          assert card['status'] == 'PASS'
+
+          redacted = module.safe_text(
+              'authorization: bearer abc '
+              'github_pat_abcdefghijklmnopqrstuv '
+              'hf_abcdefghijklmnopqrstuv'
+          )
+          assert 'abc' not in redacted
+          assert 'github_pat_' not in redacted
+          assert 'hf_' not in redacted
+
+          solo = policy['solo_operator_contract']
+          assert solo['mandatory_second_human_reviewer'] is False
+          assert solo['administrator_merge_bypass_allowed'] is False
+          assert solo['force_push_allowed'] is False
+          assert solo['issue_auto_close_allowed'] is False
+          assert solo['security_alert_auto_dismissal_allowed'] is False
+          print('SOLO ESTATE CONTRACT: PASS')
+          PY
+
+  audit:
+    name: Inventory, triage, and publish estate evidence
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ github.token }}
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      APPLY_LABELS: ${{ github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.apply_labels == true) }}
+      APPLY_SAFE_HF_CARDS: ${{ github.event_name == 'workflow_dispatch' && inputs.apply_safe_hf_cards == true }}
+      REPORT_DIR: reports/solo-estate
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install exact Hugging Face control client
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'huggingface_hub==1.23.0'
+
+      - name: Run current security, issue, and Hugging Face estate audit
+        id: estate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          args=(
+            --policy .github/solo-estate-policy.json
+            --repo "$GITHUB_REPOSITORY"
+            --hf-org SZLHOLDINGS
+            --output-dir "$REPORT_DIR"
+            --update-control-issue
+          )
+          if [ "${APPLY_LABELS}" = 'true' ]; then
+            args+=(--apply-labels)
+          fi
+          if [ "${APPLY_SAFE_HF_CARDS}" = 'true' ]; then
+            args+=(--apply-safe-hf-cards)
+          fi
+          python .github/scripts/solo_estate_control_plane.py "${args[@]}"
+          code=$?
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable estate evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: solo-estate-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish terminal summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f "$REPORT_DIR/estate-summary.md" ]; then
+            cat "$REPORT_DIR/estate-summary.md" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '::error::Estate summary was not produced.'
+            exit 1
+          fi
+
+      - name: Enforce fail-closed security and estate state
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.estate.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          code="${EXIT_CODE:-2}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Solo estate audit remains blocked; inspect the control issue and immutable artifact."
+            exit "$code"
+          fi
+          echo 'Solo estate security and Hugging Face control plane passed.'
