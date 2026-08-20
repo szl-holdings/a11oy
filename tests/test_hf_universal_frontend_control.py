@@ -273,6 +273,23 @@ def test_gradio_adapter_adds_local_css_contract(monkeypatch: pytest.MonkeyPatch)
     assert dict(ops2)["app.py"] == rendered["app.py"]
 
 
+def test_gradio_nested_entry_places_stylesheet_beside_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("src/app.py",))
+    contents = {
+        "src/app.py": "import gradio as gr\nwith gr.Blocks() as demo:\n    gr.Markdown('ok')\n"
+    }
+    monkeypatch.setattr(control, "_read_text", lambda api, a, path, token: contents.get(path))
+
+    ops, blockers = control._gradio_ops(object(), item, None)
+
+    assert not blockers
+    rendered = dict(ops)
+    assert set(rendered) == {"src/app.py", "src/szl_universal.css"}
+    assert control.STYLE_START in rendered["src/szl_universal.css"].decode()
+
+
 def test_gradio_existing_css_requires_source_native_review(monkeypatch: pytest.MonkeyPatch) -> None:
     item = asset(("app.py",))
     contents = {"app.py": "import gradio as gr\nwith gr.Blocks(css='body{}') as demo:\n    pass\n"}
@@ -360,6 +377,27 @@ def test_streamlit_adapter_injects_after_single_line_page_config(monkeypatch: py
     ops2, blockers2 = control._streamlit_ops(object(), item, None)
     assert not blockers2
     assert dict(ops2)["app.py"] == rendered["app.py"]
+
+
+def test_streamlit_nested_entry_places_stylesheet_beside_entry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("src/app.py",))
+    contents = {
+        "src/app.py": (
+            "import streamlit as st\n"
+            "st.set_page_config(page_title='x')\n"
+            "st.title('x')\n"
+        )
+    }
+    monkeypatch.setattr(control, "_read_text", lambda api, a, path, token: contents.get(path))
+
+    ops, blockers = control._streamlit_ops(object(), item, None)
+
+    assert not blockers
+    rendered = dict(ops)
+    assert set(rendered) == {"src/app.py", "src/szl_universal.css"}
+    assert control.STYLE_START in rendered["src/szl_universal.css"].decode()
 
 
 def test_streamlit_multiline_page_config_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -537,6 +575,66 @@ def test_exact_source_bound_space_can_reach_terminal_verified_state(
     assert control._decision_is_terminal_verified(decision) is True
     decision.readback_sha256.pop("index.html")
     assert control._decision_is_terminal_verified(decision) is False
+
+
+def test_exact_nested_python_space_rejects_root_only_stylesheet_readback(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "src/app.py", "szl_universal.css"))
+    contents: dict[str, bytes] = {
+        "src/app.py": (
+            b"import gradio as gr\n"
+            b"with gr.Blocks() as demo:\n"
+            b"    gr.Markdown('ok')\n"
+        )
+    }
+    monkeypatch.setattr(
+        control,
+        "_read_text",
+        lambda api, observed, path, token: (
+            contents[path].decode("utf-8") if path in contents else None
+        ),
+    )
+    ops, blockers = control._gradio_ops(object(), item, None)
+    assert not blockers
+    generated = dict(ops)
+    contents["src/app.py"] = generated["src/app.py"]
+    contents["szl_universal.css"] = generated["src/szl_universal.css"]
+    readme = control.normalize_readme(item, "# Existing\n", True, "GRADIO")
+    contents["README.md"] = readme
+
+    entry = source_map_entry("EXACT", hf_repository_sha=item.sha)
+    entry["readme"]["sha256"] = control._sha256(readme)
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [entry]), "SZLHOLDINGS"
+    )
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "backups",
+        space_authorities=authorities,
+    )
+
+    assert decision.state == "SOURCE_BOUND_REPAIR_REQUIRED"
+    assert decision.required_readback_paths == [
+        "README.md",
+        "src/app.py",
+        "src/szl_universal.css",
+    ]
+    assert decision.changes == [
+        f"src/szl_universal.css:{control._sha256(generated['src/szl_universal.css'])}"
+    ]
+    assert "szl_universal.css" not in decision.required_readback_paths
 
 
 def test_merged_card_remains_current_after_repository_revision_advances(
