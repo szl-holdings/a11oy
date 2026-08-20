@@ -93,9 +93,15 @@ maintained Vite + esbuild via the `overrides` block in `package.json`:
 ```jsonc
 "overrides": {
   "vite": "^6.4.2",     // VitePress 1.x ships Vite 5; force a maintained line
-  "esbuild": "^0.25.0"  // patches GHSA-67mh-4wv8-2f99
+  "esbuild": "^0.25.0", // patches GHSA-67mh-4wv8-2f99
+  "nanoid": "3.3.18"    // patches GHSA-2v37-7h3g-55p8 via postcss
 }
 ```
+
+The exact `nanoid` override is a temporary transitive security pin for
+`vitepress -> postcss -> nanoid`. Remove it only after the unoverridden resolved tree
+selects `nanoid >= 3.3.18` and both `npm ci` and `npm audit` remain clean. The
+VitePress 2.x exit criteria below remain unchanged.
 
 **Decision: keep the override (do not "upgrade off it") for now.** The audit evidence:
 
