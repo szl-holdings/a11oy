@@ -257,8 +257,8 @@ jobs:
           export ORO_CHECKOUT_TREE="$(git rev-parse HEAD^{tree})"
           export ORO_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$ORO_IMAGE_TAG")"
           export ORO_CONTAINER_IMAGE_ID="$(docker inspect --format '{{.Image}}' "$CID")"
-          export ORO_IMAGE_REVISION="$(docker image inspect --format '{{ index .Config.Labels \"org.opencontainers.image.revision\" }}' "$ORO_IMAGE_TAG")"
-          export ORO_IMAGE_VERSION="$(docker image inspect --format '{{ index .Config.Labels \"org.opencontainers.image.version\" }}' "$ORO_IMAGE_TAG")"
+          export ORO_IMAGE_REVISION="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$ORO_IMAGE_TAG")"
+          export ORO_IMAGE_VERSION="$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.version" }}' "$ORO_IMAGE_TAG")"
           python3 - <<'PY'
           import json
           import os

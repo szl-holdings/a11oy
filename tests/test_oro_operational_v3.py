@@ -738,6 +738,24 @@ def test_standalone_runtime_delivery_does_not_change_protected_hf_inputs() -> No
     assert "COPY --chown=10001:10001 schemas/oro/ ./schemas/oro/" in standalone_dockerfile
 
 
+def test_standalone_image_identity_templates_are_shell_literal() -> None:
+    root = Path(__file__).resolve().parents[1]
+    workflow = (root / ".github/workflows/oro-control-plane.yml").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "docker image inspect --format "
+        "'{{ index .Config.Labels \"org.opencontainers.image.revision\" }}'"
+    ) in workflow
+    assert (
+        "docker image inspect --format "
+        "'{{ index .Config.Labels \"org.opencontainers.image.version\" }}'"
+    ) in workflow
+    assert r'\"org.opencontainers.image.revision\"' not in workflow
+    assert r'\"org.opencontainers.image.version\"' not in workflow
+
+
 def test_runtime_contract_is_not_promoted_without_live_readback(tmp_path: Path) -> None:
     service = service_for(tmp_path)
     assert service.contract()["runtime_enforced"] == "NOT_MEASURED"
