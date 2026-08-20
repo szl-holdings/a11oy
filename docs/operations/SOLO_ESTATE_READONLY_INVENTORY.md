@@ -57,9 +57,13 @@ plus repository security advisories. It also checks source presence for
 Dependabot, CodeQL, secret scanning, the security policy, and CODEOWNERS. It
 reads the Metadata-authorized effective rules for `main`, including rules
 inherited from organization rulesets, and requires at least one named status
-check plus at least one approving review. The effective-rules endpoint does not
-expose bypass actors, so bypass and administrator enforcement are recorded as
-`UNAVAILABLE` / `NOT_INFERRED` rather than guessed.
+check plus at least one approving review. It also requires the active
+`workflows` rule to name repository `1225834126` and
+`.github/workflows/action-contract-promotion-guard.yml`, with enforcement on
+branch creation retained. A same-named ordinary status check or a different
+workflow does not satisfy that control-plane identity. The effective-rules
+endpoint does not expose bypass actors, so bypass and administrator enforcement
+are recorded as `UNAVAILABLE` / `NOT_INFERRED` rather than guessed.
 
 The following are terminal:
 
@@ -97,11 +101,11 @@ For accessible models, datasets, Spaces, and collections it observes:
 
 - repository identifier, privacy flag, and immutable SHA;
 - README presence and exact-SHA readback;
-- card frontmatter, required sections, and narrow-screen risks;
+- card frontmatter, exact normalized section headings, and narrow-screen risks;
 - declared model or dataset license metadata without inferring a license;
 - model pipeline or task metadata;
 - Space SDK and current runtime stage;
-- collection title and membership;
+- collection identifier, title, and membership;
 - kernel classification from policy-bound identifiers and tags.
 
 An absent README is reported as `CARD_MISSING`. A failed README request is
