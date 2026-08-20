@@ -22,13 +22,8 @@ from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import urlparse
 
-from huggingface_hub import (
-    CommitOperationAdd,
-    EntryNotFoundError,
-    HfApi,
-    HfHubHTTPError,
-    hf_hub_download,
-)
+from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError
 
 START = "<!-- szl-universal-frontend:start -->"
 END = "<!-- szl-universal-frontend:end -->"
