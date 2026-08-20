@@ -18,7 +18,8 @@ CORRECTIVE_MIGRATION = Path(
 )
 MIGRATIONS = (BASE_MIGRATION, HARDENING_MIGRATION, CORRECTIVE_MIGRATION)
 WORKFLOW = Path(".github/workflows/memory-covenant-v2.yml")
-REQUIRED_FILES = MIGRATIONS + (WORKFLOW,)
+ACCEPTANCE = Path("tests/memory_covenant_acceptance.sql")
+REQUIRED_FILES = MIGRATIONS + (WORKFLOW, ACCEPTANCE)
 
 MEMORY_TABLES = (
     "memory_records",
@@ -237,14 +238,25 @@ def _validate_tables_and_rls(base: str, hardening: str, corrective: str, errors:
             if sql.count(f"'{table}'") < 1:
                 errors.append(f"{label} stale-policy sweep omits {table}")
 
+    for table in MEMORY_TABLES:
+        for label, sql in (("base", base_sql), ("corrective", corrective_sql)):
+            _require_count(
+                rf"\bALTER\s+TABLE\s+public\.{table}\s+ENABLE\s+ROW\s+LEVEL\s+SECURITY\b",
+                sql,
+                1,
+                f"{label} RLS enablement for {table}",
+                errors,
+            )
+
     for table in FORCE_RLS_TABLES:
-        _require_count(
-            rf"\bALTER\s+TABLE\s+public\.{table}\s+FORCE\s+ROW\s+LEVEL\s+SECURITY\b",
-            base_sql,
-            1,
-            f"FORCE RLS for {table}",
-            errors,
-        )
+        for label, sql in (("base", base_sql), ("corrective", corrective_sql)):
+            _require_count(
+                rf"\bALTER\s+TABLE\s+public\.{table}\s+FORCE\s+ROW\s+LEVEL\s+SECURITY\b",
+                sql,
+                1,
+                f"{label} FORCE RLS for {table}",
+                errors,
+            )
         if re.search(
             rf"\bALTER\s+TABLE\s+(?:public\.)?{table}\s+NO\s+FORCE\s+ROW\s+LEVEL\s+SECURITY\b",
             combined,
@@ -348,15 +360,31 @@ def _validate_context_binding(base: str, corrective: str, errors: list[str]) -> 
         sql = _normalize(source)
         for token, label in (
             (
-                "pg_catalog.pg_get_functiondef(procedure.oid)",
-                "historical context-helper provenance check",
+                "procedure.proowner = pg_catalog.to_regrole(current_user)",
+                "trusted context-helper owner authentication",
             ),
             (
-                "pg_catalog.to_regprocedure",
-                "missing-helper-safe provenance lookup",
+                "binding_table.relowner = pg_catalog.to_regrole(current_user)",
+                "trusted context-table owner authentication",
             ),
             (
-                "NOT COALESCE(helper_was_bound, false)",
+                "binding_acl.grantee <> binding_table.relowner",
+                "owner-only context-table ACL authentication",
+            ),
+            (
+                "binding_column_acl.grantee <> binding_table.relowner",
+                "owner-only context-column ACL authentication",
+            ),
+            (
+                "procedure.prosrc = $bound_helper$",
+                "complete context-helper source authentication",
+            ),
+            (
+                "procedure.proconfig = ARRAY['search_path=pg_catalog, pg_temp']::text[]",
+                "context-helper configuration authentication",
+            ),
+            (
+                "NOT COALESCE(helper_was_authenticated, false)",
                 "fail-closed missing-helper handling",
             ),
             (
@@ -406,40 +434,91 @@ def _validate_receipt_relationships(base: str, corrective: str, errors: list[str
     )
 
 
-def _validate_append_only(base: str, errors: list[str]) -> None:
-    sql = _normalize(base)
-    _require_count(
-        r"\bCREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.memory_reject_mutation\s*\(\s*\)",
-        sql,
-        1,
-        "append-only rejection function",
-        errors,
-    )
-    _require_token("ERRCODE='55000'", sql, "append-only SQLSTATE 55000", errors)
-    for function in ("memory_touch_updated_at", "memory_reject_mutation"):
+def _validate_append_only(base: str, corrective: str, errors: list[str]) -> None:
+    sources = (("base", _normalize(base)), ("corrective", _normalize(corrective)))
+    for label, sql in sources:
         _require_count(
-            rf"\bALTER\s+FUNCTION\s+public\.{function}\s*\(\s*\)\s+"
-            rf"OWNER\s+TO\s+CURRENT_USER\b",
+            r"\bCREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.memory_reject_mutation\s*\(\s*\)",
             sql,
             1,
-            f"trusted helper owner convergence for {function}",
+            f"{label} append-only rejection function",
             errors,
         )
+        _require_token(
+            "ERRCODE='55000'",
+            sql,
+            f"{label} append-only SQLSTATE 55000",
+            errors,
+        )
+        _require_count(
+            r"\bCREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.memory_touch_updated_at\s*\(\s*\)",
+            sql,
+            1,
+            f"{label} updated-at helper restoration",
+            errors,
+        )
+        for function in ("memory_touch_updated_at", "memory_reject_mutation"):
+            _require_count(
+                rf"\bALTER\s+FUNCTION\s+public\.{function}\s*\(\s*\)\s+"
+                rf"OWNER\s+TO\s+CURRENT_USER\b",
+                sql,
+                1,
+                f"{label} trusted helper owner convergence for {function}",
+                errors,
+            )
 
+        for table in APPEND_ONLY_TABLES:
+            trigger = f"{table}_append_only"
+            _require_count(
+                rf"\bCREATE\s+TRIGGER\s+{trigger}\s+BEFORE\s+UPDATE\s+OR\s+DELETE\s+ON\s+public\.{table}\b.*?EXECUTE\s+FUNCTION\s+public\.memory_reject_mutation\s*\(\s*\)",
+                sql,
+                1,
+                f"{label} append-only trigger for {table}",
+                errors,
+            )
+
+    base_sql = sources[0][1]
     for table in APPEND_ONLY_TABLES:
         trigger = f"{table}_append_only"
         _require_count(
             rf"\bDROP\s+TRIGGER\s+IF\s+EXISTS\s+{trigger}\s+ON\s+public\.{table}\b",
-            sql,
+            base_sql,
             1,
-            f"idempotent append-only trigger drop for {table}",
+            f"base idempotent append-only trigger drop for {table}",
             errors,
         )
+
+    corrective_sql = sources[1][1]
+    for token, label in (
+        ("FROM pg_catalog.pg_trigger AS trigger", "corrective all-trigger catalog sweep"),
+        ("AND NOT trigger.tgisinternal", "corrective internal-trigger preservation"),
+        ("DROP TRIGGER %I ON public.%I", "corrective stale-trigger removal"),
+    ):
+        _require_token(token, corrective_sql, label, errors)
+    trigger_sweep = re.search(
+        r"FROM\s+pg_catalog\.pg_trigger\s+AS\s+trigger\b.*?"
+        r"relation\.relname\s+IN\s*\((?P<tables>.*?)\)\s+"
+        r"AND\s+NOT\s+trigger\.tgisinternal",
+        corrective_sql,
+        re.IGNORECASE,
+    )
+    if trigger_sweep is None:
+        errors.append("cannot inspect corrective covenant-trigger sweep")
+    else:
+        observed_tables = frozenset(
+            re.findall(r"'([^']+)'", trigger_sweep.group("tables"))
+        )
+        if observed_tables != frozenset(ALL_COVENANT_TABLES):
+            errors.append(
+                "corrective trigger sweep table set differs from covenant tables"
+            )
+    for table in ("memory_records", "memory_outbox"):
+        trigger = f"{table}_touch_updated_at"
         _require_count(
-            rf"\bCREATE\s+TRIGGER\s+{trigger}\s+BEFORE\s+UPDATE\s+OR\s+DELETE\s+ON\s+public\.{table}\b.*?EXECUTE\s+FUNCTION\s+public\.memory_reject_mutation\s*\(\s*\)",
-            sql,
+            rf"\bCREATE\s+TRIGGER\s+{trigger}\s+BEFORE\s+UPDATE\s+ON\s+public\.{table}\b.*?EXECUTE\s+FUNCTION\s+public\.memory_touch_updated_at\s*\(\s*\)",
+            corrective_sql,
             1,
-            f"append-only trigger for {table}",
+            f"corrective updated-at trigger for {table}",
             errors,
         )
 
@@ -719,6 +798,12 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "historical unbound helper seed": (
             "RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER"
         ),
+        "substring-spoofed historical helper seed": (
+            "-- public.memory_context_bindings"
+        ),
+        "substring-spoof reproduction": (
+            "spoofed_binding_marker"
+        ),
         "untrusted binding-row seed": (
             "'untrusted-domain'"
         ),
@@ -737,6 +822,36 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "PUBLIC helper ACL seed": (
             "public.a11oy_memory_context_matches(text, text)\n            TO PUBLIC"
         ),
+        "stale append-only helper owner seed": (
+            "ALTER FUNCTION public.memory_reject_mutation()"
+        ),
+        "stale append-only helper body seed": (
+            "IF TG_OP = 'DELETE' THEN"
+        ),
+        "missing append-only trigger seed": (
+            "DROP TRIGGER memory_receipts_append_only"
+        ),
+        "arbitrary user trigger seed": (
+            "CREATE TRIGGER memory_records_stale_trigger"
+        ),
+        "disabled RLS seed": (
+            "ALTER TABLE public.memory_records DISABLE ROW LEVEL SECURITY"
+        ),
+        "corrective-only acceptance evidence": (
+            "evidence/memory-covenant-v2/corrective-only-acceptance.log"
+        ),
+        "authenticated binding reapplication": (
+            "=== authenticated binding reapplication ==="
+        ),
+        "untrusted binding ACL rejection": (
+            "untrusted-binding-acl-preflight.log"
+        ),
+        "untrusted binding column ACL seed": (
+            "GRANT INSERT (principal_oid, tenant_id, security_domain)"
+        ),
+        "authenticated binding preservation assertion": (
+            "test \"$retained_binding_count\" = \"1\""
+        ),
         "outbound membership evidence": (
             "'outbound_memberships'"
         ),
@@ -752,8 +867,78 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
     }
     for label, token in required.items():
         _require_token(token, text, f"workflow {label}", errors)
+    ordered_markers = (
+        "=== forward corrective migration ===",
+        "=== corrective-only acceptance ===",
+        "=== prove binding ACL provenance fails closed ===",
+        "=== authenticated binding reapplication ===",
+        "=== full second pass ===",
+    )
+    marker_positions = tuple(text.find(marker) for marker in ordered_markers)
+    if any(position < 0 for position in marker_positions) or marker_positions != tuple(
+        sorted(marker_positions)
+    ):
+        errors.append(
+            "workflow must run corrective-only acceptance before historical migration reapplication"
+        )
     if re.search(r"\bcontinue-on-error\s*:\s*true\b", text, re.IGNORECASE):
         errors.append("Memory Covenant workflow must not continue on error")
+
+
+def _validate_acceptance(text: str, errors: list[str]) -> None:
+    sql = _normalize(text)
+    expected_triggers = {
+        "memory_idempotency.memory_idempotency_append_only",
+        "memory_outbox.memory_outbox_touch_updated_at",
+        "memory_query_audit.memory_query_audit_append_only",
+        "memory_receipts.memory_receipts_append_only",
+        "memory_records.memory_records_touch_updated_at",
+    }
+    for trigger in expected_triggers:
+        _require_token(
+            f"'{trigger}'",
+            sql,
+            f"acceptance exact trigger identity {trigger}",
+            errors,
+        )
+    for token, label in (
+        (
+            "FROM pg_catalog.pg_trigger AS trigger",
+            "acceptance trigger catalog inspection",
+        ),
+        (
+            "AND NOT trigger.tgisinternal",
+            "acceptance internal-trigger exclusion",
+        ),
+        (
+            "observed_triggers IS DISTINCT FROM expected_triggers",
+            "acceptance exact trigger-set comparison",
+        ),
+        (
+            "UPDATE memory_query_audit",
+            "acceptance append-only audit update probe",
+        ),
+        (
+            "DELETE FROM memory_query_audit",
+            "acceptance append-only audit delete probe",
+        ),
+        (
+            "UPDATE memory_idempotency",
+            "acceptance append-only idempotency update probe",
+        ),
+        (
+            "DELETE FROM memory_idempotency",
+            "acceptance append-only idempotency delete probe",
+        ),
+    ):
+        _require_token(token, sql, label, errors)
+    _require_count(
+        r"WHEN\s+SQLSTATE\s+'55000'",
+        sql,
+        6,
+        "acceptance append-only SQLSTATE probes",
+        errors,
+    )
 
 
 def validate(root: Path | str = Path(".")) -> list[str]:
@@ -763,7 +948,8 @@ def validate(root: Path | str = Path(".")) -> list[str]:
         relative: _read_utf8_file(root, relative, errors) for relative in MIGRATIONS
     }
     workflow = _read_utf8_file(root, WORKFLOW, errors)
-    if any(not text for text in migrations.values()) or not workflow:
+    acceptance = _read_utf8_file(root, ACCEPTANCE, errors)
+    if any(not text for text in migrations.values()) or not workflow or not acceptance:
         return errors
 
     base = migrations[BASE_MIGRATION]
@@ -773,13 +959,14 @@ def validate(root: Path | str = Path(".")) -> list[str]:
     _validate_tables_and_rls(base, hardening, corrective, errors)
     _validate_context_binding(base, corrective, errors)
     _validate_receipt_relationships(base, corrective, errors)
-    _validate_append_only(base, errors)
+    _validate_append_only(base, corrective, errors)
     for label, text in (("hardening", hardening), ("corrective", corrective)):
         _validate_roles_and_grants(text, label, errors)
         _validate_worker_function(text, label, errors)
     _validate_schema_binding(migrations, errors)
     _validate_forbidden_sql(migrations, errors)
     _validate_workflow(workflow, errors)
+    _validate_acceptance(acceptance, errors)
     return errors
 
 

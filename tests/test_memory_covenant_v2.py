@@ -119,6 +119,83 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(path, "ERRCODE='55000'", "ERRCODE='P0001'")
             self.assert_contract_error(root, "append-only SQLSTATE 55000")
 
+    def test_corrective_append_only_helper_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "CREATE OR REPLACE FUNCTION public.memory_reject_mutation()",
+                "CREATE OR REPLACE FUNCTION public.memory_accept_mutation()",
+            )
+            self.assert_contract_error(root, "corrective append-only rejection function")
+
+    def test_corrective_all_trigger_sweep_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "FROM pg_catalog.pg_trigger AS trigger",
+                "FROM pg_catalog.unchecked_trigger AS trigger",
+            )
+            self.assert_contract_error(root, "corrective all-trigger catalog sweep")
+
+    def test_corrective_trigger_sweep_table_omission_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "               'memory_idempotency',\n"
+                "               'memory_context_bindings'\n"
+                "           )\n"
+                "           AND NOT trigger.tgisinternal",
+                "               'memory_idempotency'\n"
+                "           )\n"
+                "           AND NOT trigger.tgisinternal",
+            )
+            self.assert_contract_error(
+                root,
+                "corrective trigger sweep table set differs",
+            )
+
+    def test_corrective_force_rls_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER TABLE public.memory_records FORCE ROW LEVEL SECURITY;\n",
+                "",
+            )
+            self.assert_contract_error(root, "corrective FORCE RLS for memory_records")
+
+    def test_acceptance_idempotency_append_only_probe_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "        DELETE FROM memory_idempotency\n",
+                "        SELECT * FROM memory_idempotency\n",
+            )
+            self.assert_contract_error(
+                root,
+                "acceptance append-only idempotency delete probe",
+            )
+
+    def test_acceptance_exact_trigger_set_comparison_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "observed_triggers IS DISTINCT FROM expected_triggers",
+                "observed_triggers IS NULL",
+            )
+            self.assert_contract_error(root, "acceptance exact trigger-set comparison")
+
     def test_bypass_rls_role_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
@@ -350,14 +427,69 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             )
             self.assert_contract_error(root, "untrusted pre-existing context-row rejection")
 
+    def test_context_helper_owner_authentication_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "procedure.proowner = pg_catalog.to_regrole(current_user)",
+                "procedure.proowner = procedure.proowner",
+            )
+            self.assert_contract_error(root, "trusted context-helper owner authentication")
+
+    def test_context_table_owner_authentication_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "binding_table.relowner = pg_catalog.to_regrole(current_user)",
+                "binding_table.relowner = binding_table.relowner",
+            )
+            self.assert_contract_error(root, "trusted context-table owner authentication")
+
+    def test_context_table_acl_authentication_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "binding_acl.grantee <> binding_table.relowner",
+                "binding_acl.grantee = binding_table.relowner",
+            )
+            self.assert_contract_error(root, "owner-only context-table ACL authentication")
+
+    def test_context_column_acl_authentication_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "binding_column_acl.grantee <> binding_table.relowner",
+                "binding_column_acl.grantee = binding_table.relowner",
+            )
+            self.assert_contract_error(root, "owner-only context-column ACL authentication")
+
+    def test_context_helper_exact_source_authentication_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "AND procedure.prosrc = $bound_helper$",
+                "AND procedure.prosrc LIKE $bound_helper$",
+            )
+            self.assert_contract_error(root, "complete context-helper source authentication")
+
     def test_missing_context_helper_must_fail_closed(self) -> None:
         temp, root = self.make_fixture()
         with temp:
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "AND NOT COALESCE(helper_was_bound, false) THEN",
-                "AND NOT helper_was_bound THEN",
+                "AND NOT COALESCE(helper_was_authenticated, false) THEN",
+                "AND NOT helper_was_authenticated THEN",
             )
             self.assert_contract_error(root, "fail-closed missing-helper handling")
 
@@ -378,8 +510,20 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "binding.principal_oid = pg_catalog.to_regrole(session_user)",
-                "binding.principal_oid = pg_catalog.to_regrole(current_user)",
+                "AS $$\n"
+                "  SELECT row_tenant = current_setting('a11oy.tenant_id', true)\n"
+                "     AND row_domain = current_setting('a11oy.security_domain', true)\n"
+                "     AND EXISTS (\n"
+                "         SELECT 1\n"
+                "           FROM public.memory_context_bindings AS binding\n"
+                "          WHERE binding.principal_oid = pg_catalog.to_regrole(session_user)",
+                "AS $$\n"
+                "  SELECT row_tenant = current_setting('a11oy.tenant_id', true)\n"
+                "     AND row_domain = current_setting('a11oy.security_domain', true)\n"
+                "     AND EXISTS (\n"
+                "         SELECT 1\n"
+                "           FROM public.memory_context_bindings AS binding\n"
+                "          WHERE binding.principal_oid = pg_catalog.to_regrole(current_user)",
             )
             self.assert_contract_error(root, "unforgeable session principal binding")
 
@@ -415,6 +559,29 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
                 "GRANT a11oy_memory_unchecked_parent\n",
             )
             self.assert_contract_error(root, "stale capability parent seed")
+
+    def test_workflow_without_substring_spoof_seed_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "            -- public.memory_context_bindings\n",
+                "",
+            )
+            self.assert_contract_error(root, "substring-spoofed historical helper seed")
+
+    def test_workflow_without_corrective_only_acceptance_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            text = path.read_text(encoding="utf-8")
+            start = text.index(
+                "          echo '=== corrective-only acceptance ==='"
+            )
+            end = text.index("          echo '=== full second pass ==='", start)
+            path.write_text(text[:start] + text[end:], encoding="utf-8")
+            self.assert_contract_error(root, "corrective-only acceptance")
 
     def test_stale_context_function_owner_convergence_removal_fails(self) -> None:
         temp, root = self.make_fixture()

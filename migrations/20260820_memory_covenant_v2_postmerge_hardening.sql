@@ -21,24 +21,79 @@ CREATE TABLE IF NOT EXISTS public.memory_context_bindings (
 
 -- A table with rows cannot be trusted when upgrading from the historical
 -- helper, because that release never consumed binding rows. Refuse to bless
--- pre-seeded authorization data. Reapplication preserves rows only after the
--- bound helper itself proves this migration previously completed.
+-- pre-seeded authorization data. Reapplication preserves rows only when
+-- trusted ownership and the complete helper catalog contract authenticate a
+-- prior application; a source-code substring is not migration provenance.
 DO $$
 DECLARE
-    helper_was_bound boolean := false;
+    helper_was_authenticated boolean := false;
 BEGIN
-    SELECT pg_catalog.strpos(
-               pg_catalog.pg_get_functiondef(procedure.oid),
-               'public.memory_context_bindings'
-           ) > 0
-      INTO helper_was_bound
+    SELECT procedure.proowner = pg_catalog.to_regrole(current_user)
+           AND binding_table.relowner = pg_catalog.to_regrole(current_user)
+           AND binding_table.relkind = 'r'
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_catalog.aclexplode(
+                          COALESCE(
+                              binding_table.relacl,
+                              pg_catalog.acldefault('r', binding_table.relowner)
+                          )
+                      ) AS binding_acl
+                WHERE binding_acl.grantee <> binding_table.relowner
+           )
+           AND NOT EXISTS (
+               SELECT 1
+                 FROM pg_catalog.pg_attribute AS binding_attribute
+                 CROSS JOIN LATERAL pg_catalog.aclexplode(
+                     binding_attribute.attacl
+                 ) AS binding_column_acl
+                WHERE binding_attribute.attrelid = binding_table.oid
+                  AND binding_attribute.attnum > 0
+                  AND NOT binding_attribute.attisdropped
+                  AND binding_attribute.attacl IS NOT NULL
+                  AND binding_column_acl.grantee <> binding_table.relowner
+           )
+           AND function_language.lanname = 'sql'
+           AND procedure.prokind = 'f'
+           AND procedure.prorettype = pg_catalog.to_regtype('pg_catalog.bool')
+           AND NOT procedure.proretset
+           AND procedure.pronargs = 2
+           AND procedure.pronargdefaults = 0
+           AND procedure.provariadic = 0
+           AND procedure.proallargtypes IS NULL
+           AND procedure.proargmodes IS NULL
+           AND procedure.proargnames = ARRAY['row_tenant', 'row_domain']::text[]
+           AND procedure.prosecdef
+           AND procedure.provolatile = 's'
+           AND procedure.proparallel = 'u'
+           AND NOT procedure.proleakproof
+           AND NOT procedure.proisstrict
+           AND procedure.proconfig = ARRAY['search_path=pg_catalog, pg_temp']::text[]
+           AND procedure.prosrc = $bound_helper$
+  SELECT row_tenant = current_setting('a11oy.tenant_id', true)
+     AND row_domain = current_setting('a11oy.security_domain', true)
+     AND EXISTS (
+         SELECT 1
+           FROM public.memory_context_bindings AS binding
+          WHERE binding.principal_oid = pg_catalog.to_regrole(session_user)
+            AND binding.tenant_id = row_tenant
+            AND binding.security_domain = row_domain
+     )
+$bound_helper$
+      INTO helper_was_authenticated
       FROM pg_catalog.pg_proc AS procedure
+      JOIN pg_catalog.pg_language AS function_language
+        ON function_language.oid = procedure.prolang
+      JOIN pg_catalog.pg_class AS binding_table
+        ON binding_table.oid = pg_catalog.to_regclass(
+               'public.memory_context_bindings'
+           )
      WHERE procedure.oid = pg_catalog.to_regprocedure(
                'public.a11oy_memory_context_matches(text,text)'
            );
 
     IF EXISTS (SELECT 1 FROM public.memory_context_bindings)
-       AND NOT COALESCE(helper_was_bound, false) THEN
+       AND NOT COALESCE(helper_was_authenticated, false) THEN
         RAISE EXCEPTION USING
           ERRCODE = '23514',
           MESSAGE = 'pre-existing memory_context_bindings rows are untrusted';
@@ -54,6 +109,28 @@ ALTER TABLE public.memory_query_audit OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_index_generations OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_idempotency OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;
+
+-- A stale function owner can replace either trigger helper while retaining the
+-- same function identity. Restore both bodies before transferring ownership,
+-- then rebuild every non-internal covenant trigger from a known-empty set.
+CREATE OR REPLACE FUNCTION public.memory_touch_updated_at()
+RETURNS trigger LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  NEW.updated_at := now();
+  RETURN NEW;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.memory_reject_mutation()
+RETURNS trigger LANGUAGE plpgsql
+SET search_path = pg_catalog, pg_temp
+AS $$
+BEGIN
+  RAISE EXCEPTION USING ERRCODE='55000', MESSAGE=format('%I is append-only', TG_TABLE_NAME);
+END;
+$$;
 
 CREATE OR REPLACE FUNCTION public.a11oy_memory_context_matches(row_tenant text, row_domain text)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
@@ -73,6 +150,70 @@ ALTER FUNCTION public.memory_touch_updated_at() OWNER TO CURRENT_USER;
 ALTER FUNCTION public.memory_reject_mutation() OWNER TO CURRENT_USER;
 ALTER FUNCTION public.a11oy_memory_context_matches(text, text)
   OWNER TO CURRENT_USER;
+
+DO $$
+DECLARE
+    trigger_row record;
+BEGIN
+    FOR trigger_row IN
+        SELECT relation.relname AS table_name, trigger.tgname AS trigger_name
+          FROM pg_catalog.pg_trigger AS trigger
+          JOIN pg_catalog.pg_class AS relation
+            ON relation.oid = trigger.tgrelid
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND NOT trigger.tgisinternal
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP TRIGGER %I ON public.%I',
+            trigger_row.trigger_name,
+            trigger_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+
+CREATE TRIGGER memory_records_touch_updated_at
+BEFORE UPDATE ON public.memory_records
+FOR EACH ROW EXECUTE FUNCTION public.memory_touch_updated_at();
+CREATE TRIGGER memory_outbox_touch_updated_at
+BEFORE UPDATE ON public.memory_outbox
+FOR EACH ROW EXECUTE FUNCTION public.memory_touch_updated_at();
+CREATE TRIGGER memory_receipts_append_only BEFORE UPDATE OR DELETE ON public.memory_receipts
+FOR EACH ROW EXECUTE FUNCTION public.memory_reject_mutation();
+CREATE TRIGGER memory_query_audit_append_only BEFORE UPDATE OR DELETE ON public.memory_query_audit
+FOR EACH ROW EXECUTE FUNCTION public.memory_reject_mutation();
+CREATE TRIGGER memory_idempotency_append_only BEFORE UPDATE OR DELETE ON public.memory_idempotency
+FOR EACH ROW EXECUTE FUNCTION public.memory_reject_mutation();
+
+-- Policy recreation is ineffective if a stale owner disabled RLS. Restore the
+-- exact enforcement state in this forward migration, without relying on the
+-- historical migrations to run again afterward.
+ALTER TABLE public.memory_records ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_records FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_evidence_refs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_evidence_refs FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_outbox ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_outbox NO FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_receipts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_receipts FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_query_audit ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_query_audit FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_index_generations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_index_generations FORCE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_idempotency ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_idempotency FORCE ROW LEVEL SECURITY;
 
 -- Historical schemas allowed audit/idempotency rows to reference a receipt by
 -- globally unique receipt_id alone. Refuse to mask any cross-domain data before
@@ -380,8 +521,6 @@ GRANT SELECT, INSERT ON TABLE public.memory_query_audit TO a11oy_memory_app;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.memory_index_generations TO a11oy_memory_app;
 GRANT SELECT, INSERT ON TABLE public.memory_idempotency TO a11oy_memory_app;
 GRANT SELECT, INSERT ON TABLE public.memory_outbox TO a11oy_memory_app;
-
-ALTER TABLE public.memory_outbox NO FORCE ROW LEVEL SECURITY;
 
 CREATE OR REPLACE FUNCTION public.memory_lease_outbox(
     p_worker_id text,
