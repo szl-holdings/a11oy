@@ -176,6 +176,19 @@ test("non-string data_kind-only evidence is fail-closed", () => {
   }
 });
 
+test("nested non-string explicit evidence is fail-closed", () => {
+  for (const evidence of [
+    { items: [{ data_kind: true }] },
+    { payload: { source_kind: ["live"] } },
+    { rows: [{ evidence_state: null }] },
+  ]) {
+    const verdict = evaluateEndpointLabels(200, kevLabelSpec, evidence);
+    assert.equal(verdict.ok, false, JSON.stringify(evidence));
+    assert.ok(verdict.pairConflict, JSON.stringify(evidence));
+    assert.match(verdict.pairConflict.reason, /must be a string/);
+  }
+});
+
 test("non-string mode/data_kind pairs cannot bypass the evidence contract", () => {
   const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
     mode: true,

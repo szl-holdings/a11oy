@@ -364,8 +364,44 @@ function findEvidenceLabels(obj, candidateLabels = []) {
   return found;
 }
 
+function findMalformedExplicitEvidence(obj) {
+  let malformed = null;
+
+  function walk(value, path = "", depth = 0) {
+    if (malformed || value === null || value === undefined || depth > 5) return;
+    if (Array.isArray(value)) {
+      value.slice(0, 30).forEach((item, index) => {
+        walk(item, `${path}[${index}]`, depth + 1);
+      });
+      return;
+    }
+    if (typeof value !== "object") return;
+
+    for (const [key, child] of Object.entries(value)) {
+      const childPath = path ? `${path}.${key}` : key;
+      if (EXPLICIT_EVIDENCE_KEY.test(key) && typeof child !== "string") {
+        malformed = { path: childPath, value: child };
+        return;
+      }
+      walk(child, childPath, depth + 1);
+      if (malformed) return;
+    }
+  }
+
+  walk(obj);
+  return malformed;
+}
+
 function findEvidencePairConflict(body, modeRequiresDataKind = false) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const malformedEvidence = findMalformedExplicitEvidence(body);
+  if (malformedEvidence) {
+    return {
+      mode: { path: "mode", value: undefined },
+      dataKind: malformedEvidence,
+      reason: "explicit evidence label must be a string",
+    };
+  }
   const modes = Object.entries(body).filter(([key]) => ROOT_MODE_KEY.test(key));
   const dataKinds = Object.entries(body).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
   if (!modes.length) {
