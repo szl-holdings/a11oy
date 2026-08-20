@@ -50,6 +50,9 @@ REQUIRED_SECURITY_CONTROLS = {
     "security_policy",
     "codeowners",
 }
+REQUIRED_WORKFLOW_IDENTITIES = {
+    (1225834126, ".github/workflows/action-contract-promotion-guard.yml"),
+}
 REQUIRED_ISSUE_CLASSIFIERS = {
     "security",
     "huggingface",
@@ -378,6 +381,7 @@ def audit_effective_branch_rules(
     repo: str,
     branch: str,
     token: str,
+    required_workflows: Iterable[Mapping[str, Any]],
 ) -> dict[str, Any]:
     rules = github_pages(
         (
@@ -388,6 +392,8 @@ def audit_effective_branch_rules(
     )
     status_check_contexts: set[str] = set()
     approving_review_count = 0
+    observed_workflows: set[tuple[int, str]] = set()
+    workflow_rules_enforce_on_create = True
     observed_rules: list[dict[str, Any]] = []
     for raw_rule in rules:
         rule = object_dict(raw_rule)
@@ -411,6 +417,38 @@ def audit_effective_branch_rules(
             candidate = parameters.get("required_approving_review_count")
             if isinstance(candidate, int) and not isinstance(candidate, bool):
                 approving_review_count = max(approving_review_count, candidate)
+        elif rule_type == "workflows":
+            workflows = parameters.get("workflows")
+            if not isinstance(workflows, list) or not workflows:
+                raise ApiFailure(
+                    "github", None, "effective workflow rule is malformed"
+                )
+            if parameters.get("do_not_enforce_on_create") is not False:
+                workflow_rules_enforce_on_create = False
+            for raw_workflow in workflows:
+                workflow = object_dict(raw_workflow)
+                repository_id = workflow.get("repository_id")
+                path = safe_text(workflow.get("path"), 500)
+                if (
+                    not isinstance(repository_id, int)
+                    or isinstance(repository_id, bool)
+                    or repository_id <= 0
+                    or not path
+                ):
+                    raise ApiFailure(
+                        "github", None, "effective required-workflow identity is malformed"
+                    )
+                observed_workflows.add((repository_id, path))
+
+    required_identities = {
+        (int(workflow["repository_id"]), str(workflow["path"]))
+        for workflow in required_workflows
+    }
+    required_workflows_present = (
+        bool(required_identities)
+        and required_identities.issubset(observed_workflows)
+        and workflow_rules_enforce_on_create
+    )
 
     return {
         "status": "OBSERVED",
@@ -419,6 +457,12 @@ def audit_effective_branch_rules(
         "required_status_check_contexts": sorted(status_check_contexts),
         "required_pull_request_reviews": approving_review_count >= 1,
         "required_approving_review_count": approving_review_count,
+        "required_workflows": required_workflows_present,
+        "required_workflow_identities": [
+            {"repository_id": repository_id, "path": path}
+            for repository_id, path in sorted(observed_workflows)
+        ],
+        "workflow_rules_enforce_on_create": workflow_rules_enforce_on_create,
         "bypass_visibility": "UNAVAILABLE",
         "administrator_enforcement": "NOT_INFERRED",
         "observed_rules": observed_rules,
@@ -523,11 +567,17 @@ def audit_security(
         controls["protected_branch"] = {"status": "BLOCKED_CREDENTIAL"}
     else:
         try:
-            effective_rules = audit_effective_branch_rules(repo, branch, token)
+            effective_rules = audit_effective_branch_rules(
+                repo,
+                branch,
+                token,
+                policy["security"]["required_workflows"],
+            )
             controls["protected_branch"] = effective_rules
             for control in (
                 "required_status_checks",
                 "required_pull_request_reviews",
+                "required_workflows",
             ):
                 if not effective_rules[control]:
                     terminal.append(
@@ -704,11 +754,11 @@ def audit_card(
             "status": "BLOCKED",
         }
     headings = card_headings(text)
-    normalized_headings = " | ".join(headings)
+    normalized_headings = {heading.casefold() for heading in headings}
     missing_sections = [
         section
         for section in requirements
-        if section.lower() not in normalized_headings
+        if section.casefold() not in normalized_headings
     ]
     risks: list[str] = []
     max_line = int(policy["huggingface"]["maximum_mobile_line_characters"])
@@ -1135,7 +1185,7 @@ def audit_huggingface(
         title = safe_text(getattr(collection, "title", None), 500) or None
         items = list(getattr(collection, "items", None) or [])
         row = {
-            "id": slug,
+            "id": slug or None,
             "title": title,
             "private": bool(getattr(collection, "private", False)),
             "last_modified": safe_text(getattr(collection, "lastModified", None), 80)
@@ -1146,6 +1196,16 @@ def audit_huggingface(
         resources["collections"].append(row)
         if row["kernel"]:
             resources["kernels"].append({**row, "type": "collection"})
+        if not slug:
+            findings.append(
+                Finding(
+                    "huggingface",
+                    "HIGH",
+                    "COLLECTION_ID_MISSING",
+                    "UNKNOWN",
+                    "Collection identifier is absent.",
+                )
+            )
         if not title:
             findings.append(
                 Finding(
@@ -1446,6 +1506,28 @@ def validate_policy(policy: Mapping[str, Any]) -> None:
         raise ValueError("Critical and high security findings must remain terminal")
     if security.get("secret_scanning_is_terminal") is not True:
         raise ValueError("Secret-scanning findings must remain terminal")
+    required_workflows = security.get("required_workflows")
+    if not isinstance(required_workflows, list) or not required_workflows:
+        raise ValueError("Required workflow identities cannot be empty")
+    for workflow in required_workflows:
+        candidate = object_dict(workflow)
+        repository_id = candidate.get("repository_id")
+        path = candidate.get("path")
+        if (
+            not isinstance(repository_id, int)
+            or isinstance(repository_id, bool)
+            or repository_id <= 0
+            or not isinstance(path, str)
+            or not path.startswith(".github/workflows/")
+            or not path.endswith((".yml", ".yaml"))
+        ):
+            raise ValueError("Required workflow identity is invalid")
+    configured_workflows = {
+        (int(workflow["repository_id"]), str(workflow["path"]))
+        for workflow in required_workflows
+    }
+    if configured_workflows != REQUIRED_WORKFLOW_IDENTITIES:
+        raise ValueError("Required workflow identity cannot be changed")
     controls = object_dict(security.get("required_repository_controls"))
     if not REQUIRED_SECURITY_CONTROLS.issubset(controls):
         raise ValueError("Every required repository control must remain configured")

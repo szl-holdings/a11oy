@@ -36,6 +36,12 @@
       "high"
     ],
     "secret_scanning_is_terminal": true,
+    "required_workflows": [
+      {
+        "repository_id": 1225834126,
+        "path": ".github/workflows/action-contract-promotion-guard.yml"
+      }
+    ],
     "required_repository_controls": {
       "dependabot": [
         ".github/dependabot.yml",

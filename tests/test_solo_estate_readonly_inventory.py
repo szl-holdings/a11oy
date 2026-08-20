@@ -215,6 +215,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             self.assertIsNone(self.module.current_revision())
 
     def test_effective_branch_rules_require_named_checks_and_approval(self):
+        required_workflows = self.policy["security"]["required_workflows"]
         rules = [
             {
                 "type": "required_status_checks",
@@ -232,13 +233,28 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 "ruleset_source_type": "Organization",
                 "ruleset_source": "szl-holdings",
             },
+            {
+                "type": "workflows",
+                "parameters": {
+                    "do_not_enforce_on_create": False,
+                    "workflows": [dict(required_workflows[0])],
+                },
+                "ruleset_id": 7,
+                "ruleset_source_type": "Organization",
+                "ruleset_source": "szl-holdings",
+            },
         ]
         with mock.patch.object(self.module, "github_pages", return_value=rules):
             observed = self.module.audit_effective_branch_rules(
-                "szl-holdings/a11oy", "main", "token"
+                "szl-holdings/a11oy", "main", "token", required_workflows
             )
         self.assertTrue(observed["required_status_checks"])
         self.assertTrue(observed["required_pull_request_reviews"])
+        self.assertTrue(observed["required_workflows"])
+        self.assertTrue(observed["workflow_rules_enforce_on_create"])
+        self.assertEqual(
+            observed["required_workflow_identities"], required_workflows
+        )
         self.assertEqual(observed["required_approving_review_count"], 1)
         self.assertEqual(observed["bypass_visibility"], "UNAVAILABLE")
         self.assertEqual(observed["administrator_enforcement"], "NOT_INFERRED")
@@ -255,10 +271,52 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         ]
         with mock.patch.object(self.module, "github_pages", return_value=empty_rules):
             missing = self.module.audit_effective_branch_rules(
-                "szl-holdings/a11oy", "main", "token"
+                "szl-holdings/a11oy", "main", "token", required_workflows
             )
         self.assertFalse(missing["required_status_checks"])
         self.assertFalse(missing["required_pull_request_reviews"])
+        self.assertFalse(missing["required_workflows"])
+
+        wrong_identity = [
+            *rules[:-1],
+            {
+                **rules[-1],
+                "parameters": {
+                    "do_not_enforce_on_create": False,
+                    "workflows": [
+                        {
+                            "repository_id": required_workflows[0]["repository_id"],
+                            "path": ".github/workflows/different.yml",
+                        }
+                    ],
+                },
+            },
+        ]
+        with mock.patch.object(
+            self.module, "github_pages", return_value=wrong_identity
+        ):
+            observed_wrong = self.module.audit_effective_branch_rules(
+                "szl-holdings/a11oy", "main", "token", required_workflows
+            )
+        self.assertFalse(observed_wrong["required_workflows"])
+
+        not_enforced_on_create = [
+            *rules[:-1],
+            {
+                **rules[-1],
+                "parameters": {
+                    **rules[-1]["parameters"],
+                    "do_not_enforce_on_create": True,
+                },
+            },
+        ]
+        with mock.patch.object(
+            self.module, "github_pages", return_value=not_enforced_on_create
+        ):
+            observed_weak = self.module.audit_effective_branch_rules(
+                "szl-holdings/a11oy", "main", "token", required_workflows
+            )
+        self.assertFalse(observed_weak["required_workflows"])
 
     def test_security_permission_denial_is_terminal(self):
         denial = self.module.ApiFailure("github", 403, "/security")
@@ -342,7 +400,11 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         }
         self.assertEqual(
             missing_controls,
-            {"required_status_checks", "required_pull_request_reviews"},
+            {
+                "required_status_checks",
+                "required_pull_request_reviews",
+                "required_workflows",
+            },
         )
 
     def test_policy_validation_rejects_fail_closed_weakening(self):
@@ -356,6 +418,12 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             "required control": lambda policy: policy["security"][
                 "required_repository_controls"
             ].pop("codeowners"),
+            "required workflow": lambda policy: policy["security"].update(
+                {"required_workflows": []}
+            ),
+            "required workflow identity": lambda policy: policy["security"][
+                "required_workflows"
+            ][0].update({"path": ".github/workflows/different.yml"}),
             "private inventory": lambda policy: policy["huggingface"].update(
                 {"private_inventory_token_required": False}
             ),
@@ -427,6 +495,22 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         self.assertEqual(card["status"], "BLOCKED_READBACK")
         self.assertIsNone(card["present"])
         self.assertNotIn("README.md is missing", card["mobile_risks"])
+
+    def test_card_sections_match_complete_normalized_headings(self):
+        text = (
+            "---\ntags: [test]\n---\n"
+            "# Overview\n## Metadata\n## License\n## Limitations\n"
+            + "evidence line\n" * 30
+        )
+        card = self.module.audit_card(
+            text=text,
+            resource_type="dataset",
+            policy=self.policy,
+            is_kernel=False,
+        )
+        self.assertEqual(card["status"], "POLISH_REQUIRED")
+        self.assertIn("data", card["missing_sections"])
+        self.assertNotIn("license", card["missing_sections"])
 
     def test_huggingface_requires_token_and_bound_org_identity(self):
         missing = self.module.audit_huggingface("SZLHOLDINGS", "", self.policy)
@@ -612,6 +696,49 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 "get_space_runtime",
             },
         )
+
+    def test_huggingface_collection_without_identifier_is_terminal(self):
+        class Collection:
+            title = "Research"
+            private = True
+            lastModified = "2026-08-20T00:00:00Z"
+            items = (object(),)
+
+        class ReadOnlyApi:
+            def __init__(self, token):
+                self.token = token
+
+            def whoami(self):
+                return {
+                    "name": "operator",
+                    "orgs": [{"name": "SZLHOLDINGS"}],
+                    "auth": {"accessToken": {"role": "read"}},
+                }
+
+            def list_models(self, **_kwargs):
+                return []
+
+            def list_datasets(self, **_kwargs):
+                return []
+
+            def list_spaces(self, **_kwargs):
+                return []
+
+            def list_collections(self, **_kwargs):
+                return [Collection()]
+
+        fake_module = types.SimpleNamespace(HfApi=ReadOnlyApi)
+        with mock.patch.dict(sys.modules, {"huggingface_hub": fake_module}):
+            report = self.module.audit_huggingface(
+                "SZLHOLDINGS", "test-token", self.policy
+            )
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertEqual(report["resources"]["collections"][0]["id"], None)
+        self.assertIn(
+            "COLLECTION_ID_MISSING",
+            [finding["kind"] for finding in report["findings"]],
+        )
+        self.assertEqual(report["provider_mutations_performed"], [])
 
     def test_source_binding_closes_over_start_and_end(self):
         revision = "d" * 40
