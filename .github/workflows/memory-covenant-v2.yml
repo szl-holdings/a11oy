@@ -1,0 +1,182 @@
+name: Memory Covenant v2 contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - migrations/20260811_memory_covenant_v2.sql
+      - migrations/20260811_memory_covenant_v2_security_hardening.sql
+      - scripts/validate_memory_covenant_v2.py
+      - tests/test_memory_covenant_v2.py
+      - tests/memory_covenant_acceptance.sql
+      - artifacts/proof-packets/20260820-memory-covenant-neon.md
+      - audit/P0-2026-08-20-memory-covenant-proof.md
+      - .github/workflows/memory-covenant-v2.yml
+  push:
+    branches: [main]
+    paths:
+      - migrations/20260811_memory_covenant_v2.sql
+      - migrations/20260811_memory_covenant_v2_security_hardening.sql
+      - scripts/validate_memory_covenant_v2.py
+      - tests/test_memory_covenant_v2.py
+      - tests/memory_covenant_acceptance.sql
+      - artifacts/proof-packets/20260820-memory-covenant-neon.md
+      - audit/P0-2026-08-20-memory-covenant-proof.md
+      - .github/workflows/memory-covenant-v2.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: memory-covenant-v2-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-contract:
+    name: Static migration and adversarial contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Compile the validator and self-tests
+        run: >-
+          python3 -m py_compile
+          scripts/validate_memory_covenant_v2.py
+          tests/test_memory_covenant_v2.py
+
+      - name: Validate the committed migration contract
+        run: python3 scripts/validate_memory_covenant_v2.py
+
+      - name: Prove fail-closed adversarial behavior
+        run: python3 tests/test_memory_covenant_v2.py -v
+
+      - name: Reject whitespace defects
+        run: git diff --check
+
+  postgres-18-acceptance:
+    name: PostgreSQL 18 idempotency, RLS, append-only, and worker acceptance
+    needs: static-contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: memory_covenant
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d memory_covenant"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Resolve the isolated PostgreSQL service container
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t containers < <(docker ps --filter publish=5432 --format '{{.ID}}')
+          test "${#containers[@]}" -eq 1
+          echo "PG_CONTAINER=${containers[0]}" >> "$GITHUB_ENV"
+          docker exec -e PGPASSWORD=postgres "${containers[0]}" \
+            psql -X -U postgres -d memory_covenant -Atc 'select version()'
+
+      - name: Apply both migrations twice
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/memory-covenant-v2
+          : > evidence/memory-covenant-v2/migration-apply.log
+          for pass in 1 2; do
+            echo "=== migration pass ${pass} ===" | tee -a evidence/memory-covenant-v2/migration-apply.log
+            for migration in \
+              migrations/20260811_memory_covenant_v2.sql \
+              migrations/20260811_memory_covenant_v2_security_hardening.sql
+            do
+              echo "--- ${migration} ---" | tee -a evidence/memory-covenant-v2/migration-apply.log
+              docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+                psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+                < "$migration" \
+                | tee -a evidence/memory-covenant-v2/migration-apply.log
+            done
+          done
+
+      - name: Capture exact catalog evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "WITH tables AS (
+                  SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity,
+                         count(DISTINCT p.polname) AS policy_count,
+                         count(DISTINCT t.tgname) FILTER (WHERE NOT t.tgisinternal) AS trigger_count
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    LEFT JOIN pg_policy p ON p.polrelid = c.oid
+                    LEFT JOIN pg_trigger t ON t.tgrelid = c.oid
+                   WHERE n.nspname = 'public' AND c.relname LIKE 'memory_%' AND c.relkind = 'r'
+                   GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity
+                ), roles AS (
+                  SELECT rolname, rolsuper, rolinherit, rolbypassrls, rolcanlogin
+                    FROM pg_roles
+                   WHERE rolname IN ('a11oy_memory_app','a11oy_memory_worker')
+                )
+                SELECT jsonb_pretty(jsonb_build_object(
+                  'server_version', current_setting('server_version'),
+                  'database', current_database(),
+                  'tables', COALESCE((SELECT jsonb_agg(to_jsonb(tables) ORDER BY relname) FROM tables), '[]'::jsonb),
+                  'roles', COALESCE((SELECT jsonb_agg(to_jsonb(roles) ORDER BY rolname) FROM roles), '[]'::jsonb),
+                  'lease_security_definer', (SELECT prosecdef FROM pg_proc WHERE oid='memory_lease_outbox(text,integer,integer)'::regprocedure)
+                ));" \
+            > evidence/memory-covenant-v2/catalog.json
+          python3 -m json.tool evidence/memory-covenant-v2/catalog.json >/dev/null
+
+      - name: Execute rollback-only acceptance transaction
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < tests/memory_covenant_acceptance.sql \
+            | tee evidence/memory-covenant-v2/acceptance.log
+          grep -F '"status": "PASS"' evidence/memory-covenant-v2/acceptance.log
+          grep -F '"memory_rows": 0' evidence/memory-covenant-v2/acceptance.log
+          grep -F '"receipt_rows": 0' evidence/memory-covenant-v2/acceptance.log
+          grep -F '"outbox_rows": 0' evidence/memory-covenant-v2/acceptance.log
+
+      - name: Upload immutable acceptance evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: memory-covenant-v2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/memory-covenant-v2
+          if-no-files-found: error
+          retention-days: 90

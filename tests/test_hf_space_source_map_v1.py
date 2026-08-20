@@ -135,6 +135,124 @@ def test_multiple_name_matches_are_divergent() -> None:
     assert len(mapping["candidates"]) == 2
 
 
+def test_divergent_candidates_omit_mutable_state_without_workflow_discovery() -> None:
+    records = [{"id": "SZLHOLDINGS/example-space", "sha": "a" * 40}]
+    repositories = {
+        "szl-holdings/source-one",
+        "szl-holdings/source-two",
+    }
+
+    def readme(space_id: str, revision: str):
+        assert space_id == "SZLHOLDINGS/example-space"
+        assert revision == "a" * 40
+        return (
+            200,
+            b"https://github.com/szl-holdings/source-one\n"
+            b"https://github.com/szl-holdings/source-two\n",
+            "https://example/readme",
+        )
+
+    def resolver(name: str):
+        return _repo(name) if name.lower() in repositories else None
+
+    def binder(repository: dict[str, object]):
+        raise AssertionError(
+            f"divergent candidate must not be revision-bound: {repository}"
+        )
+
+    def workflows(name: str, revision: str):
+        raise AssertionError(
+            f"workflow discovery must stay blocked for {name}@{revision}"
+        )
+
+    payload = MODULE.build_source_map(
+        records,
+        readme,
+        resolver,
+        workflows,
+        binder,
+    )
+    space = payload["spaces"][0]
+    assert space["source_mapping"]["state"] == "DIVERGENT"
+    assert space["source_mapping"]["canonical"] is None
+    assert space["workflow_candidates"] == {
+        "state": "BLOCKED_SOURCE_MAPPING",
+        "paths": [],
+    }
+    assert space["source_mapping"]["candidates"] == [
+        {
+            "full_name": full_name,
+            "html_url": f"https://github.com/{full_name}",
+        }
+        for full_name in sorted(repositories)
+    ]
+
+
+def test_divergent_candidate_identity_is_stable_across_branch_advances() -> None:
+    records = [{"id": "SZLHOLDINGS/example-space", "sha": "a" * 40}]
+
+    def readme(space_id: str, revision: str):
+        return (
+            200,
+            b"https://github.com/szl-holdings/a11oy\n"
+            b"https://github.com/szl-holdings/source-two\n",
+            "https://example/readme",
+        )
+
+    def build(a11oy_revision: str, *, archived: bool):
+        def resolver(name: str):
+            repository = _repo(name)
+            if name.lower() == "szl-holdings/a11oy":
+                repository["default_branch_sha"] = a11oy_revision
+                repository["archived"] = archived
+            return repository
+
+        def forbidden(*args):
+            raise AssertionError(f"divergent branch state was inspected: {args}")
+
+        return MODULE.build_source_map(
+            records,
+            readme,
+            resolver,
+            forbidden,
+            forbidden,
+        )
+
+    before = build("1" * 40, archived=False)
+    after = build("2" * 40, archived=True)
+    assert before == after
+
+
+def test_source_map_rejects_an_unbound_canonical_candidate() -> None:
+    records = [{"id": "SZLHOLDINGS/example-space", "sha": "a" * 40}]
+
+    def readme(space_id: str, revision: str):
+        return (
+            200,
+            b"https://github.com/szl-holdings/source-one\n",
+            "https://example/readme",
+        )
+
+    def resolver(name: str):
+        return _repo(name)
+
+    def unbound(repository: dict[str, object]):
+        return {**repository, "default_branch_sha": None}
+
+    try:
+        MODULE.build_source_map(
+            records,
+            readme,
+            resolver,
+            lambda name, revision: {"state": "UNAVAILABLE", "paths": []},
+            unbound,
+        )
+    except MODULE.SourceMapError as error:
+        assert "no immutable default-branch revision" in str(error)
+    else:
+        raise AssertionError("unbound canonical repository candidate was accepted")
+
+
 def test_repository_metadata_binds_the_exact_default_branch_head(monkeypatch) -> None:
     revision = "e" * 40
     seen: list[str] = []
@@ -217,67 +335,6 @@ def test_build_source_map_is_deterministic_and_bounded() -> None:
     assert exact["workflow_candidates"]["single_writer_candidate"] is True
 
 
-def test_divergent_candidates_are_bound_without_workflow_discovery() -> None:
-    records = [
-        {
-            "id": "SZLHOLDINGS/divergent-space",
-            "sha": "a" * 40,
-            "sdk": "docker",
-            "runtime": {"stage": "RUNNING", "sha": "a" * 40},
-        }
-    ]
-    readme_bytes = b"""---
-source_repo: https://github.com/szl-holdings/first-source
----
-Also see https://github.com/szl-holdings/second-source.
-"""
-    bound_names: list[str] = []
-    workflow_calls: list[tuple[str, str]] = []
-
-    def resolver(name: str):
-        repository = _repo(name)
-        repository.pop("default_branch_sha")
-        return repository
-
-    def binder(repository: dict):
-        bound_names.append(repository["full_name"])
-        return {**repository, "default_branch_sha": "d" * 40}
-
-    def workflows(name: str, revision: str):
-        workflow_calls.append((name, revision))
-        return {"state": "OBSERVED", "github_ref": revision, "paths": []}
-
-    payload = MODULE.build_source_map(
-        records,
-        lambda space_id, revision: (
-            200,
-            readme_bytes,
-            f"https://example.invalid/{space_id}/{revision}/README.md",
-        ),
-        resolver,
-        workflows,
-        binder,
-    )
-
-    space = payload["spaces"][0]
-    mapping = space["source_mapping"]
-    assert mapping["state"] == "DIVERGENT"
-    assert mapping["canonical"] is None
-    assert bound_names == [
-        "szl-holdings/first-source",
-        "szl-holdings/second-source",
-    ]
-    assert all(
-        candidate["default_branch_sha"] == "d" * 40
-        for candidate in mapping["candidates"]
-    )
-    assert space["workflow_candidates"] == {
-        "state": "BLOCKED_SOURCE_MAPPING",
-        "paths": [],
-    }
-    assert workflow_calls == []
-
-
 def test_workflow_listing_filters_non_deployment_files(monkeypatch) -> None:
     payload = [
         {"type": "file", "path": ".github/workflows/tests.yml", "name": "tests.yml"},
@@ -317,14 +374,15 @@ def test_committed_map_is_bound_to_immutable_repository_revisions() -> None:
             assert f"/{hf_revision}/README.md" in readme["url"]
             assert re.fullmatch(r"[0-9a-f]{64}", readme["sha256"])
 
-        for candidate in space["source_mapping"]["candidates"]:
+        mapping = space["source_mapping"]
+        canonical = mapping["canonical"]
+        if canonical is None:
+            for candidate in mapping["candidates"]:
+                assert set(candidate) == {"full_name", "html_url"}
+            continue
+        for candidate in mapping["candidates"]:
             assert MODULE.SHA40.fullmatch(candidate["default_branch_sha"])
             assert "pushed_at" not in candidate
-
-        canonical = space["source_mapping"]["canonical"]
-        if canonical is None:
-            continue
         github_ref = canonical["default_branch_sha"]
         assert MODULE.SHA40.fullmatch(github_ref)
-        assert "pushed_at" not in canonical
         assert space["workflow_candidates"]["github_ref"] == github_ref

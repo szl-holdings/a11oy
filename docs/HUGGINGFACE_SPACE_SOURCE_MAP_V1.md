@@ -11,10 +11,7 @@ A frontend failure may be repaired only in the application’s canonical source 
 - `DIVERGENT` — explicit links are missing, unresolved, or point to multiple repositories; or multiple normalized name matches exist.
 - `UNAVAILABLE` — no public source mapping can be established.
 
-`EXACT` identifies a canonical source repository for owner-reviewed source changes and
-promotion through that repository's protected writer. It does not authorize a direct
-Hugging Face mutation. `INFERRED` may be used for investigation only, while
-`DIVERGENT` and `UNAVAILABLE` remain blocked pending explicit ownership evidence.
+`EXACT` identifies a canonical source repository for owner-reviewed source changes and promotion through that repository's protected writer. It does not authorize a direct Hugging Face mutation. `INFERRED` may be used for investigation only, while `DIVERGENT` and `UNAVAILABLE` remain blocked pending explicit ownership evidence.
 
 ## Captured state
 
@@ -26,10 +23,12 @@ For each public Space, the map records:
 - public README hash and front-matter keys
 - explicit SZL Holdings GitHub links
 - verified or inferred source-repository candidates
-- source-repository default branch, exact branch-head revision, visibility, and archival state
+- canonical source-repository default branch, exact branch-head revision, visibility, and archival state
 - deployment-workflow filename candidates under `.github/workflows` at that exact GitHub revision
 
 A single workflow filename candidate is not proof of single-writer authority. It is labeled only as a candidate until workflow contents, target resource, and protected promotion behavior are reviewed.
+
+Candidate records in a `DIVERGENT` mapping retain repository identity only. Mutable branch, visibility, and archival fields are omitted, and workflow discovery remains blocked until exactly one canonical repository has been established.
 
 ## Mutation boundary
 

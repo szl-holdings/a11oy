@@ -392,6 +392,38 @@ def build_source_map(
             repo_cache[key] = resolver(full_name)
         return repo_cache[key]
 
+    def cached_repository_binder(repository: dict[str, Any]) -> dict[str, Any]:
+        full_name = repository.get("full_name")
+        if not isinstance(full_name, str) or not full_name:
+            raise SourceMapError("GitHub repository candidate has no canonical full name")
+        key = full_name.lower()
+        if key not in bound_repo_cache:
+            bound = repository_binder(repository)
+            bound_name = bound.get("full_name") if isinstance(bound, dict) else None
+            if not isinstance(bound_name, str) or bound_name.lower() != key:
+                raise SourceMapError(
+                    f"GitHub repository revision binding changed identity for {full_name}"
+                )
+            bound_revision = bound.get("default_branch_sha")
+            if not isinstance(bound_revision, str) or not SHA40.fullmatch(
+                bound_revision
+            ):
+                raise SourceMapError(
+                    f"GitHub repository candidate {full_name} has no immutable "
+                    "default-branch revision"
+                )
+            bound_repo_cache[key] = bound
+        return bound_repo_cache[key]
+
+    def divergent_candidate_identity(repository: dict[str, Any]) -> dict[str, str]:
+        full_name = repository.get("full_name")
+        html_url = repository.get("html_url")
+        if not isinstance(full_name, str) or not full_name:
+            raise SourceMapError("GitHub repository candidate has no canonical full name")
+        if not isinstance(html_url, str) or not html_url:
+            raise SourceMapError(f"GitHub repository candidate {full_name} has no URL")
+        return {"full_name": full_name, "html_url": html_url}
+
     spaces: list[dict[str, Any]] = []
     state_counts: Counter[str] = Counter()
     sdk_counts: Counter[str] = Counter()
@@ -417,27 +449,31 @@ def build_source_map(
         front = parse_front_matter(readme) if status == 200 else {}
         explicit = extract_explicit_github_repositories(readme, front)
         mapping = select_source_mapping(space_id, explicit, cached_resolver)
-        bound_candidates: list[dict[str, Any]] = []
-        bound_candidates_by_name: dict[str, dict[str, Any]] = {}
-        for candidate in mapping["candidates"]:
-            full_name = candidate.get("full_name")
-            if not isinstance(full_name, str) or not full_name:
-                raise SourceMapError(
-                    f"{space_id} source candidate has no canonical full name"
-                )
-            candidate_name = full_name.lower()
-            if candidate_name not in bound_repo_cache:
-                bound_repo_cache[candidate_name] = repository_binder(candidate)
-            bound_candidate = bound_repo_cache[candidate_name]
-            bound_candidates.append(bound_candidate)
-            bound_candidates_by_name[candidate_name] = bound_candidate
-        mapping["candidates"] = bound_candidates
-
+        candidates = mapping.get("candidates")
+        if not isinstance(candidates, list) or not all(
+            isinstance(candidate, dict) for candidate in candidates
+        ):
+            raise SourceMapError(
+                f"{space_id} source mapping returned invalid repository candidates"
+            )
         canonical = mapping.get("canonical")
         workflows: dict[str, Any]
         if isinstance(canonical, dict) and isinstance(canonical.get("full_name"), str):
+            mapping["candidates"] = [
+                cached_repository_binder(candidate) for candidate in candidates
+            ]
             canonical_name = canonical["full_name"].lower()
-            canonical = bound_candidates_by_name[canonical_name]
+            matching_candidates = [
+                candidate
+                for candidate in mapping["candidates"]
+                if isinstance(candidate.get("full_name"), str)
+                and candidate["full_name"].lower() == canonical_name
+            ]
+            if len(matching_candidates) != 1:
+                raise SourceMapError(
+                    f"{space_id} canonical source is not one bound candidate"
+                )
+            canonical = matching_candidates[0]
             mapping["canonical"] = canonical
             repo_key = canonical["full_name"].lower()
             github_ref = canonical.get("default_branch_sha")
@@ -455,6 +491,9 @@ def build_source_map(
                     "paths": [],
                 }
         else:
+            mapping["candidates"] = [
+                divergent_candidate_identity(candidate) for candidate in candidates
+            ]
             workflows = {"state": "BLOCKED_SOURCE_MAPPING", "paths": []}
 
         state_counts[mapping["state"]] += 1
