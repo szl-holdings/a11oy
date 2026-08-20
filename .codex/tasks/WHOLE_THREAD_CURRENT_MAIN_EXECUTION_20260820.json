@@ -1,0 +1,136 @@
+{
+  "schema": "szl.codex-workgraph/v1",
+  "program": "a11oy-whole-thread-current-main-execution",
+  "captured_at": "2026-08-20T09:40:00Z",
+  "issue": 1355,
+  "repository": "szl-holdings/a11oy",
+  "captured_protected_main": "f5440d365471d656807a617e6b73b5b4dbe939ea",
+  "execution_branch": "codex/whole-thread-push-20260820",
+  "recapture_before_every_write": true,
+  "terminal_states": [
+    "MERGED_AND_VERIFIED",
+    "SUPERSEDED_WITH_EXACT_EVIDENCE",
+    "BLOCKED_EXTERNAL_AUTHORITY",
+    "REJECTED_WITH_REASON"
+  ],
+  "nonterminal_states": [
+    "OPEN",
+    "DRAFT",
+    "PENDING",
+    "CI_RUNNING",
+    "REVIEWED_ONLY",
+    "SOURCE_COMPLETE"
+  ],
+  "lanes": [
+    {
+      "id": "T00",
+      "kind": "control",
+      "title": "Immutable recapture, semantic duplicate detection, and path ownership",
+      "pull_requests": [1311, 1320, 1333, 1334, 1338, 1339, 1342, 1349, 1351, 1352],
+      "depends_on": [],
+      "completion": "All active and newly discovered overlapping lanes have exact state, semantic diff, path owner, and proposed terminal disposition."
+    },
+    {
+      "id": "T10",
+      "kind": "promotion",
+      "title": "Deterministic Hugging Face Space source map",
+      "pull_requests": [1352],
+      "depends_on": ["T00"],
+      "completion": "Current-main successor merged with exact-head checks and source-map evidence."
+    },
+    {
+      "id": "T11",
+      "kind": "promotion",
+      "title": "Scheduled live frontend canary",
+      "pull_requests": [1349],
+      "depends_on": ["T00", "T10"],
+      "completion": "Current-main successor merged; protected execution produces immutable organization, Space, and domain evidence."
+    },
+    {
+      "id": "T12",
+      "kind": "promotion",
+      "title": "Estate-wide Space frontend census",
+      "pull_requests": [1351],
+      "depends_on": ["T00", "T10"],
+      "completion": "Current-main successor merged; bounded viewport census produces machine-readable evidence."
+    },
+    {
+      "id": "T20",
+      "kind": "promotion",
+      "title": "Deterministic Council authority kernel",
+      "pull_requests": [1339],
+      "depends_on": ["T00"],
+      "completion": "Isolated authority kernel and all focused regressions are current-main, protected, merged, and honestly labeled."
+    },
+    {
+      "id": "T30",
+      "kind": "reconciliation",
+      "title": "Select and complete one ORO lineage",
+      "pull_requests": [1333, 1342],
+      "depends_on": ["T00"],
+      "completion": "One complete ORO successor is merged and verified; the competing lane is closed with exact replacement evidence."
+    },
+    {
+      "id": "T40",
+      "kind": "promotion",
+      "title": "Solo estate security and Hugging Face control plane",
+      "pull_requests": [1320],
+      "depends_on": ["T00"],
+      "completion": "Provider/security controller is merged with fail-closed permission handling and no credential disclosure."
+    },
+    {
+      "id": "T41",
+      "kind": "promotion",
+      "title": "Universal mobile-first Hugging Face estate control plane",
+      "pull_requests": [1338],
+      "depends_on": ["T10", "T11", "T12", "T40"],
+      "completion": "Protected control plane is merged and its rollout reaches complete=true with zero blocked and failed assets, or records external-authority blockers."
+    },
+    {
+      "id": "T50",
+      "kind": "reconciliation",
+      "title": "Memory Covenant and semantic-token ingress promotion",
+      "pull_requests": [1334],
+      "depends_on": ["T00"],
+      "completion": "Current-main successor is merged with migrations, runtime refusal/status contracts, Docker delivery, and exact-head tests."
+    },
+    {
+      "id": "T60",
+      "kind": "disposition",
+      "title": "Readiness freshness-label lane",
+      "pull_requests": [1311],
+      "depends_on": ["T00"],
+      "completion": "Lane is either superseded with an exact protected commit or rebuilt, qualified, and merged without duplicate semantics."
+    },
+    {
+      "id": "T90",
+      "kind": "release-proof",
+      "title": "Protected deployment and immutable live readback",
+      "pull_requests": [],
+      "depends_on": ["T10", "T11", "T12", "T20", "T30", "T40", "T41", "T50", "T60"],
+      "completion": "Final ledger binds protected merge commits, canonical deployment runs, immutable HF repository/runtime identities, served source identity, domain/Space readback, rollback, and every terminal disposition."
+    }
+  ],
+  "promotion_requirements": {
+    "latest_protected_main_base": true,
+    "physical_dco_trailer": true,
+    "acceptable_signature_state": true,
+    "terminal_exact_head_checks": true,
+    "zero_unresolved_p0_p2": true,
+    "zero_unresolved_review_threads": true,
+    "independent_exact_head_evidence": true,
+    "protected_squash_only": true,
+    "recapture_after_each_merge": true
+  },
+  "prohibitions": [
+    "direct-protected-main-write",
+    "administrator-bypass",
+    "force-push",
+    "self-approval",
+    "required-check-weakening",
+    "secret-value-readback-or-disclosure",
+    "manual-hugging-face-overwrite",
+    "unsupported-production-or-parity-claim"
+  ],
+  "receipt_root": ".codex/receipts/whole-thread-20260820"
+}
