@@ -334,7 +334,7 @@ function findEvidenceLabels(obj, candidateLabels = []) {
   function walk(value, path = "", depth = 0, insideFreshness = false) {
     if (value === null || value === undefined || depth > 5) return;
     if (Array.isArray(value)) {
-      value.slice(0, 30).forEach((item, index) => {
+      value.forEach((item, index) => {
         walk(item, `${path}[${index}]`, depth + 1, insideFreshness);
       });
       return;
@@ -370,7 +370,7 @@ function findMalformedExplicitEvidence(obj) {
   function walk(value, path = "", depth = 0) {
     if (malformed || value === null || value === undefined || depth > 5) return;
     if (Array.isArray(value)) {
-      value.slice(0, 30).forEach((item, index) => {
+      value.forEach((item, index) => {
         walk(item, `${path}[${index}]`, depth + 1);
       });
       return;

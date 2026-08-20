@@ -360,6 +360,20 @@ const modeledAllowed = probe.evaluateEndpointLabels(200, {
   },
 }, { freshness: { status: "MODELED" } });
 assert.equal(modeledAllowed.ok, true);
+
+const validItems = Array.from({ length: 30 }, () => ({ data_kind: "live" }));
+const malformedTail = probe.evaluateEndpointLabels(
+  200, spec, { items: [...validItems, { data_kind: true }] },
+);
+assert.equal(malformedTail.ok, false);
+assert.equal(malformedTail.pairConflict.dataKind.path, "items[30].data_kind");
+assert.match(malformedTail.pairConflict.reason, /must be a string/);
+
+const lyingTail = probe.evaluateEndpointLabels(
+  200, spec, { items: [...validItems, { data_kind: "fabricated" }] },
+);
+assert.equal(lyingTail.ok, false);
+assert.equal(lyingTail.lie.path, "items[30].data_kind");
 """
     )
     assert result.returncode == 0, result.stderr
