@@ -20,7 +20,7 @@ import re
 import subprocess
 import sys
 import time
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
@@ -831,7 +831,8 @@ def _gradio_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tuple
     _validate_python_adapter(text, entry)
     if not _managed_gradio_binding(text):
         return [], ["generated Gradio CSS binding is not a direct unshadowed module operation"]
-    return [(entry, text.encode()), ("szl_universal.css", UNIVERSAL_CSS.encode())], []
+    stylesheet = str(PurePosixPath(entry).with_name("szl_universal.css"))
+    return [(entry, text.encode()), (stylesheet, UNIVERSAL_CSS.encode())], []
 
 
 def _streamlit_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tuple[str, bytes]], list[str]]:
@@ -852,7 +853,8 @@ def _streamlit_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tu
     _validate_python_adapter(text, entry)
     if not _managed_streamlit_binding(text):
         return [], ["generated Streamlit CSS binding is not a direct unshadowed module operation"]
-    return [(entry, text.encode()), ("szl_universal.css", UNIVERSAL_CSS.encode())], []
+    stylesheet = str(PurePosixPath(entry).with_name("szl_universal.css"))
+    return [(entry, text.encode()), (stylesheet, UNIVERSAL_CSS.encode())], []
 
 
 def classify_space(api: HfApi, asset: Asset, token: str | None) -> tuple[str, list[tuple[str, bytes]], list[str]]:
