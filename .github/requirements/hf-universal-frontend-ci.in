@@ -1,0 +1,2 @@
+-r hf-universal-frontend-runtime.in
+pytest==9.0.3
