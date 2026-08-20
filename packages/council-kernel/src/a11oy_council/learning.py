@@ -518,4 +518,6 @@ def verify_outcome_evaluation(
         evaluated_at=evaluation.evaluated_at,
         policy=policy,
     )
-    return hmac.compare_digest(expected.evaluation_digest, evaluation.evaluation_digest)
+    expected_record = canonical_json(expected.canonical_dict())
+    provided_record = canonical_json(evaluation.canonical_dict())
+    return hmac.compare_digest(expected_record, provided_record)
