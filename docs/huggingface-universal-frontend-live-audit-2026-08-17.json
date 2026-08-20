@@ -1,0 +1,29 @@
+{
+  "schema": "szl.hf-universal-frontend-live-audit/v1",
+  "generated_at": "2026-08-17T00:00:00Z",
+  "organization": "SZLHOLDINGS",
+  "scope": [
+    "public organization card",
+    "public models",
+    "public datasets",
+    "public Spaces",
+    "public collections and inventory navigation",
+    "static, React, Gradio, and Streamlit application shells"
+  ],
+  "source_authority": {
+    "SZLHOLDINGS/README": "GITHUB_SOURCE_BOUND_AUDIT_ONLY",
+    "SZLHOLDINGS/a11oy": "GITHUB_SOURCE_BOUND_PRODUCTION_VERIFIED"
+  },
+  "policy": {
+    "exact_parent_revision_required": true,
+    "hub_pull_request_required": true,
+    "hardcoded_organization_totals_prohibited": true,
+    "universal_signing_claims_prohibited": true,
+    "weights_and_dataset_payloads_out_of_scope": true,
+    "source_bound_spaces_direct_write_prohibited": true,
+    "unsupported_application_shells_fail_closed": true
+  },
+  "execution_controller": "scripts/hf_universal_frontend_control.py",
+  "workflow": ".github/workflows/hf-universal-frontend-estate.yml",
+  "status": "EXECUTION_PENDING_PROTECTED_PR"
+}
