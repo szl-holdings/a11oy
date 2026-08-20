@@ -1,0 +1,184 @@
+{
+  "schema": "szl.solo-estate-readonly-policy/v1",
+  "version": "1.0.0",
+  "repository": "szl-holdings/a11oy",
+  "protected_branch": "main",
+  "huggingface_organization": "SZLHOLDINGS",
+  "read_only_contract": {
+    "provider_mutations_allowed": false,
+    "github_api_methods": [
+      "GET"
+    ],
+    "huggingface_mutation_methods_allowed": [],
+    "issue_label_mutation_allowed": false,
+    "control_issue_mutation_allowed": false,
+    "review_request_mutation_allowed": false,
+    "missing_card_creation_allowed": false,
+    "alert_dismissal_allowed": false,
+    "resource_visibility_change_allowed": false,
+    "resource_hardware_change_allowed": false,
+    "resource_deletion_allowed": false,
+    "local_evidence_artifact_allowed": true,
+    "exact_protected_head_binding_required": true,
+    "permission_denied_is_green": false,
+    "provider_failure_is_green": false,
+    "secret_value_readback_allowed": false
+  },
+  "security": {
+    "inventory_endpoints": [
+      "dependabot",
+      "code_scanning",
+      "secret_scanning",
+      "repository_advisories"
+    ],
+    "terminal_security_severities": [
+      "critical",
+      "high"
+    ],
+    "secret_scanning_is_terminal": true,
+    "required_repository_controls": {
+      "dependabot": [
+        ".github/dependabot.yml",
+        ".github/dependabot.yaml"
+      ],
+      "codeql": [
+        ".github/workflows/codeql.yml",
+        ".github/workflows/codeql.yaml"
+      ],
+      "secret_scanning": [
+        ".github/workflows/gitleaks.yml",
+        ".github/workflows/gitleaks.yaml"
+      ],
+      "security_policy": [
+        "SECURITY.md",
+        ".github/SECURITY.md"
+      ],
+      "codeowners": [
+        ".github/CODEOWNERS",
+        "CODEOWNERS"
+      ]
+    }
+  },
+  "issue_inventory": {
+    "classifiers": {
+      "security": [
+        "security",
+        "vulnerability",
+        "cve",
+        "secret",
+        "credential",
+        "token",
+        "exploit",
+        "codeql",
+        "dependabot",
+        "gitleaks"
+      ],
+      "huggingface": [
+        "hugging face",
+        "huggingface",
+        "hf ",
+        "space",
+        "model",
+        "dataset",
+        "collection",
+        "kernel",
+        "model card",
+        "dataset card"
+      ],
+      "deployment": [
+        "deploy",
+        "production",
+        "runtime",
+        "readiness",
+        "drift",
+        "relock",
+        "rollback",
+        "incident",
+        "outage"
+      ],
+      "p0": [
+        "critical",
+        "secret leak",
+        "credential leak",
+        "data loss",
+        "outage",
+        "compromise",
+        "production down"
+      ],
+      "p1": [
+        "failing",
+        "blocked",
+        "drift",
+        "deployment",
+        "production",
+        "readiness",
+        "security"
+      ],
+      "external": [
+        "external blocker",
+        "provider blocker",
+        "permission denied",
+        "bad credentials",
+        "legal review",
+        "license unknown"
+      ],
+      "major_upgrade": [
+        "major upgrade",
+        "breaking change",
+        "vite 8",
+        "node 24"
+      ]
+    }
+  },
+  "huggingface": {
+    "private_inventory_token_required": true,
+    "organization_membership_readback_required": true,
+    "never_infer_license": true,
+    "runtime_healthy_stages": [
+      "RUNNING",
+      "SLEEPING"
+    ],
+    "minimum_card_characters": 350,
+    "maximum_mobile_line_characters": 240,
+    "maximum_markdown_table_columns": 6,
+    "required_sections": {
+      "model": [
+        "overview",
+        "status",
+        "usage",
+        "limitations"
+      ],
+      "dataset": [
+        "overview",
+        "data",
+        "license",
+        "limitations"
+      ],
+      "space": [
+        "overview",
+        "status",
+        "evidence",
+        "usage"
+      ],
+      "kernel": [
+        "overview",
+        "contract",
+        "status",
+        "evidence"
+      ]
+    },
+    "kernel_identifiers": [
+      "kernel",
+      "council-kernel",
+      "alloy-kernel",
+      "state-kernel",
+      "proof-kernel"
+    ]
+  },
+  "truth_labels": {
+    "PROVED": "Derived from exact source or deterministic validation.",
+    "MEASURED": "Observed from a named current provider API or runtime readback.",
+    "BLOCKED": "A required authority or evidence source is unavailable or failing.",
+    "NOT_CLAIMED": "No production, security, legal, or deployment conclusion is inferred without evidence."
+  }
+}
