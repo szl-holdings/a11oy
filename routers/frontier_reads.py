@@ -108,6 +108,7 @@ def normalize_phase_b_payload(
                 # Neither field may erase contradictory or unknown evidence
                 # from the other. Preserve both for the canonical probe.
                 return normalized
+            normalized["mode"] = canonical_mode
         normalized["data_kind"] = canonical_kind
 
         detail = normalized.get("detail")

@@ -167,7 +167,7 @@ class PhaseBPayloadTests(unittest.TestCase):
                     "/api/a11oy/v1/sec/kev",
                     {"mode": mode, "data_kind": data_kind, "items": []},
                 )
-                self.assertEqual(result["mode"], mode)
+                self.assertEqual(result["mode"], expected)
                 self.assertEqual(result["data_kind"], expected)
                 self.assertIsInstance(result["detail"], str)
                 self.assertTrue(result["detail"])
