@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import re
 import sys
+import urllib.parse
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +14,7 @@ assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+COMMITTED_MAP = ROOT / "docs" / "huggingface-space-source-map-v1.json"
 
 
 def _repo(full_name: str):
@@ -18,10 +22,10 @@ def _repo(full_name: str):
         "full_name": full_name,
         "html_url": f"https://github.com/{full_name}",
         "default_branch": "main",
+        "default_branch_sha": "c" * 40,
         "archived": False,
         "disabled": False,
         "visibility": "public",
-        "pushed_at": "2026-08-17T00:00:00Z",
     }
 
 
@@ -38,6 +42,49 @@ Ignore https://github.com/other/example.
     assert MODULE.extract_explicit_github_repositories(readme, front) == [
         "szl-holdings/example-space"
     ]
+
+
+def test_space_readme_is_fetched_from_the_exact_repository_revision(monkeypatch) -> None:
+    seen: list[str] = []
+
+    def request(url: str):
+        seen.append(url)
+        return 200, b"# exact\n"
+
+    monkeypatch.setattr(MODULE, "_safe_request_bytes", request)
+    revision = "a" * 40
+    status, text, url = MODULE.fetch_space_readme(
+        "SZLHOLDINGS/example-space", revision
+    )
+    assert status == 200
+    assert text == b"# exact\n"
+    assert url == seen[0]
+    assert f"/raw/{revision}/README.md" in url
+
+
+def test_space_readme_rejects_a_mutable_revision() -> None:
+    try:
+        MODULE.fetch_space_readme("SZLHOLDINGS/example-space", "main")
+    except MODULE.SourceMapError as error:
+        assert "exact 40-character" in str(error)
+    else:
+        raise AssertionError("mutable Hugging Face revision was accepted")
+
+
+def test_source_map_rejects_a_non_utf8_readme() -> None:
+    records = [{"id": "SZLHOLDINGS/example-space", "sha": "a" * 40}]
+
+    try:
+        MODULE.build_source_map(
+            records,
+            lambda space_id, revision: (200, b"\xff", "https://example/readme"),
+            lambda name: None,
+            lambda name, revision: {"state": "UNAVAILABLE", "paths": []},
+        )
+    except MODULE.SourceMapError as error:
+        assert "strict UTF-8" in str(error)
+    else:
+        raise AssertionError("invalid UTF-8 README bytes were normalized")
 
 
 def test_exact_explicit_mapping() -> None:
@@ -88,6 +135,22 @@ def test_multiple_name_matches_are_divergent() -> None:
     assert len(mapping["candidates"]) == 2
 
 
+def test_repository_metadata_binds_the_exact_default_branch_head(monkeypatch) -> None:
+    revision = "e" * 40
+    seen: list[str] = []
+
+    def request(url: str, github: bool = False):
+        seen.append(url)
+        return 200, {"sha": revision}
+
+    monkeypatch.setattr(MODULE, "_safe_request_json", request)
+    repository = _repo("szl-holdings/example-space")
+    repository.pop("default_branch_sha")
+    result = MODULE.bind_github_repo_revision(repository)
+    assert result["default_branch_sha"] == revision
+    assert seen[-1].endswith("/commits/main")
+
+
 def test_unavailable_mapping_is_never_guessed() -> None:
     mapping = MODULE.select_source_mapping(
         "SZLHOLDINGS/no-source",
@@ -114,22 +177,25 @@ def test_build_source_map_is_deterministic_and_bounded() -> None:
         },
     ]
 
-    def readme(space_id: str):
+    def readme(space_id: str, revision: str):
+        assert revision in {"a" * 40, "b" * 40}
         if space_id.endswith("example-space"):
             return (
                 200,
-                "---\nsource_repo: https://github.com/szl-holdings/example-space\n---\n",
+                b"---\nsource_repo: https://github.com/szl-holdings/example-space\n---\n",
                 "https://example/readme",
             )
-        return 404, "", "https://example/missing"
+        return 404, b"", "https://example/missing"
 
     def resolver(name: str):
         return _repo(name) if name.lower() == "szl-holdings/example-space" else None
 
-    def workflows(name: str):
+    def workflows(name: str, revision: str):
         assert name == "szl-holdings/example-space"
+        assert revision == "c" * 40
         return {
             "state": "OBSERVED",
+            "github_ref": revision,
             "paths": [".github/workflows/hf-sync.yml"],
             "candidate_count": 1,
             "single_writer_candidate": True,
@@ -144,7 +210,10 @@ def test_build_source_map_is_deterministic_and_bounded() -> None:
     assert first["summary"]["exact_or_inferred_sources"] == 1
     assert first["summary"]["blocked_source_mappings"] == 1
     exact = first["spaces"][0]
+    assert exact["readme"]["revision"] == "a" * 40
     assert exact["source_mapping"]["canonical"]["full_name"] == "szl-holdings/example-space"
+    assert exact["source_mapping"]["canonical"]["default_branch_sha"] == "c" * 40
+    assert exact["workflow_candidates"]["github_ref"] == "c" * 40
     assert exact["workflow_candidates"]["single_writer_candidate"] is True
 
 
@@ -154,10 +223,43 @@ def test_workflow_listing_filters_non_deployment_files(monkeypatch) -> None:
         {"type": "file", "path": ".github/workflows/hf-sync.yml", "name": "hf-sync.yml"},
         {"type": "file", "path": ".github/workflows/release-publish.yml", "name": "release-publish.yml"},
     ]
-    monkeypatch.setattr(MODULE, "_safe_request_json", lambda url, github=False: (200, payload))
-    result = MODULE.list_workflow_candidates("szl-holdings/example")
+    seen: list[str] = []
+
+    def request(url: str, github: bool = False):
+        seen.append(url)
+        return 200, payload
+
+    monkeypatch.setattr(MODULE, "_safe_request_json", request)
+    revision = "d" * 40
+    result = MODULE.list_workflow_candidates("szl-holdings/example", revision)
+    assert urllib.parse.parse_qs(urllib.parse.urlsplit(seen[0]).query) == {
+        "ref": [revision]
+    }
+    assert result["github_ref"] == revision
     assert result["paths"] == [
         ".github/workflows/hf-sync.yml",
         ".github/workflows/release-publish.yml",
     ]
     assert result["single_writer_candidate"] is False
+
+
+def test_committed_map_is_bound_to_immutable_repository_revisions() -> None:
+    payload = json.loads(COMMITTED_MAP.read_text(encoding="utf-8"))
+    assert payload["schema"] == "szl.hf-space-source-map/v1"
+    assert payload["spaces"]
+    for space in payload["spaces"]:
+        hf_revision = space["hf_repository_sha"]
+        assert MODULE.SHA40.fullmatch(hf_revision)
+        readme = space["readme"]
+        assert readme["revision"] == hf_revision
+        if readme["http_status"] == 200:
+            assert f"/{hf_revision}/README.md" in readme["url"]
+            assert re.fullmatch(r"[0-9a-f]{64}", readme["sha256"])
+
+        canonical = space["source_mapping"]["canonical"]
+        if canonical is None:
+            continue
+        github_ref = canonical["default_branch_sha"]
+        assert MODULE.SHA40.fullmatch(github_ref)
+        assert "pushed_at" not in canonical
+        assert space["workflow_candidates"]["github_ref"] == github_ref

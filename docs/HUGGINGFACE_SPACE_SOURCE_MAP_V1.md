@@ -18,12 +18,13 @@ Only `EXACT` is write-authoritative without additional review. `INFERRED` may be
 For each public Space, the map records:
 
 - Hugging Face repository and runtime revisions
+- README bytes fetched from the exact recorded Hugging Face repository revision
 - runtime stage and SDK
 - public README hash and front-matter keys
 - explicit SZL Holdings GitHub links
 - verified or inferred source-repository candidates
-- source-repository default branch, visibility, archival state, and latest push time
-- deployment-workflow filename candidates under `.github/workflows`
+- source-repository default branch, exact branch-head revision, visibility, and archival state
+- deployment-workflow filename candidates under `.github/workflows` at that exact GitHub revision
 
 A single workflow filename candidate is not proof of single-writer authority. It is labeled only as a candidate until workflow contents, target resource, and protected promotion behavior are reviewed.
 

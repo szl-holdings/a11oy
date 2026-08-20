@@ -76,11 +76,11 @@ def _safe_request_json(url: str, *, github: bool = False) -> tuple[int, Any]:
         return error.code, payload
 
 
-def _safe_request_text(url: str) -> tuple[int, str]:
+def _safe_request_bytes(url: str) -> tuple[int, bytes]:
     try:
-        return 200, _request(url).decode("utf-8", "replace")
+        return 200, _request(url)
     except urllib.error.HTTPError as error:
-        return error.code, error.read().decode("utf-8", "replace")
+        return error.code, error.read()
 
 
 def fetch_spaces(author: str = HF_ORG) -> list[dict[str, Any]]:
@@ -102,19 +102,28 @@ def fetch_spaces(author: str = HF_ORG) -> list[dict[str, Any]]:
     return records
 
 
-def fetch_space_readme(repo_id: str) -> tuple[int, str, str]:
+def require_sha40(value: object, *, label: str) -> str:
+    if not isinstance(value, str) or not SHA40.fullmatch(value.lower()):
+        raise SourceMapError(
+            f"{label} must be an exact 40-character hexadecimal commit SHA"
+        )
+    return value.lower()
+
+
+def fetch_space_readme(repo_id: str, revision: str) -> tuple[int, bytes, str]:
+    revision = require_sha40(revision, label=f"{repo_id} Hugging Face revision")
     quoted = "/".join(urllib.parse.quote(part, safe="") for part in repo_id.split("/", 1))
     candidates = (
-        f"https://huggingface.co/spaces/{quoted}/raw/main/README.md",
-        f"https://huggingface.co/spaces/{quoted}/resolve/main/README.md",
+        f"https://huggingface.co/spaces/{quoted}/raw/{revision}/README.md",
+        f"https://huggingface.co/spaces/{quoted}/resolve/{revision}/README.md",
     )
     last_status = 404
     for url in candidates:
-        status, text = _safe_request_text(url)
+        status, content = _safe_request_bytes(url)
         last_status = status
         if status == 200:
-            return status, text, url
-    return last_status, "", candidates[0]
+            return status, content, url
+    return last_status, b"", candidates[0]
 
 
 def parse_front_matter(text: str) -> dict[str, str]:
@@ -203,17 +212,61 @@ def resolve_github_repo(full_name: str) -> dict[str, Any] | None:
         "archived": bool(payload.get("archived")),
         "disabled": bool(payload.get("disabled")),
         "visibility": payload.get("visibility"),
-        "pushed_at": payload.get("pushed_at"),
     }
 
 
-def list_workflow_candidates(full_name: str) -> dict[str, Any]:
-    url = _repo_api_url(full_name) + "/contents/.github/workflows"
+def bind_github_repo_revision(repository: dict[str, Any]) -> dict[str, Any]:
+    bound = dict(repository)
+    existing = bound.get("default_branch_sha")
+    if isinstance(existing, str) and SHA40.fullmatch(existing.lower()):
+        bound["default_branch_sha"] = existing.lower()
+        return bound
+
+    full_name = bound.get("full_name")
+    default_branch = bound.get("default_branch")
+    if not isinstance(full_name, str) or not full_name:
+        raise SourceMapError("GitHub repository metadata has no canonical full name")
+    if not isinstance(default_branch, str) or not default_branch:
+        bound["default_branch_sha"] = None
+        return bound
+
+    commit_url = (
+        _repo_api_url(full_name)
+        + "/commits/"
+        + urllib.parse.quote(default_branch, safe="")
+    )
+    commit_status, commit = _safe_request_json(commit_url, github=True)
+    if commit_status in {404, 409}:
+        bound["default_branch_sha"] = None
+        return bound
+    if commit_status != 200 or not isinstance(commit, dict):
+        raise SourceMapError(
+            f"GitHub default-branch lookup failed for {full_name}: "
+            f"HTTP {commit_status}"
+        )
+    bound["default_branch_sha"] = require_sha40(
+        commit.get("sha"), label=f"{full_name} GitHub default-branch revision"
+    )
+    return bound
+
+
+def list_workflow_candidates(full_name: str, revision: str) -> dict[str, Any]:
+    revision = require_sha40(revision, label=f"{full_name} GitHub revision")
+    url = (
+        _repo_api_url(full_name)
+        + "/contents/.github/workflows?"
+        + urllib.parse.urlencode({"ref": revision})
+    )
     status, payload = _safe_request_json(url, github=True)
     if status == 404:
-        return {"state": "UNAVAILABLE", "paths": []}
+        return {"state": "UNAVAILABLE", "github_ref": revision, "paths": []}
     if status != 200 or not isinstance(payload, list):
-        return {"state": "ERROR", "http_status": status, "paths": []}
+        return {
+            "state": "ERROR",
+            "github_ref": revision,
+            "http_status": status,
+            "paths": [],
+        }
     paths = sorted(
         str(item.get("path"))
         for item in payload
@@ -224,6 +277,7 @@ def list_workflow_candidates(full_name: str) -> dict[str, Any]:
     )
     return {
         "state": "OBSERVED",
+        "github_ref": revision,
         "paths": paths,
         "candidate_count": len(paths),
         "single_writer_candidate": len(paths) == 1,
@@ -323,11 +377,13 @@ def select_source_mapping(
 
 def build_source_map(
     records: list[dict[str, Any]],
-    readme_fetcher: Callable[[str], tuple[int, str, str]] = fetch_space_readme,
+    readme_fetcher: Callable[[str, str], tuple[int, bytes, str]] = fetch_space_readme,
     resolver: Callable[[str], dict[str, Any] | None] = resolve_github_repo,
-    workflow_lister: Callable[[str], dict[str, Any]] = list_workflow_candidates,
+    workflow_lister: Callable[[str, str], dict[str, Any]] = list_workflow_candidates,
+    repository_binder: Callable[[dict[str, Any]], dict[str, Any]] = bind_github_repo_revision,
 ) -> dict[str, Any]:
     repo_cache: dict[str, dict[str, Any] | None] = {}
+    bound_repo_cache: dict[str, dict[str, Any]] = {}
     workflow_cache: dict[str, dict[str, Any]] = {}
 
     def cached_resolver(full_name: str) -> dict[str, Any] | None:
@@ -343,17 +399,54 @@ def build_source_map(
 
     for record in records:
         space_id = str(record["id"])
-        status, readme, readme_url = readme_fetcher(space_id)
+        hf_repository_sha = require_sha40(
+            record.get("sha"), label=f"{space_id} Hugging Face repository revision"
+        )
+        status, readme_bytes, readme_url = readme_fetcher(
+            space_id, hf_repository_sha
+        )
+        if status == 200:
+            try:
+                readme = readme_bytes.decode("utf-8", errors="strict")
+            except UnicodeDecodeError as error:
+                raise SourceMapError(
+                    f"{space_id} README at {hf_repository_sha} is not strict UTF-8"
+                ) from error
+        else:
+            readme = ""
         front = parse_front_matter(readme) if status == 200 else {}
         explicit = extract_explicit_github_repositories(readme, front)
         mapping = select_source_mapping(space_id, explicit, cached_resolver)
         canonical = mapping.get("canonical")
         workflows: dict[str, Any]
         if isinstance(canonical, dict) and isinstance(canonical.get("full_name"), str):
+            canonical_name = canonical["full_name"].lower()
+            if canonical_name not in bound_repo_cache:
+                bound_repo_cache[canonical_name] = repository_binder(canonical)
+            canonical = bound_repo_cache[canonical_name]
+            mapping["canonical"] = canonical
+            mapping["candidates"] = [
+                canonical
+                if isinstance(candidate.get("full_name"), str)
+                and candidate["full_name"].lower() == canonical_name
+                else candidate
+                for candidate in mapping["candidates"]
+            ]
             repo_key = canonical["full_name"].lower()
-            if repo_key not in workflow_cache:
-                workflow_cache[repo_key] = workflow_lister(canonical["full_name"])
-            workflows = workflow_cache[repo_key]
+            github_ref = canonical.get("default_branch_sha")
+            if isinstance(github_ref, str) and SHA40.fullmatch(github_ref):
+                cache_key = f"{repo_key}@{github_ref}"
+                if cache_key not in workflow_cache:
+                    workflow_cache[cache_key] = workflow_lister(
+                        canonical["full_name"], github_ref
+                    )
+                workflows = workflow_cache[cache_key]
+            else:
+                workflows = {
+                    "state": "UNAVAILABLE_REVISION",
+                    "github_ref": None,
+                    "paths": [],
+                }
         else:
             workflows = {"state": "BLOCKED_SOURCE_MAPPING", "paths": []}
 
@@ -363,14 +456,17 @@ def build_source_map(
         spaces.append(
             {
                 "space_id": space_id,
-                "hf_repository_sha": record.get("sha") if isinstance(record.get("sha"), str) else None,
+                "hf_repository_sha": hf_repository_sha,
                 "hf_runtime_sha": _runtime_sha(record),
                 "hf_runtime_stage": _runtime_stage(record),
                 "sdk": _space_sdk(record),
                 "readme": {
                     "http_status": status,
                     "url": readme_url,
-                    "sha256": hashlib.sha256(readme.encode("utf-8")).hexdigest() if status == 200 else None,
+                    "revision": hf_repository_sha,
+                    "sha256": hashlib.sha256(readme_bytes).hexdigest()
+                    if status == 200
+                    else None,
                     "front_matter_keys": sorted(front),
                 },
                 "explicit_github_repositories": explicit,
