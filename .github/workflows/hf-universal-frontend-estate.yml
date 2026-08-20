@@ -82,4 +82,5 @@ jobs:
               assert forbidden not in on_block, forbidden
           assert 'operation == \'execute\'' in rollout
           assert '--execute' in rollout and '--merge' in rollout
+          assert rollout.count('--protected-source-sha "$GITHUB_SHA"') == 2
           PY

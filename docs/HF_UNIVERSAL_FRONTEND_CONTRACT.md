@@ -11,7 +11,9 @@ Automatic pull-request, protected-main, and scheduled execution is read-only and
 Estate planning and provider mutation live in a separate `workflow_dispatch`-only workflow:
 
 - `operation=plan` inventories the public estate and produces immutable evidence without requiring provider credentials or changing any provider resource;
-- `operation=execute` requires explicit owner dispatch plus the managed organization token and may create and merge only revision-bound Hugging Face pull requests for supported assets.
+- `operation=execute` requires explicit owner dispatch from exact current protected `main` plus the managed organization token and may create and merge only revision-bound Hugging Face pull requests for supported assets.
+
+Both operations derive their inventory anonymously and require an explicit public visibility flag before an asset is admitted. The managed token is used only after that public inventory is frozen, so private repositories cannot enter mutation evidence or blocker reports.
 
 ## Canonical boundaries
 
@@ -37,6 +39,8 @@ The rollout must never:
 
 `SZLHOLDINGS/README` and `SZLHOLDINGS/a11oy` are protected GitHub-derived Spaces. Any Space whose `deployment.json` identifies external source provenance is also audit-only. Those applications must be changed in the repository that owns their canonical source and then promoted through their existing deployment workflow.
 
+A protected Space reaches the non-blocking `SOURCE_BOUND_VERIFIED` state only when its public deployment manifest and served build readback expose the same immutable source revision, while the public Hugging Face repository and running runtime expose the same immutable Space revision. Missing or divergent evidence remains blocked. Other source-bound Spaces remain blocked until an equally explicit public readback contract is configured.
+
 ## Responsive contract
 
 Supported application shells receive one framework-local stylesheet that enforces:
@@ -50,7 +54,7 @@ Supported application shells receive one framework-local stylesheet that enforce
 - zero horizontal overflow caused by technical identifiers;
 - no runtime CDN dependency.
 
-Adapters fail closed when source is ambiguous. Existing Gradio `css=` integrations and multiline Streamlit page configuration require source-native review instead of automated replacement.
+Adapters fail closed when source is ambiguous. Python adapters preserve shebangs, encoding declarations, module docstrings, and `__future__` imports before inserting their ordinary `pathlib` import, then parse the generated source before proposing it. Existing Gradio `css=` integrations and multiline Streamlit page configuration require source-native review instead of automated replacement.
 
 ## Transaction and evidence
 
@@ -65,7 +69,7 @@ For each eligible asset the controller:
 7. reads back the resulting `main` SHA;
 8. writes a machine-readable report and rollback preimages.
 
-A source-bound or unsupported asset remains a blocker in the estate report. The manual execution job keeps one deterministic GitHub issue open until every asset is either current or has been repaired at its canonical source.
+An unsupported or unverified source-bound asset remains a blocker in the estate report. The manual execution job keeps one deterministic GitHub issue open until every asset is in a terminal verified state: `CURRENT`, `MERGED` with a distinct immutable provider readback, or `SOURCE_BOUND_VERIFIED`. Issue synchronization requires successful immutable evidence upload and a second exact-current-main check.
 
 ## Release decision
 
@@ -79,4 +83,4 @@ The estate may be called complete only when an owner-dispatched execution report
 }
 ```
 
-A source merge, successful plan, partial card rollout, or reachable URL is not an estate-wide production-verification claim.
+A source merge, successful plan, created-but-unmerged provider pull request, partial card rollout, or reachable URL is not an estate-wide production-verification claim. `complete: true` additionally requires explicit execute-and-merge mode and at least one inventoried asset; it can never be produced by a planning run.

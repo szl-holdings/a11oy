@@ -55,6 +55,7 @@ jobs:
           set +e
           python scripts/hf_universal_frontend_control.py \
             --org SZLHOLDINGS \
+            --protected-source-sha "$GITHUB_SHA" \
             --report "$REPORT" \
             --backup-dir "$BACKUPS"
           code=$?
@@ -74,7 +75,7 @@ jobs:
 
   execute:
     name: Revision-bound Hub PR rollout
-    if: inputs.operation == 'execute'
+    if: inputs.operation == 'execute' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 120
     permissions:
@@ -95,6 +96,19 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Require exact current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked_out="$(git rev-parse HEAD)"
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$GITHUB_REF" = refs/heads/main
+          test "$checked_out" = "$GITHUB_SHA"
+          if [ "$current_main" != "$GITHUB_SHA" ]; then
+            echo "::error::Rollout source ${GITHUB_SHA} is not current main ${current_main}."
+            exit 1
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -113,6 +127,7 @@ jobs:
           set +e
           python scripts/hf_universal_frontend_control.py \
             --org SZLHOLDINGS \
+            --protected-source-sha "$GITHUB_SHA" \
             --execute \
             --merge \
             --report "$REPORT" \
@@ -122,6 +137,7 @@ jobs:
           exit 0
 
       - name: Upload exact rollout evidence and rollback preimages
+        id: evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -133,12 +149,30 @@ jobs:
           retention-days: 180
 
       - name: Synchronize one deterministic blocker issue
-        if: always()
+        if: ${{ always() && steps.evidence.outcome == 'success' }}
         shell: bash
         run: |
           set -euo pipefail
           test -f "$REPORT"
-          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 100 --search "\"$ISSUE_TITLE\" in:title" --json number,title --jq ".[] | select(.title == \"$ISSUE_TITLE\") | .number" | head -n 1)"
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$current_main" != "$GITHUB_SHA" ]; then
+            echo "::error::Main advanced to ${current_main}; refusing issue mutation for ${GITHUB_SHA}."
+            exit 1
+          fi
+          issue_output="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 100 --search "\"$ISSUE_TITLE\" in:title" --json number,state,title --jq ".[] | select(.title == \"$ISSUE_TITLE\") | \"\(.number)\\t\(.state)\"")"
+          issue_matches=()
+          if [ -n "$issue_output" ]; then
+            mapfile -t issue_matches <<< "$issue_output"
+          fi
+          if [ "${#issue_matches[@]}" -gt 1 ]; then
+            echo "::error::Multiple deterministic universal-frontend issues exist; refusing ambiguous mutation."
+            exit 1
+          fi
+          number=""
+          issue_state=""
+          if [ "${#issue_matches[@]}" -eq 1 ]; then
+            IFS=$'\t' read -r number issue_state <<< "${issue_matches[0]}"
+          fi
           python - "$REPORT" > /tmp/hf-universal-frontend-issue.md <<'PY'
           import json
           import pathlib
@@ -177,14 +211,16 @@ jobs:
           PY
           )"
           if [ "$complete" = true ]; then
-            if [ -n "$number" ]; then
+            if [ -n "$number" ] && [ "$issue_state" = "OPEN" ]; then
               gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
-              gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed --comment "Exact estate report is complete for protected source ${GITHUB_SHA}." || true
+              gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed --comment "Exact estate report is complete for protected source ${GITHUB_SHA}."
             fi
           elif [ -z "$number" ]; then
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body-file /tmp/hf-universal-frontend-issue.md
           else
-            gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true
+            if [ "$issue_state" = "CLOSED" ]; then
+              gh issue reopen "$number" --repo "$GITHUB_REPOSITORY"
+            fi
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
           fi
 
