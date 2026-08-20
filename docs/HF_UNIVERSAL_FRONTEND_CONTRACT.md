@@ -13,7 +13,7 @@ Estate planning and provider mutation live in a separate `workflow_dispatch`-onl
 - `operation=plan` inventories the public estate and produces immutable evidence without requiring provider credentials or changing any provider resource;
 - `operation=execute` requires explicit owner dispatch from exact current protected `main` plus the managed organization token and may create and merge only revision-bound Hugging Face pull requests for supported assets.
 
-Both operations derive their inventory anonymously and require an explicit public visibility flag before an asset is admitted. The managed token is used only after that public inventory is frozen, so private repositories cannot enter mutation evidence or blocker reports.
+Both operations derive their inventory anonymously and require an explicit public visibility flag before an asset is admitted. The managed token is used only after that public inventory is frozen, so private repositories cannot enter mutation evidence or blocker reports. Before any provider proposal, both operations also load the tracked `docs/huggingface-space-source-map-v1.json` from the exact protected checkout and record its SHA-256 identity in the estate report.
 
 ## Canonical boundaries
 
@@ -37,7 +37,9 @@ The rollout must never:
 
 ## Source authority
 
-`SZLHOLDINGS/README` and `SZLHOLDINGS/a11oy` are protected GitHub-derived Spaces. Any Space whose `deployment.json` identifies external source provenance is also audit-only. Those applications must be changed in the repository that owns their canonical source and then promoted through their existing deployment workflow.
+`SZLHOLDINGS/README` and `SZLHOLDINGS/a11oy` are protected GitHub-derived Spaces. Any Space whose `deployment.json` identifies external source provenance is also audit-only. The source map extends that boundary to every Space classified `EXACT`, `INFERRED`, or `DIVERGENT`: none may receive a direct Hub pull request. An `EXACT` Space must be changed at the immutable `canonical.default_branch_sha` recorded for its source repository and promoted by that repository. `INFERRED` still requires owner confirmation, and `DIVERGENT` remains blocked rather than choosing a candidate.
+
+Only a source-map record classified `UNAVAILABLE` may enter the Hub-native adapter path, and only when both the map's Hugging Face repository revision and its README observation equal the exact Hub revision being processed. A missing entry, stale Hub observation, README fetched from a mutable or unavailable revision, or `EXACT`/`INFERRED` record without a full canonical source SHA is `SOURCE_MAPPING_BLOCKED`; it never falls back to direct Hub mutation. Candidate metadata from a `DIVERGENT` record is not treated as branch or promotion authority.
 
 A protected Space reaches the non-blocking `SOURCE_BOUND_VERIFIED` state only when its public deployment manifest and served build readback expose the same immutable source revision, while the public Hugging Face repository and running runtime expose the same immutable Space revision. Missing or divergent evidence remains blocked. Other source-bound Spaces remain blocked until an equally explicit public readback contract is configured.
 
@@ -60,14 +62,16 @@ Adapters fail closed when source is ambiguous. Python adapters preserve shebangs
 
 For each eligible asset the controller:
 
-1. resolves the exact current `main` SHA;
-2. inventories repository files at that SHA;
-3. records every preimage that would change;
-4. generates deterministic card/application changes;
-5. creates a Hugging Face pull request with `parent_commit` bound to the observed SHA;
-6. optionally merges the pull request during explicit owner execution;
-7. reads back the resulting `main` SHA;
-8. writes a machine-readable report and rollback preimages.
+1. loads and validates the protected source map before creating any provider proposal;
+2. resolves the exact current Hub `main` SHA;
+3. requires an exact-revision source-map and README observation before admitting a Hub-native Space;
+4. inventories repository files at that SHA;
+5. records every preimage that would change;
+6. generates deterministic card/application changes;
+7. creates a Hugging Face pull request with `parent_commit` bound to the observed SHA;
+8. optionally merges the pull request during explicit owner execution;
+9. reads back the resulting `main` SHA;
+10. writes a machine-readable report, source-map digest, and rollback preimages.
 
 An unsupported or unverified source-bound asset remains a blocker in the estate report. The manual execution job keeps one deterministic GitHub issue open until every asset is in a terminal verified state: `CURRENT`, `MERGED` with a distinct immutable provider readback, or `SOURCE_BOUND_VERIFIED`. Issue synchronization requires successful immutable evidence upload and a second exact-current-main check.
 

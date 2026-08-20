@@ -32,6 +32,8 @@ END = "<!-- szl-universal-frontend:end -->"
 STYLE_START = "/* szl-universal-frontend:start */"
 STYLE_END = "/* szl-universal-frontend:end */"
 RELEASE = "2026-08-17"
+ROOT = Path(__file__).resolve().parents[1]
+DEFAULT_SOURCE_MAP = ROOT / "docs" / "huggingface-space-source-map-v1.json"
 PROTECTED_SPACES = {"SZLHOLDINGS/README", "SZLHOLDINGS/a11oy"}
 SOURCE_BOUND_READBACK_URLS = {
     "SZLHOLDINGS/README": "https://szlholdings-readme.static.hf.space/deployment.json",
@@ -42,6 +44,8 @@ STATIC_MANIFEST_READBACK_SPACES = frozenset({"SZLHOLDINGS/README"})
 REPO_TYPES = ("model", "dataset", "space")
 TERMINAL_VERIFIED_STATES = frozenset({"CURRENT", "MERGED", "SOURCE_BOUND_VERIFIED"})
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
+SOURCE_MAPPING_STATES = frozenset({"EXACT", "INFERRED", "DIVERGENT", "UNAVAILABLE"})
 
 UNIVERSAL_CSS = f"""{STYLE_START}
 :root {{ color-scheme: dark; --szl-focus: #eef4fb; }}
@@ -84,6 +88,22 @@ class Asset:
     files: tuple[str, ...]
 
 
+@dataclasses.dataclass(frozen=True)
+class SourceMapDocument:
+    path: Path
+    sha256: str
+    organization: str
+    entries: dict[str, dict[str, Any]]
+
+    def report_identity(self) -> dict[str, Any]:
+        return {
+            "schema": "szl.hf-space-source-map/v1",
+            "path": str(self.path),
+            "sha256": self.sha256,
+            "space_count": len(self.entries),
+        }
+
+
 @dataclasses.dataclass
 class Decision:
     repo_id: str
@@ -118,6 +138,174 @@ def _value(node: Any, key: str) -> Any:
     if isinstance(node, dict):
         return node.get(key)
     return getattr(node, key, None)
+
+
+def load_source_map(path: Path, org: str) -> SourceMapDocument:
+    """Load the protected, read-only source authority map before any provider write."""
+    try:
+        raw = path.read_bytes()
+        payload = json.loads(raw)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ControlError(f"source map {path} is unavailable or invalid JSON") from exc
+    if not isinstance(payload, dict):
+        raise ControlError("source map root must be a JSON object")
+    if payload.get("schema") != "szl.hf-space-source-map/v1":
+        raise ControlError("source map schema is not szl.hf-space-source-map/v1")
+    if payload.get("organization") != org:
+        raise ControlError(
+            f"source map organization {payload.get('organization')!r} does not equal {org!r}"
+        )
+    if payload.get("remote_mutation") is not False:
+        raise ControlError("source map must declare remote_mutation=false")
+    spaces = payload.get("spaces")
+    if not isinstance(spaces, list) or not spaces:
+        raise ControlError("source map must contain at least one Space record")
+
+    entries: dict[str, dict[str, Any]] = {}
+    expected_prefix = org.lower() + "/"
+    for position, record in enumerate(spaces):
+        if not isinstance(record, dict):
+            raise ControlError(f"source map Space record {position} is not an object")
+        space_id = record.get("space_id")
+        if not isinstance(space_id, str) or not space_id.lower().startswith(expected_prefix):
+            raise ControlError(f"source map Space record {position} has invalid identity")
+        key = space_id.lower()
+        if key in entries:
+            raise ControlError(f"source map contains duplicate Space identity {space_id}")
+        if not _valid_sha(record.get("hf_repository_sha")):
+            raise ControlError(f"source map {space_id} has no immutable Hugging Face revision")
+        mapping = record.get("source_mapping")
+        if not isinstance(mapping, dict) or mapping.get("state") not in SOURCE_MAPPING_STATES:
+            raise ControlError(f"source map {space_id} has an invalid mapping state")
+        canonical = mapping.get("canonical")
+        if canonical is not None and not isinstance(canonical, dict):
+            raise ControlError(f"source map {space_id} canonical source must be an object or null")
+        candidates = mapping.get("candidates")
+        if not isinstance(candidates, list) or not all(
+            isinstance(candidate, dict) for candidate in candidates
+        ):
+            raise ControlError(f"source map {space_id} candidates must be objects")
+        readme = record.get("readme")
+        if not isinstance(readme, dict):
+            raise ControlError(f"source map {space_id} has no README observation")
+        entries[key] = record
+
+    return SourceMapDocument(
+        path=path,
+        sha256=_sha256(raw),
+        organization=org,
+        entries=entries,
+    )
+
+
+def evaluate_space_source_mapping(
+    asset: Asset,
+    record: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Return the only source-map decision that may admit a direct Hub proposal.
+
+    `UNAVAILABLE` means Hub-native only when source discovery is bound to the exact
+    currently observed Hub revision. Every other state remains source-native or
+    blocked; unbound `EXACT`/`INFERRED` evidence never falls back to Hub mutation.
+    """
+    if asset.repo_type != "space":
+        raise ControlError("source-map authority applies only to Spaces")
+    evidence: dict[str, Any] = {
+        "reported_state": None,
+        "effective_state": "BLOCKED_SOURCE_MAPPING",
+        "direct_hub_mutation_allowed": False,
+        "canonical_repository": None,
+        "canonical_source_revision": None,
+        "failures": [],
+    }
+    failures: list[str] = evidence["failures"]
+    if record is None:
+        failures.append("SOURCE_MAP_ENTRY_MISSING")
+        return evidence
+
+    mapped_id = record.get("space_id")
+    mapping = record.get("source_mapping")
+    readme = record.get("readme")
+    if not isinstance(mapping, dict) or not isinstance(readme, dict):
+        failures.append("SOURCE_MAP_RECORD_INVALID")
+        return evidence
+    state = mapping.get("state")
+    evidence["reported_state"] = state
+    if mapped_id != asset.repo_id:
+        failures.append("SOURCE_MAP_IDENTITY_DIVERGED")
+    mapped_hf_sha = record.get("hf_repository_sha")
+    if mapped_hf_sha != asset.sha:
+        failures.append("SOURCE_MAP_HF_REVISION_DIVERGED")
+    if readme.get("revision") != asset.sha:
+        failures.append("SOURCE_MAP_README_REVISION_UNBOUND")
+    readme_status = readme.get("http_status")
+    readme_url = readme.get("url")
+    readme_digest = readme.get("sha256")
+    if (
+        not isinstance(readme_status, int)
+        or isinstance(readme_status, bool)
+        or not 100 <= readme_status <= 599
+    ):
+        failures.append("SOURCE_MAP_README_STATUS_INVALID")
+    if not isinstance(readme_url, str) or f"/{asset.sha}/README.md" not in readme_url:
+        failures.append("SOURCE_MAP_README_URL_UNBOUND")
+    if readme_status == 200 and not (
+        isinstance(readme_digest, str) and SHA256.fullmatch(readme_digest.lower())
+    ):
+        failures.append("SOURCE_MAP_README_DIGEST_INVALID")
+    if state not in SOURCE_MAPPING_STATES:
+        failures.append("SOURCE_MAPPING_STATE_INVALID")
+        return evidence
+
+    canonical = mapping.get("canonical")
+    if state in {"EXACT", "INFERRED"}:
+        if not isinstance(canonical, dict):
+            failures.append("CANONICAL_SOURCE_REPOSITORY_UNAVAILABLE")
+        else:
+            repository = canonical.get("full_name")
+            revision = canonical.get("default_branch_sha")
+            if not isinstance(repository, str) or not repository:
+                failures.append("CANONICAL_SOURCE_REPOSITORY_UNAVAILABLE")
+            else:
+                evidence["canonical_repository"] = repository
+            if not _valid_sha(revision):
+                failures.append("CANONICAL_SOURCE_REVISION_UNAVAILABLE")
+            else:
+                evidence["canonical_source_revision"] = str(revision).lower()
+            candidates = mapping.get("candidates")
+            matching_candidates = [
+                candidate
+                for candidate in candidates
+                if isinstance(candidate.get("full_name"), str)
+                and isinstance(repository, str)
+                and candidate["full_name"].lower() == repository.lower()
+                and candidate.get("default_branch_sha") == revision
+            ]
+            if len(matching_candidates) != 1:
+                failures.append("CANONICAL_SOURCE_CANDIDATE_UNBOUND")
+            workflows = record.get("workflow_candidates")
+            if not isinstance(workflows, dict) or workflows.get("github_ref") != revision:
+                failures.append("SOURCE_WORKFLOW_REVISION_UNBOUND")
+        if failures:
+            return evidence
+        if state == "INFERRED":
+            evidence["effective_state"] = "SOURCE_REPOSITORY_REVIEW_REQUIRED"
+            failures.append("INFERRED_SOURCE_REQUIRES_OWNER_CONFIRMATION")
+        else:
+            evidence["effective_state"] = "SOURCE_REPOSITORY_REQUIRED"
+        return evidence
+
+    if state == "DIVERGENT":
+        failures.append("SOURCE_MAPPING_DIVERGENT")
+        return evidence
+
+    if canonical is not None or mapping.get("candidates") or mapping.get("missing_candidates"):
+        failures.append("UNAVAILABLE_SOURCE_MAPPING_HAS_CANDIDATES")
+    if failures:
+        return evidence
+    evidence["effective_state"] = "HUB_NATIVE_ELIGIBLE"
+    evidence["direct_hub_mutation_allowed"] = True
+    return evidence
 
 
 def _find_source_revision(node: Any) -> str | None:
@@ -555,6 +743,7 @@ def process_asset(
     merge: bool,
     backups: Path,
     *,
+    source_mapping: dict[str, Any] | None,
     protected_source_sha: str | None = None,
 ) -> Decision:
     source_bound = False
@@ -562,20 +751,51 @@ def process_asset(
     framework = "CARD_ONLY"
     app_ops: list[tuple[str, bytes]] = []
     blockers: list[str] = []
+    mapping_evidence: dict[str, Any] | None = None
 
     if asset.repo_type == "space":
+        mapping_evidence = evaluate_space_source_mapping(asset, source_mapping)
         source_bound, source_reason = _source_bound(api, asset, False)
-        if source_bound:
+        mapping_state = mapping_evidence["effective_state"]
+        if mapping_state in {
+            "SOURCE_REPOSITORY_REQUIRED",
+            "SOURCE_REPOSITORY_REVIEW_REQUIRED",
+        }:
+            source_bound = True
+            source_reason = (
+                f"source map {mapping_evidence['reported_state']} binds "
+                f"{mapping_evidence['canonical_repository']}@"
+                f"{mapping_evidence['canonical_source_revision']}"
+            )
+        if not mapping_evidence["direct_hub_mutation_allowed"] and not source_bound:
+            framework = "SOURCE_MAPPING_BLOCKED"
+        elif source_bound:
             framework = "GITHUB_SOURCE_BOUND"
         else:
             framework, app_ops, blockers = classify_space(api, asset, token)
 
     decision = Decision(asset.repo_id, asset.repo_type, asset.sha, "PLANNED", framework)
     decision.blockers.extend(blockers)
+    if mapping_evidence is not None:
+        decision.evidence["source_mapping"] = mapping_evidence
+        if not mapping_evidence["direct_hub_mutation_allowed"] and not source_bound:
+            decision.state = "SOURCE_MAPPING_BLOCKED"
+            decision.blockers.extend(mapping_evidence["failures"])
+            if not decision.blockers:
+                decision.blockers.append("SOURCE_MAP_DIRECT_HUB_MUTATION_DENIED")
+            return decision
     if source_bound:
         evidence = verify_source_bound_asset(api, asset, protected_source_sha)
         decision.evidence["source_bound_readback"] = evidence
-        if evidence.get("status") == "VERIFIED":
+        mapping_failures = mapping_evidence["failures"] if mapping_evidence else []
+        if (
+            mapping_evidence
+            and mapping_evidence["effective_state"] == "SOURCE_REPOSITORY_REQUIRED"
+            and evidence.get("canonical_source_revision")
+            != mapping_evidence["canonical_source_revision"]
+        ):
+            mapping_failures.append("SOURCE_MAP_DEPLOYMENT_REVISION_DIVERGED")
+        if evidence.get("status") == "VERIFIED" and not mapping_failures:
             decision.state = "SOURCE_BOUND_VERIFIED"
         else:
             decision.state = "SOURCE_BOUND_AUDIT_ONLY"
@@ -584,6 +804,7 @@ def process_asset(
             decision.blockers.append(
                 f"{source_reason or 'external source authority'}; {detail or 'readback unavailable'}"
             )
+            decision.blockers.extend(str(item) for item in mapping_failures)
         return decision
 
     existing_readme = _read_bytes(api, asset, "README.md", token)
@@ -658,7 +879,14 @@ def _decision_is_terminal_verified(decision: Decision) -> bool:
     return isinstance(source_evidence, dict) and source_evidence.get("status") == "VERIFIED"
 
 
-def build_report(org: str, decisions: list[Decision], execute: bool, merge: bool) -> dict[str, Any]:
+def build_report(
+    org: str,
+    decisions: list[Decision],
+    execute: bool,
+    merge: bool,
+    *,
+    source_map: SourceMapDocument | None = None,
+) -> dict[str, Any]:
     states: dict[str, int] = {}
     for item in decisions:
         states[item.state] = states.get(item.state, 0) + 1
@@ -674,6 +902,7 @@ def build_report(org: str, decisions: list[Decision], execute: bool, merge: bool
         "schema": "szl.hf-universal-frontend-estate/v1",
         "release": RELEASE,
         "organization": org,
+        "source_map": source_map.report_identity() if source_map else None,
         "execute": execute,
         "merge": merge,
         "asset_count": len(decisions),
@@ -698,6 +927,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--merge", action="store_true")
     parser.add_argument("--protected-source-sha")
+    parser.add_argument("--source-map", type=Path, default=DEFAULT_SOURCE_MAP)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--backup-dir", type=Path, required=True)
     parser.add_argument("--sleep", type=float, default=0.15)
@@ -713,6 +943,22 @@ def main(argv: list[str] | None = None) -> int:
     if args.protected_source_sha and not _valid_sha(args.protected_source_sha):
         print("--protected-source-sha must be one full hexadecimal commit SHA", file=sys.stderr)
         return 4
+
+    try:
+        source_map = load_source_map(args.source_map, args.org)
+    except ControlError as exc:
+        args.report.parent.mkdir(parents=True, exist_ok=True)
+        fatal = {
+            "schema": "szl.hf-universal-frontend-estate/v1",
+            "complete": False,
+            "fatal": str(exc),
+        }
+        args.report.write_text(
+            json.dumps(fatal, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(json.dumps(fatal, indent=2, sort_keys=True), file=sys.stderr)
+        return 2
 
     api = HfApi(token=token)
     public_inventory_api = HfApi()
@@ -735,6 +981,9 @@ def main(argv: list[str] | None = None) -> int:
                     args.execute,
                     args.merge,
                     args.backup_dir,
+                    source_mapping=source_map.entries.get(asset.repo_id.lower())
+                    if asset.repo_type == "space"
+                    else None,
                     protected_source_sha=args.protected_source_sha,
                 )
             )
@@ -742,7 +991,13 @@ def main(argv: list[str] | None = None) -> int:
             decisions.append(Decision(asset.repo_id, asset.repo_type, asset.sha, "FAILED", blockers=[str(exc)]))
         time.sleep(max(args.sleep, 0))
 
-    report = build_report(args.org, decisions, args.execute, args.merge)
+    report = build_report(
+        args.org,
+        decisions,
+        args.execute,
+        args.merge,
+        source_map=source_map,
+    )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps({k: report[k] for k in ("asset_count", "state_counts", "blocked_assets", "failed_assets", "complete")}, indent=2))

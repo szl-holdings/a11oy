@@ -20,6 +20,7 @@ concurrency:
 env:
   REPORT: evidence/hf-universal-frontend-estate.json
   BACKUPS: evidence/hf-universal-frontend-preimages
+  SOURCE_MAP: docs/huggingface-space-source-map-v1.json
   ISSUE_TITLE: '[HF-UNIVERSAL-FRONTEND] Source-native rollout incomplete'
 
 jobs:
@@ -56,6 +57,7 @@ jobs:
           python scripts/hf_universal_frontend_control.py \
             --org SZLHOLDINGS \
             --protected-source-sha "$GITHUB_SHA" \
+            --source-map "$SOURCE_MAP" \
             --report "$REPORT" \
             --backup-dir "$BACKUPS"
           code=$?
@@ -128,6 +130,7 @@ jobs:
           python scripts/hf_universal_frontend_control.py \
             --org SZLHOLDINGS \
             --protected-source-sha "$GITHUB_SHA" \
+            --source-map "$SOURCE_MAP" \
             --execute \
             --merge \
             --report "$REPORT" \

@@ -18,6 +18,56 @@ def asset(files: tuple[str, ...], repo_id: str = "SZLHOLDINGS/example", repo_typ
     return control.Asset(repo_id=repo_id, repo_type=repo_type, sha="a" * 40, files=files)
 
 
+def source_mapping_record(
+    item: control.Asset,
+    state: str,
+    *,
+    source_revision: str | None = "b" * 40,
+    observed_revision: str | None = None,
+    readme_revision: str | None = None,
+) -> dict:
+    canonical = None
+    candidates = []
+    if state in {"EXACT", "INFERRED"}:
+        canonical = {
+            "full_name": "szl-holdings/example",
+            "html_url": "https://github.com/szl-holdings/example",
+            "default_branch": "main",
+            "default_branch_sha": source_revision,
+        }
+        candidates = [canonical]
+    elif state == "DIVERGENT":
+        candidates = [
+            {
+                "full_name": "szl-holdings/example",
+                "html_url": "https://github.com/szl-holdings/example",
+            }
+        ]
+    observed = observed_revision or item.sha
+    readme_observed = readme_revision or item.sha
+    return {
+        "space_id": item.repo_id,
+        "hf_repository_sha": observed,
+        "readme": {
+            "http_status": 200,
+            "revision": readme_observed,
+            "url": f"https://huggingface.co/spaces/{item.repo_id}/raw/{readme_observed}/README.md",
+            "sha256": "c" * 64,
+        },
+        "source_mapping": {
+            "state": state,
+            "canonical": canonical,
+            "candidates": candidates,
+            "missing_candidates": [],
+        },
+        "workflow_candidates": {
+            "state": "OBSERVED" if state in {"EXACT", "INFERRED"} else "BLOCKED_SOURCE_MAPPING",
+            "github_ref": source_revision if state in {"EXACT", "INFERRED"} else None,
+            "paths": [],
+        },
+    }
+
+
 def test_managed_card_preserves_frontmatter_and_is_idempotent() -> None:
     source = "---\ntags:\n- governed\n---\n# Existing\n"
     item = asset(("README.md",), repo_type="model")
@@ -227,13 +277,229 @@ def test_source_bound_verified_is_nonblocking_terminal(
     monkeypatch.setattr(
         control,
         "verify_source_bound_asset",
-        lambda api, candidate, protected_source_sha: {"status": "VERIFIED", "failures": []},
+        lambda api, candidate, protected_source_sha: {
+            "status": "VERIFIED",
+            "canonical_source_revision": "b" * 40,
+            "failures": [],
+        },
     )
-    decision = control.process_asset(object(), item, None, True, True, tmp_path)
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path,
+        source_mapping=source_mapping_record(item, "EXACT"),
+    )
     assert decision.state == "SOURCE_BOUND_VERIFIED"
     assert decision.blockers == []
     report = control.build_report("SZLHOLDINGS", [decision], True, True)
     assert report["complete"] is True
+
+
+def test_exact_mapping_requires_the_same_deployed_source_revision(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    item = asset(("README.md",))
+    monkeypatch.setattr(
+        control,
+        "verify_source_bound_asset",
+        lambda api, candidate, protected_source_sha: {
+            "status": "VERIFIED",
+            "canonical_source_revision": "d" * 40,
+            "failures": [],
+        },
+    )
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path,
+        source_mapping=source_mapping_record(item, "EXACT", source_revision="b" * 40),
+    )
+    assert decision.state == "SOURCE_BOUND_AUDIT_ONLY"
+    assert "SOURCE_MAP_DEPLOYMENT_REVISION_DIVERGED" in decision.blockers
+
+
+def test_exact_source_mapping_never_creates_a_direct_hub_pull_request(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    item = asset(("README.md",))
+
+    class NoWriteApi:
+        def create_commit(self, **kwargs):
+            raise AssertionError("source-mapped Space reached direct Hub mutation")
+
+    monkeypatch.setattr(
+        control,
+        "verify_source_bound_asset",
+        lambda api, candidate, protected_source_sha: {
+            "status": "BLOCKED",
+            "failures": ["PUBLIC_SOURCE_READBACK_UNCONFIGURED"],
+        },
+    )
+    decision = control.process_asset(
+        NoWriteApi(),
+        item,
+        "token",
+        True,
+        True,
+        tmp_path,
+        source_mapping=source_mapping_record(item, "EXACT"),
+    )
+    assert decision.state == "SOURCE_BOUND_AUDIT_ONLY"
+    assert decision.framework == "GITHUB_SOURCE_BOUND"
+    mapping = decision.evidence["source_mapping"]
+    assert mapping["effective_state"] == "SOURCE_REPOSITORY_REQUIRED"
+    assert mapping["direct_hub_mutation_allowed"] is False
+    assert decision.pr_url is None
+
+
+@pytest.mark.parametrize("state", ["EXACT", "INFERRED"])
+def test_unbound_source_revision_never_retains_actionable_mapping(
+    state: str,
+    tmp_path: Path,
+) -> None:
+    item = asset(("README.md",))
+    decision = control.process_asset(
+        object(),
+        item,
+        "token",
+        True,
+        True,
+        tmp_path,
+        source_mapping=source_mapping_record(item, state, source_revision=None),
+    )
+    mapping = decision.evidence["source_mapping"]
+    assert decision.state == "SOURCE_MAPPING_BLOCKED"
+    assert mapping["reported_state"] == state
+    assert mapping["effective_state"] == "BLOCKED_SOURCE_MAPPING"
+    assert mapping["direct_hub_mutation_allowed"] is False
+    assert "CANONICAL_SOURCE_REVISION_UNAVAILABLE" in decision.blockers
+    assert decision.pr_url is None
+
+
+def test_inferred_and_divergent_mappings_are_never_direct_hub_authority(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    inferred = asset(("README.md",), repo_id="SZLHOLDINGS/inferred")
+    monkeypatch.setattr(
+        control,
+        "verify_source_bound_asset",
+        lambda api, candidate, protected_source_sha: {"status": "VERIFIED", "failures": []},
+    )
+    inferred_decision = control.process_asset(
+        object(),
+        inferred,
+        "token",
+        True,
+        True,
+        tmp_path,
+        source_mapping=source_mapping_record(inferred, "INFERRED"),
+    )
+    assert inferred_decision.state == "SOURCE_BOUND_AUDIT_ONLY"
+    assert "INFERRED_SOURCE_REQUIRES_OWNER_CONFIRMATION" in inferred_decision.blockers
+
+    divergent = asset(("README.md",), repo_id="SZLHOLDINGS/divergent")
+    divergent_decision = control.process_asset(
+        object(),
+        divergent,
+        "token",
+        True,
+        True,
+        tmp_path,
+        source_mapping=source_mapping_record(divergent, "DIVERGENT"),
+    )
+    assert divergent_decision.state == "SOURCE_MAPPING_BLOCKED"
+    assert "SOURCE_MAPPING_DIVERGENT" in divergent_decision.blockers
+
+
+def test_only_revision_bound_unavailable_mapping_admits_hub_native_plan(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    item = asset(("index.html",))
+    monkeypatch.setattr(
+        control,
+        "_read_text",
+        lambda api, candidate, path, token: (
+            "<html><head></head><body></body></html>" if path == "index.html" else None
+        ),
+    )
+    monkeypatch.setattr(control, "_read_bytes", lambda api, candidate, path, token: None)
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        False,
+        False,
+        tmp_path,
+        source_mapping=source_mapping_record(item, "UNAVAILABLE"),
+    )
+    assert decision.state == "WOULD_CREATE_PR"
+    assert decision.evidence["source_mapping"]["effective_state"] == "HUB_NATIVE_ELIGIBLE"
+    assert decision.evidence["source_mapping"]["direct_hub_mutation_allowed"] is True
+
+    stale = control.process_asset(
+        object(),
+        item,
+        None,
+        False,
+        False,
+        tmp_path,
+        source_mapping=source_mapping_record(
+            item,
+            "UNAVAILABLE",
+            observed_revision="d" * 40,
+        ),
+    )
+    assert stale.state == "SOURCE_MAPPING_BLOCKED"
+    assert "SOURCE_MAP_HF_REVISION_DIVERGED" in stale.blockers
+
+
+def test_committed_source_map_never_grants_direct_authority_to_a_source_mapping() -> None:
+    document = control.load_source_map(control.DEFAULT_SOURCE_MAP, "SZLHOLDINGS")
+    assert document.entries
+    for record in document.entries.values():
+        item = control.Asset(
+            repo_id=record["space_id"],
+            repo_type="space",
+            sha=record["hf_repository_sha"],
+            files=tuple(),
+        )
+        evidence = control.evaluate_space_source_mapping(item, record)
+        if record["source_mapping"]["state"] != "UNAVAILABLE":
+            assert evidence["direct_hub_mutation_allowed"] is False
+
+
+def test_missing_source_map_fails_before_provider_client_initialization(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    def forbidden_provider(*args, **kwargs):
+        raise AssertionError("provider client initialized before source-map validation")
+
+    monkeypatch.setattr(control, "HfApi", forbidden_provider)
+    report = tmp_path / "report.json"
+    code = control.main(
+        [
+            "--source-map",
+            str(tmp_path / "missing-source-map.json"),
+            "--report",
+            str(report),
+            "--backup-dir",
+            str(tmp_path / "backups"),
+        ]
+    )
+    assert code == 2
+    assert '"complete": false' in report.read_text(encoding="utf-8")
+    assert "unavailable or invalid JSON" in report.read_text(encoding="utf-8")
 
 
 def test_protected_workflow_source_can_verify_without_hub_manifest(
@@ -330,6 +596,7 @@ def test_manual_workflow_binds_protected_source_revision() -> None:
         encoding="utf-8"
     )
     assert rollout.count('--protected-source-sha "$GITHUB_SHA"') == 2
+    assert rollout.count('--source-map "$SOURCE_MAP"') == 2
     assert "if: inputs.operation == 'execute' && github.ref == 'refs/heads/main'" in rollout
     assert rollout.count("git/ref/heads/main") == 2
     assert "id: evidence" in rollout
