@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import tempfile
 import unittest
 
-from a11oy_council import CapabilityGrant
+from a11oy_council import CapabilityGrant, HashChainLedger, LedgerIntegrityError
 from a11oy_council.delegation import (
     RevocationRegistry,
     attenuate_grant,
@@ -143,6 +145,48 @@ class DelegationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             registry.revoke(altered, reason="collision", revoked_at=NOW)
         self.assertEqual(len(registry.ledger.entries), 1)
+
+    def test_revocation_is_restored_from_reopened_durable_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "council.jsonl"
+            root = root_grant()
+            delegated = child(root)
+            registry = RevocationRegistry(HashChainLedger(path))
+            registry.revoke(root, reason="owner revoked authority", revoked_at=NOW)
+
+            reopened = RevocationRegistry(HashChainLedger(path))
+            self.assertTrue(reopened.is_revoked(root))
+            self.assertTrue(reopened.apply(root).revoked)
+            self.assertFalse(verify_delegation_chain(root, (delegated,), reopened))
+            self.assertEqual(reopened.revoked, {root.grant_id: grant_digest(root)})
+
+    def test_invalid_persisted_revocation_payload_fails_closed(self) -> None:
+        ledger = HashChainLedger()
+        ledger.append(
+            "capability.revoked",
+            {
+                "grant_id": "root",
+                "grant_digest": grant_digest(root_grant()),
+                "revoked_at": NOW.isoformat().replace("+00:00", "Z"),
+            },
+        )
+        with self.assertRaisesRegex(LedgerIntegrityError, "payload fields"):
+            RevocationRegistry(ledger)
+
+    def test_conflicting_persisted_revocation_digests_fail_closed(self) -> None:
+        ledger = HashChainLedger()
+        for digest in (grant_digest(root_grant()), "f" * 64):
+            ledger.append(
+                "capability.revoked",
+                {
+                    "grant_id": "root",
+                    "grant_digest": digest,
+                    "reason": "owner revoked authority",
+                    "revoked_at": NOW.isoformat().replace("+00:00", "Z"),
+                },
+            )
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting digests"):
+            RevocationRegistry(ledger)
 
 
 if __name__ == "__main__":

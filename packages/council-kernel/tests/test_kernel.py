@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
@@ -269,6 +270,30 @@ class CouncilKernelTests(unittest.TestCase):
         self.assertEqual(record.decision, Decision.BLOCK)
         self.assertTrue(any("invalid commitment" in reason for reason in record.reasons))
 
+    def test_duplicate_member_identity_returns_auditable_block(self) -> None:
+        valid = four_reveals()
+        duplicate = reveal(
+            valid[0].member,
+            assessment(),
+            "duplicate-member-nonce-123456",
+        )
+        record = self.kernel.evaluate(
+            proposal(),
+            (valid[0], duplicate, valid[2], valid[3]),
+            (grant(),),
+            now=NOW,
+        )
+        self.assertEqual(record.decision, Decision.BLOCK)
+        self.assertEqual(record.diversity.effective_size, 0.0)
+        self.assertEqual(
+            [result.member_id for result in record.member_results].count(
+                valid[0].member.member_id
+            ),
+            2,
+        )
+        self.assertTrue(any("duplicate Council member" in reason for reason in record.reasons))
+        self.assertEqual(len(record.decision_digest), 64)
+
     def test_minority_truth_is_retained(self) -> None:
         dissent = assessment(
             Decision.ESCALATE,
@@ -387,6 +412,55 @@ class ReceiptTests(unittest.TestCase):
         self.assertFalse(verify_action_receipt(envelope))
         self.assertTrue(verify_action_receipt(envelope, _HmacVerifier(key)))
         self.assertFalse(verify_action_receipt(envelope, _HmacVerifier(os.urandom(32))))
+
+    def test_receipt_rejects_a_decision_for_another_proposal(self) -> None:
+        with self.assertRaisesRegex(ValueError, "does not authorize this proposal"):
+            seal_action_receipt(
+                proposal=proposal(target="repo://szl-holdings/other"),
+                decision=self.decision,
+                status=ActionStatus.APPLIED,
+                preconditions=("exact head matched",),
+                postconditions=("tests passed",),
+                observed_at=NOW,
+            )
+
+    def test_applied_receipt_requires_act_decision(self) -> None:
+        blocked_proposal = proposal(target="repo://szl-holdings/other")
+        blocked_decision = CouncilKernel().evaluate(
+            blocked_proposal,
+            four_reveals(),
+            (grant(),),
+            now=NOW,
+        )
+        self.assertEqual(blocked_decision.decision, Decision.BLOCK)
+        with self.assertRaisesRegex(ValueError, "requires an ACT decision"):
+            seal_action_receipt(
+                proposal=blocked_proposal,
+                decision=blocked_decision,
+                status=ActionStatus.APPLIED,
+                preconditions=("exact head matched",),
+                postconditions=("action was not authorized",),
+                observed_at=NOW,
+            )
+
+    def test_applied_receipt_rejects_tampered_decision_state(self) -> None:
+        blocked_proposal = proposal(target="repo://szl-holdings/other")
+        blocked_decision = CouncilKernel().evaluate(
+            blocked_proposal,
+            four_reveals(),
+            (grant(),),
+            now=NOW,
+        )
+        tampered = replace(blocked_decision, decision=Decision.ACT)
+        with self.assertRaisesRegex(ValueError, "digest does not verify"):
+            seal_action_receipt(
+                proposal=blocked_proposal,
+                decision=tampered,
+                status=ActionStatus.APPLIED,
+                preconditions=("exact head matched",),
+                postconditions=("action was not authorized",),
+                observed_at=NOW,
+            )
 
 
 if __name__ == "__main__":

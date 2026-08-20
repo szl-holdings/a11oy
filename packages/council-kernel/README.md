@@ -21,11 +21,17 @@ Every assessment is committed before reveal. A reveal is accepted only when its 
 
 The kernel preserves dissent and counterevidence in the decision record. Apparent agreement from correlated advisers is discounted across operator, key, model lineage, implementation, provider, retrieval path, evidence domain, and trust domain.
 
+A repeated Council member identity produces an auditable `BLOCK` decision with zero usable diversity instead of aborting before a decision record can be written.
+
 ## Receipts and state
 
-Decision and action records use canonical JSON and SHA-256 content identities. Hash-chain integrity and signature state are separate fields. An unsigned record is labeled `UNSIGNED`; a record is labeled `SIGNED` only when an injected signer produces a signature.
+Decision and action records use canonical JSON and SHA-256 content identities. Hash-chain integrity and signature state are separate fields. An unsigned record is labeled `UNSIGNED`; a record is labeled `SIGNED` only when an injected signer produces a signature. An action receipt must bind to the exact proposal digest evaluated by the decision, and only an `ACT` decision can be sealed with `APPLIED` status.
 
-The included ledger can remain in memory or append JSON Lines to a caller-selected path. It verifies every previous-hash link and entry digest. Production key custody, durable transparency, external witnesses, and provider execution remain deployment concerns outside this package.
+The included ledger can remain in memory or append JSON Lines to a caller-selected path. It verifies every previous-hash link and entry digest. A `RevocationRegistry` created over a reopened ledger validates and restores prior `capability.revoked` entries before serving authority checks. Production key custody, durable transparency, external witnesses, and provider execution remain deployment concerns outside this package.
+
+## Delayed outcomes
+
+Outcome observations are evaluated only when their timestamp is at or before the evaluation time. A future-dated observation remains `PENDING` and cannot make a learning candidate eligible.
 
 ## Run the package tests
 

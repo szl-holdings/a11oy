@@ -187,6 +187,9 @@ def evaluate_outcome(
         if observation.contract_id != contract.contract_id:
             state = OutcomeState.INCONCLUSIVE
             reasons.append("observation contract_id does not match")
+        elif _utc(observation.observed_at) > now:
+            state = OutcomeState.PENDING
+            reasons.append("observation timestamp is after evaluation time")
         elif not observation.complete or observation.value is None:
             state = OutcomeState.INCONCLUSIVE
             reasons.append("observation is incomplete")

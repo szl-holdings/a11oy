@@ -468,7 +468,8 @@ class CouncilKernel:
         invalid_members: list[str] = []
 
         member_ids = [reveal.member.member_id for reveal in reveals]
-        if len(member_ids) != len(set(member_ids)):
+        has_duplicate_members = len(member_ids) != len(set(member_ids))
+        if has_duplicate_members:
             reasons.append("duplicate Council member identity")
 
         for reveal in reveals:
@@ -482,7 +483,11 @@ class CouncilKernel:
             reveal for reveal in reveals if reveal.member.member_id not in invalid_members
         )
         members = tuple(reveal.member for reveal in valid_reveals)
-        diversity = measure_diversity(members) if members else measure_diversity(())
+        diversity = (
+            measure_diversity(())
+            if has_duplicate_members
+            else measure_diversity(members)
+        )
         member_results = tuple(
             MemberResult(
                 member_id=reveal.member.member_id,
@@ -499,7 +504,7 @@ class CouncilKernel:
         decision = Decision.ESCALATE
         grant_id: str | None = None
 
-        if invalid_members or len(member_ids) != len(set(member_ids)):
+        if invalid_members or has_duplicate_members:
             decision = Decision.BLOCK
         else:
             matching_grant: CapabilityGrant | None = None
@@ -830,6 +835,16 @@ def seal_action_receipt(
     observed_at: datetime,
     signer: Signer | None = None,
 ) -> ReceiptEnvelope:
+    expected_decision_digest = sha256_text(
+        canonical_json(decision.canonical_dict(include_digest=False))
+    )
+    if not hmac.compare_digest(decision.decision_digest, expected_decision_digest):
+        raise ValueError("decision record digest does not verify")
+    if not hmac.compare_digest(decision.proposal_digest, proposal.digest):
+        raise ValueError("decision does not authorize this proposal digest")
+    if status is ActionStatus.APPLIED and decision.decision is not Decision.ACT:
+        raise ValueError("APPLIED status requires an ACT decision")
+
     timestamp = _utc(observed_at).isoformat().replace("+00:00", "Z")
     payload: dict[str, Any] = {
         "proposal_id": proposal.proposal_id,

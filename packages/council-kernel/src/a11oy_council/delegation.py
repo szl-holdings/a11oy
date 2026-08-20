@@ -8,7 +8,21 @@ import hmac
 from threading import RLock
 from typing import Any, Iterable, Mapping
 
-from .kernel import CapabilityGrant, HashChainLedger, canonical_json, sha256_text
+from .kernel import (
+    CapabilityGrant,
+    HashChainLedger,
+    LedgerIntegrityError,
+    canonical_json,
+    sha256_text,
+)
+
+
+_REVOCATION_PAYLOAD_FIELDS = {
+    "grant_id",
+    "grant_digest",
+    "reason",
+    "revoked_at",
+}
 
 
 def _utc(value: datetime) -> datetime:
@@ -32,6 +46,36 @@ def grant_canonical_dict(grant: CapabilityGrant) -> dict[str, Any]:
 
 def grant_digest(grant: CapabilityGrant) -> str:
     return sha256_text(canonical_json(grant_canonical_dict(grant)))
+
+
+def _validated_revocation_payload(payload: Mapping[str, Any]) -> tuple[str, str]:
+    if set(payload) != _REVOCATION_PAYLOAD_FIELDS:
+        raise LedgerIntegrityError("invalid capability.revoked payload fields")
+
+    grant_id = payload["grant_id"]
+    digest = payload["grant_digest"]
+    reason = payload["reason"]
+    revoked_at = payload["revoked_at"]
+    if not isinstance(grant_id, str) or not grant_id.strip():
+        raise LedgerIntegrityError("invalid capability.revoked grant_id")
+    if (
+        not isinstance(digest, str)
+        or len(digest) != 64
+        or any(character not in "0123456789abcdef" for character in digest)
+    ):
+        raise LedgerIntegrityError("invalid capability.revoked grant_digest")
+    if not isinstance(reason, str) or not reason.strip():
+        raise LedgerIntegrityError("invalid capability.revoked reason")
+    if not isinstance(revoked_at, str):
+        raise LedgerIntegrityError("invalid capability.revoked revoked_at")
+    try:
+        parsed = datetime.fromisoformat(
+            revoked_at[:-1] + "+00:00" if revoked_at.endswith("Z") else revoked_at
+        )
+        _utc(parsed)
+    except ValueError as exc:
+        raise LedgerIntegrityError("invalid capability.revoked revoked_at") from exc
+    return grant_id, digest
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,9 +204,24 @@ class RevocationRegistry:
     """Append-only grant revocations with parent-chain propagation."""
 
     def __init__(self, ledger: HashChainLedger | None = None) -> None:
-        self.ledger = ledger or HashChainLedger()
+        self.ledger = ledger if ledger is not None else HashChainLedger()
         self._revoked: dict[str, str] = {}
         self._lock = RLock()
+        self._restore_revocations()
+
+    def _restore_revocations(self) -> None:
+        if not self.ledger.verify():
+            raise LedgerIntegrityError("revocation ledger hash chain verification failed")
+        for entry in self.ledger.entries:
+            if entry.kind != "capability.revoked":
+                continue
+            grant_id, digest = _validated_revocation_payload(entry.payload)
+            existing = self._revoked.get(grant_id)
+            if existing is not None and not hmac.compare_digest(existing, digest):
+                raise LedgerIntegrityError(
+                    "grant_id revocation is bound to conflicting digests"
+                )
+            self._revoked[grant_id] = digest
 
     @property
     def revoked(self) -> Mapping[str, str]:
