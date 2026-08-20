@@ -1,6 +1,6 @@
 # Council schema qualification
 
-Date: 2026-08-17  
+Date: 2026-08-17
 Branch: `feat/council-kernel-v0.6.0-20260817`
 
 A third fresh-clone qualification was executed after adding the strict evaluation-input and decision-record schemas.
