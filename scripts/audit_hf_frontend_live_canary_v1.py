@@ -347,12 +347,19 @@ def audit(
                     """() => {
                       const root = document.documentElement;
                       const meta = document.querySelector('meta[name="viewport"]');
+                      const filterMakesTransparent = (filter) => {
+                        for (const match of filter.matchAll(/opacity[(]([^)]*)[)]/gi)) {
+                          const value = Number.parseFloat(match[1]);
+                          if (Number.isFinite(value) && value <= 0) return true;
+                        }
+                        return false;
+                      };
                       const visible = (el) => {
                         const rect = el.getBoundingClientRect();
                         if (!(rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth)) return false;
                         for (let node = el; node instanceof Element; node = node.parentElement) {
                           const style = getComputedStyle(node);
-                          if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || Number(style.opacity) <= 0 || style.pointerEvents === 'none') return false;
+                          if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || Number(style.opacity) <= 0 || filterMakesTransparent(style.filter) || style.pointerEvents === 'none') return false;
                           if (node.hasAttribute('hidden') || node.hasAttribute('inert') || node.getAttribute('aria-hidden') === 'true' || node.getAttribute('aria-disabled') === 'true') return false;
                         }
                         return true;
@@ -397,8 +404,6 @@ def audit(
                       };
                       const hasMinimumHitArea = (el, bounds) => {
                         if (bounds.width < 44 || bounds.height < 44) return false;
-                        const startsX = [bounds.left, (bounds.left + bounds.right - 44) / 2, bounds.right - 44];
-                        const startsY = [bounds.top, (bounds.top + bounds.bottom - 44) / 2, bounds.bottom - 44];
                         const sampleStep = 1 / Math.max(1, Math.min(4, window.devicePixelRatio || 1));
                         const squareIsHitTestable = (x, y) => {
                           for (let offsetY = sampleStep / 2; offsetY < 44; offsetY += sampleStep) {
@@ -408,7 +413,16 @@ def audit(
                           }
                           return true;
                         };
-                        return startsX.some(x => startsY.some(y => squareIsHitTestable(x, y)));
+                        const originCountX = Math.floor((bounds.width - 44) / sampleStep) + 1;
+                        const originCountY = Math.floor((bounds.height - 44) / sampleStep) + 1;
+                        for (let originY = 0; originY < originCountY; originY += 1) {
+                          const y = bounds.top + originY * sampleStep;
+                          for (let originX = 0; originX < originCountX; originX += 1) {
+                            const x = bounds.left + originX * sampleStep;
+                            if (squareIsHitTestable(x, y)) return true;
+                          }
+                        }
+                        return false;
                       };
                       const actionable = (el) => {
                         if (!visible(el) || !hitTestable(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
