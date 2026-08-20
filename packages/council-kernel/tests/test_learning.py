@@ -148,6 +148,13 @@ class OutcomeEvaluationTests(unittest.TestCase):
         )
         self.assertEqual(accepted.state, OutcomeState.MET)
 
+    def test_future_observation_remains_pending(self) -> None:
+        future = observation(observed_at=NOW + timedelta(minutes=1))
+        result = evaluate_outcome(contract(), future, evaluated_at=NOW)
+        self.assertEqual(result.state, OutcomeState.PENDING)
+        self.assertTrue(any("after evaluation time" in reason for reason in result.reasons))
+        self.assertTrue(verify_outcome_evaluation(contract(), future, result))
+
     def test_tampered_evaluation_is_rejected(self) -> None:
         item = contract()
         observed = observation()
@@ -224,6 +231,27 @@ class OutcomeLearningGateTests(unittest.TestCase):
         disposition = gate.promotion_disposition("outcome-1", evaluated_at=DEADLINE)
         self.assertEqual(disposition.state, LearningPromotionState.BLOCKED)
         self.assertTrue(any("NOT_MET" in reason for reason in disposition.reasons))
+
+    def test_future_observation_cannot_make_candidate_eligible(self) -> None:
+        gate = OutcomeLearningGate()
+        gate.register(contract())
+        gate.observe(observation(observed_at=NOW + timedelta(minutes=1)))
+        evaluation = gate.evaluate("outcome-1", evaluated_at=NOW)
+        disposition = gate.promotion_disposition("outcome-1", evaluated_at=NOW)
+        self.assertEqual(evaluation.state, OutcomeState.PENDING)
+        self.assertEqual(disposition.state, LearningPromotionState.PENDING)
+
+    def test_future_evaluation_cannot_be_consumed_by_an_earlier_disposition(self) -> None:
+        gate = OutcomeLearningGate()
+        gate.register(contract())
+        gate.observe(observation(observed_at=NOW + timedelta(minutes=1)))
+        evaluation = gate.evaluate(
+            "outcome-1", evaluated_at=NOW + timedelta(minutes=2)
+        )
+        disposition = gate.promotion_disposition("outcome-1", evaluated_at=NOW)
+        self.assertEqual(evaluation.state, OutcomeState.MET)
+        self.assertEqual(disposition.state, LearningPromotionState.PENDING)
+        self.assertTrue(any("after promotion" in reason for reason in disposition.reasons))
 
     def test_unresolved_unknowns_block_promotion(self) -> None:
         gate = OutcomeLearningGate()

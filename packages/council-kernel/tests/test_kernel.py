@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 import hashlib
 import hmac
@@ -30,6 +31,7 @@ from a11oy_council import (
     seal_action_receipt,
     verify_action_receipt,
 )
+from a11oy_council.kernel import canonical_json, sha256_text
 
 
 NOW = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
@@ -269,6 +271,30 @@ class CouncilKernelTests(unittest.TestCase):
         self.assertEqual(record.decision, Decision.BLOCK)
         self.assertTrue(any("invalid commitment" in reason for reason in record.reasons))
 
+    def test_duplicate_member_identity_returns_auditable_block(self) -> None:
+        valid = four_reveals()
+        duplicate = reveal(
+            valid[0].member,
+            assessment(),
+            "duplicate-member-nonce-123456",
+        )
+        record = self.kernel.evaluate(
+            proposal(),
+            (valid[0], duplicate, valid[2], valid[3]),
+            (grant(),),
+            now=NOW,
+        )
+        self.assertEqual(record.decision, Decision.BLOCK)
+        self.assertEqual(record.diversity.effective_size, 0.0)
+        self.assertEqual(
+            [result.member_id for result in record.member_results].count(
+                valid[0].member.member_id
+            ),
+            2,
+        )
+        self.assertTrue(any("duplicate Council member" in reason for reason in record.reasons))
+        self.assertEqual(len(record.decision_digest), 64)
+
     def test_minority_truth_is_retained(self) -> None:
         dissent = assessment(
             Decision.ESCALATE,
@@ -369,7 +395,13 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(envelope.signature_state, SignatureState.UNSIGNED)
         self.assertIsNone(envelope.key_id)
         self.assertIsNone(envelope.signature)
-        self.assertTrue(verify_action_receipt(envelope))
+        self.assertTrue(
+            verify_action_receipt(
+                envelope,
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
 
     def test_signed_receipt_requires_verification(self) -> None:
         key = os.urandom(32)
@@ -384,9 +416,206 @@ class ReceiptTests(unittest.TestCase):
             signer=signer,
         )
         self.assertEqual(envelope.signature_state, SignatureState.SIGNED)
+        self.assertFalse(
+            verify_action_receipt(
+                envelope,
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
+        self.assertTrue(
+            verify_action_receipt(
+                envelope,
+                _HmacVerifier(key),
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
+        self.assertFalse(
+            verify_action_receipt(
+                envelope,
+                _HmacVerifier(os.urandom(32)),
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
+
+    def test_receipt_rejects_a_decision_for_another_proposal(self) -> None:
+        with self.assertRaisesRegex(ValueError, "does not authorize this proposal"):
+            seal_action_receipt(
+                proposal=proposal(target="repo://szl-holdings/other"),
+                decision=self.decision,
+                status=ActionStatus.APPLIED,
+                preconditions=("exact head matched",),
+                postconditions=("tests passed",),
+                observed_at=NOW,
+            )
+
+    def test_applied_receipt_requires_act_decision(self) -> None:
+        blocked_proposal = proposal(target="repo://szl-holdings/other")
+        blocked_decision = CouncilKernel().evaluate(
+            blocked_proposal,
+            four_reveals(),
+            (grant(),),
+            now=NOW,
+        )
+        self.assertEqual(blocked_decision.decision, Decision.BLOCK)
+        with self.assertRaisesRegex(ValueError, "requires an ACT decision"):
+            seal_action_receipt(
+                proposal=blocked_proposal,
+                decision=blocked_decision,
+                status=ActionStatus.APPLIED,
+                preconditions=("exact head matched",),
+                postconditions=("action was not authorized",),
+                observed_at=NOW,
+            )
+
+    def test_applied_receipt_rejects_tampered_decision_state(self) -> None:
+        blocked_proposal = proposal(target="repo://szl-holdings/other")
+        blocked_decision = CouncilKernel().evaluate(
+            blocked_proposal,
+            four_reveals(),
+            (grant(),),
+            now=NOW,
+        )
+        tampered = replace(blocked_decision, decision=Decision.ACT)
+        with self.assertRaisesRegex(ValueError, "digest does not verify"):
+            seal_action_receipt(
+                proposal=blocked_proposal,
+                decision=tampered,
+                status=ActionStatus.APPLIED,
+                preconditions=("exact head matched",),
+                postconditions=("action was not authorized",),
+                observed_at=NOW,
+            )
+
+    def test_verifier_rejects_signed_applied_receipt_for_block_decision(self) -> None:
+        key = os.urandom(32)
+        signer = _HmacSigner(key)
+        envelope = seal_action_receipt(
+            proposal=self.proposal,
+            decision=self.decision,
+            status=ActionStatus.APPLIED,
+            preconditions=("exact head matched",),
+            postconditions=("tests passed",),
+            observed_at=NOW,
+            signer=signer,
+        )
+        payload = {**envelope.payload, "decision": Decision.BLOCK.value}
+        payload_bytes = canonical_json(payload).encode("utf-8")
+        payload_digest = hashlib.sha256(payload_bytes).hexdigest()
+        signature = signer.sign(payload_bytes)
+        receipt_body = {
+            "payload": payload,
+            "payload_digest": payload_digest,
+            "signature_state": SignatureState.SIGNED.value,
+            "key_id": signer.key_id,
+            "signature": signature,
+        }
+        contradictory = replace(
+            envelope,
+            payload=payload,
+            payload_digest=payload_digest,
+            signature=signature,
+            receipt_digest=sha256_text(canonical_json(receipt_body)),
+        )
+
+        self.assertFalse(
+            verify_action_receipt(
+                contradictory,
+                _HmacVerifier(key),
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
+
+    def test_verifier_rejects_forged_act_field_for_bound_block_decision(self) -> None:
+        key = os.urandom(32)
+        signer = _HmacSigner(key)
+        blocked_proposal = proposal(target="repo://szl-holdings/other")
+        blocked_decision = CouncilKernel().evaluate(
+            blocked_proposal,
+            four_reveals(),
+            (grant(),),
+            now=NOW,
+        )
+        self.assertEqual(blocked_decision.decision, Decision.BLOCK)
+        envelope = seal_action_receipt(
+            proposal=blocked_proposal,
+            decision=blocked_decision,
+            status=ActionStatus.BLOCKED,
+            preconditions=("decision required",),
+            postconditions=("action not applied",),
+            observed_at=NOW,
+            signer=signer,
+        )
+        payload = {
+            **envelope.payload,
+            "decision": Decision.ACT.value,
+            "status": ActionStatus.APPLIED.value,
+        }
+        payload_bytes = canonical_json(payload).encode("utf-8")
+        payload_digest = hashlib.sha256(payload_bytes).hexdigest()
+        signature = signer.sign(payload_bytes)
+        receipt_body = {
+            "payload": payload,
+            "payload_digest": payload_digest,
+            "signature_state": SignatureState.SIGNED.value,
+            "key_id": signer.key_id,
+            "signature": signature,
+        }
+        forged = replace(
+            envelope,
+            payload=payload,
+            payload_digest=payload_digest,
+            signature=signature,
+            receipt_digest=sha256_text(canonical_json(receipt_body)),
+        )
+
+        self.assertFalse(
+            verify_action_receipt(
+                forged,
+                _HmacVerifier(key),
+                proposal=blocked_proposal,
+                decision=blocked_decision,
+            )
+        )
+
+    def test_verifier_requires_exact_proposal_and_decision_records(self) -> None:
+        envelope = seal_action_receipt(
+            proposal=self.proposal,
+            decision=self.decision,
+            status=ActionStatus.APPLIED,
+            preconditions=("exact head matched",),
+            postconditions=("tests passed",),
+            observed_at=NOW,
+        )
         self.assertFalse(verify_action_receipt(envelope))
-        self.assertTrue(verify_action_receipt(envelope, _HmacVerifier(key)))
-        self.assertFalse(verify_action_receipt(envelope, _HmacVerifier(os.urandom(32))))
+        self.assertFalse(
+            verify_action_receipt(
+                envelope,
+                proposal=proposal(target="repo://szl-holdings/other"),
+                decision=self.decision,
+            )
+        )
+
+    def test_verifier_returns_false_for_malformed_envelope(self) -> None:
+        envelope = seal_action_receipt(
+            proposal=self.proposal,
+            decision=self.decision,
+            status=ActionStatus.APPLIED,
+            preconditions=("exact head matched",),
+            postconditions=("tests passed",),
+            observed_at=NOW,
+        )
+        malformed = replace(envelope, payload_digest=None)  # type: ignore[arg-type]
+        self.assertFalse(
+            verify_action_receipt(
+                malformed,
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
 
 
 if __name__ == "__main__":
