@@ -408,7 +408,7 @@ def test_real_source_scoped_manifest_and_report_match_reviewed_contracts():
     )
     report = pcm.evaluate_public_claim_manifest(
         manifest,
-        as_of="2026-07-18T16:00:00Z",
+        as_of=manifest["generated_at"],
         repository_root=root,
     )
     Draft202012Validator.check_schema(manifest_schema)
