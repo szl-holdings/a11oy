@@ -123,12 +123,26 @@ def evaluate_page_result(result: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     undersized = metrics.get("undersized_primary_targets") or []
-    if undersized:
+    exhausted = [
+        item
+        for item in undersized
+        if isinstance(item, dict) and item.get("hit_area_scan_exhausted") is True
+    ]
+    measured_undersized = [item for item in undersized if item not in exhausted]
+    if measured_undersized:
         failures.append(
             {
                 "code": "PRIMARY_TARGET_UNDERSIZED",
-                "detail": f"{len(undersized)} primary controls are below 44px",
-                "examples": undersized[:10],
+                "detail": f"{len(measured_undersized)} primary controls are below 44px",
+                "examples": measured_undersized[:10],
+            }
+        )
+    if exhausted:
+        failures.append(
+            {
+                "code": "PRIMARY_TARGET_HIT_SCAN_EXHAUSTED",
+                "detail": f"{len(exhausted)} primary controls exceeded the bounded hit-area scan",
+                "examples": exhausted[:10],
             }
         )
     primary_targets = metrics.get("primary_targets")
@@ -402,24 +416,41 @@ def audit(
                         ];
                         return points.some(([x, y]) => hitAt(el, x, y));
                       };
+                      const maxHitCoverageCells = 1000000;
+                      let remainingHitCoverageCells = maxHitCoverageCells;
                       const hasMinimumHitArea = (el, bounds) => {
                         if (bounds.width < 44 || bounds.height < 44) return false;
                         const sampleStep = 1 / Math.max(1, Math.min(4, window.devicePixelRatio || 1));
-                        const squareIsHitTestable = (x, y) => {
-                          for (let offsetY = sampleStep / 2; offsetY < 44; offsetY += sampleStep) {
-                            for (let offsetX = sampleStep / 2; offsetX < 44; offsetX += sampleStep) {
-                              if (!hitAt(el, x + offsetX, y + offsetY)) return false;
-                            }
-                          }
-                          return true;
-                        };
                         const originCountX = Math.floor((bounds.width - 44) / sampleStep) + 1;
                         const originCountY = Math.floor((bounds.height - 44) / sampleStep) + 1;
+                        const windowCells = Math.ceil(44 / sampleStep - 0.5 - 1e-9);
+                        const columns = originCountX + windowCells - 1;
+                        const rows = originCountY + windowCells - 1;
+                        const coverageCells = columns * rows;
+                        if (!Number.isSafeInteger(coverageCells) || coverageCells > remainingHitCoverageCells) return null;
+                        remainingHitCoverageCells -= coverageCells;
+                        const stride = columns + 1;
+                        const blockedPrefix = new Uint32Array((rows + 1) * stride);
+                        for (let row = 0; row < rows; row += 1) {
+                          let blockedInRow = 0;
+                          const y = bounds.top + (row + 0.5) * sampleStep;
+                          for (let column = 0; column < columns; column += 1) {
+                            const x = bounds.left + (column + 0.5) * sampleStep;
+                            if (!hitAt(el, x, y)) blockedInRow += 1;
+                            blockedPrefix[(row + 1) * stride + column + 1] =
+                              blockedPrefix[row * stride + column + 1] + blockedInRow;
+                          }
+                        }
                         for (let originY = 0; originY < originCountY; originY += 1) {
-                          const y = bounds.top + originY * sampleStep;
                           for (let originX = 0; originX < originCountX; originX += 1) {
-                            const x = bounds.left + originX * sampleStep;
-                            if (squareIsHitTestable(x, y)) return true;
+                            const right = originX + windowCells;
+                            const bottom = originY + windowCells;
+                            const blocked =
+                              blockedPrefix[bottom * stride + right]
+                              - blockedPrefix[originY * stride + right]
+                              - blockedPrefix[bottom * stride + originX]
+                              + blockedPrefix[originY * stride + originX];
+                            if (blocked === 0) return true;
                           }
                         }
                         return false;
@@ -434,13 +465,15 @@ def audit(
                       const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(actionable);
                       const undersized = nodes.map((el) => {
                         const bounds = effectiveBounds(el);
+                        const hitArea = hasMinimumHitArea(el, bounds);
                         return {
                           tag: el.tagName,
                           text: (el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 80),
                           href: el.getAttribute('href'),
                           width: Math.round(bounds.width * 100) / 100,
                           height: Math.round(bounds.height * 100) / 100,
-                          hit_testable_44: hasMinimumHitArea(el, bounds),
+                          hit_testable_44: hitArea,
+                          hit_area_scan_exhausted: hitArea === null,
                         };
                       }).filter(item => item.width < 44 || item.height < 44 || item.hit_testable_44 !== true);
                       return {
@@ -451,6 +484,8 @@ def audit(
                         horizontal_overflow: root.scrollWidth > window.innerWidth + 2,
                         primary_targets: nodes.length,
                         undersized_primary_targets: undersized,
+                        hit_area_sample_budget: maxHitCoverageCells,
+                        hit_area_samples_reserved: maxHitCoverageCells - remainingHitCoverageCells,
                         release_marker: document.documentElement.getAttribute('data-szl-release') || document.body?.getAttribute('data-szl-release') || document.querySelector('[data-szl-release]')?.getAttribute('data-szl-release') || null,
                       };
                     }"""

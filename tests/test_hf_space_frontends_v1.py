@@ -125,15 +125,18 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "const bounds = effectiveBounds(el)",
         "hasMinimumHitArea(el, bounds)",
         "window.devicePixelRatio || 1",
-        "offsetY < 44",
-        "offsetX < 44",
-        "!hitAt(el, x + offsetX, y + offsetY)",
+        "const maxHitCoverageCells = 1000000",
+        "coverageCells > remainingHitCoverageCells",
+        "new Uint32Array((rows + 1) * stride)",
+        "if (!hitAt(el, x, y)) blockedInRow += 1",
+        "blockedPrefix[bottom * stride + right]",
+        "if (blocked === 0) return true",
         "Math.floor((bounds.width - 44) / sampleStep) + 1",
         "Math.floor((bounds.height - 44) / sampleStep) + 1",
         "originX < originCountX",
         "originY < originCountY",
-        "bounds.left + originX * sampleStep",
-        "bounds.top + originY * sampleStep",
+        "hit_area_scan_exhausted: hitArea === null",
+        "hit_area_samples_reserved: maxHitCoverageCells - remainingHitCoverageCells",
         "item.hit_testable_44 !== true",
         "el.matches(':disabled')",
         "el.getAttribute('aria-disabled') === 'true'",
@@ -144,6 +147,29 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
     assert "[x + 1, y + 1]" not in source
     assert "const startsX =" not in source
     assert "const startsY =" not in source
+
+
+def test_page_contract_fails_distinctly_when_hit_scan_budget_is_exhausted() -> None:
+    result = _page(
+        metrics={
+            "viewport_meta": "width=device-width, initial-scale=1",
+            "inner_width": 390,
+            "scroll_width": 390,
+            "horizontal_overflow": False,
+            "primary_targets": 1,
+            "undersized_primary_targets": [
+                {
+                    "tag": "BUTTON",
+                    "width": 1000,
+                    "height": 1000,
+                    "hit_testable_44": None,
+                    "hit_area_scan_exhausted": True,
+                }
+            ],
+        }
+    )
+    codes = {failure["code"] for failure in MODULE.evaluate_page(result)}
+    assert codes == {"PRIMARY_TARGET_HIT_SCAN_EXHAUSTED"}
 
 
 def test_page_contract_rejects_hard_viewport_failures() -> None:
