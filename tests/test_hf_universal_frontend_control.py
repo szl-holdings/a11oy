@@ -290,6 +290,134 @@ def test_gradio_nested_entry_places_stylesheet_beside_entry(
     assert control.STYLE_START in rendered["src/szl_universal.css"].decode()
 
 
+def test_configured_nested_gradio_entry_wins_over_root_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "app.py", "src/app.py"))
+    contents = {
+        "README.md": "---\nsdk: gradio\napp_file: src/app.py\n---\n# Space\n",
+        "app.py": (
+            "import gradio as gr\n"
+            "with gr.Blocks() as decoy:\n"
+            "    gr.Markdown('root')\n"
+        ),
+        "src/app.py": (
+            "import gradio as gr\n"
+            "with gr.Blocks() as deployed:\n"
+            "    gr.Markdown('nested')\n"
+        ),
+    }
+    monkeypatch.setattr(
+        control,
+        "_read_text",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    framework, ops, blockers = control.classify_space(object(), item, None)
+
+    assert framework == "GRADIO"
+    assert not blockers
+    assert set(dict(ops)) == {"src/app.py", "src/szl_universal.css"}
+
+
+def test_configured_nested_streamlit_entry_controls_framework_detection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "app.py", "src/app.py"))
+    contents = {
+        "README.md": "---\nsdk: streamlit\napp_file: src/app.py\n---\n# Space\n",
+        "app.py": "import gradio as gr\nwith gr.Blocks() as decoy:\n    pass\n",
+        "src/app.py": (
+            "import streamlit as st\n"
+            "st.set_page_config(page_title='nested')\n"
+            "st.title('nested')\n"
+        ),
+    }
+    monkeypatch.setattr(
+        control,
+        "_read_text",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    framework, ops, blockers = control.classify_space(object(), item, None)
+
+    assert framework == "STREAMLIT"
+    assert not blockers
+    assert set(dict(ops)) == {"src/app.py", "src/szl_universal.css"}
+
+
+def test_unconfigured_multiple_python_entrypoints_fail_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "app.py", "src/app.py"))
+    contents = {
+        "README.md": "---\nsdk: gradio\n---\n# Space\n",
+        "app.py": "import gradio as gr\nwith gr.Blocks() as root:\n    pass\n",
+        "src/app.py": "import gradio as gr\nwith gr.Blocks() as nested:\n    pass\n",
+    }
+    monkeypatch.setattr(
+        control,
+        "_read_text",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    framework, ops, blockers = control.classify_space(object(), item, None)
+
+    assert framework == "SOURCE_NATIVE_REQUIRED"
+    assert not ops
+    assert blockers and "ambiguous" in blockers[0]
+
+
+@pytest.mark.parametrize(
+    "app_file",
+    ("src/missing.py", "../app.py", "/app.py", r"src\app.py"),
+)
+def test_invalid_configured_python_entrypoint_never_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+    app_file: str,
+) -> None:
+    item = asset(("README.md", "app.py"))
+    contents = {
+        "README.md": f"---\nsdk: gradio\napp_file: {app_file}\n---\n# Space\n",
+        "app.py": "import gradio as gr\nwith gr.Blocks() as decoy:\n    pass\n",
+    }
+    monkeypatch.setattr(
+        control,
+        "_read_text",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    framework, ops, blockers = control.classify_space(object(), item, None)
+
+    assert framework == "SOURCE_NATIVE_REQUIRED"
+    assert not ops
+    assert blockers and "configured app_file" in blockers[0]
+
+
+def test_duplicate_configured_python_entrypoint_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "app.py", "src/app.py"))
+    contents = {
+        "README.md": (
+            "---\nsdk: gradio\napp_file: app.py\napp_file: src/app.py\n---\n# Space\n"
+        ),
+        "app.py": "import gradio as gr\nwith gr.Blocks() as root:\n    pass\n",
+        "src/app.py": "import gradio as gr\nwith gr.Blocks() as nested:\n    pass\n",
+    }
+    monkeypatch.setattr(
+        control,
+        "_read_text",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    framework, ops, blockers = control.classify_space(object(), item, None)
+
+    assert framework == "SOURCE_NATIVE_REQUIRED"
+    assert not ops
+    assert blockers and "frontmatter" in blockers[0]
+
+
 def test_gradio_existing_css_requires_source_native_review(monkeypatch: pytest.MonkeyPatch) -> None:
     item = asset(("app.py",))
     contents = {"app.py": "import gradio as gr\nwith gr.Blocks(css='body{}') as demo:\n    pass\n"}
@@ -634,6 +762,81 @@ def test_exact_nested_python_space_rejects_root_only_stylesheet_readback(
     assert decision.changes == [
         f"src/szl_universal.css:{control._sha256(generated['src/szl_universal.css'])}"
     ]
+    assert "szl_universal.css" not in decision.required_readback_paths
+
+
+def test_exact_configured_nested_space_rejects_verified_root_decoy(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root_source = {
+        "app.py": (
+            "import gradio as gr\n"
+            "with gr.Blocks() as demo:\n"
+            "    gr.Markdown('root')\n"
+        )
+    }
+    with monkeypatch.context() as root_patch:
+        root_patch.setattr(
+            control,
+            "_read_text",
+            lambda api, observed, path, token: root_source.get(path),
+        )
+        root_ops, root_blockers = control._gradio_ops(
+            object(), asset(("app.py",)), None
+        )
+    assert not root_blockers
+
+    item = asset(
+        ("README.md", "app.py", "szl_universal.css", "src/app.py")
+    )
+    readme = control.normalize_readme(
+        item,
+        "---\nsdk: gradio\napp_file: src/app.py\n---\n# Existing\n",
+        True,
+        "GRADIO",
+    )
+    contents = {
+        "README.md": readme,
+        **dict(root_ops),
+        "src/app.py": (
+            b"import gradio as gr\n"
+            b"with gr.Blocks() as deployed:\n"
+            b"    gr.Markdown('nested')\n"
+        ),
+    }
+    source_entry = source_map_entry("EXACT", hf_repository_sha=item.sha)
+    source_entry["readme"]["sha256"] = control._sha256(readme)
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [source_entry]), "SZLHOLDINGS"
+    )
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "backups",
+        space_authorities=authorities,
+    )
+
+    assert decision.state == "SOURCE_BOUND_REPAIR_REQUIRED"
+    assert decision.required_readback_paths == [
+        "README.md",
+        "src/app.py",
+        "src/szl_universal.css",
+    ]
+    assert {change.split(":", 1)[0] for change in decision.changes} == {
+        "src/app.py",
+        "src/szl_universal.css",
+    }
+    assert "app.py" not in decision.required_readback_paths
     assert "szl_universal.css" not in decision.required_readback_paths
 
 
