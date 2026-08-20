@@ -1,6 +1,6 @@
 # Counterfactual branch-market qualification
 
-Date: 2026-08-17  
+Date: 2026-08-17
 Branch: `feat/council-kernel-v0.6.0-20260817`
 
 A fresh remote clone was qualified after adding bounded branch admission, independent evaluation, and deterministic recommendation.
