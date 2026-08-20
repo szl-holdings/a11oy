@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """FastAPI delivery for ORO.
 
-The standalone app is runnable as ``python -m uvicorn oro.api:create_app --factory``. The
-``mount_oro`` function mounts these exact routes in the canonical A11oy server
-before its API proxy and SPA catch-all.
+The standalone app is runnable as ``python -m uvicorn oro.api:create_app --factory``.
+``mount_oro`` is an unactivated integration hook that a separately reviewed
+canonical-server successor can call before its API proxy and SPA catch-all.
 """
 
 import json

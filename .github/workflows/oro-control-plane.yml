@@ -35,6 +35,10 @@ jobs:
   contract:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      ORO_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      ORO_IMAGE_TAG: a11oy-oro-ci:${{ github.run_id }}-${{ github.run_attempt }}
+      ORO_CONTAINER_NAME: a11oy-oro-ci-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
@@ -44,6 +48,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
@@ -106,6 +111,7 @@ jobs:
           assert ready["write_authorizer"]["state"] == "ACTIVE"
           assert contract["normal_termination"] == "STRUCTURAL_RANK_DECREASE"
           assert contract["release_effector"] == "ABSENT"
+          assert contract["runtime_enforced"] == "NOT_MEASURED"
           assert contract["machine_checked_termination"] == "NOT_PROVED"
           assert "Obligation-Ranked Orbits" in dashboard
           assert "https://cdn" not in dashboard.lower()
@@ -116,16 +122,176 @@ jobs:
           if test -f "$RUNNER_TEMP/oro-uvicorn.pid"; then
             kill "$(cat "$RUNNER_TEMP/oro-uvicorn.pid")" 2>/dev/null || true
           fi
-      - name: Upload source-bound loopback evidence
+      - name: Build exact standalone production image
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$ORO_CANDIDATE_SHA"
+          BUILD_DATE="$(git show -s --format=%cI "$ORO_CANDIDATE_SHA")"
+          docker build \
+            --file deploy/oro/Dockerfile \
+            --build-arg "VERSION=0.0.0-ci-${ORO_CANDIDATE_SHA:0:12}" \
+            --build-arg "REVISION=$ORO_CANDIDATE_SHA" \
+            --build-arg "BUILD_DATE=$BUILD_DATE" \
+            --tag "$ORO_IMAGE_TAG" \
+            .
+      - name: Prove standalone production container
+        run: |
+          set -euo pipefail
+          secret_root="$RUNNER_TEMP/oro-container-secrets"
+          data_root="$RUNNER_TEMP/oro-container-data"
+          install -d -m 0700 "$secret_root" "$data_root"
+          umask 077
+          openssl genpkey -algorithm ED25519 -out "$secret_root/oro-ed25519.pem"
+          openssl rand -hex 32 >"$secret_root/oro-api-token"
+          sudo chown -R 10001:10001 "$secret_root" "$data_root"
+          sudo chmod 0600 \
+            "$secret_root/oro-ed25519.pem" \
+            "$secret_root/oro-api-token"
+
+          CID="$(docker run -d \
+            --name "$ORO_CONTAINER_NAME" \
+            --read-only \
+            --user 10001:10001 \
+            --cap-drop ALL \
+            --security-opt no-new-privileges:true \
+            --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700 \
+            --mount "type=bind,src=$data_root,dst=/data" \
+            --mount "type=bind,src=$secret_root,dst=/run/secrets,readonly" \
+            --env SZL_ORO_ENV=production \
+            --env SZL_ORO_DB_PATH=/data/oro.sqlite \
+            --env SZL_ORO_SIGNING_KEY_PATH=/run/secrets/oro_ed25519 \
+            --env SZL_ORO_SIGNING_KEY_ID=oro-ci-signing \
+            --env SZL_ORO_API_TOKEN_PATH=/run/secrets/oro_api_token \
+            --env SZL_ORO_API_TOKEN_ID=oro-ci-operator \
+            --publish 127.0.0.1:8878:7860 \
+            "$ORO_IMAGE_TAG")"
+          printf '%s\n' "$CID" >"$RUNNER_TEMP/oro-container.cid"
+
+          ready=0
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:8878/api/a11oy/v1/oro/readyz \
+              >"$RUNNER_TEMP/oro-container-ready.json"; then
+              ready=1
+              break
+            fi
+            sleep 0.25
+          done
+          test "$ready" = 1
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8878/api/a11oy/v1/oro/healthz \
+            >"$RUNNER_TEMP/oro-container-health.json"
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8878/api/a11oy/v1/oro/contract \
+            >"$RUNNER_TEMP/oro-container-contract.json"
+          curl --fail --silent --show-error \
+            http://127.0.0.1:8878/oro \
+            >"$RUNNER_TEMP/oro-container-dashboard.html"
+
+          export ORO_CHECKOUT_SHA="$(git rev-parse HEAD)"
+          export ORO_CHECKOUT_TREE="$(git rev-parse HEAD^{tree})"
+          export ORO_IMAGE_ID="$(docker image inspect --format '{{.Id}}' "$ORO_IMAGE_TAG")"
+          export ORO_CONTAINER_IMAGE_ID="$(docker inspect --format '{{.Image}}' "$CID")"
+          export ORO_IMAGE_REVISION="$(docker image inspect --format '{{ index .Config.Labels \"org.opencontainers.image.revision\" }}' "$ORO_IMAGE_TAG")"
+          export ORO_IMAGE_VERSION="$(docker image inspect --format '{{ index .Config.Labels \"org.opencontainers.image.version\" }}' "$ORO_IMAGE_TAG")"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          health = json.loads((root / "oro-container-health.json").read_text())
+          ready = json.loads((root / "oro-container-ready.json").read_text())
+          contract = json.loads((root / "oro-container-contract.json").read_text())
+          dashboard = (root / "oro-container-dashboard.html").read_text()
+          candidate = os.environ["ORO_CANDIDATE_SHA"]
+          image_id = os.environ["ORO_IMAGE_ID"]
+
+          assert os.environ["ORO_CHECKOUT_SHA"] == candidate
+          assert os.environ["ORO_IMAGE_REVISION"] == candidate
+          assert os.environ["ORO_CONTAINER_IMAGE_ID"] == image_id
+          assert health["alive"] is True
+          assert health["environment"] == "production"
+          assert health["service_initialized"] is True
+          assert ready["ready"] is True
+          assert ready["production"] is True
+          assert ready["storage"]["durable"] is True
+          assert ready["storage"]["journal_mode"] == "wal"
+          assert ready["storage"]["path_exposed"] is False
+          assert ready["signer"]["state"] == "ACTIVE"
+          assert ready["signer"]["source"] == "managed-file"
+          assert ready["signer"]["private_key_exposed"] is False
+          assert ready["write_authorizer"]["state"] == "ACTIVE"
+          assert ready["write_authorizer"]["source"] == "managed-file"
+          assert ready["write_authorizer"]["token_value_exposed"] is False
+          assert ready["write_authorizer"]["token_digest_exposed"] is False
+          assert contract["runtime_enforced"] == "NOT_MEASURED"
+          assert contract["release_effector"] == "ABSENT"
+          assert "Obligation-Ranked Orbits" in dashboard
+          assert "https://cdn" not in dashboard.lower()
+
+          evidence = {
+              "schema": "szl.oro-standalone-container-evidence/v1",
+              "source": {
+                  "candidate_sha": candidate,
+                  "checkout_sha": os.environ["ORO_CHECKOUT_SHA"],
+                  "checkout_tree": os.environ["ORO_CHECKOUT_TREE"],
+              },
+              "image": {
+                  "image_id": image_id,
+                  "container_image_id": os.environ["ORO_CONTAINER_IMAGE_ID"],
+                  "revision": os.environ["ORO_IMAGE_REVISION"],
+                  "version": os.environ["ORO_IMAGE_VERSION"],
+                  "dockerfile": "deploy/oro/Dockerfile",
+              },
+              "probes": {
+                  "healthz": health,
+                  "readyz": ready,
+                  "contract": contract,
+                  "dashboard": {
+                      "delivered": True,
+                      "zero_cdn": "https://cdn" not in dashboard.lower(),
+                  },
+              },
+              "secret_material_captured": False,
+          }
+          (root / "oro-container-evidence.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+      - name: Stop container and scrub ephemeral authority
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/oro-container.cid"; then
+            docker rm -f "$(cat "$RUNNER_TEMP/oro-container.cid")" >/dev/null 2>&1 || true
+          else
+            docker rm -f "$ORO_CONTAINER_NAME" >/dev/null 2>&1 || true
+          fi
+          sudo rm -f \
+            "$RUNNER_TEMP/oro-container-secrets/oro-ed25519.pem" \
+            "$RUNNER_TEMP/oro-container-secrets/oro-api-token" \
+            "$RUNNER_TEMP/oro-container-data/oro.sqlite" \
+            "$RUNNER_TEMP/oro-container-data/oro.sqlite-shm" \
+            "$RUNNER_TEMP/oro-container-data/oro.sqlite-wal"
+          sudo rmdir \
+            "$RUNNER_TEMP/oro-container-secrets" \
+            "$RUNNER_TEMP/oro-container-data" 2>/dev/null || true
+      - name: Upload source-bound standalone evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: oro-loopback-evidence-${{ github.sha }}
+          name: oro-standalone-evidence-${{ github.event.pull_request.head.sha || github.sha }}
           path: |
             ${{ runner.temp }}/oro-health.json
             ${{ runner.temp }}/oro-ready.json
             ${{ runner.temp }}/oro-contract.json
             ${{ runner.temp }}/oro-dashboard.html
             ${{ runner.temp }}/oro-uvicorn.log
+            ${{ runner.temp }}/oro-container-health.json
+            ${{ runner.temp }}/oro-container-ready.json
+            ${{ runner.temp }}/oro-container-contract.json
+            ${{ runner.temp }}/oro-container-dashboard.html
+            ${{ runner.temp }}/oro-container-evidence.json
           if-no-files-found: error
           retention-days: 90

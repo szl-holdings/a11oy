@@ -401,7 +401,7 @@ class OROService:
             "release_effector": "ABSENT",
             "normal_termination": "STRUCTURAL_RANK_DECREASE",
             "recursion_limit": "DEFECT_BACKSTOP_ONLY",
-            "runtime_enforced": "MEASURED_ONLY_AFTER_PROTECTED_LIVE_READBACK",
+            "runtime_enforced": "NOT_MEASURED",
             "well_founded_termination": "MODELED",
             "machine_checked_termination": "NOT_PROVED",
             "global_action_optimality": "NOT_CLAIMED",

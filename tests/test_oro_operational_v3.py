@@ -48,6 +48,13 @@ def test_api_import_does_not_construct_an_unowned_runtime() -> None:
     assert not hasattr(oro_api, "app")
 
 
+def test_standalone_module_does_not_claim_canonical_activation() -> None:
+    documentation = oro_api.__doc__ or ""
+    assert "unactivated integration hook" in documentation
+    assert "separately reviewed" in documentation
+    assert "mounts these exact routes in the canonical" not in documentation
+
+
 def plan_payload(service: OROService, *, plan_id: str = "plan-1", kind: str = "task") -> dict:
     return {
         "plan_id": plan_id,
@@ -446,6 +453,7 @@ def test_http_surface_is_real_and_source_bound(monkeypatch: pytest.MonkeyPatch, 
         assert ready.json()["ready"] is True
         contract = client.get("/api/a11oy/v1/oro/contract").json()
         assert contract["release_effector"] == "ABSENT"
+        assert contract["runtime_enforced"] == "NOT_MEASURED"
         assert contract["machine_checked_termination"] == "NOT_PROVED"
         plan = plan_payload(application.state.oro_runtime.service, plan_id="http-plan")
         created = client.post("/api/a11oy/v1/oro/plans", json=plan, headers=AUTH_HEADERS)
@@ -730,6 +738,12 @@ def test_standalone_runtime_delivery_does_not_change_protected_hf_inputs() -> No
     assert "COPY --chown=10001:10001 schemas/oro/ ./schemas/oro/" in standalone_dockerfile
 
 
+def test_runtime_contract_is_not_promoted_without_live_readback(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    assert service.contract()["runtime_enforced"] == "NOT_MEASURED"
+    service.store.close()
+
+
 def test_oro_workflow_is_validation_only() -> None:
     root = Path(__file__).resolve().parents[1]
     workflow = (root / ".github/workflows/oro-control-plane.yml").read_text(encoding="utf-8")
@@ -739,6 +753,16 @@ def test_oro_workflow_is_validation_only() -> None:
     assert "git push" not in workflow
     assert "_apply_oro_v3_repairs.py" not in workflow
     assert "oro.api:create_app --factory" in workflow
+    assert "ref: ${{ github.event.pull_request.head.sha || github.sha }}" in workflow
+    assert "--file deploy/oro/Dockerfile" in workflow
+    assert "--file Dockerfile" not in workflow
+    assert "SZL_ORO_ENV=production" in workflow
+    assert "type=bind,src=$secret_root,dst=/run/secrets,readonly" in workflow
+    assert 'assert contract["runtime_enforced"] == "NOT_MEASURED"' in workflow
+    assert '"secret_material_captured": False' in workflow
+    upload = workflow.split("- name: Upload source-bound standalone evidence", 1)[1]
+    assert "oro-container-evidence.json" in upload
+    assert "oro-container-secrets" not in upload
     assert "-r .github/requirements/ci-oro.txt" in workflow
     assert "uvicorn==0.49.0" in runtime_lock
     assert "click==8.3.3" in runtime_lock
