@@ -21,7 +21,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
     def make_fixture(self) -> tuple[tempfile.TemporaryDirectory[str], Path]:
         temp = tempfile.TemporaryDirectory()
         root = Path(temp.name)
-        for relative in validator.MIGRATIONS:
+        for relative in validator.REQUIRED_FILES:
             source = ROOT / relative
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -168,17 +168,17 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             )
             self.assert_contract_error(root, "must not grant privileges to PUBLIC")
 
-    def test_missing_public_revoke_fails(self) -> None:
+    def test_missing_public_context_function_revoke_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
-            path = root / validator.HARDENING_MIGRATION
+            path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "REVOKE ALL PRIVILEGES ON FUNCTION public.memory_lease_outbox(text, integer, integer)\n"
+                "REVOKE ALL PRIVILEGES ON FUNCTION public.a11oy_memory_context_matches(text, text)\n"
                 "  FROM PUBLIC;\n",
                 "",
             )
-            self.assert_contract_error(root, "PUBLIC function revoke")
+            self.assert_contract_error(root, "PUBLIC context-function revoke")
 
     def test_unbounded_worker_limit_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -279,10 +279,10 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.HARDENING_MIGRATION
             self.replace_once(
                 path,
-                "  FROM PUBLIC, a11oy_memory_app, a11oy_memory_worker;",
-                "  FROM PUBLIC;",
+                "relation.relacl,",
+                "relation.unchecked_acl,",
             )
-            self.assert_contract_error(root, "subtractive table ACL reset")
+            self.assert_contract_error(root, "table ACL catalog sweep")
 
     def test_stale_function_acl_audit_removal_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -290,10 +290,143 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.HARDENING_MIGRATION
             self.replace_once(
                 path,
-                "CROSS JOIN LATERAL pg_catalog.aclexplode(",
-                "CROSS JOIN LATERAL pg_catalog.unchecked_acl(",
+                "'public.memory_touch_updated_at()'::pg_catalog.regprocedure,",
+                "'public.unchecked_touch_updated_at()'::pg_catalog.regprocedure,",
             )
-            self.assert_contract_error(root, "stale function ACL audit")
+            self.assert_contract_error(root, "function ACL target")
+
+    def test_inherited_capability_membership_sweep_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "FROM pg_catalog.pg_auth_members AS edge",
+                "FROM pg_catalog.unchecked_auth_members AS edge",
+            )
+            self.assert_contract_error(root, "role-membership catalog sweep")
+
+    def test_stale_schema_create_sweep_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "REVOKE CREATE ON SCHEMA public FROM %I CASCADE",
+                "REVOKE USAGE ON SCHEMA public FROM %I CASCADE",
+            )
+            self.assert_contract_error(root, "stale schema CREATE revoke")
+
+    def test_column_acl_sweep_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS acl",
+                "CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.unchecked_acl) AS acl",
+            )
+            self.assert_contract_error(root, "column ACL catalog sweep")
+
+    def test_context_binding_table_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "CREATE TABLE IF NOT EXISTS public.memory_context_bindings (",
+                "CREATE TABLE IF NOT EXISTS public.memory_unbound_contexts (",
+            )
+            self.assert_contract_error(root, "owner-only context binding table")
+
+    def test_untrusted_preexisting_context_row_preflight_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "pre-existing memory_context_bindings rows are untrusted",
+                "pre-existing context rows accepted",
+            )
+            self.assert_contract_error(root, "untrusted pre-existing context-row rejection")
+
+    def test_missing_context_helper_must_fail_closed(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "AND NOT COALESCE(helper_was_bound, false) THEN",
+                "AND NOT helper_was_bound THEN",
+            )
+            self.assert_contract_error(root, "fail-closed missing-helper handling")
+
+    def test_stale_context_table_owner_convergence_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;\n",
+                "",
+            )
+            self.assert_contract_error(root, "trusted owner convergence")
+
+    def test_context_function_without_session_binding_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "binding.principal_oid = pg_catalog.to_regrole(session_user)",
+                "binding.principal_oid = pg_catalog.to_regrole(current_user)",
+            )
+            self.assert_contract_error(root, "unforgeable session principal binding")
+
+    def test_context_function_without_security_definer_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER\n",
+                "RETURNS boolean LANGUAGE sql STABLE\n",
+            )
+            self.assert_contract_error(root, "SECURITY DEFINER")
+
+    def test_workflow_merge_ref_checkout_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            text = path.read_text(encoding="utf-8").replace(
+                "          ref: ${{ github.event.pull_request.head.sha || github.sha }}\n",
+                "",
+            )
+            path.write_text(text, encoding="utf-8")
+            self.assert_contract_error(root, "requested-head checkout binding")
+
+    def test_workflow_without_dirty_membership_seed_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "GRANT a11oy_memory_stale_parent\n",
+                "GRANT a11oy_memory_unchecked_parent\n",
+            )
+            self.assert_contract_error(root, "stale capability parent seed")
+
+    def test_stale_context_function_owner_convergence_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER FUNCTION public.a11oy_memory_context_matches(text, text)\n"
+                "  OWNER TO CURRENT_USER;\n",
+                "",
+            )
+            self.assert_contract_error(root, "context-function owner convergence")
 
     def test_unqualified_schema_target_fails(self) -> None:
         temp, root = self.make_fixture()
