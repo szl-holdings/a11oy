@@ -1,13 +1,21 @@
 from __future__ import annotations
 
 import importlib.util
+import json
+import os
 from pathlib import Path
+import subprocess
 from types import SimpleNamespace
 
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 MODULE_PATH = ROOT / "scripts" / "hf_universal_frontend_control.py"
+CONTRACT_WORKFLOW = ROOT / ".github" / "workflows" / "hf-universal-frontend-estate.yml"
+ROLLOUT_WORKFLOW = ROOT / ".github" / "workflows" / "hf-universal-frontend-rollout.yml"
+MAIN_GUARD = ROOT / ".github" / "scripts" / "require-current-main.sh"
+RUNTIME_LOCK = ROOT / ".github" / "requirements" / "hf-universal-frontend-runtime.txt"
+CI_LOCK = ROOT / ".github" / "requirements" / "hf-universal-frontend-ci.txt"
 SPEC = importlib.util.spec_from_file_location("hf_universal_frontend_control", MODULE_PATH)
 assert SPEC and SPEC.loader
 control = importlib.util.module_from_spec(SPEC)
@@ -18,54 +26,60 @@ def asset(files: tuple[str, ...], repo_id: str = "SZLHOLDINGS/example", repo_typ
     return control.Asset(repo_id=repo_id, repo_type=repo_type, sha="a" * 40, files=files)
 
 
-def source_mapping_record(
-    item: control.Asset,
+def source_map_entry(
     state: str,
     *,
-    source_revision: str | None = "b" * 40,
-    observed_revision: str | None = None,
-    readme_revision: str | None = None,
+    space_id: str = "SZLHOLDINGS/example",
+    hf_repository_sha: str = "a" * 40,
 ) -> dict:
     canonical = None
-    candidates = []
+    candidates: list[dict] = []
+    workflows = {"state": "BLOCKED_SOURCE_MAPPING", "paths": []}
     if state in {"EXACT", "INFERRED"}:
         canonical = {
             "full_name": "szl-holdings/example",
-            "html_url": "https://github.com/szl-holdings/example",
-            "default_branch": "main",
-            "default_branch_sha": source_revision,
+            "default_branch_sha": "b" * 40,
         }
-        candidates = [canonical]
-    elif state == "DIVERGENT":
-        candidates = [
-            {
-                "full_name": "szl-holdings/example",
-                "html_url": "https://github.com/szl-holdings/example",
-            }
-        ]
-    observed = observed_revision or item.sha
-    readme_observed = readme_revision or item.sha
+        candidates = [dict(canonical)]
+        workflows = {
+            "state": "OBSERVED",
+            "paths": [".github/workflows/hf-deploy.yml"],
+            "github_ref": "b" * 40,
+        }
     return {
-        "space_id": item.repo_id,
-        "hf_repository_sha": observed,
+        "space_id": space_id,
+        "hf_repository_sha": hf_repository_sha,
         "readme": {
             "http_status": 200,
-            "revision": readme_observed,
-            "url": f"https://huggingface.co/spaces/{item.repo_id}/raw/{readme_observed}/README.md",
-            "sha256": "c" * 64,
+            "revision": hf_repository_sha,
+            "sha256": "d" * 64,
+            "url": f"https://huggingface.co/spaces/{space_id}/raw/{hf_repository_sha}/README.md",
         },
         "source_mapping": {
             "state": state,
+            "evidence": f"TEST_{state}",
             "canonical": canonical,
             "candidates": candidates,
-            "missing_candidates": [],
         },
-        "workflow_candidates": {
-            "state": "OBSERVED" if state in {"EXACT", "INFERRED"} else "BLOCKED_SOURCE_MAPPING",
-            "github_ref": source_revision if state in {"EXACT", "INFERRED"} else None,
-            "paths": [],
-        },
+        "workflow_candidates": workflows,
     }
+
+
+def write_source_map(tmp_path: Path, entries: list[dict]) -> Path:
+    path = tmp_path / "source-map.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema": control.SOURCE_MAP_SCHEMA,
+                "organization": "SZLHOLDINGS",
+                "github_organization": "szl-holdings",
+                "remote_mutation": False,
+                "spaces": entries,
+            }
+        ),
+        encoding="utf-8",
+    )
+    return path
 
 
 def test_managed_card_preserves_frontmatter_and_is_idempotent() -> None:
@@ -143,6 +157,7 @@ def test_gradio_existing_css_requires_source_native_review(monkeypatch: pytest.M
     assert blockers and "source-specific" in blockers[0]
 
 
+
 def test_gradio_adapter_preserves_python_preamble(monkeypatch: pytest.MonkeyPatch) -> None:
     item = asset(("app.py",))
     contents = {
@@ -187,6 +202,7 @@ def test_streamlit_multiline_page_config_blocks(monkeypatch: pytest.MonkeyPatch)
     assert blockers and "single-line" in blockers[0]
 
 
+
 def test_streamlit_adapter_preserves_docstring_and_future_import(monkeypatch: pytest.MonkeyPatch) -> None:
     item = asset(("app.py",))
     contents = {
@@ -207,20 +223,14 @@ def test_streamlit_adapter_preserves_docstring_and_future_import(monkeypatch: py
     compile(rendered, "app.py", "exec")
 
 
-def test_protected_spaces_are_source_bound() -> None:
-    for repo_id in sorted(control.PROTECTED_SPACES):
-        bound, reason = control._source_bound(object(), asset(tuple(), repo_id=repo_id), None)
-        assert bound is True
-        assert reason
-
-
-def test_authenticated_inventory_excludes_private_repositories() -> None:
+def test_anonymous_inventory_excludes_private_repositories() -> None:
     public = SimpleNamespace(id="SZLHOLDINGS/public", private=False)
     private = SimpleNamespace(id="SZLHOLDINGS/private", private=True)
     observed: list[str] = []
 
     class FakeApi:
         def list_models(self, **kwargs):
+            assert kwargs["token"] is False
             return [public, private]
 
         def list_datasets(self, **kwargs):
@@ -232,10 +242,12 @@ def test_authenticated_inventory_excludes_private_repositories() -> None:
         def repo_info(self, *, repo_id, **kwargs):
             observed.append(repo_id)
             assert repo_id != private.id
+            assert kwargs["token"] is False
             return SimpleNamespace(sha="a" * 40, private=False)
 
         def list_repo_files(self, *, repo_id, **kwargs):
             assert repo_id != private.id
+            assert kwargs["token"] is False
             return ["README.md"]
 
     assets = control.enumerate_assets(FakeApi(), "SZLHOLDINGS")
@@ -243,303 +255,244 @@ def test_authenticated_inventory_excludes_private_repositories() -> None:
     assert observed == [public.id]
 
 
-def test_source_bound_evidence_requires_exact_public_runtime_readback() -> None:
-    item = asset(("deployment.json",), repo_id="SZLHOLDINGS/a11oy")
-    source_sha = "b" * 40
-    repository = SimpleNamespace(
-        sha=item.sha,
-        runtime=SimpleNamespace(sha=item.sha, stage="RUNNING", raw={}),
-    )
-    evidence = control.evaluate_source_bound_evidence(
-        item,
-        repository,
-        {"source_sha": source_sha},
-        {"status": "OBSERVED", "build": {"revision": source_sha}},
-    )
-    assert evidence["status"] == "VERIFIED"
-    assert evidence["failures"] == []
-
-    diverged = control.evaluate_source_bound_evidence(
-        item,
-        repository,
-        {"source_sha": source_sha},
-        {"status": "OBSERVED", "build": {"revision": "c" * 40}},
-    )
-    assert diverged["status"] == "BLOCKED"
-    assert "SERVED_SOURCE_REVISION_DIVERGED" in diverged["failures"]
-
-
-def test_source_bound_verified_is_nonblocking_terminal(
-    monkeypatch: pytest.MonkeyPatch,
+@pytest.mark.parametrize(
+    ("state", "expected_state"),
+    (
+        ("EXACT", "SOURCE_BOUND_AUDIT_ONLY"),
+        ("INFERRED", "SOURCE_MAPPING_REVIEW_REQUIRED"),
+        ("DIVERGENT", "SOURCE_MAPPING_BLOCKED"),
+        ("UNAVAILABLE", "SOURCE_MAPPING_BLOCKED"),
+    ),
+)
+def test_every_source_map_state_denies_direct_space_hub_writes(
     tmp_path: Path,
-) -> None:
-    item = asset(("deployment.json",), repo_id="SZLHOLDINGS/a11oy")
-    monkeypatch.setattr(
-        control,
-        "verify_source_bound_asset",
-        lambda api, candidate, protected_source_sha: {
-            "status": "VERIFIED",
-            "canonical_source_revision": "b" * 40,
-            "failures": [],
-        },
-    )
-    decision = control.process_asset(
-        object(),
-        item,
-        None,
-        True,
-        True,
-        tmp_path,
-        source_mapping=source_mapping_record(item, "EXACT"),
-    )
-    assert decision.state == "SOURCE_BOUND_VERIFIED"
-    assert decision.blockers == []
-    report = control.build_report("SZLHOLDINGS", [decision], True, True)
-    assert report["complete"] is True
-
-
-def test_exact_mapping_requires_the_same_deployed_source_revision(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    item = asset(("README.md",))
-    monkeypatch.setattr(
-        control,
-        "verify_source_bound_asset",
-        lambda api, candidate, protected_source_sha: {
-            "status": "VERIFIED",
-            "canonical_source_revision": "d" * 40,
-            "failures": [],
-        },
-    )
-    decision = control.process_asset(
-        object(),
-        item,
-        None,
-        True,
-        True,
-        tmp_path,
-        source_mapping=source_mapping_record(item, "EXACT", source_revision="b" * 40),
-    )
-    assert decision.state == "SOURCE_BOUND_AUDIT_ONLY"
-    assert "SOURCE_MAP_DEPLOYMENT_REVISION_DIVERGED" in decision.blockers
-
-
-def test_exact_source_mapping_never_creates_a_direct_hub_pull_request(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    item = asset(("README.md",))
-
-    class NoWriteApi:
-        def create_commit(self, **kwargs):
-            raise AssertionError("source-mapped Space reached direct Hub mutation")
-
-    monkeypatch.setattr(
-        control,
-        "verify_source_bound_asset",
-        lambda api, candidate, protected_source_sha: {
-            "status": "BLOCKED",
-            "failures": ["PUBLIC_SOURCE_READBACK_UNCONFIGURED"],
-        },
-    )
-    decision = control.process_asset(
-        NoWriteApi(),
-        item,
-        "token",
-        True,
-        True,
-        tmp_path,
-        source_mapping=source_mapping_record(item, "EXACT"),
-    )
-    assert decision.state == "SOURCE_BOUND_AUDIT_ONLY"
-    assert decision.framework == "GITHUB_SOURCE_BOUND"
-    mapping = decision.evidence["source_mapping"]
-    assert mapping["effective_state"] == "SOURCE_REPOSITORY_REQUIRED"
-    assert mapping["direct_hub_mutation_allowed"] is False
-    assert decision.pr_url is None
-
-
-@pytest.mark.parametrize("state", ["EXACT", "INFERRED"])
-def test_unbound_source_revision_never_retains_actionable_mapping(
     state: str,
-    tmp_path: Path,
+    expected_state: str,
 ) -> None:
-    item = asset(("README.md",))
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [source_map_entry(state)]), "SZLHOLDINGS"
+    )
     decision = control.process_asset(
         object(),
-        item,
-        "token",
-        True,
-        True,
-        tmp_path,
-        source_mapping=source_mapping_record(item, state, source_revision=None),
-    )
-    mapping = decision.evidence["source_mapping"]
-    assert decision.state == "SOURCE_MAPPING_BLOCKED"
-    assert mapping["reported_state"] == state
-    assert mapping["effective_state"] == "BLOCKED_SOURCE_MAPPING"
-    assert mapping["direct_hub_mutation_allowed"] is False
-    assert "CANONICAL_SOURCE_REVISION_UNAVAILABLE" in decision.blockers
-    assert decision.pr_url is None
-
-
-def test_inferred_and_divergent_mappings_are_never_direct_hub_authority(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    inferred = asset(("README.md",), repo_id="SZLHOLDINGS/inferred")
-    monkeypatch.setattr(
-        control,
-        "verify_source_bound_asset",
-        lambda api, candidate, protected_source_sha: {"status": "VERIFIED", "failures": []},
-    )
-    inferred_decision = control.process_asset(
-        object(),
-        inferred,
-        "token",
-        True,
-        True,
-        tmp_path,
-        source_mapping=source_mapping_record(inferred, "INFERRED"),
-    )
-    assert inferred_decision.state == "SOURCE_BOUND_AUDIT_ONLY"
-    assert "INFERRED_SOURCE_REQUIRES_OWNER_CONFIRMATION" in inferred_decision.blockers
-
-    divergent = asset(("README.md",), repo_id="SZLHOLDINGS/divergent")
-    divergent_decision = control.process_asset(
-        object(),
-        divergent,
-        "token",
-        True,
-        True,
-        tmp_path,
-        source_mapping=source_mapping_record(divergent, "DIVERGENT"),
-    )
-    assert divergent_decision.state == "SOURCE_MAPPING_BLOCKED"
-    assert "SOURCE_MAPPING_DIVERGENT" in divergent_decision.blockers
-
-
-def test_only_revision_bound_unavailable_mapping_admits_hub_native_plan(
-    monkeypatch: pytest.MonkeyPatch,
-    tmp_path: Path,
-) -> None:
-    item = asset(("index.html",))
-    monkeypatch.setattr(
-        control,
-        "_read_text",
-        lambda api, candidate, path, token: (
-            "<html><head></head><body></body></html>" if path == "index.html" else None
-        ),
-    )
-    monkeypatch.setattr(control, "_read_bytes", lambda api, candidate, path, token: None)
-    decision = control.process_asset(
-        object(),
-        item,
+        asset(("README.md", "deployment.json")),
         None,
-        False,
-        False,
-        tmp_path,
-        source_mapping=source_mapping_record(item, "UNAVAILABLE"),
+        True,
+        True,
+        tmp_path / "backups",
+        space_authorities=authorities,
     )
-    assert decision.state == "WOULD_CREATE_PR"
-    assert decision.evidence["source_mapping"]["effective_state"] == "HUB_NATIVE_ELIGIBLE"
-    assert decision.evidence["source_mapping"]["direct_hub_mutation_allowed"] is True
+    assert decision.state == expected_state
+    assert decision.source_mapping_state == state
+    assert decision.blockers
+    assert decision.pr_url is None
+    assert decision.merged is False
 
+
+def test_missing_and_stale_source_map_entries_fail_closed(tmp_path: Path) -> None:
+    authorities = control.load_space_source_map(
+        write_source_map(
+            tmp_path,
+            [source_map_entry("EXACT", space_id="SZLHOLDINGS/other")],
+        ),
+        "SZLHOLDINGS",
+    )
+    missing = control.process_asset(
+        object(),
+        asset(tuple()),
+        None,
+        True,
+        True,
+        tmp_path / "missing-backups",
+        space_authorities=authorities,
+    )
+    assert missing.state == "SOURCE_MAP_MISSING"
+    assert missing.blockers
+
+    stale_authorities = control.load_space_source_map(
+        write_source_map(
+            tmp_path,
+            [source_map_entry("EXACT", hf_repository_sha="c" * 40)],
+        ),
+        "SZLHOLDINGS",
+    )
     stale = control.process_asset(
         object(),
-        item,
+        asset(tuple()),
         None,
-        False,
-        False,
-        tmp_path,
-        source_mapping=source_mapping_record(
-            item,
-            "UNAVAILABLE",
-            observed_revision="d" * 40,
-        ),
+        True,
+        True,
+        tmp_path / "stale-backups",
+        space_authorities=stale_authorities,
     )
-    assert stale.state == "SOURCE_MAPPING_BLOCKED"
-    assert "SOURCE_MAP_HF_REVISION_DIVERGED" in stale.blockers
+    assert stale.state == "SOURCE_MAP_STALE"
+    assert "does not match observed" in stale.blockers[0]
 
 
-def test_committed_source_map_never_grants_direct_authority_to_a_source_mapping() -> None:
-    document = control.load_source_map(control.DEFAULT_SOURCE_MAP, "SZLHOLDINGS")
-    assert document.entries
-    for record in document.entries.values():
-        item = control.Asset(
-            repo_id=record["space_id"],
-            repo_type="space",
-            sha=record["hf_repository_sha"],
-            files=tuple(),
-        )
-        evidence = control.evaluate_space_source_mapping(item, record)
-        if record["source_mapping"]["state"] != "UNAVAILABLE":
-            assert evidence["direct_hub_mutation_allowed"] is False
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    (
+        ("schema", "wrong", "schema"),
+        ("organization", "OTHER", "organization"),
+        ("github_organization", "other", "GitHub organization"),
+        ("remote_mutation", True, "remote_mutation=false"),
+    ),
+)
+def test_source_map_root_contract_fails_closed(
+    tmp_path: Path,
+    field: str,
+    value,
+    message: str,
+) -> None:
+    path = write_source_map(tmp_path, [source_map_entry("EXACT")])
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    payload[field] = value
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(control.ControlError, match=message):
+        control.load_space_source_map(path, "SZLHOLDINGS")
 
 
-def test_missing_source_map_fails_before_provider_client_initialization(
-    monkeypatch: pytest.MonkeyPatch,
+def test_source_map_rejects_duplicates_mutable_revisions_and_invalid_canonical_state(
     tmp_path: Path,
 ) -> None:
-    def forbidden_provider(*args, **kwargs):
-        raise AssertionError("provider client initialized before source-map validation")
+    duplicate = write_source_map(
+        tmp_path,
+        [source_map_entry("EXACT"), source_map_entry("EXACT")],
+    )
+    with pytest.raises(control.ControlError, match="repeats"):
+        control.load_space_source_map(duplicate, "SZLHOLDINGS")
 
-    monkeypatch.setattr(control, "HfApi", forbidden_provider)
+    mutable = write_source_map(
+        tmp_path,
+        [source_map_entry("EXACT", hf_repository_sha="main")],
+    )
+    with pytest.raises(control.ControlError, match="40-character"):
+        control.load_space_source_map(mutable, "SZLHOLDINGS")
+
+    invalid = source_map_entry("DIVERGENT")
+    invalid["source_mapping"]["canonical"] = {
+        "full_name": "szl-holdings/example",
+        "default_branch_sha": "b" * 40,
+    }
+    with pytest.raises(control.ControlError, match="must not claim"):
+        control.load_space_source_map(write_source_map(tmp_path, [invalid]), "SZLHOLDINGS")
+
+    invalid_space = source_map_entry(
+        "EXACT", space_id="SZLHOLDINGS/example/nested"
+    )
+    with pytest.raises(control.ControlError, match="invalid space_id"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [invalid_space]), "SZLHOLDINGS"
+        )
+
+    invalid_canonical = source_map_entry("EXACT")
+    invalid_canonical["source_mapping"]["canonical"]["full_name"] = (
+        "szl-holdings/example/nested"
+    )
+    with pytest.raises(control.ControlError, match="canonical repository identity"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [invalid_canonical]), "SZLHOLDINGS"
+        )
+
+
+def test_source_map_rejects_unbound_readme_evidence(tmp_path: Path) -> None:
+    invalid_status = source_map_entry("EXACT")
+    invalid_status["readme"]["http_status"] = "200"
+    with pytest.raises(control.ControlError, match="HTTP status is invalid"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [invalid_status]), "SZLHOLDINGS"
+        )
+
+    wrong_revision = source_map_entry("EXACT")
+    wrong_revision["readme"]["revision"] = "c" * 40
+    with pytest.raises(control.ControlError, match="does not match"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [wrong_revision]), "SZLHOLDINGS"
+        )
+
+    mutable_url = source_map_entry("EXACT")
+    mutable_url["readme"]["url"] = (
+        "https://huggingface.co/spaces/SZLHOLDINGS/example/raw/main/README.md"
+    )
+    with pytest.raises(control.ControlError, match="not revision-bound"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [mutable_url]), "SZLHOLDINGS"
+        )
+
+    foreign_url = source_map_entry("EXACT")
+    foreign_url["readme"]["url"] = (
+        f"https://example.invalid/{'a' * 40}/README.md"
+    )
+    with pytest.raises(control.ControlError, match="not revision-bound"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [foreign_url]), "SZLHOLDINGS"
+        )
+
+    non_200_mutable_url = source_map_entry("EXACT")
+    non_200_mutable_url["readme"].update(
+        {
+            "http_status": 404,
+            "sha256": None,
+            "url": "https://huggingface.co/spaces/SZLHOLDINGS/example/raw/main/README.md",
+        }
+    )
+    with pytest.raises(control.ControlError, match="not revision-bound"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [non_200_mutable_url]), "SZLHOLDINGS"
+        )
+
+    boolean_status = source_map_entry("EXACT")
+    boolean_status["readme"]["http_status"] = True
+    with pytest.raises(control.ControlError, match="HTTP status is invalid"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [boolean_status]), "SZLHOLDINGS"
+        )
+
+
+def test_source_map_binds_canonical_candidate_and_workflow_revisions(tmp_path: Path) -> None:
+    candidate_diverged = source_map_entry("EXACT")
+    candidate_diverged["source_mapping"]["candidates"][0]["default_branch_sha"] = "c" * 40
+    with pytest.raises(control.ControlError, match="not uniquely bound"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [candidate_diverged]), "SZLHOLDINGS"
+        )
+
+    workflow_diverged = source_map_entry("EXACT")
+    workflow_diverged["workflow_candidates"]["github_ref"] = "c" * 40
+    with pytest.raises(control.ControlError, match="workflow evidence is not bound"):
+        control.load_space_source_map(
+            write_source_map(tmp_path, [workflow_diverged]), "SZLHOLDINGS"
+        )
+
+
+def test_source_map_missing_file_is_an_explicit_blocker(tmp_path: Path) -> None:
+    with pytest.raises(control.ControlError, match="unavailable"):
+        control.load_space_source_map(tmp_path / "missing.json", "SZLHOLDINGS")
+
+
+def test_missing_source_map_fails_before_any_provider_access(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class UnexpectedApi:
+        def __init__(self, **kwargs):
+            raise AssertionError("provider client must not be constructed without the source map")
+
+    monkeypatch.setattr(control, "HfApi", UnexpectedApi)
     report = tmp_path / "report.json"
-    code = control.main(
+    result = control.main(
         [
             "--source-map",
-            str(tmp_path / "missing-source-map.json"),
+            str(tmp_path / "missing.json"),
             "--report",
             str(report),
             "--backup-dir",
             str(tmp_path / "backups"),
         ]
     )
-    assert code == 2
-    assert '"complete": false' in report.read_text(encoding="utf-8")
-    assert "unavailable or invalid JSON" in report.read_text(encoding="utf-8")
-
-
-def test_protected_workflow_source_can_verify_without_hub_manifest(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    item = asset(("README.md",), repo_id="SZLHOLDINGS/a11oy")
-    expected = "b" * 40
-
-    class FakeApi:
-        def repo_info(self, **kwargs):
-            return SimpleNamespace(
-                sha=item.sha,
-                runtime=SimpleNamespace(sha=item.sha, stage="RUNNING", raw={}),
-            )
-
-    monkeypatch.setattr(control, "_read_text", lambda api, candidate, path, token: None)
-    monkeypatch.setattr(
-        control,
-        "_read_json_url",
-        lambda url: {"status": "OBSERVED", "build": {"revision": expected}},
-    )
-    evidence = control.verify_source_bound_asset(FakeApi(), item, expected)
-    assert evidence["status"] == "VERIFIED"
-    assert evidence["canonical_source_revision"] == expected
-
-
-def test_static_manifest_readback_can_verify_without_runtime_sha() -> None:
-    item = asset(("deployment.json",), repo_id="SZLHOLDINGS/README")
-    deployment = {"source": {"revision": "b" * 40}}
-    repository = SimpleNamespace(
-        sha=item.sha,
-        runtime=SimpleNamespace(stage="RUNNING", raw={}),
-    )
-    evidence = control.evaluate_source_bound_evidence(
-        item,
-        repository,
-        deployment,
-        deployment,
-    )
-    assert evidence["status"] == "VERIFIED"
+    assert result == 4
+    payload = json.loads(report.read_text(encoding="utf-8"))
+    assert payload["complete"] is False
+    assert "source map is unavailable" in payload["fatal"]
 
 
 def test_report_cannot_be_complete_with_blockers() -> None:
@@ -552,29 +505,176 @@ def test_report_cannot_be_complete_with_blockers() -> None:
     assert report["blocked_assets"] == ["SZLHOLDINGS/b"]
 
 
-def test_report_requires_execution_merge_and_terminal_verified_states() -> None:
-    current = control.Decision("SZLHOLDINGS/a", "model", "a" * 40, "CURRENT")
-    assert control.build_report("SZLHOLDINGS", [current], False, False)["complete"] is False
-    assert control.build_report("SZLHOLDINGS", [current], True, False)["complete"] is False
-
-    pending = control.Decision("SZLHOLDINGS/b", "model", "b" * 40, "PR_CREATED")
-    pending_report = control.build_report("SZLHOLDINGS", [pending], True, True)
-    assert pending_report["complete"] is False
-    assert pending_report["nonterminal_assets"] == ["SZLHOLDINGS/b"]
-
-    unverified_merge = control.Decision("SZLHOLDINGS/u", "model", "e" * 40, "MERGED")
-    assert control.build_report("SZLHOLDINGS", [unverified_merge], True, True)["complete"] is False
-
-    merged = control.Decision(
-        "SZLHOLDINGS/c",
-        "model",
-        "c" * 40,
-        "MERGED",
-        merged=True,
-        resulting_sha="d" * 40,
+def test_plan_and_nonterminal_transactions_never_report_complete() -> None:
+    current = [control.Decision("SZLHOLDINGS/a", "model", "a" * 40, "CURRENT")]
+    identity = {
+        "schema": control.SOURCE_MAP_SCHEMA,
+        "path": "docs/huggingface-space-source-map-v1.json",
+        "sha256": "f" * 64,
+        "space_count": 1,
+    }
+    plan = control.build_report(
+        "SZLHOLDINGS",
+        current,
+        False,
+        False,
+        source_map_identity=identity,
     )
-    assert control.build_report("SZLHOLDINGS", [current, merged], True, True)["complete"] is True
-    assert control.build_report("SZLHOLDINGS", [], True, True)["complete"] is False
+    assert plan["completion_eligible"] is False
+    assert plan["complete"] is False
+    assert plan["source_map"] == identity
+
+    pending = [
+        control.Decision("SZLHOLDINGS/a", "model", "a" * 40, "WOULD_CREATE_PR")
+    ]
+    assert control.build_report("SZLHOLDINGS", pending, True, True)["complete"] is False
+    assert control.build_report("SZLHOLDINGS", current, True, True)["complete"] is True
+
+
+class _MergeApi:
+    def __init__(self, resulting_sha: str):
+        self.resulting_sha = resulting_sha
+        self.create_calls = 0
+        self.merge_calls = 0
+
+    def create_commit(self, **kwargs):
+        self.create_calls += 1
+        assert kwargs["parent_commit"] == "a" * 40
+        assert kwargs["create_pr"] is True
+        return SimpleNamespace(pr_url="https://huggingface.co/models/SZLHOLDINGS/example/discussions/7")
+
+    def merge_pull_request(self, **kwargs):
+        self.merge_calls += 1
+        assert kwargs["discussion_num"] == 7
+
+    def repo_info(self, **kwargs):
+        assert kwargs["revision"] == "main"
+        return SimpleNamespace(sha=self.resulting_sha)
+
+
+def test_post_merge_readback_requires_immutable_matching_bytes(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md",), repo_type="model")
+    expected = control.normalize_readme(item, "# old\n", False, "CARD_ONLY")
+    monkeypatch.setattr(control, "_read_bytes", lambda api, item, path, token: b"# old\n")
+    monkeypatch.setattr(
+        control,
+        "_read_revision_bytes",
+        lambda item, revision, path, token: expected,
+    )
+    api = _MergeApi("b" * 40)
+    decision = control.process_asset(
+        api,
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "verified-backups",
+        space_authorities={},
+        authority_guard=lambda: None,
+    )
+    assert decision.state == "MERGED_VERIFIED"
+    assert decision.merged is True
+    assert decision.resulting_sha == "b" * 40
+    assert decision.readback_sha256["README.md"] == control._sha256(expected)
+
+
+def test_post_merge_readback_mismatch_and_nonadvance_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md",), repo_type="model")
+    monkeypatch.setattr(control, "_read_bytes", lambda api, item, path, token: b"# old\n")
+    monkeypatch.setattr(
+        control,
+        "_read_revision_bytes",
+        lambda item, revision, path, token: b"wrong bytes",
+    )
+    mismatch = control.process_asset(
+        _MergeApi("b" * 40),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "mismatch-backups",
+        space_authorities={},
+        authority_guard=lambda: None,
+    )
+    assert mismatch.state == "MERGED_READBACK_FAILED"
+    assert mismatch.merged is True
+    assert any("mismatch" in blocker for blocker in mismatch.blockers)
+
+    nonadvance = control.process_asset(
+        _MergeApi("a" * 40),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "nonadvance-backups",
+        space_authorities={},
+        authority_guard=lambda: None,
+    )
+    assert nonadvance.state == "MERGED_READBACK_FAILED"
+    assert any("did not advance" in blocker for blocker in nonadvance.blockers)
+
+
+
+def test_each_provider_mutation_rechecks_exact_main(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md",), repo_type="model")
+    expected = control.normalize_readme(item, "# old\n", False, "CARD_ONLY")
+    monkeypatch.setattr(control, "_read_bytes", lambda api, item, path, token: b"# old\n")
+    monkeypatch.setattr(
+        control,
+        "_read_revision_bytes",
+        lambda item, revision, path, token: expected,
+    )
+    calls = 0
+
+    def guard() -> None:
+        nonlocal calls
+        calls += 1
+
+    decision = control.process_asset(
+        _MergeApi("b" * 40),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "guarded-backups",
+        space_authorities={},
+        authority_guard=guard,
+    )
+    assert decision.state == "MERGED_VERIFIED"
+    assert calls == 2
+
+
+def test_missing_provider_authority_guard_fails_before_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md",), repo_type="model")
+    monkeypatch.setattr(control, "_read_bytes", lambda api, item, path, token: b"# old\n")
+
+    class NoWriteApi:
+        def create_commit(self, **kwargs):
+            raise AssertionError("provider write must not occur")
+
+    decision = control.process_asset(
+        NoWriteApi(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "unguarded-backups",
+        space_authorities={},
+    )
+    assert decision.state == "AUTHORITY_GUARD_MISSING"
+    assert decision.blockers
 
 
 def test_no_payload_mutation_contract_in_controller_source() -> None:
@@ -589,20 +689,164 @@ def test_no_payload_mutation_contract_in_controller_source() -> None:
     assert not any(token in source for token in forbidden)
     assert "parent_commit=asset.sha" in source
     assert "create_pr=True" in source
+    assert source.count("authority_guard()") == 2
+    assert "PROTECTED_SPACES" not in source
+    assert "def _source_bound" not in source
+    assert '"deployment.json"' not in source
 
 
-def test_manual_workflow_binds_protected_source_revision() -> None:
-    rollout = (ROOT / ".github/workflows/hf-universal-frontend-rollout.yml").read_text(
-        encoding="utf-8"
+def test_manual_workflow_requires_exact_main_at_every_authority_boundary() -> None:
+    rollout = ROLLOUT_WORKFLOW.read_text(encoding="utf-8")
+    guard = MAIN_GUARD.read_text(encoding="utf-8")
+    assert rollout.count("github.ref == 'refs/heads/main'") == 2
+    assert rollout.count("bash .github/scripts/require-current-main.sh") >= 8
+    assert guard.count('GITHUB_REF') >= 2
+    assert 'refs/heads/main' in guard
+    assert 'git rev-parse HEAD' in guard
+    assert 'git/ref/heads/main' in guard
+    assert 'current_main' in guard
+
+    provider_step = rollout.index("Create, merge, and read back revision-bound Hub pull requests")
+    provider_guard = rollout.index("bash .github/scripts/require-current-main.sh", provider_step)
+    execute = rollout.index("--execute", provider_guard)
+    assert provider_guard < execute
+    issue_step = rollout.index("Synchronize one deterministic blocker issue")
+    issue_guard = rollout.index("bash .github/scripts/require-current-main.sh", issue_step)
+    issue_write = rollout.index("gh issue", issue_guard)
+    assert issue_guard < issue_write
+
+
+@pytest.mark.parametrize(
+    ("ref", "local_sha", "remote_sha", "expected"),
+    (
+        ("refs/heads/topic", "a" * 40, "a" * 40, "restricted to refs/heads/main"),
+        ("refs/heads/main", "b" * 40, "a" * 40, "does not match dispatched source"),
+        ("refs/heads/main", "a" * 40, "b" * 40, "is not current protected main"),
+    ),
+)
+def test_current_main_guard_rejects_wrong_ref_checkout_and_remote(
+    tmp_path: Path,
+    ref: str,
+    local_sha: str,
+    remote_sha: str,
+    expected: str,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    fake_git = fake_bin / "git"
+    fake_git.write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$FAKE_LOCAL_SHA"\n', encoding="utf-8")
+    fake_git.chmod(0o755)
+    fake_gh = fake_bin / "gh"
+    fake_gh.write_text('#!/usr/bin/env bash\nprintf "%s\\n" "$FAKE_REMOTE_SHA"\n', encoding="utf-8")
+    fake_gh.chmod(0o755)
+    env = {
+        **os.environ,
+        "PATH": f"{fake_bin}:{os.environ['PATH']}",
+        "GITHUB_REF": ref,
+        "GITHUB_SHA": "a" * 40,
+        "GITHUB_REPOSITORY": "szl-holdings/a11oy",
+        "GH_TOKEN": "test-token",
+        "FAKE_LOCAL_SHA": local_sha,
+        "FAKE_REMOTE_SHA": remote_sha,
+    }
+    result = subprocess.run(
+        ["bash", str(MAIN_GUARD)],
+        cwd=ROOT,
+        env=env,
+        check=False,
+        capture_output=True,
+        text=True,
     )
-    assert rollout.count('--protected-source-sha "$GITHUB_SHA"') == 2
-    assert rollout.count('--source-map "$SOURCE_MAP"') == 2
-    assert "if: inputs.operation == 'execute' && github.ref == 'refs/heads/main'" in rollout
-    assert rollout.count("git/ref/heads/main") == 2
-    assert "id: evidence" in rollout
-    assert "if: ${{ always() && steps.evidence.outcome == 'success' }}" in rollout
+    assert result.returncode == 1
+    assert expected in result.stdout
+
+
+def test_current_main_guard_accepts_exact_current_main(tmp_path: Path) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    for name, variable in (("git", "FAKE_LOCAL_SHA"), ("gh", "FAKE_REMOTE_SHA")):
+        script = fake_bin / name
+        script.write_text(
+            f'#!/usr/bin/env bash\nprintf "%s\\n" "${variable}"\n',
+            encoding="utf-8",
+        )
+        script.chmod(0o755)
+    sha = "a" * 40
+    result = subprocess.run(
+        ["bash", str(MAIN_GUARD)],
+        cwd=ROOT,
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "GITHUB_REF": "refs/heads/main",
+            "GITHUB_SHA": sha,
+            "GITHUB_REPOSITORY": "szl-holdings/a11oy",
+            "GH_TOKEN": "test-token",
+            "FAKE_LOCAL_SHA": sha,
+            "FAKE_REMOTE_SHA": sha,
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0
+    assert f"Exact protected main confirmed: {sha}." in result.stdout
+
+
+def test_current_main_guard_rejects_mutable_or_malformed_dispatch_sha(
+    tmp_path: Path,
+) -> None:
+    fake_bin = tmp_path / "bin"
+    fake_bin.mkdir()
+    for name in ("git", "gh"):
+        script = fake_bin / name
+        script.write_text("#!/usr/bin/env bash\nexit 99\n", encoding="utf-8")
+        script.chmod(0o755)
+    result = subprocess.run(
+        ["bash", str(MAIN_GUARD)],
+        cwd=ROOT,
+        env={
+            **os.environ,
+            "PATH": f"{fake_bin}:{os.environ['PATH']}",
+            "GITHUB_REF": "refs/heads/main",
+            "GITHUB_SHA": "main",
+            "GITHUB_REPOSITORY": "szl-holdings/a11oy",
+            "GH_TOKEN": "test-token",
+        },
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "not an immutable 40-character Git revision" in result.stdout
+
+
+def test_manual_workflow_uses_source_map_and_unique_fail_loud_issue_lookup() -> None:
+    rollout = ROLLOUT_WORKFLOW.read_text(encoding="utf-8")
+    assert rollout.count("--source-map docs/huggingface-space-source-map-v1.json") == 2
+    assert "gh api --paginate --slurp" in rollout
+    assert "issues?state=all&per_page=100" in rollout
+    assert ".pull_request == null" in rollout
+    assert ".state | ascii_upcase" in rollout
     assert "mapfile -t issue_matches" in rollout
+    assert '${#issue_matches[@]}' in rollout
     assert "head -n 1" not in rollout
-    assert "gh issue close" in rollout and "gh issue close" + ' "$number"' in rollout
-    assert "gh issue reopen" in rollout
     assert "|| true" not in rollout
+
+
+def test_hf_workflows_install_only_hash_locked_dependencies() -> None:
+    rollout = ROLLOUT_WORKFLOW.read_text(encoding="utf-8")
+    contract = CONTRACT_WORKFLOW.read_text(encoding="utf-8")
+    assert rollout.count("--require-hashes") == 2
+    assert "hf-universal-frontend-runtime.txt" in rollout
+    assert "--require-hashes" in contract
+    assert "hf-universal-frontend-ci.txt" in contract
+    for workflow in (rollout, contract):
+        assert "huggingface_hub==" not in workflow
+        assert "pytest==" not in workflow
+    runtime_lock = RUNTIME_LOCK.read_text(encoding="utf-8")
+    ci_lock = CI_LOCK.read_text(encoding="utf-8")
+    assert "huggingface-hub==1.23.0" in runtime_lock
+    assert "pytest==9.0.3" in ci_lock
+    assert "--hash=sha256:" in runtime_lock
+    assert "--hash=sha256:" in ci_lock
