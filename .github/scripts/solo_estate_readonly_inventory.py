@@ -392,6 +392,7 @@ def audit_effective_branch_rules(
         token,
     )
     status_check_contexts: set[str] = set()
+    strict_status_check_policies: list[bool] = []
     approving_review_count = 0
     observed_workflows: set[tuple[int, str]] = set()
     workflows_enforced_on_create: set[tuple[int, str]] = set()
@@ -410,6 +411,9 @@ def audit_effective_branch_rules(
             }
         )
         if rule_type == "required_status_checks":
+            strict_status_check_policies.append(
+                parameters.get("strict_required_status_checks_policy") is True
+            )
             for check in parameters.get("required_status_checks") or []:
                 context = safe_text(object_dict(check).get("context"), 240)
                 if context:
@@ -451,12 +455,17 @@ def audit_effective_branch_rules(
         bool(required_identities)
         and required_identities.issubset(workflows_enforced_on_create)
     )
+    strict_required_status_checks_policy = bool(strict_status_check_policies) and all(
+        strict_status_check_policies
+    )
 
     return {
         "status": "OBSERVED",
         "endpoint": "effective_branch_rules",
-        "required_status_checks": bool(status_check_contexts),
+        "required_status_checks": bool(status_check_contexts)
+        and strict_required_status_checks_policy,
         "required_status_check_contexts": sorted(status_check_contexts),
+        "strict_required_status_checks_policy": strict_required_status_checks_policy,
         "required_pull_request_reviews": approving_review_count >= 1,
         "required_approving_review_count": approving_review_count,
         "required_workflows": required_workflows_enforced_on_create,
@@ -1018,11 +1027,13 @@ def audit_huggingface(
         if resource_type == "space":
             try:
                 runtime = api.get_space_runtime(repo_id)
-                runtime_stage = (
-                    safe_text(enum_value(getattr(runtime, "stage", None)) or "UNKNOWN")
-                    .split(".")[-1]
-                    .upper()
+                observed_stage = safe_text(
+                    enum_value(getattr(runtime, "stage", None))
                 )
+                if not observed_stage:
+                    runtime_error = "MISSING_STAGE"
+                else:
+                    runtime_stage = observed_stage.split(".")[-1].upper()
             except Exception as exc:
                 runtime_error = type(exc).__name__
         card = audit_card(
