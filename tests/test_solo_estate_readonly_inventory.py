@@ -524,6 +524,13 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             "org binding": lambda policy: policy["huggingface"].update(
                 {"organization_membership_readback_required": False}
             ),
+            "measured without exporter delta": lambda policy: policy[
+                "truth_labels"
+            ].update(
+                {
+                    "MEASURED": policy["truth_labels"].pop("SAMPLE"),
+                }
+            ),
             "p0 terms": lambda policy: policy["issue_inventory"]["classifiers"].update(
                 {"p0": ["critical"]}
             ),
@@ -858,6 +865,86 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         )
         self.assertEqual(report["provider_mutations_performed"], [])
 
+    def test_huggingface_unknown_visibility_is_terminal(self):
+        sha = "c" * 40
+
+        class Info:
+            id = "SZLHOLDINGS/model"
+            tags = []
+            card_data = {"license": "apache-2.0"}
+            pipeline_tag = "text-generation"
+
+            def __init__(self):
+                self.sha = sha
+
+        class Collection:
+            slug = "SZLHOLDINGS/research"
+            title = "Research"
+            private = None
+            items = (object(),)
+
+        class ReadOnlyApi:
+            def __init__(self, token):
+                self.token = token
+
+            def whoami(self):
+                return {
+                    "name": "operator",
+                    "orgs": [{"name": "SZLHOLDINGS"}],
+                    "auth": {"accessToken": {"role": "read"}},
+                }
+
+            def list_models(self, **_kwargs):
+                return [Info()]
+
+            def list_datasets(self, **_kwargs):
+                return []
+
+            def list_spaces(self, **_kwargs):
+                return []
+
+            def list_collections(self, **_kwargs):
+                return [Collection()]
+
+        card = "# Demo\n## Overview\n## Status\n## Usage\n## Limitations\n" + (
+            "evidence line\n" * 30
+        )
+        fake_module = types.SimpleNamespace(HfApi=ReadOnlyApi)
+        with (
+            mock.patch.dict(sys.modules, {"huggingface_hub": fake_module}),
+            mock.patch.object(
+                self.module, "load_hf_readme", return_value=(card, None)
+            ),
+        ):
+            report = self.module.audit_huggingface(
+                "SZLHOLDINGS", "test-token", self.policy
+            )
+
+        self.assertEqual(report["status"], "BLOCKED")
+        self.assertIsNone(report["resources"]["models"][0]["private"])
+        self.assertIsNone(report["resources"]["collections"][0]["private"])
+        self.assertEqual(
+            [
+                finding["kind"]
+                for finding in report["findings"]
+                if finding["kind"] == "RESOURCE_VISIBILITY_UNOBSERVED"
+            ],
+            ["RESOURCE_VISIBILITY_UNOBSERVED"] * 2,
+        )
+        complete_report = {
+            "source_binding": {"status": "PASS"},
+            "github_security": {
+                "inventory": {
+                    name: {"status": "OBSERVED"}
+                    for name in self.module.SECURITY_ENDPOINTS
+                },
+                "controls": {"protected_branch": {"status": "OBSERVED"}},
+            },
+            "issues": {"status": "OBSERVED"},
+            "huggingface": report,
+        }
+        self.assertFalse(self.module.provider_readbacks_complete(complete_report))
+
     def test_source_binding_closes_over_start_and_end(self):
         revision = "d" * 40
         start = {
@@ -1008,7 +1095,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             self.assertEqual(report["status"], "PASS")
             self.assertEqual(
                 report["truth_boundary"]["live_provider_inventory"],
-                "MEASURED",
+                "SAMPLE",
             )
 
 

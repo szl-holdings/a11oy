@@ -183,7 +183,7 @@
   },
   "truth_labels": {
     "PROVED": "Derived from exact source or deterministic validation.",
-    "MEASURED": "Observed from a named current provider API or runtime readback.",
+    "SAMPLE": "A current point-in-time provider snapshot without a fresh exporter delta.",
     "BLOCKED": "A required authority or evidence source is unavailable or failing.",
     "NOT_CLAIMED": "No production, security, legal, or deployment conclusion is inferred without evidence."
   }

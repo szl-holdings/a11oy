@@ -64,6 +64,7 @@ REQUIRED_ISSUE_CLASSIFIERS = {
 }
 INCOMPLETE_HF_FINDINGS = {
     "RESOURCE_ID_UNOBSERVED",
+    "RESOURCE_VISIBILITY_UNOBSERVED",
     "IMMUTABLE_SHA_UNOBSERVED",
     "CARD_READBACK_UNAVAILABLE",
     "SPACE_RUNTIME_UNOBSERVED",
@@ -1087,11 +1088,13 @@ def audit_huggingface(
             )
             or None
         )
+        raw_private = getattr(info, "private", None)
+        private = raw_private if isinstance(raw_private, bool) else None
         row = {
             "id": repo_id,
             "type": resource_type,
             "sha": sha,
-            "private": bool(getattr(info, "private", False)),
+            "private": private,
             "last_modified": safe_text(
                 getattr(info, "lastModified", None)
                 or getattr(info, "last_modified", None),
@@ -1115,6 +1118,16 @@ def audit_huggingface(
                     "RESOURCE_ID_UNOBSERVED",
                     "UNKNOWN",
                     "The inventory item did not expose a repository identifier.",
+                )
+            )
+        if private is None:
+            findings.append(
+                Finding(
+                    "huggingface",
+                    "HIGH",
+                    "RESOURCE_VISIBILITY_UNOBSERVED",
+                    repo_id or "UNKNOWN",
+                    "Repository visibility was absent or malformed.",
                 )
             )
         if not sha or not FULL_SHA.fullmatch(sha):
@@ -1238,10 +1251,12 @@ def audit_huggingface(
         )
         title = safe_text(getattr(collection, "title", None), 500) or None
         items = list(getattr(collection, "items", None) or [])
+        raw_private = getattr(collection, "private", None)
+        private = raw_private if isinstance(raw_private, bool) else None
         row = {
             "id": slug or None,
             "title": title,
-            "private": bool(getattr(collection, "private", False)),
+            "private": private,
             "last_modified": safe_text(getattr(collection, "lastModified", None), 80)
             or None,
             "item_count": len(items),
@@ -1258,6 +1273,16 @@ def audit_huggingface(
                     "COLLECTION_ID_MISSING",
                     "UNKNOWN",
                     "Collection identifier is absent.",
+                )
+            )
+        if private is None:
+            findings.append(
+                Finding(
+                    "huggingface",
+                    "HIGH",
+                    "RESOURCE_VISIBILITY_UNOBSERVED",
+                    slug or "UNKNOWN",
+                    "Collection visibility was absent or malformed.",
                 )
             )
         if not title:
@@ -1624,6 +1649,11 @@ def validate_policy(policy: Mapping[str, Any]) -> None:
         "SLEEPING",
     }:
         raise ValueError("Only observed RUNNING or SLEEPING Space stages are healthy")
+    truth_labels = object_dict(policy.get("truth_labels"))
+    if "SAMPLE" not in truth_labels or "MEASURED" in truth_labels:
+        raise ValueError(
+            "Point-in-time provider snapshots must remain SAMPLE without an exporter delta"
+        )
 
 
 def self_test(policy: Mapping[str, Any]) -> None:
@@ -1754,7 +1784,7 @@ def main() -> int:
     report["truth_boundary"] = {
         "source_contract": "PROVED",
         "live_provider_inventory": (
-            "MEASURED" if provider_readbacks_complete(report) else "BLOCKED"
+            "SAMPLE" if provider_readbacks_complete(report) else "BLOCKED"
         ),
         "production_state": "NOT_CLAIMED",
     }
