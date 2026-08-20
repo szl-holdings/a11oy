@@ -379,12 +379,32 @@ def _page_metrics(page) -> dict[str, Any]:
             }}
             return true;
           }};
-          const hitTestable = (el) => {{
+          const effectiveBounds = (el) => {{
             const rect = el.getBoundingClientRect();
-            const left = Math.max(0, rect.left);
-            const right = Math.min(window.innerWidth, rect.right);
-            const top = Math.max(0, rect.top);
-            const bottom = Math.min(window.innerHeight, rect.bottom);
+            let left = Math.max(0, rect.left);
+            let right = Math.min(window.innerWidth, rect.right);
+            let top = Math.max(0, rect.top);
+            let bottom = Math.min(window.innerHeight, rect.bottom);
+            for (let node = el.parentElement; node instanceof Element; node = node.parentElement) {{
+              const style = getComputedStyle(node);
+              const contain = style.contain.split(/\\s+/);
+              const clipsPaint = style.clipPath !== 'none' || contain.some(value => value === 'paint' || value === 'strict' || value === 'content');
+              const clipsX = clipsPaint || style.overflowX !== 'visible';
+              const clipsY = clipsPaint || style.overflowY !== 'visible';
+              if (clipsX || clipsY) {{
+                const clip = node.getBoundingClientRect();
+                if (clipsX) {{ left = Math.max(left, clip.left); right = Math.min(right, clip.right); }}
+                if (clipsY) {{ top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }}
+              }}
+            }}
+            return {{left, right, top, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top)}};
+          }};
+          const hitAt = (el, x, y) => {{
+            const hit = document.elementFromPoint(x, y);
+            return hit instanceof Element && (hit === el || el.contains(hit));
+          }};
+          const hitTestable = (el) => {{
+            const {{left, right, top, bottom}} = effectiveBounds(el);
             if (!(right > left && bottom > top)) return false;
             const insetX = Math.min(1, (right - left) / 2);
             const insetY = Math.min(1, (bottom - top) / 2);
@@ -395,10 +415,16 @@ def _page_metrics(page) -> dict[str, Any]:
               [left + insetX, bottom - insetY],
               [right - insetX, bottom - insetY],
             ];
-            return points.some(([x, y]) => {{
-              const hit = document.elementFromPoint(x, y);
-              return hit instanceof Element && (hit === el || el.contains(hit));
-            }});
+            return points.some(([x, y]) => hitAt(el, x, y));
+          }};
+          const hasMinimumHitArea = (el, bounds) => {{
+            if (bounds.width < 44 || bounds.height < 44) return false;
+            const startsX = [bounds.left, (bounds.left + bounds.right - 44) / 2, bounds.right - 44];
+            const startsY = [bounds.top, (bounds.top + bounds.bottom - 44) / 2, bounds.bottom - 44];
+            return startsX.some(x => startsY.some(y => [
+              [x + 1, y + 1], [x + 43, y + 1], [x + 22, y + 22],
+              [x + 1, y + 43], [x + 43, y + 43],
+            ].every(([sampleX, sampleY]) => hitAt(el, sampleX, sampleY))));
           }};
           const actionable = (el) => {{
             if (!visible(el) || !hitTestable(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
@@ -409,15 +435,16 @@ def _page_metrics(page) -> dict[str, Any]:
           const selectors = {selectors};
           const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(actionable);
           const undersized = nodes.map((el) => {{
-            const rect = el.getBoundingClientRect();
+            const bounds = effectiveBounds(el);
             return {{
               tag: el.tagName,
               text: (el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 80),
               href: el.getAttribute('href'),
-              width: Math.round(rect.width * 100) / 100,
-              height: Math.round(rect.height * 100) / 100,
+              width: Math.round(bounds.width * 100) / 100,
+              height: Math.round(bounds.height * 100) / 100,
+              hit_testable_44: hasMinimumHitArea(el, bounds),
             }};
-          }}).filter(item => item.width < 44 || item.height < 44);
+          }}).filter(item => item.width < 44 || item.height < 44 || item.hit_testable_44 !== true);
           return {{
             title: document.title,
             viewport_meta: meta ? meta.getAttribute('content') : null,
