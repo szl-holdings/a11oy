@@ -1,0 +1,225 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:a11oy:council:evaluation-input:v1",
+  "title": "A11oy Council evaluation input",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["proposal", "reveals", "grants", "now"],
+  "properties": {
+    "proposal": { "$ref": "#/$defs/proposal" },
+    "reveals": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/reveal" }
+    },
+    "grants": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/grant" }
+    },
+    "now": { "type": "string", "format": "date-time" },
+    "spent_by_grant": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "policy": { "$ref": "#/$defs/policy" }
+  },
+  "$defs": {
+    "role": {
+      "type": "string",
+      "enum": ["AUTHORITY", "SENTINEL", "VERIFIER", "VALUE"]
+    },
+    "decision": {
+      "type": "string",
+      "enum": ["ACT", "ESCALATE", "BLOCK"]
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "nonempty": {
+      "type": "string",
+      "minLength": 1
+    },
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "member_id",
+        "role",
+        "operator_id",
+        "key_id",
+        "model_lineage",
+        "implementation_id",
+        "provider_id",
+        "retrieval_path",
+        "evidence_domain",
+        "trust_domain"
+      ],
+      "properties": {
+        "member_id": { "$ref": "#/$defs/nonempty" },
+        "role": { "$ref": "#/$defs/role" },
+        "operator_id": { "$ref": "#/$defs/nonempty" },
+        "key_id": { "$ref": "#/$defs/nonempty" },
+        "model_lineage": { "$ref": "#/$defs/nonempty" },
+        "implementation_id": { "$ref": "#/$defs/nonempty" },
+        "provider_id": { "$ref": "#/$defs/nonempty" },
+        "retrieval_path": { "$ref": "#/$defs/nonempty" },
+        "evidence_domain": { "$ref": "#/$defs/nonempty" },
+        "trust_domain": { "$ref": "#/$defs/nonempty" }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["recommendation", "confidence"],
+      "properties": {
+        "recommendation": { "$ref": "#/$defs/decision" },
+        "confidence": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1
+        },
+        "claims": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "evidence": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "objections": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "veto": { "type": "boolean" }
+      }
+    },
+    "commitment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["member_id", "digest"],
+      "properties": {
+        "member_id": { "$ref": "#/$defs/nonempty" },
+        "digest": { "$ref": "#/$defs/sha256" }
+      }
+    },
+    "reveal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["member", "assessment", "nonce", "commitment"],
+      "properties": {
+        "member": { "$ref": "#/$defs/member" },
+        "assessment": { "$ref": "#/$defs/assessment" },
+        "nonce": {
+          "type": "string",
+          "minLength": 8
+        },
+        "commitment": { "$ref": "#/$defs/commitment" }
+      }
+    },
+    "proposal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "proposal_id",
+        "action",
+        "target",
+        "capability",
+        "risk_class",
+        "estimated_cost_microunits"
+      ],
+      "properties": {
+        "proposal_id": { "$ref": "#/$defs/nonempty" },
+        "action": { "$ref": "#/$defs/nonempty" },
+        "target": { "$ref": "#/$defs/nonempty" },
+        "capability": { "$ref": "#/$defs/nonempty" },
+        "risk_class": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D"]
+        },
+        "estimated_cost_microunits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "evidence_requirements": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "metadata": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "grant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "grant_id",
+        "subject",
+        "capabilities",
+        "actions",
+        "exact_targets",
+        "budget_microunits",
+        "expires_at"
+      ],
+      "properties": {
+        "grant_id": { "$ref": "#/$defs/nonempty" },
+        "subject": { "$ref": "#/$defs/nonempty" },
+        "capabilities": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "actions": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "exact_targets": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/nonempty" }
+        },
+        "budget_microunits": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "expires_at": { "type": "string", "format": "date-time" },
+        "revoked": { "type": "boolean" }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "required_roles": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": { "$ref": "#/$defs/role" }
+        },
+        "minimum_effective_size": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "act_score_threshold": {
+          "type": "number",
+          "minimum": -1,
+          "maximum": 1
+        },
+        "minimum_evidence_per_member": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "maximum_autonomous_risk": {
+          "type": "string",
+          "enum": ["A", "B", "C", "D"]
+        }
+      }
+    }
+  }
+}
