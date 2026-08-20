@@ -34,6 +34,7 @@ STYLE_END = "/* szl-universal-frontend:end */"
 RELEASE = "2026-08-17"
 REPO_TYPES = ("model", "dataset", "space")
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
+SHA256 = re.compile(r"^[0-9a-f]{64}$")
 SOURCE_MAP_SCHEMA = "szl.hf-space-source-map/v1"
 SOURCE_MAP_STATES = frozenset({"EXACT", "INFERRED", "DIVERGENT", "UNAVAILABLE"})
 DEFAULT_SOURCE_MAP = Path("docs/huggingface-space-source-map-v1.json")
@@ -106,6 +107,8 @@ class Decision:
     source_mapping_state: str | None = None
     canonical_source_repository: str | None = None
     canonical_source_revision: str | None = None
+    source_map_readme_sha256: str | None = None
+    required_readback_paths: list[str] = dataclasses.field(default_factory=list)
     readback_sha256: dict[str, str] = dataclasses.field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
@@ -328,7 +331,7 @@ def _card(asset: Asset, source_bound: bool, framework: str) -> str:
 | Contract | State |
 |---|---|
 | Canonical identity | `{asset.repo_id}` |
-| Source revision at card generation | `{asset.sha}` |
+| Frontend contract release | `{RELEASE}` |
 | Frontend profile | `{framework}` |
 | Evidence state | `{live}` |
 | Receipt language | Hash-chain integrity and cryptographic signing are reported separately |
@@ -391,6 +394,7 @@ def _space_authority_decision(
         source_mapping_state=authority.state,
         canonical_source_repository=authority.canonical_repository,
         canonical_source_revision=authority.canonical_revision,
+        source_map_readme_sha256=authority.readme_sha256,
     )
     if asset.sha != authority.hf_repository_sha:
         decision.state = "SOURCE_MAP_STALE"
@@ -423,10 +427,13 @@ def _space_authority_decision(
             "README.md": normalize_readme(asset, readme_text, True, framework),
             **dict(adapter_ops),
         }
+        decision.required_readback_paths = sorted(planned)
         for path, expected in sorted(planned.items()):
             observed = _read_bytes(api, asset, path, False)
             if observed != expected:
                 decision.changes.append(f"{path}:{_sha256(expected)}")
+            elif observed is not None:
+                decision.readback_sha256[path] = _sha256(observed)
         if adapter_blockers or decision.changes:
             decision.state = "SOURCE_BOUND_REPAIR_REQUIRED"
             decision.blockers.extend(adapter_blockers)
@@ -1118,6 +1125,12 @@ def _decision_is_terminal_verified(decision: Decision) -> bool:
             and decision.source_mapping_state == "EXACT"
             and bool(decision.canonical_source_repository)
             and _valid_sha(decision.canonical_source_revision)
+            and isinstance(decision.source_map_readme_sha256, str)
+            and bool(SHA256.fullmatch(decision.source_map_readme_sha256))
+            and decision.readback_sha256.get("README.md")
+            == decision.source_map_readme_sha256
+            and "README.md" in decision.required_readback_paths
+            and set(decision.readback_sha256) == set(decision.required_readback_paths)
         )
     if decision.state not in {"CURRENT", "MERGED_VERIFIED"} or decision.blockers:
         return False

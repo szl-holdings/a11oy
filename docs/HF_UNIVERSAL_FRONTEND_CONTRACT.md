@@ -39,6 +39,8 @@ The rollout must never:
 
 The only accepted Space authority input is `docs/huggingface-space-source-map-v1.json` with schema `szl.hf-space-source-map/v1`. The controller validates its organization, read-only boundary, unique Space identities, revision-bound README evidence, immutable Hugging Face revisions, mapping states, and canonical GitHub revisions. Exact or inferred canonical revisions must match one candidate and the workflow evidence revision. The map must cover the complete anonymous public Space inventory with exact identities and revisions before any model or dataset mutation is admitted.
 
+Managed cards deliberately do not embed the Hugging Face commit that contains the card. Such a value cannot converge because committing it necessarily creates a different commit. Revision evidence remains external and immutable: the source map binds the exact Hub revision to the README hash and canonical GitHub revision, and a source-bound decision records the exact SHA-256 readback for every required card and adapter path.
+
 - `EXACT` is source-bound and read-only. The controller independently compares the revision-bound README hash and canonical adapter bytes without a provider token. An exact, already-repaired Space may end in `SOURCE_BOUND_VERIFIED`; any byte drift remains `SOURCE_BOUND_REPAIR_REQUIRED` and must be repaired in the recorded canonical repository at a newly reviewed revision.
 - `INFERRED` requires owner review and remains non-writable.
 - `DIVERGENT` and `UNAVAILABLE` remain blocked.
@@ -65,6 +67,8 @@ The Hub controller does not apply these adapters to Spaces. Python adapters pres
 
 Before processing any mutable asset, the controller validates the complete public Space inventory and computes every Space decision through anonymous revision-bound reads. Model and dataset writes remain disabled unless every Space is terminally `SOURCE_BOUND_VERIFIED`.
 
+For an exact source-bound Space, the report binds its source-map checksum, observed Hub revision, canonical GitHub revision, required readback paths, and exact per-path SHA-256 values. This evidence is kept outside the managed README so that a source-native deployment can reach a stable fixed point while stale map revisions, stale README hashes, or adapter drift still fail closed.
+
 For each eligible mutable asset the controller:
 
 1. resolves the exact current `main` SHA;
@@ -90,4 +94,4 @@ The estate may be called complete only when an owner-dispatched execution report
 }
 ```
 
-The report is completion-eligible only for `operation=execute` with merge enabled. Every model and dataset must end in `CURRENT` or `MERGED_VERIFIED`, while every Space must end in read-only `SOURCE_BOUND_VERIFIED` with an exact mapping, canonical source revision, zero changes, and zero blockers. A source merge, successful plan, pending pull request, partial card rollout, readback mismatch, or reachable URL is not an estate-wide production-verification claim.
+The report is completion-eligible only for `operation=execute` with merge enabled. Every model and dataset must end in `CURRENT` or `MERGED_VERIFIED`, while every Space must end in read-only `SOURCE_BOUND_VERIFIED` with an exact mapping, canonical source revision, complete required-path readback hashes, zero changes, and zero blockers. A source merge, successful plan, pending pull request, partial card rollout, readback mismatch, or reachable URL is not an estate-wide production-verification claim.
