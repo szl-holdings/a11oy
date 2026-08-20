@@ -421,10 +421,16 @@ def _page_metrics(page) -> dict[str, Any]:
             if (bounds.width < 44 || bounds.height < 44) return false;
             const startsX = [bounds.left, (bounds.left + bounds.right - 44) / 2, bounds.right - 44];
             const startsY = [bounds.top, (bounds.top + bounds.bottom - 44) / 2, bounds.bottom - 44];
-            return startsX.some(x => startsY.some(y => [
-              [x + 1, y + 1], [x + 43, y + 1], [x + 22, y + 22],
-              [x + 1, y + 43], [x + 43, y + 43],
-            ].every(([sampleX, sampleY]) => hitAt(el, sampleX, sampleY))));
+            const sampleStep = 1 / Math.max(1, Math.min(4, window.devicePixelRatio || 1));
+            const squareIsHitTestable = (x, y) => {{
+              for (let offsetY = sampleStep / 2; offsetY < 44; offsetY += sampleStep) {{
+                for (let offsetX = sampleStep / 2; offsetX < 44; offsetX += sampleStep) {{
+                  if (!hitAt(el, x + offsetX, y + offsetY)) return false;
+                }}
+              }}
+              return true;
+            }};
+            return startsX.some(x => startsY.some(y => squareIsHitTestable(x, y)));
           }};
           const actionable = (el) => {{
             if (!visible(el) || !hitTestable(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
