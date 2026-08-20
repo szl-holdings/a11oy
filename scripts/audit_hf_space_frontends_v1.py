@@ -375,12 +375,33 @@ def _page_metrics(page) -> dict[str, Any]:
             for (let node = el; node instanceof Element; node = node.parentElement) {{
               const style = getComputedStyle(node);
               if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || Number(style.opacity) <= 0 || style.pointerEvents === 'none') return false;
-              if (node.hasAttribute('hidden') || node.hasAttribute('inert') || node.getAttribute('aria-hidden') === 'true') return false;
+              if (node.hasAttribute('hidden') || node.hasAttribute('inert') || node.getAttribute('aria-hidden') === 'true' || node.getAttribute('aria-disabled') === 'true') return false;
             }}
             return true;
           }};
+          const hitTestable = (el) => {{
+            const rect = el.getBoundingClientRect();
+            const left = Math.max(0, rect.left);
+            const right = Math.min(window.innerWidth, rect.right);
+            const top = Math.max(0, rect.top);
+            const bottom = Math.min(window.innerHeight, rect.bottom);
+            if (!(right > left && bottom > top)) return false;
+            const insetX = Math.min(1, (right - left) / 2);
+            const insetY = Math.min(1, (bottom - top) / 2);
+            const points = [
+              [(left + right) / 2, (top + bottom) / 2],
+              [left + insetX, top + insetY],
+              [right - insetX, top + insetY],
+              [left + insetX, bottom - insetY],
+              [right - insetX, bottom - insetY],
+            ];
+            return points.some(([x, y]) => {{
+              const hit = document.elementFromPoint(x, y);
+              return hit instanceof Element && (hit === el || el.contains(hit));
+            }});
+          }};
           const actionable = (el) => {{
-            if (!visible(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
+            if (!visible(el) || !hitTestable(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
             if (el.tagName === 'A') return Boolean((el.getAttribute('href') || '').trim());
             if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') return true;
             return el.getAttribute('role') === 'button' && el.tabIndex >= 0;
