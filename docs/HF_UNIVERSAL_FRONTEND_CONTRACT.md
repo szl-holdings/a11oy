@@ -37,9 +37,9 @@ The rollout must never:
 
 ## Source authority
 
-The only accepted Space authority input is `docs/huggingface-space-source-map-v1.json` with schema `szl.hf-space-source-map/v1`. The controller validates its organization, read-only boundary, unique Space identities, revision-bound README evidence, immutable Hugging Face revisions, mapping states, and canonical GitHub revisions. Exact or inferred canonical revisions must match one candidate and the workflow evidence revision.
+The only accepted Space authority input is `docs/huggingface-space-source-map-v1.json` with schema `szl.hf-space-source-map/v1`. The controller validates its organization, read-only boundary, unique Space identities, revision-bound README evidence, immutable Hugging Face revisions, mapping states, and canonical GitHub revisions. Exact or inferred canonical revisions must match one candidate and the workflow evidence revision. The map must cover the complete anonymous public Space inventory with exact identities and revisions before any model or dataset mutation is admitted.
 
-- `EXACT` is source-bound and audit-only; repair it in the recorded canonical repository at a newly reviewed revision.
+- `EXACT` is source-bound and read-only. The controller independently compares the revision-bound README hash and canonical adapter bytes without a provider token. An exact, already-repaired Space may end in `SOURCE_BOUND_VERIFIED`; any byte drift remains `SOURCE_BOUND_REPAIR_REQUIRED` and must be repaired in the recorded canonical repository at a newly reviewed revision.
 - `INFERRED` requires owner review and remains non-writable.
 - `DIVERGENT` and `UNAVAILABLE` remain blocked.
 - a missing entry or a Hugging Face revision that differs from the map is blocked as missing or stale evidence.
@@ -63,7 +63,9 @@ The Hub controller does not apply these adapters to Spaces. Python adapters pres
 
 ## Transaction and evidence
 
-For each eligible asset the controller:
+Before processing any mutable asset, the controller validates the complete public Space inventory and computes every Space decision through anonymous revision-bound reads. Model and dataset writes remain disabled unless every Space is terminally `SOURCE_BOUND_VERIFIED`.
+
+For each eligible mutable asset the controller:
 
 1. resolves the exact current `main` SHA;
 2. inventories repository files at that SHA;
@@ -74,7 +76,7 @@ For each eligible asset the controller:
 7. requires a new immutable `main` SHA and reads every changed path back at that revision;
 8. writes a machine-readable report and rollback preimages.
 
-A source-bound, unmapped, stale, or unsupported asset remains a blocker in the estate report. Duplicate deterministic issues are an error rather than an arbitrary first-match update. Issue synchronization occurs only after immutable rollout evidence uploads successfully, then rechecks exact current main before each issue write. The manual execution job keeps the unique issue open until every asset is current or has been repaired at its canonical source.
+An unrepaired source-bound, unmapped, stale, or unsupported asset remains a blocker in the estate report. Duplicate deterministic issues are an error rather than an arbitrary first-match update. Issue synchronization occurs only after immutable rollout evidence uploads successfully, then rechecks exact current main before each issue write. The manual execution job keeps the unique issue open until every mutable asset is current and every Space is verified at its exact source-bound revision.
 
 ## Release decision
 
@@ -88,4 +90,4 @@ The estate may be called complete only when an owner-dispatched execution report
 }
 ```
 
-The report is completion-eligible only for `operation=execute` with merge enabled, and every asset must end in `CURRENT` or `MERGED_VERIFIED`. A source merge, successful plan, pending pull request, partial card rollout, readback mismatch, or reachable URL is not an estate-wide production-verification claim.
+The report is completion-eligible only for `operation=execute` with merge enabled. Every model and dataset must end in `CURRENT` or `MERGED_VERIFIED`, while every Space must end in read-only `SOURCE_BOUND_VERIFIED` with an exact mapping, canonical source revision, zero changes, and zero blockers. A source merge, successful plan, pending pull request, partial card rollout, readback mismatch, or reachable URL is not an estate-wide production-verification claim.
