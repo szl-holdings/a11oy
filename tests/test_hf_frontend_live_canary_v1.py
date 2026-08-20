@@ -137,6 +137,8 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "rect.bottom > 0",
         "rect.top < window.innerHeight",
         "Number(style.opacity) <= 0",
+        "filter.matchAll(/opacity[(]([^)]*)[)]/gi)",
+        "filterMakesTransparent(style.filter)",
         "style.pointerEvents === 'none'",
         "node.hasAttribute('inert')",
         "node.getAttribute('aria-disabled') === 'true'",
@@ -150,6 +152,12 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "offsetY < 44",
         "offsetX < 44",
         "!hitAt(el, x + offsetX, y + offsetY)",
+        "Math.floor((bounds.width - 44) / sampleStep) + 1",
+        "Math.floor((bounds.height - 44) / sampleStep) + 1",
+        "originX < originCountX",
+        "originY < originCountY",
+        "bounds.left + originX * sampleStep",
+        "bounds.top + originY * sampleStep",
         "item.hit_testable_44 !== true",
         "el.matches(':disabled')",
         "el.getAttribute('aria-disabled') === 'true'",
@@ -158,6 +166,8 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
     ):
         assert contract in source
     assert "[x + 1, y + 1]" not in source
+    assert "const startsX =" not in source
+    assert "const startsY =" not in source
 
 
 def test_identity_contract_accepts_exact_source_and_running_runtime() -> None:
