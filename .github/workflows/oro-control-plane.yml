@@ -134,29 +134,27 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: true
-      - name: Normalize transformer quoting and apply bounded ORO repairs
+      - name: Normalize schema fixture and apply bounded ORO repairs
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           path = Path('scripts/_apply_oro_v3_repairs.py')
           text = path.read_text(encoding='utf-8')
-          text = text.replace(
-              '                    """INSERT INTO orbit_runs\n'
-              '                       (orbit_id, plan_id, generation, current_rank_json, status, created_at, updated_at)\n'
-              '                       VALUES (?, ?, ?, ?, \'RUNNING\', ?, ?)""",',
-              '                    "INSERT INTO orbit_runs "\n'
-              '                    "(orbit_id, plan_id, generation, current_rank_json, status, created_at, updated_at) "\n'
-              '                    "VALUES (?, ?, ?, ?, \'RUNNING\', ?, ?)",',
+          patch_store = text.index('def patch_store() -> None:')
+          start = text.index('    replace_once(\n        path,\n', patch_store)
+          end = text.index('    replace_once(\n        path,\n', start + 1)
+          schema_call = """    replace_once(
+              path,
+              \"                        generation INTEGER NOT NULL CHECK(generation >= 0),\\n\"
+              \"                        status TEXT NOT NULL CHECK(status IN ('RUNNING','CONTINUE','COMPLETE','REFUSED')),\\n\",
+              \"                        generation INTEGER NOT NULL CHECK(generation >= 0),\\n\"
+              \"                        current_rank_json TEXT NOT NULL,\\n\"
+              \"                        status TEXT NOT NULL CHECK(status IN ('RUNNING','COMPLETE','REFUSED')),\\n\",
+              \"durable orbit schema\",
           )
-          text = text.replace(
-              '                    """UPDATE orbit_runs\n'
-              '                       SET generation=?, current_rank_json=?, status=?, updated_at=?\n'
-              '                       WHERE orbit_id=? AND generation=? AND status=\'RUNNING\'""",',
-              '                    "UPDATE orbit_runs "\n'
-              '                    "SET generation=?, current_rank_json=?, status=?, updated_at=? "\n'
-              '                    "WHERE orbit_id=? AND generation=? AND status=\'RUNNING\'",',
-          )
-          path.write_text(text, encoding='utf-8')
+          """
+          path.write_text(text[:start] + schema_call + text[end:], encoding='utf-8')
           PY
           python3 -m py_compile scripts/_apply_oro_v3_repairs.py
           python3 scripts/_apply_oro_v3_repairs.py
