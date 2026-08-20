@@ -1,42 +1,36 @@
-name: HF universal frontend estate
+name: HF universal frontend estate contract
 
 on:
   pull_request:
     branches: [main]
     paths:
       - scripts/hf_universal_frontend_control.py
+      - tests/conftest.py
       - tests/test_hf_universal_frontend_control.py
       - docs/HF_UNIVERSAL_FRONTEND_CONTRACT.md
+      - docs/HF_UNIVERSAL_FRONTEND_RUNBOOK.md
       - .github/workflows/hf-universal-frontend-estate.yml
+      - .github/workflows/hf-universal-frontend-rollout.yml
   push:
     branches: [main]
     paths:
       - scripts/hf_universal_frontend_control.py
+      - tests/conftest.py
       - tests/test_hf_universal_frontend_control.py
       - docs/HF_UNIVERSAL_FRONTEND_CONTRACT.md
+      - docs/HF_UNIVERSAL_FRONTEND_RUNBOOK.md
       - .github/workflows/hf-universal-frontend-estate.yml
+      - .github/workflows/hf-universal-frontend-rollout.yml
   schedule:
     - cron: '23 8 * * 1'
-  workflow_dispatch:
-    inputs:
-      operation:
-        description: Plan the estate or execute revision-bound Hub PRs
-        required: true
-        default: plan
-        type: choice
-        options: [plan, execute]
+  workflow_dispatch: {}
 
 permissions:
   contents: read
 
 concurrency:
-  group: hf-universal-frontend-estate-${{ github.ref }}
+  group: hf-universal-frontend-estate-contract-${{ github.ref }}
   cancel-in-progress: false
-
-env:
-  REPORT: evidence/hf-universal-frontend-estate.json
-  BACKUPS: evidence/hf-universal-frontend-preimages
-  ISSUE_TITLE: '[HF-UNIVERSAL-FRONTEND] Source-native rollout incomplete'
 
 jobs:
   contract:
@@ -48,179 +42,44 @@ jobs:
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
+
       - name: Checkout exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
+
       - name: Install exact test and Hub clients
         run: >-
           python -m pip install --disable-pip-version-check
           'pytest==9.0.3'
           'huggingface_hub==1.23.0'
+
       - name: Compile and test the controller
         run: |
           python -m py_compile scripts/hf_universal_frontend_control.py tests/test_hf_universal_frontend_control.py
           python -m pytest -q tests/test_hf_universal_frontend_control.py
-      - name: Reject forbidden mutation capabilities
+
+      - name: Prove bounded mutation surface
         run: |
           ! grep -nE 'update_repo_visibility|request_space_hardware|add_space_secret|delete_repo\(|CommitOperationDelete' scripts/hf_universal_frontend_control.py
           grep -n 'parent_commit=asset.sha' scripts/hf_universal_frontend_control.py
           grep -n 'create_pr=True' scripts/hf_universal_frontend_control.py
 
-  audit:
-    name: Public estate plan
-    needs: contract
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: audit
-      - name: Checkout exact source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-      - name: Install exact Hub client
-        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
-      - name: Generate revision-bound public plan
-        id: plan
-        shell: bash
+      - name: Prove manual-only provider authority
         run: |
-          set +e
-          python scripts/hf_universal_frontend_control.py \
-            --org SZLHOLDINGS \
-            --report "$REPORT" \
-            --backup-dir "$BACKUPS"
-          code=$?
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          test "$code" -eq 0 -o "$code" -eq 2
-      - name: Upload plan and preimage index
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: hf-universal-frontend-plan-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ env.REPORT }}
-            ${{ env.BACKUPS }}
-          if-no-files-found: error
-          retention-days: 90
+          python - <<'PY'
+          from pathlib import Path
 
-  rollout:
-    name: Revision-bound Hub PR rollout
-    needs: [contract, audit]
-    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'execute'
-    runs-on: ubuntu-latest
-    timeout-minutes: 120
-    permissions:
-      contents: read
-      issues: write
-    env:
-      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - name: Harden runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
-        with:
-          egress-policy: audit
-      - name: Checkout exact protected source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-      - name: Require managed Hugging Face authority
-        run: test -n "${HF_ORG_TOKEN:-}"
-      - name: Install exact Hub client
-        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
-      - name: Create, merge, and read back revision-bound Hub PRs
-        id: execute
-        shell: bash
-        run: |
-          set +e
-          python scripts/hf_universal_frontend_control.py \
-            --org SZLHOLDINGS \
-            --execute \
-            --merge \
-            --report "$REPORT" \
-            --backup-dir "$BACKUPS"
-          code=$?
-          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
-          exit 0
-      - name: Upload exact rollout evidence and rollback preimages
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: hf-universal-frontend-rollout-${{ github.run_id }}-${{ github.run_attempt }}
-          path: |
-            ${{ env.REPORT }}
-            ${{ env.BACKUPS }}
-          if-no-files-found: error
-          retention-days: 180
-      - name: Synchronize one deterministic blocker issue
-        if: always()
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -f "$REPORT"
-          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 100 --search "\"$ISSUE_TITLE\" in:title" --json number,title --jq ".[] | select(.title == \"$ISSUE_TITLE\") | .number" | head -n 1)"
-          python - "$REPORT" > /tmp/hf-universal-frontend-issue.md <<'PY'
-          import json, pathlib, sys
-          report = json.loads(pathlib.Path(sys.argv[1]).read_text())
-          print('## Hugging Face universal frontend estate')
-          print()
-          print(f"- Release: `{report.get('release')}`")
-          print(f"- Assets evaluated: **{report.get('asset_count')}**")
-          print(f"- Complete: **{report.get('complete')}**")
-          print(f"- State counts: `{json.dumps(report.get('state_counts', {}), sort_keys=True)}`")
-          print()
-          blocked = report.get('blocked_assets') or []
-          failed = report.get('failed_assets') or []
-          if blocked:
-              print('### Source-native or authority blockers')
-              for item in blocked:
-                  print(f'- `{item}`')
-              print()
-          if failed:
-              print('### Failed transactions')
-              for item in failed:
-                  print(f'- `{item}`')
-              print()
-          print(f"Evidence: {pathlib.Path(sys.argv[1])}")
-          print()
-          print('This owner-dispatched rollout may update supported cards or application shells through revision-bound Hugging Face pull requests. It does not modify model weights, dataset payloads, visibility, hardware, storage, allocation, secrets, or source-bound protected Spaces.')
+          rollout = Path('.github/workflows/hf-universal-frontend-rollout.yml').read_text(encoding='utf-8')
+          on_block = rollout.split('\npermissions:', 1)[0]
+          assert 'workflow_dispatch:' in on_block
+          for forbidden in ('pull_request:', 'push:', 'schedule:', 'workflow_run:', 'repository_dispatch:'):
+              assert forbidden not in on_block, forbidden
+          assert 'operation == \'execute\'' in rollout
+          assert '--execute' in rollout and '--merge' in rollout
           PY
-          complete="$(python - "$REPORT" <<'PY'
-          import json, pathlib, sys
-          print('true' if json.loads(pathlib.Path(sys.argv[1]).read_text()).get('complete') is True else 'false')
-          PY
-          )"
-          if [ "$complete" = true ]; then
-            if [ -n "$number" ]; then
-              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
-              gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed --comment "Exact estate report is complete for protected source ${GITHUB_SHA}." || true
-            fi
-          else
-            if [ -z "$number" ]; then
-              gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body-file /tmp/hf-universal-frontend-issue.md
-            else
-              gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true
-              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
-            fi
-          fi
-      - name: Enforce complete estate
-        if: always()
-        env:
-          EXIT_CODE: ${{ steps.execute.outputs.exit_code }}
-        run: test "${EXIT_CODE:-4}" -eq 0
