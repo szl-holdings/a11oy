@@ -468,7 +468,8 @@ class CouncilKernel:
         invalid_members: list[str] = []
 
         member_ids = [reveal.member.member_id for reveal in reveals]
-        if len(member_ids) != len(set(member_ids)):
+        has_duplicate_members = len(member_ids) != len(set(member_ids))
+        if has_duplicate_members:
             reasons.append("duplicate Council member identity")
 
         for reveal in reveals:
@@ -482,7 +483,11 @@ class CouncilKernel:
             reveal for reveal in reveals if reveal.member.member_id not in invalid_members
         )
         members = tuple(reveal.member for reveal in valid_reveals)
-        diversity = measure_diversity(members) if members else measure_diversity(())
+        diversity = (
+            measure_diversity(())
+            if has_duplicate_members
+            else measure_diversity(members)
+        )
         member_results = tuple(
             MemberResult(
                 member_id=reveal.member.member_id,
@@ -499,7 +504,7 @@ class CouncilKernel:
         decision = Decision.ESCALATE
         grant_id: str | None = None
 
-        if invalid_members or len(member_ids) != len(set(member_ids)):
+        if invalid_members or has_duplicate_members:
             decision = Decision.BLOCK
         else:
             matching_grant: CapabilityGrant | None = None
@@ -830,6 +835,16 @@ def seal_action_receipt(
     observed_at: datetime,
     signer: Signer | None = None,
 ) -> ReceiptEnvelope:
+    expected_decision_digest = sha256_text(
+        canonical_json(decision.canonical_dict(include_digest=False))
+    )
+    if not hmac.compare_digest(decision.decision_digest, expected_decision_digest):
+        raise ValueError("decision record digest does not verify")
+    if not hmac.compare_digest(decision.proposal_digest, proposal.digest):
+        raise ValueError("decision does not authorize this proposal digest")
+    if status is ActionStatus.APPLIED and decision.decision is not Decision.ACT:
+        raise ValueError("APPLIED status requires an ACT decision")
+
     timestamp = _utc(observed_at).isoformat().replace("+00:00", "Z")
     payload: dict[str, Any] = {
         "proposal_id": proposal.proposal_id,
@@ -878,17 +893,50 @@ def seal_action_receipt(
 def verify_action_receipt(
     envelope: ReceiptEnvelope,
     verifier: Verifier | None = None,
+    *,
+    proposal: Proposal | None = None,
+    decision: DecisionRecord | None = None,
 ) -> bool:
-    payload_bytes = canonical_json(envelope.payload).encode("utf-8")
-    if not hmac.compare_digest(
-        hashlib.sha256(payload_bytes).hexdigest(), envelope.payload_digest
-    ):
-        return False
+    try:
+        if proposal is None or decision is None:
+            return False
+        expected_decision_digest = sha256_text(
+            canonical_json(decision.canonical_dict(include_digest=False))
+        )
+        if not hmac.compare_digest(decision.decision_digest, expected_decision_digest):
+            return False
+        if not hmac.compare_digest(proposal.digest, decision.proposal_digest):
+            return False
+        if envelope.payload["proposal_id"] != proposal.proposal_id:
+            return False
+        if envelope.payload["action"] != proposal.action:
+            return False
+        if envelope.payload["target"] != proposal.target:
+            return False
+        if not hmac.compare_digest(envelope.payload["proposal_digest"], proposal.digest):
+            return False
+        if not hmac.compare_digest(
+            envelope.payload["decision_digest"], decision.decision_digest
+        ):
+            return False
+        if envelope.payload["decision"] != decision.decision.value:
+            return False
+        payload_decision = Decision(envelope.payload["decision"])
+        payload_status = ActionStatus(envelope.payload["status"])
+        payload_bytes = canonical_json(envelope.payload).encode("utf-8")
+        if payload_status is ActionStatus.APPLIED and payload_decision is not Decision.ACT:
+            return False
+        if not hmac.compare_digest(
+            hashlib.sha256(payload_bytes).hexdigest(), envelope.payload_digest
+        ):
+            return False
 
-    expected_receipt_digest = sha256_text(
-        canonical_json(envelope.canonical_dict(include_digest=False))
-    )
-    if not hmac.compare_digest(expected_receipt_digest, envelope.receipt_digest):
+        expected_receipt_digest = sha256_text(
+            canonical_json(envelope.canonical_dict(include_digest=False))
+        )
+        if not hmac.compare_digest(expected_receipt_digest, envelope.receipt_digest):
+            return False
+    except (AttributeError, KeyError, TypeError, ValueError):
         return False
 
     if envelope.signature_state is SignatureState.UNSIGNED:
@@ -896,11 +944,15 @@ def verify_action_receipt(
 
     if envelope.key_id is None or envelope.signature is None or verifier is None:
         return False
-    return verifier.verify(
-        envelope.key_id,
-        payload_bytes,
-        envelope.signature,
-    )
+    try:
+        return verifier.verify(
+            envelope.key_id,
+            payload_bytes,
+            envelope.signature,
+        )
+    except Exception:
+        # A verifier implementation is an injected trust boundary; errors deny.
+        return False
 
 
 def decision_to_ledger_payload(record: DecisionRecord) -> Mapping[str, Any]:
