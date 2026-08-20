@@ -219,6 +219,8 @@ def test_workflow_binds_canary_to_exact_github_sha() -> None:
     assert 'gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true' not in workflow
     assert '--comment "All live viewport' in workflow
     assert 'actions/runs/${GITHUB_RUN_ID}." || true' not in workflow
+    assert "id: evidence" in workflow
+    assert "if: ${{ always() && steps.evidence.outcome == 'success' }}" in workflow
 
 
 def test_measured_frontdoor_targets_have_minimum_touch_height() -> None:

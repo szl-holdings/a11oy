@@ -32,6 +32,6 @@ Console errors are preserved as evidence but are not automatically promoted to a
 
 ## Execution model
 
-Pull requests run deterministic unit and contract tests only. Protected-main browser execution is sequenced from a successful `Sync and Relock Canonical Hugging Face Space` workflow and binds checkout plus live readback to that run's exact `head_sha`. Schedules and explicit dispatches bind to current protected source. The workflow uploads the JSON report and screenshots, synchronizes one deterministic drift issue only after rechecking current main, and fails when a hard gate is not satisfied.
+Pull requests run deterministic unit and contract tests only. Protected-main browser execution is sequenced from a successful `Sync and Relock Canonical Hugging Face Space` workflow and binds checkout plus live readback to that run's exact `head_sha`. Schedules and explicit dispatches bind to current protected source. The workflow uploads the JSON report and screenshots, synchronizes one deterministic drift issue only after immutable evidence upload succeeds and current main is rechecked, and fails when a hard gate is not satisfied.
 
 The canary is read-only. It does not update any Space, model, dataset, collection, organization card, hardware allocation, secret, signer key, storage mount, visibility setting, or source branch.
