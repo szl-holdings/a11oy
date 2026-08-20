@@ -358,41 +358,39 @@ def _validate_context_binding(base: str, corrective: str, errors: list[str]) -> 
     )
     for source_label, source in (("base", base), ("corrective", corrective)):
         sql = _normalize(source)
-        for token, label in (
-            (
-                "procedure.proowner = pg_catalog.to_regrole(current_user)",
-                "trusted context-helper owner authentication",
-            ),
-            (
-                "binding_table.relowner = pg_catalog.to_regrole(current_user)",
-                "trusted context-table owner authentication",
-            ),
-            (
-                "binding_acl.grantee <> binding_table.relowner",
-                "owner-only context-table ACL authentication",
-            ),
-            (
-                "binding_column_acl.grantee <> binding_table.relowner",
-                "owner-only context-column ACL authentication",
-            ),
-            (
-                "procedure.prosrc = $bound_helper$",
-                "complete context-helper source authentication",
-            ),
-            (
-                "procedure.proconfig = ARRAY['search_path=pg_catalog, pg_temp']::text[]",
-                "context-helper configuration authentication",
-            ),
-            (
-                "NOT COALESCE(helper_was_authenticated, false)",
-                "fail-closed missing-helper handling",
-            ),
-            (
-                "pre-existing memory_context_bindings rows are untrusted",
-                "untrusted pre-existing context-row rejection",
-            ),
+        preflight = re.search(
+            r"\bDO\s+\$\$\s+BEGIN\s+"
+            r"IF\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+"
+            r"public\.memory_context_bindings\s*\)\s+THEN\s+"
+            r"RAISE\s+EXCEPTION\s+USING\s+ERRCODE\s*=\s*'23514'\s*,\s*"
+            r"MESSAGE\s*=\s*'pre-existing memory_context_bindings rows lack "
+            r"durable write provenance'\s*;\s*END\s+IF\s*;\s*END\s*;\s*\$\$\s*;",
+            sql,
+            re.IGNORECASE,
+        )
+        if preflight is None:
+            errors.append(
+                f"{source_label} missing unconditional durable-provenance preflight"
+            )
+        else:
+            table_position = sql.find(
+                "CREATE TABLE IF NOT EXISTS public.memory_context_bindings"
+            )
+            owner_position = sql.find(
+                "ALTER TABLE public.memory_records OWNER TO CURRENT_USER"
+            )
+            if not table_position < preflight.start() < owner_position:
+                errors.append(
+                    f"{source_label} durable-provenance preflight must precede mutation"
+                )
+        if re.search(
+            r"\bhelper_was_authenticated\b|\$bound_helper\$",
+            sql,
+            re.IGNORECASE,
         ):
-            _require_token(token, sql, f"{source_label} {label}", errors)
+            errors.append(
+                f"{source_label} must not infer binding provenance from current catalog state"
+            )
 
 
 def _validate_receipt_relationships(base: str, corrective: str, errors: list[str]) -> None:
@@ -808,7 +806,7 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
             "'untrusted-domain'"
         ),
         "untrusted binding-row rejection": (
-            "pre-existing memory_context_bindings rows are untrusted"
+            "pre-existing memory_context_bindings rows lack durable write provenance"
         ),
         "arbitrary table ACL seed": (
             "public.memory_context_bindings TO a11oy_memory_stale_grantee"
@@ -840,17 +838,29 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "corrective-only acceptance evidence": (
             "evidence/memory-covenant-v2/corrective-only-acceptance.log"
         ),
-        "authenticated binding reapplication": (
-            "=== authenticated binding reapplication ==="
+        "revoked binding-grant provenance test": (
+            "=== prove revoked binding grant lacks durable provenance ==="
         ),
-        "untrusted binding ACL rejection": (
-            "untrusted-binding-acl-preflight.log"
+        "revoked binding-grant rejection": (
+            "revoked-binding-provenance-preflight.log"
+        ),
+        "runtime application membership seed": (
+            "GRANT a11oy_memory_app TO a11oy_memory_stale_grantee"
         ),
         "untrusted binding column ACL seed": (
             "GRANT INSERT (principal_oid, tenant_id, security_domain)"
         ),
-        "authenticated binding preservation assertion": (
-            "test \"$retained_binding_count\" = \"1\""
+        "temporary binding column ACL revoke": (
+            "REVOKE ALL PRIVILEGES (principal_oid, tenant_id, security_domain)"
+        ),
+        "revoked binding column ACL assertion": (
+            "test \"$revoked_binding_acl_count\" = \"0\""
+        ),
+        "planted binding rollback assertion": (
+            "test \"$planted_binding_count\" = \"1\""
+        ),
+        "runtime application membership cleanup": (
+            "REVOKE a11oy_memory_app FROM a11oy_memory_stale_grantee"
         ),
         "outbound membership evidence": (
             "'outbound_memberships'"
@@ -870,8 +880,7 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
     ordered_markers = (
         "=== forward corrective migration ===",
         "=== corrective-only acceptance ===",
-        "=== prove binding ACL provenance fails closed ===",
-        "=== authenticated binding reapplication ===",
+        "=== prove revoked binding grant lacks durable provenance ===",
         "=== full second pass ===",
     )
     marker_positions = tuple(text.find(marker) for marker in ordered_markers)

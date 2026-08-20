@@ -28,11 +28,10 @@
 8. User-settable tenant/domain GUCs no longer authorize a context alone. The
    immutable session principal OID must also have an owner-managed binding, and
    the PostgreSQL acceptance test denies an attempted unbound-domain switch.
-   A historical forward upgrade accepts pre-existing binding rows only when
-   trusted table/helper ownership, owner-only table and column ACLs, and the
-   complete canonical helper catalog definition authenticate an earlier
-   migration. An attacker-controlled helper containing only the expected table
-   name is rejected.
+   Base and corrective reapplication reject every nonempty binding table because
+   the historical schema has no durable row-level write provenance. Current
+   ownership, helper source, and clean ACLs cannot authenticate a row planted
+   under a temporary grant that has since been revoked.
 9. The corrective migration itself restores the updated-at and append-only
    helper bodies, removes arbitrary user triggers, recreates the exact five
    expected triggers, and restores the required ENABLE/FORCE RLS state. These
@@ -40,21 +39,20 @@
 10. Hosted proof checks out the requested SHA explicitly and records commit and
    source-file identities alongside catalog membership and ACL evidence.
    It runs acceptance immediately after the corrective migration, rejects dirty
-   binding ACL provenance, and proves an authenticated nonempty binding survives
-   reapplication before the historical migration sequence is exercised.
+   binding rows, and reproduces the revoked temporary-INSERT attack before the
+   historical migration sequence is exercised.
 
 ## Qualification
 
 - `python3 scripts/validate_memory_covenant_v2.py` — passed.
-- `python3 tests/test_memory_covenant_v2.py -v` — 56 tests passed.
+- `python3 tests/test_memory_covenant_v2.py -v` — 60 tests passed.
 - `python3 -m py_compile ...` — passed.
 - PostgreSQL parser pass over all three migrations and acceptance SQL (base
   `66`, hardening `24`, corrective `72`, acceptance `43` statements) — passed.
-- Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) rejected the substring-spoofed
-  helper and dirty binding ACL provenance, recovered no-op helpers, missing and
-  arbitrary triggers, and disabled RLS through the corrective migration alone,
-  passed exact corrective-only acceptance, preserved an authenticated nonempty
-  binding on reapplication, passed the full second pass, and passed final
+- Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) passed initial acceptance, proved
+  a temporary binding INSERT grant was absent after revocation, rejected the
+  planted row in both base and corrective reapplication, preserved atomicity on
+  both failed preflights, passed the full second pass, and passed final
   acceptance — passed.
 - An unprivileged migration-role probe stopped at role creation with SQLSTATE
   `42501`; it did not continue under a notice-only fallback.

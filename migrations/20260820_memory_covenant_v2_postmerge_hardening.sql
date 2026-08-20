@@ -19,84 +19,17 @@ CREATE TABLE IF NOT EXISTS public.memory_context_bindings (
     PRIMARY KEY (principal_oid, tenant_id, security_domain)
 );
 
--- A table with rows cannot be trusted when upgrading from the historical
--- helper, because that release never consumed binding rows. Refuse to bless
--- pre-seeded authorization data. Reapplication preserves rows only when
--- trusted ownership and the complete helper catalog contract authenticate a
--- prior application; a source-code substring is not migration provenance.
+-- No historical release stored durable row-level write provenance for this
+-- authorization table. Current owners, ACLs, and helper source cannot prove
+-- that a binding predates a revoked temporary INSERT grant. Refuse every
+-- nonempty reapplication until an operator reconciles and reprovisions the
+-- bindings through a future provenance-bearing path.
 DO $$
-DECLARE
-    helper_was_authenticated boolean := false;
 BEGIN
-    SELECT procedure.proowner = pg_catalog.to_regrole(current_user)
-           AND binding_table.relowner = pg_catalog.to_regrole(current_user)
-           AND binding_table.relkind = 'r'
-           AND NOT EXISTS (
-               SELECT 1
-                 FROM pg_catalog.aclexplode(
-                          COALESCE(
-                              binding_table.relacl,
-                              pg_catalog.acldefault('r', binding_table.relowner)
-                          )
-                      ) AS binding_acl
-                WHERE binding_acl.grantee <> binding_table.relowner
-           )
-           AND NOT EXISTS (
-               SELECT 1
-                 FROM pg_catalog.pg_attribute AS binding_attribute
-                 CROSS JOIN LATERAL pg_catalog.aclexplode(
-                     binding_attribute.attacl
-                 ) AS binding_column_acl
-                WHERE binding_attribute.attrelid = binding_table.oid
-                  AND binding_attribute.attnum > 0
-                  AND NOT binding_attribute.attisdropped
-                  AND binding_attribute.attacl IS NOT NULL
-                  AND binding_column_acl.grantee <> binding_table.relowner
-           )
-           AND function_language.lanname = 'sql'
-           AND procedure.prokind = 'f'
-           AND procedure.prorettype = pg_catalog.to_regtype('pg_catalog.bool')
-           AND NOT procedure.proretset
-           AND procedure.pronargs = 2
-           AND procedure.pronargdefaults = 0
-           AND procedure.provariadic = 0
-           AND procedure.proallargtypes IS NULL
-           AND procedure.proargmodes IS NULL
-           AND procedure.proargnames = ARRAY['row_tenant', 'row_domain']::text[]
-           AND procedure.prosecdef
-           AND procedure.provolatile = 's'
-           AND procedure.proparallel = 'u'
-           AND NOT procedure.proleakproof
-           AND NOT procedure.proisstrict
-           AND procedure.proconfig = ARRAY['search_path=pg_catalog, pg_temp']::text[]
-           AND procedure.prosrc = $bound_helper$
-  SELECT row_tenant = current_setting('a11oy.tenant_id', true)
-     AND row_domain = current_setting('a11oy.security_domain', true)
-     AND EXISTS (
-         SELECT 1
-           FROM public.memory_context_bindings AS binding
-          WHERE binding.principal_oid = pg_catalog.to_regrole(session_user)
-            AND binding.tenant_id = row_tenant
-            AND binding.security_domain = row_domain
-     )
-$bound_helper$
-      INTO helper_was_authenticated
-      FROM pg_catalog.pg_proc AS procedure
-      JOIN pg_catalog.pg_language AS function_language
-        ON function_language.oid = procedure.prolang
-      JOIN pg_catalog.pg_class AS binding_table
-        ON binding_table.oid = pg_catalog.to_regclass(
-               'public.memory_context_bindings'
-           )
-     WHERE procedure.oid = pg_catalog.to_regprocedure(
-               'public.a11oy_memory_context_matches(text,text)'
-           );
-
-    IF EXISTS (SELECT 1 FROM public.memory_context_bindings)
-       AND NOT COALESCE(helper_was_authenticated, false) THEN
+    IF EXISTS (SELECT 1 FROM public.memory_context_bindings) THEN
         RAISE EXCEPTION USING
           ERRCODE = '23514',
-          MESSAGE = 'pre-existing memory_context_bindings rows are untrusted';
+          MESSAGE = 'pre-existing memory_context_bindings rows lack durable write provenance';
     END IF;
 END;
 $$;

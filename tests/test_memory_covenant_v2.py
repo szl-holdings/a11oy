@@ -416,82 +416,107 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             )
             self.assert_contract_error(root, "owner-only context binding table")
 
-    def test_untrusted_preexisting_context_row_preflight_removal_fails(self) -> None:
-        temp, root = self.make_fixture()
-        with temp:
-            path = root / validator.CORRECTIVE_MIGRATION
-            self.replace_once(
-                path,
-                "pre-existing memory_context_bindings rows are untrusted",
-                "pre-existing context rows accepted",
-            )
-            self.assert_contract_error(root, "untrusted pre-existing context-row rejection")
-
-    def test_context_helper_owner_authentication_removal_fails(self) -> None:
-        temp, root = self.make_fixture()
-        with temp:
-            path = root / validator.CORRECTIVE_MIGRATION
-            self.replace_once(
-                path,
-                "procedure.proowner = pg_catalog.to_regrole(current_user)",
-                "procedure.proowner = procedure.proowner",
-            )
-            self.assert_contract_error(root, "trusted context-helper owner authentication")
-
-    def test_context_table_owner_authentication_removal_fails(self) -> None:
-        temp, root = self.make_fixture()
-        with temp:
-            path = root / validator.CORRECTIVE_MIGRATION
-            self.replace_once(
-                path,
-                "binding_table.relowner = pg_catalog.to_regrole(current_user)",
-                "binding_table.relowner = binding_table.relowner",
-            )
-            self.assert_contract_error(root, "trusted context-table owner authentication")
-
-    def test_context_table_acl_authentication_removal_fails(self) -> None:
-        temp, root = self.make_fixture()
-        with temp:
-            path = root / validator.CORRECTIVE_MIGRATION
-            self.replace_once(
-                path,
-                "binding_acl.grantee <> binding_table.relowner",
-                "binding_acl.grantee = binding_table.relowner",
-            )
-            self.assert_contract_error(root, "owner-only context-table ACL authentication")
-
-    def test_context_column_acl_authentication_removal_fails(self) -> None:
-        temp, root = self.make_fixture()
-        with temp:
-            path = root / validator.CORRECTIVE_MIGRATION
-            self.replace_once(
-                path,
-                "binding_column_acl.grantee <> binding_table.relowner",
-                "binding_column_acl.grantee = binding_table.relowner",
-            )
-            self.assert_contract_error(root, "owner-only context-column ACL authentication")
-
-    def test_context_helper_exact_source_authentication_removal_fails(self) -> None:
-        temp, root = self.make_fixture()
-        with temp:
-            path = root / validator.CORRECTIVE_MIGRATION
-            self.replace_once(
-                path,
-                "AND procedure.prosrc = $bound_helper$",
-                "AND procedure.prosrc LIKE $bound_helper$",
-            )
-            self.assert_contract_error(root, "complete context-helper source authentication")
-
-    def test_missing_context_helper_must_fail_closed(self) -> None:
+    def test_base_durable_provenance_preflight_removal_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "AND NOT COALESCE(helper_was_authenticated, false) THEN",
-                "AND NOT helper_was_authenticated THEN",
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings) THEN",
+                "    IF false THEN",
             )
-            self.assert_contract_error(root, "fail-closed missing-helper handling")
+            self.assert_contract_error(root, "unconditional durable-provenance preflight")
+
+    def test_corrective_durable_provenance_preflight_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings) THEN",
+                "    IF false THEN",
+            )
+            self.assert_contract_error(root, "unconditional durable-provenance preflight")
+
+    def test_base_durable_provenance_preflight_cannot_be_conditional(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings) THEN",
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings)\n"
+                "       AND current_user = 'trusted-looking-owner' THEN",
+            )
+            self.assert_contract_error(root, "unconditional durable-provenance preflight")
+
+    def test_corrective_durable_provenance_preflight_cannot_be_conditional(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings) THEN",
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings)\n"
+                "       AND current_user = 'trusted-looking-owner' THEN",
+            )
+            self.assert_contract_error(root, "unconditional durable-provenance preflight")
+
+    def test_base_durable_provenance_error_identity_is_pinned(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "rows lack durable write provenance",
+                "rows accepted after catalog inspection",
+            )
+            self.assert_contract_error(root, "unconditional durable-provenance preflight")
+
+    def test_corrective_durable_provenance_error_identity_is_pinned(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "rows lack durable write provenance",
+                "rows accepted after catalog inspection",
+            )
+            self.assert_contract_error(root, "unconditional durable-provenance preflight")
+
+    def test_base_catalog_state_cannot_substitute_for_write_provenance(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "DO $$\nBEGIN\n"
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings) THEN",
+                "DO $$\nDECLARE\n"
+                "    helper_was_authenticated boolean := true;\n"
+                "BEGIN\n"
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings)\n"
+                "       AND NOT helper_was_authenticated THEN",
+            )
+            self.assert_contract_error(root, "current catalog state")
+
+    def test_corrective_catalog_state_cannot_substitute_for_write_provenance(
+        self,
+    ) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "DO $$\nBEGIN\n"
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings) THEN",
+                "DO $$\nDECLARE\n"
+                "    helper_was_authenticated boolean := true;\n"
+                "BEGIN\n"
+                "    IF EXISTS (SELECT 1 FROM public.memory_context_bindings)\n"
+                "       AND NOT helper_was_authenticated THEN",
+            )
+            self.assert_contract_error(root, "current catalog state")
 
     def test_stale_context_table_owner_convergence_removal_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -570,6 +595,40 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
                 "",
             )
             self.assert_contract_error(root, "substring-spoofed historical helper seed")
+
+    def test_workflow_without_revoked_binding_grant_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "          REVOKE ALL PRIVILEGES "
+                "(principal_oid, tenant_id, security_domain)\n",
+                "          -- revoked-grant adversary removed\n",
+            )
+            self.assert_contract_error(root, "temporary binding column ACL revoke")
+
+    def test_workflow_without_revoked_binding_acl_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                '          test "$revoked_binding_acl_count" = "0"\n',
+                "",
+            )
+            self.assert_contract_error(root, "revoked binding column ACL assertion")
+
+    def test_workflow_without_planted_binding_rollback_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                '          test "$planted_binding_count" = "1"\n',
+                "",
+            )
+            self.assert_contract_error(root, "planted binding rollback assertion")
 
     def test_workflow_without_corrective_only_acceptance_fails(self) -> None:
         temp, root = self.make_fixture()

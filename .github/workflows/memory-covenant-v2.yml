@@ -345,7 +345,7 @@ jobs:
           binding_status=$?
           set -e
           test "$binding_status" -ne 0
-          grep -F 'pre-existing memory_context_bindings rows are untrusted' \
+          grep -F 'pre-existing memory_context_bindings rows lack durable write provenance' \
             evidence/memory-covenant-v2/untrusted-binding-preflight.log
 
           docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
@@ -390,12 +390,11 @@ jobs:
           grep -F '"context_binding_rows": 0' \
             evidence/memory-covenant-v2/corrective-only-acceptance.log
 
-          echo '=== prove binding ACL provenance fails closed ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          echo '=== prove revoked binding grant lacks durable provenance ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
           docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
             <<'SQL'
-          GRANT SELECT ON TABLE public.memory_context_bindings
-            TO a11oy_memory_stale_grantee;
+          GRANT a11oy_memory_app TO a11oy_memory_stale_grantee;
           GRANT INSERT (principal_oid, tenant_id, security_domain)
             ON TABLE public.memory_context_bindings
             TO a11oy_memory_stale_grantee;
@@ -406,11 +405,18 @@ jobs:
               security_domain
           ) VALUES (
               'a11oy_memory_stale_grantee'::regrole,
-              'acl-planted-tenant',
-              'acl-planted-domain'
+              'revoked-grant-tenant',
+              'revoked-grant-domain'
           );
           RESET ROLE;
+          REVOKE ALL PRIVILEGES (principal_oid, tenant_id, security_domain)
+            ON TABLE public.memory_context_bindings
+            FROM a11oy_memory_stale_grantee;
           SQL
+          revoked_binding_acl_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_attribute AS attribute CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS acl WHERE attribute.attrelid = 'public.memory_context_bindings'::pg_catalog.regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped AND attribute.attacl IS NOT NULL AND acl.grantee = 'a11oy_memory_stale_grantee'::pg_catalog.regrole")"
+          test "$revoked_binding_acl_count" = "0"
           set +e
           docker exec -i \
             -e PGPASSWORD=postgres \
@@ -418,36 +424,19 @@ jobs:
             "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
             < migrations/20260820_memory_covenant_v2_postmerge_hardening.sql \
-            > evidence/memory-covenant-v2/untrusted-binding-acl-preflight.log 2>&1
-          binding_acl_status=$?
+            > evidence/memory-covenant-v2/revoked-binding-provenance-preflight.log 2>&1
+          revoked_binding_status=$?
           set -e
-          test "$binding_acl_status" -ne 0
-          grep -F 'pre-existing memory_context_bindings rows are untrusted' \
-            evidence/memory-covenant-v2/untrusted-binding-acl-preflight.log
-          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
-            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
-            <<'SQL'
-          DELETE FROM public.memory_context_bindings
-            WHERE tenant_id = 'acl-planted-tenant';
-          REVOKE ALL PRIVILEGES ON TABLE public.memory_context_bindings
-            FROM a11oy_memory_stale_grantee;
-          REVOKE ALL PRIVILEGES (principal_oid, tenant_id, security_domain)
-            ON TABLE public.memory_context_bindings
-            FROM a11oy_memory_stale_grantee;
-          SQL
-
-          echo '=== authenticated binding reapplication ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
-          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
-            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
-            -c "INSERT INTO public.memory_context_bindings (principal_oid, tenant_id, security_domain) VALUES ('a11oy_memory_stale_grantee'::regrole, 'trusted-reapply-tenant', 'trusted-reapply-domain')"
-          apply_migration migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
-          retained_binding_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+          test "$revoked_binding_status" -ne 0
+          grep -F 'pre-existing memory_context_bindings rows lack durable write provenance' \
+            evidence/memory-covenant-v2/revoked-binding-provenance-preflight.log
+          planted_binding_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
-            -c "SELECT count(*) FROM public.memory_context_bindings WHERE tenant_id = 'trusted-reapply-tenant' AND security_domain = 'trusted-reapply-domain'")"
-          test "$retained_binding_count" = "1"
+            -c "SELECT count(*) FROM public.memory_context_bindings WHERE tenant_id = 'revoked-grant-tenant' AND security_domain = 'revoked-grant-domain'")"
+          test "$planted_binding_count" = "1"
           docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
-            -c "DELETE FROM public.memory_context_bindings WHERE tenant_id = 'trusted-reapply-tenant' AND security_domain = 'trusted-reapply-domain'"
+            -c "DELETE FROM public.memory_context_bindings WHERE tenant_id = 'revoked-grant-tenant'; REVOKE a11oy_memory_app FROM a11oy_memory_stale_grantee"
 
           echo '=== full second pass ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
           for migration in \
