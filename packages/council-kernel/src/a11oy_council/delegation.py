@@ -256,13 +256,15 @@ class RevocationRegistry:
                 )
 
     def is_revoked(self, grant: CapabilityGrant) -> bool:
-        if grant.revoked:
-            return True
-        candidate_digest = grant_digest(grant)
+        # The durable binding is always to the original, unrevoked grant
+        # content.  A caller-controlled ``revoked=True`` bit must not bypass
+        # the grant-id collision check, while an honestly materialized revoked
+        # grant must continue to match the original ledger entry.
+        candidate_digest = grant_digest(replace(grant, revoked=False))
         with self._lock:
             digest = self._revoked.get(grant.grant_id)
         if digest is None:
-            return False
+            return grant.revoked
         if not hmac.compare_digest(digest, candidate_digest):
             raise LedgerIntegrityError(
                 "grant_id revocation is bound to a conflicting grant digest"
@@ -270,7 +272,9 @@ class RevocationRegistry:
         return True
 
     def apply(self, grant: CapabilityGrant) -> CapabilityGrant:
-        return replace(grant, revoked=grant.revoked or self.is_revoked(grant))
+        # Always execute the registry binding check; boolean short-circuiting on
+        # a caller-supplied revoked bit would reintroduce grant-id rebinding.
+        return replace(grant, revoked=self.is_revoked(grant))
 
 
 def verify_delegation_chain(

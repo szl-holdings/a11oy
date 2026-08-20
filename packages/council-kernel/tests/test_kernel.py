@@ -395,7 +395,13 @@ class ReceiptTests(unittest.TestCase):
         self.assertEqual(envelope.signature_state, SignatureState.UNSIGNED)
         self.assertIsNone(envelope.key_id)
         self.assertIsNone(envelope.signature)
-        self.assertTrue(verify_action_receipt(envelope))
+        self.assertTrue(
+            verify_action_receipt(
+                envelope,
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
 
     def test_signed_receipt_requires_verification(self) -> None:
         key = os.urandom(32)
@@ -410,9 +416,29 @@ class ReceiptTests(unittest.TestCase):
             signer=signer,
         )
         self.assertEqual(envelope.signature_state, SignatureState.SIGNED)
-        self.assertFalse(verify_action_receipt(envelope))
-        self.assertTrue(verify_action_receipt(envelope, _HmacVerifier(key)))
-        self.assertFalse(verify_action_receipt(envelope, _HmacVerifier(os.urandom(32))))
+        self.assertFalse(
+            verify_action_receipt(
+                envelope,
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
+        self.assertTrue(
+            verify_action_receipt(
+                envelope,
+                _HmacVerifier(key),
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
+        self.assertFalse(
+            verify_action_receipt(
+                envelope,
+                _HmacVerifier(os.urandom(32)),
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
 
     def test_receipt_rejects_a_decision_for_another_proposal(self) -> None:
         with self.assertRaisesRegex(ValueError, "does not authorize this proposal"):
@@ -494,7 +520,84 @@ class ReceiptTests(unittest.TestCase):
             receipt_digest=sha256_text(canonical_json(receipt_body)),
         )
 
-        self.assertFalse(verify_action_receipt(contradictory, _HmacVerifier(key)))
+        self.assertFalse(
+            verify_action_receipt(
+                contradictory,
+                _HmacVerifier(key),
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
+
+    def test_verifier_rejects_forged_act_field_for_bound_block_decision(self) -> None:
+        key = os.urandom(32)
+        signer = _HmacSigner(key)
+        blocked_proposal = proposal(target="repo://szl-holdings/other")
+        blocked_decision = CouncilKernel().evaluate(
+            blocked_proposal,
+            four_reveals(),
+            (grant(),),
+            now=NOW,
+        )
+        self.assertEqual(blocked_decision.decision, Decision.BLOCK)
+        envelope = seal_action_receipt(
+            proposal=blocked_proposal,
+            decision=blocked_decision,
+            status=ActionStatus.BLOCKED,
+            preconditions=("decision required",),
+            postconditions=("action not applied",),
+            observed_at=NOW,
+            signer=signer,
+        )
+        payload = {
+            **envelope.payload,
+            "decision": Decision.ACT.value,
+            "status": ActionStatus.APPLIED.value,
+        }
+        payload_bytes = canonical_json(payload).encode("utf-8")
+        payload_digest = hashlib.sha256(payload_bytes).hexdigest()
+        signature = signer.sign(payload_bytes)
+        receipt_body = {
+            "payload": payload,
+            "payload_digest": payload_digest,
+            "signature_state": SignatureState.SIGNED.value,
+            "key_id": signer.key_id,
+            "signature": signature,
+        }
+        forged = replace(
+            envelope,
+            payload=payload,
+            payload_digest=payload_digest,
+            signature=signature,
+            receipt_digest=sha256_text(canonical_json(receipt_body)),
+        )
+
+        self.assertFalse(
+            verify_action_receipt(
+                forged,
+                _HmacVerifier(key),
+                proposal=blocked_proposal,
+                decision=blocked_decision,
+            )
+        )
+
+    def test_verifier_requires_exact_proposal_and_decision_records(self) -> None:
+        envelope = seal_action_receipt(
+            proposal=self.proposal,
+            decision=self.decision,
+            status=ActionStatus.APPLIED,
+            preconditions=("exact head matched",),
+            postconditions=("tests passed",),
+            observed_at=NOW,
+        )
+        self.assertFalse(verify_action_receipt(envelope))
+        self.assertFalse(
+            verify_action_receipt(
+                envelope,
+                proposal=proposal(target="repo://szl-holdings/other"),
+                decision=self.decision,
+            )
+        )
 
     def test_verifier_returns_false_for_malformed_envelope(self) -> None:
         envelope = seal_action_receipt(
@@ -506,7 +609,13 @@ class ReceiptTests(unittest.TestCase):
             observed_at=NOW,
         )
         malformed = replace(envelope, payload_digest=None)  # type: ignore[arg-type]
-        self.assertFalse(verify_action_receipt(malformed))
+        self.assertFalse(
+            verify_action_receipt(
+                malformed,
+                proposal=self.proposal,
+                decision=self.decision,
+            )
+        )
 
 
 if __name__ == "__main__":

@@ -157,6 +157,20 @@ class DelegationTests(unittest.TestCase):
         with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
             registry.apply(altered)
 
+        altered_and_pre_revoked = replace(
+            root,
+            budget_microunits=9_999,
+            revoked=True,
+        )
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.is_revoked(altered_and_pre_revoked)
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.apply(altered_and_pre_revoked)
+
+        materialized = registry.apply(root)
+        self.assertTrue(materialized.revoked)
+        self.assertTrue(registry.is_revoked(materialized))
+
     def test_revocation_is_restored_from_reopened_durable_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "council.jsonl"

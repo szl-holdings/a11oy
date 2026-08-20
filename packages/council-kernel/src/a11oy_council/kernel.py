@@ -893,8 +893,34 @@ def seal_action_receipt(
 def verify_action_receipt(
     envelope: ReceiptEnvelope,
     verifier: Verifier | None = None,
+    *,
+    proposal: Proposal | None = None,
+    decision: DecisionRecord | None = None,
 ) -> bool:
     try:
+        if proposal is None or decision is None:
+            return False
+        expected_decision_digest = sha256_text(
+            canonical_json(decision.canonical_dict(include_digest=False))
+        )
+        if not hmac.compare_digest(decision.decision_digest, expected_decision_digest):
+            return False
+        if not hmac.compare_digest(proposal.digest, decision.proposal_digest):
+            return False
+        if envelope.payload["proposal_id"] != proposal.proposal_id:
+            return False
+        if envelope.payload["action"] != proposal.action:
+            return False
+        if envelope.payload["target"] != proposal.target:
+            return False
+        if not hmac.compare_digest(envelope.payload["proposal_digest"], proposal.digest):
+            return False
+        if not hmac.compare_digest(
+            envelope.payload["decision_digest"], decision.decision_digest
+        ):
+            return False
+        if envelope.payload["decision"] != decision.decision.value:
+            return False
         payload_decision = Decision(envelope.payload["decision"])
         payload_status = ActionStatus(envelope.payload["status"])
         payload_bytes = canonical_json(envelope.payload).encode("utf-8")

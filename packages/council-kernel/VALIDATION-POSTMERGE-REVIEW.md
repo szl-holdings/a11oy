@@ -15,7 +15,9 @@ The local current-main successor addresses the four post-merge review threads:
 2. Revocation registries replay structurally valid `capability.revoked` records from a reopened hash-chain ledger and fail closed on malformed or conflicting durable entries.
 3. Outcome observations timestamped after the evaluation time remain `PENDING`, including at the learning-promotion boundary.
 4. Duplicate reveal identities compile to an auditable `BLOCK` decision with zero usable diversity instead of raising during diversity measurement.
-5. Rebound revoked grant identifiers, time-travel promotion dispositions, and contradictory signed `APPLIED` receipt payloads fail closed.
+5. Rebound revoked grant identifiers, including caller-supplied pre-revoked variants, fail closed before the embedded revocation bit is accepted.
+6. Time-travel promotion dispositions fail closed.
+7. Action-receipt verification requires the exact proposal and decision records, recomputes both identities, and rejects signer-authenticated contradictions between an `APPLIED` payload and its referenced decision.
 
 ## Commands
 
@@ -33,7 +35,7 @@ PYTHONPATH=packages/council-kernel/src \
 ## Local result
 
 - Python compilation: `PASS`
-- Complete Council package tests: `109/109 PASS`
+- Complete Council package tests: `111/111 PASS` plus `10/10` parameterized subtests
 - Added runtime dependencies: `0`
 - Added runtime routes or provider effect paths: `0`
 
