@@ -131,6 +131,22 @@ def test_page_contract_rejects_fixed_width_and_blank_shell() -> None:
     assert codes == {"VIEWPORT_META_UNSAFE", "PRIMARY_TARGETS_MISSING"}
 
 
+def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    for contract in (
+        "rect.bottom > 0",
+        "rect.top < window.innerHeight",
+        "Number(style.opacity) <= 0",
+        "style.pointerEvents === 'none'",
+        "node.hasAttribute('inert')",
+        "el.matches(':disabled')",
+        "el.getAttribute('aria-disabled') === 'true'",
+        "el.getAttribute('role') === 'button' && el.tabIndex >= 0",
+        ".filter(actionable)",
+    ):
+        assert contract in source
+
+
 def test_identity_contract_accepts_exact_source_and_running_runtime() -> None:
     source = "a" * 40
     hf_sha = "b" * 40
