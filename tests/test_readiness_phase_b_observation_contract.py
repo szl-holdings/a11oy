@@ -155,6 +155,54 @@ class PhaseBPayloadTests(unittest.TestCase):
         self.assertIsInstance(result["detail"], str)
         self.assertTrue(result["detail"])
 
+    def test_compatible_kev_mode_and_data_kind_pairs_are_canonicalized(self) -> None:
+        cases = (
+            ("live", "LIVE", "live"),
+            ("cached", "sample", "cached"),
+            ("snapshot", "snapshot", "cached"),
+        )
+        for mode, data_kind, expected in cases:
+            with self.subTest(mode=mode, data_kind=data_kind):
+                result = normalize_phase_b_payload(
+                    "/api/a11oy/v1/sec/kev",
+                    {"mode": mode, "data_kind": data_kind, "items": []},
+                )
+                self.assertEqual(result["mode"], mode)
+                self.assertEqual(result["data_kind"], expected)
+                self.assertIsInstance(result["detail"], str)
+                self.assertTrue(result["detail"])
+
+    def test_live_kev_mode_does_not_override_weaker_or_negative_kind(self) -> None:
+        for data_kind in (
+            "cached",
+            "sample",
+            "snapshot",
+            "none",
+            "unavailable",
+            "live KEV IDs plus sample enrichment",
+        ):
+            with self.subTest(data_kind=data_kind):
+                source = {
+                    "mode": "live",
+                    "data_kind": data_kind,
+                    "items": [],
+                }
+                result = normalize_phase_b_payload(
+                    "/api/a11oy/v1/sec/kev",
+                    source,
+                )
+                self.assertEqual(result, source)
+                self.assertNotIn("detail", result)
+
+    def test_cached_kev_mode_does_not_override_live_kind(self) -> None:
+        source = {"mode": "cached", "data_kind": "live", "items": []}
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kev",
+            source,
+        )
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
+
     def test_mixed_kevgate_provenance_is_not_relabelled(self) -> None:
         descriptor = (
             "live KEV IDs/dates/vendors + LIVE EPSS 24/24; "

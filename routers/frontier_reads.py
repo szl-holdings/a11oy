@@ -80,25 +80,30 @@ def normalize_phase_b_payload(
         raw_kind_value = normalized.get("data_kind")
         raw_kind = str(raw_kind_value or "").strip().casefold()
         mode = str(normalized.get("mode") or "").strip().casefold()
-        if mode == "live":
+        if raw_kind == "live":
             canonical_kind = "live"
-        elif mode in {"cached", "snapshot"}:
-            canonical_kind = "cached"
-        elif mode:
-            # An explicit terminal mode is stronger provenance than a verbose
-            # descriptor. It must never be upgraded from prose.
-            return normalized
-        elif raw_kind == "live" or raw_kind.startswith("live "):
-            canonical_kind = "live"
-        elif raw_kind in {"cached", "sample", "snapshot"} or raw_kind.startswith(
-            "snapshot;"
-        ):
+        elif raw_kind in {"cached", "sample", "snapshot"}:
             canonical_kind = "cached"
         else:
             # A successful transport response is not evidence that an unknown
             # or unavailable source is cached. Preserve the terminal label so
             # the readiness contract continues to fail closed.
             return normalized
+
+        if mode:
+            if mode == "live":
+                canonical_mode = "live"
+            elif mode in {"cached", "snapshot"}:
+                canonical_mode = "cached"
+            else:
+                # Unknown and unavailable modes remain machine-readable so the
+                # readiness contract rejects them instead of inferring evidence.
+                return normalized
+            if canonical_mode != canonical_kind:
+                # Neither field may erase contradictory evidence from the
+                # other. In particular, mode=live cannot upgrade a sample,
+                # cached, or snapshot data_kind into live evidence.
+                return normalized
         normalized["data_kind"] = canonical_kind
 
         detail = normalized.get("detail")
@@ -106,12 +111,6 @@ def normalize_phase_b_payload(
             note = normalized.get("note")
             if isinstance(note, str) and note.strip():
                 detail = note
-            elif (
-                isinstance(raw_kind_value, str)
-                and raw_kind_value.strip()
-                and raw_kind not in {"live", "cached", "sample", "snapshot"}
-            ):
-                detail = raw_kind_value.strip()
             elif canonical_kind == "live":
                 detail = (
                     "The KEV source identified this response as live during "

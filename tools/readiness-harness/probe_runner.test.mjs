@@ -45,6 +45,47 @@ test("mixed KEVGate provenance remains release-red", () => {
   assert.deepEqual(verdict.disallowed.map(({ path }) => path), ["data_kind"]);
 });
 
+test("a live mode cannot hide weaker or negative KEV evidence", () => {
+  for (const dataKind of ["sample", "none", "unavailable"]) {
+    const verdict = evaluateEndpointLabels(200, {
+      degradedRules: {
+        allowStatuses: [200],
+        allowLabels: ["live", "cached"],
+        liesIf: ["mock", "fabricated", "placeholder"],
+      },
+    }, {
+      mode: "live",
+      data_kind: dataKind,
+      items: [],
+    });
+
+    assert.equal(verdict.ok, false, dataKind);
+    assert.deepEqual(
+      verdict.disallowed.map(({ path, normalized }) => ({ path, normalized })),
+      [{ path: "data_kind", normalized: dataKind }],
+      dataKind,
+    );
+  }
+});
+
+test("compatible live and cached KEV labels remain allowed", () => {
+  for (const evidence of [
+    { mode: "live", data_kind: "live" },
+    { mode: "cached", data_kind: "cached" },
+  ]) {
+    const verdict = evaluateEndpointLabels(200, {
+      degradedRules: {
+        allowStatuses: [200],
+        allowLabels: ["live", "cached"],
+        liesIf: ["mock", "fabricated", "placeholder"],
+      },
+    }, evidence);
+
+    assert.equal(verdict.ok, true, JSON.stringify(evidence));
+    assert.deepEqual(verdict.disallowed, [], JSON.stringify(evidence));
+  }
+});
+
 test("freshness prefers nested source fetch time over a market event timestamp", () => {
   const body = {
     equities: {
