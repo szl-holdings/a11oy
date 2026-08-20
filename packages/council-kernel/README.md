@@ -25,13 +25,13 @@ A repeated Council member identity produces an auditable `BLOCK` decision with z
 
 ## Receipts and state
 
-Decision and action records use canonical JSON and SHA-256 content identities. Hash-chain integrity and signature state are separate fields. An unsigned record is labeled `UNSIGNED`; a record is labeled `SIGNED` only when an injected signer produces a signature. An action receipt must bind to the exact proposal digest evaluated by the decision, and only an `ACT` decision can be sealed with `APPLIED` status.
+Decision and action records use canonical JSON and SHA-256 content identities. Hash-chain integrity and signature state are separate fields. An unsigned record is labeled `UNSIGNED`; a record is labeled `SIGNED` only when an injected signer produces a signature. An action receipt must bind to the exact proposal digest evaluated by the decision, and only an `ACT` decision can be sealed or verified with `APPLIED` status.
 
-The included ledger can remain in memory or append JSON Lines to a caller-selected path. It verifies every previous-hash link and entry digest. A `RevocationRegistry` created over a reopened ledger validates and restores prior `capability.revoked` entries before serving authority checks. Production key custody, durable transparency, external witnesses, and provider execution remain deployment concerns outside this package.
+The included ledger can remain in memory or append JSON Lines to a caller-selected path. It verifies every previous-hash link and entry digest. A `RevocationRegistry` created over a reopened ledger validates and restores prior `capability.revoked` entries before serving authority checks. Reusing a revoked grant identifier for different grant content is an integrity error, not a new authority domain. Production key custody, durable transparency, external witnesses, and provider execution remain deployment concerns outside this package.
 
 ## Delayed outcomes
 
-Outcome observations are evaluated only when their timestamp is at or before the evaluation time. A future-dated observation remains `PENDING` and cannot make a learning candidate eligible.
+Outcome observations are evaluated only when their timestamp is at or before the evaluation time. A future-dated observation remains `PENDING`, and an evaluation cannot be consumed by a promotion disposition whose clock precedes it. Neither path can make a learning candidate eligible early.
 
 ## Run the package tests
 

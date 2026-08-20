@@ -31,6 +31,7 @@ from a11oy_council import (
     seal_action_receipt,
     verify_action_receipt,
 )
+from a11oy_council.kernel import canonical_json, sha256_text
 
 
 NOW = datetime(2026, 8, 17, 12, 0, tzinfo=timezone.utc)
@@ -461,6 +462,51 @@ class ReceiptTests(unittest.TestCase):
                 postconditions=("action was not authorized",),
                 observed_at=NOW,
             )
+
+    def test_verifier_rejects_signed_applied_receipt_for_block_decision(self) -> None:
+        key = os.urandom(32)
+        signer = _HmacSigner(key)
+        envelope = seal_action_receipt(
+            proposal=self.proposal,
+            decision=self.decision,
+            status=ActionStatus.APPLIED,
+            preconditions=("exact head matched",),
+            postconditions=("tests passed",),
+            observed_at=NOW,
+            signer=signer,
+        )
+        payload = {**envelope.payload, "decision": Decision.BLOCK.value}
+        payload_bytes = canonical_json(payload).encode("utf-8")
+        payload_digest = hashlib.sha256(payload_bytes).hexdigest()
+        signature = signer.sign(payload_bytes)
+        receipt_body = {
+            "payload": payload,
+            "payload_digest": payload_digest,
+            "signature_state": SignatureState.SIGNED.value,
+            "key_id": signer.key_id,
+            "signature": signature,
+        }
+        contradictory = replace(
+            envelope,
+            payload=payload,
+            payload_digest=payload_digest,
+            signature=signature,
+            receipt_digest=sha256_text(canonical_json(receipt_body)),
+        )
+
+        self.assertFalse(verify_action_receipt(contradictory, _HmacVerifier(key)))
+
+    def test_verifier_returns_false_for_malformed_envelope(self) -> None:
+        envelope = seal_action_receipt(
+            proposal=self.proposal,
+            decision=self.decision,
+            status=ActionStatus.APPLIED,
+            preconditions=("exact head matched",),
+            postconditions=("tests passed",),
+            observed_at=NOW,
+        )
+        malformed = replace(envelope, payload_digest=None)  # type: ignore[arg-type]
+        self.assertFalse(verify_action_receipt(malformed))
 
 
 if __name__ == "__main__":

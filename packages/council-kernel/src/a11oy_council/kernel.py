@@ -894,16 +894,23 @@ def verify_action_receipt(
     envelope: ReceiptEnvelope,
     verifier: Verifier | None = None,
 ) -> bool:
-    payload_bytes = canonical_json(envelope.payload).encode("utf-8")
-    if not hmac.compare_digest(
-        hashlib.sha256(payload_bytes).hexdigest(), envelope.payload_digest
-    ):
-        return False
+    try:
+        payload_decision = Decision(envelope.payload["decision"])
+        payload_status = ActionStatus(envelope.payload["status"])
+        payload_bytes = canonical_json(envelope.payload).encode("utf-8")
+        if payload_status is ActionStatus.APPLIED and payload_decision is not Decision.ACT:
+            return False
+        if not hmac.compare_digest(
+            hashlib.sha256(payload_bytes).hexdigest(), envelope.payload_digest
+        ):
+            return False
 
-    expected_receipt_digest = sha256_text(
-        canonical_json(envelope.canonical_dict(include_digest=False))
-    )
-    if not hmac.compare_digest(expected_receipt_digest, envelope.receipt_digest):
+        expected_receipt_digest = sha256_text(
+            canonical_json(envelope.canonical_dict(include_digest=False))
+        )
+        if not hmac.compare_digest(expected_receipt_digest, envelope.receipt_digest):
+            return False
+    except (AttributeError, KeyError, TypeError, ValueError):
         return False
 
     if envelope.signature_state is SignatureState.UNSIGNED:
@@ -911,11 +918,15 @@ def verify_action_receipt(
 
     if envelope.key_id is None or envelope.signature is None or verifier is None:
         return False
-    return verifier.verify(
-        envelope.key_id,
-        payload_bytes,
-        envelope.signature,
-    )
+    try:
+        return verifier.verify(
+            envelope.key_id,
+            payload_bytes,
+            envelope.signature,
+        )
+    except Exception:
+        # A verifier implementation is an injected trust boundary; errors deny.
+        return False
 
 
 def decision_to_ledger_payload(record: DecisionRecord) -> Mapping[str, Any]:

@@ -241,6 +241,18 @@ class OutcomeLearningGateTests(unittest.TestCase):
         self.assertEqual(evaluation.state, OutcomeState.PENDING)
         self.assertEqual(disposition.state, LearningPromotionState.PENDING)
 
+    def test_future_evaluation_cannot_be_consumed_by_an_earlier_disposition(self) -> None:
+        gate = OutcomeLearningGate()
+        gate.register(contract())
+        gate.observe(observation(observed_at=NOW + timedelta(minutes=1)))
+        evaluation = gate.evaluate(
+            "outcome-1", evaluated_at=NOW + timedelta(minutes=2)
+        )
+        disposition = gate.promotion_disposition("outcome-1", evaluated_at=NOW)
+        self.assertEqual(evaluation.state, OutcomeState.MET)
+        self.assertEqual(disposition.state, LearningPromotionState.PENDING)
+        self.assertTrue(any("after promotion" in reason for reason in disposition.reasons))
+
     def test_unresolved_unknowns_block_promotion(self) -> None:
         gate = OutcomeLearningGate()
         gate.register(contract())

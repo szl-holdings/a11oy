@@ -146,6 +146,17 @@ class DelegationTests(unittest.TestCase):
             registry.revoke(altered, reason="collision", revoked_at=NOW)
         self.assertEqual(len(registry.ledger.entries), 1)
 
+    def test_revoked_grant_id_cannot_be_rebound_during_authority_check(self) -> None:
+        registry = RevocationRegistry()
+        root = root_grant()
+        registry.revoke(root, reason="closed", revoked_at=NOW)
+        altered = replace(root, budget_microunits=9_999)
+
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.is_revoked(altered)
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.apply(altered)
+
     def test_revocation_is_restored_from_reopened_durable_ledger(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "council.jsonl"
@@ -159,6 +170,10 @@ class DelegationTests(unittest.TestCase):
             self.assertTrue(reopened.apply(root).revoked)
             self.assertFalse(verify_delegation_chain(root, (delegated,), reopened))
             self.assertEqual(reopened.revoked, {root.grant_id: grant_digest(root)})
+
+            altered = replace(root, budget_microunits=9_999)
+            with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+                reopened.is_revoked(altered)
 
     def test_invalid_persisted_revocation_payload_fails_closed(self) -> None:
         ledger = HashChainLedger()

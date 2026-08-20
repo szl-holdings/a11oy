@@ -256,9 +256,18 @@ class RevocationRegistry:
                 )
 
     def is_revoked(self, grant: CapabilityGrant) -> bool:
+        if grant.revoked:
+            return True
+        candidate_digest = grant_digest(grant)
         with self._lock:
             digest = self._revoked.get(grant.grant_id)
-        return digest is not None and hmac.compare_digest(digest, grant_digest(grant))
+        if digest is None:
+            return False
+        if not hmac.compare_digest(digest, candidate_digest):
+            raise LedgerIntegrityError(
+                "grant_id revocation is bound to a conflicting grant digest"
+            )
+        return True
 
     def apply(self, grant: CapabilityGrant) -> CapabilityGrant:
         return replace(grant, revoked=grant.revoked or self.is_revoked(grant))

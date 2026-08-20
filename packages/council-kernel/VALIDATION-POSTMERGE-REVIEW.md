@@ -2,7 +2,7 @@
 
 Date: 2026-08-20
 
-- Protected base: `fc897dd3719c56220f6794d3561bf35899af8b30`
+- Protected successor base: `e484563ab3bce2e655f27876042821e991e8651f`
 - Reviewed pull request: `#1339`
 - Reviewed source head: `766d1c0091719c1a9c8e1a3c5789a7caa85cf2b8`
 - Scope: `packages/council-kernel/**`
@@ -15,6 +15,7 @@ The local current-main successor addresses the four post-merge review threads:
 2. Revocation registries replay structurally valid `capability.revoked` records from a reopened hash-chain ledger and fail closed on malformed or conflicting durable entries.
 3. Outcome observations timestamped after the evaluation time remain `PENDING`, including at the learning-promotion boundary.
 4. Duplicate reveal identities compile to an auditable `BLOCK` decision with zero usable diversity instead of raising during diversity measurement.
+5. Rebound revoked grant identifiers, time-travel promotion dispositions, and contradictory signed `APPLIED` receipt payloads fail closed.
 
 ## Commands
 
@@ -32,7 +33,7 @@ PYTHONPATH=packages/council-kernel/src \
 ## Local result
 
 - Python compilation: `PASS`
-- Complete Council package tests: `105/105 PASS`
+- Complete Council package tests: `109/109 PASS`
 - Added runtime dependencies: `0`
 - Added runtime routes or provider effect paths: `0`
 
