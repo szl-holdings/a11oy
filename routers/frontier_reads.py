@@ -33,6 +33,7 @@ from fastapi.responses import JSONResponse
 PHASE_B_OBSERVATION_PATHS = frozenset(
     {
         "/api/a11oy/provenance",
+        "/api/a11oy/v1/ledger",
         "/api/a11oy/v1/energy/sci",
         "/api/a11oy/v1/observability/summary",
         "/api/a11oy/v1/observability/business",

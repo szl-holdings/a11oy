@@ -4,9 +4,15 @@ import asyncio
 import json
 import unittest
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 from typing import AsyncIterator
 
+from a11oy_live_feeds import (
+    canonical_kev_enrichment_kind,
+    provider_record_is_live,
+    unix_observation_is_fresh,
+)
 from routers.frontier_reads import (
     KEVGATE_PATHS,
     PHASE_B_OBSERVATION_ALIASES,
@@ -17,6 +23,7 @@ from routers.frontier_reads import (
 
 
 FIXED_OBSERVATION = "2026-08-18T01:23:45Z"
+ROOT = Path(__file__).resolve().parents[1]
 
 
 async def _stream(*chunks: bytes) -> AsyncIterator[bytes]:
@@ -76,6 +83,7 @@ class PhaseBPayloadTests(unittest.TestCase):
             frozenset(
                 {
                     "/api/a11oy/provenance",
+                    "/api/a11oy/v1/ledger",
                     "/api/a11oy/v1/energy/sci",
                     "/api/a11oy/v1/observability/summary",
                     "/api/a11oy/v1/observability/business",
@@ -111,6 +119,23 @@ class PhaseBPayloadTests(unittest.TestCase):
                     "older-source-time",
                 )
                 self.assertNotIn("observed_at", source)
+
+    def test_ledger_clock_does_not_upgrade_sample_evidence(self) -> None:
+        source = {
+            "state": "SAMPLE",
+            "data_kind": "sample",
+            "operational": False,
+        }
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/ledger",
+            source,
+            observed_at=FIXED_OBSERVATION,
+        )
+        self.assertEqual(result["observed_at"], FIXED_OBSERVATION)
+        self.assertEqual(result["state"], "SAMPLE")
+        self.assertEqual(result["data_kind"], "sample")
+        self.assertFalse(result["operational"])
+        self.assertNotIn("observed_at", source)
 
     def test_unrelated_path_and_non_object_values_are_not_relabelled(self) -> None:
         source = {"data_kind": "sample", "value": 7}
@@ -270,6 +295,106 @@ class PhaseBPayloadTests(unittest.TestCase):
         )
         self.assertEqual(result, source)
         self.assertNotIn("detail", result)
+
+
+class KEVEnrichmentEvidenceTests(unittest.TestCase):
+    def test_only_complete_live_component_coverage_is_canonical_live(self) -> None:
+        self.assertEqual(
+            canonical_kev_enrichment_kind(
+                source_mode="LIVE",
+                row_count=24,
+                epss_live_rows=24,
+                cvss_live_rows=24,
+            ),
+            "live",
+        )
+
+    def test_mixed_cached_empty_and_malformed_evidence_fail_closed(self) -> None:
+        cases = (
+            {"source_mode": "live", "row_count": 24, "epss_live_rows": 24,
+             "cvss_live_rows": 23},
+            {"source_mode": "live", "row_count": 24, "epss_live_rows": 23,
+             "cvss_live_rows": 24},
+            {"source_mode": "cached", "row_count": 24, "epss_live_rows": 24,
+             "cvss_live_rows": 24},
+            {"source_mode": "snapshot", "row_count": 24, "epss_live_rows": 24,
+             "cvss_live_rows": 24},
+            {"source_mode": "live", "row_count": 0, "epss_live_rows": 0,
+             "cvss_live_rows": 0},
+            {"source_mode": "live", "row_count": True, "epss_live_rows": 1,
+             "cvss_live_rows": 1},
+            {"source_mode": "live", "row_count": 24, "epss_live_rows": 24.0,
+             "cvss_live_rows": 24},
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                self.assertIsNone(canonical_kev_enrichment_kind(**case))
+
+    def test_stale_or_malformed_provider_clocks_do_not_count_as_live(self) -> None:
+        self.assertTrue(unix_observation_is_fresh(900.0, now=1000.0, ttl_s=100.0))
+        for value, now, ttl_s in (
+            (899.9, 1000.0, 100.0),
+            (1000.1, 1000.0, 100.0),
+            (True, 1000.0, 100.0),
+            (900.0, float("inf"), 100.0),
+            (900.0, 1000.0, 0.0),
+        ):
+            with self.subTest(value=value, now=now, ttl_s=ttl_s):
+                self.assertFalse(
+                    unix_observation_is_fresh(value, now=now, ttl_s=ttl_s)
+                )
+
+    def test_provider_record_requires_live_mode_and_fresh_clock(self) -> None:
+        self.assertTrue(
+            provider_record_is_live(
+                {"mode": "LIVE", "ts": 900.0}, now=1000.0, ttl_s=100.0
+            )
+        )
+        for record in (
+            {"mode": "cached", "ts": 999.0},
+            {"mode": "live", "ts": 899.0},
+            {"mode": "live"},
+            None,
+        ):
+            with self.subTest(record=record):
+                self.assertFalse(
+                    provider_record_is_live(record, now=1000.0, ttl_s=100.0)
+                )
+
+    def test_live_kevgate_producer_is_bound_to_the_complete_evidence_helper(self) -> None:
+        source = (ROOT / "serve.py").read_text(encoding="utf-8")
+        self.assertIn(
+            "_canonical_kind = _kl_live.canonical_kev_enrichment_kind(",
+            source,
+        )
+        self.assertIn(
+            '"data_kind": _canonical_kind or _evidence_detail',
+            source,
+        )
+        self.assertIn('"evidence_complete": _canonical_kind == "live"', source)
+        self.assertIn("_kl_live.unix_observation_is_fresh(", source)
+        self.assertIn("_kl_live.provider_record_is_live(", source)
+
+    def test_bundled_cve_exposes_the_real_catalog_clock(self) -> None:
+        import szl_b2_secdata
+
+        class _RouteApp:
+            def __init__(self) -> None:
+                self.handlers = {}
+
+            def get(self, path):
+                def _decorator(function):
+                    self.handlers[path] = function
+                    return function
+
+                return _decorator
+
+        app = _RouteApp()
+        szl_b2_secdata.register(app)
+        response = asyncio.run(app.handlers["/api/a11oy/v1/sec/cve"]())
+        payload = json.loads(response.body)
+        self.assertEqual(payload["dateReleased"], szl_b2_secdata.KEV_DATE_RELEASED)
+        self.assertEqual(payload["data_kind"], "sample")
 
 
 class PhaseBMiddlewareTests(unittest.TestCase):

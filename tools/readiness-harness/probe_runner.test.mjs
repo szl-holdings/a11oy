@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   evaluateEndpointLabels,
+  evaluateFreshness,
   findEvidenceLabels,
   findTimestamp,
   validateSchema,
@@ -25,6 +26,24 @@ test("freshness recognizes the canonical observed_at response clock", () => {
   };
 
   assert.equal(findTimestamp(body)?.toISOString(), "2026-08-20T09:55:00.000Z");
+});
+
+test("a bundled catalog uses its real release clock and remains stale", () => {
+  const body = {
+    data_kind: "cached",
+    dateReleased: "2025-09-30T12:35:25.4401Z",
+  };
+  const verdict = evaluateFreshness(
+    "/api/a11oy/v1/sec/kev",
+    { freshnessSLA: 86400 },
+    body,
+    Date.parse("2026-08-20T11:09:06.017Z"),
+  );
+
+  assert.equal(findTimestamp(body)?.toISOString(), "2025-09-30T12:35:25.440Z");
+  assert.equal(verdict.freshnessMissing, false);
+  assert.equal(verdict.freshOk, false);
+  assert.ok(verdict.ageSec > 86400);
 });
 
 test("mixed KEVGate provenance remains release-red", () => {

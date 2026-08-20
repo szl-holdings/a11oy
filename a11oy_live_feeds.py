@@ -31,6 +31,7 @@ No auth required for any of these feeds. NEVER fabricates: a down feed returns
 real cached data labelled "cached", or "unavailable" when no cached data exists.
 """
 import json
+import math
 import os
 import time
 import threading
@@ -74,6 +75,62 @@ _SOURCE = {
 
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
+
+
+def canonical_kev_enrichment_kind(
+    *,
+    source_mode,
+    row_count,
+    epss_live_rows,
+    cvss_live_rows,
+):
+    """Return ``live`` only when every KEV evidence component is live.
+
+    CISA KEV rows are enriched with FIRST EPSS and NVD CVSS.  A live catalog
+    alone is therefore insufficient to call the combined response live.  The
+    caller keeps its detailed mixed-provenance label whenever this helper
+    returns ``None``; zero rows, cached sources, partial coverage, booleans, and
+    malformed counters all fail closed.
+    """
+    if not isinstance(source_mode, str) or source_mode.strip().casefold() != "live":
+        return None
+    counts = (row_count, epss_live_rows, cvss_live_rows)
+    if any(type(value) is not int for value in counts):
+        return None
+    if row_count <= 0:
+        return None
+    if epss_live_rows != row_count or cvss_live_rows != row_count:
+        return None
+    return "live"
+
+
+def unix_observation_is_fresh(value, *, now, ttl_s):
+    """Return whether a numeric Unix observation clock is within its TTL.
+
+    Persisted enrichment caches may still contain genuine provider values after
+    their verification window expires. Those values remain useful cached
+    evidence, but they must not count toward complete *live* coverage. Reject
+    booleans, malformed/future clocks, and invalid TTLs fail-closed.
+    """
+    values = (value, now, ttl_s)
+    if any(type(item) not in (int, float) for item in values):
+        return False
+    if not all(math.isfinite(float(item)) for item in values):
+        return False
+    if ttl_s <= 0:
+        return False
+    age = float(now) - float(value)
+    return 0.0 <= age <= float(ttl_s)
+
+
+def provider_record_is_live(record, *, now, ttl_s):
+    """Require both live provenance and a fresh provider observation clock."""
+    if not isinstance(record, dict):
+        return False
+    mode = record.get("mode")
+    if not isinstance(mode, str) or mode.strip().casefold() != "live":
+        return False
+    return unix_observation_is_fresh(record.get("ts"), now=now, ttl_s=ttl_s)
 
 
 def _http_get(url, timeout=20, headers=None, data=None, method=None, deadline=None):
