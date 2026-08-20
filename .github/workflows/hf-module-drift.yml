@@ -135,7 +135,7 @@ jobs:
           BASE_REF: ${{ github.event.pull_request.base.sha }}
           SOURCE_REF: ${{ github.event.pull_request.head.sha }}
         run: |
-          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \
+          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_candidate_admission.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
             --github-repo "$GITHUB_REPOSITORY" \
             --base-ref "$BASE_REF" \
