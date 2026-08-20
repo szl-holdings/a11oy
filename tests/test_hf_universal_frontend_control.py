@@ -95,6 +95,49 @@ def test_managed_card_preserves_frontmatter_and_is_idempotent() -> None:
     assert "cryptographic signing" in first
 
 
+@pytest.mark.parametrize(
+    ("repo_type", "source_bound", "framework"),
+    (
+        ("model", False, "CARD_ONLY"),
+        ("dataset", False, "CARD_ONLY"),
+        ("space", True, "STATIC_HTML"),
+    ),
+)
+def test_managed_card_is_independent_of_the_revision_that_contains_it(
+    repo_type: str,
+    source_bound: bool,
+    framework: str,
+) -> None:
+    original = control.Asset(
+        repo_id="SZLHOLDINGS/example",
+        repo_type=repo_type,
+        sha="a" * 40,
+        files=("README.md",),
+    )
+    advanced = control.Asset(
+        repo_id=original.repo_id,
+        repo_type=original.repo_type,
+        sha="b" * 40,
+        files=original.files,
+    )
+    rendered = control.normalize_readme(
+        original,
+        "# Existing\n",
+        source_bound,
+        framework,
+    )
+
+    assert control.normalize_readme(
+        advanced,
+        rendered.decode(),
+        source_bound,
+        framework,
+    ) == rendered
+    assert original.sha not in rendered.decode()
+    assert advanced.sha not in rendered.decode()
+    assert f"Frontend contract release | `{control.RELEASE}`" in rendered.decode()
+
+
 def test_unbalanced_card_markers_fail_closed() -> None:
     item = asset(("README.md",), repo_type="dataset")
     with pytest.raises(control.ControlError):
@@ -447,17 +490,19 @@ def test_exact_source_bound_space_can_reach_terminal_verified_state(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    item = asset(("README.md", "index.html"))
+    prior = asset(("README.md", "index.html"))
+    item = control.Asset(prior.repo_id, prior.repo_type, "c" * 40, prior.files)
     html = control._inject_style(
         "<!doctype html><html><head><title>x</title></head><body><main>x</main></body></html>"
     ).encode()
     readme = control.normalize_readme(
-        item,
+        prior,
         "# Existing\n",
         True,
         "STATIC_HTML",
     )
-    entry = source_map_entry("EXACT")
+    assert control.normalize_readme(item, readme.decode(), True, "STATIC_HTML") == readme
+    entry = source_map_entry("EXACT", hf_repository_sha=item.sha)
     entry["readme"]["sha256"] = control._sha256(readme)
     authorities = control.load_space_source_map(
         write_source_map(tmp_path, [entry]), "SZLHOLDINGS"
@@ -483,7 +528,42 @@ def test_exact_source_bound_space_can_reach_terminal_verified_state(
     assert decision.framework == "STATIC_HTML"
     assert decision.changes == []
     assert decision.blockers == []
+    assert decision.source_map_readme_sha256 == control._sha256(readme)
+    assert decision.required_readback_paths == ["README.md", "index.html"]
+    assert decision.readback_sha256 == {
+        "README.md": control._sha256(readme),
+        "index.html": control._sha256(html),
+    }
     assert control._decision_is_terminal_verified(decision) is True
+    decision.readback_sha256.pop("index.html")
+    assert control._decision_is_terminal_verified(decision) is False
+
+
+def test_merged_card_remains_current_after_repository_revision_advances(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    parent = asset(("README.md",), repo_type="model")
+    merged = control.Asset(parent.repo_id, parent.repo_type, "b" * 40, parent.files)
+    readme = control.normalize_readme(parent, "# Existing\n", False, "CARD_ONLY")
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, observed, path, token: readme if path == "README.md" else None,
+    )
+
+    decision = control.process_asset(
+        object(),
+        merged,
+        None,
+        False,
+        False,
+        tmp_path / "backups",
+        space_authorities={},
+    )
+
+    assert decision.state == "CURRENT"
+    assert decision.changes == []
 
 
 def test_tampered_static_marker_cannot_reach_terminal_verified_state(
