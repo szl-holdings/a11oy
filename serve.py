@@ -7609,7 +7609,8 @@ try:
             return min(axes)
         return 1.0 if is_clean else 0.0
 
-    def _sc_build_verdict(body):
+    def _sc_evaluate_governed_action(body):
+        """Pure policy-core evaluation shared by POST and read-only projections."""
         agent = (body or {}).get("agent") or "unknown"
         action = (body or {}).get("action")
         axes = (body or {}).get("axes")
@@ -7627,12 +7628,23 @@ try:
             reason = "immune organ rejected: Lambda-gate floor — MIN(axes)=" + str(round(lam, 4)) + " < " + str(_SC_LAMBDA_GATE_FLOOR)
         else:
             reason = "no threat signature detected by the immune organ"
+        return {"decision": decision, "reason": reason, "signals": signals,
+                "lambda_value": lam, "actionId": rid,
+                "gates_fired": signals, "traceparent": None, "doctrine": "v11"}
+
+    def _sc_build_verdict(body):
+        """Evaluate, then record the state-changing POST decision."""
+        result = _sc_evaluate_governed_action(body)
+        agent = (body or {}).get("agent") or "unknown"
+        action = (body or {}).get("action")
+        rid = result["actionId"]
+        decision = result["decision"]
+        signals = result["gates_fired"]
+        lam = result["lambda_value"]
         import time as _t
         rh = _sc_hashlib.sha256((str(rid) + ":" + decision + ":" + str(round(lam, 6)) + ":" + str(_t.time())).encode()).hexdigest()[:16]
         _sc_log_verdict(rid, agent, action, decision, signals, lam, rh)
-        return {"decision": decision, "reason": reason, "signals": signals,
-                "lambda_value": lam, "receipt_hash": rh, "actionId": rid,
-                "gates_fired": signals, "traceparent": None, "doctrine": "v11"}
+        return {**result, "receipt_hash": rh}
 
     # in-memory decision ring, seeded from the captured real feed
     _SC_AUDIT_LOCK = _sc_threading.Lock()
@@ -10925,8 +10937,8 @@ try:
     # CISA KEV publishes NO EPSS, so the rows carry a derived-sample proxy by
     # default. This fetches the GENUINE EPSS exploit-probability + percentile
     # from the public FIRST.org EPSS API (batched, cached 6h) and overlays it
-    # onto the returned rows. Per-row epss_src distinguishes "first.org" (live)
-    # from "derived" (proxy). Any failure -> rows keep the derived value.
+    # onto the returned rows. Per-row epss_src distinguishes "first.org" (live),
+    # "first.org-cached" (expired real evidence), and "derived" (proxy).
     _KL_EPSS_CACHE = {"ts": 0.0, "map": {}}
     _KL_EPSS_TTL = 6 * 3600
 
@@ -10934,8 +10946,9 @@ try:
         import time as _t, json as _j
         import urllib.request as _u, urllib.parse as _up
         now = _t.time()
-        if _KL_EPSS_CACHE["map"] and (now - _KL_EPSS_CACHE["ts"]) < _KL_EPSS_TTL:
-            return _KL_EPSS_CACHE["map"]
+        if _KL_EPSS_CACHE["map"] and _kl_live.unix_observation_is_fresh(
+                _KL_EPSS_CACHE["ts"], now=now, ttl_s=_KL_EPSS_TTL):
+            return _KL_EPSS_CACHE["map"], "live"
         out = {}
         try:
             uniq = [c for c in dict.fromkeys(cves) if c]
@@ -10960,8 +10973,9 @@ try:
         if out:
             _KL_EPSS_CACHE["map"] = out
             _KL_EPSS_CACHE["ts"] = now
-            return out
-        return _KL_EPSS_CACHE["map"] or {}
+            return out, "live"
+        cached = _KL_EPSS_CACHE["map"] or {}
+        return cached, ("cached" if cached else "unavailable")
 
     # --- REAL CVSS overlay (NVD) -------------------------------------------
     # CISA KEV publishes NO CVSS, and NVD's free 2.0 API (~5 req/30s without a
@@ -10970,13 +10984,14 @@ try:
     # a DISK-PERSISTED cache (rate-limit aware, off the request hot path). Coverage
     # grows across runs and survives restarts on a durable mount. _kl_live_rows
     # overlays the cached real CVSS onto each row and tags cvss_src ("nvd" live |
-    # "derived" proxy); any miss keeps the honest derived-sample CVSS so the tab
-    # still renders (r.cvss.toFixed(1) needs a number). 0 fabricated NVD figures.
+    # "nvd-cached" expired real evidence | "derived" proxy); any miss keeps the
+    # honest derived-sample CVSS so the tab still renders. 0 fabricated NVD figures.
+    import time as _kl_time
     import threading as _kl_threading
     from pathlib import Path as _kl_Path
-    _KL_CVSS = {}                  # cve -> {"cvss","severity","vector","src":"nvd","ts"}
+    _KL_CVSS = {}  # cve -> {"cvss","severity","vector","src":"nvd","mode","ts"}
     _KL_CVSS_LOCK = _kl_threading.Lock()
-    _KL_CVSS_TTL = 30 * 24 * 3600  # re-verify a cached NVD score after ~30 days
+    _KL_CVSS_LIVE_TTL = 24 * 3600  # readiness live window; older values stay cached
     _KL_CVSS_WARM_STARTED = False
 
     def _kl_cvss_resolve_path():
@@ -11015,7 +11030,9 @@ try:
                     with _KL_CVSS_LOCK:
                         for k, v in data.items():
                             if isinstance(v, dict) and v.get("cvss") is not None:
-                                _KL_CVSS[k] = v
+                                cached = dict(v)
+                                cached["mode"] = "cached"
+                                _KL_CVSS[k] = cached
         except Exception:
             pass
 
@@ -11071,7 +11088,7 @@ try:
                            "MEDIUM" if s >= 4 else "LOW")
                 return {"cvss": round(float(score), 1), "severity": sev,
                         "vector": cd.get("vectorString", ""), "src": "nvd",
-                        "ts": _t.time()}
+                        "mode": "live", "ts": _t.time()}
             return None
         except Exception:
             return None
@@ -11104,9 +11121,14 @@ try:
             now = _t.time()
             with _KL_CVSS_LOCK:
                 todo = [c for c in cves if c not in _KL_CVSS]
-                stale = [c for c in cves if c in _KL_CVSS and
-                         (now - float(_KL_CVSS[c].get("ts", 0))) > _KL_CVSS_TTL]
-            queue = todo + stale
+                refresh = [
+                    c for c in cves
+                    if c in _KL_CVSS
+                    and _kl_live.provider_record_needs_revalidation(
+                        _KL_CVSS[c], now=now, ttl_s=_KL_CVSS_LIVE_TTL
+                    )
+                ]
+            queue = todo + refresh
             if not queue:
                 # Fully warm — idle-poll so newly-added KEV rows get covered.
                 _t.sleep(max(300.0, delay))
@@ -11158,21 +11180,30 @@ try:
                 rows.sort(key=lambda r: (r.get("dateAdded",""),), reverse=True)
                 if limit: rows = rows[:limit]
                 # Overlay REAL EPSS (FIRST.org) onto the rows actually returned.
-                _emap = _kl_epss_map([r.get("cveID","") for r in rows])
+                _emap, _epss_mode = _kl_epss_map(
+                    [r.get("cveID", "") for r in rows]
+                )
                 _epss_live = 0
+                _epss_cached = 0
                 for r in rows:
                     _hit = _emap.get(r.get("cveID",""))
                     if _hit:
                         r["epss"] = round(_hit[0], 5)
                         r["epss_pctl"] = round(_hit[1], 5)
-                        r["epss_src"] = "first.org"
-                        _epss_live += 1
+                        if _epss_mode == "live":
+                            r["epss_src"] = "first.org"
+                            _epss_live += 1
+                        else:
+                            r["epss_src"] = "first.org-cached"
+                            _epss_cached += 1
                     else:
                         r["epss_src"] = "derived"
                 # Overlay REAL CVSS (NVD) onto the rows actually returned, where
                 # the background warmer has already cached it. Misses keep the
                 # honest derived-sample CVSS so the tab still renders a number.
                 _cvss_live = 0
+                _cvss_cached = 0
+                _cvss_now = _kl_time.time()
                 for r in rows:
                     with _KL_CVSS_LOCK:
                         _crec = _KL_CVSS.get(r.get("cveID",""))
@@ -11182,32 +11213,89 @@ try:
                             r["severity"] = _crec["severity"]
                         if _crec.get("vector"):
                             r["cvss_vector"] = _crec["vector"]
-                        r["cvss_src"] = "nvd"
-                        _cvss_live += 1
+                        if _kl_live.provider_record_is_live(
+                                _crec, now=_cvss_now,
+                                ttl_s=_KL_CVSS_LIVE_TTL):
+                            r["cvss_src"] = "nvd"
+                            _cvss_live += 1
+                        else:
+                            r["cvss_src"] = "nvd-cached"
+                            _cvss_cached += 1
                     else:
                         r["cvss_src"] = "derived"
-                _epss_part = (("LIVE EPSS (FIRST.org EPSS API, %d/%d rows)"
-                               % (_epss_live, len(rows))) if _epss_live
-                              else "EPSS = derived-sample (FIRST.org live unavailable)")
-                if _cvss_live:
-                    _cvss_part = ("LIVE CVSS (NVD, %d/%d rows; remainder derived-sample "
-                                  "while the background NVD warmer fills the cache)"
-                                  % (_cvss_live, len(rows)))
+                _row_count = len(rows)
+                _source_mode = str(payload.get("mode") or "unavailable").strip().casefold()
+                _epss_complete = _row_count > 0 and _epss_live == _row_count
+                _cvss_complete = _row_count > 0 and _cvss_live == _row_count
+                if _epss_complete:
+                    _epss_part = "LIVE EPSS (FIRST.org EPSS API, %d/%d rows)" % (
+                        _epss_live, _row_count)
+                elif _epss_live:
+                    _epss_part = (
+                        "mixed EPSS (FIRST.org live, %d/%d rows; cached %d/%d; "
+                        "remainder derived-sample)"
+                        % (_epss_live, _row_count, _epss_cached, _row_count)
+                    )
+                elif _epss_cached:
+                    _epss_part = (
+                        "cached EPSS (FIRST.org, %d/%d rows; remainder "
+                        "derived-sample)" % (_epss_cached, _row_count)
+                    )
+                else:
+                    _epss_part = "EPSS = derived-sample (FIRST.org live unavailable)"
+                if _cvss_complete:
+                    _cvss_part = "LIVE CVSS (NVD, %d/%d rows)" % (
+                        _cvss_live, _row_count)
+                elif _cvss_live:
+                    _cvss_part = (
+                        "mixed CVSS (NVD live, %d/%d rows; cached %d/%d; remainder "
+                        "derived-sample while the background NVD warmer fills the cache)"
+                        % (_cvss_live, _row_count, _cvss_cached, _row_count)
+                    )
+                elif _cvss_cached:
+                    _cvss_part = (
+                        "cached CVSS (NVD, %d/%d rows; remainder derived-sample)"
+                        % (_cvss_cached, _row_count)
+                    )
                 else:
                     _cvss_part = ("CVSS/severity = derived-sample (CISA KEV does not "
                                   "publish CVSS; NVD warmer still filling the cache)")
-                _dk = "live KEV IDs/dates/vendors + " + _epss_part + "; " + _cvss_part
+                _catalog_part = (
+                    "LIVE KEV IDs/dates/vendors"
+                    if _source_mode == "live"
+                    else "%s KEV IDs/dates/vendors" % (_source_mode or "unknown")
+                )
+                _evidence_detail = _catalog_part + " + " + _epss_part + "; " + _cvss_part
+                _canonical_kind = _kl_live.canonical_kev_enrichment_kind(
+                    source_mode=_source_mode,
+                    row_count=_row_count,
+                    epss_live_rows=_epss_live,
+                    cvss_live_rows=_cvss_live,
+                )
                 return rows, {
-                    "source": "CISA Known Exploited Vulnerabilities catalog (LIVE feed)",
-                    "source_url": _kl_live._SOURCE["kev"][1],
-                    "mode": payload.get("mode","live"),
+                    "source": payload.get("source") or _kl_live._SOURCE["kev"][0],
+                    "source_url": payload.get("source_url") or _kl_live._SOURCE["kev"][1],
+                    "mode": _canonical_kind or _source_mode,
                     "fetched_at": payload.get("fetched_at"),
                     "catalogVersion": data.get("catalogVersion"),
                     "dateReleased": data.get("dateReleased"),
                     "total_in_catalog": data.get("count") or len(vulns),
                     "epss_live_rows": _epss_live,
+                    "epss_cached_rows": _epss_cached,
                     "cvss_live_rows": _cvss_live,
-                    "data_kind": _dk,
+                    "cvss_cached_rows": _cvss_cached,
+                    "data_kind": _canonical_kind or _evidence_detail,
+                    "evidence_complete": _canonical_kind == "live",
+                    "evidence_detail": _evidence_detail,
+                    "evidence_components": {
+                        "rows": _row_count,
+                        "epss_live_rows": _epss_live,
+                        "epss_cached_rows": _epss_cached,
+                        "epss_derived_rows": _row_count - _epss_live - _epss_cached,
+                        "cvss_live_rows": _cvss_live,
+                        "cvss_cached_rows": _cvss_cached,
+                        "cvss_derived_rows": _row_count - _cvss_live - _cvss_cached,
+                    },
                 }
         except Exception as _e:
             _kl_meta_err = repr(_e)
@@ -11220,9 +11308,12 @@ try:
                 "source": "CISA KEV bundled in-image snapshot (live feed unreachable)",
                 "source_url": getattr(_kl_snap, "KEV_SOURCE", ""),
                 "mode": "cached",
-                "fetched_at": "bundled-snapshot",
+                "fetched_at": getattr(_kl_snap, "KEV_DATE_RELEASED", None),
                 "catalogVersion": getattr(_kl_snap, "KEV_CATALOG_VERSION", None),
+                "dateReleased": getattr(_kl_snap, "KEV_DATE_RELEASED", None),
                 "data_kind": "snapshot; CVSS/EPSS = sample enrichment",
+                "evidence_complete": False,
+                "evidence_detail": "snapshot; CVSS/EPSS = sample enrichment",
             }
         return [], {"source":"unavailable","mode":"unavailable","data_kind":"none"}
 
@@ -11248,14 +11339,11 @@ try:
     async def _sec_kevgate(limit: int = 24):
         import anyio
         rows, meta = await anyio.to_thread.run_sync(_kl_live_rows, int(limit))
-        # Build a governed-decision probe per CVE using the SAME decision helper
-        # the policy/decide endpoint exposes, if discoverable; else describe the
-        # deterministic gate mapping honestly.
-        decide = None
-        for _nm in ("_policy_decide_core","_decide_core","policy_decide","_govern_decide"):
-            decide = globals().get(_nm)
-            if callable(decide): break
+        # Use the exact pure evaluator behind POST /policy/decide. A GET must
+        # not append an audit entry or mint a receipt merely to render a tab.
+        decide = globals().get("_sc_evaluate_governed_action")
         out = []
+        governed_decision_rows = 0
         for r in rows:
             sev = float(r.get("cvss") or 0.0)
             text = ("Apply emergency remediation for %s (%s %s) — %s"
@@ -11264,13 +11352,22 @@ try:
             gates_fired, decision, lam = [], None, None
             try:
                 if callable(decide):
-                    res = decide(text=text, severity=sev,
-                                 classification=("RESTRICTED" if sev>=9 else "PUBLIC"))
-                    if hasattr(res, "__await__"):
-                        res = await res
-                    decision = (res or {}).get("decision")
-                    gates_fired = (res or {}).get("gates_fired") or []
-                    lam = (res or {}).get("lambda_value")
+                    res = decide({
+                        "agent": "a11oy-kevgate",
+                        "request_id": "kevgate:%s" % (r.get("cveID") or "unknown"),
+                        "action": {
+                            "text": text,
+                            "severity": sev,
+                            "classification": (
+                                "RESTRICTED" if sev >= 9 else "PUBLIC"
+                            ),
+                        },
+                    })
+                    if _kl_live.governed_decision_is_complete(res):
+                        decision = res["decision"]
+                        gates_fired = res["gates_fired"]
+                        lam = res["lambda_value"]
+                        governed_decision_rows += 1
             except Exception:
                 decision = None
             # deterministic, honest gate-impact mapping derived from REAL KEV fields
@@ -11292,11 +11389,39 @@ try:
                 "gates_fired": gates_fired,      # REAL when engine reachable
                 "gates_mapped": mapped,          # deterministic field-derived mapping
             })
-        return JSONResponse({
+        governance_complete = (
+            len(out) > 0 and governed_decision_rows == len(out)
+        )
+        canonical_kind = _kl_live.canonical_kevgate_kind(
+            enrichment_kind=meta.get("data_kind"),
+            row_count=len(out),
+            governed_decision_rows=governed_decision_rows,
+        )
+        base_detail = meta.get("evidence_detail") or meta.get("data_kind") or "none"
+        governance_detail = "governed decisions %d/%d" % (
+            governed_decision_rows,
+            len(out),
+        )
+        response_meta = {
             **meta,
+            "governed_decision_rows": governed_decision_rows,
+            "governance_complete": governance_complete,
+            "evidence_complete": canonical_kind == "live",
+            "evidence_detail": "%s; %s" % (base_detail, governance_detail),
+        }
+        if canonical_kind == "live":
+            response_meta["mode"] = "live"
+            response_meta["data_kind"] = "live"
+        else:
+            response_meta["data_kind"] = response_meta["evidence_detail"]
+            if str(meta.get("data_kind") or "").strip().casefold() == "live":
+                response_meta["mode"] = "unavailable"
+        return JSONResponse({
+            **response_meta,
             "count": len(out),
-            "mapping_note": ("Each row is a LIVE KEV CVE mapped to the deny-by-default "
-                             "gates a governed remediation action would engage. gates_fired "
+            "mapping_note": ("Each row comes from the response's explicitly labeled KEV "
+                             "source and is mapped to the deny-by-default gates a governed "
+                             "remediation action would engage. gates_fired "
                              "is the REAL engine result when the in-process decision core is "
                              "reachable; gates_mapped is a deterministic mapping derived from "
                              "real KEV fields (ransomware/CWE/severity). No fabricated values."),

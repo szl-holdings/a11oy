@@ -184,6 +184,7 @@ def register(app, brand="a11oy"):
         return JSONResponse({
             "source": "CISA KEV-derived CVE rows + NVD CVSS / sample EPSS (bundled snapshot)",
             "source_url": KEV_SOURCE,
+            "dateReleased": KEV_DATE_RELEASED,
             "data_kind": "sample",
             "count": len(rows),
             "cves": rows,
