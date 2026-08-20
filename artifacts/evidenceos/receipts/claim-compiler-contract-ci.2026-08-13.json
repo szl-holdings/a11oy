@@ -23,5 +23,5 @@
   "conclusion": "SUCCESS",
   "signed": false,
   "attests_truth": false,
-  "scope": "Records the cited GitHub Actions test result only; it is not a production, deployment, or truth certificate."
+  "scope": "Records the cited GitHub Actions job and archived log observations only; tests_passed and warnings are not independently verified by this unsigned receipt. It is not a production, deployment, or truth certificate."
 }

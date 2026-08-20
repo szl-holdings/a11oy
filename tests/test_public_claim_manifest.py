@@ -14,6 +14,8 @@ from scripts import verify_public_claim_github_job as github_verify
 
 
 AS_OF = "2026-07-18T12:00:00Z"
+REAL_MANIFEST_REVIEW_AS_OF = "2026-08-20T11:24:43Z"
+REAL_MANIFEST_STALE_AS_OF = "2026-09-12T11:14:30Z"
 
 
 def _sha(path: Path) -> str:
@@ -408,7 +410,7 @@ def test_real_source_scoped_manifest_and_report_match_reviewed_contracts():
     )
     report = pcm.evaluate_public_claim_manifest(
         manifest,
-        as_of=manifest["generated_at"],
+        as_of=REAL_MANIFEST_REVIEW_AS_OF,
         repository_root=root,
     )
     Draft202012Validator.check_schema(manifest_schema)
@@ -420,6 +422,16 @@ def test_real_source_scoped_manifest_and_report_match_reviewed_contracts():
     assert report_schema["properties"]["decision_state"]["const"] == report["decision_state"]
     assert report["passes"] is True
     assert report["claims"][0]["scope"].startswith("The cited GitHub Actions test job only")
+    assert "108" not in manifest["claims"][0]["assertion"]
+
+    stale_report = pcm.evaluate_public_claim_manifest(
+        manifest,
+        as_of=REAL_MANIFEST_STALE_AS_OF,
+        repository_root=root,
+    )
+    assert stale_report["passes"] is False
+    assert stale_report["claims"][0]["evidence"][0]["freshness_state"] == "STALE"
+    assert "FRESHNESS_SLA_EXCEEDED" in stale_report["claims"][0]["violations"]
 
 
 def test_cli_exits_zero_only_for_a_passing_manifest(tmp_path):

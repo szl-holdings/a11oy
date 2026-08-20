@@ -6,7 +6,7 @@
   "claims": [
     {
       "claim_id": "claim-compiler-focused-contract-pass",
-      "assertion": "At source revision 840e33c8180c322381197fa35b98b0e86a28a27e, the focused EvidenceOS Claim Compiler contract job completed with 108 tests passing and exit code 0.",
+      "assertion": "At source revision 840e33c8180c322381197fa35b98b0e86a28a27e, the EvidenceOS Claim Compiler contract job completed successfully.",
       "maturity": "MEASURED",
       "scope": "The cited GitHub Actions test job only; not production deployment, live endpoint behavior, semantic truth, or EvidenceOS completion across the wider estate.",
       "owner": {
@@ -25,7 +25,7 @@
         {
           "evidence_id": "claim-compiler-contract-ci-2026-08-13",
           "path": "artifacts/evidenceos/receipts/claim-compiler-contract-ci.2026-08-13.json",
-          "content_sha256": "67cec8e221ec19164eac02fc8ef6d07e1b767fb0e5dfcc03749813920b03c5bb",
+          "content_sha256": "1bddd6aa6aed90885bc9614f464eec12b5f8d768370233812e4f8027fdad70bf",
           "collected_at": "2026-08-13T11:14:29Z",
           "max_age_seconds": 2592000,
           "kind": "TEST_RECEIPT",
