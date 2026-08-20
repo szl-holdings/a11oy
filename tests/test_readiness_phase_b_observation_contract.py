@@ -89,12 +89,7 @@ class PhaseBPayloadTests(unittest.TestCase):
         )
         self.assertEqual(
             KEVGATE_PATHS,
-            frozenset(
-                {
-                    "/api/a11oy/v1/sec/kev",
-                    "/api/a11oy/v1/sec/kevgate",
-                }
-            ),
+            frozenset({"/api/a11oy/v1/sec/kev"}),
         )
 
     def test_every_phase_b_surface_gets_the_supplied_clock(self) -> None:
@@ -160,17 +155,31 @@ class PhaseBPayloadTests(unittest.TestCase):
         self.assertIsInstance(result["detail"], str)
         self.assertTrue(result["detail"])
 
-    def test_verbose_live_kevgate_kind_moves_to_detail(self) -> None:
+    def test_mixed_kevgate_provenance_is_not_relabelled(self) -> None:
         descriptor = (
-            "live KEV IDs/dates/vendors + LIVE EPSS; "
-            "LIVE CVSS for cached NVD rows"
+            "live KEV IDs/dates/vendors + LIVE EPSS 24/24; "
+            "CVSS/severity = derived-sample (deterministic from CVE ID)"
         )
+        source = {"data_kind": descriptor, "mode": "live", "items": []}
         result = normalize_phase_b_payload(
             "/api/a11oy/v1/sec/kevgate",
-            {"data_kind": descriptor, "mode": "live", "items": []},
+            source,
         )
-        self.assertEqual(result["data_kind"], "live")
-        self.assertEqual(result["detail"], descriptor)
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
+
+    def test_cached_kevgate_provenance_is_not_relabelled(self) -> None:
+        descriptor = (
+            "live KEV IDs/dates/vendors + cached EPSS; "
+            "LIVE CVSS for cached NVD rows"
+        )
+        source = {"data_kind": descriptor, "mode": "cached", "items": []}
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kevgate",
+            source,
+        )
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
 
     def test_unavailable_kevgate_is_not_upgraded_to_cached(self) -> None:
         source = {
@@ -261,7 +270,7 @@ class PhaseBMiddlewareTests(unittest.TestCase):
         self.assertEqual(payload["note"], note)
         self.assertNotIn("observed_at", payload)
 
-    def test_middleware_canonicalizes_verbose_live_kevgate(self) -> None:
+    def test_middleware_preserves_mixed_kevgate_provenance(self) -> None:
         app = _FakeApp()
         install_phase_b_response_contract(app)
         descriptor = "live KEV IDs/dates/vendors + LIVE EPSS; CVSS cached"
@@ -284,8 +293,8 @@ class PhaseBMiddlewareTests(unittest.TestCase):
             return json.loads(await _read_body(result))
 
         payload = asyncio.run(_exercise())
-        self.assertEqual(payload["data_kind"], "live")
-        self.assertEqual(payload["detail"], descriptor)
+        self.assertEqual(payload["data_kind"], descriptor)
+        self.assertNotIn("detail", payload)
         self.assertNotIn("observed_at", payload)
 
     def test_non_json_response_is_not_consumed(self) -> None:

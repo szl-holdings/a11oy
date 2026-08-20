@@ -2,7 +2,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { findEvidenceLabels, findTimestamp, validateSchema } from "./probe_runner.mjs";
+import {
+  evaluateEndpointLabels,
+  findEvidenceLabels,
+  findTimestamp,
+  validateSchema,
+} from "./probe_runner.mjs";
 
 test("freshness prefers response observation time over an idle policy event", () => {
   const body = {
@@ -20,6 +25,24 @@ test("freshness recognizes the canonical observed_at response clock", () => {
   };
 
   assert.equal(findTimestamp(body)?.toISOString(), "2026-08-20T09:55:00.000Z");
+});
+
+test("mixed KEVGate provenance remains release-red", () => {
+  const descriptor = "live KEV IDs/dates/vendors + LIVE EPSS 24/24; CVSS/severity = derived-sample (deterministic from CVE ID)";
+  const verdict = evaluateEndpointLabels(200, {
+    degradedRules: {
+      allowStatuses: [200],
+      allowLabels: ["live", "cached"],
+      liesIf: ["mock", "fabricated", "placeholder"],
+    },
+  }, {
+    mode: "live",
+    data_kind: descriptor,
+    gates_mapped: [{ gate: "security", decision: "deny" }],
+  });
+
+  assert.equal(verdict.ok, false);
+  assert.deepEqual(verdict.disallowed.map(({ path }) => path), ["data_kind"]);
 });
 
 test("freshness prefers nested source fetch time over a market event timestamp", () => {

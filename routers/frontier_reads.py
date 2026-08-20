@@ -40,12 +40,7 @@ PHASE_B_OBSERVATION_PATHS = frozenset(
     }
 )
 PHASE_B_OBSERVATION_ALIASES = frozenset({"/v1/observability/business"})
-KEVGATE_PATHS = frozenset(
-    {
-        "/api/a11oy/v1/sec/kev",
-        "/api/a11oy/v1/sec/kevgate",
-    }
-)
+KEVGATE_PATHS = frozenset({"/api/a11oy/v1/sec/kev"})
 _PHASE_B_MUTATED_PATHS = (
     PHASE_B_OBSERVATION_PATHS
     | PHASE_B_OBSERVATION_ALIASES
@@ -85,12 +80,18 @@ def normalize_phase_b_payload(
         raw_kind_value = normalized.get("data_kind")
         raw_kind = str(raw_kind_value or "").strip().casefold()
         mode = str(normalized.get("mode") or "").strip().casefold()
-        if mode == "live" or raw_kind == "live" or raw_kind.startswith("live "):
+        if mode == "live":
             canonical_kind = "live"
-        elif (
-            mode in {"cached", "snapshot"}
-            or raw_kind in {"cached", "sample", "snapshot"}
-            or raw_kind.startswith("snapshot;")
+        elif mode in {"cached", "snapshot"}:
+            canonical_kind = "cached"
+        elif mode:
+            # An explicit terminal mode is stronger provenance than a verbose
+            # descriptor. It must never be upgraded from prose.
+            return normalized
+        elif raw_kind == "live" or raw_kind.startswith("live "):
+            canonical_kind = "live"
+        elif raw_kind in {"cached", "sample", "snapshot"} or raw_kind.startswith(
+            "snapshot;"
         ):
             canonical_kind = "cached"
         else:
