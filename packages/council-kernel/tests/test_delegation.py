@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+import tempfile
 import unittest
 
-from a11oy_council import CapabilityGrant
+from a11oy_council import CapabilityGrant, HashChainLedger, LedgerIntegrityError
 from a11oy_council.delegation import (
     RevocationRegistry,
     attenuate_grant,
@@ -143,6 +145,120 @@ class DelegationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             registry.revoke(altered, reason="collision", revoked_at=NOW)
         self.assertEqual(len(registry.ledger.entries), 1)
+
+    def test_pre_revoked_grant_uses_stable_unrevoked_registry_identity(self) -> None:
+        registry = RevocationRegistry()
+        root = root_grant()
+        pre_revoked = replace(root, revoked=True)
+
+        registry.revoke(pre_revoked, reason="already closed", revoked_at=NOW)
+        self.assertTrue(registry.is_revoked(pre_revoked))
+        self.assertTrue(registry.apply(pre_revoked).revoked)
+        self.assertEqual(registry.revoked[root.grant_id], grant_digest(root))
+
+        materialized = registry.apply(root)
+        registry.revoke(
+            materialized,
+            reason="idempotent materialized revocation",
+            revoked_at=NOW,
+        )
+        self.assertEqual(len(registry.ledger.entries), 1)
+
+    def test_legacy_pre_revoked_durable_identity_remains_compatible(self) -> None:
+        root = root_grant()
+        pre_revoked = replace(root, revoked=True)
+        ledger = HashChainLedger()
+        ledger.append(
+            "capability.revoked",
+            {
+                "grant_id": root.grant_id,
+                "grant_digest": grant_digest(pre_revoked),
+                "reason": "legacy pre-revoked writer",
+                "revoked_at": NOW.isoformat().replace("+00:00", "Z"),
+            },
+        )
+
+        registry = RevocationRegistry(ledger)
+        self.assertTrue(registry.is_revoked(root))
+        self.assertTrue(registry.is_revoked(pre_revoked))
+        self.assertTrue(registry.apply(root).revoked)
+        registry.revoke(root, reason="upgrade idempotency", revoked_at=NOW)
+        self.assertEqual(len(registry.ledger.entries), 1)
+
+        altered = replace(root, budget_microunits=9_999)
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.is_revoked(altered)
+
+    def test_revoked_grant_id_cannot_be_rebound_during_authority_check(self) -> None:
+        registry = RevocationRegistry()
+        root = root_grant()
+        registry.revoke(root, reason="closed", revoked_at=NOW)
+        altered = replace(root, budget_microunits=9_999)
+
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.is_revoked(altered)
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.apply(altered)
+
+        altered_and_pre_revoked = replace(
+            root,
+            budget_microunits=9_999,
+            revoked=True,
+        )
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.is_revoked(altered_and_pre_revoked)
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.apply(altered_and_pre_revoked)
+
+        materialized = registry.apply(root)
+        self.assertTrue(materialized.revoked)
+        self.assertTrue(registry.is_revoked(materialized))
+
+    def test_revocation_is_restored_from_reopened_durable_ledger(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "council.jsonl"
+            root = root_grant()
+            delegated = child(root)
+            registry = RevocationRegistry(HashChainLedger(path))
+            registry.revoke(root, reason="owner revoked authority", revoked_at=NOW)
+
+            reopened = RevocationRegistry(HashChainLedger(path))
+            self.assertTrue(reopened.is_revoked(root))
+            self.assertTrue(reopened.apply(root).revoked)
+            self.assertFalse(verify_delegation_chain(root, (delegated,), reopened))
+            self.assertEqual(reopened.revoked, {root.grant_id: grant_digest(root)})
+
+            altered = replace(root, budget_microunits=9_999)
+            with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+                reopened.is_revoked(altered)
+
+    def test_invalid_persisted_revocation_payload_fails_closed(self) -> None:
+        ledger = HashChainLedger()
+        ledger.append(
+            "capability.revoked",
+            {
+                "grant_id": "root",
+                "grant_digest": grant_digest(root_grant()),
+                "revoked_at": NOW.isoformat().replace("+00:00", "Z"),
+            },
+        )
+        with self.assertRaisesRegex(LedgerIntegrityError, "payload fields"):
+            RevocationRegistry(ledger)
+
+    def test_conflicting_persisted_revocation_digests_fail_closed(self) -> None:
+        ledger = HashChainLedger()
+        for digest in (grant_digest(root_grant()), "f" * 64):
+            ledger.append(
+                "capability.revoked",
+                {
+                    "grant_id": "root",
+                    "grant_digest": digest,
+                    "reason": "owner revoked authority",
+                    "revoked_at": NOW.isoformat().replace("+00:00", "Z"),
+                },
+            )
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting digests"):
+            RevocationRegistry(ledger)
 
 
 if __name__ == "__main__":
