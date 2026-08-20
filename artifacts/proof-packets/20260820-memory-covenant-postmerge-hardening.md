@@ -50,14 +50,12 @@ were bound to the capability roles, or that a memory worker is live.
 - RLS custom GUCs are accepted only when the immutable `session_user` role OID
   has an owner-managed tenant/domain binding. A dropped and recreated role does
   not inherit a stale name-based binding.
-- A forward upgrade from the historical unbound helper rejects pre-existing
-  context-binding rows with SQLSTATE `23514`; it never blesses data that could
-  have been planted before this authorization source existed.
-- A nonempty binding table is trusted on reapplication only when both the table
-  and helper have the migration principal as owner, the table and column ACLs
-  remain owner-only, and the helper's signature, language, attributes,
-  configuration, and complete source match the canonical bound definition.
-  Merely mentioning the binding table in attacker-controlled source is rejected.
+- Every base or corrective reapplication rejects a nonempty context-binding
+  table with SQLSTATE `23514`. This schema has no durable row-level write
+  provenance, so canonical current owners, helper source, and owner-only ACLs
+  cannot distinguish an approved binding from one planted under a temporary
+  INSERT grant that was later revoked. Operators must reconcile and reprovision
+  bindings explicitly; present catalog state is never silently blessed.
 - The forward correction recreates the updated-at and append-only helper bodies,
   removes every non-internal trigger from every covenant relation, restores the
   exact five-trigger set, and restores ENABLE/FORCE RLS state (with the explicit
@@ -71,10 +69,10 @@ were bound to the capability roles, or that a memory worker is live.
 | Check | Observation |
 |---|---|
 | Static migration validator | `PASS` |
-| Adversarial validator tests | `56` tests passed |
+| Adversarial validator tests | `60` tests passed |
 | Python compilation | validator and adversarial tests compiled |
 | PostgreSQL parser (`pglast 8.4`) | base `66`, hardening `24`, corrective `72`, acceptance `43` statements parsed |
-| Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) | substring-spoofed helper rejection, corrective-only helper/trigger/RLS recovery, exact acceptance, dirty binding table/column ACL rejection, authenticated nonempty-row reapplication, full second pass, and final acceptance passed |
+| Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) | exact acceptance, revoked temporary binding-INSERT ACL proof, base and corrective nonempty-row rejection, failed-preflight atomicity, full second pass, and final acceptance passed |
 | Unprivileged migration-role probe | rejected with SQLSTATE `42501`; transaction did not continue |
 | Rollback residue | memory `0`, receipt `0`, outbox `0` |
 | Workflow YAML parse (`PyYAML 6.0.3`) | passed |
@@ -90,12 +88,14 @@ schema `CREATE`, `PUBLIC` and arbitrary function grants, pre-correction role
 attributes, a permissive policy, and receipt-only foreign keys. It proves the
 untrusted-binding and cross-domain-data preflights fail, applies the forward
 correction, and runs full acceptance before any historical migration is rerun.
-It then proves dirty binding ACLs fail closed and a legitimately owner-created
-binding survives authenticated corrective reapplication. Only after those
-corrective-only checks does it reapply the full migration sequence, capture
-exact catalog ACL/membership evidence, and run rollback-only acceptance again
-on PostgreSQL 18. Those hosted observations must come from exact-head CI before
-promotion.
+It then grants a runtime application member temporary column-level INSERT,
+plants a binding, revokes the grant, proves the live column ACL is clean, and
+requires corrective reapplication to fail because the row has no durable write
+provenance. The failed preflight leaves the planted row intact for explicit
+operator handling. Only after cleanup does the workflow reapply the full
+migration sequence, capture exact catalog ACL/membership evidence, and run
+rollback-only acceptance again on PostgreSQL 18. Those hosted observations
+must come from exact-head CI before promotion.
 
 ## Operational boundary
 
