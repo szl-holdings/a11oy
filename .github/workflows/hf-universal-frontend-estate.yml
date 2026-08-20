@@ -28,10 +28,9 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
-  group: hf-universal-frontend-estate
+  group: hf-universal-frontend-estate-${{ github.ref }}
   cancel-in-progress: false
 
 env:
@@ -118,11 +117,12 @@ jobs:
   rollout:
     name: Revision-bound Hub PR rollout
     needs: [contract, audit]
-    if: >-
-      github.event_name == 'push' ||
-      (github.event_name == 'workflow_dispatch' && inputs.operation == 'execute')
+    if: github.event_name == 'workflow_dispatch' && inputs.operation == 'execute'
     runs-on: ubuntu-latest
     timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
     env:
       HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       GH_TOKEN: ${{ github.token }}
@@ -199,7 +199,7 @@ jobs:
               print()
           print(f"Evidence: {pathlib.Path(sys.argv[1])}")
           print()
-          print('No model weights, dataset payloads, visibility, hardware, storage, allocation, or secrets were changed by this controller.')
+          print('This owner-dispatched rollout may update supported cards or application shells through revision-bound Hugging Face pull requests. It does not modify model weights, dataset payloads, visibility, hardware, storage, allocation, secrets, or source-bound protected Spaces.')
           PY
           complete="$(python - "$REPORT" <<'PY'
           import json, pathlib, sys
@@ -224,3 +224,57 @@ jobs:
         env:
           EXIT_CODE: ${{ steps.execute.outputs.exit_code }}
         run: test "${EXIT_CODE:-4}" -eq 0
+
+  import-repair:
+    name: One-shot Hub client import repair
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.head_ref == 'feat/hf-universal-frontend-estate-2026-08-17'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout exact source branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Repair exception imports
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/hf_universal_frontend_control.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''from huggingface_hub import (
+              CommitOperationAdd,
+              EntryNotFoundError,
+              HfApi,
+              HfHubHTTPError,
+              hf_hub_download,
+          )'''.replace('          ', '')
+          new = '''from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+          from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError'''.replace('          ', '')
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one legacy import block, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Prove focused contract
+        run: |
+          python3 -m pip install --disable-pip-version-check 'pytest==9.0.3' 'huggingface_hub==1.23.0'
+          python3 -m py_compile scripts/hf_universal_frontend_control.py tests/test_hf_universal_frontend_control.py
+          python3 -m pytest -q tests/test_hf_universal_frontend_control.py
+          git diff --check
+      - name: Commit repaired source only
+        run: |
+          set -euo pipefail
+          git add scripts/hf_universal_frontend_control.py
+          test "$(git diff --cached --name-only)" = 'scripts/hf_universal_frontend_control.py'
+          git config user.name 'Stephen Lutar'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit \
+            -m 'fix(hf): follow Hub client exception namespace' \
+            -m 'Import EntryNotFoundError and HfHubHTTPError from huggingface_hub.errors so the pinned 1.23.0 controller and focused tests load successfully.' \
+            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:feat/hf-universal-frontend-estate-2026-08-17
