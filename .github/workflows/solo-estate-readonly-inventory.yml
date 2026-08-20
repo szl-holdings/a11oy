@@ -71,8 +71,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 120
     env:
-      GH_TOKEN: ${{ github.token }}
-      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
       REPORT_DIR: reports/solo-estate-readonly
     steps:
       - name: Harden runner
@@ -101,6 +99,9 @@ jobs:
         id: estate
         continue-on-error: true
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HF_INVENTORY_READ_TOKEN: ${{ secrets.HF_INVENTORY_READ_TOKEN }}
         run: |
           set +e
           python .github/scripts/solo_estate_readonly_inventory.py \

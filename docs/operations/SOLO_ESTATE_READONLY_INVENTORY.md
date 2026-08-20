@@ -28,14 +28,18 @@ visibility, hardware, and deletion write path.
 
 The only outputs written by the controller are files in the local report
 directory. GitHub Actions uploads that directory as a 90-day evidence artifact.
+README downloads use a per-read temporary cache that is removed before the
+provider result is returned, so private card contents do not persist in the
+runner's user-level Hugging Face cache.
 
 ## Exact-source boundary
 
-Every live run checks out the event SHA and reads the protected `main` ref from
-GitHub. The inventory is blocked unless the local 40-character Git SHA exactly
-matches the current protected ref. A scheduled or manually dispatched run that
-races with a newer main commit therefore fails closed instead of presenting a
-stale report as current.
+Every live run checks out the event SHA, requires a clean tracked worktree, and
+reads the protected `main` ref from GitHub both before and after provider
+collection. The inventory is blocked unless both reads and both local checks
+remain bound to the same 40-character Git SHA. A run that races with a newer
+main commit or a local tracked-file edit therefore fails closed instead of
+presenting a stale report as current.
 
 The report records:
 
@@ -50,16 +54,19 @@ The report records:
 
 The controller reads open Dependabot, code-scanning, and secret-scanning alerts,
 plus repository security advisories. It also checks source presence for
-Dependabot, CodeQL, secret scanning, the security policy, and CODEOWNERS, and it
-reads protected-branch settings.
+Dependabot, CodeQL, secret scanning, the security policy, and CODEOWNERS. It
+reads the Metadata-authorized effective rules for `main`, including rules
+inherited from organization rulesets, and requires at least one named status
+check plus at least one approving review. The effective-rules endpoint does not
+expose bypass actors, so bypass and administrator enforcement are recorded as
+`UNAVAILABLE` / `NOT_INFERRED` rather than guessed.
 
 The following are terminal:
 
 - every observed secret-scanning alert;
 - open critical or high severity security findings;
 - missing repository controls;
-- absent status checks, pull-request review protection, or administrator
-  enforcement;
+- absent status checks or pull-request review protection;
 - permission denial, provider failure, or pagination exhaustion.
 
 Provider error bodies are discarded. Normalized evidence contains identifiers,
@@ -78,10 +85,13 @@ for its owning workstream; this controller does not attempt closure.
 
 ## Hugging Face inventory
 
-A token is required because an anonymous listing cannot establish the private
-organization estate. The controller first reads the token identity and requires
-an observed `SZLHOLDINGS` organization relationship. Missing credentials,
-identity denial, or an unbound identity remains blocked.
+A dedicated `HF_INVENTORY_READ_TOKEN` secret is required because an anonymous
+listing cannot establish the private organization estate. It is injected only
+into the inventory step. The controller reads the token identity, requires the
+reported access-token role to be exactly `read`, and requires an observed
+`SZLHOLDINGS` organization relationship. Missing credentials, write or
+fine-grained token roles, identity denial, or an unbound identity remains
+blocked. There is no fallback to the deployment token used by `hf-sync.yml`.
 
 For accessible models, datasets, Spaces, and collections it observes:
 
@@ -123,7 +133,10 @@ Each live run writes:
 - `hf-estate.json`.
 
 `PROVED` describes the source-defined contract and deterministic validation.
-`MEASURED` applies only to a named successful provider readback from that run.
+`MEASURED` is emitted only when every required provider readback completed from
+that run. Partial, denied, malformed, or otherwise unverified collection is
+labelled `BLOCKED` even when the outer report already carries a more specific
+blocked state.
 Production state, legal approval, remediation, deployment parity, and security
 closure remain `NOT_CLAIMED` without their own exact evidence.
 
