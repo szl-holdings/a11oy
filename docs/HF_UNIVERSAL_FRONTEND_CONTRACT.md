@@ -4,15 +4,24 @@
 
 This control plane normalizes the public Hugging Face presentation layer without converting presentation into evidence. It covers public model cards, dataset cards, eligible Space cards, and a bounded set of deterministic application shells.
 
+## Control-plane separation
+
+Automatic pull-request, protected-main, and scheduled execution is read-only and limited to controller qualification. `hf-sync.yml` remains the sole automatic canonical Hugging Face writer.
+
+Estate planning and provider mutation live in a separate `workflow_dispatch`-only workflow:
+
+- `operation=plan` inventories the public estate and produces immutable evidence without requiring provider credentials or changing any provider resource;
+- `operation=execute` requires explicit owner dispatch plus the managed organization token and may create and merge only revision-bound Hugging Face pull requests for supported assets.
+
 ## Canonical boundaries
 
-The rollout may:
+The owner-dispatched rollout may:
 
 - preserve existing YAML frontmatter;
 - insert or replace one idempotent managed card section;
 - add mobile-safe CSS to static HTML, React, Gradio, and Streamlit shells when an exact source adapter succeeds;
 - create Hugging Face pull requests from an exact observed parent revision;
-- merge those pull requests only in the protected rollout job;
+- merge those pull requests only inside the manually dispatched execution job;
 - archive every changed preimage and resulting revision.
 
 The rollout must never:
@@ -52,15 +61,15 @@ For each eligible asset the controller:
 3. records every preimage that would change;
 4. generates deterministic card/application changes;
 5. creates a Hugging Face pull request with `parent_commit` bound to the observed SHA;
-6. optionally merges the pull request;
+6. optionally merges the pull request during explicit owner execution;
 7. reads back the resulting `main` SHA;
 8. writes a machine-readable report and rollback preimages.
 
-A source-bound or unsupported asset remains a blocker in the estate report. The workflow keeps one deterministic GitHub issue open until every asset is either current or has been repaired at its canonical source.
+A source-bound or unsupported asset remains a blocker in the estate report. The manual execution job keeps one deterministic GitHub issue open until every asset is either current or has been repaired at its canonical source.
 
 ## Release decision
 
-The estate may be called complete only when the report contains:
+The estate may be called complete only when an owner-dispatched execution report contains:
 
 ```json
 {
@@ -70,4 +79,4 @@ The estate may be called complete only when the report contains:
 }
 ```
 
-A partial card rollout may be useful, but it is not an estate-wide production-verification claim.
+A source merge, successful plan, partial card rollout, or reachable URL is not an estate-wide production-verification claim.
