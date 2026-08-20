@@ -1,6 +1,6 @@
 # Capability-delegation qualification
 
-Date: 2026-08-17  
+Date: 2026-08-17
 Branch: `feat/council-kernel-v0.6.0-20260817`
 
 A fifth fresh-clone qualification was executed after adding grant attenuation, delegation-chain verification, and revocation propagation.
