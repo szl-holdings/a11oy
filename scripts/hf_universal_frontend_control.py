@@ -10,6 +10,7 @@ Spaces are audit-only and must be repaired at their source repository.
 from __future__ import annotations
 
 import argparse
+import ast
 import dataclasses
 import hashlib
 import io
@@ -18,6 +19,7 @@ import os
 import re
 import sys
 import time
+import urllib.request
 from pathlib import Path
 from typing import Any, Iterable
 from urllib.parse import urlparse
@@ -31,7 +33,15 @@ STYLE_START = "/* szl-universal-frontend:start */"
 STYLE_END = "/* szl-universal-frontend:end */"
 RELEASE = "2026-08-17"
 PROTECTED_SPACES = {"SZLHOLDINGS/README", "SZLHOLDINGS/a11oy"}
+SOURCE_BOUND_READBACK_URLS = {
+    "SZLHOLDINGS/README": "https://szlholdings-readme.static.hf.space/deployment.json",
+    "SZLHOLDINGS/a11oy": "https://szlholdings-a11oy.hf.space/api/build-info",
+}
+PROTECTED_WORKFLOW_SOURCE_SPACES = frozenset({"SZLHOLDINGS/a11oy"})
+STATIC_MANIFEST_READBACK_SPACES = frozenset({"SZLHOLDINGS/README"})
 REPO_TYPES = ("model", "dataset", "space")
+TERMINAL_VERIFIED_STATES = frozenset({"CURRENT", "MERGED", "SOURCE_BOUND_VERIFIED"})
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 UNIVERSAL_CSS = f"""{STYLE_START}
 :root {{ color-scheme: dark; --szl-focus: #eef4fb; }}
@@ -86,6 +96,7 @@ class Decision:
     pr_url: str | None = None
     merged: bool = False
     resulting_sha: str | None = None
+    evidence: dict[str, Any] = dataclasses.field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -99,7 +110,50 @@ def _safe_name(repo_id: str) -> str:
     return re.sub(r"[^A-Za-z0-9._-]+", "__", repo_id)
 
 
-def _read_bytes(api: HfApi, asset: Asset, path: str, token: str | None) -> bytes | None:
+def _valid_sha(value: Any) -> bool:
+    return isinstance(value, str) and bool(SHA40.fullmatch(value.strip().lower()))
+
+
+def _value(node: Any, key: str) -> Any:
+    if isinstance(node, dict):
+        return node.get(key)
+    return getattr(node, key, None)
+
+
+def _find_source_revision(node: Any) -> str | None:
+    if isinstance(node, dict):
+        for key in ("source_sha", "source_revision", "github_sha", "commit_sha", "revision"):
+            value = node.get(key)
+            if _valid_sha(value):
+                return str(value).strip().lower()
+        for value in node.values():
+            found = _find_source_revision(value)
+            if found:
+                return found
+    elif isinstance(node, list):
+        for value in node:
+            found = _find_source_revision(value)
+            if found:
+                return found
+    return None
+
+
+def _read_json_url(url: str, timeout: int = 30) -> dict[str, Any]:
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/json",
+            "User-Agent": "SZL-HF-universal-frontend/1.0",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        payload = json.load(response)
+    if not isinstance(payload, dict):
+        raise ControlError(f"public source readback from {url} is not a JSON object")
+    return payload
+
+
+def _read_bytes(api: HfApi, asset: Asset, path: str, token: str | bool | None) -> bytes | None:
     if path not in asset.files:
         return None
     try:
@@ -115,7 +169,7 @@ def _read_bytes(api: HfApi, asset: Asset, path: str, token: str | None) -> bytes
         return None
 
 
-def _read_text(api: HfApi, asset: Asset, path: str, token: str | None) -> str | None:
+def _read_text(api: HfApi, asset: Asset, path: str, token: str | bool | None) -> str | None:
     data = _read_bytes(api, asset, path, token)
     if data is None:
         return None
@@ -175,7 +229,7 @@ def normalize_readme(asset: Asset, existing: str | None, source_bound: bool, fra
     return rendered.encode("utf-8")
 
 
-def _source_bound(api: HfApi, asset: Asset, token: str | None) -> tuple[bool, str | None]:
+def _source_bound(api: HfApi, asset: Asset, token: str | bool | None) -> tuple[bool, str | None]:
     if asset.repo_id in PROTECTED_SPACES:
         return True, "protected canonical GitHub-derived Space"
     deployment = _read_text(api, asset, "deployment.json", token)
@@ -184,6 +238,147 @@ def _source_bound(api: HfApi, asset: Asset, token: str | None) -> tuple[bool, st
         if "github" in lowered or "source_revision" in lowered or "source-revision" in lowered:
             return True, "deployment.json records external source provenance"
     return False, None
+
+
+def _python_with_pathlib(text: str) -> str:
+    """Insert ``Path`` after the legal Python preamble without moving it."""
+    try:
+        module = ast.parse(text)
+    except SyntaxError as exc:
+        raise ControlError(f"Python application source is not syntactically valid: {exc.msg}") from exc
+
+    for node in module.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "pathlib":
+            if any(alias.name == "Path" and alias.asname in {None, "Path"} for alias in node.names):
+                return text
+
+    lines = text.splitlines(keepends=True)
+    insertion_line = 0
+    if lines and lines[0].startswith("#!"):
+        insertion_line = 1
+    coding = re.compile(r"^[ \t\f]*#.*?coding[:=][ \t]*[-_.a-zA-Z0-9]+")
+    for line_number, line in enumerate(lines[:2], start=1):
+        if coding.match(line):
+            insertion_line = max(insertion_line, line_number)
+
+    body_index = 0
+    if module.body:
+        first = module.body[0]
+        if (
+            isinstance(first, ast.Expr)
+            and isinstance(first.value, ast.Constant)
+            and isinstance(first.value.value, str)
+        ):
+            insertion_line = max(insertion_line, first.end_lineno or first.lineno)
+            body_index = 1
+    while body_index < len(module.body):
+        node = module.body[body_index]
+        if not isinstance(node, ast.ImportFrom) or node.module != "__future__":
+            break
+        insertion_line = max(insertion_line, node.end_lineno or node.lineno)
+        body_index += 1
+
+    offset = sum(len(line) for line in lines[:insertion_line])
+    prefix = text[:offset]
+    if prefix and not prefix.endswith(("\n", "\r")):
+        prefix += "\n"
+    return prefix + "from pathlib import Path\n" + text[offset:]
+
+
+def _validate_python_adapter(text: str, entry: str) -> None:
+    try:
+        ast.parse(text, filename=entry)
+    except SyntaxError as exc:
+        raise ControlError(f"{entry}: generated Python adapter is invalid: {exc.msg}") from exc
+
+
+def evaluate_source_bound_evidence(
+    asset: Asset,
+    repository: Any,
+    deployment: dict[str, Any],
+    public_readback: dict[str, Any],
+) -> dict[str, Any]:
+    repository_sha = _value(repository, "sha")
+    runtime = _value(repository, "runtime")
+    runtime_raw = _value(runtime, "raw")
+    runtime_sha = _value(runtime, "sha") or _value(runtime_raw, "sha")
+    runtime_stage = _value(runtime, "stage")
+    deployment_source = _find_source_revision(deployment)
+    served_source = _find_source_revision(public_readback)
+    failures: list[str] = []
+    if repository_sha != asset.sha:
+        failures.append("HF_REPOSITORY_REVISION_DIVERGED")
+    if runtime_stage != "RUNNING":
+        failures.append("HF_RUNTIME_REVISION_NOT_RUNNING")
+    if asset.repo_id not in STATIC_MANIFEST_READBACK_SPACES and runtime_sha != asset.sha:
+        failures.append("HF_RUNTIME_REVISION_DIVERGED")
+    if not deployment_source:
+        failures.append("CANONICAL_SOURCE_REVISION_UNAVAILABLE")
+    if not served_source:
+        failures.append("SERVED_SOURCE_REVISION_UNAVAILABLE")
+    if deployment_source and served_source and deployment_source != served_source:
+        failures.append("SERVED_SOURCE_REVISION_DIVERGED")
+    deployment_digest = _sha256(json.dumps(deployment, sort_keys=True, separators=(",", ":")).encode())
+    readback_digest = _sha256(json.dumps(public_readback, sort_keys=True, separators=(",", ":")).encode())
+    if asset.repo_id in STATIC_MANIFEST_READBACK_SPACES and deployment_digest != readback_digest:
+        failures.append("SERVED_DEPLOYMENT_MANIFEST_DIVERGED")
+    return {
+        "status": "VERIFIED" if not failures else "BLOCKED",
+        "hf_repository_sha": repository_sha,
+        "hf_runtime_sha": runtime_sha,
+        "hf_runtime_stage": runtime_stage,
+        "canonical_source_revision": deployment_source,
+        "served_source_revision": served_source,
+        "deployment_digest": deployment_digest,
+        "served_readback_digest": readback_digest,
+        "failures": failures,
+    }
+
+
+def verify_source_bound_asset(
+    api: HfApi,
+    asset: Asset,
+    protected_source_sha: str | None = None,
+) -> dict[str, Any]:
+    readback_url = SOURCE_BOUND_READBACK_URLS.get(asset.repo_id)
+    if not readback_url:
+        return {
+            "status": "BLOCKED",
+            "failures": ["PUBLIC_SOURCE_READBACK_UNCONFIGURED"],
+        }
+    try:
+        deployment_text = _read_text(api, asset, "deployment.json", False)
+        if deployment_text:
+            deployment = json.loads(deployment_text)
+        elif asset.repo_id in PROTECTED_WORKFLOW_SOURCE_SPACES and _valid_sha(protected_source_sha):
+            deployment = {
+                "source_revision": str(protected_source_sha).strip().lower(),
+                "source_revision_authority": "protected_workflow_checkout",
+            }
+        else:
+            raise ControlError("public deployment manifest or protected source revision is unavailable")
+        if not isinstance(deployment, dict):
+            raise ControlError("public deployment manifest is not a JSON object")
+        repository = api.repo_info(
+            repo_id=asset.repo_id,
+            repo_type=asset.repo_type,
+            revision="main",
+            token=False,
+        )
+        public_readback = _read_json_url(readback_url)
+    except (ControlError, HfHubHTTPError, OSError, ValueError, json.JSONDecodeError) as exc:
+        return {
+            "status": "BLOCKED",
+            "failures": [f"PUBLIC_SOURCE_READBACK_FAILED:{type(exc).__name__}"],
+        }
+    evidence = evaluate_source_bound_evidence(
+        asset,
+        repository,
+        deployment,
+        public_readback,
+    )
+    evidence["readback_url"] = readback_url
+    return evidence
 
 
 def _inject_style(html: str) -> str:
@@ -233,14 +428,14 @@ def _gradio_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tuple
         if "_SZL_UNIVERSAL_CSS" not in text:
             return [], ["existing Gradio css= contract is source-specific and requires manual integration"]
         return [("szl_universal.css", UNIVERSAL_CSS.encode())], []
-    if "from pathlib import Path" not in text:
-        text = "from pathlib import Path\n" + text
+    text = _python_with_pathlib(text)
     definition = '_SZL_UNIVERSAL_CSS = Path(__file__).with_name("szl_universal.css").read_text(encoding="utf-8")\n'
     if definition not in text:
         imports = list(re.finditer(r"^(?:from\s+\S+\s+import\s+.+|import\s+.+)$", text, re.MULTILINE))
         pos = imports[-1].end() if imports else 0
         text = text[:pos] + "\n\n" + definition + text[pos:].lstrip("\n")
     text = text.replace("gr.Blocks(", "gr.Blocks(css=_SZL_UNIVERSAL_CSS, ", 1)
+    _validate_python_adapter(text, entry)
     return [(entry, text.encode()), ("szl_universal.css", UNIVERSAL_CSS.encode())], []
 
 
@@ -255,12 +450,12 @@ def _streamlit_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tu
         return [], ["Streamlit adapter requires one single-line st.set_page_config call"]
     marker = "# szl-universal-frontend:inject"
     if marker not in text:
-        if "from pathlib import Path" not in text:
-            text = "from pathlib import Path\n" + text
-            matches = list(re.finditer(r"^\s*st\.set_page_config\([^\n]*\)\s*$", text, re.MULTILINE))
+        text = _python_with_pathlib(text)
+        matches = list(re.finditer(r"^\s*st\.set_page_config\([^\n]*\)\s*$", text, re.MULTILINE))
         match = matches[0]
         inject = '\n# szl-universal-frontend:inject\nst.markdown(f"<style>{Path(__file__).with_name(\'szl_universal.css\').read_text(encoding=\'utf-8\')}</style>", unsafe_allow_html=True)'
         text = text[: match.end()] + inject + text[match.end() :]
+    _validate_python_adapter(text, entry)
     return [(entry, text.encode()), ("szl_universal.css", UNIVERSAL_CSS.encode())], []
 
 
@@ -288,17 +483,48 @@ def classify_space(api: HfApi, asset: Asset, token: str | None) -> tuple[str, li
 
 def enumerate_assets(api: HfApi, org: str) -> list[Asset]:
     refs: list[tuple[str, str]] = []
-    refs.extend((item.id, "model") for item in api.list_models(author=org, full=True))
-    refs.extend((item.id, "dataset") for item in api.list_datasets(author=org, full=True))
-    refs.extend((item.id, "space") for item in api.list_spaces(author=org))
+    listings = (
+        (api.list_models(author=org, full=True, token=False), "model"),
+        (api.list_datasets(author=org, full=True, token=False), "dataset"),
+        (api.list_spaces(author=org, full=True, token=False), "space"),
+    )
+    for items, repo_type in listings:
+        refs.extend(
+            (item.id, repo_type)
+            for item in items
+            if getattr(item, "private", None) is False
+        )
     assets: list[Asset] = []
     for repo_id, repo_type in sorted(set(refs), key=lambda x: (x[1], x[0].lower())):
-        info = api.repo_info(repo_id=repo_id, repo_type=repo_type, revision="main")
+        info = api.repo_info(
+            repo_id=repo_id,
+            repo_type=repo_type,
+            revision="main",
+            token=False,
+        )
+        if getattr(info, "private", None) is not False:
+            continue
         sha = getattr(info, "sha", None)
-        if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+        if not _valid_sha(sha):
             raise ControlError(f"{repo_id}: exact main SHA unavailable")
-        files = tuple(sorted(api.list_repo_files(repo_id=repo_id, repo_type=repo_type, revision=sha)))
-        assets.append(Asset(repo_id=repo_id, repo_type=repo_type, sha=sha, files=files))
+        files = tuple(
+            sorted(
+                api.list_repo_files(
+                    repo_id=repo_id,
+                    repo_type=repo_type,
+                    revision=sha,
+                    token=False,
+                )
+            )
+        )
+        assets.append(
+            Asset(
+                repo_id=repo_id,
+                repo_type=repo_type,
+                sha=str(sha).lower(),
+                files=files,
+            )
+        )
     return assets
 
 
@@ -321,7 +547,16 @@ def _discussion_number(url: str | None) -> int | None:
     return int(match.group(1)) if match else None
 
 
-def process_asset(api: HfApi, asset: Asset, token: str | None, execute: bool, merge: bool, backups: Path) -> Decision:
+def process_asset(
+    api: HfApi,
+    asset: Asset,
+    token: str | None,
+    execute: bool,
+    merge: bool,
+    backups: Path,
+    *,
+    protected_source_sha: str | None = None,
+) -> Decision:
     source_bound = False
     source_reason = None
     framework = "CARD_ONLY"
@@ -329,7 +564,7 @@ def process_asset(api: HfApi, asset: Asset, token: str | None, execute: bool, me
     blockers: list[str] = []
 
     if asset.repo_type == "space":
-        source_bound, source_reason = _source_bound(api, asset, token)
+        source_bound, source_reason = _source_bound(api, asset, False)
         if source_bound:
             framework = "GITHUB_SOURCE_BOUND"
         else:
@@ -338,8 +573,17 @@ def process_asset(api: HfApi, asset: Asset, token: str | None, execute: bool, me
     decision = Decision(asset.repo_id, asset.repo_type, asset.sha, "PLANNED", framework)
     decision.blockers.extend(blockers)
     if source_bound:
-        decision.state = "SOURCE_BOUND_AUDIT_ONLY"
-        decision.blockers.append(source_reason or "external source authority")
+        evidence = verify_source_bound_asset(api, asset, protected_source_sha)
+        decision.evidence["source_bound_readback"] = evidence
+        if evidence.get("status") == "VERIFIED":
+            decision.state = "SOURCE_BOUND_VERIFIED"
+        else:
+            decision.state = "SOURCE_BOUND_AUDIT_ONLY"
+            failures = evidence.get("failures") or []
+            detail = ",".join(str(item) for item in failures)
+            decision.blockers.append(
+                f"{source_reason or 'external source authority'}; {detail or 'readback unavailable'}"
+            )
         return decision
 
     existing_readme = _read_bytes(api, asset, "README.md", token)
@@ -390,9 +634,28 @@ def process_asset(api: HfApi, asset: Asset, token: str | None, execute: bool, me
         api.merge_pull_request(repo_id=asset.repo_id, discussion_num=number, repo_type=asset.repo_type)
         after = api.repo_info(repo_id=asset.repo_id, repo_type=asset.repo_type, revision="main")
         decision.resulting_sha = getattr(after, "sha", None)
+        if not _valid_sha(decision.resulting_sha) or decision.resulting_sha == asset.sha:
+            decision.blockers.append("merged Hugging Face pull request has no distinct immutable readback")
+            decision.state = "MERGED_READBACK_FAILED"
+            return decision
         decision.merged = True
         decision.state = "MERGED" if not blockers else "MERGED_CARD_BLOCKED_APP"
     return decision
+
+
+def _decision_is_terminal_verified(decision: Decision) -> bool:
+    if decision.state not in TERMINAL_VERIFIED_STATES or decision.blockers:
+        return False
+    if decision.state == "CURRENT":
+        return not decision.changes
+    if decision.state == "MERGED":
+        return (
+            decision.merged
+            and _valid_sha(decision.resulting_sha)
+            and decision.resulting_sha != decision.source_sha
+        )
+    source_evidence = decision.evidence.get("source_bound_readback")
+    return isinstance(source_evidence, dict) and source_evidence.get("status") == "VERIFIED"
 
 
 def build_report(org: str, decisions: list[Decision], execute: bool, merge: bool) -> dict[str, Any]:
@@ -401,6 +664,12 @@ def build_report(org: str, decisions: list[Decision], execute: bool, merge: bool
         states[item.state] = states.get(item.state, 0) + 1
     blocked = [d.repo_id for d in decisions if d.blockers]
     failed = [d.repo_id for d in decisions if d.state.startswith("FAILED")]
+    nonterminal = [
+        d.repo_id
+        for d in decisions
+        if not _decision_is_terminal_verified(d)
+    ]
+    complete = bool(decisions) and execute and merge and not blocked and not failed and not nonterminal
     return {
         "schema": "szl.hf-universal-frontend-estate/v1",
         "release": RELEASE,
@@ -411,7 +680,8 @@ def build_report(org: str, decisions: list[Decision], execute: bool, merge: bool
         "state_counts": states,
         "blocked_assets": blocked,
         "failed_assets": failed,
-        "complete": not blocked and not failed,
+        "nonterminal_assets": nonterminal,
+        "complete": complete,
         "boundaries": [
             "Model weights, tokenizer files, dataset rows/schemas/splits, visibility, hardware, storage, secrets, and allocations are outside this rollout.",
             "GitHub-source-bound Spaces are audit-only and must be repaired at their canonical source repository.",
@@ -427,6 +697,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--org", default="SZLHOLDINGS")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--merge", action="store_true")
+    parser.add_argument("--protected-source-sha")
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--backup-dir", type=Path, required=True)
     parser.add_argument("--sleep", type=float, default=0.15)
@@ -439,12 +710,16 @@ def main(argv: list[str] | None = None) -> int:
     if args.merge and not args.execute:
         print("--merge requires --execute", file=sys.stderr)
         return 4
+    if args.protected_source_sha and not _valid_sha(args.protected_source_sha):
+        print("--protected-source-sha must be one full hexadecimal commit SHA", file=sys.stderr)
+        return 4
 
     api = HfApi(token=token)
+    public_inventory_api = HfApi()
     args.backup_dir.mkdir(parents=True, exist_ok=True)
     decisions: list[Decision] = []
     try:
-        assets = enumerate_assets(api, args.org)
+        assets = enumerate_assets(public_inventory_api, args.org)
     except Exception as exc:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps({"schema": "szl.hf-universal-frontend-estate/v1", "complete": False, "fatal": str(exc)}, indent=2) + "\n")
@@ -452,7 +727,17 @@ def main(argv: list[str] | None = None) -> int:
 
     for asset in assets:
         try:
-            decisions.append(process_asset(api, asset, token, args.execute, args.merge, args.backup_dir))
+            decisions.append(
+                process_asset(
+                    api,
+                    asset,
+                    token,
+                    args.execute,
+                    args.merge,
+                    args.backup_dir,
+                    protected_source_sha=args.protected_source_sha,
+                )
+            )
         except (ControlError, HfHubHTTPError, OSError, ValueError) as exc:
             decisions.append(Decision(asset.repo_id, asset.repo_type, asset.sha, "FAILED", blockers=[str(exc)]))
         time.sleep(max(args.sleep, 0))
