@@ -720,24 +720,27 @@ def test_v1_database_is_migrated_to_a_rank_bound_frontier(tmp_path: Path) -> Non
     upgraded.close()
 
 
-def test_canonical_runtime_mount_precedes_catchalls_and_is_delivered() -> None:
+def test_standalone_runtime_delivery_does_not_change_protected_hf_inputs() -> None:
     root = Path(__file__).resolve().parents[1]
-    server = (root / "serve.py").read_text(encoding="utf-8")
-    mount = server.index("_mount_oro(app)")
-    api_proxy = server.rindex('@app.api_route("/api/a11oy/{path:path}"')
-    spa_fallback = server.rindex('@app.get("/{full_path:path}")')
-    assert mount < api_proxy < spa_fallback
-    dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
-    assert "COPY oro/ ./oro/" in dockerfile
-    assert "COPY schemas/oro/ ./schemas/oro/" in dockerfile
+    protected_dockerfile = (root / "Dockerfile").read_text(encoding="utf-8")
+    standalone_dockerfile = (root / "deploy/oro/Dockerfile").read_text(encoding="utf-8")
+    assert "COPY oro/ ./oro/" not in protected_dockerfile
+    assert "COPY schemas/oro/ ./schemas/oro/" not in protected_dockerfile
+    assert "COPY --chown=10001:10001 oro/ ./oro/" in standalone_dockerfile
+    assert "COPY --chown=10001:10001 schemas/oro/ ./schemas/oro/" in standalone_dockerfile
 
 
 def test_oro_workflow_is_validation_only() -> None:
     root = Path(__file__).resolve().parents[1]
     workflow = (root / ".github/workflows/oro-control-plane.yml").read_text(encoding="utf-8")
+    runtime_lock = (root / ".github/requirements/ci-oro.txt").read_text(encoding="utf-8")
     assert "contents: write" not in workflow
     assert "persist-credentials: true" not in workflow
     assert "git push" not in workflow
     assert "_apply_oro_v3_repairs.py" not in workflow
     assert "oro.api:create_app --factory" in workflow
+    assert "-r .github/requirements/ci-oro.txt" in workflow
+    assert "uvicorn==0.49.0" in runtime_lock
+    assert "click==8.3.3" in runtime_lock
+    assert runtime_lock.count("--hash=sha256:") == 4
     assert not (root / "scripts/_apply_oro_v3_repairs.py").exists()

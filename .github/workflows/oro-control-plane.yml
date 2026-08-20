@@ -7,9 +7,8 @@ on:
       - "schemas/oro/**"
       - "deploy/oro/**"
       - "deploy/MANIFEST.json"
-      - "Dockerfile"
-      - "serve.py"
-      - "tests/test_demo_critical_routes.py"
+      - ".github/requirements/ci-oro.in"
+      - ".github/requirements/ci-oro.txt"
       - "tests/test_oro_operational_v3.py"
       - ".github/workflows/oro-control-plane.yml"
   push:
@@ -19,9 +18,8 @@ on:
       - "schemas/oro/**"
       - "deploy/oro/**"
       - "deploy/MANIFEST.json"
-      - "Dockerfile"
-      - "serve.py"
-      - "tests/test_demo_critical_routes.py"
+      - ".github/requirements/ci-oro.in"
+      - ".github/requirements/ci-oro.txt"
       - "tests/test_oro_operational_v3.py"
       - ".github/workflows/oro-control-plane.yml"
   workflow_dispatch:
@@ -51,7 +49,10 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install exact core test dependencies
-        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+        run: >-
+          python3 -m pip install --disable-pip-version-check --require-hashes
+          -r .github/requirements/ci-core.txt
+          -r .github/requirements/ci-oro.txt
       - name: Compile the complete ORO runtime
         run: python3 -m compileall -q oro tests/test_oro_operational_v3.py
       - name: Validate committed JSON schemas
@@ -124,6 +125,7 @@ jobs:
             ${{ runner.temp }}/oro-health.json
             ${{ runner.temp }}/oro-ready.json
             ${{ runner.temp }}/oro-contract.json
+            ${{ runner.temp }}/oro-dashboard.html
             ${{ runner.temp }}/oro-uvicorn.log
           if-no-files-found: error
           retention-days: 90

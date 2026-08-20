@@ -26,8 +26,10 @@ outer defect backstop, not the convergence mechanism.
 - zero-CDN dashboards at `/oro` and `/oro/v5`;
 - plan, orbit, barrier, negative-result, approval, certificate, health, readiness,
   contract, role, and count APIs under `/api/a11oy/v1/oro`;
-- a standalone FastAPI/Uvicorn service and a `mount_oro` integration function for
-  the canonical A11oy server.
+- a standalone FastAPI/Uvicorn service and an unactivated `mount_oro` integration
+  function. This source does not alter the protected flagship Hugging Face
+  Dockerfile or claim canonical-server activation; that requires a separately
+  reviewed deployment-contract successor.
 
 There is deliberately no release, direct-main, merge, or production-deploy
 endpoint. ORO can nominate or refuse work; protected delivery remains a separate
@@ -36,7 +38,9 @@ authority.
 ## Local source verification
 
 ```bash
-python3 -m pip install --require-hashes -r .github/requirements/ci-core.txt
+python3 -m pip install --require-hashes \
+  -r .github/requirements/ci-core.txt \
+  -r .github/requirements/ci-oro.txt
 python3 -m compileall -q oro tests/test_oro_operational_v3.py
 python3 -m pytest -q tests/test_oro_operational_v3.py
 ```
