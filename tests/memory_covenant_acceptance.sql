@@ -46,9 +46,17 @@ BEGIN
         SELECT 1
           FROM pg_roles
          WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
-           AND (rolsuper OR NOT rolinherit OR rolbypassrls OR rolcanlogin)
+           AND (
+               rolsuper
+               OR rolcreatedb
+               OR rolcreaterole
+               OR rolreplication
+               OR NOT rolinherit
+               OR rolbypassrls
+               OR rolcanlogin
+           )
     ) THEN
-        RAISE EXCEPTION 'Memory Covenant roles are not NOLOGIN INHERIT NOBYPASSRLS non-superuser roles';
+        RAISE EXCEPTION 'Memory Covenant roles retain a privileged role attribute';
     END IF;
     IF (
         SELECT count(*)
@@ -129,8 +137,23 @@ BEGIN
            )
          GROUP BY c.relname
         HAVING count(p.polname) <> 1
+            OR min(p.polname) <> c.relname || '_isolation'
     ) THEN
-        RAISE EXCEPTION 'Every Memory Covenant table must have exactly one isolation policy';
+        RAISE EXCEPTION 'Every Memory Covenant table must have exactly its single isolation policy';
+    END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_class AS c
+          JOIN pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'memory_attacker'
+           AND c.relname LIKE 'memory_%'
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant objects followed a caller-controlled current schema';
     END IF;
 END;
 $$;
@@ -154,6 +177,55 @@ BEGIN
     IF observed_triggers IS DISTINCT FROM required_triggers THEN
         RAISE EXCEPTION 'Memory Covenant trigger set mismatch: expected %, observed %',
             required_triggers, observed_triggers;
+    END IF;
+END;
+$$;
+
+DO $$
+DECLARE
+    receipt_key_definition text;
+    audit_fk_definition text;
+    idempotency_fk_definition text;
+BEGIN
+    SELECT pg_get_constraintdef(oid, true)
+      INTO receipt_key_definition
+      FROM pg_constraint
+     WHERE conrelid = 'public.memory_receipts'::regclass
+       AND conname = 'memory_receipts_tenant_domain_receipt_key';
+    SELECT pg_get_constraintdef(oid, true)
+      INTO audit_fk_definition
+      FROM pg_constraint
+     WHERE conrelid = 'public.memory_query_audit'::regclass
+       AND conname = 'memory_query_audit_tenant_domain_receipt_fkey';
+    SELECT pg_get_constraintdef(oid, true)
+      INTO idempotency_fk_definition
+      FROM pg_constraint
+     WHERE conrelid = 'public.memory_idempotency'::regclass
+       AND conname = 'memory_idempotency_tenant_domain_receipt_fkey';
+
+    IF receipt_key_definition IS DISTINCT FROM
+       'UNIQUE (tenant_id, security_domain, receipt_id)' THEN
+        RAISE EXCEPTION 'tenant/domain receipt key mismatch: %', receipt_key_definition;
+    END IF;
+    IF audit_fk_definition IS DISTINCT FROM
+       'FOREIGN KEY (tenant_id, security_domain, receipt_id) REFERENCES memory_receipts(tenant_id, security_domain, receipt_id) ON DELETE RESTRICT' THEN
+        RAISE EXCEPTION 'audit receipt relationship is not tenant/domain-bound: %', audit_fk_definition;
+    END IF;
+    IF idempotency_fk_definition IS DISTINCT FROM
+       'FOREIGN KEY (tenant_id, security_domain, receipt_id) REFERENCES memory_receipts(tenant_id, security_domain, receipt_id) ON DELETE RESTRICT' THEN
+        RAISE EXCEPTION 'idempotency receipt relationship is not tenant/domain-bound: %', idempotency_fk_definition;
+    END IF;
+    IF (
+        SELECT count(*)
+          FROM pg_constraint
+         WHERE contype = 'f'
+           AND confrelid = 'public.memory_receipts'::regclass
+           AND conrelid IN (
+               'public.memory_query_audit'::regclass,
+               'public.memory_idempotency'::regclass
+           )
+    ) <> 2 THEN
+        RAISE EXCEPTION 'stale receipt relationships remain';
     END IF;
 END;
 $$;
@@ -202,6 +274,13 @@ BEGIN
     IF NOT has_schema_privilege('a11oy_memory_app', 'public', 'USAGE') THEN
         RAISE EXCEPTION 'a11oy_memory_app lacks public schema USAGE';
     END IF;
+    IF NOT has_schema_privilege('a11oy_memory_worker', 'public', 'USAGE') THEN
+        RAISE EXCEPTION 'a11oy_memory_worker lacks public schema USAGE';
+    END IF;
+    IF has_schema_privilege('a11oy_memory_app', 'public', 'CREATE')
+       OR has_schema_privilege('a11oy_memory_worker', 'public', 'CREATE') THEN
+        RAISE EXCEPTION 'Memory Covenant capability role retained schema CREATE';
+    END IF;
 
     IF EXISTS (
         SELECT 1
@@ -211,6 +290,16 @@ BEGIN
            AND table_name LIKE 'memory_%'
     ) THEN
         RAISE EXCEPTION 'a11oy_memory_worker must not have direct memory-table privileges';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM information_schema.role_table_grants
+         WHERE grantee = 'PUBLIC'
+           AND table_schema = 'public'
+           AND table_name LIKE 'memory_%'
+    ) THEN
+        RAISE EXCEPTION 'PUBLIC must not have memory-table privileges';
     END IF;
 END;
 $$;
@@ -228,8 +317,8 @@ BEGIN
     IF NOT is_security_definer THEN
         RAISE EXCEPTION 'memory_lease_outbox must be SECURITY DEFINER';
     END IF;
-    IF function_config IS NULL OR NOT ('search_path=public, pg_temp' = ANY(function_config)) THEN
-        RAISE EXCEPTION 'memory_lease_outbox must pin search_path to public, pg_temp';
+    IF function_config IS NULL OR NOT ('search_path=pg_catalog, pg_temp' = ANY(function_config)) THEN
+        RAISE EXCEPTION 'memory_lease_outbox must pin search_path to pg_catalog, pg_temp';
     END IF;
     IF EXISTS (
         SELECT 1
@@ -247,6 +336,31 @@ BEGIN
         'EXECUTE'
     ) THEN
         RAISE EXCEPTION 'worker role lacks bounded lease function EXECUTE';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_proc AS p,
+               LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) AS acl
+         WHERE p.oid = lease_oid
+           AND acl.grantee <> p.proowner
+           AND (
+               acl.grantee <> 'a11oy_memory_worker'::regrole
+               OR acl.privilege_type <> 'EXECUTE'
+               OR acl.is_grantable
+           )
+    ) THEN
+        RAISE EXCEPTION 'stale non-owner lease function ACL remains';
+    END IF;
+    IF EXISTS (
+        SELECT 1 FROM pg_roles WHERE rolname = 'a11oy_memory_stale_grantee'
+    ) THEN
+        IF has_function_privilege(
+            'a11oy_memory_stale_grantee',
+            'memory_lease_outbox(text,integer,integer)',
+            'EXECUTE'
+        ) THEN
+            RAISE EXCEPTION 'seeded stale lease grantee retained EXECUTE';
+        END IF;
     END IF;
 END;
 $$;
@@ -424,6 +538,70 @@ SET ROLE a11oy_memory_app;
 SELECT set_config('a11oy.tenant_id', 'acceptance-tenant-a', true);
 SELECT set_config('a11oy.security_domain', 'acceptance-domain-a', true);
 
+SELECT set_config('a11oy.security_domain', 'acceptance-domain-b', true);
+DO $$
+DECLARE
+    audit_rejected boolean := false;
+    idempotency_rejected boolean := false;
+BEGIN
+    BEGIN
+        INSERT INTO memory_query_audit (
+            audit_id,
+            tenant_id,
+            security_domain,
+            receipt_id,
+            query_digest,
+            result_digest,
+            audit_json
+        ) VALUES (
+            'acceptance-cross-domain-audit',
+            'acceptance-tenant-a',
+            'acceptance-domain-b',
+            'acceptance-receipt-20260820',
+            repeat('1', 64),
+            repeat('2', 64),
+            jsonb_build_object(
+                'audit_id', 'acceptance-cross-domain-audit',
+                'query_digest', repeat('1', 64),
+                'result_digest', repeat('2', 64)
+            )
+        );
+    EXCEPTION
+        WHEN foreign_key_violation THEN
+            audit_rejected := true;
+    END;
+
+    BEGIN
+        INSERT INTO memory_idempotency (
+            tenant_id,
+            security_domain,
+            operation,
+            idempotency_key,
+            request_digest,
+            response_json,
+            receipt_id
+        ) VALUES (
+            'acceptance-tenant-a',
+            'acceptance-domain-b',
+            'acceptance',
+            'cross-domain-receipt',
+            repeat('3', 64),
+            '{}'::jsonb,
+            'acceptance-receipt-20260820'
+        );
+    EXCEPTION
+        WHEN foreign_key_violation THEN
+            idempotency_rejected := true;
+    END;
+
+    IF NOT audit_rejected OR NOT idempotency_rejected THEN
+        RAISE EXCEPTION 'cross-domain receipt relationship was not rejected';
+    END IF;
+END;
+$$;
+
+SELECT set_config('a11oy.security_domain', 'acceptance-domain-a', true);
+
 INSERT INTO memory_outbox (
     event_id,
     tenant_id,
@@ -449,6 +627,8 @@ DO $$
 DECLARE
     leased memory_outbox;
     invalid_limit_rejected boolean := false;
+    null_limit_rejected boolean := false;
+    null_duration_rejected boolean := false;
 BEGIN
     SELECT * INTO leased
       FROM memory_lease_outbox('acceptance-worker', 1, 30)
@@ -469,6 +649,26 @@ BEGIN
     END;
     IF NOT invalid_limit_rejected THEN
         RAISE EXCEPTION 'invalid worker limit was not rejected with SQLSTATE 22023';
+    END IF;
+
+    BEGIN
+        PERFORM * FROM memory_lease_outbox('acceptance-worker', NULL, 30);
+    EXCEPTION
+        WHEN SQLSTATE '22023' THEN
+            null_limit_rejected := true;
+    END;
+    IF NOT null_limit_rejected THEN
+        RAISE EXCEPTION 'NULL worker limit was not rejected with SQLSTATE 22023';
+    END IF;
+
+    BEGIN
+        PERFORM * FROM memory_lease_outbox('acceptance-worker', 1, NULL);
+    EXCEPTION
+        WHEN SQLSTATE '22023' THEN
+            null_duration_rejected := true;
+    END;
+    IF NOT null_duration_rejected THEN
+        RAISE EXCEPTION 'NULL lease duration was not rejected with SQLSTATE 22023';
     END IF;
 END;
 $$;

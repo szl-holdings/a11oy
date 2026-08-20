@@ -6,22 +6,28 @@ on:
     paths:
       - migrations/20260811_memory_covenant_v2.sql
       - migrations/20260811_memory_covenant_v2_security_hardening.sql
+      - migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
       - scripts/validate_memory_covenant_v2.py
       - tests/test_memory_covenant_v2.py
       - tests/memory_covenant_acceptance.sql
       - artifacts/proof-packets/20260820-memory-covenant-neon.md
+      - artifacts/proof-packets/20260820-memory-covenant-postmerge-hardening.md
       - audit/P0-2026-08-20-memory-covenant-proof.md
+      - audit/P1-2026-08-20-memory-covenant-postmerge-hardening.md
       - .github/workflows/memory-covenant-v2.yml
   push:
     branches: [main]
     paths:
       - migrations/20260811_memory_covenant_v2.sql
       - migrations/20260811_memory_covenant_v2_security_hardening.sql
+      - migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
       - scripts/validate_memory_covenant_v2.py
       - tests/test_memory_covenant_v2.py
       - tests/memory_covenant_acceptance.sql
       - artifacts/proof-packets/20260820-memory-covenant-neon.md
+      - artifacts/proof-packets/20260820-memory-covenant-postmerge-hardening.md
       - audit/P0-2026-08-20-memory-covenant-proof.md
+      - audit/P1-2026-08-20-memory-covenant-postmerge-hardening.md
       - .github/workflows/memory-covenant-v2.yml
   workflow_dispatch: {}
 
@@ -108,24 +114,148 @@ jobs:
           docker exec -e PGPASSWORD=postgres "${containers[0]}" \
             psql -X -U postgres -d memory_covenant -Atc 'select version()'
 
-      - name: Apply both migrations twice
+      - name: Exercise forward correction and two-pass idempotency
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p evidence/memory-covenant-v2
           : > evidence/memory-covenant-v2/migration-apply.log
-          for pass in 1 2; do
-            echo "=== migration pass ${pass} ===" | tee -a evidence/memory-covenant-v2/migration-apply.log
-            for migration in \
-              migrations/20260811_memory_covenant_v2.sql \
-              migrations/20260811_memory_covenant_v2_security_hardening.sql
-            do
-              echo "--- ${migration} ---" | tee -a evidence/memory-covenant-v2/migration-apply.log
-              docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
-                psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
-                < "$migration" \
-                | tee -a evidence/memory-covenant-v2/migration-apply.log
-            done
+
+          apply_migration() {
+            local migration="$1"
+            echo "--- ${migration} ---" | tee -a evidence/memory-covenant-v2/migration-apply.log
+            docker exec -i \
+              -e PGPASSWORD=postgres \
+              -e PGOPTIONS='-c search_path=memory_attacker,public' \
+              "$PG_CONTAINER" \
+              psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+              < "$migration" \
+              | tee -a evidence/memory-covenant-v2/migration-apply.log
+          }
+
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c 'CREATE SCHEMA memory_attacker'
+
+          echo '=== clean-install migrations ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          apply_migration migrations/20260811_memory_covenant_v2.sql
+          apply_migration migrations/20260811_memory_covenant_v2_security_hardening.sql
+
+          echo '=== seed legacy/stale security state ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            <<'SQL' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          CREATE ROLE a11oy_memory_stale_grantee NOLOGIN;
+          ALTER ROLE a11oy_memory_worker
+            SUPERUSER CREATEDB CREATEROLE LOGIN REPLICATION BYPASSRLS;
+          GRANT CREATE ON SCHEMA public
+            TO a11oy_memory_app, a11oy_memory_worker;
+          GRANT DELETE, TRUNCATE, REFERENCES, TRIGGER
+            ON TABLE public.memory_records TO a11oy_memory_app;
+          GRANT SELECT ON TABLE public.memory_outbox TO a11oy_memory_worker;
+          GRANT SELECT ON TABLE public.memory_records TO PUBLIC;
+          GRANT EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer)
+            TO PUBLIC, a11oy_memory_app;
+          GRANT EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer)
+            TO a11oy_memory_stale_grantee WITH GRANT OPTION;
+          CREATE POLICY memory_records_stale_allow_all ON public.memory_records
+            USING (true) WITH CHECK (true);
+          ALTER TABLE public.memory_query_audit
+            DROP CONSTRAINT memory_query_audit_tenant_domain_receipt_fkey;
+          ALTER TABLE public.memory_idempotency
+            DROP CONSTRAINT memory_idempotency_tenant_domain_receipt_fkey;
+          ALTER TABLE public.memory_receipts
+            DROP CONSTRAINT memory_receipts_tenant_domain_receipt_key;
+          ALTER TABLE public.memory_query_audit
+            ADD CONSTRAINT memory_query_audit_receipt_id_fkey
+            FOREIGN KEY (receipt_id) REFERENCES public.memory_receipts(receipt_id)
+            ON DELETE RESTRICT;
+          ALTER TABLE public.memory_idempotency
+            ADD CONSTRAINT memory_idempotency_receipt_id_fkey
+            FOREIGN KEY (receipt_id) REFERENCES public.memory_receipts(receipt_id)
+            ON DELETE RESTRICT;
+          INSERT INTO public.memory_receipts (
+              receipt_id,
+              tenant_id,
+              security_domain,
+              namespace,
+              seq,
+              prev_digest,
+              digest,
+              mode,
+              operation,
+              decision,
+              request_digest,
+              receipt_json
+          ) VALUES (
+              'legacy-cross-domain-receipt',
+              'legacy-tenant',
+              'legacy-domain-a',
+              'legacy-tenant:legacy-domain-a',
+              9223372036854770001,
+              repeat('0', 64),
+              repeat('4', 64),
+              'UNSIGNED-CONTENT-DIGEST',
+              'legacy-preflight',
+              'DENY',
+              repeat('5', 64),
+              jsonb_build_object(
+                  'receipt_id', 'legacy-cross-domain-receipt',
+                  'integrity', jsonb_build_object('digest', repeat('4', 64))
+              )
+          );
+          INSERT INTO public.memory_query_audit (
+              audit_id,
+              tenant_id,
+              security_domain,
+              receipt_id,
+              query_digest,
+              result_digest,
+              audit_json
+          ) VALUES (
+              'legacy-cross-domain-audit',
+              'legacy-tenant',
+              'legacy-domain-b',
+              'legacy-cross-domain-receipt',
+              repeat('6', 64),
+              repeat('7', 64),
+              jsonb_build_object(
+                  'audit_id', 'legacy-cross-domain-audit',
+                  'query_digest', repeat('6', 64),
+                  'result_digest', repeat('7', 64)
+              )
+          );
+          SQL
+
+          echo '=== prove cross-domain preflight fails closed ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          set +e
+          docker exec -i \
+            -e PGPASSWORD=postgres \
+            -e PGOPTIONS='-c search_path=memory_attacker,public' \
+            "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < migrations/20260820_memory_covenant_v2_postmerge_hardening.sql \
+            > evidence/memory-covenant-v2/cross-domain-preflight.log 2>&1
+          preflight_status=$?
+          set -e
+          test "$preflight_status" -ne 0
+          grep -F 'memory_query_audit contains a cross-domain receipt reference' \
+            evidence/memory-covenant-v2/cross-domain-preflight.log
+
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c 'TRUNCATE TABLE public.memory_query_audit, public.memory_idempotency, public.memory_receipts CASCADE'
+
+          echo '=== forward corrective migration ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          apply_migration migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+
+          echo '=== full second pass ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          for migration in \
+            migrations/20260811_memory_covenant_v2.sql \
+            migrations/20260811_memory_covenant_v2_security_hardening.sql \
+            migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+          do
+            apply_migration "$migration"
           done
 
       - name: Capture exact catalog evidence
@@ -145,7 +275,8 @@ jobs:
                    WHERE n.nspname = 'public' AND c.relname LIKE 'memory_%' AND c.relkind = 'r'
                    GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity
                 ), roles AS (
-                  SELECT rolname, rolsuper, rolinherit, rolbypassrls, rolcanlogin
+                  SELECT rolname, rolsuper, rolcreatedb, rolcreaterole,
+                         rolreplication, rolinherit, rolbypassrls, rolcanlogin
                     FROM pg_roles
                    WHERE rolname IN ('a11oy_memory_app','a11oy_memory_worker')
                 )
