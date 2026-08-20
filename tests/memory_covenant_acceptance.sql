@@ -177,7 +177,8 @@ BEGIN
                'memory_receipts',
                'memory_query_audit',
                'memory_index_generations',
-               'memory_idempotency'
+               'memory_idempotency',
+               'memory_context_bindings'
            )
            AND NOT c.relrowsecurity
     ) THEN
@@ -210,6 +211,16 @@ BEGIN
     ) THEN
         RAISE EXCEPTION 'memory_outbox must remain NO FORCE RLS for bounded definer leasing';
     END IF;
+
+    IF (
+        SELECT c.relforcerowsecurity
+          FROM pg_class AS c
+          JOIN pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public'
+           AND c.relname = 'memory_context_bindings'
+    ) THEN
+        RAISE EXCEPTION 'memory_context_bindings must remain NO FORCE RLS for owner-unfiltered provenance checks';
+    END IF;
 END;
 $$;
 
@@ -235,6 +246,13 @@ BEGIN
             OR min(p.polname) <> c.relname || '_isolation'
     ) THEN
         RAISE EXCEPTION 'Every Memory Covenant table must have exactly its single isolation policy';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_policy AS p
+         WHERE p.polrelid = 'public.memory_context_bindings'::regclass
+    ) THEN
+        RAISE EXCEPTION 'memory_context_bindings retained a stale RLS policy';
     END IF;
 END;
 $$;

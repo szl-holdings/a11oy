@@ -165,6 +165,13 @@ CREATE TABLE IF NOT EXISTS public.memory_context_bindings (
     PRIMARY KEY (principal_oid, tenant_id, security_domain)
 );
 
+-- Inspect physical binding rows independently of any stale RLS policy. Owner
+-- convergence plus NO FORCE makes the migration principal's scan unfiltered;
+-- both ALTERs roll back if the fail-closed preflight rejects a nonempty table.
+ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_context_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_context_bindings NO FORCE ROW LEVEL SECURITY;
+
 -- This schema has no durable, row-level record of which principal inserted a
 -- binding. Current owners, ACLs, and helper source cannot prove historical
 -- write provenance: a temporary INSERT grant may already have been revoked.
@@ -190,7 +197,6 @@ ALTER TABLE public.memory_receipts OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_query_audit OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_index_generations OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_idempotency OWNER TO CURRENT_USER;
-ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;
 
 CREATE INDEX IF NOT EXISTS memory_records_searchable_idx
   ON public.memory_records (tenant_id, security_domain, active_index_generation, memory_id)
@@ -283,8 +289,9 @@ ALTER TABLE public.memory_index_generations FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.memory_idempotency ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.memory_idempotency FORCE ROW LEVEL SECURITY;
 
--- PostgreSQL OR-combines permissive policies. Remove every pre-existing policy
--- before installing the single tenant/domain policy required on each table.
+-- PostgreSQL OR-combines permissive policies. Remove every pre-existing policy,
+-- including stale filters on the owner-only binding table, before installing
+-- the single tenant/domain policy required on each application table.
 DO $$
 DECLARE
     policy_row record;
@@ -302,7 +309,8 @@ BEGIN
                'memory_receipts',
                'memory_query_audit',
                'memory_index_generations',
-               'memory_idempotency'
+               'memory_idempotency',
+               'memory_context_bindings'
            )
     LOOP
         EXECUTE format(
