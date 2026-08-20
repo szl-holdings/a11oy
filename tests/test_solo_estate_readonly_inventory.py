@@ -318,6 +318,35 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             )
         self.assertFalse(observed_weak["required_workflows"])
 
+        unrelated_weak_rule = {
+            **rules[-1],
+            "parameters": {
+                "do_not_enforce_on_create": True,
+                "workflows": [
+                    {
+                        "repository_id": required_workflows[0]["repository_id"],
+                        "path": ".github/workflows/unrelated.yml",
+                    }
+                ],
+            },
+        }
+        with mock.patch.object(
+            self.module,
+            "github_pages",
+            return_value=[*rules, unrelated_weak_rule],
+        ):
+            observed_with_unrelated_weak_rule = (
+                self.module.audit_effective_branch_rules(
+                    "szl-holdings/a11oy", "main", "token", required_workflows
+                )
+            )
+        self.assertTrue(observed_with_unrelated_weak_rule["required_workflows"])
+        self.assertTrue(
+            observed_with_unrelated_weak_rule[
+                "workflow_rules_enforce_on_create"
+            ]
+        )
+
     def test_security_permission_denial_is_terminal(self):
         denial = self.module.ApiFailure("github", 403, "/security")
         with (
@@ -790,7 +819,13 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 ],
             },
         }
-        self.assertFalse(self.module.provider_readbacks_complete(report))
+        for incomplete_kind in (
+            "CARD_READBACK_UNAVAILABLE",
+            "COLLECTION_ID_MISSING",
+        ):
+            with self.subTest(incomplete_kind=incomplete_kind):
+                report["huggingface"]["findings"][0]["kind"] = incomplete_kind
+                self.assertFalse(self.module.provider_readbacks_complete(report))
 
     def test_main_writes_local_digest_bound_report_only(self):
         revision = "d" * 40
