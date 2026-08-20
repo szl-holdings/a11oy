@@ -1,9 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 """FastAPI delivery for ORO.
 
-The standalone app is runnable as ``python -m uvicorn oro.api:app``. The
-``mount_oro`` function lets the canonical A11oy server mount these exact routes
-before its SPA catch-all in the final integration slice.
+The standalone app is runnable as ``python -m uvicorn oro.api:create_app --factory``. The
+``mount_oro`` function mounts these exact routes in the canonical A11oy server
+before its API proxy and SPA catch-all.
 """
 
 import json
@@ -11,9 +11,15 @@ import os
 from pathlib import Path
 from typing import Any, Mapping
 
-from fastapi import APIRouter, FastAPI, Request
+from fastapi import APIRouter, FastAPI, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
+from .auth import (
+    BearerTokenAuthorizer,
+    OROAuthorizationError,
+    OROAuthorizerUnavailable,
+    authorizer_from_environment,
+)
 from .core import OROContractError, OROSignerUnavailable, OROStateError
 from .dashboard import render_dashboard
 from .service import OROService, baseline_codex, role_cells
@@ -24,15 +30,25 @@ BODY_LIMIT = 256 * 1024
 API_SCHEMA = "szl.oro-api/v1"
 
 
+class ORORuntimeUnavailable(OROStateError):
+    """A required ORO runtime dependency is unavailable."""
+
+
 class ORORuntime:
     def __init__(self) -> None:
         environment = os.environ.get("SZL_ORO_ENV", "development").strip().lower()
-        self.production = environment in {"production", "prod"}
+        self.production = environment not in {"development", "test"}
         self.environment = environment
         self.store: OROStore | None = None
         self.service: OROService | None = None
+        self.authorizer: BearerTokenAuthorizer | None = None
         self.error: Exception | None = None
         try:
+            if environment not in {"development", "test", "production", "prod"}:
+                raise OROContractError("unsupported SZL_ORO_ENV value")
+            self.authorizer = authorizer_from_environment(production=self.production)
+            if self.production and self.authorizer is None:
+                raise OROAuthorizerUnavailable("managed write authorizer is unavailable")
             configured_path = os.environ.get("SZL_ORO_DB_PATH", "").strip()
             if self.production and not configured_path:
                 raise OROStateError("production requires SZL_ORO_DB_PATH")
@@ -58,6 +74,7 @@ class ORORuntime:
             "state": "RUNNING",
             "environment": self.environment,
             "service_initialized": self.service is not None,
+            "write_authorizer_initialized": self.authorizer is not None,
             "error_class": type(self.error).__name__ if self.error is not None else None,
         }
 
@@ -69,21 +86,36 @@ class ORORuntime:
                 "state": "UNAVAILABLE",
                 "production": self.production,
                 "error_class": type(self.error).__name__ if self.error is not None else "Unavailable",
-                "reason": str(self.error) if self.error is not None else "ORO service is unavailable",
+                "reason": "required ORO runtime dependency is unavailable",
                 "secret_value_exposed": False,
+                "write_authorizer": (
+                    dict(self.authorizer.identity)
+                    if self.authorizer is not None
+                    else {"state": "UNAVAILABLE"}
+                ),
             }
             if self.store is not None:
                 body["storage"] = self.store.integrity()
             return 503, body
         body = {"schema": API_SCHEMA, **self.service.readiness()}
+        body["write_authorizer"] = (
+            dict(self.authorizer.identity)
+            if self.authorizer is not None
+            else {"state": "UNAVAILABLE"}
+        )
+        body["ready"] = bool(body["ready"] and self.authorizer is not None)
+        body["state"] = "READY" if body["ready"] else "UNAVAILABLE"
         return (200 if body["ready"] else 503), body
 
     def require_service(self) -> OROService:
         if self.service is None:
-            raise OROSignerUnavailable(
-                str(self.error) if self.error is not None else "ORO service is unavailable"
-            )
+            raise ORORuntimeUnavailable("required ORO runtime dependency is unavailable")
         return self.service
+
+    def authorize_write(self, request: Request) -> str:
+        if self.authorizer is None:
+            raise OROAuthorizerUnavailable("managed write authorizer is unavailable")
+        return self.authorizer.authorize(request)
 
 
 async def _read_json(request: Request) -> Mapping[str, Any]:
@@ -125,7 +157,13 @@ async def _read_json(request: Request) -> Mapping[str, Any]:
     return payload
 
 
-def _error(status: int, code: str, message: str) -> JSONResponse:
+def _error(
+    status: int,
+    code: str,
+    message: str,
+    *,
+    headers: Mapping[str, str] | None = None,
+) -> JSONResponse:
     return JSONResponse(
         {
             "schema": API_SCHEMA,
@@ -134,6 +172,7 @@ def _error(status: int, code: str, message: str) -> JSONResponse:
             "secret_value_exposed": False,
         },
         status_code=status,
+        headers=dict(headers or {}),
     )
 
 
@@ -202,12 +241,13 @@ def build_router(runtime: ORORuntime, *, namespace: str = "a11oy") -> APIRouter:
 
     @router.post(f"{api}/plans", status_code=201)
     async def create_plan(request: Request) -> JSONResponse:
+        runtime.authorize_write(request)
         payload = await _read_json(request)
         plan = runtime.require_service().create_plan(payload)
         return JSONResponse({"schema": API_SCHEMA, "accepted": True, "plan": plan}, status_code=201)
 
     @router.get(f"{api}/plans")
-    async def list_plans(limit: int = 100) -> JSONResponse:
+    async def list_plans(limit: int = Query(100, ge=1, le=500)) -> JSONResponse:
         items = runtime.require_service().store.list_plans(limit=limit)
         return JSONResponse({"schema": API_SCHEMA, "count": len(items), "items": items})
 
@@ -220,12 +260,16 @@ def build_router(runtime: ORORuntime, *, namespace: str = "a11oy") -> APIRouter:
 
     @router.post(f"{api}/plans/{{plan_id}}/execute")
     async def execute_plan(plan_id: str, request: Request) -> JSONResponse:
+        runtime.authorize_write(request)
         payload = await _read_json(request)
         result = runtime.require_service().execute_plan(plan_id, payload)
         return JSONResponse({"schema": API_SCHEMA, "accepted": True, **result})
 
     @router.get(f"{api}/orbits")
-    async def list_orbits(plan_id: str | None = None, limit: int = 100) -> JSONResponse:
+    async def list_orbits(
+        plan_id: str | None = None,
+        limit: int = Query(100, ge=1, le=500),
+    ) -> JSONResponse:
         items = runtime.require_service().store.list_orbits(plan_id=plan_id, limit=limit)
         return JSONResponse({"schema": API_SCHEMA, "count": len(items), "items": items})
 
@@ -246,7 +290,10 @@ def build_router(runtime: ORORuntime, *, namespace: str = "a11oy") -> APIRouter:
         )
 
     @router.get(f"{api}/orbits/{{orbit_id}}/barriers")
-    async def list_barriers(orbit_id: str, limit: int = 200) -> JSONResponse:
+    async def list_barriers(
+        orbit_id: str,
+        limit: int = Query(200, ge=1, le=1000),
+    ) -> JSONResponse:
         items = runtime.require_service().store.list_barriers(orbit_id, limit=limit)
         return JSONResponse({"schema": API_SCHEMA, "count": len(items), "items": items})
 
@@ -259,22 +306,24 @@ def build_router(runtime: ORORuntime, *, namespace: str = "a11oy") -> APIRouter:
 
     @router.post(f"{api}/barriers/{{barrier_id}}/approvals")
     async def approve_barrier(barrier_id: str, request: Request) -> JSONResponse:
+        approver = runtime.authorize_write(request)
         payload = await _read_json(request)
-        if set(payload) != {"approver", "approval"}:
-            raise OROContractError("approval body requires exactly approver and approval")
-        if not isinstance(payload["approver"], str) or not payload["approver"].strip():
-            raise OROContractError("approver must be a non-empty string")
+        if set(payload) != {"approval"}:
+            raise OROContractError("approval body requires exactly approval")
         if not isinstance(payload["approval"], Mapping):
             raise OROContractError("approval must be an object")
         result = runtime.require_service().store.approve(
             barrier_id=barrier_id,
-            approver=payload["approver"].strip(),
+            approver=approver,
             approval=payload["approval"],
         )
         return JSONResponse({"schema": API_SCHEMA, "accepted": True, "approval": result})
 
     @router.get(f"{api}/negative-results")
-    async def negative_results(orbit_id: str | None = None, limit: int = 200) -> JSONResponse:
+    async def negative_results(
+        orbit_id: str | None = None,
+        limit: int = Query(200, ge=1, le=1000),
+    ) -> JSONResponse:
         items = runtime.require_service().store.list_negative_results(
             orbit_id=orbit_id,
             limit=limit,
@@ -282,17 +331,69 @@ def build_router(runtime: ORORuntime, *, namespace: str = "a11oy") -> APIRouter:
         return JSONResponse({"schema": API_SCHEMA, "count": len(items), "items": items})
 
     @router.get(f"{api}/orbits/{{orbit_id}}/certificates")
-    async def certificates(orbit_id: str, limit: int = 200) -> JSONResponse:
+    async def certificates(
+        orbit_id: str,
+        limit: int = Query(200, ge=1, le=1000),
+    ) -> JSONResponse:
         items = runtime.require_service().store.list_certificates(orbit_id, limit=limit)
         return JSONResponse({"schema": API_SCHEMA, "count": len(items), "items": items})
 
     return router
 
 
-def mount_oro(app: FastAPI, *, namespace: str = "a11oy", runtime: ORORuntime | None = None) -> ORORuntime:
+def _install_handlers(application: FastAPI) -> None:
+    @application.exception_handler(OROAuthorizationError)
+    async def authorization_error(
+        _request: Request, exc: OROAuthorizationError
+    ) -> JSONResponse:
+        return _error(
+            401,
+            "authorization_failed",
+            str(exc),
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    @application.exception_handler(OROAuthorizerUnavailable)
+    async def authorizer_error(
+        _request: Request, _exc: OROAuthorizerUnavailable
+    ) -> JSONResponse:
+        return _error(503, "authorizer_unavailable", "managed write authorizer is unavailable")
+
+    @application.exception_handler(ORORuntimeUnavailable)
+    async def runtime_error(
+        _request: Request, _exc: ORORuntimeUnavailable
+    ) -> JSONResponse:
+        return _error(503, "runtime_unavailable", "required ORO runtime dependency is unavailable")
+
+    @application.exception_handler(OROContractError)
+    async def contract_error(_request: Request, exc: OROContractError) -> JSONResponse:
+        return _error(422, "contract_violation", str(exc))
+
+    @application.exception_handler(OROSignerUnavailable)
+    async def signer_error(
+        _request: Request, _exc: OROSignerUnavailable
+    ) -> JSONResponse:
+        return _error(503, "signer_unavailable", "managed signer is unavailable")
+
+    @application.exception_handler(OROStateError)
+    async def state_error(_request: Request, exc: OROStateError) -> JSONResponse:
+        return _error(409, "state_conflict", str(exc))
+
+
+def mount_oro(
+    application: FastAPI,
+    *,
+    namespace: str = "a11oy",
+    runtime: ORORuntime | None = None,
+) -> ORORuntime:
     selected = runtime or ORORuntime()
-    app.include_router(build_router(selected, namespace=namespace))
-    app.state.oro_runtime = selected
+    application.include_router(build_router(selected, namespace=namespace))
+    application.state.oro_runtime = selected
+    _install_handlers(application)
+    # FastAPI 0.139 removed the application-level add_event_handler shim while
+    # retaining Starlette's router-owned lifecycle callback list.
+    application.router.on_shutdown.append(selected.close)
+
     return selected
 
 
@@ -304,29 +405,10 @@ def create_app() -> FastAPI:
         redoc_url=None,
         openapi_url="/api/a11oy/v1/oro/openapi.json",
     )
-    runtime = mount_oro(application)
+    mount_oro(application)
 
     @application.get("/", include_in_schema=False)
     async def root() -> RedirectResponse:
         return RedirectResponse("/oro", status_code=307)
 
-    @application.exception_handler(OROContractError)
-    async def contract_error(_request: Request, exc: OROContractError) -> JSONResponse:
-        return _error(422, "contract_violation", str(exc))
-
-    @application.exception_handler(OROSignerUnavailable)
-    async def signer_error(_request: Request, exc: OROSignerUnavailable) -> JSONResponse:
-        return _error(503, "signer_unavailable", str(exc))
-
-    @application.exception_handler(OROStateError)
-    async def state_error(_request: Request, exc: OROStateError) -> JSONResponse:
-        return _error(409, "state_conflict", str(exc))
-
-    @application.on_event("shutdown")
-    async def close_runtime() -> None:
-        runtime.close()
-
     return application
-
-
-app = create_app()

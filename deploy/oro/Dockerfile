@@ -39,4 +39,4 @@ VOLUME ["/data"]
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD python -c "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:7860/api/a11oy/v1/oro/healthz',timeout=3)); assert d['alive'] is True"
 
-CMD ["python", "-m", "uvicorn", "oro.api:app", "--host", "0.0.0.0", "--port", "7860", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1"]
+CMD ["python", "-m", "uvicorn", "oro.api:create_app", "--factory", "--host", "0.0.0.0", "--port", "7860", "--workers", "1", "--proxy-headers", "--forwarded-allow-ips", "127.0.0.1"]

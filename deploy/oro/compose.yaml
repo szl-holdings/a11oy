@@ -26,11 +26,18 @@ services:
         uid: "10001"
         gid: "10001"
         mode: 0400
+      - source: oro_api_token
+        target: oro_api_token
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
     environment:
       SZL_ORO_ENV: production
       SZL_ORO_DB_PATH: /data/oro.sqlite
       SZL_ORO_SIGNING_KEY_PATH: /run/secrets/oro_ed25519
       SZL_ORO_SIGNING_KEY_ID: ${SZL_ORO_SIGNING_KEY_ID:?set governed signer key ID}
+      SZL_ORO_API_TOKEN_PATH: /run/secrets/oro_api_token
+      SZL_ORO_API_TOKEN_ID: ${SZL_ORO_API_TOKEN_ID:?set governed operator ID}
     ports:
       - "127.0.0.1:${ORO_PORT:-8877}:7860"
     healthcheck:
@@ -49,4 +56,6 @@ volumes:
 
 secrets:
   oro_ed25519:
-    file: ${ORO_SIGNING_KEY_FILE:?set an absolute host path to a mode-0600 Ed25519 PEM}
+    file: ${ORO_SIGNING_KEY_FILE:?set an absolute mode-0600 Ed25519 PEM owned by UID 10001}
+  oro_api_token:
+    file: ${ORO_API_TOKEN_FILE:?set an absolute mode-0600 API token owned by UID 10001}

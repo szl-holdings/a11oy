@@ -11498,6 +11498,22 @@ async def a11oy_genome() -> JSONResponse:
     })
 
 
+# ORO's governed control-plane routes must be registered before both the generic
+# A11oy API proxy and the SPA fallback. The package contains its own readiness
+# contract and remains fail-closed when durable storage, signing, or write
+# authorization is unavailable.
+try:
+    from oro.api import mount_oro as _mount_oro
+
+    _mount_oro(app)
+except Exception as _oro_mount_error:  # pragma: no cover - optional surface degradation
+    print(
+        f"[a11oy] ORO control plane NOT registered: {_oro_mount_error!r}; "
+        "SPA + existing API unaffected",
+        file=__import__("sys").stderr,
+    )
+
+
 @app.api_route("/api/a11oy/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "OPTIONS"])
 async def api_proxy(request: Request, path: str) -> Response:
     # DEV2: in-toto verify guide + inclusion proof — served in-process, NOT proxied

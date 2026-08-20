@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import asdict
+from pathlib import Path
 from typing import Any, Callable, Mapping, Sequence
 
 from .core import (
@@ -34,6 +35,15 @@ FULL_SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
+def _bounded_text(name: str, value: Any, *, maximum: int) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise OROContractError(f"{name} must be a non-empty string")
+    normalized = value.strip()
+    if len(normalized) > maximum:
+        raise OROContractError(f"{name} is too long")
+    return normalized
+
+
 def _binding(
     invariant_id: str,
     evaluator: Callable[[Mapping[str, Any]], tuple[bool, str]],
@@ -42,13 +52,12 @@ def _binding(
     golden_vectors: Sequence[Mapping[str, Any]],
 ) -> RegisteredInvariant:
     version = "1.0.0"
+    implementation_source = Path(__file__).read_bytes()
     binding = InvariantBinding(
         invariant_id=invariant_id,
         version=version,
         source_blob_digest=digest_bytes(source_contract.encode("utf-8")),
-        implementation_digest=digest_bytes(
-            f"oro/service.py:{invariant_id}:{version}:{evaluator.__name__}".encode("utf-8")
-        ),
+        implementation_digest=digest_bytes(implementation_source),
         input_schema="szl.oro.merged-participant-payload/v1",
         golden_vectors_digest=digest_bytes(canonical_json(list(golden_vectors))),
         blocking=True,
@@ -174,6 +183,10 @@ def _utc_boundaries(merged: Mapping[str, Any]) -> tuple[bool, str]:
 
 
 def _scoped_authorization(merged: Mapping[str, Any]) -> tuple[bool, str]:
+    try:
+        evaluated_at = parse_utc(merged["evaluated_at"])
+    except (KeyError, OROContractError):
+        return False, "governed barrier evaluation time is missing or malformed"
     for payload in _participant_payloads(merged):
         authorization = payload.get("authorization")
         if not isinstance(authorization, Mapping):
@@ -182,9 +195,11 @@ def _scoped_authorization(merged: Mapping[str, Any]) -> tuple[bool, str]:
             if not isinstance(authorization.get(key), str) or not authorization[key]:
                 return False, f"authorization {key} is missing"
         try:
-            parse_utc(authorization["expires_at"])
+            expires_at = parse_utc(authorization["expires_at"])
         except OROContractError:
             return False, "authorization expiry is not UTC"
+        if expires_at <= evaluated_at:
+            return False, "authorization grant expired before barrier evaluation"
         if not SHA256_RE.fullmatch(authorization["grant_digest"]):
             return False, "authorization grant is not sha256-bound"
     return True, "every participant carries a scoped, expiring authorization grant"
@@ -426,38 +441,43 @@ class OROService:
             raise OROContractError(f"unknown plan fields: {sorted(extra)}")
         if missing:
             raise OROContractError(f"missing plan fields: {sorted(missing)}")
-        plan_id = str(raw["plan_id"]).strip()
-        if not plan_id or len(plan_id) > 256:
-            raise OROContractError("plan_id is missing or too long")
-        orbit_kind = str(raw["orbit_kind"]).lower()
+        plan_id = _bounded_text("plan_id", raw["plan_id"], maximum=256)
+        orbit_kind = _bounded_text("orbit_kind", raw["orbit_kind"], maximum=32).lower()
         if orbit_kind not in ORBIT_KINDS:
             raise OROContractError("unsupported orbit_kind")
-        objective = str(raw["objective"]).strip()
-        if not objective or len(objective) > 4096:
-            raise OROContractError("objective is missing or too long")
+        objective = _bounded_text("objective", raw["objective"], maximum=4096)
         rank = Rank.parse(raw["rank"])
         participants = raw["expected_participants"]
         if not isinstance(participants, list) or not participants:
             raise OROContractError("expected_participants must be a non-empty array")
-        if not all(isinstance(value, str) and value.strip() for value in participants):
-            raise OROContractError("participant IDs must be non-empty strings")
-        participants = sorted(value.strip() for value in participants)
+        participants = sorted(
+            _bounded_text("participant ID", value, maximum=512) for value in participants
+        )
         if len(participants) != len(set(participants)):
             raise OROContractError("participant IDs must be unique")
         codex = CodexManifest.parse(raw["codex"])
         if codex != self.codex:
             raise OROContractError("plan Codex does not match the admitted local predicate binding")
-        candidate_author = str(raw["candidate_author"]).strip()
-        evaluator_author = str(raw["evaluator_author"]).strip()
-        if not candidate_author or not evaluator_author or candidate_author == evaluator_author:
-            raise OROContractError("candidate and evaluator authors must be non-empty and independent")
+        candidate_author = _bounded_text(
+            "candidate_author", raw["candidate_author"], maximum=512
+        )
+        evaluator_author = _bounded_text(
+            "evaluator_author", raw["evaluator_author"], maximum=512
+        )
+        if candidate_author == evaluator_author:
+            raise OROContractError("candidate and evaluator authors must be independent")
         parse_utc(raw["created_at"])
-        source_revision = str(raw["source_revision"]).lower()
+        source_revision = _bounded_text(
+            "source_revision", raw["source_revision"], maximum=40
+        ).lower()
         if not FULL_SHA_RE.fullmatch(source_revision):
             raise OROContractError("source_revision must be a lowercase full Git SHA")
         effectors = raw.get("requested_effectors", [])
-        if not isinstance(effectors, list) or not all(isinstance(value, str) for value in effectors):
+        if not isinstance(effectors, list):
             raise OROContractError("requested_effectors must be a string array")
+        effectors = [
+            _bounded_text("requested effector", value, maximum=512) for value in effectors
+        ]
         if any(value.lower() in {"release", "merge", "deploy-production", "direct-main"} for value in effectors):
             raise OROContractError("an ORO plan cannot create a release or bypass protected delivery")
         if orbit_kind == "discovery" and effectors:
@@ -501,15 +521,27 @@ class OROService:
             raise OROContractError(f"unknown execution fields: {sorted(extra)}")
         if missing:
             raise OROContractError(f"missing execution fields: {sorted(missing)}")
-        orbit_id = str(raw["orbit_id"]).strip()
-        barrier_id = str(raw["barrier_id"]).strip()
-        if not orbit_id or not barrier_id:
-            raise OROContractError("orbit_id and barrier_id are required")
+        orbit_id = _bounded_text("orbit_id", raw["orbit_id"], maximum=512)
+        barrier_id = _bounded_text("barrier_id", raw["barrier_id"], maximum=512)
         generation = raw["generation"]
         if isinstance(generation, bool) or not isinstance(generation, int) or generation < 0:
             raise OROContractError("generation must be a non-negative integer")
         parse_utc(raw["expires_at"])
-        rank_before = Rank.parse(body["rank"])
+        if plan["status"] in {"COMPLETE", "REFUSED"}:
+            raise OROStateError("plan is terminal and cannot execute another barrier")
+        durable_orbit = self.store.get_orbit(orbit_id)
+        if durable_orbit is None:
+            if generation != 0:
+                raise OROStateError("new orbit must begin at generation zero")
+            rank_before = Rank.parse(body["rank"])
+        else:
+            if durable_orbit["plan_id"] != plan_id:
+                raise OROStateError("orbit is bound to a different plan")
+            if durable_orbit["status"] != "RUNNING":
+                raise OROStateError("orbit is terminal and cannot execute another barrier")
+            if int(durable_orbit["generation"]) != generation:
+                raise OROStateError("execution generation does not match durable orbit generation")
+            rank_before = Rank.parse(durable_orbit["current_rank"])
         rank_after = Rank.parse(raw["rank_after"])
         if not isinstance(raw["objective_converged"], bool):
             raise OROContractError("objective_converged must be boolean")
@@ -536,7 +568,12 @@ class OROService:
                 raise OROContractError("each child must contain exactly child_id and rank")
             allocation_receipt = allocate_rank(rank_before, parsed_children)
 
-        self.store.create_orbit(orbit_id=orbit_id, plan_id=plan_id, generation=generation)
+        self.store.create_orbit(
+            orbit_id=orbit_id,
+            plan_id=plan_id,
+            generation=generation,
+            rank=rank_before,
+        )
         intent_body = {
             "schema": "szl.oro-intent-certificate/v1",
             "plan_id": plan_id,
@@ -548,7 +585,7 @@ class OROService:
             "release_authority": "ABSENT",
         }
         self.store.create_certificate(
-            certificate_id=f"intent:{orbit_id}",
+            certificate_id=f"intent:{orbit_id}:{generation}",
             orbit_id=orbit_id,
             kind="intent",
             body=intent_body,

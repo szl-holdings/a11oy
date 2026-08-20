@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Strict SQLite evidence store for ORO v1."""
+"""Strict SQLite evidence store for ORO v2."""
 from __future__ import annotations
 
 import json
@@ -13,12 +13,13 @@ from .core import (
     BarrierDecision,
     OROContractError,
     OROStateError,
+    Rank,
     canonical_json,
     receipt_digest,
     utc_now,
 )
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 class OROStore:
@@ -80,9 +81,12 @@ class OROStore:
     def _migrate(self) -> None:
         with self._lock:
             version = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
-            if version not in (0, SCHEMA_VERSION):
+            if version not in (0, 1, SCHEMA_VERSION):
                 raise OROStateError(f"unsupported ORO schema version: {version}")
             if version == SCHEMA_VERSION:
+                return
+            if version == 1:
+                self._migrate_v1_to_v2()
                 return
             try:
                 self.connection.executescript(
@@ -109,7 +113,8 @@ class OROStore:
                         orbit_id TEXT PRIMARY KEY,
                         plan_id TEXT NOT NULL REFERENCES plans(plan_id),
                         generation INTEGER NOT NULL CHECK(generation >= 0),
-                        status TEXT NOT NULL CHECK(status IN ('RUNNING','CONTINUE','COMPLETE','REFUSED')),
+                        current_rank_json TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(status IN ('RUNNING','COMPLETE','REFUSED')),
                         created_at TEXT NOT NULL,
                         updated_at TEXT NOT NULL
                     ) STRICT;
@@ -203,8 +208,8 @@ class OROStore:
                         body_json TEXT NOT NULL,
                         created_at TEXT NOT NULL
                     ) STRICT;
-                    INSERT INTO metadata(key, value) VALUES ('schema', 'szl.oro.sqlite/v1');
-                    PRAGMA user_version=1;
+                    INSERT INTO metadata(key, value) VALUES ('schema', 'szl.oro.sqlite/v2');
+                    PRAGMA user_version=2;
                     COMMIT;
                     """
                 )
@@ -214,6 +219,102 @@ class OROStore:
                 except sqlite3.Error:
                     pass
                 raise OROStateError("ORO database migration failed") from exc
+
+    def _migrate_v1_to_v2(self) -> None:
+        """Advance an existing v1 ledger without discarding durable evidence."""
+
+        try:
+            self.connection.execute("BEGIN IMMEDIATE")
+            columns = {
+                str(row["name"])
+                for row in self.connection.execute("PRAGMA table_info(orbit_runs)").fetchall()
+            }
+            if "current_rank_json" not in columns:
+                self.connection.execute(
+                    "ALTER TABLE orbit_runs ADD COLUMN current_rank_json TEXT"
+                )
+            orbits = self.connection.execute(
+                "SELECT orbit_id, plan_id, generation, status FROM orbit_runs"
+            ).fetchall()
+            for orbit in orbits:
+                latest = self.connection.execute(
+                    """SELECT generation, decision, rank_after_json
+                       FROM barriers
+                       WHERE orbit_id=?
+                       ORDER BY generation DESC, created_at DESC, barrier_id DESC
+                       LIMIT 1""",
+                    (orbit["orbit_id"],),
+                ).fetchone()
+                if latest is None:
+                    plan = self.connection.execute(
+                        "SELECT body_json FROM plans WHERE plan_id=?",
+                        (orbit["plan_id"],),
+                    ).fetchone()
+                    if plan is None:
+                        raise OROStateError("v1 orbit references a missing plan")
+                    rank = Rank.parse(json.loads(plan["body_json"])["rank"])
+                    generation = int(orbit["generation"])
+                    status = "RUNNING" if orbit["status"] == "CONTINUE" else orbit["status"]
+                else:
+                    rank = Rank.parse(json.loads(latest["rank_after_json"]))
+                    generation = int(latest["generation"])
+                    if latest["decision"] == "CONTINUE":
+                        generation += 1
+                    status = {
+                        "CONTINUE": "RUNNING",
+                        "COMPLETE": "COMPLETE",
+                        "REFUSE": "REFUSED",
+                    }[latest["decision"]]
+                if status not in {"RUNNING", "COMPLETE", "REFUSED"}:
+                    raise OROStateError("v1 orbit has an invalid durable status")
+                self.connection.execute(
+                    """UPDATE orbit_runs
+                       SET generation=?, current_rank_json=?, status=?
+                       WHERE orbit_id=?""",
+                    (
+                        generation,
+                        canonical_json(rank.as_dict()).decode("utf-8"),
+                        status,
+                        orbit["orbit_id"],
+                    ),
+                )
+            self.connection.execute(
+                """
+                CREATE TRIGGER orbit_runs_v2_insert_guard
+                BEFORE INSERT ON orbit_runs
+                WHEN NEW.current_rank_json IS NULL
+                  OR NEW.status NOT IN ('RUNNING','COMPLETE','REFUSED')
+                BEGIN
+                    SELECT RAISE(ABORT, 'invalid v2 orbit frontier');
+                END
+                """
+            )
+            self.connection.execute(
+                """
+                CREATE TRIGGER orbit_runs_v2_update_guard
+                BEFORE UPDATE ON orbit_runs
+                WHEN NEW.current_rank_json IS NULL
+                  OR NEW.status NOT IN ('RUNNING','COMPLETE','REFUSED')
+                BEGIN
+                    SELECT RAISE(ABORT, 'invalid v2 orbit frontier');
+                END
+                """
+            )
+            metadata_update = self.connection.execute(
+                "UPDATE metadata SET value='szl.oro.sqlite/v2' WHERE key='schema'"
+            )
+            if metadata_update.rowcount != 1:
+                raise OROStateError("v1 metadata schema marker is missing")
+            self.connection.execute("PRAGMA user_version=2")
+            self.connection.execute("COMMIT")
+        except (sqlite3.Error, OROContractError, OROStateError, KeyError, TypeError, ValueError) as exc:
+            try:
+                self.connection.execute("ROLLBACK")
+            except sqlite3.Error:
+                pass
+            if isinstance(exc, OROStateError):
+                raise
+            raise OROStateError("ORO v1-to-v2 migration failed") from exc
 
     @staticmethod
     def _decode(row: sqlite3.Row | None, *json_columns: str) -> dict[str, Any] | None:
@@ -232,13 +333,30 @@ class OROStore:
                 foreign = self.connection.execute("PRAGMA foreign_key_check").fetchall()
                 version = int(self.connection.execute("PRAGMA user_version").fetchone()[0])
                 journal = str(self.connection.execute("PRAGMA journal_mode").fetchone()[0]).lower()
+                schema_row = self.connection.execute(
+                    "SELECT value FROM metadata WHERE key='schema'"
+                ).fetchone()
+                schema = str(schema_row["value"]) if schema_row is not None else ""
+                invalid_frontiers = int(
+                    self.connection.execute(
+                        """SELECT COUNT(*) FROM orbit_runs
+                           WHERE current_rank_json IS NULL
+                              OR status NOT IN ('RUNNING','COMPLETE','REFUSED')"""
+                    ).fetchone()[0]
+                )
             except sqlite3.Error as exc:
                 return {
                     "ready": False,
                     "state": "UNAVAILABLE",
                     "error_class": type(exc).__name__,
                 }
-        ready = result == "ok" and not foreign and version == SCHEMA_VERSION
+        ready = (
+            result == "ok"
+            and not foreign
+            and version == SCHEMA_VERSION
+            and schema == "szl.oro.sqlite/v2"
+            and invalid_frontiers == 0
+        )
         if self.production:
             ready = ready and journal == "wal" and str(self.path) != ":memory:"
         return {
@@ -247,6 +365,8 @@ class OROStore:
             "integrity_check": result,
             "foreign_key_violations": len(foreign),
             "schema_version": version,
+            "schema": schema,
+            "invalid_frontiers": invalid_frontiers,
             "journal_mode": journal,
             "durable": str(self.path) != ":memory:",
             "path_exposed": False,
@@ -303,29 +423,54 @@ class OROStore:
             ).fetchall()
         return [self._decode(row, "body_json") or {} for row in rows]
 
-    def create_orbit(self, *, orbit_id: str, plan_id: str, generation: int) -> Mapping[str, Any]:
+    def create_orbit(
+        self,
+        *,
+        orbit_id: str,
+        plan_id: str,
+        generation: int,
+        rank: Rank,
+    ) -> Mapping[str, Any]:
         now = utc_now()
+        encoded_rank = canonical_json(rank.as_dict()).decode("utf-8")
         with self._lock:
             existing = self.connection.execute(
                 "SELECT * FROM orbit_runs WHERE orbit_id=?", (orbit_id,)
             ).fetchone()
             if existing is not None:
-                if existing["plan_id"] != plan_id or int(existing["generation"]) != generation:
-                    raise OROStateError("orbit ID already exists with different identity")
-                return dict(existing)
+                plan = self.connection.execute(
+                    "SELECT status FROM plans WHERE plan_id=?", (plan_id,)
+                ).fetchone()
+                if (
+                    existing["plan_id"] != plan_id
+                    or int(existing["generation"]) != generation
+                    or existing["current_rank_json"] != encoded_rank
+                    or existing["status"] != "RUNNING"
+                    or plan is None
+                    or plan["status"] != "RUNNING"
+                ):
+                    raise OROStateError("orbit ID already exists with a different durable frontier")
+                return self._decode(existing, "current_rank_json") or {}
             try:
                 self.connection.execute("BEGIN IMMEDIATE")
                 self.connection.execute(
-                    "INSERT INTO orbit_runs VALUES (?, ?, ?, 'RUNNING', ?, ?)",
-                    (orbit_id, plan_id, generation, now, now),
+                    """INSERT INTO orbit_runs
+                       (orbit_id, plan_id, generation, current_rank_json, status, created_at, updated_at)
+                    VALUES (?, ?, ?, ?, 'RUNNING', ?, ?)""",
+                    (orbit_id, plan_id, generation, encoded_rank, now, now),
                 )
-                self.connection.execute(
-                    "UPDATE plans SET status='RUNNING', updated_at=? WHERE plan_id=?",
+                plan_update = self.connection.execute(
+                    """UPDATE plans SET status='RUNNING', updated_at=?
+                       WHERE plan_id=? AND status IN ('ADMITTED','RUNNING')""",
                     (now, plan_id),
                 )
+                if plan_update.rowcount != 1:
+                    raise OROStateError("terminal plan cannot be reopened by a new orbit")
                 self.connection.execute("COMMIT")
-            except sqlite3.Error as exc:
+            except (sqlite3.Error, OROStateError) as exc:
                 self.connection.execute("ROLLBACK")
+                if isinstance(exc, OROStateError):
+                    raise
                 raise OROStateError("orbit persistence failed") from exc
         return self.get_orbit(orbit_id) or {}
 
@@ -334,7 +479,7 @@ class OROStore:
             row = self.connection.execute(
                 "SELECT * FROM orbit_runs WHERE orbit_id=?", (orbit_id,)
             ).fetchone()
-        return dict(row) if row else None
+        return self._decode(row, "current_rank_json")
 
     def list_orbits(self, *, plan_id: str | None = None, limit: int = 100) -> list[Mapping[str, Any]]:
         limit = max(1, min(int(limit), 500))
@@ -348,7 +493,7 @@ class OROStore:
                 rows = self.connection.execute(
                     "SELECT * FROM orbit_runs ORDER BY created_at DESC LIMIT ?", (limit,)
                 ).fetchall()
-        return [dict(row) for row in rows]
+        return [self._decode(row, "current_rank_json") or {} for row in rows]
 
     def seen_semantic_hash(self, orbit_id: str, digest: str) -> bool:
         with self._lock:
@@ -372,7 +517,15 @@ class OROStore:
         encoded_signer = canonical_json(signer_identity).decode("utf-8")
         digest = str(decision.receipt["receipt_digest"])
         now = utc_now()
-        status = "REFUSED" if decision.decision == "REFUSE" else decision.decision
+        status = {
+            "CONTINUE": "RUNNING",
+            "COMPLETE": "COMPLETE",
+            "REFUSE": "REFUSED",
+        }[decision.decision]
+        next_generation = (
+            decision.generation + 1 if decision.decision == "CONTINUE" else decision.generation
+        )
+        encoded_rank_after = canonical_json(decision.rank_after.as_dict()).decode("utf-8")
         with self._lock:
             existing = self.connection.execute(
                 "SELECT receipt_digest FROM barriers WHERE barrier_id=?",
@@ -456,21 +609,35 @@ class OROStore:
                         ),
                     )
                 self.connection.execute(
-                    "INSERT INTO semantic_hashes VALUES (?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO semantic_hashes VALUES (?, ?, ?, ?)",
                     (decision.orbit_id, decision.semantic_digest, decision.generation, now),
                 )
                 self.connection.execute(
                     "INSERT INTO receipts VALUES (?, ?, ?, ?, ?, ?)",
                     (digest, decision.barrier_id, encoded_body, encoded_envelope, encoded_signer, now),
                 )
-                self.connection.execute(
-                    "UPDATE orbit_runs SET status=?, updated_at=? WHERE orbit_id=?",
-                    (status, now, decision.orbit_id),
+                orbit_update = self.connection.execute(
+                    """UPDATE orbit_runs
+                       SET generation=?, current_rank_json=?, status=?, updated_at=?
+                       WHERE orbit_id=? AND generation=? AND status='RUNNING'""",
+                    (
+                        next_generation,
+                        encoded_rank_after,
+                        status,
+                        now,
+                        decision.orbit_id,
+                        decision.generation,
+                    ),
                 )
-                self.connection.execute(
-                    "UPDATE plans SET status=?, updated_at=? WHERE plan_id=?",
+                if orbit_update.rowcount != 1:
+                    raise OROStateError("barrier does not match the durable orbit frontier")
+                plan_update = self.connection.execute(
+                    """UPDATE plans SET status=?, updated_at=?
+                       WHERE plan_id=? AND status='RUNNING'""",
                     (status, now, plan_id),
                 )
+                if plan_update.rowcount != 1:
+                    raise OROStateError("barrier does not match the durable plan state")
                 self.connection.execute("COMMIT")
             except (sqlite3.Error, OROContractError, OROStateError) as exc:
                 self.connection.execute("ROLLBACK")

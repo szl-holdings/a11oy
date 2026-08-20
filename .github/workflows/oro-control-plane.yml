@@ -6,6 +6,10 @@ on:
       - "oro/**"
       - "schemas/oro/**"
       - "deploy/oro/**"
+      - "deploy/MANIFEST.json"
+      - "Dockerfile"
+      - "serve.py"
+      - "tests/test_demo_critical_routes.py"
       - "tests/test_oro_operational_v3.py"
       - ".github/workflows/oro-control-plane.yml"
   push:
@@ -14,6 +18,10 @@ on:
       - "oro/**"
       - "schemas/oro/**"
       - "deploy/oro/**"
+      - "deploy/MANIFEST.json"
+      - "Dockerfile"
+      - "serve.py"
+      - "tests/test_demo_critical_routes.py"
       - "tests/test_oro_operational_v3.py"
       - ".github/workflows/oro-control-plane.yml"
   workflow_dispatch:
@@ -51,6 +59,7 @@ jobs:
           python3 - <<'PY'
           import json
           from pathlib import Path
+          from jsonschema import Draft202012Validator
           files = sorted(Path("schemas/oro/v1").glob("*.json"))
           assert files, "no ORO schemas found"
           for path in files:
@@ -58,6 +67,7 @@ jobs:
               assert value.get("$schema") == "https://json-schema.org/draft/2020-12/schema", path
               assert value.get("$id"), path
               assert value.get("additionalProperties") is False, path
+              Draft202012Validator.check_schema(value)
           print(f"validated {len(files)} ORO Draft 2020-12 schemas")
           PY
       - name: Prove rank, barrier, signing, persistence, API, and refusal contracts
@@ -70,7 +80,7 @@ jobs:
           SZL_ORO_ALLOW_DEVELOPMENT_AUTH: "1"
         run: |
           set -euo pipefail
-          python3 -m uvicorn oro.api:app --host 127.0.0.1 --port 8877 >"$RUNNER_TEMP/oro-uvicorn.log" 2>&1 &
+          python3 -m uvicorn oro.api:create_app --factory --host 127.0.0.1 --port 8877 >"$RUNNER_TEMP/oro-uvicorn.log" 2>&1 &
           echo $! >"$RUNNER_TEMP/oro-uvicorn.pid"
           for attempt in $(seq 1 40); do
             if curl --fail --silent --show-error http://127.0.0.1:8877/api/a11oy/v1/oro/readyz >"$RUNNER_TEMP/oro-ready.json"; then
@@ -117,71 +127,3 @@ jobs:
             ${{ runner.temp }}/oro-uvicorn.log
           if-no-files-found: error
           retention-days: 90
-
-  repair:
-    name: One-shot durable-state and write-auth repair
-    if: >-
-      github.event_name == 'pull_request' &&
-      github.head_ref == 'feat/oro-operational-control-plane-v3-20260817'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout exact source branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-          fetch-depth: 0
-          persist-credentials: true
-      - name: Normalize schema fixture and apply bounded ORO repairs
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path('scripts/_apply_oro_v3_repairs.py')
-          text = path.read_text(encoding='utf-8')
-          patch_store = text.index('def patch_store() -> None:')
-          start = text.index('    replace_once(\n        path,\n', patch_store)
-          end = text.index('    replace_once(\n        path,\n', start + 1)
-          schema_call = """    replace_once(
-              path,
-              \"                        generation INTEGER NOT NULL CHECK(generation >= 0),\\n\"
-              \"                        status TEXT NOT NULL CHECK(status IN ('RUNNING','CONTINUE','COMPLETE','REFUSED')),\\n\",
-              \"                        generation INTEGER NOT NULL CHECK(generation >= 0),\\n\"
-              \"                        current_rank_json TEXT NOT NULL,\\n\"
-              \"                        status TEXT NOT NULL CHECK(status IN ('RUNNING','COMPLETE','REFUSED')),\\n\",
-              \"durable orbit schema\",
-          )
-          """
-          path.write_text(text[:start] + schema_call + text[end:], encoding='utf-8')
-          PY
-          python3 -m py_compile scripts/_apply_oro_v3_repairs.py
-          python3 scripts/_apply_oro_v3_repairs.py
-      - name: Remove source transformer
-        run: rm scripts/_apply_oro_v3_repairs.py
-      - name: Install exact focused dependencies
-        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
-      - name: Prove repaired source
-        run: |
-          python3 -m compileall -q oro tests/test_oro_operational_v3.py
-          python3 -m pytest -q tests/test_oro_operational_v3.py
-          git diff --check
-      - name: Commit final non-workflow repairs
-        run: |
-          set -euo pipefail
-          git add \
-            oro/store.py \
-            oro/service.py \
-            oro/auth.py \
-            oro/api.py \
-            deploy/oro/compose.yaml \
-            tests/test_oro_operational_v3.py
-          test "$(git diff --cached --name-only | wc -l)" -eq 6
-          git config user.name 'Stephen Lutar'
-          git config user.email 'stephenlutar2@gmail.com'
-          git commit \
-            -m 'fix(oro): bind durable frontier and authenticated writes' \
-            -m 'Map internal barrier decisions to durable plan/orbit states, advance the persisted generation and rank atomically, reject stale or terminal execution, require bearer authority for all writes, derive approval identity from the token binding, bound list queries, and mount managed API-token authority in the hardened Compose contract.' \
-            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
-          git push origin HEAD:feat/oro-operational-control-plane-v3-20260817

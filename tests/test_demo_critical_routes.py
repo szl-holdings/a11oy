@@ -69,6 +69,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/models/estate",             # Wave-26 fail-closed live HF estate merge
     "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
     "/frontier-now",                           # responsive Frontier Now PAGE
+    "/api/a11oy/v1/oro/readyz",                # ORO durable/signing/auth readiness contract
+    "/oro",                                    # ORO obligation-ranked control-plane PAGE
 ]
 
 
@@ -121,6 +123,33 @@ def test_no_demo_critical_route_dropped_as_a_set():
         if not any(expected in p for p in paths)
     ]
     assert not missing, f"demo-critical routes missing from the assembled table: {missing}"
+
+
+def test_oro_routes_are_owned_and_precede_production_catchalls():
+    """Canonical ORO routes must not fall through to the proxy or SPA shell."""
+    routes = list(serve.app.router.routes)
+    spa_index = next(
+        index
+        for index, route in enumerate(routes)
+        if getattr(route, "path", None) == "/{full_path:path}"
+    )
+    api_proxy_index = next(
+        index
+        for index, route in enumerate(routes)
+        if getattr(route, "path", None) == "/api/a11oy/{path:path}"
+    )
+    for path in ("/oro", "/oro/v5", "/api/a11oy/v1/oro/readyz"):
+        owned = [
+            (index, route)
+            for index, route in enumerate(routes)
+            if getattr(route, "path", None) == path
+        ]
+        assert len(owned) == 1, f"expected one owning ORO route for {path}, got {len(owned)}"
+        index, route = owned[0]
+        assert getattr(route.endpoint, "__module__", None) == "oro.api"
+        assert index < spa_index
+        if path.startswith("/api/a11oy/"):
+            assert index < api_proxy_index
 
 
 @pytest.mark.parametrize(

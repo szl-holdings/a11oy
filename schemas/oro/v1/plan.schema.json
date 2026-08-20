@@ -34,8 +34,18 @@
       "items": {"type": "string", "minLength": 1, "maxLength": 512}
     },
     "codex": {"$ref": "codex.schema.json"},
-    "candidate_author": {"type": "string", "minLength": 1, "maxLength": 512},
-    "evaluator_author": {"type": "string", "minLength": 1, "maxLength": 512},
+    "candidate_author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Must differ from evaluator_author; enforced by runtime admission."
+    },
+    "evaluator_author": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512,
+      "description": "Must differ from candidate_author; enforced by runtime admission."
+    },
     "created_at": {"type": "string", "pattern": "Z$"},
     "requested_effectors": {
       "type": "array",
@@ -44,10 +54,5 @@
     },
     "source_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
     "theorem_binding": {"type": ["object", "null"]}
-  },
-  "not": {
-    "properties": {
-      "candidate_author": {"const": {"$data": "1/evaluator_author"}}
-    }
   }
 }

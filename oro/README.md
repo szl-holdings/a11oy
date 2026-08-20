@@ -21,7 +21,8 @@ outer defect backstop, not the convergence mechanism.
   invariant results, semantic hashes, negative results, comparisons, approvals,
   DSSE receipts, and intent/completion/refusal certificates;
 - Ed25519 DSSE signing from an owner-only mounted key file;
-- production fail-closed when durable storage or the managed signer is absent;
+- production fail-closed when durable storage, the managed signer, or managed
+  write authorization is absent;
 - zero-CDN dashboards at `/oro` and `/oro/v5`;
 - plan, orbit, barrier, negative-result, approval, certificate, health, readiness,
   contract, role, and count APIs under `/api/a11oy/v1/oro`;
@@ -46,7 +47,8 @@ Run a real loopback process with an explicitly test-only ephemeral signer:
 export SZL_ORO_ENV=development
 export SZL_ORO_DB_PATH=/tmp/a11oy-oro.sqlite
 export SZL_ORO_ALLOW_EPHEMERAL_SIGNER=1
-python3 -m uvicorn oro.api:app --host 127.0.0.1 --port 8877
+export SZL_ORO_ALLOW_DEVELOPMENT_AUTH=1
+python3 -m uvicorn oro.api:create_app --factory --host 127.0.0.1 --port 8877
 ```
 
 Then probe:
@@ -58,8 +60,10 @@ curl --fail http://127.0.0.1:8877/api/a11oy/v1/oro/contract
 curl --fail http://127.0.0.1:8877/oro
 ```
 
-`SZL_ORO_ALLOW_EPHEMERAL_SIGNER=1` is rejected as production authority by
-configuration: it is considered only when `SZL_ORO_ENV` is not production.
+The ephemeral signer and development bearer authority are rejected as
+production authority by configuration: both opt-ins are considered only when
+`SZL_ORO_ENV` is `development` or `test`. Unknown environment values fail
+closed rather than silently selecting development behavior.
 
 ## Production signer and persistence
 
@@ -82,15 +86,21 @@ SZL_ORO_ENV=production
 SZL_ORO_DB_PATH=/absolute/persistent/path/oro.sqlite
 SZL_ORO_SIGNING_KEY_PATH=/absolute/secret-mount/oro-ed25519.pem
 SZL_ORO_SIGNING_KEY_ID=<governed-key-id>
+SZL_ORO_API_TOKEN_PATH=/absolute/secret-mount/oro-api-token
+SZL_ORO_API_TOKEN_ID=<governed-operator-id>
 ```
 
-The database path must be absolute and on disk. The signer file must be regular,
-Ed25519, and inaccessible to group/other. Missing or invalid controls leave
-`healthz` observable but make `readyz` and every governed operation fail closed.
+The database path must be absolute and on disk. The signer and bearer-token files
+must be regular and inaccessible to group/other, and the signer must be Ed25519.
+Missing or invalid controls leave `healthz` observable but make `readyz` and
+every governed write fail closed. Token values are never returned or logged.
 
-`deploy/oro/compose.yaml` wires a named persistent volume, a mode-0400 Docker
-secret, a read-only root filesystem, dropped Linux capabilities, no-new-
-privileges, and a readiness health check.
+`deploy/oro/compose.yaml` wires a named persistent volume, read-only signer and
+bearer-token secret mounts, a read-only root filesystem, dropped Linux
+capabilities, no-new-privileges, and a readiness health check. Local Docker
+Compose does not remap ownership or mode for file-backed secrets, so both host
+secret files must already be owned by numeric UID `10001` and inaccessible to
+group/other; otherwise readiness fails closed.
 
 ## HTTP contract
 
@@ -123,7 +133,9 @@ POST /api/a11oy/v1/oro/barriers/{barrier_id}/approvals
 ```
 
 Bodies are UTF-8 JSON objects, closed against duplicate fields, and bounded to
-256 KiB before parsing.
+256 KiB before parsing. Every write requires a valid Bearer header. Approval
+identity is derived from the authenticated token ID and cannot be supplied in
+the request body.
 
 ## Truth boundary
 

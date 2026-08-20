@@ -463,6 +463,7 @@ class BarrierEngine:
         expected_participants: frozenset[str],
         generation: int,
         expires_at: datetime,
+        evaluated_at: datetime,
     ) -> tuple[Arrival, ...]:
         by_id: dict[str, Arrival] = {}
         for arrival in arrivals:
@@ -470,7 +471,10 @@ class BarrierEngine:
                 raise OROContractError(f"unexpected participant: {arrival.participant_id}")
             if arrival.generation != generation:
                 raise OROContractError("arrival generation does not match barrier generation")
-            if parse_utc(arrival.received_at) > expires_at:
+            received_at = parse_utc(arrival.received_at)
+            if received_at > evaluated_at:
+                raise OROContractError("arrival was received after barrier evaluation")
+            if received_at > expires_at:
                 raise OROContractError("arrival was received after absolute barrier TTL")
             previous = by_id.get(arrival.participant_id)
             if previous is not None and previous.digest != arrival.digest:
@@ -543,7 +547,8 @@ class BarrierEngine:
         if len(participants) != len(tuple(expected_participants)):
             raise OROContractError("expected participant IDs must be unique")
         expiry = parse_utc(expires_at)
-        observed_now = parse_utc(now or utc_now())
+        evaluation_time = now or utc_now()
+        observed_now = parse_utc(evaluation_time)
         if observed_now > expiry:
             raise OROContractError("absolute barrier TTL has expired")
 
@@ -552,11 +557,13 @@ class BarrierEngine:
             expected_participants=participants,
             generation=generation,
             expires_at=expiry,
+            evaluated_at=observed_now,
         )
         merged_payload: Mapping[str, Any] = {
             "schema": BARRIER_SCHEMA,
             "orbit_id": orbit_id,
             "generation": generation,
+            "evaluated_at": evaluation_time,
             "participants": [
                 {
                     "participant_id": arrival.participant_id,
@@ -567,7 +574,18 @@ class BarrierEngine:
                 for arrival in unique
             ],
         }
-        digest = semantic_hash(merged_payload)
+        semantic_payload = {
+            "schema": "szl.oro-semantic-state/v1",
+            "participants": [
+                {
+                    "participant_id": arrival.participant_id,
+                    "payload": arrival.payload,
+                    "payload_digest": arrival.digest,
+                }
+                for arrival in unique
+            ],
+        }
+        digest = semantic_hash(semantic_payload)
         if seen_semantic_hash(digest):
             invariant_results: tuple[Mapping[str, Any], ...] = ()
             decision = "REFUSE"
@@ -597,7 +615,7 @@ class BarrierEngine:
             "barrier_id": barrier_id,
             "orbit_id": orbit_id,
             "generation": generation,
-            "generated_at": now or utc_now(),
+            "generated_at": evaluation_time,
             "expires_at": expires_at,
             "decision": decision,
             "reason": reason,
