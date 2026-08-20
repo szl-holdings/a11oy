@@ -154,6 +154,55 @@ CREATE TABLE IF NOT EXISTS public.memory_idempotency (
       ON DELETE RESTRICT
 );
 
+-- RLS context is accepted only for explicitly bound session principals. Role
+-- OIDs are used instead of names so a dropped-and-recreated login cannot
+-- inherit a stale tenant/domain binding through name reuse.
+CREATE TABLE IF NOT EXISTS public.memory_context_bindings (
+    principal_oid oid NOT NULL,
+    tenant_id text NOT NULL CHECK (tenant_id <> ''),
+    security_domain text NOT NULL CHECK (security_domain <> ''),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (principal_oid, tenant_id, security_domain)
+);
+
+-- A table with rows cannot be trusted when the historical helper did not bind
+-- RLS context to it. Refuse to bless pre-seeded authorization data; legitimate
+-- reapplication is recognized by the already-bound helper definition.
+DO $$
+DECLARE
+    helper_was_bound boolean := false;
+BEGIN
+    SELECT pg_catalog.strpos(
+               pg_catalog.pg_get_functiondef(procedure.oid),
+               'public.memory_context_bindings'
+           ) > 0
+      INTO helper_was_bound
+      FROM pg_catalog.pg_proc AS procedure
+     WHERE procedure.oid = pg_catalog.to_regprocedure(
+               'public.a11oy_memory_context_matches(text,text)'
+           );
+
+    IF EXISTS (SELECT 1 FROM public.memory_context_bindings)
+       AND NOT COALESCE(helper_was_bound, false) THEN
+        RAISE EXCEPTION USING
+          ERRCODE = '23514',
+          MESSAGE = 'pre-existing memory_context_bindings rows are untrusted';
+    END IF;
+END;
+$$;
+
+-- Ownership is part of the privilege boundary: an old owner has implicit ACLs
+-- and can change RLS. Reapplication converges every covenant relation on the
+-- trusted migration principal or aborts if that authority is unavailable.
+ALTER TABLE public.memory_records OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_evidence_refs OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_outbox OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_receipts OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_query_audit OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_index_generations OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_idempotency OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;
+
 CREATE INDEX IF NOT EXISTS memory_records_searchable_idx
   ON public.memory_records (tenant_id, security_domain, active_index_generation, memory_id)
   WHERE lifecycle_state IN ('ACTIVE','INDEXED');
@@ -177,6 +226,9 @@ BEGIN
   RETURN NEW;
 END;
 $$;
+ALTER FUNCTION public.memory_touch_updated_at() OWNER TO CURRENT_USER;
+REVOKE ALL PRIVILEGES ON FUNCTION public.memory_touch_updated_at()
+  FROM PUBLIC;
 
 DROP TRIGGER IF EXISTS memory_records_touch_updated_at ON public.memory_records;
 CREATE TRIGGER memory_records_touch_updated_at
@@ -195,6 +247,9 @@ BEGIN
   RAISE EXCEPTION USING ERRCODE='55000', MESSAGE=format('%I is append-only', TG_TABLE_NAME);
 END;
 $$;
+ALTER FUNCTION public.memory_reject_mutation() OWNER TO CURRENT_USER;
+REVOKE ALL PRIVILEGES ON FUNCTION public.memory_reject_mutation()
+  FROM PUBLIC;
 
 DROP TRIGGER IF EXISTS memory_receipts_append_only ON public.memory_receipts;
 CREATE TRIGGER memory_receipts_append_only BEFORE UPDATE OR DELETE ON public.memory_receipts
@@ -207,12 +262,23 @@ CREATE TRIGGER memory_idempotency_append_only BEFORE UPDATE OR DELETE ON public.
 FOR EACH ROW EXECUTE FUNCTION public.memory_reject_mutation();
 
 CREATE OR REPLACE FUNCTION public.a11oy_memory_context_matches(row_tenant text, row_domain text)
-RETURNS boolean LANGUAGE sql STABLE PARALLEL SAFE
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = pg_catalog, pg_temp
 AS $$
   SELECT row_tenant = current_setting('a11oy.tenant_id', true)
      AND row_domain = current_setting('a11oy.security_domain', true)
+     AND EXISTS (
+         SELECT 1
+           FROM public.memory_context_bindings AS binding
+          WHERE binding.principal_oid = pg_catalog.to_regrole(session_user)
+            AND binding.tenant_id = row_tenant
+            AND binding.security_domain = row_domain
+     )
 $$;
+ALTER FUNCTION public.a11oy_memory_context_matches(text, text)
+  OWNER TO CURRENT_USER;
+REVOKE ALL PRIVILEGES ON FUNCTION public.a11oy_memory_context_matches(text, text)
+  FROM PUBLIC;
 
 ALTER TABLE public.memory_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.memory_records FORCE ROW LEVEL SECURITY;

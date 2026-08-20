@@ -7,6 +7,73 @@ BEGIN;
 
 SET LOCAL search_path = pg_catalog, pg_temp;
 
+-- Existing installations need an owner-only source of truth tying the real
+-- session principal to the tenant/domain values presented through custom GUCs.
+-- Without this binding, any application-role member can select another tenant
+-- merely by changing those user-settable values.
+CREATE TABLE IF NOT EXISTS public.memory_context_bindings (
+    principal_oid oid NOT NULL,
+    tenant_id text NOT NULL CHECK (tenant_id <> ''),
+    security_domain text NOT NULL CHECK (security_domain <> ''),
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (principal_oid, tenant_id, security_domain)
+);
+
+-- A table with rows cannot be trusted when upgrading from the historical
+-- helper, because that release never consumed binding rows. Refuse to bless
+-- pre-seeded authorization data. Reapplication preserves rows only after the
+-- bound helper itself proves this migration previously completed.
+DO $$
+DECLARE
+    helper_was_bound boolean := false;
+BEGIN
+    SELECT pg_catalog.strpos(
+               pg_catalog.pg_get_functiondef(procedure.oid),
+               'public.memory_context_bindings'
+           ) > 0
+      INTO helper_was_bound
+      FROM pg_catalog.pg_proc AS procedure
+     WHERE procedure.oid = pg_catalog.to_regprocedure(
+               'public.a11oy_memory_context_matches(text,text)'
+           );
+
+    IF EXISTS (SELECT 1 FROM public.memory_context_bindings)
+       AND NOT COALESCE(helper_was_bound, false) THEN
+        RAISE EXCEPTION USING
+          ERRCODE = '23514',
+          MESSAGE = 'pre-existing memory_context_bindings rows are untrusted';
+    END IF;
+END;
+$$;
+
+ALTER TABLE public.memory_records OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_evidence_refs OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_outbox OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_receipts OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_query_audit OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_index_generations OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_idempotency OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;
+
+CREATE OR REPLACE FUNCTION public.a11oy_memory_context_matches(row_tenant text, row_domain text)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = pg_catalog, pg_temp
+AS $$
+  SELECT row_tenant = current_setting('a11oy.tenant_id', true)
+     AND row_domain = current_setting('a11oy.security_domain', true)
+     AND EXISTS (
+         SELECT 1
+           FROM public.memory_context_bindings AS binding
+          WHERE binding.principal_oid = pg_catalog.to_regrole(session_user)
+            AND binding.tenant_id = row_tenant
+            AND binding.security_domain = row_domain
+     )
+$$;
+ALTER FUNCTION public.memory_touch_updated_at() OWNER TO CURRENT_USER;
+ALTER FUNCTION public.memory_reject_mutation() OWNER TO CURRENT_USER;
+ALTER FUNCTION public.a11oy_memory_context_matches(text, text)
+  OWNER TO CURRENT_USER;
+
 -- Historical schemas allowed audit/idempotency rows to reference a receipt by
 -- globally unique receipt_id alone. Refuse to mask any cross-domain data before
 -- replacing those relationships with tenant/domain-bound foreign keys.
@@ -162,18 +229,148 @@ BEGIN
 END;
 $$;
 
--- Revoke first so reapplication converges from stale additive ACLs.
+-- Capability roles must not inherit or SET ROLE into any historical parent.
+-- Inbound application/worker login memberships are intentionally preserved.
+DO $$
+DECLARE
+    membership record;
+BEGIN
+    FOR membership IN
+        SELECT DISTINCT parent.rolname AS parent_role,
+                        child.rolname AS capability_role
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS parent ON parent.oid = edge.roleid
+          JOIN pg_catalog.pg_roles AS child ON child.oid = edge.member
+         WHERE child.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+    LOOP
+        EXECUTE pg_catalog.format(
+            'REVOKE %I FROM %I CASCADE',
+            membership.parent_role,
+            membership.capability_role
+        );
+    END LOOP;
+END;
+$$;
+
+-- Revoke first so reapplication converges from stale additive ACLs. Remove
+-- CREATE from every non-owner public-schema grantee, and remove table-level
+-- and column-level privileges from every non-owner covenant-table grantee.
 REVOKE ALL PRIVILEGES ON SCHEMA public
   FROM a11oy_memory_app, a11oy_memory_worker;
-REVOKE ALL PRIVILEGES ON TABLE
-    public.memory_records,
-    public.memory_evidence_refs,
-    public.memory_outbox,
-    public.memory_receipts,
-    public.memory_query_audit,
-    public.memory_index_generations,
-    public.memory_idempotency
-  FROM PUBLIC, a11oy_memory_app, a11oy_memory_worker;
+DO $$
+DECLARE
+    grantee_oid oid;
+BEGIN
+    FOR grantee_oid IN
+        SELECT DISTINCT acl.grantee
+          FROM pg_catalog.pg_namespace AS namespace
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                  namespace.nspacl,
+                  pg_catalog.acldefault('n', namespace.nspowner)
+              )
+          ) AS acl
+         WHERE namespace.nspname = 'public'
+           AND acl.privilege_type = 'CREATE'
+           AND acl.grantee <> namespace.nspowner
+    LOOP
+        IF grantee_oid = 0 THEN
+            REVOKE CREATE ON SCHEMA public FROM PUBLIC CASCADE;
+        ELSE
+            EXECUTE pg_catalog.format(
+                'REVOKE CREATE ON SCHEMA public FROM %I CASCADE',
+                pg_catalog.pg_get_userbyid(grantee_oid)
+            );
+        END IF;
+    END LOOP;
+END;
+$$;
+
+DO $$
+DECLARE
+    privilege_row record;
+BEGIN
+    FOR privilege_row IN
+        SELECT DISTINCT relation.relname AS table_name, acl.grantee
+          FROM pg_catalog.pg_class AS relation
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+          CROSS JOIN LATERAL pg_catalog.aclexplode(
+              COALESCE(
+                  relation.relacl,
+                  pg_catalog.acldefault('r', relation.relowner)
+              )
+          ) AS acl
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND acl.grantee <> relation.relowner
+    LOOP
+        IF privilege_row.grantee = 0 THEN
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES ON TABLE public.%I FROM PUBLIC CASCADE',
+                privilege_row.table_name
+            );
+        ELSE
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES ON TABLE public.%I FROM %I CASCADE',
+                privilege_row.table_name,
+                pg_catalog.pg_get_userbyid(privilege_row.grantee)
+            );
+        END IF;
+    END LOOP;
+
+    FOR privilege_row IN
+        SELECT DISTINCT relation.relname AS table_name,
+                        attribute.attname AS column_name,
+                        acl.grantee
+          FROM pg_catalog.pg_class AS relation
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+          JOIN pg_catalog.pg_attribute AS attribute
+            ON attribute.attrelid = relation.oid
+          CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS acl
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND attribute.attnum > 0
+           AND NOT attribute.attisdropped
+           AND attribute.attacl IS NOT NULL
+           AND acl.grantee <> relation.relowner
+    LOOP
+        IF privilege_row.grantee = 0 THEN
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES (%I) ON TABLE public.%I FROM PUBLIC CASCADE',
+                privilege_row.column_name,
+                privilege_row.table_name
+            );
+        ELSE
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES (%I) ON TABLE public.%I FROM %I CASCADE',
+                privilege_row.column_name,
+                privilege_row.table_name,
+                pg_catalog.pg_get_userbyid(privilege_row.grantee)
+            );
+        END IF;
+    END LOOP;
+END;
+$$;
 
 GRANT USAGE ON SCHEMA public TO a11oy_memory_app, a11oy_memory_worker;
 GRANT SELECT, INSERT, UPDATE ON TABLE public.memory_records TO a11oy_memory_app;
@@ -236,36 +433,49 @@ BEGIN
     RETURNING event.*;
 END;
 $$;
+ALTER FUNCTION public.memory_lease_outbox(text, integer, integer)
+  OWNER TO CURRENT_USER;
 
-REVOKE ALL PRIVILEGES ON FUNCTION public.memory_lease_outbox(text, integer, integer)
-  FROM PUBLIC;
 DO $$
 DECLARE
-    grantee_oid oid;
+    privilege_row record;
 BEGIN
-    FOR grantee_oid IN
-        SELECT DISTINCT acl.grantee
-          FROM pg_catalog.pg_proc AS p
+    FOR privilege_row IN
+        SELECT DISTINCT procedure.oid::pg_catalog.regprocedure::text AS identity,
+                        acl.grantee
+          FROM pg_catalog.pg_proc AS procedure
           CROSS JOIN LATERAL pg_catalog.aclexplode(
-              COALESCE(p.proacl, pg_catalog.acldefault('f', p.proowner))
+              COALESCE(
+                  procedure.proacl,
+                  pg_catalog.acldefault('f', procedure.proowner)
+              )
           ) AS acl
-         WHERE p.oid = 'public.memory_lease_outbox(text,integer,integer)'::pg_catalog.regprocedure
-           AND acl.privilege_type = 'EXECUTE'
-           AND acl.grantee <> p.proowner
+         WHERE procedure.oid = ANY(ARRAY[
+                   'public.memory_touch_updated_at()'::pg_catalog.regprocedure,
+                   'public.memory_reject_mutation()'::pg_catalog.regprocedure,
+                   'public.a11oy_memory_context_matches(text,text)'::pg_catalog.regprocedure,
+                   'public.memory_lease_outbox(text,integer,integer)'::pg_catalog.regprocedure
+               ])
+           AND acl.grantee <> procedure.proowner
     LOOP
-        IF grantee_oid = 0 THEN
-            REVOKE EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer)
-              FROM PUBLIC;
+        IF privilege_row.grantee = 0 THEN
+            EXECUTE pg_catalog.format(
+                'REVOKE ALL PRIVILEGES ON FUNCTION %s FROM PUBLIC CASCADE',
+                privilege_row.identity
+            );
         ELSE
             EXECUTE pg_catalog.format(
-                'REVOKE EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer) FROM %I',
-                pg_catalog.pg_get_userbyid(grantee_oid)
+                'REVOKE ALL PRIVILEGES ON FUNCTION %s FROM %I CASCADE',
+                privilege_row.identity,
+                pg_catalog.pg_get_userbyid(privilege_row.grantee)
             );
         END IF;
     END LOOP;
 END;
 $$;
 
+GRANT EXECUTE ON FUNCTION public.a11oy_memory_context_matches(text, text)
+  TO a11oy_memory_app;
 GRANT EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer)
   TO a11oy_memory_worker;
 

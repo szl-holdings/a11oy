@@ -17,6 +17,8 @@ CORRECTIVE_MIGRATION = Path(
     "migrations/20260820_memory_covenant_v2_postmerge_hardening.sql"
 )
 MIGRATIONS = (BASE_MIGRATION, HARDENING_MIGRATION, CORRECTIVE_MIGRATION)
+WORKFLOW = Path(".github/workflows/memory-covenant-v2.yml")
+REQUIRED_FILES = MIGRATIONS + (WORKFLOW,)
 
 MEMORY_TABLES = (
     "memory_records",
@@ -27,6 +29,8 @@ MEMORY_TABLES = (
     "memory_index_generations",
     "memory_idempotency",
 )
+CONTEXT_BINDING_TABLE = "memory_context_bindings"
+ALL_COVENANT_TABLES = MEMORY_TABLES + (CONTEXT_BINDING_TABLE,)
 FORCE_RLS_TABLES = frozenset(MEMORY_TABLES) - {"memory_outbox"}
 APPEND_ONLY_TABLES = (
     "memory_receipts",
@@ -194,6 +198,29 @@ def _validate_tables_and_rls(base: str, hardening: str, corrective: str, errors:
                     errors.append(f"{label} {table} policy is missing WITH CHECK")
 
     for label, sql in (("base", base_sql), ("corrective", corrective_sql)):
+        _require_count(
+            rf"\bCREATE\s+TABLE\s+IF\s+NOT\s+EXISTS\s+public\.{CONTEXT_BINDING_TABLE}\b",
+            sql,
+            1,
+            f"{label} owner-only context binding table",
+            errors,
+        )
+        _require_token(
+            "PRIMARY KEY (principal_oid, tenant_id, security_domain)",
+            sql,
+            f"{label} context binding identity",
+            errors,
+        )
+        for table in ALL_COVENANT_TABLES:
+            _require_count(
+                rf"\bALTER\s+TABLE\s+public\.{table}\s+OWNER\s+TO\s+CURRENT_USER\b",
+                sql,
+                1,
+                f"{label} trusted owner convergence for {table}",
+                errors,
+            )
+
+    for label, sql in (("base", base_sql), ("corrective", corrective_sql)):
         _require_token(
             "FROM pg_catalog.pg_policy AS p",
             sql,
@@ -257,6 +284,89 @@ def _validate_tables_and_rls(base: str, hardening: str, corrective: str, errors:
         )
 
 
+def _validate_context_binding(base: str, corrective: str, errors: list[str]) -> None:
+    for label, text in (("base", base), ("corrective", corrective)):
+        sql = _normalize(text)
+        match = re.search(
+            r"CREATE\s+OR\s+REPLACE\s+FUNCTION\s+public\.a11oy_memory_context_matches\s*"
+            r"\(\s*row_tenant\s+text\s*,\s*row_domain\s+text\s*\)\s+"
+            r"RETURNS\s+boolean\s+(?P<body>.*?)\s*\$\$\s*;",
+            sql,
+            re.IGNORECASE,
+        )
+        if match is None:
+            errors.append(f"{label} missing inspectable bound RLS context function")
+            continue
+        body = match.group("body")
+        required = {
+            "SECURITY DEFINER": r"\bSECURITY\s+DEFINER\b",
+            "safe fixed search_path": (
+                r"\bSET\s+search_path\s*=\s*pg_catalog\s*,\s*pg_temp\b"
+            ),
+            "tenant custom GUC comparison": (
+                r"row_tenant\s*=\s*current_setting\s*\(\s*'a11oy\.tenant_id'\s*,\s*true\s*\)"
+            ),
+            "domain custom GUC comparison": (
+                r"row_domain\s*=\s*current_setting\s*\(\s*'a11oy\.security_domain'\s*,\s*true\s*\)"
+            ),
+            "owner-only context binding lookup": (
+                r"FROM\s+public\.memory_context_bindings\s+AS\s+binding"
+            ),
+            "unforgeable session principal binding": (
+                r"binding\.principal_oid\s*=\s*pg_catalog\.to_regrole\s*\(\s*session_user\s*\)"
+            ),
+            "bound tenant": r"binding\.tenant_id\s*=\s*row_tenant",
+            "bound security domain": (
+                r"binding\.security_domain\s*=\s*row_domain"
+            ),
+        }
+        for requirement, pattern in required.items():
+            if re.search(pattern, body, re.IGNORECASE) is None:
+                errors.append(
+                    f"{label} a11oy_memory_context_matches missing {requirement}"
+                )
+        _require_count(
+            r"\bALTER\s+FUNCTION\s+public\.a11oy_memory_context_matches\s*"
+            r"\(\s*text\s*,\s*text\s*\)\s+OWNER\s+TO\s+CURRENT_USER\b",
+            sql,
+            1,
+            f"{label} trusted context-function owner convergence",
+            errors,
+        )
+
+    base_sql = _normalize(base)
+    _require_count(
+        r"\bREVOKE\s+ALL\s+PRIVILEGES\s+ON\s+FUNCTION\s+"
+        r"public\.a11oy_memory_context_matches\s*\(\s*text\s*,\s*text\s*\)\s+"
+        r"FROM\s+PUBLIC\b",
+        base_sql,
+        1,
+        "base PUBLIC context-function revoke",
+        errors,
+    )
+    for source_label, source in (("base", base), ("corrective", corrective)):
+        sql = _normalize(source)
+        for token, label in (
+            (
+                "pg_catalog.pg_get_functiondef(procedure.oid)",
+                "historical context-helper provenance check",
+            ),
+            (
+                "pg_catalog.to_regprocedure",
+                "missing-helper-safe provenance lookup",
+            ),
+            (
+                "NOT COALESCE(helper_was_bound, false)",
+                "fail-closed missing-helper handling",
+            ),
+            (
+                "pre-existing memory_context_bindings rows are untrusted",
+                "untrusted pre-existing context-row rejection",
+            ),
+        ):
+            _require_token(token, sql, f"{source_label} {label}", errors)
+
+
 def _validate_receipt_relationships(base: str, corrective: str, errors: list[str]) -> None:
     base_sql = _normalize(base)
     corrective_sql = _normalize(corrective)
@@ -306,6 +416,15 @@ def _validate_append_only(base: str, errors: list[str]) -> None:
         errors,
     )
     _require_token("ERRCODE='55000'", sql, "append-only SQLSTATE 55000", errors)
+    for function in ("memory_touch_updated_at", "memory_reject_mutation"):
+        _require_count(
+            rf"\bALTER\s+FUNCTION\s+public\.{function}\s*\(\s*\)\s+"
+            rf"OWNER\s+TO\s+CURRENT_USER\b",
+            sql,
+            1,
+            f"trusted helper owner convergence for {function}",
+            errors,
+        )
 
     for table in APPEND_ONLY_TABLES:
         trigger = f"{table}_append_only"
@@ -364,13 +483,44 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
     ):
         errors.append(f"{label} must not swallow insufficient role authority")
 
-    _require_count(
-        r"\bREVOKE\s+ALL\s+PRIVILEGES\s+ON\s+TABLE\s+public\.memory_records\s*,.*?FROM\s+PUBLIC\s*,\s*a11oy_memory_app\s*,\s*a11oy_memory_worker\b",
-        sql,
-        1,
-        f"{label} subtractive table ACL reset",
-        errors,
-    )
+    membership_requirements = {
+        "outbound role-membership catalog sweep": (
+            "FROM pg_catalog.pg_auth_members AS edge"
+        ),
+        "capability membership selector": (
+            "child.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')"
+        ),
+        "cascading capability membership revoke": (
+            "REVOKE %I FROM %I CASCADE"
+        ),
+        "schema ACL catalog sweep": (
+            "namespace.nspacl"
+        ),
+        "non-owner schema CREATE selector": (
+            "acl.privilege_type = 'CREATE'"
+        ),
+        "cascading stale schema CREATE revoke": (
+            "REVOKE CREATE ON SCHEMA public FROM %I CASCADE"
+        ),
+        "table ACL catalog sweep": (
+            "relation.relacl"
+        ),
+        "column ACL catalog sweep": (
+            "pg_catalog.aclexplode(attribute.attacl)"
+        ),
+        "cascading non-owner table ACL revoke": (
+            "REVOKE ALL PRIVILEGES ON TABLE public.%I FROM %I CASCADE"
+        ),
+        "cascading non-owner column ACL revoke": (
+            "REVOKE ALL PRIVILEGES (%I) ON TABLE public.%I FROM %I CASCADE"
+        ),
+    }
+    for requirement, token in membership_requirements.items():
+        _require_token(token, sql, f"{label} {requirement}", errors)
+    for table in ALL_COVENANT_TABLES:
+        if sql.count(f"'{table}'") < 1:
+            errors.append(f"{label} table ACL sweep omits {table}")
+
     _require_count(
         r"\bGRANT\s+USAGE\s+ON\s+SCHEMA\s+public\s+TO\s+a11oy_memory_app\s*,\s*a11oy_memory_worker\b",
         sql,
@@ -412,6 +562,13 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
         errors.append(f"{label} worker role must not receive direct memory-table privileges")
 
     _require_count(
+        r"\bGRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.a11oy_memory_context_matches\s*\(\s*text\s*,\s*text\s*\)\s+TO\s+a11oy_memory_app\b",
+        sql,
+        1,
+        f"{label} application context-function EXECUTE grant",
+        errors,
+    )
+    _require_count(
         r"\bGRANT\s+EXECUTE\s+ON\s+FUNCTION\s+public\.memory_lease_outbox\s*\(\s*text\s*,\s*integer\s*,\s*integer\s*\)\s+TO\s+a11oy_memory_worker\b",
         sql,
         1,
@@ -419,10 +576,12 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
         errors,
     )
     _require_count(
-        r"\bREVOKE\s+ALL\s+PRIVILEGES\s+ON\s+FUNCTION\s+public\.memory_lease_outbox\s*\(\s*text\s*,\s*integer\s*,\s*integer\s*\)\s+FROM\s+PUBLIC\b",
+        r"\bALTER\s+FUNCTION\s+public\.memory_lease_outbox\s*"
+        r"\(\s*text\s*,\s*integer\s*,\s*integer\s*\)\s+"
+        r"OWNER\s+TO\s+CURRENT_USER\b",
         sql,
         1,
-        f"{label} PUBLIC function revoke",
+        f"{label} trusted lease-function owner convergence",
         errors,
     )
     _require_token(
@@ -432,17 +591,29 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
         errors,
     )
     _require_token(
-        "acl.grantee <> p.proowner",
+        "acl.grantee <> procedure.proowner",
         sql,
         f"{label} non-owner function ACL filter",
         errors,
     )
     _require_token(
-        "REVOKE EXECUTE ON FUNCTION public.memory_lease_outbox",
+        "REVOKE ALL PRIVILEGES ON FUNCTION %s FROM %I CASCADE",
         sql,
         f"{label} stale function ACL revoke",
         errors,
     )
+    for identity in (
+        "public.memory_touch_updated_at()",
+        "public.memory_reject_mutation()",
+        "public.a11oy_memory_context_matches(text,text)",
+        "public.memory_lease_outbox(text,integer,integer)",
+    ):
+        _require_token(
+            f"'{identity}'::pg_catalog.regprocedure",
+            sql,
+            f"{label} function ACL target {identity}",
+            errors,
+        )
     if re.search(r"\bGRANT\b.*?\bTO\s+PUBLIC\b", sql, re.IGNORECASE):
         errors.append(f"{label} Memory Covenant must not grant privileges to PUBLIC")
     if re.search(r"\bGRANT\s+ALL\b", sql, re.IGNORECASE):
@@ -514,13 +685,85 @@ def _validate_forbidden_sql(migrations: dict[Path, str], errors: list[str]) -> N
             errors.append(f"forbidden migration operation: {label}")
 
 
+def _validate_workflow(text: str, errors: list[str]) -> None:
+    _require_count(
+        r"ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\|\|\s*github\.sha\s*\}\}",
+        text,
+        2,
+        "exact requested-head checkout binding",
+        errors,
+    )
+    _require_count(
+        r'test\s+"\$\(git\s+rev-parse\s+HEAD\)"\s*=\s*"\$EXPECTED_SOURCE_SHA"',
+        text,
+        2,
+        "checked-out source identity assertion",
+        errors,
+    )
+    required = {
+        "recorded source commit": (
+            "git rev-parse HEAD > evidence/memory-covenant-v2/source-sha.txt"
+        ),
+        "recorded source hashes": (
+            "> evidence/memory-covenant-v2/source-sha256.txt"
+        ),
+        "stale capability parent seed": (
+            "GRANT a11oy_memory_stale_parent"
+        ),
+        "stale relation owner seed": (
+            "ALTER TABLE public.memory_context_bindings"
+        ),
+        "stale function owner seed": (
+            "ALTER FUNCTION public.a11oy_memory_context_matches(text, text)"
+        ),
+        "historical unbound helper seed": (
+            "RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER"
+        ),
+        "untrusted binding-row seed": (
+            "'untrusted-domain'"
+        ),
+        "untrusted binding-row rejection": (
+            "pre-existing memory_context_bindings rows are untrusted"
+        ),
+        "arbitrary table ACL seed": (
+            "public.memory_context_bindings TO a11oy_memory_stale_grantee"
+        ),
+        "column ACL seed": (
+            "GRANT UPDATE (classification) ON TABLE public.memory_records"
+        ),
+        "PUBLIC table ACL seed": (
+            "GRANT SELECT ON TABLE public.memory_records TO PUBLIC"
+        ),
+        "PUBLIC helper ACL seed": (
+            "public.a11oy_memory_context_matches(text, text)\n            TO PUBLIC"
+        ),
+        "outbound membership evidence": (
+            "'outbound_memberships'"
+        ),
+        "relation ACL evidence": "'relation_acl'",
+        "column ACL evidence": "'column_acl'",
+        "function ACL evidence": "'function_acl'",
+        "schema CREATE ACL evidence": "'schema_create_acl'",
+        "context binding evidence": "'context_binding_count'",
+        "context definer evidence": "'context_security_definer'",
+        "context rollback residue assertion": (
+            "grep -F '\"context_binding_rows\": 0'"
+        ),
+    }
+    for label, token in required.items():
+        _require_token(token, text, f"workflow {label}", errors)
+    if re.search(r"\bcontinue-on-error\s*:\s*true\b", text, re.IGNORECASE):
+        errors.append("Memory Covenant workflow must not continue on error")
+
+
 def validate(root: Path | str = Path(".")) -> list[str]:
     root = Path(root)
     errors: list[str] = []
     migrations = {
         relative: _read_utf8_file(root, relative, errors) for relative in MIGRATIONS
     }
-    if any(not text for text in migrations.values()):
+    workflow = _read_utf8_file(root, WORKFLOW, errors)
+    if any(not text for text in migrations.values()) or not workflow:
         return errors
 
     base = migrations[BASE_MIGRATION]
@@ -528,6 +771,7 @@ def validate(root: Path | str = Path(".")) -> list[str]:
     corrective = migrations[CORRECTIVE_MIGRATION]
     _validate_transactions(migrations, errors)
     _validate_tables_and_rls(base, hardening, corrective, errors)
+    _validate_context_binding(base, corrective, errors)
     _validate_receipt_relationships(base, corrective, errors)
     _validate_append_only(base, errors)
     for label, text in (("hardening", hardening), ("corrective", corrective)):
@@ -535,6 +779,7 @@ def validate(root: Path | str = Path(".")) -> list[str]:
         _validate_worker_function(text, label, errors)
     _validate_schema_binding(migrations, errors)
     _validate_forbidden_sql(migrations, errors)
+    _validate_workflow(workflow, errors)
     return errors
 
 

@@ -16,6 +16,7 @@ $$;
 DO $$
 DECLARE
     expected_tables text[] := ARRAY[
+        'memory_context_bindings',
         'memory_evidence_refs',
         'memory_idempotency',
         'memory_index_generations',
@@ -36,6 +37,57 @@ BEGIN
     IF observed_tables IS DISTINCT FROM expected_tables THEN
         RAISE EXCEPTION 'Memory Covenant table set mismatch: expected %, observed %',
             expected_tables, observed_tables;
+    END IF;
+END;
+$$;
+
+DO $$
+DECLARE
+    expected_owner oid := (
+        SELECT relowner
+          FROM pg_class
+         WHERE oid = 'public.memory_context_bindings'::regclass
+    );
+BEGIN
+    IF EXISTS (
+        SELECT 1
+          FROM pg_class AS relation
+          JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND relation.relowner IS DISTINCT FROM expected_owner
+    ) THEN
+        RAISE EXCEPTION 'Covenant relation ownership did not converge';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_proc AS procedure
+         WHERE procedure.oid IN (
+                   'memory_touch_updated_at()'::regprocedure,
+                   'memory_reject_mutation()'::regprocedure,
+                   'a11oy_memory_context_matches(text,text)'::regprocedure,
+                   'memory_lease_outbox(text,integer,integer)'::regprocedure
+               )
+           AND procedure.proowner IS DISTINCT FROM expected_owner
+    ) THEN
+        RAISE EXCEPTION 'Covenant function ownership did not converge';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_roles
+         WHERE rolname = 'a11oy_memory_stale_owner'
+           AND oid = expected_owner
+    ) THEN
+        RAISE EXCEPTION 'Seeded stale owner retained the covenant boundary';
     END IF;
 END;
 $$;
@@ -64,6 +116,16 @@ BEGIN
          WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
     ) <> 2 THEN
         RAISE EXCEPTION 'Memory Covenant roles are missing';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.member IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability role retained an inherited parent';
     END IF;
 END;
 $$;
@@ -284,6 +346,19 @@ BEGIN
 
     IF EXISTS (
         SELECT 1
+          FROM pg_namespace AS namespace,
+               LATERAL aclexplode(
+                   COALESCE(namespace.nspacl, acldefault('n', namespace.nspowner))
+               ) AS acl
+         WHERE namespace.nspname = 'public'
+           AND acl.privilege_type = 'CREATE'
+           AND acl.grantee <> namespace.nspowner
+    ) THEN
+        RAISE EXCEPTION 'A non-owner retained public-schema CREATE';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
           FROM information_schema.role_table_grants
          WHERE grantee = 'a11oy_memory_worker'
            AND table_schema = 'public'
@@ -300,6 +375,88 @@ BEGIN
            AND table_name LIKE 'memory_%'
     ) THEN
         RAISE EXCEPTION 'PUBLIC must not have memory-table privileges';
+    END IF;
+
+    IF has_table_privilege(
+        'a11oy_memory_app',
+        'public.memory_context_bindings',
+        'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+    ) OR has_table_privilege(
+        'a11oy_memory_worker',
+        'public.memory_context_bindings',
+        'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+    ) THEN
+        RAISE EXCEPTION 'Capability role can mutate owner-only context bindings';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_class AS relation
+          JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace,
+               LATERAL aclexplode(
+                   COALESCE(relation.relacl, acldefault('r', relation.relowner))
+               ) AS acl
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND acl.grantee <> relation.relowner
+           AND acl.grantee <> 'a11oy_memory_app'::regrole
+    ) THEN
+        RAISE EXCEPTION 'A stale non-owner covenant table ACL remains';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM pg_class AS relation
+          JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+          JOIN pg_attribute AS attribute ON attribute.attrelid = relation.oid,
+               LATERAL aclexplode(attribute.attacl) AS acl
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND attribute.attnum > 0
+           AND NOT attribute.attisdropped
+           AND attribute.attacl IS NOT NULL
+           AND acl.grantee <> relation.relowner
+    ) THEN
+        RAISE EXCEPTION 'A stale non-owner covenant column ACL remains';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM pg_roles WHERE rolname = 'a11oy_memory_stale_grantee'
+    ) THEN
+        IF has_table_privilege(
+            'a11oy_memory_stale_grantee',
+            'public.memory_records',
+            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
+        ) OR has_column_privilege(
+            'a11oy_memory_stale_grantee',
+            'public.memory_records',
+            'classification',
+            'SELECT,INSERT,UPDATE,REFERENCES'
+        ) OR has_schema_privilege(
+            'a11oy_memory_stale_grantee',
+            'public',
+            'CREATE'
+        ) THEN
+            RAISE EXCEPTION 'Seeded arbitrary stale grantee retained privilege';
+        END IF;
     END IF;
 END;
 $$;
@@ -365,10 +522,79 @@ BEGIN
 END;
 $$;
 
-GRANT a11oy_memory_app TO postgres;
-GRANT a11oy_memory_worker TO postgres;
+DO $$
+DECLARE
+    context_oid oid := 'a11oy_memory_context_matches(text,text)'::regprocedure;
+    is_security_definer boolean;
+    function_config text[];
+BEGIN
+    SELECT prosecdef, proconfig
+      INTO is_security_definer, function_config
+      FROM pg_proc
+     WHERE oid = context_oid;
+    IF NOT is_security_definer THEN
+        RAISE EXCEPTION 'a11oy_memory_context_matches must be SECURITY DEFINER';
+    END IF;
+    IF function_config IS NULL OR NOT ('search_path=pg_catalog, pg_temp' = ANY(function_config)) THEN
+        RAISE EXCEPTION 'a11oy_memory_context_matches must pin search_path to pg_catalog, pg_temp';
+    END IF;
+    IF NOT has_function_privilege(
+        'a11oy_memory_app',
+        'a11oy_memory_context_matches(text,text)',
+        'EXECUTE'
+    ) THEN
+        RAISE EXCEPTION 'application role lacks bound context-function EXECUTE';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_proc AS procedure,
+               LATERAL aclexplode(
+                   COALESCE(procedure.proacl, acldefault('f', procedure.proowner))
+               ) AS acl
+         WHERE procedure.oid IN (
+                   'memory_touch_updated_at()'::regprocedure,
+                   'memory_reject_mutation()'::regprocedure,
+                   context_oid,
+                   'memory_lease_outbox(text,integer,integer)'::regprocedure
+               )
+           AND acl.grantee <> procedure.proowner
+           AND NOT (
+               procedure.oid = context_oid
+               AND acl.grantee = 'a11oy_memory_app'::regrole
+               AND acl.privilege_type = 'EXECUTE'
+               AND NOT acl.is_grantable
+           )
+           AND NOT (
+               procedure.oid = 'memory_lease_outbox(text,integer,integer)'::regprocedure
+               AND acl.grantee = 'a11oy_memory_worker'::regrole
+               AND acl.privilege_type = 'EXECUTE'
+               AND NOT acl.is_grantable
+           )
+    ) THEN
+        RAISE EXCEPTION 'A stale non-owner covenant function ACL remains';
+    END IF;
+END;
+$$;
 
-SET ROLE a11oy_memory_app;
+CREATE ROLE a11oy_memory_acceptance_app
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN
+  NOREPLICATION INHERIT NOBYPASSRLS;
+CREATE ROLE a11oy_memory_acceptance_worker
+  NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN
+  NOREPLICATION INHERIT NOBYPASSRLS;
+GRANT a11oy_memory_app TO a11oy_memory_acceptance_app;
+GRANT a11oy_memory_worker TO a11oy_memory_acceptance_worker;
+INSERT INTO memory_context_bindings (
+    principal_oid,
+    tenant_id,
+    security_domain
+) VALUES (
+    'a11oy_memory_acceptance_app'::regrole,
+    'acceptance-tenant-a',
+    'acceptance-domain-a'
+);
+
+SET SESSION AUTHORIZATION a11oy_memory_acceptance_app;
 SELECT set_config('a11oy.tenant_id', 'acceptance-tenant-a', true);
 SELECT set_config('a11oy.security_domain', 'acceptance-domain-a', true);
 
@@ -424,6 +650,7 @@ DO $$
 DECLARE
     visible integer;
     rejected boolean := false;
+    impersonation_rejected boolean := false;
 BEGIN
     SELECT count(*) INTO visible
       FROM memory_records
@@ -472,10 +699,51 @@ BEGIN
     IF NOT rejected THEN
         RAISE EXCEPTION 'cross-domain insert was not rejected';
     END IF;
+
+    BEGIN
+        INSERT INTO memory_records (
+            tenant_id,
+            security_domain,
+            memory_id,
+            schema_version,
+            memory_class,
+            compatibility_type,
+            classification,
+            lifecycle_state,
+            active_index_generation,
+            content_sha256,
+            record_sha256,
+            record_json
+        ) VALUES (
+            'acceptance-tenant-a',
+            'acceptance-domain-b',
+            'acceptance-unbound-context-denied',
+            'szl-memory/2.0',
+            'evidence',
+            'EPISODIC',
+            'INTERNAL',
+            'ACTIVE',
+            'acceptance-generation',
+            repeat('8', 64),
+            repeat('9', 64),
+            jsonb_build_object(
+                'tenant_id', 'acceptance-tenant-a',
+                'security_domain', 'acceptance-domain-b',
+                'memory_id', 'acceptance-unbound-context-denied',
+                'schema_version', 'szl-memory/2.0'
+            )
+        );
+    EXCEPTION
+        WHEN insufficient_privilege THEN
+            impersonation_rejected := true;
+    END;
+    IF NOT impersonation_rejected THEN
+        RAISE EXCEPTION 'user-settable custom GUC impersonated an unbound domain';
+    END IF;
 END;
 $$;
 
-RESET ROLE;
+SET SESSION AUTHORIZATION postgres;
 
 INSERT INTO memory_receipts (
     receipt_id,
@@ -534,11 +802,6 @@ BEGIN
 END;
 $$;
 
-SET ROLE a11oy_memory_app;
-SELECT set_config('a11oy.tenant_id', 'acceptance-tenant-a', true);
-SELECT set_config('a11oy.security_domain', 'acceptance-domain-a', true);
-
-SELECT set_config('a11oy.security_domain', 'acceptance-domain-b', true);
 DO $$
 DECLARE
     audit_rejected boolean := false;
@@ -600,6 +863,8 @@ BEGIN
 END;
 $$;
 
+SET SESSION AUTHORIZATION a11oy_memory_acceptance_app;
+SELECT set_config('a11oy.tenant_id', 'acceptance-tenant-a', true);
 SELECT set_config('a11oy.security_domain', 'acceptance-domain-a', true);
 
 INSERT INTO memory_outbox (
@@ -620,8 +885,8 @@ INSERT INTO memory_outbox (
     '{}'::jsonb
 );
 
-RESET ROLE;
-SET ROLE a11oy_memory_worker;
+SET SESSION AUTHORIZATION postgres;
+SET SESSION AUTHORIZATION a11oy_memory_acceptance_worker;
 
 DO $$
 DECLARE
@@ -673,7 +938,7 @@ BEGIN
 END;
 $$;
 
-RESET ROLE;
+SET SESSION AUTHORIZATION postgres;
 ROLLBACK;
 
 DO $$
@@ -684,8 +949,17 @@ BEGIN
         SELECT 1 FROM memory_receipts WHERE receipt_id = 'acceptance-receipt-20260820'
     ) OR EXISTS (
         SELECT 1 FROM memory_outbox WHERE event_id = 'acceptance-event-20260820'
+    ) OR EXISTS (
+        SELECT 1 FROM memory_context_bindings
+         WHERE tenant_id = 'acceptance-tenant-a'
+    ) OR EXISTS (
+        SELECT 1 FROM pg_roles
+         WHERE rolname IN (
+             'a11oy_memory_acceptance_app',
+             'a11oy_memory_acceptance_worker'
+         )
     ) THEN
-        RAISE EXCEPTION 'rollback-only acceptance left persistent rows';
+        RAISE EXCEPTION 'rollback-only acceptance left persistent state';
     END IF;
 END;
 $$;
@@ -699,6 +973,7 @@ SELECT jsonb_build_object(
           JOIN pg_namespace AS n ON n.oid = c.relnamespace
          WHERE n.nspname = 'public'
            AND c.relname IN (
+               'memory_context_bindings',
                'memory_records',
                'memory_evidence_refs',
                'memory_outbox',
@@ -718,6 +993,10 @@ SELECT jsonb_build_object(
     'rollback_residue', jsonb_build_object(
         'memory_rows', (SELECT count(*) FROM memory_records WHERE memory_id LIKE 'acceptance-%'),
         'receipt_rows', (SELECT count(*) FROM memory_receipts WHERE receipt_id = 'acceptance-receipt-20260820'),
-        'outbox_rows', (SELECT count(*) FROM memory_outbox WHERE event_id = 'acceptance-event-20260820')
+        'outbox_rows', (SELECT count(*) FROM memory_outbox WHERE event_id = 'acceptance-event-20260820'),
+        'context_binding_rows', (
+            SELECT count(*) FROM memory_context_bindings
+             WHERE tenant_id = 'acceptance-tenant-a'
+        )
     )
 ) AS memory_covenant_acceptance;
