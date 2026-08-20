@@ -113,6 +113,26 @@ test("an unknown mode paired with a positive data_kind is fail-closed", () => {
   assert.match(verdict.pairConflict.reason, /not a compatible known/);
 });
 
+test("a root mode without data_kind is fail-closed", () => {
+  for (const mode of ["live", "cached", "vendor-pending", true]) {
+    const verdict = evaluateEndpointLabels(200, kevLabelSpec, { mode });
+
+    assert.equal(verdict.ok, false, String(mode));
+    assert.equal(verdict.pairConflict.mode.value, mode);
+    assert.equal(verdict.pairConflict.dataKind.path, "data_kind");
+    assert.match(verdict.pairConflict.reason, /requires a root data_kind/);
+  }
+});
+
+test("a data_kind-only KEV payload remains allowed", () => {
+  const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
+    data_kind: "cached",
+  });
+
+  assert.equal(verdict.ok, true);
+  assert.equal(verdict.pairConflict, null);
+});
+
 test("non-string mode/data_kind pairs cannot bypass the evidence contract", () => {
   const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
     mode: true,

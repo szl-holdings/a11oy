@@ -368,7 +368,15 @@ function findEvidencePairConflict(body) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   const modes = Object.entries(body).filter(([key]) => ROOT_MODE_KEY.test(key));
   const dataKinds = Object.entries(body).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
-  if (!modes.length || !dataKinds.length) return null;
+  if (!modes.length) return null;
+  if (!dataKinds.length) {
+    const [modePath, modeValue] = modes[0];
+    return {
+      mode: { path: modePath, value: modeValue },
+      dataKind: { path: "data_kind", value: undefined },
+      reason: "root mode requires a root data_kind evidence label",
+    };
+  }
 
   for (const [modePath, modeValue] of modes) {
     for (const [dataKindPath, dataKindValue] of dataKinds) {
