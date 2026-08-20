@@ -220,6 +220,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             {
                 "type": "required_status_checks",
                 "parameters": {
+                    "strict_required_status_checks_policy": True,
                     "required_status_checks": [{"context": "Tests"}],
                 },
                 "ruleset_id": 7,
@@ -258,6 +259,25 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         self.assertEqual(observed["required_approving_review_count"], 1)
         self.assertEqual(observed["bypass_visibility"], "UNAVAILABLE")
         self.assertEqual(observed["administrator_enforcement"], "NOT_INFERRED")
+
+        weak_strict_rules = [
+            {
+                **rules[0],
+                "parameters": {
+                    **rules[0]["parameters"],
+                    "strict_required_status_checks_policy": False,
+                },
+            },
+            *rules[1:],
+        ]
+        with mock.patch.object(
+            self.module, "github_pages", return_value=weak_strict_rules
+        ):
+            weak_strict = self.module.audit_effective_branch_rules(
+                "szl-holdings/a11oy", "main", "token", required_workflows
+            )
+        self.assertFalse(weak_strict["required_status_checks"])
+        self.assertFalse(weak_strict["strict_required_status_checks_policy"])
 
         empty_rules = [
             {
@@ -382,6 +402,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                     {
                         "type": "required_status_checks",
                         "parameters": {
+                            "strict_required_status_checks_policy": True,
                             "required_status_checks": [{"context": "Tests"}]
                         },
                     },
@@ -698,6 +719,10 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             report = self.module.audit_huggingface(
                 "SZLHOLDINGS", "test-token", self.policy
             )
+            del Runtime.stage
+            missing_stage_report = self.module.audit_huggingface(
+                "SZLHOLDINGS", "test-token", self.policy
+            )
         self.assertEqual(report["status"], "PASS")
         self.assertEqual(
             report["counts"],
@@ -712,6 +737,26 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             },
         )
         self.assertEqual(report["provider_mutations_performed"], [])
+        self.assertIn(
+            "SPACE_RUNTIME_UNOBSERVED",
+            [finding["kind"] for finding in missing_stage_report["findings"]],
+        )
+        self.assertFalse(
+            self.module.provider_readbacks_complete(
+                {
+                    "source_binding": {"status": "PASS"},
+                    "github_security": {
+                        "inventory": {
+                            name: {"status": "OBSERVED"}
+                            for name in self.module.SECURITY_ENDPOINTS
+                        },
+                        "controls": {"protected_branch": {"status": "OBSERVED"}},
+                    },
+                    "issues": {"status": "OBSERVED"},
+                    "huggingface": missing_stage_report,
+                }
+            )
+        )
         call_names = {name for name, _detail in calls}
         self.assertEqual(
             call_names,
