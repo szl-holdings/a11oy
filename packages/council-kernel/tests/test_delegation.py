@@ -164,6 +164,31 @@ class DelegationTests(unittest.TestCase):
         )
         self.assertEqual(len(registry.ledger.entries), 1)
 
+    def test_legacy_pre_revoked_durable_identity_remains_compatible(self) -> None:
+        root = root_grant()
+        pre_revoked = replace(root, revoked=True)
+        ledger = HashChainLedger()
+        ledger.append(
+            "capability.revoked",
+            {
+                "grant_id": root.grant_id,
+                "grant_digest": grant_digest(pre_revoked),
+                "reason": "legacy pre-revoked writer",
+                "revoked_at": NOW.isoformat().replace("+00:00", "Z"),
+            },
+        )
+
+        registry = RevocationRegistry(ledger)
+        self.assertTrue(registry.is_revoked(root))
+        self.assertTrue(registry.is_revoked(pre_revoked))
+        self.assertTrue(registry.apply(root).revoked)
+        registry.revoke(root, reason="upgrade idempotency", revoked_at=NOW)
+        self.assertEqual(len(registry.ledger.entries), 1)
+
+        altered = replace(root, budget_microunits=9_999)
+        with self.assertRaisesRegex(LedgerIntegrityError, "conflicting grant digest"):
+            registry.is_revoked(altered)
+
     def test_revoked_grant_id_cannot_be_rebound_during_authority_check(self) -> None:
         registry = RevocationRegistry()
         root = root_grant()

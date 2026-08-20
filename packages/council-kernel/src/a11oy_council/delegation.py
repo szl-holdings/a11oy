@@ -242,9 +242,13 @@ class RevocationRegistry:
         # identity. Persist the same unrevoked canonical identity used by
         # read/apply checks so pre-revoked inputs cannot fork the binding.
         digest = grant_digest(replace(grant, revoked=False))
+        legacy_revoked_digest = grant_digest(replace(grant, revoked=True))
         with self._lock:
             existing = self._revoked.get(grant.grant_id)
-            if existing is not None and existing != digest:
+            if existing is not None and not (
+                hmac.compare_digest(existing, digest)
+                or hmac.compare_digest(existing, legacy_revoked_digest)
+            ):
                 raise ValueError("grant_id revocation is already bound to another digest")
             if existing is None:
                 self._revoked[grant.grant_id] = digest
@@ -264,11 +268,15 @@ class RevocationRegistry:
         # the grant-id collision check, while an honestly materialized revoked
         # grant must continue to match the original ledger entry.
         candidate_digest = grant_digest(replace(grant, revoked=False))
+        legacy_revoked_digest = grant_digest(replace(grant, revoked=True))
         with self._lock:
             digest = self._revoked.get(grant.grant_id)
         if digest is None:
             return grant.revoked
-        if not hmac.compare_digest(digest, candidate_digest):
+        if not (
+            hmac.compare_digest(digest, candidate_digest)
+            or hmac.compare_digest(digest, legacy_revoked_digest)
+        ):
             raise LedgerIntegrityError(
                 "grant_id revocation is bound to a conflicting grant digest"
             )
