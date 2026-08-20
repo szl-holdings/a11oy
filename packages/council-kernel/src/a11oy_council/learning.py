@@ -187,6 +187,9 @@ def evaluate_outcome(
         if observation.contract_id != contract.contract_id:
             state = OutcomeState.INCONCLUSIVE
             reasons.append("observation contract_id does not match")
+        elif _utc(observation.observed_at) > now:
+            state = OutcomeState.PENDING
+            reasons.append("observation timestamp is after evaluation time")
         elif not observation.complete or observation.value is None:
             state = OutcomeState.INCONCLUSIVE
             reasons.append("observation is incomplete")
@@ -458,10 +461,14 @@ class OutcomeLearningGate:
         if contract is None:
             raise KeyError(f"unknown contract_id: {contract_id}")
         evaluation = self._evaluations.get(contract_id)
+        disposition_time = _utc(evaluated_at)
         reasons: list[str] = []
         if evaluation is None:
             state = LearningPromotionState.PENDING
             reasons.append("outcome has not been evaluated")
+        elif _utc(evaluation.evaluated_at) > disposition_time:
+            state = LearningPromotionState.PENDING
+            reasons.append("outcome evaluation is after promotion evaluation time")
         elif evaluation.state is OutcomeState.PENDING:
             state = LearningPromotionState.PENDING
             reasons.append("outcome remains pending")
@@ -485,7 +492,7 @@ class OutcomeLearningGate:
             ),
             "state": state.value,
             "reasons": reasons,
-            "evaluated_at": _utc(evaluated_at).isoformat().replace("+00:00", "Z"),
+            "evaluated_at": disposition_time.isoformat().replace("+00:00", "Z"),
         }
         disposition = LearningDisposition(
             contract_digest=contract.digest,
