@@ -438,6 +438,66 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             )
             self.assert_contract_error(root, "unconditional durable-provenance preflight")
 
+    def test_base_context_binding_no_force_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER TABLE public.memory_context_bindings NO FORCE ROW LEVEL SECURITY;\n",
+                "",
+            )
+            self.assert_contract_error(
+                root,
+                "RLS-independent context-binding preflight",
+            )
+
+    def test_corrective_context_binding_no_force_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER TABLE public.memory_context_bindings NO FORCE ROW LEVEL SECURITY;\n",
+                "",
+            )
+            self.assert_contract_error(
+                root,
+                "RLS-independent context-binding preflight",
+            )
+
+    def test_corrective_context_binding_no_force_must_precede_preflight(
+        self,
+    ) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            text = path.read_text(encoding="utf-8")
+            statement = (
+                "ALTER TABLE public.memory_context_bindings "
+                "NO FORCE ROW LEVEL SECURITY;\n"
+            )
+            text = text.replace(statement, "", 1)
+            marker = (
+                "END;\n"
+                "$$;\n\n"
+                "ALTER TABLE public.memory_records OWNER TO CURRENT_USER;\n"
+            )
+            self.assertEqual(text.count(marker), 1)
+            path.write_text(
+                text.replace(
+                    marker,
+                    "END;\n$$;\n\n" + statement
+                    + "ALTER TABLE public.memory_records OWNER TO CURRENT_USER;\n",
+                    1,
+                ),
+                encoding="utf-8",
+            )
+            self.assert_contract_error(
+                root,
+                "inspect physical rows before other mutation",
+            )
+
     def test_base_durable_provenance_preflight_cannot_be_conditional(self) -> None:
         temp, root = self.make_fixture()
         with temp:
@@ -619,6 +679,28 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             )
             self.assert_contract_error(root, "revoked binding column ACL assertion")
 
+    def test_workflow_without_temporary_binding_policy_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "          CREATE POLICY memory_context_bindings_temporary_insert\n",
+                "          CREATE POLICY memory_context_bindings_unchecked_insert\n",
+            )
+            self.assert_contract_error(root, "temporary binding RLS policy seed")
+
+    def test_workflow_without_revoked_binding_policy_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                '          test "$revoked_binding_policy_count" = "0"\n',
+                "",
+            )
+            self.assert_contract_error(root, "revoked binding RLS policy assertion")
+
     def test_workflow_without_planted_binding_rollback_assertion_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
@@ -629,6 +711,82 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
                 "",
             )
             self.assert_contract_error(root, "planted binding rollback assertion")
+
+    def test_workflow_without_forced_rls_binding_adversary_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "          ALTER TABLE public.memory_context_bindings FORCE ROW LEVEL SECURITY;\n",
+                "",
+            )
+            self.assert_contract_error(root, "forced-RLS binding adversary")
+
+    def test_workflow_without_rls_hidden_binding_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                '          test "$hidden_binding_count" = "0"\n',
+                "",
+            )
+            self.assert_contract_error(root, "RLS-hidden binding reproduction")
+
+    def test_workflow_without_non_superuser_preflight_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                "            printf '%s\\n' 'SET ROLE a11oy_memory_stale_owner;'\n",
+                "            printf '%s\\n' 'SELECT current_user;'\n",
+            )
+            self.assert_contract_error(root, "non-superuser provenance preflight")
+
+    def test_workflow_without_rejected_preflight_atomicity_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.WORKFLOW
+            self.replace_once(
+                path,
+                '          test "$binding_rls_state" = "true:true"\n',
+                "",
+            )
+            self.assert_contract_error(
+                root,
+                "rejected-preflight RLS rollback assertion",
+            )
+
+    def test_acceptance_without_context_no_force_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "memory_context_bindings must remain NO FORCE RLS for "
+                "owner-unfiltered provenance checks",
+                "memory_context_bindings RLS state unchecked",
+            )
+            self.assert_contract_error(
+                root,
+                "acceptance context-binding NO FORCE RLS assertion",
+            )
+
+    def test_acceptance_without_context_policy_cleanup_assertion_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "memory_context_bindings retained a stale RLS policy",
+                "memory_context_bindings policy state unchecked",
+            )
+            self.assert_contract_error(
+                root,
+                "acceptance context-binding policy cleanup assertion",
+            )
 
     def test_workflow_without_corrective_only_acceptance_fails(self) -> None:
         temp, root = self.make_fixture()

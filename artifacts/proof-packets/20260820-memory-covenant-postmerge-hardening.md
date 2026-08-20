@@ -16,13 +16,13 @@ were bound to the capability roles, or that a memory worker is live.
 
 | Source | SHA-256 |
 |---|---|
-| `migrations/20260811_memory_covenant_v2.sql` | `9a4031c279d45f6c3d051eed8237b27a849f2a52c2a25e26c3ef323cdfc922fb` |
+| `migrations/20260811_memory_covenant_v2.sql` | `ea36466ed0d3c30177622eed4914ddcb9f2ce58a87f7284d76256f3c8764a63b` |
 | `migrations/20260811_memory_covenant_v2_security_hardening.sql` | `8de8b006a13e2864c29669b7dc1367ae4c2d4033f12c209a682853cb75a2b4d5` |
-| `migrations/20260820_memory_covenant_v2_postmerge_hardening.sql` | `bff25f0494eb7335ece7c1fe6d8e56fea9dbdebb693f065e27f173ef33d3db85` |
-| `scripts/validate_memory_covenant_v2.py` | `f38980338fde2052884151a61a9a33a67f6a4ddb657bf181cd276e4f4fddfa5c` |
-| `tests/test_memory_covenant_v2.py` | `cd0ef454fc14225fc3b76bf24f25a8660ad55a752d3e76e15e21f2935c5b185a` |
-| `tests/memory_covenant_acceptance.sql` | `7ddeefaa4df7bdc0cfb0b23f4edf4c32e2aff5ad954254b4cb05376ac33bcfe4` |
-| `.github/workflows/memory-covenant-v2.yml` | `ab9f444ca0e42f8a4d210572fb2c36c9f93a0afcfab1dcfc6707cb724257ddd7` |
+| `migrations/20260820_memory_covenant_v2_postmerge_hardening.sql` | `0c2587ff20dbed049581e62139dfb292c26d2548b6da95a9f0046a0833f442c0` |
+| `scripts/validate_memory_covenant_v2.py` | `757e430a50c1154a5a28613659c44f817ffa45ba081bdbb367695614d1976010` |
+| `tests/test_memory_covenant_v2.py` | `ca318f365064ecb04f5e356f469ab6ada12a937093c9a9601311c7285d9f4fad` |
+| `tests/memory_covenant_acceptance.sql` | `f2f256d755b014923259e9912e8c108e707920cddcd9907572a20fddb9c16bb7` |
+| `.github/workflows/memory-covenant-v2.yml` | `d81090fec7a8a1d016005709d92a39cf72f08c69262d47e16b31254beb4bb22a` |
 
 ## Corrective controls
 
@@ -34,8 +34,9 @@ were bound to the capability roles, or that a memory worker is live.
 - Every outbound membership from either capability role is revoked, preventing
   inherited privileges or a later `SET ROLE` into a stale privileged parent.
 - Every existing policy on each covenant table is removed before the sole
-  tenant/security-domain isolation policy is installed, preventing permissive
-  policy OR-composition from widening access.
+  tenant/security-domain isolation policy is installed on each application
+  data table. The owner-only binding table remains policy-free, preventing
+  permissive policy OR-composition from widening access.
 - Query-audit and idempotency receipt references use composite
   `(tenant_id, security_domain, receipt_id)` foreign keys. Existing cross-domain
   rows stop the forward migration with SQLSTATE `23503` rather than being masked.
@@ -56,10 +57,16 @@ were bound to the capability roles, or that a memory worker is live.
   cannot distinguish an approved binding from one planted under a temporary
   INSERT grant that was later revoked. Operators must reconcile and reprovision
   bindings explicitly; present catalog state is never silently blessed.
+- Before that preflight, the migration converges the binding-table owner and
+  restores `ENABLE ROW LEVEL SECURITY` with `NO FORCE ROW LEVEL SECURITY`.
+  The owner scan therefore observes physical rows independently of stale RLS
+  policies without disabling RLS; a rejection rolls all three catalog changes
+  back with the transaction.
 - The forward correction recreates the updated-at and append-only helper bodies,
   removes every non-internal trigger from every covenant relation, restores the
-  exact five-trigger set, and restores ENABLE/FORCE RLS state (with the explicit
-  NO FORCE exception required by bounded outbox leasing).
+  exact five-trigger set, and restores exact RLS state: FORCE on tenant data
+  except the bounded-leasing outbox, and ENABLE/NO FORCE with zero policies on
+  the owner-only context-binding table.
 - Migration object targets are `public`-qualified. Migration and definer-function
   search paths are pinned to `pg_catalog, pg_temp`, and application relations in
   the function body are schema-qualified.
@@ -69,29 +76,35 @@ were bound to the capability roles, or that a memory worker is live.
 | Check | Observation |
 |---|---|
 | Static migration validator | `PASS` |
-| Adversarial validator tests | `60` tests passed |
+| Adversarial validator tests | `71` tests passed |
 | Python compilation | validator and adversarial tests compiled |
-| PostgreSQL parser (`pglast 8.4`) | base `66`, hardening `24`, corrective `72`, acceptance `43` statements parsed |
-| Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) | exact acceptance, revoked temporary binding-INSERT ACL proof, base and corrective nonempty-row rejection, failed-preflight atomicity, full second pass, and final acceptance passed |
+| PostgreSQL parser (`pglast 8.4`) | base `68`, hardening `24`, corrective `74`, acceptance `43` statements parsed |
+| Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) | clean-install acceptance, FORCE-RLS/GUC-filter hidden-row reproduction, non-superuser corrective rejection, failed-preflight RLS/owner/policy atomicity, revoked temporary binding ACL/policy proof, full second pass, and final acceptance passed |
 | Unprivileged migration-role probe | rejected with SQLSTATE `42501`; transaction did not continue |
 | Rollback residue | memory `0`, receipt `0`, outbox `0` |
 | Workflow YAML parse (`PyYAML 6.0.3`) | passed |
+| GitHub Actions lint (`actionlint 1.7.12`) | passed |
 | Whitespace check | `git diff --check` passed |
 | PostgreSQL 18 container/Neon execution | not run locally: this workspace has no Docker or PostgreSQL server binaries |
 
 The workflow now checks out and verifies the requested head SHA, records source
 SHA-256 identities, creates an attacker-selected current schema, and applies the
 clean-install migrations. It seeds a substring-spoofed unbound helper, an
-untrusted binding row, no-op trigger helpers, missing and arbitrary triggers,
+untrusted binding row hidden from its non-superuser owner by FORCE RLS and a
+GUC-filtered policy, no-op trigger helpers, missing and arbitrary triggers,
 disabled RLS, inherited capability membership, arbitrary table and column ACLs,
 schema `CREATE`, `PUBLIC` and arbitrary function grants, pre-correction role
-attributes, a permissive policy, and receipt-only foreign keys. It proves the
-untrusted-binding and cross-domain-data preflights fail, applies the forward
-correction, and runs full acceptance before any historical migration is rerun.
-It then grants a runtime application member temporary column-level INSERT,
-plants a binding, revokes the grant, proves the live column ACL is clean, and
-requires corrective reapplication to fail because the row has no durable write
-provenance. The failed preflight leaves the planted row intact for explicit
+attributes, a permissive policy, and receipt-only foreign keys. It proves that
+the stale owner sees zero binding rows but the corrective preflight still fails,
+then verifies that the rejected transaction preserves the prior owner, FORCE-RLS
+state, and stale policy. It also proves the cross-domain-data preflight, applies
+the forward correction, and runs full acceptance before any historical
+migration is rerun.
+It then grants a runtime application member temporary column-level INSERT plus
+a temporary INSERT policy, plants a binding, revokes both authorities, proves
+the live column ACL and policy catalogs are clean, and requires corrective
+reapplication to fail because the row has no durable write provenance. The
+failed preflight leaves the planted row intact for explicit
 operator handling. Only after cleanup does the workflow reapply the full
 migration sequence, capture exact catalog ACL/membership evidence, and run
 rollback-only acceptance again on PostgreSQL 18. Those hosted observations

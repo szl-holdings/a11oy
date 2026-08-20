@@ -220,6 +220,31 @@ def _validate_tables_and_rls(base: str, hardening: str, corrective: str, errors:
                 f"{label} trusted owner convergence for {table}",
                 errors,
             )
+        _require_count(
+            rf"\bALTER\s+TABLE\s+public\.{CONTEXT_BINDING_TABLE}\s+"
+            r"ENABLE\s+ROW\s+LEVEL\s+SECURITY\b",
+            sql,
+            1,
+            f"{label} context-binding defense-in-depth RLS",
+            errors,
+        )
+        _require_count(
+            rf"\bALTER\s+TABLE\s+public\.{CONTEXT_BINDING_TABLE}\s+"
+            r"NO\s+FORCE\s+ROW\s+LEVEL\s+SECURITY\b",
+            sql,
+            1,
+            f"{label} RLS-independent context-binding preflight",
+            errors,
+        )
+        if re.search(
+            rf"\bALTER\s+TABLE\s+public\.{CONTEXT_BINDING_TABLE}\s+"
+            r"FORCE\s+ROW\s+LEVEL\s+SECURITY\b",
+            sql,
+            re.IGNORECASE,
+        ):
+            errors.append(
+                f"{label} context-binding table must not retain FORCE RLS"
+            )
 
     for label, sql in (("base", base_sql), ("corrective", corrective_sql)):
         _require_token(
@@ -234,9 +259,25 @@ def _validate_tables_and_rls(base: str, hardening: str, corrective: str, errors:
             f"{label} stale-policy removal",
             errors,
         )
-        for table in MEMORY_TABLES:
+        for table in ALL_COVENANT_TABLES:
             if sql.count(f"'{table}'") < 1:
                 errors.append(f"{label} stale-policy sweep omits {table}")
+        policy_sweep = re.search(
+            r"FROM\s+pg_catalog\.pg_policy\s+AS\s+p\b.*?"
+            r"c\.relname\s+IN\s*\((?P<tables>.*?)\)\s+LOOP",
+            sql,
+            re.IGNORECASE,
+        )
+        if policy_sweep is None:
+            errors.append(f"cannot inspect {label} covenant-policy sweep")
+        else:
+            observed_tables = frozenset(
+                re.findall(r"'([^']+)'", policy_sweep.group("tables"))
+            )
+            if observed_tables != frozenset(ALL_COVENANT_TABLES):
+                errors.append(
+                    f"{label} policy sweep table set differs from covenant tables"
+                )
 
     for table in MEMORY_TABLES:
         for label, sql in (("base", base_sql), ("corrective", corrective_sql)):
@@ -376,12 +417,42 @@ def _validate_context_binding(base: str, corrective: str, errors: list[str]) -> 
             table_position = sql.find(
                 "CREATE TABLE IF NOT EXISTS public.memory_context_bindings"
             )
-            owner_position = sql.find(
+            context_owner = re.search(
+                r"ALTER\s+TABLE\s+public\.memory_context_bindings\s+"
+                r"OWNER\s+TO\s+CURRENT_USER",
+                sql,
+                re.IGNORECASE,
+            )
+            context_enable = re.search(
+                r"ALTER\s+TABLE\s+public\.memory_context_bindings\s+"
+                r"ENABLE\s+ROW\s+LEVEL\s+SECURITY",
+                sql,
+                re.IGNORECASE,
+            )
+            context_no_force = re.search(
+                r"ALTER\s+TABLE\s+public\.memory_context_bindings\s+"
+                r"NO\s+FORCE\s+ROW\s+LEVEL\s+SECURITY",
+                sql,
+                re.IGNORECASE,
+            )
+            other_owner_position = sql.find(
                 "ALTER TABLE public.memory_records OWNER TO CURRENT_USER"
             )
-            if not table_position < preflight.start() < owner_position:
+            if (
+                context_owner is None
+                or context_enable is None
+                or context_no_force is None
+                or not (
+                    table_position
+                    < context_owner.start()
+                    < context_enable.start()
+                    < context_no_force.start()
+                    < preflight.start()
+                    < other_owner_position
+                )
+            ):
                 errors.append(
-                    f"{source_label} durable-provenance preflight must precede mutation"
+                    f"{source_label} durable-provenance preflight must inspect physical rows before other mutation"
                 )
         if re.search(
             r"\bhelper_was_authenticated\b|\$bound_helper\$",
@@ -805,8 +876,29 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "untrusted binding-row seed": (
             "'untrusted-domain'"
         ),
+        "forced-RLS binding adversary": (
+            "ALTER TABLE public.memory_context_bindings FORCE ROW LEVEL SECURITY"
+        ),
+        "GUC-filtered binding policy adversary": (
+            "CREATE POLICY memory_context_bindings_stale_guc_filter"
+        ),
+        "RLS-hidden binding reproduction": (
+            'test "$hidden_binding_count" = "0"'
+        ),
+        "non-superuser provenance preflight": (
+            "printf '%s\\n' 'SET ROLE a11oy_memory_stale_owner;'"
+        ),
         "untrusted binding-row rejection": (
             "pre-existing memory_context_bindings rows lack durable write provenance"
+        ),
+        "rejected-preflight RLS rollback assertion": (
+            'test "$binding_rls_state" = "true:true"'
+        ),
+        "rejected-preflight policy rollback assertion": (
+            'test "$binding_policy_count" = "1"'
+        ),
+        "rejected-preflight owner rollback assertion": (
+            'test "$binding_owner" = "a11oy_memory_stale_owner"'
         ),
         "arbitrary table ACL seed": (
             "public.memory_context_bindings TO a11oy_memory_stale_grantee"
@@ -853,8 +945,17 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "temporary binding column ACL revoke": (
             "REVOKE ALL PRIVILEGES (principal_oid, tenant_id, security_domain)"
         ),
+        "temporary binding RLS policy seed": (
+            "CREATE POLICY memory_context_bindings_temporary_insert"
+        ),
+        "temporary binding RLS policy revoke": (
+            "DROP POLICY memory_context_bindings_temporary_insert"
+        ),
         "revoked binding column ACL assertion": (
             "test \"$revoked_binding_acl_count\" = \"0\""
+        ),
+        "revoked binding RLS policy assertion": (
+            "test \"$revoked_binding_policy_count\" = \"0\""
         ),
         "planted binding rollback assertion": (
             "test \"$planted_binding_count\" = \"1\""
@@ -922,6 +1023,14 @@ def _validate_acceptance(text: str, errors: list[str]) -> None:
         (
             "observed_triggers IS DISTINCT FROM expected_triggers",
             "acceptance exact trigger-set comparison",
+        ),
+        (
+            "memory_context_bindings must remain NO FORCE RLS for owner-unfiltered provenance checks",
+            "acceptance context-binding NO FORCE RLS assertion",
+        ),
+        (
+            "memory_context_bindings retained a stale RLS policy",
+            "acceptance context-binding policy cleanup assertion",
         ),
         (
             "UPDATE memory_query_audit",

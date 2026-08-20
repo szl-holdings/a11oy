@@ -19,6 +19,13 @@ CREATE TABLE IF NOT EXISTS public.memory_context_bindings (
     PRIMARY KEY (principal_oid, tenant_id, security_domain)
 );
 
+-- Inspect physical binding rows independently of any stale RLS policy. Owner
+-- convergence plus NO FORCE makes the migration principal's scan unfiltered;
+-- both ALTERs roll back if the fail-closed preflight rejects a nonempty table.
+ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;
+ALTER TABLE public.memory_context_bindings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.memory_context_bindings NO FORCE ROW LEVEL SECURITY;
+
 -- No historical release stored durable row-level write provenance for this
 -- authorization table. Current owners, ACLs, and helper source cannot prove
 -- that a binding predates a revoked temporary INSERT grant. Refuse every
@@ -41,7 +48,6 @@ ALTER TABLE public.memory_receipts OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_query_audit OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_index_generations OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_idempotency OWNER TO CURRENT_USER;
-ALTER TABLE public.memory_context_bindings OWNER TO CURRENT_USER;
 
 -- A stale function owner can replace either trigger helper while retaining the
 -- same function identity. Restore both bodies before transferring ownership,
@@ -224,8 +230,9 @@ ALTER TABLE public.memory_idempotency
   REFERENCES public.memory_receipts (tenant_id, security_domain, receipt_id)
   ON DELETE RESTRICT;
 
--- PostgreSQL OR-combines permissive policies. Delete every stale policy and
--- reinstall exactly one tenant/domain policy per covenant table.
+-- PostgreSQL OR-combines permissive policies. Delete every stale policy,
+-- including stale filters on the owner-only binding table, and reinstall one
+-- tenant/domain policy per application table.
 DO $$
 DECLARE
     policy_row record;
@@ -243,7 +250,8 @@ BEGIN
                'memory_receipts',
                'memory_query_audit',
                'memory_index_generations',
-               'memory_idempotency'
+               'memory_idempotency',
+               'memory_context_bindings'
            )
     LOOP
         EXECUTE pg_catalog.format(
