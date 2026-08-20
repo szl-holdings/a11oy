@@ -21,7 +21,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
     def make_fixture(self) -> tuple[tempfile.TemporaryDirectory[str], Path]:
         temp = tempfile.TemporaryDirectory()
         root = Path(temp.name)
-        for relative in (validator.BASE_MIGRATION, validator.HARDENING_MIGRATION):
+        for relative in validator.MIGRATIONS:
             source = ROOT / relative
             target = root / relative
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -49,7 +49,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
     def test_missing_migration_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
-            (root / validator.HARDENING_MIGRATION).unlink()
+            (root / validator.CORRECTIVE_MIGRATION).unlink()
             self.assert_contract_error(root, "missing required migration")
 
     def test_tenant_table_without_force_rls_fails(self) -> None:
@@ -58,7 +58,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "ALTER TABLE memory_records FORCE ROW LEVEL SECURITY;\n",
+                "ALTER TABLE public.memory_records FORCE ROW LEVEL SECURITY;\n",
                 "",
             )
             self.assert_contract_error(root, "FORCE RLS for memory_records")
@@ -69,9 +69,9 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "ALTER TABLE memory_outbox ENABLE ROW LEVEL SECURITY;\n",
-                "ALTER TABLE memory_outbox ENABLE ROW LEVEL SECURITY;\n"
-                "ALTER TABLE memory_outbox FORCE ROW LEVEL SECURITY;\n",
+                "ALTER TABLE public.memory_outbox ENABLE ROW LEVEL SECURITY;\n",
+                "ALTER TABLE public.memory_outbox ENABLE ROW LEVEL SECURITY;\n"
+                "ALTER TABLE public.memory_outbox FORCE ROW LEVEL SECURITY;\n",
             )
             self.assert_contract_error(root, "memory_outbox must not use FORCE RLS")
 
@@ -81,8 +81,8 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "CREATE POLICY memory_records_isolation ON memory_records\n",
-                "CREATE POLICY memory_records_other ON memory_records\n",
+                "CREATE POLICY memory_records_isolation ON public.memory_records\n",
+                "CREATE POLICY memory_records_other ON public.memory_records\n",
             )
             self.assert_contract_error(root, "isolation policy for memory_records")
 
@@ -92,13 +92,13 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "CREATE POLICY memory_records_isolation ON memory_records\n"
-                "USING (a11oy_memory_context_matches(tenant_id, security_domain))\n"
-                "WITH CHECK (a11oy_memory_context_matches(tenant_id, security_domain));",
-                "CREATE POLICY memory_records_isolation ON memory_records\n"
-                "USING (a11oy_memory_context_matches(tenant_id, security_domain));",
+                "CREATE POLICY memory_records_isolation ON public.memory_records\n"
+                "USING (public.a11oy_memory_context_matches(tenant_id, security_domain))\n"
+                "WITH CHECK (public.a11oy_memory_context_matches(tenant_id, security_domain));",
+                "CREATE POLICY memory_records_isolation ON public.memory_records\n"
+                "USING (public.a11oy_memory_context_matches(tenant_id, security_domain));",
             )
-            self.assert_contract_error(root, "bind both USING and WITH CHECK")
+            self.assert_contract_error(root, "policy must bind USING and WITH CHECK")
 
     def test_append_only_trigger_removal_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -106,8 +106,8 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
-                "CREATE TRIGGER memory_receipts_append_only BEFORE UPDATE OR DELETE ON memory_receipts\n"
-                "FOR EACH ROW EXECUTE FUNCTION memory_reject_mutation();\n",
+                "CREATE TRIGGER memory_receipts_append_only BEFORE UPDATE OR DELETE ON public.memory_receipts\n"
+                "FOR EACH ROW EXECUTE FUNCTION public.memory_reject_mutation();\n",
                 "",
             )
             self.assert_contract_error(root, "append-only trigger for memory_receipts")
@@ -133,7 +133,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.HARDENING_MIGRATION
             text = path.read_text(encoding="utf-8").replace("NOLOGIN", "LOGIN")
             path.write_text(text, encoding="utf-8")
-            self.assert_contract_error(root, "must remain NOLOGIN")
+            self.assert_contract_error(root, "must never receive LOGIN")
 
     def test_application_privilege_expansion_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -141,8 +141,8 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.HARDENING_MIGRATION
             self.replace_once(
                 path,
-                "GRANT SELECT, INSERT ON memory_outbox TO a11oy_memory_app;",
-                "GRANT SELECT, INSERT, UPDATE, DELETE ON memory_outbox TO a11oy_memory_app;",
+                "GRANT SELECT, INSERT ON TABLE public.memory_outbox TO a11oy_memory_app;",
+                "GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.memory_outbox TO a11oy_memory_app;",
             )
             self.assert_contract_error(root, "application table grants differ")
 
@@ -153,7 +153,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(
                 path,
                 "COMMIT;",
-                "GRANT SELECT ON memory_outbox TO a11oy_memory_worker;\n\nCOMMIT;",
+                "GRANT SELECT ON TABLE public.memory_outbox TO a11oy_memory_worker;\n\nCOMMIT;",
             )
             self.assert_contract_error(root, "worker role must not receive direct")
 
@@ -164,7 +164,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(
                 path,
                 "COMMIT;",
-                "GRANT EXECUTE ON FUNCTION memory_lease_outbox(text, integer, integer) TO PUBLIC;\n\nCOMMIT;",
+                "GRANT EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer) TO PUBLIC;\n\nCOMMIT;",
             )
             self.assert_contract_error(root, "must not grant privileges to PUBLIC")
 
@@ -174,7 +174,8 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.HARDENING_MIGRATION
             self.replace_once(
                 path,
-                "REVOKE ALL ON FUNCTION memory_lease_outbox(text, integer, integer) FROM PUBLIC;\n",
+                "REVOKE ALL PRIVILEGES ON FUNCTION public.memory_lease_outbox(text, integer, integer)\n"
+                "  FROM PUBLIC;\n",
                 "",
             )
             self.assert_contract_error(root, "PUBLIC function revoke")
@@ -185,6 +186,13 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.HARDENING_MIGRATION
             self.replace_once(path, "p_limit > 500", "p_limit > 5000")
             self.assert_contract_error(root, "bounded item limit")
+
+    def test_null_worker_limit_bypass_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(path, "p_limit IS NULL OR ", "")
+            self.assert_contract_error(root, "NULL item limit rejection")
 
     def test_unbounded_lease_duration_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -197,8 +205,8 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             path = root / validator.HARDENING_MIGRATION
-            self.replace_once(path, "SET search_path = public, pg_temp\n", "")
-            self.assert_contract_error(root, "fixed search_path")
+            self.replace_once(path, "SET search_path = pg_catalog, pg_temp\n", "")
+            self.assert_contract_error(root, "safe fixed search_path")
 
     def test_missing_skip_locked_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -207,11 +215,113 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(path, "FOR UPDATE SKIP LOCKED", "FOR UPDATE")
             self.assert_contract_error(root, "locked candidate selection")
 
+    def test_worker_superuser_normalization_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "CREATE ROLE a11oy_memory_worker\n"
+                "          NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN\n",
+                "CREATE ROLE a11oy_memory_worker\n"
+                "          SUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN\n",
+            )
+            self.assert_contract_error(root, "must never receive SUPERUSER")
+
+    def test_notice_only_role_failure_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "COMMIT;",
+                "DO $$ BEGIN NULL; EXCEPTION WHEN insufficient_privilege THEN "
+                "RAISE NOTICE 'ignored'; END; $$;\n\nCOMMIT;",
+            )
+            self.assert_contract_error(root, "must fail closed, not raise notice")
+
+    def test_stale_policy_sweep_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "FROM pg_catalog.pg_policy AS p",
+                "FROM pg_catalog.pg_policy_without_sweep AS p",
+            )
+            self.assert_contract_error(root, "all-policy catalog sweep")
+
+    def test_tenant_bound_receipt_relationship_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "CONSTRAINT memory_query_audit_tenant_domain_receipt_fkey\n",
+                "CONSTRAINT memory_query_audit_receipt_only_fkey\n",
+            )
+            self.assert_contract_error(root, "audit tenant/domain receipt foreign key")
+
+    def test_cross_domain_receipt_preflight_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "memory_idempotency contains a cross-domain receipt reference",
+                "memory_idempotency relationship unchecked",
+            )
+            self.assert_contract_error(root, "cross-domain preflight")
+
+    def test_subtractive_acl_reset_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "  FROM PUBLIC, a11oy_memory_app, a11oy_memory_worker;",
+                "  FROM PUBLIC;",
+            )
+            self.assert_contract_error(root, "subtractive table ACL reset")
+
+    def test_stale_function_acl_audit_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "CROSS JOIN LATERAL pg_catalog.aclexplode(",
+                "CROSS JOIN LATERAL pg_catalog.unchecked_acl(",
+            )
+            self.assert_contract_error(root, "stale function ACL audit")
+
+    def test_unqualified_schema_target_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "CREATE TABLE IF NOT EXISTS public.memory_records (",
+                "CREATE TABLE IF NOT EXISTS memory_records (",
+            )
+            self.assert_contract_error(root, "unqualified memory table DDL")
+
+    def test_corrective_migration_unsafe_search_path_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "SET LOCAL search_path = pg_catalog, pg_temp;",
+                "SET LOCAL search_path = public, pg_temp;",
+            )
+            self.assert_contract_error(root, "safe migration search_path")
+
     def test_destructive_table_drop_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
             path = root / validator.HARDENING_MIGRATION
-            self.replace_once(path, "COMMIT;", "DROP TABLE memory_records;\n\nCOMMIT;")
+            self.replace_once(path, "COMMIT;", "DROP TABLE public.memory_records;\n\nCOMMIT;")
             self.assert_contract_error(root, "forbidden migration operation: DROP TABLE")
 
     def test_rls_disablement_fails(self) -> None:
@@ -221,7 +331,7 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(
                 path,
                 "COMMIT;",
-                "ALTER TABLE memory_records DISABLE ROW LEVEL SECURITY;\n\nCOMMIT;",
+                "ALTER TABLE public.memory_records DISABLE ROW LEVEL SECURITY;\n\nCOMMIT;",
             )
             self.assert_contract_error(root, "forbidden migration operation: RLS disablement")
 
