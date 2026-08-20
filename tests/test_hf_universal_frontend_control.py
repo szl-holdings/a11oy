@@ -101,6 +101,24 @@ def test_unbalanced_card_markers_fail_closed() -> None:
         control.normalize_readme(item, control.START + "\n", False, "CARD_ONLY")
 
 
+def test_duplicate_managed_card_blocks_fail_closed() -> None:
+    item = asset(("README.md",), repo_type="dataset")
+    block = f"{control.START}\nfirst\n{control.END}"
+    with pytest.raises(control.ControlError, match="at most one balanced block"):
+        control.normalize_readme(item, f"{block}\n\n{block}\n", False, "CARD_ONLY")
+
+
+def test_out_of_order_managed_card_markers_fail_closed() -> None:
+    item = asset(("README.md",), repo_type="dataset")
+    with pytest.raises(control.ControlError, match="out of order"):
+        control.normalize_readme(
+            item,
+            f"{control.END}\ntext\n{control.START}\n",
+            False,
+            "CARD_ONLY",
+        )
+
+
 def test_static_html_adapter_adds_viewport_and_mobile_contract_once() -> None:
     source = "<!doctype html><html><head><title>x</title></head><body><main>x</main></body></html>"
     first = control._inject_style(source)
@@ -116,6 +134,47 @@ def test_static_html_adapter_adds_viewport_and_mobile_contract_once() -> None:
 def test_static_html_adapter_rejects_ambiguous_head() -> None:
     with pytest.raises(control.ControlError):
         control._inject_style("<html><body>no head</body></html>")
+
+
+def test_static_html_adapter_replaces_tampered_managed_css() -> None:
+    source = (
+        "<html><head><style>\n"
+        f"{control.STYLE_START}\nbody {{ display: none; }}\n{control.STYLE_END}"
+        "</style></head><body></body></html>"
+    )
+    rendered = control._inject_style(source)
+    assert "display: none" not in rendered
+    assert rendered.count(control.UNIVERSAL_CSS) == 1
+
+
+def test_static_html_adapter_restores_viewport_with_existing_managed_style() -> None:
+    source = (
+        "<html><head><style>\n"
+        f"{control.UNIVERSAL_CSS}</style></head><body></body></html>"
+    )
+    rendered = control._inject_style(source)
+    assert rendered.count('name="viewport"') == 1
+    assert control._inject_style(rendered) == rendered
+
+
+def test_static_html_adapter_does_not_accept_viewport_outside_head() -> None:
+    source = (
+        "<html><head><style>\n"
+        f"{control.UNIVERSAL_CSS}</style></head>"
+        '<body><meta name="viewport" content="width=device-width"></body></html>'
+    )
+    rendered = control._inject_style(source)
+    assert rendered.count('name="viewport"') == 2
+    assert rendered.index('name="viewport"') < rendered.index("</head>")
+
+
+def test_static_html_adapter_rejects_managed_style_inside_comment() -> None:
+    source = (
+        "<html><head><!--<style>\n"
+        f"{control.UNIVERSAL_CSS}</style>--></head><body></body></html>"
+    )
+    with pytest.raises(control.ControlError, match="active canonical style"):
+        control._inject_style(source)
 
 
 def test_react_adapter_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -134,6 +193,24 @@ def test_react_adapter_is_idempotent(monkeypatch: pytest.MonkeyPatch) -> None:
     assert dict(ops2)["src/main.tsx"] == rendered["src/main.tsx"]
 
 
+def test_react_adapter_does_not_trust_import_text_in_a_comment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("package.json", "src/main.tsx"))
+    contents = {
+        "src/main.tsx": (
+            "// import './szl-universal.css';\n"
+            "import React from 'react';\n"
+            "export const App = () => <main />;\n"
+        )
+    }
+    monkeypatch.setattr(control, "_read_text", lambda api, a, path, token: contents.get(path))
+    ops, blockers = control._react_ops(object(), item, None)
+    assert not blockers
+    rendered = dict(ops)["src/main.tsx"].decode()
+    assert rendered.splitlines().count("import './szl-universal.css';") == 1
+
+
 def test_gradio_adapter_adds_local_css_contract(monkeypatch: pytest.MonkeyPatch) -> None:
     item = asset(("app.py",))
     contents = {"app.py": "import gradio as gr\nwith gr.Blocks() as demo:\n    gr.Markdown('ok')\n"}
@@ -147,6 +224,11 @@ def test_gradio_adapter_adds_local_css_contract(monkeypatch: pytest.MonkeyPatch)
     assert "gr.Blocks(css=_SZL_UNIVERSAL_CSS, " in app
     assert control.STYLE_START in rendered["szl_universal.css"].decode()
 
+    contents["app.py"] = app
+    ops2, blockers2 = control._gradio_ops(object(), item, None)
+    assert not blockers2
+    assert dict(ops2)["app.py"] == rendered["app.py"]
+
 
 def test_gradio_existing_css_requires_source_native_review(monkeypatch: pytest.MonkeyPatch) -> None:
     item = asset(("app.py",))
@@ -155,6 +237,45 @@ def test_gradio_existing_css_requires_source_native_review(monkeypatch: pytest.M
     ops, blockers = control._gradio_ops(object(), item, None)
     assert not ops
     assert blockers and "source-specific" in blockers[0]
+
+
+def test_gradio_multiline_existing_css_requires_source_native_review(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("app.py",))
+    contents = {
+        "app.py": (
+            "import gradio as gr\n"
+            "with gr.Blocks(\n"
+            "    title='x',\n"
+            "    css='body{}',\n"
+            ") as demo:\n"
+            "    pass\n"
+        )
+    }
+    monkeypatch.setattr(control, "_read_text", lambda api, a, path, token: contents.get(path))
+    ops, blockers = control._gradio_ops(object(), item, None)
+    assert not ops
+    assert blockers and "source-specific" in blockers[0]
+
+
+def test_gradio_tampered_managed_binding_is_not_accepted(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("app.py", "szl_universal.css"))
+    contents = {
+        "app.py": (
+            "from pathlib import Path\n"
+            "import gradio as gr\n"
+            "_SZL_UNIVERSAL_CSS = 'tampered'\n"
+            "with gr.Blocks(css=_SZL_UNIVERSAL_CSS, ) as demo:\n"
+            "    pass\n"
+        )
+    }
+    monkeypatch.setattr(control, "_read_text", lambda api, a, path, token: contents.get(path))
+    ops, blockers = control._gradio_ops(object(), item, None)
+    assert not ops
+    assert blockers and "direct unshadowed" in blockers[0]
 
 
 
@@ -192,6 +313,11 @@ def test_streamlit_adapter_injects_after_single_line_page_config(monkeypatch: py
     assert app.index("st.set_page_config") < app.index("szl-universal-frontend:inject") < app.index("st.title")
     assert app.count("szl-universal-frontend:inject") == 1
 
+    contents["app.py"] = app
+    ops2, blockers2 = control._streamlit_ops(object(), item, None)
+    assert not blockers2
+    assert dict(ops2)["app.py"] == rendered["app.py"]
+
 
 def test_streamlit_multiline_page_config_blocks(monkeypatch: pytest.MonkeyPatch) -> None:
     item = asset(("app.py",))
@@ -200,6 +326,26 @@ def test_streamlit_multiline_page_config_blocks(monkeypatch: pytest.MonkeyPatch)
     ops, blockers = control._streamlit_ops(object(), item, None)
     assert not ops
     assert blockers and "single-line" in blockers[0]
+
+
+def test_streamlit_marker_text_does_not_replace_active_binding(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("app.py", "szl_universal.css"))
+    contents = {
+        "app.py": (
+            "import streamlit as st\n"
+            "st.set_page_config(page_title='x')\n"
+            "marker = '# szl-universal-frontend:inject'\n"
+            "st.title('x')\n"
+        )
+    }
+    monkeypatch.setattr(control, "_read_text", lambda api, a, path, token: contents.get(path))
+    ops, blockers = control._streamlit_ops(object(), item, None)
+    assert not blockers
+    rendered = dict(ops)["app.py"].decode()
+    assert rendered.splitlines().count("# szl-universal-frontend:inject") == 1
+    assert "st.markdown(" in rendered
 
 
 
@@ -258,7 +404,7 @@ def test_anonymous_inventory_excludes_private_repositories() -> None:
 @pytest.mark.parametrize(
     ("state", "expected_state"),
     (
-        ("EXACT", "SOURCE_BOUND_AUDIT_ONLY"),
+        ("EXACT", "SOURCE_BOUND_REPAIR_REQUIRED"),
         ("INFERRED", "SOURCE_MAPPING_REVIEW_REQUIRED"),
         ("DIVERGENT", "SOURCE_MAPPING_BLOCKED"),
         ("UNAVAILABLE", "SOURCE_MAPPING_BLOCKED"),
@@ -266,11 +412,20 @@ def test_anonymous_inventory_excludes_private_repositories() -> None:
 )
 def test_every_source_map_state_denies_direct_space_hub_writes(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
     state: str,
     expected_state: str,
 ) -> None:
+    readme = b"# Existing\n"
+    entry = source_map_entry(state)
+    entry["readme"]["sha256"] = control._sha256(readme)
     authorities = control.load_space_source_map(
-        write_source_map(tmp_path, [source_map_entry(state)]), "SZLHOLDINGS"
+        write_source_map(tmp_path, [entry]), "SZLHOLDINGS"
+    )
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, item, path, token: readme if path == "README.md" else None,
     )
     decision = control.process_asset(
         object(),
@@ -286,6 +441,221 @@ def test_every_source_map_state_denies_direct_space_hub_writes(
     assert decision.blockers
     assert decision.pr_url is None
     assert decision.merged is False
+
+
+def test_exact_source_bound_space_can_reach_terminal_verified_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "index.html"))
+    html = control._inject_style(
+        "<!doctype html><html><head><title>x</title></head><body><main>x</main></body></html>"
+    ).encode()
+    readme = control.normalize_readme(
+        item,
+        "# Existing\n",
+        True,
+        "STATIC_HTML",
+    )
+    entry = source_map_entry("EXACT")
+    entry["readme"]["sha256"] = control._sha256(readme)
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [entry]), "SZLHOLDINGS"
+    )
+    contents = {"README.md": readme, "index.html": html}
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, observed, path, token: contents.get(path),
+    )
+
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "backups",
+        space_authorities=authorities,
+    )
+
+    assert decision.state == "SOURCE_BOUND_VERIFIED"
+    assert decision.framework == "STATIC_HTML"
+    assert decision.changes == []
+    assert decision.blockers == []
+    assert control._decision_is_terminal_verified(decision) is True
+
+
+def test_tampered_static_marker_cannot_reach_terminal_verified_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "index.html"))
+    readme = control.normalize_readme(item, "# Existing\n", True, "STATIC_HTML")
+    html = (
+        "<html><head><style>\n"
+        f"{control.STYLE_START}\nbody {{ display: none; }}\n{control.STYLE_END}"
+        "</style></head><body></body></html>"
+    ).encode()
+    entry = source_map_entry("EXACT")
+    entry["readme"]["sha256"] = control._sha256(readme)
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [entry]), "SZLHOLDINGS"
+    )
+    contents = {"README.md": readme, "index.html": html}
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, observed, path, token: contents.get(path),
+    )
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "backups",
+        space_authorities=authorities,
+    )
+    assert decision.state == "SOURCE_BOUND_REPAIR_REQUIRED"
+    assert any(change.startswith("index.html:") for change in decision.changes)
+    assert control._decision_is_terminal_verified(decision) is False
+
+
+def test_static_space_without_viewport_cannot_reach_terminal_verified_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    item = asset(("README.md", "index.html"))
+    readme = control.normalize_readme(item, "# Existing\n", True, "STATIC_HTML")
+    html = (
+        "<html><head><style>\n"
+        f"{control.UNIVERSAL_CSS}</style></head><body></body></html>"
+    ).encode()
+    entry = source_map_entry("EXACT")
+    entry["readme"]["sha256"] = control._sha256(readme)
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [entry]), "SZLHOLDINGS"
+    )
+    contents = {"README.md": readme, "index.html": html}
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, observed, path, token: contents.get(path),
+    )
+    decision = control.process_asset(
+        object(),
+        item,
+        None,
+        True,
+        True,
+        tmp_path / "backups",
+        space_authorities=authorities,
+    )
+    assert decision.state == "SOURCE_BOUND_REPAIR_REQUIRED"
+    assert any(change.startswith("index.html:") for change in decision.changes)
+    assert control._decision_is_terminal_verified(decision) is False
+
+
+def test_exact_source_bound_space_rejects_stale_readme_evidence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [source_map_entry("EXACT")]), "SZLHOLDINGS"
+    )
+    monkeypatch.setattr(
+        control,
+        "_read_bytes",
+        lambda api, item, path, token: b"different" if path == "README.md" else None,
+    )
+    decision = control.process_asset(
+        object(),
+        asset(("README.md", "index.html")),
+        None,
+        True,
+        True,
+        tmp_path / "backups",
+        space_authorities=authorities,
+    )
+    assert decision.state == "SOURCE_MAP_STALE"
+    assert decision.blockers == [
+        "immutable source-map README hash does not match the revision-bound Hub bytes"
+    ]
+
+
+def test_complete_space_inventory_must_match_map_before_provider_mutation(
+    tmp_path: Path,
+) -> None:
+    example = asset(("README.md",))
+    other = asset(("README.md",), repo_id="SZLHOLDINGS/other")
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [source_map_entry("EXACT")]), "SZLHOLDINGS"
+    )
+    assert control.validate_space_inventory_authorities([example], authorities) == [example]
+
+    with pytest.raises(control.ControlError, match="missing source-map entries"):
+        control.validate_space_inventory_authorities([example, other], authorities)
+    with pytest.raises(control.ControlError, match="unobserved source-map entries"):
+        control.validate_space_inventory_authorities([], authorities)
+
+    stale = asset(("README.md",))
+    stale = control.Asset(stale.repo_id, stale.repo_type, "c" * 40, stale.files)
+    with pytest.raises(control.ControlError, match="stale source-map revisions"):
+        control.validate_space_inventory_authorities([stale], authorities)
+
+
+def test_blocked_space_preflight_denies_all_provider_mutation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_map = write_source_map(tmp_path, [source_map_entry("EXACT")])
+    guard = tmp_path / "guard.sh"
+    guard.write_text("#!/usr/bin/env bash\nexit 0\n", encoding="utf-8")
+    report = tmp_path / "report.json"
+    model = asset(("README.md",), repo_id="SZLHOLDINGS/model", repo_type="model")
+    space = asset(("README.md", "index.html"))
+    observed_flags: list[tuple[bool, bool]] = []
+
+    monkeypatch.setenv("HF_TOKEN", "test-token")
+    monkeypatch.setattr(control, "HfApi", lambda **kwargs: object())
+    monkeypatch.setattr(control, "enumerate_assets", lambda api, org: [model, space])
+    monkeypatch.setattr(
+        control,
+        "_space_authority_decision",
+        lambda api, item, authorities: control.Decision(
+            item.repo_id,
+            item.repo_type,
+            item.sha,
+            "SOURCE_BOUND_REPAIR_REQUIRED",
+            blockers=["repair through canonical source"],
+        ),
+    )
+
+    def fake_process(api, item, token, execute, merge, backups, **kwargs):
+        observed_flags.append((execute, merge))
+        return control.Decision(item.repo_id, item.repo_type, item.sha, "CURRENT")
+
+    monkeypatch.setattr(control, "process_asset", fake_process)
+    result = control.main(
+        [
+            "--execute",
+            "--merge",
+            "--source-map",
+            str(source_map),
+            "--authority-guard",
+            str(guard),
+            "--report",
+            str(report),
+            "--backup-dir",
+            str(tmp_path / "backups"),
+            "--sleep",
+            "0",
+        ]
+    )
+    assert result == 2
+    assert observed_flags == [(False, False)]
+    assert json.loads(report.read_text(encoding="utf-8"))["complete"] is False
 
 
 def test_missing_and_stale_source_map_entries_fail_closed(tmp_path: Path) -> None:
@@ -446,6 +816,18 @@ def test_source_map_rejects_unbound_readme_evidence(tmp_path: Path) -> None:
         control.load_space_source_map(
             write_source_map(tmp_path, [boolean_status]), "SZLHOLDINGS"
         )
+
+
+def test_source_map_accepts_immutable_resolve_readme_evidence(tmp_path: Path) -> None:
+    entry = source_map_entry("EXACT")
+    entry["readme"]["url"] = (
+        f"https://huggingface.co/spaces/{entry['space_id']}/resolve/"
+        f"{entry['hf_repository_sha']}/README.md"
+    )
+    authorities = control.load_space_source_map(
+        write_source_map(tmp_path, [entry]), "SZLHOLDINGS"
+    )
+    assert authorities[entry["space_id"]].readme_sha256 == "d" * 64
 
 
 def test_source_map_binds_canonical_candidate_and_workflow_revisions(tmp_path: Path) -> None:
