@@ -46,9 +46,17 @@ BEGIN
         SELECT 1
           FROM pg_roles
          WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
-           AND (rolsuper OR NOT rolinherit OR rolbypassrls OR rolcanlogin)
+           AND (
+               rolsuper
+               OR rolcreatedb
+               OR rolcreaterole
+               OR rolreplication
+               OR NOT rolinherit
+               OR rolbypassrls
+               OR rolcanlogin
+           )
     ) THEN
-        RAISE EXCEPTION 'Memory Covenant roles are not NOLOGIN INHERIT NOBYPASSRLS non-superuser roles';
+        RAISE EXCEPTION 'Memory Covenant roles retain elevated or login attributes';
     END IF;
     IF (
         SELECT count(*)
@@ -199,8 +207,13 @@ BEGIN
         RAISE EXCEPTION 'a11oy_memory_app privilege mismatch: %', privilege_diff;
     END IF;
 
-    IF NOT has_schema_privilege('a11oy_memory_app', 'public', 'USAGE') THEN
-        RAISE EXCEPTION 'a11oy_memory_app lacks public schema USAGE';
+    IF NOT has_schema_privilege('a11oy_memory_app', 'public', 'USAGE')
+       OR NOT has_schema_privilege('a11oy_memory_worker', 'public', 'USAGE') THEN
+        RAISE EXCEPTION 'Memory Covenant roles lack public schema USAGE';
+    END IF;
+    IF has_schema_privilege('a11oy_memory_app', 'public', 'CREATE')
+       OR has_schema_privilege('a11oy_memory_worker', 'public', 'CREATE') THEN
+        RAISE EXCEPTION 'Memory Covenant roles retain public schema CREATE';
     END IF;
 
     IF EXISTS (
@@ -211,6 +224,16 @@ BEGIN
            AND table_name LIKE 'memory_%'
     ) THEN
         RAISE EXCEPTION 'a11oy_memory_worker must not have direct memory-table privileges';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1
+          FROM information_schema.table_privileges
+         WHERE grantee = 'PUBLIC'
+           AND table_schema = 'public'
+           AND table_name LIKE 'memory_%'
+    ) THEN
+        RAISE EXCEPTION 'PUBLIC must not have Memory Covenant table privileges';
     END IF;
 END;
 $$;
@@ -247,6 +270,13 @@ BEGIN
         'EXECUTE'
     ) THEN
         RAISE EXCEPTION 'worker role lacks bounded lease function EXECUTE';
+    END IF;
+    IF has_function_privilege(
+        'a11oy_memory_app',
+        'memory_lease_outbox(text,integer,integer)',
+        'EXECUTE'
+    ) THEN
+        RAISE EXCEPTION 'application role must not execute cross-tenant worker leasing';
     END IF;
 END;
 $$;
@@ -394,6 +424,115 @@ INSERT INTO memory_receipts (
     )
 );
 
+SET ROLE a11oy_memory_app;
+SELECT set_config('a11oy.tenant_id', 'acceptance-tenant-a', true);
+SELECT set_config('a11oy.security_domain', 'acceptance-domain-a', true);
+
+INSERT INTO memory_query_audit (
+    audit_id,
+    tenant_id,
+    security_domain,
+    receipt_id,
+    query_digest,
+    result_digest,
+    audit_json
+) VALUES (
+    'acceptance-same-domain-audit',
+    'acceptance-tenant-a',
+    'acceptance-domain-a',
+    'acceptance-receipt-20260820',
+    repeat('4', 64),
+    repeat('5', 64),
+    jsonb_build_object(
+        'audit_id', 'acceptance-same-domain-audit',
+        'query_digest', repeat('4', 64),
+        'result_digest', repeat('5', 64)
+    )
+);
+
+INSERT INTO memory_idempotency (
+    tenant_id,
+    security_domain,
+    operation,
+    idempotency_key,
+    request_digest,
+    response_json,
+    receipt_id
+) VALUES (
+    'acceptance-tenant-a',
+    'acceptance-domain-a',
+    'acceptance',
+    'acceptance-same-domain-idempotency',
+    repeat('6', 64),
+    '{}'::jsonb,
+    'acceptance-receipt-20260820'
+);
+
+SELECT set_config('a11oy.security_domain', 'acceptance-domain-b', true);
+
+DO $$
+DECLARE
+    audit_reference_rejected boolean := false;
+    idempotency_reference_rejected boolean := false;
+BEGIN
+    BEGIN
+        INSERT INTO memory_query_audit (
+            audit_id,
+            tenant_id,
+            security_domain,
+            receipt_id,
+            query_digest,
+            result_digest,
+            audit_json
+        ) VALUES (
+            'acceptance-cross-domain-audit',
+            'acceptance-tenant-a',
+            'acceptance-domain-b',
+            'acceptance-receipt-20260820',
+            repeat('1', 64),
+            repeat('2', 64),
+            jsonb_build_object(
+                'audit_id', 'acceptance-cross-domain-audit',
+                'query_digest', repeat('1', 64),
+                'result_digest', repeat('2', 64)
+            )
+        );
+    EXCEPTION
+        WHEN foreign_key_violation THEN
+            audit_reference_rejected := true;
+    END;
+
+    BEGIN
+        INSERT INTO memory_idempotency (
+            tenant_id,
+            security_domain,
+            operation,
+            idempotency_key,
+            request_digest,
+            response_json,
+            receipt_id
+        ) VALUES (
+            'acceptance-tenant-a',
+            'acceptance-domain-b',
+            'acceptance',
+            'acceptance-cross-domain-idempotency',
+            repeat('3', 64),
+            '{}'::jsonb,
+            'acceptance-receipt-20260820'
+        );
+    EXCEPTION
+        WHEN foreign_key_violation THEN
+            idempotency_reference_rejected := true;
+    END;
+
+    IF NOT audit_reference_rejected OR NOT idempotency_reference_rejected THEN
+        RAISE EXCEPTION 'cross-domain receipt references were not rejected';
+    END IF;
+END;
+$$;
+
+RESET ROLE;
+
 DO $$
 DECLARE
     update_rejected boolean := false;
@@ -449,6 +588,8 @@ DO $$
 DECLARE
     leased memory_outbox;
     invalid_limit_rejected boolean := false;
+    null_limit_rejected boolean := false;
+    null_duration_rejected boolean := false;
 BEGIN
     SELECT * INTO leased
       FROM memory_lease_outbox('acceptance-worker', 1, 30)
@@ -469,6 +610,22 @@ BEGIN
     END;
     IF NOT invalid_limit_rejected THEN
         RAISE EXCEPTION 'invalid worker limit was not rejected with SQLSTATE 22023';
+    END IF;
+
+    BEGIN
+        PERFORM * FROM memory_lease_outbox('acceptance-worker', NULL, 30);
+    EXCEPTION
+        WHEN SQLSTATE '22023' THEN
+            null_limit_rejected := true;
+    END;
+    BEGIN
+        PERFORM * FROM memory_lease_outbox('acceptance-worker', 1, NULL);
+    EXCEPTION
+        WHEN SQLSTATE '22023' THEN
+            null_duration_rejected := true;
+    END;
+    IF NOT null_limit_rejected OR NOT null_duration_rejected THEN
+        RAISE EXCEPTION 'NULL worker lease bounds were not rejected with SQLSTATE 22023';
     END IF;
 END;
 $$;

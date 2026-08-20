@@ -11,12 +11,33 @@ BEGIN;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'a11oy_memory_app') THEN
-        CREATE ROLE a11oy_memory_app NOLOGIN INHERIT NOBYPASSRLS;
+        CREATE ROLE a11oy_memory_app
+            NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN INHERIT NOREPLICATION NOBYPASSRLS;
     ELSE
-        ALTER ROLE a11oy_memory_app NOLOGIN INHERIT NOBYPASSRLS;
+        ALTER ROLE a11oy_memory_app
+            NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN INHERIT NOREPLICATION NOBYPASSRLS;
     END IF;
 END;
 $$;
+
+-- Reset direct and PUBLIC table privileges before installing the bounded ACL.
+-- GRANT is additive, so omitting these revocations would preserve privileges
+-- left by an earlier deployment.
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM a11oy_memory_app;
+REVOKE ALL PRIVILEGES ON TABLE memory_records
+    FROM PUBLIC, a11oy_memory_app;
+REVOKE ALL PRIVILEGES ON TABLE memory_evidence_refs
+    FROM PUBLIC, a11oy_memory_app;
+REVOKE ALL PRIVILEGES ON TABLE memory_receipts
+    FROM PUBLIC, a11oy_memory_app;
+REVOKE ALL PRIVILEGES ON TABLE memory_query_audit
+    FROM PUBLIC, a11oy_memory_app;
+REVOKE ALL PRIVILEGES ON TABLE memory_index_generations
+    FROM PUBLIC, a11oy_memory_app;
+REVOKE ALL PRIVILEGES ON TABLE memory_idempotency
+    FROM PUBLIC, a11oy_memory_app;
+REVOKE ALL PRIVILEGES ON TABLE memory_outbox
+    FROM PUBLIC, a11oy_memory_app;
 
 GRANT USAGE ON SCHEMA public TO a11oy_memory_app;
 GRANT SELECT, INSERT, UPDATE ON memory_records TO a11oy_memory_app;
@@ -33,15 +54,31 @@ GRANT SELECT, INSERT ON memory_outbox TO a11oy_memory_app;
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'a11oy_memory_worker') THEN
-        CREATE ROLE a11oy_memory_worker NOLOGIN INHERIT NOBYPASSRLS;
+        CREATE ROLE a11oy_memory_worker
+            NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN INHERIT NOREPLICATION NOBYPASSRLS;
     ELSE
-        ALTER ROLE a11oy_memory_worker NOLOGIN INHERIT NOBYPASSRLS;
+        ALTER ROLE a11oy_memory_worker
+            NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN INHERIT NOREPLICATION NOBYPASSRLS;
     END IF;
-EXCEPTION
-    WHEN insufficient_privilege THEN
-        RAISE NOTICE 'Could not create a11oy_memory_worker role; create it before enabling workers.';
 END;
 $$;
+
+REVOKE ALL PRIVILEGES ON TABLE memory_records
+    FROM a11oy_memory_worker;
+REVOKE ALL PRIVILEGES ON TABLE memory_evidence_refs
+    FROM a11oy_memory_worker;
+REVOKE ALL PRIVILEGES ON TABLE memory_receipts
+    FROM a11oy_memory_worker;
+REVOKE ALL PRIVILEGES ON TABLE memory_query_audit
+    FROM a11oy_memory_worker;
+REVOKE ALL PRIVILEGES ON TABLE memory_index_generations
+    FROM a11oy_memory_worker;
+REVOKE ALL PRIVILEGES ON TABLE memory_idempotency
+    FROM a11oy_memory_worker;
+REVOKE ALL PRIVILEGES ON TABLE memory_outbox
+    FROM a11oy_memory_worker;
+REVOKE ALL PRIVILEGES ON SCHEMA public FROM a11oy_memory_worker;
+GRANT USAGE ON SCHEMA public TO a11oy_memory_worker;
 
 -- The table owner must be able to execute the definer function across tenant
 -- partitions, while ordinary application sessions remain RLS-bound.
@@ -61,7 +98,12 @@ BEGIN
     IF p_worker_id IS NULL OR p_worker_id = '' THEN
         RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='worker id is required';
     END IF;
-    IF p_limit < 1 OR p_limit > 500 OR p_lease_seconds < 1 OR p_lease_seconds > 3600 THEN
+    IF p_limit IS NULL
+       OR p_lease_seconds IS NULL
+       OR p_limit < 1
+       OR p_limit > 500
+       OR p_lease_seconds < 1
+       OR p_lease_seconds > 3600 THEN
         RAISE EXCEPTION USING ERRCODE='22023', MESSAGE='worker lease bounds are invalid';
     END IF;
     IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='a11oy_memory_worker')
@@ -92,7 +134,8 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION memory_lease_outbox(text, integer, integer) FROM PUBLIC;
+REVOKE ALL ON FUNCTION memory_lease_outbox(text, integer, integer)
+    FROM PUBLIC, a11oy_memory_app, a11oy_memory_worker;
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname='a11oy_memory_worker') THEN

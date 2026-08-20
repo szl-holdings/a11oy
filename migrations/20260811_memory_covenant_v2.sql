@@ -87,11 +87,17 @@ CREATE TABLE IF NOT EXISTS memory_receipts (
     CHECK (receipt_json->'integrity'->>'digest' = digest)
 );
 
+-- A receipt reference is provenance-valid only inside the same tenant and
+-- security domain.  The unique index also retrofits that key onto databases
+-- where memory_receipts already existed before this migration was applied.
+CREATE UNIQUE INDEX IF NOT EXISTS memory_receipts_scope_id_uidx
+  ON memory_receipts (tenant_id, security_domain, receipt_id);
+
 CREATE TABLE IF NOT EXISTS memory_query_audit (
     audit_id text PRIMARY KEY,
     tenant_id text NOT NULL,
     security_domain text NOT NULL,
-    receipt_id text NOT NULL REFERENCES memory_receipts(receipt_id) ON DELETE RESTRICT,
+    receipt_id text NOT NULL,
     query_digest char(64) NOT NULL CHECK (query_digest ~ '^[0-9a-f]{64}$'),
     result_digest char(64) NOT NULL CHECK (result_digest ~ '^[0-9a-f]{64}$'),
     returned_ids text[] NOT NULL DEFAULT '{}',
@@ -136,10 +142,50 @@ CREATE TABLE IF NOT EXISTS memory_idempotency (
     idempotency_key text NOT NULL CHECK (length(idempotency_key) BETWEEN 1 AND 256),
     request_digest char(64) NOT NULL CHECK (request_digest ~ '^[0-9a-f]{64}$'),
     response_json jsonb NOT NULL CHECK (jsonb_typeof(response_json) = 'object'),
-    receipt_id text NOT NULL REFERENCES memory_receipts(receipt_id) ON DELETE RESTRICT,
+    receipt_id text NOT NULL,
     created_at timestamptz NOT NULL DEFAULT now(),
     PRIMARY KEY (tenant_id, security_domain, operation, idempotency_key)
 );
+
+-- CREATE TABLE IF NOT EXISTS does not reconcile constraints on an existing
+-- installation. Remove every prior receipt FK on the two referencing tables,
+-- including legacy/custom names, before installing the scoped references.
+DO $$
+DECLARE
+    receipt_reference record;
+BEGIN
+    FOR receipt_reference IN
+        SELECT n.nspname AS schema_name,
+               c.relname AS table_name,
+               constraint_entry.conname AS constraint_name
+          FROM pg_constraint AS constraint_entry
+          JOIN pg_class AS c ON c.oid = constraint_entry.conrelid
+          JOIN pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE constraint_entry.contype = 'f'
+           AND constraint_entry.confrelid = 'public.memory_receipts'::regclass
+           AND n.nspname = 'public'
+           AND c.relname IN ('memory_query_audit', 'memory_idempotency')
+    LOOP
+        EXECUTE format(
+            'ALTER TABLE %I.%I DROP CONSTRAINT %I',
+            receipt_reference.schema_name,
+            receipt_reference.table_name,
+            receipt_reference.constraint_name
+        );
+    END LOOP;
+END;
+$$;
+
+ALTER TABLE memory_query_audit
+  ADD CONSTRAINT memory_query_audit_receipt_scope_fkey
+  FOREIGN KEY (tenant_id, security_domain, receipt_id)
+  REFERENCES memory_receipts (tenant_id, security_domain, receipt_id)
+  ON DELETE RESTRICT;
+ALTER TABLE memory_idempotency
+  ADD CONSTRAINT memory_idempotency_receipt_scope_fkey
+  FOREIGN KEY (tenant_id, security_domain, receipt_id)
+  REFERENCES memory_receipts (tenant_id, security_domain, receipt_id)
+  ON DELETE RESTRICT;
 
 CREATE INDEX IF NOT EXISTS memory_records_searchable_idx
   ON memory_records (tenant_id, security_domain, active_index_generation, memory_id)
@@ -208,6 +254,41 @@ ALTER TABLE memory_index_generations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_index_generations FORCE ROW LEVEL SECURITY;
 ALTER TABLE memory_idempotency ENABLE ROW LEVEL SECURITY;
 ALTER TABLE memory_idempotency FORCE ROW LEVEL SECURITY;
+
+-- PostgreSQL OR-combines permissive policies. Since the tables may predate
+-- this migration, remove every policy on the exact Memory Covenant table set
+-- before creating the single intended isolation policy on each table.
+DO $$
+DECLARE
+    stale_policy record;
+BEGIN
+    FOR stale_policy IN
+        SELECT n.nspname AS schema_name,
+               c.relname AS table_name,
+               policy_entry.polname AS policy_name
+          FROM pg_policy AS policy_entry
+          JOIN pg_class AS c ON c.oid = policy_entry.polrelid
+          JOIN pg_namespace AS n ON n.oid = c.relnamespace
+         WHERE n.nspname = 'public'
+           AND c.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency'
+           )
+    LOOP
+        EXECUTE format(
+            'DROP POLICY %I ON %I.%I',
+            stale_policy.policy_name,
+            stale_policy.schema_name,
+            stale_policy.table_name
+        );
+    END LOOP;
+END;
+$$;
 
 DROP POLICY IF EXISTS memory_records_isolation ON memory_records;
 CREATE POLICY memory_records_isolation ON memory_records

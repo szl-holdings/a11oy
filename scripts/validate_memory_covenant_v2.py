@@ -30,6 +30,7 @@ APPEND_ONLY_TABLES = (
     "memory_idempotency",
 )
 EXPECTED_INDEXES = (
+    "memory_receipts_scope_id_uidx",
     "memory_one_active_generation",
     "memory_records_searchable_idx",
     "memory_records_expiry_idx",
@@ -179,6 +180,35 @@ def _validate_tables_and_rls(base: str, hardening: str, errors: list[str]) -> No
             if not re.search(r"\bWITH\s+CHECK\s*\(", body, re.IGNORECASE):
                 errors.append(f"{table} policy is missing WITH CHECK")
 
+    reset_match = re.search(
+        r"DO\s+\$\$\s+DECLARE\s+stale_policy\s+record\s*;\s+BEGIN"
+        r"(?P<body>.*?)END\s*;\s*\$\$\s*;",
+        base_sql,
+        re.IGNORECASE,
+    )
+    if reset_match is None:
+        errors.append("missing fail-closed reset of pre-existing Memory Covenant policies")
+    else:
+        reset_body = reset_match.group("body")
+        required_reset_tokens = {
+            "policy catalog": r"\bFROM\s+pg_policy\b",
+            "policy table catalog": r"\bJOIN\s+pg_class\b",
+            "policy namespace catalog": r"\bJOIN\s+pg_namespace\b",
+            "public schema scope": r"n\.nspname\s*=\s*'public'",
+            "schema-qualified policy drop": (
+                r"'DROP\s+POLICY\s+%I\s+ON\s+%I\.%I'"
+            ),
+        }
+        for label, pattern in required_reset_tokens.items():
+            if re.search(pattern, reset_body, re.IGNORECASE) is None:
+                errors.append(f"policy reset is missing {label}")
+        for table in MEMORY_TABLES:
+            if re.search(rf"'{table}'", reset_body, re.IGNORECASE) is None:
+                errors.append(f"policy reset must cover {table}")
+        first_policy_create = re.search(r"\bCREATE\s+POLICY\b", base_sql, re.IGNORECASE)
+        if first_policy_create and reset_match.start() > first_policy_create.start():
+            errors.append("policy reset must run before isolation policies are created")
+
     for table in FORCE_RLS_TABLES:
         _require_count(
             rf"\bALTER\s+TABLE\s+{table}\s+FORCE\s+ROW\s+LEVEL\s+SECURITY\b",
@@ -225,6 +255,66 @@ def _validate_tables_and_rls(base: str, hardening: str, errors: list[str]) -> No
         )
 
 
+def _validate_receipt_scope(base: str, errors: list[str]) -> None:
+    sql = _normalize(base)
+    _require_count(
+        r"\bCREATE\s+UNIQUE\s+INDEX\s+IF\s+NOT\s+EXISTS\s+"
+        r"memory_receipts_scope_id_uidx\s+ON\s+memory_receipts\s*"
+        r"\(\s*tenant_id\s*,\s*security_domain\s*,\s*receipt_id\s*\)",
+        sql,
+        1,
+        "tenant/domain receipt reference key",
+        errors,
+    )
+
+    cleanup_match = re.search(
+        r"DO\s+\$\$\s+DECLARE\s+receipt_reference\s+record\s*;\s+BEGIN"
+        r"(?P<body>.*?)END\s*;\s*\$\$\s*;",
+        sql,
+        re.IGNORECASE,
+    )
+    if cleanup_match is None:
+        errors.append("missing legacy receipt foreign-key reset")
+    else:
+        cleanup_body = cleanup_match.group("body")
+        required_cleanup_tokens = {
+            "foreign-key catalog filter": r"constraint_entry\.contype\s*=\s*'f'",
+            "receipt target filter": (
+                r"constraint_entry\.confrelid\s*=\s*"
+                r"'public\.memory_receipts'::regclass"
+            ),
+            "query-audit scope": r"'memory_query_audit'",
+            "idempotency scope": r"'memory_idempotency'",
+            "schema-qualified constraint drop": (
+                r"'ALTER\s+TABLE\s+%I\.%I\s+DROP\s+CONSTRAINT\s+%I'"
+            ),
+        }
+        for label, pattern in required_cleanup_tokens.items():
+            if re.search(pattern, cleanup_body, re.IGNORECASE) is None:
+                errors.append(f"receipt foreign-key reset is missing {label}")
+
+    for table in ("memory_query_audit", "memory_idempotency"):
+        constraint = f"{table}_receipt_scope_fkey"
+        _require_count(
+            rf"\bALTER\s+TABLE\s+{table}\s+ADD\s+CONSTRAINT\s+{constraint}\s+"
+            rf"FOREIGN\s+KEY\s*\(\s*tenant_id\s*,\s*security_domain\s*,\s*receipt_id\s*\)\s+"
+            rf"REFERENCES\s+memory_receipts\s*"
+            rf"\(\s*tenant_id\s*,\s*security_domain\s*,\s*receipt_id\s*\)\s+"
+            rf"ON\s+DELETE\s+RESTRICT",
+            sql,
+            1,
+            f"tenant/domain-bound receipt reference for {table}",
+            errors,
+        )
+
+    if re.search(
+        r"\bREFERENCES\s+memory_receipts\s*\(\s*receipt_id\s*\)",
+        sql,
+        re.IGNORECASE,
+    ):
+        errors.append("receipt references must never use receipt_id alone")
+
+
 def _validate_append_only(base: str, errors: list[str]) -> None:
     sql = _normalize(base)
     _require_count(
@@ -256,16 +346,20 @@ def _validate_append_only(base: str, errors: list[str]) -> None:
 
 def _validate_roles_and_grants(hardening: str, errors: list[str]) -> None:
     sql = _normalize(hardening)
+    bounded_attributes = (
+        r"NOSUPERUSER\s+NOCREATEDB\s+NOCREATEROLE\s+NOLOGIN\s+INHERIT\s+"
+        r"NOREPLICATION\s+NOBYPASSRLS"
+    )
     for role in ("a11oy_memory_app", "a11oy_memory_worker"):
         _require_count(
-            rf"\bCREATE\s+ROLE\s+{role}\s+NOLOGIN\s+INHERIT\s+NOBYPASSRLS\b",
+            rf"\bCREATE\s+ROLE\s+{role}\s+{bounded_attributes}\b",
             sql,
             1,
             f"hardened CREATE ROLE for {role}",
             errors,
         )
         _require_count(
-            rf"\bALTER\s+ROLE\s+{role}\s+NOLOGIN\s+INHERIT\s+NOBYPASSRLS\b",
+            rf"\bALTER\s+ROLE\s+{role}\s+{bounded_attributes}\b",
             sql,
             1,
             f"hardened ALTER ROLE for {role}",
@@ -274,16 +368,73 @@ def _validate_roles_and_grants(hardening: str, errors: list[str]) -> None:
 
     if re.search(r"(?<!NO)BYPASSRLS\b", sql, re.IGNORECASE):
         errors.append("memory roles must never receive BYPASSRLS")
-    if re.search(r"\bSUPERUSER\b", sql, re.IGNORECASE):
+    if re.search(r"(?<!NO)SUPERUSER\b", sql, re.IGNORECASE):
         errors.append("memory roles must never receive SUPERUSER")
+    if re.search(r"(?<!NO)CREATEDB\b", sql, re.IGNORECASE):
+        errors.append("memory roles must never receive CREATEDB")
+    if re.search(r"(?<!NO)CREATEROLE\b", sql, re.IGNORECASE):
+        errors.append("memory roles must never receive CREATEROLE")
+    if re.search(r"(?<!NO)REPLICATION\b", sql, re.IGNORECASE):
+        errors.append("memory roles must never receive REPLICATION")
     if re.search(r"(?<!NO)LOGIN\b", sql, re.IGNORECASE):
         errors.append("memory capability roles must remain NOLOGIN")
+    if re.search(r"\bWHEN\s+insufficient_privilege\b", sql, re.IGNORECASE):
+        errors.append("capability-role hardening must fail closed on insufficient privilege")
+
+    for role in ("a11oy_memory_app", "a11oy_memory_worker"):
+        _require_count(
+            rf"\bREVOKE\s+ALL\s+PRIVILEGES\s+ON\s+SCHEMA\s+public\s+FROM\s+{role}\b",
+            sql,
+            1,
+            f"schema ACL reset for {role}",
+            errors,
+        )
+        _require_count(
+            rf"\bGRANT\s+USAGE\s+ON\s+SCHEMA\s+public\s+TO\s+{role}\b",
+            sql,
+            1,
+            f"bounded schema USAGE grant for {role}",
+            errors,
+        )
+
+    first_bounded_grant = re.search(
+        r"\bGRANT\s+(?:USAGE|SELECT|INSERT|UPDATE|DELETE)", sql, re.IGNORECASE
+    )
+    worker_grant = re.search(
+        r"\bGRANT\s+EXECUTE\s+ON\s+FUNCTION\s+memory_lease_outbox",
+        sql,
+        re.IGNORECASE,
+    )
+    for table in MEMORY_TABLES:
+        app_revoke = re.search(
+            rf"\bREVOKE\s+ALL\s+PRIVILEGES\s+ON\s+TABLE\s+{table}\s+"
+            rf"FROM\s+PUBLIC\s*,\s*a11oy_memory_app\b",
+            sql,
+            re.IGNORECASE,
+        )
+        if app_revoke is None:
+            errors.append(f"missing bounded ACL reset for application table {table}")
+        elif first_bounded_grant and app_revoke.start() > first_bounded_grant.start():
+            errors.append(f"application ACL reset must precede grants for {table}")
+
+        worker_revoke = re.search(
+            rf"\bREVOKE\s+ALL\s+PRIVILEGES\s+ON\s+TABLE\s+{table}\s+"
+            rf"FROM\s+a11oy_memory_worker\b",
+            sql,
+            re.IGNORECASE,
+        )
+        if worker_revoke is None:
+            errors.append(f"missing bounded ACL reset for worker table {table}")
+        elif worker_grant and worker_revoke.start() > worker_grant.start():
+            errors.append(f"worker ACL reset must precede grants for {table}")
 
     _require_count(
-        r"\bGRANT\s+USAGE\s+ON\s+SCHEMA\s+public\s+TO\s+a11oy_memory_app\b",
+        r"\bREVOKE\s+ALL\s+ON\s+FUNCTION\s+memory_lease_outbox\s*"
+        r"\(\s*text\s*,\s*integer\s*,\s*integer\s*\)\s+FROM\s+PUBLIC\s*,\s*"
+        r"a11oy_memory_app\s*,\s*a11oy_memory_worker\b",
         sql,
         1,
-        "application schema USAGE grant",
+        "PUBLIC and capability-role function revoke",
         errors,
     )
 
@@ -326,13 +477,6 @@ def _validate_roles_and_grants(hardening: str, errors: list[str]) -> None:
         "worker EXECUTE grant",
         errors,
     )
-    _require_count(
-        r"\bREVOKE\s+ALL\s+ON\s+FUNCTION\s+memory_lease_outbox\s*\(\s*text\s*,\s*integer\s*,\s*integer\s*\)\s+FROM\s+PUBLIC\b",
-        sql,
-        1,
-        "PUBLIC function revoke",
-        errors,
-    )
     if re.search(r"\bGRANT\b.*?\bTO\s+PUBLIC\b", sql, re.IGNORECASE):
         errors.append("Memory Covenant must not grant privileges to PUBLIC")
     if re.search(r"\bGRANT\s+ALL\b", sql, re.IGNORECASE):
@@ -354,6 +498,8 @@ def _validate_worker_function(hardening: str, errors: list[str]) -> None:
         "SECURITY DEFINER": r"\bSECURITY\s+DEFINER\b",
         "fixed search_path": r"\bSET\s+search_path\s*=\s*public\s*,\s*pg_temp\b",
         "worker id validation": r"p_worker_id\s+IS\s+NULL\s+OR\s+p_worker_id\s*=\s*''",
+        "null item-limit rejection": r"p_limit\s+IS\s+NULL",
+        "null lease-duration rejection": r"p_lease_seconds\s+IS\s+NULL",
         "bounded item limit": r"p_limit\s*<\s*1\s+OR\s+p_limit\s*>\s*500(?!\d)",
         "bounded lease duration": r"p_lease_seconds\s*<\s*1\s+OR\s+p_lease_seconds\s*>\s*3600(?!\d)",
         "worker membership check": r"pg_has_role\s*\(\s*session_user\s*,\s*'a11oy_memory_worker'\s*,\s*'member'\s*\)",
@@ -394,6 +540,7 @@ def validate(root: Path | str = Path(".")) -> list[str]:
 
     _validate_transactions(base, hardening, errors)
     _validate_tables_and_rls(base, hardening, errors)
+    _validate_receipt_scope(base, errors)
     _validate_append_only(base, errors)
     _validate_roles_and_grants(hardening, errors)
     _validate_worker_function(hardening, errors)

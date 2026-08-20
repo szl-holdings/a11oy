@@ -86,6 +86,20 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             )
             self.assert_contract_error(root, "isolation policy for memory_records")
 
+    def test_policy_reset_missing_table_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "AND c.relname IN (\n"
+                "               'memory_records',\n"
+                "               'memory_evidence_refs',",
+                "AND c.relname IN (\n"
+                "               'memory_records',",
+            )
+            self.assert_contract_error(root, "policy reset must cover memory_evidence_refs")
+
     def test_policy_without_with_check_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
@@ -127,6 +141,21 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path.write_text(text, encoding="utf-8")
             self.assert_contract_error(root, "must never receive BYPASSRLS")
 
+    def test_existing_superuser_normalization_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "ALTER ROLE a11oy_memory_app\n"
+                "            NOSUPERUSER NOCREATEDB NOCREATEROLE NOLOGIN INHERIT "
+                "NOREPLICATION NOBYPASSRLS;",
+                "ALTER ROLE a11oy_memory_app\n"
+                "            NOCREATEDB NOCREATEROLE NOLOGIN INHERIT "
+                "NOREPLICATION NOBYPASSRLS;",
+            )
+            self.assert_contract_error(root, "hardened ALTER ROLE for a11oy_memory_app")
+
     def test_login_role_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
@@ -145,6 +174,34 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
                 "GRANT SELECT, INSERT, UPDATE, DELETE ON memory_outbox TO a11oy_memory_app;",
             )
             self.assert_contract_error(root, "application table grants differ")
+
+    def test_missing_application_acl_reset_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "REVOKE ALL PRIVILEGES ON TABLE memory_records\n"
+                "    FROM PUBLIC, a11oy_memory_app;\n",
+                "",
+            )
+            self.assert_contract_error(
+                root, "missing bounded ACL reset for application table memory_records"
+            )
+
+    def test_missing_worker_acl_reset_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "REVOKE ALL PRIVILEGES ON TABLE memory_outbox\n"
+                "    FROM a11oy_memory_worker;\n",
+                "",
+            )
+            self.assert_contract_error(
+                root, "missing bounded ACL reset for worker table memory_outbox"
+            )
 
     def test_worker_direct_table_grant_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -174,10 +231,11 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.HARDENING_MIGRATION
             self.replace_once(
                 path,
-                "REVOKE ALL ON FUNCTION memory_lease_outbox(text, integer, integer) FROM PUBLIC;\n",
+                "REVOKE ALL ON FUNCTION memory_lease_outbox(text, integer, integer)\n"
+                "    FROM PUBLIC, a11oy_memory_app, a11oy_memory_worker;\n",
                 "",
             )
-            self.assert_contract_error(root, "PUBLIC function revoke")
+            self.assert_contract_error(root, "PUBLIC and capability-role function revoke")
 
     def test_unbounded_worker_limit_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -186,12 +244,63 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(path, "p_limit > 500", "p_limit > 5000")
             self.assert_contract_error(root, "bounded item limit")
 
+    def test_null_worker_limit_guard_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "IF p_limit IS NULL\n       OR p_lease_seconds IS NULL",
+                "IF p_lease_seconds IS NULL",
+            )
+            self.assert_contract_error(root, "null item-limit rejection")
+
     def test_unbounded_lease_duration_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
             path = root / validator.HARDENING_MIGRATION
             self.replace_once(path, "p_lease_seconds > 3600", "p_lease_seconds > 86400")
             self.assert_contract_error(root, "bounded lease duration")
+
+    def test_null_lease_duration_guard_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.HARDENING_MIGRATION
+            self.replace_once(
+                path,
+                "OR p_lease_seconds IS NULL\n       OR p_limit < 1",
+                "OR p_limit < 1",
+            )
+            self.assert_contract_error(root, "null lease-duration rejection")
+
+    def test_cross_scope_receipt_reference_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "ADD CONSTRAINT memory_query_audit_receipt_scope_fkey\n"
+                "  FOREIGN KEY (tenant_id, security_domain, receipt_id)\n"
+                "  REFERENCES memory_receipts (tenant_id, security_domain, receipt_id)",
+                "ADD CONSTRAINT memory_query_audit_receipt_scope_fkey\n"
+                "  FOREIGN KEY (receipt_id)\n"
+                "  REFERENCES memory_receipts (receipt_id)",
+            )
+            self.assert_contract_error(
+                root, "tenant/domain-bound receipt reference for memory_query_audit"
+            )
+            self.assert_contract_error(root, "receipt references must never use receipt_id alone")
+
+    def test_legacy_receipt_reference_reset_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.BASE_MIGRATION
+            self.replace_once(
+                path,
+                "constraint_entry.confrelid = 'public.memory_receipts'::regclass",
+                "constraint_entry.confrelid = 'public.memory_records'::regclass",
+            )
+            self.assert_contract_error(root, "receipt foreign-key reset is missing receipt target")
 
     def test_missing_fixed_search_path_fails(self) -> None:
         temp, root = self.make_fixture()
