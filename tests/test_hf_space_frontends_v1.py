@@ -122,6 +122,10 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "style.overflowX !== 'visible'",
         "const bounds = effectiveBounds(el)",
         "hasMinimumHitArea(el, bounds)",
+        "window.devicePixelRatio || 1",
+        "offsetY < 44",
+        "offsetX < 44",
+        "!hitAt(el, x + offsetX, y + offsetY)",
         "item.hit_testable_44 !== true",
         "el.matches(':disabled')",
         "el.getAttribute('aria-disabled') === 'true'",
@@ -129,6 +133,7 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         ".filter(actionable)",
     ):
         assert contract in source
+    assert "[x + 1, y + 1]" not in source
 
 
 def test_page_contract_rejects_hard_viewport_failures() -> None:
