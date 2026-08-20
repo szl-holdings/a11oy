@@ -1,0 +1,70 @@
+name: Temporary HF universal controller import repair
+
+on:
+  push:
+    branches:
+      - feat/hf-universal-frontend-estate-2026-08-17
+    paths:
+      - .github/workflows/_temp-hf-universal-import-fix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.ref == 'refs/heads/feat/hf-universal-frontend-estate-2026-08-17'
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Bind checkout to event head
+        run: test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Repair huggingface_hub exception imports
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('scripts/hf_universal_frontend_control.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''from huggingface_hub import (
+              CommitOperationAdd,
+              EntryNotFoundError,
+              HfApi,
+              HfHubHTTPError,
+              hf_hub_download,
+          )'''.replace('          ', '')
+          new = '''from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
+          from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError'''.replace('          ', '')
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one legacy import block, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Prove compatibility and focused contracts
+        run: |
+          python3 -m pip install --disable-pip-version-check 'pytest==9.0.3' 'huggingface_hub==1.23.0'
+          python3 -m py_compile scripts/hf_universal_frontend_control.py tests/test_hf_universal_frontend_control.py
+          python3 -m pytest -q tests/test_hf_universal_frontend_control.py
+          git diff --check
+
+      - name: Commit repaired controller only
+        run: |
+          set -euo pipefail
+          git add scripts/hf_universal_frontend_control.py
+          test "$(git diff --cached --name-only)" = 'scripts/hf_universal_frontend_control.py'
+          git config user.name 'Stephen Lutar'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit \
+            -m 'fix(hf): follow Hub client exception namespace' \
+            -m 'Import EntryNotFoundError and HfHubHTTPError from huggingface_hub.errors so the pinned 1.23.0 controller and focused tests load successfully.' \
+            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:feat/hf-universal-frontend-estate-2026-08-17
