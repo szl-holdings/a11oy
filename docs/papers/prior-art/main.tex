@@ -1,0 +1,222 @@
+\documentclass[10pt,conference]{IEEEtran}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath,amssymb}
+\usepackage{url}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,urlcolor=blue}
+\usepackage{enumitem}
+
+\begin{document}
+
+\title{Technical Disclosure: PURIQ Master Formula, the 13-Axis Yuyay Gate, and a
+Khipu DAG Architecture for Provable Agentic AI}
+
+\author{
+\IEEEauthorblockN{Yachay (Evaluation \& Defense), on behalf of SZL Holdings}
+\IEEEauthorblockA{SZL Holdings --- PURIQ Agentic Anatomy Layer\\
+Defensive Publication. Disclosure date: 2026-06-01 (EDT).\\
+Concept DOI chain: \href{https://doi.org/10.5281/zenodo.19944926}{10.5281/zenodo.19944926}}
+}
+
+\maketitle
+
+\begin{abstract}
+This document is a \emph{defensive technical disclosure} establishing a public,
+timestamped record of the PURIQ agentic-AI architecture so that the methods herein
+enter the prior art and cannot be exclusively claimed by third parties. We disclose:
+(i) the PURIQ \emph{master action-selection formula} $P(x,t)$ that gates every agentic
+action on a bounded utility aggregator, a 13-axis wisdom score, an exponential
+safety-tripwire penalty, and a product of cryptographic receipt verifications;
+(ii) the \emph{13-axis Yuyay gate}, a conjunctive admissibility test; and (iii) the
+\emph{Khipu DAG}, a SHA-256 hash-chained receipt structure giving per-action provenance
+and an $O(1)$ integrity tripwire. We anchor the disclosure to concrete, independently
+checkable artifacts: a formal-methods corpus of 749 Lean declarations with 14 unique
+axioms and 13 sorry-free (PROVED) theorems, 23 extracted mathematical formulas, a
+deterministic replay-hash anchor (\texttt{bacf5443\ldots631fc5}), Zenodo DOIs, and a
+load test demonstrating 5.35\,M receipt writes/min with a 100\% chain-integrity
+tripwire. We state honestly which claims are PROVED, which remain open obligations
+(\texttt{sorry}-tagged), and which provenance levels (SLSA L1) are asserted.
+\end{abstract}
+
+\begin{IEEEkeywords}
+agentic AI, provenance, hash chain, formal verification, Lean, defensive publication,
+action selection, AI governance, tool-use safety.
+\end{IEEEkeywords}
+
+\section{Field and Purpose}
+The disclosed subject matter relates to governed, auditable agentic AI systems that
+select and execute actions (tool calls, code edits, retrievals) under verifiable safety
+and provenance constraints. The purpose of this publication is \emph{defensive}: to place
+the architecture, formula, and data structures into the public prior art as of the
+disclosure date, thereby preventing later third-party patents from foreclosing SZL's
+freedom to operate, while SZL separately pursues a narrow set of patent claims
+(Section~\ref{sec:patent}).
+
+\section{The PURIQ Master Formula}
+An agentic system maintains a context $x$ and, at time $t$, selects an action $a$ from a
+bounded action space $\mathcal{A}$. PURIQ selects:
+\begin{equation}
+P(x,t) = \operatorname*{arg\,max}_{a \in \mathcal{A}}
+\Big[\, \Lambda(x)\cdot \mathrm{Yuyay}_{13}(a)\cdot
+e^{-\beta\, \mathrm{HUKLLA}(a)}\cdot \prod_i \mathrm{Khipu}_i(a) \,\Big]
+\label{eq:master}
+\end{equation}
+where:
+\begin{itemize}[leftmargin=1.2em]
+\item $\Lambda(x)$ --- a \emph{Lambda Spine aggregator}: positive-homogeneous, bounded,
+monotone. (Uniqueness of the stationary aggregator is asserted as \emph{Conjecture~1},
+not a theorem --- stated honestly.)
+\item $\mathrm{Yuyay}_{13}(a) \in [0,1]$ --- the 13-axis wisdom score
+(Section~\ref{sec:yuyay}); \emph{conjunctive}: it is $0$ unless all 13 axes clear their
+floors.
+\item $\mathrm{HUKLLA}(a)$ --- count of tripwire violations $T01\ldots T10$, penalized
+exponentially with coefficient $\beta$. As $\beta\!\to\!\infty$, any violating action's
+score $\to 0$ (\emph{halting safety}).
+\item $\prod_i \mathrm{Khipu}_i(a)$ --- product of receipt verifications
+(Section~\ref{sec:khipu}); each factor is $1$ iff \texttt{chain\_verified} for that
+receipt, else $0$. A single broken receipt zeroes the entire score
+(\emph{chain-integrity required for non-zero score}).
+\item $\mathcal{A}$ --- bounded action space (information-theoretically bounded by the
+context, a Bekenstein-style cap on $|\mathcal{A}|$).
+\end{itemize}
+
+\paragraph{Disclosed invariants (proof obligations).}
+(INV-1) $\Lambda$-boundedness and monotonicity; (INV-2) Yuyay conjunctive gating;
+(INV-3) HUKLLA halting safety as $\beta$ grows; (INV-4) Khipu chain-integrity
+necessity. We disclose these as the four invariants; in the SZL Lean corpus they are
+stated as theorems, several PROVED and some still \texttt{sorry}-tagged. We do
+\emph{not} claim all four are machine-proven; we claim the formula and the invariant
+\emph{statements} as prior art.
+
+\section{The 13-Axis Yuyay Gate}\label{sec:yuyay}
+$\mathrm{Yuyay}_{13}$ partitions admissibility into 13 named axes evaluated as a
+conjunction (logical AND) with per-axis floors:
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{2 sacred axes}, floor $\geq 0.95$ each;
+\item \textbf{7 structural axes}, floor $\geq 0.90$ each;
+\item \textbf{4 introspection axes}, cross-linked to HUKLLA tripwires
+$T03, T04, T09, T10$.
+\end{itemize}
+The gate returns a score in $[0,1]$ that collapses to $0$ if \emph{any} axis fails its
+floor, making the gate a hard admissibility filter rather than a soft average. The axis
+configuration is anchored to the deterministic replay-hash
+\texttt{bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5}, so that any
+re-evaluation of the same action under the same axis weights reproduces the same gate
+decision bit-for-bit. We disclose the partition (2/7/4), the floors (0.95/0.90), and the
+introspection-to-tripwire cross-link as prior art.
+
+\section{The Khipu DAG: Hash-Chained Receipts}\label{sec:khipu}
+Every action emits a \emph{Khipu receipt}. Receipts form a directed acyclic graph of
+per-domain chains. For a chain head $h_{\text{prev}}$ and a canonical action payload
+$m$, the next receipt hash is
+\begin{equation}
+h = \mathrm{SHA256}\big(h_{\text{prev}} \,\Vert\, \mathrm{canonical}(m)\big),
+\label{eq:chain}
+\end{equation}
+with genesis $h_{\text{prev}} = \texttt{GENESIS}$. Verification recomputes
+Eq.~\eqref{eq:chain} for every receipt and checks linkage; any mismatch (tampered hash
+or broken \texttt{prev} pointer) is a tripwire $T01$ event, and by
+Eq.~\eqref{eq:master} forces $\prod_i \mathrm{Khipu}_i(a)=0$. The DAG fans out across
+independent organ chains (e.g.\ six SZL Spaces: a11oy, amaru, sentra, killinchu, rosie,
+vessels), enabling parallel write with global verifiability.
+
+\paragraph{Empirical anchor.} An in-process measurement of this construction wrote
+$500{,}000$ receipts across six chains at a sustained
+\textbf{5{,}349{,}190 receipts/min} (89{,}153/s), verified at 232{,}830/s, with
+per-write latency p50/p95/p99 of $4.83/8.31/17.14\,\mu s$. Of $504$ deliberately
+tampered receipts, the $T01$ tripwire caught \textbf{504/504 (100\%)}. These numbers are
+disclosed as evidence of practical reduction to practice of the integrity mechanism.
+
+\section{Anchoring Artifacts (timestamped prior art)}
+The following independently verifiable artifacts anchor the disclosure date and content:
+\begin{table}[h]
+\centering
+\caption{Disclosed anchoring artifacts}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Artifact & Value / Reference \\
+\midrule
+Concept DOI (thesis chain) & 10.5281/zenodo.19944926 \\
+a11oy deposit DOI & 10.5281/zenodo.20451991 \\
+lutar-lean (canonical cite) & 10.5281/zenodo.20434308 \\
+Lean declarations & 749 \\
+Unique axioms & 14 \\
+PROVED (sorry-free) theorems & 13 \\
+\texttt{sorry} obligations (raw) & 163 (honest; not hidden) \\
+Extracted formulas & 23 \\
+Replay-hash anchor & \texttt{bacf5443\ldots631fc5} \\
+Lean corpus commit & \texttt{c7c0ba1} (lutar-lean) \\
+Provenance level & SLSA L1 (honest; ``L3'' is not claimed) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+We state honestly: $\Lambda$-uniqueness is \emph{Conjecture~1}, not a theorem; the
+signature factor is a hash-chain verifier (a DSSE signature binding is a placeholder, not
+yet implemented); and 163 \texttt{sorry} obligations remain open in the corpus. These
+honest caveats are themselves part of the disclosed record so that the prior art is
+accurate and not overclaimed.
+
+\section{Distinguishing Features Disclosed as Prior Art}
+\begin{enumerate}[leftmargin=1.4em]
+\item A single action-selection objective (Eq.~\ref{eq:master}) that
+\emph{multiplicatively} composes a bounded utility aggregator, a conjunctive multi-axis
+admissibility gate, an exponential tripwire penalty, and a product of cryptographic
+receipt checks --- such that violation of \emph{any} factor zeroes the action's score.
+\item A 13-axis (2/7/4) conjunctive gate with explicit floors and tripwire cross-links,
+anchored to a deterministic replay hash for bit-reproducible decisions.
+\item A SHA-256 DAG of per-organ receipt chains in which chain-integrity is a
+\emph{necessary condition} for any action to be selectable, with an $O(1)$ per-receipt
+verification tripwire.
+\item Routing of inference by \emph{sovereignty/governance tier} and \emph{license
+class} as a precondition embedded in the same gated objective.
+\end{enumerate}
+
+\section{Patent Strategy: File vs.\ Publish-Defensively}\label{sec:patent}
+SZL's strategy separates a small number of \emph{narrow, novel} claims to \emph{file}
+from a broad \emph{fence} to \emph{publish defensively} (this document):
+\begin{itemize}[leftmargin=1.2em]
+\item \textbf{FILE (3 claims).}
+\textbf{(P-A) Sovereignty-Selectable Inference} --- selecting the inference provider by a
+sovereignty/governance tier and license boundary as an enforced gate (strongest concrete
+technical effect; regulatory wedge). \textbf{(P-B) Gate-Minted Capability Token} --- a
+capability/authorization token minted only upon passing the 13-axis gate, bounding
+downstream tool authority. \textbf{(P-C) Theorem-Bound Tool Output} --- binding a tool
+output to a \emph{named, machine-proved} theorem from the 13-PROVED set, scoped narrowly
+to avoid prior art on draft-model selection.
+\item \textbf{PUBLISH DEFENSIVELY (this disclosure).} The broad master formula
+(Eq.~\ref{eq:master}), the general ``route-by-sovereignty'' concept fence around P-A,
+the Khipu DAG integrity mechanism, and the cross-provider speculative-decoding slice ---
+which is folded into P-A's license-boundary claim rather than filed standalone, because
+existing patents (e.g.\ US12229192B2, US20250384043A1) densely cover draft-model
+selection and self-speculation, making a standalone filing high freedom-to-operate risk.
+\end{itemize}
+Sequencing: file P-A first; publish the broad fence simultaneously; hold P-B/P-C until a
+signature/attestation (e.g.\ Sigstore) binding is implemented to strengthen them.
+
+\section{Conclusion}
+This disclosure establishes, as of 2026-06-01, public prior art for the PURIQ master
+formula, the 13-axis Yuyay gate, and the Khipu DAG receipt architecture, with honest
+demarcation of proved vs.\ open claims. Any later third-party attempt to patent these
+disclosed methods must contend with this timestamped record.
+
+\section*{Acknowledgment / Provenance}
+All numbers herein are drawn from SZL's audited corpus (Doctrine v11 LOCKED, lutar-lean
+commit \texttt{c7c0ba1}) and a real load test executed 2026-06-01. Honest caveats are
+preserved per the Zero-Bandaid Law. Signed: \textbf{Yachay}.
+
+\begin{thebibliography}{9}
+\bibitem{zenodo} SZL Holdings, ``Ouroboros thesis (concept chain),'' Zenodo,
+DOI: 10.5281/zenodo.19944926. \url{https://doi.org/10.5281/zenodo.19944926}
+\bibitem{a11oy} SZL Holdings, ``a11oy (uds-v0.3.0),'' Zenodo,
+DOI: 10.5281/zenodo.20451991.
+\bibitem{lutar} SZL Holdings, ``lutar-lean v18.0.0,'' Zenodo,
+DOI: 10.5281/zenodo.20434308.
+\bibitem{slsa} SLSA, ``Supply-chain Levels for Software Artifacts (SLSA), Level 1.''
+\url{https://slsa.dev}
+\bibitem{ieee} M. Shell, ``IEEEtran document class,'' v1.8b, 2015.
+\end{thebibliography}
+
+\end{document}

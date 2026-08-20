@@ -1,0 +1,30 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: conduit
+  title: Conduit — Reverse ETL
+  description: Reverse ETL platform SPA — syncs data from the data warehouse to operational SaaS tools, pipelines, and integrations.
+  annotations:
+    github.com/project-slug: szl-holdings/monorepo
+    backstage.io/techdocs-ref: dir:.
+    szl.io/scorecard-score: '1.3'
+    szl.io/golden-path-deviation: "SPA — no server-side health endpoint; OTel instrumentation pending"
+    backstage.io/runbook-url: https://github.com/szl-holdings/monorepo/blob/main/docs/runbooks/conduit.md
+  tags:
+    - operations
+    - data
+    - etl
+    - typescript
+    - react
+    - vite
+spec:
+  type: website
+  lifecycle: production
+  owner: group:platform-team
+  system: system:conduit
+  domain: domain:operations
+  dependsOn:
+    - component:api-server
+    - resource:postgresql-dev
+  consumesApis:
+    - api:szl-rest-v1

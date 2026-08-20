@@ -1,0 +1,7 @@
+{
+  "proof_id": "amaru.throat.v1",
+  "sha256": "4415dd81d3222d94e0a55d62f1aaa4c1334b17eac71726614aa0a4d385ba0171",
+  "kind": "kernel-source",
+  "summary": "geometric mean sqrt(clarity*truth), clamped to [0,1]",
+  "notes": "sha256 computed over the canonical kernel.py source bytes; re-pin via services/amaru/scripts/pin_proofs.py after edits."
+}

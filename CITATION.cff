@@ -1,0 +1,64 @@
+cff-version: 1.2.0
+message: "If you use A11oy, cite this software and the associated research record."
+type: software
+title: "A11oy: governed AI execution fabric"
+version: "1.1.0"
+date-released: "2026-07-13"
+license: Apache-2.0
+repository-code: "https://github.com/szl-holdings/a11oy"
+url: "https://a-11-oy.com"
+abstract: >
+  A11oy is an Apache-2.0 governed-AI execution fabric that binds policy
+  evaluation, operator approval, execution, verification, and provenance into
+  auditable workflows. Capability states fail closed: measured, modeled,
+  simulated, unavailable, and roadmap states remain distinct. The software
+  includes signed receipt primitives, a bounded evidence Brain, preregistered
+  numerical-computing cases, and local/self-hosted model routing. A configured
+  component is not described as operational until its own runtime receipt
+  passes.
+keywords:
+  - governed-ai
+  - agentic-ai
+  - provenance
+  - signed-receipts
+  - sovereign-ai
+  - formal-verification
+  - observability
+  - numerical-computing
+  - self-hosted-inference
+authors:
+  - family-names: "Lutar"
+    given-names: "Stephen P., Jr."
+    affiliation: "SZL Holdings LLC"
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+contact:
+  - family-names: "Lutar"
+    given-names: "Stephen P., Jr."
+    affiliation: "SZL Holdings LLC"
+    email: "contact@szlholdings.com"
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+references:
+  - type: report
+    title: "Ouroboros / governed-systems research program"
+    doi: "10.5281/zenodo.19944926"
+    year: 2026
+    authors:
+      - family-names: "Lutar"
+        given-names: "Stephen P., Jr."
+  - type: data
+    title: "SZL Holdings formal-verification and governance-receipt artifacts"
+    doi: "10.5281/zenodo.20434276"
+    year: 2026
+    authors:
+      - family-names: "Lutar"
+        given-names: "Stephen P., Jr."
+  - type: standard
+    title: "SLSA specification"
+    url: "https://slsa.dev/spec/v1.0/levels"
+    authors:
+      - name: "OpenSSF"
+  - type: standard
+    title: "NIST AI Risk Management Framework 1.0"
+    url: "https://doi.org/10.6028/NIST.AI.100-1"
+    authors:
+      - name: "National Institute of Standards and Technology"

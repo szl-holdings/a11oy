@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentra
+  namespace: sentra
+  labels:
+    app.kubernetes.io/name: sentra
+    app.kubernetes.io/part-of: szl-mesh
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: sentra
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+      protocol: TCP

@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/evidenceos/public-claim-report.v1.schema.json",
+  "title": "EvidenceOS Public Claim Report v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "module", "schema_version", "manifest_id", "manifest_revision",
+    "manifest_generated_at", "manifest_content_sha256", "evaluated_as_of", "decision_state",
+    "effectors_enabled", "claim_count", "freshness_counts", "passes",
+    "outcome", "manifest_violations", "claims", "honesty_invariants", "receipt"
+  ],
+  "properties": {
+    "module": {"const": "szl-public-claim-manifest"},
+    "schema_version": {"const": "1.0.0"},
+    "manifest_id": {"type": "string"},
+    "manifest_revision": {"type": "string"},
+    "manifest_generated_at": {"type": "string"},
+    "manifest_content_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluated_as_of": {"type": "string"},
+    "decision_state": {"const": "PROPOSAL_ONLY"},
+    "effectors_enabled": {"const": 0},
+    "claim_count": {"type": "integer", "minimum": 1, "maximum": 64},
+    "freshness_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["CURRENT", "STALE", "MISSING", "UNKNOWN", "NOT_EVALUATED"],
+      "properties": {
+        "CURRENT": {"type": "integer", "minimum": 0},
+        "STALE": {"type": "integer", "minimum": 0},
+        "MISSING": {"type": "integer", "minimum": 0},
+        "UNKNOWN": {"type": "integer", "minimum": 0},
+        "NOT_EVALUATED": {"type": "integer", "minimum": 0}
+      }
+    },
+    "passes": {"type": "boolean"},
+    "outcome": {"enum": ["PASS", "REFUSE"]},
+    "manifest_violations": {"type": "array", "items": {"type": "string"}},
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {"$ref": "#/$defs/claimReport"}
+    },
+    "honesty_invariants": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "explicit_paths_only", "repository_crawling", "reproduction_commands_executed",
+        "truth_inference", "unsigned_report", "effectors_are_zero"
+      ],
+      "properties": {
+        "explicit_paths_only": {"const": true},
+        "repository_crawling": {"const": false},
+        "reproduction_commands_executed": {"const": false},
+        "truth_inference": {"const": false},
+        "unsigned_report": {"const": true},
+        "effectors_are_zero": {"const": true}
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "algorithm", "signed", "content_sha256", "attests_truth"],
+      "properties": {
+        "mode": {"const": "UNSIGNED-CONTENT-DIGEST"},
+        "algorithm": {"const": "sha256"},
+        "signed": {"const": false},
+        "content_sha256": {"$ref": "#/$defs/sha256"},
+        "attests_truth": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "owner": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_id", "accountability_scope"],
+      "properties": {
+        "owner_id": {"type": "string"},
+        "accountability_scope": {"type": "string"}
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision"],
+      "properties": {
+        "repository": {"type": "string"},
+        "revision": {"type": "string"}
+      }
+    },
+    "evidenceReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidence_id", "path", "kind", "freshness_state", "collected_at",
+        "max_age_seconds", "age_seconds", "expected_content_sha256",
+        "observed_content_sha256", "verification_ref", "violations"
+      ],
+      "properties": {
+        "evidence_id": {"type": "string"},
+        "path": {"type": "string"},
+        "kind": {"enum": [
+          "FORMAL_PROOF", "TEST_RECEIPT", "MEASUREMENT_RECEIPT", "MODEL_OUTPUT",
+          "CONJECTURE_RECORD", "OPEN_ISSUE", "SOURCE_RECORD"
+        ]},
+        "freshness_state": {"enum": ["CURRENT", "STALE", "MISSING", "UNKNOWN", "NOT_EVALUATED"]},
+        "collected_at": {"type": "string"},
+        "max_age_seconds": {"type": "integer", "minimum": 1, "maximum": 31536000},
+        "age_seconds": {"type": "integer"},
+        "expected_content_sha256": {"$ref": "#/$defs/sha256"},
+        "observed_content_sha256": {
+          "oneOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]
+        },
+        "verification_ref": {"type": "string"},
+        "violations": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    },
+    "claimReport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claim_id", "assertion", "maturity", "scope", "owner", "consumers",
+        "source", "reproduction_argv", "evidence", "passes", "violations"
+      ],
+      "properties": {
+        "claim_id": {"type": "string"},
+        "assertion": {"type": "string"},
+        "maturity": {"enum": ["PROVEN", "MEASURED", "MODELED", "CONJECTURE", "OPEN"]},
+        "scope": {"type": "string"},
+        "owner": {"$ref": "#/$defs/owner"},
+        "consumers": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"type": "string"}},
+        "source": {"$ref": "#/$defs/source"},
+        "reproduction_argv": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 32,
+          "items": {"type": "string", "minLength": 1, "maxLength": 256}
+        },
+        "evidence": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/evidenceReport"}},
+        "passes": {"type": "boolean"},
+        "violations": {"type": "array", "uniqueItems": true, "items": {"type": "string"}}
+      }
+    }
+  }
+}

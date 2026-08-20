@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+
+name = "LutarPolicy"
+version = "0.1.0"
+defaultTargets = ["LutarPolicy"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+version = "git#v4.13.0"
+
+[[lean_lib]]
+name = "LutarPolicy"

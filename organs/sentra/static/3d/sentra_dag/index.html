@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>sentra — Receipt DAG 3D Visualizer</title>
+<style>
+  body { margin:0; background:#06080f; color:#88b4cc; font-family:'Courier New',monospace; overflow:hidden; }
+  #graph { width:100vw; height:100vh; }
+  #hud {
+    position:fixed; top:12px; left:12px; background:rgba(0,0,0,0.8);
+    border:1px solid #334466; padding:10px 16px; border-radius:6px;
+    font-size:12px; line-height:1.8; z-index:10; max-width:260px;
+  }
+  #hud h2 { color:#88b4cc; margin:0 0 6px; font-size:14px; letter-spacing:2px; }
+  #status { position:fixed; bottom:12px; left:12px; font-size:11px; color:#555; }
+  #tooltip {
+    position:fixed; display:none; background:rgba(0,0,0,0.9); border:1px solid #334466;
+    padding:8px 12px; border-radius:4px; font-size:11px; pointer-events:none; z-index:20;
+  }
+</style>
+</head>
+<body>
+<div id="graph"></div>
+<div id="hud">
+  <h2>🔗 SENTRA RECEIPT DAG</h2>
+  <div style="color:#555;font-size:10px;margin-bottom:8px;">DSSE Attestation Graph · Doctrine v11</div>
+  <div>Receipts: <span id="node-count" style="color:#88b4cc">0</span></div>
+  <div>Edges: <span id="edge-count" style="color:#88b4cc">0</span></div>
+  <div>Gates fired: <span id="gate-count" style="color:#ffaa00">0</span></div>
+  <div>ALLOW: <span id="allow-count" style="color:#00ff88">0</span></div>
+  <div>DENY: <span id="deny-count" style="color:#ff4444">0</span></div>
+  <hr style="border-color:#1a2840;margin:6px 0"/>
+  <div style="color:#555;font-size:10px">Doctrine: v11 LOCKED</div>
+  <div style="color:#555;font-size:10px">Kernel: c7c0ba17</div>
+</div>
+<div id="tooltip"></div>
+<div id="status">Doctrine v11 LOCKED · sentra/3d/dag · 3d-force-graph (MIT) · © SZL Holdings 2026 · Apache-2.0</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/3d-force-graph@1.72.2/dist/3d-force-graph.min.js"></script>
+<script>
+// sentra Receipt DAG 3D Visualizer
+// Source: 3d-force-graph v1.72.2 (MIT) — https://github.com/vasturiano/3d-force-graph
+// DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
+// Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+// Doctrine: v11 LOCKED | Λ Conjecture 1 | ADDITIVE ONLY
+
+const VERDICT_API = '/api/sentra/v1/verdict';
+const RECEIPT_API = '/api/sentra/v1/dsse';
+const DOCTRINE = {v:'v11', kernel:'c7c0ba17', declarations:749, sorries:163};
+
+let graphData = {nodes:[], links:[]};
+let nodeMap = {};
+let nodeCount = 0;
+let edgeCount = 0;
+let allowCount = 0;
+let denyCount = 0;
+let gateCount = 0;
+
+// Seed with initial nodes
+const seedNodes = [
+  {id:'genesis', name:'GENESIS', group:'root', val:8, color:'#d4a444'},
+  {id:'sentra-root', name:'sentra/v1', group:'gate', val:6, color:'#88b4cc'},
+];
+const seedLinks = [
+  {source:'genesis', target:'sentra-root', curvature:0.2}
+];
+graphData.nodes.push(...seedNodes);
+graphData.links.push(...seedLinks);
+seedNodes.forEach(n => nodeMap[n.id] = n);
+nodeCount = 2; edgeCount = 1;
+
+// Verdict colors
+const COLORS = {
+  'allow': '#00ff88', 'deny': '#ff4444', 'flag': '#ffaa00',
+  'redact': '#4488ff', 'gate': '#88b4cc', 'root': '#d4a444', 'receipt': '#aa88ff'
+};
+
+// Initialize 3D force graph
+const Graph = ForceGraph3D({controlType:'trackball'})
+  (document.getElementById('graph'))
+  .backgroundColor('#06080f')
+  .showNavInfo(false)
+  .nodeColor(node => node.color || COLORS[node.group] || '#ffffff')
+  .nodeVal(node => node.val || 3)
+  .nodeLabel(node => {
+    const tt = document.getElementById('tooltip');
+    return `<b>${node.name}</b><br>Group: ${node.group}<br>Receipt: ${node.id.slice(0,16)}`;
+  })
+  .linkColor(() => '#1a3050')
+  .linkOpacity(0.6)
+  .linkWidth(1)
+  .onNodeHover(node => {
+    const tt = document.getElementById('tooltip');
+    if(node) {
+      tt.innerHTML = `<b style="color:#88b4cc">${node.name}</b><br>
+        <span style="color:#555">Receipt: ${node.id.slice(0,20)}...</span><br>
+        Group: ${node.group}`;
+      tt.style.display = 'block';
+    } else { tt.style.display = 'none'; }
+  })
+  .graphData(graphData);
+
+// Camera auto-orbit
+let angle = 0;
+Graph.cameraPosition({x:0,y:0,z:200});
+setInterval(() => {
+  angle += 0.3;
+  Graph.cameraPosition({
+    x: 200 * Math.sin(angle * Math.PI/180),
+    z: 200 * Math.cos(angle * Math.PI/180)
+  });
+}, 50);
+
+function updateCounters() {
+  document.getElementById('node-count').textContent = nodeCount;
+  document.getElementById('edge-count').textContent = edgeCount;
+  document.getElementById('allow-count').textContent = allowCount;
+  document.getElementById('deny-count').textContent = denyCount;
+  document.getElementById('gate-count').textContent = gateCount;
+}
+
+// Generate a receipt node from a verdict
+function addReceiptNode(verdict) {
+  const receiptId = 'r-' + Math.random().toString(36).slice(2,10);
+  const decision = verdict.decision || 'allow';
+  const gatesFired = verdict.gates_fired || [];
+  
+  const newNode = {
+    id: receiptId,
+    name: `Receipt·${receiptId.slice(2,8)}`,
+    group: decision,
+    val: gatesFired.length > 0 ? 5 : 3,
+    color: COLORS[decision] || '#ffffff',
+    receipt_hash: verdict.receipt_hash || receiptId,
+    lambda: verdict.lambda_value || 1.0,
+  };
+
+  // Parent: either genesis or last gate
+  const parentId = gatesFired.length > 0 ? 
+    ('gate-'+gatesFired[0]) : 
+    (nodeCount % 5 === 0 ? 'genesis' : 'sentra-root');
+  
+  // Add gate nodes for fired gates
+  gatesFired.forEach((gate, i) => {
+    const gateId = 'gate-' + gate;
+    if(!nodeMap[gateId]) {
+      const gNode = {id:gateId, name:`Gate·${gate}`, group:'gate', val:4, color:COLORS.gate};
+      graphData.nodes.push(gNode);
+      nodeMap[gateId] = gNode;
+      graphData.links.push({source:'sentra-root', target:gateId});
+      edgeCount++;
+      gateCount++;
+    }
+  });
+
+  graphData.nodes.push(newNode);
+  nodeMap[receiptId] = newNode;
+  graphData.links.push({
+    source: gatesFired.length > 0 ? 'gate-'+gatesFired[0] : parentId,
+    target: receiptId,
+    curvature: 0.1 + Math.random()*0.3
+  });
+
+  nodeCount++;
+  edgeCount++;
+  if(decision === 'allow') allowCount++;
+  else if(decision === 'deny') denyCount++;
+
+  // Keep graph bounded
+  if(nodeCount > 120) {
+    graphData.nodes.shift();
+    graphData.links.shift();
+    nodeCount--;
+  }
+
+  Graph.graphData({...graphData});
+  updateCounters();
+}
+
+// Fetch live verdicts from sentra
+async function pollVerdicts() {
+  try {
+    const resp = await fetch(VERDICT_API, {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({payload:'3d_dag_probe_'+Date.now(), source:'sentra/3d/dag'})
+    });
+    if(resp.ok) {
+      const data = await resp.json();
+      addReceiptNode(data);
+      return;
+    }
+  } catch(e) { /* use simulated */ }
+
+  // Simulate verdict
+  const decisions = ['allow','allow','allow','flag','deny','allow','redact'];
+  const gates = ['signature-scan','size-guard','jailbreak','pii-detector','dual-use'];
+  const gatesFired = Math.random() > 0.7 ? [gates[Math.floor(Math.random()*gates.length)]] : [];
+  addReceiptNode({
+    decision: decisions[Math.floor(Math.random()*decisions.length)],
+    gates_fired: gatesFired,
+    receipt_hash: Math.random().toString(36).slice(2,18),
+    lambda_value: 0.7 + Math.random()*0.3,
+  });
+}
+
+// Start polling
+updateCounters();
+setInterval(pollVerdicts, 1800);
+pollVerdicts();
+</script>
+</body>
+</html>

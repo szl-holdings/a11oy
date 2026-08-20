@@ -1,0 +1,13 @@
+{
+  "name": "@a11oy/connection",
+  "version": "0.1.0",
+  "private": true,
+  "license": "LicenseRef-SZL-Proprietary",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  }
+}

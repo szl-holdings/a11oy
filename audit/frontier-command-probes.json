@@ -1,0 +1,75 @@
+[
+  {
+    "name": "frontdoor_truth",
+    "command": [
+      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "-I",
+      "-B",
+      "scripts/check_a11oy_frontdoor_truth.py",
+      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\a11oy_landing.html"
+    ],
+    "status": "PASS",
+    "return_code": 0,
+    "duration_ms": 76,
+    "stdout_sha256": "5d00656f7a39d1ede05b48de2df3fed240fbd29c6a48a258dc4902c4a22324ac",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "error": null,
+    "excerpt": "{\\n  \"schema\": \"a11oy.frontdoor-truth-mobile-check/v1\",\\n  \"status\": \"PASS\",\\n  \"errors\": []\\n}"
+  },
+  {
+    "name": "frontdoor_repair_idempotent",
+    "command": [
+      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "-I",
+      "-B",
+      "scripts/repair_a11oy_frontdoor.py",
+      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\a11oy_landing.html",
+      "--check"
+    ],
+    "status": "PASS",
+    "return_code": 0,
+    "duration_ms": 74,
+    "stdout_sha256": "172b621993745bedb8dd1dbb63a75137be3a934f4515e645a59dd0942f592883",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "error": null,
+    "excerpt": "{\\n  \"status\": \"PASS\",\\n  \"target\": \"C:\\\\Users\\\\steph\\\\Documents\\\\Codex\\\\2026-08-11\\\\worktrees\\\\a11oy-pr1285-signed\\\\a11oy_landing.html\",\\n  \"notes\": \"frontdoor truth contract already current\"\\n}"
+  },
+  {
+    "name": "hf_ecosystem_check",
+    "command": [
+      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "-I",
+      "-B",
+      "scripts/audit_huggingface_ecosystem.py",
+      "--check"
+    ],
+    "status": "PASS",
+    "return_code": 0,
+    "duration_ms": 7765,
+    "stdout_sha256": "2c0d8787cdb08b0293cbc3c02877cfcf15d9a45b01b5a91ccd5c06a779c713e1",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "error": null,
+    "excerpt": "Hugging Face ecosystem manifest is current: docs\\huggingface-ecosystem-manifest.json"
+  },
+  {
+    "name": "github_access_audit",
+    "command": [
+      "C:\\Users\\steph\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+      "-I",
+      "-B",
+      "scripts/audit_github_access_permissions.py",
+      "--checklist",
+      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\docs\\github-enterprise-access-checklist.json",
+      "--output",
+      "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\github-access-audit.json",
+      "--validate"
+    ],
+    "status": "PASS",
+    "return_code": 0,
+    "duration_ms": 7058,
+    "stdout_sha256": "270941ebe82306f90c084aa45bfc517bcc86cf0ad687dc2959c6dd367f7b56b6",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "error": null,
+    "excerpt": "Wrote GitHub access audit: C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\audit\\github-access-audit.json\\nSummary: 11 write-ready, 0 read-only, 0 unavailable"
+  }
+]

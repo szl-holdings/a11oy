@@ -1,0 +1,817 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/lathe/program-snapshot.v1.schema.json",
+  "title": "SZL One Lathe bounded program snapshot",
+  "description": "A strict, property-specific, evidence-backed snapshot of a bounded authorized estate. This schema does not assert runtime, model, UI, manufacturing, or safety capability.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "programId",
+    "snapshotId",
+    "generatedAt",
+    "digest",
+    "generator",
+    "source",
+    "revision",
+    "collectedAt",
+    "coverage",
+    "maturity",
+    "operationalState",
+    "evidenceState",
+    "promotionEligible",
+    "records",
+    "risks",
+    "blockers",
+    "approvalDecision",
+    "receiptBinding"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": "szl.lathe.snapshot.v1"
+    },
+    "programId": {
+      "const": "szl-one-lathe-frontier-program"
+    },
+    "snapshotId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 200,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "generatedAt": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "generator": {
+      "$ref": "#/$defs/generator"
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "revision": {
+      "$ref": "#/$defs/revision"
+    },
+    "collectedAt": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "coverage": {
+      "$ref": "#/$defs/coverage"
+    },
+    "maturity": {
+      "$ref": "#/$defs/maturity"
+    },
+    "operationalState": {
+      "$ref": "#/$defs/operationalState"
+    },
+    "evidenceState": {
+      "$ref": "#/$defs/evidenceState"
+    },
+    "promotionEligible": {
+      "type": "boolean"
+    },
+    "records": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/record"
+      }
+    },
+    "risks": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "blockers": {
+      "$ref": "#/$defs/stringArray"
+    },
+    "approvalDecision": {
+      "$ref": "#/$defs/approvalDecision"
+    },
+    "receiptBinding": {
+      "$ref": "#/$defs/receiptBinding"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "operationalState": {
+            "$ref": "#/$defs/nullOperationalState"
+          }
+        },
+        "required": ["operationalState"]
+      },
+      "then": {
+        "properties": {
+          "promotionEligible": {
+            "const": false
+          },
+          "evidenceState": {
+            "enum": ["PARTIAL", "ABSENT", "CONFLICTING", "STALE", "INADMISSIBLE"]
+          },
+          "blockers": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "evidenceState": {
+            "enum": ["ABSENT", "CONFLICTING", "STALE", "INADMISSIBLE"]
+          }
+        },
+        "required": ["evidenceState"]
+      },
+      "then": {
+        "properties": {
+          "promotionEligible": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "receiptBinding": {
+            "properties": {
+              "state": {
+                "$ref": "#/$defs/nullOperationalState"
+              }
+            },
+            "required": ["state"]
+          }
+        },
+        "required": ["receiptBinding"]
+      },
+      "then": {
+        "properties": {
+          "promotionEligible": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "approvalDecision": {
+            "properties": {
+              "decision": {
+                "enum": ["REJECTED", "DEFERRED", "NOT_EVALUATED"]
+              }
+            },
+            "required": ["decision"]
+          }
+        },
+        "required": ["approvalDecision"]
+      },
+      "then": {
+        "properties": {
+          "promotionEligible": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "receiptBinding": {
+            "properties": {
+              "state": {"const": "BOUND"},
+              "verificationState": {"enum": ["FAILED", "NOT_EVALUATED"]}
+            },
+            "required": ["state", "verificationState"]
+          }
+        },
+        "required": ["receiptBinding"]
+      },
+      "then": {
+        "properties": {
+          "promotionEligible": {
+            "const": false
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "maturity": {
+      "type": "string",
+      "enum": ["PROVEN", "MEASURED", "MODELED", "CONJECTURE", "OPEN"]
+    },
+    "nullOperationalState": {
+      "type": "string",
+      "enum": [
+        "UNKNOWN",
+        "NOT_EVALUATED",
+        "UNAVAILABLE",
+        "OFFLINE_UNTIL_KEYED",
+        "QUARANTINED",
+        "STALE_EVIDENCE"
+      ]
+    },
+    "operationalState": {
+      "type": "string",
+      "enum": [
+        "AVAILABLE",
+        "DEGRADED",
+        "BLOCKED",
+        "FAILED",
+        "UNKNOWN",
+        "NOT_EVALUATED",
+        "UNAVAILABLE",
+        "OFFLINE_UNTIL_KEYED",
+        "QUARANTINED",
+        "STALE_EVIDENCE"
+      ]
+    },
+    "evidenceState": {
+      "type": "string",
+      "enum": ["SUFFICIENT", "PARTIAL", "ABSENT", "CONFLICTING", "STALE", "INADMISSIBLE"]
+    },
+    "evidenceAdmissionState": {
+      "type": "string",
+      "enum": ["ADMISSIBLE", "PARTIAL", "ABSENT", "CONFLICTING", "STALE", "INADMISSIBLE"]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "revision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 512
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "stringArray": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "generator": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "source", "revision"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "locator"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "FILE",
+            "GIT",
+            "GITHUB_API",
+            "HUGGING_FACE_API",
+            "HTTP",
+            "RUNTIME_PROBE",
+            "RECEIPT",
+            "MANUAL_DECLARATION",
+            "OTHER"
+          ]
+        },
+        "locator": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048
+        }
+      }
+    },
+    "coverage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bounded",
+        "discoveryMode",
+        "scope",
+        "bounds",
+        "included",
+        "excluded",
+        "missing",
+        "expectedCount",
+        "observedCount",
+        "complete"
+      ],
+      "properties": {
+        "bounded": {
+          "const": true
+        },
+        "discoveryMode": {
+          "type": "string",
+          "enum": ["EXPLICIT_INPUT_SET", "BOUNDED_MANIFEST", "BOUNDED_QUERY"]
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "bounds": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "included": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "excluded": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "missing": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "expectedCount": {
+          "type": ["integer", "null"],
+          "minimum": 0
+        },
+        "observedCount": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "complete": {
+          "type": "boolean"
+        }
+      }
+    },
+    "propertyKind": {
+      "type": "string",
+      "enum": [
+        "IDENTITY",
+        "PROVENANCE",
+        "FORMAL_PROPERTY",
+        "RUNTIME_HEALTH",
+        "LICENSING",
+        "SECURITY",
+        "FRESHNESS",
+        "DEPLOYMENT",
+        "LIVE_VERIFICATION",
+        "PERFORMANCE",
+        "DATA_RIGHTS",
+        "MODEL_QUALIFICATION",
+        "COVERAGE",
+        "OTHER"
+      ]
+    },
+    "evidenceKind": {
+      "type": "string",
+      "enum": [
+        "FORMAL_PROOF",
+        "TEST_RESULT",
+        "RUNTIME_PROBE",
+        "BENCHMARK_RECEIPT",
+        "DSSE_RECEIPT",
+        "SOURCE_FILE",
+        "API_RESPONSE",
+        "LICENSE_RECORD",
+        "DATASET_RECORD",
+        "DEPLOYMENT_RECORD",
+        "MANUAL_DECLARATION",
+        "OTHER"
+      ]
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "evidenceId",
+        "propertyKind",
+        "kind",
+        "source",
+        "revision",
+        "collectedAt",
+        "admissionState",
+        "summary"
+      ],
+      "properties": {
+        "evidenceId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "propertyKind": {
+          "$ref": "#/$defs/propertyKind"
+        },
+        "kind": {
+          "$ref": "#/$defs/evidenceKind"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "collectedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "admissionState": {
+          "$ref": "#/$defs/evidenceAdmissionState"
+        },
+        "digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["evaluatedAt", "maxAgeSeconds", "status"],
+      "properties": {
+        "evaluatedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "maxAgeSeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "status": {
+          "type": "string",
+          "enum": ["FRESH", "STALE", "UNKNOWN"]
+        }
+      }
+    },
+    "claim": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "claimId",
+        "propertyKind",
+        "propertyName",
+        "assertion",
+        "maturity",
+        "operationalState",
+        "evidenceState",
+        "source",
+        "revision",
+        "collectedAt",
+        "coverage",
+        "evidenceIds",
+        "freshness",
+        "promotionEligible",
+        "blockers"
+      ],
+      "properties": {
+        "claimId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "propertyKind": {
+          "$ref": "#/$defs/propertyKind"
+        },
+        "propertyName": {
+          "type": "string",
+          "minLength": 1
+        },
+        "assertion": {
+          "type": "string",
+          "minLength": 1
+        },
+        "maturity": {
+          "$ref": "#/$defs/maturity"
+        },
+        "operationalState": {
+          "$ref": "#/$defs/operationalState"
+        },
+        "evidenceState": {
+          "$ref": "#/$defs/evidenceState"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "collectedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        },
+        "evidenceIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "freshness": {
+          "$ref": "#/$defs/freshness"
+        },
+        "promotionEligible": {
+          "type": "boolean"
+        },
+        "blockers": {
+          "$ref": "#/$defs/stringArray"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operationalState": {
+                "$ref": "#/$defs/nullOperationalState"
+              }
+            },
+            "required": ["operationalState"]
+          },
+          "then": {
+            "properties": {
+              "promotionEligible": {
+                "const": false
+              },
+              "evidenceState": {
+                "enum": ["PARTIAL", "ABSENT", "CONFLICTING", "STALE", "INADMISSIBLE"]
+              },
+              "blockers": {
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "freshness": {
+                "properties": {
+                  "status": {
+                    "const": "STALE"
+                  }
+                },
+                "required": ["status"]
+              }
+            },
+            "required": ["freshness"]
+          },
+          "then": {
+            "properties": {
+              "operationalState": {
+                "const": "STALE_EVIDENCE"
+              },
+              "evidenceState": {
+                "const": "STALE"
+              },
+              "promotionEligible": {
+                "const": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "maturity": {
+                "const": "PROVEN"
+              }
+            },
+            "required": ["maturity"]
+          },
+          "then": {
+            "properties": {
+              "propertyKind": {
+                "const": "FORMAL_PROPERTY"
+              }
+            }
+          }
+        }
+      ]
+    },
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "recordId",
+        "assetType",
+        "source",
+        "revision",
+        "collectedAt",
+        "coverage",
+        "maturity",
+        "operationalState",
+        "evidenceState",
+        "promotionEligible",
+        "evidence",
+        "claims",
+        "blockers",
+        "risks"
+      ],
+      "properties": {
+        "recordId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+        },
+        "assetType": {
+          "type": "string",
+          "enum": [
+            "REPOSITORY",
+            "FILE",
+            "RECEIPT",
+            "BRAIN_SOURCE",
+            "FORMULA_REGISTRY",
+            "FORMAL_PROOF_LINK",
+            "NUMERICAL_ENGINE",
+            "INFERENCE_ARTIFACT",
+            "HUGGING_FACE_ASSET",
+            "DEPLOYMENT",
+            "OTHER"
+          ]
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        },
+        "collectedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "coverage": {
+          "$ref": "#/$defs/coverage"
+        },
+        "maturity": {
+          "$ref": "#/$defs/maturity"
+        },
+        "operationalState": {
+          "$ref": "#/$defs/operationalState"
+        },
+        "evidenceState": {
+          "$ref": "#/$defs/evidenceState"
+        },
+        "promotionEligible": {
+          "type": "boolean"
+        },
+        "evidence": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/evidence"
+          }
+        },
+        "claims": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/claim"
+          }
+        },
+        "blockers": {
+          "$ref": "#/$defs/stringArray"
+        },
+        "risks": {
+          "$ref": "#/$defs/stringArray"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "operationalState": {
+                "$ref": "#/$defs/nullOperationalState"
+              }
+            },
+            "required": ["operationalState"]
+          },
+          "then": {
+            "properties": {
+              "promotionEligible": {
+                "const": false
+              },
+              "evidenceState": {
+                "enum": ["PARTIAL", "ABSENT", "CONFLICTING", "STALE", "INADMISSIBLE"]
+              },
+              "blockers": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "approvalDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["decision", "scope", "actor", "decidedAt", "source", "revision"],
+      "properties": {
+        "decision": {
+          "type": "string",
+          "enum": ["APPROVED", "REJECTED", "DEFERRED", "NOT_EVALUATED"]
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "actor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "decidedAt": {
+          "$ref": "#/$defs/timestamp"
+        },
+        "source": {
+          "$ref": "#/$defs/source"
+        },
+        "revision": {
+          "$ref": "#/$defs/revision"
+        }
+      }
+    },
+    "receiptBinding": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "blockers"],
+          "properties": {
+            "state": {
+              "$ref": "#/$defs/nullOperationalState"
+            },
+            "blockers": {
+              "$ref": "#/$defs/nonEmptyStringArray"
+            }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "state",
+            "snapshotDigest",
+            "receiptDigest",
+            "source",
+            "revision",
+            "collectedAt",
+            "verificationState"
+          ],
+          "properties": {
+            "state": {
+              "const": "BOUND"
+            },
+            "snapshotDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "receiptDigest": {
+              "$ref": "#/$defs/digest"
+            },
+            "source": {
+              "$ref": "#/$defs/source"
+            },
+            "revision": {
+              "$ref": "#/$defs/revision"
+            },
+            "collectedAt": {
+              "$ref": "#/$defs/timestamp"
+            },
+            "verificationState": {
+              "type": "string",
+              "enum": ["VERIFIED", "FAILED", "NOT_EVALUATED"]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

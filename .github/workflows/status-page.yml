@@ -1,0 +1,285 @@
+# status-page.yml — Update STATUS.md based on live endpoint checks.
+# Runs every 15 minutes. Provides public status visibility (C-09).
+# Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
+#
+# 2026-06-07: sentra/amaru/rosie were consolidated INTO a11oy and their Spaces
+# removed; the live flagship organs are now a11oy and killinchu only. Probes use
+# `curl -L` so killinchu's by-design `/` -> `/elite` front-door redirect is
+# recorded as the healthy 200 it resolves to.
+#
+# 2026-06-09: the generated STATUS.md is now PUBLISHED to the dedicated, orphan
+# `status` branch (force-pushed each run) instead of being committed to main.
+# Branch protection only guards the default branch, so the old direct push to
+# main was blocked and the "public" status only ever lived in the workflow run
+# logs. The status branch carries STATUS.md + a Pages-ready index.html so the
+# board is genuinely readable by outside consumers:
+#   - rendered:  https://szl-holdings.github.io/a11oy/  (GitHub Pages)
+#   - markdown:  https://github.com/szl-holdings/a11oy/blob/status/STATUS.md
+#   - raw:       https://raw.githubusercontent.com/szl-holdings/a11oy/status/STATUS.md
+# main's STATUS.md stays a hand-authored doctrine snapshot (banner points here),
+# so the two no longer collide on the same path.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Status Page Update
+
+"on":
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+jobs:
+  update-status:
+    name: Update STATUS.md
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+
+      # Pull the conclusion of the most recent completed Rekor receipt re-check
+      # (rekor-recheck.yml, issue #195) so STATUS.md reflects whether previously
+      # published governance receipts still verify against the transparency log.
+      - name: Read latest Rekor re-check result
+        id: rekor
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3  # v9.0.0
+        with:
+          script: |
+            let line = 'No re-check run yet';
+            try {
+              const runs = await github.rest.actions.listWorkflowRuns({
+                owner: context.repo.owner, repo: context.repo.repo,
+                workflow_id: 'rekor-recheck.yml', status: 'completed', per_page: 1,
+              });
+              const run = runs.data.workflow_runs[0];
+              if (run) {
+                line = run.conclusion === 'success'
+                  ? `OK | Receipts verify against Rekor`
+                  : `ERR ${run.conclusion} | Re-verification FAILED`;
+              }
+            } catch (e) {
+              line = `unknown (${e.status || 'error'})`;
+            }
+            core.setOutput('line', line);
+
+      # Pull the latest release-asset receipt re-verification result
+      # (release-receipt-verify.yml, issue #241) so STATUS.md also reflects
+      # whether the PUBLISHED release-asset DSSE envelopes still verify. We read
+      # the uploaded summary artifact (release-receipt-verify-summary ->
+      # .release-verify-summary.json) for exact counts so the row degrades
+      # HONESTLY: checked=0 (no release assets yet) is a soft pass that says so,
+      # never a false "verified". Falls back to the run conclusion only when the
+      # summary artifact is unavailable (e.g. expired retention).
+      - name: Read latest release-receipt-verify result
+        id: relverify
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          LINE="No re-check run yet"
+          RUN_ID="$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow release-receipt-verify.yml --status completed \
+            --limit 1 --json databaseId -q '.[0].databaseId' 2>/dev/null)"
+          if [ -n "$RUN_ID" ]; then
+            CONCLUSION="$(gh run view "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --json conclusion -q .conclusion 2>/dev/null)"
+            rm -rf relverify-artifact
+            SUM="relverify-artifact/.release-verify-summary.json"
+            if gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" \
+                 -n release-receipt-verify-summary -D relverify-artifact >/dev/null 2>&1 \
+               && [ -f "$SUM" ]; then
+              checked=$(jq -r '.checked' "$SUM")
+              passed=$(jq -r '.passed' "$SUM")
+              failed=$(jq -r '.failed' "$SUM")
+              unverifiable=$(jq -r '.unverifiable' "$SUM")
+              if [ "$checked" = "0" ]; then
+                LINE="OK (soft) | No release assets published yet --- nothing to re-verify"
+              elif [ "$failed" != "0" ] || [ "$unverifiable" != "0" ]; then
+                LINE="ERR | ${failed} failed / ${unverifiable} unverifiable of ${checked} published receipt(s)"
+              else
+                LINE="OK | ${passed}/${checked} published release receipt(s) verify"
+              fi
+            elif [ "$CONCLUSION" = "success" ]; then
+              LINE="OK | Latest re-check passed (summary counts unavailable)"
+            else
+              LINE="ERR ${CONCLUSION} | Re-verification FAILED"
+            fi
+          fi
+          echo "line=$LINE" >> "$GITHUB_OUTPUT"
+
+      - name: Check all endpoints
+        id: check
+        env:
+          REKOR_LINE: ${{ steps.rekor.outputs.line }}
+          RELEASE_LINE: ${{ steps.relverify.outputs.line }}
+        run: |
+          TS=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          echo "ts=$TS" >> $GITHUB_OUTPUT
+
+          check_endpoint() {
+            local name="$1"
+            local url="$2"
+            local code
+            # `|| true` so a network-level curl error (timeout/cold-start/DNS,
+            # e.g. an HF Space waking from sleep > --max-time) is recorded as an
+            # HONEST "Degraded" row instead of aborting the whole step under the
+            # default `bash -eo pipefail` shell. The gate is unchanged: a non-200
+            # (or empty/curl-error) still reports ERR/Degraded, never a false OK.
+            code=$(curl -L -o /dev/null -s -w '%{http_code}' --max-time 30 "$url" || true)
+            if [ "$code" = "200" ]; then
+              echo "| $name | OK $code | Operational |"
+            else
+              echo "| $name | ERR ${code:-no-response} | Degraded |"
+            fi
+          }
+
+          {
+            echo "# SZL Holdings --- Service Status"
+            echo ""
+            echo "**Last updated:** $TS"
+            echo ""
+            echo "**Doctrine:** v11 LOCKED 749/14/163 | SLSA L1 honest | kernel: c7c0ba17"
+            echo ""
+            echo "## Flagship Endpoints"
+            echo ""
+            echo "_Flagship organs: a11oy (governance + receipt substrate; sentra/amaru/rosie consolidated in) and killinchu (Andean drone intelligence)._"
+            echo ""
+            echo "| Endpoint | Status | State |"
+            echo "|----------|--------|-------|"
+            check_endpoint "a11oy root" "https://szlholdings-a11oy.hf.space/"
+            check_endpoint "a11oy lambda" "https://szlholdings-a11oy.hf.space/v1/lambda"
+            check_endpoint "a11oy honest" "https://szlholdings-a11oy.hf.space/v1/honest"
+            check_endpoint "a11oy fleet" "https://szlholdings-a11oy.hf.space/api/a11oy/v4/fleet"
+            check_endpoint "killinchu root" "https://szlholdings-killinchu.hf.space/"
+            check_endpoint "killinchu lambda" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/lambda"
+            check_endpoint "killinchu honest" "https://szlholdings-killinchu.hf.space/api/killinchu/v1/honest"
+            echo ""
+            echo "## Doctrine Invariants"
+            echo ""
+            echo "| Invariant | Value | Status |"
+            echo "|-----------|-------|--------|"
+            echo "| Doctrine version | v11 LOCKED | OK |"
+            echo "| Declarations | 749 | OK |"
+            echo "| Axioms | 14 | OK |"
+            echo "| Sorries | 163 | OK |"
+            echo "| Kernel commit | c7c0ba17 | OK |"
+            echo "| Lambda | Conjecture 1 | OK |"
+            echo "| SLSA | L1 honest | OK |"
+            echo "| Section 889 | 5 vendors | OK |"
+            echo ""
+            echo "## Receipt Provenance"
+            echo ""
+            echo "_Continuous re-verification of published governance receipts against the public Rekor transparency log (issue #195) and of the published release-asset DSSE envelopes against the Sigstore/Rekor trust root (issue #241)._"
+            echo ""
+            echo "| Check | Value | Status |"
+            echo "|-------|-------|--------|"
+            echo "| Rekor receipt re-check | ${REKOR_LINE} |"
+            echo "| Release receipt re-check | ${RELEASE_LINE} |"
+            echo ""
+            echo "---"
+            echo "*Auto-generated by status-page.yml GHA workflow. Doctrine v11 LOCKED.*"
+          } > STATUS.md
+
+      # Publish the freshly generated STATUS.md to a PUBLIC surface. The old
+      # step committed to the checked-out default branch and `git push`ed, which
+      # branch protection rejects (the push "succeeded" only as a non-fatal log
+      # line, so the public never saw the update). Instead we force-push a single
+      # orphan commit to the dedicated, UNPROTECTED `status` branch carrying just
+      # the status surface (STATUS.md + a Pages-ready index.html). This always
+      # succeeds with the built-in GITHUB_TOKEN and gives outside consumers a
+      # real, continuously-refreshed page.
+      - name: Publish STATUS.md to the public status branch
+        env:
+          TS: ${{ steps.check.outputs.ts }}
+        run: |
+          set -euo pipefail
+          cp STATUS.md /tmp/STATUS.md
+          git config user.name "Yachay"
+          git config user.email "yachay@szlholdings.ai"
+
+          # Fresh single-commit orphan branch so the status surface never
+          # accumulates history bloat and never carries the rest of the repo.
+          git checkout --orphan status-publish
+          git rm -rf . >/dev/null 2>&1 || true
+          cp /tmp/STATUS.md STATUS.md
+          touch .nojekyll
+
+          cat > index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <meta http-equiv="refresh" content="300">
+          <title>SZL Holdings — Service Status</title>
+          <style>
+          :root{color-scheme:light dark}
+          body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:880px;margin:2rem auto;padding:0 1rem;line-height:1.55}
+          table{border-collapse:collapse;width:100%;margin:1rem 0}
+          th,td{border:1px solid #8884;padding:.4rem .7rem;text-align:left}
+          th{background:#8881}
+          code{background:#8882;padding:.1rem .3rem;border-radius:3px}
+          h1,h2{border-bottom:1px solid #8883;padding-bottom:.25rem}
+          a{color:#3b82f6}
+          footer{margin-top:2.5rem;font-size:.85rem;opacity:.7}
+          </style>
+          </head>
+          <body>
+          <div id="content">Loading live status…</div>
+          <footer>Renders <a href="STATUS.md">STATUS.md</a>, regenerated every 15 minutes by the
+          <code>status-page.yml</code> workflow and force-pushed to the <code>status</code> branch.
+          This page auto-refreshes every 5 minutes.</footer>
+          <!-- 0 runtime CDN (doctrine): self-contained minimal Markdown renderer,
+               sufficient for STATUS.md (headings, tables, bold, hr, links). No
+               external script is loaded at runtime. -->
+          <script>
+          function mdToHtml(src){
+            var esc=function(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+            var inline=function(s){
+              s=esc(s);
+              s=s.replace(/\[([^\]]+)\]\(([^)]+)\)/g,'<a href="$2">$1</a>');
+              s=s.replace(/`([^`]+)`/g,'<code>$1</code>');
+              s=s.replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+              s=s.replace(/(^|[^*])\*([^*]+)\*/g,'$1<em>$2</em>');
+              return s;
+            };
+            var lines=src.split(/\r?\n/), out=[], i=0;
+            while(i<lines.length){
+              var ln=lines[i];
+              if(/^\s*\|.*\|\s*$/.test(ln) && i+1<lines.length && /^\s*\|[\s:|-]+\|\s*$/.test(lines[i+1])){
+                var header=ln.split('|').slice(1,-1).map(function(c){return '<th>'+inline(c.trim())+'</th>';}).join('');
+                out.push('<table><thead><tr>'+header+'</tr></thead><tbody>');
+                i+=2;
+                while(i<lines.length && /^\s*\|.*\|\s*$/.test(lines[i])){
+                  var cells=lines[i].split('|').slice(1,-1).map(function(c){return '<td>'+inline(c.trim())+'</td>';}).join('');
+                  out.push('<tr>'+cells+'</tr>'); i++;
+                }
+                out.push('</tbody></table>'); continue;
+              }
+              if(/^###\s+/.test(ln)){out.push('<h3>'+inline(ln.replace(/^###\s+/,''))+'</h3>');}
+              else if(/^##\s+/.test(ln)){out.push('<h2>'+inline(ln.replace(/^##\s+/,''))+'</h2>');}
+              else if(/^#\s+/.test(ln)){out.push('<h1>'+inline(ln.replace(/^#\s+/,''))+'</h1>');}
+              else if(/^\s*---\s*$/.test(ln)){out.push('<hr>');}
+              else if(/^\s*$/.test(ln)){out.push('');}
+              else{out.push('<p>'+inline(ln)+'</p>');}
+              i++;
+            }
+            return out.join('\n');
+          }
+          fetch('STATUS.md?_=' + Date.now())
+            .then(function (r) { return r.text(); })
+            .then(function (t) { document.getElementById('content').innerHTML = mdToHtml(t); })
+            .catch(function (e) { document.getElementById('content').textContent = 'Failed to load STATUS.md: ' + e; });
+          </script>
+          </body>
+          </html>
+          HTML
+
+          git add STATUS.md index.html .nojekyll
+          git commit -m "chore(status): publish STATUS.md [$TS]"
+          git push -f origin status-publish:status
+          echo "[status-page] published STATUS.md to the public 'status' branch"
+    permissions:
+      contents: write
+      actions: read

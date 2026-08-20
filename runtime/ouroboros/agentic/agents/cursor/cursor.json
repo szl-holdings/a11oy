@@ -1,0 +1,23 @@
+{
+  "$comment": "Cursor workspace settings — SZL Holdings (Doctrine V6) · © 2026 Lutar, Stephen P. — SZL Holdings",
+  "rules": [".cursorrules"],
+  "model": "claude-sonnet-4",
+  "mcpServers": {
+    "szl": {
+      "url": "http://localhost:8090",
+      "description": "SZL MCP — a11oy + every thesis formula"
+    }
+  },
+  "format": {
+    "tabSize": 2,
+    "insertSpaces": true,
+    "trimTrailingWhitespace": true,
+    "insertFinalNewline": true
+  },
+  "files.exclude": {
+    "node_modules": true,
+    "dist": true,
+    ".next": true,
+    ".git": true
+  }
+}

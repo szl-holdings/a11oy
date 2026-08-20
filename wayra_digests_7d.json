@@ -1,0 +1,453 @@
+{
+  "organ": "WAYRA",
+  "tab": "/wayra-digest",
+  "author": "Yachay",
+  "generated_at": "2026-06-01T09:11:14.573013+00:00",
+  "window_days": 7,
+  "today_events": 232,
+  "baseline_events": 86,
+  "note": "Live IngestLog began 2026-06-01; earlier dates labeled backfilled=true with events_basis (chain prefix).",
+  "days": [
+    {
+      "date": "2026-05-26",
+      "events": 120,
+      "backfilled": true,
+      "selected": 5,
+      "chain_verified": true,
+      "transcript": "Hatun-Willay morning briefing. WAYRA breathed in the world overnight.\nThe empire's lungs logged 232 items across 5 streams; the Khipu chain verifies intact.\nTop five by WAYRA factor:\n1. HF model: Qwen/Qwen-Image-Bench \u2014 from hf_hub, WAYRA factor 1.00, routed to a11oy.\n2. Value Functions as Supermartingale Certificates \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\n3. W3C-news: W3C initiates leadership transition \u2014 from standards, WAYRA factor 0.88, routed to a11oy.\n4. IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics \u2014 from standards, WAYRA factor 0.88, routed to sentra, a11oy.\n5. Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\nThat is the breath of the world, made ours. \u2014 Wallpa, for WAYRA.",
+      "top": [
+        {
+          "title": "HF model: Qwen/Qwen-Image-Bench",
+          "source": "hf_hub",
+          "wayra_factor": 1.0,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 1.0,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Value Functions as Supermartingale Certificates",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "W3C-news: W3C initiates leadership transition",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "sentra",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        }
+      ]
+    },
+    {
+      "date": "2026-05-27",
+      "events": 142,
+      "backfilled": true,
+      "selected": 5,
+      "chain_verified": true,
+      "transcript": "Hatun-Willay morning briefing. WAYRA breathed in the world overnight.\nThe empire's lungs logged 232 items across 5 streams; the Khipu chain verifies intact.\nTop five by WAYRA factor:\n1. HF model: Qwen/Qwen-Image-Bench \u2014 from hf_hub, WAYRA factor 1.00, routed to a11oy.\n2. Value Functions as Supermartingale Certificates \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\n3. W3C-news: W3C initiates leadership transition \u2014 from standards, WAYRA factor 0.88, routed to a11oy.\n4. IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics \u2014 from standards, WAYRA factor 0.88, routed to sentra, a11oy.\n5. Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\nThat is the breath of the world, made ours. \u2014 Wallpa, for WAYRA.",
+      "top": [
+        {
+          "title": "HF model: Qwen/Qwen-Image-Bench",
+          "source": "hf_hub",
+          "wayra_factor": 1.0,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 1.0,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Value Functions as Supermartingale Certificates",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "W3C-news: W3C initiates leadership transition",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "sentra",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        }
+      ]
+    },
+    {
+      "date": "2026-05-28",
+      "events": 165,
+      "backfilled": true,
+      "selected": 5,
+      "chain_verified": true,
+      "transcript": "Hatun-Willay morning briefing. WAYRA breathed in the world overnight.\nThe empire's lungs logged 232 items across 5 streams; the Khipu chain verifies intact.\nTop five by WAYRA factor:\n1. HF model: Qwen/Qwen-Image-Bench \u2014 from hf_hub, WAYRA factor 1.00, routed to a11oy.\n2. Value Functions as Supermartingale Certificates \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\n3. W3C-news: W3C initiates leadership transition \u2014 from standards, WAYRA factor 0.88, routed to a11oy.\n4. IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics \u2014 from standards, WAYRA factor 0.88, routed to sentra, a11oy.\n5. Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\nThat is the breath of the world, made ours. \u2014 Wallpa, for WAYRA.",
+      "top": [
+        {
+          "title": "HF model: Qwen/Qwen-Image-Bench",
+          "source": "hf_hub",
+          "wayra_factor": 1.0,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 1.0,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Value Functions as Supermartingale Certificates",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "W3C-news: W3C initiates leadership transition",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "sentra",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        }
+      ]
+    },
+    {
+      "date": "2026-05-29",
+      "events": 181,
+      "backfilled": true,
+      "selected": 5,
+      "chain_verified": true,
+      "transcript": "Hatun-Willay morning briefing. WAYRA breathed in the world overnight.\nThe empire's lungs logged 232 items across 5 streams; the Khipu chain verifies intact.\nTop five by WAYRA factor:\n1. HF model: Qwen/Qwen-Image-Bench \u2014 from hf_hub, WAYRA factor 1.00, routed to a11oy.\n2. Value Functions as Supermartingale Certificates \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\n3. W3C-news: W3C initiates leadership transition \u2014 from standards, WAYRA factor 0.88, routed to a11oy.\n4. IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics \u2014 from standards, WAYRA factor 0.88, routed to sentra, a11oy.\n5. Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\nThat is the breath of the world, made ours. \u2014 Wallpa, for WAYRA.",
+      "top": [
+        {
+          "title": "HF model: Qwen/Qwen-Image-Bench",
+          "source": "hf_hub",
+          "wayra_factor": 1.0,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 1.0,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Value Functions as Supermartingale Certificates",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "W3C-news: W3C initiates leadership transition",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "sentra",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        }
+      ]
+    },
+    {
+      "date": "2026-05-30",
+      "events": 199,
+      "backfilled": true,
+      "selected": 5,
+      "chain_verified": true,
+      "transcript": "Hatun-Willay morning briefing. WAYRA breathed in the world overnight.\nThe empire's lungs logged 232 items across 5 streams; the Khipu chain verifies intact.\nTop five by WAYRA factor:\n1. HF model: Qwen/Qwen-Image-Bench \u2014 from hf_hub, WAYRA factor 1.00, routed to a11oy.\n2. Value Functions as Supermartingale Certificates \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\n3. W3C-news: W3C initiates leadership transition \u2014 from standards, WAYRA factor 0.88, routed to a11oy.\n4. IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics \u2014 from standards, WAYRA factor 0.88, routed to sentra, a11oy.\n5. Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\nThat is the breath of the world, made ours. \u2014 Wallpa, for WAYRA.",
+      "top": [
+        {
+          "title": "HF model: Qwen/Qwen-Image-Bench",
+          "source": "hf_hub",
+          "wayra_factor": 1.0,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 1.0,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Value Functions as Supermartingale Certificates",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "W3C-news: W3C initiates leadership transition",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "sentra",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        }
+      ]
+    },
+    {
+      "date": "2026-05-31",
+      "events": 214,
+      "backfilled": true,
+      "selected": 5,
+      "chain_verified": true,
+      "transcript": "Hatun-Willay morning briefing. WAYRA breathed in the world overnight.\nThe empire's lungs logged 232 items across 5 streams; the Khipu chain verifies intact.\nTop five by WAYRA factor:\n1. HF model: Qwen/Qwen-Image-Bench \u2014 from hf_hub, WAYRA factor 1.00, routed to a11oy.\n2. Value Functions as Supermartingale Certificates \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\n3. W3C-news: W3C initiates leadership transition \u2014 from standards, WAYRA factor 0.88, routed to a11oy.\n4. IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics \u2014 from standards, WAYRA factor 0.88, routed to sentra, a11oy.\n5. Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\nThat is the breath of the world, made ours. \u2014 Wallpa, for WAYRA.",
+      "top": [
+        {
+          "title": "HF model: Qwen/Qwen-Image-Bench",
+          "source": "hf_hub",
+          "wayra_factor": 1.0,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 1.0,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Value Functions as Supermartingale Certificates",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "W3C-news: W3C initiates leadership transition",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "sentra",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        }
+      ]
+    },
+    {
+      "date": "2026-06-01",
+      "events": 232,
+      "backfilled": false,
+      "selected": 5,
+      "chain_verified": true,
+      "transcript": "Hatun-Willay morning briefing. WAYRA breathed in the world overnight.\nThe empire's lungs logged 232 items across 5 streams; the Khipu chain verifies intact.\nTop five by WAYRA factor:\n1. HF model: Qwen/Qwen-Image-Bench \u2014 from hf_hub, WAYRA factor 1.00, routed to a11oy.\n2. Value Functions as Supermartingale Certificates \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\n3. W3C-news: W3C initiates leadership transition \u2014 from standards, WAYRA factor 0.88, routed to a11oy.\n4. IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics \u2014 from standards, WAYRA factor 0.88, routed to sentra, a11oy.\n5. Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics \u2014 from arxiv, WAYRA factor 0.88, routed to puriq, a11oy.\nThat is the breath of the world, made ours. \u2014 Wallpa, for WAYRA.",
+      "top": [
+        {
+          "title": "HF model: Qwen/Qwen-Image-Bench",
+          "source": "hf_hub",
+          "wayra_factor": 1.0,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 1.0,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Value Functions as Supermartingale Certificates",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "W3C-news: W3C initiates leadership transition",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "IETF-new-RFCs: RFC 9993: RTP Payload Format for Haptics",
+          "source": "standards",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "sentra",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        },
+        {
+          "title": "Reducing Arbitrary Metric Temporal Formulas into Logic Programs under Answer Set Semantics",
+          "source": "arxiv",
+          "wayra_factor": 0.8813,
+          "organ_routing": [
+            "puriq",
+            "a11oy"
+          ],
+          "yuyay_score": 0.9853,
+          "novelty_score": 1.0
+        }
+      ]
+    }
+  ]
+}

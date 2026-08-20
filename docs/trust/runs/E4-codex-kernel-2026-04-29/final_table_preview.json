@@ -1,0 +1,114 @@
+{
+  "target_rows": 12,
+  "rows_emitted": 12,
+  "rows": [
+    {
+      "row_index": 1,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 1,
+      "day_index": 584,
+      "drift_days": 0,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 2,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 2,
+      "day_index": 1168,
+      "drift_days": 0,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 3,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 3,
+      "day_index": 1752,
+      "drift_days": 0,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 4,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 4,
+      "day_index": 2336,
+      "drift_days": 0,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 5,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 5,
+      "day_index": 2920,
+      "drift_days": 1,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 6,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 6,
+      "day_index": 3504,
+      "drift_days": 1,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 7,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 7,
+      "day_index": 4088,
+      "drift_days": 1,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 8,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 8,
+      "day_index": 4672,
+      "drift_days": 1,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 9,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 9,
+      "day_index": 5256,
+      "drift_days": 1,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 10,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 10,
+      "day_index": 5840,
+      "drift_days": 2,
+      "correction_applied": 0,
+      "notes": "advance"
+    },
+    {
+      "row_index": 11,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 10,
+      "day_index": 5838,
+      "drift_days": 0,
+      "correction_applied": -2,
+      "notes": "correction: -2d"
+    },
+    {
+      "row_index": 12,
+      "epoch_label": "demo_epoch",
+      "cycle_position": 11,
+      "day_index": 6422,
+      "drift_days": 0,
+      "correction_applied": 0,
+      "notes": "advance"
+    }
+  ]
+}

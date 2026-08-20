@@ -1,0 +1,22 @@
+version: "1.0.0"
+project: "a11oy governed evidence plane"
+category: >
+  Governed execution and cryptographic evidence plane for consequential AI agents.
+thesis:
+  - authorize-before-execution
+  - constrain-tools-and-data
+  - preserve-human-approval
+  - emit-standard-telemetry
+  - sign-receipts
+  - offline-verifiable-replay
+zero_bandaid: |
+  Read-only first, no force-push, no auto-merge, reviewed PRs only.
+  No claims of novelty on existing primitives (DSSE, in-toto, Sigstore, OPA, OTel, MCP, Lean, hash chains).
+novation_guardrails:
+  unenumerable_classes:
+    policy: "BLOCKED"
+  claim_mode:
+    requires: [evidence_schema, signer, retention_window]
+assurance_delta:
+  enabled: true
+  fail_promotion_if: "assurance_regression"

@@ -1,0 +1,19 @@
+{
+  "canonical_input": {
+    "signals": {
+      "fluency": 0.8,
+      "novelty": 0.5
+    }
+  },
+  "canonical_output": {
+    "chakra": "sacral",
+    "flow": 0.6799999999999999,
+    "inputs": {
+      "fluency": 0.8,
+      "novelty": 0.5
+    },
+    "verdict": "generate"
+  },
+  "proof_id": "amaru.sacral.v1",
+  "stubbed": false
+}

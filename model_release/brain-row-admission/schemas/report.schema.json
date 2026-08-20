@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl.brain-training-admission-report.v2.json",
+  "title": "SZL Brain row admission report v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "state", "input_manifest", "policy", "summary", "training_input_state", "split_ledger", "claims_boundary", "decisions", "report_receipt_sha256"],
+  "properties": {
+    "schema_version": {"const": "szl.brain-training-admission-report.v2"},
+    "state": {"enum": ["EMPTY_INPUT", "ALL_QUARANTINED", "COMPLETE_WITH_QUARANTINE", "ADMISSION_COMPLETE"]},
+    "input_manifest": {
+      "type": "object", "additionalProperties": false,
+      "required": ["ordered_candidate_row_sha256", "ordered_candidate_rows_sha256"],
+      "properties": {
+        "ordered_candidate_row_sha256": {"type": "array", "maxItems": 20000, "items": {"$ref": "#/$defs/sha256"}},
+        "ordered_candidate_rows_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "policy": {"type": "object", "additionalProperties": true, "required": ["enable_train_admission", "policy_binding_sha256", "policy_verification_state", "protected_eval_set_sha256", "trusted_evidence_signers_sha256"]},
+    "summary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["observed_rows", "admitted_train_rows", "admitted_eval_rows", "quarantined_rows", "dedup_group_count", "reason_counts"],
+      "properties": {
+        "observed_rows": {"type": "integer", "minimum": 0, "maximum": 20000},
+        "admitted_train_rows": {"type": "integer", "minimum": 0},
+        "admitted_eval_rows": {"type": "integer", "minimum": 0},
+        "quarantined_rows": {"type": "integer", "minimum": 0},
+        "dedup_group_count": {"type": "integer", "minimum": 0},
+        "reason_counts": {"type": "object", "additionalProperties": {"type": "integer", "minimum": 1}}
+      }
+    },
+    "training_input_state": {"enum": ["ADMITTED_ROWS_PRESENT_NOT_TRAINING_AUTHORIZATION", "BLOCKED_ZERO_ADMITTED_TRAIN_ROWS"]},
+    "split_ledger": {"type": "object", "additionalProperties": false, "required": ["observed", "reason_codes", "next_unsigned_candidate"], "properties": {"observed": {"type": "object"}, "reason_codes": {"type": "array", "items": {"type": "string"}}, "next_unsigned_candidate": {"type": "object"}}},
+    "claims_boundary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["training_triggered", "default_gradient_eligibility", "network_used", "proof_credit", "model_trust_delta", "model_promotion_allowed", "provenance_inferred"],
+      "properties": {
+        "training_triggered": {"const": false}, "default_gradient_eligibility": {"const": false},
+        "network_used": {"const": false}, "proof_credit": {"const": 0},
+        "model_trust_delta": {"const": 0}, "model_promotion_allowed": {"const": false},
+        "provenance_inferred": {"const": false}
+      }
+    },
+    "decisions": {"type": "array", "maxItems": 20000, "items": {"$ref": "#/$defs/decisionSummary"}},
+    "artifacts": {"type": "object"},
+    "report_receipt_sha256": {"$ref": "#/$defs/sha256"}
+  },
+  "allOf": [
+    {"if": {"properties": {"state": {"const": "EMPTY_INPUT"}}}, "then": {"properties": {"decisions": {"maxItems": 0}}}},
+    {"if": {"properties": {"state": {"const": "ALL_QUARANTINED"}}}, "then": {"properties": {"decisions": {"minItems": 1, "items": {"properties": {"admission_decision": {"const": "QUARANTINE"}}}}}}},
+    {"if": {"properties": {"state": {"const": "ADMISSION_COMPLETE"}}}, "then": {"properties": {"decisions": {"not": {"contains": {"properties": {"admission_decision": {"const": "QUARANTINE"}}}}}}}},
+    {"if": {"properties": {"state": {"const": "COMPLETE_WITH_QUARANTINE"}}}, "then": {"properties": {"decisions": {"contains": {"properties": {"admission_decision": {"const": "QUARANTINE"}}}, "minContains": 1}}}}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "decisionSummary": {
+      "type": "object", "required": ["schema_version", "admission_decision", "canonical_status", "training_eligible", "evaluation_eligible", "reason_codes", "content_included", "decision_receipt_sha256"],
+      "properties": {
+        "schema_version": {"const": "szl.brain-training-admission-decision.v2"},
+        "admission_decision": {"enum": ["ADMIT_TRAIN", "ADMIT_EVAL", "QUARANTINE"]},
+        "canonical_status": {"enum": ["CANONICAL", "QUARANTINED"]},
+        "training_eligible": {"type": "boolean"}, "evaluation_eligible": {"type": "boolean"},
+        "reason_codes": {"type": "array", "items": {"type": "string"}},
+        "content_included": {"type": "boolean"}, "decision_receipt_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

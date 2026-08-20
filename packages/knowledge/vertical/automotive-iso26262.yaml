@@ -1,0 +1,179 @@
+# Vertical Governance Policy: Automotive — ISO 26262 / ISO 21448 (SOTIF) / UL 4600
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: automotive
+regime: ISO-26262/ISO-21448/UL-4600
+effective_date: "2025-07-01"
+jurisdiction: Global-UNECE-WP29
+
+meta:
+  title: "Automotive AI Governance Policy — ISO 26262/SOTIF/UL 4600 Alignment"
+  description: >
+    Maps ISO 26262 Functional Safety, ISO 21448 (SOTIF), and UL 4600 Standard
+    for Safety for the Evaluation of Autonomous Products to Doctrine v6 Λ-axes
+    for AI/ML systems in automotive safety-critical applications (ASIL A–D).
+  authority: "ISO 26262:2018 (all parts); ISO 21448:2022; UL 4600 Ed. 2 (2023); SAE J3016_202104; UNECE WP.29/2021/59"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  asil_level: ASIL-D
+
+regulatory_clauses:
+  - clause_id: ISO26262-4-7
+    title: "Technical Safety Requirements — Specification"
+    citation: "ISO 26262-4:2018 § 7; ISO 26262-6:2018 § 6"
+    full_ref: "ISO 26262-4:2018 § 7 — Technical safety concept; ISO 26262-6:2018 § 6 SW safety requirements"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          ASIL-D AI components must have verified safety goals with target
+          probability of failure < 10^-8/h; safety case committed as receipt.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: ISO26262-6-9
+    title: "Software Unit Verification"
+    citation: "ISO 26262-6:2018 § 9"
+    full_ref: "ISO 26262-6:2018 § 9 — Software unit design and implementation (including ML per TR 4804)"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          All AI model versions and training data provenance must be versioned
+          in the part management system; receipts link ASIL decomposition.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.85
+        enforcement: mandatory
+        rationale: >
+          ML model inference paths for ASIL-B+ must be interpretable;
+          saliency maps or decision trees provided as explanation receipts.
+
+  - clause_id: ISO21448-8
+    title: "SOTIF — Evaluation of Triggering Conditions"
+    citation: "ISO 21448:2022 § 8"
+    full_ref: "ISO 21448:2022 § 8 — Identification and evaluation of triggering conditions causing hazardous behaviors"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.98
+        enforcement: mandatory
+        rationale: >
+          AI perception systems must enumerate ODD (Operational Design Domain)
+          corner cases; each triggering condition documented in receipt-linked
+          hazard catalog.
+      - axis: Λ4
+        label: Fairness
+        weight: 0.70
+        enforcement: recommended
+        rationale: >
+          Pedestrian detection must demonstrate equitable performance across
+          demographic groups (skin tone, age, mobility device); bias receipts required.
+
+  - clause_id: UL4600-14
+    title: "Argument — Safety Case Sufficiency"
+    citation: "UL 4600 Ed. 2 § 14"
+    full_ref: "UL 4600 Ed. 2 § 14 — Safety case arguments: sufficiency, soundness, independence"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 0.88
+        enforcement: mandatory
+        rationale: >
+          Safety case must be public-facing (Transparency Index ≥ 0.8 per
+          Doctrine v6 §2.1); receipt chain provides verifiable evidence ledger.
+      - axis: Λ2
+        label: Accountability
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: SAE-J3016-L4
+    title: "Taxonomy of Driving Automation — Level 4 ADS"
+    citation: "SAE J3016_202104 § 3.14"
+    full_ref: "SAE J3016 Rev. Apr 2021 § 3.14 — Level 4: High Driving Automation ADS"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 0.95
+        enforcement: mandatory
+        rationale: >
+          Accountability for Level 4 decisions transfers to ADS; each decision
+          receipt must include scene context hash and fallback state indicator.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.80
+        enforcement: mandatory
+
+  - clause_id: UNECE-WP29-R157
+    title: "Automated Lane Keeping Systems — Cybersecurity"
+    citation: "UNECE WP.29 R 157 (2021); UNECE R 155"
+    full_ref: "UNECE Regulation No. 155 — Cybersecurity and Cybersecurity Management System; R 157 Annex 4"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          CSMS must cover AI attack surfaces (model poisoning, adversarial inputs);
+          threat analysis (TARA) results committed as security receipts.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: ISO26262-2-7-SGAS
+    title: "Safety Goals — Automotive Safety Integrity Level Assignment"
+    citation: "ISO 26262-2:2018 § 7; ISO 26262-3:2018 § 7"
+    full_ref: "ISO 26262-3:2018 § 7 — Hazard analysis and risk assessment (HARA) with ASIL determination"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 1.0
+        enforcement: mandatory
+      - axis: Λ9
+        label: Explainability
+        weight: 0.80
+        enforcement: mandatory
+        rationale: >
+          HARA risk classification for AI hazard sources must be explainable
+          to type-approval authorities; decision rationale in receipt metadata.
+
+  - clause_id: ISO-TR-4804
+    title: "Road Vehicles — Safety and Cybersecurity for ADS"
+    citation: "ISO TR 4804:2020"
+    full_ref: "ISO TR 4804:2020 — Road vehicles: Safety and cybersecurity for automated driving systems — Design, verification and validation"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.85
+        enforcement: mandatory
+      - axis: Λ3
+        label: Privacy
+        weight: 0.78
+        enforcement: mandatory
+        rationale: >
+          In-vehicle AI telemetry must comply with GDPR/ePrivacy; trip data
+          used for model training must be consent-receipted.
+
+compliance_thresholds:
+  minimum_lambda_coverage: 8
+  mandatory_axes: [Λ5, Λ6, Λ7]
+  receipt_retention_days: 7300        # 20 years automotive liability
+  max_perception_latency_ms: 50
+  asil_level: D
+  odd_coverage_percent: 99.5
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, redundant-ecu, cloud-archive]
+  hardware_security_module: true

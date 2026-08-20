@@ -1,0 +1,19 @@
+{
+  "canonical_input": {
+    "signals": {
+      "grounded": 0.9,
+      "integrity": 0.9
+    }
+  },
+  "canonical_output": {
+    "chakra": "root",
+    "inputs": {
+      "grounded": 0.9,
+      "integrity": 0.9
+    },
+    "stability": 0.9,
+    "verdict": "ground"
+  },
+  "proof_id": "amaru.root.v1",
+  "stubbed": false
+}

@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/defenseunicorns/zarf/main/zarf.schema.json
+kind: ZarfPackageConfig
+metadata:
+  name: vessels
+  description: >
+    vessels maritime intelligence platform for UDS deployments. Provides sanctions
+    screening (OFAC/UN/EU), dark-vessel detection (AIS gap + spoofing), ownership graph
+    traversal, and voyage analytics — every alert backed by a DSSE-wrapped governance
+    receipt. Pairs with uds-package-szl-receipts for full proof-chain infrastructure.
+  version: 0.1.0
+  url: https://github.com/szl-holdings/vessels
+  authors: "Stephen Paul Lutar JR <stephen@szlholdings.com>"
+  documentation: https://github.com/szl-holdings/du-upstream-contributions/blob/main/uds-package-vessels/README.md
+  vendor: SZL Holdings
+  annotations:
+    dev.uds.title: "Vessels"
+    dev.uds.tagline: "SZL UDS deployment substrate with cosign-signed Zarf bundles."
+    dev.uds.categories: "deployment,security"
+    dev.uds.keywords: "vessels,cosign,sbom,uds,szl-holdings"
+    dev.uds.icon: "https://raw.githubusercontent.com/szl-holdings/szl-brand/main/icons/vessels.png"
+
+# PR note for upstream reviewer: This package depends on `ghcr.io/szl-holdings/vessels:v0.1.0`.
+# The image will be public by the time this PR lands — current visibility is private as a final
+# pre-publish hold (founder-task to flip).
+
+variables:
+  - name: VESSELS_NAMESPACE
+    description: Kubernetes namespace for the vessels workload.
+    default: vessels
+
+  - name: VESSELS_IMAGE
+    description: Container image for the vessels web frontend.
+    default: ghcr.io/szl-holdings/vessels:v0.1.0
+
+  - name: VESSELS_DOMAIN
+    description: Domain for the vessels Istio VirtualService ingress.
+    default: vessels.uds.dev
+
+  - name: STORAGE_SIZE
+    description: PVC size for vessels data persistence (PostgreSQL).
+    default: 10Gi
+
+  - name: RECEIPTS_NAMESPACE
+    description: Namespace where szl-receipts is deployed (for receipt cross-reference).
+    default: szl-receipts
+
+  - name: AIS_REPLAY_MODE
+    description: >
+      Set to "true" to use the bundled AIS replay dataset instead of a live AIS provider.
+      Set to "false" and configure AIS_PROVIDER_URL for production.
+    default: "true"
+
+  - name: AIS_PROVIDER_URL
+    description: Live AIS provider endpoint (only used when AIS_REPLAY_MODE=false).
+    default: ""
+
+components:
+  - name: vessels-namespace
+    description: Creates the vessels namespace with standard UDS labels.
+    required: true
+    manifests:
+      - name: vessels-namespace
+        namespace: vessels
+        files:
+          - manifests/namespace.yaml
+
+  - name: vessels-helm
+    description: >
+      Deploys the vessels web frontend via Helm. Includes Deployment, Service,
+      ConfigMap (AIS config + sanctions list config), and UDS Istio VirtualService ingress.
+    required: true
+    charts:
+      - name: vessels
+        localPath: charts/vessels
+        namespace: "###ZARF_VAR_VESSELS_NAMESPACE###"
+        valuesFiles:
+          - charts/vessels/values.yaml
+    images:
+      - ghcr.io/szl-holdings/vessels:v0.1.0
+
+  - name: vessels-demo-data
+    description: >
+      Loads the bundled AIS replay dataset for demo/AIS-replay mode.
+      Used by demo:ais-replay task. Not required for production.
+    required: false
+    files:
+      - source: scripts/demo_ais_replay.sh
+        target: /opt/vessels/scripts/demo_ais_replay.sh
+        executable: true
+      - source: scripts/verify_receipts.sh
+        target: /opt/vessels/scripts/verify_receipts.sh
+        executable: true

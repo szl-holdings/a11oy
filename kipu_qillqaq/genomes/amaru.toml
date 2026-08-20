@@ -1,0 +1,29 @@
+# genome.toml -- QILLQAQ declarative organ DNA (config; parsed by stdlib tomllib)
+# HONEST NAMING: "DNA"/"genome" = config + module loading. No biology, no magic.
+# Doctrine v11 LOCKED numbers preserved verbatim elsewhere (749/14/163, 13-axis yuyay_v3,
+# replay bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5). ADDITIVE only.
+
+[organ]
+name = "AMARU"
+quechua = "amaru = serpent (cortex/reasoning)"
+function = "Cortex / agentic reasoning scheduler over 7 chakra kernels."
+
+[role]
+loop = "read task receipts -> schedule chakra kernels -> emit reasoning verdict receipts"
+
+[reads]
+kinds = ["task", "context", "yuyay_score"]
+
+[writes]
+kinds = ["reasoning_verdict", "chakra_trace", "task"]
+
+[boot]
+handler = "kipu_qillqaq.handlers:echo"
+enabled = true
+
+[meta]
+slug = "amaru"
+substrate = "KIPU"
+engine = "QILLQAQ"
+author = "Yachay"
+agent = "Perplexity Computer Agent"

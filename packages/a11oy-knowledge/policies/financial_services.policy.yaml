@@ -1,0 +1,57 @@
+# a11oy Covenant Policy — Financial Services / Banking
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: financial_services
+policy_name: "Financial Services / Banking"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "SR 11-7"
+  - "OCC 2011-12"
+  - "MiFID II RTS 6"
+  - "Basel III"
+
+required_attestors:
+  - model_risk_officer
+  - chief_risk_officer
+  - internal_audit
+
+lambda_floors:
+  moralGrounding: 0.97
+  measurabilityHonesty: 0.99
+  temporalConsistency: 0.99
+  informationIntegrity: 0.99
+  economicGrounding: 1.0
+
+forbidden_inputs:
+  - insider_information
+  - unregistered_model_version
+
+retention_days: 2190
+
+required_output_formats:
+  - csv_model_log
+  - json_receipt
+  - pdf_board_report
+
+primitives_applicable:
+  - A1
+  - A5
+  - A6
+  - A8
+  - A9
+  - A14
+  - T5
+  - T9
+  - T10
+  - TH1
+  - TH2
+
+acv_range_usd:
+  low: 200000
+  mid: 800000
+  high: 2000000

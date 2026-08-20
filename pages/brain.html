@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a11oy — Brain · gate vocabulary + composition + unified LLM router (Doctrine v10)</title>
+<meta name="description" content="a11oy brain: 46 policy gates + 44 anchor formula gates + composition rules + live composition playground + the 5 founder-locked LLM tiers (unified router). Doctrine v10 honest numbers.">
+<style>
+:root{--bg:#0b0e14;--card:#121826;--ink:#e8eef7;--mut:#8aa0bf;--acc:#5ad1c0;--acc2:#7aa2ff;--line:#243149;--warn:#e0c060}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.55 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink)}
+.wrap{max-width:1080px;margin:0 auto;padding:32px 20px 90px}
+h1{font-size:27px;margin:0 0 4px}
+h2{font-size:18px;margin:32px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 18px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:14px 0}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--mut);font-weight:600}
+code{background:#0a1626;padding:1px 5px;border-radius:5px;color:var(--acc);font-size:12px}
+a{color:var(--acc);text-decoration:none}a:hover{text-decoration:underline}
+.b{display:inline-block;padding:1px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.green{background:#0f3a2e;color:#5ad1c0}.amber{background:#3a2f0f;color:var(--warn)}.gray{background:#222b3a;color:#8aa0bf}.blue{background:#16264a;color:var(--acc2)}
+.note{color:var(--mut);font-size:13px}
+.kpis{display:flex;gap:10px;flex-wrap:wrap;margin:10px 0}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;min-width:120px}
+.kpi b{font-size:22px;display:block;color:var(--acc)}
+button{background:var(--acc2);color:#06101f;border:0;border-radius:8px;padding:8px 14px;font-weight:700;cursor:pointer}
+button:hover{filter:brightness(1.1)}
+input,textarea{width:100%;background:#0a1626;border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:8px;font:13px ui-monospace,monospace}
+pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12px;overflow:auto;font-size:12px;color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:760px){.row{grid-template-columns:1fr}}
+.foot{margin-top:40px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
+nav a{margin-right:14px;font-weight:600}
+</style></head>
+<body><div class="wrap">
+<nav class="note"><a href="/">home</a><a href="/mesh">/mesh</a><a href="/wires">/wires</a><a href="/governed-loops">/governed-loops</a><a href="/codex-kernel">/codex-kernel</a><a href="/upgrades">/upgrades</a></nav>
+<h1>a11oy — Brain</h1>
+<p class="sub">Anatomy role: <b>Brand Orchestration / gates</b> · Doctrine v10 · gate vocabulary + composition rules + live playground + unified LLM router</p>
+
+<div class="kpis">
+  <div class="kpi"><b>46</b>policy gates</div>
+  <div class="kpi"><b>44</b>anchor formula gates</div>
+  <div class="kpi"><b>0.90</b>Λ floor</div>
+  <div class="kpi"><b>5</b>LLM tiers</div>
+  <div class="kpi"><b>749</b>Lean declarations</div>
+  <div class="kpi"><b>163</b>tracked sorries</div>
+</div>
+
+<h2>1 · Gate composition rules</h2>
+<div class="card">
+<ul>
+<li><b>AND-compose</b> (conjunctive safety): a decision passes only if <b>every</b> fired gate passes.</li>
+<li><b>Λ-floor</b>: geometric-mean Λ across the 13 axes must be ≥ <code>0.90</code> (<code>soundnessAxiom</code>).</li>
+<li><b>Severity-indexed witnesses</b>: higher severity ⇒ more attested witnesses (<code>thresholdPolicySeverity</code>).</li>
+<li><b>Monotone composition</b>: adding a gate can only lower or keep Λ, never raise it (TH8 GLR-consistent).</li>
+</ul>
+<p class="note">Λ = geometric mean of axis scores — matches <code>Lutar.Λ k</code> (A2 IsHomogeneous, A4 IsBounded). Λ uniqueness is a <b>Conjecture</b>, not a closed theorem (open CAUCHY_ND sorry at <code>Uniqueness.lean:120</code> + missing symmetry axiom).</p>
+</div>
+
+<h2>2 · Live composition playground</h2>
+<div class="card">
+<div class="row">
+<div>
+<p class="note">Gate names (comma-separated). Leave blank for the first 3 gates.</p>
+<input id="gates" placeholder="soundnessAxiom, thresholdPolicySeverity">
+<p class="note" style="margin-top:10px">13-axis scores (comma-separated, each in [0,1]).</p>
+<input id="axis" value="0.95,0.94,0.93,0.92,0.91,0.95,0.94,0.93,0.92,0.91,0.95,0.94,0.93">
+<p style="margin-top:12px"><button onclick="compose()">POST /api/a11oy/v1/brain/compose</button> <button onclick="loadGates()">GET /brain/gates</button></p>
+</div>
+<div><pre id="out">// result appears here</pre></div>
+</div>
+</div>
+
+<h2>3 · Unified LLM router — 5 founder-locked tiers</h2>
+<div class="card">
+<p class="note">The router picks a tier from the 13-axis Λ trust vector: high-trust (Λ ≥ 0.90) → cheap fast tier; low-trust / adversarial (Λ &lt; 0.75) → premium tier + extra gates. Same endpoint, identical logic, on every Space.</p>
+<table id="tiers"><tr><th>rank</th><th>model</th><th>intended use</th><th>why</th></tr></table>
+<p style="margin-top:12px"><button onclick="route()">POST /api/a11oy/v1/llm/route (try it)</button></p>
+<pre id="rout">// router result appears here</pre>
+<p class="note">HONEST: no model API key is wired into this HF Space, so <code>response</code> is an honest stub describing what would be sent. The tier selection + Λ-receipt are real, deterministic math. The receipt <code>signature</code> is a <b>PLACEHOLDER</b> — Sigstore CI signing is not yet wired (Doctrine v10).</p>
+</div>
+
+<div class="foot">
+Source of truth: unified router <a href="https://github.com/szl-holdings/platform/tree/main/packages/llm-router" target="_blank" rel="noopener">platform/packages/llm-router</a> · canonical numbers <a href="https://github.com/szl-holdings/.github/blob/main/.github/data/lean_numbers.json" target="_blank" rel="noopener">lean_numbers.json</a> @ <code>c7c0ba17</code> (749 / 14 unique / 163). LLM tiers per ROSIE_FULL_CAPABILITY_BRIEF §2. ADDITIVE surface — all 40+ GREEN routes preserved. ZERO BANDAID.
+</div>
+</div>
+<script>
+const out=document.getElementById('out'), rout=document.getElementById('rout');
+async function compose(){
+  const gates=document.getElementById('gates').value.split(',').map(s=>s.trim()).filter(Boolean);
+  const axis=document.getElementById('axis').value.split(',').map(s=>parseFloat(s.trim())).filter(x=>!isNaN(x));
+  const body={}; if(gates.length)body.gates=gates; if(axis.length)body.axis_scores=axis;
+  out.textContent='…';
+  try{const r=await fetch('/api/a11oy/v1/brain/compose',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});out.textContent=JSON.stringify(await r.json(),null,2);}catch(e){out.textContent='error: '+e;}
+}
+async function loadGates(){out.textContent='…';try{const r=await fetch('/api/a11oy/v1/brain/gates');const d=await r.json();out.textContent='policy_gates: '+d.policy_gates+'\nanchor_formula_gates: '+d.anchor_formula_gates+'\n\n'+d.gates.map(g=>g.name+'  —  '+(g.description||'')).join('\n');}catch(e){out.textContent='error: '+e;}}
+async function route(){rout.textContent='…';try{const r=await fetch('/api/a11oy/v1/llm/route',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:'Evaluate this Λ-gate decision',axis_scores:[0.6,0.55,0.7,0.5,0.6,0.55,0.6,0.5,0.65,0.6,0.55,0.6,0.5],task_hint:'math'})});rout.textContent=JSON.stringify(await r.json(),null,2);}catch(e){rout.textContent='error: '+e;}}
+(async()=>{try{const r=await fetch('/api/a11oy/v1/llm/tiers');const d=await r.json();const t=document.getElementById('tiers');d.tiers.forEach(x=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${x.rank}</td><td><code>${x.id}</code></td><td>${x.use}</td><td>${x.why}</td>`;t.appendChild(tr);});}catch(e){}})();
+</script>
+</body></html>

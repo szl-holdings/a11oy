@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-hf-candidate-qualification-v1.json",
+  "title": "SZL Hugging Face candidate qualification binding",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "artifact_class",
+    "decision",
+    "base_repository",
+    "base_revision",
+    "adapter_model_sha256",
+    "adapter_config_sha256",
+    "base_file_set_sha256",
+    "training_receipt_sha256",
+    "reload_receipt_sha256",
+    "evaluation_receipt_sha256",
+    "license_review_sha256",
+    "human_approval_sha256",
+    "dsse_attestation_sha256",
+    "evaluation",
+    "external_mutations"
+  ],
+  "properties": {
+    "schema_version": {"const": "szl.hf-candidate-qualification.v1"},
+    "candidate_id": {"type": "string", "minLength": 8},
+    "artifact_class": {"const": "PEFT_ADAPTER"},
+    "decision": {"const": "QUALIFIED_FOR_NAMED_HUMAN_PROMOTION_REVIEW"},
+    "base_repository": {"type": "string", "pattern": "^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$"},
+    "base_revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "adapter_model_sha256": {"$ref": "#/$defs/sha256"},
+    "adapter_config_sha256": {"$ref": "#/$defs/sha256"},
+    "base_file_set_sha256": {"$ref": "#/$defs/sha256"},
+    "training_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "reload_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "license_review_sha256": {"$ref": "#/$defs/sha256"},
+    "human_approval_sha256": {"$ref": "#/$defs/sha256"},
+    "dsse_attestation_sha256": {"$ref": "#/$defs/sha256"},
+    "evaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["all_required_suites_passed", "catastrophic_errors_observed", "held_out_split_sha256"],
+      "properties": {
+        "all_required_suites_passed": {"const": true},
+        "catastrophic_errors_observed": {"const": 0},
+        "held_out_split_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "external_mutations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bucket_objects_uploaded", "hub_repository_mutated", "published", "promoted"],
+      "properties": {
+        "bucket_objects_uploaded": {"const": false},
+        "hub_repository_mutated": {"const": false},
+        "published": {"const": false},
+        "promoted": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+  }
+}

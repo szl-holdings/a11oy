@@ -1,0 +1,48 @@
+{
+  "schema": "szl.brain.semantic-index.receipt.v1",
+  "label": "MEASURED",
+  "scope": "local evaluation-only Brain index build and query challenger",
+  "observed_date": "2026-07-21",
+  "corpus": {
+    "content_hash": "4dc8ac48ec65edd4",
+    "raw_node_count": 9464,
+    "link_count": 14234,
+    "distinct_artifacts": 4229,
+    "person_node_count": 5235
+  },
+  "embedding": {
+    "model_id": "Qwen/Qwen3-Embedding-0.6B",
+    "upstream_revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    "local_artifact_sha256": "9d701ae054c22f4c3e4b860f2fc03e992fe8200bba4eabed283529eaf1ff497f",
+    "dimension": 1024,
+    "pooling": "last-token",
+    "device": "cuda",
+    "backend": "transformers-local-files-only",
+    "semantic_scores_label": "MODELED"
+  },
+  "index": {
+    "vector_backend": "numpy-cosine",
+    "community_algorithm": "networkx-greedy-modularity",
+    "community_count": 180,
+    "elapsed_seconds": 67.179
+  },
+  "probe": {
+    "query": "governed decision receipts",
+    "top_node_id": "surface:governedrag",
+    "top_score": 0.594788,
+    "top_vector_cosine": 0.747015
+  },
+  "comparison": {
+    "baseline_receipt": "brain-semantic-index-local-2026-07-21.json",
+    "baseline_elapsed_seconds": 51.671,
+    "promotion_decision": "CHALLENGER_ONLY",
+    "reason": "One probe does not establish retrieval quality; the challenger was slower than the BGE baseline and requires a frozen multi-query evaluation."
+  },
+  "limitations": [
+    "This receipt measures a local index build and one query; it is not a retrieval-quality benchmark.",
+    "Elapsed time includes hashing every file in the exact local model snapshot before indexing.",
+    "Semantic scores are model outputs and remain MODELED, not factual proof.",
+    "The run does not repair missing source timestamps, unresolved contradictions, or uncertainty calibration.",
+    "The 9464 raw nodes are not thereby admitted to gradients, training datasets, or public release."
+  ]
+}

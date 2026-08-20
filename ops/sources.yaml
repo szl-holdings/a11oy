@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
+# Public, no-key external data endpoints a11oy depends on (energy/carbon/price organs).
+# The source-health probe (ops/source_health.py) reads this and alerts on non-200 /
+# schema drift BEFORE production traffic hits a dead endpoint. Keyed/LLM-provider
+# endpoints are intentionally omitted (probing them needs secrets + costs money).
+sources:
+  - id: uk_carbon_intensity
+    name: UK Carbon Intensity
+    url: "https://api.carbonintensity.org.uk/intensity"
+    method: GET
+    expect: json
+    expect_keys: [data]
+    verified: "2026-07-06"
+  - id: awattar_de_market
+    name: aWATTar DE market data (day-ahead price)
+    url: "https://api.awattar.de/v1/marketdata"
+    method: GET
+    expect: json
+    expect_keys: [data]
+    verified: "2026-07-06"
+  - id: energy_charts_freq_de
+    name: Energy-Charts grid frequency (DE)
+    url: "https://api.energy-charts.info/frequency?country=de"
+    method: GET
+    expect: json
+    note: FLAKY - alternates 200/404 on identical requests (LB nodes). Probe retries once. Consider migrating to public_power endpoint.
+    verified: "2026-07-06"
+  - id: coingecko_btc
+    name: CoinGecko simple price (BTC)
+    url: "https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd"
+    method: GET
+    expect: json
+    verified: "2026-07-06"
+  - id: coinbase_btc_spot
+    name: Coinbase BTC-USD spot
+    url: "https://api.coinbase.com/v2/prices/BTC-USD/spot"
+    method: GET
+    expect: json
+    expect_keys: [data]
+    verified: "2026-07-06"

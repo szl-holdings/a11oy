@@ -1,0 +1,49 @@
+# SZL Holdings — Sentra Zarf package
+# Authored by: Connector Wayra · P4 UDS Apply + Lutar, Stephen P.
+# Doctrine: v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest (cosign-signed GitHub Actions image; L2 attestation roadmap via Wire D, not yet earned) · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# Build:   zarf package create deploy/ --confirm
+# Deploy:  zarf package deploy zarf-package-sentra-amd64-uds-v0.2.0.tar.zst --confirm
+# Mesh:    uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
+#
+# SLSA L1 verify (earned today):
+#   cosign verify \
+#     --certificate-identity-regexp '^https://github.com/szl-holdings/' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     ghcr.io/szl-holdings/sentra:uds-v0.2.0
+# SLSA L2 attestation (roadmap — currently "no matching attestations"):
+#   cosign verify-attestation --type slsaprovenance \
+#     --certificate-identity-regexp '^https://github.com/szl-holdings/' \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     ghcr.io/szl-holdings/sentra:uds-v0.2.0
+#
+# Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+kind: ZarfPackageConfig
+metadata:
+  name: sentra
+  version: uds-v0.3.1-rc.1
+  description: |
+    Sentra — Mesh Immune System. 8-gate dual-use filter protecting every organ
+    and action across the SZL mesh. Wire B verdicts from a11oy. Doctrine v11
+    LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a theorem). SLSA L1 honest.
+  url: https://github.com/szl-holdings/sentra
+  authors: "Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings"
+  architecture: amd64
+
+components:
+  - name: sentra-runtime
+    required: true
+    description: Sentra runtime container + posture API service.
+    images:
+      - ghcr.io/szl-holdings/sentra:uds-v0.3.1-rc.1
+      - ghcr.io/szl-holdings/sentra:v1.0.0-alpha
+    manifests:
+      - name: sentra
+        namespace: sentra
+        files:
+          - manifests/sentra-namespace.yaml
+          - manifests/sentra-deployment.yaml
+          - manifests/sentra-service.yaml

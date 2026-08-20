@@ -1,0 +1,66 @@
+{
+  "schema": "szl.feature-provenance/v1",
+  "note": "Maps deployed a11oy/killinchu features to their provenance chain: paper (Zenodo DOI) -> Lean 4 proof (lutar-lean file + sha256) -> deployed feature. lean_sha256 is the full sha256 of the .lean source as shipped; recorded_status is the build-time status used only if the file is absent from the image. Badge state is decided LIVE by szl_feature_badge.resolve_proof() (comment-stripped sorry/admit count) and is NEVER green for a conjecture.",
+  "features": [
+    {
+      "id": "khipu-checksum-invariant",
+      "feature": "Khipu receipt checksum / pendant-value invariant",
+      "kind": "theorem",
+      "paper_title": "SZL Thesis v18 — Formal Verification (Khipu checksum invariant)",
+      "doi": "10.5281/zenodo.20434276",
+      "lean_file": "Lutar/Thesis/TH_V18_08_KhipuChecksumInvariant.lean",
+      "lean_sha256": "06a2411f03f93698d472e623b2dc96ee37112d3a8dd7195407104cbe97e30246",
+      "theorem": "Lutar.Thesis.khipu_checksum_invariant",
+      "recorded_status": "PROVEN",
+      "conjecture_id": null,
+      "surface": "a11oy",
+      "route": "/api/a11oy/v1/badge/khipu-checksum-invariant",
+      "note": "GREEN in lutar-lean declaration manifest; runtime gate platform/src/receipts/khipu-checksum.ts. Zero real sorries."
+    },
+    {
+      "id": "receipt-transduction",
+      "feature": "Decision-receipt transduction invariant (Λ-gate)",
+      "kind": "theorem",
+      "paper_title": "SZL Thesis v18 — Formal Verification (Receipt transduction)",
+      "doi": "10.5281/zenodo.20434276",
+      "lean_file": "Lutar/Thesis/TH_V18_05_ReceiptTransduction.lean",
+      "lean_sha256": "797e1d45bdb1452eacd76729c02378db6bb76eb4267d41ab0d6ebad762d1fb08",
+      "theorem": "Lutar.Thesis.receipt_transduction_invariant",
+      "recorded_status": "PROVEN",
+      "conjecture_id": null,
+      "surface": "a11oy",
+      "route": "/api/a11oy/v1/badge/receipt-transduction",
+      "note": "GREEN in lutar-lean declaration manifest; runtime gate a11oy-core/src/governance/lambda-gate.ts. Zero real sorries."
+    },
+    {
+      "id": "lambda-uniqueness",
+      "feature": "Λ aggregator global uniqueness",
+      "kind": "conjecture",
+      "paper_title": "SZL Λ Uniqueness (Round 13)",
+      "doi": "10.5281/zenodo.20434276",
+      "lean_file": "Lutar/Round13/Lambda_Uniqueness.lean",
+      "lean_sha256": "ea7667f8c20deb469396d822273ede4577e53d5ce0f273dee590a4928b617525",
+      "theorem": "Lutar.Round13.lambda_uniqueness",
+      "recorded_status": "OPEN",
+      "conjecture_id": "Conjecture 1",
+      "surface": "a11oy",
+      "route": "/api/a11oy/v1/badge/lambda-uniqueness",
+      "note": "Conjecture 1 — unconditional Λ uniqueness is OPEN (machine-checked false-as-stated; real `sorry` present). NEVER render green."
+    },
+    {
+      "id": "khipu-bft-consensus",
+      "feature": "Multi-party-witnessed AI — 3-of-4 BFT consensus (witness API/SDK)",
+      "kind": "conjecture",
+      "paper_title": "Khipu BFT consensus — safety & liveness",
+      "doi": "10.5281/zenodo.20434276",
+      "lean_file": "Lutar/KhipuConsensus.lean",
+      "lean_sha256": "6110cf421602dc1afd0664ff8030ff7ca83d82bfb5838c8a38ff9dc62190a2ca",
+      "theorem": "Lutar.KhipuConsensus.khipu_consensus_safety",
+      "recorded_status": "OPEN",
+      "conjecture_id": "Conjecture 2 (safety) / Conjecture 3 (liveness)",
+      "surface": "a11oy",
+      "route": "/api/a11oy/v1/badge/khipu-bft-consensus",
+      "note": "Backs the DEV5 multi-party-witnessed AI API. BFT safety=Conjecture 2, liveness=Conjecture 3 — both proof-deferred (real `sorry` present). Economic slashing=ROADMAP. NEVER render green."
+    }
+  ]
+}

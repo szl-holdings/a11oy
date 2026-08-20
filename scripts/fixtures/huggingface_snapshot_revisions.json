@@ -1,0 +1,21 @@
+{
+  "observedAt": "2026-07-26T01:00:00Z",
+  "stored": {
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "lastModified": "2026-07-26T00:00:00Z"
+  },
+  "liveNewer": {
+    "id": "SZLHOLDINGS/model",
+    "private": false,
+    "sha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "lastModified": "2026-07-26T00:30:00Z",
+    "tags": [
+      "license:apache-2.0"
+    ]
+  },
+  "historical": {
+    "id": "SZLHOLDINGS/model",
+    "sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "lastModified": "2026-07-26T00:00:00Z"
+  }
+}

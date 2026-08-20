@@ -1,0 +1,49 @@
+# SZL Holdings — A11oy Zarf package
+# Authored by: Connector Wayra · P4 UDS Apply + Lutar, Stephen P.
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# Build:   zarf package create deploy/ --confirm
+# Deploy:  zarf package deploy zarf-package-a11oy-amd64-uds-v0.2.0.tar.zst --confirm
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+kind: ZarfPackageConfig
+metadata:
+  name: a11oy
+  version: uds-v0.2.0
+  description: |
+    A11oy — Brand Orchestration Layer (Yachay). Governed agentic execution
+    fabric. Policy gates, signal mesh, proof ledger, and Lambda-9 invariant
+    runtime. Doctrine v11 LOCKED 749/14/163. Lambda = Conjecture 1 (NOT a
+    theorem). SLSA L1 honest.
+  url: https://github.com/szl-holdings/a11oy
+  authors: "Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings"
+  architecture: amd64
+
+components:
+  - name: a11oy-runtime
+    required: true
+    description: A11oy runtime container + proof-ledger sidecar mount.
+    images:
+      - ghcr.io/szl-holdings/a11oy:uds-v0.2.0
+      - ghcr.io/szl-holdings/a11oy:uds-v0.2.0
+    manifests:
+      - name: a11oy
+        namespace: a11oy
+        files:
+          - manifests/a11oy-namespace.yaml
+          - manifests/proof-ledger-pvc.yaml
+          - manifests/a11oy-deployment.yaml
+          - manifests/a11oy-service.yaml
+
+  - name: a11oy-attestations
+    required: false
+    description: |
+      Attestation ledger component that mounts attestations.jsonl for offline
+      verification (SLSA L1 evidence, cosign-covered).
+    files:
+      - source: attestations.jsonl
+        target: /uds-bundle/attestations.jsonl
+        executable: false

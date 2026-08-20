@@ -1,0 +1,149 @@
+name: GGUF weight guard
+
+# Catches a SILENT regression in the local-model ("alloy") demo tier weight.
+# The root Dockerfile fetches ONE pinned, size/sha256-verified GGUF weight
+# (Qwen2.5-Coder-0.5B-Instruct Q4_K_M) and currently FAILS LOUD if that weight
+# is not verified-present — there is deliberately NO best-effort `|| echo` mask
+# on the fetch (unlike the optional llama-cpp wheel above it). History: the
+# fetch USED to be a single best-effort `hf_hub_download(...) || echo`, so a
+# transient download failure silently shipped an image with NO model and the
+# alloy demo tier always degraded to the honest tower-side label with no red
+# signal.
+#
+# This is the GGUF twin of llama-wheel-guard.yml. It re-executes the EXACT
+# pinned + verified GGUF fetch parsed from the Dockerfile, OUTSIDE the Docker
+# build, and fails RED if the weight cannot be obtained and integrity-verified.
+# The guard logic lives in the GENERIC scripts/check_weight_guard.py (shared by
+# every pinned-download weight guard — this one passes --arg-prefix
+# A11OY_ALLOY_GGUF) so it can be exercised by an offline negative-fixture
+# self-test (scripts/check_weight_guard.test.sh) that proves the guard still goes
+# RED on a deliberately broken input — the same `*.py` + `*.test.sh` convention
+# the other a11oy script guards use. That self-test runs FIRST below and GATES the
+# real checks: if the guard ever stops catching a reintroduced mask, a dropped
+# fail-loud exit, or an out-of-lockstep rev/size/sha bump, this job goes red
+# before it ever touches the network.
+# Two things make a future regression fail loudly here instead of silently
+# shipping a model-less image:
+#   1. The fetch runs UNMASKED. Even if a future edit reintroduces a
+#      best-effort `|| echo` / `|| true` on the Dockerfile fetch (re-hiding a
+#      missing weight inside the image build), this standalone guard still
+#      hard-fails when the weight is not verified-present. The guard also
+#      statically asserts the Dockerfile GGUF fetch itself stays fail-closed
+#      (no `|| echo`/`|| true` mask, non-zero exit on failure).
+#   2. rev / size / sha256 are kept in LOCKSTEP. The guard downloads at the
+#      pinned REVISION and verifies the bytes against the pinned SIZE and
+#      SHA256. Changing any ONE of the three without the matching others (e.g.
+#      bumping the rev but not the digest, or editing the sha by a character)
+#      makes the verify mismatch and the guard fails CLOSED.
+#
+# The weight can also vanish / be force-pushed on the upstream HF repo without
+# anyone editing this repo, in which case the push/PR-only triggers never fire.
+# The weekly `schedule:` re-verifies the fetch contract against the LIVE HF repo
+# on a cadence; a scheduled-run failure pages the team through the shared
+# a11oy-uptime ntfy alert path (the same SLACK_WEBHOOK_URL relay the other a11oy
+# CI alert workflows use). PR/push failures are NOT paged — a red check already
+# shows — mirroring the receipts-pin-drift-guard / llama-wheel-guard convention.
+#
+# DCO: Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'scripts/check_weight_guard.py'
+      - 'scripts/check_weight_guard.test.sh'
+      - 'scripts/weight_guard_alert.sh'
+      - 'scripts/weight_guard_alert.test.sh'
+      - '.github/workflows/gguf-weight-guard.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'scripts/check_weight_guard.py'
+      - 'scripts/check_weight_guard.test.sh'
+      - 'scripts/weight_guard_alert.sh'
+      - 'scripts/weight_guard_alert.test.sh'
+      - '.github/workflows/gguf-weight-guard.yml'
+  schedule:
+    # Weekly, Mondays 06:41 UTC — re-verify the pinned weight still exists and
+    # matches its digest on the live upstream HF repo even when nobody touches
+    # the Dockerfile. Offset from the wheel guard (06:17) to avoid a thundering
+    # herd against the same hosts.
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gguf-guard:
+    # ubuntu-latest is linux_x86_64 — the same arch the published image ships on.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          # cp312 — same interpreter family as the Dockerfile's python:3.12-slim base.
+          python-version: '3.12'
+
+      - name: Self-test the guard (offline negative fixtures)
+        # GATE: prove the guard still goes RED on a deliberately broken input
+        # BEFORE running the real checks. If a future edit neuters the guard —
+        # stops catching a reintroduced `|| echo`/`|| true` mask, a dropped
+        # `sys.exit(1)`, a loose/truncated rev/sha/size, or an out-of-lockstep
+        # size/sha bump — this self-test fails and the job goes red here, before
+        # it ever touches the network. Mirrors the other a11oy *.test.sh guards.
+        run: |
+          bash scripts/check_weight_guard.test.sh
+          bash scripts/weight_guard_alert.test.sh
+
+      - name: Install huggingface_hub (matches the Dockerfile pin)
+        run: |
+          set -euo pipefail
+          # The Dockerfile installs "huggingface_hub>=0.25.0"; mirror that so the
+          # guard fetches via the exact same client the image build uses.
+          pip install --no-cache-dir "huggingface_hub>=0.25.0"
+
+      - name: Parse pinned GGUF repo/file/rev/sha256/size from Dockerfile
+        id: parse
+        # Same parse + shape-check the self-test exercises (scripts/check_weight_guard.py
+        # parse): emits key=value pairs for the alert step and fails closed on a
+        # missing/malformed pin. key=value goes to stdout; the human note to stderr.
+        run: |
+          set -euo pipefail
+          python3 scripts/check_weight_guard.py parse --dockerfile Dockerfile --arg-prefix A11OY_ALLOY_GGUF >> "${GITHUB_OUTPUT}"
+
+      - name: Assert the Dockerfile GGUF fetch stays fail-closed (no mask)
+        # Same static check the self-test exercises (scripts/check_weight_guard.py
+        # assert-fail-closed): no reintroduced best-effort mask, fail-loud exit intact.
+        run: python3 scripts/check_weight_guard.py assert-fail-closed --dockerfile Dockerfile --arg-prefix A11OY_ALLOY_GGUF
+
+      - name: Re-execute the pinned + verified GGUF fetch (unmasked)
+        # The real guard action: parse + download at the pinned REVISION OUTSIDE
+        # the image build and WITHOUT any `|| echo` mask, then verify bytes against
+        # the pinned SIZE and SHA256 in lockstep (the exact `verify` predicate the
+        # self-test exercises). Change one of rev/size/sha without the others and
+        # this fails closed.
+        run: python3 scripts/check_weight_guard.py fetch --dockerfile Dockerfile --arg-prefix A11OY_ALLOY_GGUF
+
+      - name: Page the team on scheduled-run failure (ntfy via relay)
+        # Fire ONLY on the unattended weekly scheduled run when a prior step
+        # failed — i.e. the pinned weight vanished / changed digest on the live
+        # upstream HF repo with no repo change to trigger the push/PR paths.
+        # PR/push failures are not paged (the red check is already visible).
+        # Mirrors the llama-wheel-guard / receipts-pin-drift-guard convention.
+        # This step never masks the failure: the job is already red above.
+        if: ${{ failure() && github.event_name == 'schedule' }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          REPO: ${{ steps.parse.outputs.repo }}
+          FILE: ${{ steps.parse.outputs.file }}
+          REV: ${{ steps.parse.outputs.rev }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        # The relay itself lives in scripts/weight_guard_alert.sh (shared with
+        # llama-wheel-guard.yml so the page logic can't drift between guards);
+        # this step only builds the human MSG and hands it off.
+        run: |
+          export MSG=":rotating_light: a11oy GGUF weight guard FAILED on its weekly scheduled re-verification. The pinned ${REPO:-?}/${FILE:-?} @ ${REV:-?} weight could not be obtained and size/sha256-verified, so the alloy demo tier would ship a model-less image (silently, if a '|| echo' mask is ever reintroduced on the Dockerfile fetch). Run: ${RUN_URL} . Fix: re-pin rev/size/sha256 in lockstep to a present, matching GGUF on the upstream HF repo."
+          bash scripts/weight_guard_alert.sh

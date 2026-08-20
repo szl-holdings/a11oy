@@ -1,0 +1,7 @@
+{
+  "proof_id": "amaru.crown.v1",
+  "sha256": "9c880743ef3f3484d194ebc856d87dba5799c437d84dad5f43cbd78ebe9dd0a3",
+  "kind": "kernel-source",
+  "summary": "arithmetic mean of upstream scalars, clamped to [0,1]",
+  "notes": "sha256 computed over the canonical kernel.py source bytes; re-pin via services/amaru/scripts/pin_proofs.py after edits."
+}

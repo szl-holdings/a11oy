@@ -1,0 +1,58 @@
+name: HF universal frontend contract v1
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/huggingface-ecosystem-manifest.json
+      - docs/huggingface-frontend-remediation-queue-v1.json
+      - docs/HUGGINGFACE_UNIVERSAL_FRONTEND_CONTRACT_V1.md
+      - scripts/build_hf_frontend_remediation_queue_v1.py
+      - tests/test_hf_frontend_remediation_queue_v1.py
+      - .github/workflows/hf-frontend-contract-v1.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/huggingface-ecosystem-manifest.json
+      - docs/huggingface-frontend-remediation-queue-v1.json
+      - docs/HUGGINGFACE_UNIVERSAL_FRONTEND_CONTRACT_V1.md
+      - scripts/build_hf_frontend_remediation_queue_v1.py
+      - tests/test_hf_frontend_remediation_queue_v1.py
+      - .github/workflows/hf-frontend-contract-v1.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-universal-frontend-contract-v1-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned focused-test dependencies
+        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Verify queue generator and contracts
+        run: |
+          python3 -m py_compile scripts/build_hf_frontend_remediation_queue_v1.py
+          python3 -m pytest -q tests/test_hf_frontend_remediation_queue_v1.py
+          python3 scripts/build_hf_frontend_remediation_queue_v1.py --check

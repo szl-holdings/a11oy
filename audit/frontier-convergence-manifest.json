@@ -1,0 +1,82 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-11T20:50:22.950474+00:00",
+  "generatedBy": "tools/szl_convergence_bootstrap.py",
+  "artifacts": {
+    "claims": "audit/frontier-claims-ledger.json",
+    "contradictions": "audit/frontier-contradictions-ledger.json",
+    "probes": "audit/frontier-command-probes.json",
+    "article12": "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\evidence\\conformance\\eu-ai-act-article-12.yaml",
+    "schema": "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\schemas\\szl-governed-action-predicate.v1.schema.json",
+    "payload": "SZL_FINAL_FRONTIER_CONVERGENCE_PAYLOAD.md"
+  },
+  "summaries": {
+    "commandStates": {
+      "frontdoor_truth": "PASS",
+      "frontdoor_repair_idempotent": "PASS",
+      "hf_ecosystem_check": "PASS",
+      "github_access_audit": "PASS"
+    },
+    "claimStateCounts": {
+      "MEASURED": 4,
+      "SAMPLE": 0,
+      "SNAPSHOT": 0,
+      "UNKNOWN": 1,
+      "ROADMAP": 1
+    },
+    "contradictions": {
+      "total": 3,
+      "releaseBlocking": 2
+    }
+  },
+  "article12": {
+    "actor": {
+      "who": "authenticated_human",
+      "id": "required"
+    },
+    "context": {
+      "system": "a11oy",
+      "jurisdiction": "EU AI Act Article 12"
+    },
+    "action": {
+      "category": "governed_execution"
+    },
+    "timestamp": "2026-08-11T20:50:22.949225+00:00",
+    "claimState": {
+      "C-01": "MEASURED",
+      "C-02": "MEASURED",
+      "C-03": "MEASURED",
+      "C-04": "MEASURED",
+      "C-05": "ROADMAP",
+      "C-06": "UNKNOWN"
+    },
+    "contradictions": {
+      "B-01": {
+        "status": "OPEN",
+        "blocks_release": true
+      },
+      "B-02": {
+        "status": "OPEN",
+        "blocks_release": true
+      },
+      "B-03": {
+        "status": "OPEN",
+        "blocks_release": false
+      }
+    },
+    "profile": "eu-ai-act-article-12",
+    "required_controls": [
+      "human_identity",
+      "risk_context",
+      "decision_reason",
+      "policy_decision",
+      "immutable_evidence_hash",
+      "retention_floor_6_months"
+    ],
+    "evidence": {
+      "local_durability": true,
+      "remote_submission": false,
+      "storage": "audit/frontier-command-probes.json"
+    }
+  }
+}

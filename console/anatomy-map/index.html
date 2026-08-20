@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<!-- SAFE-NOW hardening (R2). This Space is sdk:static on HF; HF's static serving
+     only honors COOP/COEP/CORP via README custom_headers and does NOT pass through
+     arbitrary response headers (no _headers file, no CSP/HSTS/Referrer at the edge).
+     So we set what the browser actually honors from a <meta http-equiv>: an enforced,
+     non-breaking CSP + nosniff + Referrer-Policy. HSTS and CSP frame-ancestors are
+     intentionally NOT set here because browsers IGNORE them in <meta> — putting them
+     here would be security theater (doctrine v11: never fabricate). Embed protection
+     instead relies on HF's edge COOP and the README disable_embedding posture.
+     The CSP keeps 'unsafe-inline' for script/style: the 3D atlas ships heavy inline
+     JS + inline styles + WebGL canvas, so a strict nonce CSP would white-screen it.
+     What this still buys: locks resource ORIGINS (no rogue external script/CDN/img),
+     object-src 'none', base-uri 'self', and an explicit connect-src allow-list. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://szlholdings-a11oy.hf.space https://szlholdings-killinchu.hf.space https://szlholdings-amaru.hf.space https://szlholdings-sentra.hf.space; object-src 'none'; base-uri 'self'; form-action 'self'" />
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2" />
+<title>SZL Agent Body v5 (evolves v4) — Living Anatomy · WILLAY conscience · Sovereign Mesh · buyer-verifiable receipts</title>
+<meta name="description" content="The SZL Agent Body v4 — a genuine anatomical organism. Two bodies (a11oy + killinchu) sharing one circulatory (YAWAR receipt bus) + nervous (span lineage) mesh, with proven formulas flowing through the organs and the Λ heart beating at the center." />
+<style>
+  /* ============ DESIGN TOKENS — cinematic dark scientific ============ */
+  :root{
+    --bg:#04060c; --bg2:#0a0e1a;
+    --surface:rgba(13,18,33,0.72); --surface-2:rgba(20,26,46,0.92);
+    --border:rgba(120,150,210,0.16); --border-strong:rgba(150,180,240,0.32);
+    --text:#eef2ff; --text-muted:#9aa8cc; --text-dim:#5d6a8f;
+    --heart:#ff5d8f; --blood:#ff3b5c; --brain:#7c5cff; --nerve:#5ad1ff;
+    --skel:#ffd166; --audit:#9ef0c0;
+    --a11oy:#3fe0c5; --killinchu:#ffb13f;
+    --warn:#ff7eb6; --ok:#5ad1ff; --gate:#ffd166;
+    --radius:16px; --blur:20px;
+    --font-d:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,"Helvetica Neue",sans-serif;
+    --font-m:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --shadow:0 18px 60px rgba(0,0,0,0.55);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--font-d);-webkit-font-smoothing:antialiased;letter-spacing:0.005em}
+  #scene{position:fixed;inset:0;z-index:0;display:block;touch-action:none}
+  canvas{display:block}
+  /* cinematic vignette + subtle grain over the canvas */
+  #vignette{position:fixed;inset:0;z-index:10;pointer-events:none;
+    background:radial-gradient(120% 90% at 50% 42%,transparent 48%,rgba(2,4,9,0.55) 100%)}
+
+  /* ============ loading ============ */
+  #loader{position:fixed;inset:0;z-index:60;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 50% 40%,#0c1430 0%,#05070d 70%);transition:opacity .6s ease}
+  #loader.hidden{opacity:0;pointer-events:none}
+  .pulse-ring{width:64px;height:64px;border-radius:50%;border:2px solid rgba(255,93,143,.25);border-top-color:var(--heart);animation:spin 1s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #loader .lt{margin-top:18px;font-family:var(--font-m);font-size:12px;letter-spacing:.18em;color:var(--text-muted);text-transform:uppercase}
+
+  /* ============ HUD ============ */
+  .hud{position:fixed;z-index:20;pointer-events:none}
+  .hud .card{pointer-events:auto}
+
+  /* top-left title */
+  #title{top:22px;left:24px;max-width:min(440px,72vw)}
+  #title .eyebrow{font-family:var(--font-m);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--text-dim);margin-bottom:7px}
+  #title h1{font-size:21px;font-weight:600;letter-spacing:-.01em;line-height:1.12}
+  #title h1 .v3{color:var(--heart);font-weight:700}
+  #title .sub{font-size:12px;color:var(--text-muted);margin-top:7px;letter-spacing:.01em;line-height:1.45;max-width:38ch}
+  #title .bodies{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .body-tag{font-family:var(--font-m);font-size:10.5px;letter-spacing:.04em;padding:5px 11px;border-radius:99px;border:1px solid var(--border);background:var(--surface);backdrop-filter:blur(var(--blur))}
+  .body-tag.a{color:var(--a11oy);border-color:rgba(63,224,197,.4)}
+  .body-tag.k{color:var(--killinchu);border-color:rgba(255,177,63,.4)}
+
+  /* honesty strip */
+  #honesty{top:22px;right:24px;max-width:min(360px,82vw)}
+  #honesty .card{background:var(--surface);backdrop-filter:blur(var(--blur));border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--shadow)}
+  #honesty .hdr{font-family:var(--font-m);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:11px;padding-bottom:9px;border-bottom:1px solid var(--border)}
+  #honesty .row{display:flex;gap:9px;align-items:flex-start;font-size:11px;line-height:1.42;color:var(--text-muted);margin-bottom:9px}
+  #honesty .row:last-child{margin-bottom:0}
+  #honesty .dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;margin-top:4px;box-shadow:0 0 8px currentColor}
+  #honesty b{color:var(--text);font-weight:600}
+  #honesty .gpd-row{cursor:pointer;border-top:1px solid var(--border);padding-top:10px;margin-top:11px;transition:opacity .15s}
+  #honesty .gpd-row:hover{opacity:.82}
+  .chip{display:inline-block;font-family:var(--font-m);font-size:9.5px;letter-spacing:.03em;padding:2px 7px;border-radius:7px;border:1px solid currentColor;white-space:nowrap}
+
+  /* systems legend bottom-left */
+  #legend{bottom:24px;left:24px;max-width:min(360px,82vw)}
+  #legend .card{background:var(--surface);backdrop-filter:blur(var(--blur));border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;box-shadow:var(--shadow)}
+  #legend h3{font-family:var(--font-m);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin-bottom:12px}
+  .sys-row{display:flex;gap:11px;align-items:baseline;margin-bottom:11px;cursor:pointer;transition:opacity .15s,transform .15s}
+  .sys-row:last-child{margin-bottom:0}
+  .sys-row:hover{opacity:.85;transform:translateX(2px)}
+  .sys-row .sw{flex:0 0 auto;width:11px;height:11px;border-radius:4px;margin-top:3px;box-shadow:0 0 10px currentColor}
+  .sys-row .nm{font-size:12.5px;font-weight:600}
+  .sys-row .qn{font-family:var(--font-m);font-size:10px;color:var(--text-muted)}
+  .sys-row .fnx{font-size:10.5px;color:var(--text-dim);display:block;line-height:1.4;margin-top:2px}
+
+  /* controls bottom-center */
+  #controls{bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:9px;flex-wrap:wrap;justify-content:center}
+  .btn{pointer-events:auto;font-family:var(--font-m);font-size:11px;letter-spacing:.03em;color:var(--text-muted);background:var(--surface);
+    backdrop-filter:blur(var(--blur));border:1px solid var(--border);border-radius:99px;padding:9px 15px;cursor:pointer;transition:all .18s;user-select:none;box-shadow:var(--shadow)}
+  .btn:hover{border-color:var(--border-strong);background:var(--surface-2);color:var(--text);transform:translateY(-1px)}
+  .btn.active{color:var(--heart);border-color:rgba(255,93,143,.5);background:rgba(255,93,143,.08)}
+
+  /* hint */
+  #hint{bottom:72px;left:50%;transform:translateX(-50%);font-family:var(--font-m);font-size:10.5px;color:var(--text-dim);letter-spacing:.06em;text-align:center}
+
+  /* ============ ORGAN PANEL ============ */
+  #panel{position:fixed;z-index:40;top:0;right:0;height:100%;width:min(460px,94vw);
+    background:linear-gradient(180deg,var(--surface-2),rgba(8,11,22,.97));backdrop-filter:blur(26px);
+    border-left:1px solid var(--border-strong);transform:translateX(102%);transition:transform .46s cubic-bezier(.16,1,.3,1);
+    overflow-y:auto;overscroll-behavior:contain;box-shadow:-40px 0 100px rgba(0,0,0,.6)}
+  #panel.open{transform:translateX(0)}
+  #panel .ph{position:sticky;top:0;z-index:2;padding:24px 26px 16px;background:linear-gradient(180deg,rgba(13,17,32,.99),rgba(13,17,32,.84));border-bottom:1px solid var(--border)}
+  #panel .ph .sys-pill{font-family:var(--font-m);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
+  #panel .ph .quechua{font-size:29px;font-weight:700;line-height:1.04;margin-top:6px;letter-spacing:-.01em}
+  #panel .ph .fn{font-size:13px;color:var(--text-muted);margin-top:5px;line-height:1.4}
+  #panel .pb{padding:20px 26px 100px}
+  #panel .blurb{font-size:13.5px;line-height:1.62;color:var(--text);opacity:.94}
+  #panel .axes{font-family:var(--font-m);font-size:10.5px;line-height:1.75;color:var(--text-muted);background:rgba(255,93,143,.06);border:1px solid rgba(255,93,143,.2);border-radius:12px;padding:13px 14px;margin-top:16px}
+  .sec-h{font-family:var(--font-m);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin:24px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .formula{border:1px solid var(--border);border-left:3px solid var(--border-strong);border-radius:12px;padding:14px 15px;margin-bottom:12px;background:var(--surface);transition:border-color .15s,transform .15s}
+  .formula:hover{border-color:var(--border-strong);transform:translateY(-1px)}
+  .formula .ftop{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
+  .formula .fid{font-family:var(--font-m);font-size:11.5px;font-weight:700;letter-spacing:.04em}
+  .formula .fname{font-size:13.5px;font-weight:600;margin-top:3px}
+  .formula .math{font-family:var(--font-m);font-size:13px;line-height:1.65;color:#e3ebff;background:rgba(6,9,18,.8);border:1px solid rgba(120,150,210,.10);border-radius:9px;padding:10px 12px;margin:10px 0;overflow-x:auto;white-space:pre-wrap}
+  .formula .fplain{font-size:11.5px;line-height:1.55;color:var(--text-muted)}
+  .formula .fax{font-family:var(--font-m);font-size:9.5px;color:var(--text-dim);margin-top:9px;line-height:1.5;word-break:break-word}
+  .formula .fref{font-family:var(--font-m);font-size:9.5px;color:var(--text-dim);margin-top:4px}
+  /* GPD lens presentation */
+  .gpd-grid{display:grid;gap:9px;margin-top:16px}
+  .gpd-cell{border:1px solid var(--border);border-radius:11px;padding:11px 13px;background:var(--surface)}
+  .gpd-cell .gpd-k{display:block;font-family:var(--font-m);font-size:10.5px;letter-spacing:.04em;color:var(--brain);font-weight:700}
+  .gpd-cell .gpd-v{display:block;font-size:12px;line-height:1.5;color:var(--text-muted);margin-top:4px}
+  .gpd-dois{display:grid;gap:7px}
+  .gpd-dois .doi{display:flex;justify-content:space-between;gap:10px;align-items:baseline;text-decoration:none;
+    border:1px solid var(--border);border-radius:10px;padding:9px 12px;background:var(--surface);transition:border-color .15s}
+  .gpd-dois .doi:hover{border-color:var(--border-strong)}
+  .gpd-dois .doi{font-size:12px;color:var(--text)}
+  .gpd-dois .doi span{font-family:var(--font-m);font-size:9.5px;color:var(--text-dim);white-space:nowrap}
+  .lambda-honesty{border:1px solid var(--warn);border-radius:12px;padding:13px 14px;margin:14px 0;background:rgba(255,126,182,.08)}
+  .lambda-honesty .lh-h{font-family:var(--font-m);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--warn);margin-bottom:7px}
+  .lambda-honesty p{font-size:12px;line-height:1.5;color:var(--text)}
+  .lambda-honesty .false{color:var(--warn);font-weight:700}
+  #panel .close{position:absolute;top:18px;right:18px;width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:17px;cursor:pointer;line-height:1;z-index:3}
+  #panel .close:hover{border-color:var(--border-strong)}
+
+  /* ============ VESSEL TOOLTIP ============ */
+  #tip{position:fixed;z-index:30;pointer-events:none;opacity:0;transition:opacity .12s;max-width:280px;
+    background:var(--surface-2);backdrop-filter:blur(12px);border:1px solid var(--border-strong);border-radius:10px;padding:9px 11px;
+    font-size:11px;line-height:1.4;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+  #tip.show{opacity:1}
+  #tip .tt{font-family:var(--font-m);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:3px}
+  #tip .tf{font-weight:600;color:var(--text)}
+  #tip .tm{font-family:var(--font-m);font-size:10px;color:#dfe7ff;margin-top:4px}
+
+  @media (max-width:680px){
+    /* Keep proof state VISIBLE on phones (never display:none) — reposition the
+       honesty card to a compact, scrollable strip under the title so the
+       locked-8 / Λ / Khipu / SLSA proof pills still pop on mobile. */
+    #title{max-width:calc(100vw - 32px)}
+    #title h1{font-size:17px;line-height:1.18;text-wrap:balance;overflow-wrap:break-word}
+    #title .sub{display:none}
+    /* park the proof card in the open space directly under the title —
+       clear of the bottom control bar so nothing overlaps the proof text */
+    #honesty{position:fixed;top:128px;left:16px;right:16px;bottom:auto;max-width:none;
+      max-height:calc(100vh - 128px - 132px);overflow-y:auto;-webkit-overflow-scrolling:touch}
+    #honesty .card{padding:12px 13px}
+    #honesty .row{font-size:10.5px;margin-bottom:8px}
+    #legend{display:none}
+    #hint{display:none}
+    #controls{bottom:18px;gap:7px;max-width:calc(100vw - 24px)}
+    #panel .ph .quechua{font-size:22px}
+  }
+  @media (max-width:380px){
+    #title h1{font-size:15px}
+    #honesty{top:120px;max-height:calc(100vh - 120px - 124px)}
+    #honesty .row{font-size:10px}
+    #controls{gap:6px}
+    .btn{font-size:10px;padding:8px 11px}
+  }
+
+  /* ============ STATIC VERIFICATION / NO-JS FALLBACK ============ */
+  #vf-static{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+    clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+  body.nojs #vf-static, #vf-static.show{position:fixed;inset:0;z-index:80;width:auto;height:auto;
+    margin:0;padding:28px 22px 80px;overflow-y:auto;white-space:normal;clip:auto;clip-path:none;
+    background:linear-gradient(180deg,#0a0e1a,#05070d);color:var(--text);font-family:var(--font-d)}
+  #vf-close{display:none}
+  #vf-static.show #vf-close, body.nojs #vf-close{display:inline-block;position:fixed;top:16px;right:16px;z-index:81;
+    font-family:var(--font-m);font-size:12px;color:var(--text);background:var(--surface-2);
+    border:1px solid var(--border-strong);border-radius:99px;padding:8px 14px;cursor:pointer}
+  #vf-static .vf-head h2{font-size:18px;margin-bottom:10px;max-width:880px}
+  #vf-static .vf-honest{font-size:12px;line-height:1.5;color:var(--text-muted);max-width:880px;margin-bottom:12px}
+  #vf-static .vf-tier-locked{color:var(--skel);font-weight:700}
+  #vf-static .vf-tier-exp{color:var(--nerve);font-weight:700}
+  #vf-static .vf-lambda{border:1px solid var(--warn);border-radius:10px;padding:11px 13px;margin:12px 0;
+    background:rgba(255,126,182,.08);font-size:12px;line-height:1.5;max-width:880px}
+  #vf-static .vf-organ{border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin:12px 0;
+    background:var(--surface);max-width:880px}
+  #vf-static .vf-organ h3{font-size:14px;margin-bottom:8px}
+  #vf-static .vf-sys{font-family:var(--font-m);font-size:10px;color:var(--text-dim)}
+  #vf-static .vf-formula{border-left:2px solid var(--border-strong);padding:6px 0 6px 12px;margin:9px 0}
+  #vf-static .vf-formula h4{font-size:12.5px;margin-bottom:4px}
+  #vf-static .vf-chip{font-family:var(--font-m);font-size:9.5px;color:var(--nerve);border:1px solid currentColor;border-radius:6px;padding:1px 6px;margin-left:6px}
+  #vf-static .vf-formula[data-maturity=LOCKED] .vf-chip{color:var(--skel)}
+  #vf-static .vf-formula[data-maturity=CONDITIONAL] .vf-chip{color:var(--audit)}
+  #vf-static .vf-formula[data-maturity=AXIOM_GATED] .vf-chip{color:#c9a0ff}
+  #vf-static .vf-cond{border-left-color:var(--audit)}
+  #vf-static .vf-plain{font-size:11.5px;color:var(--text-muted);line-height:1.45}
+  #vf-static .vf-ax{font-family:var(--font-m);font-size:10px;color:var(--text-dim);margin-top:4px;word-break:break-word}
+  #vf-static .vf-ref{font-family:var(--font-m);font-size:9.5px;color:var(--text-dim)}
+
+  /* ============================================================
+     v4 DISSECTION TOOLS — additive layer (evolves v3, never a
+     rewrite). Dissection layer stack, clip-plane scalpel, explode
+     slider, search/jump, always-on visibility HUD, focus mode.
+     All controls keyboard-reachable, ARIA-labeled, non-overlapping.
+     ============================================================ */
+  /* dissection dock — top-left, below the title, never over #controls */
+  #dissect{top:206px;left:24px;width:min(290px,76vw);max-height:calc(100vh - 430px);overflow-y:auto;z-index:22}
+  #dissect .card{background:var(--surface);backdrop-filter:blur(var(--blur));border:1px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+  #dissect .dz-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    font-family:var(--font-m);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);
+    padding:12px 14px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none}
+  #dissect .dz-head .v4tag{color:var(--audit);letter-spacing:.04em}
+  #dissect .dz-head .caret{transition:transform .2s}
+  #dissect.collapsed .dz-head .caret{transform:rotate(-90deg)}
+  #dissect .dz-body{padding:12px 14px;display:flex;flex-direction:column;gap:14px;
+    max-height:min(58vh,520px);overflow-y:auto;overscroll-behavior:contain}
+  #dissect.collapsed .dz-body{display:none}
+  .dz-sec{display:flex;flex-direction:column;gap:8px}
+  .dz-sec > .dz-label{font-family:var(--font-m);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
+  /* layer rows */
+  .dz-layer{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:center}
+  .dz-layer .lname{font-size:11px;color:var(--text-muted);display:flex;align-items:center;gap:6px;min-width:0}
+  .dz-layer .lsw{flex:0 0 auto;width:9px;height:9px;border-radius:3px;box-shadow:0 0 8px currentColor}
+  .dz-layer input[type=range]{width:74px}
+  .dz-toggle{position:relative;width:30px;height:17px;flex:0 0 auto;cursor:pointer;border-radius:99px;
+    border:1px solid var(--border-strong);background:rgba(120,150,210,.12);transition:background .18s;padding:0}
+  .dz-toggle::after{content:"";position:absolute;top:2px;left:2px;width:11px;height:11px;border-radius:50%;
+    background:var(--text-muted);transition:transform .18s,background .18s}
+  .dz-toggle[aria-pressed=true]{background:rgba(94,209,255,.22)}
+  .dz-toggle[aria-pressed=true]::after{transform:translateX(13px);background:var(--nerve)}
+  .dz-toggle:focus-visible{outline:2px solid var(--nerve);outline-offset:2px}
+  /* sliders */
+  input[type=range].dz-range{-webkit-appearance:none;appearance:none;height:4px;border-radius:99px;
+    background:rgba(120,150,210,.22);outline:none;cursor:pointer}
+  input[type=range].dz-range::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:13px;height:13px;
+    border-radius:50%;background:var(--nerve);box-shadow:0 0 8px rgba(94,209,255,.6);border:none;cursor:pointer}
+  input[type=range].dz-range::-moz-range-thumb{width:13px;height:13px;border-radius:50%;background:var(--nerve);
+    box-shadow:0 0 8px rgba(94,209,255,.6);border:none;cursor:pointer}
+  input[type=range].dz-range:focus-visible{outline:2px solid var(--nerve);outline-offset:3px}
+  .dz-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;color:var(--text-muted)}
+  .dz-row .val{font-family:var(--font-m);font-size:10px;color:var(--nerve);min-width:34px;text-align:right}
+  .dz-axis{display:flex;gap:5px}
+  .dz-axis button{flex:1;font-family:var(--font-m);font-size:10px;color:var(--text-muted);background:var(--surface);
+    border:1px solid var(--border);border-radius:8px;padding:5px 0;cursor:pointer;transition:all .15s}
+  .dz-axis button[aria-pressed=true]{color:var(--nerve);border-color:rgba(94,209,255,.5);background:rgba(94,209,255,.1)}
+  .dz-axis button:focus-visible{outline:2px solid var(--nerve);outline-offset:2px}
+  .dz-mini{font-family:var(--font-m);font-size:10px;color:var(--text-muted);background:var(--surface);
+    border:1px solid var(--border);border-radius:8px;padding:5px 10px;cursor:pointer;transition:all .15s}
+  .dz-mini:hover{border-color:var(--border-strong);color:var(--text)}
+  .dz-mini:focus-visible{outline:2px solid var(--nerve);outline-offset:2px}
+  .dz-mini.active{color:var(--audit);border-color:rgba(158,240,192,.5);background:rgba(158,240,192,.1)}
+  /* search / jump */
+  .dz-search{position:relative}
+  .dz-search input{width:100%;font-family:var(--font-d);font-size:12px;color:var(--text);background:rgba(6,9,18,.7);
+    border:1px solid var(--border);border-radius:9px;padding:8px 10px}
+  .dz-search input::placeholder{color:var(--text-dim)}
+  .dz-search input:focus-visible{outline:2px solid var(--nerve);outline-offset:1px;border-color:var(--border-strong)}
+  .dz-results{list-style:none;margin:6px 0 0;padding:0;max-height:182px;overflow-y:auto;
+    border:1px solid var(--border);border-radius:9px;background:var(--surface-2);display:none}
+  .dz-results.show{display:block}
+  .dz-results li{padding:7px 10px;font-size:11px;color:var(--text-muted);cursor:pointer;border-bottom:1px solid var(--border);
+    display:flex;gap:7px;align-items:baseline}
+  .dz-results li:last-child{border-bottom:none}
+  .dz-results li:hover,.dz-results li[aria-selected=true]{background:rgba(94,209,255,.1);color:var(--text)}
+  .dz-results li .rk{font-family:var(--font-m);font-size:9px;color:var(--nerve);flex:0 0 auto}
+  .dz-results li .rt{font-family:var(--font-m);font-size:8.5px;color:var(--text-dim);margin-left:auto;flex:0 0 auto}
+  .dz-results .empty{color:var(--text-dim);cursor:default;font-style:italic}
+  .dz-results .empty:hover{background:none;color:var(--text-dim)}
+
+  /* always-on visibility HUD — bottom-right, compact, non-intrusive */
+  #vis-hud{bottom:24px;right:24px;z-index:21;max-width:min(290px,82vw)}
+  #vis-hud .card{background:var(--surface);backdrop-filter:blur(var(--blur));border:1px solid var(--border);
+    border-radius:var(--radius);box-shadow:var(--shadow);padding:11px 13px}
+  #vis-hud .vh-head{display:flex;align-items:center;gap:7px;font-family:var(--font-m);font-size:9px;letter-spacing:.16em;
+    text-transform:uppercase;color:var(--text-dim);margin-bottom:9px}
+  #vis-hud .pulse-tick{width:7px;height:7px;border-radius:50%;background:var(--heart);box-shadow:0 0 8px var(--heart)}
+  #vis-hud .vh-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px}
+  #vis-hud .vh-stat{display:flex;flex-direction:column;line-height:1.2}
+  #vis-hud .vh-stat .k{font-family:var(--font-m);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
+  #vis-hud .vh-stat .v{font-size:13px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+  #vis-hud .vh-stat .v.locked{color:var(--skel)}
+  #vis-hud .vh-stat .v.exp{color:var(--nerve)}
+  #vis-hud .vh-stat .v.conj{color:var(--warn);font-size:11px}
+  #vis-hud .vh-foot{margin-top:8px;padding-top:8px;border-top:1px solid var(--border);
+    font-family:var(--font-m);font-size:9px;color:var(--text-dim);line-height:1.5}
+  #vis-hud .vh-foot code{color:var(--audit)}
+
+  /* dissect handle button in #controls inherits .btn; active state in audit hue */
+  #btn-dissect.active{color:var(--audit);border-color:rgba(158,240,192,.5);background:rgba(158,240,192,.08)}
+  #btn-focus.active{color:var(--audit);border-color:rgba(158,240,192,.5);background:rgba(158,240,192,.08)}
+
+  /* respect reduced motion: stop the pulse-tick animation */
+  @media (prefers-reduced-motion: reduce){
+    #vis-hud .pulse-tick{animation:none!important}
+    .pulse-ring{animation:none!important}
+  }
+  @keyframes vh-pulse{0%,100%{opacity:.35;transform:scale(.85)}50%{opacity:1;transform:scale(1.15)}}
+  #vis-hud .pulse-tick{animation:vh-pulse 1.6s ease-in-out infinite}
+
+  /* ===== v4 responsive: tablet ===== */
+  @media (min-width:681px) and (max-width:1024px){
+    #dissect{top:132px;width:248px;max-height:calc(100vh - 300px)}
+    #legend{max-width:min(300px,60vw)}
+    #honesty{max-width:min(320px,46vw)}
+    #vis-hud{max-width:min(260px,46vw)}
+  }
+
+  /* ===== v4 responsive: phone — dissection dock becomes a bottom sheet,
+     NEVER hidden (it's the headline v4 feature). Toggle via a FAB. ===== */
+  @media (max-width:680px){
+    #vis-hud{left:16px;right:16px;bottom:64px;max-width:none}
+    #vis-hud .vh-grid{grid-template-columns:repeat(3,1fr)}
+
+    /* dock docks to the bottom as a draggable sheet */
+    #dissect{position:fixed;top:auto;left:0;right:0;bottom:0;width:100%;max-width:none;
+      max-height:72vh;overflow-y:auto;-webkit-overflow-scrolling:touch;z-index:60;
+      transform:translateY(calc(100% - 0px));transition:transform .42s cubic-bezier(.16,1,.3,1)}
+    #dissect.sheet-open{transform:translateY(0)}
+    #dissect .card{border-radius:18px 18px 0 0;border-bottom:none;max-height:72vh}
+    #dissect .dz-head{position:sticky;top:0;background:var(--surface-2);padding:14px 16px;
+      font-size:11px}
+    /* grab handle */
+    #dissect .card::before{content:"";display:block;width:40px;height:4px;border-radius:99px;
+      background:var(--border-strong);margin:8px auto 2px}
+    /* floating action button to open/close the sheet */
+    #dissect-fab{position:fixed;right:16px;bottom:118px;z-index:61;width:auto;height:44px;
+      padding:0 16px;border-radius:99px;border:1px solid var(--border-strong);
+      background:var(--surface-2);color:var(--text);font-family:var(--font-m);font-size:12px;
+      letter-spacing:.04em;display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+      box-shadow:var(--shadow);backdrop-filter:blur(var(--blur))}
+    #dissect-fab .fi{color:var(--audit);font-size:14px}
+    #title h1{font-size:16px}
+    #title .sub{display:none}
+  }
+  /* FAB only exists on phone widths */
+  #dissect-fab{display:none}
+  @media (max-width:680px){ #dissect-fab{display:inline-flex} }
+
+  /* ============================================================
+     v5 DEEPEN — additive layer (deepens v4, never a rewrite).
+     Formula Atlas (every formula, tier-grouped, searchable),
+     per-organ Lean drill-down, honest forecast timeline, guided
+     tour, leader-line labels. Everything reads from data.js.
+     ============================================================ */
+  /* --- Formula Atlas: a full-height right drawer (like #panel) --- */
+  #atlas{position:fixed;z-index:42;top:0;right:0;height:100%;width:min(520px,96vw);
+    background:linear-gradient(180deg,var(--surface-2),rgba(8,11,22,.98));backdrop-filter:blur(26px);
+    border-left:1px solid var(--border-strong);transform:translateX(102%);
+    transition:transform .46s cubic-bezier(.16,1,.3,1);overflow:hidden;display:flex;flex-direction:column;
+    box-shadow:-40px 0 100px rgba(0,0,0,.6)}
+  #atlas.open{transform:translateX(0)}
+  #atlas .at-head{position:sticky;top:0;z-index:2;padding:22px 24px 14px;
+    background:linear-gradient(180deg,rgba(13,17,32,.99),rgba(13,17,32,.86));border-bottom:1px solid var(--border)}
+  #atlas .at-eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
+  #atlas .at-title{font-size:23px;font-weight:700;line-height:1.05;margin-top:6px;letter-spacing:-.01em}
+  #atlas .at-note{font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.45}
+  #atlas .at-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;
+    border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:17px;cursor:pointer;line-height:1;z-index:3}
+  #atlas .at-close:hover{border-color:var(--border-strong)}
+  #atlas .at-search{margin-top:13px;position:relative}
+  #atlas .at-search input{width:100%;font-family:var(--font-d);font-size:13px;color:var(--text);
+    background:rgba(6,9,18,.7);border:1px solid var(--border);border-radius:10px;padding:9px 11px}
+  #atlas .at-search input::placeholder{color:var(--text-dim)}
+  #atlas .at-search input:focus-visible{outline:2px solid var(--nerve);outline-offset:1px;border-color:var(--border-strong)}
+  #atlas .at-filters{display:flex;gap:6px;flex-wrap:wrap;margin-top:11px}
+  .at-pill{font-family:var(--font-m);font-size:10px;letter-spacing:.02em;padding:5px 10px;border-radius:99px;
+    border:1px solid var(--border);background:var(--surface);color:var(--text-muted);cursor:pointer;transition:all .15s;
+    display:inline-flex;align-items:center;gap:6px}
+  .at-pill:hover{border-color:var(--border-strong);color:var(--text)}
+  .at-pill[aria-pressed=true]{color:var(--text);background:var(--surface-2);border-color:var(--border-strong)}
+  .at-pill .ct{font-size:9.5px;padding:1px 6px;border-radius:99px;background:rgba(120,150,210,.18);color:inherit}
+  .at-pill:focus-visible{outline:2px solid var(--nerve);outline-offset:2px}
+  #atlas .at-body{padding:16px 24px 110px;overflow-y:auto;overscroll-behavior:contain;flex:1}
+  .at-tier{margin-bottom:22px}
+  .at-tier-h{font-family:var(--font-m);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+    display:flex;align-items:center;gap:9px;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .at-tier-h .tn{font-weight:700}
+  .at-tier-h .tc{font-family:var(--font-m);font-size:10px;padding:2px 9px;border-radius:99px;
+    border:1px solid currentColor;margin-left:auto}
+  .at-tier-h .td{font-family:var(--font-d);font-size:10px;color:var(--text-dim);letter-spacing:0;text-transform:none;
+    flex-basis:100%;line-height:1.4;margin-top:2px;font-weight:400}
+  .at-empty{font-size:11px;color:var(--text-dim);font-style:italic;padding:6px 0}
+  /* shared formula-card detail/drill-down used in Atlas + organ panel */
+  .fdrill{margin-top:9px}
+  .fdrill summary{font-family:var(--font-m);font-size:9.5px;letter-spacing:.04em;color:var(--nerve);
+    cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:6px;padding:3px 0;user-select:none}
+  .fdrill summary::-webkit-details-marker{display:none}
+  .fdrill summary::before{content:"\25b8";display:inline-block;transition:transform .15s;color:var(--text-dim)}
+  .fdrill[open] summary::before{transform:rotate(90deg)}
+  .fdrill .fdd{margin-top:8px;border-left:2px solid var(--border-strong);padding-left:11px}
+  .fdrill .fax2{font-family:var(--font-m);font-size:9.5px;color:var(--text-dim);line-height:1.55;word-break:break-word}
+  .lean-link{display:inline-flex;align-items:center;gap:6px;margin-top:8px;font-family:var(--font-m);font-size:10px;
+    color:var(--audit);text-decoration:none;border:1px solid rgba(158,240,192,.4);border-radius:8px;padding:5px 10px;transition:all .15s}
+  .lean-link:hover{background:rgba(158,240,192,.1);border-color:var(--audit)}
+  .formula.lit{border-color:var(--audit)!important;box-shadow:0 0 0 1px rgba(158,240,192,.35),0 8px 28px rgba(0,0,0,.4)}
+  .formula{cursor:default}
+
+  /* --- Forecast overlay: honest maturity timeline --- */
+  #forecast{position:fixed;z-index:41;top:0;right:0;height:100%;width:min(520px,96vw);
+    background:linear-gradient(180deg,var(--surface-2),rgba(8,11,22,.98));backdrop-filter:blur(26px);
+    border-left:1px solid var(--border-strong);transform:translateX(102%);
+    transition:transform .46s cubic-bezier(.16,1,.3,1);overflow-y:auto;overscroll-behavior:contain;
+    box-shadow:-40px 0 100px rgba(0,0,0,.6)}
+  #forecast.open{transform:translateX(0)}
+  #forecast .fc-head{position:sticky;top:0;z-index:2;padding:22px 24px 14px;
+    background:linear-gradient(180deg,rgba(13,17,32,.99),rgba(13,17,32,.86));border-bottom:1px solid var(--border)}
+  #forecast .at-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;
+    border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:17px;cursor:pointer;line-height:1;z-index:3}
+  #forecast .fc-eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--text-dim)}
+  #forecast .fc-title{font-size:23px;font-weight:700;line-height:1.05;margin-top:6px;letter-spacing:-.01em}
+  #forecast .fc-note{font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5}
+  #forecast .fc-body{padding:18px 24px 110px}
+  .fc-spark{background:rgba(6,9,18,.6);border:1px solid var(--border);border-radius:12px;padding:14px 14px 10px;margin-bottom:18px}
+  .fc-spark .sp-h{font-family:var(--font-m);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim);margin-bottom:10px}
+  .fc-spark svg{display:block;width:100%;height:auto;overflow:visible}
+  .fc-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-family:var(--font-m);font-size:9.5px;color:var(--text-muted)}
+  .fc-legend span{display:inline-flex;align-items:center;gap:6px}
+  .fc-legend i{width:9px;height:9px;border-radius:2px;display:inline-block}
+  .fc-sec-h{font-family:var(--font-m);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin:20px 0 11px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .fc-event{display:grid;grid-template-columns:auto 1fr;gap:12px;border:1px solid var(--border);border-radius:11px;padding:11px 13px;margin-bottom:9px;background:var(--surface)}
+  .fc-event .ev-when{font-family:var(--font-m);font-size:10px;color:var(--skel);white-space:nowrap}
+  .fc-event .ev-what{font-size:11.5px;line-height:1.5;color:var(--text-muted)}
+  .fc-event .ev-what b{color:var(--text)}
+  .fc-event.roadmap{border-style:dashed;border-color:rgba(120,150,210,.3)}
+  .fc-event.roadmap .ev-when{color:var(--brain)}
+  .fc-tag{display:inline-block;font-family:var(--font-m);font-size:8.5px;letter-spacing:.06em;padding:1px 6px;border-radius:6px;
+    border:1px solid currentColor;margin-left:6px;vertical-align:middle}
+  .fc-tag.done{color:var(--skel)}
+  .fc-tag.proj{color:var(--brain)}
+  .fc-disc{border:1px solid var(--warn);border-radius:11px;padding:12px 14px;margin-top:16px;
+    background:rgba(255,126,182,.07);font-size:11px;line-height:1.55;color:var(--text)}
+  .fc-disc b{color:var(--warn)}
+
+  /* --- v5 Quantum-Bio Layer panel (additive; mirrors atlas/forecast styling) --- */
+  #qbio{position:fixed;z-index:42;top:0;right:0;height:100%;width:min(540px,96vw);
+    background:linear-gradient(180deg,var(--surface-2),rgba(8,11,22,.98));backdrop-filter:blur(26px);
+    border-left:1px solid var(--border-strong);transform:translateX(102%);
+    transition:transform .46s cubic-bezier(.16,1,.3,1);overflow-y:auto;overscroll-behavior:contain;
+    box-shadow:-40px 0 100px rgba(0,0,0,.6);display:flex;flex-direction:column}
+  #qbio.open{transform:translateX(0)}
+  #qbio .qb-head{position:sticky;top:0;z-index:2;padding:22px 24px 14px;
+    background:linear-gradient(180deg,rgba(13,17,32,.99),rgba(13,17,32,.86));border-bottom:1px solid var(--border)}
+  #qbio .at-close{position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;
+    border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:17px;cursor:pointer;line-height:1;z-index:3}
+  #qbio .at-close:hover{border-color:var(--border-strong)}
+  #qbio .qb-eyebrow{font-family:var(--font-m);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--nerve)}
+  #qbio .qb-title{font-size:23px;font-weight:700;line-height:1.05;margin-top:6px;letter-spacing:-.01em}
+  #qbio .qb-note{font-size:11px;color:var(--text-muted);margin-top:6px;line-height:1.5}
+  #qbio .qb-body{padding:18px 24px 110px;overflow-y:auto;flex:1}
+  .qb-card{background:rgba(6,9,18,.55);border:1px solid var(--border);border-radius:13px;padding:14px 15px;margin-bottom:15px}
+  .qb-card .qc-h{font-family:var(--font-m);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);margin-bottom:9px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .qb-card .qc-h b{color:var(--text);font-size:13px;letter-spacing:0;text-transform:none;font-weight:700}
+  .qb-card .qc-row{display:flex;justify-content:space-between;gap:10px;font-size:11.5px;line-height:1.7;color:var(--text-muted)}
+  .qb-card .qc-row b{color:var(--text);font-family:var(--font-m);font-size:11.5px}
+  .qb-card .qc-math{font-family:var(--font-m);font-size:11px;color:var(--nerve);background:rgba(0,0,0,.22);border-radius:7px;padding:6px 9px;margin:6px 0;line-height:1.5;word-break:break-word}
+  .qb-card .qc-plain{font-size:11px;line-height:1.55;color:var(--text-muted);margin-top:4px}
+  .qb-card svg{display:block;width:100%;height:auto;overflow:visible;margin-top:4px}
+  .qb-stat{font-family:var(--font-m);font-size:9px;letter-spacing:.05em;padding:2px 7px;border-radius:6px;border:1px solid currentColor;text-transform:uppercase}
+  .qb-stat.verified{color:var(--audit)}
+  .qb-stat.proposed{color:var(--brain)}
+  .qb-stat.narrative{color:var(--warn)}
+  .qb-sec-h{font-family:var(--font-m);font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--text-dim);margin:22px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .qb-compass{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .qb-compass svg{width:128px;flex:0 0 auto;margin:0}
+  .qb-leader{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:baseline;font-size:11.5px;line-height:1.5;padding:7px 0;border-bottom:1px solid rgba(120,150,210,.1)}
+  .qb-leader .ql-name{color:var(--text);font-weight:600}
+  .qb-leader .ql-work{color:var(--text-muted)}
+  .qb-src{display:block;font-size:11px;color:var(--nerve);text-decoration:none;padding:5px 0;border-bottom:1px solid rgba(120,150,210,.1);word-break:break-word}
+  .qb-src:hover{color:var(--text)}
+  .qb-src .qs-tag{font-family:var(--font-m);font-size:8.5px;margin-left:6px}
+  .qb-thm{border-left:2px solid var(--audit);padding-left:11px;margin-bottom:11px}
+  .qb-thm .qt-id{font-family:var(--font-m);font-size:10px;color:var(--audit);font-weight:700}
+  .qb-thm .qt-lean{font-family:var(--font-m);font-size:9.5px;color:var(--text-dim);line-height:1.5;margin-top:3px;word-break:break-word}
+  .qb-thm .qt-plain{font-size:11px;color:var(--text-muted);line-height:1.5;margin-top:3px}
+  .qb-disc{border:1px solid var(--warn);border-radius:11px;padding:12px 14px;margin-top:8px;
+    background:rgba(255,126,182,.07);font-size:11px;line-height:1.55;color:var(--text)}
+  .qb-disc b{color:var(--warn)}
+  /* per-organ Λ-v5 mini block injected into the organ panel */
+  .qb-organ{border:1px solid var(--border);border-radius:12px;padding:12px 13px;margin:14px 0;background:rgba(90,209,255,.05)}
+  .qb-organ .qo-h{font-family:var(--font-m);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--nerve);margin-bottom:8px;display:flex;align-items:center;gap:8px}
+  .qb-organ .qo-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:11px;color:var(--text-muted)}
+  .qb-organ .qo-grid b{color:var(--text);font-family:var(--font-m)}
+  .qb-organ .qo-verdict{margin-top:9px;font-family:var(--font-m);font-size:11px;font-weight:700;padding:6px 10px;border-radius:8px;text-align:center}
+  .qb-organ .qo-verdict.exec{color:var(--audit);background:rgba(158,240,192,.1);border:1px solid rgba(158,240,192,.4)}
+  .qb-organ .qo-verdict.recharge{color:var(--warn);background:rgba(255,126,182,.08);border:1px solid rgba(255,126,182,.4)}
+  .qb-organ svg{margin-top:8px}
+  #btn-qbio.active{color:var(--nerve);border-color:rgba(90,209,255,.5);background:rgba(90,209,255,.09)}
+  @media (min-width:681px) and (max-width:1024px){ #qbio{width:min(460px,74vw)} }
+  @media (max-width:680px){
+    #qbio{top:auto;left:0;right:0;bottom:0;width:100%;height:auto;max-height:88vh;
+      border-left:none;border-top:1px solid var(--border-strong);border-radius:18px 18px 0 0;transform:translateY(102%)}
+    #qbio.open{transform:translateY(0)}
+    #qbio .qb-body{padding-bottom:40px}
+    #qbio .qb-head::before{content:"";display:block;width:40px;height:4px;border-radius:99px;background:var(--border-strong);margin:0 auto 10px}
+  }
+
+  /* --- floating 3D organ leader-line labels --- */
+  #labels{position:fixed;inset:0;z-index:15;pointer-events:none;overflow:hidden}
+  .olabel{position:absolute;transform:translate(-50%,-50%);font-family:var(--font-m);font-size:10px;
+    letter-spacing:.04em;color:var(--text);background:rgba(8,11,22,.78);border:1px solid var(--border);
+    border-radius:8px;padding:3px 8px;white-space:nowrap;backdrop-filter:blur(8px);opacity:0;transition:opacity .3s;
+    box-shadow:0 6px 18px rgba(0,0,0,.4)}
+  .olabel.show{opacity:.94}
+  .olabel .od{font-size:8.5px;color:var(--text-dim);margin-left:5px}
+  #labels.off .olabel{opacity:0!important}
+
+  /* --- guided tour narration bar --- */
+  #tour{position:fixed;z-index:43;left:50%;bottom:118px;transform:translateX(-50%) translateY(20px);
+    width:min(540px,92vw);background:var(--surface-2);backdrop-filter:blur(var(--blur));
+    border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow);
+    padding:14px 16px;opacity:0;pointer-events:none;transition:opacity .3s,transform .3s}
+  #tour.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  #tour .tr-top{display:flex;align-items:center;gap:9px;margin-bottom:7px}
+  #tour .tr-step{font-family:var(--font-m);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--audit)}
+  #tour .tr-name{font-size:14px;font-weight:700}
+  #tour .tr-prog{margin-left:auto;font-family:var(--font-m);font-size:9.5px;color:var(--text-dim)}
+  #tour .tr-body{font-size:11.5px;line-height:1.5;color:var(--text-muted)}
+  #tour .tr-ctrl{display:flex;gap:7px;margin-top:11px}
+  #tour .tr-ctrl button{font-family:var(--font-m);font-size:10.5px;color:var(--text-muted);background:var(--surface);
+    border:1px solid var(--border);border-radius:8px;padding:6px 12px;cursor:pointer;transition:all .15s}
+  #tour .tr-ctrl button:hover{border-color:var(--border-strong);color:var(--text)}
+  #tour .tr-ctrl button.primary{color:var(--audit);border-color:rgba(158,240,192,.5);background:rgba(158,240,192,.1)}
+  #tour .tr-bar{height:2px;border-radius:99px;background:rgba(120,150,210,.18);margin-top:11px;overflow:hidden}
+  #tour .tr-bar i{display:block;height:100%;background:var(--audit);width:0;transition:width .2s linear}
+  #btn-atlas.active,#btn-forecast.active,#btn-tour.active,#btn-labels.active{color:var(--audit);border-color:rgba(158,240,192,.5);background:rgba(158,240,192,.08)}
+
+  /* v5 responsive: tablet — sized drawers (not full bleed) */
+  @media (min-width:681px) and (max-width:1024px){
+    #atlas,#forecast{width:min(440px,72vw)}
+  }
+  /* v5 responsive: phone — Atlas + forecast become full bottom sheets,
+     NEVER display:none. They slide up from the bottom like the dock. */
+  @media (max-width:680px){
+    #atlas,#forecast{top:auto;left:0;right:0;bottom:0;width:100%;height:auto;max-height:88vh;
+      border-left:none;border-top:1px solid var(--border-strong);border-radius:18px 18px 0 0;
+      transform:translateY(102%)}
+    #atlas.open,#forecast.open{transform:translateY(0)}
+    #atlas .at-body,#forecast .fc-body{padding-bottom:40px}
+    #atlas .at-head::before,#forecast .fc-head::before{content:"";display:block;width:40px;height:4px;
+      border-radius:99px;background:var(--border-strong);margin:0 auto 10px}
+    #tour{bottom:auto;top:96px;width:calc(100vw - 24px)}
+    #labels{display:none}
+  }
+  @media (prefers-reduced-motion: reduce){
+    #tour .tr-bar i{transition:none}
+    .olabel{transition:none}
+  }
+
+  /* ===================== v8 LIVE AGENTIC LENS (additive) ===================== */
+  /* per-organ live-lens block appended into #p-body */
+  .v8-lens{margin:0 0 16px;padding:12px 13px;border:1px solid var(--border-strong);border-radius:12px;
+    background:linear-gradient(180deg,rgba(63,224,197,.06),rgba(13,18,33,.0))}
+  .v8-title{font-family:var(--font-m);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ok);margin-bottom:9px}
+  .v8-head{display:flex;align-items:center;gap:7px;margin-bottom:9px;font-family:var(--font-m);font-size:10px}
+  .v8-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+  .v8-dot.live{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .v8-dot.off{background:var(--text-dim)}
+  .v8-state{color:var(--ok);font-family:var(--font-m);font-size:10px;letter-spacing:.04em}
+  .v8-state.off{color:var(--text-dim)}
+  .v8-kv{display:grid;grid-template-columns:1fr 1fr;gap:5px 12px;margin-bottom:6px}
+  .v8-row{display:flex;flex-direction:column;line-height:1.25}
+  .v8-k{font-family:var(--font-m);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+  .v8-v{font-size:12.5px;color:var(--text);font-variant-numeric:tabular-nums}
+  .v8-v code,.v8-vitals code{color:var(--audit);font-family:var(--font-m);font-size:11px}
+  .v8-conj{color:var(--warn);font-weight:700}
+  .v8-note{font-size:11.5px;color:var(--text-muted);line-height:1.45;margin:7px 0 0}
+  .v8-note.v8-warn{color:var(--warn)}
+  .v8-load{font-family:var(--font-m);font-size:10.5px;color:var(--text-dim)}
+  .v8-rows{display:flex;flex-direction:column;gap:4px}
+  .v8-r{display:grid;grid-template-columns:1.4fr .6fr auto;gap:8px;align-items:center;font-size:12px}
+  .v8-q{color:var(--text-muted)}
+  .v8-val{color:var(--text);font-variant-numeric:tabular-nums;font-weight:600}
+  .v8-tag{font-family:var(--font-m);font-size:8px;letter-spacing:.04em;padding:2px 6px;border-radius:6px;border:1px solid currentColor;white-space:nowrap}
+  .v8-tag.VERIFIED{color:var(--ok)}
+  .v8-tag.PROPOSED{color:var(--skel)}
+  .v8-tag.NARRATIVE{color:var(--text-dim)}
+
+  /* live vital-signs row inside the always-on HUD */
+  #v8-vitals{margin-top:9px;padding-top:9px;border-top:1px solid var(--border)}
+  #v8-vitals .v8-vrow{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:10.5px;line-height:1.5}
+  #v8-vitals .v8-vk{font-family:var(--font-m);font-size:8px;letter-spacing:.08em;text-transform:uppercase;color:var(--text-dim)}
+  #v8-vitals .v8-vv{color:var(--text);font-variant-numeric:tabular-nums}
+  #v8-vitals #v8-vitals-state{display:flex;align-items:center;gap:6px;font-family:var(--font-m);color:var(--ok)}
+  #v8-vitals #v8-vitals-locked{font-size:9.5px}
+
+  /* WATCH A DECISION FLOW — HEART-anchored control */
+  #v8-flow-fab{position:fixed;left:24px;bottom:24px;z-index:23;display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--font-m);font-size:11px;letter-spacing:.06em;padding:10px 15px;border-radius:99px;cursor:pointer;
+    color:var(--heart);border:1px solid rgba(255,93,143,.5);background:var(--surface);backdrop-filter:blur(var(--blur));
+    box-shadow:0 6px 24px rgba(0,0,0,.4)}
+  #v8-flow-fab:hover{border-color:rgba(255,93,143,.85);background:rgba(255,93,143,.1)}
+  #v8-flow-fab:focus-visible{outline:2px solid var(--heart);outline-offset:2px}
+  #v8-flow-fab .hb{width:9px;height:9px;border-radius:50%;background:var(--heart);box-shadow:0 0 8px var(--heart)}
+  #v8-flow{position:fixed;left:24px;bottom:74px;z-index:23;width:min(380px,86vw);
+    border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface-2);backdrop-filter:blur(var(--blur));
+    box-shadow:0 12px 40px rgba(0,0,0,.5);padding:15px 16px;display:none}
+  #v8-flow.open{display:block}
+  #v8-flow .v8-flow-close{position:absolute;top:9px;right:11px;background:none;border:none;color:var(--text-muted);font-size:20px;line-height:1;cursor:pointer}
+  #v8-flow .v8-flow-close:hover{color:var(--text)}
+  #v8-flow .v8-flow-eyebrow{font-family:var(--font-m);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--heart);margin-bottom:4px}
+  #v8-flow .v8-flow-title{font-size:14px;font-weight:700;color:var(--text);margin-bottom:3px}
+  #v8-flow .v8-flow-sub{font-size:11px;color:var(--text-muted);margin-bottom:11px;line-height:1.4}
+  #v8-flow .v8-flow-bar{display:flex;gap:8px;margin-bottom:11px}
+  #v8-flow-input{flex:1;background:rgba(0,0,0,.25);border:1px solid var(--border);border-radius:9px;color:var(--text);
+    font-size:12px;padding:8px 10px;font-family:inherit}
+  #v8-flow-input:focus{outline:none;border-color:var(--heart)}
+  #v8-flow-run{flex:none;font-family:var(--font-m);font-size:10.5px;letter-spacing:.04em;padding:8px 13px;border-radius:9px;cursor:pointer;
+    color:var(--heart);border:1px solid rgba(255,93,143,.5);background:rgba(255,93,143,.08)}
+  #v8-flow-run:hover{background:rgba(255,93,143,.16)}
+  #v8-flow-run:disabled{opacity:.5;cursor:wait}
+  #v8-flow-run:focus-visible{outline:2px solid var(--heart);outline-offset:2px}
+  .v8-flow-head{font-size:11px;color:var(--text-muted);margin-bottom:9px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .v8-flow-head i{color:var(--text)}
+  ol.v8-flow-steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+  .v8-step{display:flex;gap:9px;opacity:.32;transition:opacity .35s ease}
+  .v8-step.on{opacity:1}
+  .v8-step-dot{width:10px;height:10px;border-radius:50%;flex:none;margin-top:3px;background:var(--c,var(--heart));box-shadow:0 0 0 0 var(--c,var(--heart))}
+  .v8-step.on .v8-step-dot{box-shadow:0 0 10px 1px var(--c,var(--heart))}
+  .v8-step-l{font-size:11px;line-height:1.4}
+  .v8-step-d{color:var(--text-muted);font-size:11px}
+
+  @media (prefers-reduced-motion: reduce){
+    .v8-step{transition:none}
+    #v8-flow-fab .hb{box-shadow:none}
+  }
+  @media (max-width:680px){
+    #v8-flow-fab{left:16px;bottom:120px}
+    #v8-flow{left:16px;right:16px;bottom:170px;width:auto}
+  }
+  /* ===================== /v8 ===================== */
+
+  /* ===================== v9 FLY-HIGH ===================== */
+  .v9-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none;vertical-align:middle}
+  .v9-dot.live{background:var(--ok);box-shadow:0 0 8px var(--ok);animation:v9pulse 2.4s ease-in-out infinite}
+  .v9-dot.off{background:var(--text-dim)}
+  @keyframes v9pulse{0%,100%{opacity:1}50%{opacity:.45}}
+  /* master ●LIVE / ○offline indicator (lives in the live-proof-state HUD) */
+  #v9-master{margin-top:9px;padding-top:9px;border-top:1px solid var(--border);font-size:10.5px;line-height:1.55}
+  #v9-master .v9-mrow{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:2px}
+  #v9-master #v9-master-state{display:flex;align-items:center;gap:6px;font-family:var(--font-m);font-size:10px;color:var(--ok)}
+  #v9-master-ago{font-family:var(--font-m);font-size:8.5px;color:var(--text-dim);margin-left:auto}
+  #v9-master-rate,#v9-master-lambda{font-size:9.5px;color:var(--text-muted)}
+  #v9-master-rate b,#v9-master-lambda b{color:var(--text)}
+  #v9-master-proxy{font-size:8.5px;color:var(--text-dim);margin-top:3px;font-style:italic}
+  .v9-beat-row{display:flex;align-items:center;gap:7px;margin-top:5px}
+  #v9-beat-pause{font-family:var(--font-m);font-size:9px;letter-spacing:.04em;padding:3px 8px;border-radius:7px;cursor:pointer;
+    color:var(--text-muted);border:1px solid var(--border);background:var(--surface)}
+  #v9-beat-pause:hover{border-color:var(--border-strong);color:var(--text)}
+  #v9-beat-pause:focus-visible{outline:2px solid var(--ok);outline-offset:2px}
+  #v9-beat-state{}
+  /* cinematic vital-tour launcher button (eyebrow row) */
+  #v9-tour-btn.active{color:var(--heart);border-color:rgba(255,93,143,.5);background:rgba(255,93,143,.1)}
+  /* vital tour narration card */
+  #v9-tour{position:fixed;z-index:44;left:50%;bottom:118px;transform:translateX(-50%) translateY(20px);
+    width:min(440px,90vw);border:1px solid rgba(255,93,143,.4);border-radius:var(--radius);background:var(--surface-2);
+    backdrop-filter:blur(var(--blur));box-shadow:0 14px 44px rgba(0,0,0,.55);padding:14px 16px;opacity:0;pointer-events:none;
+    transition:transform .46s cubic-bezier(.16,1,.3,1),opacity .3s ease}
+  #v9-tour.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+  #v9-tour .v9-tour-top{display:flex;align-items:center;gap:9px;margin-bottom:6px}
+  #v9-tour .v9-tour-eyebrow{font-family:var(--font-m);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--heart)}
+  #v9-tour-prog{margin-left:auto;font-family:var(--font-m);font-size:9.5px;color:var(--text-dim)}
+  #v9-tour-name{font-size:14px;font-weight:700;color:var(--text);margin-bottom:4px}
+  #v9-tour-body{font-size:11.5px;line-height:1.5;color:var(--text-muted);min-height:32px}
+  #v9-tour .v9-tour-ctrl{display:flex;gap:7px;margin-top:11px}
+  #v9-tour .v9-tour-ctrl button{font-family:var(--font-m);font-size:10.5px;color:var(--text-muted);background:var(--surface);
+    border:1px solid var(--border);border-radius:8px;padding:6px 11px;cursor:pointer}
+  #v9-tour .v9-tour-ctrl button:hover{border-color:var(--border-strong);color:var(--text)}
+  #v9-tour .v9-tour-bar{height:2px;border-radius:99px;background:rgba(120,150,210,.18);margin-top:11px;overflow:hidden}
+  #v9-tour .v9-tour-bar i{display:block;height:100%;background:var(--heart);width:0;transition:width .2s linear}
+  /* honest agent trace card + killinchu 2nd-body card (inside the decision-flow dialog) */
+  #v9-trace,#v9-killinchu{margin-top:12px;padding-top:11px;border-top:1px solid var(--border);display:none}
+  #v9-trace.show,#v9-killinchu.show{display:block}
+  .v9-trace-head,.v9-k-head{display:flex;align-items:center;gap:6px;font-family:var(--font-m);font-size:10px;color:var(--text-muted);margin-bottom:8px;flex-wrap:wrap}
+  .v9-k-title{font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:7px}
+  .v9-trace-rows{display:flex;flex-direction:column;gap:6px}
+  .v9-trace-r{display:flex;flex-direction:column;line-height:1.4}
+  .v9-trace-k{font-family:var(--font-m);font-size:8.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--text-dim)}
+  .v9-trace-v{font-size:11px;color:var(--text)}
+  .v9-trace-v code{color:var(--audit);font-family:var(--font-m);font-size:10.5px}
+  .v9-dim{color:var(--text-dim);font-size:10px}
+  .v9-trace-note{font-size:10.5px;line-height:1.45;color:var(--text-muted);margin:9px 0 0;padding:8px 10px;
+    background:rgba(255,209,102,.06);border:1px solid rgba(255,209,102,.18);border-radius:8px}
+  @media (prefers-reduced-motion: reduce){
+    .v9-dot.live{animation:none}
+    #v9-tour{transition:none}
+    #v9-tour .v9-tour-bar i{transition:none}
+  }
+  @media (max-width:680px){
+    #v9-tour{left:12px;right:12px;width:auto;bottom:auto;top:150px}
+  }
+  /* ===================== /v9 ===================== */
+
+  /* ============================================================
+     UX2 REFACTOR (additive, layout/CSS-first) — 3D is the hero.
+     Panels start COLLAPSED as slim toggles; default copy is minimal
+     plain language; mobile uses ONE-AT-A-TIME bottom sheets via a
+     tab-bar. No three.js / scene logic touched. Honest doctrine
+     content preserved verbatim behind a Details expander.
+     ============================================================ */
+  body.ux2{}
+
+  /* --- Default-hide the heavy always-open HUD walls. They become
+         opt-in (opened via toolbar / tab-bar). The 3D scene gets the
+         whole screen on first load. --- */
+  body.ux2 #legend{display:none !important;}
+  body.ux2 #hint{display:none !important;}
+  /* Dissection dock + live-proof HUD start closed; surfaced on demand. */
+  body.ux2 #dissect{display:none;}
+  body.ux2 #dissect.ux-show{display:block;}
+  body.ux2 #vis-hud{display:none;}
+  body.ux2 #vis-hud.ux-show{display:block;}
+  /* Old floating FABs that overlapped body text: fold into toolbar/sheet. */
+  body.ux2 #v8-flow-fab{display:none !important;}
+  body.ux2 #v8-flow-fab.ux-show{display:inline-flex !important;}
+  body.ux2 #dissect-fab{display:none !important;}
+
+  /* --- Lighter title: plain one-line hero, smaller, no jargon sub by default --- */
+  body.ux2 #title{top:18px;left:20px;max-width:min(520px,70vw);}
+  body.ux2 #title h1{font-size:19px;font-weight:600;line-height:1.14;}
+  body.ux2 #title .eyebrow{margin-bottom:5px;}
+  body.ux2 #title .sub{font-size:11.5px;color:var(--text-muted);margin-top:6px;max-width:46ch;}
+  body.ux2 #title .bodies{margin-top:9px;}
+
+  /* --- Compact TRUST CHIP replacing the doctrine wall on the right ---
+     A small premium card: one plain headline + key honest facts as chips,
+     and a Details expander holding the full (verbatim) doctrine rows. --- */
+  body.ux2 #honesty{top:18px;right:20px;max-width:min(300px,40vw);}
+  body.ux2 #honesty .card{padding:13px 14px;}
+  body.ux2 #honesty .hdr{display:none;}            /* replaced by trust-chip header */
+  body.ux2 #ux-trust{pointer-events:auto;}
+  .ux-trust-head{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+  .ux-trust-head .tdot{width:8px;height:8px;border-radius:50%;background:var(--audit);box-shadow:0 0 8px var(--audit);flex:0 0 auto}
+  .ux-trust-head .tlabel{font-family:var(--font-m);font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim)}
+  .ux-trust-line{font-size:12.5px;line-height:1.5;color:var(--text);font-weight:500}
+  .ux-trust-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .ux-tchip{font-family:var(--font-m);font-size:10px;letter-spacing:.02em;padding:4px 9px;border-radius:99px;
+    border:1px solid var(--border);background:var(--surface);color:var(--text-muted);white-space:nowrap}
+  .ux-tchip.ok{color:var(--audit);border-color:rgba(158,240,192,.4)}
+  .ux-tchip.conj{color:var(--warn);border-color:rgba(255,126,182,.4)}
+  .ux-tchip.lock{color:var(--skel);border-color:rgba(255,209,102,.4)}
+  /* the verbatim honest doctrine, now behind a Details expander */
+  .ux-details{margin-top:11px}
+  .ux-details > summary{list-style:none;cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:7px;
+    font-family:var(--font-m);font-size:10px;letter-spacing:.04em;color:var(--nerve);padding:5px 0}
+  .ux-details > summary::-webkit-details-marker{display:none}
+  .ux-details > summary::before{content:"\25b8";color:var(--text-dim);transition:transform .15s}
+  .ux-details[open] > summary::before{transform:rotate(90deg)}
+  .ux-details .ux-details-in{margin-top:9px;padding-top:10px;border-top:1px solid var(--border);
+    max-height:min(56vh,520px);overflow-y:auto;overscroll-behavior:contain}
+  /* doctrine rows shrink a touch inside the expander */
+  body.ux2 #honesty .row{font-size:11px;margin-bottom:9px}
+
+  /* --- TOOLBAR: tidy grouped primary actions + a More menu ---
+     Hide the raw 16-button row; show a compact toolbar instead. --- */
+  body.ux2 #controls{display:none !important;}
+  #ux-toolbar{position:fixed;z-index:24;left:50%;bottom:22px;transform:translateX(-50%);
+    display:flex;gap:9px;align-items:center;pointer-events:none}
+  #ux-toolbar .uxb{pointer-events:auto;font-family:var(--font-m);font-size:12px;letter-spacing:.02em;
+    color:var(--text);background:var(--surface-2);backdrop-filter:blur(var(--blur));border:1px solid var(--border-strong);
+    border-radius:99px;padding:11px 17px;cursor:pointer;transition:all .16s;display:inline-flex;align-items:center;gap:7px;
+    box-shadow:var(--shadow);min-height:44px;white-space:nowrap}
+  #ux-toolbar .uxb:hover{background:rgba(40,52,90,.95);transform:translateY(-1px)}
+  #ux-toolbar .uxb.primary{color:#06241f;background:linear-gradient(180deg,#7fe9d2,#3fe0c5);border-color:rgba(63,224,197,.6);font-weight:700}
+  #ux-toolbar .uxb.primary:hover{background:linear-gradient(180deg,#92eedb,#52e6cd)}
+  #ux-toolbar .uxb.on{color:var(--heart);border-color:rgba(255,93,143,.55);background:rgba(255,93,143,.1)}
+  #ux-toolbar .uxb.qb.on{color:var(--nerve);border-color:rgba(90,209,255,.55);background:rgba(90,209,255,.1)}
+  /* More menu (popover above the toolbar) */
+  #ux-more-wrap{position:relative;pointer-events:auto}
+  #ux-more-menu{position:absolute;bottom:54px;right:0;min-width:210px;background:var(--surface-2);
+    backdrop-filter:blur(var(--blur));border:1px solid var(--border-strong);border-radius:14px;box-shadow:var(--shadow);
+    padding:7px;display:none;flex-direction:column;gap:2px}
+  #ux-more-menu.open{display:flex}
+  #ux-more-menu .uxm{font-family:var(--font-m);font-size:12px;color:var(--text-muted);background:none;border:none;
+    text-align:left;padding:10px 12px;border-radius:9px;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:9px}
+  #ux-more-menu .uxm:hover{background:rgba(120,150,210,.12);color:var(--text)}
+  #ux-more-menu .uxm.on{color:var(--heart)}
+  #ux-more-menu .uxm-div{height:1px;background:var(--border);margin:4px 6px}
+
+  /* --- MOBILE BOTTOM TAB-BAR: opens panels ONE at a time --- */
+  #ux-tabbar{display:none}
+  #ux-scrim{display:none}
+
+  /* ===== UX2 DESKTOP/TABLET: keep drawers as overlays (already fine) ===== */
+  body.ux2 #ux-toolbar{display:flex}
+
+  /* ============ UX2 MOBILE (<=680px): canvas hero + tab-bar ============ */
+  @media (max-width:680px){
+    body.ux2 #ux-toolbar{display:none !important;}
+    /* but the More popover must still work on mobile: render the toolbar
+       wrapper as a zero-size fixed anchor when its menu is open, so the
+       fixed-positioned menu (detached) is not hidden by an ancestor. */
+    body.ux2.ux-more-open #ux-toolbar{display:block !important;position:fixed;width:0;height:0;left:auto;right:0;bottom:0;overflow:visible;pointer-events:none;z-index:71}
+    body.ux2.ux-more-open #ux-toolbar > *:not(#ux-more-wrap){display:none !important}
+    body.ux2.ux-more-open #ux-more-wrap{pointer-events:auto}
+    body.ux2 #ux-more-menu.open{pointer-events:auto;z-index:72;bottom:78px;right:10px;left:auto;min-width:200px;max-height:calc(100vh - 160px);overflow-y:auto}
+    /* minimal floating top title only */
+    body.ux2 #title{top:14px;left:14px;right:14px;max-width:none;}
+    body.ux2 #title h1{font-size:16px;line-height:1.18;}
+    body.ux2 #title .sub{display:none;}
+    body.ux2 #title .bodies{display:none;}
+    /* hide ALL fixed HUD walls by default — surfaced one-at-a-time via sheets */
+    body.ux2 #honesty{display:none !important;}
+    body.ux2 #honesty.ux-sheet{display:block !important;position:fixed;left:0;right:0;bottom:0;top:auto;
+      max-width:none;z-index:62;}
+    body.ux2 #vis-hud{left:0;right:0;bottom:0;top:auto;max-width:none;z-index:62;}
+    body.ux2 #vis-hud.ux-show.ux-sheet{display:block !important;}
+    body.ux2 #dissect{z-index:62;}
+    /* sheet shell shared look for honesty/vis-hud when surfaced as sheet */
+    body.ux2 #honesty.ux-sheet .card,
+    body.ux2 #vis-hud.ux-sheet .card{border-radius:18px 18px 0 0;border:1px solid var(--border-strong);
+      border-bottom:none;max-height:62vh;overflow-y:auto;-webkit-overflow-scrolling:touch;
+      padding-bottom:78px;box-shadow:0 -20px 60px rgba(0,0,0,.6)}
+    body.ux2 #honesty.ux-sheet .ux-details .ux-details-in{max-height:none}
+    body.ux2 #honesty.ux-sheet .ux-details[open] .ux-details-in,
+    body.ux2 #honesty.ux-sheet .ux-details > summary{}
+    /* grab handle on sheets */
+    body.ux2 #honesty.ux-sheet .card::before,
+    body.ux2 #vis-hud.ux-sheet .card::before{content:"";display:block;width:40px;height:4px;border-radius:99px;
+      background:var(--border-strong);margin:2px auto 12px}
+    /* drawers (atlas/forecast/qbio/panel/dissect) already become bottom sheets in earlier media block; bump z + leave room for tab-bar */
+    body.ux2 #panel,body.ux2 #atlas,body.ux2 #forecast,body.ux2 #qbio{z-index:63;}
+    body.ux2 #panel{top:auto !important;left:0 !important;right:0 !important;bottom:0 !important;
+      width:100% !important;height:auto !important;max-height:86vh !important;border-left:none;
+      border-top:1px solid var(--border-strong);border-radius:18px 18px 0 0;transform:translateY(102%);}
+    body.ux2 #panel.open{transform:translateY(0);}
+    body.ux2 #panel .pb{padding-bottom:90px;}
+
+    /* scrim behind any open sheet */
+    body.ux2 #ux-scrim{display:block;position:fixed;inset:0;z-index:55;background:rgba(2,4,9,.45);
+      opacity:0;pointer-events:none;transition:opacity .25s}
+    body.ux2 #ux-scrim.show{opacity:1;pointer-events:auto}
+
+    /* the always-visible bottom tab-bar */
+    body.ux2 #ux-tabbar{display:flex;position:fixed;left:0;right:0;bottom:0;z-index:70;
+      background:linear-gradient(180deg,rgba(10,14,26,.86),rgba(4,6,12,.97));backdrop-filter:blur(var(--blur));
+      border-top:1px solid var(--border-strong);padding:6px max(10px,env(safe-area-inset-left)) calc(6px + env(safe-area-inset-bottom));
+      justify-content:space-around;align-items:stretch;gap:4px}
+    body.ux2 #ux-tabbar .uxt{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;
+      min-height:52px;background:none;border:none;color:var(--text-muted);font-family:var(--font-m);font-size:9.5px;
+      letter-spacing:.04em;cursor:pointer;border-radius:11px;padding:5px 2px;transition:background .15s,color .15s}
+    body.ux2 #ux-tabbar .uxt .ic{font-size:17px;line-height:1}
+    body.ux2 #ux-tabbar .uxt[aria-pressed=true]{color:var(--text);background:rgba(120,150,210,.14)}
+    body.ux2 #ux-tabbar .uxt.cta{color:var(--a11oy)}
+    body.ux2 #ux-tabbar .uxt.cta[aria-pressed=true]{color:#06241f;background:var(--a11oy)}
+
+    /* mobile: lift toolbar-less drawers above tab-bar; tab-bar always on top */
+    body.ux2 #tour,body.ux2 #v9-tour{z-index:64 !important;}
+  }
+  /* small phones */
+  @media (max-width:380px){
+    body.ux2 #ux-tabbar .uxt{font-size:9px}
+    body.ux2 #title h1{font-size:15px}
+  }
+  /* reduced clutter on tablet: toolbar stays, drawers overlay */
+  @media (min-width:681px) and (max-width:1024px){
+    body.ux2 #honesty{max-width:min(300px,42vw)}
+  }
+
+</style>
+</head>
+<body>
+  <div id="loader"><div class="pulse-ring"></div><div class="lt">Assembling the body…</div></div>
+
+  <canvas id="scene"></canvas>
+  <div id="vignette"></div>
+
+  <!-- ============================================================
+  STATIC VERIFICATION BLOCK (no-JS fallback + curl-discoverable).
+  Auto-generated from data.js (single source of truth). Mirrors exactly what
+  the WebGL organ panels render. Honest two-tier labeling; Λ = Conjecture 1.
+  ============================================================ -->
+<noscript>
+  <style>#vf-static{display:block!important}</style>
+</noscript>
+<div id="vf-static" aria-label="SZL Agent Body v4 — proven-formula instillment (text fallback)">
+  <button id="vf-close" aria-label="close text view">× close</button>
+  <header class="vf-head">
+    <h2>SZL Agent Body v4 — proven formulas instilled in the organs</h2>
+    <p class="vf-honest">
+      <strong>Two honest tiers.</strong>
+      <span class="vf-tier-locked">8 LOCKED-proven (kernel-verified)</span> {F1, F4, F7, F11, F12, F18, F19, F22} @ c7c0ba17 —
+      locked kernel: 749 decl / 14 axioms / 163 sorries, sorry-free, Lean-core axioms only. <b>The locked count is EXACTLY 8 (was 5 until 2026-06-10; F4 Khipu DAG acyclicity, F7 Chaski FIFO ordering, F22 Khipu emit monotonicity upgraded to genuine proofs) and never inflated.</b>
+      <span class="vf-tier-exp">EXPERIMENTAL · CI-green on main</span> @ 044eb098 —
+      experimental scope: 1323 decl / 23 axioms (22 unique) / 307 sorries; waves 5–18 (≈119 instilled cards, incl. CUT-2, CF-13/17 and the Wave13–18 packs — CF-22 DPO-KL-simplex, CF-23 binary Pinsker, CF-24 Aczél, CF-25 Λ scale-invariance, CF-26 abacus, CF-27 monDEQ, CF-28 recurrent-depth, CUT-1 forward fragment) are EXPERIMENTAL · CI-green, additive, never folded into the locked 8.
+      SLSA L1 honest · product images (a11oy, killinchu) L2 build-attested (container provenance, Sigstore keyless) · L3 roadmap. No fabricated metrics · no AGI.
+    </p>
+    <div class="vf-lambda vf-lambda-top">
+      <strong>Λ = Conjecture 1.</strong> Unconditional uniqueness under the original A1–A5 axioms is
+      <strong>machine-checked FALSE</strong> (Round13.maxAgg_ne_Lambda). The Λ heart aggregates trust by geometric mean across the 13
+      conjunctive axes — never a weighted average.
+      <br><br><strong style="color:#9ef0c0">NEW · CUT-2 (Wave12, axiom-free, kernel-clean):</strong>
+      <code>Lutar.Round13.lambda_unique_of_separable</code> proves Λ uniqueness as a theorem <strong>CONDITIONAL</strong> on slice-multiplicativity (separability) under A1,A2,A3,A5 — <strong>with no new axiom</strong>. This gets Λ off bare conjecture (conditionally); the UNCONDITIONAL claim stays Conjecture 1.
+    </div>
+  </header>
+    <section class="vf-organ" data-organ="GPD">
+      <h3>Governed Post-Determinism (GPD) — SZL’s own lens <span class="vf-sys">[participant-general model]</span></h3>
+      <p class="vf-plain">The five organs ARE the participant-general governed-AI model. The unit of agreement shifts from identical output to <b>certified semantic admissibility</b>: the BRAIN/YACHAY reasons (divergent paths OK), the HEART/YUYAY 13-axis gate certifies admissibility (deny-by-default), the SKELETON/Khipu BFT quorum = Semantic Quorum Assurance (Wave23 conditional safety theorem; unconditional = Conjecture 2), the CIRCULATORY/YAWAR append-only receipt bus = Epistemic State Replication + Verifiable Semantic Rollback (receipts/replay live; full ESR = roadmap), and the NERVOUS/OTel spans carry provenance.</p>
+      <p class="vf-ax">Honest scope: locked-proven stays EXACTLY 8; Λ = Conjecture 1; Khipu BFT safety = Conjecture 2 (Wave23 conditional only). Grounded entirely in SZL’s own DOI-stamped prior art — NO external paper is the source of GPD.</p>
+      <p class="vf-ref">SZL Zenodo prior art: 10.5281/zenodo.19867281 · .19934129 · .20020846 · .20020845 · .20020841 · .20174600</p>
+    </section>
+    <section class="vf-organ" data-organ="YUYAY">
+      <h3>YUYAY — 13-axis CONJUNCTIVE truth gate <span class="vf-sys">[heart]</span></h3>
+      <div class="vf-lambda">
+        <strong>Λ honesty label:</strong> Λ is Conjecture 1, not a theorem. Unconditional uniqueness under the original A1–A5 axioms is machine-checked FALSE (in-tree counterexample <code>Round13.maxAgg_ne_Lambda</code> satisfies A1–A5 yet is not Λ). Uniqueness holds only within strengthened classes (Setα / Setδ, conditional on declared bridge axioms).
+      </div>
+      <article class="vf-formula" data-fid="L3" data-maturity="EXPERIMENTAL">
+        <h4>L3 — Λ Strict Monotonicity <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The geometric-mean trust aggregator is per-component strictly monotone: improving any input strictly raises the fused trust. NO uniqueness of Λ asserted — Conjecture 1 untouched.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.LambdaMono.gmean_strict_mono — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">PR #197 @ 7885fd9 · Wave8/LambdaMono.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="L2" data-maturity="EXPERIMENTAL">
+        <h4>L2 — Deny-by-Default Uniqueness <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The min-gate vmin is the UNIQUE monotone, diagonal, conservative gate — the weakest-link trust gate is the ONLY policy satisfying the safety axioms; no permissive aggregator can sneak in. Backs the YUYAY deny-by-default conjunction.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.MinGate.deny_by_default_unique — [propext]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/MinGate.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="CP1" data-maturity="EXPERIMENTAL">
+        <h4>CP1 — Conformal Marginal Coverage <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Split-conformal coverage satisfies a two-sided ⌈·⌉ bound — finite-sample, distribution-free marginal-coverage guarantee for the trust intervals on Λ.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Conformal.conformal_marginal_coverage — [propext, Quot.sound]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/Conformal.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="W5-1" data-maturity="EXPERIMENTAL">
+        <h4>W5-1 — AM–GM No-Inflation <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Geometric mean ≤ arithmetic mean: the Λ aggregator can never inflate trust above the naive average.</p>
+        <p class="vf-ax"><code>#print axioms: wave-5 — 0 new axioms (Mathlib-dep CI-green)</code></p>
+        <p class="vf-ref">PR #186 @ b71114cf</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="YACHAY">
+      <h3>YACHAY — read-only reasoning cortex (5 regions + quantum mind) · proposer <span class="vf-sys">[brain]</span></h3>
+      <article class="vf-formula" data-fid="Q1" data-maturity="EXPERIMENTAL">
+        <h4>Q1 — Density-Matrix Mixture PSD <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A convex combination of PSD, unit-trace matrices is again a valid density matrix — convexity of the mixed-state set. Underpins probabilistic ensemble reasoning in the YACHAY quantum-mind region.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.DensityMixture.density_matrix_mixture — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">PR #197 @ 7885fd9 · Wave8/DensityMixture.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="Q2" data-maturity="EXPERIMENTAL">
+        <h4>Q2 — Gershgorin Governance Non-Degeneracy (real) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A strictly diagonally-dominant real governance weight matrix is invertible, so weighted aggregation has a unique solution — no zero-eigenvalue collapse of the governance operator. (ℂ variant left honestly as ROADMAP — shipped real-valued only, sorryAx-free.)</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Gershgorin.governance_nonsingular_real — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">PR #197 @ 7885fd9 · Wave8/Gershgorin.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="W7-5" data-maturity="EXPERIMENTAL">
+        <h4>W7-5 — PAC-Bayes Routing Envelope <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A PAC-Bayes generalization envelope bounds true routing risk by empirical risk plus a KL complexity term — confidence on model routing.</p>
+        <p class="vf-ax"><code>#print axioms: wave-7 — 0 new axioms</code></p>
+        <p class="vf-ref">PR #190 @ d6a232ba</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="YAWAR">
+      <h3>YAWAR — append-only SHA-256 receipt bus <span class="vf-sys">[blood]</span></h3>
+      <article class="vf-formula" data-fid="M2" data-maturity="EXPERIMENTAL">
+        <h4>M2 — Hash-Chain Tamper-Evidence <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">For an injective hash step H, if any payload entry differs then the resulting head-hash differs — append-only hash chains are tamper-evident. The formal core behind receipt/audit-trail integrity.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.HashChain.hashchain_tamper_evident — [propext]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/HashChain.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="P1" data-maturity="EXPERIMENTAL">
+        <h4>P1 — Receipt-Completeness <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Every hop in the governed loop leaves exactly one chained receipt — no silent drop or reorder.</p>
+        <p class="vf-ax"><code>#print axioms: agentic-loop — axiom-free core</code></p>
+        <p class="vf-ref">PR #188 @ 2ede47a2</p>
+      </article>
+      <article class="vf-formula" data-fid="F18" data-maturity="LOCKED">
+        <h4>F18 — Reed–Solomon RS(10,6) Recovery <span class="vf-chip">LOCKED · kernel-verified</span></h4>
+        <p class="vf-plain">Erasure tolerance: data is recoverable IFF at least 6 of 10 shards survive — the resilience arithmetic for the receipt/payload encoding.</p>
+        <p class="vf-ax"><code>#print axioms: f18_* — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">lutar-lean @ c7c0ba17</p>
+      </article>
+      <article class="vf-formula" data-fid="F1" data-maturity="LOCKED">
+        <h4>F1 — Replay-Hash Determinism <span class="vf-chip">LOCKED · kernel-verified</span></h4>
+        <p class="vf-plain">Replaying the SAME recorded log from the same initial state yields a BIT-IDENTICAL trace — no drift. Underpins the Khipu replay-hash gate.</p>
+        <p class="vf-ax"><code>#print axioms: f1_replay_fold_deterministic — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">lutar-lean PuriqFormulaLean.lean @ c7c0ba17</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="RUWAY">
+      <h3>RUWAY — sole authorized write surface <span class="vf-sys">[blood]</span></h3>
+      <article class="vf-formula" data-fid="P4" data-maturity="EXPERIMENTAL">
+        <h4>P4 — Replay-Determinism (loop) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Re-running a recorded run reproduces a byte-identical receipt chain.</p>
+        <p class="vf-ax"><code>#print axioms: P4 — PROVEN, axiom-free</code></p>
+        <p class="vf-ref">PR #188 @ 2ede47a2</p>
+      </article>
+      <article class="vf-formula" data-fid="F11" data-maturity="LOCKED">
+        <h4>F11 — Ayni Reciprocity Conservation <span class="vf-chip">LOCKED · kernel-verified</span></h4>
+        <p class="vf-plain">Fold-replay of an append-only reciprocity log conserves the balance invariant (Axelrod–Hamilton tit-for-tat parity).</p>
+        <p class="vf-ax"><code>#print axioms: f11_ayni_reciprocity_conservation — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">lutar-lean PuriqFormulaLean.lean @ c7c0ba17</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="CHAPAQ">
+      <h3>CHAPAQ — egress immune inspector <span class="vf-sys">[blood]</span></h3>
+      <article class="vf-formula" data-fid="P5" data-maturity="AXIOM_GATED">
+        <h4>P5 — Tamper-Evidence (loop) <span class="vf-chip">AXIOM-GATED (disclosed)</span></h4>
+        <p class="vf-plain">Any single-receipt mutation makes re-verify reject. AXIOM-GATED on hashFn_collision_resistant (NIST FIPS 180-4, disclosed).</p>
+        <p class="vf-ax"><code>#print axioms: P5 — AXIOM-GATED [hashFn_collision_resistant]</code></p>
+        <p class="vf-ref">PR #188 @ 2ede47a2</p>
+      </article>
+      <article class="vf-formula" data-fid="M2" data-maturity="EXPERIMENTAL">
+        <h4>M2 — Hash-Chain Tamper-Evidence <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">For an injective hash step H, if any payload entry differs then the resulting head-hash differs — append-only hash chains are tamper-evident. The formal core behind receipt/audit-trail integrity.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.HashChain.hashchain_tamper_evident — [propext]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/HashChain.lean</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="HUKLLA">
+      <h3>HUKLLA — deadman tripwire (reflex arc) <span class="vf-sys">[nerve]</span></h3>
+      <article class="vf-formula" data-fid="S2" data-maturity="EXPERIMENTAL">
+        <h4>S2 — Simplex Safety Invariant <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Simplex/RTA run-time-assurance: a monitored switch to a verified recovery controller keeps the system in the safe set for ALL time. Backbone of fail-safe autonomy and the HUKLLA deadman reflex.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Simplex.simplex_safety_invariant — [propext]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/Simplex.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="B1" data-maturity="EXPERIMENTAL">
+        <h4>B1 — Byzantine Impossibility (n=3, f=1) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The classic 3-node / 1-fault Byzantine impossibility — the formal n ≥ 3f+1 lower bound. Justifies consensus/quorum sizing in the shared mesh and rejects under-provisioned fault tolerance.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Byzantine.byzantine_impossibility_3_1 — does not depend on any axioms</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/Byzantine.lean</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="VSP / OTel">
+      <h3>VSP / OTel — span lineage (efferent · afferent · proprioceptive) <span class="vf-sys">[nerve]</span></h3>
+      <article class="vf-formula" data-fid="P4" data-maturity="EXPERIMENTAL">
+        <h4>P4 — Replay-Determinism (loop) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Re-running a recorded run reproduces a byte-identical receipt chain.</p>
+        <p class="vf-ax"><code>#print axioms: P4 — PROVEN, axiom-free</code></p>
+        <p class="vf-ref">PR #188 @ 2ede47a2</p>
+      </article>
+      <article class="vf-formula" data-fid="F1" data-maturity="LOCKED">
+        <h4>F1 — Replay-Hash Determinism <span class="vf-chip">LOCKED · kernel-verified</span></h4>
+        <p class="vf-plain">Replaying the SAME recorded log from the same initial state yields a BIT-IDENTICAL trace — no drift. Underpins the Khipu replay-hash gate.</p>
+        <p class="vf-ax"><code>#print axioms: f1_replay_fold_deterministic — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">lutar-lean PuriqFormulaLean.lean @ c7c0ba17</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="HATUN">
+      <h3>HATUN — sovereign orchestrator + seal (the crown) <span class="vf-sys">[skeleton]</span></h3>
+      <article class="vf-formula" data-fid="Q2" data-maturity="EXPERIMENTAL">
+        <h4>Q2 — Gershgorin Governance Non-Degeneracy (real) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A strictly diagonally-dominant real governance weight matrix is invertible, so weighted aggregation has a unique solution — no zero-eigenvalue collapse of the governance operator. (ℂ variant left honestly as ROADMAP — shipped real-valued only, sorryAx-free.)</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Gershgorin.governance_nonsingular_real — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">PR #197 @ 7885fd9 · Wave8/Gershgorin.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="P1" data-maturity="EXPERIMENTAL">
+        <h4>P1 — Receipt-Completeness <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Every hop in the governed loop leaves exactly one chained receipt — no silent drop or reorder.</p>
+        <p class="vf-ax"><code>#print axioms: agentic-loop — axiom-free core</code></p>
+        <p class="vf-ref">PR #188 @ 2ede47a2</p>
+      </article>
+      <article class="vf-formula" data-fid="Ph1" data-maturity="EXPERIMENTAL">
+        <h4>Ph1 — Axiom-Disclosure Soundness <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The axiom-disclosure gate is sound; locked_count_eight proves there are EXACTLY 8 locked entries with kernel-only axioms (= by decide, no axioms). Mechanically enforces "no hidden axioms".</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.AxiomDisclosure.disclosure_sound — [propext, Quot.sound] · locked_count_eight — no axioms</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/AxiomDisclosure.lean</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="R0513 / OVERWATCH">
+      <h3>R0513 / OVERWATCH — read-only 5-invariant audit <span class="vf-sys">[audit]</span></h3>
+      <article class="vf-formula" data-fid="M2" data-maturity="EXPERIMENTAL">
+        <h4>M2 — Hash-Chain Tamper-Evidence <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">For an injective hash step H, if any payload entry differs then the resulting head-hash differs — append-only hash chains are tamper-evident. The formal core behind receipt/audit-trail integrity.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.HashChain.hashchain_tamper_evident — [propext]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/HashChain.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="B1" data-maturity="EXPERIMENTAL">
+        <h4>B1 — Byzantine Impossibility (n=3, f=1) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The classic 3-node / 1-fault Byzantine impossibility — the formal n ≥ 3f+1 lower bound. Justifies consensus/quorum sizing in the shared mesh and rejects under-provisioned fault tolerance.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Byzantine.byzantine_impossibility_3_1 — does not depend on any axioms</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/Byzantine.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="CP1" data-maturity="EXPERIMENTAL">
+        <h4>CP1 — Conformal Marginal Coverage <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Split-conformal coverage satisfies a two-sided ⌈·⌉ bound — finite-sample, distribution-free marginal-coverage guarantee for the trust intervals on Λ.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Conformal.conformal_marginal_coverage — [propext, Quot.sound]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/Conformal.lean</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="TUKUY">
+      <h3>TUKUY — egress actuator <span class="vf-sys">[skeleton]</span></h3>
+      <article class="vf-formula" data-fid="S2" data-maturity="EXPERIMENTAL">
+        <h4>S2 — Simplex Safety Invariant <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Simplex/RTA run-time-assurance: a monitored switch to a verified recovery controller keeps the system in the safe set for ALL time. Backbone of fail-safe autonomy and the HUKLLA deadman reflex.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.Simplex.simplex_safety_invariant — [propext]</code></p>
+        <p class="vf-ref">PR #196 @ b1c840f · Wave8/Simplex.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="G1" data-maturity="EXPERIMENTAL">
+        <h4>G1 — CPA Minimality <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The closest-point-of-approach time is the UNIQUE minimizer of squared separation. Formal anchor for killinchu collision / conflict-risk timing.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.CPA.cpa_unique — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">PR #197 @ 7885fd9 · Wave8/CPA.lean</p>
+      </article>
+    </section>
+    <section class="vf-organ" data-organ="MUSQUY">
+      <h3>MUSQUY — K-candidate simulation (parietal) <span class="vf-sys">[brain]</span></h3>
+      <article class="vf-formula" data-fid="Q1" data-maturity="EXPERIMENTAL">
+        <h4>Q1 — Density-Matrix Mixture PSD <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A convex combination of PSD, unit-trace matrices is again a valid density matrix — convexity of the mixed-state set. Underpins probabilistic ensemble reasoning in the YACHAY quantum-mind region.</p>
+        <p class="vf-ax"><code>#print axioms: Lutar.Wave8.DensityMixture.density_matrix_mixture — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">PR #197 @ 7885fd9 · Wave8/DensityMixture.lean</p>
+      </article>
+      <article class="vf-formula" data-fid="W7-5" data-maturity="EXPERIMENTAL">
+        <h4>W7-5 — PAC-Bayes Routing Envelope <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A PAC-Bayes generalization envelope bounds true routing risk by empirical risk plus a KL complexity term — confidence on model routing.</p>
+        <p class="vf-ax"><code>#print axioms: wave-7 — 0 new axioms</code></p>
+        <p class="vf-ref">PR #190 @ d6a232ba</p>
+      </article>
+    </section>
+
+    <!-- ===================== WAVE 9/10 candidate-theorem pack (EXPERIMENTAL · CI-green) ===================== -->
+    <!-- Honest tier: these are wave 9/10 candidate theorems, CI-green on main (experimental scope 1304 decl / 22 axioms). -->
+    <!-- They are ADDITIVE and NEVER folded into the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Λ = Conjecture 1 stays a conjecture. -->
+    <section class="vf-organ" data-organ="WAVE 9/10">
+      <h3>WAVE 9/10 — candidate-theorem pack <span class="vf-sys">[both bodies · edge + substrate]</span></h3>
+      <article class="vf-formula" data-fid="RA-1" data-maturity="EXPERIMENTAL">
+        <h4>RA-1 — STL Robustness (two-sided Donzé–Maler) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A runtime monitor that computes a signed robustness margin ρ: <code>Sat ⇒ ρ≥0</code> and <code>ρ&gt;0 ⇒ Sat</code> (NOT the false iff at ρ=0). Backs Sensor-Fusion / STL Monitor.</p>
+        <p class="vf-ax"><code>#print axioms stl_robustness_sound — kernel-only [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave10/STLRobustness.lean · PR #200</p>
+      </article>
+      <article class="vf-formula" data-fid="OE-2" data-maturity="EXPERIMENTAL">
+        <h4>OE-2 — Covariance-Intersection PSD <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Fuse two sensors without cross-covariance; the fused information matrix is a non-negative convex combination of PSD matrices ⇒ valid (PSD), conservative uncertainty. Powers Sensor-Fusion.</p>
+        <p class="vf-ax"><code>#print axioms covariance_intersection_psd — kernel-only [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave9/CovarianceIntersection.lean · PR #199</p>
+      </article>
+      <article class="vf-formula" data-fid="MA1" data-maturity="EXPERIMENTAL">
+        <h4>MA1 — Gershgorin Spectral Non-Degeneracy <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Pre-flight gate: a strictly diagonally-dominant command/trust-weight matrix has 0 in no Gershgorin disc ⇒ nonsingular (det ≠ 0). Field-general (incl. ℂ) — distinct from the Wave8 ℝ determinant card.</p>
+        <p class="vf-ax"><code>#print axioms gershgorin_nonsingular — kernel-only [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave9/Gershgorin.lean · PR #199</p>
+      </article>
+      <article class="vf-formula" data-fid="MR-1" data-maturity="EXPERIMENTAL">
+        <h4>MR-1 — Reachability-Redundancy + Menger <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">k edge-disjoint routes survive any k-1 link failures; by Menger cut/path duality the min-cut equals the number of edge-disjoint paths. Pairs with Tactical Routing. (cut_disconnects · path_refutes_cut)</p>
+        <p class="vf-ax"><code>#print axioms avoiding_reach_le_full · cut_disconnects · path_refutes_cut — kernel-only</code></p>
+        <p class="vf-ref">Wave10/ReachabilityRedundancy.lean + Wave9/Menger.lean · PR #200</p>
+      </article>
+      <article class="vf-formula" data-fid="CP-1/AU-1" data-maturity="EXPERIMENTAL">
+        <h4>CP-1 / AU-1 — Merkle Transparency + Replay-Determinism <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Re-verifiable Merkle inclusion proofs; deterministic replay of an ordered log yields the same final state and <b>localizes</b> a tampered entry (first divergence). Backs the signed-receipt / audit surface.</p>
+        <p class="vf-ax"><code>#print axioms replay_deterministic · tamper_localized — kernel-only [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave10/ReplayDeterminism.lean + Wave9/Merkle.lean · PR #200</p>
+      </article>
+      <article class="vf-formula" data-fid="C1/CN-1" data-maturity="EXPERIMENTAL">
+        <h4>C1 / CN-1 — Basilic BDB + Quorum-Intersection <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Safety holds iff <code>n &gt; 3t + d + 2q</code> (sharper than n&gt;3t); any two intersecting majority quorums can never decide differently ⇒ no split-brain (unique decision). Sizes the 3-of-4 C2 consensus mesh.</p>
+        <p class="vf-ax"><code>#print axioms quorum_unique_decision · majority_quorums_intersect — kernel-only</code></p>
+        <p class="vf-ref">Wave10/QuorumIntersection.lean + Wave9/BasilicBDB.lean · PR #200</p>
+      </article>
+    </section>
+
+    <!-- ===================== WAVE 11–18 + CUT-2 + CUT-1 fwd frontier pack (on main @ 044eb098) ===================== -->
+    <!-- CUT-2 + CUT-1 forward fragment are CONDITIONAL, axiom-free THEOREMS (get Λ off bare conjecture, conditionally). The rest are EXPERIMENTAL · CI-green. -->
+    <!-- ALL are ADDITIVE and NEVER folded into the locked 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Unconditional Λ = Conjecture 1 stays a conjecture; CUT-1 gap dyadic_image_dense is an open roadmap sorry. -->
+    <section class="vf-organ" data-organ="WAVE 11–18 + CUT-1/2">
+      <h3>WAVE 11–18 + CUT-1/2 — newly-proven frontier pack <span class="vf-sys">[main @ 044eb098 · PRs #201–#208]</span></h3>
+      <article class="vf-formula vf-cond" data-fid="CUT-2" data-maturity="CONDITIONAL">
+        <h4>CUT-2 — Λ Conditional Uniqueness (slice-multiplicativity) <span class="vf-chip">CONDITIONAL · axiom-free</span></h4>
+        <p class="vf-plain">Λ uniqueness PROVEN as a theorem <strong>CONDITIONAL</strong> on slice-multiplicativity (separability) under A1,A2,A3,A5 — kernel-clean, <strong>no new axiom</strong>. Gets Λ off bare conjecture (conditionally). UNCONDITIONAL Λ uniqueness stays Conjecture 1 (machine-checked FALSE). NOT folded into the locked 8.</p>
+        <p class="vf-ax"><code>#print axioms Lutar.Round13.lambda_unique_of_separable — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Round13/LambdaSeparable.lean · PR #202 (Wave12)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-13" data-maturity="EXPERIMENTAL">
+        <h4>CF-13 — DEQ Input-Lipschitz Well-Posedness <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A deep-equilibrium / fixed-point layer has a UNIQUE equilibrium, Lipschitz in its input with constant Lx/(1−K): <code>dist(z*(x),z*(y)) ≤ Lx/(1−K)·dist(x,y)</code>. Equilibrium reasoning is provably well-posed — a stability margin for code/forecast routing.</p>
+        <p class="vf-ax"><code>#print axioms equilibrium_dist_le / equilibrium_lipschitz — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">round5/OuroLoopInputLipschitz.lean · PR #202 (Wave12)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-17" data-maturity="EXPERIMENTAL">
+        <h4>CF-17 — Floating-Point Summation Error Bound <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Recursive fp summation under the standard rounding model has a forward error bound <code>|recSum − Σxi| ≤ ((1+u)^(n−1)−1)·Σ|xi|</code> (Higham §2.2). A numeric-stability badge for any aggregation/scoring sum.</p>
+        <p class="vf-ax"><code>#print axioms Lutar.Khipu.NumericStability.recSum_error_le — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Khipu/NumericStability.lean · PR #202 (Wave12)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-RR" data-maturity="EXPERIMENTAL">
+        <h4>CF-RR — Replay-Root Completeness <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">If a valid replay-root exists among candidates, the search provably finds one — PRNG replay-root lookup is complete. Closed a baseline sorry.</p>
+        <p class="vf-ax"><code>#print axioms Lutar.PRNG.findReplayRoot_complete — [propext, Quot.sound]</code></p>
+        <p class="vf-ref">PRNG/K10v2_ReplayRoot.lean · PR #203 (Wave13)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-QV" data-maturity="EXPERIMENTAL">
+        <h4>CF-QV — Quorum Single-Valued Vote (non-Byzantine shadow) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Under n ≥ 3f+1, two large quorums of single-valued voters must agree. HONEST SCOPE: explicitly the NON-Byzantine shadow — it is NOT Khipu Conjecture 2, which stays OPEN (a faulty organ can still equivocate).</p>
+        <p class="vf-ax"><code>#print axioms quorum_agreement_single_valued_vote — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave13/Sweep.lean · PR #203 (Wave13)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-HM" data-maturity="EXPERIMENTAL">
+        <h4>CF-HM — HLP Harmonic-Mean Bottleneck <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">If the harmonic mean of positive resources falls below a threshold, some single resource must too — a clean Hardy–Littlewood–Pólya bottleneck detector for the mesh.</p>
+        <p class="vf-ax"><code>#print axioms Lutar.Wave13.Sweep.hm_bottleneck_clean — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave13/Sweep.lean · PR #203 (Wave13)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-18" data-maturity="EXPERIMENTAL">
+        <h4>CF-18 — Mādhava / Leibniz Alternating-Series Remainder <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">For an alternating series with antitone terms, the truncation error is bounded by the first omitted term: <code>|Σ_{i&lt;N}(−1)^i a_i − L| ≤ a_N</code>. A certified π/series error budget.</p>
+        <p class="vf-ax"><code>#print axioms leibniz_remainder_bound / madhava_alt_series_bound_clean — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave14/LeibnizRemainder.lean · PR #204 (Wave14)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-19" data-maturity="EXPERIMENTAL">
+        <h4>CF-19 — Reed–Solomon MDS Distance Lower Bound <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Two distinct degree-&lt;k RS codewords differ in ≥ n−k+1 of n points — the achievability (lower) half of the Singleton/MDS bound. HONEST: the upper bound / full MDS equality stays a sorry.</p>
+        <p class="vf-ax"><code>#print axioms rs_distance_lower_bound / agreement_card_lt_of_degree_lt — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave14/ReedSolomonDistance.lean · PR #204 (Wave14)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-20" data-maturity="EXPERIMENTAL">
+        <h4>CF-20 — VCG Efficiency + Truthfulness Core <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">An efficient (social-welfare-maximising) outcome always exists and the VCG truthfulness core holds — honest reporting is the dominant-strategy ingredient. Incentive-compatibility anchor.</p>
+        <p class="vf-ax"><code>#print axioms exists_efficient_outcome / efficientOutcome_maximises / vcg_truthfulness_core — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave14/VCGEfficiency.lean · PR #204 (Wave14)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-21" data-maturity="EXPERIMENTAL">
+        <h4>CF-21 — Cover–Thomas Log-Sum + Gibbs Inequality <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The log-sum and Gibbs inequalities — the correctly-stated information-theory DPI core (Cover–Thomas 2.7.1 / 2.6.3). HONEST: does NOT repair the in-tree DPO klDivergence/pinsker, which stay FALSE-as-stated (no simplex hypothesis).</p>
+        <p class="vf-ax"><code>#print axioms log_sum_inequality / gibbs_inequality — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave14/LogSumInequality.lean · PR #204 (Wave14)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-22" data-maturity="EXPERIMENTAL">
+        <h4>CF-22 — DPO KL-Divergence Nonneg on the Simplex (conditional repair) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">CONDITIONALLY repairs the FALSE-as-stated in-tree DPO axiom: <code>KL(p‖q) ≥ 0</code> once p,q ∈ the probability simplex (Gibbs). Live demo KL=0.0880 ≥ 0 (χ²=0.1917). HONEST: the UNCONDITIONAL DPO axiom klDivergence_nonneg stays FALSE-as-stated. Independent confirmation: χPO (arXiv:2407.13399), f-DPO (arXiv:2309.16240).</p>
+        <p class="vf-ax"><code>#print axioms klDivergence_nonneg_simplex / dpo_klDivergence_nonneg_on_simplex — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave15/DPOKLSimplex.lean · PR #205 (Wave15)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-23" data-maturity="EXPERIMENTAL">
+        <h4>CF-23 — Full Binary Pinsker Inequality <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The full binary Pinsker inequality <code>2·(p−q)² ≤ KL(Bern p ‖ Bern q)</code> — the long-sought headline (previously only a named Lean axiom). Live demo KL=0.0823 ≥ 2·TV²=0.0800. A confidence-margin bound for any binary gate. HONEST: experimental CI-green, NOT folded into the locked 8.</p>
+        <p class="vf-ax"><code>#print axioms binary_pinsker / binary_inv_sum_ge_four — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave17/BinaryPinsker.lean · PR #207 (Wave17)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-24" data-maturity="EXPERIMENTAL">
+        <h4>CF-24 — geoBin Full Aczél Quasi-Arithmetic Axioms <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">The geometric-binary mean satisfies the FULL Aczél QAM axiom set (idempotency, commutativity, homogeneity, strict monotonicity) — real progress on the CUT-1 route. Regularity-free QAM characterization (Burai–Kiss–Szokol, arXiv:2107.07391) shows bisymmetry gives continuity for free.</p>
+        <p class="vf-ax"><code>#print axioms geoBin_idem / geoBin_comm / geoBin_homog / geoBin_mono — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave16/GeoBinAczel.lean · PR #206 (Wave16)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-25" data-maturity="EXPERIMENTAL">
+        <h4>CF-25 — Λ Scale-Invariance (affine reparam of generator) <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Λ is invariant under affine reparametrization of its quasi-arithmetic generator and under axis normalization — rescaling the trust axes leaves the Λ verdict fixed. Convex-duality backing (Nielsen, arXiv:2301.10980).</p>
+        <p class="vf-ax"><code>#print axioms lambda_scale_axes / lambda_normalization_invariant — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave16/LambdaScaleInvariance.lean · PR #206 (Wave16)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-26" data-maturity="EXPERIMENTAL">
+        <h4>CF-26 — Abacus Place-Value Soundness <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">Place-value (abacus) encode/decode round-trips exactly <code>Σ digit_i·base^i = value</code> — a positional-number-system soundness lemma underpinning deterministic integer serialization in receipts.</p>
+        <p class="vf-ax"><code>#print axioms Lutar.Wave16.abacus_place_value — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave16/Abacus.lean · PR #206 (Wave16)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-27" data-maturity="EXPERIMENTAL">
+        <h4>CF-27 — monDEQ Strong-Monotonicity ⇒ Unique Equilibrium <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">A strongly-monotone deep-equilibrium operator has a UNIQUE equilibrium <code>∃! z*, F(z*)=z*</code> — the fixed-point reasoning layer is provably well-posed. Backs fusion fixed-point and tool-call uniqueness (Winston–Kolter monDEQ).</p>
+        <p class="vf-ax"><code>#print axioms Lutar.Wave17.monDEQ_unique_equilibrium — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave17/MonDEQUnique.lean · PR #207 (Wave17)</p>
+      </article>
+      <article class="vf-formula" data-fid="CF-28" data-maturity="EXPERIMENTAL">
+        <h4>CF-28 — Recurrent-Depth Kʳ-Lipschitz Contraction <span class="vf-chip">EXPERIMENTAL · CI-green</span></h4>
+        <p class="vf-plain">An r-fold recurrent-depth block from a K-Lipschitz step is Kʳ-Lipschitz overall — depth amplifies (K&lt;1 ⇒ contraction; K&gt;1 ⇒ honest blow-up bound). A stability budget for recurrent-depth estimators (mcleish7/retrofitting-recurrence, Apache-2.0).</p>
+        <p class="vf-ax"><code>#print axioms Lutar.Wave17.recurrent_depth_lipschitz — [propext, Classical.choice, Quot.sound]</code></p>
+        <p class="vf-ref">Wave17/RecurrentDepthLipschitz.lean · PR #207 (Wave17)</p>
+      </article>
+      <article class="vf-formula vf-cond" data-fid="CUT-1" data-maturity="CONDITIONAL">
+        <h4>CUT-1 — Forward Fragment (generator unique up to affine) <span class="vf-chip">CONDITIONAL · axiom-free</span></h4>
+        <p class="vf-plain">The forward fragment of the CUT-1 unconditional-uniqueness program: generator unique up to affine reparam, exponential midpoint = geometric mean √(xy), and Λ follows CONDITIONALLY (19 axiom-clean theorems). <strong>HONEST OPEN GAP:</strong> <code>dyadic_image_dense</code> (the dense-domain density step, n-adic recursive construction per Kiss–Shulman 2026) is NOT proven — multi-week roadmap. Λ unconditional uniqueness stays Conjecture 1. NOT folded into the locked 8.</p>
+        <p class="vf-ax"><code>#print axioms generator_unique_up_to_affine / expMidpoint_eq_geom / cut1_conditional_lambda — [propext, Classical.choice, Quot.sound] · GAP: dyadic_image_dense (open sorry)</code></p>
+        <p class="vf-ref">Wave18/CUT1Forward.lean · PR #208 (Wave18)</p>
+      </article>
+    </section>
+</div>
+
+
+  <!-- HUD -->
+  <div class="hud" id="title">
+    <div class="eyebrow">SZL Holdings · Living Anatomy</div>
+    <h1>SZL Agent Body <span class="v3">v5</span> <span style="font-size:.5em;color:var(--text-dim,#8aa);font-weight:600;letter-spacing:.04em">(evolves v4)</span> — the governed-AI organ substrate</h1>
+    <div class="sub">An interactive 3D body for governed AI. Click an organ, or take the guided tour. &nbsp;<a href="./live-body.html" style="color:var(--nerve);text-decoration:underline">▶ live body view →</a></div>
+    <div class="bodies">
+      <span class="body-tag a">a11oy · governed-AI decision body</span>
+      <span class="body-tag k">killinchu · maritime / drone C2 body</span>
+    </div>
+  </div>
+
+  <div class="hud" id="honesty">
+    <div class="card">
+      <div class="hdr">Absolute Honesty Doctrine</div>
+      <div id="honesty-card"></div>
+    </div>
+  </div>
+
+  <div class="hud" id="legend">
+    <div class="card">
+      <h3>The Five Systems</h3>
+      <div id="sys-list"></div>
+    </div>
+  </div>
+
+  <div class="hud" id="hint">drag to orbit · scroll to zoom · click an organ · hover a vessel</div>
+
+  <div class="hud" id="controls">
+    <button class="btn active" id="btn-rotate">◍ auto-rotate</button>
+    <button class="btn active" id="btn-pulse">⟿ pulses</button>
+    <button class="btn" id="btn-mesh">⇆ focus mesh</button>
+    <button class="btn" id="btn-reset">⟲ reset view</button>
+    <button class="btn" id="btn-gpd">◆ GPD lens</button>
+    <button class="btn" id="btn-formulas">≣ formulas (text)</button>
+    <button class="btn" id="btn-focus" aria-pressed="false" title="Focus mode: fade other organs when one is selected">⊙ focus</button>
+    <button class="btn active" id="btn-dissect" aria-expanded="true" aria-controls="dissect" title="Toggle the v4 dissection tools dock">⌖ dissect</button>
+    <!-- v5 deepen controls (additive) -->
+    <button class="btn" id="btn-atlas" aria-expanded="false" aria-controls="atlas" title="Formula Atlas: every formula in data.js, grouped by maturity tier">⎙ formula atlas</button>
+    <button class="btn" id="btn-forecast" aria-expanded="false" aria-controls="forecast" title="Honest proof-maturity timeline + roadmap">⌁ forecast</button>
+    <button class="btn" id="btn-tour" aria-pressed="false" title="Guided tour: fly organ-to-organ with narration (pausable)">▷ guided tour</button>
+    <!-- v9: cinematic hands-free vital tour (auto-fly, narrates live organ values, ends on the Λ-heart) -->
+    <button class="btn" id="v9-tour-btn" aria-pressed="false" title="Cinematic vital tour: a hands-free ~50s auto-fly that narrates each organ's LIVE value and ends on the Λ-heart (Esc to skip)">◈ vital tour</button>
+    <button class="btn active" id="btn-labels" aria-pressed="true" title="Toggle floating organ labels (leader lines)">⌗ labels</button>
+    <!-- v5 quantum-bio layer (additive · verified model mirroring a11oy /api/a11oy/v1/qbio) -->
+    <button class="btn" id="btn-qbio" aria-expanded="false" aria-controls="qbio" title="Quantum-Bio Layer (v5): coherence · bioenergetic charge · Λ-v5 closure floor · radical-pair compass">⌬ quantum-bio (v5)</button>
+    <!-- v5 (evolves v4) additive organs/overlays — wired by v5_organs.js, honest labels -->
+    <button class="btn" id="btn-v5-willay" aria-expanded="false" aria-controls="v5panel" title="WILLAY conscience / immune-gate: 5 inspectable signed-refusal classifiers (trust ceiling 0.97) read live · tamper-EVIDENT not tamper-proof">⛨ conscience</button>
+    <button class="btn" id="btn-v5-mesh" aria-expanded="false" aria-controls="v5panel" title="Sovereign Mesh (circulatory upgrade): live per-node up/DOWN from /govern/health · never a fabricated green light · VRAM-fusion ROADMAP">⬡ sovereign mesh</button>
+    <button class="btn" id="btn-v5-proofs" aria-expanded="false" aria-controls="v5panel" title="8 locked-proven → organ map: verbatim Lean statement + #print axioms, kernel-verified sorry-free @ c7c0ba17 · Λ=Conjecture 1">≣ proofs → organs</button>
+    <button class="btn" id="btn-v5-assurance" aria-expanded="false" aria-controls="v5panel" title="AI-Assurance overlay (WDP/CDAO): organ → assurance artifact with honest LIVE/PARTIAL/ROADMAP chips">⚖ assurance</button>
+    <button class="btn" id="btn-v5-physics" aria-expanded="false" aria-controls="v5panel" title="yarqa CFD + thermal PINN physics-governed layer · MODELED (not measured), bounded error">∿ physics (v5)</button>
+    <button class="btn" id="btn-v5-stack" aria-expanded="false" aria-controls="v5panel" title="GPU-Sovereign Stack (SUBSTRATE): the vertical compute anatomy — owned GPU fabric → runtime → sovereign mesh → open-weight model → native governance → buyer-verifiable receipts · honest posture on every layer, never a fabricated green light">▤ sovereign stack</button>
+  </div>
+
+  <!-- v5: floating 3D organ leader-line labels (positioned by app.js each frame) -->
+  <div id="labels" aria-hidden="true"></div>
+
+  <!-- v5: guided-tour narration bar -->
+  <div id="tour" role="region" aria-label="Guided tour narration" aria-live="polite">
+    <div class="tr-top">
+      <span class="tr-step" id="tr-step">stop</span>
+      <span class="tr-name" id="tr-name"></span>
+      <span class="tr-prog" id="tr-prog"></span>
+    </div>
+    <div class="tr-body" id="tr-body"></div>
+    <div class="tr-ctrl">
+      <button id="tr-prev" title="Previous organ">‹ prev</button>
+      <button id="tr-pause" class="primary" title="Pause / resume auto-advance">⏸ pause</button>
+      <button id="tr-next" title="Next organ">next ›</button>
+      <button id="tr-stop" title="End the guided tour">■ end</button>
+    </div>
+    <div class="tr-bar"><i id="tr-bar-i"></i></div>
+  </div>
+
+  <!-- ============ v4 DISSECTION DOCK (additive) ============ -->
+  <div class="hud" id="dissect">
+    <div class="card">
+      <div class="dz-head" id="dz-head" role="button" tabindex="0" aria-expanded="true" aria-controls="dz-body">
+        <span>Dissection tools <span class="v4tag">· v4</span></span>
+        <span class="caret" aria-hidden="true">▾</span>
+      </div>
+      <div class="dz-body" id="dz-body">
+
+        <!-- search / jump -->
+        <div class="dz-sec">
+          <span class="dz-label">Search / jump</span>
+          <div class="dz-search">
+            <input type="search" id="dz-q" placeholder="Find organ or formula…" autocomplete="off"
+                   role="combobox" aria-expanded="false" aria-controls="dz-results" aria-autocomplete="list"
+                   aria-label="Search organs and formulas; press Enter to jump">
+            <ul class="dz-results" id="dz-results" role="listbox" aria-label="Search results"></ul>
+          </div>
+        </div>
+
+        <!-- dissection layer stack -->
+        <div class="dz-sec" id="dz-layers">
+          <span class="dz-label">Layer stack</span>
+          <!-- populated by app.js: toggle + opacity per conceptual layer -->
+        </div>
+
+        <!-- clip-plane scalpel -->
+        <div class="dz-sec">
+          <span class="dz-label">Clip-plane scalpel</span>
+          <div class="dz-row">
+            <button class="dz-mini" id="dz-clip-on" aria-pressed="false">enable cut</button>
+            <button class="dz-mini" id="dz-clip-reset" title="Reset the cross-section plane">reset</button>
+          </div>
+          <div class="dz-axis" role="group" aria-label="Clip-plane axis">
+            <button id="dz-axis-x" aria-pressed="true">X</button>
+            <button id="dz-axis-y" aria-pressed="false">Y</button>
+            <button id="dz-axis-z" aria-pressed="false">Z</button>
+          </div>
+          <div class="dz-row">
+            <input type="range" class="dz-range" id="dz-clip" min="-6" max="6" step="0.05" value="0"
+                   aria-label="Cross-section plane position" style="flex:1">
+            <span class="val" id="dz-clip-val">0.0</span>
+          </div>
+        </div>
+
+        <!-- explode view -->
+        <div class="dz-sec">
+          <span class="dz-label">Explode view</span>
+          <div class="dz-row">
+            <input type="range" class="dz-range" id="dz-explode" min="0" max="1" step="0.01" value="0"
+                   aria-label="Explode organs radially outward" style="flex:1">
+            <span class="val" id="dz-explode-val">0%</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- mobile-only: floating button to open/close the dissection bottom-sheet -->
+  <button id="dissect-fab" type="button" aria-controls="dissect" aria-expanded="false" aria-label="Open dissection tools"><span class="fi" aria-hidden="true">⦿</span> Dissect</button>
+
+  <!-- ============ v4 ALWAYS-ON VISIBILITY HUD (honest counts from D.KERNEL) ============ -->
+  <div class="hud" id="vis-hud" aria-label="Live proof-state visibility">
+    <div class="card">
+      <div class="vh-head"><span class="pulse-tick" id="vh-tick" aria-hidden="true"></span> live proof state</div>
+      <div class="vh-grid" id="vh-grid"><!-- populated from D.KERNEL by app.js --></div>
+      <div class="vh-foot" id="vh-foot"><!-- kernel sha + Λ posture, from data.js --></div>
+      <div id="v8-vitals" aria-live="polite">
+        <div class="v8-vrow"><span id="v8-vitals-state"><span class="v8-dot off"></span>connecting…</span><span class="pulse-tick" id="v8-vitals-tick" aria-hidden="true"></span></div>
+        <div class="v8-vrow"><span class="v8-vk">kernel</span><span class="v8-vv" id="v8-vitals-kernel"><code>c7c0ba17</code></span></div>
+        <div class="v8-vrow"><span class="v8-vk">locked-8</span><span class="v8-vv" id="v8-vitals-locked">8</span></div>
+        <div class="v8-vrow"><span class="v8-vk">Λ posture</span><span class="v8-vv" id="v8-vitals-lambda"><span class="v8-conj">Conjecture 1</span></span></div>
+      </div>
+      <!-- v9: master ●LIVE/○offline indicator + autonomous-telemetry pause -->
+      <div id="v9-master" aria-live="polite">
+        <div class="v9-mrow"><span id="v9-master-state"><span class="v9-dot off"></span>○ offline · static snapshot</span><span id="v9-master-ago">updated never</span></div>
+        <div class="v9-mrow" id="v9-master-rate">PURIQ floor <b>0.62</b> · <b>49</b> gates (static)</div>
+        <div class="v9-mrow" id="v9-master-lambda">Λ-v5 gate offline · PROPOSED engineering gate</div>
+        <div id="v9-master-proxy">receipt bloodstream is a live proxy visual of real scalars (PURIQ / Λ-v5 / gate count) — not individual receipts.</div>
+        <div class="v9-beat-row"><span class="v9-dot off" id="v9-beat-state"></span><span id="v9-master-beat" style="font-family:var(--font-m);font-size:8.5px;color:var(--text-dim);flex:1">telemetry every ~17s</span><button id="v9-beat-pause" type="button" aria-pressed="false">⏸ pause telemetry</button></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ v5 FORMULA ATLAS (additive) ============ -->
+  <aside id="atlas" aria-hidden="true" aria-label="Formula Atlas">
+    <div class="at-head">
+      <button class="at-close" id="atlas-close" aria-label="close formula atlas">×</button>
+      <div class="at-eyebrow">data.js · single source of truth</div>
+      <div class="at-title">Formula Atlas</div>
+      <div class="at-note" id="atlas-note"></div>
+      <div class="at-search">
+        <input type="search" id="atlas-q" placeholder="Search id, name, axioms, plain English…" autocomplete="off"
+               aria-label="Search every formula">
+      </div>
+      <div class="at-filters" id="atlas-filters" role="group" aria-label="Filter by maturity tier"></div>
+    </div>
+    <div class="at-body" id="atlas-body"></div>
+  </aside>
+
+  <!-- ============ v5 FORECAST OVERLAY (honest, additive) ============ -->
+  <aside id="forecast" aria-hidden="true" aria-label="Proof-maturity forecast">
+    <div class="fc-head">
+      <button class="at-close" id="forecast-close" aria-label="close forecast">×</button>
+      <div class="fc-eyebrow">transparency forecast · not a fabricated metric</div>
+      <div class="fc-title">Proof-maturity forecast</div>
+      <div class="fc-note" id="forecast-note"></div>
+    </div>
+    <div class="fc-body" id="forecast-body"></div>
+  </aside>
+
+  <!-- ============ v5 QUANTUM-BIO LAYER panel (additive) ============ -->
+  <aside id="qbio" aria-hidden="true" aria-label="Quantum-Bio Layer (v5)">
+    <div class="qb-head">
+      <button class="at-close" id="qbio-close" aria-label="close quantum-bio layer">×</button>
+      <div class="qb-eyebrow">verified model · mirrors a11oy /api/a11oy/v1/qbio</div>
+      <div class="qb-title">Quantum-Bio Layer (v5)</div>
+      <div class="qb-note" id="qbio-note"></div>
+    </div>
+    <div class="qb-body" id="qbio-body"></div>
+  </aside>
+
+  <!-- Organ panel -->
+  <aside id="panel" aria-hidden="true">
+    <button class="close" id="panel-close" aria-label="close">×</button>
+    <div class="ph">
+      <div class="sys-pill" id="p-sys"></div>
+      <div class="quechua" id="p-quechua"></div>
+      <div class="fn" id="p-fn"></div>
+    </div>
+    <div class="pb" id="p-body"></div>
+  </aside>
+
+  <!-- Vessel tooltip -->
+  <div id="tip"><div class="tt" id="tip-t"></div><div class="tf" id="tip-f"></div><div class="tm" id="tip-m"></div></div>
+
+  <!-- text-fallback toggle + no-WebGL safety: reveal the static instillment block -->
+  <script>
+    (function(){
+      var vf=document.getElementById('vf-static');
+      var btn=document.getElementById('btn-formulas');
+      var cls=document.getElementById('vf-close');
+      function close(){vf.classList.remove('show');if(btn)btn.classList.remove('active');}
+      if(btn&&vf){btn.addEventListener('click',function(){var o=vf.classList.toggle('show');this.classList.toggle('active',o);});}
+      if(cls)cls.addEventListener('click',close);
+      // deep-link: #formulas or ?view=formulas opens the instilled-formula text view instantly
+      if(location.hash==='#formulas'||/[?&]view=formulas/.test(location.search)){
+        if(vf){vf.classList.add('show');if(btn)btn.classList.add('active');}
+      }
+      try{var c=document.createElement('canvas');
+        if(!(window.WebGLRenderingContext&&(c.getContext('webgl')||c.getContext('experimental-webgl')))){
+          document.body.classList.add('nojs');
+        }}catch(e){document.body.classList.add('nojs');}
+    })();
+  </script>
+
+  <!-- ============ v8 WATCH A DECISION FLOW — HEART-anchored agentic showcase ============ -->
+  <button id="v8-flow-fab" type="button" aria-controls="v8-flow" aria-expanded="false" aria-label="Watch a decision flow through the body">
+    <span class="hb" aria-hidden="true"></span> watch a decision flow
+  </button>
+  <div id="v8-flow" role="dialog" aria-label="Watch a decision flow" aria-modal="false">
+    <button class="v8-flow-close" id="v8-flow-close" aria-label="close decision flow">×</button>
+    <div class="v8-flow-eyebrow">● live read-only · a11oy agent loop</div>
+    <div class="v8-flow-title">Watch a decision flow</div>
+    <div class="v8-flow-sub">A request propagates HEART gate → BRAIN reason → CIRCULATORY receipt → SKELETON quorum, driven by REAL <code>/code/healthz</code> + <code>/v1/qbio/lambda</code> values. Model prose stays a labeled stub — never fabricated.</div>
+    <div class="v8-flow-bar">
+      <input id="v8-flow-input" type="text" placeholder="Should I execute this action?" aria-label="decision request" autocomplete="off">
+      <button id="v8-flow-run" type="button">run ▶</button>
+    </div>
+    <div id="v8-flow-out" aria-live="polite"></div>
+    <!-- v9: honest agent trace card (tier · PURIQ vs 0.62 · Λ-v5 λ + closure_ok · stub note) from REAL /code/healthz + /v1/qbio/lambda -->
+    <div id="v9-trace" aria-live="polite"></div>
+    <!-- v9: second body — killinchu live posture (rendered IFF its honest endpoint returns 200; effector SIMULATED) -->
+    <div id="v9-killinchu" aria-live="polite"></div>
+  </div>
+
+  <!-- v9: cinematic hands-free vital-tour narration card (auto-fly; narrates REAL live organ values; ends on the Λ-heart) -->
+  <div id="v9-tour" role="region" aria-label="Cinematic vital tour" aria-live="polite">
+    <div class="v9-tour-top">
+      <span class="v9-tour-eyebrow">◈ vital tour · live values</span>
+      <span id="v9-tour-prog">1 / 5</span>
+    </div>
+    <div id="v9-tour-name">HEART · YUYAY</div>
+    <div id="v9-tour-body">starting the cinematic fly-through…</div>
+    <div class="v9-tour-ctrl">
+      <button id="v9-tour-next" title="Skip to next organ">next ›</button>
+      <button id="v9-tour-stop" title="End the vital tour (Esc)">■ skip</button>
+    </div>
+    <div class="v9-tour-bar"><i id="v9-tour-bar-i"></i></div>
+  </div>
+
+  <!-- ============ UX2 toolbar (desktop/tablet) ============ -->
+  <div id="ux-toolbar" role="toolbar" aria-label="Primary actions">
+    <button class="uxb primary" id="ux-tour" type="button">▷ Guided Tour</button>
+    <button class="uxb" id="ux-dissect" type="button">⌖ Dissect</button>
+    <button class="uxb" id="ux-forecast" type="button">⌁ Forecast</button>
+    <button class="uxb qb" id="ux-qbio" type="button">⌬ Quantum-Bio</button>
+    <div id="ux-more-wrap">
+      <button class="uxb" id="ux-more" type="button" aria-haspopup="true" aria-expanded="false">⋯ More</button>
+      <div id="ux-more-menu" role="menu" aria-label="More actions">
+        <button class="uxm" id="ux-m-trust" role="menuitem" type="button">◈ Trust &amp; proof</button>
+        <button class="uxm" id="ux-m-atlas" role="menuitem" type="button">⎙ Formula atlas</button>
+        <button class="uxm" id="ux-m-vital" role="menuitem" type="button">◈ Vital tour</button>
+        <button class="uxm" id="ux-m-flow" role="menuitem" type="button">♥ Watch a decision flow</button>
+        <button class="uxm" id="ux-m-gpd" role="menuitem" type="button">◆ GPD lens</button>
+        <button class="uxm" id="ux-m-text" role="menuitem" type="button">≣ Formulas (text)</button>
+        <div class="uxm-div"></div>
+        <button class="uxm" id="ux-m-rotate" role="menuitem" type="button">◍ Auto-rotate</button>
+        <button class="uxm" id="ux-m-pulse" role="menuitem" type="button">⟿ Pulses</button>
+        <button class="uxm" id="ux-m-labels" role="menuitem" type="button">⌗ Labels</button>
+        <button class="uxm" id="ux-m-focus" role="menuitem" type="button">⊙ Focus mode</button>
+        <button class="uxm" id="ux-m-reset" role="menuitem" type="button">⟲ Reset view</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ UX2 mobile bottom tab-bar (one panel at a time) ============ -->
+  <div id="ux-scrim" aria-hidden="true"></div>
+  <nav id="ux-tabbar" aria-label="Sections">
+    <button class="uxt cta" id="uxt-tour" type="button" aria-pressed="false"><span class="ic" aria-hidden="true">▷</span>Tour</button>
+    <button class="uxt" id="uxt-tools" type="button" aria-pressed="false"><span class="ic" aria-hidden="true">⌖</span>Tools</button>
+    <button class="uxt" id="uxt-doctrine" type="button" aria-pressed="false"><span class="ic" aria-hidden="true">◈</span>Trust</button>
+    <button class="uxt" id="uxt-proof" type="button" aria-pressed="false"><span class="ic" aria-hidden="true">≡</span>Proof</button>
+    <button class="uxt" id="uxt-more" type="button" aria-pressed="false"><span class="ic" aria-hidden="true">⋯</span>More</button>
+  </nav>
+
+  <!-- ============ UX2 controller (layout only; delegates to existing buttons) ============ -->
+  <script>
+  (function(){
+    document.body.classList.add('ux2');
+    var $=function(id){return document.getElementById(id);};
+    function click(id){ var b=$(id); if(b) b.click(); }
+    function isPressed(id){ var b=$(id); return b && (b.classList.contains('active')||b.getAttribute('aria-pressed')==='true'); }
+    var MOBILE=function(){ return window.matchMedia('(max-width:680px)').matches; };
+
+    /* ---------- Build the compact Trust chip (plain language) ----------
+       The verbatim honest doctrine (#honesty-card, filled by app.js) is
+       moved INTO a Details expander — nothing deleted, just folded. */
+    function buildTrust(){
+      var honesty=$('honesty'); if(!honesty) return;
+      var card=honesty.querySelector('.card'); if(!card) return;
+      if($('ux-trust')) return; // once
+      var src=$('honesty-card'); // app.js fills this with the full honest rows
+      var wrap=document.createElement('div'); wrap.id='ux-trust';
+      wrap.innerHTML=
+        '<div class="ux-trust-head"><span class="tdot"></span><span class="tlabel">Trust &amp; proof</span></div>'+
+        '<div class="ux-trust-line">8 results machine-proven. Λ uniqueness is still an open conjecture — we never claim it as a theorem, and trust is never 100%.</div>'+
+        '<div class="ux-trust-chips">'+
+          '<span class="ux-tchip lock">8 locked-proven</span>'+
+          '<span class="ux-tchip conj">Λ = Conjecture 1</span>'+
+          '<span class="ux-tchip conj">Khipu BFT = Conjecture 2</span>'+
+          '<span class="ux-tchip ok">SLSA L1+L2 · L3 roadmap</span>'+
+          '<span class="ux-tchip">no fabricated data</span>'+
+        '</div>';
+      var det=document.createElement('details'); det.className='ux-details';
+      det.innerHTML='<summary>Full honesty doctrine</summary>';
+      var din=document.createElement('div'); din.className='ux-details-in';
+      det.appendChild(din);
+      // relocate the existing honest rows under the expander (preserves listeners is N/A; gpd-row listener re-added by app already attached to node which we move)
+      card.insertBefore(wrap, card.firstChild);
+      card.appendChild(det);
+      if(src){ din.appendChild(src); } // moves the live node, keeping its content + #gpd-row handler
+    }
+
+    /* ---------- Mobile one-at-a-time sheet manager ---------- */
+    var SHEETS={
+      tools:    { open:function(){ ensureDockOpen(); $('dissect').classList.add('ux-show'); openSheet($('dissect'),'sheet-open'); }, close:function(){ $('dissect').classList.remove('sheet-open'); if(MOBILE()) $('dissect').classList.remove('ux-show'); } },
+      doctrine: { open:function(){ $('honesty').classList.add('ux-sheet'); }, close:function(){ $('honesty').classList.remove('ux-sheet'); } },
+      proof:    { open:function(){ $('vis-hud').classList.add('ux-show','ux-sheet'); }, close:function(){ $('vis-hud').classList.remove('ux-sheet'); if(MOBILE()) $('vis-hud').classList.remove('ux-show'); } }
+    };
+    var openKey=null;
+    function ensureDockOpen(){ var d=$('dissect'); if(d){ d.classList.add('ux-show'); d.classList.remove('collapsed'); var b=$('dz-body'); } }
+    function openSheet(el,cls){ if(el) el.classList.add(cls||'open'); }
+    function closeAllSheets(){
+      Object.keys(SHEETS).forEach(function(k){ try{SHEETS[k].close();}catch(e){} });
+      // also close app drawers
+      ['panel','atlas','forecast','qbio'].forEach(function(id){ var e=$(id); if(e) e.classList.remove('open'); });
+      // stop tours
+      openKey=null;
+      scrim(false);
+      setTabPressed(null);
+    }
+    function scrim(on){ var s=$('ux-scrim'); if(s) s.classList.toggle('show',!!on); }
+    function setTabPressed(key){
+      [['tour','uxt-tour'],['tools','uxt-tools'],['doctrine','uxt-doctrine'],['proof','uxt-proof']].forEach(function(p){
+        var b=$(p[1]); if(b) b.setAttribute('aria-pressed', String(p[0]===key));
+      });
+    }
+    function toggleSheet(key){
+      if(openKey===key){ closeAllSheets(); return; }
+      closeAllSheets();
+      var s=SHEETS[key]; if(!s) return;
+      s.open(); openKey=key; scrim(true); setTabPressed(key);
+    }
+
+    /* ---------- Wire desktop toolbar ---------- */
+    $('ux-tour').addEventListener('click',function(){ click('btn-tour'); });
+    $('ux-dissect').addEventListener('click',function(){
+      // open the dissection dock as an on-demand drawer (desktop)
+      var d=$('dissect'); if(!d) return;
+      var show=!d.classList.contains('ux-show');
+      d.classList.toggle('ux-show',show);
+      if(show){ d.classList.remove('collapsed'); }
+      this.classList.toggle('on',show);
+    });
+    $('ux-forecast').addEventListener('click',function(){ click('btn-forecast'); });
+    $('ux-qbio').addEventListener('click',function(){ click('btn-qbio'); });
+
+    // reflect active states from underlying buttons onto toolbar
+    function syncToolbar(){
+      $('ux-tour').classList.toggle('on', isPressed('btn-tour'));
+      $('ux-forecast').classList.toggle('on', isPressed('btn-forecast'));
+      $('ux-qbio').classList.toggle('on', isPressed('btn-qbio'));
+    }
+    setInterval(syncToolbar, 600);
+
+    /* ---------- More menu ---------- */
+    var moreMenu=$('ux-more-menu');
+    function setMore(open){
+      moreMenu.classList.toggle('open',open);
+      document.body.classList.toggle('ux-more-open',open);
+      $('ux-more').setAttribute('aria-expanded',String(open));
+      var t=$('uxt-more'); if(t) t.setAttribute('aria-pressed',String(open));
+      if(MOBILE()) scrim(open);
+    }
+    function closeMore(){ setMore(false); }
+    $('ux-more').addEventListener('click',function(e){
+      e.stopPropagation();
+      setMore(!moreMenu.classList.contains('open'));
+    });
+    document.addEventListener('click',function(e){
+      if(moreMenu.classList.contains('open') && !$('ux-more-wrap').contains(e.target) && e.target.id!=='uxt-more' && !(e.target.closest && e.target.closest('#uxt-more'))){
+        closeMore();
+      }
+    });
+    function menuAct(id, underlying, opt){
+      var b=$(id); if(!b) return;
+      b.addEventListener('click',function(){
+        if(typeof underlying==='function'){ underlying(); }
+        else { click(underlying); }
+        if(!opt||!opt.keepOpen){ closeMore(); }
+      });
+    }
+    menuAct('ux-m-trust', function(){
+      // pop the trust card details open + scroll into view (desktop)
+      var det=document.querySelector('#honesty .ux-details'); if(det){ det.open=true; det.scrollIntoView({block:'nearest'}); }
+    });
+    menuAct('ux-m-atlas','btn-atlas');
+    menuAct('ux-m-vital','v9-tour-btn');
+    menuAct('ux-m-flow', function(){ click('v8-flow-fab'); });
+    menuAct('ux-m-gpd','btn-gpd');
+    menuAct('ux-m-text','btn-formulas');
+    menuAct('ux-m-rotate','btn-rotate',{keepOpen:true});
+    menuAct('ux-m-pulse','btn-pulse',{keepOpen:true});
+    menuAct('ux-m-labels','btn-labels',{keepOpen:true});
+    menuAct('ux-m-focus','btn-focus',{keepOpen:true});
+    menuAct('ux-m-reset','btn-reset');
+
+    /* ---------- Mobile tab-bar ---------- */
+    $('uxt-tour').addEventListener('click',function(){
+      // Guided tour: not a sheet — it narrates over the scene. Start/stop it.
+      closeAllSheets();
+      click('btn-tour');
+      var on=isPressed('btn-tour'); this.setAttribute('aria-pressed',String(on));
+    });
+    $('uxt-tools').addEventListener('click',function(){ toggleSheet('tools'); });
+    $('uxt-doctrine').addEventListener('click',function(){ toggleSheet('doctrine'); });
+    $('uxt-proof').addEventListener('click',function(){ toggleSheet('proof'); });
+    $('uxt-more').addEventListener('click',function(e){
+      e.stopPropagation();
+      // close any open one-at-a-time sheet first, then toggle the More menu
+      var wantOpen=!moreMenu.classList.contains('open');
+      if(wantOpen){ closeAllSheets(); }
+      setMore(wantOpen);
+    });
+    $('ux-scrim').addEventListener('click',function(){ closeAllSheets(); closeMore(); });
+
+    // Esc closes any open mobile sheet
+    window.addEventListener('keydown',function(e){ if(e.key==='Escape'){ if(MOBILE()) closeAllSheets(); closeMore(); } });
+
+    // When app drawers (atlas/forecast/qbio/panel) open on mobile, show scrim + clear tab state
+    function watchDrawers(){
+      var anyOpen=['panel','atlas','forecast','qbio'].some(function(id){ var e=$(id); return e && e.classList.contains('open'); });
+      if(MOBILE()){ scrim(anyOpen||!!openKey); }
+    }
+    setInterval(watchDrawers, 400);
+
+    // (More menu positioning is governed by CSS at each breakpoint.)
+
+    // init after app.js has filled the honesty card
+    function init(){
+      buildTrust();
+      if($('honesty-card')) return true;
+      return false;
+    }
+    var tries=0; var iv=setInterval(function(){ if(init()||++tries>40){ clearInterval(iv); } }, 150);
+    // also try once DOM settled
+    setTimeout(buildTrust, 1200);
+  })();
+  </script>
+
+  <!-- ZERO CDN: vendored Three.js r160 + local data + local app -->
+  <script src="./lib/three.min.js"></script>
+  <script src="./data.js"></script>
+  <script src="./app.js"></script>
+  <!-- v5 (evolves v4): WILLAY · Sovereign Mesh · buyer-verifiable receipt · 8-proof map · assurance · physics. Additive, read-only, 0-CDN. -->
+  <script src="./v5_organs.js"></script>
+</body>
+</html>
+

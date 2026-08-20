@@ -1,0 +1,82 @@
+name: Bug report
+description: Something works in the docs / paper / shipped behavior but not in the code.
+title: "[bug] "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a bug. The more precise the reproduction, the faster the fix.
+        **Do not** file security issues here — use the [private advisory channel](https://github.com/szl-holdings/a11oy/security/advisories/new).
+
+  - type: input
+    id: version
+    attributes:
+      label: A11oy version (or release tag / commit SHA)
+      placeholder: "uds-v0.1.1, or git SHA abc1234"
+    validations: { required: true }
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface
+      options:
+        - "UDS / Zarf payload (artifacts/a11oy-uds/)"
+        - "Doctrine core (packages/a11oy-core/)"
+        - "Connection layer (packages/a11oy-connection/)"
+        - "Doctrine demo (doctrine-demo.mjs)"
+        - "Smoke test / verification"
+        - "Documentation"
+        - "Build / CI"
+        - "Other"
+    validations: { required: true }
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Exact commands or code. Copy-pasteable. We need to run it.
+      render: bash
+      placeholder: |
+        curl -fsSLO https://github.com/szl-holdings/a11oy/releases/download/uds-v0.1.1/a11oy-uds-0.1.1.tar.zst
+        ...
+    validations: { required: true }
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      placeholder: "I expected ..."
+    validations: { required: true }
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior (with full output / stack trace)
+      render: text
+    validations: { required: true }
+
+  - type: input
+    id: env
+    attributes:
+      label: Environment
+      placeholder: "OS, node version, zarf version, cosign version"
+    validations: { required: true }
+
+  - type: checkboxes
+    id: doctrine
+    attributes:
+      label: If this is a doctrine bug (formula / invariant)
+      options:
+        - label: I have read the cited reference and believe the implementation diverges from it
+        - label: I have a minimal numeric counter-example (paste it in 'Actual behavior')
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Pre-flight
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true
+        - label: I am not reporting a security vulnerability (those go to the private advisory channel)
+          required: true

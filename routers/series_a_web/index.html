@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>A11oy Series-A Live Control Plane</title>
+  <link rel="stylesheet" href="/series-a/styles.css?v=__STYLE_ASSET_DIGEST__">
+</head>
+<body>
+<a class="skip" href="#main">Skip to control plane</a>
+<header>
+  <p class="eyebrow">A11OY · ACTION ASSURANCE</p>
+  <h1>Series‑A Live Control Plane</h1>
+  <p>Current estate truth, counterfactual action passports, signed receipts, and one-attempt execution—observed, not assumed.</p>
+</header>
+<main id="main" tabindex="-1">
+  <section class="toolbar" aria-label="Control plane actions">
+    <button id="refresh" type="button">Run governed refresh</button>
+    <span id="updated" aria-live="polite">Not observed yet</span>
+  </section>
+  <section class="grid" id="cards" aria-label="Live status">
+    <article><h2>Estate</h2><strong data-key="estate">CHECKING</strong><p>Signed current observation.</p></article>
+    <article><h2>GitHub repos</h2><strong data-key="repos">—</strong><p>Complete paginated census.</p></article>
+    <article><h2>Open PRs</h2><strong data-key="prs">—</strong><p>Current public queue.</p></article>
+    <article><h2>HF Spaces</h2><strong data-key="spaces">—</strong><p>One canonical A11oy required.</p></article>
+    <article><h2>Models</h2><strong data-key="models">—</strong><p>Official Hub listing.</p></article>
+    <article><h2>Datasets</h2><strong data-key="datasets">—</strong><p>Official Hub listing.</p></article>
+    <article><h2>Trust factor</h2><strong data-key="trust">CHECKING</strong><p>Derived from signed local decisions.</p></article>
+    <article><h2>Receipt signer</h2><strong data-key="signer">CHECKING</strong><p>Persistent P‑256 preferred.</p></article>
+  </section>
+  <section class="panel">
+    <h2>Counterfactual Action Passport</h2>
+    <form id="passport">
+      <label>Action
+        <select name="type"><option value="estate.refresh">Refresh estate truth</option><option value="probe.public_surface">Probe public surface</option></select>
+      </label>
+      <label>Target <input name="target" value="szl://estate/current" required></label>
+      <label>Evidence label <select name="label"><option value="OBSERVED">OBSERVED · server-signed snapshot</option><option value="UNKNOWN">UNKNOWN · fail-closed demo</option></select></label>
+      <button type="submit">Evaluate passport</button>
+      <button id="execute" type="button" disabled>Execute authorized action</button>
+    </form>
+    <pre id="passport-result" aria-live="polite">No passport evaluated.</pre>
+    <pre id="execution-result" aria-live="polite">No authorized execution attempted.</pre>
+    <p>Execution is bounded to one attempt and is enabled only for an ALLOW passport.</p>
+  </section>
+  <section class="panel">
+    <h2>Live event rail</h2>
+    <ol id="events" aria-live="polite"><li>CONNECTING</li></ol>
+  </section>
+  <section class="panel">
+    <h2>Latest signed receipts</h2>
+    <ol id="receipts"><li>CHECKING</li></ol>
+  </section>
+</main>
+<footer>MEASURED · REPORTED · MODELED · UNKNOWN · UNAVAILABLE · no private reasoning collected</footer>
+<script src="/series-a/app.js?v=__APP_ASSET_DIGEST__" defer></script>
+</body>
+</html>

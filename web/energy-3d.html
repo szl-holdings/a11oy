@@ -1,0 +1,241 @@
+<!doctype html>
+<!--
+  a11oy — 3D Holographic Energy View (/energy-3d). Standalone sovereign page.
+  SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
+  TECHNIQUE (patterns reimplemented in our own code, permissive-licensed only):
+    - GPGPU FBO ping-pong particles  — Three.js GPUComputationRenderer pattern (MIT), our own shaders
+    - Vizceral-style node-edge graph  — Netflix Vizceral pattern (Apache-2.0), our own geometry/shaders
+  BINDING: GET /api/a11oy/v1/energy/mesh (poll ~2s) — per-node {role, live, watts, joules, draw}.
+  HONESTY DOCTRINE v11 LOCKED — particle speed/density ∝ live watts/draw; node brightness ∝ live
+  watts; DOWN nodes are dark (NEVER a fake glow); when the meter is UNAVAILABLE the structure is
+  shown in a clearly-labelled "posture-only, energy UNAVAILABLE" state with NO fabricated flow.
+  Λ = Conjecture 1 (advisory, NOT a theorem). locked-proven kernel = EXACTLY 8.
+  © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>a11oy — 3D Holographic Energy View</title>
+<meta name="description" content="A live holographic view of the a11oy sovereign compute mesh: particle speed and edge flow bound to MEASURED watts/joules from the NVML meter. Down nodes shown dark; no fabricated energy." />
+<link rel="icon" href="/social-preview.svg" />
+<style>
+  :root{
+    --bg:#00040f; --deep:#070b16; --surface:#10161f; --border:#22304a;
+    --teal:#39d8c8; --teal-soft:#39d8c833; --violet:#6a7bff; --gold:#cda64a;
+    --ink:#eaf1f7; --sub:#9fb2c9; --ghost:#64768f;
+    --ok:#39d8c8; --warn:#cda64a; --down:#e06a6a;
+    --sans:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,Helvetica,Arial,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    background:
+      radial-gradient(1200px 800px at 70% -10%, #0d1830 0%, transparent 60%),
+      radial-gradient(900px 700px at 12% 8%, #0a1228 0%, transparent 55%),
+      var(--bg);
+    color:var(--ink); font-family:var(--sans); line-height:1.5;
+    -webkit-font-smoothing:antialiased; overflow:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  .mono{font-family:var(--mono)}
+
+  /* ---- nav ---- */
+  header.nav{position:fixed;top:0;left:0;right:0;z-index:40;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,#00040fcc,#00040f66);
+    border-bottom:1px solid var(--border)}
+  .nav .wrap{display:flex;align-items:center;gap:18px;height:58px;max-width:1400px;margin:0 auto;padding:0 20px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:.2px}
+  .brand .sub{color:var(--ghost);font-weight:500;font-size:11px;letter-spacing:2px;text-transform:uppercase}
+  .nav nav{margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+  .nav nav a{padding:7px 12px;border-radius:9px;color:var(--sub);font-size:13.5px;font-weight:500;transition:.15s}
+  .nav nav a:hover{color:var(--ink);background:#ffffff0e}
+  .nav nav a.cur{color:var(--teal);background:#39d8c812}
+
+  /* ---- stage ---- */
+  #stage{position:fixed;inset:0;z-index:0}
+  #scene-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+
+  /* ---- HUD ---- */
+  .hud{position:fixed;z-index:20;pointer-events:none}
+  .panel{pointer-events:auto;border:1px solid var(--border);border-radius:14px;
+    background:linear-gradient(180deg,rgba(10,20,40,.82),rgba(7,11,22,.78));
+    backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    box-shadow:0 18px 50px -22px #000}
+  /* top-left: title + global status */
+  #hud-top{top:74px;left:18px;max-width:340px}
+  #hud-top .panel{padding:16px 18px}
+  #hud-top .kick{color:var(--teal);font-weight:600;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;margin:0 0 6px}
+  #hud-top h1{font-size:1.18rem;font-weight:740;letter-spacing:-.4px;margin:0 0 10px}
+  #hud-top p{margin:0;color:var(--sub);font-size:12.5px}
+  .statline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .totals{margin-top:12px;display:flex;gap:16px;flex-wrap:wrap}
+  .totals .t .k{font-family:var(--mono);font-size:1.2rem;font-weight:700;line-height:1.1}
+  .totals .t .k.teal{color:var(--teal)}
+  .totals .t .l{font-size:10.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1px;margin-top:2px}
+
+  /* right: per-node cards */
+  #hud-nodes{top:74px;right:18px;width:308px;max-height:calc(100vh - 96px);overflow:auto}
+  #hud-nodes .panel{padding:14px 15px;margin-bottom:12px}
+  .node-card{position:relative}
+  .node-card .hd{display:flex;align-items:center;gap:9px}
+  .node-card .nm{font-weight:660;font-size:14px}
+  .node-card .role{font-family:var(--mono);font-size:10.5px;color:var(--ghost);
+    text-transform:uppercase;letter-spacing:1px;margin-top:1px}
+  .node-card .right{margin-left:auto}
+  .node-card .vals{display:flex;gap:14px;margin-top:11px}
+  .node-card .v .k{font-family:var(--mono);font-size:1.02rem;font-weight:700;line-height:1.05}
+  .node-card .v .l{font-size:10px;color:var(--ghost);text-transform:uppercase;letter-spacing:.8px;margin-top:2px}
+  .node-card .bar{height:5px;border-radius:3px;background:#ffffff10;margin-top:11px;overflow:hidden}
+  .node-card .bar i{display:block;height:100%;width:0;border-radius:3px;
+    background:linear-gradient(90deg,var(--teal),var(--violet));transition:width .6s ease}
+  .node-card.down{opacity:.62}
+  .node-card.down .nm{color:var(--sub)}
+  .swatch{width:10px;height:10px;border-radius:3px;flex:0 0 auto;box-shadow:0 0 8px currentColor}
+
+  /* chips */
+  .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;
+    font-size:11px;font-weight:600;font-family:var(--mono);border:1px solid var(--border);white-space:nowrap}
+  .chip .dot{width:7px;height:7px;border-radius:50%}
+  .chip.measured{color:var(--ok);border-color:#39d8c855;background:#39d8c810}
+  .chip.measured .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .chip.unavailable{color:var(--gold);border-color:#cda64a55;background:#cda64a10}
+  .chip.unavailable .dot{background:var(--gold)}
+  .chip.down{color:var(--down);border-color:#e06a6a55;background:#e06a6a10}
+  .chip.down .dot{background:var(--down)}
+  .chip.live{color:var(--ok);border-color:#39d8c855;background:#39d8c810}
+  .chip.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .chip.wait{color:var(--ghost)}
+  .chip.wait .dot{background:var(--ghost)}
+  .chip.unknown{color:var(--sub);border-color:#9fb2c955;background:#9fb2c910}
+  .chip.unknown .dot{background:var(--sub)}
+
+  /* bottom strip: doctrine + legend */
+  #hud-foot{bottom:14px;left:18px;right:18px;display:flex;gap:12px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+  #hud-foot .panel{padding:10px 14px;font-size:11.5px;color:var(--ghost);max-width:760px}
+  #hud-foot .legend{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  #hud-foot .legend span{display:inline-flex;align-items:center;gap:6px;color:var(--sub)}
+  #hud-foot .legend i{width:11px;height:11px;border-radius:3px;display:block}
+
+  /* honest fallback (no WebGL) */
+  #fallback{position:fixed;inset:0;z-index:10;display:none;align-items:center;justify-content:center;padding:24px}
+  #fallback .panel{padding:28px;max-width:560px}
+  #fallback h2{margin:0 0 10px;font-size:1.3rem}
+  #fallback p{color:var(--sub);margin:0 0 16px}
+  #fallback .fb-nodes{display:flex;flex-direction:column;gap:8px}
+  #fallback .fb-node{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px}
+
+  .muted{color:var(--ghost)}
+  @media(max-width:820px){
+    #hud-nodes{position:fixed;left:12px;right:12px;width:auto;top:auto;bottom:118px;max-height:38vh;
+      display:flex;gap:10px;overflow-x:auto;overflow-y:hidden}
+    #hud-nodes .panel{min-width:230px;margin-bottom:0}
+    #hud-top{left:12px;right:12px;max-width:none}
+    #hud-foot{left:12px;right:12px}
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================ NAV ============================ -->
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="a11oy home">
+      <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#39d8c8"/><stop offset="1" stop-color="#6a7bff"/></linearGradient></defs>
+        <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
+        <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
+        <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
+      </svg>
+      <span>a11oy<span class="sub" style="margin-left:8px">SZL Holdings</span></span>
+    </a>
+    <nav>
+      <a href="/energy">Energy</a>
+      <a href="/energy-ops">Energy Ops</a>
+      <a class="cur" href="/energy-3d">3D Holographic</a>
+      <a href="/console">Console</a>
+      <a href="/governance">Governance</a>
+    </nav>
+  </div>
+</header>
+
+<!-- ============================ STAGE ============================ -->
+<div id="stage"><canvas id="scene-canvas"></canvas></div>
+
+<!-- ============================ HUD ============================ -->
+<div class="hud" id="hud-top">
+  <div class="panel">
+    <p class="kick">Proven Energy Engine · 3D Holographic View</p>
+    <h1>Sovereign mesh, live in joules.</h1>
+    <p>Particle speed and edge flow are bound to <b>MEASURED</b> watts from the on-box NVML meter.
+      A node that is down is shown dark — never a fake glow.</p>
+    <div class="statline">
+      <span class="chip wait" id="status-chip"><span class="dot"></span>connecting…</span>
+      <span class="chip wait" id="mesh-chip"><span class="dot"></span>mesh —</span>
+    </div>
+    <div class="totals">
+      <div class="t"><div class="k teal" id="tot-watts">—</div><div class="l">Total mesh draw (W)</div></div>
+      <div class="t"><div class="k" id="tot-joules">—</div><div class="l">Total joules</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="hud" id="hud-nodes" aria-live="polite">
+  <div class="panel"><div class="muted mono" style="font-size:12px">Querying /api/a11oy/v1/energy/mesh…</div></div>
+</div>
+
+<div class="hud" id="hud-foot">
+  <div class="panel">
+    Energy is <b>MEASURED</b> only from a reachable NVML exporter; when the meter is UNAVAILABLE the
+    mesh structure is shown posture-only with <b>no fabricated flow</b>. Λ is Conjecture 1 (advisory,
+    not a theorem); the locked-proven kernel is exactly 8. Reimplemented patterns: GPGPU particles
+    (Three.js, MIT) · Vizceral-style graph (Apache-2.0). © Stephen P. Lutar Jr. · Apache-2.0.
+  </div>
+  <div class="panel legend">
+    <span><i style="background:linear-gradient(90deg,#39d8c8,#6a7bff)"></i>energy flow ∝ draw</span>
+    <span><i style="background:#39d8c8;box-shadow:0 0 8px #39d8c8"></i>live node</span>
+    <span><i style="background:#2a3550"></i>down / dark</span>
+  </div>
+</div>
+
+<!-- honest no-WebGL fallback: 2D node list with the same honest labels -->
+<div id="fallback">
+  <div class="panel">
+    <h2>WebGL unavailable — honest 2D fallback</h2>
+    <p>Your browser/device did not provide a WebGL context, so the holographic scene cannot render.
+      The live mesh posture is shown below with the same honest labels — no fabricated energy.</p>
+    <div class="fb-nodes" id="fb-nodes"><div class="muted mono">loading mesh…</div></div>
+  </div>
+</div>
+
+<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) ===================== -->
+<script type="importmap">
+{ "imports": {
+  "three": "/hero/vendor3d/three.module.min.js",
+  "three/addons/": "/hero/vendor3d/"
+} }
+</script>
+
+<!-- ===================== BOOT (Three.js holographic energy mesh) ===================== -->
+<script type="module">
+  import { mountEnergy3D } from "/energy-3d/app.js";
+  const canvas = document.getElementById("scene-canvas");
+  function showFallback(){
+    canvas.style.display = "none";
+    document.getElementById("stage").style.display = "none";
+    document.getElementById("fallback").style.display = "flex";
+  }
+  try {
+    const h = mountEnergy3D({ canvas, fallback: showFallback });
+    if (!h || !h.ok) showFallback();
+    else window.__a11oyEnergy3D = h;
+  } catch (e) {
+    console.error("[energy-3d] boot failed:", e);
+    showFallback();
+  }
+</script>
+</body>
+</html>

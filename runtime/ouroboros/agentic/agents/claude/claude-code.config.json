@@ -1,0 +1,35 @@
+{
+  "$comment": "Claude Code SDK config — SZL Holdings · Doctrine V6 · © 2026 Lutar, Stephen P. — SZL Holdings",
+  "version": 1,
+  "system_prompt_file": "CLAUDE.md",
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 4096,
+  "mcp_servers": [
+    {
+      "name": "szl",
+      "transport": "http",
+      "url": "http://localhost:8090",
+      "description": "SZL MCP — a11oy orchestrator + every thesis formula"
+    }
+  ],
+  "tools_allowed": ["read_file", "write_file", "bash", "mcp"],
+  "tools_denied": [
+    "git_push_main",
+    "branch_protection_edit",
+    "zenodo_mint",
+    "arxiv_submit",
+    "npm_publish",
+    "force_push",
+    "branch_delete",
+    "repo_delete"
+  ],
+  "rules": [
+    "Doctrine V6 — Λ ≥ 0.90 conjunctive AND, moral & measurability hard floor 0.95",
+    "Never write any of: Jr., AlloyScape, Glass Wing, Glasswing, Mythos, Stephen Paul, Perplexity Computer, anonymous",
+    "Exception: Claude Mythos Preview (literal third-party model name)",
+    "License allowlist: Apache-2.0, MIT, BSD-3-Clause, CC-BY-4.0",
+    "Every new file: SPDX header + canonical footer",
+    "No bare sorry in Lean — document as axiom or skeleton",
+    "Authority: read, test, formulas, draft PRs. Escalate everything else."
+  ]
+}

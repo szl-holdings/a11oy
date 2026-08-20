@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Frontier 3D Visualizations · a11oy · SZL Holdings</title>
+<style>
+  :root{--bg:#0a0f1e;--panel:#10151c;--line:#3c4757;--fg:#f5f7fa;--mut:#9aa6b8;--gold:#d7b96b;--teal:#5cc4bf;--red:#c0392b}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);font-family:"Inter",system-ui,sans-serif;min-height:100vh}
+  .wrap{max-width:1080px;margin:0 auto;padding:48px 28px}
+  .kick{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--mut)}
+  h1{font-size:clamp(28px,5vw,46px);font-weight:700;letter-spacing:-.02em;margin:14px 0 10px}
+  p.lead{color:#c9d2df;max-width:62ch;line-height:1.55;margin:0 0 34px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+  a.card{text-decoration:none;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:22px;display:block;transition:.18s;color:inherit}
+  a.card:hover{transform:translateY(-3px)}
+  a.card .t{font-family:"JetBrains Mono",monospace;font-size:18px;font-weight:600}
+  a.card .d{font-size:13px;color:var(--mut);margin-top:8px;line-height:1.5}
+  a.card .meta{font-family:"JetBrains Mono",monospace;font-size:10.5px;color:#76859b;margin-top:14px;letter-spacing:.05em}
+  .khipu:hover{border-color:var(--red)} .doctrine:hover{border-color:var(--gold)} .router:hover{border-color:var(--teal)}
+  .foot{margin-top:40px;font-family:"JetBrains Mono",monospace;font-size:10.5px;color:#525f73;letter-spacing:.04em}
+  a.home{color:var(--teal);font-family:"JetBrains Mono",monospace;font-size:12px;text-decoration:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="home" href="/">&larr; a11oy home</a>
+  <div class="kick" style="margin-top:24px">SZL Holdings &middot; a11oy &middot; Frontier 3D</div>
+  <h1>Frontier 3D Visualizations</h1>
+  <p class="lead">Three self-contained WebGPU scenes (WebGL2 fallback) built on Three.js r171, each bound to real SZL substrate data. No mysticism — these are data cartography: ledgers as star-fields, doctrine as architecture, the model router as living organs.</p>
+  <div class="grid">
+    <a class="card khipu" href="/static/viz/khipu/">
+      <div class="t">Khipu Constellation</div>
+      <div class="d">The hash-chained receipt ledger rendered as a 3D star-field. Each receipt is a star positioned by a deterministic hash of its ID; arcs connect each receipt to its predecessor. Polls six flagship <code>/v1/ledger</code> endpoints live.</div>
+      <div class="meta">REAL DATA &middot; polls 6 flagships &middot; 5s</div>
+    </a>
+    <a class="card doctrine" href="/static/viz/doctrine/">
+      <div class="t">Doctrine Cathedral</div>
+      <div class="d">A first-person walkthrough of Doctrine v11 as architecture: 14 axioms are load-bearing pillars, 749 declarations the floor, 163 sorries dim spots (each links to the real GitHub line), 13 yuyay_v3 axes the clerestory windows. WASD + mouse.</div>
+      <div class="meta">LOCKED v11 &middot; 749 / 14 / 163</div>
+    </a>
+    <a class="card router" href="/static/viz/router/">
+      <div class="t">LLM-Router Live</div>
+      <div class="d">The 7-tier (T0–T6) open-LLM router rendered as organs orbiting a core, 30+ models on tier rings. Edge width = throughput, glow = active route. Polls <code>/v1/router/stats</code>; sovereign mode greys non-GREEN-licensed models.</div>
+      <div class="meta">LIVE / DEMO &middot; 7 tiers &middot; 30+ LLMs</div>
+    </a>
+  </div>
+  <div class="foot">R3F + Three.js r171 (MIT) &middot; WebGPU baseline + WebGL2 fallback &middot; Kanchay tokens &middot; additive deploy &middot; sign: Yachay</div>
+</div>
+</body>
+</html>

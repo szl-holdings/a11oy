@@ -1,0 +1,34 @@
+kind = "web"
+    previewPath = "/"
+    title = "A11oy — Brand Orchestration Layer"
+    version = "1.0.0"
+    id = "artifacts/a11oy"
+    router = "path"
+
+    [[integratedSkills]]
+    name = "react-vite"
+    version = "1.0.0"
+
+    [[services]]
+    name = "web"
+    # `/command/` was consolidated into A11oy in task #5090 — the platform router
+    # forwards both /a11oy/command/* and /command/* to this service, and the React
+    # app handles the redirect in-app for client-side navigation.
+    paths = [ "/", "/nexus/", "/command/" ]
+    localPort = 9090
+
+    [services.development]
+    run = "bash -c 'cd /home/runner/workspace/artifacts/a11oy && exec node_modules/.bin/vite --config vite.config.ts --host ::'"
+
+    [services.production]
+    build = [ "pnpm", "--filter", "@workspace/a11oy", "run", "build" ]
+    publicDir = "artifacts/a11oy/dist/public"
+    serve = "static"
+
+    [[services.production.rewrites]]
+    from = "/*"
+    to = "/index.html"
+
+    [services.env]
+    VITE_PORT = "4110"
+    BASE_PATH = "/"

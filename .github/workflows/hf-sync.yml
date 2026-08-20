@@ -1,0 +1,313 @@
+name: Sync and Relock Canonical Hugging Face Space
+
+# Permanent source-derived deployment path. The pinned reusable controller derives
+# the exact Space file set from Dockerfile COPY sources, publishes and byte-attests
+# the immutable runtime, binds the exact checked-out Git SHA, and verifies the live
+# build-info contract. This caller retains only A11oy-specific terminal evidence.
+# The main-push trigger intentionally has no path filter: every Dockerfile source
+# change must enter deployment before the strict parity dispatch.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+  actions: write
+
+concurrency:
+  group: sync-relock-canonical-a11oy
+  cancel-in-progress: false
+
+env:
+  GH_TOKEN: ${{ github.token }}
+  CANONICAL_SPACE: SZLHOLDINGS/a11oy
+  CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
+  CAPACITY_DONOR_SPACE: SZLHOLDINGS/holographic
+  RELOCK_ISSUE: "1043"
+  REPORT_PATH: reports/canonical-a11oy-relock-v4.json
+
+jobs:
+  resume-paused-space:
+    name: Resume the canonical Space without changing its allocation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      RESUME_REPORT: /tmp/canonical-a11oy-resume.json
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact Hugging Face control client
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+
+      - name: Resume only an explicitly paused canonical runtime
+        run: >-
+          python .github/scripts/resume_hf_space.py
+          --repo-id "$CANONICAL_SPACE"
+          --capacity-donor "$CAPACITY_DONOR_SPACE"
+          --output "$RESUME_REPORT"
+
+      - name: Upload immutable resume evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-a11oy-resume-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.RESUME_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+  runtime-config:
+    name: Converge persistent signer, receipt storage, and GDW successor
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
+      RUNTIME_CONFIG_REPORT: /tmp/series-a-runtime-config.json
+      SERIES_A_LIVE_REPORT: /tmp/series-a-restart-proof.json
+      GDW_CONFIG_REPORT: /tmp/gdw-runtime-config.json
+      GDW_LIVE_REPORT: /tmp/gdw-live-proof.json
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact Hugging Face control client
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+          "requests==2.32.5"
+
+      - name: Converge fail-closed runtime configuration
+        run: >-
+          python scripts/configure_hf_series_a_runtime.py
+          --repo-id "$CANONICAL_SPACE"
+          --bucket "SZLHOLDINGS/szl-evidence"
+          --output "$RUNTIME_CONFIG_REPORT"
+
+      - name: Converge isolated GDW successor configuration
+        run: >-
+          python scripts/configure_hf_gdw_runtime.py
+          --repo-id "$CANONICAL_SPACE"
+          --output "$GDW_CONFIG_REPORT"
+
+      - name: Prove a persistent Series-A receipt across restart
+        run: >-
+          python scripts/prove_hf_series_a_restart.py
+          --repo-id "$CANONICAL_SPACE"
+          --origin "$CANONICAL_ORIGIN"
+          --source-sha "${{ github.sha }}"
+          --output "$SERIES_A_LIVE_REPORT"
+
+      - name: Prove live authenticated transition, drain, and integrity
+        run: >-
+          python scripts/prove_hf_gdw_runtime.py
+          --origin "$CANONICAL_ORIGIN"
+          --source-sha "${{ github.sha }}"
+          --restart-repo-id "$CANONICAL_SPACE"
+          --output "$GDW_LIVE_REPORT"
+
+      - name: Upload secret-free runtime configuration evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: series-a-runtime-config-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.RUNTIME_CONFIG_REPORT }}
+            ${{ env.SERIES_A_LIVE_REPORT }}
+            ${{ env.GDW_CONFIG_REPORT }}
+            ${{ env.GDW_LIVE_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+  deploy:
+    name: Deploy, source-bind, and attest exact surface
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: ${{ github.sha }}
+      dockerfile-path: Dockerfile
+      include-readme: true
+      prune: true
+      wait-running: 1200
+      restart-space: true
+      source-revision-variable: SZL_GIT_SHA
+      source-revision-probe-path: /api/build-info
+      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/static/3d/holographic.html"]'
+    secrets:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+
+  readiness-verdict:
+    name: Probe and ingest exact post-deploy readiness verdict
+    needs: runtime-config
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      SOURCE_SHA: ${{ github.sha }}
+      VERDICT_PATH: /tmp/readiness-verdict.json
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact verdict publisher
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+
+      - name: Probe the exact canonical deployment
+        run: >-
+          node tools/readiness-harness/probe_runner.mjs
+          --base "$CANONICAL_ORIGIN"
+          --samples 1
+          --concurrency 2
+          --retries 2
+          --soft
+          --out "$VERDICT_PATH"
+
+      - name: Upload immutable full probe evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-a11oy-readiness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.VERDICT_PATH }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish compact source-bound verdict to the runtime
+        run: >-
+          python .github/scripts/publish_readiness_verdict.py
+          --input "$VERDICT_PATH"
+          --repo-id "$CANONICAL_SPACE"
+          --expected-origin "$CANONICAL_ORIGIN"
+          --expected-source-sha "$SOURCE_SHA"
+
+  relock:
+    name: Prove exact live source, runtime, routes, and singleton state
+    needs: [runtime-config, readiness-verdict]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact read-only verification clients
+        run: >-
+          python -m pip install --disable-pip-version-check
+          "huggingface_hub==1.23.0"
+          "requests==2.32.5"
+
+      - name: Evaluate the canonical application contract
+        id: verify
+        shell: bash
+        run: |
+          set +e
+          python .github/scripts/verify_canonical_a11oy.py \
+            --repo-id "$CANONICAL_SPACE" \
+            --origin "$CANONICAL_ORIGIN" \
+            --source-sha "$SOURCE_SHA" \
+            --source-variable SZL_GIT_SHA \
+            --output "$REPORT_PATH" \
+            --attempts 60 \
+            --retry-seconds 10
+          code=$?
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable relock evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: canonical-a11oy-relock-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Persist the canonical deployment authority
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.verify.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          test -f "$REPORT_PATH"
+          {
+            echo '<!-- szl-current-a11oy-relock -->'
+            echo '# Current canonical A11oy deployment relock'
+            echo
+            echo "- Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '```json'
+            cat "$REPORT_PATH"
+            echo '```'
+          } > /tmp/relock.md
+          gh issue edit "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --body-file /tmp/relock.md
+          if [ "${EXIT_CODE:-2}" = '0' ]; then
+            gh issue close "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" --reason completed \
+              --comment 'Protected source, reusable source binding, immutable current runtime, exact HEAD/GET contracts, holographic surface, and singleton topology all passed.' || true
+          else
+            gh issue reopen "$RELOCK_ISSUE" --repo "$GITHUB_REPOSITORY" || true
+          fi
+
+      - name: Enforce exact live state
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.verify.outputs.exit_code }}
+        run: |
+          code="${EXIT_CODE:-2}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Canonical A11oy relock failed with exit ${code}."
+            exit "$code"
+          fi
+          echo 'Canonical A11oy is source-bound, singleton, and route-operational.'
+
+      - name: Trigger strict post-deployment GitHub/HF parity
+        run: gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main

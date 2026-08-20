@@ -1,0 +1,155 @@
+name: putnam drift guard
+
+# Keeps a11oy's Putnam 2025 claims page honest against the canonical Lean set.
+#
+# a11oy ships an embedded, transcribed verdict for the canonical Putnam 2025
+# problems (szl_putnam.py _PUTNAM/_SZL + the console putnam-2025-tab-patch
+# fallback FB_PROBS/FB_SZL) plus headline "N REAL / M DEMO / K OPEN" counts in
+# prose. The single source of truth is immutable lutar-lean commit
+# baf483be3c832b64da47161b558e283d68da6650, where each
+# Lutar/Putnam/P_*.lean carries an
+# "**Honest status: REAL|DEMO|OPEN**" label and the SZL/*.lean originals declare
+# "All proofs are REAL" in their docstrings.
+#
+# This guard fails the build when the a11oy embedded data drifts from that
+# canonical source: any per-problem label mismatch, any REAL/DEMO/OPEN count
+# mismatch (loader block, console fallback, literal count phrases, or named
+# "X and Y are OPEN" prose), any missing/extra problem file, or any disagreement
+# between the loader and the console fallback. This stops the page from quietly
+# overclaiming (or underclaiming) as the Lean proofs advance.
+#
+# See scripts/check_putnam_drift.py for the policy and
+# scripts/check_putnam_drift.test.sh for the offline negative-fixture self-test.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "szl_putnam.py"
+      - "pages/console.html"
+      - "scripts/check_putnam_drift.py"
+      - "scripts/check_putnam_drift.test.sh"
+      - "docs/SERIES_A_DILIGENCE.md"
+      - ".github/workflows/putnam-drift-guard.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "szl_putnam.py"
+      - "pages/console.html"
+      - "scripts/check_putnam_drift.py"
+      - "scripts/check_putnam_drift.test.sh"
+      - "docs/SERIES_A_DILIGENCE.md"
+      - ".github/workflows/putnam-drift-guard.yml"
+  schedule:
+    - cron: "37 7 * * 1"   # weekly sweep (Mon 07:37 UTC) â€” catches lutar-lean drift
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: Putnam 2025 page matches lutar-lean
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Self-test the guard (offline negative fixtures)
+        run: bash scripts/check_putnam_drift.test.sh
+      - name: Verify a11oy Putnam 2025 page matches immutable canonical Lean labels
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: python3 scripts/check_putnam_drift.py --root .
+
+  lean-derived-diligence:
+    name: Diligence row matches a kernel build
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout a11oy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: a11oy
+          persist-credentials: false
+      - name: Checkout immutable canonical Lean source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/lutar-lean
+          ref: baf483be3c832b64da47161b558e283d68da6650
+          path: lutar-lean
+          persist-credentials: false
+      - name: Verify immutable source identity
+        working-directory: lutar-lean
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "baf483be3c832b64da47161b558e283d68da6650"
+      - name: Install pinned elan
+        run: |
+          set -euo pipefail
+          ELAN_VER=v4.2.3
+          ELAN_TARBALL=elan-x86_64-unknown-linux-gnu.tar.gz
+          EXPECTED=df0b2b3a439961ffcbb3985214365ffe40f49bc871df04dff268c7d8e21ca8b2
+          curl -sSfL \
+            "https://github.com/leanprover/elan/releases/download/$ELAN_VER/$ELAN_TARBALL" \
+            -o /tmp/elan.tar.gz
+          echo "$EXPECTED  /tmp/elan.tar.gz" | sha256sum -c
+          mkdir -p /tmp/elan-init
+          tar xzf /tmp/elan.tar.gz -C /tmp/elan-init
+          /tmp/elan-init/elan-init -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+      - name: Verify pinned Lean dependency graph
+        working-directory: lutar-lean
+        run: |
+          set -euo pipefail
+          test "$(cat lean-toolchain)" = "leanprover/lean4:v4.18.0"
+          test -f lake-manifest.json
+          grep -A4 '"name": "mathlib"' lake-manifest.json \
+            | grep -q 'v4\.18\.0'
+          elan toolchain install "leanprover/lean4:v4.18.0" || true
+          elan default "leanprover/lean4:v4.18.0"
+          lake --version
+      - name: Restore canonical Lake cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: lutar-lean/.lake
+          key: putnam-lake-${{ runner.os }}-${{ hashFiles('lutar-lean/lean-toolchain') }}-${{ hashFiles('lutar-lean/lake-manifest.json') }}-baf483be3c832b64da47161b558e283d68da6650
+          restore-keys: |
+            putnam-lake-${{ runner.os }}-${{ hashFiles('lutar-lean/lean-toolchain') }}-${{ hashFiles('lutar-lean/lake-manifest.json') }}-
+      - name: Build the canonical Putnam aggregate
+        working-directory: lutar-lean
+        run: |
+          set -euo pipefail
+          lake exe cache get
+          lake build PutnamSet
+      - name: Generate every REAL theorem axiom audit
+        env:
+          PUTNAM_DRIFT_FIXTURE: ${{ github.workspace }}/lutar-lean/Lutar/Putnam
+        run: |
+          python3 a11oy/scripts/check_putnam_drift.py --root a11oy \
+            --write-axiom-audit "$RUNNER_TEMP/putnam-real-axioms.lean"
+      - name: Run every REAL theorem axiom audit in the Lean kernel
+        working-directory: lutar-lean
+        run: |
+          set -euo pipefail
+          lake env lean "$RUNNER_TEMP/putnam-real-axioms.lean" \
+            2>&1 | tee "$RUNNER_TEMP/putnam-real-axioms.txt"
+      - name: Verify generated diligence row against the built source
+        env:
+          PUTNAM_DRIFT_FIXTURE: ${{ github.workspace }}/lutar-lean/Lutar/Putnam
+        run: |
+          python3 a11oy/scripts/check_putnam_drift.py --root a11oy \
+            --axiom-report "$RUNNER_TEMP/putnam-real-axioms.txt"
+      - name: Save canonical Lake cache
+        if: success()
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: lutar-lean/.lake
+          key: putnam-lake-${{ runner.os }}-${{ hashFiles('lutar-lean/lean-toolchain') }}-${{ hashFiles('lutar-lean/lake-manifest.json') }}-baf483be3c832b64da47161b558e283d68da6650

@@ -1,0 +1,131 @@
+/* ============================================================================
+   SZL Holdings documentation theme.
+   Math-grounded, Quechua-rooted, ZERO mysticism. Dark + light.
+   Color tokens: KANCHAY (the brand organ). The formal Kanchay token export is
+   in development in szl-holdings/szl-brand; until it publishes, these values
+   are the live SZL brand palette (deep navy #0B1F3A, cyan #00D4FF, warm sand
+   #F5F1E8 / #d97757) used across every SZL repo README and social preview.
+   Body type: Inter. Mono: JetBrains Mono.
+   ========================================================================== */
+
+:root {
+  /* --- KANCHAY brand tokens (placeholder = live brand palette) --- */
+  --szl-navy:       #0B1F3A;
+  --szl-navy-2:     #102a4e;
+  --szl-cyan:       #0094c6;   /* accessible cyan for light mode */
+  --szl-cyan-bright:#00D4FF;   /* brand cyan, used on dark */
+  --szl-sand:       #F5F1E8;
+  --szl-sand-2:     #e8e6dc;
+  --szl-clay:       #b9482f;   /* darkened clay for AA on light */
+  --szl-gold:       #B08940;
+  --szl-ink:        #141413;
+
+  --vp-font-family-base: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --vp-font-family-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Brand-aligned accent (cyan on navy) */
+  --vp-c-brand-1: var(--szl-cyan);
+  --vp-c-brand-2: #0a82b3;
+  --vp-c-brand-3: var(--szl-navy);
+  --vp-c-brand-soft: rgba(0, 148, 198, 0.14);
+
+  --vp-c-bg: #ffffff;
+  --vp-c-bg-alt: var(--szl-sand);
+  --vp-c-bg-soft: #faf9f5;
+
+  --vp-c-text-1: var(--szl-ink);
+  --vp-c-text-2: #4A4A4A;
+}
+
+.dark {
+  --vp-c-brand-1: var(--szl-cyan-bright);
+  --vp-c-brand-2: #5fe2ff;
+  --vp-c-brand-3: #062033;
+  --vp-c-brand-soft: rgba(0, 212, 255, 0.12);
+
+  --vp-c-bg: #08111f;
+  --vp-c-bg-alt: var(--szl-navy);
+  --vp-c-bg-soft: #0d1d33;
+
+  --vp-c-text-1: #eef3f8;
+  --vp-c-text-2: #9fb2c7;
+}
+
+/* --- Hero --- */
+:root {
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--szl-cyan) 10%, var(--szl-navy) 90%);
+}
+.dark {
+  --vp-home-hero-name-background: linear-gradient(120deg, var(--szl-cyan-bright) 10%, #6aa6d6 90%);
+}
+:root {
+  --vp-home-hero-image-background-image: radial-gradient(circle at 50% 40%, rgba(0,148,198,0.18), transparent 70%);
+  --vp-home-hero-image-filter: blur(44px);
+}
+
+/* --- Buttons --- */
+.VPButton.brand {
+  background-color: var(--szl-navy);
+  border-color: var(--szl-navy);
+}
+.dark .VPButton.brand {
+  background-color: var(--szl-cyan-bright);
+  border-color: var(--szl-cyan-bright);
+  color: var(--szl-navy);
+}
+
+/* --- Typography rhythm --- */
+.vp-doc h1 { font-weight: 800; letter-spacing: -0.02em; }
+.vp-doc h2 { font-weight: 700; letter-spacing: -0.01em; border-top: 1px solid var(--vp-c-divider); padding-top: 1.6rem; }
+.vp-doc h3 { font-weight: 600; }
+
+/* KaTeX display blocks: keep tidy, allow horizontal scroll on small screens */
+.vp-doc .katex-display { overflow-x: auto; overflow-y: hidden; padding: 0.4rem 0; }
+.vp-doc mjx-container, .vp-doc .katex { font-size: 1.04em; }
+
+/* --- Quechua etymology callout --- */
+.quechua {
+  border-left: 3px solid var(--szl-gold);
+  background: var(--vp-c-bg-soft);
+  padding: 0.6rem 1rem;
+  border-radius: 0 8px 8px 0;
+  margin: 1.2rem 0;
+  font-size: 0.95rem;
+}
+.quechua strong { color: var(--vp-c-brand-1); }
+
+/* --- Locked-number chips --- */
+.locked {
+  display: inline-block;
+  font-family: var(--vp-font-family-mono);
+  font-size: 0.82em;
+  background: var(--vp-c-brand-soft);
+  color: var(--vp-c-brand-1);
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 6px;
+  padding: 0.05rem 0.45rem;
+  white-space: nowrap;
+}
+
+/* --- 3D showcase iframe frame --- */
+.showcase-frame {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--vp-c-divider);
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--szl-navy);
+  margin: 1.2rem 0;
+}
+.showcase-frame iframe { width: 100%; height: 100%; border: 0; display: block; }
+
+/* --- Status dots --- */
+.dot { display:inline-block; width:.6rem; height:.6rem; border-radius:50%; margin-right:.4rem; vertical-align:middle; }
+.dot.green  { background:#2ea043; }
+.dot.amber  { background:var(--szl-gold); }
+.dot.gray   { background:#8b949e; }
+
+/* Tables breathe a little more */
+.vp-doc table { display: table; width: 100%; }
+.vp-doc tr:nth-child(2n) { background: var(--vp-c-bg-soft); }

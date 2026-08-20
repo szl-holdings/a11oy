@@ -1,0 +1,346 @@
+{
+  "payload_version": "6.0.0",
+  "payload_name": "a11oy_ultimate_replit_payload",
+  "title": "A11oy Ultimate Governed Replit Payload",
+  "author": "Stephen P. Lutar Jr.",
+  "organization": "SZL Consulting LTD",
+  "date": "2026-04-30",
+  "platform": {
+    "primary_build_plane": "Replit",
+    "runtime_style": "TypeScript pnpm monorepo",
+    "design_intent": "Use Replit as the build and orchestration plane for a governed, proof-bound, replayable, evolving agent ecosystem.",
+    "preserve_runner_compatibility": true,
+    "compatible_core_fields": [
+      "goal",
+      "initial_state",
+      "loop_policy",
+      "budgets",
+      "transition_model"
+    ],
+    "replit_constraints": {
+      "prefer_remote_models_over_local_inference": true,
+      "reason": "Replit environments are better suited to orchestrated remote inference than heavy local GPU inference."
+    }
+  },
+  "goal": {
+    "target_rows": 1,
+    "objective": "Operate one master payload in Replit where A11oy powers the ecosystem, Sentra and Amaru ingest through the same runtime, agentic RAG is governed by loops and formulas, and regulated tasks use primary-source proof chains with hashes, receipts, replay, permissions, and secure execution boundaries.",
+    "success_criteria": [
+      "A11oy_is_control_plane",
+      "Sentra_and_Amaru_are_A11oy_powered",
+      "agentic_RAG_is_governed",
+      "primary_source_hash_chain_preserved",
+      "human_oversight_for_high_risk",
+      "replay_and_golden_runs_active",
+      "memory_planes_separated",
+      "MCP_and_REST_connectors_supported",
+      "innovation_loops_enabled",
+      "deployment_health_guarded",
+      "tool_permissions_enforced",
+      "sandbox_boundaries_enforced",
+      "secrets_broker_active",
+      "evaluation_flywheel_active",
+      "agent_registry_active"
+    ]
+  },
+  "initial_state": {
+    "state_version": "6.0.0",
+    "current_step": 0,
+    "halted": false,
+    "active_runtime": "A11oy_core",
+    "active_domain_pack": "A11oy_core",
+    "operator_mode": "approval_gated",
+    "proof_required": true,
+    "receipt_required": true,
+    "ecosystem_runtime": {
+      "A11oy": "online",
+      "Sentra": "ingest_ready",
+      "Amaru": "ingest_ready",
+      "agentic_rag": "enabled",
+      "regulated_primary_source_layer": "enabled",
+      "tool_permission_matrix": "enabled",
+      "sandbox_policy": "enabled",
+      "secrets_broker": "enabled",
+      "evaluation_flywheel": "enabled",
+      "agent_registry": "enabled"
+    },
+    "cycle_positions": {
+      "madrid_almanac_cycle": 0,
+      "paris_cadence_cycle": 0,
+      "grolier_schedule_cycle": 0,
+      "review_cycle": 0
+    }
+  },
+  "loop_policy": {
+    "max_steps": 12,
+    "adaptive_depth": true,
+    "early_stop_enabled": true,
+    "no_silent_mutation": true,
+    "append_only_trace": true,
+    "halt_conditions": [
+      "low_delta_high_consistency",
+      "validator_stop",
+      "manual_approval_required",
+      "risk_escalation_required",
+      "budget_exhausted",
+      "health_contract_failed",
+      "proof_missing",
+      "primary_source_required_but_unavailable",
+      "permission_denied",
+      "sandbox_policy_violation"
+    ],
+    "delta_gate": {
+      "enabled": true,
+      "max_delta_for_early_stop": 0.08
+    },
+    "consistency_gate": {
+      "enabled": true,
+      "min_consistency_score": 0.87,
+      "strategy": "cross_step_and_final_alignment"
+    },
+    "continuation_logic": {
+      "policy": "continue_only_when_expected_value_exceeds_marginal_cost_and_validators_clear",
+      "needs_validator_clearance": true,
+      "needs_budget_headroom": true
+    }
+  },
+  "budgets": {
+    "step_budget": 12,
+    "max_wall_clock_ms": 60000,
+    "max_tokens": 24000,
+    "max_cost_usd": 7.5,
+    "economic_guard": {
+      "enabled": true,
+      "dimensions": [
+        "tokens",
+        "latency",
+        "risk",
+        "money",
+        "operator_time"
+      ],
+      "purpose": "Prevent runaway agent loops and require value-aware continuation."
+    }
+  },
+  "transition_model": {
+    "type": "ouroboros_runtime_kernel",
+    "kernel": "LoopKernel",
+    "depth_allocator": "EntropyDepthAllocator",
+    "consistency_checker": "CrossStepConsistency",
+    "validator_gate": "ValidatorGate",
+    "receipt_writer": "DecisionReceiptWriter",
+    "proof_router": "ProofRouter",
+    "replay_verifier": "ReplayVerifier"
+  },
+  "ecosystem": {
+    "control_plane": "A11oy_core",
+    "shared_runtime_services": [
+      "trace_runtime",
+      "receipt_runtime",
+      "validator_runtime",
+      "proof_router",
+      "approval_gate",
+      "replay_runtime",
+      "memory_runtime",
+      "retrieval_runtime",
+      "citation_runtime",
+      "primary_source_runtime",
+      "health_contract",
+      "permission_runtime",
+      "sandbox_runtime",
+      "secrets_broker",
+      "evaluation_runtime",
+      "agent_registry"
+    ],
+    "domain_packs": [
+      {
+        "pack_id": "A11oy_core",
+        "role": "Agent orchestration, planning, routing, approvals, and ecosystem brain."
+      },
+      {
+        "pack_id": "Sentra_pack",
+        "role": "Recursive threat modeling, regulated monitoring, security review, escalation, and evidence workflows."
+      },
+      {
+        "pack_id": "Amaru_pack",
+        "role": "Convergent data synchronization, merge governance, conflict reconciliation, and state consistency."
+      },
+      {
+        "pack_id": "research_ops",
+        "role": "Claim-bound research, evidence packs, governed analysis, and thesis/runtime documentation."
+      },
+      {
+        "pack_id": "finance_ops",
+        "role": "Filings, economic reasoning, budget logic, payment workflows, and regulated finance reviews."
+      },
+      {
+        "pack_id": "legal_ops",
+        "role": "Legal/regulatory workflow support, case-law retrieval, and document-grounded review."
+      },
+      {
+        "pack_id": "government_workflows",
+        "role": "Public-sector data tasks, policy workflows, emergency/public data monitoring, and reporting."
+      },
+      {
+        "pack_id": "property_ops",
+        "role": "Property management, vendor operations, scheduling, and receipt-linked execution."
+      }
+    ]
+  },
+  "domain_pack_router": {
+    "enabled": true,
+    "default_pack": "A11oy_core",
+    "routing_dimensions": [
+      "task_type",
+      "risk_tier",
+      "domain_context",
+      "proof_requirements",
+      "tool_affinity",
+      "data_shape"
+    ],
+    "routing_rules": [
+      {
+        "if": "task_type == 'security_review' OR task_type == 'regulated_monitoring'",
+        "route_to": "Sentra_pack"
+      },
+      {
+        "if": "task_type == 'data_sync' OR task_type == 'record_reconciliation'",
+        "route_to": "Amaru_pack"
+      },
+      {
+        "if": "task_type == 'research'",
+        "route_to": "research_ops"
+      },
+      {
+        "if": "task_type == 'finance' OR task_type == 'filings'",
+        "route_to": "finance_ops"
+      },
+      {
+        "if": "task_type == 'legal' OR task_type == 'regulatory'",
+        "route_to": "legal_ops"
+      },
+      {
+        "if": "task_type == 'government_data'",
+        "route_to": "government_workflows"
+      },
+      {
+        "if": "task_type == 'property_ops'",
+        "route_to": "property_ops"
+      }
+    ]
+  },
+  "tool_permission_matrix": {
+    "enabled": true,
+    "purpose": "Enforce least-privilege tool use by pack, mode, and risk tier.",
+    "defaults": {
+      "deny_by_default": true,
+      "require_explicit_allow": true
+    },
+    "pack_permissions": {
+      "A11oy_core": {
+        "allowed_tools": [
+          "planner",
+          "router",
+          "retrieval_runtime",
+          "receipt_runtime",
+          "trace_runtime"
+        ]
+      },
+      "Sentra_pack": {
+        "allowed_tools": [
+          "retrieval_runtime",
+          "primary_source_runtime",
+          "risk_engine",
+          "receipt_runtime",
+          "trace_runtime"
+        ]
+      },
+      "Amaru_pack": {
+        "allowed_tools": [
+          "retrieval_runtime",
+          "merge_engine",
+          "consistency_engine",
+          "receipt_runtime",
+          "trace_runtime"
+        ]
+      },
+      "research_ops": {
+        "allowed_tools": [
+          "retrieval_runtime",
+          "citation_runtime",
+          "proof_router",
+          "receipt_runtime"
+        ]
+      }
+    },
+    "risk_tier_overrides": {
+      "R3_high": {
+        "require_manual_approval_for_mutating_tools": true
+      },
+      "R4_critical": {
+        "read_only_until_approved": true
+      }
+    }
+  },
+  "secrets_broker": {
+    "enabled": true,
+    "purpose": "Prevent broad exposure of raw credentials to agents and tools.",
+    "mode": "runtime_injection_and_scoped_brokerage",
+    "rules": [
+      "Agents never receive unrestricted long-lived secrets in prompt context.",
+      "Tool calls request scoped credentials through broker policies.",
+      "Secrets use per-tool or per-provider scopes when possible."
+    ],
+    "managed_secrets": [
+      "KATZILLA_API_KEY",
+      "OPENAI_API_KEY",
+      "DATABASE_URL",
+      "NEON_DATABASE_URL"
+    ]
+  },
+  "sandbox_policy": {
+    "enabled": true,
+    "purpose": "Separate trusted and untrusted execution paths for code, shell, file, and network actions.",
+    "execution_classes": [
+      {
+        "class": "trusted_internal",
+        "allowed": [
+          "receipt_write",
+          "trace_write",
+          "read_only_retrieval"
+        ]
+      },
+      {
+        "class": "bounded_code_exec",
+        "allowed": [
+          "time_limited_code",
+          "scoped_file_write"
+        ],
+        "restrictions": [
+          "no_unapproved_secret_access",
+          "no_unapproved_network_egress"
+        ]
+      },
+      {
+        "class": "external_network_access",
+        "allowed": [
+          "approved_provider_fetches"
+        ],
+        "restrictions": [
+          "approved_domains_only"
+        ]
+      }
+    ],
+    "violations_halt_run": true
+  },
+  "agent_registry": {
+    "enabled": true,
+    "purpose": "Maintain a live inventory of packs, agents, tools, datasets, permissions, and memory scopes.",
+    "required_fields": [
+      "agent_id",
+      "pack_id",
+      "tool_scope",
+      "memory_scope",
+      "risk_tier_limit",
+      "approval_requirement",
+      "dataset_access",
+      "o

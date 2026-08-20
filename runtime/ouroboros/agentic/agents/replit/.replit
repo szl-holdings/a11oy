@@ -1,0 +1,60 @@
+# © 2026 Lutar, Stephen P. — SZL Holdings · Apache-2.0
+# Replit configuration — SZL Holdings agentic workstation
+
+run = "bash 12_agentic/quickstart/bootstrap.sh"
+entrypoint = "12_agentic/mcp-server/src/index.ts"
+hidden = ["node_modules", ".git", "dist", ".next"]
+
+[nix]
+channel = "stable-23_11"
+
+[env]
+NODE_ENV = "development"
+A11OY_LOG_PATH = "/home/runner/cto_acceptance_log.jsonl"
+MCP_PORT = "8090"
+A11OY_PORT = "8091"
+
+[languages]
+
+[languages.typescript]
+pattern = "**/*.ts"
+
+[languages.typescript.languageServer]
+start = "typescript-language-server --stdio"
+
+[deployment]
+run = ["bun", "run", "mcp-server/src/index.ts"]
+deploymentTarget = "cloudrun"
+
+[[ports]]
+localPort = 8090
+externalPort = 80
+description = "MCP server"
+
+[[ports]]
+localPort = 8091
+externalPort = 8091
+description = "a11oy-core HTTP"
+
+[[ports]]
+localPort = 8081
+externalPort = 8081
+description = "agi-forecast (FG)"
+
+[[ports]]
+localPort = 8082
+externalPort = 8082
+description = "vsp-otel (VSP)"
+
+[[ports]]
+localPort = 8083
+externalPort = 8083
+description = "ouroboros-lambda-gate (TH1)"
+
+[[ports]]
+localPort = 8084
+externalPort = 8084
+description = "sentra-doi-bind (TH2)"
+
+[agent]
+description = "SZL Holdings agentic workstation. Read 12_agentic/agents/replit/replit-agent.md first."

@@ -1,0 +1,33 @@
+{
+  "files": {
+    "holdout-challenge-v3.jsonl": {
+      "bytes": 9903,
+      "sha256": "1b23d20406eb96d3c58741ac57c802eb723a19802c7f83b8500b99a71d15c35f"
+    },
+    "holdout-original-v2.jsonl": {
+      "bytes": 5967,
+      "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
+    },
+    "holdout-shadow-v2.jsonl": {
+      "bytes": 8261,
+      "sha256": "1b8578051b7b829595493615bdf11e24d01a1837a23d6191c8e88e21cce990ac"
+    },
+    "preregistration.json": {
+      "bytes": 3076,
+      "sha256": "41a27921ff3a377442e2cf7b4ffe569324de73cedb56b2485e50a6e8057cfacd"
+    },
+    "train.jsonl": {
+      "bytes": 28968,
+      "sha256": "a81e5742d8146dfb67a0754e45b578765b5c6212ff6725b8157035b49c0e1c9a"
+    }
+  },
+  "holdouts_frozen_from": "383d9ffa79e257e3acc02d0eaaac2e1fba8eb49e",
+  "record_counts": {
+    "challenge_v3": 12,
+    "original_v2": 8,
+    "shadow_v2": 10,
+    "train": 36
+  },
+  "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
+  "schema": "szl.nemo-v3-dataset-manifest/v1"
+}

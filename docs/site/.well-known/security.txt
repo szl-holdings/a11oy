@@ -1,0 +1,12 @@
+Contact: mailto:security@szlholdings.ai
+Expires: 2027-06-09T00:00:00.000Z
+Encryption: https://szlholdings.ai/.well-known/security-pgp.asc
+Preferred-Languages: en
+Canonical: https://szlholdings.ai/.well-known/security.txt
+Policy: https://github.com/szl-holdings/docs-site/blob/main/SECURITY.md
+
+# SZL Holdings — RFC 9116 security.txt
+# https://www.rfc-editor.org/rfc/rfc9116
+# Report vulnerabilities to: security@szlholdings.ai
+# 90-day responsible disclosure SLA
+# SLSA L1 | Section 889 | Doctrine v11

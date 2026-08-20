@@ -1,0 +1,50 @@
+{
+  "schema_version": "szl.forge.training-preflight-summary.v1",
+  "label": "MEASURED_LOCAL_BLOCKED",
+  "contract_id": "szl-forge-1.5b.receipt-agent-v1",
+  "state": "BLOCKED",
+  "checks": {
+    "curriculum_admission": {
+      "state": "PASS",
+      "train_rows": 30,
+      "eval_rows": 8,
+      "manifest_sha256": "63b6e0af8a121a1b52c7fe808b820d7945411c27730fb4824b33a5e4a772c3f1",
+      "source_sha256": "2b24edf2097f971ef1887141a4c294b9d4af808470888b6b8a4ce41488665a59",
+      "draft_schema_sha256": "05803c2aa83af206850c6f6760916b89ac61bf7109111115b7ae6e1d720006b9"
+    },
+    "immutable_base": {
+      "state": "PASS",
+      "repository": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit",
+      "revision": "d2f2dd02b071701d5100a04a7a49d6fb0bd305b7",
+      "identity_manifest_sha256": "c62cfa7a4e4887270afb0a4ab7cbc6dde6202765fb03242785633352df6a694d",
+      "model_safetensors_sha256": "4be8a58f9cdd190ac6014bee8e42968fa5520296509cad8e85a77cbd217ce653",
+      "model_safetensors_bytes": 1143327694
+    },
+    "source_control_scope": {
+      "state": "CLEAN_REVIEWED_COMMIT",
+      "commit": "1e27b7a910886a1cad931fb265321d9d2fb35153"
+    },
+    "gpu_admission": {
+      "state": "BLOCKED",
+      "measured_at_unix_ns": 1784112583163255500,
+      "gpu_name": "NVIDIA GeForce RTX 5050 Laptop GPU",
+      "memory_total_mib": 8151,
+      "memory_used_mib": 1542,
+      "memory_free_mib": 6369,
+      "minimum_free_memory_mib": 6656,
+      "utilization_pct": 0,
+      "maximum_utilization_pct": 10,
+      "temperature_c": 51,
+      "maximum_temperature_c": 60,
+      "thresholds_may_be_weakened": false,
+      "processes_may_be_stopped_automatically": false
+    }
+  },
+  "external_mutations": {
+    "training_started": false,
+    "uploaded": false,
+    "published": false,
+    "deployed": false
+  },
+  "honesty": "The admitted ReceiptAgent curriculum and exact immutable base passed. Training did not start because the GPU free-memory floor was not met. This local receipt does not qualify or promote model weights."
+}

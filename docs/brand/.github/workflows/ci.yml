@@ -1,0 +1,66 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate brand assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Verify README is present
+        run: test -f README.md
+
+      - name: Verify LICENSE is CC-BY-4.0
+        run: grep -qi "Creative Commons" LICENSE
+
+      - name: Verify NOTICE is present
+        run: test -f NOTICE
+
+      - name: Inventory social-previews directory
+        run: |
+          set -euo pipefail
+          test -d social-previews
+          count=$(find social-previews -type f | wc -l)
+          echo "social-previews contains $count files"
+          if [ "$count" -eq 0 ]; then
+            echo "::warning::social-previews is empty"
+          fi
+
+      - name: Validate all images are PNG/JPG/SVG and parsable
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for img in $(find social-previews -type f); do
+            ext="${img##*.}"
+            case "$ext" in
+              png|jpg|jpeg|svg|webp|gif)
+                # File exists and has a known image extension; that's the validation for static checks.
+                test -s "$img" || { echo "::error file=$img::empty file"; exit 1; }
+                ;;
+              md|txt|json)
+                # Documentation alongside images is fine.
+                ;;
+              *)
+                echo "::warning file=$img::unexpected extension .$ext in social-previews"
+                ;;
+            esac
+          done
+          echo "All social-preview assets validated."

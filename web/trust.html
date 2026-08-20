@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy — Trust Center</title>
+<meta name="description" content="a11oy trust center: the four honest proof tiers, the locked-8 with truthful Lean labels, Theorem U vs Conjecture 1, SLSA posture, and a receipt you can verify yourself offline. Every claim links to its check."/>
+<link rel="canonical" href="https://a11oy.com/trust"/>
+<style>
+/* KANCHAY palette — one palette org-wide. Purple is BANNED. 0 runtime CDN:
+   named families degrade to the system stack, no @import to any font host. */
+:root{
+  --void:#080c14; --void-2:#0c1320; --panel:#0f1726; --panel-2:#121d30;
+  --border:#1d2a40; --border-hi:#2b3d5c;
+  --proof:#3af4c8;      /* LOCKED-PROVEN / verified-true */
+  --lattice:#5b8dee;    /* SEMANTIC-VERIFIED — the real trust math */
+  --gold:#d7b96b;       /* evidence-backed */
+  --gray:#7e8aa3;       /* CONJECTURE + honest-N/A — NEVER green */
+  --red:#f0795f;
+  --ink:#e8edf6; --ink-dim:#9aa7bf; --ink-mute:#5f6d88;
+  --sans:'Space Grotesk','Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --body:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif;
+  --mono:'JetBrains Mono','SFMono-Regular',ui-monospace,'Cascadia Code',monospace;
+  --maxw:1080px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--void);color:var(--ink);font-family:var(--body);
+  font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased;
+  background-image:radial-gradient(1200px 600px at 70% -5%,rgba(91,141,238,.07),transparent 60%),
+    radial-gradient(900px 500px at 10% 5%,rgba(58,244,200,.045),transparent 55%);}
+a{color:var(--lattice);text-decoration:none}
+a:hover{text-decoration:underline}
+code,.mono{font-family:var(--mono)}
+.wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+/* header */
+header.site{position:sticky;top:0;z-index:20;backdrop-filter:blur(10px);
+  background:rgba(8,12,20,.78);border-bottom:1px solid var(--border)}
+header.site .wrap{display:flex;align-items:center;gap:18px;height:60px}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--sans);
+  font-weight:600;letter-spacing:-.01em;color:var(--ink)}
+.brand .dot{width:10px;height:10px;border-radius:50%;background:var(--proof);
+  box-shadow:0 0 12px var(--proof)}
+nav.top{margin-left:auto;display:flex;gap:20px;font-size:14px}
+nav.top a{color:var(--ink-dim)}
+nav.top a:hover{color:var(--ink);text-decoration:none}
+
+/* hero */
+.hero{padding:84px 0 56px}
+.eyebrow{font-family:var(--mono);font-size:12.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--proof);margin-bottom:18px}
+.hero h1{font-family:var(--sans);font-weight:600;font-size:clamp(34px,5vw,56px);
+  line-height:1.05;letter-spacing:-.025em;max-width:18ch}
+.hero p.lede{margin-top:22px;font-size:clamp(17px,2vw,21px);color:var(--ink-dim);
+  max-width:62ch;line-height:1.6}
+.hero .cta{margin-top:32px;display:flex;gap:14px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:var(--sans);
+  font-weight:500;font-size:14.5px;padding:11px 20px;border-radius:9px;
+  border:1px solid var(--border-hi);color:var(--ink);background:var(--panel);
+  cursor:pointer;transition:border-color .15s,background .15s}
+.btn:hover{border-color:var(--lattice);text-decoration:none}
+.btn.primary{background:linear-gradient(180deg,rgba(58,244,200,.16),rgba(58,244,200,.06));
+  border-color:rgba(58,244,200,.5);color:#d7fff4}
+.btn.primary:hover{border-color:var(--proof)}
+
+/* sections */
+section{padding:54px 0;border-top:1px solid var(--border)}
+.sec-label{font-family:var(--mono);font-size:12px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--ink-mute);margin-bottom:14px}
+h2{font-family:var(--sans);font-weight:600;font-size:clamp(24px,3vw,32px);
+  letter-spacing:-.02em;line-height:1.15}
+h2+p.intro{margin-top:14px;color:var(--ink-dim);max-width:64ch}
+h3{font-family:var(--sans);font-weight:600;font-size:18px;letter-spacing:-.01em;margin-bottom:6px}
+
+/* tier grid */
+.tiers{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:30px}
+.tier{border:1px solid var(--border);border-radius:13px;padding:20px;background:var(--panel);
+  position:relative;overflow:hidden}
+.tier::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+.tier .cnt{font-family:var(--sans);font-weight:600;font-size:38px;line-height:1;color:var(--c)}
+.tier .cnt .lbl{display:block;font-size:11.5px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--ink-mute);margin-top:8px;font-family:var(--mono);font-weight:400}
+.tier h3{margin-top:16px;color:var(--ink)}
+.tier p{font-size:13.5px;color:var(--ink-dim);margin-top:6px}
+.tier .pill{display:inline-block;margin-top:12px;font-family:var(--mono);font-size:10.5px;
+  letter-spacing:.08em;text-transform:uppercase;padding:3px 9px;border-radius:20px;
+  border:1px solid var(--c);color:var(--c)}
+.tier.locked{--c:var(--proof)}
+.tier.semantic{--c:var(--lattice)}
+.tier.evidence{--c:var(--gold)}
+.tier.conjecture{--c:var(--gray)}  /* gray — never green */
+
+/* formula rows */
+.rows{margin-top:26px;border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--panel)}
+.frow{display:grid;grid-template-columns:84px 1fr;gap:16px;padding:16px 20px;border-top:1px solid var(--border)}
+.frow:first-child{border-top:none}
+.frow .id{font-family:var(--mono);font-weight:600;color:var(--proof);font-size:15px}
+.frow.sem .id{color:var(--lattice)}
+.frow .name{font-family:var(--sans);font-weight:600;color:var(--ink);font-size:15px}
+.frow .proves{color:var(--ink-dim);font-size:13.5px;margin-top:3px}
+.frow .notclaim{color:var(--red);font-size:12.5px;margin-top:5px;font-family:var(--mono)}
+.frow .lean{margin-top:8px;font-family:var(--mono);font-size:11.5px;color:var(--ink-mute);
+  word-break:break-word}
+.frow .lean b{color:var(--gold);font-weight:500}
+
+/* two-column compare (Theorem U vs Conjecture 1) */
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:28px}
+.card{border:1px solid var(--border);border-radius:13px;padding:22px;background:var(--panel)}
+.card.proven{border-color:rgba(58,244,200,.35)}
+.card.open{border-color:rgba(126,138,163,.4)}
+.card .tag{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+  padding:3px 9px;border-radius:20px;display:inline-block;margin-bottom:14px}
+.card.proven .tag{color:var(--proof);border:1px solid var(--proof)}
+.card.open .tag{color:var(--gray);border:1px solid var(--gray)}  /* gray, never green */
+.card p{font-size:14px;color:var(--ink-dim);margin-top:10px}
+.card .lref{margin-top:14px;font-family:var(--mono);font-size:11.5px;color:var(--ink-mute);word-break:break-word}
+
+/* slsa */
+.slsa{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-top:26px}
+.lvl{border:1px solid var(--border);border-radius:12px;padding:18px;background:var(--panel)}
+.lvl .n{font-family:var(--sans);font-weight:600;font-size:20px}
+.lvl.ok .n{color:var(--proof)}
+.lvl.att .n{color:var(--lattice)}
+.lvl.road .n{color:var(--gray)}
+.lvl .s{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;
+  margin-top:6px;color:var(--ink-mute)}
+.lvl p{font-size:13px;color:var(--ink-dim);margin-top:10px}
+
+/* verify panel */
+.verify{margin-top:26px;border:1px solid var(--border);border-radius:13px;background:var(--panel);padding:24px}
+.verify .steps{font-family:var(--mono);font-size:13px;color:var(--ink-dim);margin:14px 0 18px;line-height:1.9}
+.verify .steps b{color:var(--proof)}
+#tv-status{font-family:var(--mono);font-size:13px;color:var(--ink-dim);min-height:20px;margin-top:8px}
+#tv-verdict{margin-top:16px}
+.banner{border-radius:10px;padding:14px 16px;font-family:var(--sans);font-weight:600;font-size:15px}
+.banner.ok{background:rgba(58,244,200,.1);border:1px solid rgba(58,244,200,.5);color:#bff7e9}
+.banner.dim{background:rgba(126,138,163,.1);border:1px solid rgba(126,138,163,.45);color:var(--gray)}
+.banner.fail{background:rgba(240,121,95,.1);border:1px solid rgba(240,121,95,.5);color:#ffc9bd}
+.banner small{display:block;font-weight:400;font-size:12.5px;color:var(--ink-dim);margin-top:6px}
+.kv{display:flex;gap:10px;font-family:var(--mono);font-size:12px;margin-top:8px;flex-wrap:wrap}
+.kv .k{color:var(--ink-mute)}
+.kv .v{color:var(--ink)}
+.chip{font-family:var(--mono);font-size:10.5px;padding:2px 8px;border-radius:14px;border:1px solid var(--border-hi);color:var(--ink-dim)}
+.chip.ok{color:var(--proof);border-color:var(--proof)}
+.chip.err{color:var(--red);border-color:var(--red)}
+pre.out{margin-top:16px;background:var(--void-2);border:1px solid var(--border);border-radius:9px;
+  padding:14px;overflow:auto;max-height:320px;font-family:var(--mono);font-size:11.5px;color:var(--ink-dim);line-height:1.55}
+
+/* claim→check links */
+.claimlist{margin-top:24px;border:1px solid var(--border);border-radius:13px;overflow:hidden}
+.claimlist .c{display:grid;grid-template-columns:1fr auto;gap:16px;align-items:center;
+  padding:13px 18px;border-top:1px solid var(--border);font-size:14px}
+.claimlist .c:first-child{border-top:none}
+.claimlist .c .t{color:var(--ink-dim)}
+.claimlist .c a{font-family:var(--mono);font-size:12.5px}
+
+.note{font-size:13px;color:var(--ink-mute);margin-top:18px;font-style:italic}
+footer{border-top:1px solid var(--border);padding:40px 0 60px;color:var(--ink-mute);font-size:13px}
+footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--gray);margin-right:6px;vertical-align:middle}
+.live-dot.up{background:var(--proof);box-shadow:0 0 8px var(--proof)}
+.live-dot.down{background:var(--red)}
+@media(max-width:720px){.compare{grid-template-columns:1fr}.frow{grid-template-columns:1fr}
+  nav.top{display:none}.hero{padding:56px 0 40px}}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="wrap">
+    <span class="brand"><span class="dot"></span>a11oy</span>
+    <nav class="top">
+      <a href="/console">Console</a>
+      <a href="/console#genome">Genome</a>
+      <a href="/proof">Proof</a>
+      <a href="/verify">Verify</a>
+      <a href="/trust" aria-current="page" style="color:var(--ink)">Trust</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <div class="hero"><div class="wrap">
+    <div class="eyebrow">Trust Center</div>
+    <h1>Trust you can check, not trust you're asked to take.</h1>
+    <p class="lede">
+      a11oy signs its work and refuses to lie. This page is the inverse of a green badge:
+      every claim below is tied to a machine-checkable artifact — a named Lean theorem, a live
+      endpoint, or a receipt you can verify yourself, offline, with a hash function and our
+      public key. Where we have not proven something, we say so plainly. A conjecture is never
+      rendered as proven.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="#verify-it">Verify a receipt yourself</a>
+      <a class="btn" href="#tiers">The four honest tiers</a>
+      <a class="btn" href="/api/a11oy/v1/genome">Raw genome JSON →</a>
+    </div>
+  </div></div>
+
+  <!-- THE FOUR TIERS -->
+  <section id="tiers"><div class="wrap">
+    <div class="sec-label">01 — The honesty model</div>
+    <h2>Four tiers. Counts are read live from <code>/api/a11oy/v1/genome</code>.</h2>
+    <p class="intro">
+      Every formula in the genome carries exactly one tier. The tier says precisely how strong
+      the claim is — from a kernel-checked Lean theorem down to an honest "no proof claimed".
+      This is the moat: the labels are conservative on purpose, so a buyer's auditor finds the
+      math is <em>stronger</em> than the label, never weaker.
+    </p>
+    <div class="tiers">
+      <div class="tier locked">
+        <div class="cnt" id="cnt-locked">—<span class="lbl">Locked-proven</span></div>
+        <h3>LOCKED-PROVEN</h3>
+        <p>In the frozen locked-8 baseline (Wave11). Each labelled with what the Lean
+           obligation <em>actually</em> proves — conservative Nat/Int surrogates, not the
+           governance prose they motivate.</p>
+        <span class="pill">kernel-checked</span>
+      </div>
+      <div class="tier semantic">
+        <div class="cnt" id="cnt-semantic">—<span class="lbl">Semantic-verified</span></div>
+        <h3>SEMANTIC-VERIFIED</h3>
+        <p>Sorry-free real theorems proving a governance property, outside the frozen baseline:
+           the Λ aggregate bounds, Theorem U (conditional), DSSE verifiability. This is where
+           the real trust math lives.</p>
+        <span class="pill">machine-checked</span>
+      </div>
+      <div class="tier evidence">
+        <div class="cnt" id="cnt-evidence">—<span class="lbl">Evidence-backed</span></div>
+        <h3>EVIDENCE-BACKED</h3>
+        <p>Real runtime/algorithmic code with tests and live endpoints, but no formal proof
+           claim. Honest operational tier — never dressed up as proven.</p>
+        <span class="pill">runtime / tested</span>
+      </div>
+      <div class="tier conjecture">
+        <div class="cnt" id="cnt-conjecture">—<span class="lbl">Conjecture</span></div>
+        <h3>CONJECTURE / ADVISORY</h3>
+        <p>Λ unconditional uniqueness = <b>Conjecture 1</b> (machine-checked false as stated).
+           BFT safety = Conjecture 2, liveness = Conjecture 3. Rendered gray. <b>Never green.</b></p>
+        <span class="pill">open — advisory</span>
+      </div>
+    </div>
+    <p class="note" id="genome-src">Loading live counts from the genome endpoint…</p>
+  </div></section>
+
+  <!-- LOCKED-8 -->
+  <section id="locked8"><div class="wrap">
+    <div class="sec-label">02 — The locked-8, labelled truthfully</div>
+    <h2>What the frozen baseline actually proves.</h2>
+    <p class="intro">
+      The console once labelled these as semantic governance theorems with anchor files that
+      do not exist. The truth is more modest and more defensible: the locked-8 live in
+      <code>Lutar/Puriq/Formulas/ProvedFormulas.lean</code> and prove conservative arithmetic
+      surrogates. We label each with what it proves — and, in red, the overclaim it is <em>not</em>.
+      Rendered live from the genome's LOCKED-PROVEN tier.
+    </p>
+    <div class="rows" id="locked8-rows">
+      <div class="frow"><div class="id">…</div><div><div class="name">Loading locked-8 from /api/a11oy/v1/genome …</div></div></div>
+    </div>
+  </div></section>
+
+  <!-- SEMANTIC-VERIFIED -->
+  <section id="semantic"><div class="wrap">
+    <div class="sec-label">03 — The real trust math</div>
+    <h2>SEMANTIC-VERIFIED: sorry-free theorems, outside the frozen baseline.</h2>
+    <p class="intro">
+      These are the proofs that actually govern trust. They are not in the locked-8 set, but they
+      are real, kernel-checked, and zero-sorry. We present them proudly and precisely — including
+      the one axiom we depend on, disclosed.
+    </p>
+    <div class="rows" id="semantic-rows">
+      <div class="frow sem"><div class="id">…</div><div><div class="name">Loading SEMANTIC-VERIFIED from /api/a11oy/v1/genome …</div></div></div>
+    </div>
+  </div></section>
+
+  <!-- THEOREM U vs CONJECTURE 1 -->
+  <section id="lambda"><div class="wrap">
+    <div class="sec-label">04 — Theorem U vs Conjecture 1</div>
+    <h2>The Λ uniqueness question, answered honestly.</h2>
+    <p class="intro">
+      Λ is our 13-axis weighted geometric-mean trust aggregate (advisory, floor 0.90). People ask:
+      "is Λ the unique correct aggregate?" The honest answer has two halves — one proven, one open.
+    </p>
+    <div class="compare">
+      <div class="card proven">
+        <span class="tag">Proven · conditional · axiom-free</span>
+        <h3>Theorem U — conditional uniqueness</h3>
+        <p>Under a stated separability hypothesis, Λ is the unique aggregate satisfying the axioms.
+           This is a real, sorry-free Lean theorem. The bounds <code>min ≤ Λ ≤ max</code> are also
+           proven (<code>Λ_le_max</code>, <code>min_le_Λ</code>, 0 sorries).</p>
+        <div class="lref">Lutar/Round13/LambdaSeparable.lean::lambda_unique_of_separable<br/>
+          Lutar/Bound.lean::Λ_le_max · ::min_le_Λ</div>
+      </div>
+      <div class="card open">
+        <span class="tag">Conjecture 1 · open · gray</span>
+        <h3>Unconditional uniqueness — NOT proven</h3>
+        <p>Drop the separability hypothesis and the claim is <b>machine-checked false as stated</b>
+           (<code>maxAgg_ne_Lambda</code> is a counterexample witness). So unconditional Λ-uniqueness
+           is Conjecture 1 — advisory, never a theorem, never rendered green. We surface it as open
+           precisely because hiding it would be the lie.</p>
+        <div class="lref">Conjecture 1 (advisory). Khipu BFT safety = Conjecture 2; liveness = Conjecture 3.</div>
+      </div>
+    </div>
+  </div></section>
+
+  <!-- SLSA -->
+  <section id="slsa"><div class="wrap">
+    <div class="sec-label">05 — Supply-chain posture</div>
+    <h2>SLSA: L1 honest, L2 attested, L3 roadmap.</h2>
+    <p class="intro">
+      We state the supply-chain level we actually hold, and link to the live disclosure so you can
+      check it. We do not claim L3, Iron Bank, FedRAMP, CMMC, or ATO — those are roadmap.
+    </p>
+    <div class="slsa">
+      <div class="lvl ok"><div class="n">L1</div><div class="s">honest · held</div>
+        <p>The deployed image is cosign-signed and publicly verifiable (Rekor inclusion). Real
+           signature, real transparency-log entry.</p></div>
+      <div class="lvl att"><div class="n">L2</div><div class="s">attested · verifiable</div>
+        <p>Signed SLSA build-provenance attestation (Sigstore keyless, Fulcio+Rekor), verifiable
+           via <code>gh attestation verify</code> / <code>cosign verify-attestation</code>. Emitted,
+           not third-party audited.</p></div>
+      <div class="lvl road"><div class="n">L3</div><div class="s">roadmap · not claimed</div>
+        <p>Hardened, isolated, fully-attested build with non-falsifiable provenance. Not yet held —
+           labelled ROADMAP, never green.</p></div>
+    </div>
+    <div class="claimlist" style="margin-top:18px">
+      <div class="c"><span class="t">Full doctrine + SLSA disclosure (live)</span>
+        <a href="/api/a11oy/v1/honest">GET /api/a11oy/v1/honest →</a></div>
+    </div>
+  </div></section>
+
+  <!-- VERIFY IT YOURSELF -->
+  <section id="verify-it"><div class="wrap">
+    <div class="sec-label">06 — Verify a receipt yourself</div>
+    <h2>Don't trust this page. Check it.</h2>
+    <p class="intro">
+      The button below makes a real <code>POST /api/a11oy/v1/govern/infer</code> call, then verifies
+      the returned DSSE ECDSA-P256 signature <strong>in your browser</strong> with WebCrypto — no
+      server round-trip for the verification. It recomputes SHA-256 of the decoded payload and the
+      DSSE PAE, and checks the signature against the matching public key. A flipped byte fails.
+    </p>
+    <div class="verify">
+      <div class="steps">
+        <b>1.</b> fetch a signed receipt &nbsp;·&nbsp; <b>2.</b> fetch the public key
+        (<a href="/cosign.pub">/cosign.pub</a> or <a href="/demo-cosign.pub">/demo-cosign.pub</a>)
+        &nbsp;·&nbsp; <b>3.</b> rebuild DSSE PAE &nbsp;·&nbsp; <b>4.</b> WebCrypto ECDSA-P256 verify
+        &nbsp;·&nbsp; <b>5.</b> recompute SHA-256 self-digest
+      </div>
+      <button class="btn primary" id="tv-run" onclick="trustVerify()">Run inference &amp; verify receipt</button>
+      <div id="tv-status"></div>
+      <div id="tv-verdict"></div>
+      <pre class="out" id="tv-out" style="display:none"></pre>
+      <p class="note">
+        Offline path: save the receipt JSON, then verify with the public key and any DSSE/cosign
+        tooling — <code>cosign verify-blob --key cosign.pub --signature &lt;sig&gt; &lt;payload&gt;</code>.
+        The full multi-section flow (honest refusal, thesis) lives at <a href="/verify">/verify</a>.
+      </p>
+    </div>
+  </div></section>
+
+  <!-- EVERY CLAIM → ITS CHECK -->
+  <section id="checks"><div class="wrap">
+    <div class="sec-label">07 — Every claim links to its check</div>
+    <h2>The index of verifiable artifacts.</h2>
+    <div class="claimlist">
+      <div class="c"><span class="t"><span class="live-dot" id="d-genome"></span>The four tiers + per-formula Lean refs</span><a href="/api/a11oy/v1/genome">/api/a11oy/v1/genome</a></div>
+      <div class="c"><span class="t"><span class="live-dot" id="d-honest"></span>Doctrine, locked-count = 8, Λ = Conjecture 1, SLSA</span><a href="/api/a11oy/v1/honest">/api/a11oy/v1/honest</a></div>
+      <div class="c"><span class="t"><span class="live-dot" id="d-lambda"></span>Live 13-axis Λ, advisory floor 0.90, per-vertical</span><a href="/api/a11oy/v1/lambda/org">/api/a11oy/v1/lambda/org</a></div>
+      <div class="c"><span class="t"><span class="live-dot" id="d-ledger"></span>The one SHA3-256 receipt chain</span><a href="/api/a11oy/v1/ledger">/api/a11oy/v1/ledger</a></div>
+      <div class="c"><span class="t">a11oy's in-image public signing key (PEM)</span><a href="/cosign.pub">/cosign.pub</a></div>
+      <div class="c"><span class="t">In-browser Lean 4 proof replay of the locked-8</span><a href="/proof">/proof</a></div>
+      <div class="c"><span class="t">The source of truth — open Lean repo</span><a href="https://github.com/szl-holdings/lutar-lean">szl-holdings/lutar-lean</a></div>
+    </div>
+  </div></section>
+</main>
+
+<footer><div class="wrap">
+  <span>a11oy · governed-AI substrate · honest by construction</span>
+  <span>Locked-proven: 8 · Λ = Conjecture 1 · SLSA L1+L2, L3 roadmap</span>
+</div></footer>
+
+<script>
+/* ---------- helpers ---------- */
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+
+/* ---------- live tier counts + formula rows from /genome ---------- */
+(async function loadGenome(){
+  try{
+    const g=await getJSON('/api/a11oy/v1/genome');
+    const tc=g.tier_counts||{};
+    $('cnt-locked').firstChild.nodeValue=(tc['LOCKED-PROVEN']??'N/A');
+    $('cnt-semantic').firstChild.nodeValue=(tc['SEMANTIC-VERIFIED']??'N/A');
+    $('cnt-evidence').firstChild.nodeValue=(tc['evidence-backed']??'N/A');
+    $('cnt-conjecture').firstChild.nodeValue=(tc['CONJECTURE']??'N/A');
+    const naExtra=(tc['honest-N/A']!=null)?(' · '+tc['honest-N/A']+' honest-N/A'):'';
+    $('genome-src').textContent='Live from /api/a11oy/v1/genome — '+(g.count??'?')+' entries'+naExtra+'. Counts are not hard-coded; this page re-reads them on every load.';
+    $('d-genome').classList.add('up');
+
+    const entries=g.entries||[];
+    // locked-8: LOCKED-PROVEN entries with an F-style id (dedupe by id)
+    const seen=new Set();const locked=[];
+    for(const e of entries){
+      if(e.tag!=='LOCKED-PROVEN')continue;
+      const id=e.id||'';
+      if(!/^F\d+$/.test(id))continue;
+      if(seen.has(id))continue;seen.add(id);
+      locked.push(e);
+    }
+    locked.sort((a,b)=>parseInt(a.id.slice(1))-parseInt(b.id.slice(1)));
+    $('locked8-rows').innerHTML = locked.length? locked.map(e=>{
+      const proves=esc(e.meaning||e.math||'');
+      const notC=e.notes&&/not\b/i.test(e.notes)?('<div class="notclaim">NOT: '+esc(e.notes)+'</div>'):'';
+      const lean=e.lean_ref?('<div class="lean">Lean: <b>'+esc(e.lean_ref)+'</b></div>'):'';
+      return '<div class="frow"><div class="id">'+esc(e.id)+'</div><div>'+
+        '<div class="name">'+esc((e.name||'').replace(/^F\d+\s*·?\s*/,''))+'</div>'+
+        (proves?'<div class="proves">'+proves+'</div>':'')+notC+lean+'</div></div>';
+    }).join('') : '<div class="frow"><div class="id">N/A</div><div><div class="name">No LOCKED-PROVEN F-entries returned — genome unavailable.</div></div></div>';
+
+    // SEMANTIC-VERIFIED rows
+    const sem=entries.filter(e=>e.tag==='SEMANTIC-VERIFIED');
+    $('semantic-rows').innerHTML = sem.length? sem.map(e=>{
+      const proves=esc(e.meaning||e.math||'');
+      const lean=e.lean_ref?('<div class="lean">Lean: <b>'+esc(e.lean_ref)+'</b></div>'):'';
+      return '<div class="frow sem"><div class="id">'+esc(e.id||'·')+'</div><div>'+
+        '<div class="name">'+esc(e.name||'')+'</div>'+
+        (proves?'<div class="proves">'+proves+'</div>':'')+lean+'</div></div>';
+    }).join('') : '<div class="frow sem"><div class="id">N/A</div><div><div class="name">No SEMANTIC-VERIFIED entries returned — genome unavailable.</div></div></div>';
+  }catch(e){
+    $('genome-src').textContent='Genome endpoint UNAVAILABLE ('+e.message+') — counts shown as N/A, never fabricated.';
+    for(const id of ['cnt-locked','cnt-semantic','cnt-evidence','cnt-conjecture'])
+      $(id).firstChild.nodeValue='N/A';
+    $('d-genome').classList.add('down');
+  }
+})();
+
+/* ---------- honest probes for the claim→check dots ---------- */
+(async function probeChecks(){
+  const probe=async(id,url)=>{try{const r=await fetch(url);$(id).classList.add(r.ok?'up':'down');}catch(_){$(id).classList.add('down');}};
+  probe('d-honest','/api/a11oy/v1/honest');
+  probe('d-lambda','/api/a11oy/v1/lambda/org');
+  probe('d-ledger','/api/a11oy/v1/ledger');
+})();
+
+/* ---------- verify-it-yourself: ported from /verify (WebCrypto ECDSA-P256) ---------- */
+function b64Decode(s){const bin=atob(s);const b=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)b[i]=bin.charCodeAt(i);return b;}
+function derToRaw(der){let i=0;if(der[i++]!==0x30)throw new Error('not DER SEQUENCE');let sl=der[i++];if(sl&0x80){const nb=sl&0x7f;sl=0;for(let b=0;b<nb;b++)sl=(sl<<8)|der[i++];}
+  function readInt(){if(der[i++]!==0x02)throw new Error('expected INTEGER');let len=der[i++];if(len&0x80){const nb=len&0x7f;len=0;for(let b=0;b<nb;b++)len=(len<<8)|der[i++];}const v=der.slice(i,i+len);i+=len;return v;}
+  const r=readInt(),s=readInt();
+  function pad32(a){let j=0;while(j<a.length-1&&a[j]===0)j++;const st=a.slice(j);const o=new Uint8Array(32);const off=32-st.length;if(off<0)throw new Error('int too long');o.set(st,off);return o;}
+  const raw=new Uint8Array(64);raw.set(pad32(r),0);raw.set(pad32(s),32);return raw;}
+function buildPAE(type,body){const enc=new TextEncoder();const t=enc.encode(type);const pre=enc.encode('DSSEv1 '+t.length+' ');const mid=enc.encode(' '+body.length+' ');
+  const buf=new Uint8Array(pre.length+t.length+mid.length+body.length);let o=0;buf.set(pre,o);o+=pre.length;buf.set(t,o);o+=t.length;buf.set(mid,o);o+=mid.length;buf.set(body,o);return buf;}
+async function sha256(buf){const h=await crypto.subtle.digest('SHA-256',buf);return Array.from(new Uint8Array(h)).map(b=>b.toString(16).padStart(2,'0')).join('');}
+async function importPub(pem){const b64=pem.replace('-----BEGIN PUBLIC KEY-----','').replace('-----END PUBLIC KEY-----','').replace(/\s+/g,'');const raw=b64Decode(b64);
+  return crypto.subtle.importKey('spki',raw.buffer,{name:'ECDSA',namedCurve:'P-256'},false,['verify']);}
+
+async function trustVerify(){
+  const btn=$('tv-run');btn.disabled=true;
+  $('tv-verdict').innerHTML='';$('tv-out').style.display='none';
+  $('tv-status').textContent='Calling POST /api/a11oy/v1/govern/infer …';
+  let data;
+  try{
+    const resp=await fetch('/api/a11oy/v1/govern/infer',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:'hello',vertical:'general',declared:'PUBLIC'})});
+    data=await resp.json();
+  }catch(e){$('tv-status').textContent='Could not reach govern/infer: '+e.message+' (endpoint unreachable — not faked).';btn.disabled=false;return;}
+  $('tv-status').textContent='Verifying signature in-browser via WebCrypto …';
+  const dsse=data.dsse||{}, receipt=data.receipt||{};
+  const keyid=((dsse.signatures||[])[0]||{}).keyid||dsse.key_id||'';
+  const isDemo=keyid==='demo-signing-key';
+  const pubURL=isDemo?'/demo-cosign.pub':'/cosign.pub';
+  let pub,pem='';
+  try{const r=await fetch(pubURL);pem=await r.text();pub=await importPub(pem);}
+  catch(e){$('tv-status').textContent='Could not fetch/import '+pubURL+': '+e.message;btn.disabled=false;return;}
+  const payloadType=dsse.payloadType||'application/vnd.szl.khipu+json';
+  let body;try{body=b64Decode(dsse.payload||'');}catch(e){$('tv-status').textContent='payload decode failed: '+e.message;btn.disabled=false;return;}
+  const selfDigest=await sha256(body.buffer);
+  const pae=buildPAE(payloadType,body);
+  const paeSHA=await sha256(pae.buffer);
+  let verified=false,err='';
+  const sigs=dsse.signatures||[];
+  if(dsse.signed===false){err='UNSIGNED — private key not in this runtime; the hash-chain is still valid.';}
+  else if(!sigs.length){err='No signatures in envelope.';}
+  else{
+    try{
+      const sb=b64Decode(sigs[0].sig||'');
+      let raw=sb;if(sb[0]===0x30){try{raw=derToRaw(sb);}catch(_){}}
+      verified=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pub,raw.buffer,pae.buffer);
+      if(!verified&&sb[0]===0x30)verified=await crypto.subtle.verify({name:'ECDSA',hash:'SHA-256'},pub,sb.buffer,pae.buffer);
+      if(!verified)err='ECDSA verification returned false.';
+    }catch(e){err='verify error: '+e.message;}
+  }
+  const rDigest=receipt.payload_digest||receipt.digest||'';
+  const digestMatch=rDigest&&selfDigest===String(rDigest).substring(0,64);
+  let v='';
+  if(verified&&isDemo){v='<div class="banner ok">✓ VERIFIED — real ECDSA-P256, checked in your browser against /demo-cosign.pub<small>Clearly-labelled DEMO key. The production cosign key stays founder-gated and is never placed in this runtime.</small></div>';}
+  else if(verified){v='<div class="banner ok">✓ VERIFIED — WebCrypto ECDSA-P256 signature valid<small>keyid: '+esc(keyid)+'</small></div>';}
+  else if(dsse.signed===false){v='<div class="banner dim">⚠ UNSIGNED — '+esc(err)+'</div>';}
+  else{v='<div class="banner fail">✗ VERIFICATION FAILED — '+esc(err)+'</div>';}
+  v+='<div class="kv"><span class="k">keyid</span><span class="v">'+esc(keyid||'(none)')+'</span>'+
+     '<span class="chip '+(digestMatch?'ok':'err')+'">payload digest '+(digestMatch?'MATCH':(rDigest?'MISMATCH':'n/a'))+'</span></div>'+
+     '<div class="kv"><span class="k">sha256(payload)</span><span class="v">'+esc(selfDigest.substring(0,40))+'…</span></div>'+
+     '<div class="kv"><span class="k">sha256(PAE)</span><span class="v">'+esc(paeSHA.substring(0,40))+'…</span></div>';
+  $('tv-verdict').innerHTML=v;
+  $('tv-status').textContent='Done — verification ran entirely in your browser.';
+  $('tv-out').style.display='block';
+  $('tv-out').textContent=JSON.stringify({dsse:dsse,receipt:receipt},null,2).substring(0,4000);
+  btn.disabled=false;
+}
+</script>
+</body>
+</html>

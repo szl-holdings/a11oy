@@ -1,0 +1,29 @@
+{
+  "source": "Ouroboros thesis \u2014 7-chakra anatomy bundle (locally vendored)",
+  "upstream_sha": "d9d898c506f97b1709244c3418054ca7ef78a0a778950822ecbd6843e0876876",
+  "vendored_at": "2026-05-18T00:00:00Z",
+  "vendored_by": "services/amaru/scripts/vendor_anatomy.py",
+  "policy": "read-only mirror. Re-pin via `python vendor_anatomy.py --repin-only` after replacing the binaries.",
+  "bundle_kind": "vendored",
+  "expected_files": [
+    "root.pdf",
+    "root.png",
+    "sacral.pdf",
+    "sacral.png",
+    "solar.pdf",
+    "solar.png",
+    "heart.pdf",
+    "heart.png",
+    "throat.pdf",
+    "throat.png",
+    "third_eye.pdf",
+    "third_eye.png",
+    "crown.pdf",
+    "crown.png"
+  ],
+  "drift_detection": {
+    "algorithm": "sha256 over sorted (filename || NUL || bytes || NUL) for every entry in expected_files",
+    "expected_hash": "d9d898c506f97b1709244c3418054ca7ef78a0a778950822ecbd6843e0876876",
+    "note": "The A11oy /anatomy viewer recomputes this hash in-browser over the served files on every load and compares it to upstream_sha. Drift surfaces a banner."
+  }
+}

@@ -1,0 +1,63 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amaru
+  namespace: amaru
+  labels:
+    app.kubernetes.io/name: amaru
+    app.kubernetes.io/part-of: szl-mesh
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: amaru
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: amaru
+        app.kubernetes.io/part-of: szl-mesh
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+      containers:
+        - name: amaru
+          image: ghcr.io/szl-holdings/amaru:v1.0.0-alpha
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            # serve.py (deploy/huggingface/Dockerfile) binds $PORT (default 7860).
+            # Pin to 8080 to match containerPort + the http probe target.
+            - name: PORT
+              value: "8080"
+            - name: AMARU_DELTA_LOG_PATH
+              value: /var/lib/amaru/delta.jsonl
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 1000m
+              memory: 512Mi
+          volumeMounts:
+            - name: delta-log
+              mountPath: /var/lib/amaru
+      volumes:
+        - name: delta-log
+          persistentVolumeClaim:
+            claimName: amaru-delta-log

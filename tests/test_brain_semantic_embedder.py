@@ -1,0 +1,152 @@
+# SPDX-License-Identifier: Apache-2.0
+"""Operational contracts for the local Brain semantic embedder."""
+
+import io
+import json
+import types
+
+import pytest
+
+import szl_brain_api as brain_api
+
+
+class _Response:
+    def __init__(self, payload):
+        self._payload = json.dumps(payload).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+    def read(self):
+        return self._payload
+
+
+def test_ollama_current_api_batches_inputs(monkeypatch):
+    calls = []
+
+    def fake_urlopen(request, timeout):
+        calls.append((request.full_url, json.loads(request.data), timeout))
+        return _Response({"embeddings": [[3.0, 4.0], [0.0, 2.0]]})
+
+    monkeypatch.setattr(brain_api.urllib.request, "urlopen", fake_urlopen)
+    rows = brain_api._ollama_embed(
+        ["first evidence", "second evidence"], "http://127.0.0.1:11434")
+
+    assert rows == [[3.0, 4.0], [0.0, 2.0]]
+    assert len(calls) == 1
+    assert calls[0][0].endswith("/api/embed")
+    assert calls[0][1]["input"] == ["first evidence", "second evidence"]
+
+
+def test_ollama_partial_batch_fails_closed(monkeypatch):
+    def fake_urlopen(request, timeout):
+        if request.full_url.endswith("/api/embed"):
+            return _Response({"embeddings": [[1.0, 0.0]]})
+        raise OSError("legacy endpoint unavailable")
+
+    monkeypatch.setattr(brain_api.urllib.request, "urlopen", fake_urlopen)
+    with pytest.raises(RuntimeError, match="both batch and legacy APIs"):
+        brain_api._ollama_embed(
+            ["first evidence", "second evidence"], "http://127.0.0.1:11434")
+
+
+def test_embedder_uses_bounded_batches_and_normalizes(monkeypatch):
+    calls = []
+
+    def fake_embed(texts, url, model, timeout):
+        calls.append(list(texts))
+        return [[3.0, 4.0] for _ in texts]
+
+    monkeypatch.setenv("SZL_LOCAL_LLM_URL", "http://127.0.0.1:11434")
+    monkeypatch.setenv("SZL_BRAIN_EMBED_BATCH", "2")
+    monkeypatch.setattr(brain_api, "_ollama_embed", fake_embed)
+
+    embedder = brain_api._Embedder()
+    rows = embedder.embed(["a", "b", "c", "d", "e"])
+
+    # One constructor probe, followed by three bounded corpus batches.
+    assert calls == [["a11oy"], ["a", "b"], ["c", "d"], ["e"]]
+    assert rows == [[0.6, 0.8]] * 5
+    assert embedder.source == "ollama:nomic-embed-text"
+
+
+def test_embedder_refuses_to_mix_vector_spaces_when_runtime_fails(monkeypatch):
+    calls = 0
+
+    def fake_embed(texts, url, model, timeout):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return [[1.0, 0.0]]
+        raise RuntimeError("runtime stopped")
+
+    monkeypatch.setenv("SZL_LOCAL_LLM_URL", "http://127.0.0.1:11434")
+    monkeypatch.setattr(brain_api, "_ollama_embed", fake_embed)
+    embedder = brain_api._Embedder()
+
+    with pytest.raises(
+            brain_api.SemanticEmbeddingUnavailableError,
+            match="semantic scoring refused"):
+        embedder.embed(["evidence"])
+
+    assert embedder.source == "ollama:nomic-embed-text"
+    assert embedder._use_ollama is True
+    assert embedder.last_error == "ollama runtime failed: RuntimeError"
+
+
+def test_content_hash_binds_exact_embedding_inputs():
+    before = {
+        "nodes": [{"id": "node:1", "kind": "paper", "title": "old evidence"}],
+        "links": [],
+    }
+    after = {
+        "nodes": [{"id": "node:1", "kind": "paper", "title": "new contradiction"}],
+        "links": [],
+    }
+
+    assert brain_api._content_hash(before) != brain_api._content_hash(after)
+
+
+def test_reranked_search_is_explicit_and_preserves_retrieval_score():
+    idx = brain_api.BrainIndex.__new__(brain_api.BrainIndex)
+    idx.by_id = {
+        "node:a": {"id": "node:a", "title": "alpha receipt"},
+        "node:b": {"id": "node:b", "title": "beta evidence"},
+    }
+
+    def base_search(self, query, k):
+        return [
+            {"id": "node:a", "score": 0.8, "match": {}},
+            {"id": "node:b", "score": 0.6, "match": {}},
+        ]
+
+    class FakeReranker:
+        available = True
+        source = "test"
+        last_error = None
+
+        def score(self, query, documents):
+            assert query == "evidence"
+            assert documents == ["alpha receipt node:a", "beta evidence node:b"]
+            return [0.2, 0.9]
+
+    idx.search = types.MethodType(base_search, idx)
+    idx.reranker = FakeReranker()
+
+    results = idx.search_reranked("evidence", k=2)
+
+    assert [row["id"] for row in results] == ["node:b", "node:a"]
+    assert results[0]["score"] == 0.9
+    assert results[0]["retrieval_score"] == 0.6
+    assert results[0]["ranking_basis"] == "QWEN3_RERANKER_PROBABILITY"
+
+
+def test_reranked_search_refuses_when_unconfigured():
+    idx = brain_api.BrainIndex.__new__(brain_api.BrainIndex)
+    idx.reranker = None
+
+    with pytest.raises(brain_api.RerankerUnavailableError):
+        idx.search_reranked("evidence", k=2)

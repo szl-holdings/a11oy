@@ -1,0 +1,138 @@
+name: Operational Validation
+
+# Runtime gate for non-doc operational surfaces. Pull requests prove the
+# deterministic repository contracts. Live public Hugging Face drift remains a
+# mandatory protected-main/scheduled concern in hf-ecosystem-drift.yml instead
+# of deadlocking unrelated PRs when public inventory changes independently.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/a11oy-uds/**'
+      - 'deploy/**'
+      - 'packages/receipt-substrate/**'
+      - 'packages/perception-loop/**'
+      - 'packages/sequence-pipeline/**'
+      - 'packages/sparse-attention-kit/**'
+      - 'huggingface/**'
+      - 'docs/huggingface.md'
+      - 'docs/INVESTOR_DEMO.md'
+      - 'docs/WARHACKER_UDS_PROOF_POINT.md'
+      - 'docs/ecosystem-readiness-report.json'
+      - '.gitmodules'
+      - 'vendor/platform'
+      - 'docs/ecosystem-stage-matrix.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'docs/huggingface-ecosystem-manifest.schema.json'
+      - 'docs/theorem-runtime-manifest.json'
+      - 'scripts/*.mjs'
+      - 'scripts/*.py'
+      - 'scripts/validate-operational.sh'
+      - 'scripts/release/lib/**'
+      - 'package.json'
+      - '.github/workflows/huggingface.yml'
+      - '.github/workflows/operational.yml'
+      - '.github/workflows/hf-ecosystem-drift.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'artifacts/a11oy-uds/**'
+      - 'deploy/**'
+      - 'packages/receipt-substrate/**'
+      - 'packages/perception-loop/**'
+      - 'packages/sequence-pipeline/**'
+      - 'packages/sparse-attention-kit/**'
+      - 'huggingface/**'
+      - 'docs/huggingface.md'
+      - 'docs/INVESTOR_DEMO.md'
+      - 'docs/WARHACKER_UDS_PROOF_POINT.md'
+      - 'docs/ecosystem-readiness-report.json'
+      - '.gitmodules'
+      - 'vendor/platform'
+      - 'docs/ecosystem-stage-matrix.json'
+      - 'docs/huggingface-ecosystem-manifest.json'
+      - 'docs/huggingface-ecosystem-manifest.schema.json'
+      - 'docs/theorem-runtime-manifest.json'
+      - 'scripts/*.mjs'
+      - 'scripts/*.py'
+      - 'scripts/validate-operational.sh'
+      - 'scripts/release/lib/**'
+      - 'package.json'
+      - '.github/workflows/huggingface.yml'
+      - '.github/workflows/operational.yml'
+      - '.github/workflows/hf-ecosystem-drift.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: operational-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  operational:
+    name: Receipt + UDS validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v4
+        with:
+          version: 10.33.3
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Verify live tracked Hugging Face ecosystem manifest
+        if: github.event_name != 'pull_request'
+        run: pnpm hf:ecosystem:audit
+      - name: Validate operational surfaces
+        run: |
+          bash scripts/validate-operational.sh
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py scripts/prepare_huggingface_payload.py scripts/publish_huggingface_payload.py scripts/build_operational_payload.py
+          python3 scripts/build_ecosystem_stage_matrix.py --check
+          node scripts/test_validate_huggingface_ecosystem_schema.mjs
+          node scripts/validate_huggingface_ecosystem_schema.mjs
+          npm run payload:verify
+          npm run payload:huggingface
+          npm run payload:bundle
+          npm run payload:bundle:verify
+
+  canonical-web:
+    name: Canonical web clean build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+      - name: Checkout repository and pinned platform source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v4
+        with:
+          version: 10.26.1
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '24'
+      - name: Build and typecheck the canonical application
+        run: |
+          pnpm build:web
+          pnpm typecheck:web

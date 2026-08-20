@@ -1,0 +1,6 @@
+PARTIAL HARVEST NOTE
+This file was harvested from the SZLHOLDINGS Hugging Face dataset via the fetch tool,
+which truncated the content at the retrieval-size limit. The file as committed is a
+faithful PREFIX of the source and may be incomplete (it may not be valid/closed JSON).
+For the authoritative full artifact, see the source HF dataset. Honest disclosure per
+HF Collections Harvest doctrine (no fabricated completion).

@@ -1,0 +1,54 @@
+tasks:
+  - name: start
+    description: >
+      Deploy vessels maritime intelligence bundle on a local k3d UDS cluster.
+      Prerequisites: k3d, uds-cli, and UDS core (Istio + Pepr) must be installed.
+      Phase 2 note: requires ghcr.io/szl-holdings/vessels:v0.1.0 image to exist.
+    actions:
+      - description: Validate cluster connectivity
+        cmd: kubectl cluster-info
+      - description: Deploy UDS bundle
+        cmd: uds deploy uds-bundle.yaml --confirm
+      - description: Wait for vessels deployment to become ready
+        cmd: kubectl rollout status deployment/vessels -n vessels --timeout=300s
+      - description: Display access information
+        cmd: |
+          echo "vessels deployed."
+          echo "Access: https://$(kubectl get virtualservice vessels -n vessels -o jsonpath='{.spec.hosts[0]}')"
+          echo "Receipts API: https://$(kubectl get virtualservice szl-receipts -n szl-receipts -o jsonpath='{.spec.hosts[0]}')/health"
+
+  - name: demo:ais-replay
+    description: >
+      Feed the bundled sample AIS dataset through vessels to demonstrate
+      dark-vessel detection and sanctions screening without a live AIS provider.
+    actions:
+      - description: Copy AIS replay script into vessels pod
+        cmd: |
+          POD=$(kubectl get pod -n vessels -l app=vessels -o jsonpath='{.items[0].metadata.name}')
+          kubectl cp scripts/demo_ais_replay.sh vessels/${POD}:/tmp/demo_ais_replay.sh
+      - description: Execute AIS replay
+        cmd: |
+          POD=$(kubectl get pod -n vessels -l app=vessels -o jsonpath='{.items[0].metadata.name}')
+          kubectl exec -n vessels ${POD} -- bash /tmp/demo_ais_replay.sh
+      - description: Show generated alerts
+        cmd: |
+          echo "AIS replay complete. Alerts visible at vessels UI."
+          echo "Check receipts: kubectl exec -n szl-receipts deploy/szl-receipts -- curl -s http://localhost:8080/receipts | jq '.[0:5]'"
+
+  - name: demo:verify
+    description: >
+      Run verify_receipts.sh to prove DSSE chain integrity after AIS replay.
+      Confirms that every alert produced a prevHash-linked DSSE receipt.
+    actions:
+      - description: Execute receipt verification
+        cmd: bash scripts/verify_receipts.sh
+      - description: Print verdict
+        cmd: echo "Receipt chain verification complete. See output above for PASS/FAIL."
+
+  - name: teardown
+    description: Remove the vessels bundle from the cluster.
+    actions:
+      - description: Delete vessels namespace
+        cmd: kubectl delete namespace vessels --ignore-not-found
+      - description: Confirm teardown
+        cmd: echo "vessels removed. szl-receipts namespace retained for audit log."

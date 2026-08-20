@@ -1,0 +1,18 @@
+{
+  "generated_at": "2026-07-26T08:52:31+00:00",
+  "known_from_repository": {
+    "container_packages": {
+      "endpoint": "https://api.github.com/orgs/szl-holdings/packages",
+      "http_status": 403,
+      "label": "BLOCKED",
+      "reason": "Forbidden",
+      "status": "BLOCKED"
+    },
+    "environments": [
+      "github-pages"
+    ]
+  },
+  "label": "BLOCKED",
+  "mutation": "none",
+  "reason": "no cloud account, registry, or cluster credentials were supplied"
+}

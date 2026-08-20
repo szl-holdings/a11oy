@@ -1,0 +1,31 @@
+/* a11oy-operator-widget.css — floating governed-operator widget for SZL surfaces.
+   Version 3.0.0. The widget is fully self-styling: a11oy-operator-widget.js
+   injects all required CSS (prefixed .aow-) at runtime, so loading this file is
+   OPTIONAL. It is kept only as a stable asset path and for surfaces that prefer
+   to pin the palette tokens below. Neutral governed palette: deep navy glass,
+   signed-gold hairlines, emerald/rose status. No external dependencies, no CDN.
+   SPDX: Apache-2.0 */
+
+:root {
+  --aow-gold: #c9b787;
+  --aow-gold-soft: rgba(201, 183, 135, 0.18);
+  --aow-border: rgba(201, 183, 135, 0.22);
+  --aow-glass: #0c1322;
+  --aow-glass-soft: rgba(22, 32, 58, 0.6);
+  --aow-navy-deep: #0a0f1e;
+  --aow-text: #e6edf6;
+  --aow-text-muted: #9fb0c8;
+  --aow-ok: #4ade80;
+  --aow-warn: #f87171;
+  --aow-font-mono: ui-monospace, 'JetBrains Mono', 'Fira Code', SFMono-Regular, Menlo, monospace;
+  --aow-font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --aow-z: 2147483647;
+}
+
+/* The runtime-injected styles in a11oy-operator-widget.js are authoritative.
+   These optional fallbacks only apply if the JS has not yet injected its <style>. */
+.aow-root { position: fixed; right: 24px; bottom: 24px; z-index: var(--aow-z);
+  font-family: var(--aow-font-body); color: var(--aow-text); }
+.aow-fab { width: 56px; height: 56px; border-radius: 50%;
+  background: linear-gradient(135deg, #16203a 0%, var(--aow-navy-deep) 100%);
+  border: 1px solid var(--aow-border); cursor: pointer; }

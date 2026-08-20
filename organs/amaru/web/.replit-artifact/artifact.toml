@@ -1,0 +1,32 @@
+kind = "web"
+  previewPath = "/conduit/"
+  title = "Amaru — The Andean Ouroboros"
+  version = "1.0.0"
+  id = "artifacts/conduit"
+  router = "path"
+
+  [[integratedSkills]]
+  name = "react-vite"
+  version = "1.0.0"
+
+  [[services]]
+  name = "web"
+  paths = [ "/conduit/" ]
+  localPort = 9090
+  autoStart = true
+
+  [services.development]
+  run = "bash -c 'cd /home/runner/workspace/artifacts/conduit && exec node_modules/.bin/vite --config vite.config.ts --host ::'"
+
+  [services.production]
+  build = [ "pnpm", "--filter", "@workspace/conduit", "run", "build" ]
+  publicDir = "artifacts/conduit/dist/public"
+  serve = "static"
+
+  [[services.production.rewrites]]
+  from = "/*"
+  to = "/index.html"
+
+  [services.env]
+  VITE_PORT = "5300"
+  BASE_PATH = "/conduit/"

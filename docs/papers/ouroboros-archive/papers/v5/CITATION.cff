@@ -1,0 +1,72 @@
+cff-version: 1.2.0
+message: "If you use this paper, the Lutar invariant family, or the Ouroboros Thesis v5, please cite as below."
+title: "Prisca-GraphRAG — Ouroboros Thesis v5"
+abstract: >-
+  We present two complementary systems for governed knowledge retrieval and model interpretability. Prisca-GraphRAG structures knowledge graphs according to epistemic lineage -- each node carries a provenance vector encoding its transmission history, and retrieval scoring combines semantic similarity with lineage coherence weighted by the Lutar Omega signature (v4). The VOTE-RAG ensemble aggregates multiple retriever outputs via Borda-count ranking with Omega-weighted scores, providing robust retrieval even when individual retrievers disagree. Federated Prisca Privacy (FPP) enables cross-organizational knowledge sharing without exposing raw embeddings, using differential-privacy noise calibrated to the Bekenstein information bound. Tawa SAE provides sparse autoencoder-based feature decomposition for neural network interpretability, using ceque-radial indexing to organize learned features into interpretable clusters. Together, these systems address the full knowledge pipeline: retrieval (Prisca-GraphRAG), aggregation (VOTE-RAG), privacy (FPP), and interpretability (Tawa SAE). In the SZL Holdings ecosystem, Prisca-GraphRAG powers the knowledge retrieval layer across all seven product surfaces. A11oy routes every retrieval request through the Prisca pipeline, ensuring that every retrieved document carries provenance metadata in the decision receipt. Tawa SAE provides the interpretability layer that allows operators to inspect which features drove a particular recommendation. All formulas are verified against running TypeScript code. All citations reference real published work. This paper does not claim empirical superiority over standard RAG on retrieval benchmarks. The contribution is the formal architecture and its public reference implementation. ---
+type: software
+authors:
+  - family-names: Lutar
+    given-names: "Stephen P."
+
+    email: stephen@szlholdings.com
+    affiliation: "SZL Holdings, Inc."
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+doi: "10.5281/zenodo.20020846"
+identifiers:
+  - description: "Version DOI — Ouroboros Thesis v5 (this release)"
+    type: doi
+    value: "10.5281/zenodo.20020846"
+  - description: "Concept DOI — always resolves to the latest version"
+    type: doi
+    value: "10.5281/zenodo.19944926"
+  - description: "Ouroboros Thesis v1 (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.19867281"
+  - description: "Ouroboros Thesis v2 (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.19934129"
+  - description: "Ouroboros Thesis v3 (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.19983066"
+  - description: "Ouroboros Thesis v9 — UNIFIED-OPERATIONAL (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.20053148"
+  - description: "Ouroboros Thesis v10 — EXHAUSTIVE-AUDIT (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.20053163"
+  - description: "Ouroboros Thesis v11 — APPLIED Lambda (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.20119582"
+  - description: ORCID iD of the principal author
+    type: other
+    value: "https://orcid.org/0009-0001-0110-4173"
+repository-code: "https://github.com/szl-holdings/szl-holdings-platform"
+url: "https://github.com/szl-holdings/ouroboros-thesis"
+keywords:
+  - ouroboros
+  - prisca-graphrag
+  - VOTE-RAG
+  - federated-privacy
+  - differential-privacy
+  - sparse-autoencoder
+  - interpretability
+  - ceque-radial
+license: CC-BY-4.0
+version: "5.0.0"
+date-released: "2026-05-04"
+preferred-citation:
+  type: article
+  title: "Prisca-GraphRAG and Tawa Sparse Autoencoder: Lineage-Aware Retrieval with Governed Feature Interpretability"
+  authors:
+    - family-names: Lutar
+      given-names: "Stephen P."
+
+      email: stephen@szlholdings.com
+      affiliation: "SZL Holdings, Inc."
+      orcid: "https://orcid.org/0009-0001-0110-4173"
+  year: 2026
+  month: 5
+  publisher:
+    name: Zenodo
+  doi: "10.5281/zenodo.20020846"
+  url: "https://doi.org/10.5281/zenodo.20020846"

@@ -1,0 +1,55 @@
+# a11oy Covenant Policy — Capital Markets / Quant / Hedge Funds
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: capital_markets
+policy_name: "Capital Markets / Quant / Hedge Funds"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "SEC Rule 17a-4"
+  - "MiFID II RTS 6"
+  - "FINRA Rule 4370"
+  - "Reg SCI 17 CFR 242"
+
+required_attestors:
+  - chief_compliance_officer
+  - quant_review_committee
+  - external_auditor
+
+lambda_floors:
+  moralGrounding: 0.97
+  measurabilityHonesty: 1.0
+  temporalConsistency: 1.0
+  economicGrounding: 1.0
+  constructiveTransparency: 0.99
+  informationIntegrity: 0.99
+
+forbidden_inputs:
+  - non_sec_registered_model
+  - missing_algo_documentation
+
+retention_days: 2190
+
+required_output_formats:
+  - sec_17a4_compliant_log
+  - json_receipt
+  - worm_storage_manifest
+
+primitives_applicable:
+  - A5
+  - A6
+  - A10
+  - A12
+  - A14
+  - T5
+  - T9
+  - TH2
+
+acv_range_usd:
+  low: 500000
+  mid: 2000000
+  high: 10000000

@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 1,
+  "generatedFrom": "agent deep dive, GitHub org public repos, and local .repos/szl-holdings checkouts",
+  "canonicalHub": "a11oy",
+  "huggingFaceTarget": "SZLHOLDINGS/a11oy-v19-substrate",
+  "thesis": {
+    "version": "18.0",
+    "doi": "10.5281/zenodo.20434276",
+    "conceptDoi": "10.5281/zenodo.19944926",
+    "leanSoftwareDoi": "10.5281/zenodo.20434308"
+  },
+  "repos": [
+    {
+      "name": "a11oy",
+      "tier": "hub",
+      "readiness": "operationalizing",
+      "role": "Vertical alignment substrate and operational hub for doctrine packages, UDS payloads, and Hugging Face publish payloads.",
+      "github": "https://github.com/szl-holdings/a11oy",
+      "defaultBranch": "main",
+      "implementation": "this repository",
+      "ciExpectation": "Doctrine Build, docs, CodeQL, SBOM, DCO, secret scan",
+      "payloadFeed": "source, deploy manifest, doctrine build outputs"
+    },
+    {
+      "name": "platform",
+      "tier": "runtime-composition",
+      "readiness": "production-monorepo",
+      "role": "Composing monorepo for deployed A11oy UI/runtime, Ouroboros runtime, API services, and product integration.",
+      "github": "https://github.com/szl-holdings/platform",
+      "defaultBranch": "main",
+      "implementation": "platform monorepo",
+      "ciExpectation": "platform validate/readiness gates",
+      "payloadFeed": "runtime integration contract"
+    },
+    {
+      "name": "ouroboros",
+      "tier": "runtime-substrate",
+      "readiness": "production-substrate",
+      "role": "Bounded recursion runtime, governance loops, and receipt emission spine.",
+      "github": "https://github.com/szl-holdings/ouroboros",
+      "defaultBranch": "main",
+      "implementation": "standalone TypeScript package",
+      "ciExpectation": "node build/test, CodeQL, SBOM, SLSA",
+      "payloadFeed": "runtime claims and receipt contract"
+    },
+    {
+      "name": "lutar-lean",
+      "tier": "formal-proof",
+      "readiness": "formal-substrate",
+      "role": "Lean 4 theorem/proof substrate backing Lambda, QEC, KS-18, and public claim inventory.",
+      "github": "https://github.com/szl-holdings/lutar-lean",
+      "defaultBranch": "main",
+      "implementation": "Lean/Lake project",
+      "ciExpectation": "lake build, reference-vector parity, sorry inventory",
+      "payloadFeed": "proof DOI and theorem map"
+    },
+    {
+      "name": "ouroboros-thesis",
+      "tier": "formal-thesis",
+      "readiness": "canonical-thesis",
+      "role": "DOI-pinned thesis substrate and version ladder for the governance framework.",
+      "github": "https://github.com/szl-holdings/ouroboros-thesis",
+      "defaultBranch": "main",
+      "implementation": "papers/docs/provenance",
+      "ciExpectation": "DOI/title gates and docs",
+      "payloadFeed": "v18 DOI, concept DOI, claim language"
+    },
+    {
+      "name": "rosie",
+      "tier": "receipt-substrate",
+      "readiness": "uds-component",
+      "role": "CSS-ingress receipt orchestration and canonical receipt byte-string emission.",
+      "github": "https://github.com/szl-holdings/rosie",
+      "defaultBranch": "main",
+      "implementation": "TypeScript receipt service",
+      "ciExpectation": "receipt tests and governance CI",
+      "payloadFeed": "receipt ingress component"
+    },
+    {
+      "name": "amaru",
+      "tier": "receipt-substrate",
+      "readiness": "uds-component",
+      "role": "Cardano-anchored governance receipt minting and Shor-encoded provenance.",
+      "github": "https://github.com/szl-holdings/amaru",
+      "defaultBranch": "main",
+      "implementation": "TypeScript service",
+      "ciExpectation": "node build/test, CodeQL, SBOM",
+      "payloadFeed": "minting/anchor component"
+    },
+    {
+      "name": "sentra",
+      "tier": "receipt-substrate",
+      "readiness": "uds-component",
+      "role": "Telemetry adapter and Kitaev-surface drift detection on audit fibers.",
+      "github": "https://github.com/szl-holdings/sentra",
+      "defaultBranch": "main",
+      "implementation": "TypeScript service",
+      "ciExpectation": "node build/test, CodeQL, SBOM",
+      "payloadFeed": "drift/remediation component"
+    },
+    {
+      "name": "uds-mesh",
+      "tier": "mesh-contract",
+      "readiness": "pointer-manifest",
+      "role": "UDS span schemas and mesh pointer manifests binding A11oy, Rosie, Amaru, and Sentra releases.",
+      "github": "https://github.com/szl-holdings/uds-mesh",
+      "defaultBranch": "main",
+      "implementation": "YAML/schema repository",
+      "ciExpectation": "bundle/schema validation",
+      "payloadFeed": "mesh pointer manifest"
+    },
+    {
+      "name": "vsp-otel",
+      "tier": "observability",
+      "readiness": "source-package",
+      "role": "OpenTelemetry exporter for Lambda-axis spans and receipt hashes.",
+      "github": "https://github.com/szl-holdings/vsp-otel",
+      "defaultBranch": "main",
+      "implementation": "TypeScript runtime package",
+      "ciExpectation": "runtime tests and docs CI",
+      "payloadFeed": "span schema/HF dataset source"
+    },
+    {
+      "name": "szl-cookbook",
+      "tier": "operator-docs",
+      "readiness": "recipes",
+      "role": "Governed-AI recipes and operator payload patterns.",
+      "github": "https://github.com/szl-holdings/szl-cookbook",
+      "defaultBranch": "main",
+      "implementation": "recipes/docs",
+      "ciExpectation": "docs/governance CI",
+      "payloadFeed": "operator recipes"
+    },
+    {
+      "name": "agi-forecast",
+      "tier": "forecast",
+      "readiness": "source-package",
+      "role": "PAC-Bayes and Bekenstein governance trajectory forecast scenarios.",
+      "github": "https://github.com/szl-holdings/agi-forecast",
+      "defaultBranch": "main",
+      "implementation": "TypeScript package",
+      "ciExpectation": "scenario tests",
+      "payloadFeed": "forecast gauge context"
+    },
+    {
+      "name": "vessels",
+      "tier": "vertical-product",
+      "readiness": "demo",
+      "role": "Maritime/fleet intelligence demo surface; identity should be reconciled between charter, maritime UI, and MCP handshake framing.",
+      "github": "https://github.com/szl-holdings/vessels",
+      "defaultBranch": "main",
+      "implementation": "demo SPA plus docs",
+      "ciExpectation": "needs code CI on web surface",
+      "payloadFeed": "vertical readiness row"
+    },
+    {
+      "name": "counsel",
+      "tier": "vertical-product",
+      "readiness": "scaffold",
+      "role": "Legal matter command scaffold for policy-gated AI workflows.",
+      "github": "https://github.com/szl-holdings/counsel",
+      "defaultBranch": "main",
+      "implementation": "docs/governance scaffold",
+      "ciExpectation": "docs/governance CI",
+      "payloadFeed": "vertical readiness row"
+    },
+    {
+      "name": "terra",
+      "tier": "vertical-product",
+      "readiness": "scaffold",
+      "role": "Real estate intelligence scaffold for underwriting and portfolio analytics.",
+      "github": "https://github.com/szl-holdings/terra",
+      "defaultBranch": "main",
+      "implementation": "docs/governance scaffold",
+      "ciExpectation": "docs/governance CI",
+      "payloadFeed": "vertical readiness row"
+    },
+    {
+      "name": "carlota-jo",
+      "tier": "vertical-product",
+      "readiness": "scaffold",
+      "role": "Private advisory operations scaffold for concierge workflow and proof-chain delivery.",
+      "github": "https://github.com/szl-holdings/carlota-jo",
+      "defaultBranch": "main",
+      "implementation": "docs/governance scaffold",
+      "ciExpectation": "docs/governance CI",
+      "payloadFeed": "vertical readiness row"
+    },
+    {
+      "name": "szl-trust",
+      "tier": "trust",
+      "readiness": "artifact-ledger",
+      "role": "Public Trust Portal artifacts and Covenant Proof Standard run records.",
+      "github": "https://github.com/szl-holdings/szl-trust",
+      "defaultBranch": "main",
+      "implementation": "run artifacts; portal not yet shipped",
+      "ciExpectation": "docs/DOI gates; replay should become CI",
+      "payloadFeed": "trust run references"
+    },
+    {
+      "name": "szl-brand",
+      "tier": "brand",
+      "readiness": "production-assets",
+      "role": "Brand assets, anatomy figures, social previews, and visual doctrine.",
+      "github": "https://github.com/szl-holdings/szl-brand",
+      "defaultBranch": "main",
+      "implementation": "assets plus Python tooling",
+      "ciExpectation": "Python/assets CI",
+      "payloadFeed": "brand/anatomy references"
+    },
+    {
+      "name": ".github",
+      "tier": "org-governance",
+      "readiness": "production-workflows",
+      "role": "Organization profile, templates, reusable workflows, and governance defaults.",
+      "github": "https://github.com/szl-holdings/.github",
+      "defaultBranch": "main",
+      "implementation": "workflow/template repository",
+      "ciExpectation": "org reusable workflow health",
+      "payloadFeed": "org governance contract"
+    }
+  ]
+}

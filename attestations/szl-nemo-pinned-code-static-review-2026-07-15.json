@@ -1,0 +1,53 @@
+{
+  "schema_version": "szl.nemo.pinned-code-static-review.v1",
+  "state": "PASS_BOUNDED_LEXICAL_REVIEW",
+  "measured_at": "2026-07-15T15:34:37.7936746Z",
+  "upstream_repository": "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16",
+  "upstream_revision": "dfaf35de3e30f1867dd8dbc38a7fc9fb52d3914f",
+  "files": [
+    {
+      "path": "configuration_nemotron_h.py",
+      "bytes": 12119,
+      "sha256": "07fa66e5b3da7e6a71c1a263e3dd68da11c8afa9178b47c49510ba628746fcff"
+    },
+    {
+      "path": "modeling_nemotron_h.py",
+      "bytes": 78629,
+      "sha256": "ea982af0b805f181573f919ecb001d5bbc0153459923cf4b2f1ccae194e415a4"
+    }
+  ],
+  "scanner": {
+    "tool": "ripgrep",
+    "version": "15.1.0",
+    "case_insensitive": true,
+    "patterns": [
+      "subprocess",
+      "os.system",
+      "socket",
+      "requests",
+      "urllib",
+      "httpx",
+      "eval(",
+      "exec(",
+      "__import__",
+      "importlib",
+      "ctypes",
+      "marshal",
+      "pickle",
+      "Popen",
+      "system("
+    ],
+    "match_count": 0
+  },
+  "scope": "Static lexical screening of the two exact pinned Python files only.",
+  "limitations": [
+    "This is not a proof that the code is safe.",
+    "Imported dependencies and native CUDA extensions are outside this lexical scan.",
+    "Runtime execution remains blocked until Linux dependency, imported-source, load, capacity, and isolation receipts pass."
+  ],
+  "effects": {
+    "training_started": false,
+    "weights_published": false,
+    "candidate_promoted": false
+  }
+}

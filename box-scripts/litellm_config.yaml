@@ -1,0 +1,124 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 - Doctrine v11
+#
+# litellm_config.yaml - the UNIFIED sovereign-mesh gateway.
+#
+# The a11oy cloud Space (and the brain/anatomy loop) call ONE OpenAI-compatible
+# endpoint - https://gateway.a-11-oy.com/v1/... with model "sovereign-llm" - and
+# LiteLLM's Router load-balances / fails over across the two Windows GPU boxes:
+#   * omen            (RTX 4060 Ti tower)   -> Ollama on gpu.a-11-oy.com  / tailnet :11434
+#   * betterwithage   (RTX 5050 laptop)     -> Ollama on gpu2.a-11-oy.com / tailnet :11434
+#
+# WHY LiteLLM (not k3s/Ray): 2 static boxes. One config file, built-in
+# least-busy/latency routing + automatic fallback + per-node cooldown. Minimal
+# operational surface (one more container). See research/LEADERS_SOVEREIGN_MESH.md sec.6.
+#
+# HONESTY (Doctrine v11): this file declares intended routing. It does NOT assert
+# any node is reachable - reachability is proven only by a live call
+# (/api/a11oy/v1/llm/sovereign/health, the meter models[], LiteLLM /health). No
+# joule/latency/uptime number is fabricated here.
+#
+# TRANSPORT: LiteLLM reaches each Ollama over the PRIVATE tailnet (MagicDNS name
+# or 100.x Tailscale IP), NEVER a public Cloudflare hostname. Ollama's :11434 is
+# never in the cloudflared ingress (see cloudflared_ingress.example.yml). The only
+# public inference hostname is gateway.a-11-oy.com -> LiteLLM :4000, gated by BOTH
+# the LiteLLM bearer master_key AND a Cloudflare Access service token.
+#
+# ------------------------------------------------------------------------------
+# api_base resolution (fill in from `tailscale ip -4` / MagicDNS on each box):
+#   - Preferred: MagicDNS names  http://omen:11434  /  http://betterwithage:11434
+#     (survive a device re-joining the tailnet; no hardcoded IP drift).
+#   - Or Tailscale IPs           http://100.x.x.1:11434 / http://100.x.x.2:11434
+#   - Override per-deploy WITHOUT editing this file via the env vars below.
+# ------------------------------------------------------------------------------
+
+model_list:
+  # ==========================================================================
+  # sovereign-llm : the ONE model name the Space/brain calls. BOTH nodes are
+  # listed under the same model_name, so LiteLLM treats them as interchangeable
+  # deployments of one logical model and load-balances / fails over between them.
+  #
+  # NOTE (research/LEADERS_SOVEREIGN_MESH.md Appendix): true interchangeable
+  # load-balancing requires the SAME model to fit BOTH cards. The 5050 laptop is
+  # the smaller VRAM ceiling - if you cannot fit one shared model on both, drop
+  # the laptop from THIS pool and route to it only via the explicit per-node name
+  # betterwithage-glm below (honest: do not claim a pool node that cannot serve).
+  # ==========================================================================
+  - model_name: sovereign-llm
+    litellm_params:
+      # ollama_chat/<tag> -> LiteLLM's Ollama chat provider (OpenAI-compatible out).
+      model: ollama_chat/os.environ/SOVEREIGN_POOL_MODEL   # e.g. llama3.1:8b
+      api_base: os.environ/OMEN_OLLAMA_URL                 # http://omen:11434 (tailnet)
+      keep_alive: "10m"
+    model_info:
+      id: omen-node
+
+  - model_name: sovereign-llm
+    litellm_params:
+      model: ollama_chat/os.environ/SOVEREIGN_POOL_MODEL   # same tag as omen for a true pool
+      api_base: os.environ/BWA_OLLAMA_URL                  # http://betterwithage:11434 (tailnet)
+      keep_alive: "10m"
+    model_info:
+      id: betterwithage-node
+
+  # ==========================================================================
+  # Explicit per-node names - so a caller can deliberately pin one box (e.g. the
+  # #789 energy probe targets betterwithage's glm-4.7-flash) instead of the pool.
+  # ==========================================================================
+  - model_name: omen-llama
+    litellm_params:
+      model: ollama_chat/os.environ/OMEN_MODEL             # default llama3.1:8b (tower)
+      api_base: os.environ/OMEN_OLLAMA_URL                 # http://omen:11434
+      keep_alive: "10m"
+    model_info:
+      id: omen-llama-pinned
+
+  - model_name: betterwithage-glm
+    litellm_params:
+      model: ollama_chat/os.environ/BWA_MODEL              # default glm-4.7-flash:latest (laptop)
+      api_base: os.environ/BWA_OLLAMA_URL                  # http://betterwithage:11434
+      keep_alive: "10m"
+    model_info:
+      id: betterwithage-glm-pinned
+
+router_settings:
+  # least-busy skips a saturated/down node; latency-based is the alternative.
+  routing_strategy: least-busy
+  num_retries: 2
+  timeout: 120                 # seconds per attempt
+  cooldown_time: 30            # temporarily drop a node that errors, then retry it
+  allowed_fails: 2
+
+general_settings:
+  # Bearer token every caller (the Space) MUST send: Authorization: Bearer <key>.
+  # Injected from the environment - NEVER hardcoded (Doctrine v11: never commit a key).
+  master_key: os.environ/LITELLM_MASTER_KEY
+  # 2-node fleet: skip Postgres. Env-based config is sufficient.
+  database_url: null
+
+litellm_settings:
+  # Never log prompt/response bodies or keys to disk on the gateway box.
+  turn_off_message_logging: true
+  drop_params: true            # tolerate provider-unsupported params instead of erroring
+
+# ------------------------------------------------------------------------------
+# RUN (native python on the always-on box, OR the litellm container in
+# docker-compose.yml - see runbook). Bearer key comes from the environment.
+#
+#   pip install "litellm[proxy]"
+#   $env:LITELLM_MASTER_KEY   = "sk-...redacted..."     # PowerShell
+#   $env:SOVEREIGN_POOL_MODEL = "llama3.1:8b"
+#   $env:OMEN_OLLAMA_URL      = "http://omen:11434"
+#   $env:BWA_OLLAMA_URL       = "http://betterwithage:11434"
+#   $env:OMEN_MODEL           = "llama3.1:8b"
+#   $env:BWA_MODEL            = "glm-4.7-flash:latest"
+#   litellm --config box-scripts/litellm_config.yaml --port 4000
+#
+# VERIFY (from the gateway box, with the bearer):
+#   curl -s http://localhost:4000/health/liveliness
+#   curl -s http://localhost:4000/v1/models   -H "Authorization: Bearer $env:LITELLM_MASTER_KEY"
+#   curl -s http://localhost:4000/v1/chat/completions \
+#        -H "Authorization: Bearer $env:LITELLM_MASTER_KEY" \
+#        -H "Content-Type: application/json" \
+#        -d '{"model":"sovereign-llm","messages":[{"role":"user","content":"ping"}]}'
+# ------------------------------------------------------------------------------

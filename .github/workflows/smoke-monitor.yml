@@ -1,0 +1,83 @@
+# smoke-monitor.yml — Synthetic monitoring for SZL Holdings flagship HF Spaces
+# Doctrine v11 LOCKED 749/14/163 | SLSA L1 honest
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+#
+# 2026-06-08 FIX (flood remediation): was cron '*/5 * * * *' (288 runs/day) and
+# probed sentra/amaru/rosie Spaces that no longer exist -> failed EVERY run and
+# opened a NEW incident issue each time (notification flood + issue spam).
+# Now: (1) cadence = every 6h; (2) probe ONLY the live flagship Spaces
+# (a11oy, killinchu, anatomy); (3) tolerant of transient rebuild states — a
+# 5xx/000 is RETRIED before counting as down, and only a SUSTAINED hard failure
+# is reported; (4) no auto-issue-creation (it produced perpetual spam) — the run
+# status + summary is the signal. This is a monitor, not a correctness gate.
+
+name: Synthetic Smoke Monitor
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'  # every 6 hours
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual check'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    name: Flagship smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+
+    steps:
+      - name: Smoke test live flagship HF Spaces (tolerant)
+        id: smoke
+        run: |
+          set +e
+          PASS=0; FAIL=0; FAILURES=""
+
+          # Retry a few times so a transient rebuild (502/503/000) is not counted
+          # as a hard failure — only a SUSTAINED non-200 across retries fails.
+          check() {
+            local name="$1"; local url="$2"; local code=""
+            for attempt in 1 2 3 4 5; do
+              code=$(curl -o /dev/null -s -w '%{http_code}' --max-time 20 "$url")
+              if [ "$code" = "200" ]; then
+                echo "  PASS: $name => 200 (attempt $attempt)"; PASS=$((PASS+1)); return
+              fi
+              sleep 15
+            done
+            echo "  FAIL: $name => $code (sustained over 5 attempts)"
+            FAIL=$((FAIL+1)); FAILURES="$FAILURES\n- $name: HTTP $code (sustained)"
+          }
+
+          # LIVE flagship Spaces only (sentra/amaru/rosie removed — not live).
+          check "a11oy /"          "https://szlholdings-a11oy.hf.space/"
+          check "a11oy /api/a11oy/readyz" "https://szlholdings-a11oy.hf.space/api/a11oy/readyz"
+          check "a11oy console"    "https://szlholdings-a11oy.hf.space/console"
+          check "killinchu /"      "https://szlholdings-killinchu.hf.space/"
+          check "killinchu /elite" "https://szlholdings-killinchu.hf.space/elite"
+          check "anatomy /"        "https://szlholdings-anatomy.hf.space/"
+
+          echo "PASS=$PASS FAIL=$FAIL"
+          echo "pass=$PASS" >> "$GITHUB_OUTPUT"
+          echo "fail=$FAIL" >> "$GITHUB_OUTPUT"
+
+          # Only fail the job if a MAJORITY are sustained-down (real outage),
+          # not a single transient. Keeps the monitor low-noise.
+          if [ "$FAIL" -ge 3 ]; then
+            echo "::error::Sustained outage on $FAIL/6 flagship probes:$FAILURES"
+            exit 1
+          fi
+          if [ "$FAIL" -gt 0 ]; then
+            echo "::warning::$FAIL transient/probe miss (not a hard outage):$FAILURES"
+          fi
+          echo "Smoke OK ($PASS/6 live; $FAIL soft)."

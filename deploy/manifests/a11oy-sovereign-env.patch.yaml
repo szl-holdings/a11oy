@@ -1,0 +1,34 @@
+# a11oy-sovereign-env.patch.yaml — DECLARATIVE home for the sovereign-GPU wiring.
+# Doctrine: open-weight only; A11OY_GPU_LABEL is set ONLY when the model truly
+# serves on the GPU. This is a strategic-merge PATCH over a11oy-deployment.yaml,
+# applied by `a11oy-rebuild` (or `kubectl patch`). It is intentionally a separate
+# file so the signed base manifest (deploy/MANIFEST.json aggregate sha) is never
+# silently mutated — apply the overlay at deploy time, keep provenance clean.
+#
+# HONEST DEFAULT: with A11OY_MODEL_BASE_URL UNSET, healthz stays inference:hf-router
+# (correct, no GPU). Set both vars (below, or via the box env file the rebuild
+# sources) and the orchestrator _sovereign_inference_state() flips to
+# self-hosted-gpu / sovereign:true automatically — no code change.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: a11oy
+  namespace: a11oy
+spec:
+  template:
+    spec:
+      containers:
+        - name: a11oy
+          env:
+            # Point a11oy-Code at the local open-weight vLLM endpoint on the
+            # RTX 5000. Commented OUT by default so the honest hf-router fallback
+            # holds until the GPU is genuinely serving. Uncomment (or inject the
+            # same two keys from the box secret/env file) to go sovereign.
+            # - name: A11OY_MODEL_BASE_URL
+            #   value: "http://127.0.0.1:8000/v1"
+            # - name: A11OY_GPU_LABEL
+            #   value: "NVIDIA RTX 5000 @ Hetzner"
+            # Marker so `kubectl get deploy a11oy -o yaml | grep SOVEREIGN_OVERLAY`
+            # proves the overlay was applied even while the GPU vars are dormant.
+            - name: A11OY_SOVEREIGN_OVERLAY
+              value: "applied-v1"

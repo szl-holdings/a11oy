@@ -1,0 +1,44 @@
+# SZL Holdings — Amaru Zarf package
+# Authored by: Connector Wayra · P4 UDS Apply + Lutar, Stephen P.
+# Doctrine: v11 LOCKED 749/14/163 · Lambda = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest (cosign-signed GHCR image; L2 build-provenance attestation roadmap via Wire D, not yet earned)
+# Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC / L3
+#
+# Build:   zarf package create deploy/ --confirm
+# Deploy:  zarf package deploy zarf-package-amaru-amd64-uds-v0.2.0.tar.zst --confirm
+# UDS bundle: uds-cli bundle deploy szl-mesh-v0.4.0.tar.zst --confirm
+#
+# Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+kind: ZarfPackageConfig
+metadata:
+  name: amaru
+  version: uds-v0.2.0
+  description: |
+    Amaru — Memory Cortex (Andean Ouroboros). Looped reverse-ETL reasoning
+    organ governed by a 7-chakra framework. CORTEX: cited-answer engine,
+    hallucination scorer, RAGAS eval, 7-chakra runtime, LMDB-backed Unay
+    memory, DSSE-signed inference receipts, 3D provenance graph, Λ-gated
+    LLM tier router, F1–F23 formula registry, Wire E cortex SSE feed.
+    Rosie is co-pilot (NOT pilot). Doctrine v11 LOCKED 749/14/163.
+    Lambda = Conjecture 1 (NOT a theorem). SLSA L1 honest (L2 roadmap).
+    Not claimed: L3, FedRAMP, Iron Bank, CMMC.
+  url: https://github.com/szl-holdings/amaru
+  authors: "Lutar, Stephen P. · ORCID 0009-0001-0110-4173 · SZL Holdings"
+  architecture: amd64
+
+components:
+  - name: amaru-runtime
+    required: true
+    description: Amaru cortex/reasoning runtime + Khipu DAG PVC + 13-tab console.
+    images:
+      - ghcr.io/szl-holdings/amaru:uds-v0.2.0
+    manifests:
+      - name: amaru
+        namespace: amaru
+        files:
+          - manifests/amaru-namespace.yaml
+          - manifests/delta-log-pvc.yaml
+          - manifests/amaru-deployment.yaml
+          - manifests/amaru-service.yaml

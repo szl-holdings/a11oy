@@ -1,0 +1,60 @@
+{
+  "space": "sentra",
+  "doctrine": "v11",
+  "doctrine_numbers": {
+    "declarations": 749,
+    "unique_axioms": 14,
+    "tracked_sorries": 163,
+    "mcp_tools": 12,
+    "policy_gates": 46,
+    "anchor_gates": 44,
+    "raw_axioms": 15,
+    "sorries_baseline": 112,
+    "sorries_putnam": 51
+  },
+  "cursor_prs_reinstilled": [
+    {
+      "pr": "szl-holdings/sentra#56",
+      "title": "feat: add standalone dev environment with workspace stubs",
+      "category": "dev-env",
+      "status": "reflected (tooling/AGENTS.md/biome \u2014 not runtime-visible; recorded as provenance)"
+    },
+    {
+      "pr": "szl-holdings/sentra#65",
+      "title": "feat(forecasts): witnessed forecasting with M\u0101dhava error envelope",
+      "category": "feature",
+      "status": "INTEGRATED \u2014 vendored into serve.py as /api/sentra/v1/forecast (+ /run GET, POST) and src/forecasts/{witnessed.py,__init__.py}",
+      "lean_theorem_ref": "Lutar.PACBayes.MadhavaBound.madhava_alt_series_bound",
+      "lean_status": "partial",
+      "lean_sorry_lines": [
+        126,
+        145
+      ],
+      "honesty_note": "MadhavaBound.lean carries 2 of the 163 tracked sorries; bound is NOT fully machine-proven. No 'zero sorry' claim."
+    }
+  ],
+  "ip_hold_excluded": [
+    "szl-holdings/sentra#45"
+  ],
+  "preserved": [
+    "8 immune gates",
+    "Wire B /api/sentra/v1/inspect + /v1/inspect",
+    "/console/ SPA",
+    "Rosie widget",
+    "STATIC_DIR hotfix"
+  ],
+  "shipped_by": "OPUS Cursor re-instill \u2014 additive only",
+  "ship_date": "2026-05-31",
+  "opus_4dev_honesty_reship": {
+    "date": "2026-05-31",
+    "squad": "DEV-S1/S2 builder pair + Coder + DEV-S3/S4 tester pair (a11oy pattern)",
+    "fix": "Doctrine v10 reconciliation: FastAPI app description + serve.py now state canonical 749 / 14 unique axioms (15 raw, 1 dup) / 163 tracked sorries / 12 MCP / 46 gates. Retired the earlier v9 figures (456/14/6), which came from a stale clone counted with a restricted token set.",
+    "surface": "live /openapi.json info.description",
+    "mode": "ADDITIVE/CORRECTIVE only \u2014 all 18 routes, 8 gates, Wire B, /console/, #try-it, Rosie widget, STATIC_DIR hotfix, forecast endpoints preserved",
+    "ip_hold_untouched": "szl-holdings/sentra#45",
+    "zero_bandaid": true
+  },
+  "canonical_ref": "lutar-lean tag lutar-v18.0.0 / c7c0ba17 (canonical reproducibility counter)",
+  "honesty_note": "749 declarations / 14 unique axioms (15 raw, 1 dup) / 163 tracked sorries (112 baseline + 51 Putnam) per .github/scripts/lean_numbers.py @ c7c0ba17. The v18 'zero sorry' claim is FALSE and not propagated. \u039b uniqueness is a Conjecture (open CAUCHY_ND sorry in Uniqueness.lean:120 + missing symmetry axiom). Wire B & C LIVE, Wire D NOT IMPLEMENTED. SLSA L1 honest (not L3). Prior re-audit 456/6 was wrong (stale clone + restricted token set).",
+  "supersedes": "Doctrine v9 numbers 456/6 (retired)"
+}

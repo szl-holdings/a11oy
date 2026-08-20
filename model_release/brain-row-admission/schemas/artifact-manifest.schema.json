@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl.brain-training-admission-artifact-manifest.v2.json",
+  "title": "SZL Brain row admission artifact manifest v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "report", "ledgers", "decision_set", "input_manifest",
+    "claims_boundary", "policy_binding_sha256", "policy_bundle_evidence_sha256",
+    "authorization_state", "issuer", "tool_identity", "issued_at_utc",
+    "manifest_receipt_sha256", "signature"
+  ],
+  "properties": {
+    "schema_version": {"const": "szl.brain-training-admission-artifact-manifest.v2"},
+    "report": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "report_receipt_sha256"],
+      "properties": {"path": {"const": "admission-report.json"}, "bytes": {"type": "integer", "minimum": 1}, "sha256": {"$ref": "#/$defs/sha256"}, "report_receipt_sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "ledgers": {
+      "type": "object", "additionalProperties": false,
+      "required": ["admitted_train", "admitted_eval", "quarantine"],
+      "properties": {"admitted_train": {"$ref": "#/$defs/ledger"}, "admitted_eval": {"$ref": "#/$defs/ledger"}, "quarantine": {"$ref": "#/$defs/ledger"}}
+    },
+    "decision_set": {
+      "type": "object", "additionalProperties": false,
+      "required": ["rows", "ordered_decision_receipt_sha256", "ordered_decision_receipts_sha256"],
+      "properties": {"rows": {"type": "integer", "minimum": 0, "maximum": 20000}, "ordered_decision_receipt_sha256": {"type": "array", "maxItems": 20000, "items": {"$ref": "#/$defs/sha256"}}, "ordered_decision_receipts_sha256": {"$ref": "#/$defs/sha256"}}
+    },
+    "input_manifest": {"type": "object"},
+    "claims_boundary": {
+      "type": "object", "additionalProperties": false,
+      "required": ["training_triggered", "network_used", "model_promotion_allowed"],
+      "properties": {"training_triggered": {"const": false}, "network_used": {"const": false}, "model_promotion_allowed": {"const": false}}
+    },
+    "policy_binding_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "policy_bundle_evidence_sha256": {"anyOf": [{"$ref": "#/$defs/sha256"}, {"type": "null"}]},
+    "authorization_state": {"enum": ["ROOTED_SIGNED_TERMINAL_MANIFEST", "UNSIGNED_INSPECTION_ONLY"]},
+    "issuer": {"type": ["string", "null"]},
+    "tool_identity": {"type": ["string", "null"]},
+    "issued_at_utc": {"type": ["string", "null"], "format": "date-time"},
+    "manifest_receipt_sha256": {"$ref": "#/$defs/sha256"},
+    "signature": {"anyOf": [{"$ref": "#/$defs/signature"}, {"type": "null"}]}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"authorization_state": {"const": "ROOTED_SIGNED_TERMINAL_MANIFEST"}}},
+      "then": {"properties": {"policy_binding_sha256": {"$ref": "#/$defs/sha256"}, "policy_bundle_evidence_sha256": {"$ref": "#/$defs/sha256"}, "issuer": {"type": "string", "minLength": 3}, "tool_identity": {"type": "string", "minLength": 3}, "issued_at_utc": {"type": "string", "format": "date-time"}, "signature": {"$ref": "#/$defs/signature"}}}
+    },
+    {
+      "if": {"properties": {"authorization_state": {"const": "UNSIGNED_INSPECTION_ONLY"}}},
+      "then": {"properties": {"signature": {"const": null}, "issuer": {"const": null}, "tool_identity": {"const": null}, "issued_at_utc": {"const": null}}}
+    }
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "ledger": {"type": "object", "additionalProperties": false, "required": ["path", "rows", "bytes", "sha256"], "properties": {"path": {"type": "string", "minLength": 3}, "rows": {"type": "integer", "minimum": 0}, "bytes": {"type": "integer", "minimum": 0}, "sha256": {"$ref": "#/$defs/sha256"}}},
+    "signature": {"type": "object", "additionalProperties": false, "required": ["algorithm", "key_id", "value_base64"], "properties": {"algorithm": {"const": "Ed25519"}, "key_id": {"type": "string", "minLength": 3}, "value_base64": {"type": "string", "minLength": 16}}}
+  }
+}

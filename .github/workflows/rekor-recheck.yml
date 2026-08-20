@@ -1,0 +1,381 @@
+# rekor-recheck.yml — Continuously re-verify PUBLISHED governance receipts.
+#
+# Issue #195. dsse-receipts.yml verifies a receipt at MINT time (same job that
+# signs it). That proves signing works, but gives no ongoing assurance that
+# receipts published in the past still verify against the public Sigstore trust
+# root + Rekor transparency log over time — which is what gives the signatures
+# their long-term audit value.
+#
+# This scheduled monitor walks every published envelope under
+# attestations/governance/*.dsse.json and re-runs the SAME independent
+# verification (Fulcio cert chain + Rekor inclusion + DSSE signature, pinned to
+# the signer identity) via scripts/recheck_rekor_receipts.py. If any receipt no
+# longer verifies it fails LOUDLY and raises a rolling incident issue.
+#
+# HONESTY: this re-checks SIGNATURES only; the SLSA claim is unchanged (L1).
+# PLACEHOLDER envelopes are reported and skipped (never claimed verifiable).
+#
+# Org policy: only github-owned / verified actions are allowed, and Sigstore is
+# driven by `pip install sigstore` + the repo's own scripts (no third-party
+# signing/verification action). Action SHAs are pinned.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Rekor Receipt Re-check
+
+on:
+  schedule:
+    - cron: '17 6 * * *'  # daily at 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Manual trigger reason'
+        required: false
+        default: 'manual re-check'
+      test_alert:
+        description: 'Send a [TEST-ignore] alert through the webhook to prove delivery end to end, then exit (no real re-check, no incident issue).'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+concurrency:
+  group: rekor-recheck
+  cancel-in-progress: false
+
+jobs:
+  # Manual delivery test (workflow_dispatch with test_alert=true). Posts a
+  # clearly-labelled [TEST-ignore] message through the SAME Slack-compatible
+  # webhook the real failure alert uses, so the team can prove the alert path
+  # works end to end after wiring SLACK_WEBHOOK_URL — without waiting for a
+  # genuine receipt failure. It does NOT run the re-check, does NOT touch the
+  # rolling rekor-recheck incident issue, and does NOT mark any receipt as
+  # failing. Soft-skips with a ::warning:: (identical to the real alert path)
+  # when no webhook secret is configured.
+  test-alert:
+    name: Send a test receipt-failure alert (no real re-check)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_alert == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post a [TEST-ignore] alert through the same webhook
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — cannot send the test alert. Wire the secret, then re-run this manual test."
+            exit 0
+          fi
+
+          # Same compose -> jq-encode -> curl delivery the real alert uses, but
+          # the payload is unmistakably a test and names no failing receipt.
+          text=":test_tube: *[TEST-ignore] Rekor receipt re-check — alert delivery test* for ${REPO}.
+          This is a MANUAL test of the receipt-failure alert path, triggered by ${ACTOR}.
+          No published receipt is failing and no incident issue was opened. If you can read this, the webhook is wired correctly.
+          *Test run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting [TEST-ignore] alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Test alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Test alert delivered — the receipt-failure alert path works end to end."
+
+    permissions:
+      contents: read
+      issues: write
+  recheck:
+    name: Re-verify published receipts against Rekor
+    # The manual delivery test (test_alert=true) must not run the real re-check
+    # or touch the rolling incident issue; it only exercises webhook delivery.
+    if: ${{ inputs.test_alert != true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install sigstore SDK
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "sigstore>=2.0.0"
+
+      # Published receipts live on the dedicated `governance-receipts` ledger
+      # branch (dsse-receipts.yml appends them there; main's branch ruleset
+      # blocks the in-CI token from committing to main). Pull them into the
+      # working tree. Tolerant of the branch / path not existing yet (no
+      # receipts published => nothing to re-check => honest soft pass).
+      - name: Fetch published receipts ledger
+        run: |
+          set +e
+          mkdir -p attestations/governance
+          git fetch origin governance-receipts >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            git checkout origin/governance-receipts -- attestations/governance >/dev/null 2>&1 \
+              && echo "Ledger fetched." || echo "Ledger branch present but no receipts yet."
+          else
+            echo "No governance-receipts ledger branch yet — nothing published to re-check."
+          fi
+          echo "Receipts present:"
+          ls -1 attestations/governance/*.dsse.json 2>/dev/null || echo "  (none)"
+
+      - name: Re-verify all published governance receipts
+        id: recheck
+        run: |
+          set +e
+          # --baseline: the checked-in floor (issue #320). The governance-receipts
+          # ledger is append-only; once populated, finding fewer receipts than the
+          # recorded baseline means the ledger branch was wiped or this fetch step
+          # silently failed, and the re-check fails LOUDLY instead of passing green
+          # with nothing to check. An unrecorded baseline (file absent) = no floor,
+          # so the genuine empty-on-first-use state is still tolerated.
+          python scripts/recheck_rekor_receipts.py \
+            --dir attestations/governance \
+            --baseline .github/rekor-recheck-baseline.json \
+            --summary-out attestations/governance/.rekor-recheck-summary.json \
+            | tee recheck.out
+          status=${PIPESTATUS[0]}
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+
+          # Surface a structured object for the issue-manager step + a human
+          # summary on the run page.
+          if [ -f attestations/governance/.rekor-recheck-summary.json ]; then
+            checked=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['checked'])")
+            passed=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['passed'])")
+            failed=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['failed'])")
+            skipped=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json'))['skipped'])")
+            # Emptied-ledger guard fields (issue #320). Tolerant of older summaries
+            # that predate these keys.
+            min_expected=$(python -c "import json;print(json.load(open('attestations/governance/.rekor-recheck-summary.json')).get('min_expected',0))")
+            baseline_ok=$(python -c "import json;print(str(json.load(open('attestations/governance/.rekor-recheck-summary.json')).get('baseline_ok',True)).lower())")
+          else
+            checked=0; passed=0; failed=0; skipped=0; min_expected=0; baseline_ok=true
+          fi
+          echo "checked=${checked}" >> "$GITHUB_OUTPUT"
+          echo "passed=${passed}"   >> "$GITHUB_OUTPUT"
+          echo "failed=${failed}"   >> "$GITHUB_OUTPUT"
+          echo "skipped=${skipped}" >> "$GITHUB_OUTPUT"
+          echo "min_expected=${min_expected}" >> "$GITHUB_OUTPUT"
+          echo "baseline_ok=${baseline_ok}"   >> "$GITHUB_OUTPUT"
+
+          # Names (+reason) of every receipt that no longer verifies, so the
+          # direct alert can name the failing receipt(s). Multi-line output via
+          # the heredoc delimiter form. When the failure is an emptied/regressed
+          # ledger (baseline violation) there are no per-receipt rows, so emit an
+          # explicit line naming that condition instead.
+          {
+            echo "failed_files<<__RECHECK_EOF__"
+            if [ -f attestations/governance/.rekor-recheck-summary.json ]; then
+              python -c "import json; s=json.load(open('attestations/governance/.rekor-recheck-summary.json')); [print('- '+r['file']+(' ('+r['reason']+')' if r.get('reason') else '')) for r in s.get('results',[]) if r.get('status')=='FAIL']"
+            fi
+            if [ "${baseline_ok}" = "false" ]; then
+              echo "- (ledger emptied/regressed: ${checked} receipt(s) present, baseline requires >= ${min_expected} — wiped ledger branch or broken fetch)"
+            fi
+            echo "__RECHECK_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Rekor receipt re-check"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Checked | ${checked} |"
+            echo "| Verified | ${passed} |"
+            echo "| **Failed** | ${failed} |"
+            echo "| Skipped (placeholder) | ${skipped} |"
+            echo "| Baseline (min required) | ${min_expected} |"
+            echo "| Baseline satisfied | ${baseline_ok} |"
+            echo ""
+            echo '```'
+            cat recheck.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0  # never abort here; the explicit gate below owns pass/fail
+
+      - name: Upload re-check summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: rekor-recheck-summary
+          path: attestations/governance/.rekor-recheck-summary.json
+          if-no-files-found: ignore
+
+      - name: Reconcile rolling re-check incident issue
+        id: incident
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EXIT_CODE: ${{ steps.recheck.outputs.exit_code }}
+          CHECKED: ${{ steps.recheck.outputs.checked }}
+          FAILED: ${{ steps.recheck.outputs.failed }}
+          PASSED: ${{ steps.recheck.outputs.passed }}
+          SKIPPED: ${{ steps.recheck.outputs.skipped }}
+          MIN_EXPECTED: ${{ steps.recheck.outputs.min_expected }}
+          BASELINE_OK: ${{ steps.recheck.outputs.baseline_ok }}
+        with:
+          script: |
+            const failed = Number(process.env.FAILED || '0') > 0 ||
+                           Number(process.env.EXIT_CODE || '0') === 1;
+            const baselineViolated = String(process.env.BASELINE_OK || 'true') === 'false';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const marker = '<!-- rekor-recheck-incident -->';
+
+            // Find the single rolling incident (open or closed) by stable marker.
+            const q = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:rekor-recheck`;
+            const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
+            const existing = res.data.items.find(i => !i.pull_request) || null;
+
+            const stats = `checked=${process.env.CHECKED} verified=${process.env.PASSED} failed=${process.env.FAILED} skipped=${process.env.SKIPPED} baseline(min)=${process.env.MIN_EXPECTED} baseline_ok=${process.env.BASELINE_OK}`;
+            const now = new Date().toISOString();
+
+            // The emptied-ledger guard (issue #320) and the per-receipt
+            // verification failure share one rolling incident; name whichever
+            // condition tripped so the reader is not misled.
+            const cause = baselineViolated
+              ? `The published governance-receipts ledger unexpectedly dropped below its recorded ` +
+                `baseline (found ${process.env.CHECKED}, require >= ${process.env.MIN_EXPECTED}). The ledger ` +
+                `branch was likely wiped or the fetch step silently failed — the re-check refuses to pass ` +
+                `green with nothing to check.`
+              : `One or more PUBLISHED governance receipts no longer verify against the ` +
+                `public Rekor transparency log.`;
+
+            if (failed) {
+              const body = `## Rekor Re-check Incident\n\n${marker}\n` +
+                `**State:** FAILING\n**Detected:** ${now}\n**Run:** ${runUrl}\n\n` +
+                `${cause}\n\n\`${stats}\`\n\n` +
+                `See the run summary for the per-receipt breakdown. This is a single ` +
+                `rolling incident; it updates in place and auto-closes on recovery.`;
+              let incident = existing;
+              if (existing) {
+                if (existing.state === 'closed') {
+                  await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
+                }
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Still FAILING as of ${now}.\n\n\`${stats}\`\nRun: ${runUrl}` });
+              } else {
+                const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                  title: '[REKOR] Published governance receipt(s) no longer verify', body, labels: ['rekor-recheck', 'incident'] });
+                incident = created.data;
+              }
+              // Surface the incident issue so the direct-alert step can link it.
+              if (incident) {
+                core.setOutput('issue_number', String(incident.number));
+                core.setOutput('issue_url', incident.html_url);
+              }
+            } else if (existing && existing.state === 'open') {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                body: `Recovered: all published receipts verify against Rekor again as of ${now}.\n\n\`${stats}\`\nAuto-closing this rolling incident.\nRun: ${runUrl}` });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+            }
+
+      # Direct push notification so a silently-broken transparency record is
+      # noticed immediately, not just buried in a red run / rolling issue.
+      # Fires ONLY when a published receipt no longer verifies (same condition
+      # the incident issue uses); the all-pass path sends nothing. Posts to a
+      # Slack-compatible incoming webhook via curl (no third-party action, so it
+      # stays within the org's github-owned/verified-actions-only policy).
+      #
+      # FAIL-LOUD (issue #541): this step only runs when there IS a real receipt
+      # failure to page about, so a dead alert channel here is a SILENT ALARM on a
+      # receipts company. If the webhook is unset/empty, unreachable (curl
+      # timeout / transport error), or returns non-2xx (e.g. HTTP 502), this step
+      # exits NON-ZERO with an ::error:: — the alert-DELIVERY step must never read
+      # green when a genuine failure could not be paged. Doctrine: never let a
+      # dead alarm read as green.
+      - name: Alert the team directly on re-check failure
+        if: ${{ always() && (steps.recheck.outputs.failed != '0' || steps.recheck.outputs.exit_code == '1') }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
+          ISSUE_NUMBER: ${{ steps.incident.outputs.issue_number }}
+          REPO: ${{ github.repository }}
+          CHECKED: ${{ steps.recheck.outputs.checked }}
+          PASSED: ${{ steps.recheck.outputs.passed }}
+          FAILED: ${{ steps.recheck.outputs.failed }}
+          SKIPPED: ${{ steps.recheck.outputs.skipped }}
+          MIN_EXPECTED: ${{ steps.recheck.outputs.min_expected }}
+          BASELINE_OK: ${{ steps.recheck.outputs.baseline_ok }}
+          FAILED_FILES: ${{ steps.recheck.outputs.failed_files }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::error::receipt-alert channel UNAVAILABLE — SLACK_WEBHOOK_URL is unset/empty while a published governance receipt is FAILING re-check. The failure will NOT page. Failing this step loudly (a dead alarm must never read green); the rolling rekor-recheck incident issue still stands. Re-set the SLACK_WEBHOOK_URL secret to the a11oy-uptime ntfy webhook."
+            exit 1
+          fi
+
+          if [ -n "${ISSUE_URL}" ]; then
+            issue_line="Incident issue: #${ISSUE_NUMBER} ${ISSUE_URL}"
+          else
+            issue_line="Incident issue: (could not be resolved this run)"
+          fi
+
+          files="${FAILED_FILES}"
+          if [ -z "${files}" ]; then
+            files="(re-check script errored before a per-receipt breakdown was produced)"
+          fi
+
+          # Name the actual condition: an emptied/regressed ledger (issue #320)
+          # vs. a per-receipt verification failure.
+          if [ "${BASELINE_OK}" = "false" ]; then
+            headline="published governance-receipts ledger emptied/regressed (found ${CHECKED}, require >= ${MIN_EXPECTED}) — wiped branch or broken fetch"
+          else
+            headline="published governance receipt(s) no longer verify"
+          fi
+
+          # Compose the message (real newlines), then JSON-encode it safely with
+          # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. Slack renders \n and *bold* in the `text` field.
+          text=":rotating_light: *Rekor receipt re-check FAILED* — ${headline} in ${REPO}.
+          *Counts:* checked=${CHECKED} verified=${PASSED} failed=${FAILED} skipped=${SKIPPED} baseline(min)=${MIN_EXPECTED}
+          *Failing receipt(s):*
+          ${files}
+          *Failing run:* ${RUN_URL}
+          *${issue_line}*"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting receipt-failure alert to Slack webhook..."
+          curl_rc=0
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}") || curl_rc=$?
+          if [ "${curl_rc}" -ne 0 ]; then
+            echo "::error::receipt-alert channel UNREACHABLE — curl transport error (exit ${curl_rc}, e.g. timeout/DNS/connection refused) while paging a FAILING receipt. The failure did NOT page; failing loudly. Re-check/rotate the SLACK_WEBHOOK_URL webhook."
+            exit 1
+          fi
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::receipt-alert channel UNAVAILABLE — webhook POST did not return 2xx (HTTP ${code}): $(cat /tmp/slack_resp.txt). A FAILING receipt did NOT page; failing loudly (dead alarm must not read green). Rotate the SLACK_WEBHOOK_URL webhook."
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run if any published receipt no longer verifies
+        if: always()
+        run: |
+          code="${{ steps.recheck.outputs.exit_code }}"
+          if [ "${code}" = "1" ]; then
+            echo "::error::One or more published governance receipts no longer verify against Rekor."
+            exit 1
+          fi
+          if [ "${code}" != "0" ]; then
+            echo "::error::Re-check script errored (exit ${code})."
+            exit 1
+          fi
+          echo "All published receipts still verify against Rekor (or none published yet)."
+    permissions:
+      contents: read
+      issues: write

@@ -1,0 +1,76 @@
+// SPDX-License-Identifier: Apache-2.0
+// (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 - Doctrine v11
+//
+// tailscale_acl.json - the tailnet policy for the sovereign GPU mesh.
+//
+// FORMAT: this is HuJSON (JSON-with-comments + trailing commas), the exact format
+// the Tailscale admin console "Access controls" editor expects. Paste it there,
+// or apply via GitOps. A strict JSON linter will reject the comments - that is
+// expected; Tailscale's parser accepts them.
+//
+// GOAL (Doctrine v11 security: Ollama never public; deny-by-default):
+//   * Ollama's :11434 on each GPU box is reachable by EXACTLY ONE peer - the
+//     device running LiteLLM (tag:llm-gateway). Nothing else on the tailnet can
+//     reach it. NEVER exposed publicly, NEVER via Tailscale Funnel.
+//   * Once an `acls` block exists, the tailnet is deny-by-default: any src/dst
+//     pair not explicitly accepted is denied.
+//
+// TAGGING (do this in the admin console or via `tailscale up --advertise-tags`):
+//   * omen           -> tag:llm-gpu        (and tag:llm-gateway if LiteLLM runs here)
+//   * betterwithage  -> tag:llm-gpu
+//   * the LiteLLM host (usually omen itself, or a small always-on relay)
+//                    -> tag:llm-gateway
+//
+// If LiteLLM runs ON omen, the omen->omen hop is local (no cross-tailnet rule
+// needed); the gateway rule then really only matters for reaching betterwithage.
+{
+  "tagOwners": {
+    "tag:llm-gpu":     ["autogroup:admin"],
+    "tag:llm-gateway": ["autogroup:admin"],
+  },
+
+  "acls": [
+    // (1) The LiteLLM gateway may reach Ollama (:11434) on the GPU boxes -
+    //     and ONLY that port. This is the single permitted path to raw Ollama.
+    {
+      "action": "accept",
+      "src":    ["tag:llm-gateway"],
+      "dst":    ["tag:llm-gpu:11434"],
+    },
+
+    // (2) Admin devices (your laptop/phone, autogroup:admin) may manage the
+    //     boxes and scrape GPU telemetry: SSH (22), RDP (3389), dcgm-exporter
+    //     (9400), the joule exporter / meter (9471). NOT Ollama's 11434.
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:llm-gpu:22,3389,9400,9471"],
+    },
+
+    // (3) The gateway may also scrape telemetry from the GPU boxes (Prometheus
+    //     on the gateway host pulling dcgm-exporter :9400 over the tailnet).
+    {
+      "action": "accept",
+      "src":    ["tag:llm-gateway"],
+      "dst":    ["tag:llm-gpu:9400,9471"],
+    },
+
+    // No other rule => EVERYTHING ELSE IS DENIED BY DEFAULT. In particular no
+    // untagged tailnet device, and no public path, can reach :11434.
+  ],
+
+  // Tailscale SSH (optional, admin convenience). Remove if you use RDP only.
+  "ssh": [
+    {
+      "action": "accept",
+      "src":    ["autogroup:admin"],
+      "dst":    ["tag:llm-gpu"],
+      "users":  ["autogroup:nonroot", "root"],
+    },
+  ],
+
+  // FUNNEL: intentionally NO funnel nodeAttr / grant is present. Adding the
+  // "funnel" attr would GRANT public Funnel to those nodes - the exact opposite
+  // of what we want. Ollama must never be publicly reachable via Funnel, so the
+  // grant simply does not exist here. (Deny-by-default: absence = denied.)
+}

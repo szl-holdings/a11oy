@@ -1,0 +1,201 @@
+{
+  "schema": "https://szlholdings.com/schemas/lutar-reference-vectors-v1.json",
+  "formula": "Λ_k(x) = (∏ xᵢ)^(1/k)",
+  "k": 9,
+  "generatedAt": "2026-05-12T06:51:49.794Z",
+  "source": "@workspace/ouroboros-invariant lutarInvariant9 (TS canonical)",
+  "toleranceAbs": 1e-12,
+  "toleranceRel": 1e-9,
+  "vectors": [
+    {
+      "id": "uniform-0_9",
+      "axes": [
+        0.9,
+        0.9,
+        0.9,
+        0.9,
+        0.9,
+        0.9,
+        0.9,
+        0.9,
+        0.9
+      ],
+      "lambda": 0.9,
+      "bound": {
+        "lower": 0.9,
+        "upper": 0.9
+      }
+    },
+    {
+      "id": "uniform-0_5",
+      "axes": [
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5
+      ],
+      "lambda": 0.5,
+      "bound": {
+        "lower": 0.5,
+        "upper": 0.5
+      }
+    },
+    {
+      "id": "uniform-0_1",
+      "axes": [
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1,
+        0.1
+      ],
+      "lambda": 0.10000000000000006,
+      "bound": {
+        "lower": 0.1,
+        "upper": 0.1
+      }
+    },
+    {
+      "id": "ascending",
+      "axes": [
+        0.1,
+        0.2,
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9
+      ],
+      "lambda": 0.4147166274396913,
+      "bound": {
+        "lower": 0.1,
+        "upper": 0.9
+      }
+    },
+    {
+      "id": "descending",
+      "axes": [
+        0.9,
+        0.8,
+        0.7,
+        0.6,
+        0.5,
+        0.4,
+        0.3,
+        0.2,
+        0.1
+      ],
+      "lambda": 0.41471662743969134,
+      "bound": {
+        "lower": 0.1,
+        "upper": 0.9
+      }
+    },
+    {
+      "id": "one-zero",
+      "axes": [
+        0.9,
+        0.9,
+        0.9,
+        0.9,
+        0,
+        0.9,
+        0.9,
+        0.9,
+        0.9
+      ],
+      "lambda": 0,
+      "bound": {
+        "lower": 0,
+        "upper": 0.9
+      }
+    },
+    {
+      "id": "all-ones",
+      "axes": [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "lambda": 1,
+      "bound": {
+        "lower": 1,
+        "upper": 1
+      }
+    },
+    {
+      "id": "tiny-perturbation",
+      "axes": [
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.5,
+        0.500001
+      ],
+      "lambda": 0.5000001111110124,
+      "bound": {
+        "lower": 0.5,
+        "upper": 0.500001
+      }
+    },
+    {
+      "id": "ground-truth-mirror-eval",
+      "axes": [
+        0.95,
+        0.95,
+        0.95,
+        0.95,
+        0.95,
+        0.95,
+        0.98,
+        0.99,
+        0.96
+      ],
+      "lambda": 0.9587808437701262,
+      "bound": {
+        "lower": 0.95,
+        "upper": 0.99
+      }
+    },
+    {
+      "id": "noisy-borderline",
+      "axes": [
+        0.45,
+        0.46,
+        0.47,
+        0.48,
+        0.49,
+        0.5,
+        0.51,
+        0.52,
+        0.53
+      ],
+      "lambda": 0.48931852413764076,
+      "bound": {
+        "lower": 0.45,
+        "upper": 0.53
+      }
+    }
+  ]
+}

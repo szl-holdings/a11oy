@@ -1,0 +1,88 @@
+name: SLSA Build L1 (dist provenance attestation)
+
+# SLSA v1.0 Build L1: provenance EXISTS describing how an artifact was built and
+# is DISTRIBUTED to consumers (https://slsa.dev/spec/v1.0/levels#build-l1).
+#
+# This workflow attests the compiled doctrine `dist/` bundle. It complements
+# slsa.yml (which attests the git-archive .tar.zst release artifact); both use
+# the same Sigstore keyless flow (GitHub OIDC -> Fulcio -> Rekor) via
+# actions/attest-build-provenance.
+#
+# CORRECTION (2026-05-30): this workflow previously claimed SLSA L3 and used
+# slsa-github-generator's generator_generic_slsa3.yml with a placeholder-hash
+# fallback. The org posture is L1-honest (the README badge says SLSA-L1), so the
+# L3 claim was inaccurate and is removed here. We attest real build outputs only.
+#
+# Doctrine v7: every claim is verifiable; no echo stubs, no placeholder hashes.
+
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  attest-dist:
+    name: Build dist + attest SLSA L1 provenance
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write       # OIDC token -> Sigstore keyless signing
+      contents: read
+      attestations: write   # store the attestation via the repo attestations API
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Enable Corepack (pnpm)
+        run: corepack enable && corepack prepare pnpm@11.5.0 --activate
+
+      - name: Install dependencies
+        env:
+          PNPM_CONFIG_STRICT_DEP_BUILDS: "false"
+        run: pnpm install --frozen-lockfile
+
+      - name: Build doctrine packages
+        env:
+          PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN: "false"
+        run: pnpm run build:doctrine
+
+      - name: Collect dist artifacts
+        id: collect
+        run: |
+          set -euo pipefail
+          mkdir -p _attest
+          # Archive the real built dist trees. Fail loudly if nothing was built
+          # (no placeholder fallback).
+          found=0
+          for d in web/packages/a11oy-core/dist web/packages/a11oy-connection/dist; do
+            if [ -d "$d" ]; then
+              tar -rf _attest/a11oy-dist.tar "$d"
+              found=1
+            fi
+          done
+          if [ "$found" -ne 1 ]; then
+            echo "No dist artifacts produced by build:doctrine — failing." >&2
+            exit 1
+          fi
+          gzip -f _attest/a11oy-dist.tar
+          echo "artifact=_attest/a11oy-dist.tar.gz" >> "$GITHUB_OUTPUT"
+          echo "Built $(wc -c < _attest/a11oy-dist.tar.gz) bytes"
+
+      - name: Attest SLSA provenance (Sigstore keyless)
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.collect.outputs.artifact }}
+
+      - name: Upload dist artifact (verifiable subject)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11oy-dist
+          path: ${{ steps.collect.outputs.artifact }}
+          retention-days: 90

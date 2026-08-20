@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<!-- SAFE-NOW hardening (R2): browser-honored CSP subset + nosniff + Referrer-Policy.
+     HSTS / frame-ancestors omitted (browsers ignore them in <meta>; setting them
+     would be fabrication). 'unsafe-inline' is required: this page ships an inline
+     module script + inline styles, and Three.js is a vendored same-origin script.
+     connect-src is 'self' only — the cockpit reads bundled same-origin receipt JSON
+     and verifies entirely in-browser; it sends no key and calls no external origin. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+<meta http-equiv="X-Content-Type-Options" content="nosniff" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=2" />
+<title>SZL Living Anatomy — Covenant Cockpit v1 · the holographic trust surface</title>
+<meta name="description" content="Covenant Cockpit v1: a 3D provenance graph rendered from REAL szl-receipt in-toto receipts. Each decision node links to the Λ-gate that governed it, the Lean proof backing the kernel invariant, the energy it burned (measured joules or honest UNAVAILABLE), and the BFT witnesses that co-signed. Click a node for its receipt fields + a genuine WebCrypto verify badge. No receipts → an honest empty state, never fabricated nodes. Λ = Conjecture 1." />
+<style>
+  :root{
+    --void:#080c14; --void2:#0b1120;
+    --proof:#3af4c8; --lattice:#5b8dee; --gold:#d7b96b; --warn:#e0795b;
+    --audit:#9ef0c0; --dim:#3a4456; --text:#e9eef7; --muted:#8b97b4; --faint:#5d6a8f;
+    --surface:rgba(11,17,32,0.72); --surface2:rgba(16,24,44,0.92);
+    --border:rgba(91,141,238,0.18); --border-strong:rgba(91,141,238,0.36);
+    --radius:14px; --blur:18px;
+    --font-d:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,Roboto,sans-serif;
+    --font-m:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+    --shadow:0 18px 60px rgba(0,0,0,0.6);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:var(--void);color:var(--text);
+    font-family:var(--font-d);-webkit-font-smoothing:antialiased;overflow:hidden}
+  a{color:var(--proof);text-decoration:none} a:hover{text-decoration:underline}
+
+  #scene{position:fixed;inset:0;display:block;touch-action:none}
+
+  .hud{position:fixed;z-index:5;pointer-events:none}
+  .panel{pointer-events:auto;background:var(--surface);backdrop-filter:blur(var(--blur));
+    border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .hdr{font-family:var(--font-m);font-size:9px;letter-spacing:.22em;text-transform:uppercase;
+    color:var(--faint);padding-bottom:8px;margin-bottom:9px;border-bottom:1px solid var(--border)}
+
+  /* top-left: title */
+  #title{top:16px;left:16px;max-width:min(48ch,calc(100vw - 32px))}
+  #title .inner{padding:13px 15px}
+  #title .eyebrow{font-family:var(--font-m);font-size:9px;letter-spacing:.26em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+  #title h1{font-size:18px;font-weight:600;line-height:1.15;letter-spacing:-.01em}
+  #title h1 .accent{color:var(--proof)}
+  #title .sub{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.45}
+
+  /* top-right: legend + stats */
+  #stats{top:16px;right:16px;width:min(260px,calc(100vw - 32px));padding:13px 15px}
+  #stats .row{display:flex;justify-content:space-between;gap:9px;font-size:11px;line-height:1.7;color:var(--muted)}
+  #stats .row b{color:var(--text);font-weight:600;font-family:var(--font-m);font-size:11px}
+  #stats .src{font-family:var(--font-m);font-size:9px;color:var(--faint);margin-top:8px;padding-top:8px;border-top:1px solid var(--border);line-height:1.5;word-break:break-all}
+
+  /* bottom-left: node inspector */
+  #inspect{bottom:16px;left:16px;width:min(340px,calc(100vw - 32px));padding:13px 15px;max-height:min(62vh,560px);overflow:auto}
+  #inspect .kind{display:inline-block;font-family:var(--font-m);font-size:9px;letter-spacing:.06em;text-transform:uppercase;
+    padding:2px 8px;border-radius:99px;border:1px solid currentColor}
+  #inspect h2{font-size:14px;font-weight:600;margin:9px 0 4px;line-height:1.2;word-break:break-word}
+  #inspect .frow{display:flex;gap:8px;font-size:10.5px;line-height:1.5;margin-bottom:4px}
+  #inspect .frow .k{flex:0 0 88px;color:var(--faint);font-family:var(--font-m);font-size:9px;letter-spacing:.03em;text-transform:uppercase}
+  #inspect .frow .v{color:var(--text);font-family:var(--font-m);font-size:10px;word-break:break-word;flex:1}
+  #inspect .mut{color:var(--muted)}
+  #inspect .hint{color:var(--faint);font-size:10.5px;line-height:1.5}
+  .vbadge{display:inline-block;font-family:var(--font-m);font-size:10px;letter-spacing:.03em;padding:3px 10px;border-radius:99px;border:1px solid currentColor;margin-top:2px}
+  .v-verified{color:var(--proof)} .v-unavailable{color:var(--faint)} .v-failed{color:var(--warn)} .v-pending{color:var(--muted)}
+
+  /* bottom-right: doctrine footer */
+  #doctrine{bottom:16px;right:16px;width:min(300px,calc(100vw - 32px));padding:12px 15px;font-size:10px;color:var(--faint);line-height:1.55}
+  #doctrine b{color:var(--muted);font-weight:600}
+  .sw{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--proof);box-shadow:0 0 6px currentColor;color:var(--proof);margin-right:6px;vertical-align:middle}
+
+  /* center legend */
+  .legend{position:fixed;z-index:5;left:50%;bottom:14px;transform:translateX(-50%);pointer-events:none;
+    display:flex;gap:13px;flex-wrap:wrap;justify-content:center;max-width:calc(100vw - 32px);
+    font-family:var(--font-m);font-size:9px;letter-spacing:.04em;color:var(--faint);
+    background:rgba(8,12,20,.55);padding:6px 13px;border-radius:99px;border:1px solid var(--border)}
+  .legend span{display:flex;align-items:center;gap:5px}
+  .legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+  /* honest empty state overlay */
+  #empty{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;flex-direction:column;
+    background:var(--void);color:var(--muted);text-align:center;padding:24px}
+  #empty .glyph{font-size:42px;color:var(--dim);margin-bottom:14px}
+  #empty h2{font-size:17px;font-weight:600;color:var(--text);margin-bottom:8px}
+  #empty p{font-size:12px;color:var(--faint);line-height:1.6;max-width:44ch}
+  #empty code{font-family:var(--font-m);color:var(--muted)}
+
+  #boot{position:fixed;inset:0;z-index:9;display:flex;align-items:center;justify-content:center;
+    background:var(--void);color:var(--faint);font-family:var(--font-m);font-size:12px;letter-spacing:.08em}
+
+  @media (max-width:760px){
+    #title h1{font-size:15px}
+    #stats,#inspect,#doctrine{width:calc(100vw - 32px)}
+    #stats{display:none}                 /* keep title + inspector on phones */
+    .legend{font-size:8px;gap:8px;bottom:10px}
+  }
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="3D provenance graph of governed decisions and their proofs"></canvas>
+<div id="boot">loading receipts…</div>
+
+<div class="hud" id="title"><div class="inner">
+  <div class="eyebrow">SZL Living Anatomy · covenant cockpit v1</div>
+  <h1>The <span class="accent">provenance graph</span> of every governed decision</h1>
+  <div class="sub">Each node is a REAL receipt. Edges bind it to the Λ-gate that governed it,
+    the Lean proof backing the kernel, the energy it burned, and the BFT witnesses that co-signed.
+    Click a node for its fields + a genuine verify badge. <a href="./index.html">← full 3D atlas</a></div>
+</div></div>
+
+<div class="hud panel" id="stats" aria-live="polite">
+  <div class="hdr">provenance · honest counts</div>
+  <div class="row"><span>decisions</span><b id="s-dec">…</b></div>
+  <div class="row"><span>Λ-gates</span><b id="s-gate">…</b></div>
+  <div class="row"><span>Lean proofs</span><b id="s-proof">…</b></div>
+  <div class="row"><span>BFT witnesses</span><b id="s-wit">…</b></div>
+  <div class="row"><span>verified / unavail</span><b id="s-ver">…</b></div>
+  <div class="row"><span>energy meas / UNAVAIL</span><b id="s-energy">…</b></div>
+  <div class="src" id="s-src">source: …</div>
+</div>
+
+<div class="hud panel" id="inspect" aria-live="polite">
+  <div class="hdr">node inspector</div>
+  <div id="inspect-body"><div class="hint">Click any node to inspect its real receipt fields.
+    Nothing here is fabricated — an unsigned receipt reads UNAVAILABLE, never a fake pass.</div></div>
+</div>
+
+<div class="hud panel" id="doctrine">
+  <span class="sw"></span><b>Λ = Conjecture 1</b> — advisory, never a theorem.<br>
+  <span class="sw" style="color:var(--proof)"></span>The Lean node backs the <b>kernel invariant</b>, not “the AI is correct”.<br>
+  <span class="sw" style="color:var(--warn)"></span>Energy = verbatim joules or honest <b>UNAVAILABLE</b> — never fabricated.<br>
+  <span class="sw" style="color:var(--gold)"></span>Verify badge = real WebCrypto ECDSA-P256 · read-only · no key sent.
+</div>
+
+<div class="legend hud" id="legend"></div>
+
+<div id="empty">
+  <div class="glyph">◇</div>
+  <h2>No receipts yet</h2>
+  <p>The Covenant Cockpit renders only REAL receipts. Drop a <code>receipts.json</code>
+    (szl-receipt in-toto shape) next to this page, or restore the bundled
+    <code>receipts.sample.json</code>, and the provenance graph will appear.
+    Nothing is fabricated here. &nbsp;<a href="./index.html">← full 3D atlas</a></p>
+</div>
+
+<script src="./lib/three.min.js"></script>
+<script type="module">
+import CC from "./covenant-cockpit.js";
+const THREE = window.THREE;
+const K = CC.KANCHAY;
+const $ = (id) => document.getElementById(id);
+
+/* ============================ scene scaffold ============================== */
+const canvas = $("scene");
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(new THREE.Color(K.void), 1);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.FogExp2(new THREE.Color(K.void), 0.055);
+const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
+camera.position.set(0, 0.6, 7.2);
+
+scene.add(new THREE.AmbientLight(0x4a5878, 0.95));
+const key = new THREE.PointLight(0x9fc2ff, 1.1, 60); key.position.set(5, 7, 9); scene.add(key);
+const rim = new THREE.PointLight(0x3af4c8, 0.6, 60); rim.position.set(-7, -4, 5); scene.add(rim);
+
+const root = new THREE.Group(); scene.add(root);
+
+/* radial glow sprite (additive) */
+function glowTexture() {
+  const s = 64, c = document.createElement("canvas"); c.width = c.height = s;
+  const g = c.getContext("2d");
+  const grd = g.createRadialGradient(s/2, s/2, 0, s/2, s/2, s/2);
+  grd.addColorStop(0, "rgba(255,255,255,1)");
+  grd.addColorStop(0.28, "rgba(255,255,255,0.5)");
+  grd.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grd; g.fillRect(0, 0, s, s);
+  const t = new THREE.CanvasTexture(c); t.needsUpdate = true; return t;
+}
+const GLOW = glowTexture();
+function glowSprite(color, scale, opacity) {
+  const m = new THREE.SpriteMaterial({ map: GLOW, color: new THREE.Color(color),
+    transparent: true, opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+  const sp = new THREE.Sprite(m); sp.scale.set(scale, scale, 1); return sp;
+}
+
+/* node geometry per kind */
+function nodeGeo(kind) {
+  switch (kind) {
+    case "decision": return new THREE.IcosahedronGeometry(0.22, 1);
+    case "gate":     return new THREE.DodecahedronGeometry(0.19, 0);
+    case "proof":    return new THREE.OctahedronGeometry(0.20, 0);
+    case "energy":   return new THREE.TetrahedronGeometry(0.18, 0);
+    case "witness":  return new THREE.BoxGeometry(0.26, 0.26, 0.26);
+    default:         return new THREE.SphereGeometry(0.18, 12, 12);
+  }
+}
+
+/* ============================ state ====================================== */
+let GRAPH = { nodes: [], edges: [], stats: {} };
+let RECEIPTS = [];
+let COSIGN_KEY = null;
+const nodeMeshes = new Map();     // node.id -> {node, core, halo, mat, baseEmissive}
+const verifyCache = new Map();    // receiptIndex -> {status, detail}
+let selectedId = null;
+
+/* ============================ build scene from graph ===================== */
+function edgeColor(kind) {
+  if (kind === "governs") return K.gold;
+  if (kind === "backs")   return K.proof;
+  if (kind === "burned")  return K.warn;
+  if (kind === "cosigned")return K.audit;
+  return K.lattice;
+}
+function buildScene() {
+  // nodes
+  for (const n of GRAPH.nodes) {
+    const meta = CC.NODE_KIND[n.kind] || { color: K.lattice };
+    let col = new THREE.Color(meta.color);
+    if (n.kind === "energy" && !n.meta.measured) col = new THREE.Color(K.dim);  // honest UNAVAILABLE
+    const mat = new THREE.MeshStandardMaterial({ color: col, emissive: col,
+      emissiveIntensity: 0.35, metalness: 0.25, roughness: 0.45, flatShading: true });
+    const core = new THREE.Mesh(nodeGeo(n.kind), mat);
+    core.position.set(n.pos[0], n.pos[1], n.pos[2]);
+    core.userData.nodeId = n.id;
+    const halo = glowSprite(col.getStyle(), 0.85, 0.18); halo.position.copy(core.position);
+    root.add(core); root.add(halo);
+    nodeMeshes.set(n.id, { node: n, core, halo, mat, baseEmissive: 0.35 });
+  }
+  // edges (thin lines colored by relation)
+  const posOf = (id) => { const m = nodeMeshes.get(id); return m ? m.core.position : null; };
+  for (const e of GRAPH.edges) {
+    const a = posOf(e.from), b = posOf(e.to);
+    if (!a || !b) continue;
+    const geo = new THREE.BufferGeometry().setFromPoints([a.clone(), b.clone()]);
+    const mat = new THREE.LineBasicMaterial({ color: new THREE.Color(edgeColor(e.kind)),
+      transparent: true, opacity: 0.28 });
+    root.add(new THREE.Line(geo, mat));
+  }
+}
+
+/* ============================ stats + legend ============================= */
+function renderStats(source) {
+  const s = GRAPH.stats;
+  $("s-dec").textContent = s.decisions ?? 0;
+  $("s-gate").textContent = s.gates ?? 0;
+  $("s-proof").textContent = s.proofs ?? 0;
+  $("s-wit").textContent = s.witnesses ?? 0;
+  const verified = [...verifyCache.values()].filter((v) => v.status === CC.VERIFY.VERIFIED).length;
+  const unavail = [...verifyCache.values()].filter((v) => v.status !== CC.VERIFY.VERIFIED).length;
+  $("s-ver").textContent = `${verified} / ${unavail}`;
+  $("s-energy").textContent = `${s.energyMeasured ?? 0} / ${s.energyUnavailable ?? 0}`;
+  $("s-src").textContent = "source: " + (source || "—");
+}
+function renderLegend() {
+  const items = [
+    ["decision", K.lattice], ["Λ-gate", K.gold], ["Lean proof", K.proof],
+    ["energy", K.warn], ["BFT witness", K.audit], ["UNAVAILABLE", K.dim],
+  ];
+  $("legend").innerHTML = items.map(([t, c]) =>
+    `<span><i style="background:${c}"></i>${t}</span>`).join("");
+}
+
+/* ============================ verify all receipts ======================== */
+async function verifyAll() {
+  if (COSIGN_KEY == null) return;   // no key → all stay UNAVAILABLE (honest)
+  await Promise.all(RECEIPTS.map(async (r, i) => {
+    const v = await CC.verifyEnvelope(r.envelope, COSIGN_KEY);
+    verifyCache.set(i, v);
+  }));
+}
+
+/* ============================ node inspector ============================= */
+function badgeClass(status) {
+  return status === CC.VERIFY.VERIFIED ? "v-verified"
+    : status === CC.VERIFY.FAILED ? "v-failed"
+    : status === CC.VERIFY.PENDING ? "v-pending" : "v-unavailable";
+}
+function frow(k, v, mut) {
+  return `<div class="frow"><span class="k">${k}</span><span class="v ${mut ? "mut" : ""}">${v}</span></div>`;
+}
+function esc(x) { return String(x == null ? "" : x)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+function inspect(node) {
+  const meta = CC.NODE_KIND[node.kind] || {};
+  const col = (node.kind === "energy" && !node.meta.measured) ? K.dim : (meta.color || K.lattice);
+  let html = `<span class="kind" style="color:${col}">${meta.glyph || ""} ${meta.label || node.kind}</span>`;
+  html += `<h2>${esc(node.label)}</h2>`;
+
+  if (node.kind === "decision") {
+    const r = RECEIPTS[node.meta.receiptIndex];
+    const b = r ? r.body : {};
+    const en = b.energy && typeof b.energy === "object" && typeof b.energy.joules === "number"
+      ? `${b.energy.joules} J (measured)` : "UNAVAILABLE";
+    html += frow("producer", esc(b.producer));
+    html += frow("model", esc(b.model_id));
+    html += frow("action", esc(b.action));
+    html += frow("verdict", esc(b.verdict));
+    if (b.reason) html += frow("reason", esc(b.reason), true);
+    html += frow("input", esc(b.input_digest), true);
+    html += frow("output", esc(b.output_digest), true);
+    html += frow("Λ-gate", esc(b.policy_id));
+    if (b.lambda) html += frow("Λ", `${esc(b.lambda.value)} ${b.lambda.pass ? "≥" : "<"} ${esc(b.lambda.floor)} · ${esc(b.lambda.uniqueness || "Conjecture 1")}`);
+    html += frow("Lean", `${esc(b.lean_theorem)} @ ${esc(b.kernel_commit)}`);
+    html += frow("energy", esc(en), en === "UNAVAILABLE");
+    html += frow("witnesses", esc((b.bft_witnesses || []).join(", ")));
+    html += frow("digest", esc((r && r.digest ? r.digest : "").slice(0, 32) + "…"), true);
+    const v = verifyCache.get(node.meta.receiptIndex) || { status: CC.VERIFY.PENDING, detail: "not yet run" };
+    html += `<div class="frow"><span class="k">verify</span><span class="v"><span class="vbadge ${badgeClass(v.status)}">${v.status === CC.VERIFY.VERIFIED ? "✓ verified" : v.status === CC.VERIFY.FAILED ? "✗ failed" : v.status === CC.VERIFY.PENDING ? "… pending" : "— UNAVAILABLE"}</span></span></div>`;
+    html += `<div class="hint" style="margin-top:6px">${esc(v.detail)}</div>`;
+  } else if (node.kind === "gate") {
+    const govern = RECEIPTS.filter((r) => r.body.policy_id === node.meta.policy_id).map((r) => r.id);
+    html += frow("policy id", esc(node.meta.policy_id));
+    html += frow("governs", esc(govern.join(", ")));
+    html += `<div class="hint" style="margin-top:6px">The deny-by-default gate that scored & governed these decisions. Λ is advisory (Conjecture 1), never a theorem.</div>`;
+  } else if (node.kind === "proof") {
+    const backs = RECEIPTS.filter((r) => r.body.lean_theorem === node.meta.lean_theorem).map((r) => r.id);
+    html += frow("lean theorem", esc(node.meta.lean_theorem));
+    html += frow("kernel", esc(node.meta.kernel_commit || "—"));
+    html += frow("backs", esc(backs.join(", ")));
+    html += `<div class="hint" style="margin-top:6px">Kernel-verified invariant backing these receipts — it proves the KERNEL property, not that the model's output is correct.</div>`;
+  } else if (node.kind === "energy") {
+    const r = RECEIPTS.find((x) => x.id === node.meta.receiptId);
+    html += frow("receipt", esc(node.meta.receiptId));
+    html += frow("joules", node.meta.measured ? esc(node.meta.joules + " J") : "UNAVAILABLE", !node.meta.measured);
+    html += `<div class="hint" style="margin-top:6px">${node.meta.measured ? "Verbatim measured energy from the receipt." : "No meter reported energy for this decision — honest UNAVAILABLE, never a fabricated joule."}</div>`;
+  } else if (node.kind === "witness") {
+    const cosigned = RECEIPTS.filter((r) => (r.body.bft_witnesses || []).includes(node.meta.witness)).map((r) => r.id);
+    html += frow("witness", esc(node.meta.witness));
+    html += frow("co-signed", esc(cosigned.join(", ")));
+    html += `<div class="hint" style="margin-top:6px">A BFT witness listed by these receipts as a co-signer of the decision.</div>`;
+  }
+  $("inspect-body").innerHTML = html;
+}
+
+/* selection highlight */
+function select(id) {
+  if (selectedId && nodeMeshes.has(selectedId)) {
+    const prev = nodeMeshes.get(selectedId); prev.mat.emissiveIntensity = prev.baseEmissive;
+    prev.halo.material.opacity = 0.18;
+  }
+  selectedId = id;
+  const m = nodeMeshes.get(id);
+  if (m) { m.mat.emissiveIntensity = 0.95; m.halo.material.opacity = 0.5; inspect(m.node); }
+}
+
+/* ============================ raycast picking =========================== */
+const raycaster = new THREE.Raycaster();
+const ndc = new THREE.Vector2();
+let downX = 0, downY = 0;
+function pick(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  ndc.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+  ndc.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(ndc, camera);
+  const cores = [...nodeMeshes.values()].map((v) => v.core);
+  const hits = raycaster.intersectObjects(cores, false);
+  if (hits.length) select(hits[0].object.userData.nodeId);
+}
+
+/* ============================ animation loop ============================= */
+let last = performance.now(), dragX = 0, dragY = 0, autoSpin = 0.05;
+function animate(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  for (const [id, m] of nodeMeshes) {
+    m.core.rotation.y += dt * 0.35; m.core.rotation.x += dt * 0.15;
+    if (id === selectedId) {
+      const pulse = 0.5 + Math.sin(now * 0.006) * 0.25;
+      m.halo.material.opacity = 0.35 + pulse * 0.3;
+    }
+  }
+  root.rotation.y += dt * autoSpin + dragX;
+  root.rotation.x += dragY;
+  root.rotation.x = Math.max(-0.55, Math.min(0.55, root.rotation.x));
+  dragX *= 0.85; dragY *= 0.85;
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+/* ============================ resize + input ============================= */
+function resize() {
+  const w = window.innerWidth, h = window.innerHeight;
+  renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+window.addEventListener("resize", resize); resize();
+
+let dragging = false, moved = false, lx = 0, ly = 0;
+canvas.addEventListener("pointerdown", (e) => {
+  dragging = true; moved = false; lx = e.clientX; ly = e.clientY;
+  downX = e.clientX; downY = e.clientY; autoSpin = 0;
+});
+window.addEventListener("pointerup", (e) => {
+  dragging = false; autoSpin = 0.05;
+  if (!moved) pick(e.clientX, e.clientY);   // treat as a click (not a drag)
+});
+window.addEventListener("pointermove", (e) => {
+  if (!dragging) return;
+  if (Math.abs(e.clientX - downX) > 4 || Math.abs(e.clientY - downY) > 4) moved = true;
+  dragX = (e.clientX - lx) * 0.00020; dragY = (e.clientY - ly) * 0.00013;
+  lx = e.clientX; ly = e.clientY;
+});
+
+/* ============================ boot ====================================== */
+(async () => {
+  renderLegend();
+  const loaded = await CC.loadReceipts();
+  RECEIPTS = loaded.receipts;
+  if (loaded.empty || RECEIPTS.length === 0) {
+    // HONEST empty state — never fabricate nodes
+    $("boot").style.display = "none";
+    $("empty").style.display = "flex";
+    renderStats(loaded.source);
+    // still run a bare render loop so the (empty) canvas is valid
+    requestAnimationFrame(animate);
+    // expose for headless QA
+    window.__cockpit = { empty: true, source: loaded.source, nodes: [], edges: [], receipts: 0 };
+    return;
+  }
+  // import cosign pubkey (may be absent → verify stays UNAVAILABLE, honest)
+  if (loaded.cosignPub) {
+    try { COSIGN_KEY = await CC.importCosign(loaded.cosignPub); }
+    catch { COSIGN_KEY = null; }
+  }
+  GRAPH = CC.buildGraph(RECEIPTS);
+  buildScene();
+  await verifyAll();
+  renderStats(loaded.source);
+  $("boot").style.display = "none";
+  requestAnimationFrame(animate);
+
+  // expose an honest snapshot for the headless QA harness
+  window.__cockpit = {
+    empty: false, source: loaded.source,
+    nodes: GRAPH.nodes.length, edges: GRAPH.edges.length,
+    stats: GRAPH.stats, receipts: RECEIPTS.length,
+    verify: [...verifyCache.entries()].map(([i, v]) => ({ i, status: v.status })),
+    select: (id) => { select(id); return selectedId; },
+    firstDecisionId: (GRAPH.nodes.find((n) => n.kind === "decision") || {}).id || null,
+    inspectHTML: () => $("inspect-body").innerHTML,
+  };
+})();
+</script>
+</body>
+</html>

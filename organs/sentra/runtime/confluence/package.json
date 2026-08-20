@@ -1,0 +1,36 @@
+{
+  "name": "@szl/sentra-confluence",
+  "version": "0.1.0",
+  "description": "SZL Holdings \u2014 Ouroboros runtime module",
+  "type": "module",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "zod": "^3.22.4",
+    "@szl/ouroboros-types": "workspace:*",
+    "@szl/ouroboros-lambda-gate": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "catalog:",
+    "@types/node": "^20.14.0"
+  },
+  "main": "./dist/confluence.js",
+  "types": "./dist/confluence.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/confluence.d.ts",
+      "import": "./dist/confluence.js",
+      "default": "./dist/confluence.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "package.json",
+    "README.md"
+  ]
+}

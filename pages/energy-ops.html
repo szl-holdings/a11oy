@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<!--
+  SZL Energy — Live Energy Dashboard (/energy-ops), leader-grade & bound to REAL data.
+  Doctrine v11: every value carries an honest label chip
+  (LIVE / MEASURED / SAMPLE / ESTIMATE / MODELED / UNAVAILABLE / ZERO / DEGRADED).
+  Joules are MEASURED only from a reachable on-box NVML exporter — never fabricated.
+  Revenue is NEVER shown MEASURED until a real charge clears. 0 runtime CDN,
+  system fonts only. Degrades honestly to NO-LIVE-DATA / UNAVAILABLE on 404/error.
+
+  Tri-row live surface (DCGM / Kepler / Scaphandre patterns, reimplemented):
+    (1) live power gauge + per-node cards   GET /api/a11oy/v1/energy/live
+    (2) streaming watts line chart (uPlot)  GET /api/a11oy/v1/energy/live  (poll 2s)
+    (3) Bekenstein budget ledger table      GET /api/a11oy/v1/energy/budget  (F19/TH6)
+    mesh node health                        GET /api/a11oy/v1/govern/health
+
+  Press-play operator console (live operator control + signed receipt feed):
+    POST /api/a11oy/v1/energy/operator/start     (press play)
+    POST /api/a11oy/v1/energy/operator/stop      (stop)
+    GET  /api/a11oy/v1/energy/operator/status    (node status, running flag)
+    GET  /api/a11oy/v1/energy/ledger             (signed JouleCharge receipts)
+    GET  /api/a11oy/v1/energy/projection?window=running  (1-day MODELED headline)
+    GET  /api/a11oy/v1/harvest/posture           (grid price + negative window)
+
+  uPlot v1.6.32 (MIT, Leon Sorokin) vendored 0-CDN at /vendor/uPlot.*  .
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>SZL Energy — Live Energy Dashboard</title>
+<link rel="stylesheet" href="/vendor/uPlot.min.css" />
+<style>
+  /* System fonts only — 0 CDN, 0 webfont. */
+  :root {
+    --bg:#070b12; --panel:#0d141f; --panel2:#111b29; --line:#1c2a3c;
+    --ink:#e8eef7; --dim:#8aa0bd; --gold:#d4a444; --green:#34d399;
+    --red:#f87171; --amber:#fbbf24; --blue:#60a5fa; --mag:#c084fc;
+    --teal:#39d8c8; /* holo-teal — the energy surface signature */
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Segoe UI Mono", Menlo, Consolas, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing:border-box; }
+  html,body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans); }
+  body { padding:18px clamp(12px,3vw,34px) 60px; }
+  a { color:var(--teal); }
+  header.top { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; margin-bottom:14px;
+    border-bottom:1px solid var(--line); padding-bottom:14px; }
+  .brand { display:flex; align-items:baseline; gap:12px; }
+  .brand h1 { font-size:clamp(18px,2.4vw,26px); margin:0; letter-spacing:.5px; }
+  .brand .tl { color:var(--teal); text-shadow:0 0 18px rgba(57,216,200,.35); }
+  .brand .sub { color:var(--dim); font-size:13px; }
+  .topright { display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .mesh-pill { font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .mesh-pill b.up { color:var(--green); } .mesh-pill b.down { color:var(--red); }
+  .conn { font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .conn b { color:var(--teal); }
+  .conn.degraded b { color:var(--amber); }
+
+  /* honesty chip — multi-state (replicates szl3d_label) */
+  .chip {
+    display:inline-block; font-family:var(--mono); font-size:10px; font-weight:700;
+    letter-spacing:.6px; padding:2px 6px; border-radius:4px; vertical-align:middle;
+    border:1px solid currentColor; line-height:1.2; text-transform:uppercase;
+  }
+  .chip-live        { color:var(--teal); }
+  .chip-measured    { color:var(--green); }
+  .chip-modeled     { color:var(--amber); }
+  .chip-sample      { color:var(--blue); }
+  .chip-estimate    { color:var(--mag); }
+  .chip-zero        { color:var(--dim); }
+  .chip-degraded    { color:var(--red); }
+  .chip-unavailable { color:var(--red); }
+
+  .secthead { display:flex; align-items:center; gap:10px; margin:22px 0 12px; }
+  .secthead .n { font-family:var(--mono); font-size:11px; color:var(--teal); border:1px solid var(--teal);
+    border-radius:5px; padding:2px 7px; opacity:.85; }
+  .secthead h2 { margin:0; font-size:13px; letter-spacing:1.6px; text-transform:uppercase; color:var(--ink); font-weight:700; }
+  .secthead .sub { color:var(--dim); font-size:12px; font-family:var(--mono); }
+
+  .grid { display:grid; gap:14px; grid-template-columns:repeat(12,1fr); }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px 18px; min-width:0; }
+  .card h2 { margin:0 0 10px; font-size:12px; letter-spacing:1.4px; text-transform:uppercase; color:var(--gold); font-weight:700; }
+  .span12{grid-column:span 12} .span8{grid-column:span 8} .span6{grid-column:span 6}
+  .span5{grid-column:span 5} .span4{grid-column:span 4} .span7{grid-column:span 7}
+  @media (max-width:880px){ .span4,.span5,.span6,.span7,.span8{grid-column:span 12} }
+
+  /* total-power gauge */
+  .gaugewrap { position:relative; width:100%; height:210px; }
+  .gaugewrap canvas { width:100%; height:100%; display:block; }
+  .gauge-read { position:absolute; left:0; right:0; bottom:30px; text-align:center;
+    font-family:var(--mono); font-weight:800; font-size:34px; color:var(--teal); text-shadow:0 0 16px rgba(57,216,200,.35); }
+  .gauge-read.off { color:var(--red); text-shadow:none; }
+  .gauge-read .cu { font-size:13px; color:var(--dim); margin-left:4px; font-weight:700; }
+  .gauge-sub { text-align:center; color:var(--dim); font-family:var(--mono); font-size:11px; margin-top:6px; }
+
+  /* per-node cards */
+  .nodegrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  .ncard { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:13px 14px; position:relative; overflow:hidden; }
+  .ncard.live { border-color:#1f5e54; box-shadow:0 0 0 1px #14463f inset; }
+  .ncard.down { border-color:#5a2222; opacity:.86; }
+  .ncard .nm { font-family:var(--mono); font-weight:700; font-size:13px; display:flex; align-items:center; gap:7px; word-break:break-word; }
+  .ncard .watt { font-family:var(--mono); font-weight:800; font-size:30px; margin-top:8px; color:var(--teal); }
+  .ncard.down .watt { color:var(--dim); }
+  .ncard .watt .u { font-size:13px; color:var(--dim); margin-left:3px; font-weight:700; }
+  .ncard .meta { color:var(--dim); font-family:var(--mono); font-size:11px; margin-top:6px; line-height:1.6; }
+  .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:var(--dim); flex:0 0 auto; }
+  .dot.on { background:var(--teal); box-shadow:0 0 8px var(--teal); }
+  .dot.off{ background:var(--red); }
+
+  /* streaming uPlot chart */
+  #watts-chart { width:100%; }
+  .u-legend { color:var(--dim); font-family:var(--mono); font-size:11px; }
+  .chart-note { display:flex; align-items:center; gap:10px; margin-top:8px; font-family:var(--mono); font-size:11px; color:var(--dim); }
+  .offline-tag { display:none; align-items:center; gap:7px; color:var(--red); font-weight:700; }
+  .offline-tag.show { display:inline-flex; }
+  .chart-empty { color:var(--dim); font-family:var(--mono); font-size:12px; padding:18px 4px; }
+
+  /* budget ledger table */
+  .budgetbar { display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-bottom:10px; font-family:var(--mono); font-size:12px; color:var(--dim); }
+  .budgetbar .k { color:var(--dim); } .budgetbar .v { color:var(--ink); font-weight:700; }
+  .gate-ok { color:var(--green); font-weight:700; } .gate-bad { color:var(--red); font-weight:700; }
+  .tbl-wrap { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
+  table.tbl { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; }
+  table.tbl th { position:sticky; top:0; background:var(--panel2); color:var(--dim); text-align:left; padding:8px 10px; font-weight:700; letter-spacing:.5px; border-bottom:1px solid var(--line); }
+  table.tbl td { padding:7px 10px; border-bottom:1px solid #16202e; }
+  table.tbl tr:hover td { background:#0f1a28; }
+  .within-y { color:var(--green); } .within-n { color:var(--red); }
+  .empty { color:var(--dim); font-family:var(--mono); font-size:13px; padding:16px; }
+
+  /* ===== PRESS-PLAY OPERATOR CONSOLE ===== */
+  .playwrap { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .playbtn {
+    appearance:none; border:none; cursor:pointer; font-family:var(--sans);
+    font-weight:800; font-size:22px; letter-spacing:1px; color:#06210f;
+    background:linear-gradient(180deg,#5fe6cf,#2bb8a4); border-radius:14px;
+    padding:20px 34px; box-shadow:0 0 0 1px #0a3b34, 0 8px 26px rgba(57,216,200,.28);
+    transition:transform .08s ease, filter .15s ease; min-width:230px;
+  }
+  .playbtn:hover{ filter:brightness(1.06); }
+  .playbtn:active{ transform:translateY(1px); }
+  .playbtn.stop { background:linear-gradient(180deg,#ff8b8b,#e2554f); color:#2a0606; box-shadow:0 0 0 1px #5a1414, 0 8px 26px rgba(248,113,113,.28); }
+  .playbtn[disabled]{ opacity:.55; cursor:wait; }
+  .playstate { font-family:var(--mono); font-size:13px; color:var(--dim); }
+  .rdot { display:inline-block; width:10px; height:10px; border-radius:50%; margin-right:6px; vertical-align:middle; background:var(--dim); }
+  .rdot.on { background:var(--green); box-shadow:0 0 8px var(--green); }
+  .rdot.off{ background:var(--red); }
+
+  .bignum { font-family:var(--mono); font-weight:800; line-height:1; }
+  .bignum .val { font-size:clamp(34px,7vw,76px); color:var(--green); letter-spacing:-1px; }
+  .bignum .unit { font-size:18px; color:var(--dim); margin-left:8px; }
+  .bigrow { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+  .proj { font-family:var(--mono); font-size:clamp(15px,2.2vw,22px); color:var(--amber); }
+  .proj .pv { font-weight:800; }
+
+  .metrics { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  @media (max-width:560px){ .metrics{grid-template-columns:1fr} }
+  .metric { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .metric .k { font-size:11px; color:var(--dim); text-transform:uppercase; letter-spacing:1px; margin-bottom:6px; }
+  .metric .v { font-family:var(--mono); font-size:clamp(20px,3.2vw,30px); font-weight:800; }
+  .metric .lbl { margin-top:6px; }
+
+  .nodes { display:flex; gap:10px; flex-wrap:wrap; }
+  .node { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 14px; min-width:170px; }
+  .node .nm { font-family:var(--mono); font-weight:700; }
+  .node .st { font-size:12px; color:var(--dim); margin-top:4px; }
+  .node.computing{ border-color:#1d4d39; box-shadow:0 0 0 1px #143a2a inset; }
+  .node.degraded { border-color:#5a2222; }
+
+  .grid-strip { display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+  .grid-price { font-family:var(--mono); font-size:clamp(22px,3.6vw,34px); font-weight:800; }
+  .neg-banner {
+    display:none; align-items:center; gap:8px; padding:8px 14px; border-radius:10px;
+    background:linear-gradient(90deg,#0e2a1d,#13402b); border:1px solid #1f6b48;
+    color:var(--green); font-weight:800; font-family:var(--mono); font-size:14px;
+  }
+  .neg-banner.show{ display:inline-flex; animation:pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse{ 0%,100%{filter:brightness(1)} 50%{filter:brightness(1.35)} }
+
+  .feed { max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:10px; }
+  table.feed-t { width:100%; border-collapse:collapse; font-family:var(--mono); font-size:12px; }
+  table.feed-t th { position:sticky; top:0; background:var(--panel2); color:var(--dim); text-align:left; padding:8px 10px; font-weight:700; letter-spacing:.5px; border-bottom:1px solid var(--line); }
+  table.feed-t td { padding:7px 10px; border-bottom:1px solid #16202e; }
+  table.feed-t tr.new td { animation:flashin 1.2s ease; }
+  @keyframes flashin{ from{ background:#13402b; } to{ background:transparent; } }
+  .digest { color:var(--dim); }
+  .cents { color:var(--amber); font-weight:700; }
+
+  .foot { margin-top:22px; color:var(--dim); font-size:11px; font-family:var(--mono); line-height:1.7; }
+  .foot b{ color:var(--ink); }
+
+  /* Respect reduced-motion: kill pulses, flashes, transitions. */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation:none !important; transition:none !important; }
+  }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>SZL ENERGY · <span class="tl">LIVE ENERGY DASHBOARD</span></h1>
+    <span class="sub">real-time sovereign-mesh telemetry — every number labeled, nothing faked</span>
+  </div>
+  <div class="topright">
+    <div class="mesh-pill" id="mesh-pill">mesh <b id="mesh-up" class="up">…</b>/<span id="mesh-total">…</span> live</div>
+    <div class="conn" id="conn">link <b id="conn-state">…</b> · <span id="conn-ts">—</span></div>
+    <span class="chip chip-sample" id="global-chip">SAMPLE</span>
+  </div>
+</header>
+
+<!-- ============================== ROW 1 ============================== -->
+<div class="secthead">
+  <span class="n">ROW 1</span>
+  <h2>Live Power</h2>
+  <span class="sub">on-box NVML watts &middot; per sovereign-mesh node</span>
+</div>
+<div class="grid">
+  <section class="card span4">
+    <h2>Total live power <span class="chip chip-live" id="total-chip">LIVE</span></h2>
+    <div class="gaugewrap">
+      <canvas id="gauge-total"></canvas>
+      <div class="gauge-read" id="gauge-total-read"><span id="gauge-total-val">—</span><span class="cu">W</span></div>
+    </div>
+    <div class="gauge-sub" id="gauge-total-sub">awaiting first live sample…</div>
+  </section>
+
+  <section class="card span8">
+    <h2>Nodes <span class="chip chip-live" id="nodes-chip">LIVE</span></h2>
+    <div class="nodegrid" id="live-nodes"><div class="empty">querying /energy/live …</div></div>
+  </section>
+</div>
+
+<!-- ============================== ROW 2 ============================== -->
+<div class="secthead">
+  <span class="n">ROW 2</span>
+  <h2>Streaming Power</h2>
+  <span class="sub">total watts &middot; uPlot ring-buffer (~120 pts) &middot; poll every 2s</span>
+</div>
+<div class="grid">
+  <section class="card span12">
+    <h2>Watts over time <span class="chip chip-measured" id="stream-chip">MEASURED</span></h2>
+    <div id="watts-chart"></div>
+    <div class="chart-empty" id="watts-empty">awaiting first live sample…</div>
+    <div class="chart-note">
+      <span id="stream-note">cumulative on-box NVML power, live</span>
+      <span class="offline-tag" id="offline-tag">⚠ meter offline — joules NOT fabricated</span>
+    </div>
+  </section>
+</div>
+
+<!-- ============================== ROW 3 ============================== -->
+<div class="secthead">
+  <span class="n">ROW 3</span>
+  <h2>Bekenstein Budget Ledger</h2>
+  <span class="sub">joules_est per task &middot; F19/TH6 proven-inequality gate</span>
+</div>
+<div class="grid">
+  <section class="card span12">
+    <h2>Energy + information budget <span class="chip chip-estimate" id="budget-chip">ESTIMATE</span></h2>
+    <div class="budgetbar">
+      <span><span class="k">tasks</span> <span class="v" id="b-tasks">—</span></span>
+      <span><span class="k">Σ joules_est</span> <span class="v" id="b-joules">—</span> J</span>
+      <span><span class="k">all_within_bound (F19/TH6)</span> <span id="b-gate">—</span></span>
+      <span class="k" id="b-gatedef">F19 Bekenstein: proven inequality, not assertion (locked-8)</span>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead><tr><th>#</th><th>time</th><th>joules_est</th><th>cumulative J</th><th>shannon bits</th><th>Bekenstein bound</th><th>within bound</th></tr></thead>
+        <tbody id="budget-body"><tr><td colspan="7" class="empty">querying /energy/budget …</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<!-- ====================== PRESS-PLAY OPERATOR CONSOLE ====================== -->
+<div class="secthead">
+  <span class="n">OPS</span>
+  <h2>Operator Console</h2>
+  <span class="sub">press-play control &middot; signed JouleCharge receipts &middot; nothing faked</span>
+</div>
+<div class="grid">
+
+  <section class="card span7">
+    <h2>Operator</h2>
+    <div class="playwrap">
+      <button class="playbtn" id="play" aria-pressed="false">PRESS PLAY</button>
+      <div class="playstate">
+        <div><span class="rdot" id="run-dot"></span><span id="run-text">querying operator…</span></div>
+        <div id="run-detail" style="margin-top:6px;color:var(--dim)">—</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card span5">
+    <h2>Big number · measured joules</h2>
+    <div class="bigrow">
+      <div class="bignum"><span class="val" id="big-joules">—</span><span class="unit">J</span></div>
+      <span class="chip chip-measured" id="big-joules-chip">MEASURED</span>
+    </div>
+    <div class="proj" style="margin-top:12px">
+      1-day projection: <span class="pv" id="proj-joules">—</span> J
+      <span class="chip chip-modeled">MODELED</span>
+    </div>
+  </section>
+
+  <section class="card span7">
+    <h2>Today · compute done &amp; earnings</h2>
+    <div class="metrics">
+      <div class="metric">
+        <div class="k">Tokens generated</div>
+        <div class="v" id="m-tokens">—</div>
+        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Jobs completed</div>
+        <div class="v" id="m-jobs">—</div>
+        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Joules</div>
+        <div class="v" id="m-joules">—</div>
+        <div class="lbl"><span class="chip chip-measured">MEASURED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Earnings so-far (dry-run)</div>
+        <div class="v" id="m-earn" style="color:var(--amber)">—</div>
+        <div class="lbl"><span class="chip chip-modeled" id="m-earn-chip">MODELED</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Projected · 1 day (resale)</div>
+        <div class="v" id="m-proj-earn" style="color:var(--amber)">—</div>
+        <div class="lbl"><span class="chip chip-estimate">ESTIMATE</span></div>
+      </div>
+      <div class="metric">
+        <div class="k">Real cleared revenue</div>
+        <div class="v" id="m-real" style="color:var(--dim)">$0.00</div>
+        <div class="lbl"><span class="chip chip-zero" id="m-real-chip">ZERO</span></div>
+      </div>
+    </div>
+    <div style="margin-top:10px;color:var(--dim);font-size:11px;font-family:var(--mono)" id="earn-formula">earnings = MODELED dry-run ledger total + projection — never MEASURED until a real charge clears</div>
+  </section>
+
+  <section class="card span5">
+    <h2>Nodes computing now</h2>
+    <div class="nodes" id="nodes"><div class="empty">querying operator status…</div></div>
+  </section>
+
+  <section class="card span12">
+    <h2>Grid</h2>
+    <div class="grid-strip">
+      <div>
+        <div style="font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:1px">Price now</div>
+        <div class="grid-price" id="grid-price">—</div>
+      </div>
+      <div><span class="chip" id="grid-chip">…</span></div>
+      <div class="neg-banner" id="neg-banner">⚡ THE GRID IS PAYING US TO COMPUTE</div>
+      <div style="margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--dim)" id="grid-posture">posture: —</div>
+    </div>
+  </section>
+
+  <section class="card span12">
+    <h2>Live receipt feed · SZL.Energy.JouleCharge.v1 <span class="chip chip-modeled" id="feed-mode">DRY-RUN</span></h2>
+    <div class="feed">
+      <table class="feed-t">
+        <thead><tr><th>time</th><th>node</th><th>joules</th><th>would-charge</th><th>digest</th></tr></thead>
+        <tbody id="feed-body"><tr><td colspan="5" class="empty">no receipts yet — press play to mint the first JouleCharge</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+
+</div>
+
+<div class="foot">
+  <div><b>Honesty (Doctrine v11):</b> watts &amp; joules are <span class="chip chip-measured">MEASURED</span> from the on-box NVML exporter only when it is reachable; when the meter is offline the stream goes dashed and labels flip to <span class="chip chip-unavailable">UNAVAILABLE</span> — joules are NOT fabricated. The Bekenstein budget series is <span class="chip chip-estimate">ESTIMATE</span> / <span class="chip chip-sample">SAMPLE</span> (no on-box meter behind the budget layer); F19 Bekenstein is a proven inequality (locked-8), Λ is Conjecture 1.</div>
+  <div>Dollars are <span class="chip chip-modeled">MODELED</span> / <span class="chip chip-estimate">ESTIMATE</span> — revenue is <span class="chip chip-zero">ZERO</span> until a real charge clears, and only then <span class="chip chip-measured">MEASURED</span>. No live data → panels show <span class="chip chip-degraded">DEGRADED</span> / NO-LIVE-DATA. 0 runtime CDN · system fonts · uPlot v1.6.32 (MIT) vendored locally.</div>
+</div>
+
+<script src="/vendor/uPlot.iife.min.js"></script>
+<script>
+"use strict";
+/* ===================================================================
+   Shared honesty + fetch helpers (single source of truth on the page).
+   =================================================================== */
+var API = "/api/a11oy/v1";
+var REDUCED = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+var CHIP = { LIVE:"chip-live", MEASURED:"chip-measured", MODELED:"chip-modeled",
+             SAMPLE:"chip-sample", ESTIMATE:"chip-estimate", ZERO:"chip-zero",
+             DEGRADED:"chip-degraded", UNAVAILABLE:"chip-unavailable" };
+function setChip(el, label) {
+  if (!el) return;
+  var key = String(label || "DEGRADED").toUpperCase();
+  var cls = CHIP[key] || "chip-degraded";
+  el.className = "chip " + cls;
+  el.textContent = key;
+}
+function isErr(d) { return !d || d.__error === true; }
+function num(v) { var n = typeof v === "number" ? v : parseFloat(v); return isFinite(n) ? n : null; }
+function fmt(n, dec) {
+  if (typeof n !== "number" || !isFinite(n)) return "—";
+  return n.toLocaleString("en-US", { minimumFractionDigits: dec, maximumFractionDigits: dec });
+}
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+  return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]; }); }
+function shortDigest(d) { if (!d) return "—"; var h = String(d).replace(/^sha256:/, ""); return h.slice(0, 12) + "…"; }
+function shortTime(t) { if (!t) return "—"; try { return new Date(t).toLocaleTimeString(); } catch (e) { return String(t); } }
+
+function poll(url, opts) {
+  opts = opts || {};
+  return fetch(url, { method: opts.method || "GET",
+                      headers: opts.body ? {"content-type":"application/json"} : undefined,
+                      body: opts.body })
+    .then(function (r) {
+      if (!r.ok) return { __error: true, status: r.status };
+      return r.json().catch(function () { return { __error: true, status: r.status }; });
+    })
+    .catch(function () { return { __error: true, status: 0 }; });
+}
+
+/* connection banner (any live endpoint flips it green) */
+var anyLive = false;
+function markLive(ok) {
+  anyLive = anyLive || ok;
+  var conn = document.getElementById("conn");
+  var st = document.getElementById("conn-state");
+  if (ok) { conn.classList.remove("degraded"); st.textContent = "LIVE"; }
+  else if (!anyLive) { conn.classList.add("degraded"); st.textContent = "NO-LIVE-DATA"; }
+  document.getElementById("conn-ts").textContent = new Date().toLocaleTimeString();
+}
+</script>
+
+<script>
+"use strict";
+/* ===================================================================
+   TRI-ROW LIVE DASHBOARD — bound to the REAL live energy endpoints.
+   =================================================================== */
+(function () {
+  // ---- canvas gauge (vanilla, DPR-aware, 0 CDN) ------------------------
+  function Gauge(id, opts) {
+    opts = opts || {};
+    this.c = document.getElementById(id);
+    this.ctx = this.c ? this.c.getContext("2d") : null;
+    this.max = opts.max || 600; this.cur = 0; this.live = true;
+  }
+  Gauge.prototype.set = function (v, live) {
+    this.live = live !== false;
+    this.cur = (typeof v === "number" && isFinite(v)) ? v : 0;
+    this.draw();
+  };
+  Gauge.prototype.draw = function () {
+    var c = this.c, ctx = this.ctx; if (!ctx) return;
+    var dpr = window.devicePixelRatio || 1;
+    var w = c.clientWidth || 240, h = c.clientHeight || 210;
+    if (c.width !== Math.round(w * dpr) || c.height !== Math.round(h * dpr)) {
+      c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    var cx = w / 2, cy = h * 0.70, r = Math.min(w * 0.40, h * 0.56);
+    var a0 = Math.PI * 0.85, a1 = Math.PI * 2.15;
+    ctx.lineWidth = 14; ctx.lineCap = "round";
+    ctx.strokeStyle = "#16202e";
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+    if (!this.live) {
+      ctx.setLineDash([5, 7]); ctx.strokeStyle = "#5a2222";
+      ctx.beginPath(); ctx.arc(cx, cy, r, a0, a1); ctx.stroke();
+      ctx.setLineDash([]); return;
+    }
+    var frac = Math.max(0, Math.min(1, this.cur / this.max));
+    var grad = ctx.createLinearGradient(cx - r, 0, cx + r, 0);
+    grad.addColorStop(0, "#39d8c8"); grad.addColorStop(0.7, "#34d399"); grad.addColorStop(1, "#fbbf24");
+    ctx.strokeStyle = grad;
+    ctx.beginPath(); ctx.arc(cx, cy, r, a0, a0 + (a1 - a0) * frac); ctx.stroke();
+  };
+  var gTotal = new Gauge("gauge-total", { max: 600 });
+
+  // ---- uPlot streaming watts chart (ring buffer ~120 pts) --------------
+  var RING = 120;
+  var xs = [], ys = [];
+  var t0 = Date.now();
+  var chartEl = document.getElementById("watts-chart");
+  var emptyEl = document.getElementById("watts-empty");
+  var u = null, lastOffline = null;
+
+  function chartWidth() { return Math.max(320, chartEl.clientWidth || 800); }
+
+  function buildChart(offline) {
+    if (u) { u.destroy(); u = null; }
+    var opts = {
+      width: chartWidth(),
+      height: 260,
+      cursor: { y: false },
+      legend: { show: false },
+      scales: { x: { time: false }, y: { range: function (self, lo, hi) {
+        if (hi == null) return [0, 1]; return [0, Math.max(hi * 1.15, 1)]; } } },
+      axes: [
+        { stroke: "#8aa0bd", grid: { stroke: "#16202e" }, ticks: { stroke: "#16202e" },
+          font: "11px ui-monospace, monospace",
+          values: function (self, splits) { return splits.map(function (s) { return s + "s"; }); } },
+        { stroke: "#8aa0bd", grid: { stroke: "#16202e" }, ticks: { stroke: "#16202e" },
+          font: "11px ui-monospace, monospace",
+          values: function (self, splits) { return splits.map(function (s) { return s + " W"; }); } }
+      ],
+      series: [
+        {},
+        { label: "watts", stroke: offline ? "#f87171" : "#39d8c8", width: 2,
+          dash: offline ? [6, 5] : [],
+          fill: offline ? "rgba(248,113,113,0.05)" : "rgba(57,216,200,0.12)",
+          points: { show: false } }
+      ]
+    };
+    u = new uPlot(opts, [xs, ys], chartEl);
+  }
+
+  function ensureChart(offline) {
+    if (u == null || lastOffline !== offline) { buildChart(offline); lastOffline = offline; }
+  }
+
+  function pushSample(watts, offline) {
+    var t = Math.round((Date.now() - t0) / 1000);
+    xs.push(t);
+    ys.push(offline ? null : watts); // honest gap on offline — never a fabricated zero
+    if (xs.length > RING) { xs.shift(); ys.shift(); }
+    ensureChart(offline);
+    if (emptyEl && xs.length >= 1) emptyEl.style.display = "none";
+    u.setData([xs, ys]);
+  }
+
+  window.addEventListener("resize", function () { if (u) u.setSize({ width: chartWidth(), height: 260 }); });
+
+  // ---- ROW 1 + ROW 2: /energy/live -------------------------------------
+  function renderLive(d) {
+    markLive(!isErr(d));
+    var offline = isErr(d) || d.label === "UNAVAILABLE" ||
+                  (d.meter_status && d.meter_status !== 200) || d.total_watts == null;
+
+    // global + per-section chips
+    setChip(document.getElementById("global-chip"), offline ? "UNAVAILABLE" : "LIVE");
+    setChip(document.getElementById("total-chip"), offline ? "UNAVAILABLE" : "LIVE");
+    setChip(document.getElementById("nodes-chip"), offline ? "UNAVAILABLE" : "LIVE");
+    setChip(document.getElementById("stream-chip"), offline ? "UNAVAILABLE" : (d.joules_label || "MEASURED"));
+
+    // total power gauge
+    var read = document.getElementById("gauge-total-read");
+    var valEl = document.getElementById("gauge-total-val");
+    var subEl = document.getElementById("gauge-total-sub");
+    var tw = offline ? null : num(d.total_watts);
+    if (tw == null) {
+      valEl.textContent = "—"; read.classList.add("off");
+      gTotal.set(0, false);
+      subEl.textContent = offline ? (d && d.note ? d.note : "meter offline — joules NOT fabricated") : "no live watts";
+    } else {
+      valEl.textContent = fmt(tw, 1); read.classList.remove("off");
+      gTotal.set(tw, true);
+      var tj = num(d.total_joules);
+      subEl.textContent = "Σ joules " + (tj != null ? fmt(tj, 1) + " J" : "—") + " · " + esc(d.exporter || "NVML");
+    }
+
+    // streaming chart
+    document.getElementById("offline-tag").classList.toggle("show", offline);
+    document.getElementById("stream-note").textContent = offline
+      ? "stream paused — gaps, not fabricated values"
+      : "cumulative on-box NVML power, live";
+    pushSample(tw, offline);
+
+    // per-node cards
+    renderNodeCards(d, offline);
+  }
+
+  function renderNodeCards(d, offline) {
+    var box = document.getElementById("live-nodes");
+    var nodes = (d && !isErr(d) && Array.isArray(d.nodes)) ? d.nodes : [];
+    if (!nodes.length) {
+      box.innerHTML = '<div class="empty"><span class="chip chip-unavailable">UNAVAILABLE</span> no node telemetry — meter offline, nothing fabricated</div>';
+      return;
+    }
+    box.innerHTML = "";
+    nodes.forEach(function (n) {
+      var live = n.live === true && !offline;
+      var watts = num(n.watts);
+      var div = document.createElement("div");
+      div.className = "ncard " + (live ? "live" : "down");
+      var lbl = (watts != null && live) ? "MEASURED" : "UNAVAILABLE";
+      var joules = num(n.joules);
+      var meta = "src " + esc(n.source || "—");
+      if (joules != null) meta += " · " + fmt(joules, 1) + " J";
+      div.innerHTML =
+        '<div class="nm"><span class="dot ' + (live ? "on" : "off") + '"></span>' + esc(n.name || "—") +
+          ' <span class="chip ' + (CHIP[lbl] || "chip-unavailable") + '">' + lbl + '</span></div>' +
+        '<div class="watt">' + (watts != null && live ? fmt(watts, 1) : "—") + '<span class="u">W</span></div>' +
+        '<div class="meta">' + meta + ' · ' + (live ? "live" : "down") + '</div>';
+      box.appendChild(div);
+    });
+  }
+
+  // ---- mesh health: /govern/health -------------------------------------
+  function renderMesh(d) {
+    var up = document.getElementById("mesh-up");
+    var tot = document.getElementById("mesh-total");
+    if (isErr(d)) { up.textContent = "0"; up.className = "down"; tot.textContent = "?"; return; }
+    var live = num(d.engines_live); var total = num(d.engines_total);
+    up.textContent = (live != null ? live : "?");
+    tot.textContent = (total != null ? total : "?");
+    up.className = (live != null && total != null && live >= total) ? "up" : (live ? "up" : "down");
+  }
+
+  // ---- ROW 3: /energy/budget (Bekenstein ledger) -----------------------
+  function renderBudget(d) {
+    markLive(!isErr(d));
+    var body = document.getElementById("budget-body");
+    var chip = document.getElementById("budget-chip");
+    if (isErr(d)) {
+      setChip(chip, "DEGRADED");
+      body.innerHTML = '<tr><td colspan="7" class="empty"><span class="chip chip-degraded">DEGRADED</span> budget unreachable — NO-LIVE-DATA</td></tr>';
+      document.getElementById("b-gate").innerHTML = '<span class="gate-bad">—</span>';
+      return;
+    }
+    // honest label from the budget layer (no on-box meter -> SAMPLE/ESTIMATE)
+    var lbl = String(d.joules_label || d.total_joules_est_label || "ESTIMATE").toUpperCase();
+    setChip(chip, (CHIP[lbl] ? lbl : "ESTIMATE"));
+
+    document.getElementById("b-tasks").textContent = (num(d.task_count) != null ? fmt(d.task_count, 0) : "0");
+    document.getElementById("b-joules").textContent = (num(d.total_joules_est) != null ? fmt(d.total_joules_est, 3) : "0");
+    if (d.gate) document.getElementById("b-gatedef").textContent = String(d.gate);
+    var gateEl = document.getElementById("b-gate");
+    if (d.all_within_bound === true) gateEl.innerHTML = '<span class="gate-ok">✓ all within bound</span>';
+    else if (d.all_within_bound === false) gateEl.innerHTML = '<span class="gate-bad">✗ breach</span>';
+    else gateEl.innerHTML = '<span class="within-y">—</span>';
+
+    var series = Array.isArray(d.series) ? d.series : [];
+    if (!series.length) {
+      // honest EMPTY state — never fabricate a row
+      body.innerHTML = '<tr><td colspan="7" class="empty">budget EMPTY — no tasks metered yet (gate VERIFIED on first task). Nothing fabricated.</td></tr>';
+      return;
+    }
+    var rows = series.slice(-50).reverse();
+    body.innerHTML = "";
+    var base = series.length;
+    rows.forEach(function (r, i) {
+      var within = r.within_bound === true;
+      var tr = document.createElement("tr");
+      tr.innerHTML =
+        "<td>" + (base - i) + "</td>" +
+        "<td>" + esc(shortTime(r.ts)) + "</td>" +
+        "<td>" + fmt(num(r.joules_est), 3) + "</td>" +
+        "<td>" + fmt(num(r.cumulative_joules_est), 3) + "</td>" +
+        "<td>" + (num(r.shannon_bits) != null ? fmt(r.shannon_bits, 2) : "—") + "</td>" +
+        "<td>" + (num(r.bekenstein_bound_bits) != null ? fmt(r.bekenstein_bound_bits, 0) : "—") + "</td>" +
+        '<td class="' + (within ? "within-y" : "within-n") + '">' + (within ? "✓ within" : "✗ breach") + "</td>";
+      body.appendChild(tr);
+    });
+  }
+
+  // ---- poll loops ------------------------------------------------------
+  function tickLive()   { poll(API + "/energy/live").then(renderLive); }
+  function tickMesh()   { poll(API + "/govern/health").then(renderMesh); }
+  function tickBudget() { poll(API + "/energy/budget").then(renderBudget); }
+
+  tickLive(); tickMesh(); tickBudget();
+  setInterval(tickLive, 2000);    // streaming cadence (1-5s window)
+  setInterval(tickMesh, 5000);
+  setInterval(tickBudget, 5000);
+})();
+</script>
+
+<script>
+"use strict";
+/* ===================================================================
+   PRESS-PLAY OPERATOR CONSOLE — live operator control + signed receipts.
+   Reuses the page-level helpers (setChip / isErr / poll / markLive).
+   =================================================================== */
+(function () {
+  // ---- smooth counter (eases displayed value toward a target) ----------
+  function Counter(el, opts) {
+    opts = opts || {};
+    this.el = el; this.cur = 0; this.target = 0; this.decimals = opts.decimals || 0;
+    this.started = false;
+  }
+  Counter.prototype.set = function (v) {
+    if (typeof v !== "number" || !isFinite(v)) return;
+    this.target = v;
+    if (!this.started || REDUCED) { this.cur = v; this.started = true; this.render(); }
+  };
+  Counter.prototype.tick = function () {
+    if (!this.started) return;
+    var d = this.target - this.cur;
+    if (REDUCED || Math.abs(d) < Math.pow(10, -this.decimals) / 2) { this.cur = this.target; }
+    else { this.cur += d * 0.18; }
+    this.render();
+  };
+  Counter.prototype.render = function () { this.el.textContent = fmt(this.cur, this.decimals); };
+
+  var bigJoules = new Counter(document.getElementById("big-joules"), { decimals: 3 });
+  var mTokens   = new Counter(document.getElementById("m-tokens"), { decimals: 0 });
+  var mJobs     = new Counter(document.getElementById("m-jobs"), { decimals: 0 });
+  var mJoules   = new Counter(document.getElementById("m-joules"), { decimals: 1 });
+  if (!REDUCED) setInterval(function () { bigJoules.tick(); mTokens.tick(); mJobs.tick(); mJoules.tick(); }, 33);
+
+  // ===== OPERATOR: PLAY / STOP + status ==================================
+  var running = null;
+  var playBtn = document.getElementById("play");
+  var busy = false;
+
+  function renderRun(status) {
+    var dot = document.getElementById("run-dot");
+    var txt = document.getElementById("run-text");
+    var det = document.getElementById("run-detail");
+    if (isErr(status)) {
+      running = null; dot.className = "rdot off";
+      txt.textContent = "operator DEGRADED — NO-LIVE-DATA";
+      det.innerHTML = '<span class="chip chip-degraded">DEGRADED</span> operator status unreachable';
+      playBtn.textContent = "PRESS PLAY"; playBtn.classList.remove("stop");
+      playBtn.setAttribute("aria-pressed", "false");
+      return;
+    }
+    running = (status.running === true) || (status.state === "running") || (status.status === "running");
+    dot.className = "rdot " + (running ? "on" : "off");
+    if (running) {
+      txt.textContent = "RUNNING — computing non-stop";
+      playBtn.textContent = "STOP"; playBtn.classList.add("stop");
+      playBtn.setAttribute("aria-pressed", "true");
+    } else {
+      txt.textContent = "STOPPED — idle";
+      playBtn.textContent = "PRESS PLAY"; playBtn.classList.remove("stop");
+      playBtn.setAttribute("aria-pressed", "false");
+    }
+    var nodeNames = (status.node_status && typeof status.node_status === "object")
+      ? Object.keys(status.node_status)
+      : (status.nodes_computing || []).concat(status.nodes_standby || [], status.nodes_degraded || []);
+    var n = nodeNames.length;
+    var computing = (status.nodes_computing || []).length;
+    var jobsField = status.jobs_running != null ? status.jobs_running
+      : (status.active_jobs != null ? status.active_jobs : null);
+    det.textContent = "nodes: " + n + " · computing: " + computing +
+      (jobsField != null ? (" · active jobs: " + jobsField) : "");
+    renderNodes(status);
+  }
+
+  playBtn.addEventListener("click", function () {
+    if (busy) return;
+    var action = running ? "stop" : "start";
+    busy = true; playBtn.disabled = true;
+    poll(API + "/energy/operator/" + action, { method: "POST", body: "{}" })
+      .then(function (d) {
+        busy = false; playBtn.disabled = false;
+        if (isErr(d)) {
+          document.getElementById("run-detail").innerHTML =
+            '<span class="chip chip-degraded">DEGRADED</span> ' + action + " failed (operator unreachable)";
+          return;
+        }
+        running = (action === "start");
+        refreshStatus();
+      });
+  });
+
+  function refreshStatus() {
+    return poll(API + "/energy/operator/status").then(function (d) {
+      markLive(!isErr(d)); renderRun(d);
+    });
+  }
+
+  function renderNodes(status) {
+    var box = document.getElementById("nodes");
+    if (!status || isErr(status)) {
+      box.innerHTML = '<div class="empty">no node telemetry — <span class="chip chip-degraded">DEGRADED</span></div>';
+      return;
+    }
+    var ns = (status.node_status && typeof status.node_status === "object") ? status.node_status : null;
+    var byNode = status.by_node || {};
+    var names = ns ? Object.keys(ns) : [];
+    if (!names.length) {
+      var set = {};
+      (status.nodes_computing || []).forEach(function (n) { set[n] = "computing"; });
+      (status.nodes_standby || []).forEach(function (n) { set[n] = "standby"; });
+      (status.nodes_degraded || []).forEach(function (n) { set[n] = "degraded"; });
+      ns = set; names = Object.keys(set);
+    }
+    if (!names.length) {
+      box.innerHTML = '<div class="empty">no node telemetry — <span class="chip chip-degraded">DEGRADED</span></div>';
+      return;
+    }
+    box.innerHTML = "";
+    names.forEach(function (name) {
+      var state = String(ns[name] || "idle").toLowerCase();
+      var computing = state === "computing";
+      var degraded = state === "degraded";
+      var div = document.createElement("div");
+      div.className = "node " + (computing ? "computing" : (degraded ? "degraded" : ""));
+      var chip = computing ? '<span class="chip chip-measured">COMPUTING</span>'
+               : degraded ? '<span class="chip chip-degraded">DEGRADED</span>'
+               : state === "standby" ? '<span class="chip chip-sample">STANDBY</span>'
+               : '<span class="chip chip-sample">IDLE</span>';
+      var bn = byNode[name] || {};
+      var detail = "";
+      if (bn.joules_measured != null) detail += " · " + fmt(num(bn.joules_measured), 1) + " J";
+      if (bn.tokens != null) detail += " · " + fmt(num(bn.tokens), 0) + " tok";
+      div.innerHTML = '<div class="nm">' + esc(name) + "</div>" +
+        '<div class="st">' + chip + detail + "</div>";
+      box.appendChild(div);
+    });
+  }
+
+  // ===== LEDGER: receipt feed + today totals =============================
+  var seen = {};
+  function refreshLedger() {
+    return poll(API + "/energy/ledger").then(function (d) {
+      markLive(!isErr(d));
+      var body = document.getElementById("feed-body");
+      if (isErr(d)) {
+        if (!Object.keys(seen).length)
+          body.innerHTML = '<tr><td colspan="5" class="empty"><span class="chip chip-degraded">DEGRADED</span> ledger unreachable — NO-LIVE-DATA</td></tr>';
+        return;
+      }
+      var receipts = d.receipts || d.entries || d.ledger || [];
+      var dryRunTotal = 0, anyCharged = false;
+      var mode = (String(d.stripe_mode || d.mode || "").toLowerCase() === "live") ? "LIVE" : "DRY-RUN";
+      var feedMode = document.getElementById("feed-mode");
+      feedMode.textContent = mode;
+      feedMode.className = "chip " + (mode === "LIVE" ? "chip-measured" : "chip-modeled");
+
+      var rows = receipts.slice().reverse();
+      if (rows.length && body.querySelector(".empty")) body.innerHTML = "";
+      rows.forEach(function (r) {
+        var dec = (r.receipt && r.receipt.decision) || r.decision || r;
+        var digest = (r.receipt && r.receipt.payload_digest) || r.entry_digest || r.payload_digest || r.digest || "";
+        var cents = pickCents(r, dec);
+        var charge = r.charge || {};
+        if (String(charge.status) === "charged") anyCharged = true;
+        else dryRunTotal += (typeof cents === "number" ? cents : 0);
+        if (digest && seen[digest]) return;
+        if (digest) seen[digest] = true;
+        var tr = document.createElement("tr");
+        tr.className = "new";
+        var when = dec.ts || r.ts || "";
+        tr.innerHTML =
+          "<td>" + esc(shortTime(when)) + "</td>" +
+          "<td>" + esc(dec.node || r.node || "—") + "</td>" +
+          "<td>" + fmt(num(dec.joules_measured || dec.joules), 3) + "</td>" +
+          '<td class="cents">' + (typeof cents === "number" ? (cents + "¢") : "—") +
+            ' <span class="chip chip-modeled">' + (mode === "LIVE" && anyCharged ? "MODELED" : "DRY-RUN") + "</span></td>" +
+          '<td class="digest">' + esc(shortDigest(digest)) + "</td>";
+        body.insertBefore(tr, body.firstChild);
+      });
+
+      // today earnings = MODELED dry-run total
+      document.getElementById("m-earn").textContent = "$" + (dryRunTotal / 100).toFixed(2);
+      // real cleared revenue: only MEASURED if a real charge cleared
+      var realCents = num(d.cleared_revenue_cents || d.charged_cents || 0);
+      var mReal = document.getElementById("m-real");
+      mReal.textContent = "$" + (realCents / 100).toFixed(2);
+      setChip(document.getElementById("m-real-chip"), realCents > 0 ? "MEASURED" : "ZERO");
+      mReal.style.color = realCents > 0 ? "var(--green)" : "var(--dim)";
+    });
+  }
+
+  function pickCents(r, dec) {
+    var c = r.charge || {};
+    if (typeof c.would_charge_cents === "number") return c.would_charge_cents;
+    if (typeof c.amount_cents === "number") return c.amount_cents;
+    if (dec && typeof dec.amount_cents === "number") return dec.amount_cents;
+    return null;
+  }
+
+  // ===== TODAY totals from operator status (MEASURED compute) ============
+  function refreshToday() {
+    return poll(API + "/energy/operator/status").then(function (d) {
+      if (isErr(d)) return;
+      var t = d;
+      var tokens = num(t.tokens_total != null ? t.tokens_total : (t.tokens_measured != null ? t.tokens_measured : t.tokens));
+      var jobs = num(t.jobs_done != null ? t.jobs_done : (t.jobs_completed != null ? t.jobs_completed : t.jobs));
+      var joules = num(t.joules_measured_total != null ? t.joules_measured_total : (t.joules_measured != null ? t.joules_measured : t.joules));
+      if (tokens != null) mTokens.set(tokens);
+      if (jobs != null) mJobs.set(jobs);
+      if (joules != null) { mJoules.set(joules); bigJoules.set(joules); }
+    });
+  }
+
+  // ===== PROJECTION: 1-day MODELED headline ==============================
+  function refreshProjection() {
+    return poll(API + "/energy/projection?window=running").then(function (d) {
+      markLive(!isErr(d));
+      var pj = document.getElementById("proj-joules");
+      var pe = document.getElementById("m-proj-earn");
+      if (isErr(d)) { pj.textContent = "—"; pe.textContent = "—"; return; }
+      var p = d.projection_1day_single_node || d.one_day || d.projection || d;
+      var cd = p.compute_done || {};
+      var joules = num((cd.joules && cd.joules.value != null) ? cd.joules.value
+                     : (p.joules && p.joules.value != null ? p.joules.value
+                     : (p.joules != null ? p.joules : (p.joules_projected != null ? p.joules_projected : p.joules_1d))));
+      var earn = p.earnings || {};
+      var resale = earn.compute_resale_usd || {};
+      var earnDollars = num(resale.value != null ? resale.value
+                         : (earn.usd != null ? earn.usd : (earn.value != null ? earn.value : null)));
+      if (earnDollars == null) {
+        var ec = num(earn.amount_cents != null ? earn.amount_cents : (earn.earnings_cents != null ? earn.earnings_cents : earn.cents));
+        if (ec != null) earnDollars = ec / 100;
+      }
+      pj.textContent = joules != null ? fmt(joules, 0) : "—";
+      pe.textContent = earnDollars != null ? ("$" + earnDollars.toFixed(2)) : "—";
+      var formula = (resale.formula) || (cd.joules && cd.joules.formula) || p.basis;
+      if (formula) {
+        document.getElementById("earn-formula").textContent =
+          "ESTIMATE (assumed ¢/kWh): " + String(formula);
+      }
+    });
+  }
+
+  // ===== GRID: price now + negative-window indicator =====================
+  function refreshGrid() {
+    return poll(API + "/harvest/posture").then(function (d) {
+      markLive(!isErr(d));
+      var priceEl = document.getElementById("grid-price");
+      var chip = document.getElementById("grid-chip");
+      var banner = document.getElementById("neg-banner");
+      var postureEl = document.getElementById("grid-posture");
+      if (isErr(d) || d.ok === false) {
+        priceEl.textContent = "—"; setChip(chip, "DEGRADED");
+        banner.classList.remove("show"); postureEl.textContent = "posture: NO-LIVE-DATA";
+        return;
+      }
+      var price = extractPrice(d);
+      if (price == null) { priceEl.textContent = "—"; setChip(chip, "SAMPLE"); }
+      else {
+        priceEl.textContent = price.toFixed(2) + " EUR/MWh";
+        priceEl.style.color = price < 0 ? "var(--green)" : "var(--ink)";
+        setChip(chip, (d.measured_any ? "MEASURED" : "SAMPLE"));
+        banner.classList.toggle("show", price < 0);
+      }
+      postureEl.textContent = "posture: " + (d.posture || "—") +
+        (d.wasted_energy_available ? " · wasted-energy available" : "");
+    });
+  }
+
+  function extractPrice(d) {
+    if (typeof d.grid_price_eur_mwh === "number") return d.grid_price_eur_mwh;
+    if (typeof d.price_now_eur_mwh === "number") return d.price_now_eur_mwh;
+    if (typeof d.price_eur_mwh === "number") return d.price_eur_mwh;
+    var rs = d.readings || [];
+    for (var i = 0; i < rs.length; i++) {
+      var r = rs[i];
+      if (r && (r.feed === "price" || /price/i.test(r.feed || r.name || ""))) {
+        if (typeof r.value === "number") return r.value;
+        if (typeof r.price_eur_mwh === "number") return r.price_eur_mwh;
+        if (typeof r.marketprice === "number") return r.marketprice;
+      }
+    }
+    return null;
+  }
+
+  // ---- poll loop ---------------------------------------------------------
+  function tickFast() { refreshStatus(); refreshToday(); refreshLedger(); }
+  function tickSlow() { refreshProjection(); refreshGrid(); }
+  tickFast(); tickSlow();
+  setInterval(tickFast, 3000);
+  setInterval(tickSlow, 8000);
+})();
+</script>
+</body>
+</html>

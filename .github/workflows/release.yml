@@ -1,0 +1,136 @@
+name: Release artifacts — SBOM + DSSE attestation + build provenance
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  public-claim-gate:
+    name: EvidenceOS public-claim release gate
+    permissions:
+      contents: read
+      actions: read
+    uses: ./.github/workflows/public-claim-integrity.yml
+
+  provider-gate:
+    name: Provider release honesty gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install provider-gate test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Prove provider honesty, durable receipts, and HTTP boundaries
+        run: >-
+          python -m pytest -q
+          tests/test_provider_release_gate.py
+          test_provider_http.py
+          test_sovereign_registry_dev2.py
+          tests/test_sovereign_backend.py
+      - name: Run Round-5 convergence gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 tools/release_gate.py --run --report audit/release-gate.json
+      - name: Upload round-5 release-gate artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v4.0.0
+        with:
+          name: frontier-release-gate
+          path: |
+            audit/release-gate.json
+            audit/release-gate-logs/*
+            audit/frontier-lexicon-gate.json
+            docs/huggingface-ecosystem-manifest.json
+          if-no-files-found: error
+          retention-days: 14
+
+  attach:
+    needs: [provider-gate, public-claim-gate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate SBOM (CycloneDX JSON)
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.17.9
+        with:
+          format: cyclonedx-json
+          output-file: ${{ github.event.repository.name }}-sbom.cdx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: |
+            ${{ github.event.repository.name }}-sbom.cdx.json
+          push-to-registry: false
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@c604332985a26aa8cf1bdc465b92731239ec6b9e # v4
+        with:
+          subject-path: '${{ github.event.repository.name }}-sbom.cdx.json'
+          sbom-path: '${{ github.event.repository.name }}-sbom.cdx.json'
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Attest SBOM (DSSE/in-toto)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign attest-blob --yes \
+            --predicate ${{ github.event.repository.name }}-sbom.cdx.json \
+            --type cyclonedx \
+            --output-attestation ${{ github.event.repository.name }}-attestation.intoto.jsonl \
+            ${{ github.event.repository.name }}-sbom.cdx.json
+
+      - name: Upload SBOM + attestation to release
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
+        if: github.event_name == 'release'
+        with:
+          files: |
+            ${{ github.event.repository.name }}-sbom.cdx.json
+            ${{ github.event.repository.name }}-attestation.intoto.jsonl
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+
+  # Issue #194: every release also carries a REAL Sigstore keyless DSSE signature
+  # over the governance decision log AND the vessels Khipu-ingest consumer receipt,
+  # not just the dedicated dsse-receipts.yml demo run. Signature-only upgrade — the
+  # SLSA claim is unchanged (still L1).
+    permissions:
+      id-token: write
+      contents: write
+      packages: write
+      attestations: write
+  sign-receipts:
+    needs: [provider-gate, public-claim-gate]
+    name: Sign governance + Khipu receipts (Sigstore keyless)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # upload signed envelope as a release asset
+      id-token: write     # REQUIRED: mints the ambient OIDC token Fulcio exchanges for a cert
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Sign + verify receipts
+        uses: ./.github/actions/sign-receipts
+      - name: Upload signed receipts to the release
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          mapfile -t FILES < <(ls attestations/governance/*.dsse.json attestations/khipu/*.dsse.json attestations/khipu/*.node.json 2>/dev/null)
+          echo "Uploading ${#FILES[@]} signed receipt files to release ${TAG}"
+          gh release upload "${TAG}" "${FILES[@]}" --clobber --repo szl-holdings/a11oy
+      - name: Upload signed receipts as a workflow artifact (dispatch runs)
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-receipts
+          path: attestations/**/*.json
+          if-no-files-found: error

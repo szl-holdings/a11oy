@@ -1,0 +1,74 @@
+# deploy/peat-node.yaml — sentra peat-node CRDT mesh participation
+# Authored by: Connector Wayra · P4 UDS Apply
+# Doctrine: v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem)
+# SLSA: L1 honest · Section 889: 5 vendors · NO Iron Bank / FedRAMP / CMMC
+#
+# peat-node sidecar: Rust binary participating in the SZL CRDT mesh.
+# sentra role: mesh immune system — receives Wire B verdicts, runs threat-signature
+# scanning, Λ-gate thresholding, STIX/TAXII cross-referencing.
+#
+# References:
+#   peat-node: https://github.com/defenseunicorns/peat-node
+#   peat-node BRIEF: szl-ingest/specs/peat-node_BRIEF.md
+#
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+
+apiVersion: peat.dev/v1
+kind: Node
+metadata:
+  name: sentra-node
+  namespace: sentra
+  annotations:
+    szl.io/doctrine-version: "v11"
+    szl.io/doctrine-locked: "749/14/163"
+    szl.io/lean-sha: "c7c0ba17"
+    szl.io/lambda-status: "Conjecture 1 — NOT a theorem"
+    szl.io/slsa-level: "L1"
+spec:
+  image: ghcr.io/szl-holdings/sentra:v1.0.0-alpha
+  port: 7860
+  role: "mesh-immune-system"
+  capabilities:
+    - "crdt-mesh-participant"
+    - "wire-b-ingest"
+    - "threat-signature-scan"
+    - "lambda-gate-threshold"
+    - "receipt-hash-audit"
+    - "stix-taxii-crossref"
+  transport: "iroh-quic"
+  mesh:
+    grpcPort: 50051
+    documentNamespace: "szl/sentra"
+    documents:
+      - name: "threat-indicators"
+        type: "GrowOnlySet"
+        description: "Active STIX threat indicators propagated via mesh"
+      - name: "verdict-log"
+        type: "GrowOnlyLog"
+        description: "Wire B verdict decisions — audit log"
+      - name: "immune-posture"
+        type: "LWWRegister"
+        description: "Current immune posture (gates passed/failed)"
+  env:
+    - name: SZL_DOCTRINE_VERSION
+      value: "v11"
+    - name: SZL_LEAN_SHA
+      value: "c7c0ba17"
+    - name: SZL_FLAGSHIP
+      value: "sentra"
+    - name: SZL_ROLE
+      value: "mesh-immune-system"
+    - name: PEAT_GRPC_PORT
+      value: "50051"
+  readinessProbe:
+    httpGet:
+      path: /api/health
+      port: 7860
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    failureThreshold: 3
+  cosign:
+    keyRef: sentra-cosign
+    certificateIdentityRegexp: "https://github.com/szl-holdings/sentra/.github/workflows/zarf-build-and-sign.yml.*"
+    certificateOIDCIssuer: "https://token.actions.githubusercontent.com"

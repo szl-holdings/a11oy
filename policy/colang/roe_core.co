@@ -1,0 +1,71 @@
+# SPDX-License-Identifier: Apache-2.0
+# a11oy ROE / governance policy — NeMo Guardrails Colang (v1) flows.
+# https://github.com/NVIDIA-NeMo/Guardrails  (Colang policy DSL)
+#
+# DOCTRINE: This file is the AUTHORITATIVE, version-controlled, independently
+# auditable Rules-of-Engagement policy. Policy lives HERE, in a reviewable file
+# under git — NOT inside a prompt. serve.py loads + enforces these flows via
+# szl_colang_policy.py and renders the file content + sha256 in the Policy tab so
+# anyone can audit exactly which rules are active.
+#
+# policy_id: a11oy-roe-core
+# policy_version: 1.0.0
+# Each `define flow` is a named, hash-anchored rule. The runtime enforcer matches
+# the proposed action against each flow's guard conditions and records which
+# flows fired into the signed receipt (controls_evaluated.policy per IETF
+# draft-marques-asqav-compliance-receipts-05).
+
+define flow refuse_destructive_actions
+  # No irreversible / destructive action without explicit operator authorization.
+  user action requested $action
+  if is_destructive($action) and not has_operator_authorization($action)
+    bot refuse action with reason "destructive_without_authorization"
+    create signed_refusal_receipt($action, "destructive_without_authorization")
+  else
+    continue
+
+define flow refuse_pii_exfiltration
+  # Never emit/exfiltrate PII (PAN, SSN, full card numbers) to an external sink.
+  user action requested $action
+  if requests_pii_exfiltration($action)
+    bot refuse action with reason "pii_exfiltration_blocked"
+    create signed_refusal_receipt($action, "pii_exfiltration_blocked")
+  else
+    continue
+
+define flow refuse_prompt_injection
+  # Reject actions carrying override/injection signatures ("ignore previous", etc).
+  user action requested $action
+  if matches_injection_signature($action)
+    bot refuse action with reason "prompt_injection_detected"
+    create signed_refusal_receipt($action, "prompt_injection_detected")
+  else
+    continue
+
+define flow require_operator_approval_high_impact
+  # High-consequence actions require a recorded human-on-loop approval event.
+  user action requested $action
+  if is_high_impact($action) and not has_operator_approval_event($action)
+    bot refuse action with reason "operator_approval_required"
+    create signed_refusal_receipt($action, "operator_approval_required")
+  else
+    continue
+
+define flow enforce_payload_ceiling
+  # Reject oversized payloads (DoS ceiling) before they reach an effector.
+  user action requested $action
+  if payload_exceeds_ceiling($action)
+    bot refuse action with reason "payload_exceeds_1MB"
+    create signed_refusal_receipt($action, "payload_exceeds_1MB")
+  else
+    continue
+
+define flow policy_before_effect
+  # An effecting tool call MUST be preceded by a policy evaluation in the trace.
+  user action requested $action
+  if is_effecting($action) and not policy_evaluated_before($action)
+    bot refuse action with reason "policy_evaluation_must_precede_effect"
+    create signed_refusal_receipt($action, "policy_evaluation_must_precede_effect")
+  else
+    allow action
+    create signed_action_receipt($action)

@@ -1,0 +1,221 @@
+{
+  "generated_at": "2026-07-26T08:52:31+00:00",
+  "independent_live_verification": {
+    "reason": "no immutable staging artifact digest was produced by this run",
+    "status": "BLOCKED"
+  },
+  "label": "MEASURED",
+  "release_assets": [
+    {
+      "digest": "sha256:183fb85d12bf5c6d2ebe16a11416c70d3ac011ee03270e1a452d74f77ba6a9b2",
+      "name": "a11oy-uds-v1.0.0.tar.zst.intoto.jsonl",
+      "release": "v1.0.0"
+    },
+    {
+      "digest": "sha256:6bcd52f72a3a204e5fa495dcb58c1436fb2381ed017f580a0fabb05a1d6d2e09",
+      "name": "a11oy-uds-v0.3.1.tar.gz.intoto.jsonl",
+      "release": "uds-v0.3.1"
+    },
+    {
+      "digest": "sha256:5b674161db06d8e7b4f64bdb289244b92ed55708ca25d6250ee086b6bbe84d8e",
+      "name": "a11oy-sbom-2.spdx.json",
+      "release": "provenance-l2-2026-06-01"
+    },
+    {
+      "digest": "sha256:b005e84f9461aef994c4df91d9105fe34996ed5e8c6246960296f091ac28fb8d",
+      "name": "a11oy-sbom.cyclonedx.json",
+      "release": "provenance-l2-2026-06-01"
+    },
+    {
+      "digest": "sha256:39e9da8bb8b4f4a69275ff82ba8ca955ce10fec173b55d5cd3a632f82c8c88dc",
+      "name": "a11oy-uds-provenance-l2-2026-06-01.tar.zst.intoto.jsonl",
+      "release": "provenance-l2-2026-06-01"
+    },
+    {
+      "digest": "sha256:6a8d5acf8e01494dfeafa158bfa10a3acf41344f4b55382903e4fce28d4c7370",
+      "name": "a11oy-sbom-2.spdx.json",
+      "release": "mirror-2026-06-01"
+    },
+    {
+      "digest": "sha256:028f2efe5aa0f4c4f7018eb4010d1633ea532637586ee2ac83d7da5a38f1a6e0",
+      "name": "a11oy-sbom.cyclonedx.json",
+      "release": "mirror-2026-06-01"
+    },
+    {
+      "digest": "sha256:9ba823a0517b734ea675795220902bd59605c740dbedc72d529a89aa373c0dc3",
+      "name": "a11oy-uds-mirror-2026-06-01.tar.zst.intoto.jsonl",
+      "release": "mirror-2026-06-01"
+    },
+    {
+      "digest": "sha256:8d6433bf6b297e066a58a397e5cfcb383590a27d5d532fb59f3dbe37448041c9",
+      "name": "a11oy-sbom-2.spdx.json",
+      "release": "uds-v0.3.0"
+    },
+    {
+      "digest": "sha256:3dc892738d102bf1fc25063cf318aebe47c0a3bbc97c68cf9784d11eb7223df4",
+      "name": "a11oy-sbom.cyclonedx.json",
+      "release": "uds-v0.3.0"
+    },
+    {
+      "digest": "sha256:9cf037eb434d079357894992b270a00f148ab77308eac42f50f30f44112071d1",
+      "name": "a11oy-uds-0.2.0.tar.zst.sha256",
+      "release": "uds-v0.2.0"
+    },
+    {
+      "digest": "sha256:841f132ec8f560ba18d0467da661b914bb7f658834e18e2a2593fb5f6ebdcba7",
+      "name": "a11oy-uds-0.1.1.tar.zst.sha256",
+      "release": "uds-v0.1.1"
+    },
+    {
+      "digest": "sha256:effc369ed55a36c14417668cd77a9052f1f9d5f0dd4213f5acc461735750f631",
+      "name": "a11oy-uds-0.1.0.tar.zst.sha256",
+      "release": "uds-v0.1.0"
+    }
+  ],
+  "workflow_signals": [
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/cosign.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/ghcr-build-push.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "actions/attest-sbom",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "c604332985a26aa8cf1bdc465b92731239ec6b9e",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "c604332985a26aa8cf1bdc465b92731239ec6b9e",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/sbom.yml"
+    },
+    {
+      "action": "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml",
+      "pin_compliant": false,
+      "pin_policy": "exact_semver_tag",
+      "ref": "f7dd8c54c2067bafc12ca7a55595d5ee9b75204a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "f7dd8c54c2067bafc12ca7a55595d5ee9b75204a",
+      "workflow": ".github/workflows/slsa-build.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/slsa-provenance.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/slsa.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/uds-sign-release.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+# sentra/docs/falco-rules.yaml
+# SZL Holdings Sentra — Falco-compatible threat detection rules
+# Ported from sentra_drone_cyber.py rule engine (Sysdig/Falco lift).
+# Doctrine v11 LOCKED 749/14/163. SLSA L1 honest.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+- macro: drone_telemetry
+  condition: evt.type in (write, sendto) and fd.name contains "drone"
+
+- rule: Unauthorized Drone Remote-ID Broadcast
+  desc: Detect drone broadcasting outside declared geofence
+  condition: drone_telemetry and proc.name = "killinchu" and ka.request.object.latitude != null
+  output: "Drone out-of-geofence (lat=%ka.request.object.latitude lon=%ka.request.object.longitude)"
+  priority: WARNING
+  source: k8s_audit
+  tags: [szl, counter-uas, doctrine-v11, section889]
+
+- rule: SZL Doctrine Violation Attempt
+  desc: Detect process attempting to write doctrine-violating content
+  condition: >
+    open_write and
+    (fd.name contains "ib-registry" or fd.name contains "fedramp-ato" or fd.name contains "cmmc-cert")
+  output: "Doctrine violation write attempt (file=%fd.name user=%user.name)"
+  priority: CRITICAL
+  tags: [szl, doctrine-v11, compliance]
+
+- rule: SLSA Attestation Missing
+  desc: Container started without SLSA L1 provenance label
+  condition: >
+    container.image.digest != null and
+    not container.image.repository in (szlholdings-a11oy, szlholdings-sentra,
+      szlholdings-amaru, szlholdings-rosie, szlholdings-killinchu)
+  output: "Non-SZL container started without SLSA attestation (image=%container.image.digest)"
+  priority: WARNING
+  tags: [szl, slsa, supply-chain]

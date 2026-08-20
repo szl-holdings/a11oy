@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/source-deploy-attestation.v2.schema.json",
+  "title": "SZL Source and Deploy Attestation v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "immutable_for_process", "repository_url", "source_commit", "deployed_commit", "build_digest", "image_digest", "deploy_timestamp", "deployment_target", "alignment_state", "claims", "limits"],
+  "properties": {
+    "schema_version": {"const": "szl.source-deploy-attestation/v2"},
+    "immutable_for_process": {"const": true},
+    "repository_url": {"type": "string", "format": "uri"},
+    "source_commit": {"$ref": "#/$defs/observedCommit"},
+    "deployed_commit": {"$ref": "#/$defs/observedCommit"},
+    "build_digest": {"$ref": "#/$defs/observedDigest"},
+    "image_digest": {"$ref": "#/$defs/observedDigest"},
+    "deploy_timestamp": {"$ref": "#/$defs/observedTimestamp"},
+    "deployment_target": {"type": "string", "minLength": 1},
+    "alignment_state": {"enum": ["MATCH", "CONFLICT", "UNKNOWN"]},
+    "claims": {"type": "object", "additionalProperties": {"type": "string"}},
+    "limits": {"type": "array", "items": {"type": "string"}}
+  },
+  "$defs": {
+    "evidence": {
+      "type": "object", "additionalProperties": false, "required": ["value", "evidence_class"],
+      "properties": {"value": {"type": ["string", "null"]}, "evidence_class": {"enum": ["MEASURED", "UNKNOWN"]}}
+    },
+    "observedCommit": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^[0-9a-f]{40}$"}}}]},
+    "observedDigest": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$"}}}]},
+    "observedTimestamp": {"allOf": [{"$ref": "#/$defs/evidence"}, {"properties": {"value": {"type": ["string", "null"], "format": "date-time"}}}]}
+  }
+}

@@ -1,0 +1,228 @@
+{
+  "schema": "szl.anatomy.covenant-cockpit/receipts/v1",
+  "note": "REAL szl-receipt in-toto sample set (DSSE ECDSA-P256-SHA256). Signatures are genuine and verify offline against cosign_pub. One receipt is UNSIGNED-honest so the cockpit shows an honest UNAVAILABLE badge \u2014 never a fabricated pass. \u039b = Conjecture 1 (advisory).",
+  "payload_type": "application/vnd.szl.receipt+json",
+  "cosign_pub": "-----BEGIN PUBLIC KEY-----\nMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEQW3976C9sGw2XOnLWhAaCIyLa6g9\nC/jtv7P3nQfDaQlqvtxNPx+zv+NS1JXo5zu7D62ZHFFqFNGLn8TmDKHjLQ==\n-----END PUBLIC KEY-----\n",
+  "receipts": [
+    {
+      "id": "a11oy-lead#10023-NY",
+      "envelope": {
+        "payloadType": "application/vnd.szl.receipt+json",
+        "payload": "eyJhY3Rpb24iOiJjb250YWN0X3Byb3NwZWN0IiwiYmZ0X3dpdG5lc3NlcyI6WyJhbWFydSIsInNlbnRyYSIsImtpbGxpbmNodSJdLCJlbmVyZ3kiOnsiam91bGVzIjo0MS44LCJtZWFzdXJlZCI6dHJ1ZX0sImlucHV0X2RpZ2VzdCI6InNoYTI1Njo0N2ZhNGIzNWM1YmZjNTE5NWY1OTFhZGVjZmEyMjU3YWU1YTNkYTAzZTk0NjhkODM4ZTg1M2MyZDRiYWJlMWRkIiwia2VybmVsX2NvbW1pdCI6ImM3YzBiYTE3Iiwia2luZCI6ImdvdmVybmFuY2UuZGVjaXNpb24iLCJsYW1iZGEiOnsiYXhlcyI6MTMsImZsb29yIjowLjksInBhc3MiOnRydWUsInVuaXF1ZW5lc3MiOiJDb25qZWN0dXJlIDEiLCJ2YWx1ZSI6MC45NzJ9LCJsZWFuX3RoZW9yZW0iOiJsb2NrZWRfY291bnRfZWlnaHQiLCJtb2RlbF9pZCI6InN6bC1yb3V0ZXIvbGxhbWEtMy4xLThiIiwib3V0cHV0X2RpZ2VzdCI6InNoYTI1Njo5NDIyNTM0MGFiN2E5M2M3MTQxYjM5ZGQ0ODZmNDVhMjlmZGExYWY1MDA4YTkwZGY1Nzg5NTA2M2NhMjkxMTAwIiwicG9saWN5X2lkIjoidGNwYS1jb21wbGlhbmNlLnYxMSIsInByb2R1Y2VyIjoiYTExb3kiLCJyZWFzb24iOiJPbiB0aGUgRG8tTm90LUNhbGwgcmVnaXN0cnkg4oCUIG91dHJlYWNoIGJsb2NrZWQgKFRDUEEpLiIsInNjaGVtYSI6InN6bC5wY2dpLnJlY2VpcHQvdjEiLCJzZXEiOjAsInN1YmplY3QiOiJsZWFkIzEwMDIzLU5ZIiwidmVyZGljdCI6ImJsb2NrIn0=",
+        "signature": "MEYCIQC07daoxODDMpg61Sa9FhQfBlSAjbXYTCnzpu+sIpA7igIhAP0AtdrtjkCMxh5E3XjsAhaH1/l5pr9dfgtOOG0WWyqo",
+        "signed": true,
+        "organ": "a11oy",
+        "keyid": "szl-org-key-01",
+        "digest": "0d400441089b2b09ca6291cfcb1e68662e82f51d8b43653c581ab33f572103a3",
+        "algo": "ECDSA-P256-SHA256"
+      },
+      "statement": {
+        "_type": "https://in-toto.io/Statement/v1",
+        "subject": [
+          {
+            "name": "a11oy:lead#10023-NY",
+            "digest": {
+              "sha256": "0d400441089b2b09ca6291cfcb1e68662e82f51d8b43653c581ab33f572103a3"
+            }
+          }
+        ],
+        "predicateType": "https://a-11-oy.com/attest/szl-receipt/v0.1",
+        "predicate": {
+          "buildDefinition": {
+            "buildType": "https://a-11-oy.com/pcgi/governed-decision/v1",
+            "externalParameters": {
+              "model_id": "szl-router/llama-3.1-8b",
+              "policy_id": "tcpa-compliance.v11",
+              "input_digest": "sha256:47fa4b35c5bfc5195f591adecfa2257ae5a3da03e9468d838e853c2d4babe1dd"
+            },
+            "internalParameters": {
+              "kernel_commit": "c7c0ba17"
+            }
+          },
+          "runDetails": {
+            "builder": {
+              "id": "szl://a11oy"
+            },
+            "metadata": {
+              "verdict": "block",
+              "output_digest": "sha256:94225340ab7a93c7141b39dd486f45a29fda1af5008a90df57895063ca291100",
+              "energy": {
+                "joules": 41.8,
+                "measured": true
+              },
+              "bft_witnesses": [
+                "amaru",
+                "sentra",
+                "killinchu"
+              ]
+            }
+          },
+          "doctrine": "receipt = evidence, not conformance; \u039b = Conjecture 1"
+        }
+      }
+    },
+    {
+      "id": "killinchu-track#K-7741",
+      "envelope": {
+        "payloadType": "application/vnd.szl.receipt+json",
+        "payload": "eyJhY3Rpb24iOiJ0cmFja19jbGFzc2lmeSIsImJmdF93aXRuZXNzZXMiOlsiYW1hcnUiLCJzZW50cmEiXSwiZW5lcmd5IjoiVU5BVkFJTEFCTEUiLCJpbnB1dF9kaWdlc3QiOiJzaGEyNTY6MDA5MjdmODMwMTNmNmU4OGVmOGU3ZWI2ZTMzOTYzMjI3YmVlZDIxZTU4MTRlMzRjMjYxODMxMzUyNTY0MTljZSIsImtlcm5lbF9jb21taXQiOiJjN2MwYmExNyIsImtpbmQiOiJlbmdhZ2VtZW50LmNsYXNzaWZpY2F0aW9uIiwibGFtYmRhIjp7ImF4ZXMiOjEzLCJmbG9vciI6MC45LCJwYXNzIjp0cnVlLCJ1bmlxdWVuZXNzIjoiQ29uamVjdHVyZSAxIiwidmFsdWUiOjAuOTU4fSwibGVhbl90aGVvcmVtIjoia2hpcHVfcXVvcnVtX3NhZmV0eV9jb25kaXRpb25hbCIsIm1vZGVsX2lkIjoia2lsbGluY2h1L2VkZ2UtZm9ybXVsYXMucm91bmQ5Iiwib3V0cHV0X2RpZ2VzdCI6InNoYTI1NjphNTQ3ZWI3NDg4YzE5NWIzNWE1ZTY2MThlNTJjZDA4ZjQ4MzBhODMyMjBkYjRmODlhZmZjOWJkYjhkNDQ0NTliIiwicG9saWN5X2lkIjoicm9lLWh1bWFuLWF1dGhvcml0eS52MyIsInByb2R1Y2VyIjoia2lsbGluY2h1IiwicmVhc29uIjoiQ2xhc3NpZmllZCBOT04tSE9TVElMRSB1bmRlciBST0UgZ2F0ZTsgaHVtYW4gYXV0aG9yaXR5IHJldGFpbmVkLiIsInNjaGVtYSI6InN6bC5wY2dpLnJlY2VpcHQvdjEiLCJzZXEiOjEsInN1YmplY3QiOiJ0cmFjayNLLTc3NDEiLCJ2ZXJkaWN0IjoiYWxsb3ctb2JzZXJ2ZSJ9",
+        "signature": "MEQCIB/Bn4eRv/QRVhmQQQwYLyJh1InUwKPrgvvKrxg+DtsWAiAwuAzxKvESYM/0SORx+CE0yFzpa+Os7SJ6SWfmDb7xpQ==",
+        "signed": true,
+        "organ": "killinchu",
+        "keyid": "szl-org-key-01",
+        "digest": "291e7ecece7d88445ce4b5abf3c9fea0596567a8f2f6c05e3b4a0a8ee4e705db",
+        "algo": "ECDSA-P256-SHA256"
+      },
+      "statement": {
+        "_type": "https://in-toto.io/Statement/v1",
+        "subject": [
+          {
+            "name": "killinchu:track#K-7741",
+            "digest": {
+              "sha256": "291e7ecece7d88445ce4b5abf3c9fea0596567a8f2f6c05e3b4a0a8ee4e705db"
+            }
+          }
+        ],
+        "predicateType": "https://a-11-oy.com/attest/szl-receipt/v0.1",
+        "predicate": {
+          "buildDefinition": {
+            "buildType": "https://a-11-oy.com/pcgi/governed-decision/v1",
+            "externalParameters": {
+              "model_id": "killinchu/edge-formulas.round9",
+              "policy_id": "roe-human-authority.v3",
+              "input_digest": "sha256:00927f83013f6e88ef8e7eb6e33963227beed21e5814e34c26183135256419ce"
+            },
+            "internalParameters": {
+              "kernel_commit": "c7c0ba17"
+            }
+          },
+          "runDetails": {
+            "builder": {
+              "id": "szl://killinchu"
+            },
+            "metadata": {
+              "verdict": "allow-observe",
+              "output_digest": "sha256:a547eb7488c195b35a5e6618e52cd08f4830a83220db4f89affc9bdb8d44459b",
+              "energy": "UNAVAILABLE",
+              "bft_witnesses": [
+                "amaru",
+                "sentra"
+              ]
+            }
+          },
+          "doctrine": "receipt = evidence, not conformance; \u039b = Conjecture 1"
+        }
+      }
+    },
+    {
+      "id": "a11oy-req#88f120",
+      "envelope": {
+        "payloadType": "application/vnd.szl.receipt+json",
+        "payload": "eyJhY3Rpb24iOiJhbnN3ZXJfcXVlcnkiLCJiZnRfd2l0bmVzc2VzIjpbImFtYXJ1Iiwic2VudHJhIiwia2lsbGluY2h1Il0sImVuZXJneSI6eyJqb3VsZXMiOjExOC4zLCJtZWFzdXJlZCI6dHJ1ZX0sImlucHV0X2RpZ2VzdCI6InNoYTI1NjowNWMxOTE2MmQ2YzU0YmQyYjk3NjVkN2JiNDIzMGRhMDgyNmE2MDk2NWZhZjg1MWE3MzgxNzA3NzQ5NzM5ZWVkIiwia2VybmVsX2NvbW1pdCI6ImM3YzBiYTE3Iiwia2luZCI6ImluZmVyZW5jZS5kZWNpc2lvbiIsImxhbWJkYSI6eyJheGVzIjoxMywiZmxvb3IiOjAuOSwicGFzcyI6dHJ1ZSwidW5pcXVlbmVzcyI6IkNvbmplY3R1cmUgMSIsInZhbHVlIjowLjk5MX0sImxlYW5fdGhlb3JlbSI6ImxvY2tlZF9jb3VudF9laWdodCIsIm1vZGVsX2lkIjoic3psLXJvdXRlci9sbGFtYS0zLjEtOGIiLCJvdXRwdXRfZGlnZXN0Ijoic2hhMjU2OjQyNmQ5YWY2MjVhNDAxMzQ0YjFlNjQ5MjFhMWUxMWQ0YWVjNjM0MDRjMmIxMzc4NWVkZTdhM2Q3ZTY3MDI5ZDkiLCJwb2xpY3lfaWQiOiJkZW55LWJ5LWRlZmF1bHQuRjEyLnYxMSIsInByb2R1Y2VyIjoiYTExb3kiLCJyZWFzb24iOiJEZW55LWJ5LWRlZmF1bHQgZ2F0ZSBwYXNzZWQgMTMvMTMgY29uanVuY3RpdmUgYXhlcy4iLCJzY2hlbWEiOiJzemwucGNnaS5yZWNlaXB0L3YxIiwic2VxIjoyLCJzdWJqZWN0IjoicmVxIzg4ZjEyMCIsInZlcmRpY3QiOiJhbGxvdyJ9",
+        "signature": "MEYCIQCYhSRuaVXES0Gri9RM+6kL0sx6NKca2TTEMYy48ewehQIhAKwz3FqRrkmQ52DknWtyaM4MT4XtF+hsp1M4ZdMb7BMq",
+        "signed": true,
+        "organ": "a11oy",
+        "keyid": "szl-org-key-01",
+        "digest": "19c7e9e5632e925e8f1241da6933fe8d6cc657d284f1afe5f34f9c592be69d9a",
+        "algo": "ECDSA-P256-SHA256"
+      },
+      "statement": {
+        "_type": "https://in-toto.io/Statement/v1",
+        "subject": [
+          {
+            "name": "a11oy:req#88f120",
+            "digest": {
+              "sha256": "19c7e9e5632e925e8f1241da6933fe8d6cc657d284f1afe5f34f9c592be69d9a"
+            }
+          }
+        ],
+        "predicateType": "https://a-11-oy.com/attest/szl-receipt/v0.1",
+        "predicate": {
+          "buildDefinition": {
+            "buildType": "https://a-11-oy.com/pcgi/governed-decision/v1",
+            "externalParameters": {
+              "model_id": "szl-router/llama-3.1-8b",
+              "policy_id": "deny-by-default.F12.v11",
+              "input_digest": "sha256:05c19162d6c54bd2b9765d7bb4230da0826a60965faf851a7381707749739eed"
+            },
+            "internalParameters": {
+              "kernel_commit": "c7c0ba17"
+            }
+          },
+          "runDetails": {
+            "builder": {
+              "id": "szl://a11oy"
+            },
+            "metadata": {
+              "verdict": "allow",
+              "output_digest": "sha256:426d9af625a401344b1e64921a1e11d4aec63404c2b13785ede7a3d7e67029d9",
+              "energy": {
+                "joules": 118.3,
+                "measured": true
+              },
+              "bft_witnesses": [
+                "amaru",
+                "sentra",
+                "killinchu"
+              ]
+            }
+          },
+          "doctrine": "receipt = evidence, not conformance; \u039b = Conjecture 1"
+        }
+      }
+    },
+    {
+      "id": "a11oy-req#88f201",
+      "envelope": {
+        "payloadType": "application/vnd.szl.receipt+json",
+        "payload": "eyJhY3Rpb24iOiJoaWRkZW5fcmVhc29uaW5nX2V4dHJhY3Rpb24iLCJiZnRfd2l0bmVzc2VzIjpbImFtYXJ1Il0sImVuZXJneSI6IlVOQVZBSUxBQkxFIiwiaW5wdXRfZGlnZXN0Ijoic2hhMjU2OmM3ZDBlZWJkMzUwNWJmZjBjNTYwNjU3ZWFiMWZlNTRmNWQ5NjRmMTNkYTI4OWM1ZjYzY2FiNmMxZTE2ZGVmMzgiLCJrZXJuZWxfY29tbWl0IjoiYzdjMGJhMTciLCJraW5kIjoiZ292ZXJuYW5jZS5kZWNpc2lvbiIsImxhbWJkYSI6eyJheGVzIjoxMywiZmxvb3IiOjAuOSwicGFzcyI6dHJ1ZSwidW5pcXVlbmVzcyI6IkNvbmplY3R1cmUgMSIsInZhbHVlIjowLjk2NX0sImxlYW5fdGhlb3JlbSI6ImxvY2tlZF9jb3VudF9laWdodCIsIm1vZGVsX2lkIjoic3psLXJvdXRlci9sbGFtYS0zLjEtOGIiLCJvdXRwdXRfZGlnZXN0Ijoic2hhMjU2OmY4MzU4YzExNjM2YzllMGZhNWQ1MzIxN2VmZjE0ZDAwMGEyZjNiNzQyMjE1YjVhZDI1OGZjMjhhZGE5YjA1M2QiLCJwb2xpY3lfaWQiOiJ3aWxsYXktY29uc2NpZW5jZS52NSIsInByb2R1Y2VyIjoiYTExb3kiLCJyZWFzb24iOiJXSUxMQVkgY29uc2NpZW5jZSBnYXRlOiBoaWRkZW4tcmVhc29uaW5nIGV4dHJhY3Rpb24gYXR0ZW1wdCByZWZ1c2VkLiIsInNjaGVtYSI6InN6bC5wY2dpLnJlY2VpcHQvdjEiLCJzZXEiOjMsInN1YmplY3QiOiJyZXEjODhmMjAxIiwidmVyZGljdCI6ImJsb2NrIn0=",
+        "signature": "",
+        "signed": false,
+        "organ": "a11oy",
+        "keyid": "",
+        "digest": "aa048ce1d842952dd77b5e599658d1d2d670eaa7412d6a9de89e5895a6fb1992",
+        "algo": "UNSIGNED",
+        "note": "UNSIGNED-honest: no cosign key present"
+      },
+      "statement": {
+        "_type": "https://in-toto.io/Statement/v1",
+        "subject": [
+          {
+            "name": "a11oy:req#88f201",
+            "digest": {
+              "sha256": "aa048ce1d842952dd77b5e599658d1d2d670eaa7412d6a9de89e5895a6fb1992"
+            }
+          }
+        ],
+        "predicateType": "https://a-11-oy.com/attest/szl-receipt/v0.1",
+        "predicate": {
+          "buildDefinition": {
+            "buildType": "https://a-11-oy.com/pcgi/governed-decision/v1",
+            "externalParameters": {
+              "model_id": "szl-router/llama-3.1-8b",
+              "policy_id": "willay-conscience.v5",
+              "input_digest": "sha256:c7d0eebd3505bff0c560657eab1fe54f5d964f13da289c5f63cab6c1e16def38"
+            },
+            "internalParameters": {
+              "kernel_commit": "c7c0ba17"
+            }
+          },
+          "runDetails": {
+            "builder": {
+              "id": "szl://a11oy"
+            },
+            "metadata": {
+              "verdict": "block",
+              "output_digest": "sha256:f8358c11636c9e0fa5d53217eff14d000a2f3b742215b5ad258fc28ada9b053d",
+              "energy": "UNAVAILABLE",
+              "bft_witnesses": [
+                "amaru"
+              ]
+            }
+          },
+          "doctrine": "receipt = evidence, not conformance; \u039b = Conjecture 1"
+        }
+      }
+    }
+  ]
+}

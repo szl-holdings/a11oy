@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#0a0a0f"/>
+        <stop offset="100%" stop-color="#12121a"/>
+      </linearGradient>
+    </defs>
+    <rect width="1280" height="640" fill="url(#bg)"/>
+    <rect x="0" y="0" width="6" height="640" fill="#3b82f6"/>
+    <rect x="0" y="634" width="1280" height="6" fill="#3b82f6" opacity="0.3"/>
+    <text x="80" y="100" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="400" fill="#666" letter-spacing="4">SZL HOLDINGS</text>
+    <text x="80" y="200" font-family="system-ui, -apple-system, sans-serif" font-size="72" font-weight="700" fill="#f0f0f0">Ouroboros</text>
+    <text x="80" y="260" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="400" fill="#999">Bounded-loop runtime with measurable convergence</text>
+    <rect x="80" y="290" width="120" height="32" rx="4" fill="#3b82f622" stroke="#3b82f6" stroke-width="1"/>
+    <text x="140" y="312" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#3b82f6" text-anchor="middle">RUNTIME</text>
+    
+    <rect x="80" y="370" width="200" height="90" rx="8" fill="#ffffff06" stroke="#ffffff0a" stroke-width="1"/>
+    <text x="180" y="410" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#3b82f6" text-anchor="middle">v6.2.0</text>
+    <text x="180" y="438" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="400" fill="#777" text-anchor="middle">Current Release</text>
+    <rect x="320" y="370" width="200" height="90" rx="8" fill="#ffffff06" stroke="#ffffff0a" stroke-width="1"/>
+    <text x="420" y="410" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#3b82f6" text-anchor="middle">172/172</text>
+    <text x="420" y="438" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="400" fill="#777" text-anchor="middle">Tests Passing</text>
+    <rect x="560" y="370" width="200" height="90" rx="8" fill="#ffffff06" stroke="#ffffff0a" stroke-width="1"/>
+    <text x="660" y="410" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#3b82f6" text-anchor="middle">Lutar</text>
+    <text x="660" y="438" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="400" fill="#777" text-anchor="middle">Invariant</text>
+    <rect x="800" y="370" width="200" height="90" rx="8" fill="#ffffff06" stroke="#ffffff0a" stroke-width="1"/>
+    <text x="900" y="410" font-family="system-ui, -apple-system, sans-serif" font-size="28" font-weight="700" fill="#3b82f6" text-anchor="middle">Vitest</text>
+    <text x="900" y="438" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="400" fill="#777" text-anchor="middle">Test Suite</text>
+    <text x="80" y="550" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="400" fill="#444">TypeScript  |  React 19  |  Governed AI  |  Proof Chain</text>
+    <text x="80" y="580" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="400" fill="#555">szlholdings.com</text>
+  </svg>

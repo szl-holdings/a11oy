@@ -1,0 +1,927 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  test:
+    name: Run tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # CI-HYGIENE 2026-06-03: pnpm/action-setup removed — pnpm is not a GitHub-verified
+      # marketplace creator (isVerifiedOwner=false) and is blocked by the szl-holdings org
+      # allowed_actions policy (github_owned_allowed=true, verified_allowed=true,
+      # patterns_allowed=[]). Replaced with corepack (Node.js built-in, no external action)
+      # and npm scripts. Node.js setup uses github-owned actions/setup-node only.
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Holo Lab attribute-escape regression
+        run: node scripts/test_holo_lab_security.mjs
+      - name: Enable corepack and install pnpm 10.33.3
+        run: |
+          corepack enable
+          corepack install -g pnpm@10.33.3
+      - name: Install dependencies
+        run: npm ci
+      - name: Install policy package deps (published @szl-holdings/a11oy-receipt-substrate from GHCR)
+        working-directory: packages/policy
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # packages/policy is not a pnpm-workspace member, so the root install does not
+          # link its runtime dep. The policy gate test transitively imports gates/receipt.ts
+          # which now imports the published @szl-holdings/a11oy-receipt-substrate. Install it
+          # in-place (package-local .npmrc points @szl-holdings at npm.pkg.github.com).
+          npm install --no-save --no-package-lock
+      - name: Run policy gate tests
+        run: npm run test:policy-gates
+
+  python-huggingface-payload:
+    name: Hugging Face payload manifest closure regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Prove payload closure, canonical bytes, and path containment
+        run: pytest tests/test_prepare_huggingface_payload.py -q
+
+  frontdoor-source-integrity:
+    name: HF workflow shape and public UTF-8 integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      # This job lives outside hf-module-drift.yml so collapse or comment-out of
+      # that workflow cannot disable the independent shape guard.
+      - name: Prove the guard rejects workflow collapse and encoding corruption
+        run: python3 scripts/test_frontdoor_source_integrity.py
+      - name: Prove protected-base candidate admission stays digest-bound and fail closed
+        run: python3 -m unittest tests.test_verify_hf_repository_parity
+      - name: Validate the committed workflow and public source bytes
+        run: python3 scripts/validate_frontdoor_source_integrity.py
+
+  python-nemo-owner-dispatch:
+    name: Nemo owner dispatch immutable-selection contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Prove fail-closed owner dispatch and replay contracts
+        run: >-
+          pytest
+          tests/test_nemo_v3_owner_dispatch_contract.py
+          tests/test_nemo_v3_owner_dispatch_validation.py
+          -q
+
+  python-gdw-successor:
+    name: GDW authenticated durability and promotion contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Prove GDW state, policy, drain, journal, and promotion contracts
+        run: >-
+          pytest
+          tests/test_gdw_frontier.py
+          tests/test_gdw_auth.py
+          tests/test_gdw_auth_compat.py
+          tests/test_gdw_runtime.py
+          tests/test_gdw_workspace_v2.py
+          tests/test_gdw_attention.py
+          tests/test_gdw_bench_tools.py
+          tests/test_gdw_transient_recovery.py
+          tests/test_openapi_schema_generation.py
+          scripts/test_configure_hf_gdw_runtime.py
+          scripts/test_prove_hf_gdw_runtime.py
+          -q
+
+  python-wave26-lambda-attnres:
+    name: Wave 26 MODELED Lambda-AttnRes and replay contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: web/packages/a11oy-core/py/requirements.txt
+      - name: Install Wave 26 research dependencies
+        run: |
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -r web/packages/a11oy-core/py/requirements.txt
+      - name: Prove numerical, kernel, replay, and API contracts
+        run: pytest web/packages/a11oy-core/py/szl_gdw/tests -q
+
+  python-operator-reason:
+    name: Operator & reason endpoint tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Run operator & reason endpoint tests
+        # Scoped to this module only: it boots serve.py in-process with no network
+        # and guards the Task #516 governed operator/reason surface against 404
+        # regressions and envelope-stripping. Other tests/ modules may need extra
+        # deps and are out of scope for this guard.
+        run: pytest tests/test_operator_reason_envelope.py -q
+
+  python-formula-registry-guard:
+    name: Proof-carrying formula registry — no overclaims (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions policy). setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (guard + _INDEX import are stdlib-only)
+        run: |
+          # a11oy_formula_registry_guard is pure stdlib; importing a11oy_formula_endpoints
+          # does not require FastAPI (the framework import is lazy inside register()).
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Verify every served formula is corpus-backed or honestly experimental
+        # PROOF-CARRYING FORMULA REGISTRY GUARD: a11oy_formula_registry_guard.py checks
+        # every wired formula (a11oy_formula_endpoints._INDEX) against the bundled
+        # canonical corpus (corpus/ + proofs/). A non-experimental formula whose claimed
+        # Lean theorem is ABSENT is an overclaim -> status "unbacked" -> this job FAILS,
+        # turning a silent phantom-proof claim into a red gate. Formulas honestly marked
+        # tier=experimental/live-data are reported but allowed. Λ stays Conjecture 1.
+        run: pytest tests/test_formula_registry_guard.py -q
+
+  python-lambda-kernel-parity:
+    name: Λ parity — flagship inline vs published universal kernel (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (test + szl_formulas are stdlib-only; no torch)
+        run: |
+          # The flagship Λ path (szl_formulas.lambda_aggregate) is pure-stdlib and the
+          # test re-derives the published szl-lambda-gate kernel's OWN canonical
+          # reference in-file — so NO torch and NO Hugging Face Hub download are needed.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Assert flagship Λ has not drifted from the published kernel
+        # WIRING-DRIFT GUARD: the universal HF kernel szl-lambda-gate is a torch port of
+        # a canonical pure-Python Λ reference; the flagship keeps its own stdlib inline
+        # copy (adding torch + a Hub download to the live Λ gate would be a regression).
+        # This test pins the inline copy to the published kernel's math across the shared
+        # valid domain (incl. zero-pin edge cases + the 13-axis Yuyay preset), so any
+        # future divergence between the flagship Λ and the published universal kernel
+        # becomes a red gate instead of a fifth silent copy. Λ stays Conjecture 1.
+        run: pytest tests/test_lambda_kernel_parity.py -q
+
+  python-demo-critical-routes:
+    name: Demo-critical route-table regression guard (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Run demo-critical, Frontier Now, and nested-static delivery guards
+        # RECURRING REGRESSION GUARD: szl_* route REGISTRATIONS keep getting dropped
+        # from serve.py during mesh/rebrand refactors while the handler modules stay
+        # in-image but unwired — so the live endpoints 404 (energy/operator/status #460,
+        # PNT routes, and energy/ledger + energy/projection + restraint/info on
+        # 2026-06-16). This guard boots the REAL app in-process (no mocks, no network)
+        # and FAILS if ANY demo-critical route is missing from the assembled route
+        # table — turning a silent live 404 into a red CI gate before the demo.
+        # The nested-static suite exercises the assembled app as well: the owning
+        # path-converter route must return GET/HEAD 200 while missing scoped
+        # assets and undeclared root files remain fail-closed JSON 404s.
+        run: >-
+          pytest
+          tests/test_demo_critical_routes.py
+          tests/test_frontier_now_control_plane.py
+          tests/test_holographic_static_route_runtime.py
+          -q
+
+  python-energy-autostart-readyz:
+    name: Energy-operator autostart + /readyz redeploy-stall guard (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Run energy-operator autostart + /readyz guard
+        # REDEPLOY-STALL GUARD: on every box redeploy the service restarted with the
+        # energy operator loop STOPPED even though the GPU lungs stayed reachable, so
+        # joules froze until a manual POST /energy/operator/start. The fix auto-presses
+        # play on boot (lung-gated, env A11OY_ENERGY_AUTOSTART default ON, never faked)
+        # and makes /readyz return 503 in exactly that lung-up-but-loop-stopped state.
+        # These tests boot the REAL app in-process (no mocks; a local fake lung only)
+        # so a future edit dropping the autostart hook or the readiness wiring becomes
+        # a red CI gate instead of a silent stall. The operator unit suite also covers
+        # the lung-reachability + autostart-gating + readiness logic at module level.
+        run: pytest test_szl_energy_operator.py tests/test_energy_autostart_readyz.py -q
+
+  python-be-hardening:
+    name: Backend hardening surface tests (pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (FastAPI TestClient over a real hardened app)
+        run: |
+          # szl_be_hardening builds a FastAPI app; httpx backs Starlette TestClient.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Run backend hardening surface tests
+        # Real HTTP tests (no mocks) over a freshly hardened app: health/readiness
+        # probes, pydantic input validation, error envelopes, trace headers, the real
+        # OpenAPI schema, durable Khipu persistence across a simulated restart, the
+        # honest v11 footer, AND rate limiting. The rate-limit test hammers the metered
+        # data surface (POST /api/<organ>/v1/be/echo) keyed off RATE_LIMIT_PER_MIN and
+        # asserts /healthz stays exempt — so a regression that throttles a health probe,
+        # drops the limiter, or breaks an envelope becomes a red gate.
+        run: pytest tests/test_be_hardening.py -q
+
+  python-energy-egress-scrub:
+    name: Energy /metrics private-address egress guard (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (the guard imports szl_energy_sovereign; stdlib-only otherwise)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Run energy /metrics egress-scrub guard
+        # PRIVATE-IP EGRESS-LEAK GUARD: /api/a11oy/v1/energy/metrics must never render the
+        # raw private joule-meter address in the served JSON `exporter` field (same private-IP
+        # leak class scrubbed from compute-pool). The served panel surfaces an honest
+        # non-revealing descriptor (_JOULE_METER_PUBLIC) while the internal probe URL stays
+        # the probe target only. test_energy_sovereign_egress.py existed but referenced a STALE
+        # constant name (_JOULE_METER_LABEL) so it errored out AND was never wired into CI — a
+        # dormant, broken guard. This job runs the corrected test so a future re-leak of the
+        # address becomes a red gate, not a silent leak.
+        run: pytest test_energy_sovereign_egress.py -q
+
+  evidence-autorefresh-surface:
+    name: Evidence tab auto-refresh surface guard (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (the guard only reads files; no network, no deps)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Run Evidence auto-refresh surface guard
+        # Task #878: locks the Evidence & Research tab's "auto-refreshing" pill +
+        # genuine 180s background re-probe (marker evidence-autorecheck-539) into
+        # pages/console.html so a concurrent edit / rebuild can't silently drop it.
+        # Pure string-surface check (no serve.py boot, no network); includes a
+        # negative-fixture self-test so the guard can't rot into an always-pass.
+        run: pytest tests/test_evidence_autorefresh_surface.py -q
+
+  python-receipt-monitor:
+    name: Receipt-monitor verifier tests (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (these tests are stdlib-only otherwise)
+        run: |
+          # The receipt-monitor verifier tests are fully offline: every Sigstore/Rekor
+          # round-trip is monkeypatched and no receipt body is actually verified, so no
+          # sigstore/cryptography SDK, network, or org key is ever needed — only pytest.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Run receipt-monitor verifier tests
+        # Enforces the safety contracts of the scheduled receipt re-checkers on every
+        # push/PR so a regression can't merge green:
+        #   - test_recheck_rekor_baseline.py: the emptied-ledger guard (issue #320) —
+        #     an empty ledger is a soft pass ONLY before a baseline exists; once a
+        #     baseline > 0 is recorded an empty/below-baseline ledger fails loudly.
+        #   - test_verify_release_receipts.py: the release-asset verifier (issues
+        #     #241/#403) — placeholders are UNVERIFIABLE not silent passes, the signer
+        #     SAN must name an allowed producing workflow, and every release tag is
+        #     re-checked (not just the latest).
+        # Scoped to these two modules: the rest of tests/ pulls in fastapi+serve.py,
+        # packages.inference voters, or the sigstore SDK and is covered by other jobs.
+        run: pytest tests/test_recheck_rekor_baseline.py tests/test_verify_release_receipts.py -q
+
+  hf-single-writer-guard:
+    name: canonical HF single-writer guard (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only. actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Prove one automatic canonical Space writer
+        # The complete Dockerfile-derived publisher and the old partial backend/variable
+        # writers must never race under any automatic trigger. The negative fixture proves this
+        # guard detects a second mutation-capable workflow instead of always passing.
+        run: python3 tests/test_hf_single_writer.py
+
+  theorem-manifest-honesty-selftest:
+    name: Theorem-manifest honesty-guard self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run theorem-manifest validator honesty-guard self-test
+        # Negative-fixture self-test that gates scripts/validate_theorem_runtime_manifest.py:
+        # feeds the REAL validator tampered staged-advisory manifests (stagedAdvisory:false,
+        # missing/empty caveat, a "proven" leanStatus) and asserts it FAILS on each, plus an
+        # honest fixture that must PASS. Proves the SZL Doctrine v11 honesty guard can't be
+        # silently loosened to let a not-yet-proven claim be promoted to "proven". Pure stdlib
+        # (unittest), no network, no live manifest touched. Run by file path: the scripts dir
+        # is not an importable package.
+        run: python3 scripts/test_validate_theorem_runtime_manifest.py
+
+  theorem-manifest-real-validate:
+    name: Theorem-manifest validator runs against the REAL manifest (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Validate committed docs/theorem-runtime-manifest.json with the real validator
+        # The honesty-guard self-test above proves the validator's RULES work against
+        # tampered fixtures, but nothing ran the validator against the REAL committed
+        # manifest — so a dishonest/malformed docs/theorem-runtime-manifest.json could
+        # still merge unnoticed. This job applies the guard: it runs the validator from
+        # the repo root (REPO_ROOT = cwd; default --manifest = docs/theorem-runtime-manifest.json)
+        # and fails the build on any non-zero exit (invalid claimStatus, duplicate id,
+        # missing runtime/export/test path, or a staged-advisory promoted past its caveat).
+        # Pure stdlib (json + pathlib), no network, no deps.
+        run: python3 scripts/validate_theorem_runtime_manifest.py
+
+  release-receipt-tamper-rejection:
+    name: Release-receipt tamper-rejection integration test (real Sigstore verify)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install Sigstore SDK + pytest
+        run: |
+          # Same verify path the production rekor-recheck / release-receipt-verify
+          # workflows use. No signing, so no id-token: write — this only VERIFIES an
+          # already-signed receipt against the public Sigstore trust root.
+          python -m pip install --require-hashes -r .github/requirements/ci-sigstore.txt
+      - name: Genuine receipt verifies AND a tampered copy is rejected (no monkeypatch)
+        # Integration negative-proof (issue #408): runs scripts/tamper_release_receipt.py
+        # on a committed GENUINE receipt fixture and asserts scripts/verify_release_receipts.py
+        # REJECTS the byte-flipped copy via the REAL Sigstore DSSE verify (exit 1, status FAIL
+        # "DSSE: invalid signature"), while the untouched fixture PASSES (symmetric control).
+        # SZL_RELEASE_RECEIPT_REAL_VERIFY=1 enables the network-gated module (it skips off-CI).
+        env:
+          SZL_RELEASE_RECEIPT_REAL_VERIFY: "1"
+        run: pytest tests/test_verify_release_receipts_real.py -q
+
+  action-contract-manifest-selftest:
+    name: Action-contract manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # A verified-runtime promotion must compare its qualification suite
+          # byte-for-byte with the protected base rather than trust PR evidence.
+          fetch-depth: 0
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run action-contract manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_action_contract_manifest.py:
+        # feeds the REAL validator tampered contracts (egress defaultDeny off, a dropped
+        # denied capability, copyingRule not pattern-only, emptied UDS forbiddenClaims,
+        # non-hash-chain receipts, substituted evidence commands, forgeable JUnit, and a
+        # PR-modified qualification suite) and asserts each FAILS, plus the committed
+        # ROADMAP contract which must PASS.
+        # verified-runtime can only execute the digest-pinned suite already on protected
+        # main. Pure stdlib (unittest), no network, no live manifest touched.
+        run: |
+          python3 scripts/validate_action_contract_manifest.py
+          python3 scripts/test_validate_action_contract_manifest.py
+
+  anatomy-map-selftest:
+    name: Anatomy/formula/runtime map validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run anatomy/formula/runtime map validator self-test
+        # Negative-fixture self-test gating scripts/validate_anatomy_formula_runtime_map.py:
+        # asserts the REAL validator FAILS when the autonomous-learning doctrine is loosened
+        # (promotionModel not human_promotion_required, a dropped self_approve/self_promote/
+        # deploy/publish forbiddenMode, canonicalHub changed, bad organ claimStatus) and PASSES
+        # on the committed map. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_anatomy_formula_runtime_map.py
+
+  benchmark-map-selftest:
+    name: Benchmark map validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run benchmark map validator self-test
+        # Negative-fixture self-test gating scripts/validate_benchmark_map.py: asserts the REAL
+        # validator FAILS on overclaim/doctrine tampering (publishMode canonical, mathcomp not
+        # raw_points, dropped "solved/beat/AGI proven" disallowedClaim, an allowedClaim that says
+        # "solved/cracked", receipts not required / not hash_chain) and PASSES on the committed
+        # map. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_benchmark_map.py
+
+  controls-evidence-map-selftest:
+    name: Controls-evidence map validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run controls-evidence map validator self-test
+        # Negative-fixture self-test gating scripts/validate_controls_evidence_map.py: asserts the
+        # REAL validator FAILS when the clean-room/honest-exposure contract is loosened (dropped
+        # clean-room rule, hfExposure canonical/source-of-truth, udsExposure endorsed/catalog,
+        # bad controlId or claimStatus, verified-runtime without a runtime-available receipt hook)
+        # and PASSES on the committed map. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_controls_evidence_map.py
+
+  cross-repo-handoff-selftest:
+    name: Cross-repo handoff manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run cross-repo handoff manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_cross_repo_handoff_manifest.py:
+        # asserts the REAL validator FAILS on "not complete until target evidence" tampering
+        # (dropped forbidden completion claim, weakened canonicalRule, patchSha256 mismatch,
+        # bad accessState, a handoff marked complete without target PR + target CI) and PASSES
+        # on an honest fixture. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_cross_repo_handoff_manifest.py
+
+  github-access-checklist-selftest:
+    name: GitHub access checklist validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run GitHub access checklist validator self-test
+        # Negative-fixture self-test gating scripts/validate_github_access_checklist.py: asserts
+        # the REAL validator FAILS on least-privilege tampering (seatsAloneGrantWriteAccess true,
+        # a write-like or non-gh command slipped into the read-only checks, a target repo with
+        # read-only minimumPermission, a dropped doctrine boundary, writable repo changed) and
+        # PASSES on the committed checklist. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_github_access_checklist.py
+
+  hf-test-results-manifest-selftest:
+    name: HF test-results manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run HF test-results manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_hf_test_results_manifest.py: asserts
+        # the REAL validator FAILS when the staged dataset is promoted (claim_status off
+        # staged-no-live-score, corpus sealed / problem_count>0, non-empty runs, publish_mode
+        # canonical, dropped disallowed claim, overclaiming allowed wording) and PASSES on the
+        # committed manifest. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_hf_test_results_manifest.py
+
+  phase-completion-manifest-selftest:
+    name: Phase-completion manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run phase-completion manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_phase_completion_manifest.py: asserts
+        # the REAL validator FAILS on completion overclaim (crossRepoStatus complete, changed
+        # a11oyLocalStatus, weakened canonicalRule, dropped forbidden claim, bad phase status,
+        # dropped sibling-repo completion requirement) and PASSES on the committed manifest.
+        # Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_phase_completion_manifest.py
+
+  public-pattern-manifest-selftest:
+    name: Public-pattern manifest validator self-test (stdlib, network-free)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run public-pattern manifest validator self-test
+        # Negative-fixture self-test gating scripts/validate_public_pattern_manifest.py: asserts
+        # the REAL validator FAILS when the clean-room guardrail is loosened (privateIngestionAllowed
+        # true, weakened copyingRule, dropped endorsementBoundary, non-public queue URL, bad pattern
+        # claimStatus, a pattern transform with no SZL/A11oy origin, dropped license caveat) and
+        # PASSES on the committed manifest. Pure stdlib (unittest), no network. Run by file path.
+        run: python3 scripts/test_validate_public_pattern_manifest.py
+
+  python-szl-dsse-parity:
+    name: DSSE PAE parity — szl_dsse cosign-family, diverges from szl-receipt (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install test deps (cryptography exercises the sign->verify round-trip)
+        run: |
+          # PAE + divergence locks are pure stdlib; cryptography enables the real
+          # ECDSA-P256 round-trip assertion (skipped gracefully if unavailable).
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Lock szl_dsse DSSE PAE family + divergence from szl-receipt
+        # RECEIPT-BUS UNIFICATION GUARD (audit 2026-07-03): the estate has two
+        # incompatible DSSE PAE families. szl_dsse.py uses the DSSE-v1 SPEC /
+        # cosign form (ASCII-decimal lengths) and is bound to the published
+        # SZLHOLDINGS cosign.pub; szl-receipt uses a NON-standard struct-packed
+        # little-endian PAE. Their signatures are NOT cross-verifiable, so
+        # delegating szl_dsse to szl-receipt would break cosign verify-blob for
+        # existing Khipu receipts. This guard locks szl_dsse's PAE, its byte
+        # divergence from szl-receipt, and the honest UNSIGNED path — turning a
+        # future naive "just import szl-receipt" refactor into a red gate.
+        run: python3 -m unittest tests.test_szl_dsse_parity -v
+      - name: Verify shared credential and receipt hardening
+        run: pytest tests/test_shared_security_hardening.py -q
+
+  python-sign-cert-dsse-parity:
+    name: DSSE PAE parity — sign_cert_dsse Ed25519 cosign-family, diverges from szl-receipt (offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install test deps (cryptography exercises the Ed25519 sign->verify round-trip)
+        run: |
+          # PAE + divergence locks are pure stdlib; cryptography enables the real
+          # Ed25519 round-trip assertion (skipped gracefully if unavailable).
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Lock sign_cert_dsse DSSE PAE family + divergence from szl-receipt
+        # RECEIPT-BUS UNIFICATION GUARD (audit 2026-07-03): sign_cert_dsse.py is
+        # the on-metal physical-bounds-certificate signer. It uses the DSSE-v1
+        # SPEC / cosign form (ASCII-decimal lengths) AND a real Ed25519 key.
+        # szl-receipt uses a NON-standard struct-packed little-endian PAE AND
+        # ECDSA-P256 — a different encoding AND a different algorithm — so
+        # delegating this signer to szl-receipt would change the signed bytes and
+        # break verification of every certificate already signed on-metal. This
+        # guard locks the ASCII-decimal PAE, its byte divergence from szl-receipt,
+        # and the Ed25519 round-trip — turning a future naive "just import
+        # szl-receipt" refactor into a red gate.
+        run: python3 -m unittest tests.test_sign_cert_dsse_parity -v
+
+  python-frontier-surfaces-manifest:
+    name: Frontier 3D-surface manifest — honest, single-source (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install test deps (a11oy_frontier_page imports FastAPI; TestClient smokes the route)
+        run: |
+          # a11oy_frontier_page imports fastapi at module top; httpx backs Starlette TestClient.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Assert the 3D-surface manifest is honest and single-source
+        # HONEST SINGLE-SOURCE GUARD: GET /api/a11oy/v1/frontier/surfaces rolls up every
+        # 3D holographic frontier surface. This test independently re-parses the SURFACES
+        # array from static/3d/holographic.html and asserts the manifest count matches the
+        # REAL registry (never padded), every surface carries a recognized doctrine label
+        # (or an honest UNAVAILABLE) read from its OWN source, a missing asset yields
+        # UNAVAILABLE+reason (never a fabricated green tile), the build is a pure read, and
+        # /frontier renders its surface list FROM this endpoint. A future regression that
+        # drifts, pads, or hardcodes labels becomes a red gate. Fully offline. Λ = Conjecture 1.
+        run: pytest test_frontier_surfaces.py -q
+
+  python-v4-fleet-federation:
+    name: V4 fleet peer-health federates live standalone Spaces, honestly (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install pytest (the probe is monkeypatched — no real network, no httpx)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Federation + honesty guard for szl_v4_fleet PEER_HEALTH_URLS
+        # FEDERATION HONESTY GUARD (audit 2026-07-03): immune-standalone and yarqa
+        # are genuinely-live standalone Spaces (/healthz=200) that were proxied as
+        # surfaces but absent from PEER_HEALTH_URLS, so fleet health never probed
+        # them. This guard locks that both are now probed, that the additive change
+        # left the existing peers intact, and — critically — that _probe_peer
+        # reports up:false on any 5xx/timeout/transport error with NO fabricated
+        # green. A future regression that drops a peer or hard-wires a fake up
+        # becomes a red gate. Fully offline: httpx is monkeypatched.
+        run: pytest test_v4_fleet_federation.py -q
+
+  python-frontier-endpoint-contract:
+    name: Frontier-endpoint governance contract (pytest — Wave J Dev 3)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Frontier-endpoint contract — the 422 / silent-degrade safety net
+        # SAFETY NET (Wave J, Dev 3): every /api/a11oy/v1/* frontier endpoint that the
+        # surface .js files actually fetch (harness, vqc, eval, attest, interpretability,
+        # cc-attest, sement, ttc, specdec, worldmodel, episodic, qec, energy, trackfusion,
+        # edgefusion, agentmem, onebit, …) was TestClient-smoked ONCE, not covered. This
+        # gate boots the REAL app in-process (no mocks, no network) and drives EVERY
+        # frontier endpoint from the committed manifest (tests/frontier_endpoints.json,
+        # generated by scanning static/3d/surfaces/*.js against the assembled route
+        # table), asserting the governance invariants: good input never 500s / never
+        # bare-422s (200 or an honest labelled 503); honest disclosure label present
+        # (strict on the core organs) and in-vocabulary; Λ (Conjecture 1) never "green"
+        # and any advisory Λ <= 0.97; receipt shape valid where a receipt is emitted;
+        # and unknown-id / malformed input degrades to an honest 4xx, never a 500. A
+        # future edit that regresses a frontier endpoint into the 422 / silent-degrade
+        # class becomes a red gate here instead of a silent live failure.
+        run: pytest tests/test_frontier_endpoints.py -q
+
+  python-status-aggregate:
+    name: Operational STATUS aggregate contract (Wave R Dev 2 — pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Operational status aggregate — honest, drift-proof per-subsystem/surface health
+        # WAVE R DEV 2: GET /api/a11oy/v1/status is the operational-dashboard back-end.
+        # This gate boots the REAL app in-process (no mocks, no network) and asserts it is
+        # registered before the SPA/Node-proxy catch-alls, answers 200 (never 500), carries
+        # honest data labels + health tokens per surface, is DRIFT-PROOF against the Wave-Q
+        # frontier index (ids + verbatim labels must match), keeps the locked-8 exact / Λ =
+        # Conjecture 1 / trust 0.97, and NEVER fabricates an all-green estate rollup.
+        run: pytest tests/test_status_aggregate.py -q
+
+  python-guarded-surface:
+    name: Shared guarded-surface wrapper — one bad surface never 500s the SPA (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install test deps (serve.py boots in-process via Starlette TestClient)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Guarded-surface wrapper — honest 200 UNAVAILABLE instead of a bare 500
+        # WAVE R DEV 2: szl_guarded_surface installs one additive ASGI middleware so an
+        # unhandled exception from any JSON API surface (/api/…) becomes an HONEST 200
+        # (ok:false, UNAVAILABLE + real reason) instead of a 500 — one bad surface can
+        # never break the SPA. This gate proves it on a fresh app (throwing /api -> honest
+        # 200; healthy passes through; non-api crash unchanged) AND on the REAL serve.app
+        # (middleware installed; a front-inserted throwing surface degrades honestly).
+        run: pytest tests/test_guarded_surface.py -q
+
+  python-guarded-import-liveness:
+    name: Guarded-import liveness — no silent no-op dead first-party imports (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pytest (guard is pure stdlib — AST scan, no framework)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: No dead guarded imports (silent-no-op feature regressions)
+        # SILENT-NO-OP DEAD-IMPORT GUARD (audit 2026-07-07): serve.py wires optional
+        # features behind `try: import <mod>; <mod>.register(app); except: print(...)`.
+        # That is correct for RESILIENCE but makes a BROKEN/NEVER-CREATED feature
+        # INVISIBLE — if <mod>.py does not exist the import raises, one stderr line
+        # prints, the feature silently does not register, and NO test fails. This
+        # actually shipped: a11oy_code_v4 / a11oy_about_security / szl_thesis_about
+        # (+ ~a dozen v3/v4 tabs) were guarded-imported for modules that NEVER existed
+        # in git history, while nav files linked /about/thesis into a silent dead end.
+        # a11oy_guarded_import_guard.py AST-scans for guarded imports of first-party
+        # (szl_*/a11oy_*) modules whose file is absent and NOT ledgered in
+        # .guarded-import-allowlist, turning a silent dead feature into a red gate.
+        # The genuinely-optional installed-package pattern (szl_substrate, ...) is
+        # allowlisted. Fully offline. Λ = Conjecture 1. Doctrine v11 LOCKED.
+        run: |
+          python3 a11oy_guarded_import_guard.py .
+          pytest tests/test_guarded_import_guard.py -q
+
+  python-durable-ledger:
+    name: Durable bounded receipt/energy ledger — bounds size + degrades honestly (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install pytest (szl_durable_ledger + szl_energy_ledger + joule_billing are stdlib-only; no fastapi needed)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Guard the "database or disk is full" fix — bounded rotating store + honest UNAVAILABLE
+        # DISK-FULL GUARD (waveJ Dev1, waveI_gapsB Gap 3): the receipt/energy ledger used an
+        # UNBOUNDED append-only JSONL file that grew until the container disk filled
+        # ("database or disk is full" crashed killinchu live data). szl_durable_ledger.py is
+        # the governed, size-capped + rotating (RotatingFileHandler / OTel disk-buffering
+        # pattern) backing store the EnergyLedger now writes through. These tests prove, with
+        # NO mocks (real files, real fsync, real OSError on a degraded path): (1) the on-disk
+        # footprint stays at/under the HARD bound max_bytes*(backup_count+1) no matter how
+        # many records arrive — the disk can no longer fill; (2) storage degradation is
+        # reported HONESTLY as UNAVAILABLE with the real reason and NOTHING is fabricated as
+        # written; (3) the real EnergyLedger routes through it and its hash chain stays
+        # internally consistent across rotation. A future edit that unbounds the store, drops
+        # the honest degradation signal, or fabricates a write becomes a red CI gate.
+        run: |
+          pytest tests/test_durable_ledger.py -q
+          python szl_durable_ledger.py
+
+  python-sovereign-backend:
+    name: Sovereign local backend — honest UNAVAILABLE when Tower down (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install test deps (szl_llm_registry boots via Starlette TestClient; no network)
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Guard the sovereign backend honest-UNAVAILABLE contract (Wave M, DEV 1)
+        # WAVE M DEV 1: `szl-sovereign-local` (model tag llama3-szl-finetuned-q4, Ollama,
+        # Doctrine-v11 system prompt) is the founder's OWN-METAL model on the Tower, served
+        # OpenAI-compatible at SZL_LOCAL_LLM_URL. The Tower is NOT reachable from CI/cloud, so
+        # the ONE thing that must never regress is honesty: when the endpoint is down, the
+        # backend degrades to an honest UNAVAILABLE (HTTP 200, reachable=False, NO fabricated
+        # model text) and NEVER raises. This test points SZL_LOCAL_LLM_URL at a dead localhost
+        # port and asserts /llm/sovereign/health, /llm/route, and the registry snapshot all
+        # report UNAVAILABLE without fabricating. Fully offline. Λ = Conjecture 1. Doctrine v11.
+        run: pytest tests/test_sovereign_backend.py -q
+
+  python-frontier-index-honesty:
+    name: Frontier Index honesty — no catalog label a backend doesn't emit (Wave Q Dev 5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # github-owned actions only (org allowed_actions: github_owned_allowed=true,
+      # verified_allowed=true, patterns_allowed=[]). actions/setup-python is github-owned.
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+      - name: Install deps (serve.py boots in-process via Starlette TestClient; no network)
+        run: |
+          # serve.py imports fastapi/starlette; httpx backs Starlette TestClient.
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Negative control — the honesty checker must reject planted drift first
+        # ORG GUARD PATTERN (cf. constellation-honesty-guard.yml self-test job): a guard is
+        # only trusted after it PROVES it can catch a lie. --selftest feeds the checker a toy
+        # catalog that claims a label its backend does not emit (plus an out-of-vocabulary
+        # token, an over-claim from an empty endpoint, and a fabricated citation) and asserts
+        # every planted drift is REJECTED, while a truthful catalog is accepted. If this step
+        # ever passes a lie, the checker is broken and the live gate below cannot be trusted.
+        run: python3 .github/scripts/frontier_index_honesty_check.py --selftest
+      - name: Live honesty gate — catalog labels re-derived independently against backends
+        # WAVE Q DEV 5: the Frontier Index (GET /api/a11oy/v1/frontier-index/catalog) claims,
+        # per surface, the honest label its OWN backend emits — its promise is "honest by
+        # construction". This gate boots the REAL app in-process (no mocks, no network),
+        # fetches the catalog, and for EVERY surface the catalog calls a11oy-native with a
+        # concrete label + endpoint, RE-DERIVES that label independently — different code
+        # (this script imports nothing from szl_frontier_index) and a different probe path (a
+        # real TestClient HTTP GET vs the catalog's in-request direct-callable invocation) —
+        # and FAILS if the catalog ever claims a label the backend does not emit, over-claims
+        # a label from an endpoint that emits none, or attributes a citation not in the
+        # backend's own response. ADDITIVE guard; weakens no existing gate. Doctrine v11:
+        # Λ = Conjecture 1 (advisory), trust ceiling 0.97, adds nothing to the locked-8.
+        run: python3 .github/scripts/frontier_index_honesty_check.py
+
+  python-frontier-model-admission:
+    name: Frontier model admission + HF estate honesty (pytest, offline)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install scoped test dependencies
+        run: |
+          pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Verify signed-evidence admission and fail-closed estate surfaces
+        # Fully offline: live Hub reads are monkeypatched. The gate validates the
+        # strict registry schema, immutable pins, Brain/gradient truth, DSSE-required
+        # operation evidence, quarantine behavior, malformed-registry refusal,
+        # zero deletion authority, stale-cache labeling, and API merge semantics.
+        run: |
+          pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_demo_critical_routes.py -q
+          python model_release/frontier-qualification/frontier_admission_guard.py audit

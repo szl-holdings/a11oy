@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">a11oy Governed Inference</title>
+  <desc id="desc">Evidence in. Receipts out. Evidence-labelled models, kernels, data, Spaces, and Anatomy v5 in one governed ecosystem.</desc>
+  <defs>
+    <linearGradient id="ground" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#06101d"/>
+      <stop offset="0.58" stop-color="#091b25"/>
+      <stop offset="1" stop-color="#07110f"/>
+    </linearGradient>
+    <linearGradient id="signal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#3af4c8"/>
+      <stop offset="1" stop-color="#5b8dee"/>
+    </linearGradient>
+    <radialGradient id="halo">
+      <stop offset="0" stop-color="#3af4c8" stop-opacity="0.19"/>
+      <stop offset="1" stop-color="#3af4c8" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#8fb8c5" stroke-opacity="0.055"/>
+    </pattern>
+    <filter id="glow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="8" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#ground)"/>
+  <rect width="1280" height="640" fill="url(#grid)"/>
+  <circle cx="1005" cy="280" r="310" fill="url(#halo)"/>
+  <path d="M0 555C245 500 390 610 640 552s405-95 640-22v110H0Z" fill="#050b0a" fill-opacity="0.66"/>
+
+  <g font-family="Inter,Segoe UI,Arial,sans-serif">
+    <g transform="translate(72 66)">
+      <circle cx="27" cy="27" r="26" fill="none" stroke="#3af4c8" stroke-width="2"/>
+      <path d="M17 35 27 16l10 19M21 29h12" fill="none" stroke="#3af4c8" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="70" y="23" fill="#edf9f5" font-size="24" font-weight="720" letter-spacing="0.5">a11oy</text>
+      <text x="70" y="48" fill="#89a39c" font-size="13" font-family="ui-monospace,Consolas,monospace" letter-spacing="1.9">GOVERNED INFERENCE</text>
+    </g>
+
+    <g transform="translate(72 176)">
+      <text fill="#edf9f5" font-size="66" font-weight="760" letter-spacing="-3.2">
+        <tspan x="0" y="0">Evidence in.</tspan>
+        <tspan x="0" y="76" fill="url(#signal)">Receipts out.</tspan>
+      </text>
+      <text x="2" y="132" fill="#aebccf" font-size="21">Models, kernels, data, and Spaces — one inspectable estate.</text>
+      <text x="2" y="164" fill="#89a39c" font-size="16">Anatomy v5 keeps modeled, cached, degraded, and unavailable evidence visible.</text>
+    </g>
+
+    <g transform="translate(72 410)" font-family="ui-monospace,Consolas,monospace" font-size="13" letter-spacing="0.7">
+      <g><rect width="176" height="40" rx="20" fill="#3af4c8" fill-opacity="0.08" stroke="#3af4c8" stroke-opacity="0.42"/><text x="20" y="25" fill="#3af4c8">EVIDENCE-LABELLED</text></g>
+      <g transform="translate(190)"><rect width="164" height="40" rx="20" fill="#5b8dee" fill-opacity="0.09" stroke="#5b8dee" stroke-opacity="0.46"/><text x="22" y="25" fill="#9ebaff">SIGNED RECEIPTS</text></g>
+      <g transform="translate(368)"><rect width="184" height="40" rx="20" fill="#d7b96b" fill-opacity="0.08" stroke="#d7b96b" stroke-opacity="0.42"/><text x="21" y="25" fill="#d7b96b">HONEST ABSTENTION</text></g>
+    </g>
+
+    <g transform="translate(930 280)">
+      <g fill="none" stroke="#5b8dee" stroke-opacity="0.42" stroke-width="1.5">
+        <path d="M0 0-172-118M0 0 7-164M0 0 171-110M0 0 178 64M0 0 6 172M0 0-176 82"/>
+        <circle r="120" stroke-dasharray="4 10" stroke="#3af4c8" stroke-opacity="0.22"/>
+        <circle r="205" stroke-dasharray="2 14" stroke="#5b8dee" stroke-opacity="0.19"/>
+      </g>
+      <circle r="70" fill="#081a1a" stroke="#3af4c8" stroke-width="2" filter="url(#glow)"/>
+      <text x="0" y="-4" text-anchor="middle" fill="#edf9f5" font-size="23" font-weight="720">a11oy</text>
+      <text x="0" y="21" text-anchor="middle" fill="#3af4c8" font-size="12" font-family="ui-monospace,Consolas,monospace">ANATOMY v5</text>
+
+      <g font-size="13" font-family="ui-monospace,Consolas,monospace" text-anchor="middle">
+        <g transform="translate(-172 -118)"><circle r="38" fill="#0b1720" stroke="#5b8dee"/><text y="5" fill="#cbd9ec">BRAIN</text></g>
+        <g transform="translate(7 -164)"><circle r="38" fill="#0b1720" stroke="#3af4c8"/><text y="5" fill="#cbd9ec">MODELS</text></g>
+        <g transform="translate(171 -110)"><circle r="38" fill="#0b1720" stroke="#d7b96b"/><text y="5" fill="#cbd9ec">KERNELS</text></g>
+        <g transform="translate(178 64)"><circle r="38" fill="#0b1720" stroke="#5b8dee"/><text y="5" fill="#cbd9ec">DATA</text></g>
+        <g transform="translate(6 172)"><circle r="38" fill="#0b1720" stroke="#3af4c8"/><text y="5" fill="#cbd9ec">SPACES</text></g>
+        <g transform="translate(-176 82)"><circle r="38" fill="#0b1720" stroke="#d7b96b"/><text y="5" fill="#cbd9ec">PROOFS</text></g>
+      </g>
+    </g>
+
+    <g transform="translate(72 574)">
+      <text fill="#89a39c" font-size="14" font-family="ui-monospace,Consolas,monospace" letter-spacing="1">a-11-oy.com</text>
+      <text x="1118" fill="#3af4c8" font-size="14" text-anchor="end" font-family="ui-monospace,Consolas,monospace">ECOSYSTEM ATLAS</text>
+    </g>
+  </g>
+</svg>

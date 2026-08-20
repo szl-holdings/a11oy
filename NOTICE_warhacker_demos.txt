@@ -1,0 +1,101 @@
+a11oy — Warhacker Exhaustive Demos
+NOTICE / Attribution
+SZL Holdings · 2026-06-06
+====================================================================
+
+SOVEREIGNTY STATEMENT
+--------------------------------------------------------------------
+The Warhacker demo backend (szl_warhacker_demos.py) and the demo page
+(pages/warhacker.html) are SOVEREIGN:
+
+  * ZERO runtime third-party dependencies. The backend is pure-Python
+    using only the standard library (hashlib, json, time, math, base64).
+  * ZERO runtime CDN. The page ships no external scripts, no external
+    stylesheets, and no network fonts. It uses a system font stack and
+    same-origin fetches to /api/a11oy/v1/wh-demo/* only.
+  * No proprietary code is bundled. Where an established open-source
+    library implements an algorithm we needed, we REIMPLEMENTED the
+    well-known algorithm/pattern as our own clean-room code rather than
+    importing the library, so nothing needs to be vendored at runtime.
+
+Because no third-party source is copied or linked at runtime, this NOTICE
+is an ATTRIBUTION OF PATTERNS we learned from — an act of good citizenship,
+not a license obligation. All listed projects use permissive (MIT / Apache-2.0
+/ BSD / ISC) or open (NASA NOSA) licenses that allow reimplementation.
+
+ALGORITHMS / PATTERNS REIMPLEMENTED (clean-room), BY DEMO
+--------------------------------------------------------------------
+1. CANNONICO — AI oversight for autonomous drones (REAL TODAY)
+   * STL (Signal Temporal Logic) robustness rho — online-monitor
+     semantics. Pattern reference: RTAMT (MIT). We compute rho as the
+     min-over-time, min-over-conjuncts margin to the authorized boundary.
+   * Geofence containment (ray-cast point-in-polygon, signed distance to
+     polygon edges). Pattern reference: NASA PolyCARP / DAIDALUS (NASA
+     Open Source Agreement, NOSA). Reimplemented as our own geometry.
+   * 13-axis conjunctive ROE gate — policy-as-conjunction. Pattern
+     reference: Open Policy Agent / Rego (Apache-2.0); our own Lambda
+     conjunctive-gate doctrine. authorized = AND of all 13 axis predicates.
+   * Conformal prediction interval (split-conformal). Our own W5-3 / W7-4
+     proven construction (coverage + rank-count p-value). Never claims 100%.
+
+2. TYCHEE — air-gapped ground-software deploy (ROADMAP; substrate REAL)
+   * OCI image-layer SHA-256 digests + Merkle bundle root (RFC-6962 style).
+     Pattern reference: sigstore/rekor, in-toto, cosign (all Apache-2.0).
+   * DSSE envelope (Dead Simple Signing Envelope) PAE. Pattern reference:
+     secure-systems-lab DSSE spec / in-toto (Apache-2.0).
+   * Admission-controller "block on digest mismatch". Pattern reference:
+     Pepr / UDS Core (Apache-2.0); Zarf air-gap packaging (Apache-2.0).
+
+3. HANGAR2APPS — readiness dashboard + audit (ROADMAP; substrate REAL)
+   * HL7 FHIR R4 Bundle parse (Immunization / Observation / Flag / Task).
+     Open standard: HL7 FHIR. Pattern reference: HAPI-FHIR (Apache-2.0).
+     Sample data only — NO PHI.
+   * 5-axis conjunctive readiness gate (our Lambda doctrine).
+   * Append-only signed Task attestation chain (rekor RFC-6962 pattern).
+
+4. CYBER RTS — trajectory/orbit operational context (ROADMAP; substrate REAL)
+   * SGP4 mean-element propagation (Kepler 3rd law for semi-major axis;
+     Kepler-equation solve E - e*sinE = M; perifocal->ECI rotation by
+     RAAN/inc/argp). Pattern reference: python-sgp4 (Brandon Rhodes, MIT)
+     and the Vallado reference. Reimplemented Keplerian core; full drag/J2
+     secular terms are roadmap. Real ISS TLE parsed; second object synthetic.
+   * CPA/TCPA conjunction screen (min-distance over propagated vectors).
+     Our own min-distance math (same as the maritime CPA/TCPA organ).
+
+5. RAVEN — authorize a workload at the disconnected edge (ROADMAP; substrate REAL)
+   * TPM 2.0 PCR-extend + quote pattern (PCR[n] = SHA256(PCR[n-1] || measure)).
+     Pattern reference: Keylime (Apache-2.0) remote-attestation model. Here
+     the quote is computed and verified in-image; real TPM 2.0 hardware is a
+     field step (labelled roadmap).
+   * cosign offline image verification + conjunctive admission. Pattern
+     reference: sigstore/cosign, UDS Core (Apache-2.0).
+
+SHARED PRIMITIVES (our own code)
+--------------------------------------------------------------------
+   * _KhipuChain: append-only SHA-256 chain H_n = SHA256(H_{n-1} || leaf_n),
+     Merkle root (RFC-6962 leaf/node hashing pattern), inclusion proof +
+     verification, and a single-byte tamper test that flips one character in
+     one receipt field and proves the chain break + root mismatch + invalid
+     inclusion proof.
+   * _Timeline: real wall-clock per-step timing via time.perf_counter.
+
+PROVEN-FORMULA HONESTY (HARD DOCTRINE)
+--------------------------------------------------------------------
+   * Conjunctive GATE soundness = P2 (with CS1): PROVEN.
+   * Tamper-evidence (append-only signed chain) = P5: PROVEN (gated on
+     hashFn_collision_resistant).
+   * Conformal interval coverage = W5-3 + W7-4: PROVEN; distribution-free;
+     NEVER claims 100% coverage.
+   * Trust score (Lambda) uniqueness = Conjecture 1: conditional / CI-green
+     in strengthened classes; UNCONDITIONAL claim is FALSE. Not used as a
+     pass/fail oracle here.
+   * SLSA: L1 honest (signed provenance exists); L2 = roadmap, NOT claimed.
+
+DSSE signing uses a11oy's in-image ECDSA-P256-SHA256 key, verifiable against
+/cosign.pub. CANNONICO is a real, working mechanism today. The other four
+demos run the proven horizontal substrate on clearly labelled sample/replay
+data; the operational vertical (real registry, real feed, real TPM hardware,
+production ATO) is a fast stand-up and is labelled ROADMAP — never claimed done.
+
+Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>

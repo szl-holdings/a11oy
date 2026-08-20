@@ -1,0 +1,22 @@
+# Build context exclusions for the amaru image (context = repo root).
+node_modules
+**/node_modules
+.git
+.github
+dist
+**/dist
+web/dist
+__pycache__
+**/__pycache__
+*.pyc
+*.egg-info
+.venv
+**/.venv
+test
+tests
+**/test
+coverage
+**/coverage
+.DS_Store
+*.log
+.dockerignore

@@ -1,0 +1,73 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.0.6/schema.json",
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "recommended": true,
+      "style": {
+        "useTemplate": "off",
+        "useExponentiationOperator": "off",
+        "noNonNullAssertion": "off",
+        "noParameterAssign": "off",
+        "useDefaultParameterLast": "off",
+        "noUselessElse": "off",
+        "useImportType": "off"
+      },
+      "a11y": {
+        "recommended": false
+      },
+      "correctness": {
+        "noUnusedImports": "off",
+        "noUnusedVariables": "off",
+        "noUnusedFunctionParameters": "off"
+      },
+      "suspicious": {
+        "noExplicitAny": "off",
+        "noArrayIndexKey": "off",
+        "noAssignInExpressions": "off",
+        "noNonNullAssertedOptionalChain": "off",
+        "noConfusingLabels": "off",
+        "useIterableCallbackReturn": "off",
+        "noShorthandPropertyOverrides": "off"
+      },
+      "complexity": {
+        "noForEach": "off",
+        "noStaticOnlyClass": "off",
+        "useFlatMap": "off",
+        "useLiteralKeys": "off",
+        "noUselessLoneBlockStatements": "off",
+        "useOptionalChain": "off",
+        "noCommaOperator": "off"
+      },
+      "performance": {
+        "noAccumulatingSpread": "off"
+      }
+    }
+  },
+  "css": {
+    "parser": {
+      "cssModules": true
+    },
+    "linter": {
+      "enabled": false
+    }
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "semicolons": "always"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["**/theme.ts"],
+      "linter": {
+        "enabled": false
+      }
+    }
+  ]
+}

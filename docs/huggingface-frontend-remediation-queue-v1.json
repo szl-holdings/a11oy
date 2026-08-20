@@ -1,0 +1,1918 @@
+{
+  "assets": [
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/SZLHOLDINGS",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/0"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/a11oy-verifiable-corpus",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/1"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/alloy-sovereign-eval-runs",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/2"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/canonical-formulas-v1",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/3"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/doctrine-v10-v11",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/4"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/energy-attested-runs",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/5"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/governed-agent-bench",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/6"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/governed-receipts-bench",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/7"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/k-verify-benchmark-v1",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/8"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/killinchu-osint-corpus",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/9"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/lean-proofs-v1",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/10"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/lean-theorem-tree",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/11"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/ouroboros-arxiv-preprint",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/12"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/rag-corpus-v1",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/13"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/readiness-runs",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/14"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-1-doctrine-sft",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/15"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-artifacts",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/16"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-lake",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/17"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-quant-sft-v1",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/18"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-second-brain-inrepo",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/19"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/test-results",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/20"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/thesis-corpus-v18",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/21"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/thesis-v18-formal-verification",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/22"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/uds-bundles-v1",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/23"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/uds-governance-receipts",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/24"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/uds-spans-receipts",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/25"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/why-we-lead",
+      "asset_type": "dataset",
+      "source_paths": [
+        "inventory/datasets/26"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/0"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/1"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/2"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/3"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/governed-inference-meter",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/4"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-blocked",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/5"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-formulas",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/6"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-governed-norm",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/7"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-govsign",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/8"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-invariants",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/9"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-kernels",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/10"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-lambda-gate",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/11"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-nemo",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/12"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-ouroboros",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/13"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-provctl",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/14"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "CARD_METADATA_REVIEW_REQUIRED",
+          "detail": "The public observation does not include explicit card/front-matter evidence for this asset.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Review framework-native card metadata"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P2",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "asset_type": "model",
+      "source_paths": [
+        "inventory/models/15"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/a11oy",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/0"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/anatomy",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/1"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/cosmos",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/2"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/david-leads",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/3"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/energy-attest-holo",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/4"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/energy-attested-runs",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/5"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/governed-agent-bench",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/6"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/governed-norm-holo",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/7"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/governed-receipt-verifier",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/8"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/guardrail-receipt",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/9"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/hatun-mcp",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/10"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/holographic",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/11"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/immune",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/12"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/killinchu",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/13"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/lambda-gate-holo",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/14"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/llm-router-live",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/15"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/receipt-chain-live",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/16"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/sda",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/17"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-blocked-live",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/18"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-estate-live",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/19"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-forge-lab",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/20"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-govsign-live",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/21"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-kernels-live",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/22"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-model-inference-lab",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/23"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/szl-provctl-live",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/24"
+      ]
+    },
+    {
+      "actions": [
+        {
+          "code": "CARD_NARRATIVE_REQUIRED",
+          "detail": "No concise purpose or description is represented in the observed asset evidence.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Add a bounded public card narrative"
+        },
+        {
+          "code": "RESPONSIVE_EVIDENCE_REQUIRED",
+          "detail": "No mobile, viewport, accessibility, touch-target, overflow, or reduced-motion evidence is represented for this surface.",
+          "evidence_state": "UNAVAILABLE",
+          "priority": "P1",
+          "title": "Prove the universal viewport contract"
+        }
+      ],
+      "asset_id": "SZLHOLDINGS/yarqa",
+      "asset_type": "space",
+      "source_paths": [
+        "inventory/spaces/25"
+      ]
+    }
+  ],
+  "contract": "docs/HUGGINGFACE_UNIVERSAL_FRONTEND_CONTRACT_V1.md",
+  "remote_mutation": false,
+  "schema": "szl.huggingface-frontend-remediation-queue/v1",
+  "source_manifest": "docs/huggingface-ecosystem-manifest.json",
+  "source_manifest_sha256": "e21c89e2986326b4ad65809db55ebf0449cbf787152e495715dd009d4ad03e34",
+  "source_observed_at": "UNAVAILABLE",
+  "status": "OPEN",
+  "summary": {
+    "actions_by_code": {
+      "CARD_METADATA_REVIEW_REQUIRED": 43,
+      "CARD_NARRATIVE_REQUIRED": 69,
+      "RESPONSIVE_EVIDENCE_REQUIRED": 69
+    },
+    "actions_by_priority": {
+      "P1": 95,
+      "P2": 86
+    },
+    "actions_total": 181,
+    "assets_discovered": 69,
+    "assets_queued": 69,
+    "queued_assets_by_type": {
+      "dataset": 27,
+      "model": 16,
+      "space": 26
+    }
+  }
+}

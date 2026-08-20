@@ -1,0 +1,175 @@
+name: SLSA Build L1 (provenance attestation)
+
+# SLSA v1.0 Build L1 requires that provenance EXISTS describing how the
+# artifact was built and is DISTRIBUTED to consumers
+# (https://slsa.dev/spec/v1.0/levels#build-l1).
+#
+# The previous job was a no-op stub (`run: echo "SLSA L1 supply-chain checks OK"`)
+# which emitted no provenance and therefore did not satisfy Build L1.
+#
+# This workflow now:
+#   1. Builds the same a11oy-uds-<version>.tar.zst artifact produced by
+#      uds-sign-release.yml (git archive | zstd).
+#   2. Generates an in-toto v1 SLSA provenance attestation for that artifact
+#      via actions/attest-build-provenance. The attestation is signed with the
+#      SAME Sigstore keyless flow already used for release signing
+#      (GitHub OIDC -> Fulcio short-lived cert -> Rekor transparency log).
+#   3. Uploads the provenance bundle (.intoto.jsonl) as a release asset so it
+#      is distributed to consumers alongside the artifact.
+#
+# Doctrine v6: no echo stubs, verifiable provenance only.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag to attest (e.g. uds-v0.3.0). Optional on push.'
+        required: false
+        type: string
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  provenance:
+    name: Build artifact + attest SLSA provenance
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write     # OIDC token -> Sigstore Fulcio keyless signing
+      contents: write      # upload provenance + write attestation to release
+      attestations: write  # store the attestation in the repo attestations API
+      actions: read
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag_name }}"
+          fi
+          if [[ -z "${TAG}" ]]; then
+            # No tag context (e.g. manual dispatch on main): attest the current ref.
+            TAG="$(git rev-parse --short HEAD 2>/dev/null || echo main)"
+            VERSION="0.0.0-dev-${TAG}"
+          else
+            VERSION="${TAG#uds-v}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tarball=a11oy-uds-${VERSION}.tar.zst" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+
+      - name: Build tar.zst (same artifact as uds-sign-release.yml)
+        id: build
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          TARBALL="${{ steps.tag.outputs.tarball }}"
+          echo "Building ${TARBALL}..."
+          git archive \
+            --format=tar \
+            --prefix="a11oy-uds-${VERSION}/" \
+            HEAD \
+            | zstd -19 -T0 -o "${TARBALL}"
+          echo "Built ${TARBALL}: $(wc -c < "${TARBALL}") bytes"
+          echo "tarball_path=${PWD}/${TARBALL}" >> "$GITHUB_OUTPUT"
+
+      - name: Generate SLSA provenance attestation (Sigstore keyless)
+        id: attest
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: ${{ steps.build.outputs.tarball_path }}
+
+      - name: Stage provenance as a distributable .intoto.jsonl
+        id: prov
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          PROV_OUT="a11oy-uds-${VERSION}.tar.zst.intoto.jsonl"
+          # actions/attest-build-provenance writes the signed in-toto v1 bundle
+          # to a file whose path is exported as bundle-path.
+          cp "${{ steps.attest.outputs.bundle-path }}" "${PROV_OUT}"
+          echo "Provenance bundle: ${PROV_OUT} ($(wc -c < "${PROV_OUT}") bytes)"
+          echo "prov_file=${PROV_OUT}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload provenance to the GitHub release (distribute to consumers)
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.tag.outputs.tag }}"
+          PROV_OUT="${{ steps.prov.outputs.prov_file }}"
+          gh release upload "${TAG}" "${PROV_OUT}" \
+            --clobber \
+            --repo szl-holdings/a11oy
+          echo "Provenance distributed as a release asset on ${TAG}."
+
+      - name: Upload provenance as workflow artifact (dispatch runs)
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.prov.outputs.prov_file }}
+          path: ${{ steps.prov.outputs.prov_file }}
+          retention-days: 90
+
+      - name: Print verification instructions
+        run: |
+          VERSION="${{ steps.tag.outputs.version }}"
+          echo "=== Verify SLSA provenance ==="
+          echo "slsa-verifier verify-artifact \\"
+          echo "  --provenance-path a11oy-uds-${VERSION}.tar.zst.intoto.jsonl \\"
+          echo "  --source-uri github.com/szl-holdings/a11oy \\"
+          echo "  a11oy-uds-${VERSION}.tar.zst"
+          echo ""
+          echo "Or with the GitHub CLI (uses the repo attestations API + Rekor):"
+          echo "  gh attestation verify a11oy-uds-${VERSION}.tar.zst --repo szl-holdings/a11oy"
+
+  # Issue #194: alongside the SLSA provenance, mint a REAL Sigstore keyless DSSE
+  # signature over the governance decision log AND the vessels Khipu-ingest consumer
+  # receipt, and distribute the signed envelopes. Signature-only upgrade — the SLSA
+  # claim is unchanged (still Build L1).
+  sign-receipts:
+    name: Sign governance + Khipu receipts (Sigstore keyless)
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write     # OIDC token -> Sigstore Fulcio keyless signing
+      contents: write     # upload signed envelope to the release
+    steps:
+      - name: Resolve tag name
+        id: tag
+        run: |
+          if [[ "${{ github.event_name }}" == "release" ]]; then
+            TAG="${{ github.event.release.tag_name }}"
+          else
+            TAG="${{ inputs.tag_name }}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+      - name: Sign + verify receipts
+        uses: ./.github/actions/sign-receipts
+      - name: Upload signed receipts to the release (distribute to consumers)
+        if: github.event_name == 'release'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ github.event.release.tag_name }}"
+          mapfile -t FILES < <(ls attestations/governance/*.dsse.json attestations/khipu/*.dsse.json attestations/khipu/*.node.json 2>/dev/null)
+          echo "Uploading ${#FILES[@]} signed receipt files to release ${TAG}"
+          gh release upload "${TAG}" "${FILES[@]}" --clobber --repo szl-holdings/a11oy
+      - name: Upload signed receipts as a workflow artifact (dispatch runs)
+        if: github.event_name != 'release'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-receipts
+          path: attestations/**/*.json
+          retention-days: 90
+          if-no-files-found: error

@@ -1,0 +1,13 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it as below."
+type: software
+title: "SZL Holdings — szl-papers"
+date-released: "2026-06-03"
+license: CC-BY-4.0
+repository-code: "https://github.com/szl-holdings/szl-papers"
+url: "https://szlholdings.ai"
+abstract: >
+  SZL Holdings — Doctrine v11 (749/14/163, kernel c7c0ba17, Λ = Conjecture 1). SLSA L1 honest.
+authors:
+  - name: "SZL Holdings"
+    website: "https://szlholdings.ai"

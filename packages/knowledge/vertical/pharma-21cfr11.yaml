@@ -1,0 +1,175 @@
+# Vertical Governance Policy: Pharmaceutical — 21 CFR Part 11 / FDA AI/ML Action Plan
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: pharmaceutical
+regime: 21-CFR-Part-11/FDA-AI-ML
+effective_date: "2025-07-01"
+jurisdiction: US-FDA
+
+meta:
+  title: "Pharmaceutical AI Governance Policy — 21 CFR Part 11 / FDA AI/ML Alignment"
+  description: >
+    Maps FDA 21 CFR Part 11 Electronic Records/Signatures, FDA AI/ML-Based SaMD
+    Action Plan, and ICH E6(R3) GCP to Doctrine v6 Λ-axes for AI systems used
+    in drug discovery, clinical trials, and regulatory submissions.
+  authority: "21 CFR Part 11; 21 CFR Part 820 (QSR); FDA AI/ML Action Plan (Jan 2021); ICH E6(R3) (2023); ICH Q10"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  gxp_category: GCP/GMP/GLP
+
+regulatory_clauses:
+  - clause_id: CFR11-11.10a
+    title: "Closed Systems — Validation"
+    citation: "21 CFR § 11.10(a)"
+    full_ref: "21 C.F.R. § 11.10(a) — Validation of systems to ensure accuracy, reliability, consistent intended performance"
+    lambda_axes:
+      - axis: Λ8
+        label: Robustness
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI/ML systems used in GxP contexts must be validated per ISPE GAMP 5
+          Category 5; validation protocol and results hashed into receipt chain.
+      - axis: Λ7
+        label: Auditability
+        weight: 0.95
+        enforcement: mandatory
+
+  - clause_id: CFR11-11.10e
+    title: "Audit Trails — Sequence of Events"
+    citation: "21 CFR § 11.10(e)"
+    full_ref: "21 C.F.R. § 11.10(e) — Use of secure, computer-generated, time-stamped audit trails"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          Tamper-evident audit trail for all AI-generated records; Merkle DAG
+          satisfies "secure, time-stamped" requirement with TAI64N timestamps.
+      - axis: Λ6
+        label: Security
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: CFR11-11.50
+    title: "Signature Manifestations"
+    citation: "21 CFR § 11.50"
+    full_ref: "21 C.F.R. § 11.50 — Signed electronic records must contain the printed name, date/time, meaning of signature"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI-generated regulatory submissions must carry qualified electronic
+          signatures (QES per eIDAS or 21 CFR Part 11); signature metadata
+          embedded in receipt chain leaf node.
+      - axis: Λ1
+        label: Transparency
+        weight: 0.88
+        enforcement: mandatory
+
+  - clause_id: FDA-AIML-SAMD-PREDETERMINED
+    title: "Predetermined Change Control Plan for AI/ML SaMD"
+    citation: "FDA Draft Guidance — Predetermined Change Control Plan for AI/ML-Based SaMD (Apr 2023)"
+    full_ref: "FDA Draft Guidance: Marketing Submission Recommendations for AI/ML-Based SaMD (2023 Apr)"
+    lambda_axes:
+      - axis: Λ8
+        label: Robustness
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          Each model update under a PCCP must be documented with performance
+          comparator receipts (pre/post-update metrics, distribution shift scores).
+      - axis: Λ9
+        label: Explainability
+        weight: 0.85
+        enforcement: mandatory
+
+  - clause_id: ICH-E6R3-5.5
+    title: "GCP — Sponsor's Responsibilities: Trial Management"
+    citation: "ICH E6(R3) § 5.5 (2023)"
+    full_ref: "ICH E6(R3) Integrated Addendum § 5.5 — Sponsor responsibilities for trial management systems"
+    lambda_axes:
+      - axis: Λ2
+        label: Accountability
+        weight: 0.88
+        enforcement: mandatory
+        rationale: >
+          Sponsor is accountable for AI-assisted randomization, EDC, and
+          statistical analysis; each algorithm run hashed into trial receipt chain.
+      - axis: Λ4
+        label: Fairness
+        weight: 0.80
+        enforcement: mandatory
+        rationale: >
+          Clinical trial AI must not introduce bias in patient stratification;
+          demographic parity receipts required for adaptive trial designs.
+
+  - clause_id: CFR820-QSR-820.30
+    title: "Design Controls"
+    citation: "21 CFR § 820.30"
+    full_ref: "21 C.F.R. § 820.30 — Design and development controls for device software including AI/ML"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.92
+        enforcement: mandatory
+      - axis: Λ1
+        label: Transparency
+        weight: 0.80
+        enforcement: mandatory
+        rationale: >
+          Design history file (DHF) must include AI model architecture,
+          training data specifications, and risk management per ISO 14971.
+
+  - clause_id: ICH-Q10-APQR
+    title: "Annual Product Quality Review — AI-Assisted Manufacturing"
+    citation: "ICH Q10 § 2.3; 21 CFR § 211.180(e)"
+    full_ref: "ICH Q10 § 2.3 — Annual product quality review; 21 C.F.R. § 211.180(e)"
+    lambda_axes:
+      - axis: Λ3
+        label: Privacy
+        weight: 0.72
+        enforcement: recommended
+        rationale: >
+          Patient-level data used in AI-assisted batch release must be
+          pseudonymised; access receipts log data subject category.
+      - axis: Λ7
+        label: Auditability
+        weight: 0.90
+        enforcement: mandatory
+
+  - clause_id: EU-AI-ACT-CLASS3
+    title: "EU AI Act — High-Risk Classification: Medical Devices"
+    citation: "EU AI Act Art. 6(2); Annex III § 5(a) (2024/1689)"
+    full_ref: "Regulation (EU) 2024/1689 Art. 6(2) — High-risk AI system classification; Annex III § 5(a) medical devices"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          High-risk AI systems must register in EU AI Act database; receipt
+          chain provides registration evidence with EU notified body signature.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.82
+        enforcement: mandatory
+
+compliance_thresholds:
+  minimum_lambda_coverage: 7
+  mandatory_axes: [Λ2, Λ7, Λ8]
+  receipt_retention_days: 5475        # 15 years GCP/GMP
+  max_samd_inference_latency_ms: 300
+  gxp_validation_cycle_days: 365
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 2-of-3
+  nodes: [primary, gxp-backup, regulatory-archive]
+  qualified_electronic_signature: true

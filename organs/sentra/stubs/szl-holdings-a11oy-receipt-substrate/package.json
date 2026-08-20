@@ -1,0 +1,12 @@
+{
+  "name": "@szl-holdings/a11oy-receipt-substrate",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./index.ts"
+  }
+}

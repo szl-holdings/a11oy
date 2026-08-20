@@ -1,0 +1,5 @@
+# Local training artifacts - never committed (weights, venv, caches).
+outputs/
+.venv/
+__pycache__/
+*.pyc

@@ -1,0 +1,7 @@
+negative-fixtures/RemovedDefaultDenialPremise.lean:16:2: error: tactic 'rfl' failed, the left-hand side
+  evaluate state request
+is not definitionally equal to the right-hand side
+  Decision.reject
+state : PolicyState
+request : Request
+⊢ evaluate state request = Decision.reject

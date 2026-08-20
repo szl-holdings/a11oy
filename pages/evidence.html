@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v10 -->
+<!-- ADDITIVE moat surface — shipped via HfApi.create_commit (never GitHub Actions). -->
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Evidence Ledger — Lutar Invariant Λ</title>
+<style>:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}
+.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}
+.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}
+h2{font-size:18px;margin:28px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:820px){.grid,.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 8px;font-size:14px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut)}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--mut);margin:2px 4px 2px 0}
+.pill.ok{color:var(--ok);border-color:#1f5a3c}
+.pill.warn{color:var(--warn);border-color:#5a4a1f}
+.pill.bad{color:var(--bad);border-color:#5a1f1f}
+.pill.acc{color:var(--acc);border-color:#1f3a5a}
+textarea,pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px}
+pre{overflow:auto;max-height:340px;white-space:pre-wrap;word-break:break-word}
+button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;align-items:center}
+.k{color:var(--acc)} .v{color:var(--ink)}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--mono)}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tbl th{color:var(--mut);font-weight:600}
+.st-PROVEN{color:var(--ok);font-weight:700}
+.st-AXIOM{color:var(--acc);font-weight:700}
+.st-CONJECTURE{color:var(--warn);font-weight:700}
+.st-SORRY{color:var(--bad);font-weight:700}
+.mut{color:var(--mut)}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)}
+.disc{background:#160e12;border:1px solid #4a2030;border-left:3px solid var(--bad);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.disc b{color:var(--bad)}
+code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+.bar{height:14px;background:#0a0c11;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:8px 0}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--ok));transition:width .25s}
+.modgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;font-family:var(--mono);font-size:11.5px}
+.mod{border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;gap:6px}
+.mod .s{font-weight:700}
+.mono{font-family:var(--mono);font-size:12px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}</style></head><body><div class="wrap">
+<div class="top">
+  <div><span class="brand">a11oy</span> <span class="tag">· Governance Substrate · Doctrine v10</span></div>
+  <div class="nav">
+    <a href="/">home</a><a href="/wires">wires</a><a href="/codex-kernel">codex-kernel</a>
+    <a href="/substrate">substrate</a><a href="/evidence">evidence</a><a href="/run-all">run-all</a>
+  </div>
+</div>
+
+<h1>Evidence Ledger — Lutar Invariant Λ</h1>
+<p class="sub">Source: <code>szl-holdings/ouroboros/LUTAR_EVIDENCE.md</code> · test file <code>packages/ouroboros/src/lutar-invariant-proof.test.ts</code> ·
+22/22 assertions pass · cross-referenced against Doctrine v10 (171 per-version theorem table).</p>
+
+<div class="row">
+  <span class="pill ok">22/22 PASS</span>
+  <span class="pill acc">749 declarations</span><span class="pill acc">14 unique axioms</span>
+  <span class="pill warn">163 tracked sorries</span><span class="pill acc">lake build clean</span>
+  <span class="pill warn">Λ uniqueness = Conjecture 1</span><span class="pill acc">SLSA L1 (honest)</span>
+</div>
+
+<h2>Λ definition (as declared in the evidence doc)</h2>
+<div class="card"><p class="mono">Λ(x₁,…,x₉; w₁,…,w₉) = ∏ xᵢ^wᵢ — the weighted geometric mean of nine independent runtime-trust axis scores in [0,1] under non-negative weights summing to 1.</p></div>
+
+<div class="disc"><b>Discrepancy — Aggregator definition not yet unified.</b><br>
+&nbsp;·&nbsp; <b>Evidence doc</b> (<code>repos/ouroboros/LUTAR_EVIDENCE.md</code>): <code>Λ(x₁..x₉; w₁..w₉) = ∏ xᵢ^wᵢ  (weighted GEOMETRIC MEAN)</code><br>
+&nbsp;·&nbsp; <b>Fuzz harness</b> (<code>.clusterfuzzlite/fuzzers/fuzz_receipts.js · computeLambda()</code>): <code>computeLambda() — MIN reduction over axis values</code><br>
+DISCREPANCY: the evidence doc defines Λ as the weighted geometric mean (∏ xᵢ^wᵢ); the fuzz harness comment defines computeLambda() as a MIN reduction. One is the doc, one is the gate. The aggregator definition is NOT yet unified — this is the lutar_unique sorry root cause. Displayed honestly; neither is silently dropped.</div>
+
+<h2>Per-claim status (Doctrine v10: PROVEN / AXIOM / CONJECTURE / SORRY)</h2>
+<table class="tbl"><tr><th>Status</th><th>Claim</th><th>Lean file:line</th><th>ref-vec</th><th>Note</th></tr><tr><td class='st-PROVEN'>PROVEN</td><td>Λ monotonicity (A1)</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean</td><td style='text-align:center'>Y</td><td class='mut'>Λ is non-decreasing in each axis; reference-vector exercised (numerical witness).</td></tr><tr><td class='st-AXIOM'>AXIOM</td><td>A1 = IsAuditFibre / audit-fibre</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (A1)</td><td style='text-align:center'>Y</td><td class='mut'>Axiom of the Λ axiom suite.</td></tr><tr><td class='st-AXIOM'>AXIOM</td><td>A2 = IsHomogeneous</td><td class='mono'>Lutar/Invariant.lean</td><td style='text-align:center'>Y</td><td class='mut'>Doctrine v10: A2 is positive homogeneity (degree 1) — NOT the &#x27;zero-pinning&#x27; label used in LUTAR_EVIDENCE.md.</td></tr><tr><td class='st-AXIOM'>AXIOM</td><td>A3 = Egyptian inspectability</td><td class='mono'>Lutar/Egyptian.lean</td><td style='text-align:center'>Y</td><td class='mut'>Egyptian unit-fraction weights — 17 theorems, 0 bare sorries (PROVEN family).</td></tr><tr><td class='st-AXIOM'>AXIOM</td><td>A4 = IsBounded</td><td class='mono'>Lutar/Lambda/SchurConcave.lean</td><td style='text-align:center'>N</td><td class='mut'>Doctrine v10: A4 is bounded-by-max-axis — NOT the &#x27;page-curve concavity&#x27; label used in LUTAR_EVIDENCE.md. Reference vector NOT exercised.</td></tr><tr><td class='st-PROVEN'>PROVEN</td><td>Schur-concavity (thm:schur-concave)</td><td class='mono'>Lutar/Lambda/SchurConcave.lean</td><td style='text-align:center'>N</td><td class='mut'>Proven in Lean; reference vector not yet exercised.</td></tr><tr><td class='st-PROVEN'>PROVEN</td><td>Dual-witness soundness</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (A1)</td><td style='text-align:center'>Y</td><td class='mut'>Two-witness soundness for high-severity gates.</td></tr><tr><td class='st-CONJECTURE'>CONJECTURE</td><td>Λ uniqueness</td><td class='mono'>Lutar/Uniqueness.lean:120 (CAUCHY_ND sorry)</td><td style='text-align:center'>Y</td><td class='mut'>Conjecture 1 — NOT Theorem 1. Depends on the OPEN CAUCHY_ND sorry (Uniqueness.lean:120) + a missing symmetry axiom. This is the lutar_unique sorry root cause.</td></tr><tr><td class='st-SORRY'>SORRY</td><td>Reed-Solomon Singleton achievability</td><td class='mono'>Lutar/CodingTheory/ReedSolomonSingleton.lean</td><td style='text-align:center'>N</td><td class='mut'>Bare sorry — structural skeleton only; do NOT claim proven.</td></tr><tr><td class='st-SORRY'>SORRY</td><td>PAC-Bayes Madhava bound</td><td class='mono'>Lutar/PACBayes/MadhavaBound.lean</td><td style='text-align:center'>N</td><td class='mut'>Bare sorry — partial.</td></tr><tr><td class='st-SORRY'>SORRY</td><td>Banach contraction</td><td class='mono'>Lutar/Banach/BabylonianContraction.lean</td><td style='text-align:center'>N</td><td class='mut'>2 holes noted in header — partial.</td></tr></table>
+<p class="mut" style="font-size:12px;margin-top:8px">Doctrine v10 axiom labels: <b>A2 = IsHomogeneous</b> (not "zero-pinning"), <b>A4 = IsBounded</b> (not "page-curve concavity").
+The LUTAR_EVIDENCE.md doc uses the older descriptive labels; both are shown so the rename is auditable, not hidden.</p>
+
+<h2>Empirical axiom evidence (22/22 — from LUTAR_EVIDENCE.md)</h2>
+<table class="tbl"><tr><th>Axiom</th><th>Doc label</th><th>Tests</th><th>Passed</th><th>Failed</th></tr><tr><td><b>A1</b></td><td>Monotonicity</td><td style='text-align:center'>4</td><td style='text-align:center' class='st-PROVEN'>4</td><td style='text-align:center'>0</td></tr><tr><td><b>A2</b></td><td>Zero-pinning</td><td style='text-align:center'>4</td><td style='text-align:center' class='st-PROVEN'>4</td><td style='text-align:center'>0</td></tr><tr><td><b>A3</b></td><td>Egyptian inspectability</td><td style='text-align:center'>4</td><td style='text-align:center' class='st-PROVEN'>4</td><td style='text-align:center'>0</td></tr><tr><td><b>A4</b></td><td>Page-curve concavity</td><td style='text-align:center'>4</td><td style='text-align:center' class='st-PROVEN'>4</td><td style='text-align:center'>0</td></tr><tr><td><b>Boundary</b></td><td>Boundary / sanity</td><td style='text-align:center'>6</td><td style='text-align:center' class='st-PROVEN'>6</td><td style='text-align:center'>0</td></tr></table>
+<div class="grid3" style="margin-top:14px"><div class='card'><h3>A1</h3><div class='mut'>✓ A1 — Monotonicity Λ is non-decreasing in each axis (equal weights)</div><div class='mut'>✓ A1 — Monotonicity Λ is non-decreasing in each axis (Egyptian weights)</div><div class='mut'>✓ A1 — Monotonicity Λ is non-increasing when any axis is lowered</div><div class='mut'>✓ A1 — Monotonicity strict monotonicity when weight is positive</div></div><div class='card'><h3>A2</h3><div class='mut'>✓ A2 — Zero-pinning any single axis at 0 collapses Λ to 0</div><div class='mut'>✓ A2 — Zero-pinning multiple axes at 0 still yield Λ = 0</div><div class='mut'>✓ A2 — Zero-pinning Λ = 0 only when at least one axis with positive weight is 0</div><div class='mut'>✓ A2 — Zero-pinning a zero-weight axis at 0 does NOT collapse Λ (definitional edge case)</div></div><div class='card'><h3>A3</h3><div class='mut'>✓ A3 — Egyptian inspectability the standard weight set is a sum of distinct unit fractions</div><div class='mut'>✓ A3 — Egyptian inspectability weight set is bit-exact reproducible (rational reconstruction)</div><div class='mut'>✓ A3 — Egyptian inspectability Λ under Egyptian weights matches a rational evaluator on rational inputs</div><div class='mut'>✓ A3 — Egyptian inspectability the equal-weight set 9 × (1/9) is also a valid Egyptian decomposition</div></div><div class='card'><h3>A4</h3><div class='mut'>✓ A4 — Page-curve concavity concavity along a line segment in [ε, 1]^9</div><div class='mut'>✓ A4 — Page-curve concavity concavity on a stress segment (one axis varying, others held)</div><div class='mut'>✓ A4 — Page-curve concavity Λ ≤ weighted arithmetic mean (AM–GM corollary)</div><div class='mut'>✓ A4 — Page-curve concavity Λ achieves arithmetic mean iff all axes equal (corollary)</div></div><div class='card'><h3>Boundary</h3><div class='mut'>✓ Boundary and sanity Λ(perfect) = 1</div><div class='mut'>✓ Boundary and sanity Λ(typical) ≈ 0.7</div><div class='mut'>✓ Boundary and sanity Λ(degraded with one axis at 0.1) drops below arithmetic mean</div><div class='mut'>✓ Boundary and sanity Λ is symmetric under axis permutation when weights are uniform</div><div class='mut'>✓ Boundary and sanity axes are labeled as the thesis declares</div><div class='mut'>✓ Boundary and sanity weights sum to 1 (both standard sets)</div></div></div>
+
+<h2>Theorem → Lean file:line · reference-vector exercised (Y/N)</h2>
+<table class="tbl"><tr><th>Ver</th><th>Theorem / axiom</th><th>Type</th><th>Lean file</th><th>ref-vec</th></tr><tr><td>v3</td><td>A1</td><td>axiom</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean</td><td style='text-align:center'>Y</td></tr><tr><td>v3</td><td>A2</td><td>axiom</td><td class='mono'>Lutar/Invariant.lean (A2)</td><td style='text-align:center'>Y</td></tr><tr><td>v3</td><td>A3</td><td>axiom</td><td class='mono'>Lutar/Egyptian.lean</td><td style='text-align:center'>Y</td></tr><tr><td>v3</td><td>A4</td><td>axiom</td><td class='mono'>Lutar/Lambda/SchurConcave.lean (A4 concavity)</td><td style='text-align:center'>N</td></tr><tr><td>v12</td><td>3.3 Theorem 1 (Uniqueness)</td><td>theorem</td><td class='mono'>Lutar/Uniqueness.lean (axiom; Conjecture 1)</td><td style='text-align:center'>N</td></tr><tr><td>v18</td><td>thm:lambda-monotone</td><td>theorem</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean</td><td style='text-align:center'>Y</td></tr><tr><td>v18</td><td>thm:path-integral</td><td>theorem</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean</td><td style='text-align:center'>Y</td></tr><tr><td>v18</td><td>thm:schur-concave</td><td>theorem</td><td class='mono'>Lutar/Lambda/SchurConcave.lean</td><td style='text-align:center'>N</td></tr><tr><td>v18</td><td>def:lutar-axioms</td><td>definition</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean</td><td style='text-align:center'>Y</td></tr><tr><td>v18</td><td>def:audit-fibre</td><td>definition</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (A1)</td><td style='text-align:center'>Y</td></tr><tr><td>v18</td><td>thm:dual-witness-soundness</td><td>theorem</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (A1)</td><td style='text-align:center'>Y</td></tr><tr><td>v19</td><td>conj:lambda-uniqueness</td><td>conjecture</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean</td><td style='text-align:center'>Y</td></tr><tr><td>v20</td><td>conj:lambda-uniqueness</td><td>conjecture</td><td class='mono'>Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean</td><td style='text-align:center'>Y</td></tr></table>
+
+<div class="honest"><b>What this evidence does and does not establish.</b><br>
+<b>Establishes:</b> The closed-form Λ = ∏ xᵢ^wᵢ, evaluated in IEEE-754 double precision, satisfies its four axioms (monotonicity, zero-pinning, Egyptian inspectability, Page-curve concavity) on the test points exercised above.<br><br>
+<b>Does NOT establish:</b> That any specific runtime configuration in production has been audited, that any third-party body has reviewed this work, or that the runtime is deployed in any product. Empire APEX (administered by NYSTEC) is a procurement-counseling resource the founder engaged with on 2026-04-30; it is not an audit.<br><br>
+<b>Reproduce:</b> <code>pnpm install &amp;&amp; npx vitest run packages/ouroboros/src/lutar-invariant-proof.test.ts</code></div>
+
+<footer>SZL Holdings · Apache-2.0 · ORCID <a href="https://orcid.org/0009-0001-0110-4173">0009-0001-0110-4173</a> ·
+Doctrine v10 (749 declarations · 14 unique axioms · 163 tracked sorries · lutar-v18.0.0 @ c7c0ba17).
+Shipped additively via HfApi.create_commit.</footer>
+</div></body></html>

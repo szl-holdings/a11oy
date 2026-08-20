@@ -1,0 +1,228 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-hf-bucket-topology-v1.json",
+  "title": "SZL Hugging Face Bucket topology contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "contract_id",
+    "as_of",
+    "status",
+    "scope",
+    "topology",
+    "two_phase_completion_protocol",
+    "signed_manifest_required_fields",
+    "forbidden_content",
+    "release_authorities",
+    "authority_separation_constraints",
+    "canonical_promotion",
+    "primary_sources",
+    "claims_boundary",
+    "external_mutations"
+  ],
+  "properties": {
+    "$schema": {"const": "./szl-hf-bucket-topology.schema.json"},
+    "schema_version": {"const": "szl.hf-bucket.topology.v1"},
+    "contract_id": {"const": "SZL-HF-Bucket-Topology-v1"},
+    "as_of": {"type": "string", "format": "date"},
+    "status": {"const": "CREATED_PRIVATE_EMPTY_VERIFIED"},
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["owner_namespace", "system_id", "storage_class", "canonical_release_store", "authoritative_claim", "remote_creation_performed_by_this_contract", "remote_mutation_performed_by_this_contract", "credential_use_performed_by_this_contract"],
+      "properties": {
+        "owner_namespace": {"const": "SZLHOLDINGS"},
+        "system_id": {"const": "SZL-Forge"},
+        "storage_class": {"const": "HUGGING_FACE_STORAGE_BUCKET"},
+        "canonical_release_store": {"const": false},
+        "authoritative_claim": {"type": "string", "minLength": 120},
+        "remote_creation_performed_by_this_contract": {"const": true},
+        "remote_mutation_performed_by_this_contract": {"const": true},
+        "credential_use_performed_by_this_contract": {"const": true}
+      }
+    },
+    "topology": {
+      "type": "array",
+      "minItems": 3,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/bucket"}
+    },
+    "two_phase_completion_protocol": {"$ref": "#/$defs/completionProtocol"},
+    "signed_manifest_required_fields": {"$ref": "#/$defs/nonEmptyStringSet"},
+    "forbidden_content": {
+      "type": "array",
+      "minItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "description", "exception_allowed"],
+        "properties": {
+          "code": {"type": "string", "pattern": "^[A-Z0-9_]+$"},
+          "description": {"type": "string", "minLength": 50},
+          "exception_allowed": {"const": false}
+        }
+      }
+    },
+    "release_authorities": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": {"$ref": "#/$defs/authority"}
+    },
+    "authority_separation_constraints": {
+      "type": "array",
+      "minItems": 5,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 70}
+    },
+    "canonical_promotion": {"$ref": "#/$defs/canonicalPromotion"},
+    "primary_sources": {
+      "type": "array",
+      "minItems": 4,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "url", "evidence_label", "claim"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "url": {"type": "string", "pattern": "^https://huggingface\\.co/docs/"},
+          "evidence_label": {"const": "PRIMARY_REPORTED"},
+          "claim": {"type": "string", "minLength": 80}
+        }
+      }
+    },
+    "claims_boundary": {"$ref": "#/$defs/claimsBoundary"},
+    "external_mutations": {"$ref": "#/$defs/externalMutations"}
+  },
+  "$defs": {
+    "nonEmptyStringSet": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "keyLayout": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["attempt_prefix", "payload_prefix", "control_prefix", "manifest_key", "completion_marker_key"],
+      "properties": {
+        "attempt_prefix": {"type": "string", "pattern": "\\{attempt_id\\}/$"},
+        "payload_prefix": {"type": "string", "pattern": "\\{attempt_id\\}/payload/$"},
+        "control_prefix": {"type": "string", "pattern": "\\{attempt_id\\}/_control/$"},
+        "manifest_key": {"type": "string", "pattern": "\\{attempt_id\\}/_control/manifest\\.dsse\\.json$"},
+        "completion_marker_key": {"type": "string", "pattern": "\\{attempt_id\\}/_control/COMPLETED\\.json$"}
+      }
+    },
+    "bucket": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bucket_id", "qualified_name", "status", "remote_observation", "canonical", "mutability", "purpose", "allowed_object_classes", "key_layout", "retention_policy", "reader_acceptance", "may_publish_canonical_release"],
+      "properties": {
+        "bucket_id": {"type": "string", "pattern": "^szl-[a-z0-9-]+$"},
+        "qualified_name": {"type": "string", "pattern": "^SZLHOLDINGS/szl-[a-z0-9-]+$"},
+        "status": {"const": "CREATED_PRIVATE_EMPTY_VERIFIED"},
+        "remote_observation": {"$ref": "#/$defs/remoteObservation"},
+        "canonical": {"const": false},
+        "mutability": {"const": "MUTABLE_NON_VERSIONED"},
+        "purpose": {"type": "string", "minLength": 80},
+        "allowed_object_classes": {"$ref": "#/$defs/nonEmptyStringSet"},
+        "key_layout": {"$ref": "#/$defs/keyLayout"},
+        "retention_policy": {"type": "string", "pattern": "^DELETE_AFTER_"},
+        "reader_acceptance": {"const": "ONLY_COMPLETED_ATTEMPTS_WITH_VERIFIED_MANIFEST_SIGNATURE_AND_FULL_HASH_READBACK"},
+        "may_publish_canonical_release": {"const": false}
+      }
+    },
+    "completionProtocol": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["protocol_id", "hash_algorithm", "signature_envelope", "manifest_media_type", "marker_media_type", "attempt_id_requirement", "phase_1_stage_and_verify", "phase_2_complete", "consumer_acceptance_predicate", "invalidating_events", "incomplete_prefix_policy", "bucket_audit_log_is_release_proof"],
+      "properties": {
+        "protocol_id": {"const": "SZL-BUCKET-COMPLETION-v1"},
+        "hash_algorithm": {"const": "SHA-256"},
+        "signature_envelope": {"const": "DSSE_PAE"},
+        "manifest_media_type": {"const": "application/vnd.szlh.bucket-manifest.v1+json"},
+        "marker_media_type": {"const": "application/vnd.szlh.bucket-completed.v1+json"},
+        "attempt_id_requirement": {"const": "UUIDV7_OR_CONTENT_DERIVED_UNIQUE_IDENTIFIER_NEVER_REUSED"},
+        "phase_1_stage_and_verify": {"type": "array", "minItems": 6, "items": {"type": "string", "minLength": 70}},
+        "phase_2_complete": {"type": "array", "minItems": 4, "items": {"type": "string", "minLength": 70}},
+        "consumer_acceptance_predicate": {"type": "array", "minItems": 7, "items": {"type": "string", "minLength": 60}},
+        "invalidating_events": {"type": "array", "minItems": 8, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z0-9_]+$"}},
+        "incomplete_prefix_policy": {"const": "FAIL_CLOSED_IGNORE_AND_EVENTUALLY_GARBAGE_COLLECT"},
+        "bucket_audit_log_is_release_proof": {"const": false}
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role_id", "credential_scope", "may_stage_payload", "may_write_completion_marker", "may_approve_release", "may_publish_canonical_repo", "may_record_transparency_receipt"],
+      "properties": {
+        "role_id": {"enum": ["bucket-stager", "independent-readback-verifier", "release-approver", "canonical-hub-publisher", "runtime-evidence-writer"]},
+        "credential_scope": {"type": "string", "minLength": 35},
+        "may_stage_payload": {"type": "boolean"},
+        "may_write_completion_marker": {"type": "boolean"},
+        "may_approve_release": {"type": "boolean"},
+        "may_publish_canonical_repo": {"type": "boolean"},
+        "may_record_transparency_receipt": {"type": "boolean"}
+      }
+    },
+    "canonicalPromotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["bucket_role", "allowed_destination_types", "required_before_publish", "required_after_publish", "automatic_promotion", "bucket_deletion_after_promotion_is_release_revocation"],
+      "properties": {
+        "bucket_role": {"const": "NONCANONICAL_MUTABLE_SOURCE_STAGING_ONLY"},
+        "allowed_destination_types": {"type": "array", "minItems": 5, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z0-9_]+$"}},
+        "required_before_publish": {"type": "array", "minItems": 7, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z0-9_]+$"}},
+        "required_after_publish": {"type": "array", "minItems": 4, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Z0-9_]+$"}},
+        "automatic_promotion": {"const": false},
+        "bucket_deletion_after_promotion_is_release_revocation": {"const": false}
+      }
+    },
+    "remoteObservation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "private", "created_at", "size_bytes", "total_files"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://huggingface\\.co/buckets/SZLHOLDINGS/szl-[a-z0-9-]+$"},
+        "private": {"const": true},
+        "created_at": {"type": "string", "format": "date-time"},
+        "size_bytes": {"const": 0},
+        "total_files": {"const": 0}
+      }
+    },
+    "claimsBoundary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["buckets_created", "objects_uploaded", "credentials_created_or_used", "training_started", "model_qualified", "canonical_artifact_published", "bucket_object_is_versioned_release", "bucket_audit_event_is_content_proof", "completed_marker_is_release_approval"],
+      "properties": {
+        "buckets_created": {"const": true},
+        "objects_uploaded": {"const": false},
+        "credentials_created_or_used": {"const": true},
+        "training_started": {"const": false},
+        "model_qualified": {"const": false},
+        "canonical_artifact_published": {"const": false},
+        "bucket_object_is_versioned_release": {"const": false},
+        "bucket_audit_event_is_content_proof": {"const": false},
+        "completed_marker_is_release_approval": {"const": false}
+      }
+    },
+    "externalMutations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["hugging_face_bucket_create", "hugging_face_bucket_write", "hugging_face_bucket_delete", "hugging_face_repo_publish", "github_push_or_release", "zenodo_deposit_or_publish", "token_or_secret_use"],
+      "properties": {
+        "hugging_face_bucket_create": {"const": true},
+        "hugging_face_bucket_write": {"const": false},
+        "hugging_face_bucket_delete": {"const": false},
+        "hugging_face_repo_publish": {"const": false},
+        "github_push_or_release": {"const": false},
+        "zenodo_deposit_or_publish": {"const": false},
+        "token_or_secret_use": {"const": true}
+      }
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "proof_id": "amaru.third_eye.v1",
+  "sha256": "1612d044cc968bc791c05da9a01bc465255c5cc6c8cd8a8eae67180b2fd9a827",
+  "kind": "kernel-source",
+  "summary": "pattern_strength * (1 - uncertainty), clamped to [0,1]",
+  "notes": "sha256 computed over the canonical kernel.py source bytes; re-pin via services/amaru/scripts/pin_proofs.py after edits."
+}

@@ -1,0 +1,22 @@
+{
+  "source": "szl-holdings/anatomy (Living Anatomy v5 front-door, vendored verbatim; QA harnesses qa_cockpit.mjs/qa_yarqa.js intentionally excluded from the served bundle)",
+  "upstream_repo": "https://github.com/szl-holdings/anatomy",
+  "upstream_commit": "be265e88e84c0612239eb433cd29eff55f30ac36",
+  "vendored_at": "2026-07-02T00:00:00Z",
+  "policy": "read-only mirror of the canonical anatomy front-door; re-vendor from upstream on anatomy releases. Served at /anatomy-map/ by the SPA catch-all (COPY console/ ./static/).",
+  "bundle_kind": "vendored",
+  "expected_files": [
+    "app.js",
+    "covenant-cockpit.html",
+    "covenant-cockpit.js",
+    "data.js",
+    "index.html",
+    "lib/three.min.js",
+    "live-body.html",
+    "live-body.js",
+    "receipts.sample.json",
+    "style.css",
+    "v5_organs.js"
+  ],
+  "bundle_sha256": "c9731027f5a561ec6cc0e42dd9a7e929bf4e9016663a26069adce9f78ec1081b"
+}

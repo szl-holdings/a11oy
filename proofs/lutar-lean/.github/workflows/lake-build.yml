@@ -1,0 +1,202 @@
+name: Lake build (gate + numbers)
+
+# Dedicated, reproducible `lake build` gate for lutar-lean.
+#
+# Why this exists (audit 2026-05-31): multiple crews gave conflicting signals on
+# whether `lake build` was green. This workflow makes the answer click-and-run:
+#   1. Pin the exact toolchain from ./lean-toolchain (v4.13.0).
+#   2. Restore the Mathlib build cache, then `lake build` the whole library.
+#   3. Recompute the canonical declaration/axiom/sorry numbers and upload them as
+#      a build artifact.
+#   4. Post the numbers as a PR comment so reviewers see drift immediately.
+#   5. FAIL if declaration/axiom/sorry counts (or the axiom-name set) drift from
+#      the committed baseline (.github/data/lean_numbers.json) without an explicit
+#      baseline-update commit in the same PR (Doctrine v7 §2 fake-green / §3 axioms).
+#
+# This complements (does not replace) lean.yml's kernel check.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Deny-by-default; jobs grant only what they need (Scorecard Token-Permissions).
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: lake build + numbers
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write   # for the numbers PR comment
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+
+      - name: Install elan (SHA-pinned)
+        run: |
+          # leanprover/elan @ 3d5138e1526a569a23901b8ee559032793cf445e (v4.2.1)
+          ELAN_SHA=3d5138e1526a569a23901b8ee559032793cf445e
+          EXPECTED=4bacca9502cb89736fe63d2685abc2947cfbf34dc87673504f1bb4c43eda9264
+          curl -sSfL "https://raw.githubusercontent.com/leanprover/elan/$ELAN_SHA/elan-init.sh" -o /tmp/elan-init.sh
+          echo "$EXPECTED  /tmp/elan-init.sh" | sha256sum -c
+          sh /tmp/elan-init.sh -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: Resolve toolchain from lean-toolchain (must be v4.13.0)
+        run: |
+          PIN=$(cat lean-toolchain)
+          echo "lean-toolchain pin: $PIN"
+          case "$PIN" in
+            *v4.13.0) echo "toolchain pin OK" ;;
+            *) echo "::error::lean-toolchain is '$PIN', expected leanprover/lean4:v4.13.0"; exit 1 ;;
+          esac
+          lake --version
+
+      - name: Use committed lake-manifest.json (pinned, reproducible)
+        run: |
+          set -euo pipefail
+          # ROOT CAUSE of the prior red build (Mathlib version skew):
+          # `lake update -R` re-resolved the floating dependency branches
+          # (batteries/aesop/Qq/... tracked on main/master in the transitive
+          # graph), pulling revisions that require a newer Lean than the v4.13.0
+          # toolchain — Mathlib + deps no longer agreed and the build broke.
+          # The committed lake-manifest.json already pins the exact known-good
+          # revisions for v4.13.0 (Mathlib d7317655 @ v4.13.0). Build against
+          # the committed manifest; do NOT re-resolve it.
+          test -f lake-manifest.json || { echo "::error::lake-manifest.json missing"; exit 1; }
+          MROW=$(grep -A4 '"name": "mathlib"' lake-manifest.json | grep -o 'v4\.13\.0' | head -1 || true)
+          if [ "$MROW" != "v4.13.0" ]; then
+            echo "::error::mathlib manifest pin is not v4.13.0 (got '$MROW')"; exit 1
+          fi
+          echo "manifest pins mathlib @ v4.13.0 — OK"
+
+      # leanprover/lean-action removed: leanprover org is not a GitHub-verified creator
+      # and the szl-holdings org policy (allowed_actions=selected, github_owned+verified only,
+      # patterns_allowed=[]) blocks it — causing startup_failure before any runner is allocated.
+      # Inlined equivalent: restore .lake cache + lake exe cache get + save, using only
+      # github-owned actions/cache (allowed). Drift gate logic is unchanged.
+      - name: Restore Lake build cache
+        uses: actions/cache/restore@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-v2-${{ github.sha }}
+          restore-keys: |
+            lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-v2
+
+
+      - name: Repair Mathlib package git state
+        run: |
+          set -eu
+          if [ -d .lake/packages/mathlib ]; then
+            cd .lake/packages/mathlib
+            # If git index is corrupt OR HEAD missing, blow it away
+            if ! git rev-parse HEAD >/dev/null 2>&1 || ! git status >/dev/null 2>&1; then
+              echo "::warning::Mathlib package corrupt — removing for fresh fetch"
+              cd ../..
+              rm -rf packages/mathlib
+            else
+              echo ".lake/packages/mathlib OK"
+            fi
+          fi
+        shell: bash
+
+      - name: Get Mathlib binary cache
+        run: lake exe cache get
+
+      - name: lake build (whole library — strict)
+        run: |
+          set -euo pipefail
+          # -Klinter.all=true promotes lints; the build still fails on any error.
+          lake build
+
+      - name: Save Lake build cache
+        if: success()
+        uses: actions/cache/save@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+        with:
+          path: .lake
+          key: lake-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain') }}-${{ hashFiles('lake-manifest.json') }}-v2-${{ github.sha }}
+
+      - name: Run check + reference-vectors executables
+        run: |
+          set -euo pipefail
+          lake exe check
+          lake exe ref_vectors reference-vectors.json
+
+      - name: Set up Python (for canonical numbers)
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: "3.12"
+
+      - name: Recompute canonical Lean numbers
+        run: |
+          python3 .github/scripts/lean_numbers.py --repo-path . --ref "${GITHUB_REF_NAME}" \
+            --out lean_numbers.measured.json
+          echo "----- measured -----"
+          cat lean_numbers.measured.json
+
+      - name: Upload numbers + build provenance as artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: lean-numbers-${{ github.sha }}
+          path: |
+            lean_numbers.measured.json
+            .github/data/lean_numbers.json
+            lake-manifest.json
+          if-no-files-found: error
+
+      - name: Drift gate (fail on unexpected decl/axiom/sorry change)
+        run: |
+          python3 .github/scripts/check_numbers_drift.py \
+            --baseline .github/data/lean_numbers.json \
+            --measured lean_numbers.measured.json
+
+      - name: Post numbers as PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('fs');
+            const m = JSON.parse(fs.readFileSync('lean_numbers.measured.json','utf8')).numbers;
+            const b = JSON.parse(fs.readFileSync('.github/data/lean_numbers.json','utf8')).numbers;
+            const row = (k) => `| ${k} | ${b[k]} | ${m[k]} | ${b[k]===m[k] ? 'OK' : 'CHANGED'} |`;
+            const body = [
+              '## Lean corpus numbers (canonical counter)',
+              '',
+              '| metric | baseline | this PR | status |',
+              '|---|---|---|---|',
+              row('declarations'),
+              row('axioms_raw'),
+              row('axioms_unique'),
+              row('sorries_raw'),
+              row('sorries_noncomment'),
+              '',
+              '`lake build` + `lake exe check` + `lake exe ref_vectors` all ran in this job.',
+              'Baseline source of truth: `.github/data/lean_numbers.json`. To change numbers, update that file in this PR.',
+            ].join('\n');
+            const {owner, repo} = context.repo;
+            const issue_number = context.issue.number;
+            const marker = '<!-- lean-numbers-comment -->';
+            const comments = await github.rest.issues.listComments({owner, repo, issue_number});
+            const existing = comments.data.find(c => c.body && c.body.includes(marker));
+            const full = marker + '\n' + body;
+            if (existing) {
+              await github.rest.issues.updateComment({owner, repo, comment_id: existing.id, body: full});
+            } else {
+              await github.rest.issues.createComment({owner, repo, issue_number, body: full});
+            }
