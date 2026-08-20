@@ -211,6 +211,12 @@ def test_workflow_binds_canary_to_exact_github_sha() -> None:
     assert workflow.count("- a11oy_landing.html") == 1
     assert "workflows: [\"Sync and Relock Canonical Hugging Face Space\"]" in workflow
     assert "github.event.workflow_run.head_sha" in workflow
+    assert "workflow-run-authority:" in workflow
+    assert 'test "$SYNC_CONCLUSION" = success' in workflow
+    assert 'test "$SYNC_HEAD_BRANCH" = main' in workflow
+    assert '[[ "$SYNC_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]' in workflow
+    assert "needs: [contract, workflow-run-authority]" in workflow
+    assert "needs.workflow-run-authority.result == 'success'" in workflow
     assert "ref: ${{ env.EXPECTED_SOURCE_SHA }}" in workflow
     assert workflow.count("git/ref/heads/main") == 2
     assert "\n  push:\n" not in workflow
