@@ -393,7 +393,7 @@ function findMalformedExplicitEvidence(obj) {
 }
 
 function findEvidencePairConflict(body, modeRequiresDataKind = false) {
-  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  if (!body || typeof body !== "object") return null;
   const malformedEvidence = findMalformedExplicitEvidence(body);
   if (malformedEvidence) {
     return {
@@ -402,6 +402,7 @@ function findEvidencePairConflict(body, modeRequiresDataKind = false) {
       reason: "explicit evidence label must be a string",
     };
   }
+  if (Array.isArray(body)) return null;
   const modes = Object.entries(body).filter(([key]) => ROOT_MODE_KEY.test(key));
   const dataKinds = Object.entries(body).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
   if (!modes.length) {

@@ -189,6 +189,25 @@ test("nested non-string explicit evidence is fail-closed", () => {
   }
 });
 
+test("root arrays cannot hide malformed explicit evidence", () => {
+  for (const [evidence, path] of [
+    [[{ data_kind: true }], "[0].data_kind"],
+    [[{ payload: { source_kind: ["live"] } }], "[0].payload.source_kind"],
+    [[[{ evidence_state: null }]], "[0][0].evidence_state"],
+  ]) {
+    const verdict = evaluateEndpointLabels(200, kevLabelSpec, evidence);
+    assert.equal(verdict.ok, false, JSON.stringify(evidence));
+    assert.equal(verdict.pairConflict.dataKind.path, path);
+    assert.match(verdict.pairConflict.reason, /must be a string/);
+  }
+
+  const valid = evaluateEndpointLabels(200, kevLabelSpec, [{
+    data_kind: "live",
+  }]);
+  assert.equal(valid.ok, true);
+  assert.equal(valid.pairConflict, null);
+});
+
 test("non-string mode/data_kind pairs cannot bypass the evidence contract", () => {
   const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
     mode: true,
