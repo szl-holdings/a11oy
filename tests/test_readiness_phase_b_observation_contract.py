@@ -89,7 +89,12 @@ class PhaseBPayloadTests(unittest.TestCase):
         )
         self.assertEqual(
             KEVGATE_PATHS,
-            frozenset({"/api/a11oy/v1/sec/kev"}),
+            frozenset(
+                {
+                    "/api/a11oy/v1/sec/kev",
+                    "/api/a11oy/v1/sec/kevgate",
+                }
+            ),
         )
 
     def test_every_phase_b_surface_gets_the_supplied_clock(self) -> None:
@@ -154,6 +159,31 @@ class PhaseBPayloadTests(unittest.TestCase):
         self.assertEqual(result["data_kind"], "live")
         self.assertIsInstance(result["detail"], str)
         self.assertTrue(result["detail"])
+
+    def test_verbose_live_kevgate_kind_moves_to_detail(self) -> None:
+        descriptor = (
+            "live KEV IDs/dates/vendors + LIVE EPSS; "
+            "LIVE CVSS for cached NVD rows"
+        )
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kevgate",
+            {"data_kind": descriptor, "mode": "live", "items": []},
+        )
+        self.assertEqual(result["data_kind"], "live")
+        self.assertEqual(result["detail"], descriptor)
+
+    def test_unavailable_kevgate_is_not_upgraded_to_cached(self) -> None:
+        source = {
+            "data_kind": "none",
+            "mode": "unavailable",
+            "items": [],
+        }
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kevgate",
+            source,
+        )
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
 
     def test_kev_error_is_not_rewritten_as_cached_evidence(self) -> None:
         source = {
@@ -229,6 +259,33 @@ class PhaseBMiddlewareTests(unittest.TestCase):
         self.assertEqual(payload["data_kind"], "cached")
         self.assertEqual(payload["detail"], note)
         self.assertEqual(payload["note"], note)
+        self.assertNotIn("observed_at", payload)
+
+    def test_middleware_canonicalizes_verbose_live_kevgate(self) -> None:
+        app = _FakeApp()
+        install_phase_b_response_contract(app)
+        descriptor = "live KEV IDs/dates/vendors + LIVE EPSS; CVSS cached"
+        response = _FakeResponse(
+            {
+                "data_kind": descriptor,
+                "mode": "live",
+                "items": [],
+            }
+        )
+        request = SimpleNamespace(
+            url=SimpleNamespace(path="/api/a11oy/v1/sec/kevgate")
+        )
+
+        async def _call_next(_request):
+            return response
+
+        async def _exercise():
+            result = await app.middleware_function(request, _call_next)
+            return json.loads(await _read_body(result))
+
+        payload = asyncio.run(_exercise())
+        self.assertEqual(payload["data_kind"], "live")
+        self.assertEqual(payload["detail"], descriptor)
         self.assertNotIn("observed_at", payload)
 
     def test_non_json_response_is_not_consumed(self) -> None:

@@ -40,7 +40,12 @@ PHASE_B_OBSERVATION_PATHS = frozenset(
     }
 )
 PHASE_B_OBSERVATION_ALIASES = frozenset({"/v1/observability/business"})
-KEVGATE_PATHS = frozenset({"/api/a11oy/v1/sec/kev"})
+KEVGATE_PATHS = frozenset(
+    {
+        "/api/a11oy/v1/sec/kev",
+        "/api/a11oy/v1/sec/kevgate",
+    }
+)
 _PHASE_B_MUTATED_PATHS = (
     PHASE_B_OBSERVATION_PATHS
     | PHASE_B_OBSERVATION_ALIASES
@@ -77,8 +82,22 @@ def normalize_phase_b_payload(
         normalized["observed_at"] = observed_at or utc_observation_clock()
 
     if path in KEVGATE_PATHS and 200 <= int(status_code) < 300:
-        raw_kind = str(normalized.get("data_kind") or "").strip().casefold()
-        canonical_kind = "live" if raw_kind == "live" else "cached"
+        raw_kind_value = normalized.get("data_kind")
+        raw_kind = str(raw_kind_value or "").strip().casefold()
+        mode = str(normalized.get("mode") or "").strip().casefold()
+        if mode == "live" or raw_kind == "live" or raw_kind.startswith("live "):
+            canonical_kind = "live"
+        elif (
+            mode in {"cached", "snapshot"}
+            or raw_kind in {"cached", "sample", "snapshot"}
+            or raw_kind.startswith("snapshot;")
+        ):
+            canonical_kind = "cached"
+        else:
+            # A successful transport response is not evidence that an unknown
+            # or unavailable source is cached. Preserve the terminal label so
+            # the readiness contract continues to fail closed.
+            return normalized
         normalized["data_kind"] = canonical_kind
 
         detail = normalized.get("detail")
@@ -86,6 +105,12 @@ def normalize_phase_b_payload(
             note = normalized.get("note")
             if isinstance(note, str) and note.strip():
                 detail = note
+            elif (
+                isinstance(raw_kind_value, str)
+                and raw_kind_value.strip()
+                and raw_kind not in {"live", "cached", "sample", "snapshot"}
+            ):
+                detail = raw_kind_value.strip()
             elif canonical_kind == "live":
                 detail = (
                     "The KEV source identified this response as live during "

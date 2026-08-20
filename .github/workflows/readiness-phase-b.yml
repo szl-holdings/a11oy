@@ -6,12 +6,16 @@ on:
     paths:
       - "routers/frontier_reads.py"
       - "tests/test_readiness_phase_b_observation_contract.py"
+      - "tools/readiness-harness/probe_runner.mjs"
+      - "tools/readiness-harness/probe_runner.test.mjs"
       - ".github/workflows/readiness-phase-b.yml"
   push:
     branches: [main]
     paths:
       - "routers/frontier_reads.py"
       - "tests/test_readiness_phase_b_observation_contract.py"
+      - "tools/readiness-harness/probe_runner.mjs"
+      - "tools/readiness-harness/probe_runner.test.mjs"
       - ".github/workflows/readiness-phase-b.yml"
   workflow_dispatch: {}
 
@@ -56,6 +60,9 @@ jobs:
       - name: Prove observation clocks and KEV vocabulary fail closed
         run: pytest tests/test_readiness_phase_b_observation_contract.py -q
 
+      - name: Prove the canonical probe consumes the observation clock
+        run: node --test tools/readiness-harness/probe_runner.test.mjs
+
       - name: Reject whitespace errors in the exact contract paths
         env:
           EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before || '' }}
@@ -70,4 +77,6 @@ jobs:
           git diff --check "${base}...HEAD" -- \
             routers/frontier_reads.py \
             tests/test_readiness_phase_b_observation_contract.py \
+            tools/readiness-harness/probe_runner.mjs \
+            tools/readiness-harness/probe_runner.test.mjs \
             .github/workflows/readiness-phase-b.yml

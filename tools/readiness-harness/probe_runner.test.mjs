@@ -13,6 +13,15 @@ test("freshness prefers response observation time over an idle policy event", ()
   assert.equal(findTimestamp(body)?.toISOString(), "2026-07-26T01:05:07.000Z");
 });
 
+test("freshness recognizes the canonical observed_at response clock", () => {
+  const body = {
+    verdicts: [{ timestamp: "2026-06-05T23:32:40Z", decision: "deny" }],
+    observed_at: "2026-08-20T09:55:00Z",
+  };
+
+  assert.equal(findTimestamp(body)?.toISOString(), "2026-08-20T09:55:00.000Z");
+});
+
 test("freshness prefers nested source fetch time over a market event timestamp", () => {
   const body = {
     equities: {
