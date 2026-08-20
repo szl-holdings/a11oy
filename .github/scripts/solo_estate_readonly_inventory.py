@@ -15,6 +15,7 @@ import json
 import os
 import re
 import subprocess
+import tempfile
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -41,6 +42,28 @@ SEVERITY_ORDER = {
     "low": 1,
     "warning": 1,
     "unknown": 0,
+}
+REQUIRED_SECURITY_CONTROLS = {
+    "dependabot",
+    "codeql",
+    "secret_scanning",
+    "security_policy",
+    "codeowners",
+}
+REQUIRED_ISSUE_CLASSIFIERS = {
+    "security",
+    "huggingface",
+    "deployment",
+    "p0",
+    "p1",
+    "external",
+    "major_upgrade",
+}
+INCOMPLETE_HF_FINDINGS = {
+    "RESOURCE_ID_UNOBSERVED",
+    "IMMUTABLE_SHA_UNOBSERVED",
+    "CARD_READBACK_UNAVAILABLE",
+    "SPACE_RUNTIME_UNOBSERVED",
 }
 
 
@@ -125,9 +148,7 @@ def http_json(*, url: str, token: str, service: str) -> Any:
 
     headers = {
         "Accept": (
-            "application/vnd.github+json"
-            if service == "github"
-            else "application/json"
+            "application/vnd.github+json" if service == "github" else "application/json"
         ),
         "Authorization": f"Bearer {token}",
         "User-Agent": USER_AGENT,
@@ -159,6 +180,7 @@ def http_json(*, url: str, token: str, service: str) -> Any:
 
 def github_pages(path: str, token: str, *, max_pages: int = 50) -> list[Any]:
     results: list[Any] = []
+    expected_total: int | None = None
     for page in range(1, max_pages + 1):
         separator = "&" if "?" in path else "?"
         payload = http_json(
@@ -167,17 +189,66 @@ def github_pages(path: str, token: str, *, max_pages: int = 50) -> list[Any]:
             service="github",
         )
         if payload is None:
-            return results
+            raise ApiFailure("github", None, f"empty pagination response: {path}")
         if isinstance(payload, list):
             batch = payload
         elif isinstance(payload, Mapping) and isinstance(payload.get("items"), list):
+            if payload.get("incomplete_results") is not False:
+                raise ApiFailure(
+                    "github",
+                    None,
+                    f"incomplete search response: {path}",
+                )
+            total_count = payload.get("total_count")
+            if not isinstance(total_count, int) or total_count < 0:
+                raise ApiFailure(
+                    "github",
+                    None,
+                    f"invalid search result count: {path}",
+                )
+            if expected_total is None:
+                expected_total = total_count
+            elif total_count != expected_total:
+                raise ApiFailure(
+                    "github",
+                    None,
+                    f"search result count changed during pagination: {path}",
+                )
             batch = list(payload["items"])
         else:
             raise ApiFailure("github", None, f"unexpected pagination shape: {path}")
+        if any(not isinstance(item, Mapping) for item in batch):
+            raise ApiFailure("github", None, f"invalid pagination row: {path}")
         results.extend(batch)
         if len(batch) < 100:
+            if expected_total is not None and len(results) != expected_total:
+                raise ApiFailure(
+                    "github",
+                    None,
+                    f"search result count mismatch: {path}",
+                )
             return results
     raise ApiFailure("github", None, f"pagination limit reached: {path}")
+
+
+def tracked_tree_is_clean() -> bool:
+    for command in (
+        ["git", "diff", "--quiet", "--ignore-submodules", "--"],
+        ["git", "diff", "--cached", "--quiet", "--ignore-submodules", "--"],
+    ):
+        try:
+            result = subprocess.run(
+                command,
+                check=False,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                timeout=10,
+            )
+        except Exception:
+            return False
+        if result.returncode != 0:
+            return False
+    return True
 
 
 def current_revision() -> str | None:
@@ -188,7 +259,7 @@ def current_revision() -> str | None:
             stderr=subprocess.DEVNULL,
             timeout=10,
         ).strip()
-        return value if FULL_SHA.fullmatch(value) else None
+        return value if FULL_SHA.fullmatch(value) and tracked_tree_is_clean() else None
     except Exception:
         return None
 
@@ -272,9 +343,7 @@ def normalize_security_alert(kind: str, alert: Mapping[str, Any]) -> dict[str, A
             "kind": kind,
             "number": alert.get("number"),
             "severity": str(
-                rule.get("security_severity_level")
-                or rule.get("severity")
-                or "unknown"
+                rule.get("security_severity_level") or rule.get("severity") or "unknown"
             ).lower(),
             "state": safe_text(alert.get("state")),
             "rule": safe_text(rule.get("id") or rule.get("name")),
@@ -302,6 +371,57 @@ def normalize_security_alert(kind: str, alert: Mapping[str, Any]) -> dict[str, A
         "summary": safe_text(alert.get("summary")),
         "url": safe_text(alert.get("html_url"), 500) or None,
         "created_at": safe_text(alert.get("created_at"), 50) or None,
+    }
+
+
+def audit_effective_branch_rules(
+    repo: str,
+    branch: str,
+    token: str,
+) -> dict[str, Any]:
+    rules = github_pages(
+        (
+            f"/repos/{repo}/rules/branches/"
+            f"{urllib.parse.quote(branch, safe='')}?per_page=100"
+        ),
+        token,
+    )
+    status_check_contexts: set[str] = set()
+    approving_review_count = 0
+    observed_rules: list[dict[str, Any]] = []
+    for raw_rule in rules:
+        rule = object_dict(raw_rule)
+        rule_type = safe_text(rule.get("type"), 100)
+        parameters = object_dict(rule.get("parameters"))
+        observed_rules.append(
+            {
+                "type": rule_type or None,
+                "ruleset_id": rule.get("ruleset_id"),
+                "ruleset_source_type": safe_text(rule.get("ruleset_source_type"), 100)
+                or None,
+                "ruleset_source": safe_text(rule.get("ruleset_source"), 240) or None,
+            }
+        )
+        if rule_type == "required_status_checks":
+            for check in parameters.get("required_status_checks") or []:
+                context = safe_text(object_dict(check).get("context"), 240)
+                if context:
+                    status_check_contexts.add(context)
+        elif rule_type == "pull_request":
+            candidate = parameters.get("required_approving_review_count")
+            if isinstance(candidate, int) and not isinstance(candidate, bool):
+                approving_review_count = max(approving_review_count, candidate)
+
+    return {
+        "status": "OBSERVED",
+        "endpoint": "effective_branch_rules",
+        "required_status_checks": bool(status_check_contexts),
+        "required_status_check_contexts": sorted(status_check_contexts),
+        "required_pull_request_reviews": approving_review_count >= 1,
+        "required_approving_review_count": approving_review_count,
+        "bypass_visibility": "UNAVAILABLE",
+        "administrator_enforcement": "NOT_INFERRED",
+        "observed_rules": observed_rules,
     }
 
 
@@ -337,11 +457,13 @@ def audit_security(
         for name, template in SECURITY_ENDPOINTS.items():
             try:
                 raw = github_pages(template.format(repo=repo), token)
-                alerts = [
-                    normalize_security_alert(name, item)
-                    for item in raw
-                    if isinstance(item, Mapping)
-                ]
+                if any(not isinstance(item, Mapping) for item in raw):
+                    raise ApiFailure(
+                        "github",
+                        None,
+                        f"invalid security alert row: {template.format(repo=repo)}",
+                    )
+                alerts = [normalize_security_alert(name, item) for item in raw]
                 inventory[name] = {
                     "status": "OBSERVED",
                     "count": len(alerts),
@@ -352,7 +474,13 @@ def audit_security(
                     state = str(alert.get("state") or "").lower()
                     if state == "closed":
                         continue
-                    if name == "secret_scanning" or severity in terminal_severities:
+                    if (
+                        name == "secret_scanning"
+                        or severity in terminal_severities
+                        or severity == "unknown"
+                        or severity not in SEVERITY_ORDER
+                        or not state
+                    ):
                         terminal.append(alert)
             except ApiFailure as exc:
                 inventory[name] = {
@@ -395,33 +523,13 @@ def audit_security(
         controls["protected_branch"] = {"status": "BLOCKED_CREDENTIAL"}
     else:
         try:
-            protection = object_dict(
-                http_json(
-                    url=(
-                        f"https://api.github.com/repos/{repo}/branches/"
-                        f"{urllib.parse.quote(branch, safe='')}/protection"
-                    ),
-                    token=token,
-                    service="github",
-                )
-            )
-            checks = bool(protection.get("required_status_checks"))
-            reviews = bool(protection.get("required_pull_request_reviews"))
-            admins = bool(
-                object_dict(protection.get("enforce_admins")).get("enabled")
-            )
-            controls["protected_branch"] = {
-                "status": "OBSERVED",
-                "required_status_checks": checks,
-                "required_pull_request_reviews": reviews,
-                "enforce_admins": admins,
-            }
-            for control, enabled in {
-                "required_status_checks": checks,
-                "required_pull_request_reviews": reviews,
-                "enforce_admins": admins,
-            }.items():
-                if not enabled:
+            effective_rules = audit_effective_branch_rules(repo, branch, token)
+            controls["protected_branch"] = effective_rules
+            for control in (
+                "required_status_checks",
+                "required_pull_request_reviews",
+            ):
+                if not effective_rules[control]:
                     terminal.append(
                         {
                             "kind": "protected_branch_control",
@@ -433,6 +541,9 @@ def audit_security(
         except ApiFailure as exc:
             controls["protected_branch"] = {
                 "status": "BLOCKED_PERMISSION_OR_PROVIDER",
+                "endpoint": "effective_branch_rules",
+                "bypass_visibility": "UNAVAILABLE",
+                "administrator_enforcement": "NOT_INFERRED",
                 "error": safe_text(exc),
                 "http_status": exc.status,
             }
@@ -459,9 +570,16 @@ def classify_issue(
     issue: Mapping[str, Any], policy: Mapping[str, Any]
 ) -> dict[str, Any]:
     title = safe_text(issue.get("title"), 500)
-    body = safe_text(issue.get("body"), 4000)
-    haystack = f"{title}\n{body}".lower()
+    haystack = (f"{issue.get('title') or ''}\n{issue.get('body') or ''}").casefold()
     classifiers = policy["issue_inventory"]["classifiers"]
+    observed_labels = sorted(
+        safe_text(object_dict(label).get("name"))
+        for label in issue.get("labels") or []
+        if object_dict(label).get("name")
+    )
+    normalized_labels = {
+        re.sub(r"[^a-z0-9]+", "", label.casefold()) for label in observed_labels
+    }
 
     def matches(group: str) -> bool:
         return any(str(term).lower() in haystack for term in classifiers[group])
@@ -473,9 +591,9 @@ def classify_issue(
         domains.append("huggingface")
     if matches("deployment"):
         domains.append("deployment")
-    if matches("p0"):
+    if normalized_labels & {"p0", "priorityp0", "critical"} or matches("p0"):
         priority = "P0"
-    elif matches("p1") or domains:
+    elif normalized_labels & {"p1", "priorityp1", "high"} or matches("p1") or domains:
         priority = "P1"
     else:
         priority = "P2"
@@ -493,11 +611,7 @@ def classify_issue(
         "priority": priority,
         "domains": domains,
         "signals": signals,
-        "observed_labels": sorted(
-            safe_text(object_dict(label).get("name"))
-            for label in issue.get("labels") or []
-            if object_dict(label).get("name")
-        ),
+        "observed_labels": observed_labels,
     }
 
 
@@ -529,9 +643,7 @@ def audit_issues(
             "http_status": exc.status,
             "provider_mutations_performed": [],
         }
-    issues = [
-        classify_issue(item, policy) for item in raw if isinstance(item, Mapping)
-    ]
+    issues = [classify_issue(item, policy) for item in raw if isinstance(item, Mapping)]
     return {
         "status": "OBSERVED",
         "counts": {
@@ -611,9 +723,7 @@ def audit_card(
     if re.search(r"(?i)<table(?:\s|>)", text):
         risks.append("raw HTML table may overflow narrow screens")
     max_columns = int(policy["huggingface"]["maximum_markdown_table_columns"])
-    if any(
-        markdown_table_columns(line) > max_columns for line in text.splitlines()
-    ):
+    if any(markdown_table_columns(line) > max_columns for line in text.splitlines()):
         risks.append(f"Markdown table exceeds {max_columns} columns")
     minimum = int(policy["huggingface"]["minimum_card_characters"])
     if len(text.strip()) < minimum:
@@ -643,14 +753,16 @@ def load_hf_readme(
     from huggingface_hub import hf_hub_download
 
     try:
-        path = hf_hub_download(
-            repo_id=repo_id,
-            repo_type=repo_type,
-            filename="README.md",
-            revision=revision,
-            token=token,
-        )
-        return Path(path).read_text(encoding="utf-8", errors="replace"), None
+        with tempfile.TemporaryDirectory(prefix="szl-hf-readonly-") as cache_dir:
+            path = hf_hub_download(
+                repo_id=repo_id,
+                repo_type=repo_type,
+                filename="README.md",
+                revision=revision,
+                token=token,
+                cache_dir=cache_dir,
+            )
+            return Path(path).read_text(encoding="utf-8", errors="replace"), None
     except Exception as exc:
         error_type = type(exc).__name__
         if error_type in {"EntryNotFoundError", "RemoteEntryNotFoundError"}:
@@ -686,9 +798,18 @@ def identity_authorizes_org(identity: Mapping[str, Any], org: str) -> bool:
         return True
     for item in identity.get("orgs") or []:
         record = object_dict(item)
-        if safe_text(record.get("name") or record.get("displayName")).casefold() == target:
+        if (
+            safe_text(record.get("name") or record.get("displayName")).casefold()
+            == target
+        ):
             return True
     return False
+
+
+def hf_access_token_role(identity: Mapping[str, Any]) -> str | None:
+    auth = object_dict(identity.get("auth"))
+    access_token = object_dict(auth.get("accessToken"))
+    return safe_text(access_token.get("role"), 40).casefold() or None
 
 
 def audit_huggingface(
@@ -744,16 +865,34 @@ def audit_huggingface(
             "secret_values_recorded": False,
         }
     identity_name = safe_text(identity.get("name"))
+    token_role = hf_access_token_role(identity)
+    if token_role != "read":
+        return {
+            "status": "BLOCKED_TOKEN_SCOPE",
+            "identity": {
+                "status": "OBSERVED_TOKEN_SCOPE_NOT_READ_ONLY",
+                "name": identity_name or None,
+                "organization": org,
+                "token_role": token_role,
+            },
+            "counts": {},
+            "resources": empty_resources,
+            "findings": [],
+            "provider_mutations_performed": [],
+            "secret_values_recorded": False,
+        }
     authorized = identity_authorizes_org(identity, org)
-    if policy["huggingface"].get(
-        "organization_membership_readback_required", True
-    ) and not authorized:
+    if (
+        policy["huggingface"].get("organization_membership_readback_required", True)
+        and not authorized
+    ):
         return {
             "status": "BLOCKED_ORG_AUTHORITY",
             "identity": {
                 "status": "OBSERVED_NOT_AUTHORIZED",
                 "name": identity_name or None,
                 "organization": org,
+                "token_role": token_role,
             },
             "counts": {},
             "resources": empty_resources,
@@ -782,6 +921,7 @@ def audit_huggingface(
                 "status": "AUTHORIZED",
                 "name": identity_name or None,
                 "organization": org,
+                "token_role": token_role,
             },
             "error": f"Hugging Face inventory failed: {type(exc).__name__}",
             "counts": {},
@@ -799,7 +939,9 @@ def audit_huggingface(
         sha = safe_text(getattr(info, "sha", None), 40) or None
         tags = [safe_text(tag) for tag in (getattr(info, "tags", None) or [])]
         kernel = inferred_kernel(repo_id, tags, policy)
-        card_data = object_dict(getattr(info, "cardData", None))
+        card_data = object_dict(
+            getattr(info, "card_data", None) or getattr(info, "cardData", None)
+        )
         readme: str | None = None
         read_error: str | None = None
         if sha and FULL_SHA.fullmatch(sha):
@@ -811,17 +953,20 @@ def audit_huggingface(
             )
         else:
             read_error = "IMMUTABLE_REVISION_UNAVAILABLE"
-        sdk = safe_text(
-            enum_value(getattr(info, "sdk", None)) or card_data.get("sdk")
-        ) or None
+        sdk = (
+            safe_text(enum_value(getattr(info, "sdk", None)) or card_data.get("sdk"))
+            or None
+        )
         runtime_stage: str | None = None
         runtime_error: str | None = None
         if resource_type == "space":
             try:
                 runtime = api.get_space_runtime(repo_id)
-                runtime_stage = safe_text(
-                    enum_value(getattr(runtime, "stage", None)) or "UNKNOWN"
-                ).split(".")[-1].upper()
+                runtime_stage = (
+                    safe_text(enum_value(getattr(runtime, "stage", None)) or "UNKNOWN")
+                    .split(".")[-1]
+                    .upper()
+                )
             except Exception as exc:
                 runtime_error = type(exc).__name__
         card = audit_card(
@@ -832,10 +977,12 @@ def audit_huggingface(
             read_error=read_error,
         )
         license_declared = license_value(card_data)
-        pipeline = safe_text(
-            getattr(info, "pipeline_tag", None)
-            or card_data.get("task_categories")
-        ) or None
+        pipeline = (
+            safe_text(
+                getattr(info, "pipeline_tag", None) or card_data.get("task_categories")
+            )
+            or None
+        )
         row = {
             "id": repo_id,
             "type": resource_type,
@@ -904,9 +1051,7 @@ def audit_huggingface(
                     "CARD_POLISH_REQUIRED",
                     repo_id or "UNKNOWN",
                     safe_text(
-                        "; ".join(
-                            card["missing_sections"] + card["mobile_risks"]
-                        ),
+                        "; ".join(card["missing_sections"] + card["mobile_risks"]),
                         500,
                     ),
                 )
@@ -993,9 +1138,7 @@ def audit_huggingface(
             "id": slug,
             "title": title,
             "private": bool(getattr(collection, "private", False)),
-            "last_modified": safe_text(
-                getattr(collection, "lastModified", None), 80
-            )
+            "last_modified": safe_text(getattr(collection, "lastModified", None), 80)
             or None,
             "item_count": len(items),
             "kernel": inferred_kernel(slug, [title or ""], policy),
@@ -1045,6 +1188,7 @@ def audit_huggingface(
             "status": "AUTHORIZED",
             "name": identity_name or None,
             "organization": org,
+            "token_role": token_role,
         },
         "counts": counts,
         "resources": resources,
@@ -1062,9 +1206,7 @@ def markdown_table(rows: list[list[Any]], headers: list[str]) -> str:
         "| " + " | ".join(cell(value) for value in headers) + " |",
         "| " + " | ".join("---" for _ in headers) + " |",
     ]
-    lines.extend(
-        "| " + " | ".join(cell(value) for value in row) + " |" for row in rows
-    )
+    lines.extend("| " + " | ".join(cell(value) for value in row) + " |" for row in rows)
     return "\n".join(lines)
 
 
@@ -1172,10 +1314,75 @@ def build_summary(report: Mapping[str, Any], artifact_name: str) -> str:
             "- Provider permission denial and unavailable readback remain BLOCKED.",
             "- Missing licenses remain unclassified; no license is inferred.",
             "- No provider mutation method is available to this controller.",
-            "- MEASURED applies only to this named, current provider readback.",
+            (
+                "- Live provider truth label: "
+                f"**{report['truth_boundary']['live_provider_inventory']}**."
+            ),
         ]
     )
     return "\n".join(lines).strip() + "\n"
+
+
+def close_source_binding(
+    start: Mapping[str, Any],
+    end: Mapping[str, Any],
+) -> dict[str, Any]:
+    exact = (
+        start.get("status") == "PASS"
+        and end.get("status") == "PASS"
+        and start.get("local_revision") == end.get("local_revision")
+        and start.get("protected_revision") == end.get("protected_revision")
+    )
+    return {
+        "status": "PASS" if exact else "BLOCKED_SOURCE_DRIFT",
+        "branch": end.get("branch") or start.get("branch"),
+        "local_revision": end.get("local_revision"),
+        "protected_revision": end.get("protected_revision"),
+        "exact_match": exact,
+        "start": dict(start),
+        "end": dict(end),
+    }
+
+
+def provider_readbacks_complete(report: Mapping[str, Any]) -> bool:
+    if report["source_binding"]["status"] != "PASS":
+        return False
+    security = report["github_security"]
+    inventory = object_dict(security.get("inventory"))
+    if set(inventory) != set(SECURITY_ENDPOINTS):
+        return False
+    if any(
+        object_dict(item).get("status") != "OBSERVED" for item in inventory.values()
+    ):
+        return False
+    protected_branch = object_dict(
+        object_dict(security.get("controls")).get("protected_branch")
+    )
+    if protected_branch.get("status") != "OBSERVED":
+        return False
+    if report["issues"].get("status") != "OBSERVED":
+        return False
+    hf = report["huggingface"]
+    identity = object_dict(hf.get("identity"))
+    if identity.get("status") != "AUTHORIZED" or identity.get("token_role") != "read":
+        return False
+    expected_counts = {
+        "models",
+        "datasets",
+        "spaces",
+        "collections",
+        "kernels",
+        "findings",
+        "high_findings",
+    }
+    if not expected_counts.issubset(object_dict(hf.get("counts"))):
+        return False
+    if any(
+        object_dict(finding).get("kind") in INCOMPLETE_HF_FINDINGS
+        for finding in hf.get("findings") or []
+    ):
+        return False
+    return True
 
 
 def status_from_report(report: Mapping[str, Any]) -> str:
@@ -1219,13 +1426,68 @@ def validate_policy(policy: Mapping[str, Any]) -> None:
         "secret_value_readback_allowed",
     ]
     if any(contract.get(name) is not False for name in required_false):
-        raise ValueError("Every provider mutation and secret-readback flag must be false")
+        raise ValueError(
+            "Every provider mutation and secret-readback flag must be false"
+        )
     if contract.get("exact_protected_head_binding_required") is not True:
         raise ValueError("Exact protected-head binding must remain required")
     if contract.get("permission_denied_is_green") is not False:
         raise ValueError("Permission denial cannot be green")
     if contract.get("provider_failure_is_green") is not False:
         raise ValueError("Provider failure cannot be green")
+    security = object_dict(policy.get("security"))
+    if set(security.get("inventory_endpoints") or []) != set(SECURITY_ENDPOINTS):
+        raise ValueError("Every required GitHub security endpoint must remain enabled")
+    terminal_severities = {
+        str(value).casefold()
+        for value in security.get("terminal_security_severities") or []
+    }
+    if not {"critical", "high"}.issubset(terminal_severities):
+        raise ValueError("Critical and high security findings must remain terminal")
+    if security.get("secret_scanning_is_terminal") is not True:
+        raise ValueError("Secret-scanning findings must remain terminal")
+    controls = object_dict(security.get("required_repository_controls"))
+    if not REQUIRED_SECURITY_CONTROLS.issubset(controls):
+        raise ValueError("Every required repository control must remain configured")
+    if any(
+        not isinstance(controls[name], list) or not controls[name]
+        for name in REQUIRED_SECURITY_CONTROLS
+    ):
+        raise ValueError("Required repository control paths cannot be empty")
+
+    classifiers = object_dict(
+        object_dict(policy.get("issue_inventory")).get("classifiers")
+    )
+    if not REQUIRED_ISSUE_CLASSIFIERS.issubset(classifiers):
+        raise ValueError("Every required issue classifier must remain configured")
+    if any(
+        not isinstance(classifiers[name], list) or not classifiers[name]
+        for name in REQUIRED_ISSUE_CLASSIFIERS
+    ):
+        raise ValueError("Required issue classifier terms cannot be empty")
+    p0_terms = {str(value).casefold() for value in classifiers["p0"]}
+    if not {
+        "critical",
+        "secret leak",
+        "credential leak",
+        "data loss",
+        "outage",
+    }.issubset(p0_terms):
+        raise ValueError("Terminal P0 issue signals cannot be weakened")
+
+    hf_policy = object_dict(policy.get("huggingface"))
+    for flag in (
+        "private_inventory_token_required",
+        "organization_membership_readback_required",
+        "never_infer_license",
+    ):
+        if hf_policy.get(flag) is not True:
+            raise ValueError(f"Hugging Face fail-closed flag must remain true: {flag}")
+    if set(hf_policy.get("runtime_healthy_stages") or []) != {
+        "RUNNING",
+        "SLEEPING",
+    }:
+        raise ValueError("Only observed RUNNING or SLEEPING Space stages are healthy")
 
 
 def self_test(policy: Mapping[str, Any]) -> None:
@@ -1311,38 +1573,54 @@ def main() -> int:
         raise SystemExit("Runtime Hugging Face organization must match policy")
 
     github_token = os.environ.get("GH_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
-    hf_token = os.environ.get("HF_TOKEN") or ""
-    revision = current_revision()
+    hf_token = os.environ.get("HF_INVENTORY_READ_TOKEN") or ""
+    start_revision = current_revision()
     branch = str(policy["protected_branch"])
+    source_binding_start = audit_source_binding(
+        repo,
+        branch,
+        github_token,
+        start_revision,
+    )
+    github_security = audit_security(
+        repo,
+        branch,
+        github_token,
+        policy,
+    )
+    issues = audit_issues(repo, github_token, policy)
+    huggingface = audit_huggingface(org, hf_token, policy)
+    end_revision = current_revision()
+    source_binding_end = audit_source_binding(
+        repo,
+        branch,
+        github_token,
+        end_revision,
+    )
     report: dict[str, Any] = {
         "schema": "szl.solo-estate-readonly-report/v1",
         "generated_at": utc_now(),
-        "source_revision": revision,
+        "source_revision": end_revision,
         "repository": repo,
         "protected_branch": branch,
         "huggingface_organization": org,
         "policy_digest": sha256_text(canonical_json(policy)),
-        "source_binding": audit_source_binding(
-            repo,
-            branch,
-            github_token,
-            revision,
+        "source_binding": close_source_binding(
+            source_binding_start,
+            source_binding_end,
         ),
-        "github_security": audit_security(
-            repo,
-            branch,
-            github_token,
-            policy,
-        ),
-        "issues": audit_issues(repo, github_token, policy),
-        "huggingface": audit_huggingface(org, hf_token, policy),
+        "github_security": github_security,
+        "issues": issues,
+        "huggingface": huggingface,
         "provider_mutations_performed": [],
         "secret_values_recorded": False,
-        "truth_boundary": {
-            "source_contract": "PROVED",
-            "live_provider_inventory": "MEASURED",
-            "production_state": "NOT_CLAIMED",
-        },
+    }
+    report["truth_boundary"] = {
+        "source_contract": "PROVED",
+        "live_provider_inventory": (
+            "MEASURED" if provider_readbacks_complete(report) else "BLOCKED"
+        ),
+        "production_state": "NOT_CLAIMED",
     }
     report["status"] = status_from_report(report)
     artifact_name = (
@@ -1367,7 +1645,7 @@ def main() -> int:
         json.dumps(
             {
                 "status": report["status"],
-                "source_revision": revision,
+                "source_revision": end_revision,
                 "security_terminal_findings": len(
                     report["github_security"]["terminal_findings"]
                 ),

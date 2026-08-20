@@ -103,14 +103,27 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
 
     def test_workflow_has_read_only_permissions_and_no_writer_trigger(self):
         workflow = WORKFLOW.read_text(encoding="utf-8")
-        permissions = workflow.split("permissions:\n", 1)[1].split(
-            "\nconcurrency:", 1
-        )[0]
+        permissions = workflow.split("permissions:\n", 1)[1].split("\nconcurrency:", 1)[
+            0
+        ]
         self.assertNotIn(": write", permissions)
         self.assertNotIn("pull_request_target", workflow)
         self.assertNotIn("apply_safe_hf_cards", workflow)
         self.assertNotIn("solo-estate-review-router", workflow)
         self.assertNotIn("issue_comment:", workflow)
+        inventory_prefix = workflow.split("  inventory:\n", 1)[1]
+        job_env = inventory_prefix.split("    steps:\n", 1)[0]
+        self.assertNotIn("GH_TOKEN", job_env)
+        self.assertNotIn("HF_INVENTORY_READ_TOKEN", job_env)
+        self.assertIn(
+            "HF_INVENTORY_READ_TOKEN: ${{ secrets.HF_INVENTORY_READ_TOKEN }}",
+            workflow,
+        )
+        self.assertNotIn("secrets.HF_ORG_TOKEN", workflow)
+        self.assertNotIn("secrets.HF_TOKEN", workflow)
+        controller = SCRIPT.read_text(encoding="utf-8")
+        self.assertIn('os.environ.get("HF_INVENTORY_READ_TOKEN")', controller)
+        self.assertNotIn('os.environ.get("HF_TOKEN")', controller)
 
     def test_safe_text_redacts_common_provider_tokens(self):
         fine_grained = "github" + "_pat_" + "a" * 24
@@ -162,10 +175,96 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             with self.assertRaises(self.module.ApiFailure):
                 self.module.github_pages("/example?per_page=100", "token", max_pages=2)
 
+    def test_github_search_rejects_incomplete_or_mismatched_results(self):
+        incomplete = {
+            "total_count": 1,
+            "incomplete_results": True,
+            "items": [{"number": 1}],
+        }
+        with mock.patch.object(self.module, "http_json", return_value=incomplete):
+            with self.assertRaises(self.module.ApiFailure):
+                self.module.github_pages("/search/issues?per_page=100", "token")
+
+        mismatched = {
+            "total_count": 2,
+            "incomplete_results": False,
+            "items": [{"number": 1}],
+        }
+        with mock.patch.object(self.module, "http_json", return_value=mismatched):
+            with self.assertRaises(self.module.ApiFailure):
+                self.module.github_pages("/search/issues?per_page=100", "token")
+
+    def test_github_pages_rejects_empty_or_malformed_provider_rows(self):
+        for payload in (None, [{"number": 1}, "not-an-object"]):
+            with (
+                self.subTest(payload=payload),
+                mock.patch.object(self.module, "http_json", return_value=payload),
+            ):
+                with self.assertRaises(self.module.ApiFailure):
+                    self.module.github_pages("/example?per_page=100", "token")
+
+    def test_current_revision_rejects_dirty_tracked_tree(self):
+        with (
+            mock.patch.object(
+                self.module.subprocess,
+                "check_output",
+                return_value="a" * 40 + "\n",
+            ),
+            mock.patch.object(self.module, "tracked_tree_is_clean", return_value=False),
+        ):
+            self.assertIsNone(self.module.current_revision())
+
+    def test_effective_branch_rules_require_named_checks_and_approval(self):
+        rules = [
+            {
+                "type": "required_status_checks",
+                "parameters": {
+                    "required_status_checks": [{"context": "Tests"}],
+                },
+                "ruleset_id": 7,
+                "ruleset_source_type": "Organization",
+                "ruleset_source": "szl-holdings",
+            },
+            {
+                "type": "pull_request",
+                "parameters": {"required_approving_review_count": 1},
+                "ruleset_id": 7,
+                "ruleset_source_type": "Organization",
+                "ruleset_source": "szl-holdings",
+            },
+        ]
+        with mock.patch.object(self.module, "github_pages", return_value=rules):
+            observed = self.module.audit_effective_branch_rules(
+                "szl-holdings/a11oy", "main", "token"
+            )
+        self.assertTrue(observed["required_status_checks"])
+        self.assertTrue(observed["required_pull_request_reviews"])
+        self.assertEqual(observed["required_approving_review_count"], 1)
+        self.assertEqual(observed["bypass_visibility"], "UNAVAILABLE")
+        self.assertEqual(observed["administrator_enforcement"], "NOT_INFERRED")
+
+        empty_rules = [
+            {
+                "type": "required_status_checks",
+                "parameters": {"required_status_checks": []},
+            },
+            {
+                "type": "pull_request",
+                "parameters": {"required_approving_review_count": 0},
+            },
+        ]
+        with mock.patch.object(self.module, "github_pages", return_value=empty_rules):
+            missing = self.module.audit_effective_branch_rules(
+                "szl-holdings/a11oy", "main", "token"
+            )
+        self.assertFalse(missing["required_status_checks"])
+        self.assertFalse(missing["required_pull_request_reviews"])
+
     def test_security_permission_denial_is_terminal(self):
         denial = self.module.ApiFailure("github", 403, "/security")
-        with mock.patch.object(self.module, "github_pages", side_effect=denial), mock.patch.object(
-            self.module, "http_json", side_effect=denial
+        with (
+            mock.patch.object(self.module, "github_pages", side_effect=denial),
+            mock.patch.object(self.module, "http_json", side_effect=denial),
         ):
             report = self.module.audit_security(
                 "szl-holdings/a11oy", "main", "token", self.policy
@@ -191,16 +290,22 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                         "dependency": {"package": {"name": "example"}},
                     }
                 ]
+            if "/rules/branches/" in path:
+                return [
+                    {
+                        "type": "required_status_checks",
+                        "parameters": {
+                            "required_status_checks": [{"context": "Tests"}]
+                        },
+                    },
+                    {
+                        "type": "pull_request",
+                        "parameters": {"required_approving_review_count": 1},
+                    },
+                ]
             return []
 
-        protection = {
-            "required_status_checks": {"strict": True},
-            "required_pull_request_reviews": {"required_approving_review_count": 0},
-            "enforce_admins": {"enabled": True},
-        }
-        with mock.patch.object(self.module, "github_pages", side_effect=pages), mock.patch.object(
-            self.module, "http_json", return_value=protection
-        ):
+        with mock.patch.object(self.module, "github_pages", side_effect=pages):
             report = self.module.audit_security(
                 "szl-holdings/a11oy", "main", "token", self.policy
             )
@@ -209,6 +314,64 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         self.assertEqual(alert["package"], "example")
         self.assertEqual(alert["severity"], "high")
         self.assertIn(alert, report["terminal_findings"])
+
+    def test_unknown_alert_severity_and_missing_effective_rules_are_terminal(self):
+        def pages(path, _token, **_kwargs):
+            if "/dependabot/" in path:
+                return [
+                    {
+                        "number": 14,
+                        "state": "open",
+                        "security_advisory": {"summary": "Unclassified alert"},
+                        "dependency": {"package": {"name": "example"}},
+                    }
+                ]
+            return []
+
+        with mock.patch.object(self.module, "github_pages", side_effect=pages):
+            report = self.module.audit_security(
+                "szl-holdings/a11oy", "main", "token", self.policy
+            )
+        self.assertEqual(report["status"], "BLOCKED")
+        kinds = [item.get("kind") for item in report["terminal_findings"]]
+        self.assertIn("dependabot", kinds)
+        missing_controls = {
+            item.get("summary")
+            for item in report["terminal_findings"]
+            if item.get("kind") == "protected_branch_control"
+        }
+        self.assertEqual(
+            missing_controls,
+            {"required_status_checks", "required_pull_request_reviews"},
+        )
+
+    def test_policy_validation_rejects_fail_closed_weakening(self):
+        mutations = {
+            "terminal severities": lambda policy: policy["security"].update(
+                {"terminal_security_severities": ["critical"]}
+            ),
+            "secret terminality": lambda policy: policy["security"].update(
+                {"secret_scanning_is_terminal": False}
+            ),
+            "required control": lambda policy: policy["security"][
+                "required_repository_controls"
+            ].pop("codeowners"),
+            "private inventory": lambda policy: policy["huggingface"].update(
+                {"private_inventory_token_required": False}
+            ),
+            "org binding": lambda policy: policy["huggingface"].update(
+                {"organization_membership_readback_required": False}
+            ),
+            "p0 terms": lambda policy: policy["issue_inventory"]["classifiers"].update(
+                {"p0": ["critical"]}
+            ),
+        }
+        for name, mutate in mutations.items():
+            with self.subTest(name=name):
+                candidate = json.loads(json.dumps(self.policy))
+                mutate(candidate)
+                with self.assertRaises(ValueError):
+                    self.module.validate_policy(candidate)
 
     def test_issue_inventory_classifies_without_label_recommendation(self):
         raw = [
@@ -231,6 +394,28 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         self.assertNotIn("recommended_labels", item)
         self.assertEqual(report["provider_mutations_performed"], [])
 
+    def test_issue_inventory_honors_p0_label_and_full_body(self):
+        label_issue = {
+            "number": 3,
+            "title": "Routine task",
+            "body": "No keyword here",
+            "labels": [{"name": "priority/P0"}],
+        }
+        body_issue = {
+            "number": 4,
+            "title": "Long report",
+            "body": "x" * 5000 + " credential leak",
+            "labels": [],
+        }
+        with mock.patch.object(
+            self.module, "github_pages", return_value=[label_issue, body_issue]
+        ):
+            report = self.module.audit_issues(
+                "szl-holdings/a11oy", "token", self.policy
+            )
+        self.assertEqual(report["counts"]["p0"], 2)
+        self.assertEqual([item["priority"] for item in report["issues"]], ["P0", "P0"])
+
     def test_card_read_failure_is_not_reported_as_missing(self):
         card = self.module.audit_card(
             text=None,
@@ -252,7 +437,11 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 self.token_was_present = bool(token)
 
             def whoami(self):
-                return {"name": "someone", "orgs": [{"name": "another-org"}]}
+                return {
+                    "name": "someone",
+                    "orgs": [{"name": "another-org"}],
+                    "auth": {"accessToken": {"role": "read"}},
+                }
 
         fake_module = types.SimpleNamespace(HfApi=UnauthorizedApi)
         with mock.patch.dict(sys.modules, {"huggingface_hub": fake_module}):
@@ -262,6 +451,52 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         self.assertEqual(unbound["status"], "BLOCKED_ORG_AUTHORITY")
         self.assertEqual(unbound["provider_mutations_performed"], [])
 
+    def test_huggingface_rejects_write_or_unscoped_tokens(self):
+        class ScopedApi:
+            role = "write"
+
+            def __init__(self, token):
+                self.token = token
+
+            def whoami(self):
+                return {
+                    "name": "operator",
+                    "orgs": [{"name": "SZLHOLDINGS"}],
+                    "auth": {"accessToken": {"role": self.role}},
+                }
+
+        fake_module = types.SimpleNamespace(HfApi=ScopedApi)
+        for role in ("write", "fineGrained", None):
+            with (
+                self.subTest(role=role),
+                mock.patch.dict(sys.modules, {"huggingface_hub": fake_module}),
+            ):
+                ScopedApi.role = role
+                report = self.module.audit_huggingface(
+                    "SZLHOLDINGS", "test-token", self.policy
+                )
+            self.assertEqual(report["status"], "BLOCKED_TOKEN_SCOPE")
+
+    def test_huggingface_readme_cache_is_temporary(self):
+        observed_cache_dirs = []
+
+        def download(**kwargs):
+            cache_dir = Path(kwargs["cache_dir"])
+            observed_cache_dirs.append(cache_dir)
+            path = cache_dir / "README.md"
+            path.write_text("# private card", encoding="utf-8")
+            return str(path)
+
+        fake_module = types.SimpleNamespace(hf_hub_download=download)
+        with mock.patch.dict(sys.modules, {"huggingface_hub": fake_module}):
+            text, error = self.module.load_hf_readme(
+                "SZLHOLDINGS/private", "model", "a" * 40, "read-token"
+            )
+        self.assertEqual(text, "# private card")
+        self.assertIsNone(error)
+        self.assertEqual(len(observed_cache_dirs), 1)
+        self.assertFalse(observed_cache_dirs[0].exists())
+
     def test_huggingface_inventory_uses_only_read_surfaces(self):
         sha = "c" * 40
 
@@ -270,7 +505,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 self.id = identifier
                 self.sha = values.get("sha", sha)
                 self.tags = values.get("tags", [])
-                self.cardData = values.get("cardData", {})
+                self.card_data = values.get("card_data", {})
                 self.pipeline_tag = values.get("pipeline_tag")
                 self.sdk = values.get("sdk")
                 self.private = values.get("private", True)
@@ -294,14 +529,18 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
 
             def whoami(self):
                 calls.append(("whoami", None))
-                return {"name": "operator", "orgs": [{"name": "SZLHOLDINGS"}]}
+                return {
+                    "name": "operator",
+                    "orgs": [{"name": "SZLHOLDINGS"}],
+                    "auth": {"accessToken": {"role": "read"}},
+                }
 
             def list_models(self, **kwargs):
                 calls.append(("list_models", kwargs))
                 return [
                     Info(
                         "SZLHOLDINGS/model",
-                        cardData={"license": "apache-2.0"},
+                        card_data={"license": "apache-2.0"},
                         pipeline_tag="text-generation",
                     )
                 ]
@@ -311,7 +550,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 return [
                     Info(
                         "SZLHOLDINGS/dataset",
-                        cardData={"license": "apache-2.0"},
+                        card_data={"license": "apache-2.0"},
                     )
                 ]
 
@@ -339,8 +578,9 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             return text, None
 
         fake_module = types.SimpleNamespace(HfApi=ReadOnlyApi)
-        with mock.patch.dict(sys.modules, {"huggingface_hub": fake_module}), mock.patch.object(
-            self.module, "load_hf_readme", side_effect=readme
+        with (
+            mock.patch.dict(sys.modules, {"huggingface_hub": fake_module}),
+            mock.patch.object(self.module, "load_hf_readme", side_effect=readme),
         ):
             report = self.module.audit_huggingface(
                 "SZLHOLDINGS", "test-token", self.policy
@@ -373,6 +613,58 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             },
         )
 
+    def test_source_binding_closes_over_start_and_end(self):
+        revision = "d" * 40
+        start = {
+            "status": "PASS",
+            "branch": "main",
+            "local_revision": revision,
+            "protected_revision": revision,
+            "exact_match": True,
+        }
+        end = {
+            **start,
+            "protected_revision": "e" * 40,
+            "status": "BLOCKED_SOURCE_DRIFT",
+        }
+        closed = self.module.close_source_binding(start, end)
+        self.assertEqual(closed["status"], "BLOCKED_SOURCE_DRIFT")
+        self.assertFalse(closed["exact_match"])
+        self.assertEqual(closed["start"], start)
+        self.assertEqual(closed["end"], end)
+
+    def test_provider_truth_label_requires_complete_readbacks(self):
+        report = {
+            "source_binding": {"status": "PASS"},
+            "github_security": {
+                "inventory": {
+                    name: {"status": "OBSERVED"}
+                    for name in self.module.SECURITY_ENDPOINTS
+                },
+                "controls": {"protected_branch": {"status": "OBSERVED"}},
+            },
+            "issues": {"status": "OBSERVED"},
+            "huggingface": {
+                "identity": {"status": "AUTHORIZED", "token_role": "read"},
+                "counts": {
+                    "models": 1,
+                    "datasets": 0,
+                    "spaces": 0,
+                    "collections": 0,
+                    "kernels": 0,
+                    "findings": 1,
+                    "high_findings": 1,
+                },
+                "findings": [
+                    {
+                        "kind": "CARD_READBACK_UNAVAILABLE",
+                        "resource": "SZLHOLDINGS/private",
+                    }
+                ],
+            },
+        }
+        self.assertFalse(self.module.provider_readbacks_complete(report))
+
     def test_main_writes_local_digest_bound_report_only(self):
         revision = "d" * 40
         source_binding = {
@@ -388,7 +680,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 name: {"status": "OBSERVED", "count": 0, "alerts": []}
                 for name in self.module.SECURITY_ENDPOINTS
             },
-            "controls": {},
+            "controls": {"protected_branch": {"status": "OBSERVED"}},
             "terminal_findings": [],
             "provider_mutations_performed": [],
             "secret_values_recorded": False,
@@ -401,6 +693,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         }
         hf = {
             "status": "PASS",
+            "identity": {"status": "AUTHORIZED", "token_role": "read"},
             "counts": {
                 "models": 0,
                 "datasets": 0,
@@ -415,6 +708,7 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             "provider_mutations_performed": [],
             "secret_values_recorded": False,
         }
+        binding_audit = mock.Mock(return_value=source_binding)
         with tempfile.TemporaryDirectory() as temp_dir:
             argv = [
                 str(SCRIPT),
@@ -427,23 +721,30 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
                 "--output-dir",
                 temp_dir,
             ]
-            with mock.patch.object(sys, "argv", argv), mock.patch.dict(
-                os.environ,
-                {"GITHUB_TOKEN": "github-token", "HF_TOKEN": "hf-token"},
-                clear=False,
-            ), mock.patch.object(
-                self.module, "current_revision", return_value=revision
-            ), mock.patch.object(
-                self.module, "audit_source_binding", return_value=source_binding
-            ), mock.patch.object(
-                self.module, "audit_security", return_value=security
-            ), mock.patch.object(
-                self.module, "audit_issues", return_value=issues
-            ), mock.patch.object(
-                self.module, "audit_huggingface", return_value=hf
-            ), contextlib.redirect_stdout(io.StringIO()):
+            with (
+                mock.patch.object(sys, "argv", argv),
+                mock.patch.dict(
+                    os.environ,
+                    {
+                        "GITHUB_TOKEN": "github-token",
+                        "HF_INVENTORY_READ_TOKEN": "hf-token",
+                    },
+                    clear=False,
+                ),
+                mock.patch.object(
+                    self.module, "current_revision", return_value=revision
+                ),
+                mock.patch.object(
+                    self.module, "audit_source_binding", new=binding_audit
+                ),
+                mock.patch.object(self.module, "audit_security", return_value=security),
+                mock.patch.object(self.module, "audit_issues", return_value=issues),
+                mock.patch.object(self.module, "audit_huggingface", return_value=hf),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
                 exit_code = self.module.main()
             self.assertEqual(exit_code, 0)
+            self.assertEqual(binding_audit.call_count, 2)
             output = Path(temp_dir)
             report_path = output / "estate-report.json"
             digest_line = (output / "estate-report.json.sha256").read_text(
@@ -454,6 +755,10 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
             report = json.loads(report_path.read_text(encoding="utf-8"))
             self.assertEqual(report["provider_mutations_performed"], [])
             self.assertEqual(report["status"], "PASS")
+            self.assertEqual(
+                report["truth_boundary"]["live_provider_inventory"],
+                "MEASURED",
+            )
 
 
 if __name__ == "__main__":
