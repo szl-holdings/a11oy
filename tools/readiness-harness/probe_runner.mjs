@@ -310,6 +310,19 @@ const KNOWN_EVIDENCE_LABELS = new Set([
 const EXPLICIT_EVIDENCE_KEY = /^(data_kind|datakind|source_kind|sourcekind|evidence_state|evidencestate)$/i;
 const FRESHNESS_LABEL_KEY = /^(freshness|status|state|label|mode|data_kind|datakind|source_kind|sourcekind)$/i;
 const ROOT_LABEL_KEY = /^(status|state|label|mode|freshness)$/i;
+const ROOT_MODE_KEY = /^mode$/i;
+const ROOT_DATA_KIND_KEY = /^(data_kind|datakind)$/i;
+const MODE_EVIDENCE_FAMILY = new Map([
+  ["live", "live"],
+  ["cached", "cached"],
+  ["snapshot", "cached"],
+]);
+const DATA_KIND_EVIDENCE_FAMILY = new Map([
+  ["live", "live"],
+  ["cached", "cached"],
+  ["sample", "cached"],
+  ["snapshot", "cached"],
+]);
 
 function findEvidenceLabels(obj, candidateLabels = []) {
   const candidates = new Set([
@@ -351,10 +364,50 @@ function findEvidenceLabels(obj, candidateLabels = []) {
   return found;
 }
 
+function findEvidencePairConflict(body) {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const modes = Object.entries(body).filter(([key]) => ROOT_MODE_KEY.test(key));
+  const dataKinds = Object.entries(body).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
+  if (!modes.length || !dataKinds.length) return null;
+
+  for (const [modePath, modeValue] of modes) {
+    for (const [dataKindPath, dataKindValue] of dataKinds) {
+      if (typeof modeValue !== "string" || typeof dataKindValue !== "string") {
+        return {
+          mode: { path: modePath, value: modeValue },
+          dataKind: { path: dataKindPath, value: dataKindValue },
+          reason: "mode and data_kind must be string evidence labels",
+        };
+      }
+      const normalizedMode = modeValue.trim().toLowerCase();
+      const normalizedDataKind = dataKindValue.trim().toLowerCase();
+      const modeFamily = MODE_EVIDENCE_FAMILY.get(normalizedMode);
+      const dataKindFamily = DATA_KIND_EVIDENCE_FAMILY.get(normalizedDataKind);
+      if (!modeFamily || !dataKindFamily || modeFamily !== dataKindFamily) {
+        return {
+          mode: { path: modePath, value: modeValue, normalized: normalizedMode },
+          dataKind: {
+            path: dataKindPath,
+            value: dataKindValue,
+            normalized: normalizedDataKind,
+          },
+          reason: modeFamily && dataKindFamily
+            ? "mode and data_kind claim contradictory evidence families"
+            : "mode and data_kind are not a compatible known evidence pair",
+        };
+      }
+    }
+  }
+  return null;
+}
+
 function evaluateEndpointLabels(httpStatus, spec, body) {
   const allowStatuses = (spec.degradedRules?.allowStatuses) || [200];
   if (!allowStatuses.includes(httpStatus)) {
-    return { checked: false, ok: true, labels: [], disallowed: [], lie: null };
+    return {
+      checked: false, ok: true, labels: [], disallowed: [], lie: null,
+      pairConflict: null,
+    };
   }
   const allowLabels = (spec.degradedRules?.allowLabels) || ["live", "cached"];
   const liesIf = (spec.degradedRules?.liesIf) || [];
@@ -363,12 +416,14 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
   const labels = findEvidenceLabels(body, [...allowLabels, ...liesIf]);
   const disallowed = labels.filter((entry) => !allowed.has(entry.normalized));
   const lie = labels.find((entry) => lieSet.has(entry.normalized)) || null;
+  const pairConflict = findEvidencePairConflict(body);
   return {
     checked: true,
-    ok: disallowed.length === 0 && lie === null,
+    ok: disallowed.length === 0 && lie === null && pairConflict === null,
     labels,
     disallowed,
     lie,
+    pairConflict,
   };
 }
 
@@ -497,7 +552,10 @@ async function probeEndpoint(path, spec) {
   const statusOk = allow.includes(last.status);
   const schema = inconclusive ? { ok: true } : validateSchema(spec.schema, last.body);
   const labelPolicy = inconclusive
-    ? { checked: false, ok: true, labels: [], disallowed: [], lie: null }
+    ? {
+        checked: false, ok: true, labels: [], disallowed: [], lie: null,
+        pairConflict: null,
+      }
     : evaluateEndpointLabels(last.status, spec, last.body);
 
   let citationOk = true;
@@ -537,6 +595,13 @@ async function probeEndpoint(path, spec) {
   if (disallowedLabels.length) {
     lies.push("evidence label not allowed: " + disallowedLabels.slice(0, 5)
       .map((entry) => `${entry.path}="${entry.value}"`).join(", "));
+  }
+  if (labelPolicy.pairConflict) {
+    const { mode, dataKind, reason } = labelPolicy.pairConflict;
+    lies.push(
+      `${reason}: ${mode.path}="${String(mode.value)}", `
+      + `${dataKind.path}="${String(dataKind.value)}"`,
+    );
   }
 
   return {

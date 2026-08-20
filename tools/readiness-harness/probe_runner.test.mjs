@@ -45,45 +45,81 @@ test("mixed KEVGate provenance remains release-red", () => {
   assert.deepEqual(verdict.disallowed.map(({ path }) => path), ["data_kind"]);
 });
 
+const kevLabelSpec = {
+  degradedRules: {
+    allowStatuses: [200],
+    allowLabels: ["live", "cached"],
+    liesIf: ["mock", "fabricated", "placeholder"],
+  },
+};
+
 test("a live mode cannot hide weaker or negative KEV evidence", () => {
-  for (const dataKind of ["sample", "none", "unavailable"]) {
-    const verdict = evaluateEndpointLabels(200, {
-      degradedRules: {
-        allowStatuses: [200],
-        allowLabels: ["live", "cached"],
-        liesIf: ["mock", "fabricated", "placeholder"],
-      },
-    }, {
+  for (const dataKind of [
+    "cached", "sample", "snapshot", "none", "unavailable", "vendor-pending",
+  ]) {
+    const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
       mode: "live",
       data_kind: dataKind,
       items: [],
     });
 
     assert.equal(verdict.ok, false, dataKind);
-    assert.deepEqual(
-      verdict.disallowed.map(({ path, normalized }) => ({ path, normalized })),
-      [{ path: "data_kind", normalized: dataKind }],
-      dataKind,
-    );
   }
+
+  const allowedButContradictory = evaluateEndpointLabels(200, kevLabelSpec, {
+    mode: "live",
+    data_kind: "cached",
+  });
+  assert.deepEqual(allowedButContradictory.disallowed, []);
+  assert.match(allowedButContradictory.pairConflict.reason, /contradictory/);
 });
 
-test("compatible live and cached KEV labels remain allowed", () => {
+test("cached mode with live data_kind fails despite individually allowed labels", () => {
+  const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
+    mode: "cached",
+    data_kind: "live",
+  });
+
+  assert.equal(verdict.ok, false);
+  assert.deepEqual(verdict.disallowed, []);
+  assert.deepEqual(
+    {
+      mode: verdict.pairConflict.mode.normalized,
+      dataKind: verdict.pairConflict.dataKind.normalized,
+    },
+    { mode: "cached", dataKind: "live" },
+  );
+});
+
+test("compatible canonical live and cached pairs remain allowed", () => {
   for (const evidence of [
     { mode: "live", data_kind: "live" },
     { mode: "cached", data_kind: "cached" },
   ]) {
-    const verdict = evaluateEndpointLabels(200, {
-      degradedRules: {
-        allowStatuses: [200],
-        allowLabels: ["live", "cached"],
-        liesIf: ["mock", "fabricated", "placeholder"],
-      },
-    }, evidence);
-
+    const verdict = evaluateEndpointLabels(200, kevLabelSpec, evidence);
     assert.equal(verdict.ok, true, JSON.stringify(evidence));
-    assert.deepEqual(verdict.disallowed, [], JSON.stringify(evidence));
+    assert.equal(verdict.pairConflict, null, JSON.stringify(evidence));
   }
+});
+
+test("an unknown mode paired with a positive data_kind is fail-closed", () => {
+  const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
+    mode: "vendor-pending",
+    data_kind: "live",
+  });
+
+  assert.equal(verdict.ok, false);
+  assert.deepEqual(verdict.disallowed, []);
+  assert.match(verdict.pairConflict.reason, /not a compatible known/);
+});
+
+test("non-string mode/data_kind pairs cannot bypass the evidence contract", () => {
+  const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
+    mode: true,
+    data_kind: "live",
+  });
+  assert.equal(verdict.ok, false);
+  assert.match(verdict.pairConflict.reason, /must be string/);
 });
 
 test("freshness prefers nested source fetch time over a market event timestamp", () => {

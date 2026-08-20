@@ -41,11 +41,27 @@ PHASE_B_OBSERVATION_PATHS = frozenset(
 )
 PHASE_B_OBSERVATION_ALIASES = frozenset({"/v1/observability/business"})
 KEVGATE_PATHS = frozenset({"/api/a11oy/v1/sec/kev"})
+_KEV_LIVE_KINDS = frozenset({"live"})
+_KEV_CACHED_KINDS = frozenset({"cached", "sample", "snapshot"})
+_KEV_CACHED_MODES = frozenset({"cached", "snapshot"})
 _PHASE_B_MUTATED_PATHS = (
     PHASE_B_OBSERVATION_PATHS
     | PHASE_B_OBSERVATION_ALIASES
     | KEVGATE_PATHS
 )
+
+
+def _canonical_kev_evidence_family(
+    label: str,
+    *,
+    is_mode: bool = False,
+) -> str | None:
+    """Map only closed, atomic KEV evidence labels to their release family."""
+    if label in _KEV_LIVE_KINDS:
+        return "live"
+    if label in (_KEV_CACHED_MODES if is_mode else _KEV_CACHED_KINDS):
+        return "cached"
+    return None
 
 
 def utc_observation_clock() -> str:
@@ -77,32 +93,20 @@ def normalize_phase_b_payload(
         normalized["observed_at"] = observed_at or utc_observation_clock()
 
     if path in KEVGATE_PATHS and 200 <= int(status_code) < 300:
-        raw_kind_value = normalized.get("data_kind")
-        raw_kind = str(raw_kind_value or "").strip().casefold()
+        raw_kind = str(normalized.get("data_kind") or "").strip().casefold()
         mode = str(normalized.get("mode") or "").strip().casefold()
-        if raw_kind == "live":
-            canonical_kind = "live"
-        elif raw_kind in {"cached", "sample", "snapshot"}:
-            canonical_kind = "cached"
-        else:
+        canonical_kind = _canonical_kev_evidence_family(raw_kind)
+        if canonical_kind is None:
             # A successful transport response is not evidence that an unknown
             # or unavailable source is cached. Preserve the terminal label so
             # the readiness contract continues to fail closed.
             return normalized
 
         if mode:
-            if mode == "live":
-                canonical_mode = "live"
-            elif mode in {"cached", "snapshot"}:
-                canonical_mode = "cached"
-            else:
-                # Unknown and unavailable modes remain machine-readable so the
-                # readiness contract rejects them instead of inferring evidence.
-                return normalized
-            if canonical_mode != canonical_kind:
-                # Neither field may erase contradictory evidence from the
-                # other. In particular, mode=live cannot upgrade a sample,
-                # cached, or snapshot data_kind into live evidence.
+            canonical_mode = _canonical_kev_evidence_family(mode, is_mode=True)
+            if canonical_mode is None or canonical_mode != canonical_kind:
+                # Neither field may erase contradictory or unknown evidence
+                # from the other. Preserve both for the canonical probe.
                 return normalized
         normalized["data_kind"] = canonical_kind
 

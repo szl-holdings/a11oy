@@ -179,6 +179,7 @@ class PhaseBPayloadTests(unittest.TestCase):
             "snapshot",
             "none",
             "unavailable",
+            "degraded",
             "live KEV IDs plus sample enrichment",
         ):
             with self.subTest(data_kind=data_kind):
@@ -202,6 +203,21 @@ class PhaseBPayloadTests(unittest.TestCase):
         )
         self.assertEqual(result, source)
         self.assertNotIn("detail", result)
+
+    def test_mode_never_synthesizes_missing_or_unknown_data_kind(self) -> None:
+        for source in (
+            {"mode": "live", "items": []},
+            {"mode": "live", "data_kind": "", "items": []},
+            {"mode": "vendor-pending", "data_kind": "live", "items": []},
+            {"mode": "sample", "data_kind": "sample", "items": []},
+        ):
+            with self.subTest(source=source):
+                result = normalize_phase_b_payload(
+                    "/api/a11oy/v1/sec/kev",
+                    source,
+                )
+                self.assertEqual(result, source)
+                self.assertNotIn("detail", result)
 
     def test_mixed_kevgate_provenance_is_not_relabelled(self) -> None:
         descriptor = (
@@ -317,6 +333,30 @@ class PhaseBMiddlewareTests(unittest.TestCase):
         self.assertEqual(payload["detail"], note)
         self.assertEqual(payload["note"], note)
         self.assertNotIn("observed_at", payload)
+
+    def test_middleware_preserves_contradictory_kev_evidence(self) -> None:
+        app = _FakeApp()
+        install_phase_b_response_contract(app)
+        source = {
+            "mode": "live",
+            "data_kind": "sample",
+            "vulnerabilities": [],
+        }
+        response = _FakeResponse(source)
+        request = SimpleNamespace(
+            url=SimpleNamespace(path="/api/a11oy/v1/sec/kev")
+        )
+
+        async def _call_next(_request):
+            return response
+
+        async def _exercise():
+            result = await app.middleware_function(request, _call_next)
+            return json.loads(await _read_body(result))
+
+        payload = asyncio.run(_exercise())
+        self.assertEqual(payload, source)
+        self.assertNotIn("detail", payload)
 
     def test_middleware_preserves_mixed_kevgate_provenance(self) -> None:
         app = _FakeApp()
