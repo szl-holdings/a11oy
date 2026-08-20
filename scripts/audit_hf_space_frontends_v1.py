@@ -370,12 +370,23 @@ def _page_metrics(page) -> dict[str, Any]:
           const root = document.documentElement;
           const meta = document.querySelector('meta[name="viewport"]');
           const visible = (el) => {{
-            const style = getComputedStyle(el);
             const rect = el.getBoundingClientRect();
-            return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+            if (!(rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth)) return false;
+            for (let node = el; node instanceof Element; node = node.parentElement) {{
+              const style = getComputedStyle(node);
+              if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || Number(style.opacity) <= 0 || style.pointerEvents === 'none') return false;
+              if (node.hasAttribute('hidden') || node.hasAttribute('inert') || node.getAttribute('aria-hidden') === 'true') return false;
+            }}
+            return true;
+          }};
+          const actionable = (el) => {{
+            if (!visible(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
+            if (el.tagName === 'A') return Boolean((el.getAttribute('href') || '').trim());
+            if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') return true;
+            return el.getAttribute('role') === 'button' && el.tabIndex >= 0;
           }};
           const selectors = {selectors};
-          const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(visible);
+          const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(actionable);
           const undersized = nodes.map((el) => {{
             const rect = el.getBoundingClientRect();
             return {{
