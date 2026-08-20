@@ -391,11 +391,15 @@ def audit_effective_branch_rules(
         ),
         token,
     )
-    status_check_contexts: set[str] = set()
-    strict_status_check_policies: list[bool] = []
+    required_identities = {
+        (int(workflow["repository_id"]), str(workflow["path"]))
+        for workflow in required_workflows
+    }
+    status_check_rules: list[tuple[int | None, bool, set[str]]] = []
     approving_review_count = 0
     observed_workflows: set[tuple[int, str]] = set()
     workflows_enforced_on_create: set[tuple[int, str]] = set()
+    workflow_rulesets_by_identity: dict[tuple[int, str], set[int]] = {}
     observed_rules: list[dict[str, Any]] = []
     for raw_rule in rules:
         rule = object_dict(raw_rule)
@@ -411,13 +415,21 @@ def audit_effective_branch_rules(
             }
         )
         if rule_type == "required_status_checks":
-            strict_status_check_policies.append(
-                parameters.get("strict_required_status_checks_policy") is True
-            )
+            contexts: set[str] = set()
             for check in parameters.get("required_status_checks") or []:
                 context = safe_text(object_dict(check).get("context"), 240)
                 if context:
-                    status_check_contexts.add(context)
+                    contexts.add(context)
+            ruleset_id = rule.get("ruleset_id")
+            status_check_rules.append(
+                (
+                    ruleset_id
+                    if isinstance(ruleset_id, int) and not isinstance(ruleset_id, bool)
+                    else None,
+                    parameters.get("strict_required_status_checks_policy") is True,
+                    contexts,
+                )
+            )
         elif rule_type == "pull_request":
             candidate = parameters.get("required_approving_review_count")
             if isinstance(candidate, int) and not isinstance(candidate, bool):
@@ -446,18 +458,42 @@ def audit_effective_branch_rules(
                 observed_workflows.add(identity)
                 if enforces_on_create:
                     workflows_enforced_on_create.add(identity)
+                    ruleset_id = rule.get("ruleset_id")
+                    if (
+                        identity in required_identities
+                        and isinstance(ruleset_id, int)
+                        and not isinstance(ruleset_id, bool)
+                    ):
+                        workflow_rulesets_by_identity.setdefault(identity, set()).add(
+                            ruleset_id
+                        )
 
-    required_identities = {
-        (int(workflow["repository_id"]), str(workflow["path"]))
-        for workflow in required_workflows
-    }
     required_workflows_enforced_on_create = (
         bool(required_identities)
         and required_identities.issubset(workflows_enforced_on_create)
     )
-    strict_required_status_checks_policy = bool(strict_status_check_policies) and all(
-        strict_status_check_policies
+    strict_contexts_by_ruleset: dict[int, set[str]] = {}
+    for ruleset_id, strict, contexts in status_check_rules:
+        if ruleset_id is not None and strict and contexts:
+            strict_contexts_by_ruleset.setdefault(ruleset_id, set()).update(contexts)
+    controlling_ruleset_ids = {
+        ruleset_id
+        for identity in required_identities
+        for ruleset_id in workflow_rulesets_by_identity.get(identity, set())
+        if ruleset_id in strict_contexts_by_ruleset
+    }
+    strict_required_status_checks_policy = bool(required_identities) and all(
+        bool(
+            workflow_rulesets_by_identity.get(identity, set())
+            & controlling_ruleset_ids
+        )
+        for identity in required_identities
     )
+    status_check_contexts = {
+        context
+        for ruleset_id in controlling_ruleset_ids
+        for context in strict_contexts_by_ruleset[ruleset_id]
+    }
 
     return {
         "status": "OBSERVED",
@@ -465,6 +501,7 @@ def audit_effective_branch_rules(
         "required_status_checks": bool(status_check_contexts)
         and strict_required_status_checks_policy,
         "required_status_check_contexts": sorted(status_check_contexts),
+        "required_status_check_ruleset_ids": sorted(controlling_ruleset_ids),
         "strict_required_status_checks_policy": strict_required_status_checks_policy,
         "required_pull_request_reviews": approving_review_count >= 1,
         "required_approving_review_count": approving_review_count,

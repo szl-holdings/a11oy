@@ -279,6 +279,50 @@ class SoloEstateReadOnlyInventoryTests(unittest.TestCase):
         self.assertFalse(weak_strict["required_status_checks"])
         self.assertFalse(weak_strict["strict_required_status_checks_policy"])
 
+        unrelated_loose_rule = {
+            **rules[0],
+            "ruleset_id": 8,
+            "parameters": {
+                "strict_required_status_checks_policy": False,
+                "required_status_checks": [{"context": "Ancillary"}],
+            },
+        }
+        with mock.patch.object(
+            self.module,
+            "github_pages",
+            return_value=[*rules, unrelated_loose_rule],
+        ):
+            strict_with_unrelated_loose = self.module.audit_effective_branch_rules(
+                "szl-holdings/a11oy", "main", "token", required_workflows
+            )
+        self.assertTrue(strict_with_unrelated_loose["required_status_checks"])
+        self.assertEqual(
+            strict_with_unrelated_loose["required_status_check_contexts"],
+            ["Tests"],
+        )
+        self.assertEqual(
+            strict_with_unrelated_loose["required_status_check_ruleset_ids"],
+            [7],
+        )
+
+        unrelated_strict_rule = {
+            **unrelated_loose_rule,
+            "parameters": {
+                **unrelated_loose_rule["parameters"],
+                "strict_required_status_checks_policy": True,
+            },
+        }
+        with mock.patch.object(
+            self.module,
+            "github_pages",
+            return_value=[*weak_strict_rules, unrelated_strict_rule],
+        ):
+            loose_controller = self.module.audit_effective_branch_rules(
+                "szl-holdings/a11oy", "main", "token", required_workflows
+            )
+        self.assertFalse(loose_controller["required_status_checks"])
+        self.assertFalse(loose_controller["strict_required_status_checks_policy"])
+
         empty_rules = [
             {
                 "type": "required_status_checks",
