@@ -5,20 +5,30 @@ on:
     branches: [main]
     paths:
       - scripts/hf_universal_frontend_control.py
+      - scripts/build_hf_space_source_map_v1.py
       - tests/conftest.py
       - tests/test_hf_universal_frontend_control.py
+      - tests/test_hf_space_source_map_v1.py
       - docs/HF_UNIVERSAL_FRONTEND_CONTRACT.md
       - docs/HF_UNIVERSAL_FRONTEND_RUNBOOK.md
+      - docs/HUGGINGFACE_SPACE_SOURCE_MAP_V1.md
+      - docs/huggingface-space-source-map-v1.json
+      - .github/workflows/hf-space-source-map-v1.yml
       - .github/workflows/hf-universal-frontend-estate.yml
       - .github/workflows/hf-universal-frontend-rollout.yml
   push:
     branches: [main]
     paths:
       - scripts/hf_universal_frontend_control.py
+      - scripts/build_hf_space_source_map_v1.py
       - tests/conftest.py
       - tests/test_hf_universal_frontend_control.py
+      - tests/test_hf_space_source_map_v1.py
       - docs/HF_UNIVERSAL_FRONTEND_CONTRACT.md
       - docs/HF_UNIVERSAL_FRONTEND_RUNBOOK.md
+      - docs/HUGGINGFACE_SPACE_SOURCE_MAP_V1.md
+      - docs/huggingface-space-source-map-v1.json
+      - .github/workflows/hf-space-source-map-v1.yml
       - .github/workflows/hf-universal-frontend-estate.yml
       - .github/workflows/hf-universal-frontend-rollout.yml
   schedule:
@@ -61,8 +71,8 @@ jobs:
 
       - name: Compile and test the controller
         run: |
-          python -m py_compile scripts/hf_universal_frontend_control.py tests/test_hf_universal_frontend_control.py
-          python -m pytest -q tests/test_hf_universal_frontend_control.py
+          python -m py_compile scripts/hf_universal_frontend_control.py scripts/build_hf_space_source_map_v1.py tests/test_hf_universal_frontend_control.py tests/test_hf_space_source_map_v1.py
+          python -m pytest -q tests/test_hf_universal_frontend_control.py tests/test_hf_space_source_map_v1.py
 
       - name: Prove bounded mutation surface
         run: |
@@ -83,4 +93,5 @@ jobs:
           assert 'operation == \'execute\'' in rollout
           assert '--execute' in rollout and '--merge' in rollout
           assert rollout.count('--protected-source-sha "$GITHUB_SHA"') == 2
+          assert rollout.count('--source-map "$SOURCE_MAP"') == 2
           PY
