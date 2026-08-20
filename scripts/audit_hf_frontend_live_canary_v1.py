@@ -50,33 +50,37 @@ def _valid_sha(value: Any) -> bool:
     return isinstance(value, str) and bool(SHA40.fullmatch(value.strip().lower()))
 
 
-def _find_sha(node: Any) -> str | None:
-    if _valid_sha(node):
-        return str(node).strip().lower()
-    if isinstance(node, dict):
-        preferred = (
-            "source_sha",
-            "source_revision",
-            "github_sha",
-            "commit_sha",
-            "revision",
-            "sha",
-        )
-        for key in preferred:
-            if key in node:
-                found = _find_sha(node[key])
-                if found:
-                    return found
-        for value in node.values():
-            found = _find_sha(value)
-            if found:
-                return found
-    if isinstance(node, list):
-        for value in node:
-            found = _find_sha(value)
-            if found:
-                return found
-    return None
+def _device_width_viewport_meta(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    directives: dict[str, str] = {}
+    for item in value.split(","):
+        key, separator, raw_value = item.strip().partition("=")
+        if separator:
+            directives[key.strip().casefold()] = raw_value.strip().casefold()
+    return directives.get("width") == "device-width"
+
+
+def _organization_deployment_revision(payload: Any) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    source = payload.get("source")
+    target = payload.get("target")
+    if not isinstance(source, dict) or not isinstance(target, dict):
+        return None
+    revision = source.get("revision")
+    if not (
+        payload.get("schema") == "szl.hf-static-deployment/v1"
+        and source.get("repository") == "szl-holdings/.github"
+        and source.get("manifest") == "huggingface/org-card.manifest.json"
+        and target.get("repo_id") == "SZLHOLDINGS/README"
+        and target.get("repo_type") == "space"
+        and target.get("live_base_url")
+        == "https://szlholdings-readme.static.hf.space"
+        and _valid_sha(revision)
+    ):
+        return None
+    return str(revision).strip().lower()
 
 
 def _build_identity(payload: dict[str, Any]) -> tuple[str | None, str | None, str | None]:
@@ -101,8 +105,16 @@ def evaluate_page_result(result: dict[str, Any]) -> list[dict[str, Any]]:
         failures.append({"code": "HTTP_FAILURE", "detail": f"status={status}"})
     if result.get("load_error"):
         failures.append({"code": "LOAD_FAILURE", "detail": str(result["load_error"])})
-    if not metrics.get("viewport_meta"):
+    viewport_meta = metrics.get("viewport_meta")
+    if not viewport_meta:
         failures.append({"code": "VIEWPORT_META_MISSING", "detail": "viewport metadata is absent"})
+    elif not _device_width_viewport_meta(viewport_meta):
+        failures.append(
+            {
+                "code": "VIEWPORT_META_UNSAFE",
+                "detail": f"viewport metadata is not device-width bound: {viewport_meta!r}",
+            }
+        )
     if metrics.get("horizontal_overflow") is True:
         failures.append(
             {
@@ -111,12 +123,38 @@ def evaluate_page_result(result: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
     undersized = metrics.get("undersized_primary_targets") or []
-    if undersized:
+    exhausted = [
+        item
+        for item in undersized
+        if isinstance(item, dict) and item.get("hit_area_scan_exhausted") is True
+    ]
+    measured_undersized = [item for item in undersized if item not in exhausted]
+    if measured_undersized:
         failures.append(
             {
                 "code": "PRIMARY_TARGET_UNDERSIZED",
-                "detail": f"{len(undersized)} primary controls are below 44px",
-                "examples": undersized[:10],
+                "detail": f"{len(measured_undersized)} primary controls are below 44px",
+                "examples": measured_undersized[:10],
+            }
+        )
+    if exhausted:
+        failures.append(
+            {
+                "code": "PRIMARY_TARGET_HIT_SCAN_EXHAUSTED",
+                "detail": f"{len(exhausted)} primary controls exceeded the bounded hit-area scan",
+                "examples": exhausted[:10],
+            }
+        )
+    primary_targets = metrics.get("primary_targets")
+    if (
+        not isinstance(primary_targets, int)
+        or isinstance(primary_targets, bool)
+        or primary_targets <= 0
+    ):
+        failures.append(
+            {
+                "code": "PRIMARY_TARGETS_MISSING",
+                "detail": "no visible primary interaction target was rendered",
             }
         )
     page_errors = result.get("page_errors") or []
@@ -131,14 +169,28 @@ def evaluate_page_result(result: dict[str, Any]) -> list[dict[str, Any]]:
     return failures
 
 
-def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
+def evaluate_identity(
+    identity: dict[str, Any], expected_source_sha: str
+) -> list[dict[str, Any]]:
     failures: list[dict[str, Any]] = []
-    org_deployment = identity.get("organization_deployment") or {}
-    if not _find_sha(org_deployment):
+    expected_source = (
+        expected_source_sha.strip().lower()
+        if _valid_sha(expected_source_sha)
+        else None
+    )
+    if not expected_source:
         failures.append(
             {
-                "code": "ORG_SOURCE_REVISION_UNAVAILABLE",
-                "detail": "organization deployment metadata exposes no immutable revision",
+                "code": "EXPECTED_PROTECTED_SOURCE_INVALID",
+                "detail": f"expected protected source is not an immutable SHA: {expected_source_sha!r}",
+            }
+        )
+    org_deployment = identity.get("organization_deployment") or {}
+    if not _organization_deployment_revision(org_deployment):
+        failures.append(
+            {
+                "code": "ORG_DEPLOYMENT_IDENTITY_FAILED",
+                "detail": "organization deployment metadata is not bound to the canonical source manifest and target",
             }
         )
 
@@ -148,6 +200,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
     domain_revision, domain_source, domain_status = _build_identity(domain_build)
     if not (
         space_revision
+        and space_revision == expected_source
         and space_source == "env:SZL_GIT_SHA"
         and space_status == "OBSERVED"
     ):
@@ -156,6 +209,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
                 "code": "SPACE_SOURCE_BINDING_FAILED",
                 "detail": {
                     "revision": space_revision,
+                    "expected_revision": expected_source,
                     "revision_source": space_source,
                     "status": space_status,
                 },
@@ -163,6 +217,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
         )
     if not (
         domain_revision
+        and domain_revision == expected_source
         and domain_source == "env:SZL_GIT_SHA"
         and domain_status == "OBSERVED"
     ):
@@ -171,6 +226,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
                 "code": "DOMAIN_SOURCE_BINDING_FAILED",
                 "detail": {
                     "revision": domain_revision,
+                    "expected_revision": expected_source,
                     "revision_source": domain_source,
                     "status": domain_status,
                 },
@@ -201,6 +257,53 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
                 },
             }
         )
+
+    organization_metadata = identity.get("organization_space_metadata") or {}
+    organization_hf_sha = organization_metadata.get("sha")
+    organization_runtime = organization_metadata.get("runtime") or {}
+    organization_runtime_raw = (
+        organization_runtime.get("raw") or {}
+        if isinstance(organization_runtime, dict)
+        else {}
+    )
+    organization_runtime_sha = (
+        organization_runtime.get("sha") or organization_runtime_raw.get("sha")
+        if isinstance(organization_runtime, dict)
+        else None
+    )
+    organization_runtime_stage = (
+        organization_runtime.get("stage")
+        if isinstance(organization_runtime, dict)
+        else None
+    )
+    organization_runtime_sha_matches = (
+        organization_runtime_sha is None
+        or (
+            _valid_sha(organization_runtime_sha)
+            and str(organization_runtime_sha).strip().lower()
+            == str(organization_hf_sha).strip().lower()
+        )
+    )
+    if not (
+        organization_metadata.get("id") == "SZLHOLDINGS/README"
+        and _valid_sha(organization_hf_sha)
+        and organization_metadata.get("sdk") == "static"
+        and organization_runtime_stage == "RUNNING"
+        and organization_runtime_sha_matches
+    ):
+        failures.append(
+            {
+                "code": "ORG_HF_RUNTIME_IDENTITY_FAILED",
+                "detail": {
+                    "repository_sha": organization_hf_sha,
+                    "runtime_sha": organization_runtime_sha,
+                    "runtime_sha_exposed": organization_runtime_sha is not None,
+                    "runtime_stage": organization_runtime_stage,
+                    "space_id": organization_metadata.get("id"),
+                    "sdk": organization_metadata.get("sdk"),
+                },
+            }
+        )
     return failures
 
 
@@ -217,7 +320,11 @@ def build_summary(results: list[dict[str, Any]], identity_failures: list[dict[st
     }
 
 
-def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
+def audit(
+    output_dir: Path,
+    expected_source_sha: str,
+    chrome: str | None = None,
+) -> dict[str, Any]:
     from playwright.sync_api import sync_playwright
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -254,23 +361,121 @@ def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
                     """() => {
                       const root = document.documentElement;
                       const meta = document.querySelector('meta[name="viewport"]');
+                      const filterMakesTransparent = (filter) => {
+                        for (const match of filter.matchAll(/opacity[(]([^)]*)[)]/gi)) {
+                          const value = Number.parseFloat(match[1]);
+                          if (Number.isFinite(value) && value <= 0) return true;
+                        }
+                        return false;
+                      };
                       const visible = (el) => {
-                        const style = getComputedStyle(el);
                         const rect = el.getBoundingClientRect();
-                        return style.display !== 'none' && style.visibility !== 'hidden' && rect.width > 0 && rect.height > 0;
+                        if (!(rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.right > 0 && rect.top < window.innerHeight && rect.left < window.innerWidth)) return false;
+                        for (let node = el; node instanceof Element; node = node.parentElement) {
+                          const style = getComputedStyle(node);
+                          if (style.display === 'none' || style.visibility === 'hidden' || style.visibility === 'collapse' || Number(style.opacity) <= 0 || filterMakesTransparent(style.filter) || style.pointerEvents === 'none') return false;
+                          if (node.hasAttribute('hidden') || node.hasAttribute('inert') || node.getAttribute('aria-hidden') === 'true' || node.getAttribute('aria-disabled') === 'true') return false;
+                        }
+                        return true;
+                      };
+                      const effectiveBounds = (el) => {
+                        const rect = el.getBoundingClientRect();
+                        let left = Math.max(0, rect.left);
+                        let right = Math.min(window.innerWidth, rect.right);
+                        let top = Math.max(0, rect.top);
+                        let bottom = Math.min(window.innerHeight, rect.bottom);
+                        for (let node = el.parentElement; node instanceof Element; node = node.parentElement) {
+                          const style = getComputedStyle(node);
+                          const contain = style.contain.split(/\\s+/);
+                          const clipsPaint = style.clipPath !== 'none' || contain.some(value => value === 'paint' || value === 'strict' || value === 'content');
+                          const clipsX = clipsPaint || style.overflowX !== 'visible';
+                          const clipsY = clipsPaint || style.overflowY !== 'visible';
+                          if (clipsX || clipsY) {
+                            const clip = node.getBoundingClientRect();
+                            if (clipsX) { left = Math.max(left, clip.left); right = Math.min(right, clip.right); }
+                            if (clipsY) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom); }
+                          }
+                        }
+                        return {left, right, top, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top)};
+                      };
+                      const hitAt = (el, x, y) => {
+                        const hit = document.elementFromPoint(x, y);
+                        return hit instanceof Element && (hit === el || el.contains(hit));
+                      };
+                      const hitTestable = (el) => {
+                        const {left, right, top, bottom} = effectiveBounds(el);
+                        if (!(right > left && bottom > top)) return false;
+                        const insetX = Math.min(1, (right - left) / 2);
+                        const insetY = Math.min(1, (bottom - top) / 2);
+                        const points = [
+                          [(left + right) / 2, (top + bottom) / 2],
+                          [left + insetX, top + insetY],
+                          [right - insetX, top + insetY],
+                          [left + insetX, bottom - insetY],
+                          [right - insetX, bottom - insetY],
+                        ];
+                        return points.some(([x, y]) => hitAt(el, x, y));
+                      };
+                      const maxHitCoverageCells = 1000000;
+                      let remainingHitCoverageCells = maxHitCoverageCells;
+                      const hasMinimumHitArea = (el, bounds) => {
+                        if (bounds.width < 44 || bounds.height < 44) return false;
+                        const sampleStep = 1 / Math.max(1, Math.min(4, window.devicePixelRatio || 1));
+                        const originCountX = Math.floor((bounds.width - 44) / sampleStep) + 1;
+                        const originCountY = Math.floor((bounds.height - 44) / sampleStep) + 1;
+                        const windowCells = Math.ceil(44 / sampleStep - 0.5 - 1e-9);
+                        const columns = originCountX + windowCells - 1;
+                        const rows = originCountY + windowCells - 1;
+                        const coverageCells = columns * rows;
+                        if (!Number.isSafeInteger(coverageCells) || coverageCells > remainingHitCoverageCells) return null;
+                        remainingHitCoverageCells -= coverageCells;
+                        const stride = columns + 1;
+                        const blockedPrefix = new Uint32Array((rows + 1) * stride);
+                        for (let row = 0; row < rows; row += 1) {
+                          let blockedInRow = 0;
+                          const y = bounds.top + (row + 0.5) * sampleStep;
+                          for (let column = 0; column < columns; column += 1) {
+                            const x = bounds.left + (column + 0.5) * sampleStep;
+                            if (!hitAt(el, x, y)) blockedInRow += 1;
+                            blockedPrefix[(row + 1) * stride + column + 1] =
+                              blockedPrefix[row * stride + column + 1] + blockedInRow;
+                          }
+                        }
+                        for (let originY = 0; originY < originCountY; originY += 1) {
+                          for (let originX = 0; originX < originCountX; originX += 1) {
+                            const right = originX + windowCells;
+                            const bottom = originY + windowCells;
+                            const blocked =
+                              blockedPrefix[bottom * stride + right]
+                              - blockedPrefix[originY * stride + right]
+                              - blockedPrefix[bottom * stride + originX]
+                              + blockedPrefix[originY * stride + originX];
+                            if (blocked === 0) return true;
+                          }
+                        }
+                        return false;
+                      };
+                      const actionable = (el) => {
+                        if (!visible(el) || !hitTestable(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
+                        if (el.tagName === 'A') return Boolean((el.getAttribute('href') || '').trim());
+                        if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') return true;
+                        return el.getAttribute('role') === 'button' && el.tabIndex >= 0;
                       };
                       const selectors = ['button', '[role="button"]', '.btn', '.button', 'a[class*="btn"]', 'a[class*="button"]', 'header nav a', 'nav .cta'];
-                      const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(visible);
+                      const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(actionable);
                       const undersized = nodes.map((el) => {
-                        const rect = el.getBoundingClientRect();
+                        const bounds = effectiveBounds(el);
+                        const hitArea = hasMinimumHitArea(el, bounds);
                         return {
                           tag: el.tagName,
                           text: (el.innerText || el.getAttribute('aria-label') || '').trim().slice(0, 80),
                           href: el.getAttribute('href'),
-                          width: Math.round(rect.width * 100) / 100,
-                          height: Math.round(rect.height * 100) / 100,
+                          width: Math.round(bounds.width * 100) / 100,
+                          height: Math.round(bounds.height * 100) / 100,
+                          hit_testable_44: hitArea,
+                          hit_area_scan_exhausted: hitArea === null,
                         };
-                      }).filter(item => item.width < 44 || item.height < 44);
+                      }).filter(item => item.width < 44 || item.height < 44 || item.hit_testable_44 !== true);
                       return {
                         title: document.title,
                         viewport_meta: meta ? meta.getAttribute('content') : null,
@@ -279,6 +484,8 @@ def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
                         horizontal_overflow: root.scrollWidth > window.innerWidth + 2,
                         primary_targets: nodes.length,
                         undersized_primary_targets: undersized,
+                        hit_area_sample_budget: maxHitCoverageCells,
+                        hit_area_samples_reserved: maxHitCoverageCells - remainingHitCoverageCells,
                         release_marker: document.documentElement.getAttribute('data-szl-release') || document.body?.getAttribute('data-szl-release') || document.querySelector('[data-szl-release]')?.getAttribute('data-szl-release') || null,
                       };
                     }"""
@@ -307,11 +514,12 @@ def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
             identity[name] = _read_json(url)
         except Exception as error:  # pragma: no cover - network boundary
             identity[name] = {"error": str(error)}
-    identity_failures = evaluate_identity(identity)
+    identity_failures = evaluate_identity(identity, expected_source_sha)
     summary = build_summary(results, identity_failures)
     return {
         "schema": "szl.hf-frontend-live-canary/v1",
         "remote_mutation": False,
+        "expected_source_sha": expected_source_sha.strip().lower(),
         "summary": summary,
         "identity": identity,
         "identity_failures": identity_failures,
@@ -322,9 +530,10 @@ def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=Path("evidence/hf-frontend-live-canary"))
+    parser.add_argument("--expected-source-sha", required=True)
     parser.add_argument("--chrome")
     args = parser.parse_args()
-    report = audit(args.output_dir, args.chrome)
+    report = audit(args.output_dir, args.expected_source_sha, args.chrome)
     report_path = args.output_dir / "report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(report["summary"], indent=2, sort_keys=True))
