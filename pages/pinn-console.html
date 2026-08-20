@@ -1,11 +1,11 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>a11oy â€” Governed Inverse-PINN Console</title>
+<title>a11oy — Governed Inverse-PINN Console</title>
 <!--
-  Governed Inverse-PINN Console â€” runs the LIVE governed parameter-discovery
+  Governed Inverse-PINN Console — runs the LIVE governed parameter-discovery
   engine at POST /api/a11oy/v1/pinn/identify and SHOWS the governance:
   the discovered parameter(s) with 95% CI, the GREEN/YELLOW/RED convergence
   badge, the FIM identifiability / self-doubt result (the REFUSAL is the hero
@@ -15,7 +15,7 @@
 
   Doctrine v11 LOCKED. Values are MODELED (a fit to data, never MEASURED).
   Locked-proven = 8 {F1,F4,F7,F11,F12,F18,F19,F22}. Lambda = Conjecture 1.
-  Pure HTML/JS/CSS â€” 0 runtime CDN, no server-side numpy. Reuses the
+  Pure HTML/JS/CSS — 0 runtime CDN, no server-side numpy. Reuses the
   pages/verify.html design system (CSS variables, JetBrains Mono, chips).
 -->
 <style>
@@ -250,8 +250,8 @@
     <circle cx="16" cy="16" r="2.5" fill="#8aaaf8"/>
   </svg>
   <span class="site-title">a11oy</span>
-  <span class="site-tagline">AI that can demonstrate its work Â· Verifiable by Design</span>
-  <a href="/console" class="nav-back">â† Console</a>
+  <span class="site-tagline">Governed Inference · Verifiable by Design</span>
+  <a href="/console" class="nav-back">← Console</a>
 </header>
 
 <!-- ===== MAIN ===== -->
@@ -260,13 +260,13 @@
   <div class="page-hero">
     <h1>Governed Inverse-PINN Console</h1>
     <p>
-      Discover an unknown <strong>physical</strong> parameter of an ODE from data + physics â€”
+      Discover an unknown <strong>physical</strong> parameter of an ODE from data + physics —
       then watch the governance work. Every discovered value is <span class="chip chip-info">MODELED</span>
       (a fit to data, never MEASURED), carries a 95% confidence interval, a GREEN/YELLOW/RED convergence
       badge, a Fisher-information self-doubt gate that <em>refuses</em> non-identifiable parameters,
-      a Î› advisory, an F19/Bekenstein plausibility check, and a signed Khipu receipt you can re-verify.
+      a Λ advisory, an F19/Bekenstein plausibility check, and a signed Khipu receipt you can re-verify.
     </p>
-    <span class="eq">Duffing oscillator&nbsp;&nbsp;mÂ·xâ€³ + cÂ·xâ€² + Î´Â·x + <strong>Î±</strong>Â·xÂ³ = FÂ·cos(Ï‰t)&nbsp;&nbsp;â€” Î± is unknown</span>
+    <span class="eq">Duffing oscillator&nbsp;&nbsp;m·x″ + c·x′ + δ·x + <strong>α</strong>·x³ = F·cos(ωt)&nbsp;&nbsp;— α is unknown</span>
   </div>
 
   <!-- ===== RUN ===== -->
@@ -282,11 +282,11 @@
       <div class="btn-row">
         <button class="btn btn-green" id="btn-green" onclick="runIdentify('green')">
           Run Duffing demo (GREEN)
-          <span class="btn-sub">identify Î± â€” converges, asserts with CI</span>
+          <span class="btn-sub">identify α — converges, asserts with CI</span>
         </button>
         <button class="btn btn-red" id="btn-red" onclick="runIdentify('red')">
-          Run non-identifiable case (RED â€” see it refuse)
-          <span class="btn-sub">ask for Î± + a ghost param â€” engine REFUSES</span>
+          Run non-identifiable case (RED — see it refuse)
+          <span class="btn-sub">ask for α + a ghost param — engine REFUSES</span>
         </button>
       </div>
       <div id="status" class="status-line"></div>
@@ -303,7 +303,7 @@
         <p>The 3-state governance verdict from the causal-weight / gradient / FIM-conditioning criteria.</p>
       </div>
       <div class="section-body">
-        <div id="verdict" class="verdict-banner verdict-dim">â€”</div>
+        <div id="verdict" class="verdict-banner verdict-dim">—</div>
         <div class="metric-grid" id="conv-metrics"></div>
       </div>
     </section>
@@ -314,7 +314,7 @@
         <h2><span class="section-label">2</span> Discovered parameter(s)</h2>
         <p>
           Each value is <span class="chip chip-info">MODELED</span> with a 95% CI. A parameter the
-          self-doubt gate cannot support is <strong>REFUSED</strong> verbatim â€” no value invented.
+          self-doubt gate cannot support is <strong>REFUSED</strong> verbatim — no value invented.
         </p>
         <p class="moat-line">"We don't report what we can't support."</p>
       </div>
@@ -326,10 +326,10 @@
     <!-- self-doubt / FIM -->
     <section class="section">
       <div class="section-head">
-        <h2><span class="section-label">3</span> Identifiability â€” the self-doubt gate</h2>
+        <h2><span class="section-label">3</span> Identifiability — the self-doubt gate</h2>
         <p>
           Fisher Information Matrix conditioning decides whether the data actually constrain the
-          parameter. Îº(FIM) â†’ âˆž or Fisher below floor â‡’ <strong>UNIDENTIFIABLE</strong> â‡’ the engine refuses.
+          parameter. κ(FIM) → ∞ or Fisher below floor ⇒ <strong>UNIDENTIFIABLE</strong> ⇒ the engine refuses.
         </p>
       </div>
       <div class="section-body">
@@ -340,16 +340,16 @@
     <!-- lambda advisory -->
     <section class="section">
       <div class="section-head">
-        <h2><span class="section-label">4</span> Î› advisory</h2>
+        <h2><span class="section-label">4</span> Λ advisory</h2>
         <p>
-          A single advisory trust score. <span class="conj">Conjecture 1 â€” advisory, NOT a theorem</span>
-          â€” capped â‰¤ 0.99, <strong>never a proof, never 1.0</strong>.
+          A single advisory trust score. <span class="conj">Conjecture 1 — advisory, NOT a theorem</span>
+          — capped ≤ 0.99, <strong>never a proof, never 1.0</strong>.
         </p>
       </div>
       <div class="section-body">
         <div style="display:flex; align-items:center; gap:24px; flex-wrap:wrap;">
           <div>
-            <div class="lambda-big" id="lambda-val">â€”</div>
+            <div class="lambda-big" id="lambda-val">—</div>
             <div class="small" id="lambda-status"></div>
           </div>
           <div class="small" id="lambda-basis" style="max-width:420px;"></div>
@@ -363,13 +363,13 @@
       <div class="section-head">
         <h2><span class="section-label">5</span> F19 / Bekenstein check</h2>
         <p>
-          The Bekenstein bound (F19) is a <strong>locked-proven inequality</strong> â€” here it is
+          The Bekenstein bound (F19) is a <strong>locked-proven inequality</strong> — here it is
           <em>applied</em>, not re-claimed. It checks the discovery doesn't encode more information
           than the system can physically hold.
         </p>
       </div>
       <div class="section-body">
-        <div id="bek" class="small">â€”</div>
+        <div id="bek" class="small">—</div>
       </div>
     </section>
 
@@ -379,7 +379,7 @@
         <h2><span class="section-label">6</span> Signed receipt + ledger</h2>
         <p>
           The discovery is sealed as a DSSE-enveloped Khipu receipt in the unified ledger organ
-          <code>a11oy-pinn</code>. Signature state is shown exactly as returned â€” never faked.
+          <code>a11oy-pinn</code>. Signature state is shown exactly as returned — never faked.
         </p>
       </div>
       <div class="section-body">
@@ -392,14 +392,14 @@
   <section class="section">
     <div class="section-head">
       <h2><span class="section-label">Doctrine</span> Honest labels</h2>
-      <p>What is proven, what is wired, what is advisory. The half-state â€” claiming more than is real â€” is the only unacceptable outcome.</p>
+      <p>What is proven, what is wired, what is advisory. The half-state — claiming more than is real — is the only unacceptable outcome.</p>
     </div>
     <div class="section-body">
       <div class="corpus-diagram">
         <div class="corpus-tier">
           <div class="corpus-count proven">8</div>
           <div class="corpus-tier-label">Locked-proven</div>
-          <div class="corpus-tier-desc">No-axiom theorems {F1,F4,F7,F11,F12,F18,F19,F22}. F19 Bekenstein is one of them â€” applied here, not re-claimed.</div>
+          <div class="corpus-tier-desc">No-axiom theorems {F1,F4,F7,F11,F12,F18,F19,F22}. F19 Bekenstein is one of them — applied here, not re-claimed.</div>
         </div>
         <div class="corpus-tier">
           <div class="corpus-count wired">~35</div>
@@ -413,10 +413,10 @@
         </div>
       </div>
       <div class="never-claim">
-        Discovered values are <strong>MODELED</strong> (a fit to data, never MEASURED). Î› is
-        <strong>Conjecture 1</strong> â€” advisory, capped â‰¤ 0.99, never a theorem, never 1.0. The Bekenstein
+        Discovered values are <strong>MODELED</strong> (a fit to data, never MEASURED). Λ is
+        <strong>Conjecture 1</strong> — advisory, capped ≤ 0.99, never a theorem, never 1.0. The Bekenstein
         bound is a PROVEN inequality whose <em>application</em> here is MODELED. Receipts are signed or
-        unsigned exactly as the engine returns â€” never fabricated.
+        unsigned exactly as the engine returns — never fabricated.
       </div>
     </div>
   </section>
@@ -424,8 +424,8 @@
 </main>
 
 <footer class="footer">
-  a11oy Â· Governed Inverse-PINN Â· Doctrine v11 LOCKED Â· values MODELED Â· Î› = Conjecture 1 Â·
-  <a href="/console">Console</a> Â· <a href="/verify">Verify</a>
+  a11oy · Governed Inverse-PINN · Doctrine v11 LOCKED · values MODELED · Λ = Conjecture 1 ·
+  <a href="/console">Console</a> · <a href="/verify">Verify</a>
 </footer>
 
 <script>
@@ -458,7 +458,7 @@ function badgeClass(label) {
 async function runIdentify(kind) {
   const bg = el("btn-green"), br = el("btn-red");
   bg.disabled = true; br.disabled = true;
-  el("status").innerHTML = '<span class="spinner"></span>Calling the live governed engine at ' + API + ' â€¦';
+  el("status").innerHTML = '<span class="spinner"></span>Calling the live governed engine at ' + API + ' …';
   el("results").classList.add("hidden");
   try {
     const res = await fetch(API, {
@@ -469,12 +469,12 @@ async function runIdentify(kind) {
     const data = await res.json();
     if (!res.ok && !data.convergence) {
       el("status").innerHTML = '<span style="color:var(--red)">Engine returned ' + res.status +
-        ' â€” ' + (data.error || "unexpected") + '</span>';
+        ' — ' + (data.error || "unexpected") + '</span>';
       return;
     }
     render(data);
     el("status").innerHTML = 'Live response received (HTTP ' + res.status +
-      ') Â· system <code>' + (data.system || "?") + '</code> Â· honest label MODELED.';
+      ') · system <code>' + (data.system || "?") + '</code> · honest label MODELED.';
   } catch (e) {
     el("status").innerHTML = '<span style="color:var(--red)">Network error: ' + e + '</span>';
   } finally {
@@ -485,15 +485,15 @@ async function runIdentify(kind) {
 function render(d) {
   el("results").classList.remove("hidden");
   const conv = d.convergence || {};
-  const label = conv.label || "â€”";
+  const label = conv.label || "—";
 
   // ---- verdict ----
   const v = el("verdict");
   v.className = "verdict-banner verdict-" + badgeClass(label);
   let head = "Convergence: " + label;
-  if (label === "GREEN") head += " â€” parameter asserted";
-  else if (label === "RED") head += " â€” the engine REFUSES";
-  else if (label === "YELLOW") head += " â€” partial / keep running";
+  if (label === "GREEN") head += " — parameter asserted";
+  else if (label === "RED") head += " — the engine REFUSES";
+  else if (label === "YELLOW") head += " — partial / keep running";
   v.innerHTML = '<span class="chip chip-' + badgeClass(label) + '">' + label + '</span>' +
     '<span>' + head + '</span>' +
     '<span class="vsub">' + (conv.epochs_run != null ? conv.epochs_run + " epochs" : "") + '</span>';
@@ -503,8 +503,8 @@ function render(d) {
   const cmRows = [
     ["min causal weight", cm.min_causal_weight || fmt(conv.min_causal_weight)],
     ["grad norm",         cm.grad_norm || fmt(conv.grad_norm)],
-    ["Îº(FIM)",            cm.kappa_fim || fmt(conv.kappa_fim)],
-    ["min Fisher",        cm.min_fisher || "â€”"],
+    ["κ(FIM)",            cm.kappa_fim || fmt(conv.kappa_fim)],
+    ["min Fisher",        cm.min_fisher || "—"],
     ["residual rms",      fmt(conv.residual_rms)],
     ["data rms",          fmt(conv.data_rms)]
   ];
@@ -521,15 +521,15 @@ function render(d) {
       return '<div class="param-card asserted">' +
         '<div class="param-card-head">' +
           '<span class="param-name">' + p.name + '</span>' +
-          '<span class="chip chip-' + pl + '">' + (p.convergence_label || "â€”") + '</span>' +
+          '<span class="chip chip-' + pl + '">' + (p.convergence_label || "—") + '</span>' +
           '<span class="chip chip-info">MODELED</span>' +
           '<span class="chip chip-green">IDENTIFIABLE</span>' +
         '</div>' +
         '<div class="param-value">' + fmt(p.value) + '</div>' +
-        '<div class="param-ci">' + ci + (p.std != null ? ' Â· Ïƒ ' + fmt(p.std) : '') + '</div>' +
+        '<div class="param-ci">' + ci + (p.std != null ? ' · σ ' + fmt(p.std) : '') + '</div>' +
         '</div>';
     }
-    // REFUSED â€” hero honesty moment
+    // REFUSED — hero honesty moment
     return '<div class="param-card refused">' +
       '<div class="param-card-head">' +
         '<span class="param-name">' + p.name + '</span>' +
@@ -537,7 +537,7 @@ function render(d) {
         '<span class="chip chip-red">REFUSED</span>' +
       '</div>' +
       '<div class="param-value null">value = null</div>' +
-      '<div class="refusal-box"><span class="rh">Self-doubt gate Â· not asserted</span>' +
+      '<div class="refusal-box"><span class="rh">Self-doubt gate · not asserted</span>' +
         (p.refusal || "UNIDENTIFIABLE: the engine refuses to assert this parameter.") + '</div>' +
       '</div>';
   }).join("");
@@ -545,9 +545,9 @@ function render(d) {
   // ---- FIM / self-doubt ----
   const anyRefused = params.some(p => !p.asserted);
   const fimRows = [
-    ["Îº(FIM)", cm.kappa_fim || fmt(conv.kappa_fim), badgeClass(label) === "red" ? "red" : "green"],
-    ["min Fisher", cm.min_fisher || "â€”", ""],
-    ["gate", anyRefused ? "REFUSED â‰¥1 parameter" : "all parameters identifiable",
+    ["κ(FIM)", cm.kappa_fim || fmt(conv.kappa_fim), badgeClass(label) === "red" ? "red" : "green"],
+    ["min Fisher", cm.min_fisher || "—", ""],
+    ["gate", anyRefused ? "REFUSED ≥1 parameter" : "all parameters identifiable",
       anyRefused ? "red" : "green"]
   ];
   el("fim-metrics").innerHTML = fimRows.map(r =>
@@ -556,9 +556,9 @@ function render(d) {
 
   // ---- lambda ----
   const lam = d.lambda_advisory || {};
-  el("lambda-val").textContent = (lam.value != null) ? fmt(lam.value, 4) : "â€”";
+  el("lambda-val").textContent = (lam.value != null) ? fmt(lam.value, 4) : "—";
   el("lambda-status").innerHTML = '<span class="conj">' + (lam.status || "ADVISORY") + '</span>';
-  el("lambda-basis").textContent = lam.basis || "Î› = Conjecture 1 (advisory, capped â‰¤ 0.99; NEVER a proof).";
+  el("lambda-basis").textContent = lam.basis || "Λ = Conjecture 1 (advisory, capped ≤ 0.99; NEVER a proof).";
   const lf = lam.factors || {};
   el("lambda-factors").innerHTML = Object.keys(lf).map(k =>
     '<div class="metric"><div class="metric-k">' + k + '</div><div class="metric-v">' + fmt(lf[k], 4) + '</div></div>'
@@ -579,7 +579,7 @@ function render(d) {
       '</div>' +
       '<div class="small" style="margin-top:10px;">' + (b.basis || "") + '</div>';
   } else {
-    el("bek").innerHTML = '<span class="small">No asserted parameter to check â€” Bekenstein is applied only to an asserted discovery (the engine refused all parameters here).</span>';
+    el("bek").innerHTML = '<span class="small">No asserted parameter to check — Bekenstein is applied only to an asserted discovery (the engine refused all parameters here).</span>';
   }
 
   // ---- receipt ----
@@ -591,20 +591,20 @@ function render(d) {
   let html =
     '<div class="hash-row"><span class="hash-label">signature</span>' +
       '<span class="chip chip-' + (signed ? "green" : "amber") + '">' + (signed ? "SIGNED" : "UNSIGNED") + '</span>' +
-      '<span class="small">' + (signed ? "DSSE envelope present (payloadType " + ((r.dsse||{}).payloadType || "application/vnd.szl.ipinn+json") + ")" : "honest UNSIGNED â€” no cosign key in this env") + '</span>' +
+      '<span class="small">' + (signed ? "DSSE envelope present (payloadType " + ((r.dsse||{}).payloadType || "application/vnd.szl.ipinn+json") + ")" : "honest UNSIGNED — no cosign key in this env") + '</span>' +
     '</div>' +
     '<div class="hash-row"><span class="hash-label">ledger</span>' +
       '<span class="chip chip-' + (ledger.recorded ? "green" : "dim") + '">' + (ledger.recorded ? "RECORDED" : "NOT RECORDED") + '</span>' +
       '<span class="small">organ <code>a11oy-pinn</code>' +
-        (lres.chain_index != null ? ' Â· chain index ' + lres.chain_index : '') + '</span>' +
+        (lres.chain_index != null ? ' · chain index ' + lres.chain_index : '') + '</span>' +
     '</div>';
   if (rid) {
     html += '<div class="hash-row"><span class="hash-label">receipt id</span>' +
       '<span class="hash-val">' + rid + '</span></div>' +
       '<div class="hash-row"><span class="hash-label">verify</span>' +
       '<a class="hash-val" href="' + VERIFY_BASE + rid + '" target="_blank" rel="noopener">' +
-      VERIFY_BASE + rid + ' â†—</a></div>' +
-      '<div class="small" style="margin-top:6px;">Re-verify independently â€” the Khipu hash-chain integrity is recomputed server-side and is publicly checkable.</div>';
+      VERIFY_BASE + rid + ' ↗</a></div>' +
+      '<div class="small" style="margin-top:6px;">Re-verify independently — the Khipu hash-chain integrity is recomputed server-side and is publicly checkable.</div>';
   }
   if (lres.chain_head) {
     html += '<hr class="divider"><div class="hash-row"><span class="hash-label">chain head</span>' +
@@ -617,4 +617,3 @@ function render(d) {
 </script>
 </body>
 </html>
-
