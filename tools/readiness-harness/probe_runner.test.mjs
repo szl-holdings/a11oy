@@ -278,6 +278,116 @@ test("explicit evidence remains fail-closed beyond five nesting levels", () => {
   assert.deepEqual(allowed.labels.map(({ path }) => path), [evidencePath]);
 });
 
+test("finite extreme-depth evidence returns a structured verdict", () => {
+  const nestedObject = (dataKind, levels) => {
+    let value = { data_kind: dataKind };
+    for (let level = 0; level < levels; level += 1) {
+      value = { payload: value };
+    }
+    return value;
+  };
+
+  for (const levels of [5000, 10000]) {
+    const expectedPath = `${"payload.".repeat(levels)}data_kind`;
+    const malformed = evaluateEndpointLabels(
+      200,
+      kevLabelSpec,
+      nestedObject(true, levels),
+    );
+    assert.equal(malformed.ok, false, String(levels));
+    assert.equal(malformed.pairConflict.dataKind.path, expectedPath);
+    assert.match(malformed.pairConflict.reason, /must be a string/);
+
+    const fabricated = evaluateEndpointLabels(
+      200,
+      kevLabelSpec,
+      nestedObject("fabricated", levels),
+    );
+    assert.equal(fabricated.ok, false, String(levels));
+    assert.equal(fabricated.lie.path, expectedPath);
+  }
+
+  let nestedArray = { mode: "live", data_kind: "cached" };
+  for (let level = 0; level < 10000; level += 1) nestedArray = [nestedArray];
+  const pair = evaluateEndpointLabels(200, kevLabelSpec, nestedArray);
+  assert.equal(pair.ok, false);
+  assert.match(pair.pairConflict.reason, /contradictory/);
+  assert.equal(pair.pairConflict.mode.path, `${"[0]".repeat(10000)}.mode`);
+});
+
+test("unknown and malformed freshness truth labels fail closed", () => {
+  const spec = {
+    schema: "generic_obj",
+    freshnessSLA: 86400,
+    degradedRules: {
+      allowStatuses: [200],
+      allowLabels: ["live", "cached"],
+      liesIf: ["mock", "fabricated", "placeholder"],
+    },
+  };
+  const now = Date.parse("2026-08-20T14:30:00Z");
+  const observedAt = "2026-08-20T14:29:59Z";
+
+  const unknownScalar = evaluateEndpointLabels(200, spec, {
+    freshness: "vendor-pending",
+    fetched_at: observedAt,
+  });
+  assert.equal(unknownScalar.ok, false);
+  assert.deepEqual(unknownScalar.disallowed.map(({ path }) => path), [
+    "freshness",
+  ]);
+  assert.equal(validateSchema(spec.schema, {
+    freshness: "vendor-pending",
+    fetched_at: observedAt,
+  }).ok, true);
+  assert.equal(evaluateFreshness(
+    "/api/example",
+    spec,
+    { freshness: "vendor-pending", fetched_at: observedAt },
+    now,
+  ).freshOk, true);
+
+  for (const [body, path] of [
+    [{ freshness: true }, "freshness"],
+    [{ freshness: { status: true, fetched_at: observedAt } }, "freshness.status"],
+    [{ freshness: { mode: null } }, "freshness.mode"],
+  ]) {
+    const malformed = evaluateEndpointLabels(200, spec, body);
+    assert.equal(malformed.ok, false, JSON.stringify(body));
+    assert.equal(malformed.pairConflict.dataKind.path, path);
+    assert.match(malformed.pairConflict.reason, /must be a string/);
+  }
+  const malformedButFresh = {
+    freshness: { status: true, fetched_at: observedAt },
+  };
+  assert.equal(validateSchema(spec.schema, malformedButFresh).ok, true);
+  assert.equal(evaluateFreshness(
+    "/api/example",
+    spec,
+    malformedButFresh,
+    now,
+  ).freshOk, true);
+});
+
+test("known scalar and object freshness labels remain allowed", () => {
+  const spec = {
+    degradedRules: {
+      allowStatuses: [200],
+      allowLabels: ["live", "cached"],
+      liesIf: ["mock", "fabricated", "placeholder"],
+    },
+  };
+
+  for (const body of [
+    { freshness: "live" },
+    { freshness: { status: "cached" } },
+  ]) {
+    const verdict = evaluateEndpointLabels(200, spec, body);
+    assert.equal(verdict.ok, true, JSON.stringify(body));
+    assert.equal(verdict.pairConflict, null, JSON.stringify(body));
+  }
+});
+
 test("non-string mode/data_kind pairs cannot bypass the evidence contract", () => {
   const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
     mode: true,

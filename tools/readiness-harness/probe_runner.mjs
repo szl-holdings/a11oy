@@ -324,82 +324,177 @@ const DATA_KIND_EVIDENCE_FAMILY = new Map([
   ["snapshot", "cached"],
 ]);
 
+function evidenceObjectPath(parent, key) {
+  return {
+    parent,
+    fragment: parent === null ? String(key) : `.${String(key)}`,
+  };
+}
+
+function evidenceArrayPath(parent, index) {
+  return { parent, fragment: `[${index}]` };
+}
+
+function formatEvidencePath(path) {
+  const fragments = [];
+  for (let cursor = path; cursor !== null; cursor = cursor.parent) {
+    fragments.push(cursor.fragment);
+  }
+  return fragments.reverse().join("");
+}
+
+function walkEvidenceTree(obj, visitEntry) {
+  const visited = new WeakSet();
+  const stack = [{
+    kind: "value",
+    value: obj,
+    path: null,
+    depth: 0,
+    insideFreshness: false,
+  }];
+
+  while (stack.length) {
+    const frame = stack.pop();
+    if (frame.kind === "entry") {
+      if (visitEntry(frame) === false) return false;
+      continue;
+    }
+    if (frame.kind === "array") {
+      if (frame.index >= frame.value.length) continue;
+      const index = frame.index;
+      frame.index += 1;
+      stack.push(frame);
+      stack.push({
+        kind: "value",
+        value: frame.value[index],
+        path: evidenceArrayPath(frame.path, index),
+        depth: frame.depth + 1,
+        insideFreshness: frame.insideFreshness,
+      });
+      continue;
+    }
+    if (frame.kind === "object") {
+      if (frame.index >= frame.entries.length) continue;
+      const [key, child] = frame.entries[frame.index];
+      frame.index += 1;
+      const childPath = evidenceObjectPath(frame.path, key);
+      const keyIsFreshness = key.toLowerCase() === "freshness";
+      stack.push(frame);
+      stack.push({
+        kind: "value",
+        value: child,
+        path: childPath,
+        depth: frame.depth + 1,
+        insideFreshness: frame.insideFreshness || keyIsFreshness,
+      });
+      stack.push({
+        kind: "entry",
+        key,
+        child,
+        path: childPath,
+        depth: frame.depth,
+        insideFreshness: frame.insideFreshness,
+        keyIsFreshness,
+      });
+      continue;
+    }
+
+    const { value, path, depth, insideFreshness } = frame;
+    if (value === null || value === undefined || typeof value !== "object") {
+      continue;
+    }
+    if (visited.has(value)) continue;
+    visited.add(value);
+
+    if (Array.isArray(value)) {
+      stack.push({
+        kind: "array",
+        value,
+        index: 0,
+        path,
+        depth,
+        insideFreshness,
+      });
+      continue;
+    }
+
+    stack.push({
+      kind: "object",
+      entries: Object.entries(value),
+      index: 0,
+      path,
+      depth,
+      insideFreshness,
+    });
+  }
+  return true;
+}
+
 function findEvidenceLabels(obj, candidateLabels = []) {
+  const policyScoped = candidateLabels.length > 0;
   const candidates = new Set([
     ...KNOWN_EVIDENCE_LABELS,
     ...candidateLabels.map((value) => String(value).trim().toLowerCase()),
   ]);
   const found = [];
 
-  const visited = new WeakSet();
-
-  function walk(value, path = "", depth = 0, insideFreshness = false) {
-    if (value === null || value === undefined) return;
-    if (typeof value === "object") {
-      if (visited.has(value)) return;
-      visited.add(value);
-    }
-    if (Array.isArray(value)) {
-      value.forEach((item, index) => {
-        walk(item, `${path}[${index}]`, depth + 1, insideFreshness);
+  walkEvidenceTree(obj, ({
+    key, child, path, depth, insideFreshness, keyIsFreshness,
+  }) => {
+    if (typeof child !== "string") return true;
+    const normalized = child.trim().toLowerCase();
+    const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
+    const nestedFreshnessScoped = insideFreshness
+      && FRESHNESS_LABEL_KEY.test(key);
+    // During endpoint policy evaluation, a root scalar named `freshness` is
+    // unambiguously an evidence claim. Direct schema introspection without a
+    // policy vocabulary keeps metadata such as freshness="object" out.
+    const scalarFreshness = keyIsFreshness
+      && (
+        candidates.has(normalized)
+        || (depth === 0 && policyScoped)
+      );
+    const rootScoped = depth === 0 && ROOT_LABEL_KEY.test(key)
+      && candidates.has(normalized);
+    if (explicit || nestedFreshnessScoped || scalarFreshness || rootScoped) {
+      found.push({
+        path: formatEvidencePath(path),
+        value: child,
+        normalized,
       });
-      return;
     }
-    if (typeof value !== "object") return;
-
-    for (const [key, child] of Object.entries(value)) {
-      const childPath = path ? `${path}.${key}` : key;
-      const keyIsFreshness = key.toLowerCase() === "freshness";
-      if (typeof child === "string") {
-        const normalized = child.trim().toLowerCase();
-        const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
-        const nestedFreshnessScoped = insideFreshness
-          && FRESHNESS_LABEL_KEY.test(key);
-        const scalarFreshness = keyIsFreshness && candidates.has(normalized);
-        const rootScoped = depth === 0 && ROOT_LABEL_KEY.test(key)
-          && candidates.has(normalized);
-        if (explicit || nestedFreshnessScoped || scalarFreshness || rootScoped) {
-          found.push({ path: childPath, value: child, normalized });
-        }
-      }
-      walk(child, childPath, depth + 1, insideFreshness || keyIsFreshness);
-    }
-  }
-
-  walk(obj);
+    return true;
+  });
   return found;
 }
 
 function findMalformedExplicitEvidence(obj) {
   let malformed = null;
-  const visited = new WeakSet();
-
-  function walk(value, path = "") {
-    if (malformed || value === null || value === undefined) return;
-    if (typeof value === "object") {
-      if (visited.has(value)) return;
-      visited.add(value);
+  walkEvidenceTree(obj, ({
+    key, child, path, insideFreshness, keyIsFreshness,
+  }) => {
+    const freshnessObject = keyIsFreshness
+      && child !== null
+      && typeof child === "object"
+      && !Array.isArray(child);
+    const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
+    const freshnessScoped = insideFreshness
+      && FRESHNESS_LABEL_KEY.test(key)
+      && !freshnessObject
+      && typeof child !== "string";
+    const malformedScalarFreshness = keyIsFreshness
+      && !freshnessObject
+      && typeof child !== "string";
+    if (
+      (explicit && typeof child !== "string")
+      || freshnessScoped
+      || malformedScalarFreshness
+    ) {
+      malformed = { path: formatEvidencePath(path), value: child };
+      return false;
     }
-    if (Array.isArray(value)) {
-      value.forEach((item, index) => {
-        walk(item, `${path}[${index}]`);
-      });
-      return;
-    }
-    if (typeof value !== "object") return;
-
-    for (const [key, child] of Object.entries(value)) {
-      const childPath = path ? `${path}.${key}` : key;
-      if (EXPLICIT_EVIDENCE_KEY.test(key) && typeof child !== "string") {
-        malformed = { path: childPath, value: child };
-        return;
-      }
-      walk(child, childPath);
-      if (malformed) return;
-    }
-  }
-
-  walk(obj);
+    return true;
+  });
   return malformed;
 }
 
@@ -410,11 +505,13 @@ function findEvidencePairConflict(body, modeRequiresDataKind = false) {
     return {
       mode: { path: "mode", value: undefined },
       dataKind: malformedEvidence,
-      reason: "explicit evidence label must be a string",
+      reason: "evidence label must be a string",
     };
   }
-  function findObjectPairConflict(candidate, path = "") {
-    const entryPath = (key) => path ? `${path}.${key}` : key;
+  function findObjectPairConflict(candidate, path = null) {
+    const entryPath = (key) => formatEvidencePath(
+      evidenceObjectPath(path, key),
+    );
     const modes = Object.entries(candidate).filter(([key]) => ROOT_MODE_KEY.test(key));
     const dataKinds = Object.entries(candidate).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
     if (!modes.length) {
@@ -474,16 +571,38 @@ function findEvidencePairConflict(body, modeRequiresDataKind = false) {
     return null;
   }
 
-  function findArrayItemConflict(items, path = "") {
-    for (let index = 0; index < items.length; index += 1) {
-      const item = items[index];
-      const itemPath = `${path}[${index}]`;
-      const conflict = Array.isArray(item)
-        ? findArrayItemConflict(item, itemPath)
-        : item && typeof item === "object"
-          ? findObjectPairConflict(item, itemPath)
-          : null;
-      if (conflict) return conflict;
+  function findArrayItemConflict(items, path = null) {
+    const visited = new WeakSet();
+    const stack = [{ kind: "value", item: items, path }];
+    while (stack.length) {
+      const frame = stack.pop();
+      if (frame.kind === "array") {
+        if (frame.index >= frame.items.length) continue;
+        const index = frame.index;
+        frame.index += 1;
+        stack.push(frame);
+        stack.push({
+          kind: "value",
+          item: frame.items[index],
+          path: evidenceArrayPath(frame.path, index),
+        });
+        continue;
+      }
+      if (Array.isArray(frame.item)) {
+        if (visited.has(frame.item)) continue;
+        visited.add(frame.item);
+        stack.push({
+          kind: "array",
+          items: frame.item,
+          index: 0,
+          path: frame.path,
+        });
+        continue;
+      }
+      if (frame.item && typeof frame.item === "object") {
+        const conflict = findObjectPairConflict(frame.item, frame.path);
+        if (conflict) return conflict;
+      }
     }
     return null;
   }
