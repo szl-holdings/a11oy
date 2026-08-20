@@ -134,8 +134,32 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: true
-      - name: Apply bounded ORO repairs
-        run: python3 scripts/_apply_oro_v3_repairs.py
+      - name: Normalize transformer quoting and apply bounded ORO repairs
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('scripts/_apply_oro_v3_repairs.py')
+          text = path.read_text(encoding='utf-8')
+          text = text.replace(
+              '                    """INSERT INTO orbit_runs\n'
+              '                       (orbit_id, plan_id, generation, current_rank_json, status, created_at, updated_at)\n'
+              '                       VALUES (?, ?, ?, ?, \'RUNNING\', ?, ?)""",',
+              '                    "INSERT INTO orbit_runs "\n'
+              '                    "(orbit_id, plan_id, generation, current_rank_json, status, created_at, updated_at) "\n'
+              '                    "VALUES (?, ?, ?, ?, \'RUNNING\', ?, ?)",',
+          )
+          text = text.replace(
+              '                    """UPDATE orbit_runs\n'
+              '                       SET generation=?, current_rank_json=?, status=?, updated_at=?\n'
+              '                       WHERE orbit_id=? AND generation=? AND status=\'RUNNING\'""",',
+              '                    "UPDATE orbit_runs "\n'
+              '                    "SET generation=?, current_rank_json=?, status=?, updated_at=? "\n'
+              '                    "WHERE orbit_id=? AND generation=? AND status=\'RUNNING\'",',
+          )
+          path.write_text(text, encoding='utf-8')
+          PY
+          python3 -m py_compile scripts/_apply_oro_v3_repairs.py
+          python3 scripts/_apply_oro_v3_repairs.py
       - name: Remove source transformer
         run: rm scripts/_apply_oro_v3_repairs.py
       - name: Install exact focused dependencies
