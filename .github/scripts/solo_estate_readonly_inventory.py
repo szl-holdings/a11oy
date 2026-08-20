@@ -67,6 +67,7 @@ INCOMPLETE_HF_FINDINGS = {
     "IMMUTABLE_SHA_UNOBSERVED",
     "CARD_READBACK_UNAVAILABLE",
     "SPACE_RUNTIME_UNOBSERVED",
+    "COLLECTION_ID_MISSING",
 }
 
 
@@ -393,7 +394,7 @@ def audit_effective_branch_rules(
     status_check_contexts: set[str] = set()
     approving_review_count = 0
     observed_workflows: set[tuple[int, str]] = set()
-    workflow_rules_enforce_on_create = True
+    workflows_enforced_on_create: set[tuple[int, str]] = set()
     observed_rules: list[dict[str, Any]] = []
     for raw_rule in rules:
         rule = object_dict(raw_rule)
@@ -423,8 +424,7 @@ def audit_effective_branch_rules(
                 raise ApiFailure(
                     "github", None, "effective workflow rule is malformed"
                 )
-            if parameters.get("do_not_enforce_on_create") is not False:
-                workflow_rules_enforce_on_create = False
+            enforces_on_create = parameters.get("do_not_enforce_on_create") is False
             for raw_workflow in workflows:
                 workflow = object_dict(raw_workflow)
                 repository_id = workflow.get("repository_id")
@@ -438,16 +438,18 @@ def audit_effective_branch_rules(
                     raise ApiFailure(
                         "github", None, "effective required-workflow identity is malformed"
                     )
-                observed_workflows.add((repository_id, path))
+                identity = (repository_id, path)
+                observed_workflows.add(identity)
+                if enforces_on_create:
+                    workflows_enforced_on_create.add(identity)
 
     required_identities = {
         (int(workflow["repository_id"]), str(workflow["path"]))
         for workflow in required_workflows
     }
-    required_workflows_present = (
+    required_workflows_enforced_on_create = (
         bool(required_identities)
-        and required_identities.issubset(observed_workflows)
-        and workflow_rules_enforce_on_create
+        and required_identities.issubset(workflows_enforced_on_create)
     )
 
     return {
@@ -457,12 +459,16 @@ def audit_effective_branch_rules(
         "required_status_check_contexts": sorted(status_check_contexts),
         "required_pull_request_reviews": approving_review_count >= 1,
         "required_approving_review_count": approving_review_count,
-        "required_workflows": required_workflows_present,
+        "required_workflows": required_workflows_enforced_on_create,
         "required_workflow_identities": [
             {"repository_id": repository_id, "path": path}
             for repository_id, path in sorted(observed_workflows)
         ],
-        "workflow_rules_enforce_on_create": workflow_rules_enforce_on_create,
+        "required_workflow_identities_enforced_on_create": [
+            {"repository_id": repository_id, "path": path}
+            for repository_id, path in sorted(workflows_enforced_on_create)
+        ],
+        "workflow_rules_enforce_on_create": required_workflows_enforced_on_create,
         "bypass_visibility": "UNAVAILABLE",
         "administrator_enforcement": "NOT_INFERRED",
         "observed_rules": observed_rules,
