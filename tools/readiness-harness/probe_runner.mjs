@@ -364,7 +364,7 @@ function findEvidenceLabels(obj, candidateLabels = []) {
   return found;
 }
 
-function findEvidencePairConflict(body) {
+function findEvidencePairConflict(body, modeRequiresDataKind = false) {
   if (!body || typeof body !== "object" || Array.isArray(body)) return null;
   const modes = Object.entries(body).filter(([key]) => ROOT_MODE_KEY.test(key));
   const dataKinds = Object.entries(body).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
@@ -379,6 +379,7 @@ function findEvidencePairConflict(body) {
     };
   }
   if (!dataKinds.length) {
+    if (!modeRequiresDataKind) return null;
     const [modePath, modeValue] = modes[0];
     return {
       mode: { path: modePath, value: modeValue },
@@ -433,7 +434,10 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
   const labels = findEvidenceLabels(body, [...allowLabels, ...liesIf]);
   const disallowed = labels.filter((entry) => !allowed.has(entry.normalized));
   const lie = labels.find((entry) => lieSet.has(entry.normalized)) || null;
-  const pairConflict = findEvidencePairConflict(body);
+  const pairConflict = findEvidencePairConflict(
+    body,
+    spec?.modeRequiresDataKind === true,
+  );
   return {
     checked: true,
     ok: disallowed.length === 0 && lie === null && pairConflict === null,
@@ -480,6 +484,40 @@ function validateSchema(schemaName, body) {
         if (type === "timestamp") return toDate(cursor) !== null;
         return false;
       })) return false;
+      if (sc.governedDecisionArray) {
+        const contract = sc.governedDecisionArray;
+        const arrayCandidate = valueAtPath(body, contract.path);
+        const countCandidate = valueAtPath(body, contract.countPath);
+        const coverageCandidate = valueAtPath(body, contract.coveragePath);
+        const completeCandidate = valueAtPath(body, contract.completePath);
+        if (
+          !arrayCandidate.found || !Array.isArray(arrayCandidate.value)
+          || arrayCandidate.value.length === 0
+          || !countCandidate.found
+          || !Number.isInteger(countCandidate.value)
+          || countCandidate.value !== arrayCandidate.value.length
+          || !coverageCandidate.found
+          || !Number.isInteger(coverageCandidate.value)
+          || coverageCandidate.value !== arrayCandidate.value.length
+          || !completeCandidate.found
+          || completeCandidate.value !== true
+        ) return false;
+        if (!arrayCandidate.value.every((item) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+          const decision = typeof item.decision === "string"
+            ? item.decision.trim().toLowerCase()
+            : "";
+          const gates = item.gates_fired;
+          const lambdaValue = item.lambda_value;
+          return (decision === "allow" || decision === "deny")
+            && Array.isArray(gates)
+            && gates.every((gate) => typeof gate === "string" && gate.trim().length > 0)
+            && typeof lambdaValue === "number"
+            && Number.isFinite(lambdaValue)
+            && lambdaValue >= 0
+            && lambdaValue <= 1;
+        })) return false;
+      }
       if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
       return true;
     }

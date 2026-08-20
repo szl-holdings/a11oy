@@ -65,6 +65,7 @@ test("mixed KEVGate provenance remains release-red", () => {
 });
 
 const kevLabelSpec = {
+  modeRequiresDataKind: true,
   degradedRules: {
     allowStatuses: [200],
     allowLabels: ["live", "cached"],
@@ -143,6 +144,17 @@ test("a root mode without data_kind is fail-closed", () => {
   }
 });
 
+test("mode/data_kind pairing is scoped to endpoints that declare the contract", () => {
+  const verdict = evaluateEndpointLabels(200, {
+    degradedRules: kevLabelSpec.degradedRules,
+  }, {
+    mode: "production",
+  });
+
+  assert.equal(verdict.ok, true);
+  assert.equal(verdict.pairConflict, null);
+});
+
 test("a data_kind-only KEV payload remains allowed", () => {
   const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
     data_kind: "cached",
@@ -171,6 +183,33 @@ test("non-string mode/data_kind pairs cannot bypass the evidence contract", () =
   });
   assert.equal(verdict.ok, false);
   assert.match(verdict.pairConflict.reason, /must be string/);
+});
+
+test("KEVGate schema requires complete governed decisions for every row", () => {
+  const valid = {
+    mode: "live",
+    data_kind: "live",
+    count: 2,
+    governed_decision_rows: 2,
+    governance_complete: true,
+    items: [
+      { decision: "allow", gates_fired: [], lambda_value: 1.0 },
+      { decision: "deny", gates_fired: ["gate-03"], lambda_value: 0.0 },
+    ],
+  };
+  assert.equal(validateSchema("kevgate", valid).ok, true);
+
+  for (const body of [
+    { ...valid, governance_complete: false },
+    { ...valid, governed_decision_rows: 1 },
+    { ...valid, count: 1 },
+    { ...valid, items: [] },
+    { ...valid, items: [{ decision: null, gates_fired: [], lambda_value: 1.0 }] },
+    { ...valid, items: [{ decision: "allow", gates_fired: null, lambda_value: 1.0 }] },
+    { ...valid, items: [{ decision: "allow", gates_fired: [], lambda_value: true }] },
+  ]) {
+    assert.equal(validateSchema("kevgate", body).ok, false, JSON.stringify(body));
+  }
 });
 
 test("freshness prefers nested source fetch time over a market event timestamp", () => {

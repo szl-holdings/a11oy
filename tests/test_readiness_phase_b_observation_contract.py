@@ -10,7 +10,10 @@ from typing import AsyncIterator
 
 from a11oy_live_feeds import (
     canonical_kev_enrichment_kind,
+    canonical_kevgate_kind,
+    governed_decision_is_complete,
     provider_record_is_live,
+    provider_record_needs_revalidation,
     unix_observation_is_fresh,
 )
 from routers.frontier_reads import (
@@ -361,6 +364,76 @@ class KEVEnrichmentEvidenceTests(unittest.TestCase):
                     provider_record_is_live(record, now=1000.0, ttl_s=100.0)
                 )
 
+    def test_cached_and_expired_provider_records_are_queued_for_revalidation(self) -> None:
+        self.assertFalse(
+            provider_record_needs_revalidation(
+                {"mode": "live", "ts": 999.0}, now=1000.0, ttl_s=100.0
+            )
+        )
+        for record in (
+            {"mode": "cached", "ts": 999.0},
+            {"mode": "live", "ts": 899.0},
+            {"mode": "live", "ts": "malformed"},
+            {"mode": "live", "ts": 1001.0},
+        ):
+            with self.subTest(record=record):
+                self.assertTrue(
+                    provider_record_needs_revalidation(
+                        record, now=1000.0, ttl_s=100.0
+                    )
+                )
+
+    def test_governed_decision_contract_is_closed_and_typed(self) -> None:
+        self.assertTrue(
+            governed_decision_is_complete(
+                {
+                    "decision": "deny",
+                    "gates_fired": ["threat-signature:DROP TABLE"],
+                    "lambda_value": 0.0,
+                }
+            )
+        )
+        self.assertTrue(
+            governed_decision_is_complete(
+                {"decision": "allow", "gates_fired": [], "lambda_value": 1}
+            )
+        )
+        for record in (
+            None,
+            {},
+            {"decision": None, "gates_fired": [], "lambda_value": 1.0},
+            {"decision": "observe", "gates_fired": [], "lambda_value": 1.0},
+            {"decision": "allow", "gates_fired": None, "lambda_value": 1.0},
+            {"decision": "allow", "gates_fired": [""], "lambda_value": 1.0},
+            {"decision": "allow", "gates_fired": [], "lambda_value": True},
+            {"decision": "allow", "gates_fired": [], "lambda_value": float("nan")},
+            {"decision": "allow", "gates_fired": [], "lambda_value": 1.1},
+        ):
+            with self.subTest(record=record):
+                self.assertFalse(governed_decision_is_complete(record))
+
+    def test_kevgate_live_requires_every_governed_decision(self) -> None:
+        self.assertEqual(
+            canonical_kevgate_kind(
+                enrichment_kind="live",
+                row_count=24,
+                governed_decision_rows=24,
+            ),
+            "live",
+        )
+        for case in (
+            {"enrichment_kind": "cached", "row_count": 24,
+             "governed_decision_rows": 24},
+            {"enrichment_kind": "live", "row_count": 24,
+             "governed_decision_rows": 23},
+            {"enrichment_kind": "live", "row_count": 0,
+             "governed_decision_rows": 0},
+            {"enrichment_kind": "live", "row_count": True,
+             "governed_decision_rows": 1},
+        ):
+            with self.subTest(case=case):
+                self.assertIsNone(canonical_kevgate_kind(**case))
+
     def test_live_kevgate_producer_is_bound_to_the_complete_evidence_helper(self) -> None:
         source = (ROOT / "serve.py").read_text(encoding="utf-8")
         self.assertIn(
@@ -374,6 +447,14 @@ class KEVEnrichmentEvidenceTests(unittest.TestCase):
         self.assertIn('"evidence_complete": _canonical_kind == "live"', source)
         self.assertIn("_kl_live.unix_observation_is_fresh(", source)
         self.assertIn("_kl_live.provider_record_is_live(", source)
+        self.assertIn("_kl_live.provider_record_needs_revalidation(", source)
+        self.assertIn('globals().get("_sc_evaluate_governed_action")', source)
+        self.assertIn("_kl_live.canonical_kevgate_kind(", source)
+        self.assertNotIn(
+            'for _nm in ("_policy_decide_core","_decide_core",'
+            '"policy_decide","_govern_decide")',
+            source,
+        )
 
     def test_bundled_cve_exposes_the_real_catalog_clock(self) -> None:
         import szl_b2_secdata

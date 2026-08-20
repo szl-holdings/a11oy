@@ -104,6 +104,53 @@ def canonical_kev_enrichment_kind(
     return "live"
 
 
+def governed_decision_is_complete(record):
+    """Return whether one KEV row carries a complete governed decision.
+
+    KEVGate is a read-only projection of the in-process policy core.  It may
+    only claim complete governance when the core returned a closed decision,
+    a real (possibly empty) fired-gate list, and a finite Lambda value in the
+    policy domain.  Booleans and loosely shaped mappings fail closed.
+    """
+    if not isinstance(record, dict):
+        return False
+    decision = record.get("decision")
+    if not isinstance(decision, str) or decision.strip().casefold() not in {
+        "allow",
+        "deny",
+    }:
+        return False
+    gates_fired = record.get("gates_fired")
+    if not isinstance(gates_fired, list) or any(
+        not isinstance(gate, str) or not gate.strip() for gate in gates_fired
+    ):
+        return False
+    lambda_value = record.get("lambda_value")
+    if type(lambda_value) not in (int, float):
+        return False
+    lambda_number = float(lambda_value)
+    return math.isfinite(lambda_number) and 0.0 <= lambda_number <= 1.0
+
+
+def canonical_kevgate_kind(
+    *,
+    enrichment_kind,
+    row_count,
+    governed_decision_rows,
+):
+    """Return ``live`` only for complete live enrichment and governance."""
+    if not isinstance(enrichment_kind, str):
+        return None
+    if enrichment_kind.strip().casefold() != "live":
+        return None
+    counts = (row_count, governed_decision_rows)
+    if any(type(value) is not int for value in counts):
+        return None
+    if row_count <= 0 or governed_decision_rows != row_count:
+        return None
+    return "live"
+
+
 def unix_observation_is_fresh(value, *, now, ttl_s):
     """Return whether a numeric Unix observation clock is within its TTL.
 
@@ -131,6 +178,11 @@ def provider_record_is_live(record, *, now, ttl_s):
     if not isinstance(mode, str) or mode.strip().casefold() != "live":
         return False
     return unix_observation_is_fresh(record.get("ts"), now=now, ttl_s=ttl_s)
+
+
+def provider_record_needs_revalidation(record, *, now, ttl_s):
+    """Queue every record that cannot count as live provider evidence."""
+    return not provider_record_is_live(record, now=now, ttl_s=ttl_s)
 
 
 def _http_get(url, timeout=20, headers=None, data=None, method=None, deadline=None):

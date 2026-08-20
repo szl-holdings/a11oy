@@ -59,8 +59,9 @@ STATE_VOCABULARY = {
 # liesIf: response shapes that count as a "lie" (stale/mock/uncited) -> fail.
 def ep(method="GET", schema=None, sla=None, citations=False,
        allow_statuses=(200,), allow_labels=("live", "cached"),
-       lies_if=("mock", "fabricated", "placeholder"), note=""):
-    return {
+       lies_if=("mock", "fabricated", "placeholder"), note="",
+       mode_requires_data_kind=False):
+    contract = {
         "method": method,
         "schema": schema,
         "freshnessSLA": sla,
@@ -72,6 +73,9 @@ def ep(method="GET", schema=None, sla=None, citations=False,
         },
         "note": note,
     }
+    if mode_requires_data_kind:
+        contract["modeRequiresDataKind"] = True
+    return contract
 
 
 DAY = 86400
@@ -183,6 +187,7 @@ ENDPOINTS = {
     "/api/a11oy/v1/sec/cve": ep(schema="generic_list", sla=DAY, citations=True,
         note="Bundled CISA KEV-derived CVE reference with sample CVSS/EPSS enrichment; not a live NVD feed."),
     "/api/a11oy/v1/sec/kev": ep(schema="generic_list", sla=DAY, citations=True,
+        mode_requires_data_kind=True,
         note="Bundled CISA KEV snapshot fallback; its catalog release clock and cached label remain subject to the live readiness SLA."),
     "/api/a11oy/v1/sec/attack": ep(schema="generic_obj", sla=DAY, citations=True,
         note="Bundled MITRE ATT&CK reference with sample sequencing; not a live ATT&CK fetch."),
@@ -264,6 +269,7 @@ ENDPOINTS = {
     # kevgate: honestly labeled CISA KEV evidence mapped through the governed
     # policy engine; a bundled or partially enriched response remains red.
     "/api/a11oy/v1/sec/kevgate": ep(schema="kevgate", sla=DAY, citations=True,
+        mode_requires_data_kind=True,
         note="CISA KEV -> deny-by-default gate impact. It is live only when KEV, EPSS, and NVD CVSS coverage are all live for every returned row; mixed provenance remains release-red."),
     # router/stats: per-tier route catalog derived from real szl_brain.TIERS.
     # Throughput is explicitly modeled display data, so this deterministic
@@ -669,7 +675,24 @@ SCHEMAS = {
         },
     },
     "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
-    "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
+    "kevgate": {
+        "type": "object",
+        "required": [
+            "items", "count", "mode", "data_kind",
+            "governed_decision_rows", "governance_complete",
+        ],
+        "requiredPathTypes": {
+            "items": "array", "count": "number", "mode": "string",
+            "data_kind": "string", "governed_decision_rows": "number",
+            "governance_complete": "boolean",
+        },
+        "governedDecisionArray": {
+            "path": "items",
+            "countPath": "count",
+            "coveragePath": "governed_decision_rows",
+            "completePath": "governance_complete",
+        },
+    },
     "router_stats": {"type": "object", "anyKey": ["routes", "servedThisWindow", "tiers"]},
     "mosaic_governed": {"type": "object",
                         "anyKey": ["cop", "receipts", "lambda_axes", "thresholds",
