@@ -24,6 +24,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
+import yaml
 from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
 from huggingface_hub.errors import EntryNotFoundError, HfHubHTTPError
 
@@ -38,6 +39,9 @@ SHA256 = re.compile(r"^[0-9a-f]{64}$")
 SOURCE_MAP_SCHEMA = "szl.hf-space-source-map/v1"
 SOURCE_MAP_STATES = frozenset({"EXACT", "INFERRED", "DIVERGENT", "UNAVAILABLE"})
 DEFAULT_SOURCE_MAP = Path("docs/huggingface-space-source-map-v1.json")
+GRADIO_ENTRYPOINT_CANDIDATES = ("app.py", "src/app.py", "main.py")
+STREAMLIT_ENTRYPOINT_CANDIDATES = ("app.py", "streamlit_app.py", "src/app.py")
+PYTHON_ENTRYPOINT_CANDIDATES = ("app.py", "streamlit_app.py", "src/app.py", "main.py")
 
 UNIVERSAL_CSS = f"""{STYLE_START}
 :root {{ color-scheme: dark; --szl-focus: #eef4fb; }}
@@ -70,6 +74,32 @@ button, [role="button"], a, input, select, textarea {{ touch-action: manipulatio
 
 class ControlError(RuntimeError):
     pass
+
+
+class _UniqueKeyLoader(yaml.SafeLoader):
+    pass
+
+
+def _construct_unique_mapping(
+    loader: yaml.SafeLoader,
+    node: yaml.nodes.MappingNode,
+    deep: bool = False,
+) -> dict[Any, Any]:
+    loader.flatten_mapping(node)
+    pairs = loader.construct_pairs(node, deep=deep)
+    try:
+        mapping = dict(pairs)
+    except TypeError as exc:
+        raise ControlError("README frontmatter mapping keys must be hashable") from exc
+    if len(mapping) != len(pairs):
+        raise ControlError("README frontmatter contains duplicate mapping keys")
+    return mapping
+
+
+_UniqueKeyLoader.add_constructor(
+    yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
+    _construct_unique_mapping,
+)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -302,6 +332,73 @@ def _split_frontmatter(text: str) -> tuple[str, str]:
     if not match:
         raise ControlError("README starts YAML frontmatter but has no closing delimiter")
     return match.group(0), text[match.end() :]
+
+
+def _frontmatter_metadata(text: str) -> Mapping[str, Any]:
+    frontmatter, _ = _split_frontmatter(text)
+    if not frontmatter:
+        return {}
+    try:
+        metadata = yaml.load(frontmatter[4:-4], Loader=_UniqueKeyLoader)
+    except ControlError:
+        raise
+    except yaml.YAMLError as exc:
+        raise ControlError(f"README frontmatter is not valid unambiguous YAML: {exc}") from exc
+    if metadata is None:
+        return {}
+    if not isinstance(metadata, dict):
+        raise ControlError("README frontmatter root must be a mapping")
+    return metadata
+
+
+def _canonical_python_app_file(value: Any) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ControlError("configured app_file must be a nonempty canonical path string")
+    path = PurePosixPath(value)
+    parts = value.split("/")
+    if (
+        "\\" in value
+        or path.is_absolute()
+        or any(part in {"", ".", ".."} for part in parts)
+        or any(ord(character) < 32 or ord(character) == 127 for character in value)
+        or path.suffix != ".py"
+    ):
+        raise ControlError(
+            "configured app_file must be a canonical repository-relative Python path"
+        )
+    return path.as_posix()
+
+
+def _resolve_python_entrypoint(
+    api: HfApi,
+    asset: Asset,
+    token: str | None,
+    fallback_candidates: tuple[str, ...] = PYTHON_ENTRYPOINT_CANDIDATES,
+) -> tuple[str | None, list[str]]:
+    if "README.md" in asset.files:
+        try:
+            readme = _read_text(api, asset, "README.md", token)
+            metadata = _frontmatter_metadata(readme) if readme is not None else {}
+        except ControlError as exc:
+            return None, [str(exc)]
+        if "app_file" in metadata:
+            try:
+                entry = _canonical_python_app_file(metadata["app_file"])
+            except ControlError as exc:
+                return None, [str(exc)]
+            if entry not in asset.files:
+                return None, [f"configured app_file is absent at the observed revision: {entry}"]
+            return entry, []
+
+    candidates = [candidate for candidate in fallback_candidates if candidate in asset.files]
+    if len(candidates) == 1:
+        return candidates[0], []
+    if not candidates:
+        return None, ["Python application entrypoint not found"]
+    return None, [
+        "Python application entrypoint is ambiguous without a configured app_file: "
+        + ", ".join(candidates)
+    ]
 
 
 def _replace_managed(text: str, managed: str) -> str:
@@ -805,11 +902,21 @@ def _managed_streamlit_binding(text: str) -> bool:
     return False
 
 
-def _gradio_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tuple[str, bytes]], list[str]]:
-    candidates = ("app.py", "src/app.py", "main.py")
-    entry = next((p for p in candidates if p in asset.files), None)
-    if not entry:
-        return [], ["Gradio entrypoint not found"]
+def _gradio_ops(
+    api: HfApi,
+    asset: Asset,
+    token: str | None,
+) -> tuple[list[tuple[str, bytes]], list[str]]:
+    entry, blockers = _resolve_python_entrypoint(
+        api,
+        asset,
+        token,
+        GRADIO_ENTRYPOINT_CANDIDATES,
+    )
+    if blockers:
+        return [], blockers
+    if entry is None:
+        return [], ["Gradio entrypoint resolution failed closed"]
     text = _read_text(api, asset, entry, token) or ""
     if text.count("gr.Blocks(") != 1:
         return [], ["Gradio adapter requires exactly one gr.Blocks constructor"]
@@ -835,11 +942,21 @@ def _gradio_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tuple
     return [(entry, text.encode()), (stylesheet, UNIVERSAL_CSS.encode())], []
 
 
-def _streamlit_ops(api: HfApi, asset: Asset, token: str | None) -> tuple[list[tuple[str, bytes]], list[str]]:
-    candidates = ("app.py", "streamlit_app.py", "src/app.py")
-    entry = next((p for p in candidates if p in asset.files), None)
-    if not entry:
-        return [], ["Streamlit entrypoint not found"]
+def _streamlit_ops(
+    api: HfApi,
+    asset: Asset,
+    token: str | None,
+) -> tuple[list[tuple[str, bytes]], list[str]]:
+    entry, blockers = _resolve_python_entrypoint(
+        api,
+        asset,
+        token,
+        STREAMLIT_ENTRYPOINT_CANDIDATES,
+    )
+    if blockers:
+        return [], blockers
+    if entry is None:
+        return [], ["Streamlit entrypoint resolution failed closed"]
     text = _read_text(api, asset, entry, token) or ""
     matches = list(re.finditer(r"^\s*st\.set_page_config\([^\n]*\)\s*$", text, re.MULTILINE))
     if len(matches) != 1:
@@ -868,12 +985,16 @@ def classify_space(api: HfApi, asset: Asset, token: str | None) -> tuple[str, li
     if any(p in files for p in ("package.json", "vite.config.ts", "vite.config.js")) and any(p.startswith("src/") for p in files):
         ops, blockers = _react_ops(api, asset, token)
         return "REACT", ops, blockers
-    py_candidates = [p for p in ("app.py", "streamlit_app.py", "src/app.py", "main.py") if p in files]
-    combined = "\n".join((_read_text(api, asset, p, token) or "") for p in py_candidates)
-    if "gr.Blocks(" in combined:
+    entry, entry_blockers = _resolve_python_entrypoint(api, asset, token)
+    if entry_blockers:
+        return "SOURCE_NATIVE_REQUIRED", [], entry_blockers
+    if entry is None:
+        return "SOURCE_NATIVE_REQUIRED", [], ["Python entrypoint resolution failed closed"]
+    entry_text = _read_text(api, asset, entry, token) or ""
+    if "gr.Blocks(" in entry_text:
         ops, blockers = _gradio_ops(api, asset, token)
         return "GRADIO", ops, blockers
-    if "st.set_page_config" in combined or "import streamlit" in combined:
+    if "st.set_page_config" in entry_text or "import streamlit" in entry_text:
         ops, blockers = _streamlit_ops(api, asset, token)
         return "STREAMLIT", ops, blockers
     return "SOURCE_NATIVE_REQUIRED", [], ["unsupported or ambiguous application shell"]
