@@ -11,7 +11,10 @@ A frontend failure may be repaired only in the application’s canonical source 
 - `DIVERGENT` — explicit links are missing, unresolved, or point to multiple repositories; or multiple normalized name matches exist.
 - `UNAVAILABLE` — no public source mapping can be established.
 
-Only `EXACT` is write-authoritative without additional review. `INFERRED` may be used for investigation, not automatic promotion.
+`EXACT` identifies a canonical source repository for owner-reviewed source changes and
+promotion through that repository's protected writer. It does not authorize a direct
+Hugging Face mutation. `INFERRED` may be used for investigation only, while
+`DIVERGENT` and `UNAVAILABLE` remain blocked pending explicit ownership evidence.
 
 ## Captured state
 

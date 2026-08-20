@@ -417,21 +417,28 @@ def build_source_map(
         front = parse_front_matter(readme) if status == 200 else {}
         explicit = extract_explicit_github_repositories(readme, front)
         mapping = select_source_mapping(space_id, explicit, cached_resolver)
+        bound_candidates: list[dict[str, Any]] = []
+        bound_candidates_by_name: dict[str, dict[str, Any]] = {}
+        for candidate in mapping["candidates"]:
+            full_name = candidate.get("full_name")
+            if not isinstance(full_name, str) or not full_name:
+                raise SourceMapError(
+                    f"{space_id} source candidate has no canonical full name"
+                )
+            candidate_name = full_name.lower()
+            if candidate_name not in bound_repo_cache:
+                bound_repo_cache[candidate_name] = repository_binder(candidate)
+            bound_candidate = bound_repo_cache[candidate_name]
+            bound_candidates.append(bound_candidate)
+            bound_candidates_by_name[candidate_name] = bound_candidate
+        mapping["candidates"] = bound_candidates
+
         canonical = mapping.get("canonical")
         workflows: dict[str, Any]
         if isinstance(canonical, dict) and isinstance(canonical.get("full_name"), str):
             canonical_name = canonical["full_name"].lower()
-            if canonical_name not in bound_repo_cache:
-                bound_repo_cache[canonical_name] = repository_binder(canonical)
-            canonical = bound_repo_cache[canonical_name]
+            canonical = bound_candidates_by_name[canonical_name]
             mapping["canonical"] = canonical
-            mapping["candidates"] = [
-                canonical
-                if isinstance(candidate.get("full_name"), str)
-                and candidate["full_name"].lower() == canonical_name
-                else candidate
-                for candidate in mapping["candidates"]
-            ]
             repo_key = canonical["full_name"].lower()
             github_ref = canonical.get("default_branch_sha")
             if isinstance(github_ref, str) and SHA40.fullmatch(github_ref):

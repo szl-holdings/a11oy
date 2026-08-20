@@ -42,6 +42,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -50,6 +51,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "fc897dd3719c56220f6794d3561bf35899af8b30",
             "disabled": false,
             "full_name": "szl-holdings/a11oy",
             "html_url": "https://github.com/szl-holdings/a11oy",
@@ -58,6 +60,7 @@
           {
             "archived": true,
             "default_branch": "main",
+            "default_branch_sha": "dde99af0564c965edc6a253d4004734157460810",
             "disabled": false,
             "full_name": "szl-holdings/developers",
             "html_url": "https://github.com/szl-holdings/developers",
@@ -66,6 +69,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "104c23446d316bf819b94c858f4198fccd864339",
             "disabled": false,
             "full_name": "szl-holdings/killinchu",
             "html_url": "https://github.com/szl-holdings/killinchu",
@@ -74,6 +78,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
             "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
             "html_url": "https://github.com/szl-holdings/lutar-lean",
@@ -82,6 +87,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "01a077cd7143cb0ee99f077c6dd0dad4f96f4116",
             "disabled": false,
             "full_name": "szl-holdings/szl-cookbook",
             "html_url": "https://github.com/szl-holdings/szl-cookbook",
@@ -140,6 +146,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -148,6 +155,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "fc897dd3719c56220f6794d3561bf35899af8b30",
             "disabled": false,
             "full_name": "szl-holdings/a11oy",
             "html_url": "https://github.com/szl-holdings/a11oy",
@@ -156,6 +164,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "4a60f66608da5e35972e7739ba317783bd6659ab",
             "disabled": false,
             "full_name": "szl-holdings/anatomy",
             "html_url": "https://github.com/szl-holdings/anatomy",
@@ -164,6 +173,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
@@ -172,6 +182,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "e8b65b666185e98618d2cdd1155ab18b8c000130",
             "disabled": false,
             "full_name": "szl-holdings/hatun-mcp",
             "html_url": "https://github.com/szl-holdings/hatun-mcp",
@@ -180,6 +191,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "33acf109591e056ae3f055d84ce9738cf9d2727d",
             "disabled": false,
             "full_name": "szl-holdings/khipu-consensus",
             "html_url": "https://github.com/szl-holdings/khipu-consensus",
@@ -188,6 +200,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "104c23446d316bf819b94c858f4198fccd864339",
             "disabled": false,
             "full_name": "szl-holdings/killinchu",
             "html_url": "https://github.com/szl-holdings/killinchu",
@@ -196,6 +209,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
             "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
             "html_url": "https://github.com/szl-holdings/lutar-lean",
@@ -204,6 +218,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "610e71846ebb2bccd5e8f7d1b0f00c0e261f7ea0",
             "disabled": false,
             "full_name": "szl-holdings/szl-mesh",
             "html_url": "https://github.com/szl-holdings/szl-mesh",
@@ -212,6 +227,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "9f9e6d0615f58ce483a86b152f835b6f855e48ba",
             "disabled": false,
             "full_name": "szl-holdings/szl-papers",
             "html_url": "https://github.com/szl-holdings/szl-papers",
@@ -408,6 +424,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "6851c00110b275d8207c8038ffc78886cdff55fb",
             "disabled": false,
             "full_name": "szl-holdings/energy-attest-holo",
             "html_url": "https://github.com/szl-holdings/energy-attest-holo",
@@ -416,6 +433,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "bf8e1a609d66d45d8a7b1c7f21640a15bd418190",
             "disabled": false,
             "full_name": "szl-holdings/szl-energy-attest",
             "html_url": "https://github.com/szl-holdings/szl-energy-attest",
@@ -465,6 +483,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -473,6 +492,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
@@ -640,6 +660,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -648,6 +669,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
@@ -698,6 +720,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -706,6 +729,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
@@ -714,6 +738,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "e7ef3d7940178e308b2bf0de38728d6bb66a85f4",
             "disabled": false,
             "full_name": "szl-holdings/szl-guardrail-receipt",
             "html_url": "https://github.com/szl-holdings/szl-guardrail-receipt",
@@ -765,6 +790,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "e8b65b666185e98618d2cdd1155ab18b8c000130",
             "disabled": false,
             "full_name": "szl-holdings/hatun-mcp",
             "html_url": "https://github.com/szl-holdings/hatun-mcp",
@@ -773,6 +799,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
             "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
             "html_url": "https://github.com/szl-holdings/lutar-lean",
@@ -781,6 +808,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "6d3d49e7c0c18125f9e822d8f682d486a6dc79d8",
             "disabled": false,
             "full_name": "szl-holdings/ouroboros",
             "html_url": "https://github.com/szl-holdings/ouroboros",
@@ -789,6 +817,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "48b0ea169de75990e44b6ec924e59fe7d76e6020",
             "disabled": false,
             "full_name": "szl-holdings/platform",
             "html_url": "https://github.com/szl-holdings/platform",
@@ -797,6 +826,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "8b75df20abcf61d9d3d17e8dafdee1fbdfda5bf6",
             "disabled": false,
             "full_name": "szl-holdings/szl-router",
             "html_url": "https://github.com/szl-holdings/szl-router",
@@ -928,6 +958,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
@@ -936,6 +967,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "0677e7f42ed50196d50505d8095e6c9b03353cb6",
             "disabled": false,
             "full_name": "szl-holdings/immune",
             "html_url": "https://github.com/szl-holdings/immune",
@@ -995,6 +1027,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -1003,6 +1036,7 @@
           {
             "archived": true,
             "default_branch": "main",
+            "default_branch_sha": "dde99af0564c965edc6a253d4004734157460810",
             "disabled": false,
             "full_name": "szl-holdings/developers",
             "html_url": "https://github.com/szl-holdings/developers",
@@ -1011,6 +1045,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
@@ -1019,6 +1054,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "33acf109591e056ae3f055d84ce9738cf9d2727d",
             "disabled": false,
             "full_name": "szl-holdings/khipu-consensus",
             "html_url": "https://github.com/szl-holdings/khipu-consensus",
@@ -1027,6 +1063,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "104c23446d316bf819b94c858f4198fccd864339",
             "disabled": false,
             "full_name": "szl-holdings/killinchu",
             "html_url": "https://github.com/szl-holdings/killinchu",
@@ -1035,6 +1072,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
             "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
             "html_url": "https://github.com/szl-holdings/lutar-lean",
@@ -1043,6 +1081,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "6d3d49e7c0c18125f9e822d8f682d486a6dc79d8",
             "disabled": false,
             "full_name": "szl-holdings/ouroboros",
             "html_url": "https://github.com/szl-holdings/ouroboros",
@@ -1051,6 +1090,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "48b0ea169de75990e44b6ec924e59fe7d76e6020",
             "disabled": false,
             "full_name": "szl-holdings/platform",
             "html_url": "https://github.com/szl-holdings/platform",
@@ -1059,6 +1099,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "01a077cd7143cb0ee99f077c6dd0dad4f96f4116",
             "disabled": false,
             "full_name": "szl-holdings/szl-cookbook",
             "html_url": "https://github.com/szl-holdings/szl-cookbook",
@@ -1067,6 +1108,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "ceaef540eba6c5acf85091faf4a20cd9aef480f9",
             "disabled": false,
             "full_name": "szl-holdings/szl-formula-ledger",
             "html_url": "https://github.com/szl-holdings/szl-formula-ledger",
@@ -1116,6 +1158,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
             "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
             "html_url": "https://github.com/szl-holdings/lutar-lean",
@@ -1124,6 +1167,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "ceaef540eba6c5acf85091faf4a20cd9aef480f9",
             "disabled": false,
             "full_name": "szl-holdings/szl-formula-ledger",
             "html_url": "https://github.com/szl-holdings/szl-formula-ledger",
@@ -1233,6 +1277,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -1241,6 +1286,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "fc897dd3719c56220f6794d3561bf35899af8b30",
             "disabled": false,
             "full_name": "szl-holdings/a11oy",
             "html_url": "https://github.com/szl-holdings/a11oy",
@@ -1249,6 +1295,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "787891967b412fd3211856ffc0b2e6e4bf6da205",
             "disabled": false,
             "full_name": "szl-holdings/receipt-chain-live",
             "html_url": "https://github.com/szl-holdings/receipt-chain-live",
@@ -1257,6 +1304,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "d268a95a33ca5ea331a84d271d1d01b0afe9f1a6",
             "disabled": false,
             "full_name": "szl-holdings/szl-lake",
             "html_url": "https://github.com/szl-holdings/szl-lake",
@@ -1306,6 +1354,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -1314,6 +1363,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "54d103e3e4d494726006da23d791faad12ab3852",
             "disabled": false,
             "full_name": "szl-holdings/sda",
             "html_url": "https://github.com/szl-holdings/sda",
@@ -1638,6 +1688,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -1646,6 +1697,7 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "424886b024bc669069b5aa481eb29dbd01c1b846",
             "disabled": false,
             "full_name": "szl-holdings/szl-forge",
             "html_url": "https://github.com/szl-holdings/szl-forge",

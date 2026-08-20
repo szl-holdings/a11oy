@@ -217,6 +217,67 @@ def test_build_source_map_is_deterministic_and_bounded() -> None:
     assert exact["workflow_candidates"]["single_writer_candidate"] is True
 
 
+def test_divergent_candidates_are_bound_without_workflow_discovery() -> None:
+    records = [
+        {
+            "id": "SZLHOLDINGS/divergent-space",
+            "sha": "a" * 40,
+            "sdk": "docker",
+            "runtime": {"stage": "RUNNING", "sha": "a" * 40},
+        }
+    ]
+    readme_bytes = b"""---
+source_repo: https://github.com/szl-holdings/first-source
+---
+Also see https://github.com/szl-holdings/second-source.
+"""
+    bound_names: list[str] = []
+    workflow_calls: list[tuple[str, str]] = []
+
+    def resolver(name: str):
+        repository = _repo(name)
+        repository.pop("default_branch_sha")
+        return repository
+
+    def binder(repository: dict):
+        bound_names.append(repository["full_name"])
+        return {**repository, "default_branch_sha": "d" * 40}
+
+    def workflows(name: str, revision: str):
+        workflow_calls.append((name, revision))
+        return {"state": "OBSERVED", "github_ref": revision, "paths": []}
+
+    payload = MODULE.build_source_map(
+        records,
+        lambda space_id, revision: (
+            200,
+            readme_bytes,
+            f"https://example.invalid/{space_id}/{revision}/README.md",
+        ),
+        resolver,
+        workflows,
+        binder,
+    )
+
+    space = payload["spaces"][0]
+    mapping = space["source_mapping"]
+    assert mapping["state"] == "DIVERGENT"
+    assert mapping["canonical"] is None
+    assert bound_names == [
+        "szl-holdings/first-source",
+        "szl-holdings/second-source",
+    ]
+    assert all(
+        candidate["default_branch_sha"] == "d" * 40
+        for candidate in mapping["candidates"]
+    )
+    assert space["workflow_candidates"] == {
+        "state": "BLOCKED_SOURCE_MAPPING",
+        "paths": [],
+    }
+    assert workflow_calls == []
+
+
 def test_workflow_listing_filters_non_deployment_files(monkeypatch) -> None:
     payload = [
         {"type": "file", "path": ".github/workflows/tests.yml", "name": "tests.yml"},
@@ -255,6 +316,10 @@ def test_committed_map_is_bound_to_immutable_repository_revisions() -> None:
         if readme["http_status"] == 200:
             assert f"/{hf_revision}/README.md" in readme["url"]
             assert re.fullmatch(r"[0-9a-f]{64}", readme["sha256"])
+
+        for candidate in space["source_mapping"]["candidates"]:
+            assert MODULE.SHA40.fullmatch(candidate["default_branch_sha"])
+            assert "pushed_at" not in candidate
 
         canonical = space["source_mapping"]["canonical"]
         if canonical is None:
