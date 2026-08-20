@@ -93,6 +93,39 @@ END;
 $$;
 
 DO $$
+DECLARE
+    expected_triggers text[] := ARRAY[
+        'memory_idempotency.memory_idempotency_append_only',
+        'memory_outbox.memory_outbox_touch_updated_at',
+        'memory_query_audit.memory_query_audit_append_only',
+        'memory_receipts.memory_receipts_append_only',
+        'memory_records.memory_records_touch_updated_at'
+    ];
+    observed_triggers text[];
+BEGIN
+    SELECT pg_catalog.array_agg(
+               relation.relname || '.' || trigger.tgname
+               ORDER BY relation.relname, trigger.tgname
+           )
+      INTO observed_triggers
+      FROM pg_catalog.pg_trigger AS trigger
+      JOIN pg_catalog.pg_class AS relation
+        ON relation.oid = trigger.tgrelid
+      JOIN pg_catalog.pg_namespace AS namespace
+        ON namespace.oid = relation.relnamespace
+     WHERE namespace.nspname = 'public'
+       AND relation.relname LIKE 'memory_%'
+       AND NOT trigger.tgisinternal;
+    IF observed_triggers IS DISTINCT FROM expected_triggers THEN
+        RAISE EXCEPTION
+          'Memory Covenant trigger set mismatch: expected %, observed %',
+          expected_triggers,
+          observed_triggers;
+    END IF;
+END;
+$$;
+
+DO $$
 BEGIN
     IF EXISTS (
         SELECT 1
@@ -216,29 +249,6 @@ BEGIN
            AND c.relname LIKE 'memory_%'
     ) THEN
         RAISE EXCEPTION 'Memory Covenant objects followed a caller-controlled current schema';
-    END IF;
-END;
-$$;
-
-DO $$
-DECLARE
-    required_triggers text[] := ARRAY[
-        'memory_idempotency_append_only',
-        'memory_outbox_touch_updated_at',
-        'memory_query_audit_append_only',
-        'memory_receipts_append_only',
-        'memory_records_touch_updated_at'
-    ];
-    observed_triggers text[];
-BEGIN
-    SELECT array_agg(t.tgname ORDER BY t.tgname)
-      INTO observed_triggers
-      FROM pg_trigger AS t
-     WHERE NOT t.tgisinternal
-       AND t.tgname = ANY(required_triggers);
-    IF observed_triggers IS DISTINCT FROM required_triggers THEN
-        RAISE EXCEPTION 'Memory Covenant trigger set mismatch: expected %, observed %',
-            required_triggers, observed_triggers;
     END IF;
 END;
 $$;
@@ -798,6 +808,99 @@ BEGIN
     END;
     IF NOT update_rejected OR NOT delete_rejected THEN
         RAISE EXCEPTION 'append-only receipt mutation was not rejected with SQLSTATE 55000';
+    END IF;
+END;
+$$;
+
+INSERT INTO memory_query_audit (
+    audit_id,
+    tenant_id,
+    security_domain,
+    receipt_id,
+    query_digest,
+    result_digest,
+    audit_json
+) VALUES (
+    'acceptance-append-only-audit',
+    'acceptance-tenant-a',
+    'acceptance-domain-a',
+    'acceptance-receipt-20260820',
+    repeat('1', 64),
+    repeat('2', 64),
+    jsonb_build_object(
+        'audit_id', 'acceptance-append-only-audit',
+        'query_digest', repeat('1', 64),
+        'result_digest', repeat('2', 64)
+    )
+);
+
+INSERT INTO memory_idempotency (
+    tenant_id,
+    security_domain,
+    operation,
+    idempotency_key,
+    request_digest,
+    response_json,
+    receipt_id
+) VALUES (
+    'acceptance-tenant-a',
+    'acceptance-domain-a',
+    'acceptance',
+    'append-only-idempotency',
+    repeat('3', 64),
+    '{}'::jsonb,
+    'acceptance-receipt-20260820'
+);
+
+DO $$
+DECLARE
+    audit_update_rejected boolean := false;
+    audit_delete_rejected boolean := false;
+    idempotency_update_rejected boolean := false;
+    idempotency_delete_rejected boolean := false;
+BEGIN
+    BEGIN
+        UPDATE memory_query_audit
+           SET result_digest = repeat('4', 64)
+         WHERE audit_id = 'acceptance-append-only-audit';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN
+            audit_update_rejected := true;
+    END;
+    BEGIN
+        DELETE FROM memory_query_audit
+         WHERE audit_id = 'acceptance-append-only-audit';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN
+            audit_delete_rejected := true;
+    END;
+    BEGIN
+        UPDATE memory_idempotency
+           SET response_json = '{"tampered":true}'::jsonb
+         WHERE tenant_id = 'acceptance-tenant-a'
+           AND security_domain = 'acceptance-domain-a'
+           AND operation = 'acceptance'
+           AND idempotency_key = 'append-only-idempotency';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN
+            idempotency_update_rejected := true;
+    END;
+    BEGIN
+        DELETE FROM memory_idempotency
+         WHERE tenant_id = 'acceptance-tenant-a'
+           AND security_domain = 'acceptance-domain-a'
+           AND operation = 'acceptance'
+           AND idempotency_key = 'append-only-idempotency';
+    EXCEPTION
+        WHEN SQLSTATE '55000' THEN
+            idempotency_delete_rejected := true;
+    END;
+    IF NOT audit_update_rejected
+       OR NOT audit_delete_rejected
+       OR NOT idempotency_update_rejected
+       OR NOT idempotency_delete_rejected THEN
+        RAISE EXCEPTION
+          'append-only audit/idempotency mutation was not rejected with SQLSTATE 55000';
     END IF;
 END;
 $$;
