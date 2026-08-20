@@ -50,33 +50,37 @@ def _valid_sha(value: Any) -> bool:
     return isinstance(value, str) and bool(SHA40.fullmatch(value.strip().lower()))
 
 
-def _find_sha(node: Any) -> str | None:
-    if _valid_sha(node):
-        return str(node).strip().lower()
-    if isinstance(node, dict):
-        preferred = (
-            "source_sha",
-            "source_revision",
-            "github_sha",
-            "commit_sha",
-            "revision",
-            "sha",
-        )
-        for key in preferred:
-            if key in node:
-                found = _find_sha(node[key])
-                if found:
-                    return found
-        for value in node.values():
-            found = _find_sha(value)
-            if found:
-                return found
-    if isinstance(node, list):
-        for value in node:
-            found = _find_sha(value)
-            if found:
-                return found
-    return None
+def _device_width_viewport_meta(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    directives: dict[str, str] = {}
+    for item in value.split(","):
+        key, separator, raw_value = item.strip().partition("=")
+        if separator:
+            directives[key.strip().casefold()] = raw_value.strip().casefold()
+    return directives.get("width") == "device-width"
+
+
+def _organization_deployment_revision(payload: Any) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    source = payload.get("source")
+    target = payload.get("target")
+    if not isinstance(source, dict) or not isinstance(target, dict):
+        return None
+    revision = source.get("revision")
+    if not (
+        payload.get("schema") == "szl.hf-static-deployment/v1"
+        and source.get("repository") == "szl-holdings/.github"
+        and source.get("manifest") == "huggingface/org-card.manifest.json"
+        and target.get("repo_id") == "SZLHOLDINGS/README"
+        and target.get("repo_type") == "space"
+        and target.get("live_base_url")
+        == "https://szlholdings-readme.static.hf.space"
+        and _valid_sha(revision)
+    ):
+        return None
+    return str(revision).strip().lower()
 
 
 def _build_identity(payload: dict[str, Any]) -> tuple[str | None, str | None, str | None]:
@@ -101,8 +105,16 @@ def evaluate_page_result(result: dict[str, Any]) -> list[dict[str, Any]]:
         failures.append({"code": "HTTP_FAILURE", "detail": f"status={status}"})
     if result.get("load_error"):
         failures.append({"code": "LOAD_FAILURE", "detail": str(result["load_error"])})
-    if not metrics.get("viewport_meta"):
+    viewport_meta = metrics.get("viewport_meta")
+    if not viewport_meta:
         failures.append({"code": "VIEWPORT_META_MISSING", "detail": "viewport metadata is absent"})
+    elif not _device_width_viewport_meta(viewport_meta):
+        failures.append(
+            {
+                "code": "VIEWPORT_META_UNSAFE",
+                "detail": f"viewport metadata is not device-width bound: {viewport_meta!r}",
+            }
+        )
     if metrics.get("horizontal_overflow") is True:
         failures.append(
             {
@@ -119,6 +131,18 @@ def evaluate_page_result(result: dict[str, Any]) -> list[dict[str, Any]]:
                 "examples": undersized[:10],
             }
         )
+    primary_targets = metrics.get("primary_targets")
+    if (
+        not isinstance(primary_targets, int)
+        or isinstance(primary_targets, bool)
+        or primary_targets <= 0
+    ):
+        failures.append(
+            {
+                "code": "PRIMARY_TARGETS_MISSING",
+                "detail": "no visible primary interaction target was rendered",
+            }
+        )
     page_errors = result.get("page_errors") or []
     if page_errors:
         failures.append(
@@ -131,14 +155,28 @@ def evaluate_page_result(result: dict[str, Any]) -> list[dict[str, Any]]:
     return failures
 
 
-def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
+def evaluate_identity(
+    identity: dict[str, Any], expected_source_sha: str
+) -> list[dict[str, Any]]:
     failures: list[dict[str, Any]] = []
-    org_deployment = identity.get("organization_deployment") or {}
-    if not _find_sha(org_deployment):
+    expected_source = (
+        expected_source_sha.strip().lower()
+        if _valid_sha(expected_source_sha)
+        else None
+    )
+    if not expected_source:
         failures.append(
             {
-                "code": "ORG_SOURCE_REVISION_UNAVAILABLE",
-                "detail": "organization deployment metadata exposes no immutable revision",
+                "code": "EXPECTED_PROTECTED_SOURCE_INVALID",
+                "detail": f"expected protected source is not an immutable SHA: {expected_source_sha!r}",
+            }
+        )
+    org_deployment = identity.get("organization_deployment") or {}
+    if not _organization_deployment_revision(org_deployment):
+        failures.append(
+            {
+                "code": "ORG_DEPLOYMENT_IDENTITY_FAILED",
+                "detail": "organization deployment metadata is not bound to the canonical source manifest and target",
             }
         )
 
@@ -148,6 +186,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
     domain_revision, domain_source, domain_status = _build_identity(domain_build)
     if not (
         space_revision
+        and space_revision == expected_source
         and space_source == "env:SZL_GIT_SHA"
         and space_status == "OBSERVED"
     ):
@@ -156,6 +195,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
                 "code": "SPACE_SOURCE_BINDING_FAILED",
                 "detail": {
                     "revision": space_revision,
+                    "expected_revision": expected_source,
                     "revision_source": space_source,
                     "status": space_status,
                 },
@@ -163,6 +203,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
         )
     if not (
         domain_revision
+        and domain_revision == expected_source
         and domain_source == "env:SZL_GIT_SHA"
         and domain_status == "OBSERVED"
     ):
@@ -171,6 +212,7 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
                 "code": "DOMAIN_SOURCE_BINDING_FAILED",
                 "detail": {
                     "revision": domain_revision,
+                    "expected_revision": expected_source,
                     "revision_source": domain_source,
                     "status": domain_status,
                 },
@@ -201,6 +243,53 @@ def evaluate_identity(identity: dict[str, Any]) -> list[dict[str, Any]]:
                 },
             }
         )
+
+    organization_metadata = identity.get("organization_space_metadata") or {}
+    organization_hf_sha = organization_metadata.get("sha")
+    organization_runtime = organization_metadata.get("runtime") or {}
+    organization_runtime_raw = (
+        organization_runtime.get("raw") or {}
+        if isinstance(organization_runtime, dict)
+        else {}
+    )
+    organization_runtime_sha = (
+        organization_runtime.get("sha") or organization_runtime_raw.get("sha")
+        if isinstance(organization_runtime, dict)
+        else None
+    )
+    organization_runtime_stage = (
+        organization_runtime.get("stage")
+        if isinstance(organization_runtime, dict)
+        else None
+    )
+    organization_runtime_sha_matches = (
+        organization_runtime_sha is None
+        or (
+            _valid_sha(organization_runtime_sha)
+            and str(organization_runtime_sha).strip().lower()
+            == str(organization_hf_sha).strip().lower()
+        )
+    )
+    if not (
+        organization_metadata.get("id") == "SZLHOLDINGS/README"
+        and _valid_sha(organization_hf_sha)
+        and organization_metadata.get("sdk") == "static"
+        and organization_runtime_stage == "RUNNING"
+        and organization_runtime_sha_matches
+    ):
+        failures.append(
+            {
+                "code": "ORG_HF_RUNTIME_IDENTITY_FAILED",
+                "detail": {
+                    "repository_sha": organization_hf_sha,
+                    "runtime_sha": organization_runtime_sha,
+                    "runtime_sha_exposed": organization_runtime_sha is not None,
+                    "runtime_stage": organization_runtime_stage,
+                    "space_id": organization_metadata.get("id"),
+                    "sdk": organization_metadata.get("sdk"),
+                },
+            }
+        )
     return failures
 
 
@@ -217,7 +306,11 @@ def build_summary(results: list[dict[str, Any]], identity_failures: list[dict[st
     }
 
 
-def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
+def audit(
+    output_dir: Path,
+    expected_source_sha: str,
+    chrome: str | None = None,
+) -> dict[str, Any]:
     from playwright.sync_api import sync_playwright
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -307,11 +400,12 @@ def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
             identity[name] = _read_json(url)
         except Exception as error:  # pragma: no cover - network boundary
             identity[name] = {"error": str(error)}
-    identity_failures = evaluate_identity(identity)
+    identity_failures = evaluate_identity(identity, expected_source_sha)
     summary = build_summary(results, identity_failures)
     return {
         "schema": "szl.hf-frontend-live-canary/v1",
         "remote_mutation": False,
+        "expected_source_sha": expected_source_sha.strip().lower(),
         "summary": summary,
         "identity": identity,
         "identity_failures": identity_failures,
@@ -322,9 +416,10 @@ def audit(output_dir: Path, chrome: str | None = None) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-dir", type=Path, default=Path("evidence/hf-frontend-live-canary"))
+    parser.add_argument("--expected-source-sha", required=True)
     parser.add_argument("--chrome")
     args = parser.parse_args()
-    report = audit(args.output_dir, args.chrome)
+    report = audit(args.output_dir, args.expected_source_sha, args.chrome)
     report_path = args.output_dir / "report.json"
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     print(json.dumps(report["summary"], indent=2, sort_keys=True))
