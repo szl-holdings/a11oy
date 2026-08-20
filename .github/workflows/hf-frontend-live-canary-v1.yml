@@ -28,6 +28,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  workflow-run-authority:
+    if: ${{ github.event_name == 'workflow_run' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require successful canonical-main sync trigger
+        env:
+          SYNC_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          SYNC_HEAD_BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SYNC_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$SYNC_CONCLUSION" = success
+          test "$SYNC_HEAD_BRANCH" = main
+          [[ "$SYNC_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+
   contract:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -58,11 +75,11 @@ jobs:
 
   live-canary:
     if: >-
+      always() &&
       github.event_name != 'pull_request' &&
-      (github.event_name != 'workflow_run' ||
-       (github.event.workflow_run.conclusion == 'success' &&
-        github.event.workflow_run.head_branch == 'main'))
-    needs: contract
+      needs.contract.result == 'success' &&
+      (github.event_name != 'workflow_run' || needs.workflow-run-authority.result == 'success')
+    needs: [contract, workflow-run-authority]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
