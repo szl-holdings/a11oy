@@ -92,8 +92,10 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.BASE_MIGRATION
             self.replace_once(
                 path,
+                "CREATE POLICY memory_records_isolation ON memory_records\n"
                 "USING (a11oy_memory_context_matches(tenant_id, security_domain))\n"
                 "WITH CHECK (a11oy_memory_context_matches(tenant_id, security_domain));",
+                "CREATE POLICY memory_records_isolation ON memory_records\n"
                 "USING (a11oy_memory_context_matches(tenant_id, security_domain));",
             )
             self.assert_contract_error(root, "bind both USING and WITH CHECK")
