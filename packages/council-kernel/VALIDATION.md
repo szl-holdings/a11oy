@@ -1,6 +1,6 @@
 # Council kernel validation
 
-Date: 2026-08-17  
+Date: 2026-08-17
 Branch: `feat/council-kernel-v0.6.0-20260817`
 
 ## Commands executed from a fresh public clone
