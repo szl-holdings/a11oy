@@ -152,6 +152,18 @@ test("a data_kind-only KEV payload remains allowed", () => {
   assert.equal(verdict.pairConflict, null);
 });
 
+test("non-string data_kind-only evidence is fail-closed", () => {
+  for (const dataKind of [true, 1, null, {}, []]) {
+    const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
+      data_kind: dataKind,
+    });
+
+    assert.equal(verdict.ok, false, JSON.stringify(dataKind));
+    assert.equal(verdict.pairConflict.dataKind.value, dataKind);
+    assert.match(verdict.pairConflict.reason, /must be a string/);
+  }
+});
+
 test("non-string mode/data_kind pairs cannot bypass the evidence contract", () => {
   const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
     mode: true,
