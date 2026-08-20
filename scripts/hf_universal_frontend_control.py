@@ -17,11 +17,11 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 import time
-import urllib.request
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Callable, Iterable, Mapping
 from urllib.parse import urlparse
 
 from huggingface_hub import CommitOperationAdd, HfApi, hf_hub_download
@@ -32,20 +32,11 @@ END = "<!-- szl-universal-frontend:end -->"
 STYLE_START = "/* szl-universal-frontend:start */"
 STYLE_END = "/* szl-universal-frontend:end */"
 RELEASE = "2026-08-17"
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_SOURCE_MAP = ROOT / "docs" / "huggingface-space-source-map-v1.json"
-PROTECTED_SPACES = {"SZLHOLDINGS/README", "SZLHOLDINGS/a11oy"}
-SOURCE_BOUND_READBACK_URLS = {
-    "SZLHOLDINGS/README": "https://szlholdings-readme.static.hf.space/deployment.json",
-    "SZLHOLDINGS/a11oy": "https://szlholdings-a11oy.hf.space/api/build-info",
-}
-PROTECTED_WORKFLOW_SOURCE_SPACES = frozenset({"SZLHOLDINGS/a11oy"})
-STATIC_MANIFEST_READBACK_SPACES = frozenset({"SZLHOLDINGS/README"})
 REPO_TYPES = ("model", "dataset", "space")
-TERMINAL_VERIFIED_STATES = frozenset({"CURRENT", "MERGED", "SOURCE_BOUND_VERIFIED"})
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
-SHA256 = re.compile(r"^[0-9a-f]{64}$")
-SOURCE_MAPPING_STATES = frozenset({"EXACT", "INFERRED", "DIVERGENT", "UNAVAILABLE"})
+SOURCE_MAP_SCHEMA = "szl.hf-space-source-map/v1"
+SOURCE_MAP_STATES = frozenset({"EXACT", "INFERRED", "DIVERGENT", "UNAVAILABLE"})
+DEFAULT_SOURCE_MAP = Path("docs/huggingface-space-source-map-v1.json")
 
 UNIVERSAL_CSS = f"""{STYLE_START}
 :root {{ color-scheme: dark; --szl-focus: #eef4fb; }}
@@ -89,19 +80,13 @@ class Asset:
 
 
 @dataclasses.dataclass(frozen=True)
-class SourceMapDocument:
-    path: Path
-    sha256: str
-    organization: str
-    entries: dict[str, dict[str, Any]]
-
-    def report_identity(self) -> dict[str, Any]:
-        return {
-            "schema": "szl.hf-space-source-map/v1",
-            "path": str(self.path),
-            "sha256": self.sha256,
-            "space_count": len(self.entries),
-        }
+class SpaceAuthority:
+    space_id: str
+    hf_repository_sha: str
+    state: str
+    evidence: str
+    canonical_repository: str | None = None
+    canonical_revision: str | None = None
 
 
 @dataclasses.dataclass
@@ -116,7 +101,10 @@ class Decision:
     pr_url: str | None = None
     merged: bool = False
     resulting_sha: str | None = None
-    evidence: dict[str, Any] = dataclasses.field(default_factory=dict)
+    source_mapping_state: str | None = None
+    canonical_source_repository: str | None = None
+    canonical_source_revision: str | None = None
+    readback_sha256: dict[str, str] = dataclasses.field(default_factory=dict)
 
     def as_dict(self) -> dict[str, Any]:
         return dataclasses.asdict(self)
@@ -134,211 +122,140 @@ def _valid_sha(value: Any) -> bool:
     return isinstance(value, str) and bool(SHA40.fullmatch(value.strip().lower()))
 
 
-def _value(node: Any, key: str) -> Any:
-    if isinstance(node, dict):
-        return node.get(key)
-    return getattr(node, key, None)
+def _require_sha40(value: Any, *, label: str) -> str:
+    if not _valid_sha(value):
+        raise ControlError(f"{label} must be an exact 40-character hexadecimal revision")
+    return str(value).strip().lower()
 
 
-def load_source_map(path: Path, org: str) -> SourceMapDocument:
-    """Load the protected, read-only source authority map before any provider write."""
+def load_space_source_map(path: Path, org: str) -> dict[str, SpaceAuthority]:
     try:
-        raw = path.read_bytes()
-        payload = json.loads(raw)
-    except (OSError, json.JSONDecodeError) as exc:
-        raise ControlError(f"source map {path} is unavailable or invalid JSON") from exc
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except OSError as exc:
+        raise ControlError(f"immutable Space source map is unavailable: {path}") from exc
+    except json.JSONDecodeError as exc:
+        raise ControlError(f"immutable Space source map is not valid JSON: {path}") from exc
+
     if not isinstance(payload, dict):
-        raise ControlError("source map root must be a JSON object")
-    if payload.get("schema") != "szl.hf-space-source-map/v1":
-        raise ControlError("source map schema is not szl.hf-space-source-map/v1")
+        raise ControlError("immutable Space source map root must be an object")
+    if payload.get("schema") != SOURCE_MAP_SCHEMA:
+        raise ControlError(f"immutable Space source map schema must be {SOURCE_MAP_SCHEMA}")
     if payload.get("organization") != org:
-        raise ControlError(
-            f"source map organization {payload.get('organization')!r} does not equal {org!r}"
-        )
+        raise ControlError(f"immutable Space source map organization must be {org}")
+    if payload.get("github_organization") != "szl-holdings":
+        raise ControlError("immutable Space source map GitHub organization must be szl-holdings")
     if payload.get("remote_mutation") is not False:
-        raise ControlError("source map must declare remote_mutation=false")
+        raise ControlError("immutable Space source map must declare remote_mutation=false")
     spaces = payload.get("spaces")
     if not isinstance(spaces, list) or not spaces:
-        raise ControlError("source map must contain at least one Space record")
+        raise ControlError("immutable Space source map spaces must be a nonempty list")
 
-    entries: dict[str, dict[str, Any]] = {}
-    expected_prefix = org.lower() + "/"
-    for position, record in enumerate(spaces):
-        if not isinstance(record, dict):
-            raise ControlError(f"source map Space record {position} is not an object")
-        space_id = record.get("space_id")
-        if not isinstance(space_id, str) or not space_id.lower().startswith(expected_prefix):
-            raise ControlError(f"source map Space record {position} has invalid identity")
-        key = space_id.lower()
-        if key in entries:
-            raise ControlError(f"source map contains duplicate Space identity {space_id}")
-        if not _valid_sha(record.get("hf_repository_sha")):
-            raise ControlError(f"source map {space_id} has no immutable Hugging Face revision")
-        mapping = record.get("source_mapping")
-        if not isinstance(mapping, dict) or mapping.get("state") not in SOURCE_MAPPING_STATES:
-            raise ControlError(f"source map {space_id} has an invalid mapping state")
-        canonical = mapping.get("canonical")
-        if canonical is not None and not isinstance(canonical, dict):
-            raise ControlError(f"source map {space_id} canonical source must be an object or null")
+    authorities: dict[str, SpaceAuthority] = {}
+    normalized_space_ids: set[str] = set()
+    for index, raw in enumerate(spaces):
+        if not isinstance(raw, dict):
+            raise ControlError(f"immutable Space source map entry {index} must be an object")
+        space_id = raw.get("space_id")
+        if not isinstance(space_id, str) or not re.fullmatch(
+            rf"{re.escape(org)}/[A-Za-z0-9][A-Za-z0-9._-]*", space_id
+        ):
+            raise ControlError(f"immutable Space source map entry {index} has an invalid space_id")
+        normalized_space_id = space_id.casefold()
+        if normalized_space_id in normalized_space_ids:
+            raise ControlError(f"immutable Space source map repeats {space_id}")
+        normalized_space_ids.add(normalized_space_id)
+        hf_repository_sha = _require_sha40(
+            raw.get("hf_repository_sha"),
+            label=f"{space_id} Hugging Face repository revision",
+        )
+        readme = raw.get("readme")
+        if not isinstance(readme, dict):
+            raise ControlError(f"{space_id} immutable README evidence must be an object")
+        readme_revision = _require_sha40(
+            readme.get("revision"),
+            label=f"{space_id} README evidence revision",
+        )
+        if readme_revision != hf_repository_sha:
+            raise ControlError(f"{space_id} README evidence revision does not match its Hub revision")
+        readme_status = readme.get("http_status")
+        if (
+            not isinstance(readme_status, int)
+            or isinstance(readme_status, bool)
+            or not 100 <= readme_status <= 599
+        ):
+            raise ControlError(f"{space_id} README evidence HTTP status is invalid")
+        expected_readme_url = (
+            f"https://huggingface.co/spaces/{space_id}/raw/"
+            f"{hf_repository_sha}/README.md"
+        )
+        if readme.get("url") != expected_readme_url:
+            raise ControlError(f"{space_id} README evidence URL is not revision-bound")
+        if readme_status == 200:
+            readme_sha256 = readme.get("sha256")
+            if not isinstance(readme_sha256, str) or not re.fullmatch(
+                r"[0-9a-f]{64}", readme_sha256.lower()
+            ):
+                raise ControlError(f"{space_id} README evidence hash is unavailable")
+        mapping = raw.get("source_mapping")
+        if not isinstance(mapping, dict):
+            raise ControlError(f"{space_id} source_mapping must be an object")
+        state = mapping.get("state")
+        if not isinstance(state, str) or state not in SOURCE_MAP_STATES:
+            raise ControlError(f"{space_id} source_mapping state is unsupported: {state!r}")
+        evidence = mapping.get("evidence")
+        if not isinstance(evidence, str) or not evidence:
+            raise ControlError(f"{space_id} source_mapping evidence is unavailable")
         candidates = mapping.get("candidates")
         if not isinstance(candidates, list) or not all(
             isinstance(candidate, dict) for candidate in candidates
         ):
-            raise ControlError(f"source map {space_id} candidates must be objects")
-        readme = record.get("readme")
-        if not isinstance(readme, dict):
-            raise ControlError(f"source map {space_id} has no README observation")
-        entries[key] = record
+            raise ControlError(f"{space_id} source_mapping candidates must be a list of objects")
 
-    return SourceMapDocument(
-        path=path,
-        sha256=_sha256(raw),
-        organization=org,
-        entries=entries,
-    )
-
-
-def evaluate_space_source_mapping(
-    asset: Asset,
-    record: dict[str, Any] | None,
-) -> dict[str, Any]:
-    """Return the only source-map decision that may admit a direct Hub proposal.
-
-    `UNAVAILABLE` means Hub-native only when source discovery is bound to the exact
-    currently observed Hub revision. Every other state remains source-native or
-    blocked; unbound `EXACT`/`INFERRED` evidence never falls back to Hub mutation.
-    """
-    if asset.repo_type != "space":
-        raise ControlError("source-map authority applies only to Spaces")
-    evidence: dict[str, Any] = {
-        "reported_state": None,
-        "effective_state": "BLOCKED_SOURCE_MAPPING",
-        "direct_hub_mutation_allowed": False,
-        "canonical_repository": None,
-        "canonical_source_revision": None,
-        "failures": [],
-    }
-    failures: list[str] = evidence["failures"]
-    if record is None:
-        failures.append("SOURCE_MAP_ENTRY_MISSING")
-        return evidence
-
-    mapped_id = record.get("space_id")
-    mapping = record.get("source_mapping")
-    readme = record.get("readme")
-    if not isinstance(mapping, dict) or not isinstance(readme, dict):
-        failures.append("SOURCE_MAP_RECORD_INVALID")
-        return evidence
-    state = mapping.get("state")
-    evidence["reported_state"] = state
-    if mapped_id != asset.repo_id:
-        failures.append("SOURCE_MAP_IDENTITY_DIVERGED")
-    mapped_hf_sha = record.get("hf_repository_sha")
-    if mapped_hf_sha != asset.sha:
-        failures.append("SOURCE_MAP_HF_REVISION_DIVERGED")
-    if readme.get("revision") != asset.sha:
-        failures.append("SOURCE_MAP_README_REVISION_UNBOUND")
-    readme_status = readme.get("http_status")
-    readme_url = readme.get("url")
-    readme_digest = readme.get("sha256")
-    if (
-        not isinstance(readme_status, int)
-        or isinstance(readme_status, bool)
-        or not 100 <= readme_status <= 599
-    ):
-        failures.append("SOURCE_MAP_README_STATUS_INVALID")
-    if not isinstance(readme_url, str) or f"/{asset.sha}/README.md" not in readme_url:
-        failures.append("SOURCE_MAP_README_URL_UNBOUND")
-    if readme_status == 200 and not (
-        isinstance(readme_digest, str) and SHA256.fullmatch(readme_digest.lower())
-    ):
-        failures.append("SOURCE_MAP_README_DIGEST_INVALID")
-    if state not in SOURCE_MAPPING_STATES:
-        failures.append("SOURCE_MAPPING_STATE_INVALID")
-        return evidence
-
-    canonical = mapping.get("canonical")
-    if state in {"EXACT", "INFERRED"}:
-        if not isinstance(canonical, dict):
-            failures.append("CANONICAL_SOURCE_REPOSITORY_UNAVAILABLE")
-        else:
-            repository = canonical.get("full_name")
-            revision = canonical.get("default_branch_sha")
-            if not isinstance(repository, str) or not repository:
-                failures.append("CANONICAL_SOURCE_REPOSITORY_UNAVAILABLE")
-            else:
-                evidence["canonical_repository"] = repository
-            if not _valid_sha(revision):
-                failures.append("CANONICAL_SOURCE_REVISION_UNAVAILABLE")
-            else:
-                evidence["canonical_source_revision"] = str(revision).lower()
-            candidates = mapping.get("candidates")
+        canonical_repository = None
+        canonical_revision = None
+        canonical = mapping.get("canonical")
+        if state in {"EXACT", "INFERRED"}:
+            if not isinstance(canonical, dict):
+                raise ControlError(f"{space_id} {state} mapping requires a canonical repository")
+            full_name = canonical.get("full_name")
+            if not isinstance(full_name, str) or not re.fullmatch(
+                r"szl-holdings/[A-Za-z0-9_.-]+", full_name
+            ):
+                raise ControlError(
+                    f"{space_id} canonical repository identity is invalid or outside szl-holdings"
+                )
+            canonical_repository = full_name
+            canonical_revision = _require_sha40(
+                canonical.get("default_branch_sha"),
+                label=f"{space_id} canonical GitHub repository revision",
+            )
             matching_candidates = [
                 candidate
                 for candidate in candidates
-                if isinstance(candidate.get("full_name"), str)
-                and isinstance(repository, str)
-                and candidate["full_name"].lower() == repository.lower()
-                and candidate.get("default_branch_sha") == revision
+                if candidate.get("full_name") == canonical_repository
+                and candidate.get("default_branch_sha") == canonical_revision
             ]
             if len(matching_candidates) != 1:
-                failures.append("CANONICAL_SOURCE_CANDIDATE_UNBOUND")
-            workflows = record.get("workflow_candidates")
-            if not isinstance(workflows, dict) or workflows.get("github_ref") != revision:
-                failures.append("SOURCE_WORKFLOW_REVISION_UNBOUND")
-        if failures:
-            return evidence
-        if state == "INFERRED":
-            evidence["effective_state"] = "SOURCE_REPOSITORY_REVIEW_REQUIRED"
-            failures.append("INFERRED_SOURCE_REQUIRES_OWNER_CONFIRMATION")
-        else:
-            evidence["effective_state"] = "SOURCE_REPOSITORY_REQUIRED"
-        return evidence
+                raise ControlError(
+                    f"{space_id} canonical repository revision is not uniquely bound to its candidate"
+                )
+            workflows = raw.get("workflow_candidates")
+            if not isinstance(workflows, dict) or workflows.get("github_ref") != canonical_revision:
+                raise ControlError(
+                    f"{space_id} workflow evidence is not bound to its canonical GitHub revision"
+                )
+        elif canonical is not None:
+            raise ControlError(f"{space_id} {state} mapping must not claim a canonical repository")
 
-    if state == "DIVERGENT":
-        failures.append("SOURCE_MAPPING_DIVERGENT")
-        return evidence
-
-    if canonical is not None or mapping.get("candidates") or mapping.get("missing_candidates"):
-        failures.append("UNAVAILABLE_SOURCE_MAPPING_HAS_CANDIDATES")
-    if failures:
-        return evidence
-    evidence["effective_state"] = "HUB_NATIVE_ELIGIBLE"
-    evidence["direct_hub_mutation_allowed"] = True
-    return evidence
-
-
-def _find_source_revision(node: Any) -> str | None:
-    if isinstance(node, dict):
-        for key in ("source_sha", "source_revision", "github_sha", "commit_sha", "revision"):
-            value = node.get(key)
-            if _valid_sha(value):
-                return str(value).strip().lower()
-        for value in node.values():
-            found = _find_source_revision(value)
-            if found:
-                return found
-    elif isinstance(node, list):
-        for value in node:
-            found = _find_source_revision(value)
-            if found:
-                return found
-    return None
-
-
-def _read_json_url(url: str, timeout: int = 30) -> dict[str, Any]:
-    request = urllib.request.Request(
-        url,
-        headers={
-            "Accept": "application/json",
-            "User-Agent": "SZL-HF-universal-frontend/1.0",
-        },
-    )
-    with urllib.request.urlopen(request, timeout=timeout) as response:
-        payload = json.load(response)
-    if not isinstance(payload, dict):
-        raise ControlError(f"public source readback from {url} is not a JSON object")
-    return payload
+        authorities[space_id] = SpaceAuthority(
+            space_id=space_id,
+            hf_repository_sha=hf_repository_sha,
+            state=state,
+            evidence=evidence,
+            canonical_repository=canonical_repository,
+            canonical_revision=canonical_revision,
+        )
+    return authorities
 
 
 def _read_bytes(api: HfApi, asset: Asset, path: str, token: str | bool | None) -> bytes | None:
@@ -417,15 +334,88 @@ def normalize_readme(asset: Asset, existing: str | None, source_bound: bool, fra
     return rendered.encode("utf-8")
 
 
-def _source_bound(api: HfApi, asset: Asset, token: str | bool | None) -> tuple[bool, str | None]:
-    if asset.repo_id in PROTECTED_SPACES:
-        return True, "protected canonical GitHub-derived Space"
-    deployment = _read_text(api, asset, "deployment.json", token)
-    if deployment:
-        lowered = deployment.lower()
-        if "github" in lowered or "source_revision" in lowered or "source-revision" in lowered:
-            return True, "deployment.json records external source provenance"
-    return False, None
+def _read_revision_bytes(
+    asset: Asset,
+    revision: str,
+    path: str,
+    token: str | None,
+) -> bytes | None:
+    try:
+        local = hf_hub_download(
+            repo_id=asset.repo_id,
+            filename=path,
+            repo_type=asset.repo_type,
+            revision=revision,
+            token=token,
+        )
+        return Path(local).read_bytes()
+    except EntryNotFoundError:
+        return None
+
+
+def _space_authority_decision(
+    asset: Asset,
+    authorities: Mapping[str, SpaceAuthority],
+) -> Decision:
+    authority = authorities.get(asset.repo_id)
+    if authority is None:
+        return Decision(
+            asset.repo_id,
+            asset.repo_type,
+            asset.sha,
+            "SOURCE_MAP_MISSING",
+            "SOURCE_AUTHORITY_BLOCKED",
+            blockers=["immutable source-map entry is missing; direct Space Hub writes are denied"],
+        )
+
+    decision = Decision(
+        asset.repo_id,
+        asset.repo_type,
+        asset.sha,
+        "SOURCE_MAPPING_BLOCKED",
+        "SOURCE_AUTHORITY_BLOCKED",
+        source_mapping_state=authority.state,
+        canonical_source_repository=authority.canonical_repository,
+        canonical_source_revision=authority.canonical_revision,
+    )
+    if asset.sha != authority.hf_repository_sha:
+        decision.state = "SOURCE_MAP_STALE"
+        decision.blockers.append(
+            "immutable source-map Hugging Face revision "
+            f"{authority.hf_repository_sha} does not match observed {asset.sha}"
+        )
+        return decision
+    if authority.state == "EXACT":
+        decision.state = "SOURCE_BOUND_AUDIT_ONLY"
+        decision.framework = "GITHUB_SOURCE_BOUND"
+        decision.blockers.append(
+            "canonical source is "
+            f"{authority.canonical_repository}@{authority.canonical_revision}; "
+            "repair through that source repository"
+        )
+        return decision
+    if authority.state == "INFERRED":
+        decision.state = "SOURCE_MAPPING_REVIEW_REQUIRED"
+        decision.framework = "GITHUB_SOURCE_INFERRED"
+        decision.blockers.append(
+            "inferred canonical source requires owner review before source-native repair"
+        )
+        return decision
+    decision.blockers.append(
+        f"source mapping is {authority.state} ({authority.evidence}); direct Space Hub writes are denied"
+    )
+    return decision
+
+
+def _run_authority_guard(path: Path) -> None:
+    try:
+        subprocess.run(
+            ["bash", str(path)],
+            check=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError) as exc:
+        raise ControlError("exact protected-main authority check failed") from exc
 
 
 def _python_with_pathlib(text: str) -> str:
@@ -478,95 +468,6 @@ def _validate_python_adapter(text: str, entry: str) -> None:
         ast.parse(text, filename=entry)
     except SyntaxError as exc:
         raise ControlError(f"{entry}: generated Python adapter is invalid: {exc.msg}") from exc
-
-
-def evaluate_source_bound_evidence(
-    asset: Asset,
-    repository: Any,
-    deployment: dict[str, Any],
-    public_readback: dict[str, Any],
-) -> dict[str, Any]:
-    repository_sha = _value(repository, "sha")
-    runtime = _value(repository, "runtime")
-    runtime_raw = _value(runtime, "raw")
-    runtime_sha = _value(runtime, "sha") or _value(runtime_raw, "sha")
-    runtime_stage = _value(runtime, "stage")
-    deployment_source = _find_source_revision(deployment)
-    served_source = _find_source_revision(public_readback)
-    failures: list[str] = []
-    if repository_sha != asset.sha:
-        failures.append("HF_REPOSITORY_REVISION_DIVERGED")
-    if runtime_stage != "RUNNING":
-        failures.append("HF_RUNTIME_REVISION_NOT_RUNNING")
-    if asset.repo_id not in STATIC_MANIFEST_READBACK_SPACES and runtime_sha != asset.sha:
-        failures.append("HF_RUNTIME_REVISION_DIVERGED")
-    if not deployment_source:
-        failures.append("CANONICAL_SOURCE_REVISION_UNAVAILABLE")
-    if not served_source:
-        failures.append("SERVED_SOURCE_REVISION_UNAVAILABLE")
-    if deployment_source and served_source and deployment_source != served_source:
-        failures.append("SERVED_SOURCE_REVISION_DIVERGED")
-    deployment_digest = _sha256(json.dumps(deployment, sort_keys=True, separators=(",", ":")).encode())
-    readback_digest = _sha256(json.dumps(public_readback, sort_keys=True, separators=(",", ":")).encode())
-    if asset.repo_id in STATIC_MANIFEST_READBACK_SPACES and deployment_digest != readback_digest:
-        failures.append("SERVED_DEPLOYMENT_MANIFEST_DIVERGED")
-    return {
-        "status": "VERIFIED" if not failures else "BLOCKED",
-        "hf_repository_sha": repository_sha,
-        "hf_runtime_sha": runtime_sha,
-        "hf_runtime_stage": runtime_stage,
-        "canonical_source_revision": deployment_source,
-        "served_source_revision": served_source,
-        "deployment_digest": deployment_digest,
-        "served_readback_digest": readback_digest,
-        "failures": failures,
-    }
-
-
-def verify_source_bound_asset(
-    api: HfApi,
-    asset: Asset,
-    protected_source_sha: str | None = None,
-) -> dict[str, Any]:
-    readback_url = SOURCE_BOUND_READBACK_URLS.get(asset.repo_id)
-    if not readback_url:
-        return {
-            "status": "BLOCKED",
-            "failures": ["PUBLIC_SOURCE_READBACK_UNCONFIGURED"],
-        }
-    try:
-        deployment_text = _read_text(api, asset, "deployment.json", False)
-        if deployment_text:
-            deployment = json.loads(deployment_text)
-        elif asset.repo_id in PROTECTED_WORKFLOW_SOURCE_SPACES and _valid_sha(protected_source_sha):
-            deployment = {
-                "source_revision": str(protected_source_sha).strip().lower(),
-                "source_revision_authority": "protected_workflow_checkout",
-            }
-        else:
-            raise ControlError("public deployment manifest or protected source revision is unavailable")
-        if not isinstance(deployment, dict):
-            raise ControlError("public deployment manifest is not a JSON object")
-        repository = api.repo_info(
-            repo_id=asset.repo_id,
-            repo_type=asset.repo_type,
-            revision="main",
-            token=False,
-        )
-        public_readback = _read_json_url(readback_url)
-    except (ControlError, HfHubHTTPError, OSError, ValueError, json.JSONDecodeError) as exc:
-        return {
-            "status": "BLOCKED",
-            "failures": [f"PUBLIC_SOURCE_READBACK_FAILED:{type(exc).__name__}"],
-        }
-    evidence = evaluate_source_bound_evidence(
-        asset,
-        repository,
-        deployment,
-        public_readback,
-    )
-    evidence["readback_url"] = readback_url
-    return evidence
 
 
 def _inject_style(html: str) -> str:
@@ -743,76 +644,22 @@ def process_asset(
     merge: bool,
     backups: Path,
     *,
-    source_mapping: dict[str, Any] | None,
-    protected_source_sha: str | None = None,
+    space_authorities: Mapping[str, SpaceAuthority],
+    authority_guard: Callable[[], None] | None = None,
 ) -> Decision:
-    source_bound = False
-    source_reason = None
     framework = "CARD_ONLY"
-    app_ops: list[tuple[str, bytes]] = []
     blockers: list[str] = []
-    mapping_evidence: dict[str, Any] | None = None
 
     if asset.repo_type == "space":
-        mapping_evidence = evaluate_space_source_mapping(asset, source_mapping)
-        source_bound, source_reason = _source_bound(api, asset, False)
-        mapping_state = mapping_evidence["effective_state"]
-        if mapping_state in {
-            "SOURCE_REPOSITORY_REQUIRED",
-            "SOURCE_REPOSITORY_REVIEW_REQUIRED",
-        }:
-            source_bound = True
-            source_reason = (
-                f"source map {mapping_evidence['reported_state']} binds "
-                f"{mapping_evidence['canonical_repository']}@"
-                f"{mapping_evidence['canonical_source_revision']}"
-            )
-        if not mapping_evidence["direct_hub_mutation_allowed"] and not source_bound:
-            framework = "SOURCE_MAPPING_BLOCKED"
-        elif source_bound:
-            framework = "GITHUB_SOURCE_BOUND"
-        else:
-            framework, app_ops, blockers = classify_space(api, asset, token)
+        return _space_authority_decision(asset, space_authorities)
 
     decision = Decision(asset.repo_id, asset.repo_type, asset.sha, "PLANNED", framework)
     decision.blockers.extend(blockers)
-    if mapping_evidence is not None:
-        decision.evidence["source_mapping"] = mapping_evidence
-        if not mapping_evidence["direct_hub_mutation_allowed"] and not source_bound:
-            decision.state = "SOURCE_MAPPING_BLOCKED"
-            decision.blockers.extend(mapping_evidence["failures"])
-            if not decision.blockers:
-                decision.blockers.append("SOURCE_MAP_DIRECT_HUB_MUTATION_DENIED")
-            return decision
-    if source_bound:
-        evidence = verify_source_bound_asset(api, asset, protected_source_sha)
-        decision.evidence["source_bound_readback"] = evidence
-        mapping_failures = mapping_evidence["failures"] if mapping_evidence else []
-        if (
-            mapping_evidence
-            and mapping_evidence["effective_state"] == "SOURCE_REPOSITORY_REQUIRED"
-            and evidence.get("canonical_source_revision")
-            != mapping_evidence["canonical_source_revision"]
-        ):
-            mapping_failures.append("SOURCE_MAP_DEPLOYMENT_REVISION_DIVERGED")
-        if evidence.get("status") == "VERIFIED" and not mapping_failures:
-            decision.state = "SOURCE_BOUND_VERIFIED"
-        else:
-            decision.state = "SOURCE_BOUND_AUDIT_ONLY"
-            failures = evidence.get("failures") or []
-            detail = ",".join(str(item) for item in failures)
-            decision.blockers.append(
-                f"{source_reason or 'external source authority'}; {detail or 'readback unavailable'}"
-            )
-            decision.blockers.extend(str(item) for item in mapping_failures)
-        return decision
 
     existing_readme = _read_bytes(api, asset, "README.md", token)
     readme_text = existing_readme.decode("utf-8") if existing_readme is not None else None
-    readme_new = normalize_readme(asset, readme_text, source_bound, framework)
+    readme_new = normalize_readme(asset, readme_text, False, framework)
     planned: dict[str, bytes] = {"README.md": readme_new}
-    for path, data in app_ops:
-        planned[path] = data
 
     changed: dict[str, bytes] = {}
     for path, data in sorted(planned.items()):
@@ -827,6 +674,17 @@ def process_asset(
         return decision
     if not execute:
         decision.state = "WOULD_CREATE_PR" if not blockers else "WOULD_CREATE_PR_WITH_BLOCKERS"
+        return decision
+
+    if authority_guard is None:
+        decision.state = "AUTHORITY_GUARD_MISSING"
+        decision.blockers.append("exact protected-main authority guard is required before provider mutation")
+        return decision
+    try:
+        authority_guard()
+    except ControlError as exc:
+        decision.state = "AUTHORITY_LOST"
+        decision.blockers.append(str(exc))
         return decision
 
     operations = [CommitOperationAdd(path_in_repo=path, path_or_fileobj=io.BytesIO(data)) for path, data in changed.items()]
@@ -852,31 +710,81 @@ def process_asset(
             decision.blockers.append("Hugging Face PR discussion number unavailable")
             decision.state = "PR_CREATED_MERGE_BLOCKED"
             return decision
-        api.merge_pull_request(repo_id=asset.repo_id, discussion_num=number, repo_type=asset.repo_type)
-        after = api.repo_info(repo_id=asset.repo_id, repo_type=asset.repo_type, revision="main")
-        decision.resulting_sha = getattr(after, "sha", None)
-        if not _valid_sha(decision.resulting_sha) or decision.resulting_sha == asset.sha:
-            decision.blockers.append("merged Hugging Face pull request has no distinct immutable readback")
-            decision.state = "MERGED_READBACK_FAILED"
+        try:
+            authority_guard()
+        except ControlError as exc:
+            decision.state = "PR_CREATED_AUTHORITY_LOST"
+            decision.blockers.append(str(exc))
+            return decision
+        try:
+            api.merge_pull_request(
+                repo_id=asset.repo_id,
+                discussion_num=number,
+                repo_type=asset.repo_type,
+            )
+        except (HfHubHTTPError, OSError, ValueError) as exc:
+            decision.state = "PR_CREATED_MERGE_FAILED"
+            decision.blockers.append(f"Hugging Face pull-request merge failed: {exc}")
             return decision
         decision.merged = True
-        decision.state = "MERGED" if not blockers else "MERGED_CARD_BLOCKED_APP"
+        try:
+            after = api.repo_info(
+                repo_id=asset.repo_id,
+                repo_type=asset.repo_type,
+                revision="main",
+            )
+        except (HfHubHTTPError, OSError, ValueError) as exc:
+            decision.state = "MERGED_READBACK_FAILED"
+            decision.blockers.append(f"post-merge Hugging Face main readback failed: {exc}")
+            return decision
+        resulting_sha = getattr(after, "sha", None)
+        if _valid_sha(resulting_sha):
+            decision.resulting_sha = str(resulting_sha).strip().lower()
+        if not decision.resulting_sha:
+            decision.state = "MERGED_READBACK_FAILED"
+            decision.blockers.append("post-merge Hugging Face main revision is unavailable")
+            return decision
+        if decision.resulting_sha == asset.sha:
+            decision.state = "MERGED_READBACK_FAILED"
+            decision.blockers.append("post-merge Hugging Face main did not advance from the observed parent")
+            return decision
+        for path, expected in sorted(changed.items()):
+            try:
+                observed = _read_revision_bytes(
+                    asset,
+                    decision.resulting_sha,
+                    path,
+                    token,
+                )
+            except (HfHubHTTPError, OSError, ValueError) as exc:
+                decision.blockers.append(f"post-merge readback failed for {path}: {exc}")
+                continue
+            if observed is None:
+                decision.blockers.append(f"post-merge readback is missing {path}")
+                continue
+            observed_sha256 = _sha256(observed)
+            decision.readback_sha256[path] = observed_sha256
+            expected_sha256 = _sha256(expected)
+            if observed_sha256 != expected_sha256:
+                decision.blockers.append(
+                    f"post-merge readback mismatch for {path}: "
+                    f"expected {expected_sha256}, observed {observed_sha256}"
+                )
+        decision.state = "MERGED_READBACK_FAILED" if decision.blockers else "MERGED_VERIFIED"
     return decision
 
 
 def _decision_is_terminal_verified(decision: Decision) -> bool:
-    if decision.state not in TERMINAL_VERIFIED_STATES or decision.blockers:
+    if decision.state not in {"CURRENT", "MERGED_VERIFIED"} or decision.blockers:
         return False
     if decision.state == "CURRENT":
         return not decision.changes
-    if decision.state == "MERGED":
-        return (
-            decision.merged
-            and _valid_sha(decision.resulting_sha)
-            and decision.resulting_sha != decision.source_sha
-        )
-    source_evidence = decision.evidence.get("source_bound_readback")
-    return isinstance(source_evidence, dict) and source_evidence.get("status") == "VERIFIED"
+    return (
+        decision.merged
+        and _valid_sha(decision.resulting_sha)
+        and decision.resulting_sha != decision.source_sha
+        and bool(decision.readback_sha256)
+    )
 
 
 def build_report(
@@ -885,13 +793,17 @@ def build_report(
     execute: bool,
     merge: bool,
     *,
-    source_map: SourceMapDocument | None = None,
+    source_map_identity: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     states: dict[str, int] = {}
     for item in decisions:
         states[item.state] = states.get(item.state, 0) + 1
     blocked = [d.repo_id for d in decisions if d.blockers]
-    failed = [d.repo_id for d in decisions if d.state.startswith("FAILED")]
+    failed = [
+        d.repo_id
+        for d in decisions
+        if d.state.startswith("FAILED") or d.state.endswith("_FAILED")
+    ]
     nonterminal = [
         d.repo_id
         for d in decisions
@@ -902,7 +814,7 @@ def build_report(
         "schema": "szl.hf-universal-frontend-estate/v1",
         "release": RELEASE,
         "organization": org,
-        "source_map": source_map.report_identity() if source_map else None,
+        "source_map": source_map_identity,
         "execute": execute,
         "merge": merge,
         "asset_count": len(decisions),
@@ -910,6 +822,7 @@ def build_report(
         "blocked_assets": blocked,
         "failed_assets": failed,
         "nonterminal_assets": nonterminal,
+        "completion_eligible": bool(execute and merge),
         "complete": complete,
         "boundaries": [
             "Model weights, tokenizer files, dataset rows/schemas/splits, visibility, hardware, storage, secrets, and allocations are outside this rollout.",
@@ -926,8 +839,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--org", default="SZLHOLDINGS")
     parser.add_argument("--execute", action="store_true")
     parser.add_argument("--merge", action="store_true")
-    parser.add_argument("--protected-source-sha")
     parser.add_argument("--source-map", type=Path, default=DEFAULT_SOURCE_MAP)
+    parser.add_argument("--authority-guard", type=Path)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--backup-dir", type=Path, required=True)
     parser.add_argument("--sleep", type=float, default=0.15)
@@ -940,36 +853,34 @@ def main(argv: list[str] | None = None) -> int:
     if args.merge and not args.execute:
         print("--merge requires --execute", file=sys.stderr)
         return 4
-    if args.protected_source_sha and not _valid_sha(args.protected_source_sha):
-        print("--protected-source-sha must be one full hexadecimal commit SHA", file=sys.stderr)
+    if args.execute and args.authority_guard is None:
+        print("--authority-guard is required for execution", file=sys.stderr)
         return 4
 
-    try:
-        source_map = load_source_map(args.source_map, args.org)
-    except ControlError as exc:
-        args.report.parent.mkdir(parents=True, exist_ok=True)
-        fatal = {
-            "schema": "szl.hf-universal-frontend-estate/v1",
-            "complete": False,
-            "fatal": str(exc),
-        }
-        args.report.write_text(
-            json.dumps(fatal, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        print(json.dumps(fatal, indent=2, sort_keys=True), file=sys.stderr)
-        return 2
-
-    api = HfApi(token=token)
-    public_inventory_api = HfApi()
     args.backup_dir.mkdir(parents=True, exist_ok=True)
     decisions: list[Decision] = []
     try:
+        space_authorities = load_space_source_map(args.source_map, args.org)
+        source_map_identity = {
+            "schema": SOURCE_MAP_SCHEMA,
+            "path": str(args.source_map),
+            "sha256": _sha256(args.source_map.read_bytes()),
+            "space_count": len(space_authorities),
+        }
+        if args.authority_guard is not None and not args.authority_guard.is_file():
+            raise ControlError(f"authority guard is unavailable: {args.authority_guard}")
+        api = HfApi(token=token)
+        public_inventory_api = HfApi()
         assets = enumerate_assets(public_inventory_api, args.org)
     except Exception as exc:
         args.report.parent.mkdir(parents=True, exist_ok=True)
         args.report.write_text(json.dumps({"schema": "szl.hf-universal-frontend-estate/v1", "complete": False, "fatal": str(exc)}, indent=2) + "\n")
-        raise
+        print(json.dumps({"status": "BLOCKED", "fatal": str(exc)}, indent=2, sort_keys=True))
+        return 4
+
+    authority_guard = None
+    if args.authority_guard is not None:
+        authority_guard = lambda: _run_authority_guard(args.authority_guard)
 
     for asset in assets:
         try:
@@ -981,10 +892,8 @@ def main(argv: list[str] | None = None) -> int:
                     args.execute,
                     args.merge,
                     args.backup_dir,
-                    source_mapping=source_map.entries.get(asset.repo_id.lower())
-                    if asset.repo_type == "space"
-                    else None,
-                    protected_source_sha=args.protected_source_sha,
+                    space_authorities=space_authorities,
+                    authority_guard=authority_guard,
                 )
             )
         except (ControlError, HfHubHTTPError, OSError, ValueError) as exc:
@@ -996,7 +905,7 @@ def main(argv: list[str] | None = None) -> int:
         decisions,
         args.execute,
         args.merge,
-        source_map=source_map,
+        source_map_identity=source_map_identity,
     )
     args.report.parent.mkdir(parents=True, exist_ok=True)
     args.report.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")

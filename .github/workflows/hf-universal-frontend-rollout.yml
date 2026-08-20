@@ -20,15 +20,16 @@ concurrency:
 env:
   REPORT: evidence/hf-universal-frontend-estate.json
   BACKUPS: evidence/hf-universal-frontend-preimages
-  SOURCE_MAP: docs/huggingface-space-source-map-v1.json
   ISSUE_TITLE: '[HF-UNIVERSAL-FRONTEND] Source-native rollout incomplete'
 
 jobs:
   plan:
     name: Revision-bound public estate plan
-    if: inputs.operation == 'plan'
+    if: inputs.operation == 'plan' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -41,13 +42,18 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
+      - name: Require exact current protected main after checkout
+        run: bash .github/scripts/require-current-main.sh
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
       - name: Install exact Hub client
-        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
+        run: >-
+          python -m pip install --disable-pip-version-check --require-hashes
+          -r .github/requirements/hf-universal-frontend-runtime.txt
 
       - name: Generate public plan without mutation
         id: plan
@@ -56,8 +62,7 @@ jobs:
           set +e
           python scripts/hf_universal_frontend_control.py \
             --org SZLHOLDINGS \
-            --protected-source-sha "$GITHUB_SHA" \
-            --source-map "$SOURCE_MAP" \
+            --source-map docs/huggingface-space-source-map-v1.json \
             --report "$REPORT" \
             --backup-dir "$BACKUPS"
           code=$?
@@ -98,18 +103,8 @@ jobs:
           ref: ${{ github.sha }}
           persist-credentials: false
 
-      - name: Require exact current protected main
-        shell: bash
-        run: |
-          set -euo pipefail
-          checked_out="$(git rev-parse HEAD)"
-          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          test "$GITHUB_REF" = refs/heads/main
-          test "$checked_out" = "$GITHUB_SHA"
-          if [ "$current_main" != "$GITHUB_SHA" ]; then
-            echo "::error::Rollout source ${GITHUB_SHA} is not current main ${current_main}."
-            exit 1
-          fi
+      - name: Require exact current protected main after checkout
+        run: bash .github/scripts/require-current-main.sh
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -120,17 +115,21 @@ jobs:
         run: test -n "${HF_ORG_TOKEN:-}"
 
       - name: Install exact Hub client
-        run: python -m pip install --disable-pip-version-check 'huggingface_hub==1.23.0'
+        run: >-
+          python -m pip install --disable-pip-version-check --require-hashes
+          -r .github/requirements/hf-universal-frontend-runtime.txt
 
       - name: Create, merge, and read back revision-bound Hub pull requests
         id: execute
         shell: bash
         run: |
+          set -euo pipefail
+          bash .github/scripts/require-current-main.sh
           set +e
           python scripts/hf_universal_frontend_control.py \
             --org SZLHOLDINGS \
-            --protected-source-sha "$GITHUB_SHA" \
-            --source-map "$SOURCE_MAP" \
+            --source-map docs/huggingface-space-source-map-v1.json \
+            --authority-guard .github/scripts/require-current-main.sh \
             --execute \
             --merge \
             --report "$REPORT" \
@@ -156,13 +155,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          bash .github/scripts/require-current-main.sh
           test -f "$REPORT"
-          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          if [ "$current_main" != "$GITHUB_SHA" ]; then
-            echo "::error::Main advanced to ${current_main}; refusing issue mutation for ${GITHUB_SHA}."
-            exit 1
-          fi
-          issue_output="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 100 --search "\"$ISSUE_TITLE\" in:title" --json number,state,title --jq ".[] | select(.title == \"$ISSUE_TITLE\") | \"\(.number)\\t\(.state)\"")"
+          issue_output="$(gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/issues?state=all&per_page=100" \
+            --jq ".[][] | select(.pull_request == null and .title == \"$ISSUE_TITLE\") | \"\\(.number)\\t\\(.state | ascii_upcase)\"")"
           issue_matches=()
           if [ -n "$issue_output" ]; then
             mapfile -t issue_matches <<< "$issue_output"
@@ -203,7 +200,7 @@ jobs:
               print()
           print(f"Evidence: {pathlib.Path(sys.argv[1])}")
           print()
-          print('This owner-dispatched rollout may update supported cards or application shells through revision-bound Hugging Face pull requests. It does not modify model weights, dataset payloads, visibility, hardware, storage, allocation, secrets, or source-bound protected Spaces.')
+          print('This owner-dispatched rollout may update supported model or dataset cards through revision-bound Hugging Face pull requests. It performs no direct Space write and does not modify model weights, dataset payloads, visibility, hardware, storage, allocation, or secrets.')
           PY
           complete="$(python - "$REPORT" <<'PY'
           import json
@@ -214,16 +211,23 @@ jobs:
           PY
           )"
           if [ "$complete" = true ]; then
-            if [ -n "$number" ] && [ "$issue_state" = "OPEN" ]; then
+            if [ -n "$number" ]; then
+              bash .github/scripts/require-current-main.sh
               gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
-              gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed --comment "Exact estate report is complete for protected source ${GITHUB_SHA}."
+              if [ "$issue_state" = "OPEN" ]; then
+                bash .github/scripts/require-current-main.sh
+                gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed --comment "Exact estate report is complete for protected source ${GITHUB_SHA}."
+              fi
             fi
           elif [ -z "$number" ]; then
+            bash .github/scripts/require-current-main.sh
             gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body-file /tmp/hf-universal-frontend-issue.md
           else
             if [ "$issue_state" = "CLOSED" ]; then
+              bash .github/scripts/require-current-main.sh
               gh issue reopen "$number" --repo "$GITHUB_REPOSITORY"
             fi
+            bash .github/scripts/require-current-main.sh
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
           fi
 
