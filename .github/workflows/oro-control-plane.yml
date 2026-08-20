@@ -39,6 +39,8 @@ jobs:
       ORO_CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       ORO_IMAGE_TAG: a11oy-oro-ci:${{ github.run_id }}-${{ github.run_attempt }}
       ORO_CONTAINER_NAME: a11oy-oro-ci-${{ github.run_id }}-${{ github.run_attempt }}
+      ORO_SECRET_VOLUME: a11oy-oro-secrets-${{ github.run_id }}-${{ github.run_attempt }}
+      ORO_DATA_VOLUME: a11oy-oro-data-${{ github.run_id }}-${{ github.run_attempt }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
@@ -137,16 +139,41 @@ jobs:
       - name: Prove standalone production container
         run: |
           set -euo pipefail
-          secret_root="$RUNNER_TEMP/oro-container-secrets"
-          data_root="$RUNNER_TEMP/oro-container-data"
-          install -d -m 0700 "$secret_root" "$data_root"
-          umask 077
-          openssl genpkey -algorithm ED25519 -out "$secret_root/oro-ed25519.pem"
-          openssl rand -hex 32 >"$secret_root/oro-api-token"
-          sudo chown -R 10001:10001 "$secret_root" "$data_root"
-          sudo chmod 0600 \
-            "$secret_root/oro-ed25519.pem" \
-            "$secret_root/oro-api-token"
+          docker volume create "$ORO_SECRET_VOLUME" >/dev/null
+          docker volume create "$ORO_DATA_VOLUME" >/dev/null
+          docker run --rm --interactive \
+            --user 0:0 \
+            --entrypoint python3 \
+            --mount "type=volume,src=$ORO_SECRET_VOLUME,dst=/managed" \
+            "$ORO_IMAGE_TAG" - <<'PY'
+          import os
+          import secrets
+          from pathlib import Path
+
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+          os.umask(0o077)
+          root = Path("/managed")
+          key_path = root / "oro_ed25519"
+          token_path = root / "oro_api_token"
+          key_path.write_bytes(
+              Ed25519PrivateKey.generate().private_bytes(
+                  encoding=serialization.Encoding.PEM,
+                  format=serialization.PrivateFormat.PKCS8,
+                  encryption_algorithm=serialization.NoEncryption(),
+              )
+          )
+          token_path.write_text(secrets.token_hex(32), encoding="ascii")
+          for path in (key_path, token_path):
+              path.chmod(0o600)
+              os.chown(path, 10001, 10001)
+          PY
+          docker run --rm \
+            --user 0:0 \
+            --entrypoint /bin/sh \
+            --mount "type=volume,src=$ORO_DATA_VOLUME,dst=/data" \
+            "$ORO_IMAGE_TAG" -c 'chown 10001:10001 /data && chmod 0700 /data'
 
           CID="$(docker run -d \
             --name "$ORO_CONTAINER_NAME" \
@@ -155,8 +182,8 @@ jobs:
             --cap-drop ALL \
             --security-opt no-new-privileges:true \
             --tmpfs /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700 \
-            --mount "type=bind,src=$data_root,dst=/data" \
-            --mount "type=bind,src=$secret_root,dst=/run/secrets,readonly" \
+            --mount "type=volume,src=$ORO_DATA_VOLUME,dst=/data" \
+            --mount "type=volume,src=$ORO_SECRET_VOLUME,dst=/run/secrets,readonly" \
             --env SZL_ORO_ENV=production \
             --env SZL_ORO_DB_PATH=/data/oro.sqlite \
             --env SZL_ORO_SIGNING_KEY_PATH=/run/secrets/oro_ed25519 \
@@ -167,20 +194,58 @@ jobs:
             "$ORO_IMAGE_TAG")"
           printf '%s\n' "$CID" >"$RUNNER_TEMP/oro-container.cid"
 
-          ready=0
+          ready_status=000
           for attempt in $(seq 1 60); do
-            if curl --fail --silent --show-error \
+            ready_status="$(curl --silent --show-error \
+              --output "$RUNNER_TEMP/oro-container-ready.json" \
+              --write-out '%{http_code}' \
               http://127.0.0.1:8878/api/a11oy/v1/oro/readyz \
-              >"$RUNNER_TEMP/oro-container-ready.json"; then
-              ready=1
+              || true)"
+            if test "$ready_status" = 200; then
               break
             fi
             sleep 0.25
           done
-          test "$ready" = 1
           curl --fail --silent --show-error \
             http://127.0.0.1:8878/api/a11oy/v1/oro/healthz \
             >"$RUNNER_TEMP/oro-container-health.json"
+          docker logs "$CID" 2>&1 | python3 -c '
+          import json, re, sys
+          value = sys.stdin.read()
+          json.dump({
+              "schema": "szl.oro-container-log-summary/v1",
+              "line_count": len(value.splitlines()),
+              "startup_complete": "Application startup complete" in value,
+              "server_listening": "Uvicorn running" in value,
+              "request_count": value.count("HTTP/1.1"),
+              "error_classes": sorted(set(re.findall(r"[A-Za-z]+(?:Error|Exception)", value))),
+              "raw_log_captured": False,
+          }, sys.stdout, sort_keys=True)
+          ' >"$RUNNER_TEMP/oro-container-log-summary.json"
+          if test "$ready_status" != 200; then
+            python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"])
+          diagnostic = {
+              "schema": "szl.oro-container-readiness-diagnostic/v1",
+              "healthz": json.loads((root / "oro-container-health.json").read_text()),
+              "readyz": json.loads((root / "oro-container-ready.json").read_text()),
+              "container_log_summary": json.loads(
+                  (root / "oro-container-log-summary.json").read_text()
+              ),
+              "secret_material_captured": False,
+          }
+          (root / "oro-container-diagnostic.json").write_text(
+              json.dumps(diagnostic, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(diagnostic, sort_keys=True))
+          PY
+            exit 1
+          fi
           curl --fail --silent --show-error \
             http://127.0.0.1:8878/api/a11oy/v1/oro/contract \
             >"$RUNNER_TEMP/oro-container-contract.json"
@@ -248,6 +313,9 @@ jobs:
                   "healthz": health,
                   "readyz": ready,
                   "contract": contract,
+                  "container_log_summary": json.loads(
+                      (root / "oro-container-log-summary.json").read_text()
+                  ),
                   "dashboard": {
                       "delivered": True,
                       "zero_cdn": "https://cdn" not in dashboard.lower(),
@@ -268,15 +336,8 @@ jobs:
           else
             docker rm -f "$ORO_CONTAINER_NAME" >/dev/null 2>&1 || true
           fi
-          sudo rm -f \
-            "$RUNNER_TEMP/oro-container-secrets/oro-ed25519.pem" \
-            "$RUNNER_TEMP/oro-container-secrets/oro-api-token" \
-            "$RUNNER_TEMP/oro-container-data/oro.sqlite" \
-            "$RUNNER_TEMP/oro-container-data/oro.sqlite-shm" \
-            "$RUNNER_TEMP/oro-container-data/oro.sqlite-wal"
-          sudo rmdir \
-            "$RUNNER_TEMP/oro-container-secrets" \
-            "$RUNNER_TEMP/oro-container-data" 2>/dev/null || true
+          docker volume rm "$ORO_SECRET_VOLUME" >/dev/null 2>&1 || true
+          docker volume rm "$ORO_DATA_VOLUME" >/dev/null 2>&1 || true
       - name: Upload source-bound standalone evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
@@ -293,5 +354,7 @@ jobs:
             ${{ runner.temp }}/oro-container-contract.json
             ${{ runner.temp }}/oro-container-dashboard.html
             ${{ runner.temp }}/oro-container-evidence.json
+            ${{ runner.temp }}/oro-container-diagnostic.json
+            ${{ runner.temp }}/oro-container-log-summary.json
           if-no-files-found: error
           retention-days: 90

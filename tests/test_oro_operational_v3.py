@@ -757,12 +757,17 @@ def test_oro_workflow_is_validation_only() -> None:
     assert "--file deploy/oro/Dockerfile" in workflow
     assert "--file Dockerfile" not in workflow
     assert "SZL_ORO_ENV=production" in workflow
-    assert "type=bind,src=$secret_root,dst=/run/secrets,readonly" in workflow
+    assert "type=volume,src=$ORO_SECRET_VOLUME,dst=/run/secrets,readonly" in workflow
+    assert "os.chown(path, 10001, 10001)" in workflow
+    assert "os.umask(0o077)" in workflow
+    assert "path.chmod(0o600)" in workflow
+    assert '"raw_log_captured": False' in workflow
+    assert "oro-container-diagnostic.json" in workflow
     assert 'assert contract["runtime_enforced"] == "NOT_MEASURED"' in workflow
     assert '"secret_material_captured": False' in workflow
     upload = workflow.split("- name: Upload source-bound standalone evidence", 1)[1]
     assert "oro-container-evidence.json" in upload
-    assert "oro-container-secrets" not in upload
+    assert "ORO_SECRET_VOLUME" not in upload
     assert "-r .github/requirements/ci-oro.txt" in workflow
     assert "uvicorn==0.49.0" in runtime_lock
     assert "click==8.3.3" in runtime_lock
