@@ -208,6 +208,76 @@ test("root arrays cannot hide malformed explicit evidence", () => {
   assert.equal(valid.pairConflict, null);
 });
 
+test("root arrays enforce complete compatible evidence pairs on every item", () => {
+  const cases = [
+    {
+      body: [{ mode: "live", data_kind: "cached" }],
+      modePath: "[0].mode",
+      reason: /contradictory/,
+    },
+    {
+      body: [{ mode: "vendor-pending", data_kind: "live" }],
+      modePath: "[0].mode",
+      reason: /not a compatible known/,
+    },
+    {
+      body: [{ mode: "live" }],
+      modePath: "[0].mode",
+      reason: /requires a root data_kind/,
+    },
+    {
+      body: [
+        { mode: "live", data_kind: "live" },
+        { mode: "cached", data_kind: "live" },
+      ],
+      modePath: "[1].mode",
+      reason: /contradictory/,
+    },
+    {
+      body: [[{ mode: "live", data_kind: "cached" }]],
+      modePath: "[0][0].mode",
+      reason: /contradictory/,
+    },
+  ];
+
+  for (const { body, modePath, reason } of cases) {
+    assert.equal(validateSchema("generic_list", body).ok, true, JSON.stringify(body));
+    const verdict = evaluateEndpointLabels(200, kevLabelSpec, body);
+    assert.equal(verdict.ok, false, JSON.stringify(body));
+    assert.equal(verdict.pairConflict.mode.path, modePath);
+    assert.match(verdict.pairConflict.reason, reason);
+  }
+});
+
+test("explicit evidence remains fail-closed beyond five nesting levels", () => {
+  const nestedEvidence = (dataKind, levels = 8) => {
+    let value = { data_kind: dataKind };
+    for (let level = 0; level < levels; level += 1) {
+      value = { payload: value };
+    }
+    return value;
+  };
+  const evidencePath = `${"payload.".repeat(8)}data_kind`;
+
+  const malformed = evaluateEndpointLabels(200, kevLabelSpec, nestedEvidence(true));
+  assert.equal(malformed.ok, false);
+  assert.equal(malformed.pairConflict.dataKind.path, evidencePath);
+  assert.match(malformed.pairConflict.reason, /must be a string/);
+
+  const fabricated = evaluateEndpointLabels(
+    200,
+    kevLabelSpec,
+    nestedEvidence("fabricated"),
+  );
+  assert.equal(fabricated.ok, false);
+  assert.deepEqual(fabricated.labels.map(({ path }) => path), [evidencePath]);
+  assert.equal(fabricated.lie.path, evidencePath);
+
+  const allowed = evaluateEndpointLabels(200, kevLabelSpec, nestedEvidence("live"));
+  assert.equal(allowed.ok, true);
+  assert.deepEqual(allowed.labels.map(({ path }) => path), [evidencePath]);
+});
+
 test("non-string mode/data_kind pairs cannot bypass the evidence contract", () => {
   const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
     mode: true,

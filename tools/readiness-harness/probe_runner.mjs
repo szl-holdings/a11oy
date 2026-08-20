@@ -331,8 +331,14 @@ function findEvidenceLabels(obj, candidateLabels = []) {
   ]);
   const found = [];
 
+  const visited = new WeakSet();
+
   function walk(value, path = "", depth = 0, insideFreshness = false) {
-    if (value === null || value === undefined || depth > 5) return;
+    if (value === null || value === undefined) return;
+    if (typeof value === "object") {
+      if (visited.has(value)) return;
+      visited.add(value);
+    }
     if (Array.isArray(value)) {
       value.forEach((item, index) => {
         walk(item, `${path}[${index}]`, depth + 1, insideFreshness);
@@ -366,12 +372,17 @@ function findEvidenceLabels(obj, candidateLabels = []) {
 
 function findMalformedExplicitEvidence(obj) {
   let malformed = null;
+  const visited = new WeakSet();
 
-  function walk(value, path = "", depth = 0) {
-    if (malformed || value === null || value === undefined || depth > 5) return;
+  function walk(value, path = "") {
+    if (malformed || value === null || value === undefined) return;
+    if (typeof value === "object") {
+      if (visited.has(value)) return;
+      visited.add(value);
+    }
     if (Array.isArray(value)) {
       value.forEach((item, index) => {
-        walk(item, `${path}[${index}]`, depth + 1);
+        walk(item, `${path}[${index}]`);
       });
       return;
     }
@@ -383,7 +394,7 @@ function findMalformedExplicitEvidence(obj) {
         malformed = { path: childPath, value: child };
         return;
       }
-      walk(child, childPath, depth + 1);
+      walk(child, childPath);
       if (malformed) return;
     }
   }
@@ -402,58 +413,84 @@ function findEvidencePairConflict(body, modeRequiresDataKind = false) {
       reason: "explicit evidence label must be a string",
     };
   }
-  if (Array.isArray(body)) return null;
-  const modes = Object.entries(body).filter(([key]) => ROOT_MODE_KEY.test(key));
-  const dataKinds = Object.entries(body).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
-  if (!modes.length) {
-    const malformedDataKind = dataKinds.find(([, value]) => typeof value !== "string");
-    if (!malformedDataKind) return null;
-    const [dataKindPath, dataKindValue] = malformedDataKind;
-    return {
-      mode: { path: "mode", value: undefined },
-      dataKind: { path: dataKindPath, value: dataKindValue },
-      reason: "root data_kind must be a string evidence label",
-    };
-  }
-  if (!dataKinds.length) {
-    if (!modeRequiresDataKind) return null;
-    const [modePath, modeValue] = modes[0];
-    return {
-      mode: { path: modePath, value: modeValue },
-      dataKind: { path: "data_kind", value: undefined },
-      reason: "root mode requires a root data_kind evidence label",
-    };
-  }
+  function findObjectPairConflict(candidate, path = "") {
+    const entryPath = (key) => path ? `${path}.${key}` : key;
+    const modes = Object.entries(candidate).filter(([key]) => ROOT_MODE_KEY.test(key));
+    const dataKinds = Object.entries(candidate).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
+    if (!modes.length) {
+      const malformedDataKind = dataKinds.find(
+        ([, value]) => typeof value !== "string",
+      );
+      if (!malformedDataKind) return null;
+      const [dataKindPath, dataKindValue] = malformedDataKind;
+      return {
+        mode: { path: entryPath("mode"), value: undefined },
+        dataKind: { path: entryPath(dataKindPath), value: dataKindValue },
+        reason: "root data_kind must be a string evidence label",
+      };
+    }
+    if (!dataKinds.length) {
+      if (!modeRequiresDataKind) return null;
+      const [modePath, modeValue] = modes[0];
+      return {
+        mode: { path: entryPath(modePath), value: modeValue },
+        dataKind: { path: entryPath("data_kind"), value: undefined },
+        reason: "root mode requires a root data_kind evidence label",
+      };
+    }
 
-  for (const [modePath, modeValue] of modes) {
-    for (const [dataKindPath, dataKindValue] of dataKinds) {
-      if (typeof modeValue !== "string" || typeof dataKindValue !== "string") {
-        return {
-          mode: { path: modePath, value: modeValue },
-          dataKind: { path: dataKindPath, value: dataKindValue },
-          reason: "mode and data_kind must be string evidence labels",
-        };
-      }
-      const normalizedMode = modeValue.trim().toLowerCase();
-      const normalizedDataKind = dataKindValue.trim().toLowerCase();
-      const modeFamily = MODE_EVIDENCE_FAMILY.get(normalizedMode);
-      const dataKindFamily = DATA_KIND_EVIDENCE_FAMILY.get(normalizedDataKind);
-      if (!modeFamily || !dataKindFamily || modeFamily !== dataKindFamily) {
-        return {
-          mode: { path: modePath, value: modeValue, normalized: normalizedMode },
-          dataKind: {
-            path: dataKindPath,
-            value: dataKindValue,
-            normalized: normalizedDataKind,
-          },
-          reason: modeFamily && dataKindFamily
-            ? "mode and data_kind claim contradictory evidence families"
-            : "mode and data_kind are not a compatible known evidence pair",
-        };
+    for (const [modePath, modeValue] of modes) {
+      for (const [dataKindPath, dataKindValue] of dataKinds) {
+        if (typeof modeValue !== "string" || typeof dataKindValue !== "string") {
+          return {
+            mode: { path: entryPath(modePath), value: modeValue },
+            dataKind: { path: entryPath(dataKindPath), value: dataKindValue },
+            reason: "mode and data_kind must be string evidence labels",
+          };
+        }
+        const normalizedMode = modeValue.trim().toLowerCase();
+        const normalizedDataKind = dataKindValue.trim().toLowerCase();
+        const modeFamily = MODE_EVIDENCE_FAMILY.get(normalizedMode);
+        const dataKindFamily = DATA_KIND_EVIDENCE_FAMILY.get(normalizedDataKind);
+        if (!modeFamily || !dataKindFamily || modeFamily !== dataKindFamily) {
+          return {
+            mode: {
+              path: entryPath(modePath),
+              value: modeValue,
+              normalized: normalizedMode,
+            },
+            dataKind: {
+              path: entryPath(dataKindPath),
+              value: dataKindValue,
+              normalized: normalizedDataKind,
+            },
+            reason: modeFamily && dataKindFamily
+              ? "mode and data_kind claim contradictory evidence families"
+              : "mode and data_kind are not a compatible known evidence pair",
+          };
+        }
       }
     }
+    return null;
   }
-  return null;
+
+  function findArrayItemConflict(items, path = "") {
+    for (let index = 0; index < items.length; index += 1) {
+      const item = items[index];
+      const itemPath = `${path}[${index}]`;
+      const conflict = Array.isArray(item)
+        ? findArrayItemConflict(item, itemPath)
+        : item && typeof item === "object"
+          ? findObjectPairConflict(item, itemPath)
+          : null;
+      if (conflict) return conflict;
+    }
+    return null;
+  }
+
+  return Array.isArray(body)
+    ? findArrayItemConflict(body)
+    : findObjectPairConflict(body);
 }
 
 function evaluateEndpointLabels(httpStatus, spec, body) {
