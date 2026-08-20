@@ -35,7 +35,7 @@ PYTHONPATH=packages/council-kernel/src \
 ## Local result
 
 - Python compilation: `PASS`
-- Complete Council package tests: `111/111 PASS` plus `10/10` parameterized subtests
+- Complete Council package tests: `112/112 PASS` plus `10/10` parameterized subtests
 - Added runtime dependencies: `0`
 - Added runtime routes or provider effect paths: `0`
 

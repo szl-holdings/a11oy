@@ -146,6 +146,24 @@ class DelegationTests(unittest.TestCase):
             registry.revoke(altered, reason="collision", revoked_at=NOW)
         self.assertEqual(len(registry.ledger.entries), 1)
 
+    def test_pre_revoked_grant_uses_stable_unrevoked_registry_identity(self) -> None:
+        registry = RevocationRegistry()
+        root = root_grant()
+        pre_revoked = replace(root, revoked=True)
+
+        registry.revoke(pre_revoked, reason="already closed", revoked_at=NOW)
+        self.assertTrue(registry.is_revoked(pre_revoked))
+        self.assertTrue(registry.apply(pre_revoked).revoked)
+        self.assertEqual(registry.revoked[root.grant_id], grant_digest(root))
+
+        materialized = registry.apply(root)
+        registry.revoke(
+            materialized,
+            reason="idempotent materialized revocation",
+            revoked_at=NOW,
+        )
+        self.assertEqual(len(registry.ledger.entries), 1)
+
     def test_revoked_grant_id_cannot_be_rebound_during_authority_check(self) -> None:
         registry = RevocationRegistry()
         root = root_grant()

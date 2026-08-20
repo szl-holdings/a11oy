@@ -238,7 +238,10 @@ class RevocationRegistry:
         if not reason.strip():
             raise ValueError("revocation reason must be non-empty")
         timestamp = _utc(revoked_at).isoformat().replace("+00:00", "Z")
-        digest = grant_digest(grant)
+        # Revocation is an authority reduction, not part of the grant's stable
+        # identity. Persist the same unrevoked canonical identity used by
+        # read/apply checks so pre-revoked inputs cannot fork the binding.
+        digest = grant_digest(replace(grant, revoked=False))
         with self._lock:
             existing = self._revoked.get(grant.grant_id)
             if existing is not None and existing != digest:
