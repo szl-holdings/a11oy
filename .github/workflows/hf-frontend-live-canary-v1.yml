@@ -25,7 +25,6 @@ on:
 
 permissions:
   contents: read
-  issues: write
 
 concurrency:
   group: hf-frontend-live-canary-v1-${{ github.ref }}
@@ -64,6 +63,9 @@ jobs:
     needs: contract
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      issues: write
     env:
       GH_TOKEN: ${{ github.token }}
       REPORT_DIR: evidence/hf-frontend-live-canary
@@ -138,12 +140,13 @@ jobs:
             | head -n 1)
           python3 - <<'PY' > /tmp/hf-frontend-canary.md
           import json
+          import os
           from pathlib import Path
           report = json.loads(Path('evidence/hf-frontend-live-canary/report.json').read_text())
           print('## Hugging Face universal frontend live canary')
           print()
-          print(f"- Protected source: `${{GITHUB_SHA}}`")
-          print(f"- Run: ${{GITHUB_SERVER_URL}}/${{GITHUB_REPOSITORY}}/actions/runs/${{GITHUB_RUN_ID}}")
+          print(f"- Protected source: `{os.environ['GITHUB_SHA']}`")
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
           print(f"- Status: `{report['summary']['status']}`")
           print()
           print('```json')
@@ -168,7 +171,7 @@ jobs:
               print('```json')
               print(json.dumps(page_failures, indent=2, sort_keys=True))
               print('```')
-          print('\nThe workflow is read-only; no Hugging Face resource or source branch was changed.')
+          print('\nThe canary does not mutate any Hugging Face resource or source branch. It may create, reopen, edit, or close this tracking issue.')
           PY
           if [ "${EXIT_CODE:-1}" = '0' ]; then
             if [ -n "$number" ]; then
