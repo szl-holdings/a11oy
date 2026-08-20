@@ -1,30 +1,27 @@
 name: HF frontend live canary v1
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - scripts/audit_hf_frontend_live_canary_v1.py
-      - tests/test_hf_frontend_live_canary_v1.py
-      - docs/HUGGINGFACE_FRONTEND_LIVE_CANARY_V1.md
-      - docs/HUGGINGFACE_UNIVERSAL_FRONTEND_CONTRACT_V1.md
-      - docs/huggingface-frontend-remediation-queue-v1.json
-      - .github/workflows/hf-frontend-live-canary-v1.yml
   pull_request:
     branches: [main]
     paths:
+      - a11oy_landing.html
       - scripts/audit_hf_frontend_live_canary_v1.py
       - tests/test_hf_frontend_live_canary_v1.py
       - docs/HUGGINGFACE_FRONTEND_LIVE_CANARY_V1.md
-      - docs/HUGGINGFACE_UNIVERSAL_FRONTEND_CONTRACT_V1.md
-      - docs/huggingface-frontend-remediation-queue-v1.json
       - .github/workflows/hf-frontend-live-canary-v1.yml
   schedule:
     - cron: '37 5 * * *'
   workflow_dispatch: {}
+  workflow_run:
+    workflows: ["Sync and Relock Canonical Hugging Face Space"]
+    types: [completed]
+    branches: [main]
 
 permissions:
   contents: read
+
+env:
+  EXPECTED_SOURCE_SHA: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
 
 concurrency:
   group: hf-frontend-live-canary-v1-${{ github.ref }}
@@ -43,6 +40,7 @@ jobs:
       - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ env.EXPECTED_SOURCE_SHA }}
           persist-credentials: false
 
       - name: Set up Python
@@ -59,7 +57,11 @@ jobs:
           python3 -m pytest -q tests/test_hf_frontend_live_canary_v1.py
 
   live-canary:
-    if: github.event_name != 'pull_request'
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main'))
     needs: contract
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -79,8 +81,20 @@ jobs:
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ env.EXPECTED_SOURCE_SHA }}
           persist-credentials: false
+
+      - name: Require exact current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked_out="$(git rev-parse HEAD)"
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$checked_out" = "$EXPECTED_SOURCE_SHA"
+          if [ "$current_main" != "$EXPECTED_SOURCE_SHA" ]; then
+            echo "::error::Canary source ${EXPECTED_SOURCE_SHA} is not current main ${current_main}."
+            exit 1
+          fi
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -109,6 +123,7 @@ jobs:
           set +e
           python3 scripts/audit_hf_frontend_live_canary_v1.py \
             --chrome "$CHROME" \
+            --expected-source-sha "$EXPECTED_SOURCE_SHA" \
             --output-dir "$REPORT_DIR"
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
@@ -130,14 +145,26 @@ jobs:
           EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
         run: |
           set -euo pipefail
-          number=$(gh issue list \
+          issue_output="$(gh issue list \
             --repo "$GITHUB_REPOSITORY" \
             --state all \
             --limit 100 \
             --search '"[HF-FRONTEND-CANARY] Universal viewport or source drift" in:title' \
-            --json number,title \
-            --jq '.[] | select(.title == "[HF-FRONTEND-CANARY] Universal viewport or source drift") | .number' \
-            | head -n 1)
+            --json number,state,title \
+            --jq '.[] | select(.title == "[HF-FRONTEND-CANARY] Universal viewport or source drift") | "\(.number)\t\(.state)"')"
+          issue_matches=()
+          if [ -n "$issue_output" ]; then
+            mapfile -t issue_matches <<< "$issue_output"
+          fi
+          if [ "${#issue_matches[@]}" -gt 1 ]; then
+            echo "::error::Multiple deterministic frontend-canary issues exist; refusing ambiguous mutation."
+            exit 1
+          fi
+          number=""
+          issue_state=""
+          if [ "${#issue_matches[@]}" -eq 1 ]; then
+            IFS=$'\t' read -r number issue_state <<< "${issue_matches[0]}"
+          fi
           python3 - <<'PY' > /tmp/hf-frontend-canary.md
           import json
           import os
@@ -145,7 +172,7 @@ jobs:
           report = json.loads(Path('evidence/hf-frontend-live-canary/report.json').read_text())
           print('## Hugging Face universal frontend live canary')
           print()
-          print(f"- Protected source: `{os.environ['GITHUB_SHA']}`")
+          print(f"- Protected source: `{os.environ['EXPECTED_SOURCE_SHA']}`")
           print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
           print(f"- Status: `{report['summary']['status']}`")
           print()
@@ -173,12 +200,17 @@ jobs:
               print('```')
           print('\nThe canary does not mutate any Hugging Face resource or source branch. It may create, reopen, edit, or close this tracking issue.')
           PY
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$current_main" != "$EXPECTED_SOURCE_SHA" ]; then
+            echo "::error::Main advanced to ${current_main}; refusing stale issue mutation for ${EXPECTED_SOURCE_SHA}."
+            exit 1
+          fi
           if [ "${EXIT_CODE:-1}" = '0' ]; then
-            if [ -n "$number" ]; then
+            if [ -n "$number" ] && [ "$issue_state" = "OPEN" ]; then
               gh issue close "$number" \
                 --repo "$GITHUB_REPOSITORY" \
                 --reason completed \
-                --comment "All live viewport and immutable source-identity gates passed in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}." || true
+                --comment "All live viewport and immutable source-identity gates passed for ${EXPECTED_SOURCE_SHA} in ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}."
             fi
           elif [ -z "$number" ]; then
             gh issue create \
@@ -186,7 +218,9 @@ jobs:
               --title "$ISSUE_TITLE" \
               --body-file /tmp/hf-frontend-canary.md
           else
-            gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true
+            if [ "$issue_state" = "CLOSED" ]; then
+              gh issue reopen "$number" --repo "$GITHUB_REPOSITORY"
+            fi
             gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-frontend-canary.md
           fi
 

@@ -89,6 +89,17 @@ def _valid_sha(value: Any) -> bool:
     return isinstance(value, str) and bool(SHA40.fullmatch(value.strip().lower()))
 
 
+def _device_width_viewport_meta(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    directives: dict[str, str] = {}
+    for item in value.split(","):
+        key, separator, raw_value = item.strip().partition("=")
+        if separator:
+            directives[key.strip().casefold()] = raw_value.strip().casefold()
+    return directives.get("width") == "device-width"
+
+
 def _runtime(record: dict[str, Any]) -> dict[str, Any]:
     runtime = record.get("runtime")
     return runtime if isinstance(runtime, dict) else {}
@@ -288,12 +299,21 @@ def evaluate_page(result: dict[str, Any]) -> list[dict[str, Any]]:
                 "detail": str(result["load_error"]),
             }
         )
-    if not metrics.get("viewport_meta"):
+    viewport_meta = metrics.get("viewport_meta")
+    if not viewport_meta:
         failures.append(
             {
                 "code": "VIEWPORT_META_MISSING",
                 "priority": "P1",
                 "detail": "No viewport metadata was rendered.",
+            }
+        )
+    elif not _device_width_viewport_meta(viewport_meta):
+        failures.append(
+            {
+                "code": "VIEWPORT_META_UNSAFE",
+                "priority": "P1",
+                "detail": f"Viewport metadata is not device-width bound: {viewport_meta!r}.",
             }
         )
     if metrics.get("horizontal_overflow") is True:
@@ -315,6 +335,19 @@ def evaluate_page(result: dict[str, Any]) -> list[dict[str, Any]]:
                 "priority": "P1",
                 "detail": f"{len(undersized)} primary controls are smaller than 44px.",
                 "examples": undersized[:10],
+            }
+        )
+    primary_targets = metrics.get("primary_targets")
+    if (
+        not isinstance(primary_targets, int)
+        or isinstance(primary_targets, bool)
+        or primary_targets <= 0
+    ):
+        failures.append(
+            {
+                "code": "PRIMARY_TARGETS_MISSING",
+                "priority": "P1",
+                "detail": "No visible primary interaction target was rendered.",
             }
         )
     page_errors = result.get("page_errors") or []

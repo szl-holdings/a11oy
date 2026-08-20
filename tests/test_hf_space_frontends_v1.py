@@ -39,6 +39,7 @@ def _page(**overrides):
             "inner_width": 390,
             "scroll_width": 390,
             "horizontal_overflow": False,
+            "primary_targets": 1,
             "undersized_primary_targets": [],
         },
     }
@@ -91,6 +92,21 @@ def test_page_contract_passes_clean_result() -> None:
     assert MODULE.evaluate_page(_page()) == []
 
 
+def test_page_contract_rejects_fixed_width_and_blank_shell() -> None:
+    result = _page(
+        metrics={
+            "viewport_meta": "width=1024",
+            "inner_width": 390,
+            "scroll_width": 390,
+            "horizontal_overflow": False,
+            "primary_targets": 0,
+            "undersized_primary_targets": [],
+        }
+    )
+    codes = {failure["code"] for failure in MODULE.evaluate_page(result)}
+    assert codes == {"VIEWPORT_META_UNSAFE", "PRIMARY_TARGETS_MISSING"}
+
+
 def test_page_contract_rejects_hard_viewport_failures() -> None:
     result = _page(
         http_status=500,
@@ -100,6 +116,7 @@ def test_page_contract_rejects_hard_viewport_failures() -> None:
             "inner_width": 390,
             "scroll_width": 430,
             "horizontal_overflow": True,
+            "primary_targets": 1,
             "undersized_primary_targets": [
                 {"tag": "BUTTON", "text": "Run", "width": 36, "height": 32}
             ],
