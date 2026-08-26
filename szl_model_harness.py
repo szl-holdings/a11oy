@@ -228,10 +228,31 @@ def _public_view(profile: dict[str, Any], body_meta: dict[str, Any]) -> dict[str
 # it composes with the one that exists (research Part 4.2).
 # ─────────────────────────────────────────────────────────────────────────────
 
+_REGISTRY_MODULE = None
+
+
+def _bind_registry(registry):
+    """Bind every harness write/read to the registry mounted by ``serve``.
+
+    The extracted ``szl_substrate`` package and the vendored top-level module
+    can both be importable in one process.  They are distinct module objects,
+    so importing by name here would split the forum and router counter from the
+    API reader.  ``serve`` resolves one compatible module before registering
+    the harness and injects that exact object here.
+    """
+    global _REGISTRY_MODULE
+    if _REGISTRY_MODULE is not None and _REGISTRY_MODULE is not registry:
+        raise RuntimeError("LLM registry is already bound to another module instance")
+    _REGISTRY_MODULE = registry
+    return registry
+
+
 def _reg():
-    """Import the existing LLM registry (the gate + roster + forum live there)."""
+    """Return the canonical registry, with a standalone-import fallback."""
+    if _REGISTRY_MODULE is not None:
+        return _REGISTRY_MODULE
     import szl_llm_registry as _r
-    return _r
+    return _bind_registry(_r)
 
 
 # Wave M (Dev 2): the shared sovereign-flywheel bridge. Routes an explicit

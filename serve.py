@@ -2885,8 +2885,63 @@ except Exception as _szl_jpt_e:  # pragma: no cover
 # NEVER leaked over the API (metadata + sha256 + availability only). Registered
 # BEFORE the Node proxy + SPA catch-all so /api/... stays JSON. Wave G additionally
 # wires an OPTIONAL harness_profile_id into the /code run-loop + /llm/route.
+def _llm_registry_supports_router_stats(registry) -> bool:
+    """Whether a registry can be the sole counter writer and API reader."""
+    if not isinstance(getattr(registry, "MODEL_REGISTRY", None), list):
+        return False
+    if not all(
+        callable(getattr(registry, name, None))
+        for name in ("register", "router_stats_snapshot")
+    ):
+        return False
+    writer = getattr(registry, "_forum_append", None)
+    if not callable(writer):
+        return False
+    try:
+        import inspect
+        inspect.signature(writer).bind({}, routing_decision=True)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _resolve_llm_registry_module():
+    """Resolve one counter-capable registry module for this process.
+
+    Preserve a compatible harness binding because it may already own trusted
+    process-lifetime writes. Otherwise prefer the extracted substrate only when
+    it implements the complete router stats contract. An older installed package
+    must not shadow the vendored implementation and leave the endpoint unavailable.
+    """
+    harness = globals().get("_szl_model_harness")
+    harness_registry = getattr(harness, "_REGISTRY_MODULE", None)
+    if _llm_registry_supports_router_stats(harness_registry):
+        globals()["_llm_reg"] = harness_registry
+        return harness_registry
+
+    existing = globals().get("_llm_reg")
+    if _llm_registry_supports_router_stats(existing):
+        return existing
+
+    try:
+        from szl_substrate import szl_llm_registry as preferred_registry
+    except Exception:
+        preferred_registry = None
+
+    if _llm_registry_supports_router_stats(preferred_registry):
+        registry = preferred_registry
+    else:
+        import szl_llm_registry as registry
+        if not _llm_registry_supports_router_stats(registry):
+            raise RuntimeError("vendored LLM registry lacks the router stats contract")
+
+    globals()["_llm_reg"] = registry
+    return registry
+
+
 try:
     import szl_model_harness as _szl_model_harness
+    _szl_model_harness._bind_registry(_resolve_llm_registry_module())
     _szl_model_harness.register(app, ns="a11oy")
     print("[a11oy] Model harness registered: /api/a11oy/v1/harness/{profiles,apply}", file=__import__("sys").stderr)
 except Exception as _szl_model_harness_e:  # pragma: no cover
@@ -7315,10 +7370,7 @@ except Exception as _parity_e:
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
 # ===========================================================================
 try:
-    try:  # prefer the extracted substrate package; fall back to local vendored copy
-        from szl_substrate import szl_llm_registry as _llm_reg
-    except Exception:
-        import szl_llm_registry as _llm_reg
+    _llm_reg = _resolve_llm_registry_module()
     _llm_reg_info = _llm_reg.register(app)
     print(
         f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
