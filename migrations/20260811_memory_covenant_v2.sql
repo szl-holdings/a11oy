@@ -265,7 +265,11 @@ AS $$
      AND EXISTS (
          SELECT 1
            FROM public.memory_context_bindings AS binding
-          WHERE binding.principal_oid = pg_catalog.to_regrole(session_user)
+          WHERE binding.principal_oid = (
+                    SELECT role.oid
+                      FROM pg_catalog.pg_roles AS role
+                     WHERE role.rolname = session_user
+                )
             AND binding.tenant_id = row_tenant
             AND binding.security_domain = row_domain
      )
