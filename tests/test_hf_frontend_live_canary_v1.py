@@ -148,7 +148,6 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "node.getAttribute('aria-disabled') === 'true'",
         "document.elementFromPoint(x, y)",
         "hit === el || el.contains(hit)",
-        "!hitTestable(el)",
         "style.overflowX !== 'visible'",
         "const bounds = effectiveBounds(el)",
         "hasMinimumHitArea(el, bounds)",
@@ -168,10 +167,12 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "item.hit_testable_44 !== true",
         "el.matches(':disabled')",
         "el.getAttribute('aria-disabled') === 'true'",
-        "el.getAttribute('role') === 'button' && el.tabIndex >= 0",
+        "if (el.getAttribute('role') === 'button') return el.tabIndex >= 0",
         ".filter(actionable)",
     ):
         assert contract in source
+    assert "const hitTestable" not in source
+    assert "!hitTestable(el)" not in source
     assert "[x + 1, y + 1]" not in source
     assert "const startsX =" not in source
     assert "const startsY =" not in source
@@ -236,20 +237,43 @@ def test_hit_area_coverage_search_is_exact_reusable_and_bounded() -> None:
         )
     ]
     assert re.sub(r"\s+", "", fragment) == re.sub(r"\s+", "", space_fragment)
+    actionable_fragment = source[
+        source.index("const actionable") : source.index("const selectors")
+    ]
+    space_actionable_fragment = capture.value[
+        capture.value.index("const actionable") : capture.value.index("const selectors")
+    ]
+    assert re.sub(r"\s+", "", actionable_fragment) == re.sub(
+        r"\s+", "", space_actionable_fragment
+    )
 
     program = (
         "const makeProbe = (hitAt, dpr) => {\n"
         "  const window = {devicePixelRatio: dpr};\n"
         + fragment
         + "  return hasMinimumHitArea;\n};\n"
+        "const makeActionable = (visible, hitTestable) => {\n"
+        + actionable_fragment
+        + "  return actionable;\n};\n"
+        "const element = (tagName, attributes = {}, tabIndex = -1) => ({\n"
+        "  tagName, tabIndex, matches: () => false,\n"
+        "  hasAttribute: (name) => Object.hasOwn(attributes, name),\n"
+        "  getAttribute: (name) => Object.hasOwn(attributes, name) ? attributes[name] : null,\n"
+        "});\n"
         "const bounds = (width, height) => ({left: 0, top: 0, width, height});\n"
-        "const shifted = makeProbe((_el, x, y) => x >= 10 && x < 54 && y >= 0 && y < 44, 1)(null, bounds(100, 44));\n"
+        "const shifted = makeProbe((_el, x, y) => x >= 10 && x < 54 && y >= 0 && y < 44, 1)(null, bounds(200, 44));\n"
         "const striped = makeProbe((_el, _x, y) => !(y >= 20 && y < 21), 1)(null, bounds(100, 44));\n"
+        "const coarseRejected = makeActionable(() => true, () => false);\n"
+        "const normallyVisible = makeActionable(() => true, () => true);\n"
+        "const offCenterButton = coarseRejected(element('BUTTON'));\n"
+        "const roleAnchor = normallyVisible(element('A', {role: 'button'}, 0));\n"
+        "const hrefAnchor = normallyVisible(element('A', {href: '/go'}));\n"
+        "const inertAnchor = normallyVisible(element('A'));\n"
         "let boundedCalls = 0;\n"
         "const bounded = makeProbe(() => { boundedCalls += 1; return false; }, 4)(null, bounds(200, 200));\n"
         "let exhaustedCalls = 0;\n"
         "const exhausted = makeProbe(() => { exhaustedCalls += 1; return true; }, 4)(null, bounds(1440, 1000));\n"
-        "process.stdout.write(JSON.stringify({shifted, striped, bounded, boundedCalls, exhausted, exhaustedCalls}));\n"
+        "process.stdout.write(JSON.stringify({shifted, striped, offCenterButton, roleAnchor, hrefAnchor, inertAnchor, bounded, boundedCalls, exhausted, exhaustedCalls}));\n"
     )
     completed = subprocess.run(
         ["node", "-e", program],
@@ -261,6 +285,10 @@ def test_hit_area_coverage_search_is_exact_reusable_and_bounded() -> None:
     assert observed == {
         "shifted": True,
         "striped": False,
+        "offCenterButton": True,
+        "roleAnchor": True,
+        "hrefAnchor": True,
+        "inertAnchor": False,
         "bounded": False,
         "boundedCalls": 640000,
         "exhausted": None,
@@ -354,6 +382,7 @@ def test_workflow_separates_pr_contract_from_trusted_live_authority() -> None:
 
     assert '--expected-source-sha "$EXPECTED_SOURCE_SHA"' in workflow
     assert workflow.count("- a11oy_landing.html") == 1
+    assert workflow.count("- scripts/audit_hf_space_frontends_v1.py") == 1
     assert "workflows: [\"Sync and Relock Canonical Hugging Face Space\"]" in workflow
     assert "\n  push:\n" not in workflow
 

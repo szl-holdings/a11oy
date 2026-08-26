@@ -120,7 +120,6 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "node.getAttribute('aria-disabled') === 'true'",
         "document.elementFromPoint(x, y)",
         "hit === el || el.contains(hit)",
-        "!hitTestable(el)",
         "style.overflowX !== 'visible'",
         "const bounds = effectiveBounds(el)",
         "hasMinimumHitArea(el, bounds)",
@@ -140,10 +139,12 @@ def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
         "item.hit_testable_44 !== true",
         "el.matches(':disabled')",
         "el.getAttribute('aria-disabled') === 'true'",
-        "el.getAttribute('role') === 'button' && el.tabIndex >= 0",
+        "if (el.getAttribute('role') === 'button') return el.tabIndex >= 0",
         ".filter(actionable)",
     ):
         assert contract in source
+    assert "const hitTestable" not in source
+    assert "!hitTestable(el)" not in source
     assert "[x + 1, y + 1]" not in source
     assert "const startsX =" not in source
     assert "const startsY =" not in source

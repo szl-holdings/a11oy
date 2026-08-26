@@ -6,6 +6,7 @@ on:
     paths:
       - a11oy_landing.html
       - scripts/audit_hf_frontend_live_canary_v1.py
+      - scripts/audit_hf_space_frontends_v1.py
       - tests/test_hf_frontend_live_canary_v1.py
       - docs/HUGGINGFACE_FRONTEND_LIVE_CANARY_V1.md
       - .github/workflows/hf-frontend-live-canary-v1.yml

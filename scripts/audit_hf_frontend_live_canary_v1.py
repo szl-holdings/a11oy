@@ -402,20 +402,6 @@ def audit(
                         const hit = document.elementFromPoint(x, y);
                         return hit instanceof Element && (hit === el || el.contains(hit));
                       };
-                      const hitTestable = (el) => {
-                        const {left, right, top, bottom} = effectiveBounds(el);
-                        if (!(right > left && bottom > top)) return false;
-                        const insetX = Math.min(1, (right - left) / 2);
-                        const insetY = Math.min(1, (bottom - top) / 2);
-                        const points = [
-                          [(left + right) / 2, (top + bottom) / 2],
-                          [left + insetX, top + insetY],
-                          [right - insetX, top + insetY],
-                          [left + insetX, bottom - insetY],
-                          [right - insetX, bottom - insetY],
-                        ];
-                        return points.some(([x, y]) => hitAt(el, x, y));
-                      };
                       const maxHitCoverageCells = 1000000;
                       let remainingHitCoverageCells = maxHitCoverageCells;
                       const hasMinimumHitArea = (el, bounds) => {
@@ -456,10 +442,11 @@ def audit(
                         return false;
                       };
                       const actionable = (el) => {
-                        if (!visible(el) || !hitTestable(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
+                        if (!visible(el) || el.matches(':disabled') || el.hasAttribute('disabled') || el.getAttribute('aria-disabled') === 'true') return false;
+                        if (el.getAttribute('role') === 'button') return el.tabIndex >= 0;
                         if (el.tagName === 'A') return Boolean((el.getAttribute('href') || '').trim());
                         if (el.tagName === 'BUTTON' || el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA') return true;
-                        return el.getAttribute('role') === 'button' && el.tabIndex >= 0;
+                        return false;
                       };
                       const selectors = ['button', '[role="button"]', '.btn', '.button', 'a[class*="btn"]', 'a[class*="button"]', 'header nav a', 'nav .cta'];
                       const nodes = [...new Set(selectors.flatMap(selector => [...document.querySelectorAll(selector)]))].filter(actionable);
