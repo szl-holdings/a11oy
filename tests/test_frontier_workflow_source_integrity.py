@@ -155,11 +155,11 @@ def test_integrity_regression_uses_protected_validator_and_candidate_data() -> N
     assert "source-integrity.yml\n          tests/test_frontier" in source
     assert 'cp -- "candidate/${rel}" "protected-validator/${rel}"' in source
     assert "working-directory: protected-validator" in source
-    assert "pytest -q tests/test_frontier_workflow_source_integrity.py" in source
-    assert "python -I -B -m pytest" in source
+    assert "python -I -B tests/test_frontier_workflow_source_integrity.py" in source
+    assert "pip install" not in source
+    assert "pytest" not in source
     run_block = source.split("run: |", maxsplit=1)[1]
     assert "python candidate/" not in run_block
-    assert "pytest candidate/" not in run_block
     assert "cd candidate" not in run_block
 
 
@@ -171,3 +171,16 @@ def test_required_workflow_handoff_covers_frontier_integrity() -> None:
     assert "Protected Frontier source-pin integrity" in source
     assert "ordinary required status context" in source
     assert "cannot certify its own newly introduced workflow" in source
+
+
+def main() -> None:
+    """Run the protected validator without pytest or repository plugin loading."""
+    test_orphan_digest_detection_rejects_indentation()
+    test_frontier_workflows_bind_all_protected_inputs()
+    test_contract_embedded_source_digests_match_protected_inputs()
+    test_integrity_regression_uses_protected_validator_and_candidate_data()
+    test_required_workflow_handoff_covers_frontier_integrity()
+
+
+if __name__ == "__main__":
+    main()

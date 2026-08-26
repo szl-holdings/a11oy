@@ -46,10 +46,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Install hash-locked test dependencies
-        working-directory: protected-validator
-        run: pip install --require-hashes -r .github/requirements/ci-core.txt
-
       - name: Admit immutable validator and stage bounded candidate data
         shell: bash
         run: |
@@ -89,4 +85,4 @@ jobs:
 
       - name: Enforce candidate pins with protected validator
         working-directory: protected-validator
-        run: python -I -B -m pytest -q tests/test_frontier_workflow_source_integrity.py
+        run: python -I -B tests/test_frontier_workflow_source_integrity.py
