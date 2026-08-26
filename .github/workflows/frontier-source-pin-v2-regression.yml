@@ -1,0 +1,32 @@
+name: Frontier source-pin protected regressions
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  frontier-source-pin-regressions:
+    name: Frontier source-pin regression suites
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact event source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run bounded source-pin regression suites
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -I -B -m pytest -p no:cacheprovider -q \
+            tests/test_validate_frontier_source_pin_candidate.py \
+            tests/test_validate_frontier_source_pin_candidate_v2.py
