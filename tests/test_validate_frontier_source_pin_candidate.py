@@ -332,7 +332,11 @@ def test_candidate_cannot_rotate_protected_inputs(tmp_path: Path) -> None:
 def test_authority_workflow_executes_only_protected_stdlib_code() -> None:
     source = AUTHORITY_WORKFLOW.read_text(encoding="utf-8")
     assert "pull_request:" in source
-    assert "merge_group:" in source
+    assert "branches-ignore:" in source
+    assert '- "**"' in source
+    assert "merge_group:" not in source
+    assert "github.event.pull_request.base.sha" in source
+    assert "github.event.pull_request.head.sha" in source
     assert "pull_request_target:" not in source
     assert "permissions:\n  contents: read" in source
     assert "ADVISORY_UNTRUSTED" in source

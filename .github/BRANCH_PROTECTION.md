@@ -27,10 +27,15 @@ For that reason:
   `Protected Frontier source-pin authority` under the same control-plane
   boundary. In the externally bound required-workflow run, it executes only a
   stdlib validator loaded from `job.workflow_sha` on protected `main` and treats
-  the event base and candidate payload checkout as data. Its ordinary
-  candidate-associated run fails closed as `ADVISORY_UNTRUSTED`.
+  the event base and candidate payload checkout as data. GitHub's required-
+  workflow engine ignores the workflow's `branches-ignore: ["**"]` filter,
+  while the filter suppresses ordinary candidate-associated duplicate runs.
+  Any unexpected non-`main` source still fails closed as
+  `ADVISORY_UNTRUSTED`.
 - Do not configure that job name as an ordinary required status context.
 - Do not cite any ordinary/bootstrap result as protected enforcement.
+- No merge queue is configured. Add `merge_group` only through a separately
+  qualified control-plane rotation if merge queue is enabled later.
 - The workflow treats the candidate checkout only as untrusted data and runs
   the action-contract validator from the protected base checkout. The Frontier
   validator runs from the immutable ruleset workflow-source checkout instead.
@@ -87,8 +92,9 @@ The `series-a-default-branch` ruleset must retain
 request head to be updated when `main` moves; the resulting `synchronize` event
 re-runs the required workflow against the new protected base.
 
-The workflow also supports `merge_group`. If a merge queue is enabled, GitHub
-will run the same qualification against the merge-group SHA before admission.
+The workflow intentionally omits `merge_group` while no merge queue is
+configured. Add and qualify that event through a control-plane rotation before
+enabling a queue.
 
 Do not substitute an ordinary required status context for the required-workflow
 rule. The latter binds the source repository and workflow identity in GitHub's
@@ -105,8 +111,8 @@ one-time bootstrap. After each file exists on `main`:
 3. For pull requests that were already open, push a new commit, update the
    branch, or close and reopen the pull request so GitHub starts the newly
    required workflow.
-4. Confirm the required workflow is attached to the current PR head or
-   merge-group SHA and that the protected-base validator ran.
+4. Confirm the required workflow is attached to the current PR head and that
+   the protected-base validator ran.
 5. Confirm the repository ruleset still reports
    `strict_required_status_checks_policy=true`.
 
@@ -131,4 +137,3 @@ GitHub references:
 
 - [Require workflows to pass before merging](https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-workflows-to-pass-before-merging)
 - [Strict and loose required status checks](https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)
-- [`merge_group` checks for merge queues](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group)

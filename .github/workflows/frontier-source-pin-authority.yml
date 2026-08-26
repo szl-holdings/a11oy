@@ -3,14 +3,14 @@ name: Frontier source-pin authority
 # This workflow is advisory in the pull request that first introduces it. It
 # becomes an authority only after it is merged to protected main and GitHub
 # binds this exact workflow identity with "Require workflows to pass before
-# merging". In that protected mode, the candidate payload checkout is inert
-# data. Ordinary candidate-associated runs are explicitly advisory/untrusted.
+# merging". GitHub's required-workflow engine ignores the branch filter below;
+# the filter suppresses ordinary candidate-associated duplicate runs. In the
+# protected ruleset run, the candidate payload checkout is inert data.
 on:
   pull_request:
-    branches: [main]
-    types: [opened, reopened, ready_for_review, synchronize]
-  merge_group:
-    types: [checks_requested]
+    # Ruleset-only source: required workflows ignore supported event filters.
+    branches-ignore:
+      - "**"
 
 permissions:
   contents: read
@@ -21,9 +21,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      PROTECTED_BASE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.pull_request.base.sha }}
-      CANDIDATE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event.pull_request.head.sha }}
-      CANDIDATE_REPOSITORY: ${{ github.event_name == 'merge_group' && github.repository || github.event.pull_request.head.repo.full_name }}
+      PROTECTED_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+      CANDIDATE_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
     steps:
       - name: Mark ordinary repository run advisory and untrusted
         if: ${{ job.workflow_ref != 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
