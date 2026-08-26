@@ -11196,18 +11196,24 @@ try:
                 else:
                     _cvss_part = ("CVSS/severity = derived-sample (CISA KEV does not "
                                   "publish CVSS; NVD warmer still filling the cache)")
-                _dk = "live KEV IDs/dates/vendors + " + _epss_part + "; " + _cvss_part
+                _feed_mode = str(payload.get("mode") or "unavailable").strip().lower()
+                _provenance = (_feed_mode + " KEV IDs/dates/vendors + "
+                               + _epss_part + "; " + _cvss_part)
                 return rows, {
-                    "source": "CISA Known Exploited Vulnerabilities catalog (LIVE feed)",
-                    "source_url": _kl_live._SOURCE["kev"][1],
-                    "mode": payload.get("mode","live"),
+                    "source": (payload.get("source")
+                               or "CISA Known Exploited Vulnerabilities catalog"),
+                    "source_url": (payload.get("source_url")
+                                   or _kl_live._SOURCE["kev"][1]),
+                    "mode": _feed_mode,
                     "fetched_at": payload.get("fetched_at"),
+                    "cache_note": payload.get("cache_note"),
                     "catalogVersion": data.get("catalogVersion"),
                     "dateReleased": data.get("dateReleased"),
                     "total_in_catalog": data.get("count") or len(vulns),
                     "epss_live_rows": _epss_live,
                     "cvss_live_rows": _cvss_live,
-                    "data_kind": _dk,
+                    "data_kind": _feed_mode,
+                    "enrichment_provenance": _provenance,
                 }
         except Exception as _e:
             _kl_meta_err = repr(_e)
@@ -11222,9 +11228,19 @@ try:
                 "mode": "cached",
                 "fetched_at": "bundled-snapshot",
                 "catalogVersion": getattr(_kl_snap, "KEV_CATALOG_VERSION", None),
-                "data_kind": "snapshot; CVSS/EPSS = sample enrichment",
+                "data_kind": "cached",
+                "enrichment_provenance": (
+                    "bundled snapshot; CVSS/EPSS = sample enrichment"
+                ),
             }
-        return [], {"source":"unavailable","mode":"unavailable","data_kind":"none"}
+        return [], {
+            "source": "unavailable",
+            "source_url": "",
+            "mode": "unavailable",
+            "fetched_at": None,
+            "data_kind": "unavailable",
+            "enrichment_provenance": "no live or bundled KEV evidence available",
+        }
 
     @app.get("/api/a11oy/v1/sec/kev_live")
     async def _sec_kev_live():
@@ -11240,10 +11256,11 @@ try:
         return JSONResponse({**meta, "count": len(rows), "cves": rows})
 
     # --- NEW TAB: kevgate — live CVE -> policy-gate impact mapper ------------
-    # Pulls the top-N most recent LIVE KEV CVEs and runs EACH through the REAL
-    # in-process governed policy engine (same logic the /v1/policy/decide route
-    # uses) to show which deny-by-default gates each exploited CVE would trip if
-    # it arrived as a governed remediation action. 0 fabricated gate results.
+    # Pulls the top-N most recent available KEV CVEs and runs each through the
+    # real in-process governed policy engine (the same logic exposed by the
+    # /v1/policy/decide route) to show which deny-by-default gates each exploited
+    # CVE would trip if it arrived as a governed remediation action. 0 fabricated
+    # gate results.
     @app.get("/api/a11oy/v1/sec/kevgate")
     async def _sec_kevgate(limit: int = 24):
         import anyio
@@ -11295,7 +11312,8 @@ try:
         return JSONResponse({
             **meta,
             "count": len(out),
-            "mapping_note": ("Each row is a LIVE KEV CVE mapped to the deny-by-default "
+            "mapping_note": ("Each row is a CISA KEV CVE whose evidence state is disclosed "
+                             "by the root mode/data_kind fields, mapped to the deny-by-default "
                              "gates a governed remediation action would engage. gates_fired "
                              "is the REAL engine result when the in-process decision core is "
                              "reachable; gates_mapped is a deterministic mapping derived from "

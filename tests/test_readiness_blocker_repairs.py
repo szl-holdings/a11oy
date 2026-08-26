@@ -7,9 +7,123 @@ import asyncio
 import json
 import threading
 import time
+from types import SimpleNamespace
 
 import a11oy_live_feeds
 import serve
+
+
+def _kev(cve_id):
+    return {
+        "cveID": cve_id,
+        "vendorProject": "Example Vendor",
+        "product": "Example Product",
+        "vulnerabilityName": "Example Vulnerability",
+        "cwes": ["CWE-79"],
+        "knownRansomwareCampaignUse": "Unknown",
+        "dateAdded": "2026-08-26",
+    }
+
+
+def test_kevgate_live_evidence_kind_is_canonical_and_enrichment_stays_explicit(
+    monkeypatch,
+):
+    payload = {
+        "source": "CISA Known Exploited Vulnerabilities Catalog",
+        "source_url": (
+            "https://www.cisa.gov/sites/default/files/feeds/"
+            "known_exploited_vulnerabilities.json"
+        ),
+        "mode": "live",
+        "fetched_at": "2026-08-26T15:00:00Z",
+        "data": {
+            "catalogVersion": "2026.08.26",
+            "count": 2,
+            "vulnerabilities": [_kev("CVE-2026-0001"), _kev("CVE-2026-0002")],
+        },
+    }
+    monkeypatch.setattr(serve._kl_live, "get_feed", lambda _feed: payload)
+    monkeypatch.setattr(
+        serve,
+        "_kl_epss_map",
+        lambda _cves: {"CVE-2026-0001": (0.9, 0.99)},
+    )
+    monkeypatch.setattr(
+        serve,
+        "_KL_CVSS",
+        {
+            "CVE-2026-0002": {
+                "cvss": 9.8,
+                "severity": "CRITICAL",
+                "vector": "CVSS:3.1",
+            }
+        },
+    )
+
+    rows, meta = serve._kl_live_rows()
+
+    assert meta["mode"] == "live"
+    assert meta["data_kind"] == "live"
+    assert meta["source"] == payload["source"]
+    assert "LIVE EPSS (FIRST.org EPSS API, 1/2 rows)" in meta["enrichment_provenance"]
+    assert "LIVE CVSS (NVD, 1/2 rows" in meta["enrichment_provenance"]
+    assert "derived-sample" in meta["enrichment_provenance"]
+    assert {row["epss_src"] for row in rows} == {"first.org", "derived"}
+    assert {row["cvss_src"] for row in rows} == {"nvd", "derived"}
+
+
+def test_kevgate_cached_payload_does_not_claim_live(monkeypatch):
+    payload = {
+        "source": "CISA cached test evidence",
+        "source_url": "https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+        "mode": "cached",
+        "fetched_at": "2026-08-25T15:00:00Z",
+        "cache_note": "upstream unreachable; serving last good value",
+        "data": {"vulnerabilities": [_kev("CVE-2026-0003")]},
+    }
+    monkeypatch.setattr(serve._kl_live, "get_feed", lambda _feed: payload)
+    monkeypatch.setattr(serve, "_kl_epss_map", lambda _cves: {})
+    monkeypatch.setattr(serve, "_KL_CVSS", {})
+
+    _rows, meta = serve._kl_live_rows()
+
+    assert meta["mode"] == "cached"
+    assert meta["data_kind"] == "cached"
+    assert meta["source"] == payload["source"]
+    assert meta["cache_note"] == payload["cache_note"]
+    assert meta["enrichment_provenance"].startswith("cached KEV IDs/dates/vendors")
+
+
+def test_kevgate_bundled_and_unavailable_fallbacks_remain_explicit(monkeypatch):
+    monkeypatch.setattr(
+        serve._kl_live,
+        "get_feed",
+        lambda _feed: {"mode": "unavailable", "data": None},
+    )
+    monkeypatch.setattr(
+        serve,
+        "_kl_snap",
+        SimpleNamespace(
+            KEV=[{"cveID": "CVE-2026-0004"}],
+            KEV_SOURCE="https://www.cisa.gov/known-exploited-vulnerabilities-catalog",
+            KEV_CATALOG_VERSION="bundled-test",
+        ),
+    )
+
+    rows, cached = serve._kl_live_rows()
+
+    assert len(rows) == 1
+    assert cached["mode"] == "cached"
+    assert cached["data_kind"] == "cached"
+    assert "sample enrichment" in cached["enrichment_provenance"]
+
+    monkeypatch.setattr(serve, "_kl_snap", None)
+    rows, unavailable = serve._kl_live_rows()
+
+    assert rows == []
+    assert unavailable["mode"] == "unavailable"
+    assert unavailable["data_kind"] == "unavailable"
+    assert unavailable["fetched_at"] is None
 
 
 def test_feed_pulse_is_concurrent_bounded_and_honest_about_timeout(monkeypatch):
