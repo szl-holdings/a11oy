@@ -299,6 +299,75 @@ jobs:
         pages = self.changed_file_pages("README.md", "docs/operator.md")
         self.assertFalse(validator.classify_changed_files(pages, 2))
 
+    def test_sensitive_source_rename_fails_before_unrelated_short_circuit(self) -> None:
+        pages = [
+            [
+                {
+                    "filename": "docs/renamed-workflow.yml",
+                    "previous_filename": validator.SOLO_WORKFLOW,
+                    "status": "renamed",
+                }
+            ]
+        ]
+        with self.assertRaisesRegex(validator.ValidationError, "cannot be renamed"):
+            validator.classify_changed_files(pages, 1)
+
+    def test_unrelated_rename_remains_not_applicable(self) -> None:
+        pages = [
+            [
+                {
+                    "filename": "docs/new-name.md",
+                    "previous_filename": "docs/old-name.md",
+                    "status": "renamed",
+                }
+            ]
+        ]
+        self.assertFalse(validator.classify_changed_files(pages, 1))
+
+    def test_rename_metadata_is_validated_fail_closed(self) -> None:
+        cases = (
+            (
+                [[{"filename": "docs/new.md", "status": "renamed"}]],
+                1,
+                "missing a valid previous filename",
+            ),
+            (
+                [
+                    [
+                        {
+                            "filename": "docs/new.md",
+                            "previous_filename": "docs/old.md",
+                            "status": "modified",
+                        }
+                    ]
+                ],
+                1,
+                "non-renamed file declares",
+            ),
+            (
+                [
+                    [
+                        {
+                            "filename": "docs/new-a.md",
+                            "previous_filename": "docs/old.md",
+                            "status": "renamed",
+                        },
+                        {
+                            "filename": "docs/new-b.md",
+                            "previous_filename": "docs/old.md",
+                            "status": "renamed",
+                        },
+                    ]
+                ],
+                2,
+                "repeats a previous path",
+            ),
+        )
+        for pages, count, message in cases:
+            with self.subTest(message=message):
+                with self.assertRaisesRegex(validator.ValidationError, message):
+                    validator.classify_changed_files(pages, count)
+
     def test_sensitive_scope_fails_closed_on_drift(self) -> None:
         exact = sorted(validator.ALLOWED_HANDOFF_PATHS)
         cases = (
