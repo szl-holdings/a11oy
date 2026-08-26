@@ -342,21 +342,57 @@ def test_organization_deployment_rejects_unrelated_sha() -> None:
     assert MODULE._organization_deployment_revision(payload) is None
 
 
-def test_workflow_binds_canary_to_exact_github_sha() -> None:
+def test_workflow_separates_pr_contract_from_trusted_live_authority() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
+    pr_contract = workflow.split("\n  contract:\n", 1)[1].split(
+        "\n  trusted-contract:\n", 1
+    )[0]
+    trusted_contract = workflow.split("\n  trusted-contract:\n", 1)[1].split(
+        "\n  live-canary:\n", 1
+    )[0]
+    live_canary = workflow.split("\n  live-canary:\n", 1)[1]
+
     assert '--expected-source-sha "$EXPECTED_SOURCE_SHA"' in workflow
     assert workflow.count("- a11oy_landing.html") == 1
     assert "workflows: [\"Sync and Relock Canonical Hugging Face Space\"]" in workflow
-    assert "github.event.workflow_run.head_sha" in workflow
-    assert "workflow-run-authority:" in workflow
-    assert 'test "$SYNC_CONCLUSION" = success' in workflow
-    assert 'test "$SYNC_HEAD_BRANCH" = main' in workflow
-    assert '[[ "$SYNC_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]' in workflow
-    assert "needs: [contract, workflow-run-authority]" in workflow
-    assert "needs.workflow-run-authority.result == 'success'" in workflow
-    assert "ref: ${{ env.EXPECTED_SOURCE_SHA }}" in workflow
-    assert workflow.count("git/ref/heads/main") == 2
     assert "\n  push:\n" not in workflow
+
+    assert "if: ${{ github.event_name == 'pull_request' }}" in pr_contract
+    assert "permissions:\n      contents: read" in pr_contract
+    assert "Checkout pull-request source" in pr_contract
+    assert "\n          ref:" not in pr_contract
+    assert "\n          cache:" not in pr_contract
+    assert "GH_TOKEN" not in pr_contract
+    assert "issues: write" not in pr_contract
+    assert "actions/cache" not in pr_contract
+
+    assert "if: ${{ github.event_name != 'pull_request' }}" in trusted_contract
+    assert "source_sha: ${{ steps.verify-source.outputs.source_sha }}" in trusted_contract
+    assert "Resolve current protected main before checkout" in trusted_contract
+    assert "ref: refs/heads/main" in trusted_contract
+    assert trusted_contract.index("git/ref/heads/main") < trusted_contract.index(
+        "Checkout literal protected main"
+    )
+    assert trusted_contract.index("Verify protected main did not move across checkout") < (
+        trusted_contract.index("Install pinned focused-test dependencies")
+    )
+    assert 'test "$SYNC_CONCLUSION" = success' in trusted_contract
+    assert 'test "$SYNC_HEAD_BRANCH" = main' in trusted_contract
+    assert '[[ "$SYNC_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]' in trusted_contract
+    assert 'test "$SYNC_HEAD_SHA" = "$current_main"' in trusted_contract
+    assert 'test "$checked_out" = "$PRECHECK_SOURCE_SHA"' in trusted_contract
+    assert 'test "$current_main" = "$PRECHECK_SOURCE_SHA"' in trusted_contract
+
+    assert "needs: trusted-contract" in live_canary
+    assert "needs.trusted-contract.result == 'success'" in live_canary
+    assert (
+        "EXPECTED_SOURCE_SHA: ${{ needs.trusted-contract.outputs.source_sha }}"
+        in live_canary
+    )
+    assert "ref: refs/heads/main" in live_canary
+    assert "ref: ${{" not in workflow
+    assert trusted_contract.count("git/ref/heads/main") == 2
+    assert live_canary.count("git/ref/heads/main") == 2
     assert 'issue_output="$(gh issue list' in workflow
     assert "mapfile -t issue_matches < <(" not in workflow
     assert 'gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true' not in workflow
