@@ -440,12 +440,26 @@ def test_authority_workflow_executes_only_protected_stdlib_code() -> None:
     assert "cd candidate" not in run_block
 
 
+def test_regression_workflow_installs_hash_locked_pytest_runtime() -> None:
+    source = (
+        ROOT / ".github/workflows/frontier-source-pin-v2-regression.yml"
+    ).read_text(encoding="utf-8")
+    assert "python -m pip install --disable-pip-version-check" in source
+    assert "--require-hashes -r .github/requirements/ci-core.txt" in source
+    assert "python -I -B -m pytest -p no:cacheprovider -q" in source
+
+
 def test_protection_handoff_is_explicit_and_truthful() -> None:
     source = PROTECTION_DOC.read_text(encoding="utf-8")
     assert "frontier-source-pin-authority.yml" in source
     assert "frontier-source-pin-authority-v2.yml" in source
+    assert "action-contract-promotion-guard.yml" in source
     assert "Protected Frontier source-pin authority" in source
     assert "cannot certify its own newly introduced workflow" in source
     assert "Keep v1 Active while the v2 bootstrap lands" in source
     assert "Never leave both authorities" in source
+    assert (
+        "their execution contract, and\n"
+        "`tests/test_validate_frontier_source_pin_candidate.py`" in source
+    )
     assert "Require workflows to pass before merging" in source

@@ -97,7 +97,8 @@ the GitHub-native required workflow as follows:
 3. Add **Require workflows to pass before merging**.
 4. Select source repository `szl-holdings/a11oy`.
 5. Use a separate additive ruleset for each workflow identity; do not rewrite an
-   existing protection bundle. The Frontier identities are:
+   existing protection bundle. The externally bound identities are:
+   - `.github/workflows/action-contract-promotion-guard.yml`
    - `.github/workflows/frontier-source-pin-authority.yml` (v1 audit record)
    - `.github/workflows/frontier-source-pin-authority-v2.yml` (active successor)
 6. Start a new identity in **Evaluate**, verify its protected source and exact
@@ -139,8 +140,9 @@ Changing the Frontier authority workflow, its validator, or its validator
 regression is a control-plane rotation. Bind and verify a versioned successor
 before removing the prior required-workflow identity. Once this bootstrap is
 active, the Frontier workflow repair must change exactly the two guarded
-workflows and their execution contract; it cannot rotate the authority code or
-either protected source input in the same pull request.
+workflows, their execution contract, and
+`tests/test_validate_frontier_source_pin_candidate.py`; it cannot rotate the
+authority code or either protected source input in the same pull request.
 
 Read-only verification commands:
 
