@@ -2,7 +2,8 @@ name: Frontier source-pin integrity
 
 # This repository-owned run is advisory until an organization ruleset binds
 # this file with "Require workflows to pass before merging". The required
-# workflow loads this definition and its validator from protected main while
+# workflow loads this definition and its validator from its immutable workflow
+# identity while
 # treating the pull-request or merge-group revision only as untrusted data.
 on:
   pull_request:
@@ -20,17 +21,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
-      PROTECTED_BASE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.pull_request.base.sha }}
       CANDIDATE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event.pull_request.head.sha }}
       CANDIDATE_REPOSITORY: ${{ github.event_name == 'merge_group' && github.repository || github.event.pull_request.head.repo.full_name }}
     steps:
-      - name: Checkout protected validator
+      - name: Checkout immutable workflow validator
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          path: protected-base
+          path: protected-validator
           persist-credentials: false
-          ref: ${{ env.PROTECTED_BASE_SHA }}
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
 
       - name: Checkout candidate as untrusted data
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -46,20 +47,39 @@ jobs:
           python-version: "3.12"
 
       - name: Install hash-locked test dependencies
-        working-directory: protected-base
+        working-directory: protected-validator
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
 
-      - name: Stage bounded candidate inputs without executing them
+      - name: Admit immutable validator and stage bounded candidate data
         shell: bash
         run: |
           set -euo pipefail
+
+          assert_regular_file() {
+            local root="$1" rel="$2" current="$1" part
+            local -a parts=()
+            IFS='/' read -r -a parts <<<"$rel"
+            for part in "${parts[@]}"; do
+              current="${current}/${part}"
+              test ! -L "$current"
+            done
+            test -f "$current"
+          }
+
           while IFS= read -r rel; do
-            test -f "candidate/${rel}"
-            test ! -L "candidate/${rel}"
-            cp -- "candidate/${rel}" "protected-base/${rel}"
+            assert_regular_file candidate "$rel"
+            assert_regular_file protected-validator "$rel"
+            cmp -s "candidate/${rel}" "protected-validator/${rel}"
+          done <<'EOF'
+          .github/workflows/frontier-source-integrity.yml
+          tests/test_frontier_workflow_source_integrity.py
+          EOF
+
+          while IFS= read -r rel; do
+            assert_regular_file candidate "$rel"
+            cp -- "candidate/${rel}" "protected-validator/${rel}"
           done <<'EOF'
           .github/BRANCH_PROTECTION.md
-          .github/workflows/frontier-source-integrity.yml
           .github/workflows/frontier-solo-qualification.yml
           .github/workflows/frontier-v16-7-exact-source-builder.yml
           ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json
@@ -68,5 +88,5 @@ jobs:
           EOF
 
       - name: Enforce candidate pins with protected validator
-        working-directory: protected-base
+        working-directory: protected-validator
         run: python -I -B -m pytest -q tests/test_frontier_workflow_source_integrity.py

@@ -139,20 +139,22 @@ def test_integrity_regression_uses_protected_validator_and_candidate_data() -> N
     assert "merge_group:" in source
     assert "pull_request_target:" not in source
     assert "permissions:\n  contents: read" in source
-    assert "PROTECTED_BASE_SHA:" in source
-    assert "github.event.merge_group.base_sha" in source
     assert "CANDIDATE_SHA:" in source
     assert "github.event.merge_group.head_sha" in source
     assert "CANDIDATE_REPOSITORY:" in source
-    assert "path: protected-base" in source
+    assert "path: protected-validator" in source
     assert "path: candidate" in source
-    assert "ref: ${{ env.PROTECTED_BASE_SHA }}" in source
+    assert "repository: ${{ job.workflow_repository }}" in source
+    assert "ref: ${{ job.workflow_sha }}" in source
     assert "ref: ${{ env.CANDIDATE_SHA }}" in source
     assert "repository: ${{ env.CANDIDATE_REPOSITORY }}" in source
     assert source.count("persist-credentials: false") == 2
-    assert 'test ! -L "candidate/${rel}"' in source
-    assert 'cp -- "candidate/${rel}" "protected-base/${rel}"' in source
-    assert "working-directory: protected-base" in source
+    assert 'current="${current}/${part}"' in source
+    assert 'test ! -L "$current"' in source
+    assert 'cmp -s "candidate/${rel}" "protected-validator/${rel}"' in source
+    assert "source-integrity.yml\n          tests/test_frontier" in source
+    assert 'cp -- "candidate/${rel}" "protected-validator/${rel}"' in source
+    assert "working-directory: protected-validator" in source
     assert "pytest -q tests/test_frontier_workflow_source_integrity.py" in source
     assert "python -I -B -m pytest" in source
     run_block = source.split("run: |", maxsplit=1)[1]

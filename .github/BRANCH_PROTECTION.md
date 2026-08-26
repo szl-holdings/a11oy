@@ -25,8 +25,10 @@ For that reason:
   to pass before merging**.
 - `.github/workflows/frontier-source-integrity.yml` reports
   `Protected Frontier source-pin integrity` under the same required-workflow
-  boundary. It runs the validator from the protected-base checkout and copies
-  only a bounded set of candidate files into that checkout as untrusted data.
+  boundary. It loads its validator from the immutable `job.workflow_repository`
+  and `job.workflow_sha`, requires candidate copies of the workflow and test to
+  remain byte-identical, and copies only bounded candidate inputs as untrusted
+  data.
 - Do not configure that job name as an ordinary required status context.
 - The workflow treats the candidate checkout only as untrusted data and runs
   the validator from the protected base checkout.
@@ -105,6 +107,11 @@ one-time bootstrap. After each file exists on `main`:
    merge-group SHA and that the protected-base validator ran.
 5. Confirm the repository ruleset still reports
    `strict_required_status_checks_policy=true`.
+
+Changing the required workflow or its validator test is a control-plane
+rotation, not an ordinary source change. First bind and verify a versioned
+successor workflow, then remove the prior required-workflow identity. Never
+allow a candidate PR to rotate both the enforced workflow and its validator.
 
 Read-only verification commands:
 
