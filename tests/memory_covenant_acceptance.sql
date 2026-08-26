@@ -469,21 +469,16 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM pg_roles WHERE rolname = 'a11oy_memory_stale_grantee'
     ) THEN
-        IF has_table_privilege(
+        IF NOT pg_has_role(
             'a11oy_memory_stale_grantee',
-            'public.memory_records',
-            'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER'
-        ) OR has_column_privilege(
+            'a11oy_memory_app',
+            'member'
+        ) OR NOT pg_has_role(
             'a11oy_memory_stale_grantee',
-            'public.memory_records',
-            'classification',
-            'SELECT,INSERT,UPDATE,REFERENCES'
-        ) OR has_schema_privilege(
-            'a11oy_memory_stale_grantee',
-            'public',
-            'CREATE'
+            'a11oy_memory_worker',
+            'member'
         ) THEN
-            RAISE EXCEPTION 'Seeded arbitrary stale grantee retained privilege';
+            RAISE EXCEPTION 'Seeded inbound capability membership was not preserved';
         END IF;
     END IF;
 END;

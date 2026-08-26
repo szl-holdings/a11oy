@@ -16,13 +16,14 @@ were bound to the capability roles, or that a memory worker is live.
 
 | Source | SHA-256 |
 |---|---|
-| `migrations/20260811_memory_covenant_v2.sql` | `ea36466ed0d3c30177622eed4914ddcb9f2ce58a87f7284d76256f3c8764a63b` |
-| `migrations/20260811_memory_covenant_v2_security_hardening.sql` | `8de8b006a13e2864c29669b7dc1367ae4c2d4033f12c209a682853cb75a2b4d5` |
-| `migrations/20260820_memory_covenant_v2_postmerge_hardening.sql` | `0c2587ff20dbed049581e62139dfb292c26d2548b6da95a9f0046a0833f442c0` |
-| `scripts/validate_memory_covenant_v2.py` | `757e430a50c1154a5a28613659c44f817ffa45ba081bdbb367695614d1976010` |
-| `tests/test_memory_covenant_v2.py` | `ca318f365064ecb04f5e356f469ab6ada12a937093c9a9601311c7285d9f4fad` |
-| `tests/memory_covenant_acceptance.sql` | `f2f256d755b014923259e9912e8c108e707920cddcd9907572a20fddb9c16bb7` |
-| `.github/workflows/memory-covenant-v2.yml` | `d81090fec7a8a1d016005709d92a39cf72f08c69262d47e16b31254beb4bb22a` |
+| `migrations/20260811_memory_covenant_v2.sql` | `1d15f98c638641df73461dbaced03e9345b5277b8ebb79412bb288da4d50678f` |
+| `migrations/20260811_memory_covenant_v2_security_hardening.sql` | `9f32918eb1837c764b230065d0e4f2d85af2e04dbf415996f06461c6bfd71c18` |
+| `migrations/20260820_memory_covenant_v2_postmerge_hardening.sql` | `ab21f62707ae94cad33efbbd984f3cd5337f4ff1b8719f0d6487304d8df25206` |
+| `scripts/validate_memory_covenant_v2.py` | `7517ef878066e85e6e17a47bb48ed746943d866013a40bc1bf6099a96feaec9c` |
+| `tests/test_memory_covenant_v2.py` | `1882450b23da396bcc3a8d4302a6f96ab3cedd5e1a118bcea25260ad42ec775d` |
+| `tests/memory_covenant_acceptance.sql` | `48f20ce51c1799be3f8e87c694798a47c85348654e41c4447edf597f228aa813` |
+| `.github/workflows/memory-covenant-v2.yml` | `1dec85fe5917beaee58f230ff4bbbc4fe8ab8e71d3a7f720c41e0e2cc90d1b44` |
+)
 
 ## Corrective controls
 
@@ -76,7 +77,8 @@ were bound to the capability roles, or that a memory worker is live.
 | Check | Observation |
 |---|---|
 | Static migration validator | `PASS` |
-| Adversarial validator tests | `71` tests passed |
+| Adversarial validator tests | `77` tests passed |
+)
 | Python compilation | validator and adversarial tests compiled |
 | PostgreSQL parser (`pglast 8.4`) | base `68`, hardening `24`, corrective `74`, acceptance `43` statements parsed |
 | Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) | clean-install acceptance, FORCE-RLS/GUC-filter hidden-row reproduction, non-superuser corrective rejection, failed-preflight RLS/owner/policy atomicity, revoked temporary binding ACL/policy proof, full second pass, and final acceptance passed |

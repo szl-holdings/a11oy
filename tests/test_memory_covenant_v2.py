@@ -157,6 +157,39 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(path, "observed_triggers IS DISTINCT FROM expected_triggers", "observed_triggers IS NULL")
             self.assert_contract_error(root, "acceptance exact trigger-set comparison")
 
+    def test_acceptance_rewrite_rule_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "Memory Covenant relation retained a user rewrite rule",
+                "Memory Covenant rewrite rule state unchecked",
+            )
+            self.assert_contract_error(root, "rewrite-rule absence assertion")
+
+    def test_acceptance_admin_option_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "Memory Covenant capability membership retained ADMIN OPTION",
+                "Memory Covenant membership delegation state unchecked",
+            )
+            self.assert_contract_error(root, "ADMIN OPTION absence assertion")
+
+    def test_acceptance_inbound_membership_assertion_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.ACCEPTANCE
+            self.replace_once(
+                path,
+                "Seeded inbound capability membership was not preserved",
+                "Seeded inbound capability membership state unchecked",
+            )
+            self.assert_contract_error(root, "membership preservation assertion")
+
     def test_bypass_rls_role_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:

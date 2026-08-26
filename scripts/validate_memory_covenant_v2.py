@@ -1031,6 +1031,26 @@ def _validate_acceptance(text: str, errors: list[str]) -> None:
             "acceptance internal-trigger exclusion",
         ),
         (
+            "FROM pg_rewrite AS rewrite",
+            "acceptance rewrite-rule catalog inspection",
+        ),
+        (
+            "Memory Covenant relation retained a user rewrite rule",
+            "acceptance rewrite-rule absence assertion",
+        ),
+        (
+            "AND edge.admin_option",
+            "acceptance inbound ADMIN OPTION inspection",
+        ),
+        (
+            "Memory Covenant capability membership retained ADMIN OPTION",
+            "acceptance inbound ADMIN OPTION absence assertion",
+        ),
+        (
+            "Seeded inbound capability membership was not preserved",
+            "acceptance inbound capability membership preservation assertion",
+        ),
+        (
             "observed_triggers IS DISTINCT FROM expected_triggers",
             "acceptance exact trigger-set comparison",
         ),
