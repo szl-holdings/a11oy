@@ -15,11 +15,19 @@ WORKFLOWS = (
     ROOT / ".github/workflows/frontier-solo-qualification.yml",
     ROOT / ".github/workflows/frontier-v16-7-exact-source-builder.yml",
 )
-ORPHAN_DIGEST_LINE = re.compile(r"^\$[0-9a-fA-F]+$", re.MULTILINE)
+ORPHAN_DIGEST_LINE = re.compile(
+    r"^[ \t]*\$[0-9a-fA-F]+[ \t]*$", re.MULTILINE
+)
 
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def test_orphan_digest_detection_rejects_indentation() -> None:
+    for indentation in ("", "  ", "\t"):
+        source = f"{indentation}${'0' * 64}\n"
+        assert ORPHAN_DIGEST_LINE.search(source)
 
 
 def test_frontier_workflows_bind_all_protected_inputs() -> None:
