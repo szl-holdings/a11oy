@@ -1,23 +1,44 @@
 name: Frontier source-pin integrity
 
+# This repository-owned run is advisory until an organization ruleset binds
+# this file with "Require workflows to pass before merging". The required
+# workflow loads this definition and its validator from protected main while
+# treating the pull-request or merge-group revision only as untrusted data.
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
-  workflow_dispatch:
+    types: [opened, reopened, ready_for_review, synchronize]
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
 
 jobs:
   source-pin-integrity:
-    name: Protected Frontier inputs remain digest-bound
+    name: Protected Frontier source-pin integrity
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    env:
+      PROTECTED_BASE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.pull_request.base.sha }}
+      CANDIDATE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event.pull_request.head.sha }}
+      CANDIDATE_REPOSITORY: ${{ github.event_name == 'merge_group' && github.repository || github.event.pull_request.head.repo.full_name }}
     steps:
-      - name: Checkout exact source
+      - name: Checkout protected validator
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          path: protected-base
+          persist-credentials: false
+          ref: ${{ env.PROTECTED_BASE_SHA }}
+
+      - name: Checkout candidate as untrusted data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: candidate
+          persist-credentials: false
+          ref: ${{ env.CANDIDATE_SHA }}
+          repository: ${{ env.CANDIDATE_REPOSITORY }}
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -25,7 +46,27 @@ jobs:
           python-version: "3.12"
 
       - name: Install hash-locked test dependencies
+        working-directory: protected-base
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
 
-      - name: Enforce workflow source pins and reject orphan digests
+      - name: Stage bounded candidate inputs without executing them
+        shell: bash
+        run: |
+          set -euo pipefail
+          while IFS= read -r rel; do
+            test -f "candidate/${rel}"
+            test ! -L "candidate/${rel}"
+            cp -- "candidate/${rel}" "protected-base/${rel}"
+          done <<'EOF'
+          .github/BRANCH_PROTECTION.md
+          .github/workflows/frontier-source-integrity.yml
+          .github/workflows/frontier-solo-qualification.yml
+          .github/workflows/frontier-v16-7-exact-source-builder.yml
+          ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json
+          ops/frontier/v16_7/apply_current_main_repairs.py
+          ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py
+          EOF
+
+      - name: Enforce candidate pins with protected validator
+        working-directory: protected-base
         run: python -I -B -m pytest -q tests/test_frontier_workflow_source_integrity.py

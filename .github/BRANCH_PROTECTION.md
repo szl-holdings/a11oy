@@ -23,6 +23,10 @@ For that reason:
   `Action-contract promotion qualification`, but its repository-owned run is
   advisory until GitHub binds the workflow identity through **Require workflows
   to pass before merging**.
+- `.github/workflows/frontier-source-integrity.yml` reports
+  `Protected Frontier source-pin integrity` under the same required-workflow
+  boundary. It runs the validator from the protected-base checkout and copies
+  only a bounded set of candidate files into that checkout as untrusted data.
 - Do not configure that job name as an ordinary required status context.
 - The workflow treats the candidate checkout only as untrusted data and runs
   the validator from the protected base checkout.
@@ -66,8 +70,9 @@ the GitHub-native required workflow as follows:
 2. Target repository `szl-holdings/a11oy` and the default branch only.
 3. Add **Require workflows to pass before merging**.
 4. Select source repository `szl-holdings/a11oy`.
-5. Select
-   `.github/workflows/action-contract-promotion-guard.yml`.
+5. Select both required workflow identities:
+   - `.github/workflows/action-contract-promotion-guard.yml`
+   - `.github/workflows/frontier-source-integrity.yml`
 6. Set enforcement to **Active** and leave **Do not require workflows checks on
    creation** disabled.
 7. Preserve every existing status check, signature, linear-history,
@@ -89,7 +94,7 @@ control plane; a candidate-authored job name does not.
 
 This pull request cannot certify its own newly introduced workflow as
 control-plane-required. Treat its ordinary Actions run as advisory for the
-one-time bootstrap. After the file exists on `main`:
+one-time bootstrap. After each file exists on `main`:
 
 1. Add the required-workflow rule in **Evaluate** mode and inspect its run.
 2. Switch it to **Active** without changing the other protections.

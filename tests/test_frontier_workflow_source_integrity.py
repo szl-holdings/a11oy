@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from pathlib import Path
 
@@ -17,6 +18,8 @@ WORKFLOWS = (
 )
 SOLO_WORKFLOW = WORKFLOWS[0]
 BUILDER_WORKFLOW = WORKFLOWS[1]
+INTEGRITY_WORKFLOW = ROOT / ".github/workflows/frontier-source-integrity.yml"
+PROTECTION_DOC = ROOT / ".github/BRANCH_PROTECTION.md"
 ORPHAN_DIGEST_LINE = re.compile(
     r"^[ \t]*\$[0-9a-fA-F]+[ \t]*$", re.MULTILINE
 )
@@ -110,3 +113,59 @@ def test_frontier_workflows_bind_all_protected_inputs() -> None:
         "Create one exact GitHub-signed Frontier source commit",
     )
     _assert_exact_requirements(builder_handler, BUILDER_HANDLER_REQUIREMENTS)
+
+
+def test_contract_embedded_source_digests_match_protected_inputs() -> None:
+    contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
+    source = contract["source"]
+
+    assert source["repair_oracle"] == {
+        "path": "ops/frontier/v16_7/apply_current_main_repairs.py",
+        "sha256": _digest(REPAIR_SCRIPT),
+    }
+    assert source["regression"] == {
+        "protected_template_path": (
+            "ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py"
+        ),
+        "source_path": "tests/test_frontier_v16_7_terminal_truth.py",
+        "sha256": _digest(SOURCE_TEST),
+    }
+
+
+def test_integrity_regression_uses_protected_validator_and_candidate_data() -> None:
+    source = INTEGRITY_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "pull_request:" in source
+    assert "merge_group:" in source
+    assert "pull_request_target:" not in source
+    assert "permissions:\n  contents: read" in source
+    assert "PROTECTED_BASE_SHA:" in source
+    assert "github.event.merge_group.base_sha" in source
+    assert "CANDIDATE_SHA:" in source
+    assert "github.event.merge_group.head_sha" in source
+    assert "CANDIDATE_REPOSITORY:" in source
+    assert "path: protected-base" in source
+    assert "path: candidate" in source
+    assert "ref: ${{ env.PROTECTED_BASE_SHA }}" in source
+    assert "ref: ${{ env.CANDIDATE_SHA }}" in source
+    assert "repository: ${{ env.CANDIDATE_REPOSITORY }}" in source
+    assert source.count("persist-credentials: false") == 2
+    assert 'test ! -L "candidate/${rel}"' in source
+    assert 'cp -- "candidate/${rel}" "protected-base/${rel}"' in source
+    assert "working-directory: protected-base" in source
+    assert "pytest -q tests/test_frontier_workflow_source_integrity.py" in source
+    assert "python -I -B -m pytest" in source
+    run_block = source.split("run: |", maxsplit=1)[1]
+    assert "python candidate/" not in run_block
+    assert "pytest candidate/" not in run_block
+    assert "cd candidate" not in run_block
+
+
+def test_required_workflow_handoff_covers_frontier_integrity() -> None:
+    source = PROTECTION_DOC.read_text(encoding="utf-8")
+
+    assert "Require workflows to pass before merging" in source
+    assert ".github/workflows/frontier-source-integrity.yml" in source
+    assert "Protected Frontier source-pin integrity" in source
+    assert "ordinary required status context" in source
+    assert "cannot certify its own newly introduced workflow" in source
