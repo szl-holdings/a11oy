@@ -49,6 +49,41 @@ ALTER TABLE public.memory_query_audit OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_index_generations OWNER TO CURRENT_USER;
 ALTER TABLE public.memory_idempotency OWNER TO CURRENT_USER;
 
+-- A stale RLS policy is executable SQL. Strip every policy immediately after
+-- ownership convergence and before any application-table query or FORCE-RLS
+-- transition. This prevents an attacker-controlled SECURITY INVOKER policy
+-- expression from running with the trusted migration principal's privileges.
+DO $$
+DECLARE
+    policy_row record;
+BEGIN
+    FOR policy_row IN
+        SELECT relation.relname AS table_name, policy.polname AS policy_name
+          FROM pg_catalog.pg_policy AS policy
+          JOIN pg_catalog.pg_class AS relation ON relation.oid = policy.polrelid
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP POLICY %I ON public.%I',
+            policy_row.policy_name,
+            policy_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+
 -- A stale function owner can replace either trigger helper while retaining the
 -- same function identity. Restore both bodies before transferring ownership,
 -- then rebuild every non-internal covenant trigger from a known-empty set.
@@ -80,7 +115,11 @@ AS $$
      AND EXISTS (
          SELECT 1
            FROM public.memory_context_bindings AS binding
-          WHERE binding.principal_oid = pg_catalog.to_regrole(session_user)
+          WHERE binding.principal_oid = (
+                    SELECT role.oid
+                      FROM pg_catalog.pg_roles AS role
+                     WHERE role.rolname = session_user
+                )
             AND binding.tenant_id = row_tenant
             AND binding.security_domain = row_domain
      )
@@ -138,7 +177,8 @@ FOR EACH ROW EXECUTE FUNCTION public.memory_reject_mutation();
 
 -- Policy recreation is ineffective if a stale owner disabled RLS. Restore the
 -- exact enforcement state in this forward migration, without relying on the
--- historical migrations to run again afterward.
+-- historical migrations to run again afterward. Policies are already absent,
+-- so FORCE RLS cannot execute attacker-controlled policy expressions below.
 ALTER TABLE public.memory_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.memory_records FORCE ROW LEVEL SECURITY;
 ALTER TABLE public.memory_evidence_refs ENABLE ROW LEVEL SECURITY;
@@ -230,9 +270,9 @@ ALTER TABLE public.memory_idempotency
   REFERENCES public.memory_receipts (tenant_id, security_domain, receipt_id)
   ON DELETE RESTRICT;
 
--- PostgreSQL OR-combines permissive policies. Delete every stale policy,
--- including stale filters on the owner-only binding table, and reinstall one
--- tenant/domain policy per application table.
+-- Reinstall exactly one tenant/domain policy per application table. The early
+-- sweep above is the security boundary; this second sweep is idempotent defense
+-- in depth in case a future edit inserts a policy before this section.
 DO $$
 DECLARE
     policy_row record;
