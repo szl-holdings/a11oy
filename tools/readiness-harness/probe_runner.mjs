@@ -124,7 +124,7 @@ function toDate(v) {
 }
 
 const OBSERVATION_TIMESTAMP_KEY =
-  /(checked_at|checkedAt|probed_at|probedAt|fetched_at|fetchedAt|generated_at|generatedAt|updated_at|updatedAt|last_updated)$/i;
+  /(checked_at|checkedAt|probed_at|probedAt|fetched_at|fetchedAt|generated_at|generatedAt|updated_at|updatedAt|last_updated|observed_at|observedAt)$/i;
 const EVENT_TIMESTAMP_KEY = /(timestamp|asOf|as_of|ts)$/i;
 
 function findTimestampsByKey(obj, keyPattern, depth = 0, found = []) {
