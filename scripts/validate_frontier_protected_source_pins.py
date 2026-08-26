@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import re
 import sys
 from pathlib import Path
@@ -15,6 +16,7 @@ BUILDER_WORKFLOW = ".github/workflows/frontier-v16-7-exact-source-builder.yml"
 CONTRACT = "ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json"
 REPAIR_SCRIPT = "ops/frontier/v16_7/apply_current_main_repairs.py"
 SOURCE_TEST = "ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py"
+REGRESSION_TEST = "tests/test_frontier_workflow_source_integrity.py"
 
 MANAGED_PATHS = (
     SOLO_WORKFLOW,
@@ -22,7 +24,18 @@ MANAGED_PATHS = (
     CONTRACT,
     REPAIR_SCRIPT,
     SOURCE_TEST,
+    REGRESSION_TEST,
 )
+SENSITIVE_PATHS = frozenset(MANAGED_PATHS)
+ALLOWED_HANDOFF_PATHS = frozenset(
+    (
+        SOLO_WORKFLOW,
+        BUILDER_WORKFLOW,
+        CONTRACT,
+        REGRESSION_TEST,
+    )
+)
+ALLOWED_HANDOFF_STATUSES = frozenset(("added", "modified"))
 
 MAX_FILE_BYTES = 1_048_576
 ORPHAN_DIGEST_LINE = re.compile(
@@ -33,10 +46,79 @@ PIN_NAMES = {
     "REPAIR_SCRIPT": REPAIR_SCRIPT,
     "SOURCE_TEST": SOURCE_TEST,
 }
+# Exact static bytes prepared for the bounded post-bootstrap successor. A
+# change to these bytes requires a prior protected-validator update, followed
+# by a separate candidate handoff.
+EXPECTED_STATIC_SHA256 = {
+    SOLO_WORKFLOW: "8acce6dcf6bfb514f53d9a063ff314a0b4152dde9d0c6f82540dbf2dfe5b4ba3",
+    BUILDER_WORKFLOW: (
+        "4ac6306328f41bf55faf63735f57be4e730823cc29abbccfecddba694df26254"
+    ),
+    REGRESSION_TEST: (
+        "a6d0699bbb7b5262b1b8e89123f5724a11ee3c011b34d86087a8858f95a4c304"
+    ),
+}
 
 
 class ValidationError(RuntimeError):
     """The inert candidate bundle does not satisfy the protected contract."""
+
+
+def classify_changed_files(pages: object, expected_count: int) -> bool:
+    """Return whether a validated GitHub file-list requires candidate checks."""
+    if type(expected_count) is not int or not 1 <= expected_count <= 3000:
+        raise ValidationError("changed-file count is outside the supported range")
+    if (
+        type(pages) is not list
+        or not pages
+        or any(type(page) is not list for page in pages)
+    ):
+        raise ValidationError("changed-file response is not a paginated JSON array")
+
+    records = [record for page in pages for record in page]
+    if len(records) != expected_count:
+        raise ValidationError(
+            "changed-file response count does not match the live pull request "
+            f"({len(records)} != {expected_count})"
+        )
+
+    observed: dict[str, str] = {}
+    for record in records:
+        if type(record) is not dict:
+            raise ValidationError("changed-file response contains a non-object")
+        relative = record.get("filename")
+        status = record.get("status")
+        if not isinstance(relative, str) or not relative:
+            raise ValidationError("changed-file response contains an invalid filename")
+        if not isinstance(status, str) or not status:
+            raise ValidationError(
+                f"changed-file response contains an invalid status: {relative}"
+            )
+        if relative in observed:
+            raise ValidationError(f"changed-file response repeats a path: {relative}")
+        observed[relative] = status
+
+    changed = frozenset(observed)
+    if changed.isdisjoint(SENSITIVE_PATHS):
+        return False
+    if changed != ALLOWED_HANDOFF_PATHS:
+        missing = sorted(ALLOWED_HANDOFF_PATHS - changed)
+        extra = sorted(changed - ALLOWED_HANDOFF_PATHS)
+        raise ValidationError(
+            "protected Frontier handoff must change exactly the allowlisted paths "
+            f"(missing={missing}, extra={extra})"
+        )
+    invalid_statuses = sorted(
+        f"{relative}:{status}"
+        for relative, status in observed.items()
+        if status not in ALLOWED_HANDOFF_STATUSES
+    )
+    if invalid_statuses:
+        raise ValidationError(
+            "protected Frontier handoff has a disallowed file status: "
+            + ", ".join(invalid_statuses)
+        )
+    return True
 
 
 def _read_candidate(root: Path, relative: str) -> bytes:
@@ -295,6 +377,17 @@ def _validate_builder(source: str, expected_digests: dict[str, str]) -> None:
         )
 
 
+def _validate_exact_static_bytes(candidate: dict[str, bytes]) -> None:
+    for relative, expected in EXPECTED_STATIC_SHA256.items():
+        observed = _digest(candidate[relative])
+        if observed != expected:
+            raise ValidationError(
+                f"{relative}: candidate bytes differ from protected allowlist "
+                f"(observed {observed}, expected {expected}); update the protected "
+                "validator in a prior PR before changing this file"
+            )
+
+
 def validate(bundle_dir: Path) -> dict[str, str]:
     root = bundle_dir.resolve(strict=True)
     candidate = {relative: _read_candidate(root, relative) for relative in MANAGED_PATHS}
@@ -305,16 +398,27 @@ def validate(bundle_dir: Path) -> dict[str, str]:
     builder = _decode_workflow(candidate[BUILDER_WORKFLOW], BUILDER_WORKFLOW)
     _validate_solo(solo, expected_digests)
     _validate_builder(builder, expected_digests)
+    _validate_exact_static_bytes(candidate)
     return expected_digests
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument(
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument(
         "--bundle-dir",
-        required=True,
         type=Path,
         help="directory containing candidate files fetched as inert data",
+    )
+    mode.add_argument(
+        "--changed-files-json",
+        type=Path,
+        help="paginated pull-request file metadata fetched by protected code",
+    )
+    parser.add_argument(
+        "--expected-changed-count",
+        type=int,
+        help="live pull request changed_files count",
     )
     return parser.parse_args(argv)
 
@@ -322,8 +426,25 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(sys.argv[1:] if argv is None else argv)
     try:
+        if args.changed_files_json is not None:
+            if args.expected_changed_count is None:
+                raise ValidationError(
+                    "--expected-changed-count is required with --changed-files-json"
+                )
+            pages = json.loads(args.changed_files_json.read_text(encoding="utf-8"))
+            applicable = classify_changed_files(
+                pages,
+                args.expected_changed_count,
+            )
+            print("true" if applicable else "false")
+            return 0
+        if args.expected_changed_count is not None:
+            raise ValidationError(
+                "--expected-changed-count is only valid with --changed-files-json"
+            )
+        assert args.bundle_dir is not None
         digests = validate(args.bundle_dir)
-    except (OSError, ValidationError) as exc:
+    except (json.JSONDecodeError, OSError, ValidationError) as exc:
         print(f"Frontier protected source-pin qualification: FAIL: {exc}", file=sys.stderr)
         return 1
     print("Frontier protected source-pin qualification: PASS")

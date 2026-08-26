@@ -97,8 +97,34 @@ jobs:
           sparse-checkout-cone-mode: false
           persist-credentials: false
 
+      - name: Classify exact changed-file scope
+        id: scope
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pages="${RUNNER_TEMP}/frontier-pr-files.json"
+          gh api --paginate --slurp \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${REPOSITORY}/pulls/${PR_NUMBER}/files?per_page=100" \
+            >"$pages"
+          changed_count="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}" --jq '.changed_files')"
+          [[ "$changed_count" =~ ^[1-9][0-9]*$ ]]
+          chmod 0400 "$pages"
+          applicable="$(
+            python3 -I -B scripts/validate_frontier_protected_source_pins.py \
+              --changed-files-json "$pages" \
+              --expected-changed-count "$changed_count"
+          )"
+          if [ "$applicable" = "false" ]; then
+            echo "applicable=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          test "$applicable" = "true"
+          echo "applicable=true" >>"$GITHUB_OUTPUT"
+
       - name: Fetch exact candidate files as inert data
         id: fetch
+        if: ${{ steps.scope.outputs.applicable == 'true' }}
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -111,6 +137,7 @@ jobs:
           ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json
           ops/frontier/v16_7/apply_current_main_repairs.py
           ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py
+          tests/test_frontier_workflow_source_integrity.py
           EOF
           sed -i 's/^          //' "${RUNNER_TEMP}/frontier-managed-paths"
 
@@ -137,6 +164,7 @@ jobs:
           echo "bundle=$bundle" >>"$GITHUB_OUTPUT"
 
       - name: Validate candidate bytes with protected code
+        if: ${{ steps.scope.outputs.applicable == 'true' }}
         shell: bash
         env:
           BUNDLE: ${{ steps.fetch.outputs.bundle }}
@@ -170,8 +198,13 @@ jobs:
           summary="The exact candidate head did not satisfy the protected source-pin contract."
           if [ "$PRIOR_JOB_STATUS" = "success" ]; then
             conclusion="success"
-            title="Protected-base validation passed"
-            summary="The exact candidate head satisfies the protected source-pin contract."
+            if [ "${{ steps.scope.outputs.applicable }}" = "true" ]; then
+              title="Protected-base validation passed"
+              summary="The exact candidate head satisfies the protected source-pin contract."
+            else
+              title="Protected check not applicable"
+              summary="The exact candidate head does not change a protected Frontier source-pin path."
+            fi
           fi
           payload="$(
             jq -n \

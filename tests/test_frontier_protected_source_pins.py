@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
+import json
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -27,6 +29,13 @@ def digest(data: bytes) -> str:
 
 
 class ProtectedSourcePinTests(unittest.TestCase):
+    def changed_file_pages(
+        self,
+        *paths: str,
+        status: str = "modified",
+    ) -> list[list[dict[str, str]]]:
+        return [[{"filename": path, "status": status} for path in paths]]
+
     def make_bundle(self) -> tuple[tempfile.TemporaryDirectory[str], Path]:
         temp = tempfile.TemporaryDirectory()
         root = Path(temp.name)
@@ -37,6 +46,9 @@ class ProtectedSourcePinTests(unittest.TestCase):
             ),
             validator.SOURCE_TEST: (
                 b"raise SystemExit('candidate source test must never execute')\n"
+            ),
+            validator.REGRESSION_TEST: (
+                b"raise SystemExit('candidate regression test must never execute')\n"
             ),
         }
         pins = {
@@ -94,6 +106,14 @@ jobs:
             path = root / relative
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_bytes(data)
+        self.expected_static = {
+            relative: digest(sources[relative])
+            for relative in (
+                validator.SOLO_WORKFLOW,
+                validator.BUILDER_WORKFLOW,
+                validator.REGRESSION_TEST,
+            )
+        }
         return temp, root
 
     def replace_once(self, root: Path, relative: str, old: str, new: str) -> None:
@@ -103,15 +123,28 @@ jobs:
         path.write_text(source.replace(old, new, 1), encoding="utf-8")
 
     def assert_invalid(self, root: Path, message: str) -> None:
-        with self.assertRaisesRegex(validator.ValidationError, message):
-            validator.validate(root)
+        with mock.patch.object(
+            validator,
+            "EXPECTED_STATIC_SHA256",
+            self.expected_static,
+        ):
+            with self.assertRaisesRegex(validator.ValidationError, message):
+                validator.validate(root)
+
+    def validate_fixture(self, root: Path) -> dict[str, str]:
+        with mock.patch.object(
+            validator,
+            "EXPECTED_STATIC_SHA256",
+            self.expected_static,
+        ):
+            return validator.validate(root)
 
     def test_valid_bundle_passes_without_executing_candidate_python(self) -> None:
         temp, root = self.make_bundle()
         with temp:
             marker = root / "candidate-executed"
             os.environ["FRONTIER_CANDIDATE_MARKER"] = str(marker)
-            observed = validator.validate(root)
+            observed = self.validate_fixture(root)
             self.assertEqual(set(observed), set(validator.PIN_NAMES))
             self.assertFalse(marker.exists())
 
@@ -217,6 +250,107 @@ jobs:
             )
             self.assert_invalid(root, "pull-request dispatcher")
 
+    def test_early_return_in_solo_handler_fails_exact_identity(self) -> None:
+        temp, root = self.make_bundle()
+        with temp:
+            self.replace_once(
+                root,
+                validator.SOLO_WORKFLOW,
+                "          validate_pull_request() {\n",
+                "          validate_pull_request() {\n"
+                "            return 0\n",
+            )
+            self.assert_invalid(root, "candidate bytes differ from protected allowlist")
+
+    def test_early_exit_in_builder_fails_exact_identity(self) -> None:
+        temp, root = self.make_bundle()
+        with temp:
+            self.replace_once(
+                root,
+                validator.BUILDER_WORKFLOW,
+                '          test "$contract" = "$CONTRACT_SHA256"',
+                '          exit 0\n'
+                '          test "$contract" = "$CONTRACT_SHA256"',
+            )
+            self.assert_invalid(root, "candidate bytes differ from protected allowlist")
+
+    def test_regression_test_change_fails_exact_identity(self) -> None:
+        temp, root = self.make_bundle()
+        with temp:
+            path = root / validator.REGRESSION_TEST
+            path.write_bytes(path.read_bytes() + b"# unreviewed change\n")
+            self.assert_invalid(root, "candidate bytes differ from protected allowlist")
+
+    def test_exact_successor_scope_is_applicable(self) -> None:
+        paths = sorted(validator.ALLOWED_HANDOFF_PATHS)
+        pages = [
+            [
+                {"filename": path, "status": "added" if index == 0 else "modified"}
+                for index, path in enumerate(paths[:2])
+            ],
+            [
+                {"filename": path, "status": "modified"}
+                for path in paths[2:]
+            ],
+        ]
+        self.assertTrue(validator.classify_changed_files(pages, len(paths)))
+
+    def test_unrelated_scope_is_not_applicable(self) -> None:
+        pages = self.changed_file_pages("README.md", "docs/operator.md")
+        self.assertFalse(validator.classify_changed_files(pages, 2))
+
+    def test_sensitive_scope_fails_closed_on_drift(self) -> None:
+        exact = sorted(validator.ALLOWED_HANDOFF_PATHS)
+        cases = (
+            (self.changed_file_pages(*exact[:-1]), len(exact) - 1, "exactly"),
+            (self.changed_file_pages(*exact, "README.md"), len(exact) + 1, "exactly"),
+            (self.changed_file_pages(*exact, status="deleted"), len(exact), "status"),
+            (self.changed_file_pages(*exact), len(exact) + 1, "count"),
+            ([[{"filename": exact[0], "status": "modified"}] * 2], 2, "repeats"),
+            ({"filename": exact[0]}, 1, "paginated"),
+        )
+        for pages, count, message in cases:
+            with self.subTest(message=message, pages=pages):
+                with self.assertRaisesRegex(validator.ValidationError, message):
+                    validator.classify_changed_files(pages, count)
+
+    def test_current_expanded_pr_scope_is_rejected(self) -> None:
+        paths = sorted(
+            validator.ALLOWED_HANDOFF_PATHS
+            | {
+                ".github/BRANCH_PROTECTION.md",
+                ".github/workflows/frontier-source-integrity.yml",
+            }
+        )
+        with self.assertRaisesRegex(validator.ValidationError, "extra="):
+            validator.classify_changed_files(
+                self.changed_file_pages(*paths),
+                len(paths),
+            )
+
+    def test_scope_cli_returns_only_boolean_classification(self) -> None:
+        pages = self.changed_file_pages("README.md")
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "files.json"
+            path.write_text(json.dumps(pages), encoding="utf-8")
+            completed = subprocess.run(
+                [
+                    sys.executable,
+                    "-I",
+                    "-B",
+                    str(VALIDATOR_PATH),
+                    "--changed-files-json",
+                    str(path),
+                    "--expected-changed-count",
+                    "1",
+                ],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(completed.stdout, "false\n")
+
     def test_each_builder_comparison_removal_fails(self) -> None:
         tokens = (
             '          test "$contract" = "$CONTRACT_SHA256"',
@@ -255,10 +389,10 @@ jobs:
             )
             self.assert_invalid(root, "exceeds")
 
-    def test_cli_is_fail_closed(self) -> None:
+    def test_cli_rejects_nonallowlisted_and_incomplete_bundles(self) -> None:
         temp, root = self.make_bundle()
         with temp:
-            passed = subprocess.run(
+            nonallowlisted = subprocess.run(
                 [
                     sys.executable,
                     "-I",
@@ -271,7 +405,8 @@ jobs:
                 capture_output=True,
                 text=True,
             )
-            self.assertEqual(passed.returncode, 0, passed.stderr)
+            self.assertNotEqual(nonallowlisted.returncode, 0)
+            self.assertIn("candidate bytes differ from protected allowlist", nonallowlisted.stderr)
             (root / validator.CONTRACT).unlink()
             failed = subprocess.run(
                 [
@@ -306,6 +441,14 @@ jobs:
         )
         self.assertNotIn("actions/setup-python", source)
         self.assertNotIn("pip install", source)
+        self.assertIn("id: scope", source)
+        self.assertIn("tests/test_frontier_workflow_source_integrity.py", source)
+        self.assertIn("ops/frontier/v16_7/apply_current_main_repairs.py", source)
+        self.assertIn("ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py", source)
+        self.assertIn("steps.scope.outputs.applicable == 'true'", source)
+        self.assertIn("--changed-files-json", source)
+        self.assertIn("--expected-changed-count", source)
+        self.assertIn("Protected check not applicable", source)
         self.assertIn(
             "python3 -I -B scripts/validate_frontier_protected_source_pins.py",
             source,
