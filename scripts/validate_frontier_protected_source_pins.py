@@ -83,20 +83,51 @@ def classify_changed_files(pages: object, expected_count: int) -> bool:
         )
 
     observed: dict[str, str] = {}
+    renamed_from: dict[str, str] = {}
     for record in records:
         if type(record) is not dict:
             raise ValidationError("changed-file response contains a non-object")
         relative = record.get("filename")
         status = record.get("status")
+        previous = record.get("previous_filename")
         if not isinstance(relative, str) or not relative:
             raise ValidationError("changed-file response contains an invalid filename")
         if not isinstance(status, str) or not status:
             raise ValidationError(
                 f"changed-file response contains an invalid status: {relative}"
             )
+        if status == "renamed":
+            if not isinstance(previous, str) or not previous:
+                raise ValidationError(
+                    f"renamed file is missing a valid previous filename: {relative}"
+                )
+            if previous == relative:
+                raise ValidationError(
+                    f"renamed file repeats its previous filename: {relative}"
+                )
+            if previous in renamed_from:
+                raise ValidationError(
+                    f"changed-file response repeats a previous path: {previous}"
+                )
+            renamed_from[previous] = relative
+        elif previous is not None:
+            raise ValidationError(
+                f"non-renamed file declares a previous filename: {relative}"
+            )
         if relative in observed:
             raise ValidationError(f"changed-file response repeats a path: {relative}")
         observed[relative] = status
+
+    sensitive_renames = sorted(
+        f"{previous}->{relative}"
+        for previous, relative in renamed_from.items()
+        if previous in SENSITIVE_PATHS
+    )
+    if sensitive_renames:
+        raise ValidationError(
+            "protected Frontier source-pin paths cannot be renamed: "
+            + ", ".join(sensitive_renames)
+        )
 
     changed = frozenset(observed)
     if changed.isdisjoint(SENSITIVE_PATHS):
