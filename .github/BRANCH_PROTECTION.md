@@ -43,6 +43,23 @@ For that reason:
 This is a GitHub control-plane boundary, not something a test inside the same
 candidate-controlled workflow can establish.
 
+## Frontier source-pin authority rotation
+
+`.github/workflows/frontier-source-pin-authority-v2.yml` is the versioned
+successor used to admit the exact four-file transition that repairs both
+Frontier workflow pins and the v1 regression fixture. Its protected validator
+accepts exactly the three pinned workflow/contract files plus
+`tests/test_validate_frontier_source_pin_candidate.py`; it executes no candidate
+code and holds the v1 workflow, v1 validator, repair oracle, and terminal-truth
+template byte-identical to protected `main`.
+
+Keep v1 Active while the v2 bootstrap lands on new paths. Create v2 as a
+separate Evaluate ruleset with an empty bypass list, prove an exact protected
+v2 PASS, then activate v2 before disabling v1. Never leave both authorities
+non-enforcing. Keep the disabled v1 definition for audit history and keep v2
+Active after the transition so later guarded-file changes require a v3-first
+rotation.
+
 ## Ordinary required status contexts
 
 GitHub matches ordinary required-status-check contexts by exact string. Keep
@@ -79,11 +96,14 @@ the GitHub-native required workflow as follows:
 2. Target repository `szl-holdings/a11oy` and the default branch only.
 3. Add **Require workflows to pass before merging**.
 4. Select source repository `szl-holdings/a11oy`.
-5. Select both required workflow identities:
+5. Use a separate additive ruleset for each workflow identity; do not rewrite an
+   existing protection bundle. The externally bound identities are:
    - `.github/workflows/action-contract-promotion-guard.yml`
-   - `.github/workflows/frontier-source-pin-authority.yml`
-6. Set enforcement to **Active** and leave **Do not require workflows checks on
-   creation** disabled.
+   - `.github/workflows/frontier-source-pin-authority.yml` (v1 audit record)
+   - `.github/workflows/frontier-source-pin-authority-v2.yml` (active successor)
+6. Start a new identity in **Evaluate**, verify its protected source and exact
+   report, then change only enforcement to **Active**. Leave **Do not require
+   workflows checks on creation** disabled and keep the bypass list empty.
 7. Preserve every existing status check, signature, linear-history,
    non-fast-forward, deletion, and conversation-resolution rule.
 
@@ -120,8 +140,9 @@ Changing the Frontier authority workflow, its validator, or its validator
 regression is a control-plane rotation. Bind and verify a versioned successor
 before removing the prior required-workflow identity. Once this bootstrap is
 active, the Frontier workflow repair must change exactly the two guarded
-workflows and their execution contract; it cannot rotate the authority code or
-either protected source input in the same pull request.
+workflows, their execution contract, and
+`tests/test_validate_frontier_source_pin_candidate.py`; it cannot rotate the
+authority code or either protected source input in the same pull request.
 
 Read-only verification commands:
 
