@@ -1,0 +1,192 @@
+name: Frontier protected-base source-pin gate
+
+# Bootstrap boundary: pull_request_target loads this definition from the
+# protected base. Candidate paths are downloaded at the exact head SHA only as
+# bounded inert bytes. No candidate checkout, import, evaluation, or execution
+# is permitted.
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+concurrency:
+  group: frontier-protected-source-pins-${{ github.event.pull_request.number }}-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  protected-source-pins:
+    name: Protected-base Frontier source-pin controller
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EVENT_NAME: ${{ github.event_name }}
+      PR_NUMBER: ${{ github.event.pull_request.number }}
+      HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_REF: ${{ github.event.pull_request.base.ref }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      CHECK_NAME: Frontier protected-base source-pin qualification
+    steps:
+      - name: Start fail-closed exact-head check
+        id: start
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test "$EVENT_NAME" = "pull_request_target"
+          test "$BASE_REF" = "main"
+          test "$HEAD_REPOSITORY" = "$REPOSITORY"
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          details_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          payload="$(
+            jq -n \
+              --arg name "$CHECK_NAME" \
+              --arg head_sha "$HEAD_SHA" \
+              --arg details_url "$details_url" \
+              --arg base_sha "$BASE_SHA" \
+              '{
+                name: $name,
+                head_sha: $head_sha,
+                status: "in_progress",
+                details_url: $details_url,
+                output: {
+                  title: "Protected-base validation started",
+                  summary: ("Candidate bytes are being checked by protected base " + $base_sha + ".")
+                }
+              }'
+          )"
+          check_id="$(
+            gh api --method POST \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${REPOSITORY}/check-runs" \
+              --input - --jq '.id' <<<"$payload"
+          )"
+          [[ "$check_id" =~ ^[1-9][0-9]*$ ]]
+          echo "check_id=$check_id" >>"$GITHUB_OUTPUT"
+
+      - name: Bind event payload to live pull request and protected main
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pr_json="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+          test "$(jq -er '.number' <<<"$pr_json")" = "$PR_NUMBER"
+          test "$(jq -er '.head.repo.full_name' <<<"$pr_json")" = "$HEAD_REPOSITORY"
+          test "$(jq -er '.head.sha' <<<"$pr_json")" = "$HEAD_SHA"
+          test "$(jq -er '.base.ref' <<<"$pr_json")" = "$BASE_REF"
+          test "$(jq -er '.base.sha' <<<"$pr_json")" = "$BASE_SHA"
+          current_main="$(
+            gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha'
+          )"
+          test "$current_main" = "$BASE_SHA"
+
+      - name: Checkout only the protected validator
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          sparse-checkout: |
+            scripts/validate_frontier_protected_source_pins.py
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Fetch exact candidate files as inert data
+        id: fetch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+          bundle="${RUNNER_TEMP}/frontier-candidate-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          mkdir -p "$bundle"
+          cat >"${RUNNER_TEMP}/frontier-managed-paths" <<'EOF'
+          .github/workflows/frontier-solo-qualification.yml
+          .github/workflows/frontier-v16-7-exact-source-builder.yml
+          ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json
+          ops/frontier/v16_7/apply_current_main_repairs.py
+          ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py
+          EOF
+          sed -i 's/^          //' "${RUNNER_TEMP}/frontier-managed-paths"
+
+          while IFS= read -r relative; do
+            metadata="${RUNNER_TEMP}/frontier-candidate-metadata.json"
+            gh api \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${HEAD_REPOSITORY}/contents/${relative}?ref=${HEAD_SHA}" \
+              >"$metadata"
+            jq -e '
+              type == "object" and
+              .type == "file" and
+              .encoding == "base64" and
+              (.size | type == "number" and . >= 0 and . <= 1048576) and
+              (.sha | type == "string" and test("^[0-9a-f]{40}$")) and
+              (.content | type == "string")
+            ' "$metadata" >/dev/null
+            output="${bundle}/${relative}"
+            mkdir -p "$(dirname "$output")"
+            jq -er '.content' "$metadata" | tr -d '\n' | base64 --decode >"$output"
+            test "$(wc -c <"$output" | tr -d ' ')" = "$(jq -er '.size' "$metadata")"
+            chmod 0400 "$output"
+          done <"${RUNNER_TEMP}/frontier-managed-paths"
+          echo "bundle=$bundle" >>"$GITHUB_OUTPUT"
+
+      - name: Validate candidate bytes with protected code
+        shell: bash
+        env:
+          BUNDLE: ${{ steps.fetch.outputs.bundle }}
+        run: |
+          set -Eeuo pipefail
+          python3 -I -B scripts/validate_frontier_protected_source_pins.py \
+            --bundle-dir "$BUNDLE"
+
+      - name: Reconfirm exact head and current protected base
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          pr_json="$(gh api "repos/${REPOSITORY}/pulls/${PR_NUMBER}")"
+          test "$(jq -er '.head.sha' <<<"$pr_json")" = "$HEAD_SHA"
+          test "$(jq -er '.base.sha' <<<"$pr_json")" = "$BASE_SHA"
+          current_main="$(
+            gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha'
+          )"
+          test "$current_main" = "$BASE_SHA"
+
+      - name: Complete exact-head check
+        if: ${{ always() && steps.start.outputs.check_id != '' }}
+        shell: bash
+        env:
+          CHECK_ID: ${{ steps.start.outputs.check_id }}
+          PRIOR_JOB_STATUS: ${{ job.status }}
+        run: |
+          set -Eeuo pipefail
+          conclusion="failure"
+          title="Protected-base validation failed"
+          summary="The exact candidate head did not satisfy the protected source-pin contract."
+          if [ "$PRIOR_JOB_STATUS" = "success" ]; then
+            conclusion="success"
+            title="Protected-base validation passed"
+            summary="The exact candidate head satisfies the protected source-pin contract."
+          fi
+          payload="$(
+            jq -n \
+              --arg status "completed" \
+              --arg conclusion "$conclusion" \
+              --arg title "$title" \
+              --arg summary "$summary" \
+              '{
+                status: $status,
+                conclusion: $conclusion,
+                output: {title: $title, summary: $summary}
+              }'
+          )"
+          gh api --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            "repos/${REPOSITORY}/check-runs/${CHECK_ID}" \
+            --input - <<<"$payload" >/dev/null
+          test "$conclusion" = "success"
