@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0.0",
   "manifest_id": "a11oy-integrity-control",
-  "revision": "wave37-source-scoped-pilot",
-  "generated_at": "2026-07-18T15:57:18Z",
+  "revision": "claim-compiler-contract-2026-08-13",
+  "generated_at": "2026-08-20T09:45:39Z",
   "claims": [
     {
       "claim_id": "claim-compiler-focused-contract-pass",
-      "assertion": "At source revision 122ae740ab81e84f0dcd8f1bba94600114856ab9, the focused EvidenceOS Claim Compiler contract job completed with 52 tests passing and exit code 0.",
+      "assertion": "At source revision 840e33c8180c322381197fa35b98b0e86a28a27e, the EvidenceOS Claim Compiler contract job completed successfully.",
       "maturity": "MEASURED",
       "scope": "The cited GitHub Actions test job only; not production deployment, live endpoint behavior, semantic truth, or EvidenceOS completion across the wider estate.",
       "owner": {
@@ -19,17 +19,17 @@
       ],
       "source": {
         "repository": "szl-holdings/a11oy",
-        "revision": "122ae740ab81e84f0dcd8f1bba94600114856ab9"
+        "revision": "840e33c8180c322381197fa35b98b0e86a28a27e"
       },
       "evidence": [
         {
-          "evidence_id": "claim-compiler-contract-ci-2026-07-18",
-          "path": "artifacts/evidenceos/receipts/claim-compiler-contract-ci.2026-07-18.json",
-          "content_sha256": "5efe08621c8c657f57420c5e03d59b9442bfee11fc9afe1f2d1c0c7f1cd56e98",
-          "collected_at": "2026-07-18T15:57:18Z",
+          "evidence_id": "claim-compiler-contract-ci-2026-08-13",
+          "path": "artifacts/evidenceos/receipts/claim-compiler-contract-ci.2026-08-13.json",
+          "content_sha256": "1bddd6aa6aed90885bc9614f464eec12b5f8d768370233812e4f8027fdad70bf",
+          "collected_at": "2026-08-13T11:14:29Z",
           "max_age_seconds": 2592000,
           "kind": "TEST_RECEIPT",
-          "verification_ref": "https://github.com/szl-holdings/a11oy/actions/runs/29650985150/job/88097174545"
+          "verification_ref": "https://github.com/szl-holdings/a11oy/actions/runs/31694584833/job/94429331674"
         }
       ],
       "reproduction_argv": [
@@ -39,7 +39,8 @@
         "-q",
         "tests/test_claim_rupture_gate.py",
         "tests/test_claim_compiler_routes.py",
-        "tests/test_integrity_control_surface.py"
+        "tests/test_integrity_control_surface.py",
+        "tests/test_public_claim_manifest.py"
       ]
     }
   ]
