@@ -74,6 +74,8 @@ jobs:
       # that workflow cannot disable the independent shape guard.
       - name: Prove the guard rejects workflow collapse and encoding corruption
         run: python3 scripts/test_frontdoor_source_integrity.py
+      - name: Prove protected Frontier workflow pins are exact and fail closed
+        run: python3 -m unittest discover -s tests -p test_frontier_workflow_source_integrity.py -v
       - name: Prove protected-base candidate admission stays digest-bound and fail closed
         run: python3 -m unittest tests.test_verify_hf_repository_parity
       - name: Validate the committed workflow and public source bytes
