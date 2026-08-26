@@ -365,8 +365,10 @@ def _validate_context_binding(base: str, corrective: str, errors: list[str]) -> 
             "owner-only context binding lookup": (
                 r"FROM\s+public\.memory_context_bindings\s+AS\s+binding"
             ),
-            "unforgeable session principal binding": (
-                r"binding\.principal_oid\s*=\s*pg_catalog\.to_regrole\s*\(\s*session_user\s*\)"
+            "exact catalog session principal binding": (
+                r"binding\.principal_oid\s*=\s*\(\s*SELECT\s+role\.oid\s+"
+                r"FROM\s+pg_catalog\.pg_roles\s+AS\s+role\s+"
+                r"WHERE\s+role\.rolname\s*=\s*session_user\s*\)"
             ),
             "bound tenant": r"binding\.tenant_id\s*=\s*row_tenant",
             "bound security domain": (
@@ -378,6 +380,14 @@ def _validate_context_binding(base: str, corrective: str, errors: list[str]) -> 
                 errors.append(
                     f"{label} a11oy_memory_context_matches missing {requirement}"
                 )
+        if re.search(
+            r"pg_catalog\.to_regrole\s*\(\s*session_user\s*\)",
+            body,
+            re.IGNORECASE,
+        ):
+            errors.append(
+                f"{label} a11oy_memory_context_matches must not reparse session_user as regrole text"
+            )
         _require_count(
             r"\bALTER\s+FUNCTION\s+public\.a11oy_memory_context_matches\s*"
             r"\(\s*text\s*,\s*text\s*\)\s+OWNER\s+TO\s+CURRENT_USER\b",
