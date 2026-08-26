@@ -20,6 +20,14 @@ SOLO_WORKFLOW = WORKFLOWS[0]
 BUILDER_WORKFLOW = WORKFLOWS[1]
 INTEGRITY_WORKFLOW = ROOT / ".github/workflows/frontier-source-integrity.yml"
 PROTECTION_DOC = ROOT / ".github/BRANCH_PROTECTION.md"
+APPROVED_WORKFLOW_SHA256 = {
+    SOLO_WORKFLOW: (
+        "8acce6dcf6bfb514f53d9a063ff314a0b4152dde9d0c6f82540dbf2dfe5b4ba3"
+    ),
+    BUILDER_WORKFLOW: (
+        "4ac6306328f41bf55faf63735f57be4e730823cc29abbccfecddba694df26254"
+    ),
+}
 ORPHAN_DIGEST_LINE = re.compile(
     r"^[ \t]*\$[0-9a-fA-F]+[ \t]*$", re.MULTILINE
 )
@@ -48,6 +56,13 @@ BUILDER_HANDLER_REQUIREMENTS = (
 
 def _digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _assert_approved_workflow(path: Path, data: bytes | None = None) -> None:
+    observed = hashlib.sha256(
+        data if data is not None else path.read_bytes()
+    ).hexdigest()
+    assert observed == APPROVED_WORKFLOW_SHA256[path], (path, observed)
 
 
 def _shell_function(source: str, name: str) -> str:
@@ -93,6 +108,7 @@ def test_frontier_workflows_bind_all_protected_inputs() -> None:
     }
 
     for workflow in WORKFLOWS:
+        _assert_approved_workflow(workflow)
         source = workflow.read_text(encoding="utf-8")
         for name, digest in expected.items():
             matches = re.findall(
@@ -113,6 +129,29 @@ def test_frontier_workflows_bind_all_protected_inputs() -> None:
         "Create one exact GitHub-signed Frontier source commit",
     )
     _assert_exact_requirements(builder_handler, BUILDER_HANDLER_REQUIREMENTS)
+
+
+def test_full_workflow_approval_rejects_nonexecuting_comparisons() -> None:
+    substitutions = {
+        SOLO_WORKFLOW: (
+            b'test "$test_digest" = "$SOURCE_TEST_SHA256"',
+            b': \'test "$test_digest" = "$SOURCE_TEST_SHA256"\'',
+        ),
+        BUILDER_WORKFLOW: (
+            b'test "$contract" = "$CONTRACT_SHA256"',
+            b'exit 0; test "$contract" = "$CONTRACT_SHA256"',
+        ),
+    }
+
+    for workflow, (required, bypass) in substitutions.items():
+        source = workflow.read_bytes()
+        assert source.count(required) >= 1
+        candidate = source.replace(required, bypass, 1)
+        try:
+            _assert_approved_workflow(workflow, candidate)
+        except AssertionError:
+            continue
+        raise AssertionError(f"non-executing comparison accepted: {workflow}")
 
 
 def test_contract_embedded_source_digests_match_protected_inputs() -> None:
@@ -177,6 +216,7 @@ def main() -> None:
     """Run the protected validator without pytest or repository plugin loading."""
     test_orphan_digest_detection_rejects_indentation()
     test_frontier_workflows_bind_all_protected_inputs()
+    test_full_workflow_approval_rejects_nonexecuting_comparisons()
     test_contract_embedded_source_digests_match_protected_inputs()
     test_integrity_regression_uses_protected_validator_and_candidate_data()
     test_required_workflow_handoff_covers_frontier_integrity()

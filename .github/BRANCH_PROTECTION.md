@@ -112,6 +112,10 @@ Changing the required workflow or its validator test is a control-plane
 rotation, not an ordinary source change. First bind and verify a versioned
 successor workflow, then remove the prior required-workflow identity. Never
 allow a candidate PR to rotate both the enforced workflow and its validator.
+The same rotation is required before either guarded Frontier builder or
+qualification workflow changes: the immutable validator pins their complete
+file SHA-256 values, so preserving comparison text in dead or quoted shell code
+cannot satisfy the gate.
 
 Read-only verification commands:
 
