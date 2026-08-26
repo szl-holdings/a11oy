@@ -10928,41 +10928,373 @@ try:
     # from the public FIRST.org EPSS API (batched, cached 6h) and overlays it
     # onto the returned rows. Per-row epss_src distinguishes "first.org" (live)
     # from "derived" (proxy). Any failure -> rows keep the derived value.
+    import threading as _kl_threading
     _KL_EPSS_CACHE = {"ts": 0.0, "map": {}}
     _KL_EPSS_TTL = 6 * 3600
+    _KL_EPSS_BATCH_SIZE = 100
+    _KL_EPSS_REQUEST_TIMEOUT_DEFAULT = 4.0
+    _KL_EPSS_REQUEST_TIMEOUT_MIN = 0.25
+    _KL_EPSS_REQUEST_TIMEOUT_MAX = 12.0
+    _KL_EPSS_RESPONSE_MAX_BYTES = 256 * 1024
+    _KL_EPSS_READ_CHUNK_BYTES = 16 * 1024
+    _KL_EPSS_CACHE_LOCK = _kl_threading.Lock()
+    _KL_EPSS_REFRESH_LOCK = _kl_threading.Lock()
+    _KL_EPSS_FAIR_STATE = {"epoch": 0, "entries": {}}
+    _KL_EPSS_FAIR_STATE_TTL = _KL_EPSS_TTL
+    _KL_EPSS_FAIR_STATE_MAX_ENTRIES = 4096
+
+    def _kl_bounded_number(value, lower, upper, *, allow_text=False):
+        """Return a finite float inside an evidence field's closed interval."""
+        import math as _math
+        allowed_types = (int, float, str) if allow_text else (int, float)
+        if isinstance(value, bool) or not isinstance(value, allowed_types):
+            return None
+        try:
+            number = float(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        if not _math.isfinite(number) or not lower <= number <= upper:
+            return None
+        return number
+
+    def _kl_epss_pair(value):
+        """Validate a FIRST.org EPSS probability/percentile pair."""
+        if not isinstance(value, (list, tuple)) or len(value) != 2:
+            return None
+        epss = _kl_bounded_number(value[0], 0.0, 1.0, allow_text=True)
+        percentile = _kl_bounded_number(value[1], 0.0, 1.0, allow_text=True)
+        if epss is None or percentile is None:
+            return None
+        return epss, percentile
+
+    def _kl_epss_valid_map(value):
+        if not isinstance(value, dict):
+            return {}
+        valid = {}
+        for cve, candidate in value.items():
+            pair = _kl_epss_pair(candidate)
+            if isinstance(cve, str) and cve and pair is not None:
+                valid[cve] = pair
+        return valid
+
+    def _kl_epss_request_timeout():
+        """Return a finite, bounded timeout for the one allowed network batch."""
+        configured = os.environ.get(
+            "A11OY_EPSS_REQUEST_TIMEOUT_SEC",
+            str(_KL_EPSS_REQUEST_TIMEOUT_DEFAULT),
+        )
+        timeout = _kl_bounded_number(
+            configured,
+            _KL_EPSS_REQUEST_TIMEOUT_MIN,
+            _KL_EPSS_REQUEST_TIMEOUT_MAX,
+            allow_text=True,
+        )
+        return (
+            timeout
+            if timeout is not None
+            else _KL_EPSS_REQUEST_TIMEOUT_DEFAULT
+        )
+
+    def _kl_epss_cache_snapshot_unlocked(now):
+        """Return a sanitized cache copy; caller must hold the cache lock."""
+        import math as _math
+        cache_timestamp = _KL_EPSS_CACHE.get("ts")
+        try:
+            if isinstance(cache_timestamp, bool) or not isinstance(
+                cache_timestamp, (int, float)
+            ):
+                raise TypeError("EPSS cache timestamp must be numeric")
+            cache_age = now - float(cache_timestamp)
+        except (TypeError, ValueError, OverflowError):
+            cache_age = -1.0
+        cache_fresh = (
+            _math.isfinite(cache_age) and 0.0 <= cache_age < _KL_EPSS_TTL
+        )
+        return (
+            cache_fresh,
+            _kl_epss_valid_map(_KL_EPSS_CACHE.get("map"))
+            if cache_fresh
+            else {},
+        )
+
+    def _kl_epss_cache_snapshot(now):
+        """Return only source-valid EPSS rows when the shared clock is fresh."""
+        with _KL_EPSS_CACHE_LOCK:
+            return _kl_epss_cache_snapshot_unlocked(now)
+
+    def _kl_epss_response_socket(response):
+        """Best-effort access to urllib's transport socket for deadline updates."""
+        current = response
+        seen = set()
+        for _depth in range(8):
+            if current is None or id(current) in seen:
+                break
+            seen.add(id(current))
+            setter = getattr(current, "settimeout", None)
+            if callable(setter):
+                return current
+            next_current = None
+            for attribute in ("_sock", "raw", "fp", "_fp"):
+                candidate = getattr(current, attribute, None)
+                if candidate is not None and id(candidate) not in seen:
+                    next_current = candidate
+                    break
+            current = next_current
+        return None
+
+    def _kl_epss_read_bounded(response, deadline):
+        """Read one bounded body while continually tightening its socket deadline."""
+        import time as _t
+        body = bytearray()
+        transport = _kl_epss_response_socket(response)
+        while True:
+            remaining = deadline - _t.monotonic()
+            if remaining <= 0:
+                raise TimeoutError("FIRST.org EPSS absolute request budget expired")
+            if transport is not None:
+                try:
+                    transport.settimeout(remaining)
+                except Exception:
+                    transport = None
+            allowance = _KL_EPSS_RESPONSE_MAX_BYTES + 1 - len(body)
+            if allowance <= 0:
+                raise ValueError("FIRST.org EPSS response exceeds byte limit")
+            chunk = response.read(min(_KL_EPSS_READ_CHUNK_BYTES, allowance))
+            if not chunk:
+                return bytes(body)
+            if not isinstance(chunk, (bytes, bytearray)):
+                raise TypeError("FIRST.org EPSS response body must be bytes")
+            body.extend(chunk)
+            if len(body) > _KL_EPSS_RESPONSE_MAX_BYTES:
+                raise ValueError("FIRST.org EPSS response exceeds byte limit")
+
+    def _kl_epss_fetch_batch(batch, timeout, deadline):
+        """Fetch and validate one FIRST.org batch inside the caller's wall budget."""
+        import json as _j
+        import time as _t
+        import urllib.parse as _up
+        import urllib.request as _u
+
+        remaining = deadline - _t.monotonic()
+        if remaining <= 0:
+            return {}
+        url = (
+            "https://api.first.org/data/v1/epss?pretty=false&cve="
+            + _up.quote(",".join(batch))
+        )
+        req = _u.Request(url, headers={"User-Agent": "a11oy-sec/1.0"})
+        with _u.urlopen(req, timeout=timeout) as response:
+            body = _kl_epss_read_bounded(response, deadline)
+        if _t.monotonic() > deadline:
+            return {}
+        payload = _j.loads(body.decode("utf-8", "strict"))
+        if not isinstance(payload, dict):
+            return {}
+        data = payload.get("data")
+        if not isinstance(data, list):
+            return {}
+        requested = set(batch)
+        result = {}
+        for candidate in data:
+            if not isinstance(candidate, dict):
+                continue
+            cve = candidate.get("cve")
+            pair = _kl_epss_pair(
+                (candidate.get("epss"), candidate.get("percentile"))
+            )
+            if cve in requested and pair is not None:
+                result[cve] = pair
+        return result if _t.monotonic() <= deadline else {}
+
+    def _kl_epss_select_batch(missing, now):
+        """Select identities by retry epoch, independent of input order/position."""
+        global _KL_EPSS_FAIR_STATE
+        import math as _math
+        with _KL_EPSS_CACHE_LOCK:
+            state = _KL_EPSS_FAIR_STATE
+            if not isinstance(state, dict):
+                state = {}
+            epoch = state.get("epoch", 0)
+            try:
+                if isinstance(epoch, bool) or not isinstance(epoch, int) or epoch < 0:
+                    raise ValueError("invalid EPSS fairness epoch")
+            except (TypeError, ValueError, OverflowError):
+                epoch = 0
+            epoch += 1
+
+            raw_entries = state.get("entries", {})
+            entries = {}
+            if isinstance(raw_entries, dict):
+                for cve, candidate in raw_entries.items():
+                    if not isinstance(cve, str) or not cve:
+                        continue
+                    if not isinstance(candidate, dict):
+                        continue
+                    due_epoch = candidate.get("due_epoch")
+                    last_seen_at = candidate.get("last_seen_at")
+                    if (
+                        isinstance(due_epoch, bool)
+                        or not isinstance(due_epoch, int)
+                        or due_epoch < 0
+                        or due_epoch > epoch + 1
+                        or isinstance(last_seen_at, bool)
+                        or not isinstance(last_seen_at, (int, float))
+                    ):
+                        continue
+                    try:
+                        normalized_last_seen_at = float(last_seen_at)
+                        age = now - normalized_last_seen_at
+                    except (TypeError, ValueError, OverflowError):
+                        continue
+                    if (
+                        not _math.isfinite(age)
+                        or age < 0
+                        or age > _KL_EPSS_FAIR_STATE_TTL
+                    ):
+                        continue
+                    entries[cve] = {
+                        "due_epoch": due_epoch,
+                        "last_seen_at": normalized_last_seen_at,
+                    }
+
+            for cve in missing:
+                entry = entries.get(cve)
+                if entry is None:
+                    entry = {"due_epoch": epoch, "last_seen_at": now}
+                    entries[cve] = entry
+                else:
+                    entry["last_seen_at"] = now
+
+            # Oldest due identity wins. A newly seen CVE is due this epoch, so
+            # an omitted or previously attempted persistent CVE becomes older
+            # than an endless stream of new identities within a finite turn.
+            batch = sorted(
+                missing,
+                key=lambda cve: (entries[cve]["due_epoch"], cve),
+            )[:_KL_EPSS_BATCH_SIZE]
+            for cve in batch:
+                entries[cve]["due_epoch"] = epoch + 1
+
+            # Retry history is evidence-neutral scheduling state. Retain recent
+            # identities, preferring overdue ones at equal observation time,
+            # and impose a hard cap so adversarial CVE names cannot grow memory.
+            if len(entries) > _KL_EPSS_FAIR_STATE_MAX_ENTRIES:
+                retained = sorted(
+                    entries,
+                    key=lambda cve: (
+                        -entries[cve]["last_seen_at"],
+                        entries[cve]["due_epoch"],
+                        cve,
+                    ),
+                )[:_KL_EPSS_FAIR_STATE_MAX_ENTRIES]
+                entries = {cve: entries[cve] for cve in retained}
+            _KL_EPSS_FAIR_STATE = {"epoch": epoch, "entries": entries}
+        return batch
+
+    def _kl_epss_merge_batch(result, request_started_at, deadline):
+        """Atomically merge valid rows without promoting stale cache evidence."""
+        if not result:
+            return
+        import time as _t
+        with _KL_EPSS_CACHE_LOCK:
+            cache_fresh, current = _kl_epss_cache_snapshot_unlocked(_t.time())
+            merged = dict(current) if cache_fresh else {}
+            merged.update(_kl_epss_valid_map(result))
+            # This deadline check is deliberately under the same lock and
+            # immediately before either cache field can change. A worker paused
+            # after validation must never late-promote expired evidence.
+            if not merged or _t.monotonic() > deadline:
+                return
+            _KL_EPSS_CACHE["map"] = merged
+            # A partial refresh must not extend the observation clock of older
+            # cached entries. When no fresh cache survives, the request start is
+            # the conservative shared observation time for the new rows.
+            if not cache_fresh:
+                _KL_EPSS_CACHE["ts"] = request_started_at
 
     def _kl_epss_map(cves):
-        import time as _t, json as _j
-        import urllib.request as _u, urllib.parse as _up
+        import time as _t
         now = _t.time()
-        if _KL_EPSS_CACHE["map"] and (now - _KL_EPSS_CACHE["ts"]) < _KL_EPSS_TTL:
-            return _KL_EPSS_CACHE["map"]
-        out = {}
+        _cache_fresh, cached = _kl_epss_cache_snapshot(now)
+        uniq = [
+            c for c in dict.fromkeys(cves)
+            if isinstance(c, str) and c
+        ]
+        missing = [c for c in uniq if c not in cached]
+        if _cache_fresh and not missing:
+            return cached
+
+        # The request path may perform at most one 100-CVE FIRST.org request.
+        # The primitive lock stays held by the one daemon worker until its I/O
+        # really finishes. Contenders therefore return sanitized fresh cache
+        # immediately, and one stalled transport can never create a thread or
+        # request fan-out. Every uncovered row remains derived/sample.
         try:
-            uniq = [c for c in dict.fromkeys(cves) if c]
-            for i in range(0, len(uniq), 100):
-                batch = uniq[i:i+100]
-                try:
-                    url = ("https://api.first.org/data/v1/epss?pretty=false&cve="
-                           + _up.quote(",".join(batch)))
-                    req = _u.Request(url, headers={"User-Agent": "a11oy-sec/1.0"})
-                    with _u.urlopen(req, timeout=12) as r:
-                        payload = _j.loads(r.read().decode("utf-8", "replace"))
-                    for d in (payload.get("data") or []):
-                        try:
-                            out[d.get("cve")] = (float(d.get("epss")),
-                                                 float(d.get("percentile")))
-                        except Exception:
-                            pass
-                except Exception:
-                    continue
+            acquired = _KL_EPSS_REFRESH_LOCK.acquire(blocking=False)
         except Exception:
-            pass
-        if out:
-            _KL_EPSS_CACHE["map"] = out
-            _KL_EPSS_CACHE["ts"] = now
-            return out
-        return _KL_EPSS_CACHE["map"] or {}
+            acquired = False
+        if not acquired:
+            return cached
+
+        ownership_moved_to_worker = False
+        try:
+            # The lock may have become available just after another caller
+            # refreshed the cache, so re-snapshot before spending the budget.
+            now = _t.time()
+            _cache_fresh, cached = _kl_epss_cache_snapshot(now)
+            missing = [c for c in uniq if c not in cached]
+            if _cache_fresh and not missing:
+                _KL_EPSS_REFRESH_LOCK.release()
+                return cached
+            if not missing:
+                _KL_EPSS_REFRESH_LOCK.release()
+                return cached
+            batch = _kl_epss_select_batch(missing, now)
+            if not batch:
+                _KL_EPSS_REFRESH_LOCK.release()
+                return cached
+            timeout = _kl_epss_request_timeout()
+            deadline = _t.monotonic() + timeout
+            completed = _kl_threading.Event()
+
+            def refresh_one_batch():
+                try:
+                    try:
+                        result = _kl_epss_fetch_batch(batch, timeout, deadline)
+                    except Exception:
+                        result = {}
+                    _kl_epss_merge_batch(result, now, deadline)
+                finally:
+                    _KL_EPSS_REFRESH_LOCK.release()
+                    completed.set()
+
+            worker = _kl_threading.Thread(
+                target=refresh_one_batch,
+                name="a11oy-epss-singleflight",
+                daemon=True,
+            )
+            try:
+                worker.start()
+                ownership_moved_to_worker = True
+            except Exception:
+                _KL_EPSS_REFRESH_LOCK.release()
+                return cached
+
+            remaining = deadline - _t.monotonic()
+            if remaining > 0:
+                completed.wait(remaining)
+            # Whether the worker completed or hit the absolute caller budget,
+            # expose only a freshly timestamped, source-valid atomic snapshot.
+            return _kl_epss_cache_snapshot(_t.time())[1]
+        except Exception:
+            # If setup fails before ownership moves to the worker, release the
+            # singleflight lock and fail closed to the pre-request snapshot.
+            if not ownership_moved_to_worker and _KL_EPSS_REFRESH_LOCK.locked():
+                try:
+                    _KL_EPSS_REFRESH_LOCK.release()
+                except Exception:
+                    pass
+            return cached
 
     # --- REAL CVSS overlay (NVD) -------------------------------------------
     # CISA KEV publishes NO CVSS, and NVD's free 2.0 API (~5 req/30s without a
@@ -10970,15 +11302,67 @@ try:
     # progressively pulls the GENUINE NVD CVSS base score / severity / vector into
     # a DISK-PERSISTED cache (rate-limit aware, off the request hot path). Coverage
     # grows across runs and survives restarts on a durable mount. _kl_live_rows
-    # overlays the cached real CVSS onto each row and tags cvss_src ("nvd" live |
-    # "derived" proxy); any miss keeps the honest derived-sample CVSS so the tab
-    # still renders (r.cvss.toFixed(1) needs a number). 0 fabricated NVD figures.
-    import threading as _kl_threading
+    # overlays the cached real CVSS onto each row and tags cvss_src ("nvd" fresh |
+    # "derived" proxy) plus cvss_cache_state (fresh | stale | missing). Any
+    # unusable record keeps the honest derived-sample CVSS so the tab still
+    # renders (r.cvss.toFixed(1) needs a number). 0 fabricated NVD figures.
     from pathlib import Path as _kl_Path
     _KL_CVSS = {}                  # cve -> {"cvss","severity","vector","src":"nvd","ts"}
     _KL_CVSS_LOCK = _kl_threading.Lock()
     _KL_CVSS_TTL = 30 * 24 * 3600  # re-verify a cached NVD score after ~30 days
     _KL_CVSS_WARM_STARTED = False
+
+    def _kl_cvss_score(record):
+        """Return a validated numeric NVD base score, or None."""
+        if not isinstance(record, dict) or record.get("src") != "nvd":
+            return None
+        return _kl_bounded_number(record.get("cvss"), 0.0, 10.0)
+
+    def _kl_cvss_severity(value, score):
+        if isinstance(value, str):
+            severity = value.strip().upper()
+            if severity in {"NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"}:
+                return severity
+        return ("CRITICAL" if score >= 9 else "HIGH" if score >= 7 else
+                "MEDIUM" if score >= 4 else "LOW" if score > 0 else "NONE")
+
+    def _kl_cvss_vector(value):
+        return value.strip()[:512] if isinstance(value, str) else ""
+
+    def _kl_cvss_record_is_fresh(record, now=None):
+        """Accept only bounded, timestamped NVD records inside the cache TTL."""
+        import math as _math, time as _t
+        if _kl_cvss_score(record) is None:
+            return False
+        observed_value = record.get("ts")
+        checked_value = _t.time() if now is None else now
+        if (
+            isinstance(observed_value, bool)
+            or not isinstance(observed_value, (int, float))
+            or isinstance(checked_value, bool)
+            or not isinstance(checked_value, (int, float))
+        ):
+            return False
+        try:
+            observed_at = float(observed_value)
+            checked_at = float(checked_value)
+        except (TypeError, ValueError, OverflowError):
+            return False
+        if not _math.isfinite(observed_at) or not _math.isfinite(checked_at):
+            return False
+        age = checked_at - observed_at
+        return 0.0 <= age < _KL_CVSS_TTL
+
+    def _kl_cvss_cache_state(record, now=None):
+        if not record:
+            return "missing"
+        if (
+            isinstance(record, dict)
+            and record.get("src") == "nvd"
+            and _kl_cvss_score(record) is None
+        ):
+            return "malformed"
+        return "fresh" if _kl_cvss_record_is_fresh(record, now) else "stale"
 
     def _kl_cvss_resolve_path():
         """Writable, durable-first path for the NVD CVSS cache JSON. Durable
@@ -11015,8 +11399,17 @@ try:
                 if isinstance(data, dict):
                     with _KL_CVSS_LOCK:
                         for k, v in data.items():
-                            if isinstance(v, dict) and v.get("cvss") is not None:
-                                _KL_CVSS[k] = v
+                            if isinstance(k, str) and _kl_cvss_record_is_fresh(v):
+                                score = _kl_cvss_score(v)
+                                _KL_CVSS[k] = {
+                                    "cvss": score,
+                                    "severity": _kl_cvss_severity(
+                                        v.get("severity"), score
+                                    ),
+                                    "vector": _kl_cvss_vector(v.get("vector")),
+                                    "src": "nvd",
+                                    "ts": float(v["ts"]),
+                                }
         except Exception:
             pass
 
@@ -11027,11 +11420,35 @@ try:
         if not _KL_CVSS_PATH:
             return
         try:
-            import json as _j
+            import json as _j, math as _math, time as _t
             with _KL_CVSS_LOCK:
-                snap = dict(_KL_CVSS)
+                raw_snap = dict(_KL_CVSS)
+            snap = {}
+            now = _t.time()
+            for cve, record in raw_snap.items():
+                score = _kl_cvss_score(record)
+                if (
+                    not isinstance(cve, str)
+                    or not cve
+                    or score is None
+                    or not _kl_cvss_record_is_fresh(record, now)
+                ):
+                    continue
+                try:
+                    ts = float(record.get("ts"))
+                    if not _math.isfinite(ts):
+                        continue
+                except (TypeError, ValueError, OverflowError):
+                    continue
+                snap[cve] = {
+                    "cvss": score,
+                    "severity": _kl_cvss_severity(record.get("severity"), score),
+                    "vector": _kl_cvss_vector(record.get("vector")),
+                    "src": "nvd",
+                    "ts": ts,
+                }
             tmp = _KL_CVSS_PATH.with_name(_KL_CVSS_PATH.name + ".tmp")
-            tmp.write_text(_j.dumps(snap), "utf-8")
+            tmp.write_text(_j.dumps(snap, allow_nan=False), "utf-8")
             os.replace(str(tmp), str(_KL_CVSS_PATH))
         except Exception:
             pass
@@ -11055,7 +11472,10 @@ try:
             vulns = payload.get("vulnerabilities") or []
             if not vulns:
                 return None
-            metrics = ((vulns[0].get("cve") or {}).get("metrics")) or {}
+            cve_payload = vulns[0].get("cve") or {}
+            if cve_payload.get("id") != cve:
+                return None
+            metrics = cve_payload.get("metrics") or {}
             for mk in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
                 arr = metrics.get(mk) or []
                 if not arr:
@@ -11065,13 +11485,14 @@ try:
                 score = cd.get("baseScore")
                 if score is None:
                     continue
-                sev = (cd.get("baseSeverity") or m.get("baseSeverity") or "").upper()
-                if not sev:
-                    s = float(score)
-                    sev = ("CRITICAL" if s >= 9 else "HIGH" if s >= 7 else
-                           "MEDIUM" if s >= 4 else "LOW")
-                return {"cvss": round(float(score), 1), "severity": sev,
-                        "vector": cd.get("vectorString", ""), "src": "nvd",
+                score = _kl_bounded_number(score, 0.0, 10.0)
+                if score is None:
+                    continue
+                sev = _kl_cvss_severity(
+                    cd.get("baseSeverity") or m.get("baseSeverity"), score
+                )
+                return {"cvss": round(score, 1), "severity": sev,
+                        "vector": _kl_cvss_vector(cd.get("vectorString")), "src": "nvd",
                         "ts": _t.time()}
             return None
         except Exception:
@@ -11082,15 +11503,21 @@ try:
         KEV CVE, newest gaps first, then refresh stale entries. Rate-limit aware
         (A11OY_NVD_CVSS_DELAY_SEC between requests) and persisted incrementally.
         Off the request hot path entirely."""
-        import time as _t
+        import math as _math, time as _t
         try:
             delay = float(os.environ.get("A11OY_NVD_CVSS_DELAY_SEC", "7"))
         except Exception:
             delay = 7.0
+        if not _math.isfinite(delay):
+            delay = 7.0
+        delay = min(delay, 3600.0)
         try:
             initial = float(os.environ.get("A11OY_NVD_CVSS_INITIAL_DELAY_SEC", "60"))
         except Exception:
             initial = 60.0
+        if not _math.isfinite(initial):
+            initial = 60.0
+        initial = min(max(0.0, initial), 86400.0)
         _t.sleep(max(0.0, initial))
         persist_every = 25
         while True:
@@ -11099,14 +11526,21 @@ try:
             try:
                 payload = _kl_live.get_feed("kev")
                 vulns = ((payload.get("data") or {}).get("vulnerabilities")) or []
-                cves = [v.get("cveID", "") for v in vulns if v.get("cveID")]
+                cves = []
+                for vulnerability in vulns:
+                    if not isinstance(vulnerability, dict):
+                        continue
+                    cve = vulnerability.get("cveID")
+                    if isinstance(cve, str) and cve:
+                        cves.append(cve)
+                cves = list(dict.fromkeys(cves))
             except Exception:
                 cves = []
             now = _t.time()
             with _KL_CVSS_LOCK:
                 todo = [c for c in cves if c not in _KL_CVSS]
                 stale = [c for c in cves if c in _KL_CVSS and
-                         (now - float(_KL_CVSS[c].get("ts", 0))) > _KL_CVSS_TTL]
+                         not _kl_cvss_record_is_fresh(_KL_CVSS[c], now)]
             queue = todo + stale
             if not queue:
                 # Fully warm — idle-poll so newly-added KEV rows get covered.
@@ -11162,8 +11596,12 @@ try:
                 _emap = _kl_epss_map([r.get("cveID","") for r in rows])
                 _epss_live = 0
                 for r in rows:
-                    _hit = _emap.get(r.get("cveID",""))
-                    if _hit:
+                    _hit = _kl_epss_pair(
+                        _emap.get(r.get("cveID", ""))
+                        if isinstance(_emap, dict)
+                        else None
+                    )
+                    if _hit is not None:
                         r["epss"] = round(_hit[0], 5)
                         r["epss_pctl"] = round(_hit[1], 5)
                         r["epss_src"] = "first.org"
@@ -11174,58 +11612,141 @@ try:
                 # the background warmer has already cached it. Misses keep the
                 # honest derived-sample CVSS so the tab still renders a number.
                 _cvss_live = 0
+                _cvss_stale = 0
+                import time as _t
+                _cvss_now = _t.time()
                 for r in rows:
                     with _KL_CVSS_LOCK:
                         _crec = _KL_CVSS.get(r.get("cveID",""))
-                    if _crec and _crec.get("cvss") is not None:
-                        r["cvss"] = _crec["cvss"]
-                        if _crec.get("severity"):
-                            r["severity"] = _crec["severity"]
-                        if _crec.get("vector"):
-                            r["cvss_vector"] = _crec["vector"]
+                    _cvss_cache_state = _kl_cvss_cache_state(_crec, _cvss_now)
+                    if _cvss_cache_state == "fresh":
+                        _cvss_score = _kl_cvss_score(_crec)
+                        r["cvss"] = _cvss_score
+                        r["severity"] = _kl_cvss_severity(
+                            _crec.get("severity"), _cvss_score
+                        )
+                        _cvss_vector = _kl_cvss_vector(_crec.get("vector"))
+                        if _cvss_vector:
+                            r["cvss_vector"] = _cvss_vector
                         r["cvss_src"] = "nvd"
+                        r["cvss_cache_state"] = "fresh"
                         _cvss_live += 1
+                    elif _cvss_cache_state != "missing":
+                        r["cvss_src"] = "derived"
+                        r["cvss_cache_state"] = _cvss_cache_state
+                        _cvss_stale += 1
                     else:
                         r["cvss_src"] = "derived"
-                _epss_part = (("LIVE EPSS (FIRST.org EPSS API, %d/%d rows)"
+                        r["cvss_cache_state"] = "missing"
+                _epss_part = (("FIRST.org EPSS evidence (cache up to 6h, %d/%d rows)"
                                % (_epss_live, len(rows))) if _epss_live
                               else "EPSS = derived-sample (FIRST.org live unavailable)")
                 if _cvss_live:
-                    _cvss_part = ("LIVE CVSS (NVD, %d/%d rows; remainder derived-sample "
-                                  "while the background NVD warmer fills the cache)"
-                                  % (_cvss_live, len(rows)))
+                    _cvss_part = ("NVD-backed CVSS cache (%d/%d rows; remainder stale/invalid "
+                                  "or derived-sample while the background NVD warmer fills "
+                                  "the cache)" % (_cvss_live, len(rows)))
+                elif _cvss_stale:
+                    _cvss_part = ("NVD CVSS cache stale/invalid (%d/%d rows); derived-sample "
+                                  "used while the background NVD warmer refreshes the cache"
+                                  % (_cvss_stale, len(rows)))
                 else:
                     _cvss_part = ("CVSS/severity = derived-sample (CISA KEV does not "
                                   "publish CVSS; NVD warmer still filling the cache)")
-                _dk = "live KEV IDs/dates/vendors + " + _epss_part + "; " + _cvss_part
+                _feed_mode = str(payload.get("mode") or "unavailable").strip().lower()
+                _feed_fetched_at = payload.get("fetched_at")
+                _catalog_is_bundled = _feed_fetched_at == "bundled-snapshot"
+                _catalog_evidence = (
+                    "bundled-snapshot" if _catalog_is_bundled else _feed_mode
+                )
+                for r in rows:
+                    _fully_sourced = (
+                        r.get("epss_src") == "first.org"
+                        and r.get("cvss_src") == "nvd"
+                    )
+                    r["data_kind"] = (
+                        "cached"
+                        if (
+                            _fully_sourced
+                            and _feed_mode in {"live", "cached"}
+                            and not _catalog_is_bundled
+                        )
+                        else "sample"
+                    )
+                    _epss_evidence = (
+                        "first.org-cache"
+                        if r.get("epss_src") == "first.org"
+                        else "derived-sample"
+                    )
+                    _cvss_evidence = (
+                        "nvd-cache"
+                        if r.get("cvss_src") == "nvd"
+                        else (
+                            "derived-sample; malformed-nvd-cache-ignored"
+                            if r.get("cvss_cache_state") == "malformed"
+                            else (
+                            "derived-sample; stale-nvd-cache-ignored"
+                            if r.get("cvss_cache_state") == "stale"
+                            else "derived-sample"
+                            )
+                        )
+                    )
+                    r["evidence_detail"] = (
+                        "catalog=%s; epss=%s; cvss=%s"
+                        % (_catalog_evidence, _epss_evidence, _cvss_evidence)
+                    )
+                _response_data_kind = (
+                    "cached"
+                    if all(r.get("data_kind") == "cached" for r in rows)
+                    else "sample"
+                )
+                _provenance = (_catalog_evidence + " KEV IDs/dates/vendors + "
+                               + _epss_part + "; " + _cvss_part)
                 return rows, {
-                    "source": "CISA Known Exploited Vulnerabilities catalog (LIVE feed)",
-                    "source_url": _kl_live._SOURCE["kev"][1],
-                    "mode": payload.get("mode","live"),
-                    "fetched_at": payload.get("fetched_at"),
+                    "source": (payload.get("source")
+                               or "CISA Known Exploited Vulnerabilities catalog"),
+                    "source_url": (payload.get("source_url")
+                                   or _kl_live._SOURCE["kev"][1]),
+                    "mode": _feed_mode,
+                    "fetched_at": _feed_fetched_at,
+                    "cache_note": payload.get("cache_note"),
                     "catalogVersion": data.get("catalogVersion"),
                     "dateReleased": data.get("dateReleased"),
                     "total_in_catalog": data.get("count") or len(vulns),
-                    "epss_live_rows": _epss_live,
-                    "cvss_live_rows": _cvss_live,
-                    "data_kind": _dk,
+                    "epss_source_rows": _epss_live,
+                    "cvss_source_rows": _cvss_live,
+                    "data_kind": _response_data_kind,
+                    "enrichment_provenance": _provenance,
                 }
         except Exception as _e:
             _kl_meta_err = repr(_e)
         # snapshot fallback
         if _kl_snap is not None:
-            rows = list(getattr(_kl_snap, "KEV", []))
+            rows = [dict(r) for r in getattr(_kl_snap, "KEV", [])]
             for r in rows:
                 r.setdefault("shortDescription","")
+                r["data_kind"] = "sample"
+                r["evidence_detail"] = (
+                    "catalog=cached; epss=sample; cvss=sample"
+                )
             return rows, {
                 "source": "CISA KEV bundled in-image snapshot (live feed unreachable)",
                 "source_url": getattr(_kl_snap, "KEV_SOURCE", ""),
                 "mode": "cached",
                 "fetched_at": "bundled-snapshot",
                 "catalogVersion": getattr(_kl_snap, "KEV_CATALOG_VERSION", None),
-                "data_kind": "snapshot; CVSS/EPSS = sample enrichment",
+                "data_kind": "sample",
+                "enrichment_provenance": (
+                    "bundled snapshot; CVSS/EPSS = sample enrichment"
+                ),
             }
-        return [], {"source":"unavailable","mode":"unavailable","data_kind":"none"}
+        return [], {
+            "source": "unavailable",
+            "source_url": "",
+            "mode": "unavailable",
+            "fetched_at": None,
+            "data_kind": "unavailable",
+            "enrichment_provenance": "no live or bundled KEV evidence available",
+        }
 
     @app.get("/api/a11oy/v1/sec/kev_live")
     async def _sec_kev_live():
@@ -11241,10 +11762,11 @@ try:
         return JSONResponse({**meta, "count": len(rows), "cves": rows})
 
     # --- NEW TAB: kevgate — live CVE -> policy-gate impact mapper ------------
-    # Pulls the top-N most recent LIVE KEV CVEs and runs EACH through the REAL
-    # in-process governed policy engine (same logic the /v1/policy/decide route
-    # uses) to show which deny-by-default gates each exploited CVE would trip if
-    # it arrived as a governed remediation action. 0 fabricated gate results.
+    # Pulls the top-N most recent available KEV CVEs and runs each through the
+    # real in-process governed policy engine (the same logic exposed by the
+    # /v1/policy/decide route) to show which deny-by-default gates each exploited
+    # CVE would trip if it arrived as a governed remediation action. Derived
+    # mappings remain explicit.
     @app.get("/api/a11oy/v1/sec/kevgate")
     async def _sec_kevgate(limit: int = 24):
         import anyio
@@ -11258,7 +11780,40 @@ try:
             if callable(decide): break
         out = []
         for r in rows:
-            sev = float(r.get("cvss") or 0.0)
+            sev = _kl_bounded_number(r.get("cvss"), 0.0, 10.0)
+            if sev is None:
+                sev = 0.0
+            _catalog_mode = str(meta.get("mode") or "unavailable").strip().lower()
+            _catalog_is_bundled = meta.get("fetched_at") == "bundled-snapshot"
+            _catalog_evidence = (
+                "bundled-snapshot" if _catalog_is_bundled else _catalog_mode
+            )
+            _gate_data_kind = (
+                "cached"
+                if (
+                    r.get("cvss_src") == "nvd"
+                    and _catalog_mode in {"live", "cached"}
+                    and not _catalog_is_bundled
+                )
+                else "sample"
+            )
+            _gate_evidence_detail = (
+                "catalog=%s; cvss=%s; epss=not-used-by-kevgate"
+                % (
+                    _catalog_evidence,
+                    "nvd-cache"
+                    if r.get("cvss_src") == "nvd"
+                    else (
+                        "derived-sample; malformed-nvd-cache-ignored"
+                        if r.get("cvss_cache_state") == "malformed"
+                        else (
+                        "derived-sample; stale-nvd-cache-ignored"
+                        if r.get("cvss_cache_state") == "stale"
+                        else "derived-sample"
+                        )
+                    ),
+                )
+            )
             text = ("Apply emergency remediation for %s (%s %s) — %s"
                     % (r.get("cveID"), r.get("vendorProject"), r.get("product"),
                        (r.get("vulnerabilityName") or "")[:80]))
@@ -11274,7 +11829,10 @@ try:
                     lam = (res or {}).get("lambda_value")
             except Exception:
                 decision = None
-            # deterministic, honest gate-impact mapping derived from REAL KEV fields
+            # Deterministic gate-impact mapping. Ransomware/CWE are CISA KEV
+            # fields; severity/CVSS may be NVD-backed or derived-sample, as
+            # disclosed by the scanned data_kind field and accompanying
+            # evidence_detail.
             mapped = []
             if r.get("ransomware") == "Known":
                 mapped.append("gate-01 signature-scan")
@@ -11285,22 +11843,42 @@ try:
             mapped.append("gate-08 receipt-hash")  # every governed action is receipted
             out.append({
                 "cveID": r.get("cveID"), "vendorProject": r.get("vendorProject"),
-                "product": r.get("product"), "cvss": r.get("cvss"),
+                "product": r.get("product"), "cvss": sev,
                 "severity": r.get("severity"), "ransomware": r.get("ransomware"),
                 "dateAdded": r.get("dateAdded"),
+                "data_kind": _gate_data_kind,
+                "evidence_detail": _gate_evidence_detail,
+                "cvss_src": r.get("cvss_src"),
+                "cvss_cache_state": r.get("cvss_cache_state"),
                 "decision": decision,            # None when core helper not in scope
                 "lambda_value": lam,
                 "gates_fired": gates_fired,      # REAL when engine reachable
                 "gates_mapped": mapped,          # deterministic field-derived mapping
             })
+        _item_kinds = {item.get("data_kind") for item in out}
+        if out and _item_kinds <= {"live", "cached"}:
+            _response_data_kind = (
+                "cached"
+                if meta.get("mode") == "cached" or "cached" in _item_kinds
+                else "live"
+            )
+        else:
+            _response_data_kind = meta.get("data_kind", "unavailable")
         return JSONResponse({
             **meta,
+            "data_kind": _response_data_kind,
             "count": len(out),
-            "mapping_note": ("Each row is a LIVE KEV CVE mapped to the deny-by-default "
+            "mapping_note": ("Each row is a CISA KEV CVE whose evidence state is disclosed "
+                             "by the root and per-item mode/data_kind fields, mapped to the "
+                             "deny-by-default "
                              "gates a governed remediation action would engage. gates_fired "
                              "is the REAL engine result when the in-process decision core is "
                              "reachable; gates_mapped is a deterministic mapping derived from "
-                             "real KEV fields (ransomware/CWE/severity). No fabricated values."),
+                             "CISA KEV fields (ransomware/CWE) plus severity/CVSS that "
+                             "is either NVD-backed or explicitly derived-sample. The scanned "
+                             "data_kind field and accompanying evidence_detail disclose "
+                             "which; no derived "
+                             "value is promoted to source-backed evidence."),
             "gate_catalog": ["gate-01 signature-scan","gate-02 size-guard",
                              "gate-03 lambda-threshold","gate-04 dual-use-detection",
                              "gate-05 stix-taxii-ingest","gate-06 traceparent",

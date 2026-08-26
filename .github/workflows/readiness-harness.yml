@@ -72,6 +72,7 @@ jobs:
         run: |
           node --test --test-force-exit "$HARNESS/probe_runner.test.mjs"
           node --test --test-force-exit "$HARNESS/probe_runner_revision.test.mjs"
+          node --test --test-force-exit "$HARNESS/kevgate_evidence_contract.test.mjs"
       - name: Live-feed readiness regressions
         run: python -m pytest -q tests/test_readiness_blocker_repairs.py
 
