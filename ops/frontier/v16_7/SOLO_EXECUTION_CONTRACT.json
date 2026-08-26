@@ -26,12 +26,12 @@
     "changed_path_max": 8,
     "repair_oracle": {
       "path": "ops/frontier/v16_7/apply_current_main_repairs.py",
-      "sha256": "27ee06fd37e952b27a9fa6acfe2e9b157bba65abf4db1f5bedf571de54be814f"
+      "sha256": "003b709612d1d59fe0ce3b6316cd4a33273c5bd35237530c50e1f329f4ef0e59"
     },
     "regression": {
       "protected_template_path": "ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py",
       "source_path": "tests/test_frontier_v16_7_terminal_truth.py",
-      "sha256": "4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f"
+      "sha256": "ee86e0eb880095686b204c89295c7b0f5912b937235675d72a412aeace44a3db"
     }
   },
   "trusted_workflows": {
