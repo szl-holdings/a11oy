@@ -1,0 +1,214 @@
+name: Frontier source-pin authority
+
+# This workflow is advisory in the pull request that first introduces it. It
+# becomes an authority only after it is merged to protected main and GitHub
+# binds this exact workflow identity with "Require workflows to pass before
+# merging". In that protected mode, the candidate payload checkout is inert
+# data. Ordinary candidate-associated runs are explicitly advisory/untrusted.
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, reopened, ready_for_review, synchronize]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+jobs:
+  source-pin-authority:
+    name: Protected Frontier source-pin authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PROTECTED_BASE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.pull_request.base.sha }}
+      CANDIDATE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.head_sha || github.event.pull_request.head.sha }}
+      CANDIDATE_REPOSITORY: ${{ github.event_name == 'merge_group' && github.repository || github.event.pull_request.head.repo.full_name }}
+    steps:
+      - name: Mark ordinary repository run advisory and untrusted
+        if: ${{ job.workflow_ref != 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'ADVISORY_UNTRUSTED: this is not the externally bound protected workflow source.' >&2
+          exit 1
+
+      - name: Checkout immutable workflow validator
+        if: ${{ job.workflow_ref == 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          path: protected-validator
+          persist-credentials: false
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+
+      - name: Checkout exact protected event base
+        if: ${{ job.workflow_ref == 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: protected-base
+          persist-credentials: false
+          repository: ${{ github.repository }}
+          ref: ${{ env.PROTECTED_BASE_SHA }}
+
+      - name: Checkout candidate as untrusted data
+        if: ${{ job.workflow_ref == 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          path: candidate
+          persist-credentials: false
+          repository: ${{ env.CANDIDATE_REPOSITORY }}
+          ref: ${{ env.CANDIDATE_SHA }}
+
+      - name: Set up Python
+        if: ${{ job.workflow_ref == 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Admit immutable authority code
+        if: ${{ job.workflow_ref == 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        shell: bash
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_REF: ${{ job.workflow_ref }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+        run: |
+          set -euo pipefail
+          test "$WORKFLOW_REPOSITORY" = "szl-holdings/a11oy"
+          test "$WORKFLOW_REF" = "szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main"
+          test "$WORKFLOW_FILE_PATH" = ".github/workflows/frontier-source-pin-authority.yml"
+          test "$CANDIDATE_REPOSITORY" = "$GITHUB_REPOSITORY"
+          test "$WORKFLOW_SHA" = "$PROTECTED_BASE_SHA"
+          test "$(git -C protected-validator rev-parse HEAD)" = "$WORKFLOW_SHA"
+          test "$(git -C protected-base rev-parse HEAD)" = "$PROTECTED_BASE_SHA"
+          test "$(git -C candidate rev-parse HEAD)" = "$CANDIDATE_SHA"
+          git -C candidate merge-base --is-ancestor \
+            "$PROTECTED_BASE_SHA" "$CANDIDATE_SHA"
+          current_main_before="$(
+            git -C protected-base ls-remote origin refs/heads/main | awk '{print $1}'
+          )"
+          test "$current_main_before" = "$PROTECTED_BASE_SHA"
+          git -C candidate diff --name-only -z --no-renames \
+            "$PROTECTED_BASE_SHA" "$CANDIDATE_SHA" \
+            >protected-validator/frontier-source-pin.changed-paths
+
+          tree_entry() {
+            local repo="$1" sha="$2" rel="$3"
+            local entry mode type oid extra
+            entry="$(
+              git -C "$repo" ls-tree \
+                --format='%(objectmode) %(objecttype) %(objectname)' \
+                "$sha" -- "$rel"
+            )"
+            read -r mode type oid extra <<<"$entry"
+            test "$mode" = "100644" || return 1
+            test "$type" = "blob" || return 1
+            test -n "$oid" || return 1
+            test -z "${extra:-}" || return 1
+            printf '%s\n' "$entry"
+          }
+
+          while IFS= read -r rel; do
+            candidate_entry="$(tree_entry candidate "$CANDIDATE_SHA" "$rel")"
+            authority_entry="$(tree_entry protected-validator "$WORKFLOW_SHA" "$rel")"
+            test "$candidate_entry" = "$authority_entry"
+          done <<'EOF'
+          .github/workflows/frontier-source-pin-authority.yml
+          .github/scripts/validate_frontier_source_pin_candidate.py
+          tests/test_validate_frontier_source_pin_candidate.py
+          EOF
+
+          while IFS= read -r rel; do
+            base_entry="$(tree_entry protected-base "$PROTECTED_BASE_SHA" "$rel")"
+            candidate_entry="$(tree_entry candidate "$CANDIDATE_SHA" "$rel")"
+            test "$candidate_entry" = "$base_entry"
+            mkdir -p \
+              "protected-validator/protected-tree/$(dirname "$rel")" \
+              "protected-validator/candidate-tree/$(dirname "$rel")"
+            git -C protected-base cat-file blob \
+              "$PROTECTED_BASE_SHA:$rel" \
+              >"protected-validator/protected-tree/$rel"
+            git -C candidate cat-file blob \
+              "$CANDIDATE_SHA:$rel" \
+              >"protected-validator/candidate-tree/$rel"
+          done <<'EOF'
+          ops/frontier/v16_7/apply_current_main_repairs.py
+          ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py
+          EOF
+
+          while IFS= read -r rel; do
+            tree_entry protected-base "$PROTECTED_BASE_SHA" "$rel" >/dev/null
+            tree_entry candidate "$CANDIDATE_SHA" "$rel" >/dev/null
+            mkdir -p \
+              "protected-validator/protected-tree/$(dirname "$rel")" \
+              "protected-validator/candidate-tree/$(dirname "$rel")"
+            git -C protected-base cat-file blob \
+              "$PROTECTED_BASE_SHA:$rel" \
+              >"protected-validator/protected-tree/$rel"
+            git -C candidate cat-file blob \
+              "$CANDIDATE_SHA:$rel" \
+              >"protected-validator/candidate-tree/$rel"
+          done <<'EOF'
+          .github/workflows/frontier-solo-qualification.yml
+          .github/workflows/frontier-v16-7-exact-source-builder.yml
+          ops/frontier/v16_7/SOLO_EXECUTION_CONTRACT.json
+          EOF
+
+      - name: Validate bounded candidate bytes with protected code
+        if: ${{ job.workflow_ref == 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        working-directory: protected-validator
+        shell: bash
+        env:
+          WORKFLOW_REPOSITORY: ${{ job.workflow_repository }}
+          WORKFLOW_REF: ${{ job.workflow_ref }}
+          WORKFLOW_SHA: ${{ job.workflow_sha }}
+          WORKFLOW_FILE_PATH: ${{ job.workflow_file_path }}
+        run: |
+          set -euo pipefail
+          python -I -B .github/scripts/validate_frontier_source_pin_candidate.py \
+            --protected-root protected-tree \
+            --candidate-root candidate-tree \
+            --changed-paths-file frontier-source-pin.changed-paths \
+            --workflow-repository "$WORKFLOW_REPOSITORY" \
+            --workflow-ref "$WORKFLOW_REF" \
+            --workflow-file-path "$WORKFLOW_FILE_PATH" \
+            --workflow-sha "$WORKFLOW_SHA" \
+            --repository "$GITHUB_REPOSITORY" \
+            --protected-base-sha "$PROTECTED_BASE_SHA" \
+            --candidate-sha "$CANDIDATE_SHA" \
+            --report frontier-source-pin-authority.json
+          invalidate_report() {
+            printf '%s\n' \
+              '{"schema":"a11oy.frontier-source-pin-authority/v1","status":"FAIL","reason":"post-validation protected-main CAS failed; prior PASS invalidated","candidate_payload_checkout_code_executed":false}' \
+              >frontier-source-pin-authority.json
+          }
+          if ! current_main_after="$(
+            git -C ../protected-base ls-remote origin refs/heads/main \
+              | awk '{print $1}'
+          )"; then
+            invalidate_report
+            exit 1
+          fi
+          if test "$current_main_after" != "$PROTECTED_BASE_SHA"; then
+            invalidate_report
+            exit 1
+          fi
+
+      - name: Publish protected authority report
+        if: ${{ always() && job.workflow_ref == 'szl-holdings/a11oy/.github/workflows/frontier-source-pin-authority.yml@refs/heads/main' }}
+        shell: bash
+        run: |
+          {
+            echo '### Frontier source-pin authority'
+            echo '```json'
+            if test -f protected-validator/frontier-source-pin-authority.json; then
+              cat protected-validator/frontier-source-pin-authority.json
+            else
+              echo '{"status":"UNAVAILABLE","reason":"validator report was not created"}'
+            fi
+            echo '```'
+          } >>"$GITHUB_STEP_SUMMARY"
