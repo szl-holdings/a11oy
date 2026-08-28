@@ -134,6 +134,10 @@ Locked architecture (do not merge the two hosts):
 | killinchu | Hub `https://huggingface.co/spaces/SZLHOLDINGS/killinchu` HTTP 200; `https://szlholdings-killinchu.hf.space/` timed out | Runtime **UNAVAILABLE**. Do not imply live on the inference landing. |
 | Observability DAG depth 0 / IDLE | Empty process-local ring, not a measured live graph | **UNAVAILABLE**, not invented numbers. |
 | Promote path | `hf-sync.yml` publishes GitHub `main` → Space `SZLHOLDINGS/a11oy` | Staging Space `szlholdings-a11oy.hf.space` ≠ prod DNS `a-11-oy.com`. Space READY is not prod-DNS verified. |
+| QHAPAQ S1–S12 HEAD (MEASURED 2026-08-28 13:05–13:12 ET) | GET 200 / HEAD 405 on `/console` `/trust` `/assurance` `/robots.txt` `/healthz` `/readyz` `/api/health`; GET 200 / HEAD 404 on `/api/a11oy/healthz` and `/api/a11oy/v1/health` | Document **and** health JSON now declare GET+HEAD. `/` and `/verify` were already HEAD 200. |
+| Signer enum | `/api/a11oy/healthz` rollup.signer.status=`DSSE-LIVE` (scheme DSSEv1 / ECDSA-P256, fingerprint `9926bf69…`) when the live key is present. `/healthz`, `/api/health`, `/api/a11oy/v1/health` had **no** signer field. | Only the rollup may stamp **DSSE-LIVE**. Other health JSON is **ABSENT** / **UNAVAILABLE**. Never copy LIVE. |
+| ISS `GET /api/a11oy/v1/live/iss` | source Where-the-ISS-at, mode live, bare `data.latitude` numbers | Field **units** (degrees, km, km/h) or **UNAVAILABLE**. |
+| `GET /v1/live-fetch/status` | `{status:NOT_FOUND, reason:undeclared path refused SPA fallback}` | Honest **404**. Do not invent the endpoint. Rebind a tab or mark ROADMAP. |
 
 **www.a-11-oy.com is NXDOMAIN** while apex sends `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Browsers that have seen the apex will refuse `http://www.a-11-oy.com` and have nothing to connect to on HTTPS. DNS is Cloudflare/ops (Stephen). This app cannot create the `www` record.
 

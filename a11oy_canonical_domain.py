@@ -26,10 +26,14 @@ docs/SPACES_HEALTH_OPERATIONS.md (custom domain state).
 DX — routes, contracts, env, promote path (staging Space ≠ prod DNS):
 - Routes: product HTML and /verify live on a-11-oy.com. The lasting public
   receipt RECORD belongs on a11oy.net. Do not merge the two origins.
-- Contracts: crawlers send HEAD. HTML documents and robots.txt must HEAD 200
-  with the same headers as GET and an empty body.
+- Contracts: crawlers and health monitors send HEAD. HTML documents, robots.txt,
+  and the health JSON probes below must HEAD with the same status+headers as GET
+  and an empty body. Starlette Route(..., methods=["GET"]) / FastAPI @app.get is
+  the usual 405. GET-only /api/a11oy/* is worse: the Node proxy catch-all already
+  accepts HEAD, so monitors see 404 instead of 405 (QHAPAQ 2026-08-28).
 - Env: Space runtime vars configure the app. Prod DNS is Cloudflare in front
   of the Space. x-szl-wire-d: LIVE is DSSE Wire D provenance, not "domain LIVE".
+  HF custom domain stays PENDING. www DNS is Stephen, not this app.
 - Promote: hf-sync publishes GitHub main → Space SZLHOLDINGS/a11oy
   (szlholdings-a11oy.hf.space READY). Apex a-11-oy.com is a Cloudflare A-record
   front, not Hugging Face custom-domain READY. Do not treat Space READY as
@@ -47,6 +51,17 @@ FORBIDDEN_PUBLIC_HOST = "a11oy.com"
 # HTML document paths crawlers and monitors probe with HEAD. GET-only FastAPI
 # routes 405 on HEAD; /verify and /ecosystem already declare GET+HEAD and 200.
 HTML_DOCUMENT_HEAD_PATHS = ("/", "/console", "/trust", "/assurance", "/robots.txt")
+# QHAPAQ S1–S12 MEASURED 2026-08-28 13:05–13:12 ET: GET 200 / HEAD 405 on
+# /healthz /readyz /api/health; GET 200 / HEAD 404 on /api/a11oy/healthz and
+# /api/a11oy/v1/health (HEAD fell through to the /api/a11oy/{path} proxy).
+HEALTH_JSON_HEAD_PATHS = (
+    "/healthz",
+    "/readyz",
+    "/api/health",
+    "/api/a11oy/healthz",
+    "/api/a11oy/v1/health",
+)
+GET_HEAD_PATHS = HTML_DOCUMENT_HEAD_PATHS + HEALTH_JSON_HEAD_PATHS
 
 
 def _host_without_port(host: str) -> str:
@@ -70,18 +85,19 @@ def _is_forbidden_public_host(host: str) -> bool:
 
 
 def ensure_html_documents_accept_head(app):
-    """Add HEAD to pinned HTML document routes that already accept GET.
+    """Add HEAD to pinned HTML document and health JSON routes that accept GET.
 
-    FastAPI ``@app.get`` registrations in this tree do not accept HEAD (live
-    MEASURED 405 JSON on /console, /trust, /assurance). Starlette FileResponse
-    already omits the body when the method is HEAD, matching GET headers.
+    FastAPI ``@app.get`` and Starlette ``Route(..., methods=["GET"])`` do not
+    accept HEAD. Live MEASURED 2026-08-28: 405 on documents and /healthz;
+    404 on /api/a11oy/healthz because the proxy catch-all already lists HEAD.
+    Starlette Response / FileResponse already omit the body on HEAD.
     """
     router = getattr(app, "router", app)
     patched = []
     for route in getattr(router, "routes", []):
         path = getattr(route, "path", None)
         methods = getattr(route, "methods", None)
-        if path not in HTML_DOCUMENT_HEAD_PATHS or not methods:
+        if path not in GET_HEAD_PATHS or not methods:
             continue
         if "GET" not in methods:
             continue

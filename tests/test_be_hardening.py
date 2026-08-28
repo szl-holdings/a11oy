@@ -45,6 +45,17 @@ def test_healthz_liveness(client):
     assert body["status"] == "ok"
     assert body["doctrine"] == "v11"
     assert body["lock"] == "749/14/163"
+    assert body["signer"]["status"] in ("ABSENT", "UNAVAILABLE")
+    assert body["signer"]["status"] != "DSSE-LIVE"
+    assert body["signer"]["signing_available"] is False
+
+
+def test_healthz_head_matches_get(client):
+    get_r = client.get("/healthz")
+    head_r = client.head("/healthz")
+    assert get_r.status_code == 200
+    assert head_r.status_code == 200
+    assert head_r.content in (b"", None) or len(head_r.content) == 0
 
 
 def test_readyz_checks_chain(client):

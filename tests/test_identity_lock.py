@@ -139,16 +139,37 @@ def _methods(path: str) -> set[str]:
     }
 
 
-@pytest.mark.parametrize("path", _HTML_DOCUMENT_PATHS)
+@pytest.mark.parametrize("path", _HTML_DOCUMENT_PATHS + (
+    "/healthz",
+    "/readyz",
+    "/api/health",
+    "/api/a11oy/healthz",
+    "/api/a11oy/v1/health",
+))
 def test_html_document_routes_declare_head(path):
     assert {"GET", "HEAD"}.issubset(_methods(path)), (
         f"{path} must accept HEAD as well as GET (crawlers/monitors use HEAD)"
     )
 
 
-@pytest.mark.parametrize("path", ("/console", "/trust", "/assurance", "/robots.txt"))
-def test_html_document_head_agrees_with_get(path):
-    """HEAD must not 405; body empty; status matches GET when GET is 200."""
+_QHAPAQ_HEAD_PATHS = (
+    "/",
+    "/verify",
+    "/console",
+    "/trust",
+    "/assurance",
+    "/robots.txt",
+    "/healthz",
+    "/readyz",
+    "/api/health",
+    "/api/a11oy/healthz",
+    "/api/a11oy/v1/health",
+)
+
+
+@pytest.mark.parametrize("path", _QHAPAQ_HEAD_PATHS)
+def test_qhapaq_probes_accept_head(path):
+    """QHAPAQ S1–S12: HEAD must match GET (not 405, not proxy 404)."""
     from starlette.testclient import TestClient
 
     import serve
@@ -156,7 +177,9 @@ def test_html_document_head_agrees_with_get(path):
     client = TestClient(serve.app, raise_server_exceptions=False)
     get_r = client.get(path)
     head_r = client.head(path)
-    assert head_r.status_code != 405, f"{path} HEAD must not be Method Not Allowed"
+    assert head_r.status_code not in (404, 405), (
+        f"{path} HEAD must not 404/405 (got {head_r.status_code}; GET {get_r.status_code})"
+    )
     assert head_r.content in (b"", None) or len(head_r.content) == 0
     if get_r.status_code == 200:
         assert head_r.status_code == 200
@@ -164,6 +187,8 @@ def test_html_document_head_agrees_with_get(path):
         head_ct = (head_r.headers.get("content-type") or "").split(";")[0]
         if get_ct:
             assert head_ct == get_ct
+    else:
+        assert head_r.status_code == get_r.status_code
 
 
 def test_trust_get_body_uses_product_canonical():
@@ -249,3 +274,62 @@ def test_empty_compute_fabric_status_is_unavailable(monkeypatch):
     assert "UNAVAILABLE" in tile["status"]
     assert "IDLE" not in tile["status"]
     assert tile["nodes_reachable"] == 0
+
+
+def test_lean_health_json_signer_is_absent_not_dsse_live():
+    """QHAPAQ: only /api/a11oy/healthz rollup.signer may stamp DSSE-LIVE."""
+    from starlette.testclient import TestClient
+
+    import serve
+
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    for path in ("/healthz", "/api/health", "/api/a11oy/v1/health"):
+        body = client.get(path).json()
+        signer = body.get("signer") or {}
+        assert signer.get("status") in ("ABSENT", "UNAVAILABLE"), path
+        assert signer.get("status") != "DSSE-LIVE"
+        assert signer.get("signing_available") is False
+        assert signer.get("scheme") == "UNAVAILABLE"
+
+    rollup = client.get("/api/a11oy/healthz").json()["rollup"]["signer"]
+    assert "status" in rollup
+    assert "signing_available" in rollup
+    if rollup.get("signing_available") is True:
+        assert rollup["status"] == "DSSE-LIVE"
+        assert "DSSE" in str(rollup.get("scheme") or "")
+    else:
+        assert rollup["status"] in ("UNSIGNED-LOCAL", "UNAVAILABLE", "ABSENT")
+        assert rollup["status"] != "DSSE-LIVE"
+
+
+def test_iss_position_numbers_are_labeled_or_unavailable():
+    import a11oy_live_feeds as feeds
+
+    labeled = feeds.label_iss_data(
+        {"latitude": 41.2, "longitude": -73.4, "altitude": 420.1, "velocity": 27580.0}
+    )
+    assert labeled is not None
+    assert labeled["units"]["latitude"] == "degrees"
+    assert labeled["units"]["longitude"] == "degrees"
+    assert labeled["units"]["altitude"] == "km"
+    assert labeled["units"]["velocity"] == "km/h"
+    assert feeds.label_iss_data({"latitude": 41.2}) is None
+    closed = feeds._iss_envelope({"data": {"foo": 1}})
+    assert closed["state"] == "UNAVAILABLE"
+    assert closed["data"] is None
+    assert closed["mode"] == "unavailable"
+
+
+def test_live_fetch_status_stays_honest_404():
+    """Do not invent GET /v1/live-fetch/status. Undeclared path → honest 404."""
+    from starlette.testclient import TestClient
+
+    import serve
+
+    response = TestClient(serve.app, raise_server_exceptions=False).get(
+        "/v1/live-fetch/status"
+    )
+    assert response.status_code == 404
+    body = response.json()
+    assert body.get("status") == "NOT_FOUND"
+    assert "undeclared path refused SPA fallback" in (body.get("reason") or "")

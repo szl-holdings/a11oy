@@ -34,9 +34,10 @@
 #   4. Injects a small "Related surfaces" cross-link strip into the flagship ops
 #      pages so they cross-link each other.
 #
-# Product tabs are real HTTP documents or they are not listed (ROADMAP, not a
-# fake 200). FileResponse routes accept GET and HEAD so crawlers/monitors that
-# send HEAD (KALLPA 2026-08-28: /console /trust /assurance were 405) match GET.
+# GET /v1/live-fetch/status is an undeclared path. Runtime contracts refuse SPA
+# fallback with honest 404 {status:NOT_FOUND, reason:undeclared path refused
+# SPA fallback}. Do not invent a status payload. Rebind a tab to a real
+# /api/a11oy/v1/live/* feed or mark ROADMAP.
 #
 # The console SPA source (pages/console.html) is NOT edited; the served HTML
 # response is transformed in a BaseHTTPMiddleware. All transforms are idempotent.

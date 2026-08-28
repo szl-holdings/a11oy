@@ -5024,7 +5024,8 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
         except Exception:
             pass
     except Exception as exc:
-        val = {"status": "unavailable", "signing_available": None,
+        val = {"status": "UNAVAILABLE", "signing_available": False,
+               "scheme": "UNAVAILABLE",
                "error": f"{type(exc).__name__}: {exc}"}
     _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
@@ -5107,8 +5108,11 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
     return val
 
 
-@app.get("/api/a11oy/healthz")
+@app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
+    # stamp DSSE-LIVE (live probe of szl_dsse.signing_available). Other /healthz
+    # bodies must stay ABSENT/UNAVAILABLE — never copy this stamp.
     dep = await _healthz_dep_ping()
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
@@ -5127,7 +5131,7 @@ async def healthz() -> JSONResponse:
     _degraded_reasons = []
     if str(_storage.get("status")) == "unavailable":
         _degraded_reasons.append("storage-unavailable")
-    if str(_signer.get("status")) == "unavailable":
+    if str(_signer.get("status") or "").upper() == "UNAVAILABLE":
         _degraded_reasons.append("signer-probe-unavailable")
     if str(_frontier.get("status")) == "unavailable":
         _degraded_reasons.append("frontier-probe-unavailable")
@@ -5215,7 +5219,7 @@ async def preflight_status() -> JSONResponse:
         }, status_code=200)
 
 
-@app.get("/api/a11oy/readyz")
+@app.api_route("/api/a11oy/readyz", methods=["GET", "HEAD"])
 async def readyz() -> JSONResponse:
     # Keep service readiness separate from optional capability readiness. A public
     # CPU-only surface may serve in a truthful degraded state, while a deployment
@@ -13660,7 +13664,9 @@ except Exception as _ig_e:
 
 
 # P3 FIX: /api/health JSON probe (Upgrade Hammer — Doctrine v11 LOCKED 749/14/163)
-@app.get("/api/health")
+# QHAPAQ 2026-08-28: GET 200 / HEAD 405. This lean probe does not share the
+# /api/a11oy/healthz rollup signer — fail closed ABSENT, never copy DSSE-LIVE.
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 async def api_health() -> JSONResponse:
     """Top-level health probe — returns JSON 200. Registered before SPA catch-all."""
     return JSONResponse({
@@ -13673,6 +13679,11 @@ async def api_health() -> JSONResponse:
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
         "slsa": _A11OY_SLSA_TEXT,
+        "signer": {
+            "status": "ABSENT",
+            "signing_available": False,
+            "scheme": "UNAVAILABLE",
+        },
     })
 
 
@@ -15812,10 +15823,11 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
     )
 
 
-# Belt-and-suspenders: HTML document routes must accept HEAD even if a later
-# registration re-added them as GET-only. HF Space Link: rel=canonical to the
-# Space URL is injected by the Hugging Face proxy (not this app) — KALLPA owns
-# any Cloudflare transform to strip it.
+# Belt-and-suspenders: HTML document and health JSON routes must accept HEAD
+# even if a later registration re-added them as GET-only. QHAPAQ 2026-08-28:
+# GET-only /api/a11oy/* HEAD-fell-through to the Node proxy (404). HF Space
+# Link: rel=canonical to the Space URL is injected by the Hugging Face proxy
+# (not this app) — KALLPA owns any Cloudflare transform to strip it.
 try:
     import a11oy_canonical_domain as _canon_head_mod
     _canon_head_mod.ensure_html_documents_accept_head(app)

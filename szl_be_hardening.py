@@ -649,11 +649,22 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     # EchoIn / KhipuAppendIn are defined at module level above.
 
     # ---- 4: health probes -------------------------------------------------
+    # QHAPAQ 2026-08-28: GET 200 / HEAD 405. Include HEAD on the methods set
+    # (Starlette Route GET-only is the usual cause). This liveness body does
+    # NOT share the /api/a11oy/healthz rollup signer — fail closed ABSENT,
+    # never copy DSSE-LIVE.
+    _SIGNER_ABSENT = {
+        "status": "ABSENT",
+        "signing_available": False,
+        "scheme": "UNAVAILABLE",
+    }
+
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
         return {"status": "ok", "organ": organ, "doctrine": DOCTRINE,
-                "lock": "749/14/163", "commit": "c7c0ba17"}
+                "lock": "749/14/163", "commit": "c7c0ba17",
+                "signer": dict(_SIGNER_ABSENT)}
 
     @app.get(f"{base}/readyz", tags=["health"])
     @app.get("/readyz", tags=["health"])
@@ -664,6 +675,15 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
                 "khipu_depth": depth, "khipu_chain_ok": ok,
                 "khipu_first_break_seq": brk, "doctrine": DOCTRINE}
         return JSONResponse(body, status_code=200 if ok else 503)
+
+    _health_head_paths = {
+        "/healthz", f"{base}/healthz", "/readyz", f"{base}/readyz",
+    }
+    for route in app.router.routes:
+        if getattr(route, "path", None) in _health_head_paths:
+            methods = getattr(route, "methods", None)
+            if isinstance(methods, set) and "GET" in methods:
+                methods.add("HEAD")
 
     report["registered"].append("healthz+readyz")
 

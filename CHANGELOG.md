@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `https://a-11-oy.com` to paper it over.
 - HEAD on `/robots.txt` now matches GET (HTTP 200, empty body). FastAPI
   GET-only FileResponse / SPA catch-all had been returning JSON 405.
+- HEAD on health JSON (`/healthz`, `/readyz`, `/api/health`,
+  `/api/a11oy/healthz`, `/api/a11oy/v1/health`) now matches GET. QHAPAQ
+  MEASURED GET 200 / HEAD 405 or 404 (the `/api/a11oy/{path}` proxy already
+  accepted HEAD, so GET-only probes 404'd). Starlette `methods=["GET"]` was
+  the cause.
+- Lean health JSON (`/healthz`, `/api/health`, `/api/a11oy/v1/health`) now
+  carries an honest signer enum (`ABSENT` / `UNAVAILABLE`). `DSSE-LIVE` stays
+  only on `/api/a11oy/healthz` rollup.signer when `szl_dsse.signing_available()`
+  is true. Never copy that stamp onto a probe that does not share the signer.
+- ISS live feed labels units (degrees, km, km/h) or returns UNAVAILABLE.
+  `GET /v1/live-fetch/status` stays an honest 404 (undeclared path); no fake
+  status payload.
 - killinchu inference runtime is labelled UNAVAILABLE on the landing (Hub
   page HTTP 200; `szlholdings-killinchu.hf.space` timed out). Do not treat
   a11oy's defense Λ as killinchu-live.
