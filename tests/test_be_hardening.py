@@ -181,6 +181,12 @@ def test_honest_footer_exact_lock(client):
     assert (lock["declarations"], lock["axioms"], lock["sorries"]) == (749, 14, 163)
     assert lock["commit"] == "c7c0ba17"
     assert lock["lambda"] == "Conjecture 1"
+    assert lock["locked_formula_count"] == 8
+    assert lock["locked_formula_ids"] == [
+        "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
+    ]
+    assert body["locked_formula_count"] == 8
+    assert body["locked_formula_ids"] == lock["locked_formula_ids"]
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
 

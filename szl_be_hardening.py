@@ -763,6 +763,8 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
             "organ": organ,
             "git_sha": os.getenv("SZL_GIT_SHA", "unknown"),
             "doctrine_lock": DOCTRINE_LOCK,
+            "locked_formula_count": DOCTRINE_LOCK.get("locked_formula_count"),
+            "locked_formula_ids": list(DOCTRINE_LOCK.get("locked_formula_ids") or []),
             "footer": DOCTRINE_FOOTER,
             "honest_labels": {
                 "lambda": "Λ-Aggregator Uniqueness is Conjecture 1 — NOT a theorem.",

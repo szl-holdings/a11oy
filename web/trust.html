@@ -398,14 +398,24 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
 const $=id=>document.getElementById(id);
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
+function kernelFromHonest(h){
+  if(!h||typeof h!=='object') return {count:null, ids:[]};
+  const lock=h.doctrine_lock||{};
+  const count=(typeof h.locked_formula_count==='number')?h.locked_formula_count
+    :(typeof lock.locked_formula_count==='number')?lock.locked_formula_count:null;
+  const ids=Array.isArray(h.locked_formula_ids)?h.locked_formula_ids
+    :(Array.isArray(lock.locked_formula_ids)?lock.locked_formula_ids:[]);
+  return {count, ids};
+}
 
 /* Kernel locked-proven (#cnt-locked, locked-8 rows) from /honest. Genome catalog is not the kernel. */
 (async function loadTiers(){
   let kernelCount=null, kernelIds=[];
   try{
     const h=await getJSON('/api/a11oy/v1/honest');
-    kernelCount=(typeof h.locked_formula_count==='number')?h.locked_formula_count:null;
-    kernelIds=Array.isArray(h.locked_formula_ids)?h.locked_formula_ids.slice():[];
+    const k=kernelFromHonest(h);
+    kernelCount=k.count;
+    kernelIds=k.ids.slice();
     $('d-honest').classList.add('up');
   }catch(_){
     $('d-honest').classList.add('down');
