@@ -73,6 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Keep orange-cloud (proxied apex). Do not grey-cloud. This PR does not
   change DNS; Stephen may add `_huggingface.a-11-oy.com` TXT later without
   dropping the Cloudflare proxy. www NXDOMAIN is Stephen.
+  `x-szl-wire-d: LIVE` is DSSE Wire D provenance, not domain LIVE; that
+  distinction lives in a11oy-only DX comments (`a11oy_canonical_domain.py`),
+  not in shared `szl_provenance.py` (killinchu byte identity).
 
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu

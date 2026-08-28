@@ -563,6 +563,7 @@ def test_ayni_lock_does_not_drift():
         assert "orange-cloud" in blob, name
         assert "do not grey-cloud" in blob.lower(), name
         assert "PENDING" in blob, name
+        assert "NXDOMAIN" in blob, name
 
     canon = texts["canon"]
     assert "huggingface.co/spaces is never the product canonical" in canon
@@ -570,6 +571,17 @@ def test_ayni_lock_does_not_drift():
     assert "not a Cloudflare transform" in canon
     assert "This app does not change DNS" in canon
     assert "SUNSET_DOMAIN" not in canon
+    assert "DX — routes, contracts, env, promote path" in canon
+    assert "- Routes:" in canon
+    assert "- Contracts:" in canon
+    assert "- Env:" in canon
+    assert "- Promote:" in canon
+    assert "www.a-11-oy.com is NXDOMAIN" in canon
+    assert "x-szl-wire-d" in canon
+    assert "not \"domain LIVE\"" in canon
+    assert "Do not merge PR 1363" in canon
+    assert "PR 1363" in texts["runbook"]
+    assert "HOLD" in texts["runbook"]
     import a11oy_canonical_domain as cd
 
     assert not hasattr(cd, "SUNSET_DOMAIN")

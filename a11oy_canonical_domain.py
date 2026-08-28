@@ -40,7 +40,8 @@ DX — routes, contracts, env, promote path (staging Space ≠ prod DNS):
 - Env: Space runtime vars configure the app. Prod DNS is Cloudflare orange-cloud
   (proxied) in front of the Space. This app does not change DNS. x-szl-wire-d:
   LIVE is DSSE Wire D provenance, not "domain LIVE". HF custom domain stays
-  PENDING/UNAVAILABLE in product. www DNS is Stephen, not this app.
+  PENDING/UNAVAILABLE in product. www.a-11-oy.com is NXDOMAIN (UNAVAILABLE).
+  www DNS is Stephen, not this app. Do not merge PR 1363.
 - Promote: hf-sync publishes GitHub main → Space SZLHOLDINGS/a11oy
   (szlholdings-a11oy.hf.space READY). Staging Space ≠ prod DNS. Apex
   a-11-oy.com stays Cloudflare orange-cloud. Stephen may later add the HF
