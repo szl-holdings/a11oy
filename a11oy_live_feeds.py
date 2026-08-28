@@ -71,6 +71,58 @@ _SOURCE = {
              "https://hapi.fhir.org/baseR4"),
 }
 
+# QHAPAQ 2026-08-28: GET /api/a11oy/v1/live/iss returned bare numbers
+# (latitude, longitude, altitude, …). Label units or fail closed UNAVAILABLE.
+# Where-the-ISS-at default system is kilometres; angles stay degrees.
+_ISS_FIELD_UNITS = {
+    "latitude": "degrees",
+    "longitude": "degrees",
+    "altitude": "km",
+    "velocity": "km/h",
+    "footprint": "km",
+    "timestamp": "unix_seconds",
+    "solar_lat": "degrees",
+    "solar_lon": "degrees",
+}
+
+
+def label_iss_data(data):
+    """Attach field units. Return None when numbers cannot be labelled honestly."""
+    if not isinstance(data, dict):
+        return None
+    lat, lon = data.get("latitude"), data.get("longitude")
+    if not isinstance(lat, (int, float)) or not isinstance(lon, (int, float)):
+        return None
+    labeled = dict(data)
+    units = {}
+    for key, unit in _ISS_FIELD_UNITS.items():
+        if key in labeled and isinstance(labeled[key], (int, float)):
+            units[key] = unit
+    if "latitude" not in units or "longitude" not in units:
+        return None
+    labeled["units"] = units
+    return labeled
+
+
+def _iss_envelope(payload):
+    """Fail closed: unlabeled ISS numbers become UNAVAILABLE, not a live payload."""
+    labeled = label_iss_data(payload.get("data") if isinstance(payload, dict) else None)
+    if labeled is None:
+        src, url = _SOURCE.get("iss", ("Where-the-ISS-at live ISS position", ""))
+        return {
+            "source": (payload or {}).get("source", src) if isinstance(payload, dict) else src,
+            "source_url": (payload or {}).get("source_url", url) if isinstance(payload, dict) else url,
+            "mode": "unavailable",
+            "state": "UNAVAILABLE",
+            "fetched_at": (payload or {}).get("fetched_at") if isinstance(payload, dict) else None,
+            "ttl_s": (payload or {}).get("ttl_s") if isinstance(payload, dict) else _TTL.get("iss"),
+            "error": "ISS position numbers unlabeled or missing; fail closed",
+            "data": None,
+        }
+    out = dict(payload)
+    out["data"] = labeled
+    return out
+
 
 def _now_iso():
     return datetime.now(timezone.utc).isoformat()
@@ -146,18 +198,20 @@ def get_cached_feed(feed, error):
     with _LOCK:
         ent = _CACHE.get(feed)
     if ent:
-        return {"source": src, "source_url": url, "mode": "cached",
-                "fetched_at": ent["iso"], "ttl_s": ttl,
-                "cache_note": "upstream unreachable (%s) — serving last good value"
-                              % type(error).__name__,
-                "data": ent["data"]}
+        payload = {"source": src, "source_url": url, "mode": "cached",
+                   "fetched_at": ent["iso"], "ttl_s": ttl,
+                   "cache_note": "upstream unreachable (%s) — serving last good value"
+                                 % type(error).__name__,
+                   "data": ent["data"]}
+        return _iss_envelope(payload) if feed == "iss" else payload
     snap = _load_snapshot(feed)
     if snap is not None:
-        return {"source": src, "source_url": url, "mode": "cached",
-                "fetched_at": "bundled-snapshot", "ttl_s": ttl,
-                "cache_note": "upstream unreachable (%s) — serving bundled in-image snapshot"
-                              % type(error).__name__,
-                "data": snap}
+        payload = {"source": src, "source_url": url, "mode": "cached",
+                   "fetched_at": "bundled-snapshot", "ttl_s": ttl,
+                   "cache_note": "upstream unreachable (%s) — serving bundled in-image snapshot"
+                                 % type(error).__name__,
+                   "data": snap}
+        return _iss_envelope(payload) if feed == "iss" else payload
     return {"source": src, "source_url": url, "mode": "unavailable",
             "fetched_at": None, "ttl_s": ttl,
             "error": "upstream unreachable and no snapshot (%s): %s"
@@ -244,8 +298,9 @@ def get_feed(feed, timeout_s=None):
         ent = _CACHE.get(feed)
     now = time.time()
     if ent and (now - ent["ts"]) < ttl:
-        return {"source": src, "source_url": url, "mode": ent["mode"],
-                "fetched_at": ent["iso"], "ttl_s": ttl, "data": ent["data"]}
+        payload = {"source": src, "source_url": url, "mode": ent["mode"],
+                   "fetched_at": ent["iso"], "ttl_s": ttl, "data": ent["data"]}
+        return _iss_envelope(payload) if feed == "iss" else payload
     # need refresh
     try:
         deadline = (
@@ -256,8 +311,9 @@ def get_feed(feed, timeout_s=None):
         iso = _now_iso()
         with _LOCK:
             _CACHE[feed] = {"data": data, "ts": now, "mode": "live", "iso": iso}
-        return {"source": src, "source_url": url, "mode": "live",
-                "fetched_at": iso, "ttl_s": ttl, "data": data}
+        payload = {"source": src, "source_url": url, "mode": "live",
+                   "fetched_at": iso, "ttl_s": ttl, "data": data}
+        return _iss_envelope(payload) if feed == "iss" else payload
     except Exception as e:
         return get_cached_feed(feed, e)
 
@@ -295,8 +351,8 @@ def register(app, ns="a11oy"):
         })
 
     routes = [
-        Route(base, _index, methods=["GET"], name="%s_live_index" % ns),
-        Route(base + "/{feed}", _feed_route, methods=["GET"], name="%s_live_feed" % ns),
+        Route(base, _index, methods=["GET", "HEAD"], name="%s_live_index" % ns),
+        Route(base + "/{feed}", _feed_route, methods=["GET", "HEAD"], name="%s_live_feed" % ns),
     ]
     for r in reversed(routes):
         app.router.routes.insert(0, r)

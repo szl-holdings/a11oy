@@ -133,6 +133,16 @@ def test_no_demo_critical_route_dropped_as_a_set():
         "/verify-receipt",
         "/holographic",
         "/a11oy/holographic",
+        "/",
+        "/console",
+        "/trust",
+        "/assurance",
+        "/robots.txt",
+        "/healthz",
+        "/readyz",
+        "/api/health",
+        "/api/a11oy/healthz",
+        "/api/a11oy/v1/health",
     ),
 )
 def test_investor_facing_pages_support_get_and_head(path):

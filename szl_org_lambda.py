@@ -314,6 +314,17 @@ _GENOME_CANDIDATES = (
 )
 
 
+def _kernel_locked() -> tuple:
+    """Lean locked-8 from the doctrine lock. Never the genome LOCKED-PROVEN catalog tag."""
+    try:
+        from szl_be_hardening import DOCTRINE_LOCK
+        count = DOCTRINE_LOCK.get("locked_formula_count")
+        ids = list(DOCTRINE_LOCK.get("locked_formula_ids") or [])
+        return count, ids
+    except Exception:  # pragma: no cover - same freeze as DOCTRINE_LOCK
+        return 8, ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
+
+
 def _genome_tiers() -> dict:
     """Tier entry-counts from data/genome.json (the same file /v1/genome serves), or an
     honest N/A when the file is absent/unparseable. These are GENOME-ENTRY counts per
@@ -407,6 +418,7 @@ def org_overview() -> dict:
     lam = org_lambda()
     verts = lam.get("verticals", {})
     floor = lam.get("lambda_floor", LAMBDA_FLOOR)
+    kernel_count, kernel_ids = _kernel_locked()
 
     def _tier(name):
         return g.get(name, "N/A") if genome["status"] == "OK" else "N/A"
@@ -434,8 +446,12 @@ def org_overview() -> dict:
             "chain_alg": "sha3_256",
             "status": chain["status"],
         },
+        "genome_count": genome.get("total") if genome["status"] == "OK" else "N/A",
         "proof_tiers": {
-            "locked": _tier("LOCKED-PROVEN"),
+            # Kernel Lean-8 — never the genome catalog tag LOCKED-PROVEN (25 of 144).
+            "locked": kernel_count,
+            "kernel_locked_ids": kernel_ids,
+            "genome_locked_proven": _tier("LOCKED-PROVEN"),
             "semantic": _tier("SEMANTIC-VERIFIED"),
             "evidence": _tier("evidence-backed"),
             "conjecture": _tier("CONJECTURE"),
@@ -443,8 +459,11 @@ def org_overview() -> dict:
         },
         "slsa": "L1+L2",
         "honest_notes": {
-            "locked_proven_count": ("genome entries tagged LOCKED-PROVEN; the locked-PROVEN "
-                                    "Lean theorem baseline remains 8 {F1,F4,F7,F11,F12,F18,F19,F22}"),
+            "locked_proven_count": ("genome entries tagged LOCKED-PROVEN (catalog); the kernel "
+                                    "locked-proven Lean baseline remains 8 "
+                                    "{F1,F4,F7,F11,F12,F18,F19,F22} from /api/a11oy/v1/honest"),
+            "proof_tiers_locked": ("kernel locked-proven (Lean-8). genome_locked_proven is the "
+                                   "catalog tag, never the kernel chip, never green"),
             "signed_receipts": ("count of receipts on the szl.lake.receipt/v1 chain "
                                 "(SHA3-256 hash-chained, append-only); honest N/A when the "
                                 "lake store is unreachable — never fabricated"),

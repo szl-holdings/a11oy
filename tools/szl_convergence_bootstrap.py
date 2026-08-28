@@ -153,13 +153,12 @@ def _load_json(path: Path) -> dict[str, Any]:
 
 def _run_domain_probe() -> str:
     try:
-        from a11oy_canonical_domain import CANONICAL_HOST, SUNSET_DOMAIN, _is_sunset_host
+        from a11oy_canonical_domain import CANONICAL_HOST, REGISTRY_HOST, _is_registry_host
 
-        values = sorted({"CANONICAL_HOST": CANONICAL_HOST, "SUNSET_DOMAIN": SUNSET_DOMAIN, "IS_A11OY_NET_HOST": "True" if _is_sunset_host("a11oy.net") else "False"})
         return (
-            f"canonical={values[0].split('=', 1)[1]};"
-            f"sunset={values[1].split('=', 1)[1]};"
-            f"a11oy.net_is_redirect={values[2].split('=', 1)[1]}"
+            f"canonical={CANONICAL_HOST};"
+            f"registry={REGISTRY_HOST};"
+            f"a11oy.net_is_registry_host={_is_registry_host('a11oy.net')}"
         )
     except Exception as exc:
         return f"ERROR:{exc}"
@@ -325,7 +324,7 @@ def _build_claims(probes: dict[str, ProbeRecord]) -> list[Claim]:
     return [
         Claim(
             claim_id="C-01",
-            statement="Canonical host policy remains a-11-oy.com as user public surface; a11oy.net is redirect-only.",
+            statement="Two-origin lock: a-11-oy.com is the product command center; a11oy.net is the separate public proof/registry. This app does not 301 .net onto the product host.",
             evidence_state=_claim_state_from_probe("frontdoor_truth", probes, default_state="ROADMAP"),
             evidence_uri="audit/frontier-command-probes.json#frontdoor_truth",
             severity="HIGH",

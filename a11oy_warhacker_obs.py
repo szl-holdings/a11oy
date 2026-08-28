@@ -136,6 +136,25 @@ ORGAN_HEALTH_PATH = {
     "killinchu": _os.environ.get("SZL_ORGAN_HEALTH_KILLINCHU", "/api/health"),
 }
 
+
+def observability_dag_state(dag: dict[str, Any] | None) -> str:
+    """Empty process-local DAG is UNAVAILABLE, not a live zero.
+
+    KALLPA 2026-08-28: a depth of 0 / IDLE is absence of traces, not a measured
+    live MELT graph. Do not invent numbers; do not stamp LIVE on an empty buffer.
+    """
+    if not isinstance(dag, dict):
+        return "UNAVAILABLE"
+    if not dag.get("available"):
+        return "UNAVAILABLE"
+    try:
+        depth = int(dag.get("depth") or 0)
+    except (TypeError, ValueError):
+        return "UNAVAILABLE"
+    if depth <= 0:
+        return "UNAVAILABLE"
+    return "OBSERVED"
+
 # The 5 APPROVED Warhacker problems → the LIVE organ proof each launches.
 # request_sample is the EXACT body the orchestrator POSTs (verified live).
 WARHACKER_PROBLEMS: list[dict[str, Any]] = [
@@ -492,27 +511,40 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
 
     @app.get(f"{base}/observability/summary")
     async def observability_summary() -> JSONResponse:
-        """MELT rollup from the LIVE in-process Khipu DAG (signed spans as the L+T
-        of MELT) + honest mesh reach. No fabricated metrics."""
+        """MELT rollup from the in-process Khipu DAG (signed spans as the L+T
+        of MELT) + honest mesh reach. Empty DAG is UNAVAILABLE, not a live 0."""
         dag = _read_dag_spans(50)
         organ_reach = await _run_in_threadpool_all(
             [(_probe_organ, o) for o in _MESH_ORGANS])
         reachable = sum(1 for o in organ_reach if o["status"] == "ok")
+        state = observability_dag_state(dag)
+        depth = dag.get("depth") if dag.get("available") else None
+        dag_depth = depth if state != "UNAVAILABLE" else None
+        # Inventory / empty DAG: do not invent a live organ count or a live depth.
+        organs_reachable = None
+        organs_total = None
+        if state != "UNAVAILABLE":
+            organs_reachable = reachable
+            organs_total = len(organ_reach)
         return JSONResponse({
             "ok": True,
+            "state": state,
+            "observation_state": "UNAVAILABLE" if state == "UNAVAILABLE" else "OBSERVED",
+            "observed": state != "UNAVAILABLE",
             "pitch": "New-Relic-but-signed: MELT + distributed tracing where every span is a "
                      "DSSE-signed, replayable receipt on the Khipu DAG.",
             "melt": {
-                "metrics": {"dag_depth": dag.get("depth", 0),
-                            "organs_reachable": reachable, "organs_total": len(organ_reach)},
-                "events": {"signed_spans": len(dag.get("spans", []))},
+                "metrics": {"dag_depth": dag_depth,
+                            "organs_reachable": organs_reachable, "organs_total": organs_total},
+                "events": {"signed_spans": len(dag.get("spans", [])) if state != "UNAVAILABLE" else None},
                 "logs": {"note": "structured JSON logs (trace_id/span_id) emitted by szl_be_hardening per request"},
-                "traces": {"chain_verified": dag.get("chain", {}).get("ok"),
-                           "head": dag.get("head")},
+                "traces": {"chain_verified": dag.get("chain", {}).get("ok") if state != "UNAVAILABLE" else None,
+                           "head": dag.get("head") if state != "UNAVAILABLE" else None},
             },
             "mesh_reach": organ_reach,
-            "spans_available": dag.get("available"),
-            "honesty": "metrics are read from the live in-process DAG + live organ health probes; "
+            "spans_available": dag.get("available") and state != "UNAVAILABLE",
+            "honesty": "empty process-local DAG is UNAVAILABLE, not a measured live zero; "
+                       "organ counts are omitted unless the DAG is observed; "
                        "an unreachable organ is shown 'unreachable', never green.",
             "doctrine": DOCTRINE, "lambda_status": LAMBDA_STATUS, "slsa": SLSA_NOTE,
         })

@@ -99,7 +99,12 @@ API routes **before** the SPA catch-all, or they fall through to an HTML 200.
   Space. It derives the complete deployment set from Dockerfile `COPY` sources, publishes it,
   binds the exact GitHub SHA, and attests the immutable Space commit. Never add a second
   automatically triggered Space writer. Check `/api/build-info` and the Space API commit before
-  claiming relock.
+  claiming relock. Staging Space ≠ prod DNS. Apex `a-11-oy.com` stays Cloudflare
+  orange-cloud (proxied). Stephen may add `_huggingface.a-11-oy.com` TXT later
+  without dropping that proxy. Do not grey-cloud. Do not stamp HF custom domain
+  LIVE. HF custom domain stays PENDING/UNAVAILABLE. `www.a-11-oy.com` GET `/`
+  is Cloudflare HTTP 404 (UNAVAILABLE until Cloudflare 301 www → apex).
+  Do not add a second HF custom domain. This repo does not change DNS.
 - **Per-file `COPY` in the Dockerfile:** a new `.py` not `COPY`-ed in is absent at runtime; its
   route silently falls through to the SPA catch-all (HTML 200, no JSON). Add a `COPY` line.
 - **`from __future__ import annotations` + FastAPI/Pydantic:** breaks model validation at

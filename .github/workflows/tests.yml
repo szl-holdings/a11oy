@@ -246,6 +246,8 @@ jobs:
           tests/test_khipu_chat_proxy.py
           tests/test_khipu_console_panel.py
           tests/test_v4_agent_voters.py
+          tests/test_identity_lock.py
+          test_canonical_domain.py
           -q
 
   python-energy-autostart-readyz:

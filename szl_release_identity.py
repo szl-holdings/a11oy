@@ -17,7 +17,8 @@ from typing import Any
 SOFTWARE_NAME = "A11oy"
 SOFTWARE_VERSION = "1.1.0"
 CANONICAL_URL = "https://a-11-oy.com"
-LEGACY_ALIAS = "https://a11oy.net"
+REGISTRY_URL = "https://a11oy.net"
+LEGACY_ALIAS = REGISTRY_URL  # kept: .net is still a public surface, not a redirect
 REPOSITORY_URL = "https://github.com/szl-holdings/a11oy"
 CONCEPT_DOI = "10.5281/zenodo.19944926"
 FORMAL_ARTIFACT_DOI = "10.5281/zenodo.20434276"
@@ -84,8 +85,9 @@ def release_identity() -> dict[str, Any]:
         "release_url": release_url,
         "surfaces": {
             "canonical": CANONICAL_URL,
+            "registry": REGISTRY_URL,
             "legacy_alias": LEGACY_ALIAS,
-            "legacy_alias_policy": "PERMANENT_REDIRECT_TO_CANONICAL",
+            "legacy_alias_policy": "SEPARATE_REGISTRY_ORIGIN",
             "repository": REPOSITORY_URL,
         },
         "doi": {
