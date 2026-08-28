@@ -1299,7 +1299,9 @@ def test_recovery_then_supervisor_claim_and_export_converges(
     monkeypatch,
 ):
     workspace = _workspace(tmp_path / "converges.sqlite3")
-    start = datetime(2026, 7, 29, tzinfo=timezone.utc)
+    start = datetime.now(timezone.utc) - timedelta(
+        seconds=workspace.retention_seconds + 60
+    )
     key = _queue_proof(workspace, "converges", start)
     _make_retry_scheduled(workspace, key, start)
     monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
@@ -1327,6 +1329,10 @@ def test_recovery_then_supervisor_claim_and_export_converges(
     assert drain["dead_letter_effects"] == 0
     assert drain["invalid_effect_bindings"] == 0
     assert drain["invalid_exported_artifacts"] == 0
+    assert drain["garbage_collected"]["requests_tombstoned"] == 0
+    assert drain["garbage_collected"]["effects_compacted"] == 0
+    with workspace.transaction() as connection:
+        assert workspace.cached_request(connection, "converges") is not None
     row = _effect_row(workspace, key)
     assert row["status"] == "EXPORTED"
     assert row["attempts"] == 2
@@ -1345,11 +1351,17 @@ def test_recovery_then_supervisor_claim_and_export_converges(
     collected = workspace.collect_garbage(
         now=datetime.now(timezone.utc) + timedelta(seconds=2),
     )
+    assert collected["requests_tombstoned"] == 0
     assert collected["effects_compacted"] == 1
     tombstoned = _effect_row(workspace, key)
     assert tombstoned["status"] == "EXPORTED"
     assert tombstoned["tombstoned_at"] is not None
     assert tombstoned["payload_json"] is None
+    released = workspace.collect_garbage(
+        now=datetime.now(timezone.utc) + timedelta(seconds=3),
+    )
+    assert released["requests_tombstoned"] == 1
+    assert released["effects_compacted"] == 0
     persisted_audit = next(
         row
         for row in _audit_rows(workspace)
