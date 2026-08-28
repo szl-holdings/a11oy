@@ -3,8 +3,8 @@
 # Doctrine v11 LOCKED. Λ = Conjecture 1 (NOT a theorem).
 """Fail-closed unit tests for the investor smoke gate (no live HTTP).
 
-S7 live-source bind lives in test_investor_smoke_bind.py so this file can stay
-green while the product bind is still RED.
+S7 against live genome.json (25 vs 8) lives in test_investor_smoke_bind.py so
+this file can stay green while INTI's count is still RED.
 """
 from __future__ import annotations
 
@@ -70,41 +70,45 @@ def test_post_is_forbidden():
         gate.http_request("https://example.invalid/", method="POST")
 
 
-def test_bind_detector_reds_genome_into_kernel_slot():
+def test_s7_equality_fails_when_genome_is_25():
+    verdict = gate.s7_count_agreement(25, 8)
+    assert verdict.status == "FAIL"
+    assert verdict.owner == "INTI"
+    assert "LOCKED-PROVEN=25" in verdict.evidence
+
+
+def test_s7_equality_passes_when_counts_agree_at_eight():
+    verdict = gate.s7_count_agreement(8, 8)
+    assert verdict.status == "PASS"
+
+
+def test_s7_fails_if_honest_is_not_eight():
+    verdict = gate.s7_count_agreement(8, 7)
+    assert verdict.status == "FAIL"
+
+
+def test_bind_detector_records_genome_into_kernel_slot():
     text = (FIXTURES / "kernel_slot_genome_bind.html").read_text(encoding="utf-8")
     failures = gate.kernel_slot_bind_failures(text, source_name="fixture-genome")
-    assert failures, "detector must RED genome→cnt-locked / setTiers.locked"
+    assert failures
     blob = " ".join(failures)
     assert "cnt-locked" in blob
     assert "setTiers.locked" in blob or "LOCKED-PROVEN" in blob
 
 
-def test_bind_detector_greens_honest_source_and_allows_labelled_genome():
+def test_bind_detector_silent_when_kernel_slot_not_genome():
     text = (FIXTURES / "kernel_slot_honest_bind.html").read_text(encoding="utf-8")
     failures = gate.kernel_slot_bind_failures(text, source_name="fixture-honest")
     assert failures == []
-    assert "LOCKED-PROVEN" in text
-    assert "cnt-genome-locked-proven" in text
 
 
-def test_genome_locked_proven_is_not_required_to_equal_eight():
+def test_d5_labels_catalog_size_not_tag_agreement():
     counts = gate.genome_catalog_counts(ROOT / "data" / "genome.json")
-    assert counts["entry_count"] > gate.LOCKED_KERNEL_COUNT
-    # Both numbers are real. Difference must not be a FAIL / deletion demand.
+    assert counts["entry_count"] == 144
     verdict = gate.evaluate_genome_vs_kernel(counts, kernel=gate.LOCKED_KERNEL_COUNT)
     assert verdict.status == "PASS"
     assert verdict.id == "D5"
-    assert "Do not demand the genome tag count equal the kernel" in verdict.detail
-    # Explicit: 25 remaining is allowed even when kernel is 8.
-    if counts["locked_proven_tags"] != gate.LOCKED_KERNEL_COUNT:
-        assert counts["locked_proven_tags"] >= 1
-
-
-def test_gate_source_does_not_demand_genome_tag_count_eight():
-    src = (ROOT / "scripts" / "investor_smoke_gate.py").read_text(encoding="utf-8")
-    assert "Do not demand the genome tag count equal the kernel" in src
-    assert "tier_counts['LOCKED-PROVEN'] == 8" not in src
-    assert "locked_proven_tags == 8" not in src
+    assert "S7" in verdict.detail
 
 
 def test_s12_readme_yaml_parses():
@@ -128,14 +132,51 @@ def test_unlabeled_iss_coords_are_red():
     }
     hits = gate.unlabeled_numeric_coords(payload)
     assert hits, "bare ISS digits must be unlabeled FAIL"
-    labelled = {
-        "mode": "live",
+
+
+def test_measured_without_method_is_not_enough():
+    payload = {
+        "data": {"latitude": {"value": 27.4, "label": "MEASURED"}},
+    }
+    assert gate.unlabeled_numeric_coords(payload), "MEASURED without method is unlabeled"
+
+
+def test_measured_with_method_and_unavailable_are_ok():
+    measured = {
         "data": {
-            "latitude": {"value": 27.4, "label": "MEASURED"},
-            "longitude": {"value": -91.3, "label": "MEASURED"},
+            "latitude": {"value": 27.4, "label": "MEASURED", "method": "where-the-iss-at"},
+            "longitude": {"value": -91.3, "label": "MEASURED", "method": "where-the-iss-at"},
         },
     }
-    assert gate.unlabeled_numeric_coords(labelled) == []
+    assert gate.unlabeled_numeric_coords(measured) == []
+    unavailable = {
+        "data": {"latitude": {"value": None, "label": "UNAVAILABLE"}},
+    }
+    # no numeric coord — also a numeric UNAVAILABLE:
+    unavailable_num = {
+        "data": {"latitude": {"value": 0.0, "label": "UNAVAILABLE"}},
+    }
+    assert gate.unlabeled_numeric_coords(unavailable) == []
+    assert gate.unlabeled_numeric_coords(unavailable_num) == []
+
+
+def test_first_viewport_rejects_bare_latitude():
+    html = "<section id='hero'><p>latitude 27.3999 longitude -91.32</p></section>"
+    hits = gate.first_viewport_unlabeled_latitude(html)
+    assert hits
+    labelled = (
+        "<section id='hero'><p>latitude UNAVAILABLE</p></section>"
+    )
+    assert gate.first_viewport_unlabeled_latitude(labelled) == []
+    measured = (
+        "<section id='hero'><p>latitude 27.4 MEASURED method=where-the-iss-at</p></section>"
+    )
+    assert gate.first_viewport_unlabeled_latitude(measured) == []
+
+
+def test_landing_first_viewport_has_no_raw_latitude():
+    html = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+    assert gate.first_viewport_unlabeled_latitude(html) == []
 
 
 def test_signer_enum_extract():

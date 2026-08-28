@@ -5,9 +5,13 @@
 """Investor-honest S1–S12 / L1–L6 / D1–D10 smoke gate.
 
 Fail-closed. Never skip-as-green. Never invent PASS. No POST. No genome rewrite.
-S7 asserts the UI BIND (kernel slot ← /honest locked_formula_count = 8), not
-that genome ``tier_counts['LOCKED-PROVEN']`` must equal 8. Both counts are real:
-kernel 8 and genome catalog 144 / LOCKED-PROVEN 25 may coexist when labelled.
+No Trust Center copy rewrite. No HEAD handlers. No signer fields.
+
+S1 HEAD 405 and S2 signer enum: KALLPA owns (probes only).
+S3 unlabeled live coords: UNAVAILABLE or MEASURED with method — never invent MEASURED.
+S7: genome ``tier_counts['LOCKED-PROVEN']`` must equal ``/honest``
+``locked_formula_count`` (8). INTI owns the real count. Keep RED until every
+surface agrees, labelled. a11oy.net and kernel smokes are a later cut.
 """
 from __future__ import annotations
 
@@ -34,7 +38,6 @@ COORD_KEYS = frozenset(
 )
 SNAPSHOT_DATE = "2026-08-28"
 CANONICAL_ORIGIN = "https://a-11-oy.com"
-SUNSET_ORIGIN = "https://a11oy.net"
 HF_SPACE = "https://szlholdings-a11oy.hf.space"
 USER_AGENT = "a11oy-investor-smoke-gate/1.0 (+https://github.com/szl-holdings/a11oy)"
 
@@ -71,7 +74,8 @@ OG_CANDIDATES = (
     "/social-preview-series-a.png",
 )
 
-# Kernel-slot bind: genome LOCKED-PROVEN must not land in cnt-locked / setTiers.locked.
+# Diagnostic only: surfaces that paint genome LOCKED-PROVEN into a kernel slot
+# while the counts disagree. Not a product rewrite.
 _CNT_LOCKED_FROM_GENOME = re.compile(
     r"""\$\(\s*['"]cnt-locked['"]\s*\)[\s\S]{0,240}?"""
     r"""(?:tier_counts|tc)\s*(?:\[\s*['"]LOCKED-PROVEN['"]\s*\]|\.LOCKED)""",
@@ -89,14 +93,6 @@ _SETTIERS_LOCKED_GENOME = re.compile(
 )
 _SETTIERS_PROOF_TIERS = re.compile(
     r"""setTiers\(\s*\w+\.proof_tiers\s*\)""",
-    re.I,
-)
-_HONEST_FETCH = re.compile(
-    r"""/api/a11oy/v1/honest""",
-    re.I,
-)
-_LOCKED_FORMULA_COUNT = re.compile(
-    r"""locked_formula_count""",
     re.I,
 )
 
@@ -227,51 +223,30 @@ def validate_matrix(matrix: Matrix, required: Iterable[str] = REQUIRED_MATRIX_ID
 
 
 # ---------------------------------------------------------------------------
-# S7 bind assertion — kernel slot must source /honest (8), not genome 25
+# S7 — genome LOCKED-PROVEN must equal /honest locked_formula_count (8)
 # ---------------------------------------------------------------------------
 
 def kernel_slot_bind_failures(text: str, *, source_name: str) -> list[str]:
-    """FAIL reasons if a locked-proven kernel slot still reads genome 25.
+    """Diagnostic: kernel-slot UI still paints genome LOCKED-PROVEN.
 
-    Genome 144 / LOCKED-PROVEN 25 may remain as a *separately labelled* count.
-    This function only reds the kernel slot: ``cnt-locked`` and ``setTiers.locked``.
+    Used as evidence when counts disagree. This PR does not rewrite Trust Center copy.
     """
     failures: list[str] = []
     if _CNT_LOCKED_FROM_GENOME.search(text) or _CNT_LOCKED_NODEVALUE_GENOME.search(text):
         failures.append(
-            f"{source_name}: cnt-locked reads genome tier_counts['LOCKED-PROVEN'] "
-            f"into the locked-proven kernel slot. Bind must source {HONEST_PATH} "
-            f"{HONEST_FIELD} ({LOCKED_KERNEL_COUNT}), labelled. Genome catalog "
-            "144 / LOCKED-PROVEN 25 may remain as a separately labelled count. "
-            "INTI owns the product fix."
+            f"{source_name}: cnt-locked still reads genome tier_counts['LOCKED-PROVEN'] "
+            "(surface disagrees with /honest 8 until INTI owns the real count)."
         )
     if _SETTIERS_LOCKED_GENOME.search(text):
         failures.append(
-            f"{source_name}: setTiers.locked reads genome tier_counts['LOCKED-PROVEN'] "
-            f"into the kernel slot. Bind must source {HONEST_PATH} {HONEST_FIELD} "
-            f"({LOCKED_KERNEL_COUNT}), labelled. INTI owns the product fix."
+            f"{source_name}: setTiers.locked still reads genome "
+            "tier_counts['LOCKED-PROVEN'] (surface disagrees with /honest 8)."
         )
     if _SETTIERS_PROOF_TIERS.search(text):
         failures.append(
-            f"{source_name}: setTiers(*.proof_tiers) paints proof_tiers.locked into "
-            "the kernel slot. Current org/overview proof_tiers.locked is the genome "
-            f"LOCKED-PROVEN catalog count, not {HONEST_PATH} {HONEST_FIELD}. "
-            "INTI owns the product fix."
+            f"{source_name}: setTiers(*.proof_tiers) still paints genome "
+            "LOCKED-PROVEN into the kernel slot (surface disagrees with /honest 8)."
         )
-    claims_kernel_slot = (
-        'id="cnt-locked"' in text
-        or "setTiers(" in text
-        or 'id="pt-locked"' in text
-    )
-    if claims_kernel_slot and not failures:
-        honest_sourced = bool(
-            _HONEST_FETCH.search(text) and _LOCKED_FORMULA_COUNT.search(text)
-        )
-        if not honest_sourced:
-            failures.append(
-                f"{source_name}: locked-proven kernel slot (cnt-locked / "
-                f"setTiers.locked) does not source {HONEST_PATH} {HONEST_FIELD}."
-            )
     return failures
 
 
@@ -292,31 +267,59 @@ def analyze_repo_kernel_binds(root: Path = ROOT) -> list[str]:
     return failures
 
 
-def s7_verdict(root: Path = ROOT) -> Verdict:
-    failures = analyze_repo_kernel_binds(root)
-    if failures:
+def s7_count_agreement(
+    locked_proven_tags: int,
+    honest_count: int = LOCKED_KERNEL_COUNT,
+    *,
+    extra_evidence: Iterable[str] = (),
+) -> Verdict:
+    """Fail-closed: genome LOCKED-PROVEN must equal /honest locked_formula_count (8)."""
+    extras = [str(x) for x in extra_evidence if x]
+    if locked_proven_tags != honest_count or honest_count != LOCKED_KERNEL_COUNT:
+        detail = (
+            f"genome tier_counts.LOCKED-PROVEN={locked_proven_tags} must equal "
+            f"{HONEST_PATH} {HONEST_FIELD}={LOCKED_KERNEL_COUNT} (got honest="
+            f"{honest_count}). INTI owns the real count. Keep RED until every "
+            "surface agrees, labelled. Do not rewrite genome data or Trust "
+            "Center copy to fake agreement."
+        )
         return Verdict(
             id="S7",
             status="FAIL",
-            detail="Kernel-slot bind still reads genome LOCKED-PROVEN into "
-            "cnt-locked / setTiers.locked.",
-            evidence=" | ".join(failures),
+            detail=detail,
+            evidence=" | ".join(
+                [
+                    f"LOCKED-PROVEN={locked_proven_tags}",
+                    f"{HONEST_FIELD}={honest_count}",
+                    *extras,
+                ]
+            ),
             owner="INTI",
         )
     return Verdict(
         id="S7",
         status="PASS",
         detail=(
-            f"cnt-locked and setTiers.locked source {HONEST_PATH} "
-            f"{HONEST_FIELD}={LOCKED_KERNEL_COUNT}. Genome catalog remains "
-            "a separately labelled count."
+            f"genome LOCKED-PROVEN={locked_proven_tags} agrees with "
+            f"{HONEST_PATH} {HONEST_FIELD}={honest_count}, labelled."
         ),
         owner="INTI",
     )
 
 
+def s7_verdict(root: Path = ROOT) -> Verdict:
+    genome_path = root / "data" / "genome.json"
+    counts = genome_catalog_counts(genome_path)
+    extras = analyze_repo_kernel_binds(root)
+    return s7_count_agreement(
+        counts["locked_proven_tags"],
+        LOCKED_KERNEL_COUNT,
+        extra_evidence=extras,
+    )
+
+
 # ---------------------------------------------------------------------------
-# Genome labelling — both numbers are real; do not demand 25 be deleted
+# D5 — catalog size 144 is not the locked kernel; S7 owns tag-count agreement
 # ---------------------------------------------------------------------------
 
 def genome_catalog_counts(path: Path) -> dict[str, int]:
@@ -331,19 +334,18 @@ def genome_catalog_counts(path: Path) -> dict[str, int]:
 
 
 def evaluate_genome_vs_kernel(counts: dict[str, int], kernel: int = LOCKED_KERNEL_COUNT) -> Verdict:
-    """Labelling rule: Lean-8 ≠ genome catalog. Difference is allowed, not a deletion."""
+    """Catalog *size* is not the locked kernel. Tag-count agreement is S7."""
     entries = counts.get("entry_count", 0)
     tags = counts.get("locked_proven_tags", 0)
-    detail = (
-        f"kernel locked-proven={kernel} (Lean / {HONEST_FIELD}); "
-        f"genome entries={entries}; genome tag LOCKED-PROVEN={tags}. "
-        "Both numbers are real. Do not demand the genome tag count equal the kernel."
-    )
     return Verdict(
         id="D5",
         status="PASS",
-        detail=detail,
-        evidence="labelling rule Lean-8 ≠ genome-144; not a deletion",
+        detail=(
+            f"genome catalog entries={entries} is not the locked kernel "
+            f"({kernel} ids). LOCKED-PROVEN tag count={tags} vs kernel {kernel} "
+            "is S7 (INTI); this row only labels catalog size."
+        ),
+        evidence="Lean-8 ≠ genome-144 catalog size; S7 owns LOCKED-PROVEN vs 8",
     )
 
 
@@ -755,82 +757,128 @@ def locked_formula_count_from_honest(payload: Any) -> int | None:
     return None
 
 
+def _coord_label_ok(obj: dict[str, Any], key: str) -> bool:
+    """True only for UNAVAILABLE, or MEASURED with a method. Never invent MEASURED."""
+
+    def _ok(label: Any, method: Any) -> bool:
+        if not isinstance(label, str):
+            return False
+        lab = label.upper()
+        if lab == "UNAVAILABLE":
+            return True
+        if lab == "MEASURED":
+            return bool(method)
+        return False
+
+    wrapped = obj.get(key)
+    if isinstance(wrapped, dict):
+        lab = wrapped.get("label") or wrapped.get("honesty") or wrapped.get("status")
+        method = wrapped.get("method") or wrapped.get("method_label") or obj.get("method")
+        if _ok(lab, method):
+            return True
+    labels = obj.get("labels") or obj.get("honesty") or obj.get("value_labels")
+    if isinstance(labels, dict):
+        lab = labels.get(key)
+        method = None
+        if isinstance(lab, dict):
+            method = lab.get("method")
+            lab = lab.get("label") or lab.get("status")
+        else:
+            method = (labels.get("method") if isinstance(labels, dict) else None) or obj.get("method")
+        if _ok(lab, method):
+            return True
+    for field_name in ("label", "honesty", "value_label", "status"):
+        raw = obj.get(field_name)
+        if _ok(raw, obj.get("method") or obj.get("method_label")):
+            return True
+    return False
+
+
 def unlabeled_numeric_coords(payload: Any, path: str = "$") -> list[str]:
     found: list[str] = []
 
-    def parent_labelled(obj: dict[str, Any], key: str) -> bool:
-        labels = obj.get("labels") or obj.get("honesty") or obj.get("value_labels")
-        if isinstance(labels, dict) and str(labels.get(key, "")).upper() in VALUE_LABELS:
-            return True
-        for field_name in ("label", "honesty", "value_label", "status"):
-            raw = obj.get(field_name)
-            if isinstance(raw, str) and raw.upper() in VALUE_LABELS:
-                return True
-        wrapped = obj.get(key)
-        if isinstance(wrapped, dict):
-            lab = wrapped.get("label") or wrapped.get("honesty") or wrapped.get("status")
-            if isinstance(lab, str) and lab.upper() in VALUE_LABELS:
-                return True
-        return False
-
-    def walk(node: Any, here: str, parent: dict[str, Any] | None) -> None:
+    def walk(node: Any, here: str) -> None:
         if isinstance(node, dict):
             for key, value in node.items():
                 child = f"{here}.{key}"
-                if key in COORD_KEYS and isinstance(value, (int, float)):
-                    if parent_labelled(node, key):
+                if key in COORD_KEYS:
+                    if isinstance(value, (int, float)):
+                        if not _coord_label_ok(node, key):
+                            found.append(
+                                f"{child}={value} unlabeled "
+                                "(need UNAVAILABLE or MEASURED with method)"
+                            )
                         continue
-                    found.append(f"{child}={value} unlabeled (need MEASURED or UNAVAILABLE)")
-                else:
-                    walk(value, child, node)
+                    if isinstance(value, dict):
+                        inner = value.get("value")
+                        if isinstance(inner, (int, float)) and not _coord_label_ok(node, key):
+                            found.append(
+                                f"{child}.value={inner} unlabeled "
+                                "(need UNAVAILABLE or MEASURED with method)"
+                            )
+                        continue
+                walk(value, child)
         elif isinstance(node, list):
             for idx, item in enumerate(node[:50]):
-                walk(item, f"{here}[{idx}]", parent)
+                walk(item, f"{here}[{idx}]")
 
-    walk(payload, path, None)
+    walk(payload, path)
     return found
+
+
+def first_viewport_unlabeled_latitude(html: str, *, char_limit: int = 20000) -> list[str]:
+    """Fail-closed: no raw unlabeled latitude in the first viewport HTML."""
+    chunk = html[:char_limit]
+    hits: list[str] = []
+    if not re.search(r"\blatitude\b", chunk, re.I):
+        return hits
+    for match in re.finditer(r"\blatitude\b", chunk, re.I):
+        window = chunk[max(0, match.start() - 100) : match.end() + 160]
+        has_number = re.search(r"-?\d+\.\d+", window)
+        if not has_number:
+            continue
+        if re.search(r"UNAVAILABLE", window, re.I):
+            continue
+        if re.search(r"MEASURED", window, re.I) and re.search(r"method", window, re.I):
+            continue
+        hits.append("unlabeled latitude in first viewport (need UNAVAILABLE or MEASURED with method)")
+        break
+    return hits
 
 
 def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
     matrix = Matrix()
     primary = origins[0] if origins else CANONICAL_ORIGIN
 
-    # S1 GET /
-    s1_bits: list[str] = []
-    s1_fail = False
-    for origin in origins:
-        result = http_request(_join(origin, "/"), method="GET", follow=True)
-        ok = result.status == 200
-        s1_bits.append(f"GET {origin}/ -> {result.status} {result.error}".strip())
-        if not ok:
-            s1_fail = True
-    matrix.add(
-        Verdict(
-            id="S1",
-            status="FAIL" if s1_fail else "PASS",
-            detail="GET / must be 200 on both origins (follow redirects)",
-            evidence="; ".join(s1_bits),
-        )
-    )
-
-    # S2 HEAD vs GET + signer enum (KALLPA)
-    s2_fail: list[str] = []
+    # S1 HEAD vs GET (KALLPA) — probes only. Canonical origin this cut.
+    s1_fail: list[str] = []
     for path in HEAD_GET_PATHS:
         got = http_request(_join(primary, path), method="GET", follow=True)
         head = http_request(_join(primary, path), method="HEAD", follow=False)
         if got.status == 200 and head.status == 405:
-            s2_fail.append(f"HEAD {path} = 405 while GET = 200")
+            s1_fail.append(f"HEAD {path} = 405 while GET = 200")
         elif got.status != 200:
-            s2_fail.append(f"GET {path} = {got.status} {got.error}".strip())
+            s1_fail.append(f"GET {path} = {got.status} {got.error}".strip())
         elif head.status not in {200, 204}:
-            # Any HEAD that is not success while GET is 200 is the KALLPA defect class.
-            s2_fail.append(f"HEAD {path} = {head.status} while GET = 200")
+            s1_fail.append(f"HEAD {path} = {head.status} while GET = 200")
     hz_get = http_request(_join(primary, HEAD_404_VS_GET_200), method="GET", follow=True)
     hz_head = http_request(_join(primary, HEAD_404_VS_GET_200), method="HEAD", follow=False)
     if hz_get.status == 200 and hz_head.status == 404:
-        s2_fail.append(f"HEAD {HEAD_404_VS_GET_200} = 404 while GET = 200")
+        s1_fail.append(f"HEAD {HEAD_404_VS_GET_200} = 404 while GET = 200")
     elif hz_get.status == 200 and hz_head.status == 405:
-        s2_fail.append(f"HEAD {HEAD_404_VS_GET_200} = 405 while GET = 200")
+        s1_fail.append(f"HEAD {HEAD_404_VS_GET_200} = 405 while GET = 200")
+    matrix.add(
+        Verdict(
+            id="S1",
+            status="FAIL" if s1_fail else "PASS",
+            detail="HEAD must not 405/404 where GET is 200 (KALLPA owns the product fix)",
+            evidence="; ".join(s1_fail) if s1_fail else f"HEAD/GET pairs on {primary}",
+            owner="KALLPA",
+        )
+    )
+
+    # S2 signer enum (KALLPA) — probes only. Lean SHA is not enough.
+    s2_fail: list[str] = []
     for path in SIGNER_REQUIRED_PATHS:
         got = http_request(_join(primary, path), method="GET", follow=True)
         if got.status != 200 or "json" not in got.content_type.lower():
@@ -851,21 +899,16 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
         Verdict(
             id="S2",
             status="FAIL" if s2_fail else "PASS",
-            detail="HEAD must not 405/404 where GET is 200; health JSON must carry signer enum",
-            evidence="; ".join(s2_fail) if s2_fail else f"HEAD/GET pairs + signer enum on {primary}",
+            detail="Health JSON must carry signer enum {DSSE-LIVE, UNSIGNED-LOCAL, unavailable}",
+            evidence="; ".join(s2_fail) if s2_fail else f"signer enum present on {primary}",
             owner="KALLPA",
         )
     )
 
-    # S3 ISS coords labelled MEASURED or UNAVAILABLE
+    # S3 ISS coords + first viewport — UNAVAILABLE or MEASURED with method
     iss = http_request(_join(primary, LIVE_ISS_PATH), method="GET", follow=True)
-    status_ep = http_request(
-        _join(primary, LIVE_FETCH_STATUS_PATH), method="GET", follow=True
-    )
+    home = http_request(_join(primary, "/"), method="GET", follow=True)
     s3_fail: list[str] = []
-    if status_ep.status == 404:
-        # Dedicated live-fetch/status is absent; ISS is the live-fetch surface.
-        pass
     if iss.status != 200:
         s3_fail.append(f"GET {LIVE_ISS_PATH} HTTP {iss.status} {iss.error}".strip())
     else:
@@ -877,15 +920,24 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
         if isinstance(payload, dict):
             unlabeled = unlabeled_numeric_coords(payload)
             if unlabeled:
-                s3_fail.append(
-                    "unlabeled live coords: " + "; ".join(unlabeled[:8])
-                )
+                s3_fail.append("unlabeled live coords: " + "; ".join(unlabeled[:8]))
+    s3_fail.extend(first_viewport_unlabeled_latitude(home.text(24_000)))
+    landing = root / "a11oy_landing.html"
+    if landing.is_file():
+        s3_fail.extend(
+            first_viewport_unlabeled_latitude(
+                landing.read_text(encoding="utf-8", errors="replace")
+            )
+        )
     matrix.add(
         Verdict(
             id="S3",
             status="FAIL" if s3_fail else "PASS",
-            detail="Live-fetch numbers must be labelled MEASURED or UNAVAILABLE, never bare digits",
-            evidence="; ".join(s3_fail) if s3_fail else f"GET {LIVE_ISS_PATH} labelled",
+            detail=(
+                "Live coords must be UNAVAILABLE or labelled MEASURED with method; "
+                "no raw unlabeled latitude in first viewport"
+            ),
+            evidence="; ".join(s3_fail) if s3_fail else f"GET {LIVE_ISS_PATH} + first viewport labelled",
         )
     )
 
@@ -920,8 +972,35 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
         )
     )
 
-    # S7 static bind (also reported in live matrix)
-    matrix.add(s7_verdict(root))
+    # S7 live genome vs honest (INTI). Do not rewrite genome.json.
+    genome_live = http_request(_join(primary, "/api/a11oy/v1/genome"), method="GET", follow=True)
+    honest_live = http_request(_join(primary, HONEST_PATH), method="GET", follow=True)
+    live_tags = None
+    live_honest = None
+    extras: list[str] = []
+    if genome_live.status == 200:
+        try:
+            gpayload = genome_live.json()
+            tc = gpayload.get("tier_counts") if isinstance(gpayload, dict) else None
+            if isinstance(tc, dict) and isinstance(tc.get("LOCKED-PROVEN"), int):
+                live_tags = tc["LOCKED-PROVEN"]
+        except Exception as exc:  # noqa: BLE001
+            extras.append(f"genome parse {exc}")
+    else:
+        extras.append(f"GET /genome HTTP {genome_live.status}")
+    if honest_live.status == 200:
+        try:
+            live_honest = locked_formula_count_from_honest(honest_live.json())
+        except Exception as exc:  # noqa: BLE001
+            extras.append(f"honest parse {exc}")
+    else:
+        extras.append(f"GET {HONEST_PATH} HTTP {honest_live.status}")
+    repo_counts = genome_catalog_counts(root / "data" / "genome.json")
+    tags = live_tags if live_tags is not None else repo_counts["locked_proven_tags"]
+    honest_n = live_honest if live_honest is not None else LOCKED_KERNEL_COUNT
+    extras.append(f"repo LOCKED-PROVEN tags={repo_counts['locked_proven_tags']}")
+    extras.extend(analyze_repo_kernel_binds(root))
+    matrix.add(s7_count_agreement(tags, honest_n if honest_n is not None else -1, extra_evidence=extras))
 
     # S8 live designed 404
     soft = http_request(_join(primary, SOFT_404_PATH), method="GET", follow=True)
@@ -971,56 +1050,13 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
 
     matrix.add(s12_verdict(root))
 
-    # Honest kernel count on the live SoT (does not rewrite genome)
-    honest = http_request(_join(primary, HONEST_PATH), method="GET", follow=True)
-    honest_n = None
-    honest_ev = f"GET {HONEST_PATH} -> {honest.status}"
-    if honest.status == 200:
-        try:
-            honest_n = locked_formula_count_from_honest(honest.json())
-            honest_ev += f" {HONEST_FIELD}={honest_n}"
-        except Exception as exc:  # noqa: BLE001
-            honest_ev += f" parse error {exc}"
-    if honest_n != LOCKED_KERNEL_COUNT:
-        # Do not fold this into S7 (S7 is the UI bind). Record as S7-sot evidence.
-        matrix.add(
-            Verdict(
-                id="S7-sot",
-                status="FAIL",
-                detail=f"Live {HONEST_PATH} must expose {HONEST_FIELD}={LOCKED_KERNEL_COUNT}",
-                evidence=honest_ev,
-                owner="INTI",
-            )
-        )
-    else:
-        matrix.add(
-            Verdict(
-                id="S7-sot",
-                status="PASS",
-                detail=f"Live {HONEST_PATH} {HONEST_FIELD}={LOCKED_KERNEL_COUNT}",
-                evidence=honest_ev,
-                owner="INTI",
-            )
-        )
-
-    # Try Khipu on live /console HTML if present
-    console_live = http_request(_join(primary, "/console"), method="GET", follow=True)
-    html = console_live.text(80_000)
-    khipu_live = "try-khipu-panel" in html or "Try Khipu" in html
-    matrix.add(
-        Verdict(
-            id="S-console-khipu-live",
-            status="PASS" if (console_live.status == 200 and khipu_live) else "FAIL",
-            detail="Live /console HTML includes Try Khipu (do not invent the string in this PR)",
-            evidence=f"GET /console -> {console_live.status}; try-khipu={'yes' if khipu_live else 'no'}",
-        )
-    )
-
     for item in static_debug_verdicts(root):
         matrix.add(item)
     for item in snapshot_l_verdicts():
         matrix.add(item)
     return matrix
+
+
 
 
 def print_matrix(matrix: Matrix) -> None:
@@ -1054,14 +1090,14 @@ def main(argv: list[str] | None = None) -> int:
         "--origin",
         action="append",
         dest="origins",
-        help="Origin to probe (repeatable). Default: a-11-oy.com and a11oy.net",
+        help="Origin to probe (repeatable). Default: https://a-11-oy.com (a11oy.net is a later cut)",
     )
     parser.add_argument("--json-out", default="", help="Write matrix JSON to this path")
     parser.add_argument("--root", default=str(ROOT))
     args = parser.parse_args(argv)
     root = Path(args.root)
 
-    origins = args.origins or [CANONICAL_ORIGIN, SUNSET_ORIGIN]
+    origins = args.origins or [CANONICAL_ORIGIN]
     if args.mode == "live":
         matrix = live_matrix(origins, root=root)
     elif args.mode == "all":

@@ -28,12 +28,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added - investor smoke gate
 - Added a fail-closed S1–S12 / L1–L6 / D1–D10 investor smoke gate
   (`.github/workflows/investor-smoke-gate.yml`, `scripts/investor_smoke_gate.py`).
-  S7 asserts the UI bind of the locked-proven kernel slot (`cnt-locked` /
-  `setTiers.locked`) to `/api/a11oy/v1/honest` `locked_formula_count` (8).
-  Genome catalog 144 / LOCKED-PROVEN 25 remain a separately labelled count —
-  the gate does not demand 25 be deleted or rewritten. HEAD 405 and signer-enum
-  probes are KALLPA-owned (no product fix in this PR). L1–L6 are SNAPSHOT
-  2026-08-28. S4/S6/S9 are UNAVAILABLE (no POST). See
+  S7 asserts genome `tier_counts.LOCKED-PROVEN` must equal `/api/a11oy/v1/honest`
+  `locked_formula_count` (8). INTI owns the real count — this PR does not rewrite
+  genome data or Trust Center copy to fake agreement. S1 HEAD 405 and S2 signer
+  enum are KALLPA-owned probes only. L1–L6 are SNAPSHOT 2026-08-28. S4/S6/S9
+  are UNAVAILABLE (no POST). a11oy.net and kernel smokes are a later cut. See
   `docs/INVESTOR_SMOKE_GATE.md`.
 
 

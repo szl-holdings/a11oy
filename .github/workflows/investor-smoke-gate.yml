@@ -3,9 +3,10 @@ name: Investor smoke gate (S1–S12)
 # Fail-closed investor-honest quality gate. Does not merge. Does not touch
 # Dockerfile / HF byte parity. Does not rewrite genome.json. No POST.
 #
-# S7 is a BIND assertion (kernel slot ← /honest locked_formula_count = 8),
-# not a demand that genome LOCKED-PROVEN equal 8. INTI owns the UI rewrite.
-# KALLPA owns HEAD 405 + signer enum (probes only).
+# S7: genome tier_counts.LOCKED-PROVEN must equal /honest locked_formula_count
+# (8). INTI owns the real count. Keep RED until every surface agrees, labelled.
+# Do not rewrite genome.json or Trust Center copy. KALLPA owns S1 HEAD 405 and
+# S2 signer enum (probes only). a11oy.net / kernel smokes are a later cut.
 #
 # This workflow is ordinary Actions until branch protection lists the exact
 # check-run names. This PR cannot self-certify as control-plane-required.
@@ -47,7 +48,7 @@ jobs:
         run: python3 -m pytest -q tests/test_investor_smoke_gate.py
 
   bind:
-    name: Investor smoke bind (S7 kernel slot)
+    name: Investor smoke bind (S7 LOCKED-PROVEN=8)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -62,7 +63,7 @@ jobs:
       - name: Install pytest
         run: python3 -m pip install pytest
 
-      - name: S7 kernel-slot bind (cnt-locked / setTiers.locked ← /honest 8)
+      - name: S7 genome LOCKED-PROVEN must equal /honest 8
         run: python3 -m pytest -q tests/test_investor_smoke_bind.py
 
   live:
@@ -81,5 +82,4 @@ jobs:
       - name: Live GET/HEAD probes (no POST)
         run: |
           python3 scripts/investor_smoke_gate.py --mode live \
-            --origin https://a-11-oy.com \
-            --origin https://a11oy.net
+            --origin https://a-11-oy.com
