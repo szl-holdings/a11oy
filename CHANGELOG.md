@@ -142,6 +142,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   distinction lives in a11oy-only DX comments (`a11oy_canonical_domain.py`),
   not in shared `szl_provenance.py` (killinchu byte identity).
 
+### Changed - ATELIER lock
+- Try Khipu and `khipu-gguf` call only
+  `https://szlholdings-szl-model-inference-lab.hf.space/v1`. Forge lab stays
+  SNAPSHOT — not a trainer, not Serve Studio. Energy-attested-runs 8/8 is
+  SIMULATED. Ask & Act on `/console` is not a live control plane.
+  Λ = Conjecture 1.
+
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu
   GGUF CPU lab (`/v1/chat/completions`, max_tokens<=32, temperature=0, no

@@ -14,8 +14,10 @@ Auth is the publicly documented dummy Bearer not-a-secret. HF_TOKEN is never
 read or forwarded. GET does not mint a receipt. POST passes through the lab's
 UNSIGNED record_sha256 when present; missing fields are UNKNOWN.
 
-GPU Inference Endpoint remains ROADMAP. Forge lab is SNAPSHOT.
-killinchu detector stays SIMULATED. Λ = Conjecture 1.
+GPU Inference Endpoint remains ROADMAP. Forge lab is SNAPSHOT — not a
+trainer, not Serve Studio. Energy-attested-runs 8/8 is SIMULATED. Ask & Act
+is not a live control plane. killinchu detector stays SIMULATED.
+Λ = Conjecture 1.
 """
 import hashlib
 import sys
@@ -32,12 +34,14 @@ if str(_HERE) not in sys.path:
 
 from packages.inference.src.voters.khipu_gguf import (
     KHIPU_LAB_DUMMY_BEARER,
+    KHIPU_LAB_V1,
     KHIPU_MAX_TOKENS,
     KHIPU_MEASURED_PROBE_2026_08_28,
     KHIPU_TEMPERATURE,
     clamp_max_tokens,
     extract_lab_receipt,
     khipu_lab_base,
+    khipu_lab_v1,
     khipu_pin,
 )
 
@@ -49,8 +53,11 @@ _PROMPT_CHAR_CAP = 4000
 def _honesty() -> dict:
     return {
         "lab": "MEASURED this request when /healthz returns READY; else FAILED",
+        "lab_v1": KHIPU_LAB_V1,
         "gpu_inference_endpoint": "ROADMAP",
-        "forge_lab": "SNAPSHOT",
+        "forge_lab": "SNAPSHOT — not a trainer, not Serve Studio",
+        "energy_attested_runs": "8/8 SIMULATED",
+        "ask_and_act": "not a live control plane",
         "killinchu_detector": "SIMULATED",
         "lambda": "Conjecture 1",
         "tokens_per_second": "not reported",
@@ -134,7 +141,7 @@ async def _handle_chat(request: Request) -> JSONResponse:
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                khipu_lab_base() + "/v1/chat/completions",
+                khipu_lab_v1() + "/chat/completions",
                 json=payload,
                 headers=_headers(),
             )

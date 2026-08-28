@@ -55,3 +55,20 @@ def test_try_khipu_honesty_labels():
     assert "SIMULATED" in slice_
     assert "MEASURED" in slice_
     assert "not-a-secret" in slice_
+    assert "https://szlholdings-szl-model-inference-lab.hf.space/v1" in slice_
+    assert "not a trainer" in slice_
+    assert "not Serve Studio" in slice_
+    assert "8/8" in slice_ and "SIMULATED" in slice_
+    assert "not a live control plane" in slice_
+    assert "forge-lab" not in slice_ or "not forge-lab" in slice_
+
+
+def test_try_khipu_does_not_wire_forge_lab_as_trainer_or_studio():
+    slice_ = _panel_slice()
+    lowered = slice_.lower()
+    assert "/api/a11oy/v1/khipu/chat" in slice_
+    assert "szl-model-inference-lab" in slice_
+    assert "szl-forge-lab.hf.space" not in lowered
+    assert "forge-lab as a trainer" not in lowered
+    assert "serve studio" in lowered  # disclaimed, not wired
+    assert "not serve studio" in lowered or "not a serve studio" in lowered

@@ -1258,16 +1258,16 @@ const VIEWS={
       paint('');
     }},
 
-  ask:{title:'Ask & Act',badge:'OPERATOR',sub:'Ask the platform a question and get a grounded, cited answer \u2014 it answers only from live system data and refuses to make things up. Then approve or deny an action; every action is logged to a signed, tamper-evident audit trail.',
+  ask:{title:'Ask & Act',badge:'DEMO \u00b7 NOT A LIVE CONTROL PLANE',sub:'Ask & Act is not a live control plane. This DEMO reads in-process platform facts and records approve/deny on an in-memory hash-chained ring that resets on restart \u2014 ROADMAP for a durable operator. It is not a live control plane and does not dispatch fleet actions.',
     render:(c)=>{c.innerHTML=`<div class="grid2">
-      <div class="card"><div class="card-h"><span class="card-t">Ask the operator</span><span class="card-ep">grounded + cited</span><span class="badge" id="o-ask-st" style="margin-left:.4rem;display:none"></span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Ask (demo)</span><span class="card-ep">DEMO \u00b7 not a live control plane</span><span class="badge" id="o-ask-st" style="margin-left:.4rem;display:none"></span></div>
         <div class="btns"><button class="btn teal" onclick="ask_q('Which services are live right now?')">Which services are live?</button><button class="btn" onclick="ask_q('What is the current trust score?')">Current trust score?</button><button class="btn" onclick="ask_q('Is the 3-of-4 consensus permitted?')">Consensus status?</button></div>
         <pre class="out" id="o-ask">\u2014 pick a question \u2014</pre></div>
-      <div class="card"><div class="card-h"><span class="card-t">Approve / deny an action</span><span class="card-ep">signed audit</span><span class="badge" id="o-act-st" style="margin-left:.4rem;display:none"></span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Approve / deny (demo ring)</span><span class="card-ep">in-process \u00b7 resets on restart</span><span class="badge" id="o-act-st" style="margin-left:.4rem;display:none"></span></div>
         <div class="btns"><button class="btn teal" onclick="act_do('approve')">Approve</button><button class="btn" onclick="act_do('deny')">Deny</button><button class="btn" onclick="act_do('acknowledge')">Acknowledge</button></div>
         <pre class="out" id="o-act">\u2014 emit an action \u2014</pre></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">What needs attention</span><span class="card-ep">live findings</span></div><div class="chartbox" style="height:200px"><canvas id="ask-rec"></canvas></div><div id="ask-rec-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;
+      <div class="card"><div class="card-h"><span class="card-t">What needs attention</span><span class="card-ep">demo findings</span></div><div class="chartbox" style="height:200px"><canvas id="ask-rec"></canvas></div><div id="ask-rec-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;
       window.ask_recs();}},
 
   demo:{title:'Run a Demo',badge:'5 SCENARIOS',sub:'The platform is the single launch point for the Warhacker challenge problems. Each launch calls the live service for that problem, shows its real answer, and records a signed receipt of the decision.',
@@ -5643,7 +5643,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* =============== ask — SVG boolean-cascade decision-trace tree =============== */
-    V.ask={title:'Ask & Act',badge:'BOOLEAN-CASCADE TRACE \u00b7 P2 GATE-SOUNDNESS',sub:'Every Ask & Act request runs the deny-by-default gate cascade. Shown as an SVG boolean-cascade trace: each conjunctive predicate evaluated in order; the FIRST \u2717 auto-expands to show exactly why the action was refused. This is P2 gate-soundness made visible \u2014 one false conjunct denies; never a weighted average.',
+    V.ask={title:'Ask & Act',badge:'DEMO \u00b7 NOT A LIVE CONTROL PLANE',sub:'Ask & Act is not a live control plane. This DEMO SVG traces a deny-by-default cascade (P2 gate-soundness illustration): each conjunctive predicate in order; the FIRST \u2717 auto-expands. One false conjunct denies; never a weighted average. ROADMAP for a durable operator control plane.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
         +'<div class="kpi"><div class="k">Recent decisions</div><div class="v" id="ak-n">\u2014</div></div>'
         +'<div class="kpi"><div class="k">Denied</div><div class="v" id="ak-deny" style="color:'+RED+'">\u2014</div><div class="d">deny-by-default</div></div>'
@@ -5651,7 +5651,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         +'<div class="kpi"><div class="k">Soundness</div><div class="v teal">P2</div><div class="d">PROVEN</div></div></div>'
         +'<div class="card"><div class="card-h"><span class="card-t">Gate cascade for the most recent DENY \u2014 first \u2717 auto-expanded</span><span class="card-ep">SVG boolean-cascade trace</span></div>'
         +'<div id="ak-casc" style="min-height:300px"></div>'
-        +'<div class="brain-note" id="ak-note">Conjunctive gate: '+chip('P2 governed_run_sound','PROVEN')+' One false predicate denies the action. PR#194.</div></div>'
+        +'<div class="brain-note" id="ak-note">Ask &amp; Act is not a live control plane. Conjunctive gate: '+chip('P2 governed_run_sound','PROVEN')+' One false predicate denies the action. PR#194. DEMO SVG, not a fleet dispatcher.</div></div>'
         +'<details class="raw"><summary>raw recent verdicts</summary><pre class="out" id="ak-raw">loading\u2026</pre></details>'+honest();
         try{
           var f=await gj('/api/a11oy/v1/policy/decisions/feed?limit=12'); var v=f.verdicts||[];
@@ -15967,7 +15967,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     ]],
     ["Operate", [
       ["launcher","\u25a6","App Launcher"],
-      ["ask","\u2726","Ask & Act"],
+      ["ask","\u2726","Ask & Act (demo)"],
       ["demo","\u229e","Run a Demo"],
       ["decision","\u25c8","Governed Decision"]
     ]],
@@ -17043,15 +17043,18 @@ window.a11oyInvestor = (function(){
 /* try-khipu-panel :: investor-hittable live Khipu GGUF on Command Center only.
    Same-origin POST /api/a11oy/v1/khipu/chat (CORS bypass). Does NOT add a
    nav SPEC tab (tabs.json 139-tab gate). Pin + READY/FAILED + UNSIGNED
-   record_sha256. No throughput marketing number. GPU Inference Endpoint ROADMAP. Forge lab
-   SNAPSHOT. killinchu detector SIMULATED. Λ = Conjecture 1. */
+   record_sha256. No throughput marketing number. ATELIER lock: CPU lab is
+   https://szlholdings-szl-model-inference-lab.hf.space/v1 only. GPU Inference
+   Endpoint ROADMAP. Forge lab SNAPSHOT — not a trainer, not Serve Studio.
+   Energy-attested-runs 8/8 SIMULATED. Ask & Act is not a live control plane.
+   killinchu detector SIMULATED. Λ = Conjecture 1. */
 (function(){
   function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
   function chip(txt, cls){ return '<span class="badge '+(cls||'b-gold')+'">'+esc(txt)+'</span>'; }
   function pinLine(pin){
     if(!pin) return '<div class="mono dim">pin unavailable</div>';
     return '<div class="mono" style="font-size:11px;line-height:1.7">'
-      +'<div><b>lab</b> '+esc(pin.lab_base||'')+'</div>'
+      +'<div><b>lab /v1</b> '+esc(pin.lab_v1||pin.locked_lab_v1||'')+'</div>'
       +'<div><b>model</b> '+esc(pin.model_repo||'')+'@'+esc(pin.model_rev||'')+'</div>'
       +'<div><b>file</b> '+esc(pin.gguf_file||'')+'</div>'
       +'<div><b>sha256</b> '+esc(pin.gguf_sha256||'')+'</div>'
@@ -17062,7 +17065,7 @@ window.a11oyInvestor = (function(){
     return '<div class="card" id="try-khipu-panel" style="border-left:3px solid #5fb3a3">'
       +'<div class="card-h"><span class="card-t">Try Khipu</span>'
       +'<span class="card-ep" id="tk-lab-st">probing lab…</span></div>'
-      +'<div class="mono dim" style="font-size:11px;line-height:1.6;margin:0 0 .7rem">Live CPU-lab GGUF from this origin. Sovereign path is the pinned SZL-Khipu-1.5B Q4_K_M — not Llama/Mistral/Qwen Hugging Face voters. GPU Inference Endpoint is <b>ROADMAP</b>. Forge lab is <b>SNAPSHOT</b>. killinchu detector stays <b>SIMULATED</b>. Λ = <b>Conjecture 1</b> (not a theorem). Receipts are <b>UNSIGNED</b> unless the lab says otherwise — never fabricated. No throughput marketing number.</div>'
+      +'<div class="mono dim" style="font-size:11px;line-height:1.6;margin:0 0 .7rem">Live CPU-lab GGUF from this origin. Sovereign path is <code>https://szlholdings-szl-model-inference-lab.hf.space/v1</code> only — not Llama/Mistral/Qwen Hugging Face voters, not forge-lab. GPU Inference Endpoint is <b>ROADMAP</b>. Forge lab is <b>SNAPSHOT</b> — not a trainer, not Serve Studio. Energy-attested-runs 8/8 is <b>SIMULATED</b>. Ask &amp; Act is not a live control plane. killinchu detector stays <b>SIMULATED</b>. Λ = <b>Conjecture 1</b> (not a theorem). Receipts are <b>UNSIGNED</b> unless the lab says otherwise — never fabricated. No throughput marketing number.</div>'
       +'<div id="tk-pin" class="mono dim">loading pin…</div>'
       +'<div id="tk-probe" class="mono dim" style="font-size:10.5px;margin:.55rem 0 .7rem"></div>'
       +'<textarea id="tk-prompt" style="width:100%;box-sizing:border-box;min-height:72px;font-family:var(--mono);font-size:12px;padding:.6rem .7rem;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);color:var(--cream)">Reply in one short sentence: what is a Khipu receipt?</textarea>'

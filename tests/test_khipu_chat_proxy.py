@@ -94,6 +94,14 @@ def test_status_ready_no_sign(proxy_client):
     assert body["lab_status"] == "READY"
     assert body["pin"]["gguf_sha256"] == "13c1a1993063e1dff92f7413ccf48eaca6d48efc8801ae9af35961ae3396623a"
     assert body["pin"]["gpu_inference_endpoint"] == "ROADMAP"
+    assert body["pin"]["lab_v1"].endswith("/v1")
+    assert body["pin"]["locked_lab_v1"] == "https://szlholdings-szl-model-inference-lab.hf.space/v1"
+    assert body["pin"]["energy_attested_runs"] == "8/8 SIMULATED"
+    assert "not a trainer" in body["pin"]["forge_lab_role"]
+    assert body["honesty"]["lab_v1"] == "https://szlholdings-szl-model-inference-lab.hf.space/v1"
+    assert body["honesty"]["energy_attested_runs"] == "8/8 SIMULATED"
+    assert "not a trainer" in body["honesty"]["forge_lab"]
+    assert body["honesty"]["ask_and_act"] == "not a live control plane"
     assert body["doctrine"]["locked_formulas"] == 8
     assert body["doctrine"]["lambda"] == "Conjecture 1"
     assert "signatures" not in body
@@ -130,7 +138,7 @@ def test_chat_clamps_and_passes_unsigned(proxy_client):
     posted = [c for c in _FakeAsyncClient.calls if c[0] == "POST"]
     assert posted
     _method, url, payload, headers = posted[0]
-    assert url.endswith("/v1/chat/completions")
+    assert url == "http://lab.test/v1/chat/completions"
     assert payload["max_tokens"] == 32
     assert payload["temperature"] == 0.0
     assert payload["stream"] is False
