@@ -861,7 +861,8 @@
           "placeholder"
         ]
       },
-      "note": "Live CISA KEV catalog."
+      "note": "Bundled CISA KEV snapshot fallback; its catalog release clock and cached label remain subject to the live readiness SLA.",
+      "modeRequiresDataKind": true
     },
     "/api/a11oy/v1/sec/attack": {
       "method": "GET",
@@ -1392,7 +1393,8 @@
           "placeholder"
         ]
       },
-      "note": "Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."
+      "note": "CISA KEV -> deny-by-default gate impact. It is live only when KEV, EPSS, and NVD CVSS coverage are all live for every returned row; mixed provenance remains release-red.",
+      "modeRequiresDataKind": true
     },
     "/api/a11oy/v1/router/stats": {
       "method": "GET",
@@ -2725,11 +2727,28 @@
     },
     "kevgate": {
       "type": "object",
-      "anyKey": [
+      "required": [
         "items",
-        "gate_catalog",
-        "count"
-      ]
+        "count",
+        "mode",
+        "data_kind",
+        "governed_decision_rows",
+        "governance_complete"
+      ],
+      "requiredPathTypes": {
+        "items": "array",
+        "count": "number",
+        "mode": "string",
+        "data_kind": "string",
+        "governed_decision_rows": "number",
+        "governance_complete": "boolean"
+      },
+      "governedDecisionArray": {
+        "path": "items",
+        "countPath": "count",
+        "coveragePath": "governed_decision_rows",
+        "completePath": "governance_complete"
+      }
     },
     "router_stats": {
       "type": "object",

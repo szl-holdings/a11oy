@@ -11897,6 +11897,9 @@ try:
         return JSONResponse({
             **meta,
             "governed_decision_rows": governed_decision_rows,
+            "governance_complete": (
+                len(out) > 0 and governed_decision_rows == len(out)
+            ),
             "data_kind": _response_data_kind,
             "count": len(out),
             "mapping_note": ("Each row is a CISA KEV CVE whose evidence state is disclosed "

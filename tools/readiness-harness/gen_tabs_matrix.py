@@ -59,8 +59,9 @@ STATE_VOCABULARY = {
 # liesIf: response shapes that count as a "lie" (stale/mock/uncited) -> fail.
 def ep(method="GET", schema=None, sla=None, citations=False,
        allow_statuses=(200,), allow_labels=("live", "cached"),
-       lies_if=("mock", "fabricated", "placeholder"), note=""):
-    return {
+       lies_if=("mock", "fabricated", "placeholder"), note="",
+       modeRequiresDataKind=False):
+    endpoint = {
         "method": method,
         "schema": schema,
         "freshnessSLA": sla,
@@ -72,6 +73,9 @@ def ep(method="GET", schema=None, sla=None, citations=False,
         },
         "note": note,
     }
+    if modeRequiresDataKind:
+        endpoint["modeRequiresDataKind"] = True
+    return endpoint
 
 
 DAY = 86400
@@ -180,7 +184,8 @@ ENDPOINTS = {
     "/api/a11oy/v1/sec/cve": ep(schema="generic_list", sla=DAY, citations=True,
         note="Live CVE feed (NVD)."),
     "/api/a11oy/v1/sec/kev": ep(schema="generic_list", sla=DAY, citations=True,
-        note="Live CISA KEV catalog."),
+        note="Bundled CISA KEV snapshot fallback; its catalog release clock and cached label remain subject to the live readiness SLA.",
+        modeRequiresDataKind=True),
     "/api/a11oy/v1/sec/attack": ep(schema="generic_obj", sla=DAY, citations=True),
     "/api/a11oy/v1/sec/threats": ep(schema="generic_obj", sla=HOUR, citations=True),
     "/api/a11oy/v1/sec/threatgraph": ep(schema="generic_obj", sla=HOUR, citations=True),
@@ -255,9 +260,11 @@ ENDPOINTS = {
     #   source + source_url, so citations are required; data must be fresh.
     "/api/a11oy/v1/feeds/pulse": ep(schema="feeds_pulse", sla=5 * MIN, citations=True,
         note="Live data-feed liveness/provenance heartbeat; each item cites source_url."),
-    # kevgate: live CISA KEV CVEs mapped through the REAL governed policy engine.
+    # kevgate: honestly labeled CISA KEV evidence mapped through the governed
+    # policy engine; a bundled or partially enriched response remains red.
     "/api/a11oy/v1/sec/kevgate": ep(schema="kevgate", sla=DAY, citations=True,
-        note="Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."),
+        note="CISA KEV -> deny-by-default gate impact. It is live only when KEV, EPSS, and NVD CVSS coverage are all live for every returned row; mixed provenance remains release-red.",
+        modeRequiresDataKind=True),
     # router/stats: live per-tier router stats derived from the real szl_brain.TIERS
     #   catalog. Throughput is an honest in-memory counter (resets on rebuild), so
     #   it is deterministic/derived -> no freshness SLA and no external citation.
@@ -662,7 +669,24 @@ SCHEMAS = {
         },
     },
     "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
-    "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
+    "kevgate": {
+        "type": "object",
+        "required": [
+            "items", "count", "mode", "data_kind",
+            "governed_decision_rows", "governance_complete",
+        ],
+        "requiredPathTypes": {
+            "items": "array", "count": "number", "mode": "string",
+            "data_kind": "string", "governed_decision_rows": "number",
+            "governance_complete": "boolean",
+        },
+        "governedDecisionArray": {
+            "path": "items",
+            "countPath": "count",
+            "coveragePath": "governed_decision_rows",
+            "completePath": "governance_complete",
+        },
+    },
     "router_stats": {"type": "object", "anyKey": ["routes", "servedThisWindow", "tiers"]},
     "mosaic_governed": {"type": "object",
                         "anyKey": ["cop", "receipts", "lambda_axes", "thresholds",
