@@ -46,10 +46,10 @@
     "@szl-holdings/a11oy-receipt-substrate": "^0.1.0"
   },
   "devDependencies": {
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.3.0",
     "ajv": "^8.20.0",
     "ajv-formats": "^3.0.1",
-    "tsx": "^4.23.10",
+    "tsx": "^4.23.12",
     "typescript": "^6.0.3"
   },
   "files": [
