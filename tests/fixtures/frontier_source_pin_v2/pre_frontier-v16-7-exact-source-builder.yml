@@ -30,9 +30,9 @@ jobs:
       REPOSITORY: ${{ github.repository }}
       ISSUE_NUMBER: ${{ github.event.issue.number }}
       OWNER_LOGIN: stephenlutar2-hash
-      CONTRACT_SHA256: 3b8f3cff171631fdf4344b2cfdb8668cf4e92dadf2688f92a5ad4a0f53ad4a4d
-      REPAIR_SCRIPT_SHA256: 003b709612d1d59fe0ce3b6316cd4a33273c5bd35237530c50e1f329f4ef0e59
-      SOURCE_TEST_SHA256: ee86e0eb880095686b204c89295c7b0f5912b937235675d72a412aeace44a3db
+      CONTRACT_SHA256: bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae
+$1003b709612d1d59fe0ce3b6316cd4a33273c5bd35237530c50e1f329f4ef0e59
+      SOURCE_TEST_SHA256: 4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f
     steps:
       - name: Create one exact GitHub-signed Frontier source commit
         shell: bash

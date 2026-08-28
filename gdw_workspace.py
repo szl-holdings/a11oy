@@ -3696,7 +3696,12 @@ class GDWWorkspace:
                           WHERE e.namespace = r.namespace
                             AND e.owner_id = r.owner_id
                             AND e.request_id = r.request_id
-                            AND e.status != 'EXPORTED'
+                            AND (
+                                e.status != 'EXPORTED'
+                                OR e.tombstoned_at IS NULL
+                                OR e.payload_json IS NOT NULL
+                                OR e.artifact_json IS NOT NULL
+                            )
                       )
                 ORDER BY r.expires_at, r.request_id LIMIT ?
                 """,
@@ -3726,6 +3731,8 @@ class GDWWorkspace:
                 SELECT idempotency_key FROM effect_outbox
                 WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
                       AND tombstoned_at IS NULL AND exported_at <= ?
+                      AND payload_json IS NOT NULL
+                      AND artifact_json IS NOT NULL
                 ORDER BY exported_at, idempotency_key LIMIT ?
                 """,
                 (ns, owner, exported_before, bounded),
@@ -4072,9 +4079,14 @@ class GDWWorkspace:
                 SELECT namespace, owner_id, idempotency_key,
                        database_generation_id, request_id, kind, receipt_hash,
                        payload_json, payload_sha256, intent_sha256,
-                       status, artifact_json
+                       status, artifact_json, tombstoned_at
                 FROM effect_outbox
-                WHERE payload_json IS NOT NULL
+                WHERE NOT (
+                    status = 'EXPORTED'
+                    AND payload_json IS NULL
+                    AND artifact_json IS NULL
+                    AND tombstoned_at IS NOT NULL
+                )
                 """
                 + (
                     ""
@@ -4086,6 +4098,18 @@ class GDWWorkspace:
             invalid_effect_bindings = 0
             invalid_exported_artifacts = 0
             for row in effect_rows:
+                canonically_compacted = (
+                    row["status"] == "EXPORTED"
+                    and row["payload_json"] is None
+                    and row["artifact_json"] is None
+                    and row["tombstoned_at"] is not None
+                )
+                if canonically_compacted:
+                    continue
+                lifecycle_binding_invalid = (
+                    row["payload_json"] is None
+                    or row["tombstoned_at"] is not None
+                )
                 try:
                     payload = json.loads(row["payload_json"])
                 except (TypeError, json.JSONDecodeError):
@@ -4093,9 +4117,10 @@ class GDWWorkspace:
                     continue
                 candidate = dict(row)
                 candidate["payload"] = payload
-                if self._connection_effect_binding_errors(
+                binding_errors = self._connection_effect_binding_errors(
                     connection, candidate
-                ):
+                )
+                if lifecycle_binding_invalid or binding_errors:
                     invalid_effect_bindings += 1
                 if row["status"] == "EXPORTED":
                     try:

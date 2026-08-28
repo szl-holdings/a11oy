@@ -23,12 +23,42 @@ For that reason:
   `Action-contract promotion qualification`, but its repository-owned run is
   advisory until GitHub binds the workflow identity through **Require workflows
   to pass before merging**.
+- `.github/workflows/frontier-source-pin-authority.yml` reports
+  `Protected Frontier source-pin authority` under the same control-plane
+  boundary. In the externally bound required-workflow run, it executes only a
+  stdlib validator loaded from `job.workflow_sha` on protected `main` and treats
+  the event base and candidate payload checkout as data. GitHub's required-
+  workflow engine ignores the workflow's `branches-ignore: ["**"]` filter,
+  while the filter suppresses ordinary candidate-associated duplicate runs.
+  Any unexpected non-`main` source still fails closed as
+  `ADVISORY_UNTRUSTED`.
 - Do not configure that job name as an ordinary required status context.
+- Do not cite any ordinary/bootstrap result as protected enforcement.
+- No merge queue is configured. Add `merge_group` only through a separately
+  qualified control-plane rotation if merge queue is enabled later.
 - The workflow treats the candidate checkout only as untrusted data and runs
-  the validator from the protected base checkout.
+  the action-contract validator from the protected base checkout. The Frontier
+  validator runs from the immutable ruleset workflow-source checkout instead.
 
 This is a GitHub control-plane boundary, not something a test inside the same
 candidate-controlled workflow can establish.
+
+## Frontier source-pin authority rotation
+
+`.github/workflows/frontier-source-pin-authority-v2.yml` is the versioned
+successor used to admit the exact four-file transition that repairs both
+Frontier workflow pins and the v1 regression fixture. Its protected validator
+accepts exactly the three pinned workflow/contract files plus
+`tests/test_validate_frontier_source_pin_candidate.py`; it executes no candidate
+code and holds the v1 workflow, v1 validator, repair oracle, and terminal-truth
+template byte-identical to protected `main`.
+
+Keep v1 Active while the v2 bootstrap lands on new paths. Create v2 as a
+separate Evaluate ruleset with an empty bypass list, prove an exact protected
+v2 PASS, then activate v2 before disabling v1. Never leave both authorities
+non-enforcing. Keep the disabled v1 definition for audit history and keep v2
+Active after the transition so later guarded-file changes require a v3-first
+rotation.
 
 ## Ordinary required status contexts
 
@@ -66,10 +96,14 @@ the GitHub-native required workflow as follows:
 2. Target repository `szl-holdings/a11oy` and the default branch only.
 3. Add **Require workflows to pass before merging**.
 4. Select source repository `szl-holdings/a11oy`.
-5. Select
-   `.github/workflows/action-contract-promotion-guard.yml`.
-6. Set enforcement to **Active** and leave **Do not require workflows checks on
-   creation** disabled.
+5. Use a separate additive ruleset for each workflow identity; do not rewrite an
+   existing protection bundle. The externally bound identities are:
+   - `.github/workflows/action-contract-promotion-guard.yml`
+   - `.github/workflows/frontier-source-pin-authority.yml` (v1 audit record)
+   - `.github/workflows/frontier-source-pin-authority-v2.yml` (active successor)
+6. Start a new identity in **Evaluate**, verify its protected source and exact
+   report, then change only enforcement to **Active**. Leave **Do not require
+   workflows checks on creation** disabled and keep the bypass list empty.
 7. Preserve every existing status check, signature, linear-history,
    non-fast-forward, deletion, and conversation-resolution rule.
 
@@ -78,8 +112,9 @@ The `series-a-default-branch` ruleset must retain
 request head to be updated when `main` moves; the resulting `synchronize` event
 re-runs the required workflow against the new protected base.
 
-The workflow also supports `merge_group`. If a merge queue is enabled, GitHub
-will run the same qualification against the merge-group SHA before admission.
+The workflow intentionally omits `merge_group` while no merge queue is
+configured. Add and qualify that event through a control-plane rotation before
+enabling a queue.
 
 Do not substitute an ordinary required status context for the required-workflow
 rule. The latter binds the source repository and workflow identity in GitHub's
@@ -89,17 +124,25 @@ control plane; a candidate-authored job name does not.
 
 This pull request cannot certify its own newly introduced workflow as
 control-plane-required. Treat its ordinary Actions run as advisory for the
-one-time bootstrap. After the file exists on `main`:
+one-time bootstrap. After each file exists on `main`:
 
 1. Add the required-workflow rule in **Evaluate** mode and inspect its run.
 2. Switch it to **Active** without changing the other protections.
 3. For pull requests that were already open, push a new commit, update the
    branch, or close and reopen the pull request so GitHub starts the newly
    required workflow.
-4. Confirm the required workflow is attached to the current PR head or
-   merge-group SHA and that the protected-base validator ran.
+4. Confirm the required workflow is attached to the current PR head and that
+   the protected-base validator ran.
 5. Confirm the repository ruleset still reports
    `strict_required_status_checks_policy=true`.
+
+Changing the Frontier authority workflow, its validator, or its validator
+regression is a control-plane rotation. Bind and verify a versioned successor
+before removing the prior required-workflow identity. Once this bootstrap is
+active, the Frontier workflow repair must change exactly the two guarded
+workflows, their execution contract, and
+`tests/test_validate_frontier_source_pin_candidate.py`; it cannot rotate the
+authority code or either protected source input in the same pull request.
 
 Read-only verification commands:
 
@@ -115,4 +158,3 @@ GitHub references:
 
 - [Require workflows to pass before merging](https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-workflows-to-pass-before-merging)
 - [Strict and loose required status checks](https://docs.github.com/en/enterprise-cloud@latest/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/available-rules-for-rulesets#require-status-checks-to-pass-before-merging)
-- [`merge_group` checks for merge queues](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#merge_group)
