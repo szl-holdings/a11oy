@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - live UI stale product names
+- Live web UI no longer presents KORA, LUMINA, or PARAGON as current
+  products. Honest roles (Intelligence, Briefing, Defense) replace them.
+  `tools/lexicon_gate.py` bans stay. Docs that say not to use those names
+  stay. Λ = Conjecture 1.
+
 ### Changed - public ecosystem map
 - `/ecosystem` is now an in-app map of command-center surfaces on a-11-oy.com.
   Hub atlas inventory, ROADMAP cuts, and the canonical stored receipt RECORD

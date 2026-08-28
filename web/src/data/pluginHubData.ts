@@ -261,7 +261,7 @@ export const PLUGIN_CATEGORIES: PluginCategory[] = [
     name: 'a11oy Native',
     count: 16,
     plugins: [
-      { icon: '✨', name: 'A11oy Intelligence', desc: 'Decision Intelligence command — finance terminal, deep dive, ROI lens. Absorbs former KORA surface', tier: 'core', tags: ['decision', 'intelligence', 'kora'] },
+      { icon: '✨', name: 'A11oy Intelligence', desc: 'Decision Intelligence command — finance terminal, deep dive, ROI lens.', tier: 'core', tags: ['decision', 'intelligence'] },
       { icon: '🧪', name: 'A11oy Lab', desc: 'Praxis capabilities — pattern atlas, prompt registry, eval console, skills, memory, research', tier: 'core', tags: ['lab', 'praxis', 'evals'] },
       { icon: '🔗', name: 'Proof Chain', desc: 'Immutable append-only ledger — every action, every model call, every approval recorded', tier: 'core', tags: ['proof', 'ledger'] },
       { icon: '🔒', name: 'Covenant Policy Engine', desc: 'Policy-as-code gates — who can approve, when, under what conditions', tier: 'core', tags: ['policy', 'governance'] },

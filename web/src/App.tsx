@@ -524,7 +524,7 @@ const PrimitivesOrchestrator = lazy(() => import('./pages/primitives/PrimitivesO
 const PrimitivesSkillsLibrary = lazy(() => import('./pages/primitives/PrimitivesSkillsLibrary').then(m => ({ default: m.PrimitivesSkillsLibrary })));
 const PrimitivesTokensGovernance = lazy(() => import('./pages/primitives/TokensGovernancePrimitive').then(m => ({ default: m.TokensGovernancePrimitive })));
 
-// Decisions additions (Lyte / KORA)
+// Decisions additions
 const DecisionTwin = lazy(() => import('./pages/decisions/DecisionTwin').then(m => ({ default: m.DecisionTwin })));
 const DecisionsAutonomyModes = lazy(() => import('./pages/decisions/AutonomyModes').then(m => ({ default: m.AutonomyModes })));
 const DecisionsEntityGraph = lazy(() => import('./pages/decisions/DecisionsEntityGraph').then(m => ({ default: m.DecisionsEntityGraph })));
@@ -1631,7 +1631,7 @@ function AppInner() {
           <WithShell><PrimitivesHub /></WithShell>
         </Route>
 
-        {/* ── Decisions additions (Lyte / KORA) ── */}
+        {/* ── Decisions additions ── */}
         <Route path={`${base}/decisions/twin`}>
           <WithShell><DecisionTwin /></WithShell>
         </Route>

@@ -247,7 +247,7 @@ evidence_requirements:
     trending: false,
     template: 'cyber-triage',
     tags: ['threat-triage', 'cvss', 'containment', 'cisa'],
-    author: 'PARAGON Team',
+    author: 'Defense Team',
     constitution: `name: paragon-triage-v4
 version: 4.0.0
 purpose: Govern cyber threat triage with output sanitization.
@@ -364,7 +364,7 @@ approval_policy:
     trending: false,
     template: 'defense-isr',
     tags: ['isr', 'threat-actor', 'mission-brief', 'classified'],
-    author: 'PARAGON Defense',
+    author: 'Defense',
     constitution: `name: guardian-isr-v2
 version: 2.0.0
 purpose: Govern ISR brief synthesis for defense operators.

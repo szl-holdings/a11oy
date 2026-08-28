@@ -85,8 +85,8 @@ export const brandsData: Record<string, Brand[]> = {
     },
     {
       id: 'pulse',
-      name: 'LUMINA',
-      tagline: 'LUMINA — AI Executive Briefing',
+      name: 'Briefing',
+      tagline: 'Executive Briefing',
       color: '#c9b787',
       healthScore: 91,
       lastAudit: '2026-04-22',
@@ -136,8 +136,8 @@ export const brandsData: Record<string, Brand[]> = {
     },
     {
       id: 'aegis',
-      name: 'PARAGON',
-      tagline: 'PARAGON — Defense & Intelligence',
+      name: 'Defense',
+      tagline: 'Defense & Intelligence',
       color: '#8a8a8a',
       healthScore: 79,
       lastAudit: '2026-04-12',
