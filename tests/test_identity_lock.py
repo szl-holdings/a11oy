@@ -535,9 +535,12 @@ def test_served_home_and_trust_bind_kernel_chip_from_honest():
     assert "never green" in trust.lower()
     assert furniture not in trust.replace("a-11-oy.com", "")
 
-    paths = {getattr(route, "path", None) for route in serve.app.router.routes}
-    assert "/investor" not in paths
-    assert "/investor/" not in paths
+    # 1394 identity: no stub investor page. 1396 chrome: GET /investor is a
+    # 307 alias onto the same console chrome (?view=investor), not a second IA.
+    inv = client.get("/investor", follow_redirects=False)
+    assert inv.status_code == 307, inv.status_code
+    loc = inv.headers.get("location") or ""
+    assert loc.endswith("/console?view=investor") or loc == "/console?view=investor"
 
 
 

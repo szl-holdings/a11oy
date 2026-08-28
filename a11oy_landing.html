@@ -902,8 +902,8 @@
   }
 
   function setTiers(t){
-    // Kernel locked count is NOT t.locked. Genome LOCKED-PROVEN is catalog (often 25).
-    // Kernel lock chip is owned by loadLockedKernel() from /api/a11oy/v1/honest locked_formula_count.
+    // Kernel Lean-8 chip is bound only from loadKernelLocked() → /honest
+    // locked_formula_count. Never genome LOCKED-PROVEN. Never proof_tiers catalog.
     $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
     $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
