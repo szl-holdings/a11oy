@@ -11,6 +11,8 @@ import re
 
 ROOT = Path(__file__).resolve().parents[1]
 ROUTER = ROOT / "console" / "static" / "viz" / "router"
+VIZ_INDEX = ROOT / "console" / "static" / "viz" / "index.html"
+CONSOLE = ROOT / "pages" / "console.html"
 WORKFLOW = ROOT / ".github" / "workflows" / "router-constellation-contract.yml"
 CI_CORE_INPUT = ROOT / ".github" / "requirements" / "ci-core.in"
 CI_CORE_LOCK = ROOT / ".github" / "requirements" / "ci-core.txt"
@@ -48,20 +50,47 @@ def test_status_requires_validated_endpoint_data_and_never_calls_it_qps():
     app = source(ROUTER / "app.js")
 
     assert "normalizeStats(await response.json())" in app
-    assert "payload.state !== 'MODELED'" in app
-    assert "payload.mode !== 'modeled'" in app
-    assert "payload.throughput_state !== 'MODELED'" in app
+    assert "payload?.state === 'LIVE'" in app
+    assert "payload?.state === 'DEGRADED'" in app
+    assert "payload?.catalog_state === 'DRIFT'" in app
+    assert "(!liveEnvelope && !driftEnvelope)" in app
+    assert "payload.data_kind !== 'live'" in app
+    assert "payload.throughput_state !== 'OBSERVED'" in app
+    assert "payload.counter_scope !== 'process_lifetime'" in app
+    assert "route.routingDecisions === route.throughput" in app
+    assert "routing_decisions_since_process_start" in app
+    assert "if(Number(route.throughput) <= 0) return" in app
     assert "routes.length !== payload.routes.length" in app
-    assert "router stats signal does not equal route total" in app
-    assert "stats.source !== 'szl_brain.TIERS'" in app
-    assert "MODELED ENDPOINT · RESPONDING" in app
-    assert "modeled load · not QPS" in app
+    assert "router stats counter does not equal route total" in app
+    assert "stats.source !== 'szl_llm_registry.router_stats_snapshot'" in app
+    assert "LIVE COUNTER · RESPONDING" in app
+    assert "DEGRADED · LIVE COUNTER" in app
+    assert "'counter-degraded'" in app
+    assert "stats.state === 'DEGRADED' ? 'counter-degraded' : 'responding'" in app
+    assert "routing decisions · process lifetime" in app
     assert "MODELED decision signal" in app
     assert "response age, not model age" in app
     assert 'id="qps"' not in html
     assert "served / poll" not in html
     assert "open LLMs" not in html
     assert "registered models" in html
+
+
+def test_router_counter_consumers_do_not_call_decisions_throughput_or_tokens():
+    console = source(CONSOLE)
+    viz_index = source(VIZ_INDEX)
+
+    assert "Routing decisions by model" in console
+    assert "Catalog routes" in console
+    assert "process-lifetime routing-decision counts" in console
+    assert "GREEN/AMBER are router policy classes, not open-weight claims" in console
+    assert "routing decisions '+r.throughput" in console
+    assert "r.throughput+' tok/s'" not in console
+    assert "measured throughput" not in console
+    assert "reports per-tier throughput" not in console
+    assert "edge width = throughput" not in viz_index.lower()
+    assert "nonzero routing-decision counts since process start" in viz_index
+    assert "LIVE COUNTER / MODELED FALLBACK" in viz_index
 
 
 def test_unknown_endpoint_model_is_not_mapped_to_an_unrelated_registry_node():

@@ -81,7 +81,8 @@ def test_category_tabs_and_endpoint_states_match_backend_semantics() -> None:
 
     assert "const pulse=evidenceState(data?.labels?.pulse)" in ANATOMY
     assert "const throughput=evidenceState(data?.throughput_state)" in ANATOMY
-    assert "const throughputState=evidenceState(router?.throughput_state)||'MODELED'" in ANATOMY
-    assert "'modeled load':'throughput'" in ANATOMY
+    assert "const throughputState=evidenceState(router?.throughput_state)||'UNAVAILABLE'" in ANATOMY
+    assert "throughputState==='OBSERVED'?'routing decisions'" in ANATOMY
+    assert "throughputState==='MODELED'?'modeled load':'throughput'" in ANATOMY
     assert 'class="ok"' not in ANATOMY
     assert "a successful HTTP response is not silently converted" in ANATOMY

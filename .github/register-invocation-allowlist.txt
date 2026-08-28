@@ -18,6 +18,7 @@
 #     which a STATIC AST check cannot resolve to a concrete module — documented
 #     guard limitation, not a dead tab). Verified live via the loop at serve.py. ---
 szl_chaski                  # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)
+szl_llm_registry            # wired via _resolve_llm_registry_module().register(app) in serve.py (static AST misses the indirection)
 szl_wallpa                  # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)
 szl_wasi_rikuq              # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)
 szl_khipu_os_routes         # wired via the edge-organs __import__(var).register loop in serve.py (dynamic)

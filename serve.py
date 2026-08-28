@@ -2885,8 +2885,63 @@ except Exception as _szl_jpt_e:  # pragma: no cover
 # NEVER leaked over the API (metadata + sha256 + availability only). Registered
 # BEFORE the Node proxy + SPA catch-all so /api/... stays JSON. Wave G additionally
 # wires an OPTIONAL harness_profile_id into the /code run-loop + /llm/route.
+def _llm_registry_supports_router_stats(registry) -> bool:
+    """Whether a registry can be the sole counter writer and API reader."""
+    if not isinstance(getattr(registry, "MODEL_REGISTRY", None), list):
+        return False
+    if not all(
+        callable(getattr(registry, name, None))
+        for name in ("register", "router_stats_snapshot")
+    ):
+        return False
+    writer = getattr(registry, "_forum_append", None)
+    if not callable(writer):
+        return False
+    try:
+        import inspect
+        inspect.signature(writer).bind({}, routing_decision=True)
+    except (TypeError, ValueError):
+        return False
+    return True
+
+
+def _resolve_llm_registry_module():
+    """Resolve one counter-capable registry module for this process.
+
+    Preserve a compatible harness binding because it may already own trusted
+    process-lifetime writes. Otherwise prefer the extracted substrate only when
+    it implements the complete router stats contract. An older installed package
+    must not shadow the vendored implementation and leave the endpoint unavailable.
+    """
+    harness = globals().get("_szl_model_harness")
+    harness_registry = getattr(harness, "_REGISTRY_MODULE", None)
+    if _llm_registry_supports_router_stats(harness_registry):
+        globals()["_llm_reg"] = harness_registry
+        return harness_registry
+
+    existing = globals().get("_llm_reg")
+    if _llm_registry_supports_router_stats(existing):
+        return existing
+
+    try:
+        from szl_substrate import szl_llm_registry as preferred_registry
+    except Exception:
+        preferred_registry = None
+
+    if _llm_registry_supports_router_stats(preferred_registry):
+        registry = preferred_registry
+    else:
+        import szl_llm_registry as registry
+        if not _llm_registry_supports_router_stats(registry):
+            raise RuntimeError("vendored LLM registry lacks the router stats contract")
+
+    globals()["_llm_reg"] = registry
+    return registry
+
+
 try:
     import szl_model_harness as _szl_model_harness
+    _szl_model_harness._bind_registry(_resolve_llm_registry_module())
     _szl_model_harness.register(app, ns="a11oy")
     print("[a11oy] Model harness registered: /api/a11oy/v1/harness/{profiles,apply}", file=__import__("sys").stderr)
 except Exception as _szl_model_harness_e:  # pragma: no cover
@@ -6945,74 +7000,181 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # ===========================================================================
 
 # ===========================================================================
-# ADDITIVE (FUNCTIONAL-PROOF squad, 2026-06-04): modeled /v1/router/stats.
+# ADDITIVE (FUNCTIONAL-PROOF squad, 2026-06-04; counter relock 2026-08-26):
+# live /v1/router/stats.
 # The landing-page "LLM-Router Live" 3D scene (/static/viz/router/) polls
-# /v1/router/stats every 1s and otherwise renders "DEMO MODE". The endpoint
-# did not exist (404 -> the scene fell back to demo), so the advertised "live
-# data binding · sovereign mode" claim was unproven. This serves a REAL catalog
-# observation plus explicitly MODELED load derived from szl_brain.TIERS:
-# one route per tier, throughput = deterministic time-derived display signal per
-# poll, in the {routes:[{organ,tier,model,throughput,license}], servedThisWindow}
-# shape the scene's normalizeStats() consumes. Registered at BOTH the root path
-# (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
-# proxy + SPA, matching the existing /v4/fleet dual-registration pattern.
+# /v1/router/stats every 1s. The former wall-clock-derived display signal has
+# been removed. This route now reads the exact process-lifetime counters owned
+# by szl_llm_registry and incremented only with trusted routing-receipt writes.
+# `throughput` and `servedThisWindow` remain compatibility field names for the
+# scene, but their declared unit is routing decisions since process start — not
+# QPS, tokens, inference completions, or external production traffic. A missing
+# registry/counter returns UNAVAILABLE; no synthetic fallback is promoted.
+# Registered at BOTH the root path (HF proxy strips /api/a11oy) and the
+# /api/a11oy/v1 path, BEFORE the catch-all proxy + SPA.
 # Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1 established;
 # L2/L3 are not established and must not be inferred from artifact inventory.
 # (NOT claimed); never FedRAMP/Iron Bank/CMMC/ATO without roadmap — unchanged.
 # ===========================================================================
-import time as _rtr_time
+
+def _a11oy_router_stats_unavailable(reason: str) -> dict:
+    return {
+        "state": "UNAVAILABLE",
+        "mode": "unavailable",
+        "data_kind": "unavailable",
+        "catalog_state": "UNAVAILABLE",
+        "throughput_state": "UNAVAILABLE",
+        "routes": [],
+        "servedThisWindow": None,
+        "routingDecisionsSinceStart": None,
+        "tiers": [],
+        "counter_scope": "process_lifetime",
+        "counter_started_at": None,
+        "observed_at": _gov_now_iso(),
+        "source": "unavailable",
+        "doctrine": "v11",
+        "honesty": (
+            f"Router counter unavailable: {reason}. No routing count, QPS, token "
+            "rate, inference completion, or synthetic replacement was fabricated."
+        ),
+    }
+
 
 def _a11oy_router_stats_payload() -> dict:
-    """Catalog-derived routes with explicitly MODELED, non-traffic throughput."""
-    _real_tiers = getattr(_a11oy_pr_brain, "TIERS", None) if _A11OY_BRAIN_OK else None
-    _catalog_live = isinstance(_real_tiers, list) and bool(_real_tiers)
-    tiers = _real_tiers if _catalog_live else [
-        {"id": "claude_sonnet_4_6", "rank": 0},
-        {"id": "gemini_3_1_pro", "rank": 1},
-        {"id": "gpt_5_4", "rank": 2},
-        {"id": "claude_opus_4_8", "rank": 3},
-        {"id": "deepseek_r1", "rank": 4},
-        {"id": "gemini_3_flash", "rank": 5},
-        {"id": "sovereign_local", "rank": 6},
-    ]
+    """Runtime model catalog plus exact trusted routing-decision counters."""
+    registry = globals().get("_llm_reg")
+    registry_info = globals().get("_llm_reg_info")
+    snapshot_fn = getattr(registry, "router_stats_snapshot", None)
+    catalog = getattr(registry, "MODEL_REGISTRY", None)
+    if not isinstance(registry_info, dict) or not callable(snapshot_fn):
+        return _a11oy_router_stats_unavailable("LLM registry is not mounted")
+    if not isinstance(catalog, list) or not catalog:
+        return _a11oy_router_stats_unavailable("runtime model catalog is absent")
+    try:
+        snapshot = snapshot_fn()
+    except Exception as exc:
+        return _a11oy_router_stats_unavailable(
+            f"counter snapshot failed ({type(exc).__name__})"
+        )
+    if not isinstance(snapshot, dict) or snapshot.get("state") != "LIVE":
+        return _a11oy_router_stats_unavailable("counter snapshot did not declare LIVE")
+    if (
+        snapshot.get("counter_state") != "OBSERVED"
+        or snapshot.get("counter_scope") != "process_lifetime"
+        or not isinstance(snapshot.get("counter_started_at"), str)
+        or not snapshot.get("counter_started_at")
+        or not isinstance(snapshot.get("observed_at"), str)
+        or not snapshot.get("observed_at")
+    ):
+        return _a11oy_router_stats_unavailable("counter observation metadata is invalid")
+
+    counts = {}
+    try:
+        for item in snapshot.get("routes", []):
+            tier = item["tier"]
+            raw_model_id = item["model_id"]
+            model_id = raw_model_id.strip() if type(raw_model_id) is str else ""
+            count = item["routing_decisions"]
+            if (
+                type(tier) is not int
+                or type(count) is not int
+                or tier < 0
+                or not model_id
+                or count < 0
+            ):
+                raise ValueError("invalid route counter")
+            key = (tier, model_id)
+            if key in counts:
+                raise ValueError("duplicate route counter")
+            counts[key] = count
+        snapshot_total = snapshot["routing_decisions_total"]
+        if type(snapshot_total) is not int or snapshot_total < 0:
+            raise ValueError("invalid counter total")
+    except (KeyError, TypeError, ValueError):
+        return _a11oy_router_stats_unavailable("counter snapshot schema is invalid")
+    if snapshot_total != sum(counts.values()):
+        return _a11oy_router_stats_unavailable("counter total does not reconcile")
+
     organ_for_rank = {0: "Reasoning", 1: "Reasoning", 2: "a11oy", 3: "Operator",
                       4: "Policy / Safety", 5: "Knowledge", 6: "a11oy"}
-    tick = int(_rtr_time.time())
     routes = []
-    served = 0
-    for t in tiers:
-        rank = int(t.get("rank", 0))
-        # Higher-rank frontier-reasoning tiers carry AMBER (heavier governance);
-        # the fast/cheap + sovereign-local tiers are GREEN. Honest per real catalog.
+    catalog_keys = set()
+    for model in catalog:
+        try:
+            rank = model["tier"]
+            raw_model_id = model["model_id"]
+            model_id = raw_model_id.strip() if type(raw_model_id) is str else ""
+        except (KeyError, TypeError, ValueError):
+            return _a11oy_router_stats_unavailable("runtime model catalog is invalid")
+        if type(rank) is not int or rank < 0 or not model_id:
+            return _a11oy_router_stats_unavailable("runtime model catalog is invalid")
+        key = (rank, model_id)
+        if key in catalog_keys:
+            return _a11oy_router_stats_unavailable("runtime model catalog has duplicate routes")
+        catalog_keys.add(key)
         license_class = "AMBER" if rank >= 2 else "GREEN"
-        tp = 12 + ((tick + rank * 7) % 70)
+        decisions = counts.get(key, 0)
         routes.append({
             "organ": organ_for_rank.get(rank, "a11oy"),
             "tier": f"T{rank}",
-            "model": t.get("id", f"tier-{rank}"),
-            "throughput": tp,
+            "model": model_id,
+            "throughput": decisions,
+            "routing_decisions": decisions,
+            "throughput_unit": "routing_decisions_since_process_start",
             "license": license_class,
+            "catalog_member": True,
         })
-        served += tp
+
+    # Never drop a trusted receipt merely because the runtime catalog changed
+    # after it was counted. Drifted routes remain visible and the catalog state
+    # says so; the aggregate therefore always reconciles exactly.
+    drift_keys = sorted(set(counts) - catalog_keys)
+    for rank, model_id in drift_keys:
+        decisions = counts[(rank, model_id)]
+        license_class = "AMBER" if rank >= 2 else "GREEN"
+        routes.append({
+            "organ": organ_for_rank.get(rank, "a11oy"),
+            "tier": f"T{rank}",
+            "model": model_id,
+            "throughput": decisions,
+            "routing_decisions": decisions,
+            "throughput_unit": "routing_decisions_since_process_start",
+            "license": license_class,
+            "catalog_member": False,
+        })
+
+    served = sum(route["routing_decisions"] for route in routes)
+    if served != snapshot_total:
+        return _a11oy_router_stats_unavailable("rendered route total does not reconcile")
+    endpoint_state = "DEGRADED" if drift_keys else "LIVE"
     return {
-        "state": "MODELED",
-        "mode": "modeled",
-        "catalog_state": "LIVE" if _catalog_live else "FALLBACK",
-        "throughput_state": "MODELED",
+        "state": endpoint_state,
+        "mode": "degraded" if drift_keys else "live",
+        "data_kind": "live",
+        "catalog_state": "DRIFT" if drift_keys else "LIVE",
+        "throughput_state": "OBSERVED",
         "routes": routes,
         "servedThisWindow": served,
-        "tiers": [f"T{int(t.get('rank', i))}" for i, t in enumerate(tiers)],
-        "source": "szl_brain.TIERS" if _catalog_live else "honest_stub_catalog",
+        "routingDecisionsSinceStart": served,
+        "tiers": sorted({route["tier"] for route in routes}),
+        "counter_scope": snapshot["counter_scope"],
+        "counter_started_at": snapshot["counter_started_at"],
+        "observed_at": snapshot["observed_at"],
+        "source": "szl_llm_registry.router_stats_snapshot",
+        "catalog_source": "szl_llm_registry.MODEL_REGISTRY",
         "doctrine": "v11",
-        "honesty": ("Tier catalog state is reported separately. Throughput and "
-                    "servedThisWindow are deterministic MODELED display signals, not "
-                    "production traffic, measured QPS, or completed inference."),
+        "honesty": (
+            "Exact trusted routing-decision counts since counter_started_at; resets "
+            "on rebuild. Legacy fields throughput and servedThisWindow carry that "
+            "count, not QPS, tokens, inference completions, or traffic outside this "
+            "process. Zero is a valid observed count."
+        ),
     }
 
 @app.get("/api/a11oy/v1/router/stats")
 @app.get("/v1/router/stats")
 async def _a11oy_router_stats() -> JSONResponse:
-    """Catalog routes plus modeled load (feeds the /static/viz/router/ 3D scene)."""
+    """Runtime catalog plus live process-lifetime routing-decision counters."""
     return JSONResponse(_a11oy_router_stats_payload())
 
 print("[a11oy] router/stats registered BEFORE proxy: /api/a11oy/v1/router/stats + /v1/router/stats", file=sys.stderr)
@@ -7208,10 +7370,7 @@ except Exception as _parity_e:
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
 # ===========================================================================
 try:
-    try:  # prefer the extracted substrate package; fall back to local vendored copy
-        from szl_substrate import szl_llm_registry as _llm_reg
-    except Exception:
-        import szl_llm_registry as _llm_reg
+    _llm_reg = _resolve_llm_registry_module()
     _llm_reg_info = _llm_reg.register(app)
     print(
         f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
@@ -9150,21 +9309,34 @@ def _r3d_loop_meta(r: dict):
 def _r3d_router_metrics_payload() -> dict:
     rs = _a11oy_router_stats_payload()
     routes = rs.get("routes", [])
+    if rs.get("state") not in {"LIVE", "DEGRADED"}:
+        return {
+            **rs,
+            "data_kind": "unavailable",
+            "width_depth_available": False,
+            "honesty": (
+                "The routing-decision counter is unavailable, so this metrics view "
+                "does not substitute modeled traffic. Model width/depth is also unavailable."
+            ),
+        }
     return {
-        "state": "MODELED",
-        "data_kind": "modeled",
-        "mode": "modeled",
-        "catalog_state": rs.get("catalog_state", "FALLBACK"),
-        "throughput_state": "MODELED",
+        "state": rs["state"],
+        "data_kind": "live",
+        "mode": rs["mode"],
+        "catalog_state": rs.get("catalog_state", "UNAVAILABLE"),
+        "throughput_state": "OBSERVED",
         "routes": routes,
         "tiers": routes,
         "servedThisWindow": rs.get("servedThisWindow", 0),
+        "routingDecisionsSinceStart": rs.get("routingDecisionsSinceStart", 0),
+        "counter_scope": rs.get("counter_scope"),
+        "counter_started_at": rs.get("counter_started_at"),
+        "observed_at": rs.get("observed_at"),
         "width_depth_available": False,
         "source": rs.get("source", ""),
         "doctrine": "v11",
-        "honesty": ("Per-tier model and license come from the router catalog; catalog_state says whether "
-                    "that catalog is live or fallback. Throughput and display load remain MODELED, never "
-                    "measured traffic or QPS. Model width/depth shape is NOT measured, so any "
+        "honesty": ("Per-route counts are exact trusted routing decisions since process start, not "
+                    "QPS, tokens, inference completions, or external traffic. Model width/depth shape is NOT measured, so any "
                     "width/depth scaling point stays a clearly-labelled SAMPLE. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -9172,18 +9344,19 @@ def _r3d_router_metrics_payload() -> dict:
 def _r3d_routing_graph_payload() -> dict:
     rs = _a11oy_router_stats_payload()
     routes = rs.get("routes", [])
-    nodes = [{"id": r.get("tier", "T%d" % i), "organ": r.get("organ", ""),
+    nodes = [{"id": "%s:%s" % (r.get("tier", "T%d" % i), r.get("model", "unknown")),
+              "tier": r.get("tier", "T%d" % i), "organ": r.get("organ", ""),
               "model": r.get("model", ""), "throughput": r.get("throughput", 0),
               "license": r.get("license", "")} for i, r in enumerate(routes)]
-    edges = [{"source": routes[i].get("tier"), "target": routes[i + 1].get("tier")}
-             for i in range(len(routes) - 1)]
+    edges = [{"source": nodes[i]["id"], "target": nodes[i + 1]["id"]}
+             for i in range(len(nodes) - 1)]
     ch = _r3d_chain(50)
     return {
         "state": "MODELED",
         "data_kind": "modeled",
         "mode": "modeled",
-        "catalog_state": rs.get("catalog_state", "FALLBACK"),
-        "throughput_state": "MODELED",
+        "catalog_state": rs.get("catalog_state", "UNAVAILABLE"),
+        "throughput_state": rs.get("throughput_state", "UNAVAILABLE"),
         "nodes": nodes,
         "edges": edges,
         "routes": routes,
@@ -9195,9 +9368,9 @@ def _r3d_routing_graph_payload() -> dict:
         "surface": ("GraphRouter routing-envelope score s = lambda*e_hat - (1-lambda)*c_hat "
                     "is a DERIVED heuristic, never a measured loss"),
         "doctrine": "v11",
-        "honesty": ("Routing nodes/edges use the /router/stats catalog; catalog_state distinguishes "
-                    "the live brain catalog from the honest fallback. Throughput remains MODELED, never "
-                    "traffic or QPS. The organ -> tier -> model escalation path is catalog data; attached receipts are "
+        "honesty": ("Routing nodes/edges use the /router/stats catalog. Route counts are OBSERVED "
+                    "trusted decisions since process start, never QPS, tokens, inference completions, "
+                    "or external traffic; the graph layout remains MODELED. The organ -> tier -> model escalation path is catalog data; attached receipts are "
                     "deterministic SAMPLE hash-link records, not operational events. The manifold surface is a derived heuristic, never a measured loss. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
