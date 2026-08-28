@@ -4734,7 +4734,8 @@ except Exception as _wh_e:  # never crash the app
 # bounded combiner), picks the winner, and emits a DSSE-signed Khipu receipt.
 # HF Inference free-tier voters use the Space HF token (custom-cred proxy);
 # qwen-local degrades to a CLEARLY-LABELLED deterministic stub when the local
-# vLLM is unreachable (never a fabricated completion); failed voters carry an
+# vLLM is unreachable (never a fabricated completion). Sovereign path is
+# khipu-gguf on the pinned CPU lab. Failed voters carry an
 # "error" field, never a fake response. Registered BEFORE the generic
 # /api/a11oy/{path:path} Node proxy and the SPA catch-all so /agent and the
 # v4 ask route resolve LOCALLY. Λ = Conjecture 1 (NOT a theorem; 163 sorries).
@@ -14945,6 +14946,27 @@ try:
 except Exception as _khipu_demo_error:  # additive: never take down the SPA
     print(
         f"[a11oy] khipu demo tab NOT registered (non-fatal): {_khipu_demo_error!r}",
+        file=sys.stderr,
+    )
+
+
+# ============================================================================
+# KHIPU LIVE CPU-LAB PROXY (2026-08-28): GET /api/a11oy/v1/khipu/status and
+# POST /api/a11oy/v1/khipu/chat — same-origin proxy so /console Try Khipu can
+# reach the public CPU lab without relying on CORS. Distinct from the RECORDED
+# khipu demo traces above. Dummy Bearer not-a-secret; never reads HF_TOKEN.
+# GET does not sign. POST passes through the lab UNSIGNED record_sha256.
+# max_tokens<=32, temperature=0, stream=false. No tokens/s figure. Λ=Conjecture 1.
+# Additive, front-moved so the exact paths beat /api/a11oy/{path:path} and SPA.
+# ============================================================================
+try:
+    import a11oy_khipu_chat as _a11oy_khipu_chat
+
+    _khipu_chat_result = _a11oy_khipu_chat.register(app)
+    print(f"[a11oy] khipu live CPU-lab proxy registered (front-moved): {_khipu_chat_result}", file=sys.stderr)
+except Exception as _khipu_chat_error:  # additive: never take down the SPA
+    print(
+        f"[a11oy] khipu live CPU-lab proxy NOT registered (non-fatal): {_khipu_chat_error!r}",
         file=sys.stderr,
     )
 

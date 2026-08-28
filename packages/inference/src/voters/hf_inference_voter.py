@@ -10,7 +10,8 @@ hf_inference_voter.py — Three HF Inference free-tier voters:
   - hf-inference-qwen    (Qwen2.5-72B-Instruct via HF)
 
 All three use HF_TOKEN.  Off by default; activate by including voter_id in
-the `voters` list AND having HF_TOKEN in the env.
+the `voters` list AND having HF_TOKEN in the env. Optional cloud voters —
+not the sovereign path (that is khipu-gguf on the pinned CPU lab).
 """
 from __future__ import annotations
 

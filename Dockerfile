@@ -628,6 +628,11 @@ COPY a11oy_khipu_demo_traces.json ./a11oy_khipu_demo_traces.json
 # … (full rationale: docs/DOCKERFILE_NOTES.md §94)
 COPY a11oy_khipu_demo_nav.py ./a11oy_khipu_demo_nav.py
 
+# KHIPU LIVE CPU LAB (2026-08-28): same-origin /api/a11oy/v1/khipu/{status,chat}
+# proxy + first-class GGUF voter package. Dummy Bearer not-a-secret. Λ=Conjecture 1.
+COPY packages/inference/ ./packages/inference/
+COPY a11oy_khipu_chat.py ./a11oy_khipu_chat.py
+
 # QUANT SIGNALS WALL (2026-07-16): /api/quant/signals + /signals — the quant
 # … (full rationale: docs/DOCKERFILE_NOTES.md §95)
 COPY a11oy_quant_signals.py ./a11oy_quant_signals.py
