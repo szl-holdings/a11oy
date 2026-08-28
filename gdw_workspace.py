@@ -3684,6 +3684,28 @@ class GDWWorkspace:
                 )
             result["sessions_tombstoned"] = len(session_rows)
 
+            effects = connection.execute(
+                """
+                SELECT idempotency_key FROM effect_outbox
+                WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
+                      AND tombstoned_at IS NULL AND exported_at <= ?
+                ORDER BY exported_at, idempotency_key LIMIT ?
+                """,
+                (ns, owner, exported_before, bounded),
+            ).fetchall()
+            for row in effects:
+                connection.execute(
+                    """
+                    UPDATE effect_outbox
+                    SET payload_json = NULL, artifact_json = NULL,
+                        tombstoned_at = ?
+                    WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
+                          AND status = 'EXPORTED'
+                    """,
+                    (now_text, ns, owner, row["idempotency_key"]),
+                )
+            result["effects_compacted"] = len(effects)
+
             request_rows = connection.execute(
                 """
                 SELECT r.request_id
@@ -3696,7 +3718,10 @@ class GDWWorkspace:
                           WHERE e.namespace = r.namespace
                             AND e.owner_id = r.owner_id
                             AND e.request_id = r.request_id
-                            AND e.status != 'EXPORTED'
+                            AND (
+                                e.status != 'EXPORTED'
+                                OR e.payload_json IS NOT NULL
+                            )
                       )
                 ORDER BY r.expires_at, r.request_id LIMIT ?
                 """,
@@ -3720,28 +3745,6 @@ class GDWWorkspace:
                     (now_text, ns, owner, row["request_id"]),
                 )
             result["requests_tombstoned"] = len(request_rows)
-
-            effects = connection.execute(
-                """
-                SELECT idempotency_key FROM effect_outbox
-                WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
-                      AND tombstoned_at IS NULL AND exported_at <= ?
-                ORDER BY exported_at, idempotency_key LIMIT ?
-                """,
-                (ns, owner, exported_before, bounded),
-            ).fetchall()
-            for row in effects:
-                connection.execute(
-                    """
-                    UPDATE effect_outbox
-                    SET payload_json = NULL, artifact_json = NULL,
-                        tombstoned_at = ?
-                    WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
-                          AND status = 'EXPORTED'
-                    """,
-                    (now_text, ns, owner, row["idempotency_key"]),
-                )
-            result["effects_compacted"] = len(effects)
 
             proofs = connection.execute(
                 """

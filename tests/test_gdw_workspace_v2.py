@@ -736,9 +736,15 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
         artifact,
         (start + timedelta(seconds=30)).isoformat(),
     )
+    collected = workspace.collect_garbage(now=start + timedelta(seconds=35))
+    assert collected["requests_tombstoned"] == 0
+    assert collected["effects_compacted"] == 0
+    assert workspace.integrity()["invalid_effect_bindings"] == 0
+
     collected = workspace.collect_garbage(now=start + timedelta(seconds=50))
     assert collected["requests_tombstoned"] == 1
     assert collected["effects_compacted"] == 1
+    assert workspace.integrity()["invalid_effect_bindings"] == 0
     with workspace.transaction() as connection:
         with pytest.raises(GDWLifecycleError):
             workspace.cached_request(connection, "request")
