@@ -182,8 +182,9 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
   <div class="wrap">
     <span class="brand"><span class="dot"></span>a11oy</span>
     <nav class="top">
-      <a href="/console">Console</a>
-      <a href="/console#genome">Genome</a>
+      <a href="/console">Command</a>
+      <a href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
+      <a href="/console?view=genome">Genome</a>
       <a href="/proof">Proof</a>
       <a href="/verify">Verify</a>
       <a href="/trust" aria-current="page" style="color:var(--ink)">Trust</a>
@@ -430,6 +431,9 @@ function kernelFromHonest(h){
   $('cnt-locked').firstChild.nodeValue=(kernelCount==null)?'N/A':kernelCount;
 
   try{
+    const h=await getJSON('/api/a11oy/v1/honest');
+    const kernel=(h&&h.locked_formula_count===8)?8:null;
+    $('cnt-locked').firstChild.nodeValue=(kernel==null?'N/A':kernel);
     const g=await getJSON('/api/a11oy/v1/genome');
     const tc=g.tier_counts||{};
     $('cnt-semantic').firstChild.nodeValue=(tc['SEMANTIC-VERIFIED']??'N/A');
@@ -441,7 +445,8 @@ function kernelFromHonest(h){
     const gTotEl=$('cnt-genome-total');
     if(gTotEl) gTotEl.textContent=(g.count==null)?'N/A':g.count;
     const naExtra=(tc['honest-N/A']!=null)?(' · '+tc['honest-N/A']+' honest-N/A'):'';
-    $('genome-src').textContent='Kernel locked-proven = '+(kernelCount??'N/A')+' from /api/a11oy/v1/honest. Genome catalog from /api/a11oy/v1/genome — '+(g.count??'?')+' entries · LOCKED-PROVEN tag = '+(genomeLp??'N/A')+' (catalog, not the kernel, never green)'+naExtra+'. Counts are not hard-coded; this page re-reads them on every load.';
+    const cat=tc['LOCKED-PROVEN'];
+    $('genome-src').textContent='Kernel locked_formula_count='+(kernel==null?'N/A':kernel)+' from /api/a11oy/v1/honest {F1,F4,F7,F11,F12,F18,F19,F22}. Genome catalog LOCKED-PROVEN='+(cat??'N/A')+' (catalog, not kernel). Lean-8 is not genome-144. Genome entries: '+(g.count??'?')+naExtra+'.';
     $('d-genome').classList.add('up');
 
     const allowed=new Set(kernelIds);
@@ -478,7 +483,7 @@ function kernelFromHonest(h){
         (proves?'<div class="proves">'+proves+'</div>':'')+lean+'</div></div>';
     }).join('') : '<div class="frow sem"><div class="id">N/A</div><div><div class="name">No SEMANTIC-VERIFIED entries returned — genome unavailable.</div></div></div>';
   }catch(e){
-    $('genome-src').textContent='Genome endpoint UNAVAILABLE ('+e.message+') — catalog counts shown as N/A, never fabricated. Kernel chip is from /honest, not genome.';
+    $('genome-src').textContent='Honest/genome probe UNAVAILABLE ('+e.message+') — counts shown as N/A, never fabricated.';
     for(const id of ['cnt-semantic','cnt-evidence','cnt-conjecture'])
       $(id).firstChild.nodeValue='N/A';
     $('d-genome').classList.add('down');

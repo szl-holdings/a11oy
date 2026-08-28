@@ -50,13 +50,14 @@
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
-  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
-  --gold:#c9b787; --gold-bright:#d6c69a;
-  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
-  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#9a9a9a;
-  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
-  --teal-line:rgba(95,179,163,0.22);
-  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
+  --void:#080c14; --proof:#3af4c8; --lattice:#5b8dee;
+  --ground:#080c14; --panel:#0e1626; --panel2:#0a1019; --rail:#0a1019;
+  --gold:#d7b96b; --gold-bright:#e4c97a;
+  --teal:#3af4c8; --teal-soft:rgba(58,244,200,0.10);
+  --cream:#eef4fb; --paragraph:#aebccf; --muted:#7d8aa0; --dim:#65788f;
+  --gold-line:rgba(215,185,107,0.18); --gold-soft:rgba(215,185,107,0.05);
+  --teal-line:rgba(58,244,200,0.22);
+  --live:#3af4c8; --err:#e8746e; --warn:#d7b96b; --gray:#7d8aa0;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
   --display:'Space Grotesk',Georgia,serif;
 }
@@ -76,7 +77,7 @@ a{color:inherit;text-decoration:none;}
 
 /* ===== TOP BAR + CROSS-FLAG SWITCHER ===== */
 .topbar{flex:0 0 auto;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:nowrap;
-  height:39px;min-height:39px;max-height:39px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;
+  height:auto;min-height:52px;max-height:none;overflow:visible;white-space:nowrap;
   padding:0 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;
   letter-spacing:.1em;text-transform:uppercase;color:var(--gold);scrollbar-width:none;}
@@ -489,10 +490,10 @@ details.raw[open] summary{color:var(--muted);}
    NOT overridden here; we only add the new ambient-dark + ink scale + measured tokens
    the hero/signature classes reference (with hex fallbacks so cascade order is safe). */
 :root{
-  --bg:#0A0D12; --surf:#141820; --surf2:#0e1217;
-  --line:#222833;
-  --ink:#e8edf2; --ink-dim:#9aa3ad; --ink-faint:#6b727c;
-  --blue:#2563EB; --red:#b06a5a;
+  --bg:#080c14; --surf:#0e1626; --surf2:#0a1019;
+  --line:#1c2942;
+  --ink:#eef4fb; --ink-dim:#aebccf; --ink-faint:#7d8aa0;
+  --blue:#5b8dee; --red:#e8746e;
   --sans:'Space Grotesk',system-ui,sans-serif; /* maps to the vendored house display face */
   --fs-num-xl:24px; --fs-num-lg:18px; --fs-num:14px; --fs-label:11px;
 }
@@ -502,14 +503,18 @@ details.raw[open] summary{color:var(--muted);}
    Declared last so it wins the cascade; overrides variable values only —
    no markup, no new selectors. 0 CDN, 0 new URLs. */
 :root{
-  --ground:#0a0f1e;
-  --panel:#1b222c;
+  --void:#080c14;
+  --proof:#3af4c8;
+  --lattice:#5b8dee;
+  --ground:#080c14;
+  --panel:#0e1626;
   --gold:#d7b96b;
-  --gold-line:#c08f2f;
-  --cream:#f5f7fa;
-  --teal:#168f89;
-  --live:#1f9d57;
-  --line:#3c4757;
+  --gold-line:rgba(215,185,107,0.22);
+  --cream:#eef4fb;
+  --teal:#3af4c8;
+  --live:#3af4c8;
+  --line:#1c2942;
+  --gray:#7d8aa0;
 }
 /* RECEIPT-MARK — CSS-only wax-seal dot; marks any cryptographically-attested datum */
 .rmark{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto;
@@ -528,7 +533,7 @@ details.raw[open] summary{color:var(--muted);}
 .mb{font-size:9px;letter-spacing:.08em;padding:1px 7px;border-radius:999px;border:1px solid;vertical-align:middle}
 .mb-measured{color:#6B7280;border-color:#6B7280}
 .mb-sample{color:#D97706;border-color:#D97706}
-.mb-modeled{color:#2563EB;border-color:#2563EB}
+.mb-modeled{color:var(--lattice,#5b8dee);border-color:var(--lattice,#5b8dee)}
 .mb-roadmap{color:#9CA3AF;border-color:#9CA3AF}
 [data-maturity="sample"]{background:rgba(217,119,6,.04)}
 /* doctrine chip (locked-8, immutable — never "5") */
@@ -583,7 +588,12 @@ details.raw[open] summary{color:var(--muted);}
   .btn-primary,.btn-ghost{text-align:center}
 }
 @media(prefers-reduced-motion:reduce){ .vcard{transition:none} }
+.szl-below-fold{margin-top:2.2rem;}
+.hero-cards,.hero-creds,.hero-hook{margin-top:2.4rem;}
+
 </style>
+<link rel="stylesheet" href="/static/shared/szl_command_bar.css"/>
+<script defer src="/static/shared/szl_command_bar.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#content">Skip to command content</a>
@@ -600,16 +610,16 @@ details.raw[open] summary{color:var(--muted);}
      watchdog turns the copy into an honest "reconnecting" line if boot stalls past the
      cap — NEVER a permanent spinner, NEVER a fabricated number. Respects
      prefers-reduced-motion. Removes itself cleanly; leaves zero residue in the DOM. -->
-<div id="szl-bootguard" role="status" aria-live="polite" style="position:fixed;inset:0;z-index:2147483646;background:#0a0a0a;color:#f5f5f5;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Space Grotesk',Georgia,serif;-webkit-font-smoothing:antialiased;">
+<div id="szl-bootguard" role="status" aria-live="polite" style="position:fixed;inset:0;z-index:2147483646;background:#080c14;color:#eef4fb;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Space Grotesk',Georgia,serif;-webkit-font-smoothing:antialiased;">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div id="szl-bg-mark" style="width:48px;height:48px;border-radius:11px;background:linear-gradient(135deg,#c9b787,#5fb3a3);color:#0a0a0a;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px;line-height:1;box-shadow:0 0 22px rgba(95,179,163,.28);">A</div>
+    <div id="szl-bg-mark" style="width:48px;height:48px;border-radius:11px;background:linear-gradient(135deg,#d7b96b,#3af4c8);color:#080c14;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px;line-height:1;box-shadow:0 0 22px rgba(58,244,200,.28);">A</div>
     <div style="text-align:left;">
-      <div style="font-size:13px;letter-spacing:.18em;color:#888;font-family:'JetBrains Mono',ui-monospace,monospace;">SZL HOLDINGS</div>
-      <div style="font-size:21px;font-weight:600;color:#c9b787;line-height:1.15;">a11oy</div>
+      <div style="font-size:13px;letter-spacing:.18em;color:#7d8aa0;font-family:'JetBrains Mono',ui-monospace,monospace;">SZL HOLDINGS</div>
+      <div style="font-size:21px;font-weight:600;color:#3af4c8;line-height:1.15;">a11oy</div>
     </div>
   </div>
-  <div style="margin-top:26px;width:168px;height:3px;border-radius:3px;background:rgba(201,183,135,.14);overflow:hidden;">
-    <div id="szl-bg-bar" style="height:100%;width:38%;border-radius:3px;background:linear-gradient(90deg,#5fb3a3,#c9b787);"></div>
+  <div style="margin-top:26px;width:168px;height:3px;border-radius:3px;background:rgba(58,244,200,.14);overflow:hidden;">
+    <div id="szl-bg-bar" style="height:100%;width:38%;border-radius:3px;background:linear-gradient(90deg,#3af4c8,#d7b96b);"></div>
   </div>
   <div id="szl-bg-msg" style="margin-top:16px;font-size:12px;letter-spacing:.08em;color:#9a9a9a;font-family:'JetBrains Mono',ui-monospace,monospace;">initializing&hellip;</div>
 </div>
@@ -672,18 +682,10 @@ details.raw[open] summary{color:var(--muted);}
 </script>
 <!-- ============================ END SZL BOOT-GUARD ============================ -->
 
-<div class="topbar">
+<div class="topbar szl-hbar" data-szl-command-bar data-surface="Command Platform" data-origin="product">
   <button class="menu-btn" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleSide()">☰</button>
-  <span>SZL HOLDINGS</span><span class="sep">/</span>
-  <span style="color:var(--teal)">a11oy</span><span class="sep">/</span>
-  <span class="tb-desc">GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
-  <span class="live" id="runtime-status" role="status" aria-live="polite"><span class="live-dot"></span><span id="runtime-status-text">CHECKING</span></span>
-  <!-- ADDITIVE (feat/investor-mode-pricing): CEO / Investor-mode toggle. Opens a clean
-       overlay of 5-7 plain-English, honest proof points over the dense operator view.
-       The operator (dense) console is never rebuilt or hidden — this is an overlay only. -->
-  <button id="inv-toggle" class="inv-toggle" type="button" aria-pressed="false"
-          aria-controls="inv-overlay" title="CEO / Investor view — the plain-English story"
-          onclick="a11oyInvestor.toggle()">◆ Investor view</button>
+  <!-- Holographic three-zone bar is mounted by /static/shared/szl_command_bar.js.
+       Investor View is an in-console view (go('investor')); /investor is a 307 alias onto the same chrome. -->
   <nav class="switcher" aria-label="Surfaces">
     <span class="lbl">SURFACE</span>
     <a class="flag active" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
@@ -1002,10 +1004,22 @@ async function gjFast(url,ms){
 }
 /* honest degraded chip — shown when a KPI cannot be observed right now (never "down",
    never fabricated). Reads as a labeled state, not a broken panel. */
-function honestDegraded(label){ return '<span class="badge b-gold" title="This metric cannot be observed from this Space right now — shown honestly as not-available rather than faked.">'+(label||'not available right now')+'</span>'; }
+function emptyUnknown(kind, detail){
+  var k = String(kind||'UNKNOWN').toUpperCase();
+  if(k!=='ROADMAP' && k!=='UNAVAILABLE') k='UNKNOWN';
+  var d = detail || (k==='ROADMAP' ? 'not built yet' : 'live source unavailable');
+  return '<span class="badge b-gold empty-unknown-inline" role="status">'+k+' \u2014 '+d+'</span>';
+}
+function emptyUnknownBlock(kind, detail){
+  var k = String(kind||'UNKNOWN').toUpperCase();
+  if(k!=='ROADMAP' && k!=='UNAVAILABLE') k='UNKNOWN';
+  var d = detail || (k==='ROADMAP' ? 'not built yet' : 'live source unavailable');
+  return '<div class="empty-unknown'+(k==='UNKNOWN'?' empty-unknown-viz':'')+'" role="status" data-kind="'+k.toLowerCase()+'"><span class="empty-unknown-k mono">'+k+'</span><span class="empty-unknown-d">'+d+'</span></div>';
+}
+function honestDegraded(label){ return emptyUnknown('UNKNOWN', label||'live source unavailable'); }
 function skelVal(){ return '<span class="skel skel-val"></span>'; }
 function skelRows(n){ var w=['w90','w70','w55','w90','w70'],h=''; n=n||3; for(var i=0;i<n;i++){ h+='<div class="skel skel-row '+w[i%w.length]+'"></div>'; } return '<div class="skel-wrap">'+h+'<div class="skel-caption">loading live data…</div></div>'; }
-window.gjFast=gjFast; window.honestDegraded=honestDegraded; window.skelVal=skelVal; window.skelRows=skelRows;
+window.gjFast=gjFast; window.emptyUnknown=emptyUnknown; window.emptyUnknownBlock=emptyUnknownBlock; window.honestDegraded=honestDegraded; window.skelVal=skelVal; window.skelRows=skelRows;
 // ===== In-browser DSSE receipt verification (WebCrypto, ECDSA P-256 / SHA-256) =====
 // Fetches a11oy's OWN in-image public key (/cosign.pub) and a signed receipt
 // envelope (/api/a11oy/v1/receipt/export), rebuilds the signing pre-auth encoding, and verifies
@@ -1178,9 +1192,9 @@ const VIEWS={
       // KANCHAY tier model. CONJECTURE is NEVER green; honest-N/A never green.
       // SEMANTIC-VERIFIED is highlighted (lattice accent) as the real trust math.
       const TIERS=[
-        {key:'LOCKED-PROVEN',label:'LOCKED-PROVEN',color:'#5fb3a3',line:'rgba(95,179,163,0.45)',soft:'rgba(95,179,163,0.08)',green:true,desc:'Formally proven in Lean 4 (kernel-checked). The locked kernel is exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}; other proven rows are experimental CI-green, never folded into the locked count.'},
+        {key:'LOCKED-PROVEN',label:'LOCKED-PROVEN (catalog)',color:'#d7b96b',line:'rgba(215,185,107,0.45)',soft:'rgba(215,185,107,0.08)',green:false,catalog:true,desc:'Genome catalog tier — labelled, never green, never the kernel. The locked kernel is exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} from /honest locked_formula_count. Lean-8 is not genome-144.'},
         {key:'SEMANTIC-VERIFIED',label:'SEMANTIC-VERIFIED',color:'#5b8dee',line:'rgba(91,141,238,0.5)',soft:'rgba(91,141,238,0.10)',green:false,highlight:true,desc:'The real trust math: \u039b bounds, the conditional Theorem U (\u039b uniqueness under separability), DSSE verifiability. Semantically checked against the implementation \u2014 not a bare label.'},
-        {key:'evidence-backed',label:'evidence-backed',color:'#c9b787',line:'rgba(201,183,135,0.4)',soft:'rgba(201,183,135,0.06)',green:false,desc:'Backed by code + tests / a live surface, but not a single closed Lean theorem. Honest about the gap where one exists.'},
+        {key:'evidence-backed',label:'evidence-backed',color:'#d7b96b',line:'rgba(215,185,107,0.4)',soft:'rgba(215,185,107,0.06)',green:false,desc:'Backed by code + tests / a live surface, but not a single closed Lean theorem. Honest about the gap where one exists.'},
         {key:'honest-N/A',label:'honest-N/A',color:'#9a9a9a',line:'rgba(154,154,154,0.35)',soft:'rgba(154,154,154,0.06)',green:false,desc:'Honestly out of formal scope (e.g. the soundness floor has no single Lean theorem; downgraded phantom anchors). Shown, not hidden \u2014 never faked green.'},
         {key:'CONJECTURE',label:'CONJECTURE',color:'#9a9a9a',line:'rgba(154,154,154,0.35)',soft:'rgba(154,154,154,0.05)',green:false,conjecture:true,desc:'Open research conjecture \u2014 NEVER rendered green. C1 = \u039b unconditional uniqueness (machine-checked FALSE as stated); C2 = Khipu BFT safety; C3 = BFT liveness.'}
       ];
@@ -1195,8 +1209,11 @@ const VIEWS={
       const counts=(data&&data.tier_counts)||{};
       // KPI tiles per tier (live counts from the endpoint).
       const kp=el('gen-kpis'); kp.innerHTML='';
+      let kernelN='UNAVAILABLE';
+      try{ const h=await getJSON(API+'/v1/honest'); if(h&&h.locked_formula_count===8) kernelN='8'; }catch(e){}
+      kp.insertAdjacentHTML('beforeend',`<div class="kpi" id="cnt-locked"><div class="k">KERNEL \u00b7 LOCKED-8</div><div class="v" style="color:var(--proof,#3af4c8)">${esc(kernelN)}</div><div class="d">from /honest locked_formula_count \u00b7 not genome catalog</div></div>`);
       TIERS.forEach(t=>{ const n=counts[t.key]||0;
-        kp.insertAdjacentHTML('beforeend',`<div class="kpi"><div class="k">${esc(t.label)}</div><div class="v" style="color:${t.color}">${n}</div><div class="d">${t.green?'Lean-proven':(t.conjecture?'open \u00b7 never green':'honest tier')}</div></div>`); });
+        kp.insertAdjacentHTML('beforeend',`<div class="kpi"><div class="k">${esc(t.label)}</div><div class="v" style="color:${t.color}">${n}</div><div class="d">${t.catalog?'catalog \u00b7 not kernel':(t.conjecture?'open \u00b7 never green':'honest tier')}</div></div>`); });
       const isRealLean=(e)=>{ const r=(e.lean_ref||'').trim(); if(!r) return false; if(/open|never green|n\/a|none|\u2014/i.test(r)) return false; return true; };
       function rowHTML(e,t){
         const real=isRealLean(e) && !t.conjecture;
@@ -1205,7 +1222,7 @@ const VIEWS={
         // Lean chip: green/proof ONLY for proven tiers with a real ref; conjecture & N/A
         // get a neutral gray chip carrying the honest text verbatim (e.g. "OPEN \u2014 NEVER green").
         const leanChip = e.lean_ref ? (real
-          ? `<span class="badge" style="color:#5fb3a3;border:1px solid var(--teal-line);background:var(--teal-soft)" title="machine-checkable Lean reference">Lean: ${esc(e.lean_ref)}</span>`
+          ? `<span class="badge" style="color:#3af4c8;border:1px solid var(--teal-line);background:var(--teal-soft)" title="machine-checkable Lean reference">Lean: ${esc(e.lean_ref)}</span>`
           : `<span class="badge" style="color:#9a9a9a;border:1px solid rgba(154,154,154,.35);background:rgba(154,154,154,.05)">${esc(e.lean_ref)}</span>`) : '';
         return `<div class="row" style="display:block;border-bottom:1px solid var(--gold-line);padding:.55rem 0">
           <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
@@ -2451,7 +2468,14 @@ function go(view){
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
   _szlSpinnerWatchdog(view);
-  if(history.replaceState)history.replaceState(null,'','#'+view);
+  try{
+    document.documentElement.setAttribute('data-view', view);
+    var u=new URL(location.href);
+    u.searchParams.set('view', view);
+    if(String(u.hash||'').toLowerCase()==='#investor') u.hash='';
+    else u.hash='';
+    if(history.replaceState) history.replaceState(null,'', u.pathname + u.search);
+  }catch(e){ if(history.replaceState)history.replaceState(null,'','#'+view); }
   if(window.innerWidth<=820)toggleSide(false);
 }
 /* probe-offline-abort: GLOBAL NO-PERPETUAL-SPINNER WATCHDOG.
@@ -2469,7 +2493,7 @@ function go(view){
    already carry a working re-probe link; only dead loading skeletons get swept. */
 window.__SZL_WATCHDOG_MS=32000;
 function _szlHonestChip(){
-  return '<span class="badge b-gold" title="This panel\'s live source did not resolve within its timeout from this Space right now \u2014 shown honestly as a labeled fallback rather than a spinner or a faked value. The server proxy serves it live in-deployment; retry to re-probe.">live source unavailable \u2014 showing sample / snapshot</span>';
+  return emptyUnknown('UNKNOWN', 'live source unavailable');
 }
 function _szlIsSpinnerText(t){
   t=(t||'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -2578,10 +2602,24 @@ window.toggleSide=toggleSide;
    can override VIEWS[tab].render. const bindings do NOT auto-attach to window, so we do it
    explicitly here. This is the single source of truth the batch module mutates in place. */
 window.VIEWS=VIEWS; window.go=go;
-const start=(location.hash||'#command').slice(1);
+function szlViewFromLocation(){
+  try{ var q=new URLSearchParams(location.search).get('view'); if(q) return q; }catch(e){}
+  try{ if(/[?&]investor=1\b/.test(location.search||'')) return 'investor'; }catch(e){}
+  var h=(location.hash||'').replace(/^#/,'').split('/')[0];
+  if(h) return h;
+  return 'command';
+}
+const start=szlViewFromLocation();
 /* defer initial render until all inline scripts (helpers + frontier loaders) have executed,
    so deep-links to tabs whose loaders live in a later script block resolve correctly */
-function _bootGo(){go(VIEWS[start]?start:'command');}
+function _bootGo(){
+  var view=(typeof szlViewFromLocation==='function'?szlViewFromLocation():start);
+  function run(){ if(VIEWS[view]){ go(view); return true; } return false; }
+  if(run()) return;
+  var n=0, iv=setInterval(function(){
+    if(run()||n++>80){ clearInterval(iv); if(!VIEWS[view]) go(VIEWS.command?'command':'command'); }
+  },40);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_bootGo);else setTimeout(_bootGo,0);
 </script>
 
@@ -6503,8 +6541,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<span class="hctr-d">F1\u00b7F4\u00b7F7\u00b7F11\u00b7F12\u00b7F18\u00b7F19\u00b7F22 \u00b7 \u039b=Conjecture&nbsp;1</span></div>'
           +'</div>'
           +'<div class="hero-cta">'
-          +'<a class="btn-primary" href="https://huggingface.co/SZLHOLDINGS/governed-inference-meter" target="_blank" rel="noopener">Pull the kernel</a>'
-          +'<a class="btn-ghost" href="#evidence" onclick="go(\'evidence\');return false;">Read the method</a>'
+          +'<a class="btn-primary" href="https://a11oy.net" target="_blank" rel="noopener">Verify on a11oy.net</a>'
+          +'<a class="btn-ghost" href="/verify">Verify a receipt</a>'
+          +'<a class="btn-ghost szl-below-fold" href="https://huggingface.co/SZLHOLDINGS/governed-inference-meter" target="_blank" rel="noopener">Pull the kernel</a>'
           +'</div></div>'
           +'<div class="hero-cards" aria-label="verticals and energy">'
           +'<a class="vcard" onclick="go(\'cybSurface\');return false;" href="#cybSurface"><h3>Counter-UAS / killinchu</h3><p>Detection + classification governed, auditable, energy-bounded at the edge.</p><span class="vcard-go mono">whHero \u2192</span></a>'
@@ -6527,12 +6566,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +kpi('Chain depth','cc-chain','unified receipt ledger','teal')
           +kpi('Build security','cc-slsa','SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap','teal')
           +'</div>'
-          +'<div class="grid2">'
+          +card('Rolling receipt stream',''+liveDot()+'live · one tamper-evident chain','<div id="cc-stream">'+skelRows(3)+'</div>')
+          +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read “Services up”.</b> This Space runs the <b>governed mesh</b> — the in-image capability mesh is <b>6/6 healthy</b> (Byzantine quorum 4/4 REACHED, see the <b>UDS 4/4 Quorum</b> tab). The heavy <b>organ backends (Reasoning / Policy / Operator / Receipts)</b> run on <b>dedicated infrastructure (roadmap)</b>, so on this demo Space they are shown honestly as <b>not-deployed-here</b> rather than faked “up”. Same truth, two probes: the governed mesh a11oy actually runs on is fully healthy; the organ backends are not deployed on this Space.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
+          +'<div class="grid2 szl-below-fold">'
           +card('Trust posture (13-axis Λ)','live '+window.a11oyPoweredBy(['F19','F1']),'<div class="chartbox"><canvas id="cc-radar"></canvas></div>')
           +card('Governed throughput by vertical','live · auto-poll','<div class="chartbox"><canvas id="cc-bars"></canvas></div>')
           +'</div>'
-          +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read “Services up”.</b> This Space runs the <b>governed mesh</b> — the in-image capability mesh is <b>6/6 healthy</b> (Byzantine quorum 4/4 REACHED, see the <b>UDS 4/4 Quorum</b> tab). The heavy <b>organ backends (Reasoning / Policy / Operator / Receipts)</b> run on <b>dedicated infrastructure (roadmap)</b>, so on this demo Space they are shown honestly as <b>not-deployed-here</b> rather than faked “up”. Same truth, two probes: the governed mesh a11oy actually runs on is fully healthy; the organ backends are not deployed on this Space.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
-          +card('Rolling receipt stream — ALL verticals',''+liveDot()+'live · one tamper-evident chain','<div id="cc-stream">'+skelRows(3)+'</div>')
           +'<div class="card"><div class="card-h"><span class="card-t">Governance engine — powered by the proven formulas</span><span class="card-ep">honest maturity labels</span></div>'
           +'<div id="cc-formulas"></div></div>'
           +HON;
@@ -15921,36 +15960,48 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   "use strict";
   // Ordered spec: [groupLabel, [ [viewKey, icon, label], ... ] ]
   var SPEC = [
-    ["Operate", [
+    ["Home", [
       ["command","\u25ce","Command Center"],
+      ["investor","\u25c7","Investor View"],
+      ["mesh","\u22b9","Live System Map"]
+    ]],
+    ["Operate", [
+      ["launcher","\u25a6","App Launcher"],
       ["ask","\u2726","Ask & Act"],
       ["demo","\u229e","Run a Demo"],
-      ["mesh","\u22b9","Live System Map"]
+      ["decision","\u25c8","Governed Decision"]
+    ]],
+    ["Build", [
+      ["llm","\u2687","Model Router"],
+      ["alloy","\u2697","Open-Weight Alloy"],
+      ["mcp","\u2699","Agent Tools"],
+      ["knowledge","\u2b21","Knowledge Ontology"],
+      ["genome","\u2b22","Genome"],
+      ["kbformulas","\u2211","Formulas"]
+    ]],
+    ["Observe", [
+      ["chain","\u26d3","Receipt Chain"],
+      ["evidence","\u2b21","Evidence Ledger"],
+      ["replay","\u25f7","Reasoning Replay"],
+      ["arena","\u229c","Eval Arena"]
     ]],
     ["Govern", [
       ["lambda","\u25d4","Trust Score"],
-      ["decision","\u25c8","Governed Decision"],
       ["gates","\u22a0","Safety Gates"],
       ["govern","\u2713","Readiness & Compliance"],
+      ["honest","\u2298","What We Claim"],
       ["willay","\u26e8","WILLAY \u2014 Signed Refusals","/willay"],
-      ["verify","\u2713","Verify a Receipt","/verify"],
-      ["assurance","\u2713","AI Assurance (WDP)","/assurance"]
+      ["verify","\u2713","Verify a Receipt","/verify"]
     ]],
-    ["Prove", [
-      ["chain","\u26d3","Receipt Chain"],
-      ["replay","\u25f7","Reasoning Replay"],
-      ["arena","\u229c","Eval Arena"],
-      ["frontier","\u25c8","Frontier Pipeline"]
+    ["Research", [
+      ["publications","\u25a4","Publications"],
+      ["frontier","\u25c8","Frontier Pipeline","/frontier"]
     ]],
-    ["Knowledge", [
-      ["knowledge","\u2b21","Knowledge Ontology"],
-      ["kbformulas","\u2211","Formulas"],
-      ["honest","\u2298","What We Claim"]
-    ]],
-    ["Models & Tools", [
-      ["llm","\u2687","Model Router"],
-      ["alloy","\u2697","Open-Weight Alloy"],
-      ["mcp","\u2699","Agent Tools"]
+    ["More", [
+      ["assurance","\u2713","AI Assurance (WDP)","/assurance"],
+      ["energy","\u26a1","Energy Telemetry"],
+      ["labs","\u269b","Labs"],
+      ["labsintro","\u22b9","Labs \u00b7 what we extend"]
     ]]
   ];
 
@@ -15995,7 +16046,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
     // Reflect the currently-active view in the menu (if present).
     try{
-      var cur = (location.hash||'#command').slice(1).split('/')[0];
+      var cur = (typeof szlViewFromLocation==='function'?szlViewFromLocation():(location.hash||'#command').slice(1)).split('/')[0];
       var act = side.querySelector('.nav-item[data-view="'+cur+'"]');
       if(act){ act.classList.add('active'); act.setAttribute('aria-current','page'); }
     }catch(e){}
@@ -16058,8 +16109,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     fetch('/api/a11oy/v1/readiness/tab-matrix?view=summary',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error();return r.json();})
   ]).then(function(values){
     var health=values[0]||{}, matrix=values[1]||{};
-    if((health.status==='ok'||health.status==='healthy')&&matrix.available){set('','ONLINE · CONTRACT '+(matrix.contract_version||''));}
-    else if(health.status==='ok'||health.status==='healthy'){set('degraded','ONLINE · CONTRACT GAP');}
+    var op=document.documentElement.getAttribute('data-operator')==='1';
+    if((health.status==='ok'||health.status==='healthy')&&matrix.available){set('','ONLINE'+(op?(' · CONTRACT '+(matrix.contract_version||'')):''));}
+    else if(health.status==='ok'||health.status==='healthy'){set('degraded', op?'ONLINE · CONTRACT GAP':'ONLINE');}
     else{set('degraded','DEGRADED');}
   }).catch(function(){set('down','STATUS UNAVAILABLE');});
 })();
@@ -16148,7 +16200,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var host=document.getElementById('pinned-host'); if(!host) return;
     var p=getPins().filter(function(k){ return window.VIEWS&&window.VIEWS[k]; });
     if(!p.length){ host.innerHTML=''; return; }
-    var cur=window._requestedView||(location.hash||'#command').slice(1);
+    var cur=window._requestedView||(typeof szlViewFromLocation==='function'?szlViewFromLocation():(location.hash||'#command').slice(1));
     var canonicalCurrent=false;
     document.querySelectorAll('.nav-item').forEach(function(n){
       if(!n.closest('#pinned-host')&&n.dataset.view===cur){ canonicalCurrent=true; }
@@ -16357,13 +16409,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   async function renderPublications(c){
     var lockedTxt='8';
-    try{
-      var honest=await window.getJSON(window.API+'/v1/honest');
-      var lock=honest&&honest.doctrine_lock;
-      var n=(honest&&typeof honest.locked_formula_count==='number')?honest.locked_formula_count
-        :(lock&&typeof lock.locked_formula_count==='number')?lock.locked_formula_count:null;
-      if(typeof n==='number') lockedTxt=String(n);
-    }catch(e){}
+    try{ var h=await window.getJSON(window.API+'/v1/honest'); if(h&&h.locked_formula_count===8) lockedTxt='8'; else lockedTxt='UNAVAILABLE'; }catch(e){ lockedTxt='UNAVAILABLE'; }
     var h='<div class="pz-wrap">';
     h+='<div class="pz-lead">The shoulders we stand on. SZL’s own program is DOI-pinned on Zenodo; the work it builds on is cited in full with a one-line note on exactly what we adapt. Honest tiers throughout: <b style="color:var(--teal)">'+esc(lockedTxt)+' locked-proven</b> {F1,F4,F7,F11,F12,F18,F19,F22}; Λ-uniqueness = <b style="color:#7e8aa3">Conjecture 1</b> (never green); Khipu BFT safety = Conjecture 2. Every formula’s proof tier is verifiable in <a href="#genome" onclick="go(\'genome\');return false;" style="color:var(--teal)">Genome</a> against <code>/api/a11oy/v1/genome</code>.</div>';
 
@@ -16617,18 +16663,73 @@ window.a11oyInvestor = (function(){
       }catch(_){}
     }catch(_){}
   }
-  function open(){ set(true); }
-  function close(){ set(false); }
-  function toggle(){ try{ var o=el(); set(!(o&&o.classList.contains('open'))); }catch(_){ } }
+  function open(){
+    try{ if(window.go) window.go('investor'); else location.href='/console?view=investor'; }catch(_){}
+  }
+  function close(){ try{ if(window.go) window.go('command'); }catch(_){} set(false); }
+  function toggle(){ try{ open(); }catch(_){ } }
   try{
     document.addEventListener('keydown', function(e){
       try{ if(e.key==='Escape'){ close(); } }catch(_){}
     });
-    // Auto-open on deep-link so a shared investor link lands on the story.
+    // Compatibility: leftover overlay markup may remain. Deep-links must land
+    // on V.investor via go('investor'), never revive the overlay as destination.
+    // ?view=investor is the alias write path and must not open #inv-overlay.
     var q=(window.location.search||''); var h=(window.location.hash||'');
-    if(/[?&]investor=1\b/.test(q) || /(^|#)investor$/.test(h)){ open(); }
+    var viewQ='';
+    try{ viewQ=new URLSearchParams(q).get('view')||''; }catch(_){}
+    if(viewQ==='investor' || /[?&]investor=1\b/.test(q) || /(^|#)investor$/.test(h)){ open(); }
   }catch(_){}
   return { open:open, close:close, toggle:toggle };
+})();
+</script>
+<script>
+/* Investor View — first-class in-console VIEW (ÑAWI design lane). Not a density
+   toggle and not a stub page. /investor is a 307 alias onto this chrome
+   (?view=investor). Doctrine, locked-8, one receipt, one Verify CTA, then a11oy.net diligence. */
+(function(){
+  function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0, iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
+  whenReady(function(){
+    var V=window.VIEWS; if(!V||V.investor) return;
+    V.investor={
+      title:'Investor View',
+      badge:'DOCTRINE v11 · LOCKED',
+      sub:'Doctrine, the locked-8, one receipt you can verify, then diligence on a11oy.net. Λ = Conjecture 1 (advisory, gray, never a theorem, never a gate).',
+      render:async function(c){
+        var empty = (window.emptyUnknownBlock||function(k,d){ return '<div class="empty-unknown"><span class="empty-unknown-k">'+k+'</span><span class="empty-unknown-d">'+d+'</span></div>'; });
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">Doctrine</span><span class="card-ep mono">v11 LOCKED</span></div>'
+          +'<p>Every governed state change produces a hash-chained receipt. Signing is claimed only when persistent signer evidence is active and verification passes. Read paths never mint receipts.</p>'
+          +'<p class="szl-lambda mono">Λ = Conjecture 1 · advisory, never green, never a theorem, never a gate.</p></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Locked-proven</span><span class="card-ep mono">exactly 8</span></div>'
+          +'<p class="mono">{F1, F4, F7, F11, F12, F18, F19, F22}</p>'
+          +'<p class="muted">A proof of rigor, not a traction number. The locked count is not inflated.</p></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">One receipt</span><span class="card-ep" id="inv-one-ep">probing</span></div>'
+          +'<div id="inv-one-receipt">'+empty('UNKNOWN','live source unavailable')+'</div></div>'
+          +'<div class="btns">'
+          +'<a class="btn teal" href="/verify">Verify a receipt</a>'
+          +'<a class="btn" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Open diligence on a11oy.net ↗</a>'
+          +'</div>';
+        try{
+          var L = await (window.getJSON||window.gjFast||fetch)('/api/a11oy/v1/wow/ledger?limit=1');
+          if(L && L.then) L = await L;
+          if(L && L.data) L = L.data;
+          var rec=((L&&(L.receipts||L.items))||[])[0];
+          var host=document.getElementById('inv-one-receipt');
+          var ep=document.getElementById('inv-one-ep');
+          if(rec && host){
+            var id=rec.receipt_id||rec.hash||rec.id||'';
+            var st=rec.unsigned?'UNSIGNED':((rec.hash||rec.prev_hash)?'HASH-LINKED':'UNSIGNED');
+            host.innerHTML='<div class="row mono"><span class="badge b-teal">'+st+'</span><span>'+String(id).slice(0,48)+'</span></div>';
+            if(ep) ep.textContent='live ledger';
+          } else {
+            if(ep) ep.textContent='UNAVAILABLE';
+          }
+        }catch(e){
+          var ep2=document.getElementById('inv-one-ep'); if(ep2) ep2.textContent='UNAVAILABLE';
+        }
+      }
+    };
+  });
 })();
 </script>
 

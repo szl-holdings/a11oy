@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - KANCHAY command bar and Lean-8 kernel chip
+- Console chrome uses the KANCHAY house palette (void `#080c14`, proof teal
+  `#3af4c8`, lattice `#5b8dee`, gold `#d7b96b`, Space Grotesk + JetBrains Mono).
+  The last `:root` cascade does not restore gold/tan `#c9b787` / `#5fb3a3` on
+  `#0a0a0a`. Honest UNKNOWN / ROADMAP / UNAVAILABLE empty states stay.
+- Public header is Command | Proof registry ↗ (`https://a11oy.net`). Sidebar IA
+  is Home / Operate / Build / Observe / Govern / Research / More. Investor View
+  is an in-console `?view=investor` surface; `/investor` 307-aliases onto that
+  same chrome (no stub page, no second IA).
+- `go()` writes `?view=` (hash still resolves so legacy `/console#ask` links
+  keep working). First fold is receipt stream + gate + Verify on a11oy.net;
+  kernel pull and 13-axis radar sit below the fold. Λ stays Conjecture 1, gray.
+- Kernel / locked-8 chips read `/api/a11oy/v1/honest` `locked_formula_count`
+  (exactly 8). Genome LOCKED-PROVEN is labelled catalog, never the kernel.
+  Public `/` and `/landing` no longer inject the operator widget.
+
 ### Changed - public ecosystem map
 - `/ecosystem` is now an in-app map of command-center surfaces on a-11-oy.com.
   Hub atlas inventory, ROADMAP cuts, and the canonical stored receipt RECORD

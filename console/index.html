@@ -23,9 +23,10 @@
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
-  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
-  --gold:#c9b787; --gold-bright:#d6c69a;
-  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --void:#080c14; --proof:#3af4c8; --lattice:#5b8dee;
+  --ground:#080c14; --panel:#0e1626; --panel2:#0a1019; --rail:#0a1019;
+  --gold:#d7b96b; --gold-bright:#e4c97a;
+  --teal:#3af4c8; --teal-soft:rgba(58,244,200,0.10);
   --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
   --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
   --teal-line:rgba(95,179,163,0.22);
@@ -64,7 +65,7 @@ a{color:inherit;text-decoration:none;}
 .app{display:grid;grid-template-columns:248px 1fr;min-height:calc(100vh - 39px);}
 .side{background:var(--rail);border-right:1px solid var(--gold-line);padding:1.1rem .8rem;overflow-y:auto;}
 .brand{display:flex;align-items:center;gap:.6rem;padding:0 .4rem 1rem;}
-.brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--gold),var(--teal));display:grid;place-items:center;color:#0a0a0a;font-weight:700;font-family:var(--mono);}
+.brand .mark{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--gold),var(--teal));display:grid;place-items:center;color:#080c14;font-weight:700;font-family:var(--mono);}
 .brand .nm{font-weight:600;font-size:1.05rem;}
 .brand .role{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;}
 .nav-group{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin:1rem .5rem .4rem;}
@@ -218,14 +219,12 @@ details.raw[open] summary{color:var(--muted);}
 .pal-empty{padding:1.2rem;text-align:center;color:var(--dim);font-family:var(--mono);font-size:11px;}
 
 </style>
+<link rel="stylesheet" href="/static/shared/szl_command_bar.css"/>
+<script defer src="/static/shared/szl_command_bar.js"></script>
 </head>
 <body>
-<div class="topbar">
+<div class="topbar szl-hbar" data-szl-command-bar data-surface="Command Platform" data-origin="product">
   <button class="menu-btn" onclick="document.querySelector('.side').classList.toggle('open')">☰</button>
-  <span>SZL HOLDINGS</span><span class="sep">/</span>
-  <span style="color:var(--teal)">a11oy</span><span class="sep">/</span>
-  <span>GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
-  <span class="live"><span class="live-dot"></span>LIVE</span>
   <nav class="switcher" aria-label="Surfaces">
     <span class="lbl">SURFACE</span>
     <a class="flag active" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
@@ -280,7 +279,7 @@ function setHTML(id,html){const e=el(id);if(e)e.innerHTML=html;}
 function setTxt(id,t){const e=el(id);if(e)e.textContent=t;}
 function addHTML(id,html){const e=el(id);if(e)e.insertAdjacentHTML('beforeend',html);}
 // ===== VISUAL HELPERS (Chart.js + 3d-force-graph) =====
-const GOLD='#c9b787',TEAL='#5fb3a3',CREAM='#f5f5f5',DIM='#555',GRID='rgba(201,183,135,0.08)';
+const GOLD='#d7b96b',TEAL='#3af4c8',CREAM='#eef4fb',DIM='#65788f',GRID='rgba(215,185,107,0.08)';
 let _charts={};
 function killChart(id){if(_charts[id]){try{_charts[id].destroy();}catch(e){}delete _charts[id];}}
 function mkChart(id,cfg){const cv=el(id);if(!cv||!window.Chart)return;killChart(id);

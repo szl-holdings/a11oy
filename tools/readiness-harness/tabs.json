@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-08-11T00:00:00Z",
+  "generatedAt": "2026-08-28T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -15,10 +15,10 @@
     "UNAVAILABLE": "The source or evidence is not available; no replacement value is fabricated."
   },
   "summary": {
-    "tabs": 139,
+    "tabs": 140,
     "endpoints": 98,
     "tabsWithCitations": 35,
-    "staticTabs": 40
+    "staticTabs": 41
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -3965,6 +3965,21 @@
       "title": "honest",
       "group": "Console",
       "route": "/console#honest",
+      "endpoints": [],
+      "citationsRequired": false,
+      "sampleLabelAllowed": false,
+      "static": true,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "investor",
+      "title": "investor",
+      "group": "Console",
+      "route": "/console#investor",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
