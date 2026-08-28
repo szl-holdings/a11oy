@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - public ecosystem map
+- `/ecosystem` is now an in-app map of command-center surfaces on a-11-oy.com.
+  Hub atlas inventory, ROADMAP cuts, and the canonical stored receipt RECORD
+  are linked to https://a11oy.net rather than duplicated here. Interactive
+  `/verify` stays on this origin. Product | Proof origin header is on that
+  page only. Console tiles use `?view=` keys (Home/Operate/Build/Observe/
+  Govern/Research/More); hash fragments are not emitted here. ROADMAP
+  chips parse `a11oy.net` as a hostname, not a URL prefix.
+
 ### Fixed - public identity lock
 - Trust Center canonical (and og:url / twitter:url) is the product origin
   `https://a-11-oy.com/trust`. The unhyphenated third-party host is never
