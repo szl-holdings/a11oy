@@ -25,6 +25,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (exactly 8). Genome LOCKED-PROVEN is labelled catalog, never the kernel.
   Public `/` and `/landing` no longer inject the operator widget.
 
+### Added - investor smoke gate
+- Added a fail-closed S1–S12 / L1–L6 / D1–D10 investor smoke gate
+  (`.github/workflows/investor-smoke-gate.yml`, `scripts/investor_smoke_gate.py`).
+  S7 asserts the UI bind of the locked-proven kernel slot (`cnt-locked` /
+  `setTiers.locked`) to `/api/a11oy/v1/honest` `locked_formula_count` (8).
+  Genome catalog 144 / LOCKED-PROVEN 25 remain a separately labelled count —
+  the gate does not demand 25 be deleted or rewritten. HEAD 405 and signer-enum
+  probes are KALLPA-owned (no product fix in this PR). L1–L6 are SNAPSHOT
+  2026-08-28. S4/S6/S9 are UNAVAILABLE (no POST). See
+  `docs/INVESTOR_SMOKE_GATE.md`.
+
+
 ### Changed - public ecosystem map
 - `/ecosystem` is now an in-app map of command-center surfaces on a-11-oy.com.
   Hub atlas inventory, ROADMAP cuts, and the canonical stored receipt RECORD
@@ -33,6 +45,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page only. Console tiles use `?view=` keys (Home/Operate/Build/Observe/
   Govern/Research/More); hash fragments are not emitted here. ROADMAP
   chips parse `a11oy.net` as a hostname, not a URL prefix.
+
+### Fixed - public identity lock
 
 ### Fixed - public identity lock
 - Trust Center canonical (and og:url / twitter:url) is the product origin

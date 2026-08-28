@@ -1,0 +1,28 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<!-- Positive fixture: kernel slot sourced from /honest locked_formula_count.
+     Genome LOCKED-PROVEN remains as a separately labelled catalog count. -->
+<html><body>
+<div class="cnt" id="cnt-locked">—<span class="lbl">Locked-proven kernel</span></div>
+<div class="cnt" id="cnt-genome-locked-proven">—<span class="lbl">Genome LOCKED-PROVEN catalog</span></div>
+<div class="tnum" id="pt-locked">—</div>
+<script>
+const $=id=>document.getElementById(id);
+async function getJSON(u){const r=await fetch(u);return r.json();}
+function setTiers(t){
+  $("pt-locked").textContent = t.locked;
+}
+(async function loadKernel(){
+  const h=await getJSON('/api/a11oy/v1/honest');
+  const n=h.locked_formula_count ?? (h.doctrine_lock||{}).locked_formula_count;
+  $('cnt-locked').firstChild.nodeValue=n;
+  setTiers({ locked: n, semantic: null, evidence: null, conjecture: null });
+})();
+(async function loadGenomeCatalog(){
+  const g=await getJSON('/api/a11oy/v1/genome');
+  const tc=g.tier_counts||{};
+  $('cnt-genome-locked-proven').textContent=(tc['LOCKED-PROVEN']??'N/A');
+})();
+</script>
+</body></html>
