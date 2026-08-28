@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from gdw_proofs import build_proof_payload, export_proof_payload
+
 from gdw_workspace import (
     SCHEMA_VERSION,
     GDWConfigurationError,
@@ -181,6 +182,34 @@ def _export_claim(claim):
         artifact_id=claim["intent_sha256"],
         owner_id=claim["owner_id"],
     )
+
+
+def _queue_expired_exported_proof(workspace, request_id, start, worker_id):
+    key, _ = _queue_proof(
+        workspace,
+        request_id,
+        created_at=start.isoformat(),
+    )
+    with workspace.transaction() as connection:
+        connection.execute(
+            "UPDATE requests SET expires_at = ? "
+            "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+            (
+                (start + timedelta(seconds=1)).isoformat(),
+                workspace.namespace,
+                workspace.owner_id,
+                request_id,
+            ),
+        )
+    claim = workspace.claim_effects(worker_id, limit=1)[0]
+    workspace.mark_effect_exported(
+        key,
+        worker_id,
+        claim["claim_generation"],
+        _export_claim(claim),
+        (start + timedelta(seconds=2)).isoformat(),
+    )
+    return key
 
 
 def test_v2_schema_scopes_same_ids_by_namespace_and_owner(tmp_path):
@@ -737,8 +766,25 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
         (start + timedelta(seconds=30)).isoformat(),
     )
     collected = workspace.collect_garbage(now=start + timedelta(seconds=50))
-    assert collected["requests_tombstoned"] == 1
+    assert collected["requests_tombstoned"] == 0
     assert collected["effects_compacted"] == 1
+    connection = workspace._connect()
+    try:
+        request = connection.execute(
+            """
+            SELECT lifecycle, response_json FROM requests
+            WHERE namespace = ? AND owner_id = ? AND request_id = 'request'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        ).fetchone()
+    finally:
+        connection.close()
+    assert request["lifecycle"] == "ACTIVE"
+    assert request["response_json"] is not None
+
+    released = workspace.collect_garbage(now=start + timedelta(seconds=50))
+    assert released["requests_tombstoned"] == 1
+    assert released["effects_compacted"] == 0
     with workspace.transaction() as connection:
         with pytest.raises(GDWLifecycleError):
             workspace.cached_request(connection, "request")
@@ -759,6 +805,117 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
     assert row["artifact_json"] is None
     assert row["tombstoned_at"] is not None
 
+
+@pytest.mark.parametrize(
+    "contradictory_state",
+    ("artifact_only", "tombstoned_with_retained_bytes"),
+)
+def test_gc_fails_closed_for_schema_valid_noncanonical_effect_state(
+    tmp_path,
+    monkeypatch,
+    contradictory_state,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / f"{contradictory_state}.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    key = _queue_expired_exported_proof(
+        workspace,
+        "retained-request",
+        start,
+        "retained-worker",
+    )
+    with workspace.transaction() as connection:
+        if contradictory_state == "artifact_only":
+            connection.execute(
+                "UPDATE effect_outbox SET payload_json = NULL "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            )
+        else:
+            connection.execute(
+                "UPDATE effect_outbox SET tombstoned_at = ? "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (
+                    (start + timedelta(seconds=3)).isoformat(),
+                    workspace.namespace,
+                    workspace.owner_id,
+                    key,
+                ),
+            )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_effect_bindings"] == 1
+    collected = workspace.collect_garbage(now=start + timedelta(seconds=5))
+    assert collected["requests_tombstoned"] == 0
+    assert collected["effects_compacted"] == 0
+    with workspace.transaction() as connection:
+        request = connection.execute(
+            "SELECT lifecycle, response_json FROM requests "
+            "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+            (
+                workspace.namespace,
+                workspace.owner_id,
+                "retained-request",
+            ),
+        ).fetchone()
+        effect = connection.execute(
+            "SELECT payload_json, artifact_json, tombstoned_at "
+            "FROM effect_outbox "
+            "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+            (workspace.namespace, workspace.owner_id, key),
+        ).fetchone()
+    assert request["lifecycle"] == "ACTIVE"
+    assert request["response_json"] is not None
+    assert effect["artifact_json"] is not None
+    if contradictory_state == "artifact_only":
+        assert effect["payload_json"] is None
+        assert effect["tombstoned_at"] is None
+    else:
+        assert effect["payload_json"] is not None
+        assert effect["tombstoned_at"] is not None
+
+
+def test_gc_bounded_batches_preserve_each_uncompacted_anchor(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / "bounded-batch.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    for index in range(2):
+        _queue_expired_exported_proof(
+            workspace,
+            f"batch-{index}",
+            start,
+            f"batch-worker-{index}",
+        )
+
+    first = workspace.collect_garbage(
+        now=start + timedelta(seconds=50),
+        limit=1,
+    )
+    assert first["requests_tombstoned"] == 0
+    assert first["effects_compacted"] == 1
+
+    second = workspace.collect_garbage(
+        now=start + timedelta(seconds=50),
+        limit=1,
+    )
+    assert second["requests_tombstoned"] == 1
+    assert second["effects_compacted"] == 1
+
+    third = workspace.collect_garbage(
+        now=start + timedelta(seconds=50),
+        limit=1,
+    )
+    assert third["requests_tombstoned"] == 1
+    assert third["effects_compacted"] == 0
+    assert workspace.integrity()["invalid_effect_bindings"] == 0
 
 def test_usage_reconciliation_repairs_persistent_counter_drift(tmp_path):
     workspace = _workspace(tmp_path / "usage.sqlite3")
