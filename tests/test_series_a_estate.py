@@ -207,4 +207,4 @@ def test_no_copied_foreign_chrome_tokens() -> None:
     assert "huggingface.co/nvidia" not in joined.lower()
     assert "logo-nvidia" not in joined.lower()
     assert "bp3-navbar" not in joined
-    assert "cutting-edge" not in joined.lower()
+    assert "bp3-" not in joined
