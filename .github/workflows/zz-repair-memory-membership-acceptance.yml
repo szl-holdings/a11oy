@@ -1,0 +1,71 @@
+name: Repair Memory Covenant membership acceptance
+
+on:
+  push:
+    branches:
+      - fix/memory-covenant-postmerge-20260820
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-memory-membership-acceptance-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'szl-holdings/a11oy'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out the exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Remove the self-invalidating membership revocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          contract = Path(".github/workflows/memory-covenant-v2.yml")
+          bootstrap = Path(".github/workflows/zz-repair-memory-membership-acceptance.yml")
+          old = (
+              '            -c "DELETE FROM public.memory_context_bindings '
+              "WHERE tenant_id = 'revoked-grant-tenant'; REVOKE "
+              'a11oy_memory_app, a11oy_memory_worker FROM '
+              'a11oy_memory_stale_grantee"'
+          )
+          new = (
+              '            -c "DELETE FROM public.memory_context_bindings '
+              "WHERE tenant_id = 'revoked-grant-tenant'\""
+          )
+
+          text = contract.read_text(encoding="utf-8")
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(
+                  f"expected one self-invalidating cleanup command, found {count}"
+              )
+          contract.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          if not bootstrap.is_file():
+              raise SystemExit("bounded repair workflow is missing")
+          bootstrap.unlink()
+          PY
+
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            .github/workflows/memory-covenant-v2.yml \
+            .github/workflows/zz-repair-memory-membership-acceptance.yml
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git commit \
+            -m "test(memory): preserve seeded inbound memberships" \
+            -m "Remove the acceptance harness cleanup that revoked the two legitimate capability memberships immediately after proving they survived the corrective migration. The migration remains unchanged; this bounded workflow removes itself." \
+            -m "Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
