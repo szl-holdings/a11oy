@@ -374,6 +374,35 @@ BEGIN
 END;
 $$;
 
+-- Preserve inbound memberships. ADMIN OPTION holders keep the membership row
+-- but lose inherit/set so they cannot use worker EXECUTE or SET ROLE into it.
+DO $$
+DECLARE
+    membership record;
+BEGIN
+    FOR membership IN
+        SELECT DISTINCT parent.rolname AS capability_role,
+                        member.rolname AS member_role
+          FROM pg_catalog.pg_auth_members AS edge
+          JOIN pg_catalog.pg_roles AS parent ON parent.oid = edge.roleid
+          JOIN pg_catalog.pg_roles AS member ON member.oid = edge.member
+         WHERE parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
+           AND edge.admin_option
+    LOOP
+        EXECUTE pg_catalog.format(
+            'REVOKE ADMIN OPTION FOR %I FROM %I CASCADE',
+            membership.capability_role,
+            membership.member_role
+        );
+        EXECUTE pg_catalog.format(
+            'GRANT %I TO %I WITH INHERIT FALSE, SET FALSE',
+            membership.capability_role,
+            membership.member_role
+        );
+    END LOOP;
+END;
+$$;
+
 -- Revoke first so reapplication converges from stale additive ACLs. Remove
 -- CREATE from every non-owner public-schema grantee, and remove table-level
 -- and column-level privileges from every non-owner covenant-table grantee.

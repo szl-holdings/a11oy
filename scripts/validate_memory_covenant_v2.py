@@ -651,6 +651,18 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
         "cascading capability membership revoke": (
             "REVOKE %I FROM %I CASCADE"
         ),
+        "inbound capability membership selector": (
+            "parent.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')"
+        ),
+        "inbound delegation-right selector": (
+            "edge.admin_option"
+        ),
+        "cascading inbound delegation-right revoke": (
+            "REVOKE ADMIN OPTION FOR %I FROM %I CASCADE"
+        ),
+        "delegated inbound inherit disable": (
+            "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE"
+        ),
         "schema ACL catalog sweep": (
             "namespace.nspacl"
         ),

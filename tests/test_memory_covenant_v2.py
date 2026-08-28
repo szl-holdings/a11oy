@@ -290,6 +290,17 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             self.replace_once(path, "FROM pg_catalog.pg_policy AS p", "FROM pg_catalog.pg_policy_without_sweep AS p")
             self.assert_contract_error(root, "all-policy catalog sweep")
 
+    def test_delegated_inbound_inherit_disable_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE",
+                "GRANT %I TO %I WITH INHERIT TRUE, SET TRUE",
+            )
+            self.assert_contract_error(root, "delegated inbound inherit disable")
+
     def test_tenant_bound_receipt_relationship_removal_fails(self) -> None:
         temp, root = self.make_fixture()
         with temp:
