@@ -52,6 +52,20 @@ class Contract:
 '''
 CONTROLLER_SOURCE = b"protected controller"
 DOCKERIGNORE_SOURCE = b"# build context\n"
+SECURITY_SOURCE = b"Contact: security@example.invalid\n"
+JS_SOURCE = b"/* command bar */\n"
+CSS_SOURCE = b"/* command bar */\n"
+COMPAT_WARNING = {
+    "kind": "missing-both",
+    "path": "well-known/security.txt",
+    "severity": "warn",
+}
+FAKE_VERIFIER_CONSTANTS = SimpleNamespace(
+    EXPECTED_COMPATIBILITY_WARNING=COMPAT_WARNING,
+    CANDIDATE_AHEAD_VALUES=frozenset(
+        {"github", "github?", "huggingface", "huggingface?", "tied", "unknown"}
+    ),
+)
 
 
 def oid(source: bytes) -> str:
@@ -72,6 +86,52 @@ def successor_trees() -> tuple[dict[str, str], dict[str, str]]:
     head[MODULE.VERIFIER_PATH] = oid(HEAD_SOURCE)
     head[MODULE.CONTRACT_TEST_PATH] = oid(TEST_SOURCE)
     return base, head
+
+
+def sample_dockerfiles() -> tuple[bytes, bytes]:
+    prefix = b"FROM python:3.12-slim\n"
+    return (
+        prefix + MODULE.BASE_SHARED_COPY_LINE,
+        prefix + MODULE.HEAD_SHARED_COPY_LINE,
+    )
+
+
+def dockerfile_pin_trees(
+    *, extra_head: dict[str, str] | None = None
+) -> tuple[dict[str, str], dict[str, str], bytes, bytes]:
+    base_dockerfile, head_dockerfile = sample_dockerfiles()
+    base = base_tree()
+    base[MODULE.DOCKERFILE_PATH] = oid(base_dockerfile)
+    base[MODULE.SECURITY_TXT_PATH] = oid(SECURITY_SOURCE)
+    head = dict(base)
+    head[MODULE.DOCKERFILE_PATH] = oid(head_dockerfile)
+    head[MODULE.PINNED_COPY_SOURCES[0]] = oid(JS_SOURCE)
+    head[MODULE.PINNED_COPY_SOURCES[1]] = oid(CSS_SOURCE)
+    if extra_head:
+        head.update(extra_head)
+    return base, head, base_dockerfile, head_dockerfile
+
+
+def candidate_report(
+    *,
+    github_ref: str,
+    hf_ref: str,
+    findings: list[dict[str, object]],
+    files_compared: int,
+) -> dict[str, object]:
+    errors = list(findings)
+    return {
+        "schema": 1,
+        "status": "drift" if errors else "ok",
+        "error_count": len(errors),
+        "warn_count": 1,
+        "files_compared": files_compared,
+        "github_ref": github_ref,
+        "github_repo": "szl-holdings/a11oy",
+        "hf_ref": hf_ref,
+        "hf_repo": "SZLHOLDINGS/a11oy",
+        "findings": [*errors, COMPAT_WARNING],
+    }
 
 
 class CandidateAdmissionTests(unittest.TestCase):
@@ -286,6 +346,322 @@ class CandidateAdmissionTests(unittest.TestCase):
             self.assertEqual(report["status"], "rejected")
             self.assertEqual(report["proof_status"], "failed-closed")
             self.assertIn(".dockerignore", report["error"])
+
+    def test_exact_dockerfile_copy_insertion_is_byte_bound(self) -> None:
+        base, head = sample_dockerfiles()
+        report = MODULE.validate_dockerfile_copy_transition(base, head)
+        self.assertEqual(report["delta"], "exact-shared-copy-insertion")
+        self.assertEqual(report["copy_sources"], list(MODULE.PINNED_COPY_SOURCES))
+        self.assertEqual(report["head_blob"], oid(head))
+
+    def test_live_dockerfile_accepts_only_the_pinned_insertion(self) -> None:
+        live = (ROOT / "Dockerfile").read_bytes()
+        self.assertNotIn(MODULE.PINNED_COPY_INSERTION, live)
+        admitted = live.replace(
+            MODULE.BASE_SHARED_COPY_LINE,
+            MODULE.HEAD_SHARED_COPY_LINE,
+            1,
+        )
+        report = MODULE.validate_dockerfile_copy_transition(live, admitted)
+        self.assertEqual(report["delta"], "exact-shared-copy-insertion")
+        self.assertEqual(
+            admitted.replace(
+                MODULE.HEAD_SHARED_COPY_LINE,
+                MODULE.BASE_SHARED_COPY_LINE,
+                1,
+            ),
+            live,
+        )
+
+    def test_dockerfile_copy_transition_rejects_any_extra_change(self) -> None:
+        base, head = sample_dockerfiles()
+        with self.assertRaisesRegex(MODULE.AdmissionError, "changes beyond"):
+            MODULE.validate_dockerfile_copy_transition(
+                base, head + b"# unrelated candidate edit\n"
+            )
+
+    def test_dockerfile_copy_pin_requires_new_command_bar_blobs(self) -> None:
+        base, head, base_source, head_source = dockerfile_pin_trees()
+        report = MODULE.validate_dockerfile_copy_pin(
+            base_tree=base,
+            head_tree=head,
+            base_source=base_source,
+            head_source=head_source,
+            copy_sources={
+                MODULE.PINNED_COPY_SOURCES[0]: JS_SOURCE,
+                MODULE.PINNED_COPY_SOURCES[1]: CSS_SOURCE,
+            },
+        )
+        self.assertEqual(report["status"], "dockerfile-copy-pin-validated")
+        self.assertEqual(
+            set(report["copy_sources"]),
+            set(MODULE.PINNED_COPY_SOURCES),
+        )
+
+    def test_dockerfile_copy_pin_rejects_source_already_on_base(self) -> None:
+        base, head, base_source, head_source = dockerfile_pin_trees()
+        base[MODULE.PINNED_COPY_SOURCES[0]] = oid(JS_SOURCE)
+        with self.assertRaisesRegex(MODULE.AdmissionError, "new candidate file"):
+            MODULE.validate_dockerfile_copy_pin(
+                base_tree=base,
+                head_tree=head,
+                base_source=base_source,
+                head_source=head_source,
+                copy_sources={
+                    MODULE.PINNED_COPY_SOURCES[0]: JS_SOURCE,
+                    MODULE.PINNED_COPY_SOURCES[1]: CSS_SOURCE,
+                },
+            )
+
+    def test_dockerfile_copy_pin_rejects_security_txt_mutation(self) -> None:
+        base, head, base_source, head_source = dockerfile_pin_trees()
+        head[MODULE.SECURITY_TXT_PATH] = oid(b"mutated security\n")
+        with self.assertRaisesRegex(MODULE.AdmissionError, "protected input"):
+            MODULE.validate_dockerfile_copy_pin(
+                base_tree=base,
+                head_tree=head,
+                base_source=base_source,
+                head_source=head_source,
+                copy_sources={
+                    MODULE.PINNED_COPY_SOURCES[0]: JS_SOURCE,
+                    MODULE.PINNED_COPY_SOURCES[1]: CSS_SOURCE,
+                },
+            )
+
+    def test_dockerignore_successor_does_not_admit_dockerfile_mutation(self) -> None:
+        base, head = successor_trees()
+        base[MODULE.DOCKERFILE_PATH] = oid(sample_dockerfiles()[0])
+        head[MODULE.DOCKERFILE_PATH] = oid(sample_dockerfiles()[1])
+        with self.assertRaisesRegex(MODULE.AdmissionError, "unexpected path set"):
+            MODULE.validate_contract_successor(
+                base_tree=base,
+                head_tree=head,
+                base_source=BASE_SOURCE,
+                head_source=HEAD_SOURCE,
+                test_source=TEST_SOURCE,
+            )
+
+    def test_dockerfile_copy_report_admits_missing_hf_and_review_bound_drift(
+        self,
+    ) -> None:
+        base, head, _, _ = dockerfile_pin_trees(
+            extra_head={"pages/console.html": "b" * 40}
+        )
+        base["pages/console.html"] = "a" * 40
+        findings = [
+            {
+                "kind": "missing-hf",
+                "path": MODULE.PINNED_COPY_SOURCES[0],
+                "severity": "error",
+                "ahead": "github",
+            },
+            {
+                "kind": "missing-hf",
+                "path": MODULE.PINNED_COPY_SOURCES[1],
+                "severity": "error",
+                "ahead": "github",
+            },
+            {
+                "kind": "drift",
+                "path": "pages/console.html",
+                "severity": "error",
+                "ahead": "github",
+                "lineage_conflict": False,
+                "github_sha": "b" * 40,
+                "hf_oid": "a" * 40,
+            },
+        ]
+        report = candidate_report(
+            github_ref="2" * 40,
+            hf_ref="3" * 40,
+            findings=findings,
+            files_compared=1182,
+        )
+        admitted = MODULE.validate_dockerfile_copy_candidate_report(
+            report,
+            verifier=FAKE_VERIFIER_CONSTANTS,
+            base_ref="1" * 40,
+            github_repo="szl-holdings/a11oy",
+            github_ref="2" * 40,
+            hf_repo="SZLHOLDINGS/a11oy",
+            hf_ref="3" * 40,
+            base_tree=base,
+            head_tree=head,
+            expected_files_compared=1180,
+        )
+        self.assertEqual(admitted, ["pages/console.html"])
+
+    def test_dockerfile_copy_report_rejects_wrong_managed_file_count(self) -> None:
+        base, head, _, _ = dockerfile_pin_trees()
+        findings = [
+            {
+                "kind": "missing-hf",
+                "path": path,
+                "severity": "error",
+                "ahead": "github",
+            }
+            for path in MODULE.PINNED_COPY_SOURCES
+        ]
+        report = candidate_report(
+            github_ref="2" * 40,
+            hf_ref="3" * 40,
+            findings=findings,
+            files_compared=1180,
+        )
+        with self.assertRaisesRegex(MODULE.AdmissionError, "plus 2"):
+            MODULE.validate_dockerfile_copy_candidate_report(
+                report,
+                verifier=FAKE_VERIFIER_CONSTANTS,
+                base_ref="1" * 40,
+                github_repo="szl-holdings/a11oy",
+                github_ref="2" * 40,
+                hf_repo="SZLHOLDINGS/a11oy",
+                hf_ref="3" * 40,
+                base_tree=base,
+                head_tree=head,
+                expected_files_compared=1180,
+            )
+
+    def test_dockerfile_copy_report_rejects_unexplained_missing_hf(self) -> None:
+        base, head, _, _ = dockerfile_pin_trees()
+        findings = [
+            {
+                "kind": "missing-hf",
+                "path": MODULE.PINNED_COPY_SOURCES[0],
+                "severity": "error",
+                "ahead": "github",
+            },
+            {
+                "kind": "missing-hf",
+                "path": "static/shared/szl_holo3d.js",
+                "severity": "error",
+                "ahead": "github",
+            },
+        ]
+        report = candidate_report(
+            github_ref="2" * 40,
+            hf_ref="3" * 40,
+            findings=findings,
+            files_compared=1182,
+        )
+        with self.assertRaisesRegex(MODULE.AdmissionError, "unexplained candidate"):
+            MODULE.validate_dockerfile_copy_candidate_report(
+                report,
+                verifier=FAKE_VERIFIER_CONSTANTS,
+                base_ref="1" * 40,
+                github_repo="szl-holdings/a11oy",
+                github_ref="2" * 40,
+                hf_repo="SZLHOLDINGS/a11oy",
+                hf_ref="3" * 40,
+                base_tree=base,
+                head_tree=head,
+                expected_files_compared=1180,
+            )
+
+    def test_dockerfile_change_routes_to_copy_pin(self) -> None:
+        base, head, _, _ = dockerfile_pin_trees()
+        fake = SimpleNamespace(
+            verify_ancestry=mock.Mock(),
+            github_blob_tree=mock.Mock(side_effect=[base, head]),
+        )
+        pin_report = {
+            "schema": 1,
+            "status": "dockerfile-copy-pin-validated",
+            "hf_ref": "3" * 40,
+            "review_bound_drift_paths": ["pages/console.html"],
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            tools = root / "tools.py"
+            tools.write_text("# comparator\n", encoding="utf-8")
+            report_path = root / "report.json"
+            with (
+                mock.patch.object(MODULE, "load_verifier", return_value=fake),
+                mock.patch.object(
+                    MODULE,
+                    "prove_dockerfile_copy_pin",
+                    return_value=pin_report,
+                ) as prove,
+                mock.patch.object(
+                    MODULE,
+                    "delegate_ordinary_candidate",
+                    return_value=17,
+                ) as delegate,
+            ):
+                result = MODULE.main(
+                    [
+                        "--tools-script",
+                        str(tools),
+                        "--github-repo",
+                        "szl-holdings/a11oy",
+                        "--base-ref",
+                        "1" * 40,
+                        "--github-ref",
+                        "2" * 40,
+                        "--hf-repo",
+                        "SZLHOLDINGS/a11oy",
+                        "--report-out",
+                        str(report_path),
+                    ]
+                )
+            self.assertEqual(result, 0)
+            prove.assert_called_once()
+            delegate.assert_not_called()
+            self.assertEqual(
+                json.loads(report_path.read_text(encoding="utf-8")),
+                pin_report,
+            )
+
+    def test_verifier_and_dockerfile_change_does_not_use_the_copy_pin(self) -> None:
+        base, head = successor_trees()
+        base[MODULE.DOCKERFILE_PATH] = "a" * 40
+        head[MODULE.DOCKERFILE_PATH] = "b" * 40
+        fake = SimpleNamespace(
+            verify_ancestry=mock.Mock(),
+            github_blob_tree=mock.Mock(side_effect=[base, head]),
+        )
+        successor_report = {
+            "schema": 1,
+            "status": "contract-successor-validated",
+            "hf_ref": "3" * 40,
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            tools = root / "tools.py"
+            tools.write_text("# comparator\n", encoding="utf-8")
+            report_path = root / "report.json"
+            with (
+                mock.patch.object(MODULE, "load_verifier", return_value=fake),
+                mock.patch.object(
+                    MODULE,
+                    "prove_contract_successor",
+                    return_value=successor_report,
+                ) as prove_successor,
+                mock.patch.object(
+                    MODULE,
+                    "prove_dockerfile_copy_pin",
+                    return_value={"hf_ref": "3" * 40, "review_bound_drift_paths": []},
+                ) as prove_pin,
+            ):
+                result = MODULE.main(
+                    [
+                        "--tools-script",
+                        str(tools),
+                        "--github-repo",
+                        "szl-holdings/a11oy",
+                        "--base-ref",
+                        "1" * 40,
+                        "--github-ref",
+                        "2" * 40,
+                        "--hf-repo",
+                        "SZLHOLDINGS/a11oy",
+                        "--report-out",
+                        str(report_path),
+                    ]
+                )
+            self.assertEqual(result, 0)
+            prove_successor.assert_called_once()
+            prove_pin.assert_not_called()
 
 
 if __name__ == "__main__":
