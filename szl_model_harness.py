@@ -352,7 +352,7 @@ def _forum_ingest(receipt: dict[str, Any], prompt_preview: str = "") -> dict[str
     entry = {**receipt, "source": "a11oy", "event": "harness_apply",
              "prompt_preview": prompt_preview[:80] if prompt_preview else ""}
     try:
-        _reg()._forum_append(entry)
+        _reg()._forum_append(entry, routing_decision=True)
         return {"ingested": True, "forum": "/api/a11oy/v1/llm/forum"}
     except Exception as e:
         return {"ingested": False, "error": f"{e!r}",
@@ -464,6 +464,17 @@ def apply(profile_id: str, model_id: str = "", prompt: str = "",
             reason += f"; model_id '{model_id}' unknown → fell back to tier-{rank} model"
     chosen_model_id = (selected or {}).get("model_id", model_id or "unknown")
     model_display = (selected or {}).get("display_name", chosen_model_id)
+    selected_tier_raw = (selected or {}).get("tier")
+    selected_tier = (
+        selected_tier_raw
+        if type(selected_tier_raw) is int and selected_tier_raw >= 0
+        else rank
+    )
+    if model_id and selected is not None and selected_tier != rank:
+        reason += (
+            f"; explicit model override '{chosen_model_id}' selected tier "
+            f"{selected_tier} (Λ-gate recommendation was tier {rank})"
+        )
     api_env = (selected or {}).get("api_env_var", "")
     api_key_wired = _api_key_wired(api_env) if api_env else False
 
@@ -493,7 +504,7 @@ def apply(profile_id: str, model_id: str = "", prompt: str = "",
         "lambda": round(lam, 6),
         "lambda_floor": _LAMBDA_FLOOR,
         "axis_scores": axis_scores,
-        "tier_selected": rank,
+        "tier_selected": selected_tier,
         "task_hint": task_hint,
         "reason": reason,
         "api_key_wired": api_key_wired,
@@ -523,6 +534,14 @@ def apply(profile_id: str, model_id: str = "", prompt: str = "",
         receipt["sovereign"] = _sov.receipt_block(sov)
         receipt["model_id"] = _sov.SOVEREIGN_BACKEND_ID
         receipt["model_display"] = "SZL Sovereign Local (llama3-szl-finetuned-q4)"
+        sovereign_model = _model_by_id(_sov.SOVEREIGN_BACKEND_ID)
+        sovereign_tier = (sovereign_model or {}).get("tier")
+        selected_tier = (
+            sovereign_tier
+            if type(sovereign_tier) is int and sovereign_tier >= 0
+            else 5
+        )
+        receipt["tier_selected"] = selected_tier
         receipt["honesty_label"] = sov.get("state")
 
     receipt["signature"] = _sign_receipt(receipt)
@@ -567,7 +586,8 @@ def apply(profile_id: str, model_id: str = "", prompt: str = "",
         harness_state = "READY"
     else:
         response_text = (
-            f"[HONEST STUB · MODELED] Would run {model_display} (tier {rank}) with the "
+            f"[HONEST STUB · MODELED] Would run {model_display} "
+            f"(tier {receipt['tier_selected']}) with the "
             f"'{profile_id}' behavior profile injected as the system layer "
             f"({bm.get('length')} chars, sha256={(resolved_sha or '')[:12]}…). No API key wired in "
             f"this env — no model output fabricated. Λ={lam:.4f}, tier + receipt + "
@@ -587,7 +607,7 @@ def apply(profile_id: str, model_id: str = "", prompt: str = "",
         "model_selected": {
             "model_id": chosen_model_id,
             "display_name": model_display,
-            "tier": rank,
+            "tier": receipt["tier_selected"],
             "api_key_wired": api_key_wired,
         },
         "receipt": receipt,

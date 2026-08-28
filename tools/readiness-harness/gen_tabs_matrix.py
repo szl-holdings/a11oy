@@ -258,11 +258,13 @@ ENDPOINTS = {
     # kevgate: live CISA KEV CVEs mapped through the REAL governed policy engine.
     "/api/a11oy/v1/sec/kevgate": ep(schema="kevgate", sla=DAY, citations=True,
         note="Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."),
-    # router/stats: live per-tier router stats derived from the real szl_brain.TIERS
-    #   catalog. Throughput is an honest in-memory counter (resets on rebuild), so
-    #   it is deterministic/derived -> no freshness SLA and no external citation.
+    # router/stats: live per-route catalog plus exact trusted routing-decision
+    #   counters from szl_llm_registry. The process-lifetime window resets on
+    #   rebuild and is declared in the payload. These are decisions, not QPS,
+    #   tokens, or inference completions, so no external citation is required.
+    #   Keep the default live/cached label policy: MODELED must not pass this gate.
     "/api/a11oy/v1/router/stats": ep(schema="router_stats", sla=None,
-        note="Live LLM-router per-tier stats from szl_brain.TIERS; throughput is an honest in-memory counter."),
+        note="Live process-lifetime routing-decision counters from trusted szl_llm_registry receipt writes; not QPS, tokens, or inference completions."),
 
     # ── Metabolic scaling (szl_scaling.py — DETERMINISTIC, reproduces documented numerics) ──
     # These are pure closed-form computations of published allometric/scaling laws,
@@ -663,7 +665,30 @@ SCHEMAS = {
     },
     "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
     "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
-    "router_stats": {"type": "object", "anyKey": ["routes", "servedThisWindow", "tiers"]},
+    "router_stats": {
+        "type": "object",
+        "required": [
+            "state", "mode", "data_kind", "catalog_state", "throughput_state",
+            "routes", "servedThisWindow", "routingDecisionsSinceStart", "tiers",
+            "counter_scope", "counter_started_at", "observed_at", "source", "honesty",
+        ],
+        "properties": {
+            "state": {"const": "LIVE"},
+            "mode": {"const": "live"},
+            "data_kind": {"const": "live"},
+            "catalog_state": {"const": "LIVE"},
+            "throughput_state": {"const": "OBSERVED"},
+            "counter_scope": {"const": "process_lifetime"},
+            "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+        },
+        "requiredPathTypes": {
+            "routes": "nonempty_array", "servedThisWindow": "nonnegative_integer",
+            "routingDecisionsSinceStart": "nonnegative_integer",
+            "tiers": "nonempty_array",
+            "counter_started_at": "timestamp", "observed_at": "timestamp",
+            "honesty": "string",
+        },
+    },
     "mosaic_governed": {"type": "object",
                         "anyKey": ["cop", "receipts", "lambda_axes", "thresholds",
                                    "doctrine", "status", "source"]},

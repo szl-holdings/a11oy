@@ -1413,7 +1413,7 @@
           "placeholder"
         ]
       },
-      "note": "Live LLM-router per-tier stats from szl_brain.TIERS; throughput is an honest in-memory counter."
+      "note": "Live process-lifetime routing-decision counters from trusted szl_llm_registry receipt writes; not QPS, tokens, or inference completions."
     },
     "/api/a11oy/v1/scaling/summary": {
       "method": "GET",
@@ -2733,11 +2733,54 @@
     },
     "router_stats": {
       "type": "object",
-      "anyKey": [
+      "required": [
+        "state",
+        "mode",
+        "data_kind",
+        "catalog_state",
+        "throughput_state",
         "routes",
         "servedThisWindow",
-        "tiers"
-      ]
+        "routingDecisionsSinceStart",
+        "tiers",
+        "counter_scope",
+        "counter_started_at",
+        "observed_at",
+        "source",
+        "honesty"
+      ],
+      "properties": {
+        "state": {
+          "const": "LIVE"
+        },
+        "mode": {
+          "const": "live"
+        },
+        "data_kind": {
+          "const": "live"
+        },
+        "catalog_state": {
+          "const": "LIVE"
+        },
+        "throughput_state": {
+          "const": "OBSERVED"
+        },
+        "counter_scope": {
+          "const": "process_lifetime"
+        },
+        "source": {
+          "const": "szl_llm_registry.router_stats_snapshot"
+        }
+      },
+      "requiredPathTypes": {
+        "routes": "nonempty_array",
+        "servedThisWindow": "nonnegative_integer",
+        "routingDecisionsSinceStart": "nonnegative_integer",
+        "tiers": "nonempty_array",
+        "counter_started_at": "timestamp",
+        "observed_at": "timestamp",
+        "honesty": "string"
+      }
     },
     "mosaic_governed": {
       "type": "object",

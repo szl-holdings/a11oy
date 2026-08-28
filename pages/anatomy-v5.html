@@ -189,7 +189,7 @@
     }
     function renderRoutes(rows,router={}){
       const host=document.getElementById('routes');if(!rows.length){host.innerHTML='<div class="empty">Router did not expose a route array. Open the raw evidence view for its exact payload.</div>';return}
-      const throughputState=evidenceState(router?.throughput_state)||'MODELED';const throughputLabel=throughputState==='MODELED'?'modeled load':'throughput';
+      const throughputState=evidenceState(router?.throughput_state)||'UNAVAILABLE';const throughputLabel=throughputState==='OBSERVED'?'routing decisions':(throughputState==='MODELED'?'modeled load':'throughput');
       host.innerHTML=rows.map((r,i)=>{const name=r.model||r.organ||r.id||r.name||('route '+(i+1));const tier=r.tier||r.rank||r.provider||'--';const license=r.license||'not reported';const throughput=r.throughput??r.tokens_per_second??'not reported';return `<article class="route"><strong>${esc(name)}</strong><span>tier ${esc(tier)}</span><span>${esc(license)}</span><span class="signal ${stateClass(throughputState)}">${esc(throughputLabel)} ${esc(throughput)}</span></article>`}).join('');
     }
     let allGenome=[];let allWired=[];let allFormulas=[];

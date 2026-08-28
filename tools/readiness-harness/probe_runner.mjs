@@ -308,6 +308,7 @@ const KNOWN_EVIDENCE_LABELS = new Set([
   "placeholder",
 ]);
 const EXPLICIT_EVIDENCE_KEY = /^(data_kind|datakind|source_kind|sourcekind|evidence_state|evidencestate)$/i;
+const OBSERVATION_EVIDENCE_KEY = /^(throughput_state|counter_state)$/i;
 const FRESHNESS_LABEL_KEY = /^(freshness|status|state|label|mode|data_kind|datakind|source_kind|sourcekind)$/i;
 const ROOT_LABEL_KEY = /^(status|state|label|mode|freshness)$/i;
 
@@ -333,7 +334,7 @@ function findEvidenceLabels(obj, candidateLabels = []) {
       const keyIsFreshness = key.toLowerCase() === "freshness";
       if (typeof child === "string") {
         const normalized = child.trim().toLowerCase();
-        const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
+        const explicit = EXPLICIT_EVIDENCE_KEY.test(key) || OBSERVATION_EVIDENCE_KEY.test(key);
         const nestedFreshnessScoped = insideFreshness
           && FRESHNESS_LABEL_KEY.test(key);
         const scalarFreshness = keyIsFreshness && candidates.has(normalized);
@@ -390,8 +391,17 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
   const allowed = new Set(allowLabels.map((value) => String(value).trim().toLowerCase()));
   const lieSet = new Set(liesIf.map((value) => String(value).trim().toLowerCase()));
   const labels = findEvidenceLabels(body, [...allowLabels, ...liesIf]);
+  // OBSERVED is a valid supplemental counter label, but never a substitute for
+  // the root LIVE/CACHED availability label. Inspecting these fields makes a
+  // MODELED or unknown counter fail without broadening allowLabels.
+  const supplementalObserved = (entry) => (
+    entry.normalized === "observed"
+    && /(^|\.)(throughput_state|counter_state)$/i.test(entry.path)
+  );
   const disallowed = [
-    ...labels.filter((entry) => !allowed.has(entry.normalized)),
+    ...labels.filter(
+      (entry) => !allowed.has(entry.normalized) && !supplementalObserved(entry),
+    ),
     ...findEvidenceContradictions(spec, body),
   ];
   const lie = labels.find((entry) => lieSet.has(entry.normalized)) || null;
@@ -431,11 +441,15 @@ function validateSchema(schemaName, body) {
           cursor = cursor[key];
         }
         if (type === "array") return Array.isArray(cursor);
+        if (type === "nonempty_array") return Array.isArray(cursor) && cursor.length > 0;
         if (type === "object") {
           return typeof cursor === "object" && cursor !== null && !Array.isArray(cursor);
         }
         if (type === "string") return typeof cursor === "string";
         if (type === "number") return typeof cursor === "number" && Number.isFinite(cursor);
+        if (type === "nonnegative_integer") {
+          return Number.isSafeInteger(cursor) && cursor >= 0;
+        }
         if (type === "boolean") return typeof cursor === "boolean";
         if (type === "timestamp") return toDate(cursor) !== null;
         return false;

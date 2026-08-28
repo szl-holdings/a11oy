@@ -181,6 +181,28 @@ def test_generated_matrix_contains_the_curated_deep_contracts() -> None:
     assert checked_in_tabs == generated_tabs
 
 
+def test_router_stats_gate_still_requires_live_or_cached_evidence() -> None:
+    matrix = matrix_generator.build()
+    contract = matrix["endpoints"]["/api/a11oy/v1/router/stats"]
+    schema = matrix["schemas"]["router_stats"]
+
+    # The implementation must supply real counters. MODELED is intentionally not
+    # admitted here; adding it would hide a return to synthetic display traffic.
+    assert contract["degradedRules"]["allowLabels"] == ["live", "cached"]
+    assert "MODELED" not in contract["degradedRules"]["allowLabels"]
+    assert contract["freshnessSLA"] is None
+    assert "routing-decision counters" in contract["note"]
+    assert "not QPS" in contract["note"]
+    assert schema["properties"]["state"] == {"const": "LIVE"}
+    assert schema["properties"]["throughput_state"] == {"const": "OBSERVED"}
+    assert schema["properties"]["counter_scope"] == {"const": "process_lifetime"}
+    assert schema["properties"]["source"] == {
+        "const": "szl_llm_registry.router_stats_snapshot"
+    }
+    assert schema["requiredPathTypes"]["routes"] == "nonempty_array"
+    assert schema["requiredPathTypes"]["servedThisWindow"] == "nonnegative_integer"
+
+
 def test_freshness_sla_fails_closed_for_missing_stale_and_future_clocks() -> None:
     matrix = matrix_generator.build()
     sla_paths = [
