@@ -4,14 +4,12 @@
 # DCO: Signed-off-by: Yachay <yachay@szlholdings.dev>
 # Co-Authored-By: Perplexity Computer Agent
 """
-qwen_local.py — SOVEREIGN DEFAULT voter.
+qwen_local.py — always-on local floor voter (not the sovereign path).
 
-Qwen-local is the floor: it ALWAYS participates regardless of any env var.
-When the local vLLM endpoint is unreachable it degrades to a clearly-labelled
+The sovereign default is khipu-gguf (pinned SZL-Khipu GGUF on the CPU lab).
+qwen-local stays in the pool: it ALWAYS participates when requested, and when
+the local vLLM endpoint is unreachable it degrades to a clearly-labelled
 deterministic stub — never a hallucinated completion.
-
-Sovereign-default: qwen-local is ALWAYS in the voter pool. The aggregator may
-receive a stub response, but it never gets silence from the sovereign floor.
 """
 from __future__ import annotations
 
@@ -25,14 +23,14 @@ from .base_voter import BaseVoter
 
 class QwenLocalVoter(BaseVoter):
     VOTER_ID = "qwen-local"
-    ENV_VARS = []           # No env var required — sovereign default
+    ENV_VARS = []           # No env var required — always-on local floor
     LICENSE = "Apache-2.0"
     PROVIDER = "local-vLLM"
     CONTEXT_WINDOW = 32768
     MODEL_ID = "Qwen/Qwen2.5-72B-Instruct"
     BFCL_SCORE = None
 
-    # Sovereign-default: always available
+    # Always-on local floor: available even when vLLM is down (degrades to stub)
     def is_available(self) -> bool:
         return True
 
