@@ -118,6 +118,16 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
     assert "Open canonical app" in fallback
     assert "View repository" in fallback
     assert "reverse proxy" not in fallback.lower()
+    assert "8/8 SIMULATED" in tiles
+    assert "not a trainer" in tiles
+    assert "not Serve Studio" in tiles
+    energy = tiles[tiles.find('data-space="energy-attested-runs"') : tiles.find('data-space="energy-attested-runs"') + 900]
+    assert "8/8 SIMULATED" in energy
+    forge = tiles[tiles.find('data-space="szl-forge-lab"') : tiles.find('data-space="szl-forge-lab"') + 900]
+    assert "SNAPSHOT" in forge
+    assert "not a trainer" in forge
+    assert "8/8 SIMULATED" in fallback
+    assert "not a trainer" in fallback
 
 
 def test_registered_shortcuts_redirect_without_proxying_content():

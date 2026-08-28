@@ -79,20 +79,6 @@ adding more contexts, use their exact reported check-run names:
 | COPY/source/HF lockstep | `copy-sync-lockstep-guard.yml` | `COPY <-> serve.py imports <-> hf-sync mirror are in lockstep` |
 | DCO | `dco.yml` | `DCO sign-off check` |
 | PR-title convention | `commit-lint.yml` | `Lint PR title (Conventional Commits)` |
-| Investor smoke contract | `investor-smoke-gate.yml` | `Investor smoke contract (S1-S12 static)` |
-| Investor smoke S7 bind | `investor-smoke-gate.yml` | `Investor smoke bind (S7 kernel chips → /honest 8)` |
-| Investor smoke live probes | `investor-smoke-gate.yml` | `Investor smoke live probes` |
-
-The three investor-smoke contexts are **proposed** required checks. This
-document cannot flip GitHub protection on its own; the introducing pull
-request cannot self-certify them as control-plane-required. See
-[`docs/INVESTOR_SMOKE_GATE.md`](../docs/INVESTOR_SMOKE_GATE.md). S7 PASSes when
-`pages/console.html` `#cnt-locked` binds to `/honest` `locked_formula_count`
-(8 or N/A); that chip landed in PR 1396 (`c038cc95`). Landing `loadKernelLocked`
-and Trust `#cnt-locked` are on main via 1394. Genome `LOCKED-PROVEN=25` is a
-catalog tier and may remain labelled. S1 HEAD and S2 signer product landed in
-1394; live probes measure the origin and must not invent LIVE. Do not merge
-until QHAPAQ names these contexts required-green.
 
 Verify a context before requiring it:
 

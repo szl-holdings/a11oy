@@ -22,8 +22,16 @@ Workflow: `.github/workflows/investor-smoke-gate.yml`
 | `Investor smoke bind (S7 kernel chips → /honest 8)` | Kernel chips bind to `/honest` `locked_formula_count` (8 or N/A) |
 | `Investor smoke live probes` | GET/HEAD against `https://a-11-oy.com` only (measured, never invented) |
 
-This pull request cannot certify those names as control-plane-required. See
-`.github/BRANCH_PROTECTION.md`.
+This pull request cannot certify those names as control-plane-required.
+`.github/BRANCH_PROTECTION.md` is a Frontier source-pin v2 guarded file, so
+this PR does not add rows there. Proposed required-check names:
+
+- `Investor smoke contract (S1-S12 static)`
+- `Investor smoke bind (S7 kernel chips → /honest 8)`
+- `Investor smoke live probes`
+
+QHAPAQ names them required-green. This PR cannot self-certify the
+control-plane bind.
 
 ## Owners
 

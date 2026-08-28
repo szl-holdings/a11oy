@@ -52,6 +52,7 @@ from __future__ import annotations
 import asyncio
 import sys
 import time
+from html import escape as html_escape
 from typing import Any
 
 _ORG = "SZLHOLDINGS"
@@ -71,7 +72,7 @@ SPACES: list[dict[str, str]] = [
     {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker"},
     {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker"},
     {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static"},
-    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static"},
+    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static", "honesty": "8/8 SIMULATED"},
     {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static"},
     {"name": "governed-agent-bench", "slug": "governed-agent-bench", "title": "Governed Agent Benchmark", "sdk": "gradio"},
     {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static"},
@@ -86,7 +87,7 @@ SPACES: list[dict[str, str]] = [
     {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker"},
     {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static"},
     {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static"},
-    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static"},
+    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static", "honesty": "SNAPSHOT — not a trainer, not Serve Studio"},
     {"name": "szl-govsign-live", "slug": "szl-govsign-live", "title": "szl-govsign-live", "sdk": "static"},
     {"name": "szl-kernels-live", "slug": "szl-kernels-live", "title": "SZL Kernel Operations Hub", "sdk": "static"},
     {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker"},
@@ -459,6 +460,9 @@ async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
         "stage_source": "hf-api",
         "app_reachable": False,     # REAL probe; only true when the probe truly succeeds
     }
+    honesty = sp.get("honesty")
+    if honesty:
+        result["honesty"] = honesty
     # (1) REAL liveness probe of the canonical Space app. Try the shared async httpx
     #     client first; on None/failure fall back to the PROVEN stdlib urllib path.
     probed = False
@@ -599,6 +603,8 @@ async def spaces_health() -> dict[str, Any]:
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
             "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
             "degrade": "stage:'unknown' + app_reachable:false; never fabricated",
+            "energy-attested-runs": "8/8 SIMULATED — not MEASURED joules",
+            "szl-forge-lab": "SNAPSHOT — not a trainer, not Serve Studio",
         },
         "note": "Server-side probed; 0 browser CDN. Honest LIVE/DEGRADED/UNAVAILABLE; cache reuse is explicitly CACHED.",
         "doctrine": _DOCTRINE,
@@ -622,18 +628,23 @@ def _tiles_page(ns: str) -> bytes:
         title = sp["title"]
         primary = canonical_url(name)
         primary_label = "Open isolated app"
+        honesty = html_escape(sp.get("honesty") or "")
+        honesty_html = (
+            '<div class="sp-honesty">%s</div>' % honesty if honesty else ""
+        )
         cards.append(
             '<article class="sp-card" data-space="%s">'
             '<header class="sp-head">'
             '<span class="sp-dot" data-dot="%s" title="status">&#9679;</span>'
             '<h2 class="sp-title">%s</h2></header>'
             '<div class="sp-kind">%s &middot; %s</div>'
+            '%s'
             '<div class="sp-stage" data-stage="%s">stage: <span>checking&hellip;</span></div>'
             '<div class="sp-links">'
             '<a class="sp-open" href="%s" rel="noopener" target="_blank">%s &#8599;</a>'
             '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View repository &#8599;</a>'
             '</div></article>'
-            % (slug, slug, title, name, sp["sdk"], slug,
+            % (slug, slug, title, name, sp["sdk"], honesty_html, slug,
                primary, primary_label, hf_repo_url(name))
         )
     html = (
@@ -665,6 +676,7 @@ def _tiles_page(ns: str) -> bytes:
         '.sp-dot.up{color:#3ad07a}.sp-dot.down{color:#e0593a}.sp-dot.unknown{color:#c9a23a}'
         '.sp-title{font-size:1rem;margin:0;color:#e7eef6;font-weight:600;min-width:0;overflow-wrap:anywhere}'
         '.sp-kind{color:#697787;font-size:.76rem;overflow-wrap:anywhere}'
+        '.sp-honesty{color:#c9a23a;font-size:.78rem;overflow-wrap:anywhere}'
         '.sp-stage{color:#7c8794;font-size:.82rem;overflow-wrap:anywhere}'
         '.sp-stage span{color:#9fb0c0}'
         '.sp-links{margin-top:auto;display:flex;gap:.9rem;flex-wrap:wrap;padding-top:.4rem}'

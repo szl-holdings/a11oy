@@ -90,14 +90,20 @@ def _fallback_index() -> bytes:
         sdk = html.escape(record["sdk"])
         canonical = html.escape(hf_url(record["slug"]), quote=True)
         repository = html.escape(hf_repo_url(record["slug"]), quote=True)
+        honesty_raw = record.get("honesty") or ""
+        honesty = (
+            ' <small style="color:#c9a23a">%s</small>' % html.escape(honesty_raw)
+            if honesty_raw
+            else ""
+        )
         rows.append(
             '<li style="margin:.4rem 0"><strong style="color:#e7eef6">%s</strong> '
-            '<small style="color:#697787">%s &middot; %s</small> '
+            '<small style="color:#697787">%s &middot; %s</small>%s '
             '&middot; <a href="%s" rel="noopener" target="_blank" '
             'style="color:#d4a444;text-decoration:none">Open canonical app &#8599;</a> '
             '&middot; <a href="%s" rel="noopener" target="_blank" '
             'style="color:#7c8794;text-decoration:none">View repository &#8599;</a></li>'
-            % (title, name, sdk, canonical, repository)
+            % (title, name, sdk, honesty, canonical, repository)
         )
     return (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'

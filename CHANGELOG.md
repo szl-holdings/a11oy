@@ -36,7 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   main; this PR only probes. Live origin is measured, never invented.
   Live S3 retries one ISS TimeoutError then stays FAIL. L1–L6 are
   SNAPSHOT 2026-08-28. S4/S6/S9 are UNAVAILABLE (no POST). See
-  `docs/INVESTOR_SMOKE_GATE.md`.
+  `docs/INVESTOR_SMOKE_GATE.md`. Proposed required-check names live in that
+  doc; `.github/BRANCH_PROTECTION.md` is Frontier v2-guarded and is not
+  edited here.
+
+### Changed - Spaces honesty chips (killinchu byte lock)
+- `szl_spaces_proxy.py` and `szl_spaces_surface.py` match killinchu main:
+  energy-attested-runs is `8/8 SIMULATED` (not MEASURED joules); szl-forge-lab
+  is `SNAPSHOT — not a trainer, not Serve Studio`. Shared-file drift stays
+  fail-closed (no allowlist).
 
 
 ### Changed - public ecosystem map
