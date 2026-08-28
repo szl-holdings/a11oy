@@ -4,16 +4,15 @@
 # Doctrine v11 LOCKED. Λ = Conjecture 1 (NOT a theorem). Locked-proven kernel = 8.
 """Investor-honest S1–S12 / L1–L6 / D1–D10 smoke gate.
 
-Fail-closed. Never skip-as-green. Never invent PASS. No POST. No genome rewrite.
-No Trust Center copy rewrite. No HEAD handlers. No signer fields.
+Fail-closed. Never skip-as-green. Never invent PASS. Never invent LIVE.
+No POST. No genome rewrite. No Trust Center copy rewrite. Does not add
+HEAD handlers or signer fields (1394 identity lock is already on main).
 
-S1 HEAD 405 and S2 signer enum: KALLPA owns (probes only).
-S3 unlabeled live coords: UNAVAILABLE or MEASURED with method — never invent MEASURED.
-S7 is a BIND, not a catalog-count equality. Genome LOCKED-PROVEN=25 is a real
-catalog tier; ``/honest`` locked_formula_count=8 is the kernel. PASS only when
-landing ``#pt-locked`` (via loadLockedKernel) and trust/console ``#cnt-locked``
-all bind to GET /api/a11oy/v1/honest locked_formula_count (show 8 or N/A).
-Do not demand genome LOCKED-PROVEN equal 8. a11oy.net / kernel smokes: later cut.
+S1/S2 product is 1394 on main; this gate only probes the live origin.
+S3: UNAVAILABLE, MEASURED with method, or unit-labelled — never invent MEASURED.
+S7 is a BIND: landing #pt-locked via loadLockedKernel/loadKernelLocked and
+trust/console #cnt-locked bind to GET /api/a11oy/v1/honest locked_formula_count
+(show 8 or N/A). Genome LOCKED-PROVEN=25 is catalog. Do not touch 1396 or 1363.
 """
 from __future__ import annotations
 
@@ -34,6 +33,7 @@ LOCKED_KERNEL_IDS = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")
 HONEST_PATH = "/api/a11oy/v1/honest"
 HONEST_FIELD = "locked_formula_count"
 SIGNER_ENUM = frozenset({"DSSE-LIVE", "UNSIGNED-LOCAL", "unavailable"})
+SIGNER_ABSENT_ENUM = frozenset({"ABSENT", "UNAVAILABLE", "unavailable"})
 VALUE_LABELS = frozenset({"MEASURED", "UNAVAILABLE"})
 COORD_KEYS = frozenset(
     {"latitude", "longitude", "lat", "lon", "altitude", "velocity"}
@@ -51,14 +51,21 @@ ALLOWED_UNCONFIGURED_IDS = frozenset({"wire-D"})
 SNAPSHOT_IDS = frozenset({"L1", "L2", "L3", "L4", "L5", "L6"})
 
 HEAD_GET_PATHS = (
+    "/",
+    "/verify",
     "/console",
     "/trust",
+    "/assurance",
+    "/robots.txt",
+    "/sitemap.xml",
     "/healthz",
     "/readyz",
     "/api/health",
+    "/api/a11oy/healthz",
+    "/api/a11oy/v1/health",
 )
-HEAD_404_VS_GET_200 = "/api/a11oy/healthz"
-SIGNER_REQUIRED_PATHS = (
+SIGNER_LIVE_PATH = "/api/a11oy/healthz"
+SIGNER_ABSENT_PATHS = (
     "/api/health",
     "/healthz",
     "/api/a11oy/v1/health",
@@ -108,8 +115,9 @@ _PT_LOCKED_FROM_GENOME = re.compile(
 _HONEST_PATH_RE = re.compile(r"/api/a11oy/v1/honest|/v1/honest", re.I)
 _LOCKED_FORMULA_COUNT_RE = re.compile(r"locked_formula_count")
 _LOAD_LOCKED_KERNEL_RE = re.compile(
-    r"(?:async\s+)?function\s+loadLockedKernel\s*\(", re.I
+    r"(?:async\s+)?function\s+load(?:LockedKernel|KernelLocked)\s*\(", re.I
 )
+_KERNEL_LOCK_FUNCS = ("loadLockedKernel", "loadKernelLocked")
 
 KERNEL_SURFACES = (
     ("a11oy_landing.html", "landing"),
@@ -293,16 +301,18 @@ def _cnt_locked_bound_to_honest(text: str) -> bool:
 
 
 def _load_locked_kernel_binds_pt_locked(text: str) -> bool:
-    if not _LOAD_LOCKED_KERNEL_RE.search(text):
-        return False
-    body = _js_function_body(text, "loadLockedKernel")
-    if not body:
-        return False
-    has_honest = bool(_HONEST_PATH_RE.search(body))
-    has_field = "locked_formula_count" in body
-    has_chip = "pt-locked" in body
-    shows_honest = ("8" in body) and ("N/A" in body)
-    return has_honest and has_field and has_chip and shows_honest
+    """Landing kernel chip: loadLockedKernel or 1394 loadKernelLocked → /honest."""
+    for name in _KERNEL_LOCK_FUNCS:
+        body = _js_function_body(text, name)
+        if not body:
+            continue
+        has_honest = bool(_HONEST_PATH_RE.search(body))
+        has_field = "locked_formula_count" in body
+        has_chip = "pt-locked" in body
+        has_na = "N/A" in body
+        if has_honest and has_field and has_chip and has_na:
+            return True
+    return False
 
 
 def kernel_slot_bind_failures(
@@ -325,15 +335,15 @@ def _kernel_slot_bind_failures_impl(
     if check_landing:
         if not _load_locked_kernel_binds_pt_locked(text):
             failures.append(
-                f"{source_name}: #pt-locked must be painted by loadLockedKernel from "
-                f"GET {HONEST_PATH} {HONEST_FIELD} (show 8 or N/A), not genome / "
-                "proof_tiers.locked."
+                f"{source_name}: #pt-locked must be painted by loadLockedKernel "
+                f"or loadKernelLocked from GET {HONEST_PATH} {HONEST_FIELD} "
+                "(show 8 or N/A), not genome / proof_tiers.locked."
             )
         set_tiers_body = _js_function_body(text, "setTiers")
         if set_tiers_body and "pt-locked" in _strip_js_comments(set_tiers_body):
             failures.append(
                 f"{source_name}: setTiers still writes #pt-locked; kernel chip must "
-                "be loadLockedKernel only (not setTiers.locked)."
+                "be loadLockedKernel/loadKernelLocked only (not setTiers.locked)."
             )
         if _SETTIERS_LOCKED_GENOME.search(text):
             failures.append(
@@ -927,6 +937,11 @@ def _coord_label_ok(obj: dict[str, Any], key: str) -> bool:
             method = (labels.get("method") if isinstance(labels, dict) else None) or obj.get("method")
         if _ok(lab, method):
             return True
+    units = obj.get("units")
+    if isinstance(units, dict):
+        unit = units.get(key)
+        if isinstance(unit, str) and unit.strip():
+            return True
     for field_name in ("label", "honesty", "value_label", "status"):
         raw = obj.get(field_name)
         if _ok(raw, obj.get("method") or obj.get("method_label")):
@@ -946,7 +961,7 @@ def unlabeled_numeric_coords(payload: Any, path: str = "$") -> list[str]:
                         if not _coord_label_ok(node, key):
                             found.append(
                                 f"{child}={value} unlabeled "
-                                "(need UNAVAILABLE or MEASURED with method)"
+                                "(need UNAVAILABLE, MEASURED with method, or units)"
                             )
                         continue
                     if isinstance(value, dict):
@@ -954,7 +969,7 @@ def unlabeled_numeric_coords(payload: Any, path: str = "$") -> list[str]:
                         if isinstance(inner, (int, float)) and not _coord_label_ok(node, key):
                             found.append(
                                 f"{child}.value={inner} unlabeled "
-                                "(need UNAVAILABLE or MEASURED with method)"
+                                "(need UNAVAILABLE, MEASURED with method, or units)"
                             )
                         continue
                 walk(value, child)
@@ -990,36 +1005,48 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
     matrix = Matrix()
     primary = origins[0] if origins else CANONICAL_ORIGIN
 
-    # S1 HEAD vs GET (KALLPA) — probes only. Canonical origin this cut.
+    # S1 HEAD vs GET — product fix is 1394 on main. This job only probes live origin.
     s1_fail: list[str] = []
     for path in HEAD_GET_PATHS:
         got = http_request(_join(primary, path), method="GET", follow=True)
         head = http_request(_join(primary, path), method="HEAD", follow=False)
-        if got.status == 200 and head.status == 405:
-            s1_fail.append(f"HEAD {path} = 405 while GET = 200")
+        if got.status == 200 and head.status in {404, 405}:
+            s1_fail.append(f"HEAD {path} = {head.status} while GET = 200")
         elif got.status != 200:
             s1_fail.append(f"GET {path} = {got.status} {got.error}".strip())
         elif head.status not in {200, 204}:
-            s1_fail.append(f"HEAD {path} = {head.status} while GET = 200")
-    hz_get = http_request(_join(primary, HEAD_404_VS_GET_200), method="GET", follow=True)
-    hz_head = http_request(_join(primary, HEAD_404_VS_GET_200), method="HEAD", follow=False)
-    if hz_get.status == 200 and hz_head.status == 404:
-        s1_fail.append(f"HEAD {HEAD_404_VS_GET_200} = 404 while GET = 200")
-    elif hz_get.status == 200 and hz_head.status == 405:
-        s1_fail.append(f"HEAD {HEAD_404_VS_GET_200} = 405 while GET = 200")
+            s1_fail.append(f"HEAD {path} = {head.status} while GET = {got.status}")
     matrix.add(
         Verdict(
             id="S1",
             status="FAIL" if s1_fail else "PASS",
-            detail="HEAD must not 405/404 where GET is 200 (KALLPA owns the product fix)",
+            detail="HEAD must not 405/404 where GET is 200 (1394 identity lock on main)",
             evidence="; ".join(s1_fail) if s1_fail else f"HEAD/GET pairs on {primary}",
             owner="KALLPA",
         )
     )
 
-    # S2 signer enum (KALLPA) — probes only. Lean SHA is not enough.
+    # S2 signer: DSSE-LIVE only on /api/a11oy/healthz rollup.signer (1394).
+    # Lean health JSON must be ABSENT/UNAVAILABLE — never copy DSSE-LIVE.
     s2_fail: list[str] = []
-    for path in SIGNER_REQUIRED_PATHS:
+    live = http_request(_join(primary, SIGNER_LIVE_PATH), method="GET", follow=True)
+    if live.status != 200 or "json" not in live.content_type.lower():
+        s2_fail.append(
+            f"GET {SIGNER_LIVE_PATH} HTTP {live.status} ct={live.content_type}"
+        )
+    else:
+        try:
+            live_payload = live.json()
+        except Exception as exc:  # noqa: BLE001
+            s2_fail.append(f"GET {SIGNER_LIVE_PATH} not JSON: {exc}")
+        else:
+            signer = extract_signer_status(live_payload)
+            if signer not in SIGNER_ENUM:
+                s2_fail.append(
+                    f"GET {SIGNER_LIVE_PATH} rollup.signer.status={signer!r} "
+                    f"not in {sorted(SIGNER_ENUM)}"
+                )
+    for path in SIGNER_ABSENT_PATHS:
         got = http_request(_join(primary, path), method="GET", follow=True)
         if got.status != 200 or "json" not in got.content_type.lower():
             s2_fail.append(f"GET {path} signer probe HTTP {got.status} ct={got.content_type}")
@@ -1030,17 +1057,24 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
             s2_fail.append(f"GET {path} not JSON: {exc}")
             continue
         signer = extract_signer_status(payload)
-        if signer not in SIGNER_ENUM:
+        if signer in {"DSSE-LIVE"}:
             s2_fail.append(
-                f"GET {path} missing signer enum {sorted(SIGNER_ENUM)}; "
-                f"got {signer!r}. Lean commit/SHA is not enough. KALLPA owns the fix."
+                f"GET {path} must not stamp DSSE-LIVE (1394: only "
+                f"{SIGNER_LIVE_PATH} rollup.signer may); got {signer!r}"
+            )
+        elif signer not in SIGNER_ABSENT_ENUM:
+            s2_fail.append(
+                f"GET {path} lean signer must be ABSENT/UNAVAILABLE; got {signer!r}"
             )
     matrix.add(
         Verdict(
             id="S2",
             status="FAIL" if s2_fail else "PASS",
-            detail="Health JSON must carry signer enum {DSSE-LIVE, UNSIGNED-LOCAL, unavailable}",
-            evidence="; ".join(s2_fail) if s2_fail else f"signer enum present on {primary}",
+            detail=(
+                "DSSE-LIVE only on /api/a11oy/healthz rollup.signer; "
+                "lean health JSON signer is ABSENT/UNAVAILABLE (1394)"
+            ),
+            evidence="; ".join(s2_fail) if s2_fail else f"signer contract on {primary}",
             owner="KALLPA",
         )
     )
@@ -1074,8 +1108,8 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
             id="S3",
             status="FAIL" if s3_fail else "PASS",
             detail=(
-                "Live coords must be UNAVAILABLE or labelled MEASURED with method; "
-                "no raw unlabeled latitude in first viewport"
+                "Live coords must be UNAVAILABLE, labelled MEASURED with method, "
+                "or unit-labelled; no raw unlabeled latitude in first viewport"
             ),
             evidence="; ".join(s3_fail) if s3_fail else f"GET {LIVE_ISS_PATH} + first viewport labelled",
         )

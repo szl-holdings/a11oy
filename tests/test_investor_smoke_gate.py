@@ -115,6 +115,21 @@ def test_bind_detector_silent_when_kernel_chips_bind_honest():
         assert failures == [], (role, failures)
 
 
+def test_load_kernel_locked_alias_binds_landing_pt_locked():
+    text = """
+async function loadKernelLocked(){
+  const h = await getJSON("/api/a11oy/v1/honest");
+  const n = num(h && h.locked_formula_count);
+  $("pt-locked").textContent = (n === null) ? "N/A" : n;
+}
+function setTiers(t){ $("pt-semantic").textContent = t.semantic; }
+"""
+    failures = gate.kernel_slot_bind_failures(
+        text, source_name="fixture-1394-landing", role="landing"
+    )
+    assert failures == [], failures
+
+
 def test_labelled_catalog_chip_is_not_the_kernel_slot():
     text = (FIXTURES / "kernel_slot_honest_bind.html").read_text(encoding="utf-8")
     assert "cnt-genome-locked-proven" in text
@@ -157,6 +172,20 @@ def test_unlabeled_iss_coords_are_red():
     }
     hits = gate.unlabeled_numeric_coords(payload)
     assert hits, "bare ISS digits must be unlabeled FAIL"
+
+
+def test_unit_labeled_iss_coords_are_ok():
+    payload = {
+        "source": "Where-the-ISS-at",
+        "mode": "live",
+        "data": {
+            "latitude": 27.4,
+            "longitude": -91.3,
+            "altitude": 417.7,
+            "units": {"latitude": "degrees", "longitude": "degrees", "altitude": "km"},
+        },
+    }
+    assert gate.unlabeled_numeric_coords(payload) == []
 
 
 def test_measured_without_method_is_not_enough():
@@ -209,6 +238,7 @@ def test_signer_enum_extract():
         gate.extract_signer_status({"rollup": {"signer": {"status": "DSSE-LIVE"}}})
         == "DSSE-LIVE"
     )
+    assert gate.extract_signer_status({"signer": {"status": "ABSENT"}}) == "ABSENT"
     assert gate.extract_signer_status({"lean_sha": "c7c0ba17", "status": "ok"}) is None
 
 

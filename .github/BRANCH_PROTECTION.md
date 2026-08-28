@@ -87,11 +87,12 @@ The three investor-smoke contexts are **proposed** required checks. This
 document cannot flip GitHub protection on its own; the introducing pull
 request cannot self-certify them as control-plane-required. See
 [`docs/INVESTOR_SMOKE_GATE.md`](../docs/INVESTOR_SMOKE_GATE.md). S7 stays RED
-until INTI / PR 1396 binds landing `#pt-locked` (`loadLockedKernel`) and
-trust/console `#cnt-locked` to `/honest` `locked_formula_count` (8 or N/A).
-Genome `LOCKED-PROVEN=25` is a catalog tier and may remain labelled; do not
-demand it equal 8 or rewrite `genome.json`. S1 HEAD 405 and S2 signer enum
-stay RED until KALLPA.
+until PR 1396 binds `pages/console.html` `#cnt-locked` to `/honest`
+`locked_formula_count` (8 or N/A). Landing `loadKernelLocked` and Trust
+`#cnt-locked` are already on main via 1394. Genome `LOCKED-PROVEN=25` is a
+catalog tier and may remain labelled. S1 HEAD and S2 signer product landed in
+1394; live probes measure the origin and must not invent LIVE. Do not merge
+until QHAPAQ names these contexts required-green.
 
 Verify a context before requiring it:
 

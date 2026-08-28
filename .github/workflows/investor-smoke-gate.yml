@@ -3,12 +3,11 @@ name: Investor smoke gate (S1–S12)
 # Fail-closed investor-honest quality gate. Does not merge. Does not touch
 # Dockerfile / HF byte parity. Does not rewrite genome.json. No POST.
 #
-# S7 is a BIND: landing #pt-locked via loadLockedKernel and trust/console
-# #cnt-locked must read GET /api/a11oy/v1/honest locked_formula_count (8 or N/A).
-# Genome LOCKED-PROVEN=25 is a catalog tier and may remain. Do not demand it
-# equal 8. Keep the bind job RED until PR 1396's bind lands. KALLPA owns S1
-# HEAD 405 and S2 signer enum (probes only). a11oy.net / kernel smokes are a
-# later cut.
+# S7 is a BIND: landing #pt-locked via loadLockedKernel/loadKernelLocked and
+# trust/console #cnt-locked must read GET /api/a11oy/v1/honest locked_formula_count
+# (8 or N/A). Genome LOCKED-PROVEN=25 is catalog. Console #cnt-locked still
+# missing until PR 1396. S1/S2 product is 1394 on main; live probes measure
+# origin and must not invent LIVE. Do not touch 1396 or 1363.
 #
 # This workflow is ordinary Actions until branch protection lists the exact
 # check-run names. This PR cannot self-certify as control-plane-required.
