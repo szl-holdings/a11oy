@@ -213,6 +213,7 @@ def test_http_link_canonical_is_product_origin_not_hf_space():
     import serve
 
     client = TestClient(serve.app, raise_server_exceptions=False)
+    headers = {"host": "a-11-oy.com"}
     expected = {
         "/": "https://a-11-oy.com/",
         "/console": "https://a-11-oy.com/console",
@@ -220,7 +221,7 @@ def test_http_link_canonical_is_product_origin_not_hf_space():
         "/sitemap.xml": "https://a-11-oy.com/sitemap.xml",
     }
     for path, url in expected.items():
-        response = client.get(path)
+        response = client.get(path, headers=headers)
         assert response.status_code == 200, path
         links = response.headers.get_list("link") if hasattr(response.headers, "get_list") else [response.headers.get("link") or ""]
         joined = " ".join(links)
@@ -228,6 +229,12 @@ def test_http_link_canonical_is_product_origin_not_hf_space():
         assert "canonical" in joined.lower()
         assert "huggingface.co/spaces/" not in joined.lower()
         assert _FURNITURE_HOST not in joined
+
+    space = client.get("/trust", headers={"host": "szlholdings-a11oy.hf.space"})
+    space_link = " ".join(
+        space.headers.get_list("link") if hasattr(space.headers, "get_list") else [space.headers.get("link") or ""]
+    )
+    assert "huggingface.co/spaces/" not in space_link.lower()
 
 
 def test_options_on_documents_declares_allow_and_methods():
@@ -559,6 +566,8 @@ def test_ayni_lock_does_not_drift():
 
     canon = texts["canon"]
     assert "huggingface.co/spaces is never the product canonical" in canon
+    assert "Host-aware" in canon
+    assert "not a Cloudflare transform" in canon
     assert "This app does not change DNS" in canon
     assert "SUNSET_DOMAIN" not in canon
     import a11oy_canonical_domain as cd

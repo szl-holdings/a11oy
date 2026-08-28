@@ -66,9 +66,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - HEAD 405 is the app (`Server: szl`), including on
   `szlholdings-a11oy.hf.space`. `/sitemap.xml` now accepts HEAD.
   OPTIONS `/` and `/console` send `Allow` and `Access-Control-Allow-Methods`.
-  HTTP `Link` rel=canonical on public product responses is
-  `https://a-11-oy.com{path}`; `huggingface.co/spaces` and the furniture
-  host are never that canonical. HF custom domain stays PENDING/UNAVAILABLE.
+  HTTP `Link` rel=canonical is Host-aware in this app (not a Cloudflare
+  transform): on Host `a-11-oy.com` / `www`, `https://a-11-oy.com{path}`;
+  on `*.hf.space` the Space Hub canonical is omitted. Never
+  `huggingface.co/spaces`, never the furniture host. HF custom domain stays PENDING/UNAVAILABLE.
   Keep orange-cloud (proxied apex). Do not grey-cloud. This PR does not
   change DNS; Stephen may add `_huggingface.a-11-oy.com` TXT later without
   dropping the Cloudflare proxy. www NXDOMAIN is Stephen.

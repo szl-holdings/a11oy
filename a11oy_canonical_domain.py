@@ -32,9 +32,11 @@ DX — routes, contracts, env, promote path (staging Space ≠ prod DNS):
   / FastAPI @app.get is the usual 405 — including on the Space (Server: szl),
   not Cloudflare. GET-only /api/a11oy/* is worse: the Node proxy catch-all
   already accepts HEAD, so monitors see 404 instead of 405 (QHAPAQ 2026-08-28).
-  Public product GET/HEAD stamp Link rel=canonical to https://a-11-oy.com{path}.
-  huggingface.co/spaces is never the product canonical. OPTIONS on documents
-  send Allow and Access-Control-Allow-Methods.
+  Public product GET/HEAD/OPTIONS are Host-aware (this app, not a Cloudflare
+  transform): on Host a-11-oy.com and www.a-11-oy.com, Link rel=canonical is
+  https://a-11-oy.com{path} (path only; no query). huggingface.co/spaces is never the product canonical.
+  a11oy.com is never that canonical. On *.hf.space the app omits a Space Hub
+  canonical; it does not make the Space the public product canonical.
 - Env: Space runtime vars configure the app. Prod DNS is Cloudflare orange-cloud
   (proxied) in front of the Space. This app does not change DNS. x-szl-wire-d:
   LIVE is DSSE Wire D provenance, not "domain LIVE". HF custom domain stays
@@ -91,6 +93,25 @@ def _is_product_host(host: str) -> bool:
     return h == CANONICAL_HOST or h.endswith("." + CANONICAL_HOST)
 
 
+def _is_public_product_host(host: str) -> bool:
+    """Apex and www only. Host-aware Link rewrite — not a Cloudflare transform."""
+    h = _host_without_port(host)
+    return h == CANONICAL_HOST or h == "www." + CANONICAL_HOST
+
+
+def _is_hf_space_host(host: str) -> bool:
+    h = _host_without_port(host)
+    return h == "hf.space" or h.endswith(".hf.space")
+
+
+def _effective_request_host(request) -> str:
+    """Host, or X-Forwarded-Host when Cloudflare presents the product apex."""
+    forwarded = (request.headers.get("x-forwarded-host") or "").split(",")[0].strip()
+    if _is_public_product_host(forwarded):
+        return forwarded
+    return request.headers.get("host") or ""
+
+
 def _is_forbidden_public_host(host: str) -> bool:
     h = _host_without_port(host)
     return h == FORBIDDEN_PUBLIC_HOST or h.endswith("." + FORBIDDEN_PUBLIC_HOST)
@@ -122,6 +143,14 @@ def _is_rel_canonical(value: str) -> bool:
     return 'rel="canonical"' in lower or "rel=canonical" in lower
 
 
+def _link_is_space_hub_or_furniture(value: str) -> bool:
+    lower = value.lower()
+    if "huggingface.co/spaces/" in lower:
+        return True
+    furniture = FORBIDDEN_PUBLIC_HOST
+    return furniture in lower.replace(CANONICAL_HOST, "")
+
+
 def apply_product_canonical_link(response, path: str) -> None:
     """Stamp Link rel=canonical to https://a-11-oy.com{path}; drop Space/furniture."""
     headers = response.headers
@@ -144,7 +173,38 @@ def apply_product_canonical_link(response, path: str) -> None:
         headers["link"] = canonical
 
 
-def _options_response(existing=None, path: str = "/"):
+def omit_space_or_furniture_canonical_link(response) -> None:
+    """On *.hf.space: omit Space Hub / furniture rel=canonical. Do not stamp product."""
+    headers = response.headers
+    kept = []
+    for value in _iter_link_values(headers):
+        if _is_rel_canonical(value) and _link_is_space_hub_or_furniture(value):
+            continue
+        kept.append(value)
+    if "link" in headers:
+        del headers["link"]
+    for value in kept:
+        if hasattr(headers, "append"):
+            headers.append("link", value)
+        else:
+            headers["link"] = value
+
+
+def rewrite_host_aware_canonical_link(response, path: str, host: str) -> None:
+    """Host-aware Link rewrite in this app. Not a Cloudflare transform.
+
+    a-11-oy.com / www → https://a-11-oy.com{path}. *.hf.space omits Space Hub
+    canonical. Never huggingface.co/spaces, never a11oy.com.
+    """
+    if _is_registry_host(host):
+        return
+    if _is_public_product_host(host):
+        apply_product_canonical_link(response, path)
+        return
+    omit_space_or_furniture_canonical_link(response)
+
+
+def _options_response(existing=None, path: str = "/", host: str = ""):
     from starlette.responses import Response
 
     response = Response(status_code=200)
@@ -155,7 +215,7 @@ def _options_response(existing=None, path: str = "/"):
     response.headers["Allow"] = _OPTIONS_ALLOW
     if "access-control-allow-methods" not in response.headers:
         response.headers["Access-Control-Allow-Methods"] = _OPTIONS_ACAM
-    apply_product_canonical_link(response, path)
+    rewrite_host_aware_canonical_link(response, path, host)
     return response
 
 
@@ -188,10 +248,11 @@ def ensure_html_documents_accept_head(app):
 def register(app):
     """Install the two-origin identity lock. Never 301 .net onto the product host.
 
-    Also: product Link rel=canonical is https://a-11-oy.com{path}. The Hugging
-    Face Space URL is never the HTTP canonical. OPTIONS on public documents
-    carries Allow + Access-Control-Allow-Methods. HF custom domain stays
-    PENDING/UNAVAILABLE. Keep orange-cloud. Do not grey-cloud. This app
+    Also: Host-aware Link rel=canonical (this app, not a Cloudflare transform).
+    On a-11-oy.com / www, canonical is https://a-11-oy.com{path}. The Hugging
+    Face Space URL is never the public product canonical. OPTIONS on public
+    documents carries Allow + Access-Control-Allow-Methods. HF custom domain
+    stays PENDING/UNAVAILABLE. Keep orange-cloud. Do not grey-cloud. This app
     does not change DNS (verify TXT is Stephen, without dropping the proxy).
     """
 
@@ -200,7 +261,7 @@ def register(app):
         # Do not 301 a11oy.net → a-11-oy.com and do not 301 a-11-oy.com → a11oy.net.
         # Never set Location to a11oy.com.
         path = _normalize_path(getattr(request.url, "path", "/") or "/")
-        host = request.headers.get("host") or ""
+        host = _effective_request_host(request)
 
         if request.method == "OPTIONS":
             response = await call_next(request)
@@ -209,20 +270,20 @@ def register(app):
             if "access-control-allow-methods" in response.headers:
                 if "allow" not in response.headers:
                     response.headers["Allow"] = _OPTIONS_ALLOW
-                apply_product_canonical_link(response, path)
+                rewrite_host_aware_canonical_link(response, path, host)
                 return response
             if response.status_code == 405 or path in GET_HEAD_PATHS:
-                return _options_response(response, path)
+                return _options_response(response, path, host)
             if "allow" not in response.headers:
                 response.headers["Allow"] = _OPTIONS_ALLOW
-            apply_product_canonical_link(response, path)
+            rewrite_host_aware_canonical_link(response, path, host)
             return response
 
         response = await call_next(request)
         if _is_registry_host(host):
             return response
         if request.method in ("GET", "HEAD") and 200 <= response.status_code < 300:
-            apply_product_canonical_link(response, path)
+            rewrite_host_aware_canonical_link(response, path, host)
         return response
 
     ensure_html_documents_accept_head(app)
@@ -230,6 +291,6 @@ def register(app):
         (
             f"two-origin identity: product=https://{CANONICAL_HOST} "
             f"registry=https://{REGISTRY_HOST}; no cross-origin 301; "
-            f"Link rel=canonical https://{CANONICAL_HOST}{{path}}"
+            f"Link rel=canonical Host-aware https://{CANONICAL_HOST}{{path}}"
         )
     ]

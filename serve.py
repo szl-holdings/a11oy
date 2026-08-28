@@ -15871,9 +15871,11 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
 # accept HEAD even if a later registration re-added them as GET-only.
 # QHAPAQ 2026-08-28: GET-only /api/a11oy/* HEAD-fell-through to the Node
 # proxy (404). Same HEAD 405 on szlholdings-a11oy.hf.space (Server: szl) —
-# the app, not Cloudflare. This app stamps Link rel=canonical to
+# the app, not Cloudflare. Host-aware Link rel=canonical (this app, not a
+# Cloudflare transform): on a-11-oy.com / www, Link is
 # https://a-11-oy.com{path}; huggingface.co/spaces is never the product
-# canonical. HF custom domain stays PENDING/UNAVAILABLE. Keep orange-cloud.
+# canonical. On *.hf.space the app omits a Space Hub canonical. HF custom
+# domain stays PENDING/UNAVAILABLE. Keep orange-cloud.
 # Do not grey-cloud. This app does not change DNS.
 try:
     import a11oy_canonical_domain as _canon_head_mod

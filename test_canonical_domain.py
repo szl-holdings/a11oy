@@ -103,33 +103,94 @@ def test_registry_host_helper():
     assert cd._is_product_host("a-11-oy.com")
     assert cd._is_product_host("www.a-11-oy.com")
     assert not cd._is_product_host("a11oy.net")
+    assert cd._is_public_product_host("a-11-oy.com")
+    assert cd._is_public_product_host("www.a-11-oy.com")
+    assert cd._is_public_product_host("A-11-OY.COM:443")
+    assert not cd._is_public_product_host("immune.a-11-oy.com")
+    assert not cd._is_public_product_host("szlholdings-a11oy.hf.space")
+    assert cd._is_hf_space_host("szlholdings-a11oy.hf.space")
+    assert not cd._is_hf_space_host("a-11-oy.com")
     assert cd.FORBIDDEN_PUBLIC_HOST == "a11oy.com"
     assert cd.CANONICAL_HOST == "a-11-oy.com"
     assert cd.REGISTRY_HOST == "a11oy.net"
     assert not hasattr(cd, "SUNSET_DOMAIN")
 
 
+def _joined_link(response) -> str:
+    if hasattr(response.headers, "get_list"):
+        return " ".join(response.headers.get_list("link") or [])
+    if hasattr(response.headers, "getlist"):
+        return " ".join(response.headers.getlist("link") or [])
+    return response.headers.get("link") or ""
+
+
 def test_product_canonical_url_never_uses_space_or_furniture_host():
     assert cd.product_canonical_url("/trust") == "https://a-11-oy.com/trust"
     assert cd.product_canonical_url("/") == "https://a-11-oy.com/"
+    assert cd.product_canonical_url("/trust?utm=1") == "https://a-11-oy.com/trust"
     assert "huggingface.co" not in cd.product_canonical_url("/console")
     assert "a11oy.com" not in cd.product_canonical_url("/console").replace("a-11-oy.com", "")
 
 
-def test_product_get_stamps_link_canonical_not_hf_space():
+@pytest.mark.parametrize("host", ["a-11-oy.com", "www.a-11-oy.com"])
+def test_product_apex_host_stamps_link_canonical_not_hf_space(host):
     c = _app()
-    r = c.get("/frontier", headers={"host": "a-11-oy.com"})
+    r = c.get("/frontier", headers={"host": host})
     assert r.status_code == 200
-    joined = " ".join(
-        r.headers.get_list("link")
-        if hasattr(r.headers, "get_list")
-        else [r.headers.get("link") or ""]
-    )
+    joined = _joined_link(r)
     assert "<https://a-11-oy.com/frontier>" in joined
     assert "canonical" in joined.lower()
     assert "huggingface.co/spaces/" not in joined
     furniture = "a11oy.com"
     assert furniture not in joined
+
+
+def test_product_canonical_link_drops_query_string():
+    c = _app()
+    r = c.get("/frontier?utm=1&ref=hf", headers={"host": "a-11-oy.com"})
+    joined = _joined_link(r)
+    assert "<https://a-11-oy.com/frontier>" in joined
+    assert "utm" not in joined
+    assert "?" not in joined
+
+
+def test_hf_space_host_omits_space_hub_canonical_and_does_not_stamp_product():
+    """*.hf.space may omit Link canonical. Never emit the Space Hub as product canonical."""
+    from starlette.responses import JSONResponse
+
+    app = FastAPI()
+
+    @app.get("/trust")
+    async def _trust():
+        response = JSONResponse({"surface": "trust"})
+        response.headers["link"] = (
+            '<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>; rel="canonical"'
+        )
+        return response
+
+    cd.register(app)
+    c = TestClient(app, follow_redirects=False)
+    r = c.get("/trust", headers={"host": "szlholdings-a11oy.hf.space"})
+    assert r.status_code == 200
+    joined = _joined_link(r)
+    assert "huggingface.co/spaces/" not in joined
+    furniture = "a11oy.com"
+    assert furniture not in joined
+    assert "<https://a-11-oy.com/trust>" not in joined
+
+
+def test_forwarded_product_host_rewrites_even_when_origin_host_is_the_space():
+    c = _app()
+    r = c.get(
+        "/frontier",
+        headers={
+            "host": "szlholdings-a11oy.hf.space",
+            "x-forwarded-host": "a-11-oy.com",
+        },
+    )
+    joined = _joined_link(r)
+    assert "<https://a-11-oy.com/frontier>" in joined
+    assert "huggingface.co/spaces/" not in joined
 
 
 def test_registry_get_does_not_rewrite_product_canonical_link():
