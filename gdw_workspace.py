@@ -3731,6 +3731,8 @@ class GDWWorkspace:
                 SELECT idempotency_key FROM effect_outbox
                 WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
                       AND tombstoned_at IS NULL AND exported_at <= ?
+                      AND payload_json IS NOT NULL
+                      AND artifact_json IS NOT NULL
                 ORDER BY exported_at, idempotency_key LIMIT ?
                 """,
                 (ns, owner, exported_before, bounded),
