@@ -4,14 +4,28 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - "a11oy_live_feeds.py"
       - "routers/frontier_reads.py"
+      - "serve.py"
+      - "szl_b2_secdata.py"
       - "tests/test_readiness_phase_b_observation_contract.py"
+      - "tools/readiness-harness/gen_tabs_matrix.py"
+      - "tools/readiness-harness/probe_runner.mjs"
+      - "tools/readiness-harness/probe_runner.test.mjs"
+      - "tools/readiness-harness/tabs.json"
       - ".github/workflows/readiness-phase-b.yml"
   push:
     branches: [main]
     paths:
+      - "a11oy_live_feeds.py"
       - "routers/frontier_reads.py"
+      - "serve.py"
+      - "szl_b2_secdata.py"
       - "tests/test_readiness_phase_b_observation_contract.py"
+      - "tools/readiness-harness/gen_tabs_matrix.py"
+      - "tools/readiness-harness/probe_runner.mjs"
+      - "tools/readiness-harness/probe_runner.test.mjs"
+      - "tools/readiness-harness/tabs.json"
       - ".github/workflows/readiness-phase-b.yml"
   workflow_dispatch: {}
 
@@ -50,11 +64,21 @@ jobs:
       - name: Compile exact source and regression module
         run: >-
           python -m py_compile
+          a11oy_live_feeds.py
           routers/frontier_reads.py
+          serve.py
+          szl_b2_secdata.py
           tests/test_readiness_phase_b_observation_contract.py
+          tools/readiness-harness/gen_tabs_matrix.py
 
       - name: Prove observation clocks and KEV vocabulary fail closed
         run: pytest tests/test_readiness_phase_b_observation_contract.py -q
+
+      - name: Prove the canonical probe consumes the observation clock
+        run: node --test tools/readiness-harness/probe_runner.test.mjs
+
+      - name: Prove generated readiness contracts match their source
+        run: python tools/readiness-harness/gen_tabs_matrix.py --check
 
       - name: Reject whitespace errors in the exact contract paths
         env:
@@ -68,6 +92,13 @@ jobs:
           fi
           git cat-file -e "${base}^{commit}"
           git diff --check "${base}...HEAD" -- \
+            a11oy_live_feeds.py \
             routers/frontier_reads.py \
+            serve.py \
+            szl_b2_secdata.py \
             tests/test_readiness_phase_b_observation_contract.py \
+            tools/readiness-harness/gen_tabs_matrix.py \
+            tools/readiness-harness/probe_runner.mjs \
+            tools/readiness-harness/probe_runner.test.mjs \
+            tools/readiness-harness/tabs.json \
             .github/workflows/readiness-phase-b.yml

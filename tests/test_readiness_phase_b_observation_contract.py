@@ -4,9 +4,18 @@ import asyncio
 import json
 import unittest
 from datetime import datetime
+from pathlib import Path
 from types import SimpleNamespace
 from typing import AsyncIterator
 
+from a11oy_live_feeds import (
+    canonical_kev_enrichment_kind,
+    canonical_kevgate_kind,
+    governed_decision_is_complete,
+    provider_record_is_live,
+    provider_record_needs_revalidation,
+    unix_observation_is_fresh,
+)
 from routers.frontier_reads import (
     KEVGATE_PATHS,
     PHASE_B_OBSERVATION_ALIASES,
@@ -17,6 +26,7 @@ from routers.frontier_reads import (
 
 
 FIXED_OBSERVATION = "2026-08-18T01:23:45Z"
+ROOT = Path(__file__).resolve().parents[1]
 
 
 async def _stream(*chunks: bytes) -> AsyncIterator[bytes]:
@@ -76,6 +86,7 @@ class PhaseBPayloadTests(unittest.TestCase):
             frozenset(
                 {
                     "/api/a11oy/provenance",
+                    "/api/a11oy/v1/ledger",
                     "/api/a11oy/v1/energy/sci",
                     "/api/a11oy/v1/observability/summary",
                     "/api/a11oy/v1/observability/business",
@@ -111,6 +122,23 @@ class PhaseBPayloadTests(unittest.TestCase):
                     "older-source-time",
                 )
                 self.assertNotIn("observed_at", source)
+
+    def test_ledger_clock_does_not_upgrade_sample_evidence(self) -> None:
+        source = {
+            "state": "SAMPLE",
+            "data_kind": "sample",
+            "operational": False,
+        }
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/ledger",
+            source,
+            observed_at=FIXED_OBSERVATION,
+        )
+        self.assertEqual(result["observed_at"], FIXED_OBSERVATION)
+        self.assertEqual(result["state"], "SAMPLE")
+        self.assertEqual(result["data_kind"], "sample")
+        self.assertFalse(result["operational"])
+        self.assertNotIn("observed_at", source)
 
     def test_unrelated_path_and_non_object_values_are_not_relabelled(self) -> None:
         source = {"data_kind": "sample", "value": 7}
@@ -155,6 +183,109 @@ class PhaseBPayloadTests(unittest.TestCase):
         self.assertIsInstance(result["detail"], str)
         self.assertTrue(result["detail"])
 
+    def test_compatible_kev_mode_and_data_kind_pairs_are_canonicalized(self) -> None:
+        cases = (
+            ("live", "LIVE", "live"),
+            ("cached", "sample", "cached"),
+            ("snapshot", "snapshot", "cached"),
+        )
+        for mode, data_kind, expected in cases:
+            with self.subTest(mode=mode, data_kind=data_kind):
+                result = normalize_phase_b_payload(
+                    "/api/a11oy/v1/sec/kev",
+                    {"mode": mode, "data_kind": data_kind, "items": []},
+                )
+                self.assertEqual(result["mode"], expected)
+                self.assertEqual(result["data_kind"], expected)
+                self.assertIsInstance(result["detail"], str)
+                self.assertTrue(result["detail"])
+
+    def test_live_kev_mode_does_not_override_weaker_or_negative_kind(self) -> None:
+        for data_kind in (
+            "cached",
+            "sample",
+            "snapshot",
+            "none",
+            "unavailable",
+            "degraded",
+            "live KEV IDs plus sample enrichment",
+        ):
+            with self.subTest(data_kind=data_kind):
+                source = {
+                    "mode": "live",
+                    "data_kind": data_kind,
+                    "items": [],
+                }
+                result = normalize_phase_b_payload(
+                    "/api/a11oy/v1/sec/kev",
+                    source,
+                )
+                self.assertEqual(result, source)
+                self.assertNotIn("detail", result)
+
+    def test_cached_kev_mode_does_not_override_live_kind(self) -> None:
+        source = {"mode": "cached", "data_kind": "live", "items": []}
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kev",
+            source,
+        )
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
+
+    def test_mode_never_synthesizes_missing_or_unknown_data_kind(self) -> None:
+        for source in (
+            {"mode": "live", "items": []},
+            {"mode": "live", "data_kind": "", "items": []},
+            {"mode": "vendor-pending", "data_kind": "live", "items": []},
+            {"mode": "sample", "data_kind": "sample", "items": []},
+        ):
+            with self.subTest(source=source):
+                result = normalize_phase_b_payload(
+                    "/api/a11oy/v1/sec/kev",
+                    source,
+                )
+                self.assertEqual(result, source)
+                self.assertNotIn("detail", result)
+
+    def test_mixed_kevgate_provenance_is_not_relabelled(self) -> None:
+        descriptor = (
+            "live KEV IDs/dates/vendors + LIVE EPSS 24/24; "
+            "CVSS/severity = derived-sample (deterministic from CVE ID)"
+        )
+        source = {"data_kind": descriptor, "mode": "live", "items": []}
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kevgate",
+            source,
+        )
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
+
+    def test_cached_kevgate_provenance_is_not_relabelled(self) -> None:
+        descriptor = (
+            "live KEV IDs/dates/vendors + cached EPSS; "
+            "LIVE CVSS for cached NVD rows"
+        )
+        source = {"data_kind": descriptor, "mode": "cached", "items": []}
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kevgate",
+            source,
+        )
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
+
+    def test_unavailable_kevgate_is_not_upgraded_to_cached(self) -> None:
+        source = {
+            "data_kind": "none",
+            "mode": "unavailable",
+            "items": [],
+        }
+        result = normalize_phase_b_payload(
+            "/api/a11oy/v1/sec/kevgate",
+            source,
+        )
+        self.assertEqual(result, source)
+        self.assertNotIn("detail", result)
+
     def test_kev_error_is_not_rewritten_as_cached_evidence(self) -> None:
         source = {
             "error": "upstream unavailable",
@@ -167,6 +298,177 @@ class PhaseBPayloadTests(unittest.TestCase):
         )
         self.assertEqual(result, source)
         self.assertNotIn("detail", result)
+
+
+class KEVEnrichmentEvidenceTests(unittest.TestCase):
+    def test_only_complete_live_component_coverage_is_canonical_live(self) -> None:
+        self.assertEqual(
+            canonical_kev_enrichment_kind(
+                source_mode="LIVE",
+                row_count=24,
+                epss_live_rows=24,
+                cvss_live_rows=24,
+            ),
+            "live",
+        )
+
+    def test_mixed_cached_empty_and_malformed_evidence_fail_closed(self) -> None:
+        cases = (
+            {"source_mode": "live", "row_count": 24, "epss_live_rows": 24,
+             "cvss_live_rows": 23},
+            {"source_mode": "live", "row_count": 24, "epss_live_rows": 23,
+             "cvss_live_rows": 24},
+            {"source_mode": "cached", "row_count": 24, "epss_live_rows": 24,
+             "cvss_live_rows": 24},
+            {"source_mode": "snapshot", "row_count": 24, "epss_live_rows": 24,
+             "cvss_live_rows": 24},
+            {"source_mode": "live", "row_count": 0, "epss_live_rows": 0,
+             "cvss_live_rows": 0},
+            {"source_mode": "live", "row_count": True, "epss_live_rows": 1,
+             "cvss_live_rows": 1},
+            {"source_mode": "live", "row_count": 24, "epss_live_rows": 24.0,
+             "cvss_live_rows": 24},
+        )
+        for case in cases:
+            with self.subTest(case=case):
+                self.assertIsNone(canonical_kev_enrichment_kind(**case))
+
+    def test_stale_or_malformed_provider_clocks_do_not_count_as_live(self) -> None:
+        self.assertTrue(unix_observation_is_fresh(900.0, now=1000.0, ttl_s=100.0))
+        for value, now, ttl_s in (
+            (899.9, 1000.0, 100.0),
+            (1000.1, 1000.0, 100.0),
+            (True, 1000.0, 100.0),
+            (900.0, float("inf"), 100.0),
+            (900.0, 1000.0, 0.0),
+        ):
+            with self.subTest(value=value, now=now, ttl_s=ttl_s):
+                self.assertFalse(
+                    unix_observation_is_fresh(value, now=now, ttl_s=ttl_s)
+                )
+
+    def test_provider_record_requires_live_mode_and_fresh_clock(self) -> None:
+        self.assertTrue(
+            provider_record_is_live(
+                {"mode": "LIVE", "ts": 900.0}, now=1000.0, ttl_s=100.0
+            )
+        )
+        for record in (
+            {"mode": "cached", "ts": 999.0},
+            {"mode": "live", "ts": 899.0},
+            {"mode": "live"},
+            None,
+        ):
+            with self.subTest(record=record):
+                self.assertFalse(
+                    provider_record_is_live(record, now=1000.0, ttl_s=100.0)
+                )
+
+    def test_cached_and_expired_provider_records_are_queued_for_revalidation(self) -> None:
+        self.assertFalse(
+            provider_record_needs_revalidation(
+                {"mode": "live", "ts": 999.0}, now=1000.0, ttl_s=100.0
+            )
+        )
+        for record in (
+            {"mode": "cached", "ts": 999.0},
+            {"mode": "live", "ts": 899.0},
+            {"mode": "live", "ts": "malformed"},
+            {"mode": "live", "ts": 1001.0},
+        ):
+            with self.subTest(record=record):
+                self.assertTrue(
+                    provider_record_needs_revalidation(
+                        record, now=1000.0, ttl_s=100.0
+                    )
+                )
+
+    def test_governed_decision_contract_is_closed_and_typed(self) -> None:
+        self.assertTrue(
+            governed_decision_is_complete(
+                {
+                    "decision": "deny",
+                    "gates_fired": ["threat-signature:DROP TABLE"],
+                    "lambda_value": 0.0,
+                }
+            )
+        )
+        self.assertTrue(
+            governed_decision_is_complete(
+                {"decision": "allow", "gates_fired": [], "lambda_value": 1}
+            )
+        )
+        for record in (
+            None,
+            {},
+            {"decision": None, "gates_fired": [], "lambda_value": 1.0},
+            {"decision": "observe", "gates_fired": [], "lambda_value": 1.0},
+            {"decision": "allow", "gates_fired": None, "lambda_value": 1.0},
+            {"decision": "allow", "gates_fired": [""], "lambda_value": 1.0},
+            {"decision": "allow", "gates_fired": [], "lambda_value": True},
+            {"decision": "allow", "gates_fired": [], "lambda_value": float("nan")},
+            {"decision": "allow", "gates_fired": [], "lambda_value": 1.1},
+        ):
+            with self.subTest(record=record):
+                self.assertFalse(governed_decision_is_complete(record))
+
+    def test_kevgate_live_requires_every_governed_decision(self) -> None:
+        self.assertEqual(
+            canonical_kevgate_kind(
+                enrichment_kind="live",
+                row_count=24,
+                governed_decision_rows=24,
+            ),
+            "live",
+        )
+        for case in (
+            {"enrichment_kind": "cached", "row_count": 24,
+             "governed_decision_rows": 24},
+            {"enrichment_kind": "live", "row_count": 24,
+             "governed_decision_rows": 23},
+            {"enrichment_kind": "live", "row_count": 0,
+             "governed_decision_rows": 0},
+            {"enrichment_kind": "live", "row_count": True,
+             "governed_decision_rows": 1},
+        ):
+            with self.subTest(case=case):
+                self.assertIsNone(canonical_kevgate_kind(**case))
+
+    def test_live_kevgate_producer_is_bound_to_the_complete_evidence_helper(self) -> None:
+        source = (ROOT / "serve.py").read_text(encoding="utf-8")
+        self.assertIn(
+            "_canonical_kind = _kl_live.canonical_kev_enrichment_kind(",
+            source,
+        )
+        self.assertIn('"evidence_complete": _canonical_kind == "live"', source)
+        self.assertIn('globals().get("_sc_evaluate_governed_action")', source)
+        self.assertIn("_kl_live.canonical_kevgate_kind(", source)
+        self.assertNotIn(
+            'for _nm in ("_policy_decide_core","_decide_core",'
+            '"policy_decide","_govern_decide")',
+            source,
+        )
+
+    def test_bundled_cve_exposes_the_real_catalog_clock(self) -> None:
+        import szl_b2_secdata
+
+        class _RouteApp:
+            def __init__(self) -> None:
+                self.handlers = {}
+
+            def get(self, path):
+                def _decorator(function):
+                    self.handlers[path] = function
+                    return function
+
+                return _decorator
+
+        app = _RouteApp()
+        szl_b2_secdata.register(app)
+        response = asyncio.run(app.handlers["/api/a11oy/v1/sec/cve"]())
+        payload = json.loads(response.body)
+        self.assertEqual(payload["dateReleased"], szl_b2_secdata.KEV_DATE_RELEASED)
+        self.assertEqual(payload["data_kind"], "sample")
 
 
 class PhaseBMiddlewareTests(unittest.TestCase):
@@ -229,6 +531,57 @@ class PhaseBMiddlewareTests(unittest.TestCase):
         self.assertEqual(payload["data_kind"], "cached")
         self.assertEqual(payload["detail"], note)
         self.assertEqual(payload["note"], note)
+        self.assertNotIn("observed_at", payload)
+
+    def test_middleware_preserves_contradictory_kev_evidence(self) -> None:
+        app = _FakeApp()
+        install_phase_b_response_contract(app)
+        source = {
+            "mode": "live",
+            "data_kind": "sample",
+            "vulnerabilities": [],
+        }
+        response = _FakeResponse(source)
+        request = SimpleNamespace(
+            url=SimpleNamespace(path="/api/a11oy/v1/sec/kev")
+        )
+
+        async def _call_next(_request):
+            return response
+
+        async def _exercise():
+            result = await app.middleware_function(request, _call_next)
+            return json.loads(await _read_body(result))
+
+        payload = asyncio.run(_exercise())
+        self.assertEqual(payload, source)
+        self.assertNotIn("detail", payload)
+
+    def test_middleware_preserves_mixed_kevgate_provenance(self) -> None:
+        app = _FakeApp()
+        install_phase_b_response_contract(app)
+        descriptor = "live KEV IDs/dates/vendors + LIVE EPSS; CVSS cached"
+        response = _FakeResponse(
+            {
+                "data_kind": descriptor,
+                "mode": "live",
+                "items": [],
+            }
+        )
+        request = SimpleNamespace(
+            url=SimpleNamespace(path="/api/a11oy/v1/sec/kevgate")
+        )
+
+        async def _call_next(_request):
+            return response
+
+        async def _exercise():
+            result = await app.middleware_function(request, _call_next)
+            return json.loads(await _read_body(result))
+
+        payload = asyncio.run(_exercise())
+        self.assertEqual(payload["data_kind"], descriptor)
+        self.assertNotIn("detail", payload)
         self.assertNotIn("observed_at", payload)
 
     def test_non_json_response_is_not_consumed(self) -> None:

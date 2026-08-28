@@ -125,7 +125,7 @@ function toDate(v) {
 
 const OBSERVATION_TIMESTAMP_KEY =
   /(checked_at|checkedAt|probed_at|probedAt|fetched_at|fetchedAt|generated_at|generatedAt|updated_at|updatedAt|last_updated|observed_at|observedAt)$/i;
-const EVENT_TIMESTAMP_KEY = /(timestamp|asOf|as_of|ts)$/i;
+const EVENT_TIMESTAMP_KEY = /(timestamp|asOf|as_of|ts|dateReleased|date_released|released_at|releasedAt)$/i;
 
 function findTimestampsByKey(obj, keyPattern, depth = 0, found = []) {
   if (!obj || depth > 3) return found;
@@ -310,45 +310,306 @@ const KNOWN_EVIDENCE_LABELS = new Set([
 const EXPLICIT_EVIDENCE_KEY = /^(data_kind|datakind|source_kind|sourcekind|evidence_state|evidencestate)$/i;
 const FRESHNESS_LABEL_KEY = /^(freshness|status|state|label|mode|data_kind|datakind|source_kind|sourcekind)$/i;
 const ROOT_LABEL_KEY = /^(status|state|label|mode|freshness)$/i;
+const ROOT_MODE_KEY = /^mode$/i;
+const ROOT_DATA_KIND_KEY = /^(data_kind|datakind)$/i;
+const MODE_EVIDENCE_FAMILY = new Map([
+  ["live", "live"],
+  ["cached", "cached"],
+  ["snapshot", "cached"],
+]);
+const DATA_KIND_EVIDENCE_FAMILY = new Map([
+  ["live", "live"],
+  ["cached", "cached"],
+  ["sample", "cached"],
+  ["snapshot", "cached"],
+]);
+
+function evidenceObjectPath(parent, key) {
+  return {
+    parent,
+    fragment: parent === null ? String(key) : `.${String(key)}`,
+  };
+}
+
+function evidenceArrayPath(parent, index) {
+  return { parent, fragment: `[${index}]` };
+}
+
+function formatEvidencePath(path) {
+  const fragments = [];
+  for (let cursor = path; cursor !== null; cursor = cursor.parent) {
+    fragments.push(cursor.fragment);
+  }
+  return fragments.reverse().join("");
+}
+
+function walkEvidenceTree(obj, visitEntry) {
+  const visited = new WeakSet();
+  const stack = [{
+    kind: "value",
+    value: obj,
+    path: null,
+    depth: 0,
+    insideFreshness: false,
+  }];
+
+  while (stack.length) {
+    const frame = stack.pop();
+    if (frame.kind === "entry") {
+      if (visitEntry(frame) === false) return false;
+      continue;
+    }
+    if (frame.kind === "array") {
+      if (frame.index >= frame.value.length) continue;
+      const index = frame.index;
+      frame.index += 1;
+      stack.push(frame);
+      stack.push({
+        kind: "value",
+        value: frame.value[index],
+        path: evidenceArrayPath(frame.path, index),
+        depth: frame.depth + 1,
+        insideFreshness: frame.insideFreshness,
+      });
+      continue;
+    }
+    if (frame.kind === "object") {
+      if (frame.index >= frame.entries.length) continue;
+      const [key, child] = frame.entries[frame.index];
+      frame.index += 1;
+      const childPath = evidenceObjectPath(frame.path, key);
+      const keyIsFreshness = key.toLowerCase() === "freshness";
+      stack.push(frame);
+      stack.push({
+        kind: "value",
+        value: child,
+        path: childPath,
+        depth: frame.depth + 1,
+        insideFreshness: frame.insideFreshness || keyIsFreshness,
+      });
+      stack.push({
+        kind: "entry",
+        key,
+        child,
+        path: childPath,
+        depth: frame.depth,
+        insideFreshness: frame.insideFreshness,
+        keyIsFreshness,
+      });
+      continue;
+    }
+
+    const { value, path, depth, insideFreshness } = frame;
+    if (value === null || value === undefined || typeof value !== "object") {
+      continue;
+    }
+    if (visited.has(value)) continue;
+    visited.add(value);
+
+    if (Array.isArray(value)) {
+      stack.push({
+        kind: "array",
+        value,
+        index: 0,
+        path,
+        depth,
+        insideFreshness,
+      });
+      continue;
+    }
+
+    stack.push({
+      kind: "object",
+      entries: Object.entries(value),
+      index: 0,
+      path,
+      depth,
+      insideFreshness,
+    });
+  }
+  return true;
+}
 
 function findEvidenceLabels(obj, candidateLabels = []) {
+  const policyScoped = candidateLabels.length > 0;
   const candidates = new Set([
     ...KNOWN_EVIDENCE_LABELS,
     ...candidateLabels.map((value) => String(value).trim().toLowerCase()),
   ]);
   const found = [];
 
-  function walk(value, path = "", depth = 0, insideFreshness = false) {
-    if (value === null || value === undefined || depth > 5) return;
-    if (Array.isArray(value)) {
-      value.slice(0, 30).forEach((item, index) => {
-        walk(item, `${path}[${index}]`, depth + 1, insideFreshness);
+  walkEvidenceTree(obj, ({
+    key, child, path, depth, insideFreshness, keyIsFreshness,
+  }) => {
+    if (typeof child !== "string") return true;
+    const normalized = child.trim().toLowerCase();
+    const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
+    const nestedFreshnessScoped = insideFreshness
+      && FRESHNESS_LABEL_KEY.test(key);
+    // During endpoint policy evaluation, a root scalar named `freshness` is
+    // unambiguously an evidence claim. Direct schema introspection without a
+    // policy vocabulary keeps metadata such as freshness="object" out.
+    const scalarFreshness = keyIsFreshness
+      && (
+        candidates.has(normalized)
+        || (depth === 0 && policyScoped)
+      );
+    const rootScoped = depth === 0 && ROOT_LABEL_KEY.test(key)
+      && candidates.has(normalized);
+    if (explicit || nestedFreshnessScoped || scalarFreshness || rootScoped) {
+      found.push({
+        path: formatEvidencePath(path),
+        value: child,
+        normalized,
       });
-      return;
     }
-    if (typeof value !== "object") return;
+    return true;
+  });
+  return found;
+}
 
-    for (const [key, child] of Object.entries(value)) {
-      const childPath = path ? `${path}.${key}` : key;
-      const keyIsFreshness = key.toLowerCase() === "freshness";
-      if (typeof child === "string") {
-        const normalized = child.trim().toLowerCase();
-        const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
-        const nestedFreshnessScoped = insideFreshness
-          && FRESHNESS_LABEL_KEY.test(key);
-        const scalarFreshness = keyIsFreshness && candidates.has(normalized);
-        const rootScoped = depth === 0 && ROOT_LABEL_KEY.test(key)
-          && candidates.has(normalized);
-        if (explicit || nestedFreshnessScoped || scalarFreshness || rootScoped) {
-          found.push({ path: childPath, value: child, normalized });
+function findMalformedExplicitEvidence(obj) {
+  let malformed = null;
+  walkEvidenceTree(obj, ({
+    key, child, path, insideFreshness, keyIsFreshness,
+  }) => {
+    const freshnessObject = keyIsFreshness
+      && child !== null
+      && typeof child === "object"
+      && !Array.isArray(child);
+    const explicit = EXPLICIT_EVIDENCE_KEY.test(key);
+    const freshnessScoped = insideFreshness
+      && FRESHNESS_LABEL_KEY.test(key)
+      && !freshnessObject
+      && typeof child !== "string";
+    const malformedScalarFreshness = keyIsFreshness
+      && !freshnessObject
+      && typeof child !== "string";
+    if (
+      (explicit && typeof child !== "string")
+      || freshnessScoped
+      || malformedScalarFreshness
+    ) {
+      malformed = { path: formatEvidencePath(path), value: child };
+      return false;
+    }
+    return true;
+  });
+  return malformed;
+}
+
+function findEvidencePairConflict(body, modeRequiresDataKind = false) {
+  if (!body || typeof body !== "object") return null;
+  const malformedEvidence = findMalformedExplicitEvidence(body);
+  if (malformedEvidence) {
+    return {
+      mode: { path: "mode", value: undefined },
+      dataKind: malformedEvidence,
+      reason: "evidence label must be a string",
+    };
+  }
+  function findObjectPairConflict(candidate, path = null) {
+    const entryPath = (key) => formatEvidencePath(
+      evidenceObjectPath(path, key),
+    );
+    const modes = Object.entries(candidate).filter(([key]) => ROOT_MODE_KEY.test(key));
+    const dataKinds = Object.entries(candidate).filter(([key]) => ROOT_DATA_KIND_KEY.test(key));
+    if (!modes.length) {
+      const malformedDataKind = dataKinds.find(
+        ([, value]) => typeof value !== "string",
+      );
+      if (!malformedDataKind) return null;
+      const [dataKindPath, dataKindValue] = malformedDataKind;
+      return {
+        mode: { path: entryPath("mode"), value: undefined },
+        dataKind: { path: entryPath(dataKindPath), value: dataKindValue },
+        reason: "root data_kind must be a string evidence label",
+      };
+    }
+    if (!dataKinds.length) {
+      if (!modeRequiresDataKind) return null;
+      const [modePath, modeValue] = modes[0];
+      return {
+        mode: { path: entryPath(modePath), value: modeValue },
+        dataKind: { path: entryPath("data_kind"), value: undefined },
+        reason: "root mode requires a root data_kind evidence label",
+      };
+    }
+
+    for (const [modePath, modeValue] of modes) {
+      for (const [dataKindPath, dataKindValue] of dataKinds) {
+        if (typeof modeValue !== "string" || typeof dataKindValue !== "string") {
+          return {
+            mode: { path: entryPath(modePath), value: modeValue },
+            dataKind: { path: entryPath(dataKindPath), value: dataKindValue },
+            reason: "mode and data_kind must be string evidence labels",
+          };
+        }
+        const normalizedMode = modeValue.trim().toLowerCase();
+        const normalizedDataKind = dataKindValue.trim().toLowerCase();
+        const modeFamily = MODE_EVIDENCE_FAMILY.get(normalizedMode);
+        const dataKindFamily = DATA_KIND_EVIDENCE_FAMILY.get(normalizedDataKind);
+        if (!modeFamily || !dataKindFamily || modeFamily !== dataKindFamily) {
+          return {
+            mode: {
+              path: entryPath(modePath),
+              value: modeValue,
+              normalized: normalizedMode,
+            },
+            dataKind: {
+              path: entryPath(dataKindPath),
+              value: dataKindValue,
+              normalized: normalizedDataKind,
+            },
+            reason: modeFamily && dataKindFamily
+              ? "mode and data_kind claim contradictory evidence families"
+              : "mode and data_kind are not a compatible known evidence pair",
+          };
         }
       }
-      walk(child, childPath, depth + 1, insideFreshness || keyIsFreshness);
     }
+    return null;
   }
 
-  walk(obj);
-  return found;
+  function findArrayItemConflict(items, path = null) {
+    const visited = new WeakSet();
+    const stack = [{ kind: "value", item: items, path }];
+    while (stack.length) {
+      const frame = stack.pop();
+      if (frame.kind === "array") {
+        if (frame.index >= frame.items.length) continue;
+        const index = frame.index;
+        frame.index += 1;
+        stack.push(frame);
+        stack.push({
+          kind: "value",
+          item: frame.items[index],
+          path: evidenceArrayPath(frame.path, index),
+        });
+        continue;
+      }
+      if (Array.isArray(frame.item)) {
+        if (visited.has(frame.item)) continue;
+        visited.add(frame.item);
+        stack.push({
+          kind: "array",
+          items: frame.item,
+          index: 0,
+          path: frame.path,
+        });
+        continue;
+      }
+      if (frame.item && typeof frame.item === "object") {
+        const conflict = findObjectPairConflict(frame.item, frame.path);
+        if (conflict) return conflict;
+      }
+    }
+    return null;
+  }
+
+  return Array.isArray(body)
+    ? findArrayItemConflict(body)
+    : findObjectPairConflict(body);
 }
 
 function findEvidenceContradictions(spec, body) {
@@ -363,7 +624,7 @@ function findEvidenceContradictions(spec, body) {
 
   const items = Array.isArray(body.items) ? body.items : [];
   const contradictions = [];
-  items.slice(0, 30).forEach((item, index) => {
+  items.forEach((item, index) => {
     if (item === null || typeof item !== "object" || Array.isArray(item)) return;
     const dataKind = String(item.data_kind || "").trim().toLowerCase();
     if (dataKind !== "live" && dataKind !== "cached") return;
@@ -383,7 +644,10 @@ function findEvidenceContradictions(spec, body) {
 function evaluateEndpointLabels(httpStatus, spec, body) {
   const allowStatuses = (spec.degradedRules?.allowStatuses) || [200];
   if (!allowStatuses.includes(httpStatus)) {
-    return { checked: false, ok: true, labels: [], disallowed: [], lie: null };
+    return {
+      checked: false, ok: true, labels: [], disallowed: [], lie: null,
+      pairConflict: null,
+    };
   }
   const allowLabels = (spec.degradedRules?.allowLabels) || ["live", "cached"];
   const liesIf = (spec.degradedRules?.liesIf) || [];
@@ -395,12 +659,17 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
     ...findEvidenceContradictions(spec, body),
   ];
   const lie = labels.find((entry) => lieSet.has(entry.normalized)) || null;
+  const pairConflict = findEvidencePairConflict(
+    body,
+    spec?.modeRequiresDataKind === true,
+  );
   return {
     checked: true,
-    ok: disallowed.length === 0 && lie === null,
+    ok: disallowed.length === 0 && lie === null && pairConflict === null,
     labels,
     disallowed,
     lie,
+    pairConflict,
   };
 }
 
@@ -440,6 +709,40 @@ function validateSchema(schemaName, body) {
         if (type === "timestamp") return toDate(cursor) !== null;
         return false;
       })) return false;
+      if (sc.governedDecisionArray) {
+        const contract = sc.governedDecisionArray;
+        const arrayCandidate = valueAtPath(body, contract.path);
+        const countCandidate = valueAtPath(body, contract.countPath);
+        const coverageCandidate = valueAtPath(body, contract.coveragePath);
+        const completeCandidate = valueAtPath(body, contract.completePath);
+        if (
+          !arrayCandidate.found || !Array.isArray(arrayCandidate.value)
+          || arrayCandidate.value.length === 0
+          || !countCandidate.found
+          || !Number.isInteger(countCandidate.value)
+          || countCandidate.value !== arrayCandidate.value.length
+          || !coverageCandidate.found
+          || !Number.isInteger(coverageCandidate.value)
+          || coverageCandidate.value !== arrayCandidate.value.length
+          || !completeCandidate.found
+          || completeCandidate.value !== true
+        ) return false;
+        if (!arrayCandidate.value.every((item) => {
+          if (!item || typeof item !== "object" || Array.isArray(item)) return false;
+          const decision = typeof item.decision === "string"
+            ? item.decision.trim().toLowerCase()
+            : "";
+          const gates = item.gates_fired;
+          const lambdaValue = item.lambda_value;
+          return (decision === "allow" || decision === "deny")
+            && Array.isArray(gates)
+            && gates.every((gate) => typeof gate === "string" && gate.trim().length > 0)
+            && typeof lambdaValue === "number"
+            && Number.isFinite(lambdaValue)
+            && lambdaValue >= 0
+            && lambdaValue <= 1;
+        })) return false;
+      }
       if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
       return true;
     }
@@ -529,7 +832,10 @@ async function probeEndpoint(path, spec) {
   const statusOk = allow.includes(last.status);
   const schema = inconclusive ? { ok: true } : validateSchema(spec.schema, last.body);
   const labelPolicy = inconclusive
-    ? { checked: false, ok: true, labels: [], disallowed: [], lie: null }
+    ? {
+        checked: false, ok: true, labels: [], disallowed: [], lie: null,
+        pairConflict: null,
+      }
     : evaluateEndpointLabels(last.status, spec, last.body);
 
   let citationOk = true;
@@ -569,6 +875,13 @@ async function probeEndpoint(path, spec) {
   if (disallowedLabels.length) {
     lies.push("evidence label not allowed: " + disallowedLabels.slice(0, 5)
       .map((entry) => `${entry.path}="${entry.value}"`).join(", "));
+  }
+  if (labelPolicy.pairConflict) {
+    const { mode, dataKind, reason } = labelPolicy.pairConflict;
+    lies.push(
+      `${reason}: ${mode.path}="${String(mode.value)}", `
+      + `${dataKind.path}="${String(dataKind.value)}"`,
+    );
   }
 
   return {

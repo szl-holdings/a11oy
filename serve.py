@@ -7610,7 +7610,8 @@ try:
             return min(axes)
         return 1.0 if is_clean else 0.0
 
-    def _sc_build_verdict(body):
+    def _sc_evaluate_governed_action(body):
+        """Pure policy-core evaluation shared by POST and read-only projections."""
         agent = (body or {}).get("agent") or "unknown"
         action = (body or {}).get("action")
         axes = (body or {}).get("axes")
@@ -7628,12 +7629,23 @@ try:
             reason = "immune organ rejected: Lambda-gate floor — MIN(axes)=" + str(round(lam, 4)) + " < " + str(_SC_LAMBDA_GATE_FLOOR)
         else:
             reason = "no threat signature detected by the immune organ"
+        return {"decision": decision, "reason": reason, "signals": signals,
+                "lambda_value": lam, "actionId": rid,
+                "gates_fired": signals, "traceparent": None, "doctrine": "v11"}
+
+    def _sc_build_verdict(body):
+        """Evaluate, then record the state-changing POST decision."""
+        result = _sc_evaluate_governed_action(body)
+        agent = (body or {}).get("agent") or "unknown"
+        action = (body or {}).get("action")
+        rid = result["actionId"]
+        decision = result["decision"]
+        signals = result["gates_fired"]
+        lam = result["lambda_value"]
         import time as _t
         rh = _sc_hashlib.sha256((str(rid) + ":" + decision + ":" + str(round(lam, 6)) + ":" + str(_t.time())).encode()).hexdigest()[:16]
         _sc_log_verdict(rid, agent, action, decision, signals, lam, rh)
-        return {"decision": decision, "reason": reason, "signals": signals,
-                "lambda_value": lam, "receipt_hash": rh, "actionId": rid,
-                "gates_fired": signals, "traceparent": None, "doctrine": "v11"}
+        return {**result, "receipt_hash": rh}
 
     # in-memory decision ring, seeded from the captured real feed
     _SC_AUDIT_LOCK = _sc_threading.Lock()
@@ -11701,6 +11713,12 @@ try:
                 )
                 _provenance = (_catalog_evidence + " KEV IDs/dates/vendors + "
                                + _epss_part + "; " + _cvss_part)
+                _canonical_kind = _kl_live.canonical_kev_enrichment_kind(
+                    source_mode=_feed_mode,
+                    row_count=len(rows),
+                    epss_live_rows=_epss_live,
+                    cvss_live_rows=_cvss_live,
+                )
                 return rows, {
                     "source": (payload.get("source")
                                or "CISA Known Exploited Vulnerabilities catalog"),
@@ -11715,6 +11733,7 @@ try:
                     "epss_source_rows": _epss_live,
                     "cvss_source_rows": _cvss_live,
                     "data_kind": _response_data_kind,
+                    "evidence_complete": _canonical_kind == "live",
                     "enrichment_provenance": _provenance,
                 }
         except Exception as _e:
@@ -11771,14 +11790,11 @@ try:
     async def _sec_kevgate(limit: int = 24):
         import anyio
         rows, meta = await anyio.to_thread.run_sync(_kl_live_rows, int(limit))
-        # Build a governed-decision probe per CVE using the SAME decision helper
-        # the policy/decide endpoint exposes, if discoverable; else describe the
-        # deterministic gate mapping honestly.
-        decide = None
-        for _nm in ("_policy_decide_core","_decide_core","policy_decide","_govern_decide"):
-            decide = globals().get(_nm)
-            if callable(decide): break
+        # Use the exact pure evaluator behind POST /policy/decide. A GET must
+        # not append an audit entry or mint a receipt merely to render a tab.
+        decide = globals().get("_sc_evaluate_governed_action")
         out = []
+        governed_decision_rows = 0
         for r in rows:
             sev = _kl_bounded_number(r.get("cvss"), 0.0, 10.0)
             if sev is None:
@@ -11820,13 +11836,22 @@ try:
             gates_fired, decision, lam = [], None, None
             try:
                 if callable(decide):
-                    res = decide(text=text, severity=sev,
-                                 classification=("RESTRICTED" if sev>=9 else "PUBLIC"))
-                    if hasattr(res, "__await__"):
-                        res = await res
-                    decision = (res or {}).get("decision")
-                    gates_fired = (res or {}).get("gates_fired") or []
-                    lam = (res or {}).get("lambda_value")
+                    res = decide({
+                        "agent": "a11oy-kevgate",
+                        "request_id": "kevgate:%s" % (r.get("cveID") or "unknown"),
+                        "action": {
+                            "text": text,
+                            "severity": sev,
+                            "classification": (
+                                "RESTRICTED" if sev >= 9 else "PUBLIC"
+                            ),
+                        },
+                    })
+                    if _kl_live.governed_decision_is_complete(res):
+                        decision = res["decision"]
+                        gates_fired = res["gates_fired"]
+                        lam = res["lambda_value"]
+                        governed_decision_rows += 1
             except Exception:
                 decision = None
             # Deterministic gate-impact mapping. Ransomware/CWE are CISA KEV
@@ -11855,6 +11880,11 @@ try:
                 "gates_fired": gates_fired,      # REAL when engine reachable
                 "gates_mapped": mapped,          # deterministic field-derived mapping
             })
+        _kl_live.canonical_kevgate_kind(
+            enrichment_kind=meta.get("data_kind"),
+            row_count=len(out),
+            governed_decision_rows=governed_decision_rows,
+        )
         _item_kinds = {item.get("data_kind") for item in out}
         if out and _item_kinds <= {"live", "cached"}:
             _response_data_kind = (
@@ -11866,6 +11896,7 @@ try:
             _response_data_kind = meta.get("data_kind", "unavailable")
         return JSONResponse({
             **meta,
+            "governed_decision_rows": governed_decision_rows,
             "data_kind": _response_data_kind,
             "count": len(out),
             "mapping_note": ("Each row is a CISA KEV CVE whose evidence state is disclosed "
