@@ -9,8 +9,10 @@ Fail-closed HTTP + static contract. **Do not merge until QHAPAQ names the
 required checks green.** Encodes assertions only. Does not rewrite
 `data/genome.json`, does not weaken Immutable HF repository byte parity
 (Dockerfile untouched), does not POST, does not add HEAD handlers or signer
-fields (those landed in **1394** on main), and does not touch PR 1363 or
-PR 1396. **Do not invent LIVE.** a11oy.net dual-origin smokes are a later cut.
+fields (those landed in **1394** on main), and does not touch PR 1363.
+PR **1396** merged the console `#cnt-locked` kernel chip; this PR does not
+re-edit that chrome. **Do not invent LIVE.** a11oy.net dual-origin smokes
+are a later cut.
 
 Workflow: `.github/workflows/investor-smoke-gate.yml`
 
@@ -27,7 +29,7 @@ This pull request cannot certify those names as control-plane-required. See
 
 | Defect | Owner | This PR |
 |---|---|---|
-| S7 console `#cnt-locked` still missing | **PR 1396** (do not touch here) | Fail-closed bind. Landing `#pt-locked` via `loadKernelLocked` and trust `#cnt-locked` are on main via 1394. Console `#cnt-locked` is still required. Genome `LOCKED-PROVEN=25` is a real catalog tier. |
+| S7 console `#cnt-locked` | **PR 1396** (merged `c038cc95`) | Fail-closed bind. Landing `#pt-locked` via `loadKernelLocked`, trust `#cnt-locked` (1394), and console `#cnt-locked` (1396) must stay bound to `/honest`. Genome `LOCKED-PROVEN=25` is a real catalog tier. |
 | S1 HEAD vs GET | **1394 on main** | Probe only. Live origin is measured; source HEAD is not LIVE. |
 | S2 signer contract | **1394 on main** | Probe only. `DSSE-LIVE` only on `/api/a11oy/healthz` rollup.signer; lean health JSON is `ABSENT` / `UNAVAILABLE`. |
 | S3 unlabeled live coords | this gate | Fail-closed: UNAVAILABLE, MEASURED **with method**, or unit-labelled. Do not invent MEASURED. |
@@ -52,9 +54,9 @@ PASS only when **all** of these bind the kernel chip to
 2. `web/trust.html` `#cnt-locked` — **not** genome `tier_counts['LOCKED-PROVEN']`
 3. `pages/console.html` `#cnt-locked` — same rule
 
-Landing and Trust bind on current main (1394). Console `#cnt-locked` is still
-absent, so the bind job stays **RED until PR 1396**. This PR does **not**
-rewrite `data/genome.json` or implement that UI.
+Landing, Trust, and Console bind on current main (1394 + **1396**
+`c038cc95`). This PR does **not** rewrite `data/genome.json` or re-implement
+that UI.
 
 ## Matrix
 
@@ -67,11 +69,11 @@ for wire-D. L1–L6 are `SNAPSHOT 2026-08-28`.
 |---|---|---|
 | S1 | HEAD must not 405/404 where GET is 200 | Source: 1394 on main. Live: measured only |
 | S2 | `DSSE-LIVE` only on `/api/a11oy/healthz` rollup.signer; lean health `ABSENT`/`UNAVAILABLE` | Source: 1394 on main. Live: measured only |
-| S3 | Live coords UNAVAILABLE, MEASURED with method, or unit-labelled; no raw unlabeled latitude in first viewport | Source: 1394 units. Live: measured only |
+| S3 | Live coords UNAVAILABLE, MEASURED with method, or unit-labelled; no raw unlabeled latitude in first viewport | Source: 1394 units. Live: measured only. One ISS TimeoutError retry; persistent timeout is FAIL |
 | S4 | Staging receipt-write | **UNAVAILABLE** (no POST) |
 | S5 | Ledger GET does not mint | PASS |
 | S6 | Refuse / abstain | **UNAVAILABLE** (no POST) |
-| S7 | Kernel chips → `/honest` `locked_formula_count` (8 or N/A) | **FAIL** until PR 1396 console `#cnt-locked` |
+| S7 | Kernel chips → `/honest` `locked_formula_count` (8 or N/A) | **PASS** after PR 1396 console `#cnt-locked` (in-repo bind + live `/honest`=8) |
 | S8 | Designed JSON 404 | PASS |
 | S9 | Authz empty-state | **UNAVAILABLE** |
 | S10 | OG image 200 | PASS |
@@ -86,7 +88,7 @@ for wire-D. L1–L6 are `SNAPSHOT 2026-08-28`.
 ## Out of scope (standing)
 
 - Never merge PR 1363 (HOLD).
-- Do not touch PR 1396.
+- PR 1396 is merged; do not re-edit console chrome in this gate PR.
 - PR 1366: **RED**, out of scope.
 - No Dockerfile / hf-sync admission-input changes.
 - No POST.
@@ -105,6 +107,6 @@ See the pull-request body for the last measured live matrix.
 
 ```bash
 python3 -m pytest -q tests/test_investor_smoke_gate.py
-python3 -m pytest -q tests/test_investor_smoke_bind.py   # RED until PR 1396 console chip
+python3 -m pytest -q tests/test_investor_smoke_bind.py
 python3 scripts/investor_smoke_gate.py --mode live --origin https://a-11-oy.com
 ```

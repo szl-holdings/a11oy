@@ -3,8 +3,7 @@
 # Doctrine v11 LOCKED. Λ = Conjecture 1 (NOT a theorem).
 """Fail-closed unit tests for the investor smoke gate (no live HTTP).
 
-S7 against live surfaces (kernel chips still bound to genome 25) lives in
-test_investor_smoke_bind.py so this file can stay green while the bind is RED.
+S7 bind against landing/trust/console lives in test_investor_smoke_bind.py.
 """
 from __future__ import annotations
 
@@ -257,3 +256,58 @@ def test_static_debug_rows_are_honest():
         assert rows[key].status == "PASS", (key, rows[key].detail, rows[key].evidence)
     assert rows["D10"].status == "SNAPSHOT"
     assert rows["wire-D"].status == "UNCONFIGURED"
+
+
+class _FakeHttpResp:
+    def __init__(self, status=200, body=b'{"ok":true}', content_type="application/json"):
+        self.status = status
+        self.headers = {"Content-Type": content_type}
+        self._body = body
+
+    def getcode(self):
+        return self.status
+
+    def read(self, _n):
+        return self._body
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+
+def test_http_request_retries_timeout_then_succeeds(monkeypatch):
+    calls = {"n": 0}
+
+    class _Opener:
+        def open(self, _req, timeout=20):
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise TimeoutError("The read operation timed out")
+            return _FakeHttpResp()
+
+    monkeypatch.setattr(
+        gate.urllib.request, "build_opener", lambda *_a, **_k: _Opener()
+    )
+    got = gate.http_request("https://example.invalid/iss", attempts=2)
+    assert calls["n"] == 2
+    assert got.status == 200
+    assert got.error == ""
+
+
+def test_http_request_timeout_stays_fail_closed(monkeypatch):
+    calls = {"n": 0}
+
+    class _Opener:
+        def open(self, _req, timeout=20):
+            calls["n"] += 1
+            raise TimeoutError("The read operation timed out")
+
+    monkeypatch.setattr(
+        gate.urllib.request, "build_opener", lambda *_a, **_k: _Opener()
+    )
+    got = gate.http_request("https://example.invalid/iss", attempts=2)
+    assert calls["n"] == 2
+    assert got.status is None
+    assert "TimeoutError" in (got.error or "")

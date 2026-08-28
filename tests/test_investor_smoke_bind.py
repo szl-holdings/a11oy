@@ -4,9 +4,9 @@
 """S7 fail-closed: kernel chips must bind to /honest locked_formula_count (8 or N/A).
 
 Genome LOCKED-PROVEN=25 is a catalog tier and may remain. The FAIL is the bind:
-landing #pt-locked and trust/console #cnt-locked still paint catalog 25 into
-the kernel slot. INTI / PR 1396 owns the product bind. Keep this job RED until
-those chips read GET /api/a11oy/v1/honest. Do not rewrite genome.json.
+landing #pt-locked and trust/console #cnt-locked must not paint catalog 25 into
+the kernel slot. PR 1396 landed console #cnt-locked from GET /api/a11oy/v1/honest.
+Do not rewrite genome.json.
 """
 from __future__ import annotations
 

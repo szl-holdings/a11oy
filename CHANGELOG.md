@@ -31,10 +31,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   S7 is a kernel-chip bind: landing `#pt-locked` via `loadLockedKernel` or
   1394 `loadKernelLocked`, plus trust/console `#cnt-locked`, must read
   `/api/a11oy/v1/honest` `locked_formula_count` (8 or N/A). Genome
-  `LOCKED-PROVEN=25` is a catalog tier. Bind job stays RED until PR 1396
-  console `#cnt-locked`. S1 HEAD and S2 signer product landed in 1394 on
+  `LOCKED-PROVEN=25` is a catalog tier. Bind job PASSes after #1396 console
+  `#cnt-locked` on main. S1 HEAD and S2 signer product landed in 1394 on
   main; this PR only probes. Live origin is measured, never invented.
-  L1–L6 are SNAPSHOT 2026-08-28. S4/S6/S9 are UNAVAILABLE (no POST). See
+  Live S3 retries one ISS TimeoutError then stays FAIL. L1–L6 are
+  SNAPSHOT 2026-08-28. S4/S6/S9 are UNAVAILABLE (no POST). See
   `docs/INVESTOR_SMOKE_GATE.md`.
 
 

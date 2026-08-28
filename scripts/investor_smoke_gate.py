@@ -12,7 +12,8 @@ S1/S2 product is 1394 on main; this gate only probes the live origin.
 S3: UNAVAILABLE, MEASURED with method, or unit-labelled — never invent MEASURED.
 S7 is a BIND: landing #pt-locked via loadLockedKernel/loadKernelLocked and
 trust/console #cnt-locked bind to GET /api/a11oy/v1/honest locked_formula_count
-(show 8 or N/A). Genome LOCKED-PROVEN=25 is catalog. Do not touch 1396 or 1363.
+(show 8 or N/A). Genome LOCKED-PROVEN=25 is catalog. PR 1396 landed the
+console chip on main; this gate does not re-edit that chrome. Do not touch 1363.
 """
 from __future__ import annotations
 
@@ -85,7 +86,7 @@ OG_CANDIDATES = (
 
 # Kernel-chip bind: FAIL when surfaces paint genome LOCKED-PROVEN / proof_tiers.locked
 # into the kernel slot. Catalog LOCKED-PROVEN elsewhere is allowed (labelled, never
-# the kernel). Not a product rewrite — INTI / PR 1396 owns the bind.
+# the kernel). PR 1396 landed console #cnt-locked; this detector only asserts the bind.
 _CNT_LOCKED_ID = re.compile(r"""id\s*=\s*['"]cnt-locked['"]""", re.I)
 _CNT_LOCKED_FROM_GENOME = re.compile(
     r"""\$\(\s*['"]cnt-locked['"]\s*\)[\s\S]{0,240}?"""
@@ -830,9 +831,37 @@ def http_request(
     method: str = "GET",
     timeout: float = 20.0,
     follow: bool = True,
+    attempts: int = 1,
 ) -> HttpResult:
     if method.upper() not in {"GET", "HEAD"}:
         raise ValueError(f"investor smoke gate forbids {method}")
+    last = HttpResult(
+        method=method.upper(),
+        url=url,
+        status=None,
+        content_type="",
+        body=b"",
+        error="no attempt",
+    )
+    for _ in range(max(1, int(attempts))):
+        last = _http_request_once(
+            url, method=method, timeout=timeout, follow=follow
+        )
+        if last.status is not None:
+            return last
+        err = last.error or ""
+        if "TimeoutError" not in err:
+            return last
+    return last
+
+
+def _http_request_once(
+    url: str,
+    *,
+    method: str,
+    timeout: float,
+    follow: bool,
+) -> HttpResult:
     req = urllib.request.Request(
         url,
         method=method.upper(),
@@ -1079,8 +1108,11 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
         )
     )
 
-    # S3 ISS coords + first viewport — UNAVAILABLE or MEASURED with method
-    iss = http_request(_join(primary, LIVE_ISS_PATH), method="GET", follow=True)
+    # S3 ISS coords + first viewport — UNAVAILABLE or MEASURED with method.
+    # One TimeoutError retry only; persistent timeout stays FAIL (not UNAVAILABLE).
+    iss = http_request(
+        _join(primary, LIVE_ISS_PATH), method="GET", follow=True, attempts=2
+    )
     home = http_request(_join(primary, "/"), method="GET", follow=True)
     s3_fail: list[str] = []
     if iss.status != 200:
