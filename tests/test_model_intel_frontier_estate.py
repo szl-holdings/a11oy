@@ -200,6 +200,8 @@ def test_register_exposes_dual_aliases_and_fail_closed_status(monkeypatch) -> No
     assert "/v1/models/frontier-adoption" in paths
     assert "/api/a11oy/v1/models/estate" in paths
     assert "/v1/models/estate" in paths
+    assert "/api/a11oy/v1/models/series-a" in paths
+    assert "/v1/models/series-a" in paths
 
     route_order = [route.path for route in app.routes]
     assert route_order.index("/api/a11oy/v1/models/estate") < route_order.index(
@@ -222,12 +224,19 @@ def test_register_exposes_dual_aliases_and_fail_closed_status(monkeypatch) -> No
         "get_szl_estate",
         lambda: {"state": "LIVE"},
     )
+    monkeypatch.setattr(
+        intel,
+        "get_series_a_estate",
+        lambda: {"state": "LIVE", "cards": [], "operational": False},
+    )
     client = TestClient(app)
     for path in (
         "/api/a11oy/v1/models/frontier-adoption",
         "/v1/models/frontier-adoption",
         "/api/a11oy/v1/models/estate",
         "/v1/models/estate",
+        "/api/a11oy/v1/models/series-a",
+        "/v1/models/series-a",
     ):
         response = client.get(path)
         assert response.status_code == 200
@@ -235,6 +244,7 @@ def test_register_exposes_dual_aliases_and_fail_closed_status(monkeypatch) -> No
     info = client.get("/api/a11oy/v1/models/info")
     assert info.status_code == 200
     assert "/estate" in info.json()["endpoints"]
+    assert "/series-a" in info.json()["endpoints"]
 
     monkeypatch.setattr(
         intel,
@@ -268,6 +278,8 @@ def test_real_assembled_serve_routes_precede_catchalls_and_respond_offline(monke
         "/v1/models/frontier-adoption",
         "/api/a11oy/v1/models/estate",
         "/v1/models/estate",
+        "/api/a11oy/v1/models/series-a",
+        "/v1/models/series-a",
     ):
         assert path in route_paths
         assert route_paths.index(path) < min(proxy_index, spa_index)
@@ -286,6 +298,8 @@ def test_real_assembled_serve_routes_precede_catchalls_and_respond_offline(monke
         "/v1/models/frontier-adoption",
         "/api/a11oy/v1/models/estate",
         "/v1/models/estate",
+        "/api/a11oy/v1/models/series-a",
+        "/v1/models/series-a",
     ):
         response = client.get(path)
         assert response.status_code == 200

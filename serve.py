@@ -12905,6 +12905,27 @@ async def _investor_view_redirect() -> Response:
 app.add_api_route("/investor", _investor_view_redirect, methods=["GET"], include_in_schema=False)
 
 
+# /estate — Series A holographic models+kernels surface.
+# Served from pages/estate.html (wholesale COPY pages/). Not a stub, not a 307
+# onto an empty overlay. Killinchu-named Hub IDs stay outside the inventory.
+# /models stays the 1392 ecosystem-atlas deep-link (serves ecosystem.html);
+# this handler does not steal that path.
+# Prefer checkout pages/ when present: this VM's /app/pages is the prebuilt
+# image (has console.html, so PAGES_DIR pins there) and will not yet contain
+# a newly added estate.html until the next image bake.
+async def _series_a_estate_page() -> Response:
+    for folder in (_LOCAL_PAGES_DIR, PAGES_DIR, _IMAGE_PAGES_DIR):
+        f = folder / "estate.html"
+        if f.is_file():
+            return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+app.add_api_route(
+    "/estate", _series_a_estate_page, methods=["GET", "HEAD"], include_in_schema=False
+)
+
+
 # /pinn — Physical-Bounds Certifier surface (distinct from /pinn-console).
 # Served from pages/pinn.html (COPYed wholesale by `COPY pages/ ./pages/`).
 @app.get("/pinn")

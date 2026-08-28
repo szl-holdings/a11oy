@@ -56,9 +56,197 @@ _DATASETS_ROWS = "https://datasets-server.huggingface.co/rows"
 _DATASETS_SPLITS = "https://datasets-server.huggingface.co/splits"
 _LMARENA_DS = "lmarena-ai/leaderboard-dataset"
 _HF_MODELS = "https://huggingface.co/api/models"
+_HF_SPACES = "https://huggingface.co/api/spaces"
 _HF_ORG = "SZLHOLDINGS"
 _HF_ORG_REPOSITORY_RE = re.compile(r"^SZLHOLDINGS/[A-Za-z0-9._-]+$")
 _HF_REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
+_WEIGHT_BASENAME_RE = re.compile(r"pytorch_model-\d+-of-\d+\.bin")
+_README_NAMES = frozenset({"readme.md", "readme", "card.md"})
+_KILLINCHU_TOKEN_RE = re.compile(r"killinchu", re.IGNORECASE)
+
+# Series A command-center inventory. Killinchu-named Hub IDs stay outside.
+# Sage INT8/FP8 is a ROADMAP fourth kernel — never listed as shipped.
+# YARQA-ATTN is KERNEL-owned (compartment attention), not a fourth Triton stack.
+SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
+    {
+        "id": "szl-khipu-1.5b",
+        "title": "SZL-Khipu-1.5B",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Governed retrieval navigator. The model proposes a route over handles; the controller gates.",
+        "hub_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B",
+        "act_href": "/console?view=ask",
+        "expect_gguf_on": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+    },
+    {
+        "id": "sovereign-router",
+        "title": "Sovereign router",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "In-house model router. Routes work; it is not a foundation-model weight dump.",
+        "hub_id": "SZLHOLDINGS/llm-router-live",
+        "hub_kind": "space",
+        "hub_href": "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live",
+        "act_href": "/console?view=llm",
+        "github": "https://github.com/szl-holdings/platform/tree/main/packages/llm-router",
+    },
+    {
+        "id": "khipu-r2",
+        "title": "KHIPU-R2",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Abstain-retrain adapter on Khipu. Does not overwrite the signed 1.5B flagship.",
+        "hub_id": "SZLHOLDINGS/KHIPU-R2",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2",
+        "act_href": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2",
+    },
+    {
+        "id": "willay",
+        "title": "WILLAY",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Signed-refusal specialist. It says no and is meant to leave a receipt — it does not approve.",
+        "hub_id": "SZLHOLDINGS/WILLAY",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/WILLAY",
+        "act_href": "/willay",
+    },
+    {
+        "id": "yarqa-attn",
+        "title": "YARQA-ATTN",
+        "lane": "kernel",
+        "cut": "CUTTING",
+        "owner": "KERNEL",
+        "not_triton_stack": True,
+        "one_line": "Compartment / plug-flow attention cut. Kernel-owned. Not a fourth Flash / Flex / paged stack.",
+        "hub_id": "SZLHOLDINGS/YARQA-ATTN",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/YARQA-ATTN",
+        "github": "https://github.com/szl-holdings/YARQA-ATTN",
+        "act_href": "https://github.com/szl-holdings/YARQA-ATTN",
+    },
+    {
+        "id": "a11oy-mini",
+        "title": "A11OY-MINI",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "GGUF SKU of live Chaski. Bytes on Hub. Evals none this run. House lab load forbidden.",
+        "hub_id": "SZLHOLDINGS/A11OY-MINI",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/A11OY-MINI",
+        "act_href": "https://huggingface.co/SZLHOLDINGS/A11OY-MINI",
+        "expect_gguf": True,
+    },
+    {
+        "id": "chaski",
+        "title": "Chaski",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Messenger LLM. Proposal-only drafts and honest refusals for the SZL controller.",
+        "hub_id": "SZLHOLDINGS/chaski",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/chaski",
+        "act_href": "https://huggingface.co/SZLHOLDINGS/chaski",
+    },
+    {
+        "id": "qantu",
+        "title": "Qantu",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Compact document / receipt VLM silhouette. No weights on this ID until a job lands.",
+        "hub_id": "SZLHOLDINGS/qantu",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/qantu",
+        "act_href": "https://huggingface.co/SZLHOLDINGS/qantu",
+    },
+    {
+        "id": "waman",
+        "title": "Waman",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Hawk silhouette: aircraft-detection proposals. Effector stays simulated. No weights on this ID.",
+        "hub_id": "SZLHOLDINGS/waman",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/waman",
+        "act_href": "https://huggingface.co/SZLHOLDINGS/waman",
+    },
+    {
+        "id": "chakana",
+        "title": "Chakana",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Bridge embeddings for in-house retrieval. Named silhouette; not a loadable fine-tune today.",
+        "hub_id": "SZLHOLDINGS/chakana",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/chakana",
+        "act_href": "https://huggingface.co/SZLHOLDINGS/chakana",
+    },
+    {
+        "id": "tinku",
+        "title": "Tinku",
+        "lane": "model",
+        "cut": "CUTTING",
+        "one_line": "Encounter reranker. Chakana recalls; Tinku ranks. No weights on this ID yet.",
+        "hub_id": "SZLHOLDINGS/tinku",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/tinku",
+        "act_href": "https://huggingface.co/SZLHOLDINGS/tinku",
+    },
+    {
+        "id": "szl-receipt-attn",
+        "title": "szl-receipt-attn",
+        "lane": "kernel",
+        "cut": "SHIPPED",
+        "one_line": "Receipt-aware attention kernel. CPU import on Kernel Hub; GPU/Triton stays ROADMAP.",
+        "hub_id": "SZLHOLDINGS/szl-receipt-attn",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/szl-receipt-attn",
+        "github": "https://github.com/szl-holdings/szl-receipt-attn",
+        "act_href": "https://github.com/szl-holdings/szl-receipt-attn",
+    },
+    {
+        "id": "szl-maskmod",
+        "title": "szl-maskmod",
+        "lane": "kernel",
+        "cut": "SHIPPED",
+        "one_line": "Score-mod + block-mask kernel. CPU Flex-silhouette; GPU attention stacks stay ROADMAP.",
+        "hub_id": "SZLHOLDINGS/szl-maskmod",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/szl-maskmod",
+        "github": "https://github.com/szl-holdings/szl-maskmod",
+        "act_href": "https://github.com/szl-holdings/szl-maskmod",
+    },
+    {
+        "id": "szl-block-kv",
+        "title": "szl-block-kv",
+        "lane": "kernel",
+        "cut": "SHIPPED",
+        "one_line": "Paged-KV category kernel. v0 is a labeled torch gather; Triton page kernel is ROADMAP.",
+        "hub_id": "SZLHOLDINGS/szl-block-kv",
+        "hub_kind": "model",
+        "hub_href": "https://huggingface.co/SZLHOLDINGS/szl-block-kv",
+        "github": "https://github.com/szl-holdings/szl-block-kv",
+        "act_href": "https://github.com/szl-holdings/szl-block-kv",
+    },
+)
+
+SERIES_A_ROADMAP_KERNELS: tuple[dict[str, Any], ...] = (
+    {
+        "id": "sage-int8-fp8",
+        "title": "Sage INT8/FP8",
+        "lane": "kernel",
+        "cut": "ROADMAP",
+        "shipped": False,
+        "one_line": "Fourth kernel lane. Not shipped. Not listed beside the Triton trio or YARQA-ATTN.",
+        "hub_id": None,
+        "hub_kind": None,
+        "hub_href": None,
+        "github": None,
+    },
+)
 _FRONTIER_REGISTRY = (
     Path(__file__).resolve().parent
     / "model_release"
@@ -390,22 +578,7 @@ def _parse_hf_org_models(items: Any) -> list[dict[str, Any]]:
             for item in siblings or []
             if isinstance(item, dict)
         ]
-        lowered_filenames = [name.lower() for name in filenames]
-        basenames = [name.rsplit("/", 1)[-1] for name in lowered_filenames]
-        weight_bearing = any(
-            name.endswith(".safetensors")
-            or name.endswith(".gguf")
-            or name.endswith(".onnx")
-            or name.endswith(".pt")
-            or name.endswith(".pth")
-            or name.endswith(".ckpt")
-            or name.endswith(".npz")
-            or name.endswith(".h5")
-            or name.endswith(".msgpack")
-            or name in {"pytorch_model.bin", "adapter_model.bin", "tf_model.h5", "flax_model.msgpack"}
-            or bool(re.fullmatch(r"pytorch_model-\d+-of-\d+\.bin", name))
-            for name in basenames
-        )
+        file_facts = _file_facts(filenames)
         rows.append({
             "repository_id": repository_id,
             "revision": revision,
@@ -414,10 +587,72 @@ def _parse_hf_org_models(items: Any) -> list[dict[str, Any]]:
             "last_modified": model.get("lastModified"),
             "pipeline_tag": model.get("pipeline_tag"),
             "library_name": model.get("library_name"),
-            "weight_bearing_from_filenames": weight_bearing,
-            "file_count": len(filenames),
+            "weight_bearing_from_filenames": file_facts["weight_bearing"],
+            "file_count": file_facts["file_count"],
+            "filenames": file_facts["filenames"],
+            "gguf_files": file_facts["gguf_files"],
+            "has_card": file_facts["has_card"],
+            "has_adapter": file_facts["has_adapter"],
         })
     return rows
+
+
+def _file_facts(filenames: list[str]) -> dict[str, Any]:
+    cleaned = [name for name in filenames if isinstance(name, str) and name]
+    lowered = [name.lower() for name in cleaned]
+    basenames = [name.rsplit("/", 1)[-1] for name in lowered]
+    gguf_files = [name for name, low in zip(cleaned, lowered) if low.endswith(".gguf")]
+    weight_bearing = any(
+        name.endswith(".safetensors")
+        or name.endswith(".gguf")
+        or name.endswith(".onnx")
+        or name.endswith(".pt")
+        or name.endswith(".pth")
+        or name.endswith(".ckpt")
+        or name.endswith(".npz")
+        or name.endswith(".h5")
+        or name.endswith(".msgpack")
+        or name in {"pytorch_model.bin", "adapter_model.bin", "tf_model.h5", "flax_model.msgpack"}
+        or bool(_WEIGHT_BASENAME_RE.fullmatch(name))
+        for name in basenames
+    )
+    return {
+        "filenames": cleaned,
+        "file_count": len(cleaned),
+        "gguf_files": gguf_files,
+        "has_card": any(name in _README_NAMES for name in basenames),
+        "has_adapter": any("adapter_model" in name for name in basenames),
+        "weight_bearing": weight_bearing,
+    }
+
+
+def _parse_hf_space(payload: Any) -> Optional[dict[str, Any]]:
+    if not isinstance(payload, dict):
+        return None
+    repository_id = payload.get("id")
+    if not isinstance(repository_id, str) or not _HF_ORG_REPOSITORY_RE.fullmatch(repository_id):
+        return None
+    revision = payload.get("sha")
+    if not isinstance(revision, str) or not _HF_REVISION_RE.fullmatch(revision):
+        revision = None
+    runtime = payload.get("runtime") if isinstance(payload.get("runtime"), dict) else {}
+    return {
+        "repository_id": repository_id,
+        "revision": revision,
+        "likes": payload.get("likes"),
+        "last_modified": payload.get("lastModified"),
+        "sdk": payload.get("sdk"),
+        "pipeline_tag": None,
+        "library_name": payload.get("sdk"),
+        "runtime_stage": runtime.get("stage"),
+        "filenames": [],
+        "gguf_files": [],
+        "has_card": True,
+        "has_adapter": False,
+        "weight_bearing_from_filenames": False,
+        "file_count": 0,
+        "hub_kind": "space",
+    }
 
 
 def _download_sort_value(value: Any) -> int:
@@ -527,6 +762,220 @@ def get_szl_estate() -> dict[str, Any]:
     }
 
 
+def _series_a_bind_card(spec: dict[str, Any], live: Optional[dict[str, Any]],
+                        freshness: dict[str, Any]) -> dict[str, Any]:
+    """Honest Hub bind for one pinned Series A card. Never stamps OPERATIONAL."""
+    hub_id = spec.get("hub_id")
+    fetch_status = (freshness or {}).get("status")
+    fetch_error = (freshness or {}).get("error")
+    live_present = bool(live and live.get("repository_id") == hub_id)
+
+    if hub_id is None:
+        listing_label = "ROADMAP"
+        listing_note = "No Hub card. Fourth kernel lane is not shipped."
+    elif fetch_status == "unavailable" and not live_present:
+        listing_label = "UNAVAILABLE"
+        listing_note = "Hub fetch/parse failed. No replacement listing is invented."
+    elif not live_present:
+        listing_label = "UNAVAILABLE"
+        listing_note = "Pinned Hub id was not in this public listing."
+    else:
+        listing_label = "REPORTED"
+        listing_note = "Hub listing metadata (card, pipeline tag, files). Not a quality score."
+
+    gguf_files = list((live or {}).get("gguf_files") or [])
+    has_card = bool((live or {}).get("has_card"))
+    weight_bearing = bool((live or {}).get("weight_bearing_from_filenames"))
+    has_adapter = bool((live or {}).get("has_adapter"))
+    expect_gguf = bool(spec.get("expect_gguf"))
+
+    if listing_label == "UNAVAILABLE":
+        artifact_label = "UNAVAILABLE"
+        artifact_note = listing_note
+    elif spec.get("lane") == "kernel":
+        artifact_label = "REPORTED" if live_present else "UNAVAILABLE"
+        artifact_note = "Kernel sources on Hub (not a weight dump). GPU/Triton speed is not claimed here."
+    elif expect_gguf and gguf_files:
+        artifact_label = "REPORTED"
+        artifact_note = (
+            "GGUF files present on the Hub listing. Byte hashes are MEASURED only with method+date+N; "
+            "this endpoint does not re-hash. Evals none unless a named receipt is shown."
+        )
+    elif expect_gguf and not gguf_files:
+        artifact_label = "UNAVAILABLE"
+        artifact_note = "Expected GGUF listing was missing from this Hub fetch."
+    elif weight_bearing or has_adapter:
+        artifact_label = "REPORTED"
+        artifact_note = "Weight or adapter filenames present on the Hub listing."
+    else:
+        artifact_label = "ROADMAP"
+        artifact_note = "No weights on this ID. Card-first silhouette."
+
+    evals_label = "ROADMAP"
+    evals_note = "No eval is invented here. MEASURED requires method + date + N on a named receipt."
+    if spec.get("id") == "a11oy-mini":
+        evals_label = "ROADMAP"
+        evals_note = "Evals none this run. GGUF bytes on Hub are not an eval."
+
+    out = {
+        "id": spec["id"],
+        "title": spec["title"],
+        "lane": spec["lane"],
+        "cut": spec["cut"],
+        "one_line": spec["one_line"],
+        "hub_id": hub_id,
+        "hub_kind": spec.get("hub_kind"),
+        "hub_href": spec.get("hub_href"),
+        "github": spec.get("github"),
+        "act_href": spec.get("act_href"),
+        "owner": spec.get("owner"),
+        "not_triton_stack": bool(spec.get("not_triton_stack")),
+        "shipped": spec.get("shipped", spec.get("cut") != "ROADMAP"),
+        "operational": False,
+        "lambda": {"label": "Conjecture 1", "theorem": False, "gate": False},
+        "listing": {
+            "label": listing_label,
+            "note": listing_note,
+            "live_present": live_present,
+            "revision": (live or {}).get("revision") if live_present else None,
+            "last_modified": (live or {}).get("last_modified") if live_present else None,
+            "pipeline_tag": (live or {}).get("pipeline_tag") if live_present else None,
+            "library_name": (live or {}).get("library_name") if live_present else None,
+            "sdk": (live or {}).get("sdk") if live_present else None,
+            "has_card": has_card if live_present else None,
+        },
+        "artifacts": {
+            "label": artifact_label,
+            "note": artifact_note,
+            "gguf_files": gguf_files if live_present else [],
+            "weight_bearing": weight_bearing if live_present else False,
+            "has_adapter": has_adapter if live_present else False,
+            "file_count": (live or {}).get("file_count") if live_present else None,
+        },
+        "evals": {"label": evals_label, "note": evals_note},
+        "freshness": {
+            "status": fetch_status or "unavailable",
+            "error": fetch_error,
+        },
+    }
+    return {key: value for key, value in out.items() if value is not None}
+
+
+def get_series_a_estate() -> dict[str, Any]:
+    """Pinned Series A models+kernels with live public Hub metadata.
+
+    Read-only. Never signs. Never fabricates evals, throughput, or OPERATIONAL.
+    Catalog LOCKED-PROVEN counts are not this payload; Lean-8 is /honest.
+    """
+    for spec in (*SERIES_A_CARDS, *SERIES_A_ROADMAP_KERNELS):
+        hub_id = spec.get("hub_id") or spec.get("title") or spec["id"]
+        if _KILLINCHU_TOKEN_RE.search(str(hub_id)) or _KILLINCHU_TOKEN_RE.search(spec["id"]):
+            return {
+                "state": "UNAVAILABLE",
+                "reason": "Killinchu-named resources are outside this inventory.",
+                "cards": [],
+                "operational": False,
+                "doctrine": DOCTRINE,
+            }
+
+    models_feed = _cached_fetch(
+        "hf_szlholdings_estate",
+        _HF_MODELS,
+        ttl=900,
+        parser=_parse_hf_org_models,
+        params={"author": _HF_ORG, "limit": 100, "full": "true"},
+    )
+    space_feed = _cached_fetch(
+        "hf_szlholdings_llm_router_live",
+        f"{_HF_SPACES}/SZLHOLDINGS/llm-router-live",
+        ttl=900,
+        parser=_parse_hf_space,
+    )
+
+    live_models = {
+        item["repository_id"]: item
+        for item in (models_feed.get("value") or [])
+        if isinstance(item, dict) and item.get("repository_id")
+    }
+    space_val = space_feed.get("value")
+    if isinstance(space_val, dict) and space_val.get("repository_id"):
+        live_models[space_val["repository_id"]] = space_val
+
+    model_fresh = models_feed.get("freshness") or {}
+    space_fresh = space_feed.get("freshness") or {}
+
+    cards: list[dict[str, Any]] = []
+    for spec in SERIES_A_CARDS:
+        hub_id = spec.get("hub_id")
+        freshness = space_fresh if spec.get("hub_kind") == "space" else model_fresh
+        live = dict(live_models.get(hub_id) or {}) if hub_id else None
+        if live and not live.get("repository_id"):
+            live = None
+        if spec.get("expect_gguf") and live and not live.get("gguf_files"):
+            detail = _cached_fetch(
+                f"hf_model_{hub_id}",
+                f"{_HF_MODELS}/{hub_id}",
+                ttl=900,
+                parser=lambda d: (_parse_hf_org_models([d]) or [None])[0] if isinstance(d, dict) else None,
+            )
+            if isinstance(detail.get("value"), dict):
+                live = detail["value"]
+                freshness = detail.get("freshness") or freshness
+        card = _series_a_bind_card(spec, live, freshness)
+        related_id = spec.get("expect_gguf_on")
+        if related_id:
+            related = live_models.get(related_id) or {}
+            gguf = list(related.get("gguf_files") or [])
+            card["artifacts"]["related_gguf_repo"] = related_id
+            card["artifacts"]["related_gguf_files"] = gguf
+            card["artifacts"]["related_gguf_href"] = f"https://huggingface.co/{related_id}"
+        cards.append(card)
+
+    roadmap = [_series_a_bind_card(spec, None, {"status": "empty"})
+               for spec in SERIES_A_ROADMAP_KERNELS]
+
+    statuses = {card["listing"]["label"] for card in cards}
+    if model_fresh.get("status") == "unavailable" and space_fresh.get("status") == "unavailable":
+        state = "UNAVAILABLE"
+    elif statuses == {"UNAVAILABLE"}:
+        state = "UNAVAILABLE"
+    elif model_fresh.get("status") == "stale":
+        state = "STALE_LAST_GOOD"
+    elif model_fresh.get("status") == "cached":
+        state = "CACHED"
+    elif model_fresh.get("status") == "live":
+        state = "LIVE"
+    else:
+        state = "LIVE_DATA_FRESHNESS_UNKNOWN"
+
+    shipped_kernels = [card["id"] for card in cards if card["lane"] == "kernel" and card.get("cut") == "SHIPPED"]
+    return {
+        "state": state,
+        "schema": "szl.series-a-estate.v1",
+        "organization": _HF_ORG,
+        "operational": False,
+        "see": "Public Hub listing for each pinned card (card, files, pipeline tag).",
+        "decide": "Honest labels only. Hub metadata is REPORTED. No weights = ROADMAP. Fetch fail = UNAVAILABLE.",
+        "act": "Open the Hub card; kernels also open GitHub canonical source.",
+        "lambda": {
+            "label": "Conjecture 1",
+            "theorem": False,
+            "gate": False,
+            "note": "Advisory, gray, never a theorem, never this inventory's kernel count.",
+        },
+        "locked_formula_count_source": "/api/a11oy/v1/honest",
+        "locked_formula_count_rule": "Lean-8 is locked_formula_count === 8 else UNAVAILABLE. Catalog LOCKED-PROVEN is catalog, never the kernel.",
+        "shipped_kernels": shipped_kernels,
+        "roadmap_kernels": roadmap,
+        "yarqa_attn_is_kernel_owned_not_triton_stack": True,
+        "killinchu_excluded": True,
+        "cards": cards,
+        "freshness": {"models": model_fresh, "sovereign_router_space": space_fresh},
+        "cited": "Hugging Face Hub public metadata API (no key). GitHub is canonical for kernel source.",
+        "doctrine": DOCTRINE,
+    }
+
+
 def get_pareto(limit: int = 40) -> dict[str, Any]:
     """Quality (LMArena Elo) × adoption (HF downloads) non-dominated frontier.
     Both axes are REAL public signals. Price / tokens-per-sec are ROADMAP (no
@@ -609,11 +1058,18 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         payload = get_szl_estate()
         return JSONResponse(payload, status_code=200 if payload["state"] != "UNAVAILABLE" else 503)
 
+    @app.get(base + "/series-a", include_in_schema=False)
+    @app.get("/v1/models/series-a", include_in_schema=False)
+    def _models_series_a():
+        payload = get_series_a_estate()
+        return JSONResponse(payload)
+
     @app.get(base + "/info", include_in_schema=False)
     @app.get("/v1/models/info", include_in_schema=False)
     async def _models_info():
         return JSONResponse({"module": "a11oy_model_intel", "base": base,
-                             "endpoints": ["/leaderboard", "/hub", "/pareto", "/frontier-adoption", "/estate", "/info"],
+                             "endpoints": ["/leaderboard", "/hub", "/pareto", "/frontier-adoption",
+                                           "/estate", "/series-a", "/info"],
                              "cited": CITED, "locked": LOCKED, "doctrine": DOCTRINE,
                              "honesty": "Live external model intel; advisory quality signal, "
                                         "never a proof. SAMPLE/ROADMAP labelled where not live."})

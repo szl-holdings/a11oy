@@ -133,8 +133,9 @@ def test_first_fold_is_receipt_stream_and_verify_not_kernel_or_radar() -> None:
     assert 'szl-below-fold" href="https://huggingface.co/SZLHOLDINGS/governed-inference-meter' in CONSOLE
     assert "grid2 szl-below-fold" in CONSOLE
     stream_at = CONSOLE.find("id=\"cc-stream\"")
+    estate_at = CONSOLE.find("id=\"szl-series-a-cards\"")
     radar_at = CONSOLE.find("id=\"cc-radar\"")
-    assert stream_at > 0 and radar_at > stream_at
+    assert stream_at > 0 and estate_at > stream_at and radar_at > estate_at
 
 
 def test_empty_states_and_public_hides() -> None:
