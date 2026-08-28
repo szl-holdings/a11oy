@@ -54,12 +54,37 @@ def test_ecosystem_introduces_no_a11oy_com_canonical() -> None:
 
 
 def test_ecosystem_does_not_ship_investor_view() -> None:
-    assert "/investor" not in ECOSYSTEM
+    # Investor is not a map tile. INTI ships /investor as an alias to
+    # /console?view=investor; this page must not invent a standalone route.
+    assert 'href="/investor"' not in ECOSYSTEM
+    assert "href:'/investor'" not in ECOSYSTEM
+    assert "href:'/console?view=investor'" not in ECOSYSTEM
+    assert 'href="/console?view=investor"' not in ECOSYSTEM
     assert "Investor View" not in ECOSYSTEM
 
 
-def test_ecosystem_maps_command_and_proof_surfaces() -> None:
-    for href in ("/console", "/console#ask", "/console#decision", "/governance", "/trust", "/frontier"):
-        assert f'href:\'{href}\'' in ECOSYSTEM or f'href="{href}"' in ECOSYSTEM
+def test_ecosystem_maps_seven_modules_with_query_view_not_hash() -> None:
+    # Canonical deep links are ?view=. /console#ask still resolves via PR 1396
+    # hash compatibility; this map must not emit those hashes.
+    for href in (
+        "/console?view=command",
+        "/console?view=mesh",
+        "/console?view=ask",
+        "/console?view=decision",
+        "/console?view=llm",
+        "/console?view=chain",
+        "/console?view=lambda",
+        "/console?view=publications",
+        "/console?view=energy",
+        "/console?view=honest",
+    ):
+        assert f"href:'{href}'" in ECOSYSTEM, href
+        hash_href = "/console#" + href.split("view=", 1)[1]
+        assert f"href:'{hash_href}'" not in ECOSYSTEM, hash_href
+        assert f'href="{hash_href}"' not in ECOSYSTEM, hash_href
+    assert "/console#ask" not in ECOSYSTEM
+    assert 'href="/verify"' in ECOSYSTEM
+    assert 'href="/trust"' in ECOSYSTEM or "href:'/trust'" in ECOSYSTEM
+    assert 'href="/frontier"' in ECOSYSTEM or "href:'/frontier'" in ECOSYSTEM
     assert "Λ = Conjecture 1" in ECOSYSTEM
     assert "Alloy by SZL Holdings" in ECOSYSTEM

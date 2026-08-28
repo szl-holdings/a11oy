@@ -84,17 +84,24 @@
     const labels={command:'Command',proof:'Proof',atlas:'Hub atlas (a11oy.net)'};
     const order=['command','proof','atlas'];
     const atlasKeys=['models','kernels','brain','anatomy','holographic','datasets','spaces','collections','buckets'];
+    /* Console deep links use ?view= (PR 1396). Hash fragments still resolve as
+       compatibility on /console; this map does not emit them. Investor is not a
+       tile; INTI ships /investor as an alias to /console?view=investor. */
     const SURFACES={
       command:[
-        {id:'Command Center',kind:'command',href:'/console',note:'Operator application on this origin'},
-        {id:'Ask & Act',kind:'command',href:'/console#ask',note:'Governed question → action loop'},
-        {id:'Governed Decision',kind:'command',href:'/console#decision',note:'Deny-by-default gate, receipt on write'},
-        {id:'Live System Map',kind:'command',href:'/console#mesh',note:'Same-origin service posture'},
-        {id:'Governance',kind:'command',href:'/governance',note:'Eval / calibration / readiness'}
+        {id:'Command Center',kind:'home',href:'/console?view=command',note:'Home · operator application on this origin'},
+        {id:'Live System Map',kind:'home',href:'/console?view=mesh',note:'Home · same-origin service posture'},
+        {id:'Ask & Act',kind:'operate',href:'/console?view=ask',note:'Operate · governed question → action loop'},
+        {id:'Governed Decision',kind:'operate',href:'/console?view=decision',note:'Operate · deny-by-default gate, receipt on write'},
+        {id:'Model Router',kind:'build',href:'/console?view=llm',note:'Build · model routing on this origin'},
+        {id:'Receipt Chain',kind:'observe',href:'/console?view=chain',note:'Observe · hash-chained receipts'},
+        {id:'Trust Score',kind:'govern',href:'/console?view=lambda',note:'Govern · Λ = Conjecture 1, never a pass'},
+        {id:'Publications',kind:'research',href:'/console?view=publications',note:'Research · cited work, not Hub atlas'},
+        {id:'Energy Telemetry',kind:'more',href:'/console?view=energy',note:'More · joules labelled SAMPLE without a lung'}
       ],
       proof:[
         {id:'Verify a receipt',kind:'proof',href:'/verify',note:'Interactive verifier on this origin — not moved to a11oy.net'},
-        {id:'Receipt Chain',kind:'proof',href:'/console#chain',note:'Hash-chained receipts, this origin'},
+        {id:'What We Claim',kind:'govern',href:'/console?view=honest',note:'Govern · honest-status surface'},
         {id:'Trust center',kind:'proof',href:'/trust',note:'What we claim, labelled'},
         {id:'Frontier',kind:'proof',href:'/frontier',note:'Honest capability roll-up'},
         {id:'Canonical RECORD',kind:'proof',href:'https://a11oy.net',note:'Stored receipt RECORD lives on the proof origin'}
