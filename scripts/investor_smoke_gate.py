@@ -9,9 +9,11 @@ No Trust Center copy rewrite. No HEAD handlers. No signer fields.
 
 S1 HEAD 405 and S2 signer enum: KALLPA owns (probes only).
 S3 unlabeled live coords: UNAVAILABLE or MEASURED with method — never invent MEASURED.
-S7: genome ``tier_counts['LOCKED-PROVEN']`` must equal ``/honest``
-``locked_formula_count`` (8). INTI owns the real count. Keep RED until every
-surface agrees, labelled. a11oy.net and kernel smokes are a later cut.
+S7 is a BIND, not a catalog-count equality. Genome LOCKED-PROVEN=25 is a real
+catalog tier; ``/honest`` locked_formula_count=8 is the kernel. PASS only when
+landing ``#pt-locked`` (via loadLockedKernel) and trust/console ``#cnt-locked``
+all bind to GET /api/a11oy/v1/honest locked_formula_count (show 8 or N/A).
+Do not demand genome LOCKED-PROVEN equal 8. a11oy.net / kernel smokes: later cut.
 """
 from __future__ import annotations
 
@@ -74,8 +76,10 @@ OG_CANDIDATES = (
     "/social-preview-series-a.png",
 )
 
-# Diagnostic only: surfaces that paint genome LOCKED-PROVEN into a kernel slot
-# while the counts disagree. Not a product rewrite.
+# Kernel-chip bind: FAIL when surfaces paint genome LOCKED-PROVEN / proof_tiers.locked
+# into the kernel slot. Catalog LOCKED-PROVEN elsewhere is allowed (labelled, never
+# the kernel). Not a product rewrite — INTI / PR 1396 owns the bind.
+_CNT_LOCKED_ID = re.compile(r"""id\s*=\s*['"]cnt-locked['"]""", re.I)
 _CNT_LOCKED_FROM_GENOME = re.compile(
     r"""\$\(\s*['"]cnt-locked['"]\s*\)[\s\S]{0,240}?"""
     r"""(?:tier_counts|tc)\s*(?:\[\s*['"]LOCKED-PROVEN['"]\s*\]|\.LOCKED)""",
@@ -94,6 +98,23 @@ _SETTIERS_LOCKED_GENOME = re.compile(
 _SETTIERS_PROOF_TIERS = re.compile(
     r"""setTiers\(\s*\w+\.proof_tiers\s*\)""",
     re.I,
+)
+_PT_LOCKED_FROM_GENOME = re.compile(
+    r"""['"]pt-locked['"][\s\S]{0,200}?(?:tier_counts|tc)\s*\[\s*['"]LOCKED-PROVEN['"]"""
+    r"""|"""
+    r"""(?:tier_counts|tc)\s*\[\s*['"]LOCKED-PROVEN['"][\s\S]{0,200}?['"]pt-locked['"]""",
+    re.I,
+)
+_HONEST_PATH_RE = re.compile(r"/api/a11oy/v1/honest|/v1/honest", re.I)
+_LOCKED_FORMULA_COUNT_RE = re.compile(r"locked_formula_count")
+_LOAD_LOCKED_KERNEL_RE = re.compile(
+    r"(?:async\s+)?function\s+loadLockedKernel\s*\(", re.I
+)
+
+KERNEL_SURFACES = (
+    ("a11oy_landing.html", "landing"),
+    ("web/trust.html", "trust"),
+    ("pages/console.html", "console"),
 )
 
 
@@ -223,103 +244,221 @@ def validate_matrix(matrix: Matrix, required: Iterable[str] = REQUIRED_MATRIX_ID
 
 
 # ---------------------------------------------------------------------------
-# S7 — genome LOCKED-PROVEN must equal /honest locked_formula_count (8)
+# S7 — kernel chips must bind to /honest locked_formula_count (8 or N/A)
+# Genome LOCKED-PROVEN is a catalog tier (25 today). Do not demand it equal 8.
 # ---------------------------------------------------------------------------
 
-def kernel_slot_bind_failures(text: str, *, source_name: str) -> list[str]:
-    """Diagnostic: kernel-slot UI still paints genome LOCKED-PROVEN.
+def _strip_js_comments(text: str) -> str:
+    text = re.sub(r"/\*[\s\S]*?\*/", "", text)
+    return re.sub(r"//[^\n]*", "", text)
 
-    Used as evidence when counts disagree. This PR does not rewrite Trust Center copy.
-    """
+
+def _js_function_body(text: str, name: str) -> str | None:
+    match = re.search(
+        rf"(?:async\s+)?function\s+{re.escape(name)}\s*\([^)]*\)\s*\{{",
+        text,
+    )
+    if not match:
+        return None
+    start = match.end() - 1
+    depth = 0
+    for index in range(start, len(text)):
+        char = text[index]
+        if char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return text[start:]
+
+
+def _cnt_locked_bound_to_honest(text: str) -> bool:
+    """True when #cnt-locked is sourced from /honest locked_formula_count."""
+    if not _CNT_LOCKED_ID.search(text):
+        return False
+    if not _HONEST_PATH_RE.search(text) or not _LOCKED_FORMULA_COUNT_RE.search(text):
+        return False
+    window = re.compile(
+        r"(?:/api/a11oy/v1/honest|/v1/honest)[\s\S]{0,1200}?locked_formula_count"
+        r"[\s\S]{0,1200}?cnt-locked"
+        r"|"
+        r"cnt-locked[\s\S]{0,1200}?(?:/api/a11oy/v1/honest|/v1/honest)"
+        r"[\s\S]{0,1200}?locked_formula_count"
+        r"|"
+        r"locked_formula_count[\s\S]{0,1200}?cnt-locked",
+        re.I,
+    )
+    return bool(window.search(text))
+
+
+def _load_locked_kernel_binds_pt_locked(text: str) -> bool:
+    if not _LOAD_LOCKED_KERNEL_RE.search(text):
+        return False
+    body = _js_function_body(text, "loadLockedKernel")
+    if not body:
+        return False
+    has_honest = bool(_HONEST_PATH_RE.search(body))
+    has_field = "locked_formula_count" in body
+    has_chip = "pt-locked" in body
+    shows_honest = ("8" in body) and ("N/A" in body)
+    return has_honest and has_field and has_chip and shows_honest
+
+
+def kernel_slot_bind_failures(
+    text: str, *, source_name: str, role: str = ""
+) -> list[str]:
+    """Fail-closed kernel-chip bind. Catalog LOCKED-PROVEN elsewhere is allowed."""
+    return _kernel_slot_bind_failures_impl(text, source_name=source_name, role=role)
+
+
+def _kernel_slot_bind_failures_impl(
+    text: str, *, source_name: str, role: str
+) -> list[str]:
     failures: list[str] = []
-    if _CNT_LOCKED_FROM_GENOME.search(text) or _CNT_LOCKED_NODEVALUE_GENOME.search(text):
-        failures.append(
-            f"{source_name}: cnt-locked still reads genome tier_counts['LOCKED-PROVEN'] "
-            "(surface disagrees with /honest 8 until INTI owns the real count)."
-        )
-    if _SETTIERS_LOCKED_GENOME.search(text):
-        failures.append(
-            f"{source_name}: setTiers.locked still reads genome "
-            "tier_counts['LOCKED-PROVEN'] (surface disagrees with /honest 8)."
-        )
-    if _SETTIERS_PROOF_TIERS.search(text):
-        failures.append(
-            f"{source_name}: setTiers(*.proof_tiers) still paints genome "
-            "LOCKED-PROVEN into the kernel slot (surface disagrees with /honest 8)."
-        )
+    check_landing = role == "landing"
+    check_cnt = role in {"trust", "console"}
+    if not role:
+        check_landing = bool(_LOAD_LOCKED_KERNEL_RE.search(text) or "pt-locked" in text)
+        check_cnt = bool(_CNT_LOCKED_ID.search(text))
+
+    if check_landing:
+        if not _load_locked_kernel_binds_pt_locked(text):
+            failures.append(
+                f"{source_name}: #pt-locked must be painted by loadLockedKernel from "
+                f"GET {HONEST_PATH} {HONEST_FIELD} (show 8 or N/A), not genome / "
+                "proof_tiers.locked."
+            )
+        set_tiers_body = _js_function_body(text, "setTiers")
+        if set_tiers_body and "pt-locked" in _strip_js_comments(set_tiers_body):
+            failures.append(
+                f"{source_name}: setTiers still writes #pt-locked; kernel chip must "
+                "be loadLockedKernel only (not setTiers.locked)."
+            )
+        if _SETTIERS_LOCKED_GENOME.search(text):
+            failures.append(
+                f"{source_name}: setTiers.locked still reads genome "
+                "tier_counts['LOCKED-PROVEN'] (catalog, not the kernel)."
+            )
+        if _SETTIERS_PROOF_TIERS.search(text):
+            failures.append(
+                f"{source_name}: setTiers(*.proof_tiers) still paints proof_tiers.locked "
+                "into the kernel slot."
+            )
+        if _PT_LOCKED_FROM_GENOME.search(text):
+            failures.append(
+                f"{source_name}: #pt-locked still reads genome LOCKED-PROVEN."
+            )
+
+    if check_cnt:
+        if not _CNT_LOCKED_ID.search(text):
+            failures.append(
+                f"{source_name}: missing #cnt-locked kernel chip (must bind to "
+                f"{HONEST_PATH} {HONEST_FIELD}, show 8 or N/A)."
+            )
+        else:
+            if _CNT_LOCKED_FROM_GENOME.search(text) or _CNT_LOCKED_NODEVALUE_GENOME.search(
+                text
+            ):
+                failures.append(
+                    f"{source_name}: #cnt-locked still reads genome "
+                    "tier_counts['LOCKED-PROVEN'] (catalog, never the kernel)."
+                )
+            if not _cnt_locked_bound_to_honest(text):
+                failures.append(
+                    f"{source_name}: #cnt-locked is not bound to GET {HONEST_PATH} "
+                    f"{HONEST_FIELD} (show 8 or N/A)."
+                )
     return failures
 
 
 def analyze_repo_kernel_binds(root: Path = ROOT) -> list[str]:
     failures: list[str] = []
-    targets = (
-        root / "web" / "trust.html",
-        root / "a11oy_landing.html",
-    )
-    for path in targets:
+    for rel, role in KERNEL_SURFACES:
+        path = root / rel
         if not path.is_file():
-            failures.append(f"{path.relative_to(root)}: missing")
+            failures.append(f"{rel}: missing")
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         failures.extend(
-            kernel_slot_bind_failures(text, source_name=str(path.relative_to(root)))
+            kernel_slot_bind_failures(text, source_name=rel, role=role)
         )
     return failures
 
 
-def s7_count_agreement(
-    locked_proven_tags: int,
-    honest_count: int = LOCKED_KERNEL_COUNT,
+def s7_kernel_chip_bind(
     *,
+    failures: Iterable[str],
     extra_evidence: Iterable[str] = (),
+    catalog_locked_proven: int | None = None,
+    honest_count: int | None = None,
 ) -> Verdict:
-    """Fail-closed: genome LOCKED-PROVEN must equal /honest locked_formula_count (8)."""
-    extras = [str(x) for x in extra_evidence if x]
-    if locked_proven_tags != honest_count or honest_count != LOCKED_KERNEL_COUNT:
-        detail = (
-            f"genome tier_counts.LOCKED-PROVEN={locked_proven_tags} must equal "
-            f"{HONEST_PATH} {HONEST_FIELD}={LOCKED_KERNEL_COUNT} (got honest="
-            f"{honest_count}). INTI owns the real count. Keep RED until every "
-            "surface agrees, labelled. Do not rewrite genome data or Trust "
-            "Center copy to fake agreement."
+    """PASS iff every kernel chip binds to /honest locked_formula_count.
+
+    Genome LOCKED-PROVEN is a catalog tier. Catalog 25 vs kernel 8 is not this FAIL.
+    """
+    fail_list = [str(item) for item in failures if item]
+    extras = [str(item) for item in extra_evidence if item]
+    evidence_parts = list(extras)
+    if catalog_locked_proven is not None:
+        evidence_parts.append(
+            f"catalog LOCKED-PROVEN={catalog_locked_proven} (catalog, not kernel)"
         )
+    if honest_count is not None:
+        evidence_parts.append(f"{HONEST_FIELD}={honest_count}")
+    evidence_parts.extend(fail_list)
+
+    honest_wrong = (
+        honest_count is not None and honest_count != LOCKED_KERNEL_COUNT
+    )
+    if fail_list or honest_wrong:
+        detail = (
+            "S7 bind: landing #pt-locked via loadLockedKernel and trust/console "
+            f"#cnt-locked must read GET {HONEST_PATH} {HONEST_FIELD} "
+            f"(show {LOCKED_KERNEL_COUNT} or N/A). Genome LOCKED-PROVEN is a "
+            "catalog tier and may remain labelled, never green, never the kernel. "
+            "Lean-8 ≠ genome-144. Do not rewrite genome.json."
+        )
+        if honest_wrong:
+            detail += (
+                f" Live {HONEST_FIELD}={honest_count} "
+                f"(expected {LOCKED_KERNEL_COUNT})."
+            )
         return Verdict(
             id="S7",
             status="FAIL",
             detail=detail,
-            evidence=" | ".join(
-                [
-                    f"LOCKED-PROVEN={locked_proven_tags}",
-                    f"{HONEST_FIELD}={honest_count}",
-                    *extras,
-                ]
-            ),
+            evidence=" | ".join(evidence_parts) or "kernel chips unbound",
             owner="INTI",
         )
     return Verdict(
         id="S7",
         status="PASS",
         detail=(
-            f"genome LOCKED-PROVEN={locked_proven_tags} agrees with "
-            f"{HONEST_PATH} {HONEST_FIELD}={honest_count}, labelled."
+            f"Kernel chips bind to {HONEST_PATH} {HONEST_FIELD}="
+            f"{LOCKED_KERNEL_COUNT} (8 or N/A). Genome LOCKED-PROVEN remains "
+            "catalog, labelled, not the kernel."
         ),
+        evidence=" | ".join(evidence_parts),
         owner="INTI",
     )
 
 
-def s7_verdict(root: Path = ROOT) -> Verdict:
+def s7_verdict(root: Path = ROOT, extra_evidence: Iterable[str] = ()) -> Verdict:
     genome_path = root / "data" / "genome.json"
-    counts = genome_catalog_counts(genome_path)
-    extras = analyze_repo_kernel_binds(root)
-    return s7_count_agreement(
-        counts["locked_proven_tags"],
-        LOCKED_KERNEL_COUNT,
-        extra_evidence=extras,
+    catalog = None
+    if genome_path.is_file():
+        catalog = genome_catalog_counts(genome_path)["locked_proven_tags"]
+    return s7_kernel_chip_bind(
+        failures=analyze_repo_kernel_binds(root),
+        extra_evidence=extra_evidence,
+        catalog_locked_proven=catalog,
+        honest_count=LOCKED_KERNEL_COUNT,
     )
 
 
 # ---------------------------------------------------------------------------
-# D5 — catalog size 144 is not the locked kernel; S7 owns tag-count agreement
+# D5 — catalog size 144 is not the locked kernel; S7 owns the chip bind
 # ---------------------------------------------------------------------------
 
 def genome_catalog_counts(path: Path) -> dict[str, int]:
@@ -334,7 +473,7 @@ def genome_catalog_counts(path: Path) -> dict[str, int]:
 
 
 def evaluate_genome_vs_kernel(counts: dict[str, int], kernel: int = LOCKED_KERNEL_COUNT) -> Verdict:
-    """Catalog *size* is not the locked kernel. Tag-count agreement is S7."""
+    """Catalog *size* is not the locked kernel. S7 owns the chip bind, not this count."""
     entries = counts.get("entry_count", 0)
     tags = counts.get("locked_proven_tags", 0)
     return Verdict(
@@ -342,10 +481,11 @@ def evaluate_genome_vs_kernel(counts: dict[str, int], kernel: int = LOCKED_KERNE
         status="PASS",
         detail=(
             f"genome catalog entries={entries} is not the locked kernel "
-            f"({kernel} ids). LOCKED-PROVEN tag count={tags} vs kernel {kernel} "
-            "is S7 (INTI); this row only labels catalog size."
+            f"({kernel} ids). LOCKED-PROVEN tag count={tags} is a catalog tier "
+            f"(not kernel {kernel}). S7 is the chip bind; this row only labels "
+            "catalog size. Lean-8 ≠ genome-144."
         ),
-        evidence="Lean-8 ≠ genome-144 catalog size; S7 owns LOCKED-PROVEN vs 8",
+        evidence="Lean-8 ≠ genome-144 catalog size; S7 is kernel-chip bind not catalog count",
     )
 
 
@@ -538,7 +678,7 @@ def static_debug_verdicts(root: Path = ROOT) -> list[Verdict]:
         Verdict(
             id="wire-D",
             status="UNCONFIGURED" if unconfigured else "FAIL",
-            detail="Wire D SLSA L2 attestation remains roadmap / not claimed",
+            detail="Wire D attestation remains roadmap / not claimed",
             evidence="szl_warhacker_aliases.py GET /wires/D",
         )
     )
@@ -972,7 +1112,7 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
         )
     )
 
-    # S7 live genome vs honest (INTI). Do not rewrite genome.json.
+    # S7 live: bind kernel chips to /honest 8. Catalog LOCKED-PROVEN may stay.
     genome_live = http_request(_join(primary, "/api/a11oy/v1/genome"), method="GET", follow=True)
     honest_live = http_request(_join(primary, HONEST_PATH), method="GET", follow=True)
     live_tags = None
@@ -997,10 +1137,17 @@ def live_matrix(origins: list[str], root: Path = ROOT) -> Matrix:
         extras.append(f"GET {HONEST_PATH} HTTP {honest_live.status}")
     repo_counts = genome_catalog_counts(root / "data" / "genome.json")
     tags = live_tags if live_tags is not None else repo_counts["locked_proven_tags"]
-    honest_n = live_honest if live_honest is not None else LOCKED_KERNEL_COUNT
-    extras.append(f"repo LOCKED-PROVEN tags={repo_counts['locked_proven_tags']}")
-    extras.extend(analyze_repo_kernel_binds(root))
-    matrix.add(s7_count_agreement(tags, honest_n if honest_n is not None else -1, extra_evidence=extras))
+    extras.append(f"repo catalog LOCKED-PROVEN tags={repo_counts['locked_proven_tags']}")
+    extras.append(f"live catalog LOCKED-PROVEN={tags} (catalog, not kernel)")
+    bind_failures = analyze_repo_kernel_binds(root)
+    matrix.add(
+        s7_kernel_chip_bind(
+            failures=bind_failures,
+            extra_evidence=extras,
+            catalog_locked_proven=tags,
+            honest_count=live_honest if live_honest is not None else -1,
+        )
+    )
 
     # S8 live designed 404
     soft = http_request(_join(primary, SOFT_404_PATH), method="GET", follow=True)

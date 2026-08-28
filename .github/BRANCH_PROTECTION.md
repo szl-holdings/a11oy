@@ -80,16 +80,18 @@ adding more contexts, use their exact reported check-run names:
 | DCO | `dco.yml` | `DCO sign-off check` |
 | PR-title convention | `commit-lint.yml` | `Lint PR title (Conventional Commits)` |
 | Investor smoke contract | `investor-smoke-gate.yml` | `Investor smoke contract (S1-S12 static)` |
-| Investor smoke S7 bind | `investor-smoke-gate.yml` | `Investor smoke bind (S7 LOCKED-PROVEN=8)` |
+| Investor smoke S7 bind | `investor-smoke-gate.yml` | `Investor smoke bind (S7 kernel chips → /honest 8)` |
 | Investor smoke live probes | `investor-smoke-gate.yml` | `Investor smoke live probes` |
 
 The three investor-smoke contexts are **proposed** required checks. This
 document cannot flip GitHub protection on its own; the introducing pull
 request cannot self-certify them as control-plane-required. See
 [`docs/INVESTOR_SMOKE_GATE.md`](../docs/INVESTOR_SMOKE_GATE.md). S7 stays RED
-until INTI makes genome `LOCKED-PROVEN` equal `/honest` `locked_formula_count`
-(8) on every surface, labelled. Do not rewrite genome.json or Trust Center
-copy to fake agreement. S1 HEAD 405 and S2 signer enum stay RED until KALLPA.
+until INTI / PR 1396 binds landing `#pt-locked` (`loadLockedKernel`) and
+trust/console `#cnt-locked` to `/honest` `locked_formula_count` (8 or N/A).
+Genome `LOCKED-PROVEN=25` is a catalog tier and may remain labelled; do not
+demand it equal 8 or rewrite `genome.json`. S1 HEAD 405 and S2 signer enum
+stay RED until KALLPA.
 
 Verify a context before requiring it:
 

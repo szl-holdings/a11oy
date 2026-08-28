@@ -3,8 +3,8 @@
 # Doctrine v11 LOCKED. Λ = Conjecture 1 (NOT a theorem).
 """Fail-closed unit tests for the investor smoke gate (no live HTTP).
 
-S7 against live genome.json (25 vs 8) lives in test_investor_smoke_bind.py so
-this file can stay green while INTI's count is still RED.
+S7 against live surfaces (kernel chips still bound to genome 25) lives in
+test_investor_smoke_bind.py so this file can stay green while the bind is RED.
 """
 from __future__ import annotations
 
@@ -70,45 +70,70 @@ def test_post_is_forbidden():
         gate.http_request("https://example.invalid/", method="POST")
 
 
-def test_s7_equality_fails_when_genome_is_25():
-    verdict = gate.s7_count_agreement(25, 8)
-    assert verdict.status == "FAIL"
-    assert verdict.owner == "INTI"
-    assert "LOCKED-PROVEN=25" in verdict.evidence
-
-
-def test_s7_equality_passes_when_counts_agree_at_eight():
-    verdict = gate.s7_count_agreement(8, 8)
+def test_s7_does_not_demand_genome_catalog_equal_eight():
+    counts = gate.genome_catalog_counts(ROOT / "data" / "genome.json")
+    assert counts["locked_proven_tags"] == 25
+    assert counts["locked_proven_tags"] != gate.LOCKED_KERNEL_COUNT
+    verdict = gate.s7_kernel_chip_bind(
+        failures=[],
+        catalog_locked_proven=25,
+        honest_count=8,
+    )
     assert verdict.status == "PASS"
+    assert "catalog" in verdict.evidence
 
 
-def test_s7_fails_if_honest_is_not_eight():
-    verdict = gate.s7_count_agreement(8, 7)
+def test_s7_fails_if_live_honest_is_not_eight():
+    verdict = gate.s7_kernel_chip_bind(failures=[], honest_count=7)
     assert verdict.status == "FAIL"
 
 
 def test_bind_detector_records_genome_into_kernel_slot():
     text = (FIXTURES / "kernel_slot_genome_bind.html").read_text(encoding="utf-8")
-    failures = gate.kernel_slot_bind_failures(text, source_name="fixture-genome")
-    assert failures
-    blob = " ".join(failures)
+    landing = gate.kernel_slot_bind_failures(
+        text, source_name="fixture-genome", role="landing"
+    )
+    trust = gate.kernel_slot_bind_failures(
+        text, source_name="fixture-genome", role="trust"
+    )
+    console = gate.kernel_slot_bind_failures(
+        text, source_name="fixture-genome", role="console"
+    )
+    assert landing and trust and console
+    blob = " ".join(landing + trust + console)
     assert "cnt-locked" in blob
-    assert "setTiers.locked" in blob or "LOCKED-PROVEN" in blob
+    assert "loadLockedKernel" in blob or "pt-locked" in blob
+    assert "LOCKED-PROVEN" in blob or "setTiers" in blob or "proof_tiers" in blob
 
 
-def test_bind_detector_silent_when_kernel_slot_not_genome():
+def test_bind_detector_silent_when_kernel_chips_bind_honest():
     text = (FIXTURES / "kernel_slot_honest_bind.html").read_text(encoding="utf-8")
-    failures = gate.kernel_slot_bind_failures(text, source_name="fixture-honest")
+    for role in ("landing", "trust", "console"):
+        failures = gate.kernel_slot_bind_failures(
+            text, source_name="fixture-honest", role=role
+        )
+        assert failures == [], (role, failures)
+
+
+def test_labelled_catalog_chip_is_not_the_kernel_slot():
+    text = (FIXTURES / "kernel_slot_honest_bind.html").read_text(encoding="utf-8")
+    assert "cnt-genome-locked-proven" in text
+    assert "LOCKED-PROVEN" in text
+    failures = gate.kernel_slot_bind_failures(
+        text, source_name="fixture-honest", role="trust"
+    )
     assert failures == []
 
 
-def test_d5_labels_catalog_size_not_tag_agreement():
+def test_d5_labels_catalog_size_not_kernel_bind():
     counts = gate.genome_catalog_counts(ROOT / "data" / "genome.json")
     assert counts["entry_count"] == 144
+    assert counts["locked_proven_tags"] == 25
     verdict = gate.evaluate_genome_vs_kernel(counts, kernel=gate.LOCKED_KERNEL_COUNT)
     assert verdict.status == "PASS"
     assert verdict.id == "D5"
     assert "S7" in verdict.detail
+    assert "catalog" in verdict.detail.lower()
 
 
 def test_s12_readme_yaml_parses():

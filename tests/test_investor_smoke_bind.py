@@ -1,10 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 # Doctrine v11 LOCKED. Λ = Conjecture 1 (NOT a theorem).
-"""S7 fail-closed: genome LOCKED-PROVEN must equal /honest locked_formula_count=8.
+"""S7 fail-closed: kernel chips must bind to /honest locked_formula_count (8 or N/A).
 
-INTI owns the real count. Keep RED until every surface agrees, labelled.
-Do not rewrite genome data or Trust Center copy to fake agreement.
+Genome LOCKED-PROVEN=25 is a catalog tier and may remain. The FAIL is the bind:
+landing #pt-locked and trust/console #cnt-locked still paint catalog 25 into
+the kernel slot. INTI / PR 1396 owns the product bind. Keep this job RED until
+those chips read GET /api/a11oy/v1/honest. Do not rewrite genome.json.
 """
 from __future__ import annotations
 
@@ -17,13 +19,18 @@ sys.path.insert(0, str(ROOT / "scripts"))
 import investor_smoke_gate as gate  # noqa: E402
 
 
-def test_genome_locked_proven_must_equal_honest_eight():
+def test_kernel_chips_bind_to_honest_locked_formula_count():
     counts = gate.genome_catalog_counts(ROOT / "data" / "genome.json")
-    verdict = gate.s7_verdict(ROOT)
-    assert counts["locked_proven_tags"] == gate.LOCKED_KERNEL_COUNT, (
-        f"genome tier_counts.LOCKED-PROVEN={counts['locked_proven_tags']} must "
-        f"equal honest locked_formula_count={gate.LOCKED_KERNEL_COUNT}. INTI "
-        "owns the real count. Do not rewrite genome.json or Trust Center copy "
-        f"to fake agreement. {verdict.detail}"
+    assert counts["locked_proven_tags"] != gate.LOCKED_KERNEL_COUNT, (
+        "catalog LOCKED-PROVEN is not the kernel; this job must not demand they "
+        f"be equal (catalog={counts['locked_proven_tags']}, kernel="
+        f"{gate.LOCKED_KERNEL_COUNT})"
     )
-    assert verdict.status == "PASS", verdict.detail
+    verdict = gate.s7_verdict(ROOT)
+    assert verdict.status == "PASS", (
+        "S7 PASS requires a11oy_landing.html #pt-locked via loadLockedKernel "
+        "and web/trust.html + pages/console.html #cnt-locked all bound to "
+        f"GET {gate.HONEST_PATH} {gate.HONEST_FIELD} (8 or N/A). Genome "
+        "LOCKED-PROVEN may remain as a labelled catalog tier. "
+        f"{verdict.detail} | {verdict.evidence}"
+    )
