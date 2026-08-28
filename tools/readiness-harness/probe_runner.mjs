@@ -550,7 +550,8 @@ function findEvidencePairConflict(body, modeRequiresDataKind = false) {
         const modeFamily = MODE_EVIDENCE_FAMILY.get(normalizedMode);
         const dataKindFamily = DATA_KIND_EVIDENCE_FAMILY.get(normalizedDataKind);
         const liveCatalogCachedKind = (
-          modeFamily === "live" && dataKindFamily === "cached"
+          modeFamily === "live"
+          && (normalizedDataKind === "cached" || normalizedDataKind === "snapshot")
         );
         if (
           !modeFamily

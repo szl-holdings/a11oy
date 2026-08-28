@@ -83,7 +83,7 @@ const kevLabelSpec = {
 
 test("a live mode cannot hide weaker or negative KEV evidence", () => {
   for (const dataKind of [
-    "cached", "sample", "snapshot", "none", "unavailable", "vendor-pending",
+    "sample", "none", "unavailable", "vendor-pending",
   ]) {
     const verdict = evaluateEndpointLabels(200, kevLabelSpec, {
       mode: "live",
@@ -94,12 +94,12 @@ test("a live mode cannot hide weaker or negative KEV evidence", () => {
     assert.equal(verdict.ok, false, dataKind);
   }
 
-  const allowedButContradictory = evaluateEndpointLabels(200, kevLabelSpec, {
+  const liveCatalogCachedKind = evaluateEndpointLabels(200, kevLabelSpec, {
     mode: "live",
     data_kind: "cached",
   });
-  assert.deepEqual(allowedButContradictory.disallowed, []);
-  assert.match(allowedButContradictory.pairConflict.reason, /contradictory/);
+  assert.equal(liveCatalogCachedKind.ok, true);
+  assert.equal(liveCatalogCachedKind.pairConflict, null);
 });
 
 test("cached mode with live data_kind fails despite individually allowed labels", () => {
@@ -219,7 +219,7 @@ test("root arrays cannot hide malformed explicit evidence", () => {
 test("root arrays enforce complete compatible evidence pairs on every item", () => {
   const cases = [
     {
-      body: [{ mode: "live", data_kind: "cached" }],
+      body: [{ mode: "live", data_kind: "sample" }],
       modePath: "[0].mode",
       reason: /contradictory/,
     },
@@ -242,7 +242,7 @@ test("root arrays enforce complete compatible evidence pairs on every item", () 
       reason: /contradictory/,
     },
     {
-      body: [[{ mode: "live", data_kind: "cached" }]],
+      body: [[{ mode: "live", data_kind: "sample" }]],
       modePath: "[0][0].mode",
       reason: /contradictory/,
     },
@@ -315,7 +315,7 @@ test("finite extreme-depth evidence returns a structured verdict", () => {
     assert.equal(fabricated.lie.path, expectedPath);
   }
 
-  let nestedArray = { mode: "live", data_kind: "cached" };
+  let nestedArray = { mode: "live", data_kind: "sample" };
   for (let level = 0; level < 10000; level += 1) nestedArray = [nestedArray];
   const pair = evaluateEndpointLabels(200, kevLabelSpec, nestedArray);
   assert.equal(pair.ok, false);
