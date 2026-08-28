@@ -58,6 +58,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tier_counts.LOCKED-PROVEN=25` of 144 stays a catalog tag, labelled
   genome, never the kernel chip, never green. Lean-8 ≠ genome-144. The
   8 and the 25 are unchanged.
+- Trust `#cnt-locked` and home `#pt-locked` bind
+  `GET /api/a11oy/v1/honest` `locked_formula_count` only. Genome
+  `tier_counts.LOCKED-PROVEN` stays a gray catalog tag (`#cnt-genome-locked` /
+  `#pt-genome-locked`), never the kernel chip, never green. Λ stays
+  Conjecture 1. No `/investor` stub.
 - HEAD 405 is the app (`Server: szl`), including on
   `szlholdings-a11oy.hf.space`. `/sitemap.xml` now accepts HEAD.
   OPTIONS `/` and `/console` send `Allow` and `Access-Control-Allow-Methods`.

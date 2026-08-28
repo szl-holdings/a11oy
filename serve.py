@@ -12767,7 +12767,9 @@ async def proof_replay_page() -> Response:
 
 
 # /trust — Trust Center + Verify Surface (KANCHAY). web/trust.html is self-contained:
-# the four honesty tiers with LIVE counts from /api/a11oy/v1/genome, the locked-8 with
+# kernel locked-proven chip from /api/a11oy/v1/honest locked_formula_count (Lean-8);
+# genome catalog tiers (including LOCKED-PROVEN tag, never green, never the kernel)
+# from /api/a11oy/v1/genome. Locked-8 rows with
 # TRUTHFUL labels (F18=Reed-Solomon parity NOT "DSSE seal", F19=Bekenstein additive, etc.)
 # + real lean_ref, the SEMANTIC-VERIFIED theorems, Theorem U (PROVEN conditional, teal) vs
 # Conjecture 1 (Λ-uniqueness, OPEN, gray — NEVER green), SLSA L1 only; L2/L3 unavailable

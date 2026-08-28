@@ -449,6 +449,10 @@ def test_overview_splits_kernel_locked_from_genome_catalog():
     assert overview["genome_count"] == 144
 
 
+def _script_bodies(html: str) -> str:
+    return "\n".join(re.findall(r"<script\b[^>]*>(.*?)</script>", html, flags=re.I | re.S))
+
+
 def test_ui_does_not_bind_kernel_locked_proven_to_genome_tier():
     """Kernel chips (#cnt-locked, #pt-locked, locked-8 rows, publications) must
     not read genome.tier_counts.LOCKED-PROVEN. Catalog may still name that tag.
@@ -457,20 +461,29 @@ def test_ui_does_not_bind_kernel_locked_proven_to_genome_tier():
     landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
     console = (ROOT / "pages" / "console.html").read_text(encoding="utf-8")
     formulas = (ROOT / "a11oy_formulas_page.py").read_text(encoding="utf-8")
+    trust_js = _script_bodies(trust)
+    landing_js = _script_bodies(landing)
 
     assert "/api/a11oy/v1/honest" in trust
-    assert "locked_formula_count" in trust
-    assert "$('cnt-locked').firstChild.nodeValue=(tc['LOCKED-PROVEN']??'N/A')" not in trust
-    assert "if(e.tag!=='LOCKED-PROVEN')continue" not in trust
+    assert "kernelFromHonest" in trust_js
+    assert "locked_formula_count" in trust_js
+    assert "$('cnt-locked').firstChild.nodeValue=(tc['LOCKED-PROVEN']??'N/A')" not in trust_js
+    assert "if(e.tag!=='LOCKED-PROVEN')continue" not in trust_js
+    assert "cnt-genome-locked" in trust
+    assert re.search(
+        r"\$\(\s*['\"]cnt-locked['\"]\s*\)[^;]*tc\s*\[\s*['\"]LOCKED-PROVEN",
+        trust_js,
+    ) is None
 
-    assert "loadKernelLocked" in landing
-    assert 'getJSON("/api/a11oy/v1/honest")' in landing
-    assert 'locked: tc["LOCKED-PROVEN"]' not in landing
-    assert "locked: tc['LOCKED-PROVEN']" not in landing
-    set_tiers = re.search(r"function setTiers\(t\)\{.*?\n  \}", landing, re.S)
+    assert "loadKernelLocked" in landing_js
+    assert 'getJSON("/api/a11oy/v1/honest")' in landing_js
+    assert 'locked: tc["LOCKED-PROVEN"]' not in landing_js
+    assert "locked: tc['LOCKED-PROVEN']" not in landing_js
+    set_tiers = re.search(r"function setTiers\(t\)\{.*?\n  \}", landing_js, re.S)
     assert set_tiers, "setTiers missing"
-    assert '$("pt-locked")' not in set_tiers.group(0)
-    assert "$('pt-locked')" not in set_tiers.group(0)
+    assert "pt-locked" not in set_tiers.group(0)
+    assert "t.locked" not in set_tiers.group(0)
+    assert "pt-genome-locked" in landing
 
     pubs = console[console.find("async function renderPublications"):]
     pubs = pubs[: pubs.find("c.innerHTML=h")]
@@ -480,6 +493,43 @@ def test_ui_does_not_bind_kernel_locked_proven_to_genome_tier():
     assert "genome LOCKED-PROVEN" in formulas
     assert "lp + ' locked-proven'" not in formulas
     assert "gt.className = 'badge ok'" not in formulas
+
+
+def test_served_home_and_trust_bind_kernel_chip_from_honest():
+    """S7: live `/` is _front_door → a11oy_landing.html; `/trust` is web/trust.html."""
+    from starlette.testclient import TestClient
+
+    import serve
+
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    home = client.get("/").text
+    trust = client.get("/trust").text
+    furniture = "a11oy.com"
+
+    assert 'id="pt-locked"' in home
+    assert "loadKernelLocked" in home
+    assert "/api/a11oy/v1/honest" in home
+    assert 'id="pt-genome-locked"' in home
+    home_js = _script_bodies(home)
+    set_tiers = re.search(r"function setTiers\(t\)\{.*?\n  \}", home_js, re.S)
+    assert set_tiers, "served home missing setTiers"
+    assert "pt-locked" not in set_tiers.group(0)
+    assert "Conjecture" in home
+    assert furniture not in home.replace("a-11-oy.com", "")
+
+    assert 'id="cnt-locked"' in trust
+    assert "kernelFromHonest" in trust
+    assert "/api/a11oy/v1/honest" in trust
+    assert 'id="cnt-genome-locked"' in trust
+    assert "$('cnt-locked').firstChild.nodeValue=(tc['LOCKED-PROVEN']??'N/A')" not in trust
+    assert "Conjecture 1" in trust
+    assert "never green" in trust.lower()
+    assert furniture not in trust.replace("a-11-oy.com", "")
+
+    paths = {getattr(route, "path", None) for route in serve.app.router.routes}
+    assert "/investor" not in paths
+    assert "/investor/" not in paths
+
 
 
 def test_ayni_lock_does_not_drift():

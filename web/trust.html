@@ -97,6 +97,9 @@ h3{font-family:var(--sans);font-weight:600;font-size:18px;letter-spacing:-.01em;
 .tier.semantic{--c:var(--lattice)}
 .tier.evidence{--c:var(--gold)}
 .tier.conjecture{--c:var(--gray)}  /* gray — never green */
+/* Genome catalog tag LOCKED-PROVEN (25 of 144) is not the kernel chip and is never green. */
+.genome-catalog{margin-top:18px;color:var(--gray);font-size:13.5px;line-height:1.55}
+.genome-catalog .n{font-family:var(--mono)}
 
 /* formula rows */
 .rows{margin-top:26px;border:1px solid var(--border);border-radius:13px;overflow:hidden;background:var(--panel)}
@@ -224,11 +227,10 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
     </p>
     <div class="tiers">
       <div class="tier locked">
-        <div class="cnt" id="cnt-locked">—<span class="lbl">Locked-proven</span></div>
-        <h3>LOCKED-PROVEN</h3>
-        <p>In the frozen locked-8 baseline (Wave11). Each labelled with what the Lean
-           obligation <em>actually</em> proves — conservative Nat/Int surrogates, not the
-           governance prose they motivate.</p>
+        <div class="cnt" id="cnt-locked">—<span class="lbl">Kernel · Lean-8</span></div>
+        <h3>Locked-proven · kernel</h3>
+        <p>Bound from <code>/api/a11oy/v1/honest</code> <code>locked_formula_count</code>
+           (ids F1,F4,F7,F11,F12,F18,F19,F22). Not the genome catalog tag LOCKED-PROVEN.</p>
         <span class="pill">kernel-checked</span>
       </div>
       <div class="tier semantic">
@@ -254,6 +256,10 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
         <span class="pill">open — advisory</span>
       </div>
     </div>
+    <p class="genome-catalog">Genome catalog (not the kernel):
+      LOCKED-PROVEN tag = <span class="n" id="cnt-genome-locked">—</span>
+      of <span class="n" id="cnt-genome-total">—</span> entries.
+      Never shown as Lean-8. Never green.</p>
     <p class="note" id="genome-src">Loading live counts from the genome endpoint…</p>
   </div></section>
 
@@ -420,6 +426,7 @@ function kernelFromHonest(h){
   }catch(_){
     $('d-honest').classList.add('down');
   }
+  /* Kernel chip #cnt-locked: /honest only. Never tc['LOCKED-PROVEN']. */
   $('cnt-locked').firstChild.nodeValue=(kernelCount==null)?'N/A':kernelCount;
 
   try{
@@ -429,8 +436,12 @@ function kernelFromHonest(h){
     $('cnt-evidence').firstChild.nodeValue=(tc['evidence-backed']??'N/A');
     $('cnt-conjecture').firstChild.nodeValue=(tc['CONJECTURE']??'N/A');
     const genomeLp=tc['LOCKED-PROVEN'];
+    const gLockedEl=$('cnt-genome-locked');
+    if(gLockedEl) gLockedEl.textContent=(genomeLp==null)?'N/A':genomeLp;
+    const gTotEl=$('cnt-genome-total');
+    if(gTotEl) gTotEl.textContent=(g.count==null)?'N/A':g.count;
     const naExtra=(tc['honest-N/A']!=null)?(' · '+tc['honest-N/A']+' honest-N/A'):'';
-    $('genome-src').textContent='Kernel locked-proven = '+(kernelCount??'N/A')+' from /api/a11oy/v1/honest. Genome catalog from /api/a11oy/v1/genome — '+(g.count??'?')+' entries · LOCKED-PROVEN tag = '+(genomeLp??'N/A')+' (catalog, not the kernel)'+naExtra+'. Counts are not hard-coded; this page re-reads them on every load.';
+    $('genome-src').textContent='Kernel locked-proven = '+(kernelCount??'N/A')+' from /api/a11oy/v1/honest. Genome catalog from /api/a11oy/v1/genome — '+(g.count??'?')+' entries · LOCKED-PROVEN tag = '+(genomeLp??'N/A')+' (catalog, not the kernel, never green)'+naExtra+'. Counts are not hard-coded; this page re-reads them on every load.';
     $('d-genome').classList.add('up');
 
     const allowed=new Set(kernelIds);
