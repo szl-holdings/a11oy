@@ -42,6 +42,27 @@ EXPECTED_SUCCESSOR_INPUTS = (
 )
 EXPECTED_CHANGED_PATHS = frozenset({VERIFIER_PATH, CONTRACT_TEST_PATH})
 DOCKERIGNORE_LINE = b'    ".dockerignore",\n'
+DOCKERFILE_PATH = "Dockerfile"
+SECURITY_TXT_PATH = ".well-known/security.txt"
+PINNED_COPY_SOURCES = (
+    "static/shared/szl_command_bar.js",
+    "static/shared/szl_command_bar.css",
+)
+PINNED_COPY_INSERTION = (
+    b" static/shared/szl_command_bar.js static/shared/szl_command_bar.css"
+)
+SHARED_COPY_DESTINATION = b" ./static/shared/\n"
+BASE_SHARED_COPY_LINE = (
+    b"COPY static/shared/szl_label_engine.js "
+    b"static/shared/szl_receipt_cosign.js "
+    b"static/shared/szl_codename_sanitizer.js "
+    b"static/shared/szl_holo3d.js" + SHARED_COPY_DESTINATION
+)
+HEAD_SHARED_COPY_LINE = (
+    BASE_SHARED_COPY_LINE[: -len(SHARED_COPY_DESTINATION)]
+    + PINNED_COPY_INSERTION
+    + SHARED_COPY_DESTINATION
+)
 REQUIRED_TEST_METHODS = frozenset(
     {
         "clean_candidate_report",
@@ -329,6 +350,269 @@ def validate_contract_successor(
     }
 
 
+def validate_dockerfile_copy_transition(
+    base_source: bytes,
+    head_source: bytes,
+) -> dict[str, Any]:
+    """Admit exactly ÑAWI's shared COPY-line insertion; reject every other edit."""
+
+    if base_source.count(BASE_SHARED_COPY_LINE) != 1:
+        raise AdmissionError(
+            "protected-base Dockerfile does not contain exactly one pinned "
+            "shared COPY line"
+        )
+    if PINNED_COPY_INSERTION in base_source:
+        raise AdmissionError(
+            "protected-base Dockerfile already contains the pinned COPY tokens"
+        )
+    if head_source.count(HEAD_SHARED_COPY_LINE) != 1:
+        raise AdmissionError(
+            "candidate Dockerfile must contain exactly one shared COPY line "
+            "with static/shared/szl_command_bar.js and szl_command_bar.css"
+        )
+    if head_source.replace(HEAD_SHARED_COPY_LINE, BASE_SHARED_COPY_LINE, 1) != (
+        base_source
+    ):
+        raise AdmissionError(
+            "candidate Dockerfile contains changes beyond the pinned "
+            "szl_command_bar shared COPY insertion"
+        )
+    return {
+        "base_sha256": hashlib.sha256(base_source).hexdigest(),
+        "head_sha256": hashlib.sha256(head_source).hexdigest(),
+        "base_blob": git_blob_oid(base_source),
+        "head_blob": git_blob_oid(head_source),
+        "delta": "exact-shared-copy-insertion",
+        "copy_sources": list(PINNED_COPY_SOURCES),
+    }
+
+
+def dockerfile_copy_pin_applicable(base_source: bytes) -> bool:
+    """True only while protected base still lacks the two COPY tokens."""
+
+    return (
+        PINNED_COPY_INSERTION not in base_source
+        and base_source.count(BASE_SHARED_COPY_LINE) == 1
+    )
+
+
+def validate_dockerfile_copy_pin(
+    *,
+    base_tree: dict[str, str],
+    head_tree: dict[str, str],
+    base_source: bytes,
+    head_source: bytes,
+    copy_sources: dict[str, bytes],
+) -> dict[str, Any]:
+    """Bind the Dockerfile pin and require the two COPY sources as new blobs."""
+
+    validate_base_controlled_inputs(base_tree, head_tree)
+    base_dockerfile = _require_blob(
+        base_tree, DOCKERFILE_PATH, revision="base"
+    )
+    head_dockerfile = _require_blob(
+        head_tree, DOCKERFILE_PATH, revision="candidate"
+    )
+    if head_dockerfile == base_dockerfile:
+        raise AdmissionError(
+            "Dockerfile COPY pin requires a Dockerfile blob change"
+        )
+    for path in (SECURITY_TXT_PATH, VERIFIER_PATH):
+        base_sha = _require_blob(base_tree, path, revision="base")
+        head_sha = _require_blob(head_tree, path, revision="candidate")
+        if head_sha != base_sha:
+            raise AdmissionError(
+                f"Dockerfile COPY pin cannot change protected input {path!r}"
+            )
+
+    require_bound_blob(
+        base_tree,
+        DOCKERFILE_PATH,
+        base_source,
+        revision="base",
+    )
+    require_bound_blob(
+        head_tree,
+        DOCKERFILE_PATH,
+        head_source,
+        revision="candidate",
+    )
+    transition = validate_dockerfile_copy_transition(base_source, head_source)
+
+    bound_sources: dict[str, str] = {}
+    if set(copy_sources) != set(PINNED_COPY_SOURCES):
+        raise AdmissionError(
+            "Dockerfile COPY pin must bind exactly the two command-bar sources"
+        )
+    for path in PINNED_COPY_SOURCES:
+        if path in base_tree:
+            raise AdmissionError(
+                f"pinned COPY source must be a new candidate file: {path!r}"
+            )
+        bound_sources[path] = require_bound_blob(
+            head_tree,
+            path,
+            copy_sources[path],
+            revision="candidate",
+        )
+    return {
+        "schema": REPORT_SCHEMA,
+        "status": "dockerfile-copy-pin-validated",
+        "dockerfile": transition,
+        "copy_sources": bound_sources,
+    }
+
+
+def validate_dockerfile_copy_candidate_report(
+    report: object,
+    *,
+    verifier: ModuleType,
+    base_ref: str,
+    github_repo: str,
+    github_ref: str,
+    hf_repo: str,
+    hf_ref: str,
+    base_tree: dict[str, str],
+    head_tree: dict[str, str],
+    expected_files_compared: int,
+) -> list[str]:
+    """Admit pinned missing-hf COPY additions plus ordinary review-bound drift."""
+
+    if not isinstance(report, dict):
+        raise AdmissionError("candidate comparator report must be an object")
+    if base_ref == github_ref:
+        raise AdmissionError(
+            "candidate head must be a strict descendant of the reviewed "
+            "protected base"
+        )
+    if type(report.get("schema")) is not int or report["schema"] != REPORT_SCHEMA:
+        raise AdmissionError(
+            f"candidate comparator schema must be the exact integer {REPORT_SCHEMA}"
+        )
+    if (
+        report.get("github_repo") != github_repo
+        or report.get("hf_repo") != hf_repo
+    ):
+        raise AdmissionError(
+            "candidate comparator report is not bound to the admitted repositories"
+        )
+    for counter in ("error_count", "warn_count", "files_compared"):
+        if type(report.get(counter)) is not int:
+            raise AdmissionError(
+                f"candidate comparator {counter} must be an exact integer"
+            )
+    if report.get("github_ref") != github_ref or report.get("hf_ref") != hf_ref:
+        raise AdmissionError(
+            "candidate comparator report is not bound to the admitted "
+            "immutable revisions"
+        )
+    expected_head_files = expected_files_compared + len(PINNED_COPY_SOURCES)
+    if report["files_compared"] != expected_head_files:
+        raise AdmissionError(
+            "Dockerfile COPY pin managed-file count must be protected base "
+            f"plus {len(PINNED_COPY_SOURCES)}: expected {expected_head_files}, "
+            f"received {report['files_compared']}"
+        )
+
+    findings = report.get("findings")
+    if not isinstance(findings, list) or not all(
+        isinstance(finding, dict) for finding in findings
+    ):
+        raise AdmissionError("candidate comparator findings must be an object array")
+
+    warnings = [finding for finding in findings if finding.get("severity") == "warn"]
+    errors = [finding for finding in findings if finding.get("severity") == "error"]
+    if len(warnings) != 1:
+        raise AdmissionError(
+            "candidate comparator must contain one guarded compatibility warning"
+        )
+    normalized_warning = {
+        key: warnings[0].get(key) for key in ("kind", "path", "severity")
+    }
+    if normalized_warning != verifier.EXPECTED_COMPATIBILITY_WARNING:
+        raise AdmissionError(
+            f"unexpected candidate comparator warning: {normalized_warning!r}"
+        )
+    if report["warn_count"] != 1 or report["error_count"] != len(errors):
+        raise AdmissionError("candidate comparator counters do not match its findings")
+    if len(findings) != len(warnings) + len(errors):
+        raise AdmissionError("candidate comparator contains an untyped finding")
+    if report.get("status") != "drift" or not errors:
+        raise AdmissionError(
+            "Dockerfile COPY pin comparator status must be 'drift' with errors"
+        )
+
+    reviewed_paths = {
+        path
+        for path in set(base_tree) | set(head_tree)
+        if base_tree.get(path) != head_tree.get(path)
+    }
+    pinned_missing: list[str] = []
+    admitted: list[str] = []
+    for finding in errors:
+        path = finding.get("path")
+        if (
+            finding.get("kind") == "missing-hf"
+            and finding.get("ahead") == "github"
+            and isinstance(path, str)
+            and path in PINNED_COPY_SOURCES
+        ):
+            if path in base_tree or path not in head_tree:
+                raise AdmissionError(
+                    f"pinned COPY source is not a new candidate blob: {path!r}"
+                )
+            github_sha = finding.get("github_sha")
+            if github_sha is not None and github_sha != head_tree[path]:
+                raise AdmissionError(
+                    "pinned COPY source github_sha is not bound to the "
+                    f"candidate tree: {path!r}"
+                )
+            if finding.get("hf_oid") not in (None, ""):
+                raise AdmissionError(
+                    f"pinned COPY source is not missing on Hugging Face: {path!r}"
+                )
+            pinned_missing.append(path)
+            continue
+        ahead = finding.get("ahead")
+        if (
+            finding.get("kind") != "drift"
+            or not isinstance(ahead, str)
+            or ahead not in verifier.CANDIDATE_AHEAD_VALUES
+            or finding.get("lineage_conflict") is not False
+            or not isinstance(path, str)
+        ):
+            raise AdmissionError(
+                f"unexplained candidate comparator finding: {finding!r}"
+            )
+        if (
+            path not in reviewed_paths
+            or path not in base_tree
+            or path not in head_tree
+            or path == DOCKERFILE_PATH
+            or path in PINNED_COPY_SOURCES
+        ):
+            raise AdmissionError(
+                f"candidate drift is not an exact reviewed byte modification: {path!r}"
+            )
+        if (
+            finding.get("github_sha") != head_tree[path]
+            or finding.get("hf_oid") != base_tree[path]
+        ):
+            raise AdmissionError(
+                f"candidate drift hashes are not bound to the reviewed trees: {path!r}"
+            )
+        admitted.append(path)
+
+    if sorted(pinned_missing) != sorted(PINNED_COPY_SOURCES):
+        raise AdmissionError(
+            "Dockerfile COPY pin must report missing-hf for exactly "
+            f"{list(PINNED_COPY_SOURCES)!r}; received {sorted(pinned_missing)!r}"
+        )
+    if len(admitted) != len(set(admitted)):
+        raise AdmissionError("candidate comparator repeated a drift path")
+    return sorted(admitted)
+
+
 def read_github_file(
     verifier: ModuleType,
     *,
@@ -514,6 +798,138 @@ def prove_contract_successor(
     return semantic
 
 
+def prove_dockerfile_copy_pin(
+    verifier: ModuleType,
+    *,
+    tools_script: Path,
+    github_repo: str,
+    base_ref: str,
+    github_ref: str,
+    hf_repo: str,
+    base_tree: dict[str, str],
+    head_tree: dict[str, str],
+) -> dict[str, Any]:
+    base_source = read_bound_github_file(
+        verifier,
+        tree=base_tree,
+        github_repo=github_repo,
+        github_ref=base_ref,
+        path=DOCKERFILE_PATH,
+        revision="base",
+    )
+    head_source = read_bound_github_file(
+        verifier,
+        tree=head_tree,
+        github_repo=github_repo,
+        github_ref=github_ref,
+        path=DOCKERFILE_PATH,
+        revision="candidate",
+    )
+    copy_sources = {
+        path: read_bound_github_file(
+            verifier,
+            tree=head_tree,
+            github_repo=github_repo,
+            github_ref=github_ref,
+            path=path,
+            revision="candidate",
+        )
+        for path in PINNED_COPY_SOURCES
+    }
+    semantic = validate_dockerfile_copy_pin(
+        base_tree=base_tree,
+        head_tree=head_tree,
+        base_source=base_source,
+        head_source=head_source,
+        copy_sources=copy_sources,
+    )
+
+    hf_ref = verifier.resolve_stable_revision(hf_repo)
+    with tempfile.TemporaryDirectory() as temporary:
+        temporary_path = Path(temporary)
+        base_report = run_strict_comparator(
+            verifier,
+            tools_script=tools_script,
+            github_repo=github_repo,
+            github_ref=base_ref,
+            hf_repo=hf_repo,
+            hf_ref=hf_ref,
+            report_path=temporary_path / "base.json",
+        )
+        candidate_report_path = temporary_path / "head.json"
+        candidate_run = verifier.run_comparator(
+            tools_script=tools_script,
+            github_repo=github_repo,
+            github_ref=github_ref,
+            hf_repo=hf_repo,
+            hf_ref=hf_ref,
+            report_out=candidate_report_path,
+            capture=True,
+        )
+        try:
+            head_report = json.loads(candidate_report_path.read_text(encoding="utf-8"))
+            admitted = validate_dockerfile_copy_candidate_report(
+                head_report,
+                verifier=verifier,
+                base_ref=base_ref,
+                github_repo=github_repo,
+                github_ref=github_ref,
+                hf_repo=hf_repo,
+                hf_ref=hf_ref,
+                base_tree=base_tree,
+                head_tree=head_tree,
+                expected_files_compared=base_report["files_compared"],
+            )
+        except (OSError, json.JSONDecodeError, AdmissionError) as exc:
+            if candidate_run.stdout:
+                print(candidate_run.stdout, file=sys.stderr)
+            if isinstance(exc, AdmissionError):
+                raise
+            raise AdmissionError(
+                f"Dockerfile COPY pin comparator report is invalid: {exc}"
+            ) from exc
+    if candidate_run.returncode != 1:
+        raise AdmissionError(
+            "Dockerfile COPY pin comparator exit/report mismatch: "
+            f"expected 1, received {candidate_run.returncode}"
+        )
+
+    base_dot = verifier.verify_leading_dot_copy(
+        github_repo=github_repo,
+        github_ref=base_ref,
+        hf_repo=hf_repo,
+        hf_ref=hf_ref,
+    )
+    head_dot = verifier.verify_leading_dot_copy(
+        github_repo=github_repo,
+        github_ref=github_ref,
+        hf_repo=hf_repo,
+        hf_ref=hf_ref,
+    )
+    if base_dot != head_dot:
+        raise AdmissionError(
+            "Dockerfile COPY pin changed the guarded dot-prefixed source"
+        )
+
+    semantic.update(
+        {
+            "base_ref": base_ref,
+            "github_ref": github_ref,
+            "github_repo": github_repo,
+            "hf_ref": hf_ref,
+            "hf_repo": hf_repo,
+            "files_compared": head_report["files_compared"],
+            "base_files_compared": base_report["files_compared"],
+            "review_bound_drift_paths": admitted,
+            "pinned_copy_sources": list(PINNED_COPY_SOURCES),
+            "leading_dot_sha256": base_dot,
+            "proof_status": "base-controlled-dockerfile-copy-pin",
+            "admission_status": "ok",
+        }
+    )
+    return semantic
+
+
 def delegate_ordinary_candidate(
     verifier: ModuleType,
     *,
@@ -601,7 +1017,59 @@ def _execute(args: argparse.Namespace) -> int:
     )
     validate_base_controlled_inputs(base_tree, head_tree)
 
-    if base_tree.get(VERIFIER_PATH) == head_tree.get(VERIFIER_PATH):
+    verifier_unchanged = base_tree.get(VERIFIER_PATH) == head_tree.get(
+        VERIFIER_PATH
+    )
+    dockerfile_changed = base_tree.get(DOCKERFILE_PATH) != head_tree.get(
+        DOCKERFILE_PATH
+    )
+    if verifier_unchanged and dockerfile_changed:
+        base_dockerfile = read_bound_github_file(
+            verifier,
+            tree=base_tree,
+            github_repo=args.github_repo,
+            github_ref=args.base_ref,
+            path=DOCKERFILE_PATH,
+            revision="base",
+        )
+        if dockerfile_copy_pin_applicable(base_dockerfile):
+            report = prove_dockerfile_copy_pin(
+                verifier,
+                tools_script=args.tools_script,
+                github_repo=args.github_repo,
+                base_ref=args.base_ref,
+                github_ref=args.github_ref,
+                hf_repo=args.hf_repo,
+                base_tree=base_tree,
+                head_tree=head_tree,
+            )
+            args.report_out.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            print(
+                "HF Dockerfile COPY pin admitted: "
+                f"base={args.base_ref} head={args.github_ref} "
+                f"hf={report['hf_ref']} "
+                f"copy_sources={len(PINNED_COPY_SOURCES)} "
+                f"review_bound={len(report['review_bound_drift_paths'])}"
+            )
+            for path in PINNED_COPY_SOURCES:
+                print(f"::notice title=Pinned HF Dockerfile COPY source::{path}")
+            for path in report["review_bound_drift_paths"]:
+                print(f"::notice title=Review-bound HF candidate drift::{path}")
+            return 0
+        return delegate_ordinary_candidate(
+            verifier,
+            tools_script=args.tools_script,
+            github_repo=args.github_repo,
+            base_ref=args.base_ref,
+            github_ref=args.github_ref,
+            hf_repo=args.hf_repo,
+            report_out=args.report_out,
+        )
+
+    if verifier_unchanged:
         return delegate_ordinary_candidate(
             verifier,
             tools_script=args.tools_script,

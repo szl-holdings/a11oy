@@ -52,6 +52,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added mobile overflow, touch-target, and narrow-viewport handling to Hatun and
   Immune.
 
+### Changed - HF Dockerfile COPY pin
+- Stacked successor for PR 1396: this PR lands first on protected `main` with
+  the shared COPY line tokens `static/shared/szl_command_bar.js` and
+  `static/shared/szl_command_bar.css` (byte-identical to 1396 head `41443b93`)
+  plus the protected-base admission pin for that insertion. ÑAWI keeps chrome
+  (`pages/console.html`, serve allowlist, lockstep extra_mirror). After merge,
+  1396 rebases with no Dockerfile delta. Ordinary candidates still fail closed
+  on any other Dockerfile SHA change. The pin applies only while protected
+  base still lacks those two tokens; once they are on `main` it does not
+  intercept later Dockerfile edits. This PR's own Immutable HF repository byte
+  parity is named-RED (baseline controller is unchanged; candidate changes
+  that controller and Dockerfile). That RED is the gate, not a skip. PR 1363
+  remains HOLD.
+
 ## [1.1.0] — 2026-07-13
 
 Release record of the capabilities shipped by the post-1.0.0 "waves" of work.
