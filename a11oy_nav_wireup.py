@@ -311,6 +311,61 @@ _WEB_DIR = "/app/web"
 _RESTRAINT_HTML = "restraint.html"
 
 
+
+_PAGES_DIR = "/app/pages"
+_WEB_DIR_ALIASES = "/app/web"
+
+# Live 2026-08-28 probes on a-11-oy.com: /mesh /evidence /router /arena were HTTP 404.
+# pages/mesh.html ships in the image (COPY pages/ ./pages/) but had no route.
+# /trust, /console already 200. Additive FileResponse / RedirectResponse, same
+# pattern as /restraint-bench. Idempotent.
+_PUBLIC_PAGE_ALIASES = (
+    ("/mesh", "mesh.html", "pages", "/console"),
+    ("/evidence", None, "redirect", "/trust"),
+    ("/arena", None, "redirect", "/console"),
+    ("/router", None, "redirect", "/console"),
+)
+
+
+def _register_public_page_aliases(app) -> List[str]:
+    """Restore public tabs that 404ed while their documents already exist in the image."""
+    out: List[str] = []
+    import os
+    from starlette.responses import FileResponse, RedirectResponse
+
+    try:
+        existing = {getattr(r, "path", None) for r in getattr(app, "routes", [])}
+    except Exception:
+        existing = set()
+
+    for path, filename, kind, fallback in _PUBLIC_PAGE_ALIASES:
+        if path in existing:
+            out.append("%s already registered (skipped)" % path)
+            continue
+
+        def _make(path=path, filename=filename, kind=kind, fallback=fallback):
+            async def _handler(request):
+                if kind == "redirect" or not filename:
+                    return RedirectResponse(url=fallback, status_code=302)
+                fp = os.path.join(_PAGES_DIR if kind == "pages" else _WEB_DIR_ALIASES, filename)
+                if os.path.isfile(fp):
+                    return FileResponse(fp, media_type="text/html")
+                return RedirectResponse(url=fallback, status_code=302)
+            _handler.__name__ = "alias_" + path.strip("/").replace("/", "_")
+            return _handler
+
+        handler = _make()
+        try:
+            from starlette.routing import Route
+            app.router.routes.insert(0, Route(path, handler, methods=["GET"]))
+            out.append("GET %s (%s)" % (path, kind))
+        except Exception:
+            app.add_api_route(path, handler, methods=["GET"])
+            out.append("GET %s (api_route)" % path)
+        existing.add(path)
+    return out
+
+
 def _register_restraint_bench(app) -> List[str]:
     """Register a REAL /restraint-bench route serving the Restraint page (which
     hosts the frugality content + the two-arm benchmark, id="bench") directly via
@@ -349,6 +404,10 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
     registered: List[str] = []
     try:
         registered.extend(_register_restraint_bench(app))
+    except Exception:
+        pass
+    try:
+        registered.extend(_register_public_page_aliases(app))
     except Exception:
         pass
     app.add_middleware(_make_injector())
