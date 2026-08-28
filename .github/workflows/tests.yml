@@ -242,6 +242,10 @@ jobs:
           tests/test_demo_critical_routes.py
           tests/test_frontier_now_control_plane.py
           tests/test_holographic_static_route_runtime.py
+          tests/test_khipu_gguf_voter.py
+          tests/test_khipu_chat_proxy.py
+          tests/test_khipu_console_panel.py
+          tests/test_v4_agent_voters.py
           -q
 
   python-energy-autostart-readyz:

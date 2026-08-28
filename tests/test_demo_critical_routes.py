@@ -69,6 +69,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/models/estate",             # Wave-26 fail-closed live HF estate merge
     "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
     "/frontier-now",                           # responsive Frontier Now PAGE
+    "/api/a11oy/v1/khipu/status",              # live CPU-lab pin + READY/FAILED (no sign on GET)
+    "/api/a11oy/v1/khipu/chat",                # same-origin Try Khipu proxy (max_tokens<=32)
 ]
 
 

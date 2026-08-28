@@ -8,13 +8,14 @@ a11oy_v4_agent.py — ADDITIVE FastAPI module: multi-LLM ensemble for a11oy.
 
 Registers three routes BEFORE the generic /api/a11oy/{path:path} proxy:
 
-  GET  /agent                         — operator UI (13 voter checkboxes)
-  GET  /api/a11oy/v4/agent/voters     — JSON list of all 13 voters + status
+  GET  /agent                         — operator UI (voter checkboxes)
+  GET  /api/a11oy/v4/agent/voters     — JSON list of voters + status
   POST /api/a11oy/v4/agent/ask        — fan-out to selected voters + Λ-aggregate
 
 ARCHITECTURE
-  - 13 voters: 4 existing + 9 new (feat/llm-roster-expansion-9-voters)
-  - Sovereign-default: qwen-local is ALWAYS included, never gated
+  - 14 voters: khipu-gguf sovereign + qwen-local floor + 3 HF cloud + 9 roster
+  - Sovereign-default: khipu-gguf (pinned SZL-Khipu GGUF CPU lab) is ALWAYS included
+  - Llama / Mistral / Qwen HF voters are optional cloud, not the sovereign path
   - Cloud voters: OFF by default; activate via voters list + env var
   - Missing env var → {status: "unavailable", reason: "token_not_present"}
   - Λ-aggregator: UNCHANGED (Conjecture 1, 163 sorries, variance-weighted)
@@ -55,6 +56,7 @@ try:
         get_all_voters,
         get_voter,
         resolve_voters,
+        SOVEREIGN_VOTER_ID,
         VOTER_COUNT,
         VOTER_INPUT_SCHEMA,
         VOTER_OUTPUT_SCHEMA,
@@ -69,6 +71,7 @@ except ImportError:
     get_all_voters = _mod.get_all_voters
     get_voter = _mod.get_voter
     resolve_voters = _mod.resolve_voters
+    SOVEREIGN_VOTER_ID = getattr(_mod, "SOVEREIGN_VOTER_ID", "khipu-gguf")
     VOTER_COUNT = _mod.VOTER_COUNT
     VOTER_INPUT_SCHEMA = _mod.VOTER_INPUT_SCHEMA
     VOTER_OUTPUT_SCHEMA = _mod.VOTER_OUTPUT_SCHEMA
@@ -88,7 +91,7 @@ try:
 except Exception:
     _khipu = None  # type: ignore
 
-__version__ = "v4.1.0-13-voters"
+__version__ = "v4.2.0-khipu-gguf"
 
 # ---------------------------------------------------------------------------
 # Λ-aggregator  (UNCHANGED — Conjecture 1, variance-weighted, 163 sorries)
@@ -193,7 +196,7 @@ class AgentAskRequest(BaseModel):
         None,
         description=(
             "Explicit list of voter IDs to activate. "
-            "qwen-local (sovereign-default) is ALWAYS included. "
+            "khipu-gguf (sovereign-default) is ALWAYS included. "
             "Cloud voters only run when their env var is also present."
         ),
     )
@@ -208,7 +211,7 @@ class AgentAskRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 def _build_agent_html() -> str:
-    """Build the /agent HTML page with 13 voter checkboxes."""
+    """Build the /agent HTML page with voter checkboxes."""
     voters = get_all_voters()
 
     rows = ""
@@ -219,7 +222,7 @@ def _build_agent_html() -> str:
         status_cls = "available" if avail else "unavailable"
         bfcl = f" · BFCL {v.BFCL_SCORE}" if v.BFCL_SCORE else ""
         tooltip = f"{v.LICENSE} · {v.PROVIDER} · ctx {v.CONTEXT_WINDOW:,}{bfcl}"
-        is_sovereign = v.VOTER_ID == "qwen-local"
+        is_sovereign = v.VOTER_ID == SOVEREIGN_VOTER_ID
         disabled_attr = 'checked disabled title="Sovereign-default: always active"' if is_sovereign else f'title="{tooltip}"'
         rows += f"""
         <div class="voter-row {status_cls}">
@@ -233,7 +236,7 @@ def _build_agent_html() -> str:
 
     return f"""<!DOCTYPE html>
 <!-- SPDX-License-Identifier: Apache-2.0  © 2026 SZL Holdings · Signed: Yachay -->
-<!-- a11oy · Multi-LLM Ensemble Agent · 13 voters · Doctrine v11 LOCKED 749/14/163 -->
+<!-- a11oy · Multi-LLM Ensemble Agent · {VOTER_COUNT} voters · Doctrine v11 LOCKED 749/14/163 -->
 <!-- Co-Authored-By: Perplexity Computer Agent -->
 <html lang="en">
 <head>
@@ -295,13 +298,13 @@ def _build_agent_html() -> str:
 <body>
 <header>
   <h1>a11oy · Multi-LLM Ensemble Agent
-    <span class="badge">13 voters</span>
+    <span class="badge">{VOTER_COUNT} voters</span>
     <span class="badge">Λ-aggregator</span>
     <span class="badge">Doctrine v11</span>
   </h1>
   <div class="sub">
     Fan-out prompt to selected LLM voters → score across Yuyay-13 axes → Λ-aggregate → winner.
-    Sovereign-default: <strong>qwen-local</strong> always participates.
+    Sovereign-default: <strong>{SOVEREIGN_VOTER_ID}</strong> always participates.
     Cloud voters activate only when their env var is present.
   </div>
 </header>
@@ -310,7 +313,7 @@ def _build_agent_html() -> str:
   <!-- Left: voter selector + prompt -->
   <div>
     <div class="card">
-      <h2>Voters <span class="badge" style="font-size:10px">13 total</span></h2>
+      <h2>Voters <span class="badge" style="font-size:10px">{VOTER_COUNT} total</span></h2>
       <div id="voter-list">
         {rows}
       </div>
@@ -348,7 +351,7 @@ def _build_agent_html() -> str:
 
 <div class="foot">
   Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NOT a theorem; 163 sorries) ·
-  qwen-local sovereign-default · cloud voters require env var · Co-Authored-By: Perplexity Computer Agent
+  {SOVEREIGN_VOTER_ID} sovereign-default · cloud voters require env var · Co-Authored-By: Perplexity Computer Agent
 </div>
 
 <script>
@@ -363,7 +366,7 @@ async function doAsk() {{
 
   // Collect checked voters (exclude disabled sovereign)
   const cbs = document.querySelectorAll(".voter-cb:not([disabled]):checked");
-  const voters = ["qwen-local", ...Array.from(cbs).map(cb => cb.value)];
+  const voters = ["{SOVEREIGN_VOTER_ID}", ...Array.from(cbs).map(cb => cb.value)];
 
   try {{
     const res = await fetch("/api/a11oy/v4/agent/ask", {{
@@ -438,12 +441,12 @@ def _make_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 async def _handle_voters(request: Request) -> JSONResponse:
-    """GET /api/a11oy/v4/agent/voters — all 13 voters with status + metadata."""
+    """GET /api/a11oy/v4/agent/voters — all voters with status + metadata."""
     voters = get_all_voters()
     return JSONResponse({
         "count": len(voters),
         "voters": [v.metadata() for v in voters],
-        "sovereign_default": "qwen-local",
+        "sovereign_default": SOVEREIGN_VOTER_ID,
         "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163},
         "lambda_aggregator": "Conjecture 1 (NOT a theorem; 163 sorries)",
         "schema": {
@@ -505,7 +508,7 @@ async def _handle_ask(request: Request) -> JSONResponse:
         "aggregator": aggregator,
         "elapsed_ms": elapsed_ms,
         "receipt": receipt,
-        "sovereign_default": "qwen-local",
+        "sovereign_default": SOVEREIGN_VOTER_ID,
         "doctrine": {"version": "v11", "declarations": 749, "axioms": 14, "sorries": 163},
         "lambda_note": "Λ = Conjecture 1 (NOT a theorem; 163 sorries). Doctrine v11 LOCKED.",
     })
@@ -536,7 +539,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
         _handle_voters,
         methods=["GET"],
         tags=["v4-agent"],
-        summary="List all 13 LLM voters with availability status",
+        summary="List all LLM voters with availability status",
     )
     app.add_api_route(
         f"/api/{ns}/v4/agent/ask",
@@ -549,7 +552,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> str:
     available = sum(1 for v in voters if v.is_available())
     return (
         f"ok — {voter_count} voters registered ({available} available); "
-        f"sovereign-default=qwen-local; "
+        f"sovereign-default={SOVEREIGN_VOTER_ID}; "
         f"/agent + /api/{ns}/v4/agent/voters + /api/{ns}/v4/agent/ask; "
         f"version={__version__}"
     )

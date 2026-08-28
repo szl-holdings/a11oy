@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - investor-hittable Khipu CPU lab
+- Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu
+  GGUF CPU lab (`/v1/chat/completions`, max_tokens<=32, temperature=0, no
+  stream). Llama / Mistral / Qwen Hugging Face voters stay optional cloud
+  voters, not the sovereign path.
+- Same-origin `GET /api/a11oy/v1/khipu/status` and `POST /api/a11oy/v1/khipu/chat`
+  so `/console` Try Khipu can reach the lab without CORS. Dummy Bearer
+  `not-a-secret`; GET does not sign; POST passes through UNSIGNED
+  `record_sha256`. GPU Inference Endpoint remains ROADMAP; Forge lab is
+  SNAPSHOT; killinchu detector stays SIMULATED; Λ = Conjecture 1.
+
 ### Added - runtime evidence hardening
 - Added the responsive `/frontier-now` and `/now` read-only estate cockpit with
   no-store summary/inventory projections, explicit unavailable capability and
