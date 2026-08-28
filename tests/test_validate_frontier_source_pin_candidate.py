@@ -25,11 +25,115 @@ COPY_PATHS = tuple(validator.APPROVED_CANDIDATE_SHA256) + tuple(
 )
 
 
-def _copy_tree(destination: Path) -> None:
+def _copy_tree(destination: Path, *, pre_repair: bool = False) -> None:
     for relative in COPY_PATHS:
         target = destination / relative
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copyfile(ROOT / relative, target)
+    if pre_repair:
+        _seed_pre_repair(destination)
+
+
+def _seed_pre_repair(root: Path) -> None:
+    contract_path = root / validator.CONTRACT
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    assert contract["source"]["repair_oracle"]["sha256"] == (
+        validator.PROTECTED_INPUT_SHA256[validator.REPAIR_SCRIPT]
+    )
+    assert contract["source"]["regression"]["sha256"] == (
+        validator.PROTECTED_INPUT_SHA256[validator.SOURCE_TEST]
+    )
+    contract["source"]["repair_oracle"]["sha256"] = (
+        "27ee06fd37e952b27a9fa6acfe2e9b157bba65abf4db1f5bedf571de54be814f"
+    )
+    contract["source"]["regression"]["sha256"] = (
+        "4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f"
+    )
+    contract_path.write_text(
+        json.dumps(contract, indent=2) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+    for relative in (validator.SOLO_WORKFLOW, validator.BUILDER_WORKFLOW):
+        path = root / relative
+        source = path.read_text(encoding="utf-8")
+        replacements = (
+            (
+                "      CONTRACT_SHA256: "
+                + validator.APPROVED_CANDIDATE_SHA256[validator.CONTRACT],
+                "      CONTRACT_SHA256: "
+                "bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae",
+            ),
+            (
+                "      REPAIR_SCRIPT_SHA256: "
+                + validator.PROTECTED_INPUT_SHA256[validator.REPAIR_SCRIPT],
+                "$1003b709612d1d59fe0ce3b6316cd4a33273c5bd35237530c50e1f329f4ef0e59",
+            ),
+            (
+                "      SOURCE_TEST_SHA256: "
+                + validator.PROTECTED_INPUT_SHA256[validator.SOURCE_TEST],
+                "      SOURCE_TEST_SHA256: "
+                "4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f",
+            ),
+        )
+        for current, previous in replacements:
+            assert source.count(current) == 1
+            source = source.replace(current, previous, 1)
+        path.write_text(source, encoding="utf-8", newline="\n")
+
+    solo_path = root / validator.SOLO_WORKFLOW
+    solo = solo_path.read_text(encoding="utf-8")
+    approved = """            if grep -Fxq \"$test_rel\" \"$matched_changed\"; then
+              test \"$head_test_present\" -eq 1
+              if [ \"$base_test_present\" -eq 0 ] || ! cmp -s \"$work/base/$test_rel\" \"$work/head/$test_rel\"; then
+                queue_effective_changes=$((queue_effective_changes + 1))
+              fi
+            else
+              test \"$base_test_present\" -eq \"$head_test_present\"
+              if [ \"$base_test_present\" -eq 1 ] && ! cmp -s \"$work/base/$test_rel\" \"$work/head/$test_rel\"; then
+                echo \"Another queued change modified the unmanaged Frontier regression test\" >&2
+                exit 1
+              fi
+            fi
+            if [ \"$head_test_present\" -eq 1 ]; then
+              test_digest=\"$(sha256sum \"$work/head/$test_rel\" | awk '{print $1}')\"
+              test \"$test_digest\" = \"$SOURCE_TEST_SHA256\"
+            fi
+"""
+    previous = """            if grep -Fxq \"$test_rel\" \"$matched_changed\"; then
+              test \"$head_test_present\" -eq 1
+              test_digest=\"$(sha256sum \"$work/head/$test_rel\" | awk '{print $1}')\"
+              test \"$test_digest\" = \"$SOURCE_TEST_SHA256\"
+              if [ \"$base_test_present\" -eq 0 ] || ! cmp -s \"$work/base/$test_rel\" \"$work/head/$test_rel\"; then
+                queue_effective_changes=$((queue_effective_changes + 1))
+              fi
+            else
+              test \"$base_test_present\" -eq \"$head_test_present\"
+              if [ \"$base_test_present\" -eq 1 ] && ! cmp -s \"$work/base/$test_rel\" \"$work/head/$test_rel\"; then
+                echo \"Another queued change modified the unmanaged Frontier regression test\" >&2
+                exit 1
+              fi
+              if [ \"$head_test_present\" -eq 1 ]; then
+                test_digest=\"$(sha256sum \"$work/head/$test_rel\" | awk '{print $1}')\"
+              fi
+            fi
+"""
+    assert solo.count(approved) == 1
+    solo_path.write_text(
+        solo.replace(approved, previous, 1), encoding="utf-8", newline="\n"
+    )
+
+    expected = {
+        validator.SOLO_WORKFLOW: "706fba1353d402d7bc6ae3c20485b6e5ad77e46003e96992aceaad9996ac0294",
+        validator.BUILDER_WORKFLOW: "3aa55e852c343c3a34560d306836f3c2d7da3042063483772701049f02325d63",
+        validator.CONTRACT: "bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae",
+    }
+    observed = {
+        relative: validator._sha256((root / relative).read_bytes())
+        for relative in expected
+    }
+    assert observed == expected
 
 
 def _approved_candidate(candidate: Path) -> None:
@@ -127,8 +231,8 @@ def test_unchanged_guarded_files_are_not_applicable(tmp_path: Path) -> None:
 def test_exact_atomic_repair_is_admitted(tmp_path: Path) -> None:
     protected = tmp_path / "protected"
     candidate = tmp_path / "candidate"
-    _copy_tree(protected)
-    _copy_tree(candidate)
+    _copy_tree(protected, pre_repair=True)
+    _copy_tree(candidate, pre_repair=True)
     _approved_candidate(candidate)
     approved_paths = sorted(validator.APPROVED_CANDIDATE_SHA256)
     report = validator.validate(protected, candidate, approved_paths)
@@ -139,7 +243,7 @@ def test_exact_atomic_repair_is_admitted(tmp_path: Path) -> None:
 
 def test_approved_fixture_matches_full_file_digests(tmp_path: Path) -> None:
     candidate = tmp_path / "candidate"
-    _copy_tree(candidate)
+    _copy_tree(candidate, pre_repair=True)
     _approved_candidate(candidate)
     observed = {
         path: validator._sha256((candidate / path).read_bytes())
@@ -151,8 +255,8 @@ def test_approved_fixture_matches_full_file_digests(tmp_path: Path) -> None:
 def test_partial_or_tampered_repair_fails_closed(tmp_path: Path) -> None:
     protected = tmp_path / "protected"
     candidate = tmp_path / "candidate"
-    _copy_tree(protected)
-    _copy_tree(candidate)
+    _copy_tree(protected, pre_repair=True)
+    _copy_tree(candidate, pre_repair=True)
     _approved_candidate(candidate)
     (candidate / validator.CONTRACT).write_bytes(
         (protected / validator.CONTRACT).read_bytes()
@@ -164,7 +268,7 @@ def test_partial_or_tampered_repair_fails_closed(tmp_path: Path) -> None:
     else:
         raise AssertionError("partial repair was admitted")
 
-    _copy_tree(candidate)
+    _copy_tree(candidate, pre_repair=True)
     _approved_candidate(candidate)
     workflow = candidate / validator.SOLO_WORKFLOW
     workflow.write_text(
@@ -187,8 +291,8 @@ def test_partial_or_tampered_repair_fails_closed(tmp_path: Path) -> None:
 def test_extra_path_or_rename_away_fails_closed(tmp_path: Path) -> None:
     protected = tmp_path / "protected"
     candidate = tmp_path / "candidate"
-    _copy_tree(protected)
-    _copy_tree(candidate)
+    _copy_tree(protected, pre_repair=True)
+    _copy_tree(candidate, pre_repair=True)
     _approved_candidate(candidate)
     approved_paths = sorted(validator.APPROVED_CANDIDATE_SHA256)
 
