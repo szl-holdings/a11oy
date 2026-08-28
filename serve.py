@@ -12837,10 +12837,12 @@ async def pnt_nav_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
-# /elite — the landing links this as "counter-UAS". The dedicated Elite Console
-# page (web/elite_console.html) is NOT resident on the HF Docker Space, so adding
-# a Dockerfile COPY for it would fail the flagship Space build (missing COPY
-# source is a hard build error). Redirect to the REAL, working Counter-UAS page.
+# /elite — compatibility alias to the Counter-UAS page on this app. The dedicated
+# Elite Console page (web/elite_console.html) is NOT resident on the HF Docker
+# Space, so adding a Dockerfile COPY for it would fail the flagship Space build
+# (missing COPY source is a hard build error). Redirect to the REAL page.
+# killinchu inference is a different Space (runtime UNAVAILABLE as of 2026-08-28);
+# do not treat /elite as killinchu-live.
 async def _elite_redirect() -> Response:
     return _PTG_Redirect(url="/counter-uas", status_code=307)
 
@@ -12848,11 +12850,12 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
-# /killinchu — canonical path bridge. Without an explicit route this path falls
-# through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
-# bridge server-side so it works without JavaScript at every mobile viewport,
-# and preserve subpaths/query strings for direct links into the live product.
+# /killinchu — path bridge. Hub inventory page is reachable; the inference
+# Space timed out (KALLPA 2026-08-28). Do not stamp this runtime LIVE.
+# HTML /killinchu still 307s to the Space URL for deep links; treat a hang as
+# UNAVAILABLE, not a live product. Landing copy must say UNAVAILABLE.
 _KILLINCHU_CANONICAL = "https://szlholdings-killinchu.hf.space"
+_KILLINCHU_HUB = "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
 
 
 async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
@@ -12861,8 +12864,9 @@ async def _killinchu_redirect(request: Request, full_path: str = "") -> Response
     if request.url.query:
         target = f"{target}?{request.url.query}"
     response = _PTG_Redirect(url=target, status_code=307)
-    response.headers["X-SZL-Route-State"] = "CANONICAL_REDIRECT"
-    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL}/>; rel="canonical"'
+    response.headers["X-SZL-Route-State"] = "UNAVAILABLE_RUNTIME"
+    response.headers["X-SZL-Killinchu-Hub"] = _KILLINCHU_HUB
+    response.headers["Link"] = f'<{_KILLINCHU_HUB}>; rel="alternate"'
     return response
 
 
@@ -13727,7 +13731,18 @@ async def warhacker_page() -> Response:
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
-@app.get("/{full_path:path}")
+# /robots.txt is a crawler document. The SPA catch-all used to be GET-only, so
+# HEAD /robots.txt returned FastAPI 405 JSON (KALLPA 2026-08-28). FileResponse
+# already omits the body on HEAD.
+@app.api_route("/robots.txt", methods=["GET", "HEAD"])
+async def robots_txt() -> Response:
+    f = STATIC_DIR / "robots.txt"
+    if f.is_file():
+        return FileResponse(f, media_type="text/plain")
+    return Response("User-agent: *\nAllow: /\n", media_type="text/plain")
+
+
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
     if full_path.startswith("api/"):

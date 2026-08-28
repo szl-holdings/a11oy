@@ -23,6 +23,18 @@ defect (KALLPA / Stephen). Do not paper it over by pointing canonicals at
 if that would take the public origin down. See docs/runbook.md INC-05 and
 docs/SPACES_HEALTH_OPERATIONS.md (custom domain state).
 
+DX — routes, contracts, env, promote path (staging Space ≠ prod DNS):
+- Routes: product HTML and /verify live on a-11-oy.com. The lasting public
+  receipt RECORD belongs on a11oy.net. Do not merge the two origins.
+- Contracts: crawlers send HEAD. HTML documents and robots.txt must HEAD 200
+  with the same headers as GET and an empty body.
+- Env: Space runtime vars configure the app. Prod DNS is Cloudflare in front
+  of the Space. x-szl-wire-d: LIVE is DSSE Wire D provenance, not "domain LIVE".
+- Promote: hf-sync publishes GitHub main → Space SZLHOLDINGS/a11oy
+  (szlholdings-a11oy.hf.space READY). Apex a-11-oy.com is a Cloudflare A-record
+  front, not Hugging Face custom-domain READY. Do not treat Space READY as
+  prod-DNS verified.
+
 Read-path-safe: no receipt, no signing, no state. Doctrine-safe try/except
 register(app).
 """
@@ -34,7 +46,7 @@ FORBIDDEN_PUBLIC_HOST = "a11oy.com"
 
 # HTML document paths crawlers and monitors probe with HEAD. GET-only FastAPI
 # routes 405 on HEAD; /verify and /ecosystem already declare GET+HEAD and 200.
-HTML_DOCUMENT_HEAD_PATHS = ("/", "/console", "/trust", "/assurance")
+HTML_DOCUMENT_HEAD_PATHS = ("/", "/console", "/trust", "/assurance", "/robots.txt")
 
 
 def _host_without_port(host: str) -> str:

@@ -603,12 +603,17 @@ def health_summary() -> Dict[str, Any]:
             }
     except Exception:
         pass
+    ring_size = len(TRACES)
+    # Empty ring is UNAVAILABLE (process-local idle), not a measured live DAG of 0.
+    state = "UNAVAILABLE" if ring_size == 0 else "OBSERVED"
     return {
+        "state": state,
         "surfaces": per,
-        "window": f"last {len(TRACES)} traces (bounded ring, cap={TRACES.capacity})",
+        "window": f"last {ring_size} traces (bounded ring, cap={TRACES.capacity})",
         "method": "RED (Rate/Errors/Duration); p50/p95 nearest-rank from real durations",
         "generated_at": _now_iso(),
         "doctrine": dict(DOCTRINE),
+        "honesty": "empty ring is UNAVAILABLE, not invented live numbers",
     }
 
 
@@ -673,12 +678,16 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
         paths.append(path)
 
     async def _traces():  # noqa: ANN202
+        ring_size = len(TRACES)
+        state = "UNAVAILABLE" if ring_size == 0 else "OBSERVED"
         return JSONResponse({
             "ns": ns,
+            "state": state,
             "traces": recent_traces(limit=50, slowest_first=True),
             "order": "slowest-first",
-            "ring": {"size": len(TRACES), "capacity": TRACES.capacity},
+            "ring": {"size": ring_size, "capacity": TRACES.capacity},
             "pattern": "OpenTelemetry-style traces (our stdlib impl; no otel SDK dep)",
+            "honesty": "empty ring is UNAVAILABLE, not a live DAG of 0",
             "ts": _now_iso(),
             "doctrine": dict(DOCTRINE),
         }, status_code=200)

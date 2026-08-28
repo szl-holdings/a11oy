@@ -45,7 +45,7 @@ _SKIP_PARTS = {
     "live_snapshots",
 }
 _SCAN_SUFFIXES = {".html", ".htm", ".json", ".xml", ".xhtml"}
-_HTML_DOCUMENT_PATHS = ("/", "/console", "/trust", "/assurance")
+_HTML_DOCUMENT_PATHS = ("/", "/console", "/trust", "/assurance", "/robots.txt")
 
 
 def _should_scan(path: Path) -> bool:
@@ -146,7 +146,7 @@ def test_html_document_routes_declare_head(path):
     )
 
 
-@pytest.mark.parametrize("path", ("/console", "/trust", "/assurance"))
+@pytest.mark.parametrize("path", ("/console", "/trust", "/assurance", "/robots.txt"))
 def test_html_document_head_agrees_with_get(path):
     """HEAD must not 405; body empty; status matches GET when GET is 200."""
     from starlette.testclient import TestClient
@@ -176,3 +176,76 @@ def test_trust_get_body_uses_product_canonical():
     body = response.content
     assert b"https://a-11-oy.com/trust" in body
     assert _FURNITURE_HOST.encode("ascii") not in body
+    assert b"a11oy.net" in body
+    assert b"/verify" in body
+
+
+def test_verify_page_is_the_interactive_tool_not_the_registry():
+    html = (ROOT / "pages" / "verify.html").read_text(encoding="utf-8")
+    assert "a-11-oy.com" in html
+    assert "a11oy.net" in html
+    assert "RECORD" in html
+    assert _FURNITURE_HOST not in html
+
+
+def test_landing_does_not_imply_killinchu_live():
+    html = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+    card = html.split("<h3>killinchu</h3>", 1)[1].split("<div class=\"vcard\">", 1)[0]
+    assert "UNAVAILABLE" in card
+    assert "timed out" in card.lower()
+    assert "markKillinchuUnavailable" in html
+    assert 'href="/elite">killinchu' not in html
+    assert "huggingface.co/spaces/SZLHOLDINGS/killinchu" in html
+
+
+def test_killinchu_path_bridge_labels_runtime_unavailable():
+    from starlette.testclient import TestClient
+
+    import serve
+
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    response = client.get("/killinchu", follow_redirects=False)
+    assert response.status_code == 307
+    assert response.headers.get("X-SZL-Route-State") == "UNAVAILABLE_RUNTIME"
+    hub = response.headers.get("X-SZL-Killinchu-Hub") or ""
+    assert hub.startswith("https://huggingface.co/spaces/SZLHOLDINGS/killinchu")
+    link = response.headers.get("Link") or ""
+    assert "rel=\"alternate\"" in link
+    assert "rel=\"canonical\"" not in link.lower()
+
+
+def test_empty_observability_dag_is_unavailable_not_a_live_zero():
+    import a11oy_warhacker_obs as who
+    import szl_observability as obs
+
+    assert who.observability_dag_state(None) == "UNAVAILABLE"
+    assert who.observability_dag_state({"available": False, "depth": 0}) == "UNAVAILABLE"
+    assert who.observability_dag_state({"available": True, "depth": 0, "spans": []}) == "UNAVAILABLE"
+    assert who.observability_dag_state({"available": True, "depth": 3, "spans": [{}, {}, {}]}) == "OBSERVED"
+
+    ring = obs.TraceRing(capacity=8)
+    obs.TRACES = ring
+    summary = obs.health_summary()
+    assert summary["state"] == "UNAVAILABLE"
+    assert "last 0 traces" in summary["window"]
+
+
+def test_empty_compute_fabric_status_is_unavailable(monkeypatch):
+    import szl_backend_hardening as bh
+    import szl_frontier_manifest as manifest
+
+    monkeypatch.setattr(
+        bh,
+        "probe_fabric_pool",
+        lambda: {
+            "nodes": [
+                {"reachable": False, "kind": "gpu"},
+                {"reachable": False, "kind": "cpu"},
+            ],
+            "cached_at": None,
+        },
+    )
+    tile = manifest._tile_compute_fabric()
+    assert "UNAVAILABLE" in tile["status"]
+    assert "IDLE" not in tile["status"]
+    assert tile["nodes_reachable"] == 0

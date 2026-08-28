@@ -534,6 +534,10 @@ def register_provenance(app, space: str) -> dict[str, Any]:
         if ts_out:
             resp.headers["tracestate"] = ts_out
         resp.headers["x-szl-space"] = space
+        # Wire D provenance: this hop is on the DSSE/trace mesh (szl_provenance).
+        # It is NOT Hugging Face custom-domain status and NOT "a-11-oy.com LIVE".
+        # HF runtime.domains may still report a-11-oy.com PENDING while Cloudflare
+        # serves the apex. Do not read this header as domain verification.
         resp.headers["x-szl-wire-d"] = "LIVE"
         return resp
 

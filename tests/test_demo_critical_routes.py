@@ -137,6 +137,7 @@ def test_no_demo_critical_route_dropped_as_a_set():
         "/console",
         "/trust",
         "/assurance",
+        "/robots.txt",
     ),
 )
 def test_investor_facing_pages_support_get_and_head(path):

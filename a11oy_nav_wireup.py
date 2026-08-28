@@ -34,6 +34,10 @@
 #   4. Injects a small "Related surfaces" cross-link strip into the flagship ops
 #      pages so they cross-link each other.
 #
+# Product tabs are real HTTP documents or they are not listed (ROADMAP, not a
+# fake 200). FileResponse routes accept GET and HEAD so crawlers/monitors that
+# send HEAD (KALLPA 2026-08-28: /console /trust /assurance were 405) match GET.
+#
 # The console SPA source (pages/console.html) is NOT edited; the served HTML
 # response is transformed in a BaseHTTPMiddleware. All transforms are idempotent.
 #
@@ -357,11 +361,11 @@ def _register_public_page_aliases(app) -> List[str]:
         handler = _make()
         try:
             from starlette.routing import Route
-            app.router.routes.insert(0, Route(path, handler, methods=["GET"]))
-            out.append("GET %s (%s)" % (path, kind))
+            app.router.routes.insert(0, Route(path, handler, methods=["GET", "HEAD"]))
+            out.append("GET+HEAD %s (%s)" % (path, kind))
         except Exception:
-            app.add_api_route(path, handler, methods=["GET"])
-            out.append("GET %s (api_route)" % path)
+            app.add_api_route(path, handler, methods=["GET", "HEAD"])
+            out.append("GET+HEAD %s (api_route)" % path)
         existing.add(path)
     return out
 
@@ -389,11 +393,11 @@ def _register_restraint_bench(app) -> List[str]:
 
     try:
         from starlette.routing import Route
-        app.router.routes.insert(0, Route("/restraint-bench", _restraint_bench, methods=["GET"]))
-        out.append("GET /restraint-bench (FileResponse restraint.html)")
+        app.router.routes.insert(0, Route("/restraint-bench", _restraint_bench, methods=["GET", "HEAD"]))
+        out.append("GET+HEAD /restraint-bench (FileResponse restraint.html)")
     except Exception:
-        app.add_api_route("/restraint-bench", _restraint_bench, methods=["GET"])
-        out.append("GET /restraint-bench (api_route)")
+        app.add_api_route("/restraint-bench", _restraint_bench, methods=["GET", "HEAD"])
+        out.append("GET+HEAD /restraint-bench (api_route)")
     return out
 
 
@@ -488,6 +492,9 @@ if __name__ == "__main__":
     # /restraint-bench resolves (FileResponse missing in test -> redirect to /restraint)
     rb = c.get("/restraint-bench")
     assert rb.status_code == 200 and "Restraint" in rb.text, (rb.status_code, rb.text[:120])
+    rb_head = c.head("/restraint-bench")
+    assert rb_head.status_code == 200, rb_head.status_code
+    assert rb_head.content in (b"", None) or len(rb_head.content) == 0
 
     h1 = c.get("/console").text
     h2 = c.get("/console").text  # second hit must be byte-identical (idempotent)

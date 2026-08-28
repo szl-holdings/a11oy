@@ -24,6 +24,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DNS/provider defect (KALLPA / Stephen). This change does not claim the
   custom domain is verified and does not move HTML canonicals off
   `https://a-11-oy.com` to paper it over.
+- HEAD on `/robots.txt` now matches GET (HTTP 200, empty body). FastAPI
+  GET-only FileResponse / SPA catch-all had been returning JSON 405.
+- killinchu inference runtime is labelled UNAVAILABLE on the landing (Hub
+  page HTTP 200; `szlholdings-killinchu.hf.space` timed out). Do not treat
+  a11oy's defense Λ as killinchu-live.
+- Empty observability DAG (depth 0 / IDLE) and an empty compute-fabric
+  probe are labelled UNAVAILABLE. Process-local zero is not a live number.
+- Trust Center and `/verify` now say in plain language: the lasting public
+  RECORD belongs on `a11oy.net`; `/verify` is the interactive tool on
+  `a-11-oy.com`. The two hosts stay separate.
 
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu

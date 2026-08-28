@@ -597,9 +597,9 @@
       <div class="vcard">
         <div class="pmark">kil</div>
         <h3>killinchu</h3>
-        <div class="tag">Defense · counter-UAS</div>
-        <p>Auditable interdiction: receipt per decision, separately disclosed signing state, and 3-of-4 BFT consensus.</p>
-        <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
+        <div class="tag">Defense · counter-UAS · UNAVAILABLE</div>
+        <p>Hub page exists. The inference Space timed out (2026-08-28). This card is not a live runtime. a11oy’s defense Λ is a separate advisory score, not killinchu health.</p>
+        <div class="lam"><span class="val" id="v-defense">UNAVAILABLE</span><span class="cap">runtime</span><span id="v-defense-chip"></span></div>
       </div>
       <div class="vcard">
         <div class="pmark">ins</div>
@@ -746,7 +746,8 @@
         <a href="/console#genome">Genome registry</a>
         <a href="/verify">Verify a receipt</a>
         <a href="/living-anatomy">Living anatomy · 3D</a>
-        <a href="/elite">killinchu · counter-UAS</a>
+        <a href="/counter-uas">Counter-UAS (this app)</a>
+        <a href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" target="_blank" rel="noopener">killinchu Hub · UNAVAILABLE</a>
         <a href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">IMMUNE · live investor demo</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
         <a href="/trust">Trust center</a>
@@ -897,10 +898,18 @@
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
   }
 
+  function markKillinchuUnavailable(){
+    // Hub 200; szlholdings-killinchu.hf.space timed out (KALLPA 2026-08-28).
+    // Do not paint a11oy's defense Λ as killinchu-live.
+    const val = $("v-defense"); if(val) val.textContent = "UNAVAILABLE";
+    const chip = $("v-defense-chip"); if(chip) chip.innerHTML = downChip("UNAVAILABLE");
+  }
+
   function setVerticals(v){
     // v: {core,defense,insurance,finance,realestate} advisory Λ (numbers or null)
     [["core","v-core"],["defense","v-defense"],["insurance","v-insurance"],
      ["finance","v-finance"],["realestate","v-realestate"]].forEach(([k,id])=>{
+      if(k === "defense"){ markKillinchuUnavailable(); return; }
       const val = fmtLam(v[k]);
       $(id).textContent = (val===null) ? "N/A" : val;
       lamChip(id+"-chip", num(v[k]));
@@ -1046,6 +1055,7 @@
 
   // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
   (async function(){
+    markKillinchuUnavailable();
     loadEstatePulse();
     loadOverclaimMetrics();
     const ov = await loadOverview();

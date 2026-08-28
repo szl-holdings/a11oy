@@ -120,18 +120,35 @@ Locked architecture (do not merge the two hosts):
 - `a11oy.net` = public proof/registry (GitHub Pages repo `szl-holdings/a11oy-net`, separate failure domain)
 - Public name is **a11oy**. Do not stamp or 301 toward the unhyphenated third-party furniture host.
 
+#### Wiring map (KALLPA 2026-08-28 17:05 UTC — do not invent LIVE)
+
+| What a visitor sees | What it actually is | Honest label |
+|---|---|---|
+| Apex `a-11-oy.com` GET `/` HTTP 200, HSTS `max-age=31536000; includeSubDomains`, `x-szl-space: a11oy` | Cloudflare A `104.21.27.230` / `172.67.169.206` in front of Space `SZLHOLDINGS/a11oy` | Product origin **reachable via Cloudflare**. Not Hugging Face custom-domain READY. |
+| Hugging Face `runtime.domains` | `szlholdings-a11oy.hf.space` **READY**; `a-11-oy.com` **PENDING** | HF custom domain **PENDING** (or **UNAVAILABLE**). Do not stamp LIVE. |
+| `x-szl-wire-d: LIVE` | DSSE Wire D provenance header from `szl_provenance.py` | Provenance hop, **not** domain LIVE. Do not conflate. |
+| `www.a-11-oy.com` | NXDOMAIN (`curl: could not resolve`) | **UNAVAILABLE**. With HSTS `includeSubDomains`, www is a hard fail until Cloudflare has `CNAME www → a-11-oy.com`. This app cannot change CF DNS. |
+| `https://a11oy.com/trust` | Unrelated WordPress/Cloudways furniture shop; GET 301s to a hanging-egg-chair product | **Not ours.** Canonical MUST be `https://a-11-oy.com/trust`. |
+| Canonical receipt RECORD | Lasting public copy on **a11oy.net** | Registry origin. `/verify` on `a-11-oy.com` is the interactive checker only. |
+| `HEAD` vs `GET` on the apex | GET 200 / HEAD 200 on `/` and `/verify`; GET 200 / HEAD 405 on `/console`, `/trust`, `/assurance`, `/robots.txt` (pre-fix, Space SHA not this PR) | Document routes now declare GET+HEAD. FastAPI `@app.get` FileResponse had no HEAD; StaticFiles already covered `/` and `/verify`. |
+| killinchu | Hub `https://huggingface.co/spaces/SZLHOLDINGS/killinchu` HTTP 200; `https://szlholdings-killinchu.hf.space/` timed out | Runtime **UNAVAILABLE**. Do not imply live on the inference landing. |
+| Observability DAG depth 0 / IDLE | Empty process-local ring, not a measured live graph | **UNAVAILABLE**, not invented numbers. |
+| Promote path | `hf-sync.yml` publishes GitHub `main` → Space `SZLHOLDINGS/a11oy` | Staging Space `szlholdings-a11oy.hf.space` ≠ prod DNS `a-11-oy.com`. Space READY is not prod-DNS verified. |
+
 **www.a-11-oy.com is NXDOMAIN** while apex sends `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Browsers that have seen the apex will refuse `http://www.a-11-oy.com` and have nothing to connect to on HTTPS. DNS is Cloudflare/ops (Stephen). This app cannot create the `www` record.
 
 **HTTP `Link: rel="canonical"` to `https://huggingface.co/spaces/SZLHOLDINGS/a11oy`** is injected by the Hugging Face Space proxy (`x-proxied-replica`). HTML `<link rel="canonical">` on `/` is already `https://a-11-oy.com/`. Stripping the HF Link header is a Cloudflare transform (KALLPA), not an in-app header.
 
 **Do not** 301 `a11oy.net` onto `a-11-oy.com` from this app (the old sunset middleware was a landmine if `.net` DNS ever pointed at the Space).
 
-**Hugging Face custom domain is PENDING, not verified.** MEASURED 2026-08-28 via `GET https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy`: `runtime.domains` is `szlholdings-a11oy.hf.space` READY and `a-11-oy.com` PENDING. The same day, `HEAD https://a-11-oy.com/` returned HTTP 200 through Cloudflare (`x-szl-space: a11oy`, `x-proxied-replica` present). Apex serving is not the same as Hugging Face provider verification.
+**Hugging Face custom domain is PENDING, not verified.** MEASURED 2026-08-28 via `GET https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy`: `runtime.domains` is `szlholdings-a11oy.hf.space` READY and `a-11-oy.com` PENDING. The same day, `GET https://a-11-oy.com/` returned HTTP 200 through Cloudflare (`x-szl-space: a11oy`, `x-proxied-replica` present). Apex serving is not the same as Hugging Face provider verification.
 
 - Treat HF `PENDING` as an open identity defect owned by **KALLPA / Stephen (DNS)**. Completing or removing the Hugging Face custom-domain binding is an external operator action (`docs/SPACES_HEALTH_OPERATIONS.md`).
 - **Do not** claim the custom domain is verified in HTML, badges, or PR copy.
 - **Do not** paper over PENDING by moving `<link rel="canonical">` / `og:url` onto `*.hf.space`. Product HTML canonicals stay `https://a-11-oy.com`.
 - **Do not** fight Cloudflare (CNAME flattening, orange-cloud, or nameserver changes) just to make Hugging Face report READY if that would take the public origin down. Public 200 on the apex beats a green HF domain row.
+
+This PR does **not** merge PR 1363 (HOLD). Chrome/nav IA belongs to PR 1391 (ÑAWI); this work is wiring/honesty only and keeps house tokens.
 
 ---
 

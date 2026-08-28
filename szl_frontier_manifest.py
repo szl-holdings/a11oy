@@ -409,7 +409,9 @@ def _tile_compute_fabric() -> dict:
     if reachable_n:
         status = f"OK ({reachable_n}/{total} nodes reachable, {gpu_reachable} sovereign GPU)"
     else:
-        status = f"IDLE (0/{total} nodes reachable right now)"
+        # Empty fabric is UNAVAILABLE, not a live IDLE of 0. The probe count is
+        # real; do not invent node numbers or stamp LIVE on an empty pool.
+        status = f"UNAVAILABLE (0/{total} nodes reachable right now)"
     return _tile(
         "Sovereign compute fabric", "compute", status=status, label=MEASURED,
         provenance={
