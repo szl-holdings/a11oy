@@ -280,7 +280,10 @@ def _make_injector():
                 #     into the SPA's SPEC array so buildNav() renders them natively
                 #     and they survive its nav rebuild + MutationObserver (static
                 #     DOM does not). Idempotent via _SPEC_MARKER.
-                if _SPEC_MARKER not in body and _SPEC_ANCHOR in body:
+                # Public product keeps the 7-module IA. Estate groups (40+ items)
+                # splice only when the operator explicitly asked (?operator=1).
+                operator = (request.url.query or "").find("operator=1") >= 0
+                if operator and _SPEC_MARKER not in body and _SPEC_ANCHOR in body:
                     body = body.replace(
                         _SPEC_ANCHOR,
                         b"]]" + spec_groups_js + b"\n  ];\n\n  function buildNav(){",
@@ -497,8 +500,11 @@ if __name__ == "__main__":
     assert rb_head.status_code == 200, rb_head.status_code
     assert rb_head.content in (b"", None) or len(rb_head.content) == 0
 
-    h1 = c.get("/console").text
-    h2 = c.get("/console").text  # second hit must be byte-identical (idempotent)
+    h1 = c.get("/console?operator=1").text
+    h2 = c.get("/console?operator=1").text  # second hit must be byte-identical (idempotent)
+    public = c.get("/console").text
+    assert "qa12-nav" not in public, "public /console must not splice 40+ estate items"
+
 
     # --- SPEC splice: exactly once, idempotent ---
     assert h1.count("qa12-nav") == 1, "SPEC groups must be spliced in exactly once"

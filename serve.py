@@ -12432,12 +12432,16 @@ try:
     # serves them with the correct JS content-type so the console can import
     # window.SZLLabels / SZLReceipts / SZLCodenames. 0 CDN — served from the image.
     _SHARED_DIR = Path("/app/static/shared")
+    if not _SHARED_DIR.is_dir():
+        _SHARED_DIR = Path(__file__).resolve().parent / "static" / "shared"
     _SHARED_ALLOW = {
         "szl_label_engine.js": _VENDOR_JS_CT,
         "szl_receipt_cosign.js": _VENDOR_JS_CT,
         "szl_codename_sanitizer.js": _VENDOR_JS_CT,
         # Lane F1: the shared 3D/holographic substrate kit (byte-identical a11oy<->killinchu).
         "szl_holo3d.js": _VENDOR_JS_CT,
+        "szl_command_bar.js": _VENDOR_JS_CT,
+        "szl_command_bar.css": _VENDOR_CSS_CT,
     }
 
     @app.get("/static/shared/{fname}")
@@ -12497,6 +12501,9 @@ try:
                 # Never inject into the widget asset route itself, or API/SSE.
                 p = request.url.path
                 if p.startswith("/vendor/") or p.startswith("/api/") or p.startswith("/assets/"):
+                    return resp
+                # Public product front door: do not inject the operator widget.
+                if p == "/" or p == "/landing":
                     return resp
                 body = b""
                 async for chunk in resp.body_iterator:
@@ -12573,7 +12580,9 @@ async def spa_root():
             if not _cp.is_file():
                 continue
             _data = _cp.read_bytes()
-            if b'a11oy-operator-widget.js' not in _data:
+            # Public front door: do not bake the operator widget into landing.
+            _is_public_front = _cp.name in {"a11oy_landing.html", "landing.html"}
+            if (not _is_public_front) and b'a11oy-operator-widget.js' not in _data:
                 if b'</body>' in _data:
                     _data = _data.replace(b'</body>', _SPA_TAG + b'</body>', 1)
                 elif b'</html>' in _data:
