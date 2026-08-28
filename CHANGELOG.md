@@ -46,6 +46,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Trust Center and `/verify` now say in plain language: the lasting public
   RECORD belongs on `a11oy.net`; `/verify` is the interactive tool on
   `a-11-oy.com`. The two hosts stay separate.
+- Kernel locked-proven chip is bound from `GET /api/a11oy/v1/honest`
+  (`locked_formula_count=8`, ids F1,F4,F7,F11,F12,F18,F19,F22). Genome
+  `tier_counts.LOCKED-PROVEN=25` of 144 stays a catalog tag, labelled
+  genome, never the kernel chip, never green. Lean-8 ≠ genome-144. The
+  8 and the 25 are unchanged.
 
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu

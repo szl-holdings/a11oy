@@ -6849,10 +6849,29 @@ async def _a11oy_pr_honest_v2():
         _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
     except Exception:
         _wired = []
+    # Kernel locked-8 (count + ids) is the Lean no-axiom theorem locked_count_eight.
+    # Distinct from genome catalog tag LOCKED-PROVEN (25 of 144). Never inflate 8.
+    try:
+        from szl_be_hardening import DOCTRINE_LOCK as _honest_lock
+    except Exception:
+        _honest_lock = {
+            "doctrine": "v11",
+            "state": "LOCKED",
+            "commit": "c7c0ba17",
+            "locked_formula_count": 8,
+            "locked_formula_ids": [
+                "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
+            ],
+        }
+    _locked_count = _honest_lock.get("locked_formula_count")
+    _locked_ids = list(_honest_lock.get("locked_formula_ids") or [])
     return JSONResponse({
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "locked_formula_count": _locked_count,
+        "locked_formula_ids": _locked_ids,
+        "doctrine_lock": _honest_lock,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",

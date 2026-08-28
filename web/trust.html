@@ -214,12 +214,13 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
   <!-- THE FOUR TIERS -->
   <section id="tiers"><div class="wrap">
     <div class="sec-label">01 — The honesty model</div>
-    <h2>Four tiers. Counts are read live from <code>/api/a11oy/v1/genome</code>.</h2>
+    <h2>Four tiers. Kernel locked-proven from <code>/api/a11oy/v1/honest</code>; catalog counts from <code>/api/a11oy/v1/genome</code>.</h2>
     <p class="intro">
       Every formula in the genome carries exactly one tier. The tier says precisely how strong
       the claim is — from a kernel-checked Lean theorem down to an honest "no proof claimed".
-      This is the moat: the labels are conservative on purpose, so a buyer's auditor finds the
-      math is <em>stronger</em> than the label, never weaker.
+      The locked-proven chip is the Lean-8 kernel, not the genome catalog tag LOCKED-PROVEN
+      (a larger catalog count). The labels are conservative on purpose, so a buyer's auditor
+      finds the math is <em>stronger</em> than the label, never weaker.
     </p>
     <div class="tiers">
       <div class="tier locked">
@@ -265,10 +266,10 @@ footer .wrap{display:flex;justify-content:space-between;flex-wrap:wrap;gap:14px}
       do not exist. The truth is more modest and more defensible: the locked-8 live in
       <code>Lutar/Puriq/Formulas/ProvedFormulas.lean</code> and prove conservative arithmetic
       surrogates. We label each with what it proves — and, in red, the overclaim it is <em>not</em>.
-      Rendered live from the genome's LOCKED-PROVEN tier.
+      Rows are the /honest locked-formula ids; genome supplies the catalog text for those ids only.
     </p>
     <div class="rows" id="locked8-rows">
-      <div class="frow"><div class="id">…</div><div><div class="name">Loading locked-8 from /api/a11oy/v1/genome …</div></div></div>
+      <div class="frow"><div class="id">…</div><div><div class="name">Loading locked-8 from /api/a11oy/v1/honest …</div></div></div>
     </div>
   </div></section>
 
@@ -398,40 +399,55 @@ const $=id=>document.getElementById(id);
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error('HTTP '+r.status);return r.json();}
 
-/* ---------- live tier counts + formula rows from /genome ---------- */
-(async function loadGenome(){
+/* Kernel locked-proven (#cnt-locked, locked-8 rows) from /honest. Genome catalog is not the kernel. */
+(async function loadTiers(){
+  let kernelCount=null, kernelIds=[];
+  try{
+    const h=await getJSON('/api/a11oy/v1/honest');
+    kernelCount=(typeof h.locked_formula_count==='number')?h.locked_formula_count:null;
+    kernelIds=Array.isArray(h.locked_formula_ids)?h.locked_formula_ids.slice():[];
+    $('d-honest').classList.add('up');
+  }catch(_){
+    $('d-honest').classList.add('down');
+  }
+  $('cnt-locked').firstChild.nodeValue=(kernelCount==null)?'N/A':kernelCount;
+
   try{
     const g=await getJSON('/api/a11oy/v1/genome');
     const tc=g.tier_counts||{};
-    $('cnt-locked').firstChild.nodeValue=(tc['LOCKED-PROVEN']??'N/A');
     $('cnt-semantic').firstChild.nodeValue=(tc['SEMANTIC-VERIFIED']??'N/A');
     $('cnt-evidence').firstChild.nodeValue=(tc['evidence-backed']??'N/A');
     $('cnt-conjecture').firstChild.nodeValue=(tc['CONJECTURE']??'N/A');
+    const genomeLp=tc['LOCKED-PROVEN'];
     const naExtra=(tc['honest-N/A']!=null)?(' · '+tc['honest-N/A']+' honest-N/A'):'';
-    $('genome-src').textContent='Live from /api/a11oy/v1/genome — '+(g.count??'?')+' entries'+naExtra+'. Counts are not hard-coded; this page re-reads them on every load.';
+    $('genome-src').textContent='Kernel locked-proven = '+(kernelCount??'N/A')+' from /api/a11oy/v1/honest. Genome catalog from /api/a11oy/v1/genome — '+(g.count??'?')+' entries · LOCKED-PROVEN tag = '+(genomeLp??'N/A')+' (catalog, not the kernel)'+naExtra+'. Counts are not hard-coded; this page re-reads them on every load.';
     $('d-genome').classList.add('up');
 
+    const allowed=new Set(kernelIds);
     const entries=g.entries||[];
-    // locked-8: LOCKED-PROVEN entries with an F-style id (dedupe by id)
     const seen=new Set();const locked=[];
     for(const e of entries){
-      if(e.tag!=='LOCKED-PROVEN')continue;
       const id=e.id||'';
+      if(!allowed.has(id))continue;
       if(!/^F\d+$/.test(id))continue;
       if(seen.has(id))continue;seen.add(id);
       locked.push(e);
     }
-    locked.sort((a,b)=>parseInt(a.id.slice(1))-parseInt(b.id.slice(1)));
-    $('locked8-rows').innerHTML = locked.length? locked.map(e=>{
-      const proves=esc(e.meaning||e.math||'');
-      const notC=e.notes&&/not\b/i.test(e.notes)?('<div class="notclaim">NOT: '+esc(e.notes)+'</div>'):'';
-      const lean=e.lean_ref?('<div class="lean">Lean: <b>'+esc(e.lean_ref)+'</b></div>'):'';
-      return '<div class="frow"><div class="id">'+esc(e.id)+'</div><div>'+
-        '<div class="name">'+esc((e.name||'').replace(/^F\d+\s*·?\s*/,''))+'</div>'+
-        (proves?'<div class="proves">'+proves+'</div>':'')+notC+lean+'</div></div>';
-    }).join('') : '<div class="frow"><div class="id">N/A</div><div><div class="name">No LOCKED-PROVEN F-entries returned — genome unavailable.</div></div></div>';
+    locked.sort((a,b)=>parseInt(a.id.slice(1),10)-parseInt(b.id.slice(1),10));
+    if(!allowed.size){
+      $('locked8-rows').innerHTML='<div class="frow"><div class="id">N/A</div><div><div class="name">Kernel locked-formula ids unavailable from /honest — rows are not filled from the genome catalog tag.</div></div></div>';
+    }else{
+      $('locked8-rows').innerHTML = locked.length? locked.map(e=>{
+        const proves=esc(e.meaning||e.math||'');
+        const notC=e.notes&&/not\b/i.test(e.notes)?('<div class="notclaim">NOT: '+esc(e.notes)+'</div>'):'';
+        const lean=e.lean_ref?('<div class="lean">Lean: <b>'+esc(e.lean_ref)+'</b></div>'):'';
+        return '<div class="frow"><div class="id">'+esc(e.id)+'</div><div>'+
+          '<div class="name">'+esc((e.name||'').replace(/^F\d+\s*·?\s*/,''))+'</div>'+
+          (proves?'<div class="proves">'+proves+'</div>':'')+notC+lean+'</div></div>';
+      }).join('') : '<div class="frow"><div class="id">N/A</div><div><div class="name">No genome rows matched the /honest locked-formula ids.</div></div></div>';
+    }
 
-    // SEMANTIC-VERIFIED rows
+    // SEMANTIC-VERIFIED rows (catalog)
     const sem=entries.filter(e=>e.tag==='SEMANTIC-VERIFIED');
     $('semantic-rows').innerHTML = sem.length? sem.map(e=>{
       const proves=esc(e.meaning||e.math||'');
@@ -441,10 +457,13 @@ async function getJSON(u){const r=await fetch(u);if(!r.ok)throw new Error('HTTP 
         (proves?'<div class="proves">'+proves+'</div>':'')+lean+'</div></div>';
     }).join('') : '<div class="frow sem"><div class="id">N/A</div><div><div class="name">No SEMANTIC-VERIFIED entries returned — genome unavailable.</div></div></div>';
   }catch(e){
-    $('genome-src').textContent='Genome endpoint UNAVAILABLE ('+e.message+') — counts shown as N/A, never fabricated.';
-    for(const id of ['cnt-locked','cnt-semantic','cnt-evidence','cnt-conjecture'])
+    $('genome-src').textContent='Genome endpoint UNAVAILABLE ('+e.message+') — catalog counts shown as N/A, never fabricated. Kernel chip is from /honest, not genome.';
+    for(const id of ['cnt-semantic','cnt-evidence','cnt-conjecture'])
       $(id).firstChild.nodeValue='N/A';
     $('d-genome').classList.add('down');
+    if(kernelIds.length){
+      $('locked8-rows').innerHTML='<div class="frow"><div class="id">N/A</div><div><div class="name">Genome unavailable — kernel ids from /honest are '+kernelIds.map(esc).join(', ')+' but catalog rows were not loaded.</div></div></div>';
+    }
   }
 })();
 

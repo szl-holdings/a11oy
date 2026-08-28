@@ -333,3 +333,79 @@ def test_live_fetch_status_stays_honest_404():
     body = response.json()
     assert body.get("status") == "NOT_FOUND"
     assert "undeclared path refused SPA fallback" in (body.get("reason") or "")
+
+
+_LOCKED8_IDS = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
+
+
+def test_honest_v1_surfaces_kernel_locked_eight():
+    """QHAPAQ S7: kernel locked-proven is Lean-8 on /honest. Do not change 8."""
+    from starlette.testclient import TestClient
+
+    import serve
+
+    body = TestClient(serve.app, raise_server_exceptions=False).get(
+        "/api/a11oy/v1/honest"
+    ).json()
+    assert body["locked_formula_count"] == 8
+    assert body["locked_formula_ids"] == _LOCKED8_IDS
+    lock = body.get("doctrine_lock") or {}
+    assert lock.get("locked_formula_count") == 8
+    assert lock.get("locked_formula_ids") == _LOCKED8_IDS
+
+
+def test_genome_catalog_locked_proven_stays_25_of_144():
+    """QHAPAQ S7: genome catalog tag LOCKED-PROVEN is 25 of 144. Do not change 25."""
+    import json
+    from collections import Counter
+
+    entries = json.loads((ROOT / "data" / "genome.json").read_text(encoding="utf-8"))
+    tags = Counter((e or {}).get("tag", "untagged") for e in entries)
+    assert len(entries) == 144
+    assert tags["LOCKED-PROVEN"] == 25
+    assert tags["LOCKED-PROVEN"] != 8
+
+
+def test_overview_splits_kernel_locked_from_genome_catalog():
+    import szl_org_lambda as org
+
+    overview = org.org_overview()
+    tiers = overview["proof_tiers"]
+    assert tiers["locked"] == 8
+    assert tiers["kernel_locked_ids"] == _LOCKED8_IDS
+    assert tiers["genome_locked_proven"] == 25
+    assert tiers["locked"] != tiers["genome_locked_proven"]
+    assert overview["genome_count"] == 144
+
+
+def test_ui_does_not_bind_kernel_locked_proven_to_genome_tier():
+    """Kernel chips (#cnt-locked, #pt-locked, locked-8 rows, publications) must
+    not read genome.tier_counts.LOCKED-PROVEN. Catalog may still name that tag.
+    """
+    trust = (ROOT / "web" / "trust.html").read_text(encoding="utf-8")
+    landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+    console = (ROOT / "pages" / "console.html").read_text(encoding="utf-8")
+    formulas = (ROOT / "a11oy_formulas_page.py").read_text(encoding="utf-8")
+
+    assert "/api/a11oy/v1/honest" in trust
+    assert "locked_formula_count" in trust
+    assert "$('cnt-locked').firstChild.nodeValue=(tc['LOCKED-PROVEN']??'N/A')" not in trust
+    assert "if(e.tag!=='LOCKED-PROVEN')continue" not in trust
+
+    assert "loadKernelLocked" in landing
+    assert 'getJSON("/api/a11oy/v1/honest")' in landing
+    assert 'locked: tc["LOCKED-PROVEN"]' not in landing
+    assert "locked: tc['LOCKED-PROVEN']" not in landing
+    set_tiers = re.search(r"function setTiers\(t\)\{.*?\n  \}", landing, re.S)
+    assert set_tiers, "setTiers missing"
+    assert '$("pt-locked")' not in set_tiers.group(0)
+    assert "$('pt-locked')" not in set_tiers.group(0)
+
+    pubs = console[console.find("async function renderPublications"):]
+    pubs = pubs[: pubs.find("c.innerHTML=h")]
+    assert "/v1/honest" in pubs
+    assert "LOCKED-PROVEN" not in pubs
+
+    assert "genome LOCKED-PROVEN" in formulas
+    assert "lp + ' locked-proven'" not in formulas
+    assert "gt.className = 'badge ok'" not in formulas
