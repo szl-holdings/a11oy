@@ -149,10 +149,10 @@ Locked architecture (do not merge the two hosts):
 
 **Hugging Face custom domain is PENDING, not verified.** MEASURED 2026-08-28 via `GET https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy`: `runtime.domains` is `szlholdings-a11oy.hf.space` READY and `a-11-oy.com` PENDING. The same day, `GET https://a-11-oy.com/` returned HTTP 200 through Cloudflare (`x-szl-space: a11oy`, `x-proxied-replica` present). Apex serving is not the same as Hugging Face provider verification.
 
-- Treat HF `PENDING` as an open identity defect owned by **KALLPA / Stephen (DNS)**. Completing or removing the Hugging Face custom-domain binding is an external operator action (`docs/SPACES_HEALTH_OPERATIONS.md`).
-- **Do not** claim the custom domain is verified in HTML, badges, or PR copy.
+- Treat HF `PENDING` as an open identity defect owned by **KALLPA / Stephen (DNS)**. Completing the Hugging Face custom-domain binding is an external operator action (`docs/SPACES_HEALTH_OPERATIONS.md`). This app **does not change DNS**.
+- **Do not** claim the custom domain is verified in HTML, badges, or PR copy. Do not stamp LIVE.
 - **Do not** paper over PENDING by moving `<link rel="canonical">` / `og:url` onto `*.hf.space`. Product HTML canonicals stay `https://a-11-oy.com`.
-- **Do not** fight Cloudflare (CNAME flattening, orange-cloud, or nameserver changes) just to make Hugging Face report READY if that would take the public origin down. Public 200 on the apex beats a green HF domain row.
+- **Keep orange-cloud.** Apex A records stay Cloudflare-proxied. Stephen may add `_huggingface.a-11-oy.com` TXT later **without** dropping that proxy. **Do not grey-cloud** (DNS-only) to make Hugging Face report READY. Public 200 on the proxied apex beats a green HF domain row.
 
 This PR does **not** merge PR 1363 (HOLD). Chrome/nav IA belongs to PR 1391 (ÑAWI); this work is wiring/honesty only and keeps house tokens.
 

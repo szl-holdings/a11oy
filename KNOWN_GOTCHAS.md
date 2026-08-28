@@ -21,6 +21,14 @@ The `canonical HF single-writer guard` CI job rejects any competing automatic
 writer. Check the Space API commit and `GET /api/build-info`; both must match the
 release evidence before claiming relock.
 
+**Promote path vs prod DNS**: `hf-sync.yml` publishes GitHub `main` → Space
+`SZLHOLDINGS/a11oy`. Staging Space `szlholdings-a11oy.hf.space` ≠ prod DNS
+`a-11-oy.com`. This repo does not change DNS. Keep Cloudflare orange-cloud
+(proxied) on the apex. Stephen may add `_huggingface.a-11-oy.com` TXT later
+**without** dropping that proxy. Do not grey-cloud (DNS-only) to make Hugging
+Face report READY. HF custom domain stays PENDING/UNAVAILABLE in product.
+Do not stamp LIVE.
+
 ---
 
 ## 2. Dockerfile per-file COPY discipline — missing module = silent 404

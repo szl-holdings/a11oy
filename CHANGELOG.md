@@ -63,8 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   OPTIONS `/` and `/console` send `Allow` and `Access-Control-Allow-Methods`.
   HTTP `Link` rel=canonical on public product responses is
   `https://a-11-oy.com{path}`; `huggingface.co/spaces` and the furniture
-  host are never that canonical. HF custom domain stays PENDING
-  (`_huggingface.a-11-oy.com` NXDOMAIN; www NXDOMAIN is Stephen).
+  host are never that canonical. HF custom domain stays PENDING/UNAVAILABLE.
+  Keep orange-cloud (proxied apex). Do not grey-cloud. This PR does not
+  change DNS; Stephen may add `_huggingface.a-11-oy.com` TXT later without
+  dropping the Cloudflare proxy. www NXDOMAIN is Stephen.
 
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu

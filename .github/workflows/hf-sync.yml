@@ -9,7 +9,11 @@ name: Sync and Relock Canonical Hugging Face Space
 #
 # Promote path: push to main writes Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
 # Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
-# do not claim they match. HF custom domain a-11-oy.com stays PENDING. www DNS is Stephen.
+# do not claim they match. This workflow does not change DNS. Apex a-11-oy.com
+# stays Cloudflare orange-cloud (proxied). HF custom domain stays
+# PENDING/UNAVAILABLE in product. Stephen may later add the HF verify TXT
+# (_huggingface.a-11-oy.com) WITHOUT dropping that proxy. Keep orange-cloud.
+# Do not grey-cloud. Do not stamp LIVE. www DNS is Stephen.
 # x-szl-wire-d LIVE is DSSE Wire D provenance, not domain LIVE.
 on:
   push:

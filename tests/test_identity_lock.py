@@ -480,3 +480,53 @@ def test_ui_does_not_bind_kernel_locked_proven_to_genome_tier():
     assert "genome LOCKED-PROVEN" in formulas
     assert "lp + ' locked-proven'" not in formulas
     assert "gt.className = 'badge ok'" not in formulas
+
+
+def test_ayni_lock_does_not_drift():
+    """AYNI: product Link canonical, no .net 301, HEAD is the app, orange-cloud.
+
+    Do not grey-cloud the apex. Do not stamp HF custom domain LIVE. This repo
+    does not change DNS. Stephen may add the HF verify TXT later without
+    dropping the Cloudflare proxy. Does not merge PR 1363.
+    """
+    texts = {
+        "canon": (ROOT / "a11oy_canonical_domain.py").read_text(encoding="utf-8"),
+        "sync": (ROOT / ".github" / "workflows" / "hf-sync.yml").read_text(encoding="utf-8"),
+        "runbook": (ROOT / "docs" / "runbook.md").read_text(encoding="utf-8"),
+        "spaces": (ROOT / "docs" / "SPACES_HEALTH_OPERATIONS.md").read_text(encoding="utf-8"),
+        "serve": (ROOT / "serve.py").read_text(encoding="utf-8"),
+        "gotchas": (ROOT / "KNOWN_GOTCHAS.md").read_text(encoding="utf-8"),
+        "agents": (ROOT / "AGENTS.md").read_text(encoding="utf-8"),
+    }
+    def _flat(text: str) -> str:
+        return " ".join(text.split())
+
+    for name in ("canon", "sync", "runbook", "spaces", "gotchas", "agents", "serve"):
+        blob = _flat(texts[name])
+        assert "orange-cloud" in blob, name
+        assert "do not grey-cloud" in blob.lower(), name
+        assert "PENDING" in blob, name
+
+    canon = texts["canon"]
+    assert "huggingface.co/spaces is never the product canonical" in canon
+    assert "This app does not change DNS" in canon
+    assert "SUNSET_DOMAIN" not in canon
+    import a11oy_canonical_domain as cd
+
+    assert not hasattr(cd, "SUNSET_DOMAIN")
+    assert cd.product_canonical_url("/trust") == "https://a-11-oy.com/trust"
+    assert "huggingface.co" not in cd.product_canonical_url("/console")
+    furniture = "a11oy.com"
+    assert furniture not in cd.product_canonical_url("/console").replace("a-11-oy.com", "")
+
+    sync = texts["sync"]
+    assert "This workflow does not change DNS" in sync
+    assert "Do not stamp LIVE" in sync
+
+    serve = texts["serve"]
+    assert 'allow_methods=["GET", "HEAD", "POST", "OPTIONS"]' in serve
+    assert '@app.api_route("/robots.txt", methods=["GET", "HEAD"])' in serve
+    assert '@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])' in serve
+    assert "the app, not Cloudflare" in serve
+    assert "HEAD 405 is the app" in serve or "Same HEAD 405" in serve
+

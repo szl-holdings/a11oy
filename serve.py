@@ -15871,7 +15871,8 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
 # proxy (404). Same HEAD 405 on szlholdings-a11oy.hf.space (Server: szl) —
 # the app, not Cloudflare. This app stamps Link rel=canonical to
 # https://a-11-oy.com{path}; huggingface.co/spaces is never the product
-# canonical. HF custom domain stays PENDING.
+# canonical. HF custom domain stays PENDING/UNAVAILABLE. Keep orange-cloud.
+# Do not grey-cloud. This app does not change DNS.
 try:
     import a11oy_canonical_domain as _canon_head_mod
     _canon_head_mod.ensure_html_documents_accept_head(app)

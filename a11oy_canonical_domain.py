@@ -35,13 +35,16 @@ DX — routes, contracts, env, promote path (staging Space ≠ prod DNS):
   Public product GET/HEAD stamp Link rel=canonical to https://a-11-oy.com{path}.
   huggingface.co/spaces is never the product canonical. OPTIONS on documents
   send Allow and Access-Control-Allow-Methods.
-- Env: Space runtime vars configure the app. Prod DNS is Cloudflare in front
-  of the Space. x-szl-wire-d: LIVE is DSSE Wire D provenance, not "domain LIVE".
-  HF custom domain stays PENDING. www DNS is Stephen, not this app.
+- Env: Space runtime vars configure the app. Prod DNS is Cloudflare orange-cloud
+  (proxied) in front of the Space. This app does not change DNS. x-szl-wire-d:
+  LIVE is DSSE Wire D provenance, not "domain LIVE". HF custom domain stays
+  PENDING/UNAVAILABLE in product. www DNS is Stephen, not this app.
 - Promote: hf-sync publishes GitHub main → Space SZLHOLDINGS/a11oy
-  (szlholdings-a11oy.hf.space READY). Apex a-11-oy.com is a Cloudflare A-record
-  front, not Hugging Face custom-domain READY. Do not treat Space READY as
-  prod-DNS verified.
+  (szlholdings-a11oy.hf.space READY). Staging Space ≠ prod DNS. Apex
+  a-11-oy.com stays Cloudflare orange-cloud. Stephen may later add the HF
+  verify TXT (_huggingface.a-11-oy.com) WITHOUT dropping that proxy. Keep
+  orange-cloud. Do not grey-cloud. Do not stamp LIVE. Do not treat Space
+  READY as prod-DNS verified.
 
 Read-path-safe: no receipt, no signing, no state. Doctrine-safe try/except
 register(app).
@@ -188,7 +191,8 @@ def register(app):
     Also: product Link rel=canonical is https://a-11-oy.com{path}. The Hugging
     Face Space URL is never the HTTP canonical. OPTIONS on public documents
     carries Allow + Access-Control-Allow-Methods. HF custom domain stays
-    PENDING (no verification TXT/CNAME; www NXDOMAIN is Stephen).
+    PENDING/UNAVAILABLE. Keep orange-cloud. Do not grey-cloud. This app
+    does not change DNS (verify TXT is Stephen, without dropping the proxy).
     """
 
     @app.middleware("http")

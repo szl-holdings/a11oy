@@ -37,8 +37,15 @@ calls. It is not durable availability evidence and resets on process restart.
 
 The `a-11-oy.com` row reports the Hugging Face provider state from
 `runtime.domains`. `PENDING` remains `DEGRADED` even if another edge currently
-routes the apex successfully. Completing or removing the pending Hugging Face
-binding is an external operator action and requires authorized provider access.
+routes the apex successfully. Product surfaces keep **PENDING/UNAVAILABLE**;
+do not stamp LIVE.
+
+This repository does not change DNS. Keep the Cloudflare orange-cloud
+(proxied) apex. Stephen may later add the Hugging Face verification TXT
+(`_huggingface.a-11-oy.com`) **without** dropping that proxy. Do not grey-cloud
+(DNS-only) to make Hugging Face report READY. Public 200 on the proxied apex
+beats a green HF domain row. Completing the pending Hugging Face binding is an
+external operator action (`docs/runbook.md` INC-05).
 
 ## Proxy header boundary
 
