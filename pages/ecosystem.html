@@ -120,8 +120,16 @@
     else if(order.includes(pathKey)) active=pathKey;
     else if(atlasKeys.includes(hashKey)||atlasKeys.includes(pathKey)) active='atlas';
     function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+    function isProofOriginHref(href){
+      try{
+        const u=new URL(String(href||''));
+        return u.protocol==='https:' && u.hostname==='a11oy.net';
+      }catch(e){
+        return false;
+      }
+    }
     function surfaceLabel(row){
-      if(String(row.href||'').startsWith('https://a11oy.net')) return 'ROADMAP';
+      if(isProofOriginHref(row.href)) return 'ROADMAP';
       return originState==='LIVE'?'REACHABLE':'UNAVAILABLE';
     }
     function cardsFor(key){return SURFACES[key]||[];}

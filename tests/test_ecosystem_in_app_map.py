@@ -88,3 +88,10 @@ def test_ecosystem_maps_seven_modules_with_query_view_not_hash() -> None:
     assert 'href="/frontier"' in ECOSYSTEM or "href:'/frontier'" in ECOSYSTEM
     assert "Λ = Conjecture 1" in ECOSYSTEM
     assert "Alloy by SZL Holdings" in ECOSYSTEM
+
+
+def test_ecosystem_proof_origin_label_parses_hostname() -> None:
+    # CodeQL js/incomplete-url-substring-sanitization: startsWith('https://a11oy.net')
+    # also matches https://a11oy.net.evil.com. Label ROADMAP only when hostname is a11oy.net.
+    assert ".startsWith('https://a11oy.net')" not in ECOSYSTEM
+    assert "u.hostname==='a11oy.net'" in ECOSYSTEM

@@ -15,7 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   are linked to https://a11oy.net rather than duplicated here. Interactive
   `/verify` stays on this origin. Product | Proof origin header is on that
   page only. Console tiles use `?view=` keys (Home/Operate/Build/Observe/
-  Govern/Research/More); hash fragments are not emitted here.
+  Govern/Research/More); hash fragments are not emitted here. ROADMAP
+  chips parse `a11oy.net` as a hostname, not a URL prefix.
 
 ### Fixed - public identity lock
 - Trust Center canonical (and og:url / twitter:url) is the product origin
