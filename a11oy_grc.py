@@ -497,10 +497,10 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
 
     async def _page():
         return HTMLResponse(_html)
-    app.add_api_route("/grc", _page, methods=["GET"])
-    app.add_api_route("/compliance", _page, methods=["GET"])
-    registered.append("GET /grc")
-    registered.append("GET /compliance")
+    app.add_api_route("/grc", _page, methods=["GET", "HEAD"])
+    app.add_api_route("/compliance", _page, methods=["GET", "HEAD"])
+    registered.append("GET+HEAD /grc")
+    registered.append("GET+HEAD /compliance")
 
     try:
         app.add_middleware(_make_injector())
@@ -533,6 +533,10 @@ def _selftest() -> None:
                "/v1/grc", "/v1/grc/matrix", "/grc", "/compliance"]:
         r = c.get(ep)
         assert r.status_code == 200, (ep, r.status_code)
+    for path in ("/grc", "/compliance"):
+        head_r = c.head(path)
+        assert head_r.status_code == 200, path
+        assert head_r.content in (b"", None) or len(head_r.content) == 0
     # honesty checks on the page
     page = c.get("/grc").text
     assert "ALIGNS WITH" in page and "NOT CERTIFIED" in page

@@ -163,7 +163,7 @@
   <span class="teal">A11OY</span><span class="sep">/</span>
   <span>AI OBSERVABILITY</span><span class="sep">/</span>
   <span>MELT · SIGNED TRACES</span><span class="sep">/</span>
-  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+  <span class="live"><span class="live-dot"></span>READ · no invented numbers</span>
   <nav class="navlinks" aria-label="a11oy navigation"><a href="/">Home</a><a href="/ecosystem">Ecosystem</a><a href="/anatomy-v5">Anatomy v5</a><a href="/console">Console</a></nav>
 </div>
 
@@ -271,12 +271,14 @@
 
   <div class="honest">
     <div class="honest-box">
-      <b>Honesty.</b> Every metric, span, and trace on this page is read from the <b>live in-process Khipu DAG</b>
-      and <b>live organ health probes</b> — no synthetic data. A span's signature reads <b>DSSE (cosign)</b> only when
+      <b>Honesty.</b> Every metric, span, and trace on this page is read from the <b>in-process Khipu DAG</b>
+      and <b>organ health probes</b> — no synthetic data. An empty DAG (depth 0 / IDLE) is
+      <b>UNAVAILABLE</b>, not a measured live zero. A span's signature reads <b>DSSE (cosign)</b> only when
       a key is present; otherwise it is labelled <b>UNSIGNED — no key present</b>. The Λ-drift verdict is a real
-      geometric computation, not an LLM judgement. Λ uniqueness is <b>Conjecture 1</b>, not a theorem; proved-formula
-      count is <b>5</b>. SLSA <b>L2</b> build-provenance verifies on the 5 organ images (cosign <code>.att</code>), not
-      the bundle. No L3 / FedRAMP / Iron Bank / CMMC claims. <b>telemetry</b> (an unauthenticated claim) is distinct
+      geometric computation, not an LLM judgement. Λ uniqueness is <b>Conjecture 1</b>, not a theorem; the
+      locked-proven set is exactly <b>8</b> {F1, F4, F7, F11, F12, F18, F19, F22}. SLSA <b>L1</b> honest
+      build-provenance on organ images (cosign <code>.att</code>), not the bundle.
+      No L3 / FedRAMP / Iron Bank / CMMC claims. <b>telemetry</b> (an unauthenticated claim) is distinct
       from a <b>receipt</b> (an attested record).
     </div>
   </div>
@@ -314,19 +316,25 @@ async function loadSummary(){
     const res=await fetch(API+'/observability/summary');
     const j=await res.json();
     const m=j.melt||{}; const met=m.metrics||{}; const ev=m.events||{}; const tr=m.traces||{};
+    const empty = j.state === 'UNAVAILABLE' || met.dag_depth == null;
     document.getElementById('m-summary').innerHTML=`
-      <div class="metric"><div class="mk">DAG depth</div><div class="mv">${met.dag_depth??'—'}</div></div>
-      <div class="metric"><div class="mk">Signed spans</div><div class="mv teal">${ev.signed_spans??'—'}</div></div>
+      <div class="metric"><div class="mk">DAG depth</div><div class="mv">${empty?'UNAVAILABLE':(met.dag_depth??'—')}</div></div>
+      <div class="metric"><div class="mk">Signed spans</div><div class="mv teal">${empty?'UNAVAILABLE':(ev.signed_spans??'—')}</div></div>
       <div class="metric"><div class="mk">Organs reachable</div><div class="mv">${met.organs_reachable??'—'} / ${met.organs_total??'—'}</div></div>
-      <div class="metric"><div class="mk">Chain verified</div><div class="mv teal">${tr.chain_verified===true?'YES':(tr.chain_verified===false?'NO':'—')}</div></div>`;
+      <div class="metric"><div class="mk">Chain verified</div><div class="mv teal">${empty?'UNAVAILABLE':(tr.chain_verified===true?'YES':(tr.chain_verified===false?'NO':'—'))}</div></div>`;
     document.getElementById('reach-summary').innerHTML=reachHTML(j.mesh_reach);
-    // hero stats
-    document.getElementById('st-depth').textContent=met.dag_depth??'—';
-    document.getElementById('st-spans').textContent=ev.signed_spans??'—';
+    // hero stats — empty DAG is UNAVAILABLE, not a live 0
+    document.getElementById('st-depth').textContent=empty?'UNAVAILABLE':(met.dag_depth??'—');
+    document.getElementById('st-spans').textContent=empty?'UNAVAILABLE':(ev.signed_spans??'—');
     document.getElementById('st-reach').textContent=(met.organs_reachable??'—')+' / '+(met.organs_total??'—');
-    document.getElementById('st-chain').textContent=tr.chain_verified===true?'YES':(tr.chain_verified===false?'NO':'—');
-    setV('summary','ok','MELT live · '+(met.organs_reachable??0)+'/'+(met.organs_total??0)+' organs reachable · DAG depth '+(met.dag_depth??0));
-    setS('summary','ok','live ✓');
+    document.getElementById('st-chain').textContent=empty?'UNAVAILABLE':(tr.chain_verified===true?'YES':(tr.chain_verified===false?'NO':'—'));
+    if(empty){
+      setV('summary','warn','UNAVAILABLE · empty process-local DAG, not a measured live zero');
+      setS('summary','warn','UNAVAILABLE');
+    }else{
+      setV('summary','ok','MELT observed · '+(met.organs_reachable??0)+'/'+(met.organs_total??0)+' organs reachable · DAG depth '+(met.dag_depth??'—'));
+      setS('summary','ok','observed');
+    }
     setO('summary',fmt(j));
   }catch(e){ setS('summary','err','error'); setV('summary','err','ERROR'); setO('summary',String(e)); }
   finally{ if(btn)btn.disabled=false; }
@@ -343,7 +351,7 @@ async function loadSpans(){
       setV('spans','warn','DAG unavailable — '+(j.reason||'honest empty'));
       document.getElementById('span-list').innerHTML='';
     }else if(spans.length===0){
-      setV('spans','warn','0 spans yet — DAG present, depth '+(j.depth??0)+' (honest, not faked)');
+      setV('spans','warn','UNAVAILABLE — 0 spans; empty DAG is not a live zero');
       document.getElementById('span-list').innerHTML='';
     }else{
       setV('spans','ok',spans.length+' signed span(s) · depth '+(j.depth??'?')+' · chain '+(j.chain&&j.chain.ok?'verified ✓':'?'));

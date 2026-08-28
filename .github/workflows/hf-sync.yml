@@ -6,6 +6,17 @@ name: Sync and Relock Canonical Hugging Face Space
 # build-info contract. This caller retains only A11oy-specific terminal evidence.
 # The main-push trigger intentionally has no path filter: every Dockerfile source
 # change must enter deployment before the strict parity dispatch.
+#
+# Promote path: push to main writes Space SZLHOLDINGS/a11oy (szlholdings-a11oy.hf.space).
+# Staging Space ≠ prod DNS. GitHub main SHA and Space runtime SHA can drift;
+# do not claim they match. This workflow does not change DNS. Apex a-11-oy.com
+# stays Cloudflare orange-cloud (proxied). HF custom domain stays
+# PENDING/UNAVAILABLE in product. Stephen may later add the HF verify TXT
+# (_huggingface.a-11-oy.com) WITHOUT dropping that proxy. Keep orange-cloud.
+# Do not grey-cloud. Do not stamp LIVE. www.a-11-oy.com GET / is
+# Cloudflare HTTP 404 (UNAVAILABLE until Cloudflare 301 www → apex).
+# Do not add a second HF custom domain. This workflow does not change DNS.
+# x-szl-wire-d LIVE is DSSE Wire D provenance, not domain LIVE.
 on:
   push:
     branches: [main]

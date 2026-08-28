@@ -259,6 +259,20 @@ def test_placeholder_composite_remains_integrity_only_and_not_ready(monkeypatch)
     assert "cryptographic_signature_not_verified" in reasons
 
 
+def test_empty_compute_fabric_is_unavailable_not_idle_zero(monkeypatch):
+    import szl_backend_hardening as bh
+
+    monkeypatch.setattr(
+        bh,
+        "probe_fabric_pool",
+        lambda: {"nodes": [{"reachable": False, "kind": "gpu"}], "cached_at": None},
+    )
+    tile = manifest._tile_compute_fabric()
+    assert "UNAVAILABLE" in tile["status"]
+    assert "IDLE" not in tile["status"]
+    assert tile["nodes_reachable"] == 0
+
+
 def test_frontier_page_renders_both_contracts_without_legacy_live_inference():
     html = page._page_html("a11oy")
 

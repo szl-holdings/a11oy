@@ -1741,6 +1741,15 @@ def test_feed_pulse_joins_trickling_worker_and_preserves_cached_evidence(monkeyp
                 timeout=a11oy_live_feeds._remaining_timeout(deadline, 1),
                 deadline=deadline,
             )
+        if feed == "iss":
+            # Unlabeled ISS numbers fail closed (UNAVAILABLE). This test is
+            # about the celestrak trickle worker, so supply honest lat/lon.
+            return {
+                "latitude": 41.2,
+                "longitude": -73.4,
+                "altitude": 420.1,
+                "velocity": 27580.0,
+            }
         return {"feed": feed}
 
     stale = {

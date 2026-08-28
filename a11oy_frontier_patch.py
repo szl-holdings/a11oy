@@ -26,12 +26,20 @@ _S889 = ["Huawei", "ZTE", "Hytera", "Hikvision", "Dahua"]
 _NOW = lambda: datetime.now(timezone.utc).isoformat()
 
 async def _a11oy_frontier_health(request: Request):
+    # QHAPAQ 2026-08-28: GET 200 / HEAD 404 (HEAD fell through to the Node proxy).
+    # This lean kernel probe does not share the /api/a11oy/healthz rollup signer.
+    # Fail closed ABSENT — never copy DSSE-LIVE.
     return _FJSON({
         "status": "ok", "flagship": "a11oy", "doctrine": _DOCTRINE,
         "kernel_commit": _KERNEL, "declarations": _DECLS, "axioms": _AXIOMS,
         "lambda_threshold": _LAMBDA_THRESHOLD, "slsa": _SLSA,
         "mcp_tools": "/api/a11oy/v1/mcp/tools",
         "agent_loop": "/api/a11oy/v1/agent/loop",
+        "signer": {
+            "status": "ABSENT",
+            "signing_available": False,
+            "scheme": "UNAVAILABLE",
+        },
         "ts": _NOW(),
     })
 
@@ -182,7 +190,7 @@ async def _a11oy_frontier_agent_loop(request: Request):
 def register(app):
     """Insert frontier routes at position 0 — before Node proxy catch-all."""
     new_routes = [
-        _AR("/api/a11oy/v1/health",      _a11oy_frontier_health,      methods=["GET"],
+        _AR("/api/a11oy/v1/health",      _a11oy_frontier_health,      methods=["GET", "HEAD"],
             name="a11oy_frontier_health",   summary="Health check v1"),
         _AR("/api/a11oy/v1/version",     _a11oy_frontier_version,     methods=["GET"],
             name="a11oy_frontier_version",  summary="Build provenance v1"),

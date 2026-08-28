@@ -244,6 +244,9 @@
   .tier.evidence{border-color:rgba(215,185,107,0.4)} .tier.evidence .tnum,.tier.evidence .tname{color:var(--gold)}
   /* CONJECTURE: gray, NEVER green */
   .tier.conjecture{border-color:rgba(125,138,160,0.4)} .tier.conjecture .tnum,.tier.conjecture .tname{color:var(--gray)}
+  /* Genome catalog tag LOCKED-PROVEN is not the kernel chip and is never green. */
+  .genome-catalog{margin:16px 0 0;color:var(--gray);font-size:.92rem;line-height:1.55}
+  .genome-catalog .n{font-family:var(--mono)}
 
   /* vertical cards */
   .vcard{padding:24px;border-radius:var(--r);border:1px solid var(--border);
@@ -537,17 +540,19 @@
 
 <!-- ====================== (3) THE PROOF — 4 honest tiers (live) ====================== -->
 <section class="band wrap" id="proof">
-  <p class="kick">The proof · four honest tiers <span id="proof-src"></span></p>
+  <p class="kick">The proof · kernel locked-proven + genome catalog <span id="proof-src"></span></p>
   <h2>Every claim carries exactly one honesty tier.</h2>
-  <p class="intro">The 144-entry formula genome is graded across four tiers — and the rarest,
-    strongest tiers are the smallest on purpose. Counts below are read live from the genome
-    registry. A conjecture is shown in gray and is <b>never</b> rendered as proven.</p>
+  <p class="intro">The kernel locked-proven chip is the Lean-8 from
+    <code>/api/a11oy/v1/honest</code>. The 144-entry formula genome is a separate catalog,
+    graded across four tags. Catalog LOCKED-PROVEN is not the kernel and is never green.
+    A conjecture is shown in gray and is <b>never</b> rendered as proven.</p>
   <div class="grid g4">
     <div class="tier locked">
       <div class="tnum" id="pt-locked">—</div>
-      <div class="tname">LOCKED-PROVEN</div>
+      <div class="tname">LOCKED-PROVEN · kernel</div>
       <p>Truthful labels for what each Lean obligation actually proves — e.g. F18 = Reed-Solomon
-        parity (erasure tolerance), not "DSSE seal". Conservative and defensible.</p>
+        parity (erasure tolerance), not "DSSE seal". Conservative and defensible. Bound from
+        <code>/honest</code>, not from the genome catalog tag.</p>
     </div>
     <div class="tier semantic">
       <div class="tnum" id="pt-semantic">—</div>
@@ -568,6 +573,10 @@
         advisory, <b>never green</b>. Theorem U is the proven conditional alternative.</p>
     </div>
   </div>
+  <p class="genome-catalog" id="genome-catalog">Genome catalog (not the kernel):
+    LOCKED-PROVEN tag = <span class="n" id="pt-genome-locked">—</span>
+    of <span class="n" id="pt-genome-total">—</span> entries.
+    Never folded into the kernel chip. Never green.</p>
   <div class="cta-row" style="margin-top:34px">
     <a class="btn btn-primary" href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">See it run live · IMMUNE demo →</a>
     <a class="btn btn-ghost" href="/console#genome">Browse the genome →</a>
@@ -597,9 +606,9 @@
       <div class="vcard">
         <div class="pmark">kil</div>
         <h3>killinchu</h3>
-        <div class="tag">Defense · counter-UAS</div>
-        <p>Auditable interdiction: receipt per decision, separately disclosed signing state, and 3-of-4 BFT consensus.</p>
-        <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
+        <div class="tag">Defense · counter-UAS · UNAVAILABLE</div>
+        <p>Hub page exists. The inference Space timed out (2026-08-28). This card is not a live runtime. a11oy’s defense Λ is a separate advisory score, not killinchu health.</p>
+        <div class="lam"><span class="val" id="v-defense">UNAVAILABLE</span><span class="cap">runtime</span><span id="v-defense-chip"></span></div>
       </div>
       <div class="vcard">
         <div class="pmark">ins</div>
@@ -746,7 +755,8 @@
         <a href="/console#genome">Genome registry</a>
         <a href="/verify">Verify a receipt</a>
         <a href="/living-anatomy">Living anatomy · 3D</a>
-        <a href="/elite">killinchu · counter-UAS</a>
+        <a href="/counter-uas">Counter-UAS (this app)</a>
+        <a href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" target="_blank" rel="noopener">killinchu Hub · UNAVAILABLE</a>
         <a href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">IMMUNE · live investor demo</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
         <a href="/trust">Trust center</a>
@@ -890,17 +900,42 @@
   }
 
   function setTiers(t){
-    // t: {locked, semantic, evidence, conjecture}
-    $("pt-locked").textContent     = (num(t.locked)     === null) ? "N/A" : t.locked;
+    // Kernel Lean-8 chip is bound only from loadKernelLocked() → /honest
+    // locked_formula_count. Never genome LOCKED-PROVEN. Never proof_tiers catalog.
     $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
     $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
+    const gLocked = num(t.genome_locked_proven);
+    const gEl = $("pt-genome-locked");
+    if(gEl) gEl.textContent = (gLocked === null) ? "N/A" : gLocked;
+    const gTot = num(t.genome_count);
+    const totEl = $("pt-genome-total");
+    if(totEl && gTot !== null) totEl.textContent = gTot;
+  }
+
+  async function loadKernelLocked(){
+    try{
+      const h = await getJSON("/api/a11oy/v1/honest");
+      const lock = h.doctrine_lock || {};
+      const n = num(h.locked_formula_count != null ? h.locked_formula_count : lock.locked_formula_count);
+      $("pt-locked").textContent = (n === null) ? "N/A" : n;
+    }catch(e){
+      $("pt-locked").textContent = "N/A";
+    }
+  }
+
+  function markKillinchuUnavailable(){
+    // Hub 200; szlholdings-killinchu.hf.space timed out (KALLPA 2026-08-28).
+    // Do not paint a11oy's defense Λ as killinchu-live.
+    const val = $("v-defense"); if(val) val.textContent = "UNAVAILABLE";
+    const chip = $("v-defense-chip"); if(chip) chip.innerHTML = downChip("UNAVAILABLE");
   }
 
   function setVerticals(v){
     // v: {core,defense,insurance,finance,realestate} advisory Λ (numbers or null)
     [["core","v-core"],["defense","v-defense"],["insurance","v-insurance"],
      ["finance","v-finance"],["realestate","v-realestate"]].forEach(([k,id])=>{
+      if(k === "defense"){ markKillinchuUnavailable(); return; }
       const val = fmtLam(v[k]);
       $(id).textContent = (val===null) ? "N/A" : val;
       lamChip(id+"-chip", num(v[k]));
@@ -929,7 +964,11 @@
       const o = await getJSON("/api/a11oy/v1/org/overview");
       if(!o || o.status === "UNAVAILABLE") return false;
       let any = false;
-      if(o.proof_tiers){ setTiers(o.proof_tiers); $("proof-src").innerHTML = liveChip("overview"); any = true; }
+      if(o.proof_tiers){
+        setTiers(Object.assign({}, o.proof_tiers, {genome_count: o.genome_count}));
+        $("proof-src").innerHTML = liveChip("overview");
+        any = true;
+      }
       if(Array.isArray(o.verticals)){
         const vm = {};
         o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
@@ -952,8 +991,13 @@
       const g = await getJSON("/api/a11oy/v1/genome");
       if(g && g.status === "UNAVAILABLE") throw new Error("genome unavailable");
       const tc = g.tier_counts || {};
-      setTiers({ locked: tc["LOCKED-PROVEN"], semantic: tc["SEMANTIC-VERIFIED"],
-                 evidence: tc["evidence-backed"], conjecture: tc["CONJECTURE"] });
+      setTiers({
+        semantic: tc["SEMANTIC-VERIFIED"],
+        evidence: tc["evidence-backed"],
+        conjecture: tc["CONJECTURE"],
+        genome_locked_proven: tc["LOCKED-PROVEN"],
+        genome_count: g.count
+      });
       $("proof-src").innerHTML = liveChip("genome");
     }catch(e){
       setTiers({}); $("proof-src").innerHTML = downChip("UNAVAILABLE");
@@ -1046,8 +1090,10 @@
 
   // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
   (async function(){
+    markKillinchuUnavailable();
     loadEstatePulse();
     loadOverclaimMetrics();
+    await loadKernelLocked();
     const ov = await loadOverview();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",

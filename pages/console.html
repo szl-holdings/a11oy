@@ -16357,7 +16357,13 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   async function renderPublications(c){
     var lockedTxt='8';
-    try{ var g=await window.getJSON(window.API+'/v1/genome'); var lp=(g&&g.tier_counts&&g.tier_counts['LOCKED-PROVEN']); if(typeof lp==='number'&&lp>0) lockedTxt=String(lp); }catch(e){}
+    try{
+      var honest=await window.getJSON(window.API+'/v1/honest');
+      var lock=honest&&honest.doctrine_lock;
+      var n=(honest&&typeof honest.locked_formula_count==='number')?honest.locked_formula_count
+        :(lock&&typeof lock.locked_formula_count==='number')?lock.locked_formula_count:null;
+      if(typeof n==='number') lockedTxt=String(n);
+    }catch(e){}
     var h='<div class="pz-wrap">';
     h+='<div class="pz-lead">The shoulders we stand on. SZL’s own program is DOI-pinned on Zenodo; the work it builds on is cited in full with a one-line note on exactly what we adapt. Honest tiers throughout: <b style="color:var(--teal)">'+esc(lockedTxt)+' locked-proven</b> {F1,F4,F7,F11,F12,F18,F19,F22}; Λ-uniqueness = <b style="color:#7e8aa3">Conjecture 1</b> (never green); Khipu BFT safety = Conjecture 2. Every formula’s proof tier is verifiable in <a href="#genome" onclick="go(\'genome\');return false;" style="color:var(--teal)">Genome</a> against <code>/api/a11oy/v1/genome</code>.</div>';
 

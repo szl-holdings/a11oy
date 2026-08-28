@@ -3899,7 +3899,7 @@ app.add_middleware(
     allow_origins=_CORS_ALLOWED_ORIGINS,
     allow_origin_regex=_CORS_ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
@@ -5024,7 +5024,8 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
         except Exception:
             pass
     except Exception as exc:
-        val = {"status": "unavailable", "signing_available": None,
+        val = {"status": "UNAVAILABLE", "signing_available": False,
+               "scheme": "UNAVAILABLE",
                "error": f"{type(exc).__name__}: {exc}"}
     _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
@@ -5107,8 +5108,11 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
     return val
 
 
-@app.get("/api/a11oy/healthz")
+@app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
 async def healthz() -> JSONResponse:
+    # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
+    # stamp DSSE-LIVE (live probe of szl_dsse.signing_available). Other /healthz
+    # bodies must stay ABSENT/UNAVAILABLE — never copy this stamp.
     dep = await _healthz_dep_ping()
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
@@ -5127,7 +5131,7 @@ async def healthz() -> JSONResponse:
     _degraded_reasons = []
     if str(_storage.get("status")) == "unavailable":
         _degraded_reasons.append("storage-unavailable")
-    if str(_signer.get("status")) == "unavailable":
+    if str(_signer.get("status") or "").upper() == "UNAVAILABLE":
         _degraded_reasons.append("signer-probe-unavailable")
     if str(_frontier.get("status")) == "unavailable":
         _degraded_reasons.append("frontier-probe-unavailable")
@@ -5215,7 +5219,7 @@ async def preflight_status() -> JSONResponse:
         }, status_code=200)
 
 
-@app.get("/api/a11oy/readyz")
+@app.api_route("/api/a11oy/readyz", methods=["GET", "HEAD"])
 async def readyz() -> JSONResponse:
     # Keep service readiness separate from optional capability readiness. A public
     # CPU-only surface may serve in a truthful degraded state, while a deployment
@@ -6845,10 +6849,29 @@ async def _a11oy_pr_honest_v2():
         _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
     except Exception:
         _wired = []
+    # Kernel locked-8 (count + ids) is the Lean no-axiom theorem locked_count_eight.
+    # Distinct from genome catalog tag LOCKED-PROVEN (25 of 144). Never inflate 8.
+    try:
+        from szl_be_hardening import DOCTRINE_LOCK as _honest_lock
+    except Exception:
+        _honest_lock = {
+            "doctrine": "v11",
+            "state": "LOCKED",
+            "commit": "c7c0ba17",
+            "locked_formula_count": 8,
+            "locked_formula_ids": [
+                "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
+            ],
+        }
+    _locked_count = _honest_lock.get("locked_formula_count")
+    _locked_ids = list(_honest_lock.get("locked_formula_ids") or [])
     return JSONResponse({
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
+        "locked_formula_count": _locked_count,
+        "locked_formula_ids": _locked_ids,
+        "doctrine_lock": _honest_lock,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
@@ -9619,26 +9642,34 @@ async def a11oy_observability_summary_v2() -> JSONResponse:
                          "latency_ms": c["latency_ms"],
                          "url": "in-image capability", "name": c["name"],
                          "kind": c["kind"]}
-    ch = _a11oy_build_chain(24)
+    # Do not call _a11oy_build_chain(24) here. That SAMPLE depth is not a live DAG.
     return JSONResponse({
         "self_contained": True,
         "brain": "a11oy",
         "capabilities": _A11OY_CAPS,
         "mesh_reach": mesh,
         "signed_spans": None,
-        "dag_depth": ch["depth"],
-        "melt": {"metrics": {"dag_depth": ch["depth"]},
+        "dag_depth": None,
+        "observed": False,
+        "state": "UNAVAILABLE",
+        "melt": {"metrics": {},
                  "events": {"signed_spans": None}},
         "receipt_evidence": {
             "state": "inventory",
-            "hash_chain_depth": ch["depth"],
+            "hash_chain_depth": None,
             "signed_spans_observed": None,
             "chain_verified_observed": None,
+            "sample_chain": {
+                "state": "SAMPLE",
+                "operational": False,
+                "note": "deterministic SAMPLE fixture exists on other routes; not a live observation",
+            },
         },
         "observation_state": "inventory",
         "note": "Self-contained capability inventory. Nodes are named a11oy internal "
                 "functions, not runtime health or provenance observations. No latency, "
-                "signature, or attestation state is inferred. Λ = Conjecture 1 (advisory).",
+                "signature, or attestation state is inferred. SAMPLE chain depth is "
+                "not a live dag_depth. Organ counts are not invented. Λ = Conjecture 1 (advisory).",
     })
 
 
@@ -12516,7 +12547,7 @@ async def favicon_no_content() -> Response:
 
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def spa_root():
     """FRONT DOOR: cathedral-style sovereign 3D hero (a11oy brain-sun, live Trust
     Score Λ, current updates) matching the org card. The full working console is
@@ -12646,7 +12677,14 @@ async def _energy3d_app_js() -> Response:
 
 
 # --- Doctrine v13 organ page routes (ADDITIVE; explicit, win over SPA catch-all) ---
-PAGES_DIR = Path("/app/pages")
+# Same local-vs-image resolution as STATIC_DIR: container path when present,
+# repo checkout when running tests / local serve.py.
+_IMAGE_PAGES_DIR = Path("/app/pages")
+_LOCAL_PAGES_DIR = Path(__file__).resolve().parent / "pages"
+PAGES_DIR = _IMAGE_PAGES_DIR if (_IMAGE_PAGES_DIR / "console.html").is_file() else _LOCAL_PAGES_DIR
+_IMAGE_WEB_DIR = Path("/app/web")
+_LOCAL_WEB_DIR = Path(__file__).resolve().parent / "web"
+WEB_DIR = _IMAGE_WEB_DIR if (_IMAGE_WEB_DIR / "trust.html").is_file() else _LOCAL_WEB_DIR
 
 # === ADDITIVE (Yachay CTO + Perplexity Computer Agent, 2026-06-02): wire orphaned ===
 # === genius pages that were BUILT but never registered (fell to SPA shell = a lie). ===
@@ -12729,7 +12767,9 @@ async def proof_replay_page() -> Response:
 
 
 # /trust — Trust Center + Verify Surface (KANCHAY). web/trust.html is self-contained:
-# the four honesty tiers with LIVE counts from /api/a11oy/v1/genome, the locked-8 with
+# kernel locked-proven chip from /api/a11oy/v1/honest locked_formula_count (Lean-8);
+# genome catalog tiers (including LOCKED-PROVEN tag, never green, never the kernel)
+# from /api/a11oy/v1/genome. Locked-8 rows with
 # TRUTHFUL labels (F18=Reed-Solomon parity NOT "DSSE seal", F19=Bekenstein additive, etc.)
 # + real lean_ref, the SEMANTIC-VERIFIED theorems, Theorem U (PROVEN conditional, teal) vs
 # Conjecture 1 (Λ-uniqueness, OPEN, gray — NEVER green), SLSA L1 only; L2/L3 unavailable
@@ -12737,9 +12777,9 @@ async def proof_replay_page() -> Response:
 # /api/a11oy/v1/govern/infer and re-verifies the DSSE ECDSA-P256 signature in-browser
 # against /cosign.pub (no sign-on-read). Every claim links to its check. 0 runtime CDN.
 # Registered BEFORE the SPA /{full_path:path} catch-all so it wins the ordered match.
-@app.get("/trust")
+@app.api_route("/trust", methods=["GET", "HEAD"])
 async def trust_page() -> Response:
-    f = Path("/app/web/trust.html")
+    f = WEB_DIR / "trust.html"
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12784,7 +12824,7 @@ async def superpowers_page() -> Response:
 # house-style pages backed by LIVE endpoints (/v4/fleet, /api/a11oy/v1/mesh/state,
 # /api/a11oy/v1/evidence) — NOT redirects, NOT stubs. Served from pages/ (already
 # COPYed wholesale by the Dockerfile). Registered BEFORE the SPA catch-all.
-@app.get("/console")
+@app.api_route("/console", methods=["GET", "HEAD"])
 async def command_console_page() -> Response:
     f = PAGES_DIR / "console.html"
     if f.is_file():
@@ -12830,10 +12870,12 @@ async def pnt_nav_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
-# /elite — the landing links this as "counter-UAS". The dedicated Elite Console
-# page (web/elite_console.html) is NOT resident on the HF Docker Space, so adding
-# a Dockerfile COPY for it would fail the flagship Space build (missing COPY
-# source is a hard build error). Redirect to the REAL, working Counter-UAS page.
+# /elite — compatibility alias to the Counter-UAS page on this app. The dedicated
+# Elite Console page (web/elite_console.html) is NOT resident on the HF Docker
+# Space, so adding a Dockerfile COPY for it would fail the flagship Space build
+# (missing COPY source is a hard build error). Redirect to the REAL page.
+# killinchu inference is a different Space (runtime UNAVAILABLE as of 2026-08-28);
+# do not treat /elite as killinchu-live.
 async def _elite_redirect() -> Response:
     return _PTG_Redirect(url="/counter-uas", status_code=307)
 
@@ -12841,21 +12883,23 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
-# /killinchu — canonical path bridge. Without an explicit route this path falls
-# through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
-# bridge server-side so it works without JavaScript at every mobile viewport,
-# and preserve subpaths/query strings for direct links into the live product.
+# /killinchu — path bridge. Hub inventory page is reachable; the inference
+# Space timed out (KALLPA 2026-08-28). Do not stamp this runtime LIVE.
+# Do not 307 browsers to *.hf.space (not user-visible as a live product URL).
+# Send them to the Hub inventory page and label the runtime UNAVAILABLE.
 _KILLINCHU_CANONICAL = "https://szlholdings-killinchu.hf.space"
+_KILLINCHU_HUB = "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
 
 
 async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
-    suffix = f"/{full_path}" if full_path else "/"
-    target = f"{_KILLINCHU_CANONICAL}{suffix}"
+    target = _KILLINCHU_HUB
     if request.url.query:
         target = f"{target}?{request.url.query}"
     response = _PTG_Redirect(url=target, status_code=307)
-    response.headers["X-SZL-Route-State"] = "CANONICAL_REDIRECT"
-    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL}/>; rel="canonical"'
+    response.headers["X-SZL-Route-State"] = "UNAVAILABLE_RUNTIME"
+    response.headers["X-SZL-Killinchu-Hub"] = _KILLINCHU_HUB
+    response.headers["X-SZL-Killinchu-Inference"] = _KILLINCHU_CANONICAL
+    response.headers["Link"] = f'<{_KILLINCHU_HUB}>; rel="alternate"'
     return response
 
 
@@ -12970,7 +13014,7 @@ async def benchmark_page() -> Response:
 # honest "where a11oy fits" diagram. Served from pages/assurance.html.
 # Registered BEFORE the SPA catch-all so /assurance returns the real page.
 # ADDITIVE — no existing route touched.
-@app.get("/assurance")
+@app.api_route("/assurance", methods=["GET", "HEAD"])
 async def assurance_page() -> Response:
     f = PAGES_DIR / "assurance.html"
     if f.is_file():
@@ -13649,7 +13693,9 @@ except Exception as _ig_e:
 
 
 # P3 FIX: /api/health JSON probe (Upgrade Hammer — Doctrine v11 LOCKED 749/14/163)
-@app.get("/api/health")
+# QHAPAQ 2026-08-28: GET 200 / HEAD 405. This lean probe does not share the
+# /api/a11oy/healthz rollup signer — fail closed ABSENT, never copy DSSE-LIVE.
+@app.api_route("/api/health", methods=["GET", "HEAD"])
 async def api_health() -> JSONResponse:
     """Top-level health probe — returns JSON 200. Registered before SPA catch-all."""
     return JSONResponse({
@@ -13662,6 +13708,11 @@ async def api_health() -> JSONResponse:
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
         "slsa": _A11OY_SLSA_TEXT,
+        "signer": {
+            "status": "ABSENT",
+            "signing_available": False,
+            "scheme": "UNAVAILABLE",
+        },
     })
 
 
@@ -13720,7 +13771,33 @@ async def warhacker_page() -> Response:
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
-@app.get("/{full_path:path}")
+# /robots.txt is a crawler document. The SPA catch-all used to be GET-only, so
+# HEAD /robots.txt returned FastAPI 405 JSON (KALLPA 2026-08-28). FileResponse
+# already omits the body on HEAD.
+@app.api_route("/robots.txt", methods=["GET", "HEAD"])
+async def robots_txt() -> Response:
+    f = STATIC_DIR / "robots.txt"
+    if f.is_file():
+        return FileResponse(f, media_type="text/plain")
+    return Response("User-agent: *\nAllow: /\n", media_type="text/plain")
+
+
+# QHAPAQ addendum 2026-08-28 13:05–13:13 ET: GET /sitemap.xml 200 / HEAD 405
+# on the app (Server: szl), same as documents. Explicit GET+HEAD; FileResponse
+# omits the body on HEAD.
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
+async def sitemap_xml() -> Response:
+    f = STATIC_DIR / "sitemap.xml"
+    if f.is_file():
+        return FileResponse(f, media_type="application/xml")
+    return Response(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>\n',
+        media_type="application/xml",
+    )
+
+
+@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
     if full_path.startswith("api/"):
@@ -14997,17 +15074,20 @@ except Exception as _ftiers_e:
     _A11OY_FTIERS_DIAG = {"status": "FAILED", "error": repr(_ftiers_e)}
 
 # ============================================================================
-# Canonical host: a-11-oy.com. a11oy.net is SUNSET — app-level 301 redirect so the
-# public URL converges on a-11-oy.com. Read-path-safe (pure Location response, no
-# receipt, no signing). Registered before uvicorn.run so the middleware stack is
-# built with it; passes through the HF Space host + localhost untouched.
+# Two-origin identity lock: a-11-oy.com is the product command center;
+# a11oy.net is the public proof/registry (separate failure domain). This app
+# must NEVER 301 .net onto the product host (and never 301 the product onto
+# .net). Read-path-safe. Registered before uvicorn.run so the middleware stack
+# is built with it; passes through the HF Space host + localhost untouched.
+# HTML document HEAD is pinned here too (/console /trust /assurance already
+# declare GET+HEAD; ensure_html_documents_accept_head is belt-and-suspenders).
 # ============================================================================
 try:
     import a11oy_canonical_domain as _canon_mod
     import sys as _canon_sys
     _canon_status = _canon_mod.register(app)
-    print(f"[a11oy] canonical-domain registered ({len(_canon_status)} redirects): {_canon_status}", file=_canon_sys.stderr)
-    _A11OY_CANON_DIAG = {"status": "ok", "redirects": _canon_status}
+    print(f"[a11oy] canonical-domain registered: {_canon_status}", file=_canon_sys.stderr)
+    _A11OY_CANON_DIAG = {"status": "ok", "identity": _canon_status}
 except Exception as _canon_e:
     import sys as _canon_sys, traceback as _canon_tb
     print(f"[a11oy] canonical-domain FAILED (non-fatal): {_canon_e!r}", file=_canon_sys.stderr)
@@ -15667,7 +15747,7 @@ except Exception as _szl_source_error:  # additive: never take down the SPA
 # re-verification on every request; receipts fetched from the public HF model
 # repos (bytes cached briefly, verification never skipped). Front-moved inside
 # the module so the exact JSON route wins over the SPA history fallback and the
-# /api proxy. Moves the wall onto a-11-oy.com so a11oy.net can retire.
+# /api proxy. Product origin remains a-11-oy.com; a11oy.net stays a separate registry.
 # ============================================================================
 try:
     import a11oy_forge_family as _a11oy_forge_family
@@ -15785,6 +15865,26 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
         f"[a11oy] ayllu council wall NOT registered (non-fatal): {_ayllu_wall_error!r}",
         file=sys.stderr,
     )
+
+
+# Belt-and-suspenders: HTML document, sitemap, and health JSON routes must
+# accept HEAD even if a later registration re-added them as GET-only.
+# QHAPAQ 2026-08-28: GET-only /api/a11oy/* HEAD-fell-through to the Node
+# proxy (404). Same HEAD 405 on szlholdings-a11oy.hf.space (Server: szl) —
+# the app, not Cloudflare. Host-aware Link rel=canonical (this app, not a
+# Cloudflare transform): on a-11-oy.com / www, Link is
+# https://a-11-oy.com{path}; huggingface.co/spaces is never the product
+# canonical. On *.hf.space the app omits a Space Hub canonical. HF custom
+# domain stays PENDING/UNAVAILABLE. Keep orange-cloud.
+# Do not grey-cloud. www.a-11-oy.com GET / is Cloudflare HTTP 404
+# (UNAVAILABLE until Cloudflare 301 www → apex). Do not add a second HF
+# custom domain. This app does not change DNS. x-szl-wire-d LIVE is Wire D,
+# not domain LIVE.
+try:
+    import a11oy_canonical_domain as _canon_head_mod
+    _canon_head_mod.ensure_html_documents_accept_head(app)
+except Exception:
+    pass
 
 
 if __name__ == "__main__":

@@ -347,6 +347,25 @@ def test_register_and_endpoints():
     assert summ["surfaceA"]["requests"] == 2
     assert summ["surfaceA"]["p50_ms"] is not None
     assert summ["surfaceA"]["p95_ms"] is not None
+    traces_body = client.get(f"/api/{NS}/v1/observability/traces").json()
+    assert traces_body["state"] == "OBSERVED"
+    assert client.get(f"/api/{NS}/v1/observability/health-summary").json()["state"] == "OBSERVED"
+
+
+def test_empty_ring_is_unavailable_not_a_live_zero():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    _fresh_ring()
+    app = FastAPI()
+    obs.register(app, ns=NS)
+    client = TestClient(app)
+    traces = client.get(f"/api/{NS}/v1/observability/traces").json()
+    assert traces["state"] == "UNAVAILABLE"
+    assert traces["ring"]["size"] == 0
+    assert traces["traces"] == []
+    summary = client.get(f"/api/{NS}/v1/observability/health-summary").json()
+    assert summary["state"] == "UNAVAILABLE"
 
 
 def test_register_is_additive_skips_existing():

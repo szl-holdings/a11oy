@@ -9,6 +9,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - public identity lock
+- Trust Center canonical (and og:url / twitter:url) is the product origin
+  `https://a-11-oy.com/trust`. The unhyphenated third-party host is never
+  emitted as canonical, og:url, twitter:url, or sameAs.
+- HEAD on `/console`, `/trust`, and `/assurance` now matches GET (HTTP 200,
+  same content-type, empty body) so crawlers and monitors that probe with
+  HEAD no longer see JSON 405.
+- This app no longer treats `a11oy.net` as sunset and no longer 301s that
+  host onto `a-11-oy.com`. Two origins, two jobs: product command center vs
+  public proof/registry. No `.com` → `.net` redirect was added.
+- Hugging Face Space `runtime.domains` reports `a-11-oy.com` PENDING while
+  Cloudflare still serves the apex (MEASURED 2026-08-28). That is an open
+  DNS/provider defect (KALLPA / Stephen). This change does not claim the
+  custom domain is verified and does not move HTML canonicals off
+  `https://a-11-oy.com` to paper it over.
+- HEAD on `/robots.txt` now matches GET (HTTP 200, empty body). FastAPI
+  GET-only FileResponse / SPA catch-all had been returning JSON 405.
+- HEAD on health JSON (`/healthz`, `/readyz`, `/api/health`,
+  `/api/a11oy/healthz`, `/api/a11oy/v1/health`) now matches GET. QHAPAQ
+  MEASURED GET 200 / HEAD 405 or 404 (the `/api/a11oy/{path}` proxy already
+  accepted HEAD, so GET-only probes 404'd). Starlette `methods=["GET"]` was
+  the cause.
+- Lean health JSON (`/healthz`, `/api/health`, `/api/a11oy/v1/health`) now
+  carries an honest signer enum (`ABSENT` / `UNAVAILABLE`). `DSSE-LIVE` stays
+  only on `/api/a11oy/healthz` rollup.signer when `szl_dsse.signing_available()`
+  is true. Never copy that stamp onto a probe that does not share the signer.
+- ISS live feed labels units (degrees, km, km/h) or returns UNAVAILABLE.
+  `GET /v1/live-fetch/status` stays an honest 404 (undeclared path); no fake
+  status payload.
+- killinchu inference runtime is labelled UNAVAILABLE on the landing (Hub
+  page HTTP 200; `szlholdings-killinchu.hf.space` timed out). Do not treat
+  a11oy's defense Λ as killinchu-live.
+- Empty observability DAG (depth 0 / IDLE) and an empty compute-fabric
+  probe are labelled UNAVAILABLE. Process-local zero is not a live number.
+- `/api/a11oy/v1/observability/summary` does not feed SAMPLE chain depth 24
+  as live `dag_depth`, and does not invent `organs_reachable` while
+  `observation_state` is inventory / unobserved. `/landing` paints
+  UNAVAILABLE in that case and no longer links killinchu at `*.hf.space`.
+- `/killinchu` 307s to the Hub inventory page, not the timed-out inference
+  Space. Runtime stays UNAVAILABLE. `hf-sync.yml`: staging Space ≠ prod DNS;
+  GitHub SHA and Space runtime SHA can drift.
+- Trust Center and `/verify` now say in plain language: the lasting public
+  RECORD belongs on `a11oy.net`; `/verify` is the interactive tool on
+  `a-11-oy.com`. The two hosts stay separate.
+- Kernel locked-proven chip is bound from `GET /api/a11oy/v1/honest`
+  (`locked_formula_count=8`, ids F1,F4,F7,F11,F12,F18,F19,F22). Genome
+  `tier_counts.LOCKED-PROVEN=25` of 144 stays a catalog tag, labelled
+  genome, never the kernel chip, never green. Lean-8 ≠ genome-144. The
+  8 and the 25 are unchanged.
+- Trust `#cnt-locked` and home `#pt-locked` bind
+  `GET /api/a11oy/v1/honest` `locked_formula_count` only. Genome
+  `tier_counts.LOCKED-PROVEN` stays a gray catalog tag (`#cnt-genome-locked` /
+  `#pt-genome-locked`), never the kernel chip, never green. Λ stays
+  Conjecture 1. No `/investor` stub.
+- HEAD 405 is the app (`Server: szl`), including on
+  `szlholdings-a11oy.hf.space`. `/sitemap.xml` now accepts HEAD.
+  OPTIONS `/` and `/console` send `Allow` and `Access-Control-Allow-Methods`.
+  HTTP `Link` rel=canonical is Host-aware in this app (not a Cloudflare
+  transform): on Host `a-11-oy.com` / `www`, `https://a-11-oy.com{path}`;
+  on `*.hf.space` the Space Hub canonical is omitted. Never
+  `huggingface.co/spaces`, never the furniture host. HF custom domain stays PENDING/UNAVAILABLE.
+  Keep orange-cloud (proxied apex). Do not grey-cloud. This PR does not
+  change DNS; Stephen may add `_huggingface.a-11-oy.com` TXT later without
+  dropping the Cloudflare proxy. www GET / is Cloudflare HTTP 404
+  (UNAVAILABLE until Cloudflare 301 www → apex); this PR does not mint DNS
+  and does not add a second HF custom domain.
+  `x-szl-wire-d: LIVE` is DSSE Wire D provenance, not domain LIVE; that
+  distinction lives in a11oy-only DX comments (`a11oy_canonical_domain.py`),
+  not in shared `szl_provenance.py` (killinchu byte identity).
+
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu
   GGUF CPU lab (`/v1/chat/completions`, max_tokens<=32, temperature=0, no

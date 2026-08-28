@@ -45,6 +45,17 @@ def test_healthz_liveness(client):
     assert body["status"] == "ok"
     assert body["doctrine"] == "v11"
     assert body["lock"] == "749/14/163"
+    assert body["signer"]["status"] in ("ABSENT", "UNAVAILABLE")
+    assert body["signer"]["status"] != "DSSE-LIVE"
+    assert body["signer"]["signing_available"] is False
+
+
+def test_healthz_head_matches_get(client):
+    get_r = client.get("/healthz")
+    head_r = client.head("/healthz")
+    assert get_r.status_code == 200
+    assert head_r.status_code == 200
+    assert head_r.content in (b"", None) or len(head_r.content) == 0
 
 
 def test_readyz_checks_chain(client):
@@ -170,6 +181,12 @@ def test_honest_footer_exact_lock(client):
     assert (lock["declarations"], lock["axioms"], lock["sorries"]) == (749, 14, 163)
     assert lock["commit"] == "c7c0ba17"
     assert lock["lambda"] == "Conjecture 1"
+    assert lock["locked_formula_count"] == 8
+    assert lock["locked_formula_ids"] == [
+        "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
+    ]
+    assert body["locked_formula_count"] == 8
+    assert body["locked_formula_ids"] == lock["locked_formula_ids"]
     assert body["footer"] == "Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1"
 
 
