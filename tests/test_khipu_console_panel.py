@@ -37,6 +37,7 @@ def test_try_khipu_panel_present_on_command_center_only():
     assert "data-view='" not in slice_
     # wrap Command Center only
     assert "V.command" in slice_ or "command.render" in slice_
+    assert "currentView()!=='command'" in slice_ or "currentView()!==\"command\"" in slice_
 
 
 def test_try_khipu_panel_has_no_tokens_per_second_marketing():

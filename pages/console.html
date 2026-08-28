@@ -17148,7 +17148,11 @@ window.a11oyInvestor = (function(){
       }
     });
   }
+  function currentView(){
+    return String((location.hash||'#command').replace(/^#/,'').split(/[/?]/)[0]||'command');
+  }
   function inject(c){
+    if(currentView()!=='command') return;
     if(!c || c.querySelector('#try-khipu-panel')) return;
     var wrap=document.createElement('div');
     wrap.innerHTML=panelHTML();
@@ -17173,7 +17177,7 @@ window.a11oyInvestor = (function(){
       return await p;
     };
     var body=document.getElementById('vbody');
-    if(body && !body.querySelector('#try-khipu-panel')) inject(body);
+    if(body && currentView()==='command' && !body.querySelector('#try-khipu-panel')) inject(body);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wrapCommand);
   else wrapCommand();
