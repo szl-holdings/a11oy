@@ -126,6 +126,13 @@ Locked architecture (do not merge the two hosts):
 
 **Do not** 301 `a11oy.net` onto `a-11-oy.com` from this app (the old sunset middleware was a landmine if `.net` DNS ever pointed at the Space).
 
+**Hugging Face custom domain is PENDING, not verified.** MEASURED 2026-08-28 via `GET https://huggingface.co/api/spaces/SZLHOLDINGS/a11oy`: `runtime.domains` is `szlholdings-a11oy.hf.space` READY and `a-11-oy.com` PENDING. The same day, `HEAD https://a-11-oy.com/` returned HTTP 200 through Cloudflare (`x-szl-space: a11oy`, `x-proxied-replica` present). Apex serving is not the same as Hugging Face provider verification.
+
+- Treat HF `PENDING` as an open identity defect owned by **KALLPA / Stephen (DNS)**. Completing or removing the Hugging Face custom-domain binding is an external operator action (`docs/SPACES_HEALTH_OPERATIONS.md`).
+- **Do not** claim the custom domain is verified in HTML, badges, or PR copy.
+- **Do not** paper over PENDING by moving `<link rel="canonical">` / `og:url` onto `*.hf.space`. Product HTML canonicals stay `https://a-11-oy.com`.
+- **Do not** fight Cloudflare (CNAME flattening, orange-cloud, or nameserver changes) just to make Hugging Face report READY if that would take the public origin down. Public 200 on the apex beats a green HF domain row.
+
 ---
 
 ## Required DCO on All Fix Commits

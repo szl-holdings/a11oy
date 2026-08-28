@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - This app no longer treats `a11oy.net` as sunset and no longer 301s that
   host onto `a-11-oy.com`. Two origins, two jobs: product command center vs
   public proof/registry. No `.com` → `.net` redirect was added.
+- Hugging Face Space `runtime.domains` reports `a-11-oy.com` PENDING while
+  Cloudflare still serves the apex (MEASURED 2026-08-28). That is an open
+  DNS/provider defect (KALLPA / Stephen). This change does not claim the
+  custom domain is verified and does not move HTML canonicals off
+  `https://a-11-oy.com` to paper it over.
 
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu

@@ -5,6 +5,10 @@
 The unhyphenated furniture-shop host must never appear as canonical / og:url /
 twitter:url / sameAs / JSON-LD url. Trust Center on this app is a product route
 (https://a-11-oy.com/trust). HEAD and GET must agree on HTML document routes.
+
+Hugging Face runtime.domains may report a-11-oy.com PENDING while Cloudflare
+still serves the apex. That is KALLPA/Stephen DNS. HTML canonicals stay on
+the public product origin; they are not rewritten to *.hf.space.
 """
 from __future__ import annotations
 
@@ -68,6 +72,10 @@ def test_no_file_emits_furniture_host_as_canonical_og_or_sameas():
 
 
 def test_trust_center_canonical_is_the_product_origin():
+    """Product HTML stays on a-11-oy.com even if HF runtime.domains is PENDING.
+
+    PENDING is KALLPA/Stephen DNS, not an HTML rewrite to *.hf.space.
+    """
     html = (ROOT / "web" / "trust.html").read_text(encoding="utf-8")
     assert 'rel="canonical" href="https://a-11-oy.com/trust"' in html
     assert _FURNITURE_HOST not in html
@@ -79,6 +87,36 @@ def test_assurance_canonical_is_the_product_origin():
     assert 'rel="canonical" href="https://a-11-oy.com/assurance"' in html
     assert _FURNITURE_HOST not in html
     assert 'property="og:url" content="https://a-11-oy.com/assurance"' in html
+
+
+def test_product_html_canonicals_are_not_rewritten_to_the_hf_space():
+    """HF PENDING custom-domain state is not papered over in HTML.
+
+    Hugging Face injects Link rel=canonical to the Space URL at the proxy.
+    Product pages must keep <link rel="canonical"> on https://a-11-oy.com.
+    """
+    pages = (
+        ROOT / "web" / "trust.html",
+        ROOT / "pages" / "assurance.html",
+        ROOT / "a11oy_landing.html",
+        ROOT / "pages" / "console.html",
+    )
+    href_re = re.compile(
+        r'rel\s*=\s*["\']canonical["\'][^>]*href\s*=\s*["\']([^"\']+)["\']'
+        r'|href\s*=\s*["\']([^"\']+)["\'][^>]*rel\s*=\s*["\']canonical["\']',
+        re.IGNORECASE,
+    )
+    for path in pages:
+        html = path.read_text(encoding="utf-8")
+        match = href_re.search(html)
+        assert match, f"{path.relative_to(ROOT)} missing rel=canonical"
+        href = match.group(1) or match.group(2)
+        assert href.startswith("https://a-11-oy.com"), (
+            f"{path.name} canonical must stay on the public product origin, got {href}"
+        )
+        assert "hf.space" not in href
+        assert "huggingface.co" not in href
+        assert _FURNITURE_HOST not in href
 
 
 def test_app_does_not_export_net_as_sunset():

@@ -16,6 +16,13 @@ vanish into the product app. register() therefore installs NO cross-origin
 redirect. It also never issues a Location to the unhyphenated third-party
 host a11oy.com (a furniture shop we do not control).
 
+HTML canonicals stay on https://a-11-oy.com even when Hugging Face
+runtime.domains reports that host PENDING. PENDING is an open DNS/provider
+defect (KALLPA / Stephen). Do not paper it over by pointing canonicals at
+*.hf.space, and do not retarget Cloudflare DNS just to satisfy Hugging Face
+if that would take the public origin down. See docs/runbook.md INC-05 and
+docs/SPACES_HEALTH_OPERATIONS.md (custom domain state).
+
 Read-path-safe: no receipt, no signing, no state. Doctrine-safe try/except
 register(app).
 """
