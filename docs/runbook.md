@@ -110,6 +110,24 @@ gh run view <run-id> --repo szl-holdings/<flagship> --log-failed
 | Medium | Single flagship 404 on CTO endpoint | On-call team | 4 hours |
 | Low | CI failing but prod OK | Team | Next business day |
 
+---
+
+### INC-05: public identity hosts (DNS / Cloudflare — not an app deploy)
+
+Locked architecture (do not merge the two hosts):
+
+- `a-11-oy.com` = product command center (this app; HF Space behind Cloudflare)
+- `a11oy.net` = public proof/registry (GitHub Pages repo `szl-holdings/a11oy-net`, separate failure domain)
+- Public name is **a11oy**. Do not stamp or 301 toward the unhyphenated third-party furniture host.
+
+**www.a-11-oy.com is NXDOMAIN** while apex sends `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Browsers that have seen the apex will refuse `http://www.a-11-oy.com` and have nothing to connect to on HTTPS. DNS is Cloudflare/ops (Stephen). This app cannot create the `www` record.
+
+**HTTP `Link: rel="canonical"` to `https://huggingface.co/spaces/SZLHOLDINGS/a11oy`** is injected by the Hugging Face Space proxy (`x-proxied-replica`). HTML `<link rel="canonical">` on `/` is already `https://a-11-oy.com/`. Stripping the HF Link header is a Cloudflare transform (KALLPA), not an in-app header.
+
+**Do not** 301 `a11oy.net` onto `a-11-oy.com` from this app (the old sunset middleware was a landmine if `.net` DNS ever pointed at the Space).
+
+---
+
 ## Required DCO on All Fix Commits
 
 ```

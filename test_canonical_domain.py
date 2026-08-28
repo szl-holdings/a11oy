@@ -1,16 +1,14 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. Jr. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 # Sign-off: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-"""test_canonical_domain — a11oy.net is redirect-only; it must NOT serve user surfaces.
+"""test_canonical_domain — two origins, two jobs; this app never 301s a11oy.net.
 
-Doctrine: "No a11oy.net on user surfaces (canonical a-11-oy.com WITH hyphens);
-a11oy.net sunset except redirect middleware." These checks pin the behavior so the
-sunset host can never regress to serving content:
+Locked architecture:
 
-  * ANY path on Host a11oy.net (apex), www.a11oy.net, or any *.a11oy.net subdomain
-    301-redirects to the SAME path on https://a-11-oy.com (path + query preserved);
-  * the canonical host a-11-oy.com, the HF Space host, and localhost are passed
-    through untouched, so the app keeps serving on its origin.
+  * a-11-oy.com is the product command center
+  * a11oy.net is the public proof/registry (separate failure domain)
+  * this app must NOT 301 .net onto .com, and must NOT 301 .com onto .net
+  * the unhyphenated third-party host is never a redirect target
 """
 import pytest
 from fastapi import FastAPI
@@ -40,27 +38,29 @@ def _app():
 
 @pytest.mark.parametrize("host", ["a11oy.net", "www.a11oy.net", "app.a11oy.net", "A11OY.NET"])
 @pytest.mark.parametrize("path", ["/", "/frontier", "/elite", "/deep/nested/path"])
-def test_sunset_hosts_301_to_canonical_same_path(host, path):
+def test_registry_hosts_are_not_redirected_onto_the_product(host, path):
     c = _app()
     r = c.get(path, headers={"host": host})
-    assert r.status_code == 301, f"{host}{path} must 301, got {r.status_code}"
-    assert r.headers["location"] == f"https://a-11-oy.com{path}", (
-        f"{host}{path} must redirect to canonical same-path"
-    )
+    assert r.status_code != 301, f"{host}{path} must not 301 onto the product origin"
+    assert "location" not in {k.lower() for k in r.headers.keys()} or not (
+        r.headers.get("location") or ""
+    ).startswith("https://a-11-oy.com")
+    if path in ("/", "/frontier", "/elite"):
+        assert r.status_code == 200, f"{host}{path} must pass through, got {r.status_code}"
 
 
-def test_query_string_is_preserved():
+def test_query_string_on_registry_host_is_not_rewritten():
     c = _app()
     r = c.get("/frontier?tab=live&x=1", headers={"host": "a11oy.net"})
-    assert r.status_code == 301
-    assert r.headers["location"] == "https://a-11-oy.com/frontier?tab=live&x=1"
+    assert r.status_code == 200
+    assert r.json() == {"surface": "frontier"}
 
 
-def test_sunset_host_with_port_is_matched():
+def test_registry_host_with_port_is_not_redirected():
     c = _app()
     r = c.get("/frontier", headers={"host": "a11oy.net:8080"})
-    assert r.status_code == 301
-    assert r.headers["location"] == "https://a-11-oy.com/frontier"
+    assert r.status_code == 200
+    assert r.json() == {"surface": "frontier"}
 
 
 @pytest.mark.parametrize(
@@ -74,11 +74,36 @@ def test_canonical_and_origin_hosts_serve_untouched(host):
     assert r.json() == {"surface": "frontier"}
 
 
-def test_is_sunset_host_helper():
-    assert cd._is_sunset_host("a11oy.net")
-    assert cd._is_sunset_host("www.a11oy.net")
-    assert cd._is_sunset_host("anything.a11oy.net")
-    # Must NOT match look-alikes that merely contain the string.
-    assert not cd._is_sunset_host("a-11-oy.com")
-    assert not cd._is_sunset_host("a11oy.net.evil.com")
-    assert not cd._is_sunset_host("evila11oy.net")
+def test_product_host_is_not_redirected_onto_the_registry():
+    c = _app()
+    r = c.get("/frontier", headers={"host": "a-11-oy.com"})
+    assert r.status_code == 200
+    location = r.headers.get("location") or ""
+    assert "a11oy.net" not in location
+
+
+def test_forbidden_furniture_host_is_never_a_redirect_target():
+    c = _app()
+    for host in ("a11oy.net", "a-11-oy.com", "localhost"):
+        r = c.get("/frontier", headers={"host": host})
+        location = (r.headers.get("location") or "").lower()
+        furniture = "a11oy.com"
+        assert furniture not in location, f"{host} must not 301 toward the third-party host"
+
+
+def test_registry_host_helper():
+    assert cd._is_registry_host("a11oy.net")
+    assert cd._is_registry_host("www.a11oy.net")
+    assert cd._is_registry_host("anything.a11oy.net")
+    assert not cd._is_registry_host("a-11-oy.com")
+    assert not cd._is_registry_host("a11oy.net.evil.com")
+    assert not cd._is_registry_host("evila11oy.net")
+    assert not cd._is_forbidden_public_host("a-11-oy.com")
+    assert cd._is_forbidden_public_host("a11oy.com")
+    assert cd._is_product_host("a-11-oy.com")
+    assert cd._is_product_host("www.a-11-oy.com")
+    assert not cd._is_product_host("a11oy.net")
+    assert cd.FORBIDDEN_PUBLIC_HOST == "a11oy.com"
+    assert cd.CANONICAL_HOST == "a-11-oy.com"
+    assert cd.REGISTRY_HOST == "a11oy.net"
+    assert not hasattr(cd, "SUNSET_DOMAIN")

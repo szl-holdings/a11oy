@@ -53,7 +53,7 @@ ecosystem-stage: "operational"
 [![Evidence-Typed Governance preprint](https://zenodo.org/badge/DOI/10.5281/zenodo.21332317.svg)](https://doi.org/10.5281/zenodo.21332317)
 [![Fail-Closed Services preprint](https://zenodo.org/badge/DOI/10.5281/zenodo.21332338.svg)](https://doi.org/10.5281/zenodo.21332338)
 
-**[Open a11oy →](https://a-11-oy.com)** · **[Legacy alias →](https://a11oy.net)** · **[Try on Hugging Face →](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)**
+**[Open a11oy →](https://a-11-oy.com)** · **[Public proof registry →](https://a11oy.net)** · **[Try on Hugging Face →](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)**
 
 </div>
 
@@ -216,7 +216,7 @@ to its captured run.
 - [Associated research-program concept DOI — 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
 - [Existing formal-artifact record — 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 - [A11oy software releases](https://github.com/szl-holdings/a11oy/releases) — the v1.1.0 software-version DOI stays `PENDING_ZENODO_READBACK` until Zenodo resolves the immutable release
-- [Canonical product surface](https://a-11-oy.com) · [legacy `a11oy.net` redirect](https://a11oy.net)
+- [Canonical product surface](https://a-11-oy.com) · [public proof registry `a11oy.net`](https://a11oy.net)
 
 ---
 

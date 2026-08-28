@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - public identity lock
+- Trust Center canonical (and og:url / twitter:url) is the product origin
+  `https://a-11-oy.com/trust`. The unhyphenated third-party host is never
+  emitted as canonical, og:url, twitter:url, or sameAs.
+- HEAD on `/console`, `/trust`, and `/assurance` now matches GET (HTTP 200,
+  same content-type, empty body) so crawlers and monitors that probe with
+  HEAD no longer see JSON 405.
+- This app no longer treats `a11oy.net` as sunset and no longer 301s that
+  host onto `a-11-oy.com`. Two origins, two jobs: product command center vs
+  public proof/registry. No `.com` → `.net` redirect was added.
+
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu
   GGUF CPU lab (`/v1/chat/completions`, max_tokens<=32, temperature=0, no

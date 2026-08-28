@@ -163,6 +163,8 @@ def test_live_version_route_uses_canonical_release_identity(monkeypatch):
     assert payload["release_state"] == "CANDIDATE"
     assert payload["git_sha"] == "UNKNOWN"
     assert payload["surfaces"]["canonical"] == release.CANONICAL_URL
+    assert payload["surfaces"]["registry"] == release.REGISTRY_URL
     assert payload["surfaces"]["legacy_alias"] == release.LEGACY_ALIAS
+    assert payload["surfaces"]["legacy_alias_policy"] == "SEPARATE_REGISTRY_ORIGIN"
     assert payload["doi"]["software_version"]["status"] == "PENDING_ZENODO_READBACK"
     assert payload["verify"]["release_assets_status"] == "PENDING_RELEASE"

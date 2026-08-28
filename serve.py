@@ -3899,7 +3899,7 @@ app.add_middleware(
     allow_origins=_CORS_ALLOWED_ORIGINS,
     allow_origin_regex=_CORS_ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
@@ -12516,7 +12516,7 @@ async def favicon_no_content() -> Response:
 
 
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def spa_root():
     """FRONT DOOR: cathedral-style sovereign 3D hero (a11oy brain-sun, live Trust
     Score Λ, current updates) matching the org card. The full working console is
@@ -12646,7 +12646,14 @@ async def _energy3d_app_js() -> Response:
 
 
 # --- Doctrine v13 organ page routes (ADDITIVE; explicit, win over SPA catch-all) ---
-PAGES_DIR = Path("/app/pages")
+# Same local-vs-image resolution as STATIC_DIR: container path when present,
+# repo checkout when running tests / local serve.py.
+_IMAGE_PAGES_DIR = Path("/app/pages")
+_LOCAL_PAGES_DIR = Path(__file__).resolve().parent / "pages"
+PAGES_DIR = _IMAGE_PAGES_DIR if (_IMAGE_PAGES_DIR / "console.html").is_file() else _LOCAL_PAGES_DIR
+_IMAGE_WEB_DIR = Path("/app/web")
+_LOCAL_WEB_DIR = Path(__file__).resolve().parent / "web"
+WEB_DIR = _IMAGE_WEB_DIR if (_IMAGE_WEB_DIR / "trust.html").is_file() else _LOCAL_WEB_DIR
 
 # === ADDITIVE (Yachay CTO + Perplexity Computer Agent, 2026-06-02): wire orphaned ===
 # === genius pages that were BUILT but never registered (fell to SPA shell = a lie). ===
@@ -12737,9 +12744,9 @@ async def proof_replay_page() -> Response:
 # /api/a11oy/v1/govern/infer and re-verifies the DSSE ECDSA-P256 signature in-browser
 # against /cosign.pub (no sign-on-read). Every claim links to its check. 0 runtime CDN.
 # Registered BEFORE the SPA /{full_path:path} catch-all so it wins the ordered match.
-@app.get("/trust")
+@app.api_route("/trust", methods=["GET", "HEAD"])
 async def trust_page() -> Response:
-    f = Path("/app/web/trust.html")
+    f = WEB_DIR / "trust.html"
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12784,7 +12791,7 @@ async def superpowers_page() -> Response:
 # house-style pages backed by LIVE endpoints (/v4/fleet, /api/a11oy/v1/mesh/state,
 # /api/a11oy/v1/evidence) — NOT redirects, NOT stubs. Served from pages/ (already
 # COPYed wholesale by the Dockerfile). Registered BEFORE the SPA catch-all.
-@app.get("/console")
+@app.api_route("/console", methods=["GET", "HEAD"])
 async def command_console_page() -> Response:
     f = PAGES_DIR / "console.html"
     if f.is_file():
@@ -12970,7 +12977,7 @@ async def benchmark_page() -> Response:
 # honest "where a11oy fits" diagram. Served from pages/assurance.html.
 # Registered BEFORE the SPA catch-all so /assurance returns the real page.
 # ADDITIVE — no existing route touched.
-@app.get("/assurance")
+@app.api_route("/assurance", methods=["GET", "HEAD"])
 async def assurance_page() -> Response:
     f = PAGES_DIR / "assurance.html"
     if f.is_file():
@@ -14997,17 +15004,20 @@ except Exception as _ftiers_e:
     _A11OY_FTIERS_DIAG = {"status": "FAILED", "error": repr(_ftiers_e)}
 
 # ============================================================================
-# Canonical host: a-11-oy.com. a11oy.net is SUNSET — app-level 301 redirect so the
-# public URL converges on a-11-oy.com. Read-path-safe (pure Location response, no
-# receipt, no signing). Registered before uvicorn.run so the middleware stack is
-# built with it; passes through the HF Space host + localhost untouched.
+# Two-origin identity lock: a-11-oy.com is the product command center;
+# a11oy.net is the public proof/registry (separate failure domain). This app
+# must NEVER 301 .net onto the product host (and never 301 the product onto
+# .net). Read-path-safe. Registered before uvicorn.run so the middleware stack
+# is built with it; passes through the HF Space host + localhost untouched.
+# HTML document HEAD is pinned here too (/console /trust /assurance already
+# declare GET+HEAD; ensure_html_documents_accept_head is belt-and-suspenders).
 # ============================================================================
 try:
     import a11oy_canonical_domain as _canon_mod
     import sys as _canon_sys
     _canon_status = _canon_mod.register(app)
-    print(f"[a11oy] canonical-domain registered ({len(_canon_status)} redirects): {_canon_status}", file=_canon_sys.stderr)
-    _A11OY_CANON_DIAG = {"status": "ok", "redirects": _canon_status}
+    print(f"[a11oy] canonical-domain registered: {_canon_status}", file=_canon_sys.stderr)
+    _A11OY_CANON_DIAG = {"status": "ok", "identity": _canon_status}
 except Exception as _canon_e:
     import sys as _canon_sys, traceback as _canon_tb
     print(f"[a11oy] canonical-domain FAILED (non-fatal): {_canon_e!r}", file=_canon_sys.stderr)
@@ -15667,7 +15677,7 @@ except Exception as _szl_source_error:  # additive: never take down the SPA
 # re-verification on every request; receipts fetched from the public HF model
 # repos (bytes cached briefly, verification never skipped). Front-moved inside
 # the module so the exact JSON route wins over the SPA history fallback and the
-# /api proxy. Moves the wall onto a-11-oy.com so a11oy.net can retire.
+# /api proxy. Product origin remains a-11-oy.com; a11oy.net stays a separate registry.
 # ============================================================================
 try:
     import a11oy_forge_family as _a11oy_forge_family
@@ -15785,6 +15795,17 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
         f"[a11oy] ayllu council wall NOT registered (non-fatal): {_ayllu_wall_error!r}",
         file=sys.stderr,
     )
+
+
+# Belt-and-suspenders: HTML document routes must accept HEAD even if a later
+# registration re-added them as GET-only. HF Space Link: rel=canonical to the
+# Space URL is injected by the Hugging Face proxy (not this app) — KALLPA owns
+# any Cloudflare transform to strip it.
+try:
+    import a11oy_canonical_domain as _canon_head_mod
+    _canon_head_mod.ensure_html_documents_accept_head(app)
+except Exception:
+    pass
 
 
 if __name__ == "__main__":

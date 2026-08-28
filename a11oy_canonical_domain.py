@@ -2,50 +2,94 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
 """
-a11oy_canonical_domain.py — make a-11-oy.com the single canonical host.
+a11oy_canonical_domain.py — two-origin identity lock (Doctrine v11).
 
-a11oy.net is SUNSET. This installs an app-level 301 redirect so any request whose
-Host header is on the a11oy.net domain — the apex (a11oy.net), www, OR ANY
-subdomain (*.a11oy.net) — is permanently redirected to the same path+query on
-https://a-11-oy.com. The canonical HF Space host (szlholdings-a11oy.hf.space),
-localhost, and a-11-oy.com itself are passed through untouched, so the app keeps
-working on its origin while the public URL converges.
+LOCKED DOMAIN ARCHITECTURE (do not merge the two hosts):
 
-Doctrine ("No a11oy.net on user surfaces"): matching only the apex + www left a
-real gap — any OTHER a11oy.net host (e.g. app.a11oy.net, a stray CNAME) fell
-through and SERVED user surfaces on .net. The match is host-suffix based so no
-a11oy.net host can serve user content; every one of them is redirect-only.
+- a-11-oy.com  = product command center (this app, HF Space behind Cloudflare)
+- a11oy.net    = canonical public proof/registry (GitHub Pages, separate failure
+  domain). Must stay up if the product is down.
 
-This is a READ-PATH-SAFE redirect: it is a pure 301 Location response, mints no
-receipt, signs nothing, and touches no state (provenance rule: never sign on a read
-path). Doctrine-safe: try/except-guarded register(app).
+This module used to 301 every a11oy.net Host onto a-11-oy.com. That is a
+landmine: if DNS ever pointed .net at this Space, the registry origin would
+vanish into the product app. register() therefore installs NO cross-origin
+redirect. It also never issues a Location to the unhyphenated third-party
+host a11oy.com (a furniture shop we do not control).
+
+Read-path-safe: no receipt, no signing, no state. Doctrine-safe try/except
+register(app).
 """
 
 CANONICAL_HOST = "a-11-oy.com"
+REGISTRY_HOST = "a11oy.net"
+# Third-party furniture shop. Never a canonical, og:url, sameAs, or redirect target.
+FORBIDDEN_PUBLIC_HOST = "a11oy.com"
 
-# The sunset domain. Any host that IS this apex or ends with ".<apex>" (i.e. any
-# subdomain) is redirect-only and must never serve a user surface.
-SUNSET_DOMAIN = "a11oy.net"
+# HTML document paths crawlers and monitors probe with HEAD. GET-only FastAPI
+# routes 405 on HEAD; /verify and /ecosystem already declare GET+HEAD and 200.
+HTML_DOCUMENT_HEAD_PATHS = ("/", "/console", "/trust", "/assurance")
 
 
-def _is_sunset_host(host: str) -> bool:
+def _host_without_port(host: str) -> str:
+    return (host or "").split(":")[0].lower()
+
+
+def _is_registry_host(host: str) -> bool:
     """True if `host` is the a11oy.net apex or any of its subdomains."""
-    return host == SUNSET_DOMAIN or host.endswith("." + SUNSET_DOMAIN)
+    h = _host_without_port(host)
+    return h == REGISTRY_HOST or h.endswith("." + REGISTRY_HOST)
+
+
+def _is_product_host(host: str) -> bool:
+    h = _host_without_port(host)
+    return h == CANONICAL_HOST or h.endswith("." + CANONICAL_HOST)
+
+
+def _is_forbidden_public_host(host: str) -> bool:
+    h = _host_without_port(host)
+    return h == FORBIDDEN_PUBLIC_HOST or h.endswith("." + FORBIDDEN_PUBLIC_HOST)
+
+
+def ensure_html_documents_accept_head(app):
+    """Add HEAD to pinned HTML document routes that already accept GET.
+
+    FastAPI ``@app.get`` registrations in this tree do not accept HEAD (live
+    MEASURED 405 JSON on /console, /trust, /assurance). Starlette FileResponse
+    already omits the body when the method is HEAD, matching GET headers.
+    """
+    router = getattr(app, "router", app)
+    patched = []
+    for route in getattr(router, "routes", []):
+        path = getattr(route, "path", None)
+        methods = getattr(route, "methods", None)
+        if path not in HTML_DOCUMENT_HEAD_PATHS or not methods:
+            continue
+        if "GET" not in methods:
+            continue
+        if "HEAD" in methods:
+            patched.append(path)
+            continue
+        if not isinstance(methods, set):
+            methods = set(methods)
+            route.methods = methods
+        methods.add("HEAD")
+        patched.append(path)
+    return patched
 
 
 def register(app):
-    """Install the a11oy.net -> a-11-oy.com 301 redirect middleware. Returns a status list."""
-    from starlette.responses import RedirectResponse
+    """Install the two-origin identity lock. Never 301 .net onto the product host."""
 
     @app.middleware("http")
-    async def _canonical_host_redirect(request, call_next):
-        host = (request.headers.get("host") or "").split(":")[0].lower()
-        if _is_sunset_host(host):
-            target = f"https://{CANONICAL_HOST}{request.url.path}"
-            if request.url.query:
-                target = f"{target}?{request.url.query}"
-            # 301: permanent. The sunset host must never be presented as canonical.
-            return RedirectResponse(url=target, status_code=301)
+    async def _two_origin_identity(request, call_next):
+        # Pass through. Explicitly do not 301 a11oy.net → a-11-oy.com and do not
+        # 301 a-11-oy.com → a11oy.net. Never set Location to a11oy.com.
         return await call_next(request)
 
-    return [f"301 {SUNSET_DOMAIN} (+ *.{SUNSET_DOMAIN}) -> https://{CANONICAL_HOST}"]
+    ensure_html_documents_accept_head(app)
+    return [
+        (
+            f"two-origin identity: product=https://{CANONICAL_HOST} "
+            f"registry=https://{REGISTRY_HOST}; no cross-origin 301"
+        )
+    ]
