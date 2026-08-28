@@ -1800,11 +1800,8 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
 
 // ============ HANDLERS ============
 // Ask & Act (operator)
-async function ask_q(q){try{setOut('o-ask','asking\u2026');const d=await orgPost('core','/api/a11oy/v1/operator/ask',{question:q});govStatus('o-ask-st',d.status);
-  const cited=d.grounded?'grounded \u00b7 cited':'';const sig=(d.llm&&d.llm.lambda_receipt&&String(d.llm.lambda_receipt.signature||'').includes('PLACEHOLDER'))?'receipt UNSIGNED (no key \u2014 honest)':'';
-  setOut('o-ask','ANSWER ('+esc(cited)+')\n'+esc(d.answer||'')+'\n\n'+(sig?sig+'\n\n':'')+JSON.stringify(d.citations||d,null,2).slice(0,1200));}catch(e){setOut('o-ask','retry: '+e.message);}}
-async function act_do(action){try{setOut('o-act','emitting\u2026');const d=await orgPost('core','/api/a11oy/v1/operator/act',{action,target:'demo-action',note:'from a11oy command platform'});govStatus('o-act-st',d.status);
-  const eh=(d.entry&&d.entry.entry_hash)||'';setOut('o-act','ACTION '+esc(action).toUpperCase()+' \u00b7 logged\nreceipt hash '+esc(eh).slice(0,20)+'\u2026 \u00b7 audit depth '+esc(d.audit_depth)+'\n\n'+JSON.stringify(d.receipt||d,null,2).slice(0,1000));}catch(e){setOut('o-act','retry: '+e.message);}}
+async function ask_q(q){setOut('o-ask','Ask & Act is HTML navigation only.\nGDW UNAVAILABLE \u00b7 EXECUTION ROADMAP\nNo live ask path. Draft-then-approve does not run.');}
+async function act_do(action){setOut('o-act','DRAFT-ONLY \u00b7 EXECUTION ROADMAP \u00b7 GDW UNAVAILABLE\nApprove does not run. No POST /operator/act. action='+esc(String(action||'')));}
 async function ask_recs(){try{const d=await orgGet('core','/api/a11oy/v1/operator/recommend');const cnt=d.counts||{};doughnut('ask-rec',['critical','warn','info','ok'],[cnt.critical||0,cnt.warn||0,cnt.info||0,cnt.ok||0],['#b06a5a',GOLD,TEAL,'#5a8a6e']);
   setHTML('ask-rec-list','');(d.recommendations||[]).forEach(r=>addHTML('ask-rec-list',`<div class="row"><span class="badge ${r.severity==='critical'?'b-err':(r.severity==='warn'?'b-gold':'b-teal')}">${esc(r.severity)}</span><span>${esc(r.organ||'')}: ${esc(r.finding||'')}</span></div>`));
   if(!(d.recommendations||[]).length)setHTML('ask-rec-list','<div class="row mono dim">no findings \u2014 all clear</div>');}catch(e){setHTML('ask-rec-list','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}}
@@ -5604,51 +5601,40 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         }catch(e){ T('cm-svc',window._szlKpi(e)); }
       }};
 
-    /* =============== ask — SVG boolean-cascade decision-trace tree =============== */
-    V.ask={title:'Ask & Act',badge:'BOOLEAN-CASCADE TRACE \u00b7 P2 GATE-SOUNDNESS',sub:'Every Ask & Act request runs the deny-by-default gate cascade. Shown as an SVG boolean-cascade trace: each conjunctive predicate evaluated in order; the FIRST \u2717 auto-expands to show exactly why the action was refused. This is P2 gate-soundness made visible \u2014 one false conjunct denies; never a weighted average.',
-      render:async function(c){ c.innerHTML='<div class="kpis">'
-        +'<div class="kpi"><div class="k">Recent decisions</div><div class="v" id="ak-n">\u2014</div></div>'
-        +'<div class="kpi"><div class="k">Denied</div><div class="v" id="ak-deny" style="color:'+RED+'">\u2014</div><div class="d">deny-by-default</div></div>'
-        +'<div class="kpi"><div class="k">Cascade</div><div class="v teal">AND</div><div class="d">conjunctive</div></div>'
-        +'<div class="kpi"><div class="k">Soundness</div><div class="v teal">P2</div><div class="d">PROVEN</div></div></div>'
-        +'<div class="card"><div class="card-h"><span class="card-t">Gate cascade for the most recent DENY \u2014 first \u2717 auto-expanded</span><span class="card-ep">SVG boolean-cascade trace</span></div>'
-        +'<div id="ak-casc" style="min-height:300px"></div>'
-        +'<div class="brain-note" id="ak-note">Conjunctive gate: '+chip('P2 governed_run_sound','PROVEN')+' One false predicate denies the action. PR#194.</div></div>'
-        +'<details class="raw"><summary>raw recent verdicts</summary><pre class="out" id="ak-raw">loading\u2026</pre></details>'+honest();
-        try{
-          var f=await gj('/api/a11oy/v1/policy/decisions/feed?limit=12'); var v=f.verdicts||[];
-          T('ak-n',v.length); var denies=v.filter(function(x){return x.decision==='deny';}); T('ak-deny',denies.length);
-          var pick=denies[0]||v[0]||{};
-          // build conjunctive predicate list — first failing = the signal that fired
-          var sig=(pick.signals||[]); var failed=sig.length>0;
-          var preds=[
-            {node:'P1 input_well_formed',label:'Request payload parses + within size guard',pass:true},
-            {node:'P2 no_threat_signature',label:'No SQL/shell/XSS/path-traversal signature matched',pass:!failed},
-            {node:'P3 scope_authorized',label:'Action within the agent\u2019s authorized scope',pass:!failed?true:true},
-            {node:'P4 lambda_floor',label:'\u039b trust score \u2265 0.90 floor',pass:(pick.lambda_value!=null?pick.lambda_value>=0.9:true)},
-            {node:'P5 receipt_sealable',label:'Decision sealable to signed receipt',pass:true}
-          ];
-          // mark the first failing predicate
-          var ff=null; for(var i=0;i<preds.length;i++){ if(!preds[i].pass){ ff=preds[i].node; break; } }
-          var host=E('ak-casc');
-          {
-            // inline SVG boolean-cascade trace (distinct from the decision-tab cascade)
-            var W=host.clientWidth||720, rowH=58, H0=preds.length*rowH+20;
-            var svg='<svg width="100%" viewBox="0 0 '+W+' '+H0+'" style="font-family:JetBrains Mono,monospace">';
-            preds.forEach(function(p,i){ var y=14+i*rowH; var ok=p.pass; var col=ok?TEAL:RED; var open=(p.node===ff);
-              svg+='<line x1="34" y1="'+(y+18)+'" x2="34" y2="'+(y+rowH)+'" stroke="#333" stroke-width="1"/>';
-              svg+='<circle cx="34" cy="'+(y+14)+'" r="11" fill="'+(ok?'rgba(95,179,163,0.18)':'rgba(176,106,90,0.22)')+'" stroke="'+col+'" stroke-width="1.4"/>';
-              svg+='<text x="34" y="'+(y+18)+'" text-anchor="middle" fill="'+col+'" font-size="12">'+(ok?'\u2713':'\u2717')+'</text>';
-              svg+='<text x="54" y="'+(y+11)+'" fill="'+(open?GOLD:'#cdd2d8')+'" font-size="11" font-weight="'+(open?'700':'400')+'">'+esc(p.node)+(open?'  \u25c0 caught here':'')+'</text>';
-              svg+='<text x="54" y="'+(y+26)+'" fill="#888" font-size="9">'+esc(p.label)+'</text>';
-              if(open && sig.length){ svg+='<text x="54" y="'+(y+40)+'" fill="'+RED+'" font-size="9">signals: '+esc(sig.join(', '))+'</text>'; }
-            });
-            svg+='</svg>'; host.innerHTML=svg;
-          }
-          var raw=E('ak-raw'); if(raw)raw.textContent=JSON.stringify(v.slice(0,6),null,2);
-          H('ak-note',(E('ak-note')||{}).innerHTML+srcline({data_kind:'live',source:'/policy/decisions/feed'}));
-        }catch(e){ T('ak-n',window._szlKpi(e)); }
-      }};
+    /* =============== ask — HTML nav only; GDW UNAVAILABLE; EXECUTION ROADMAP =============== */
+    function _gdwDraftPlane(c, which, hon){
+      c.innerHTML='<div class="kpis">'
+        +'<div class="kpi"><div class="k">Surface</div><div class="v">HTML nav</div><div class="d">not a live executor</div></div>'
+        +'<div class="kpi"><div class="k">GDW</div><div class="v warn">UNAVAILABLE</div></div>'
+        +'<div class="kpi"><div class="k">Execution</div><div class="v warn">ROADMAP</div></div>'
+        +'<div class="kpi"><div class="k">Approve</div><div class="v">draft only</div><div class="d">does not run</div></div></div>'
+        +'<div class="card"><div class="card-h"><span class="card-t">Draft then approve</span><span class="card-ep">local draft \u00b7 no execute</span></div>'
+        +'<p class="brain-note">Governed Decision Workspace is UNAVAILABLE. Execution is ROADMAP. Saving or approving a draft does <b>not</b> call an actuator, mint a run, or POST /operator/act.</p>'
+        +'<textarea id="gdw-draft-'+which+'" class="out" style="width:100%;min-height:120px" placeholder="Draft a decision. Approve stores the draft only."></textarea>'
+        +'<div class="btns" style="margin-top:.5rem">'
+        +'<button type="button" class="btn" id="gdw-save-'+which+'">Save draft</button>'
+        +'<button type="button" class="btn teal" id="gdw-approve-'+which+'">Approve draft (does not run)</button>'
+        +'</div>'
+        +'<pre class="out" id="gdw-st-'+which+'">no draft yet \u00b7 GDW UNAVAILABLE \u00b7 EXECUTION ROADMAP</pre></div>'+(hon||'');
+      var ta=E('gdw-draft-'+which); var st=E('gdw-st-'+which);
+      window.__gdwDraft=window.__gdwDraft||{};
+      if(ta && window.__gdwDraft[which]) ta.value=window.__gdwDraft[which];
+      function _show(msg){ if(st) st.textContent=msg; }
+      var save=E('gdw-save-'+which); var appr=E('gdw-approve-'+which);
+      if(save) save.onclick=function(){
+        var v=ta?ta.value:'';
+        window.__gdwDraft[which]=v;
+        _show('DRAFT SAVED \u00b7 local only \u00b7 GDW UNAVAILABLE \u00b7 EXECUTION ROADMAP');
+      };
+      if(appr) appr.onclick=function(){
+        var v=ta?ta.value:'';
+        window.__gdwDraft[which]=v;
+        window.__gdwDraft[which+'_approved']={draft:v, executed:false};
+        _show('DRAFT APPROVED \u00b7 not executed \u00b7 no actuator \u00b7 EXECUTION ROADMAP');
+      };
+    }
+    V.ask={title:'Ask & Act',badge:'HTML NAV \u00b7 GDW UNAVAILABLE \u00b7 EXECUTION ROADMAP',sub:'Ask & Act is HTML navigation only. The Governed Decision Workspace is UNAVAILABLE. Execution is ROADMAP. Draft locally, then approve the draft \u2014 approve does not run.',
+      render:async function(c){ _gdwDraftPlane(c,'ask',honest()); }};
 
     /* =============== demo — ECharts state-timeline (cascade steps) =============== */
     V.demo={title:'Run a Demo',badge:'STATE TIMELINE \u00b7 P1 LAUNCH CASCADE',sub:'The single launch point for the Warhacker problems, shown as a state timeline: each launch is a scripted step cascade (request \u2192 score \u2192 gate \u2192 seal \u2192 receipt) with real per-step state. Launch any problem and its real decision + signed receipt lands. Plot lib not vendored \u2014 implemented with ECharts custom-series to keep the NOTICE unchanged.',
@@ -6490,11 +6476,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="hero-inner">'
           +'<p class="hero-eyebrow mono">GOVERNED-AI SUBSTRATE \u00b7 SZL HOLDINGS</p>'
           +'<h1 class="hero-h1">AI that <span class="hero-accent">signs its work</span><br>and refuses to lie.</h1>'
-          +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built on measured-energy sovereign compute.</p>'
-          +'<div class="hero-counters" role="group" aria-label="live measured platform receipts">'
-          +'<div class="hctr"><span class="hctr-k mono">ENERGY <em class="mlabel" id="hero-joules-tag">SAMPLE</em></span>'
-          +'<span class="hctr-v mono" id="hero-joules" data-maturity="sample">\u2014 J/tok</span>'
-          +'<span class="hctr-d">per-token energy \u00b7 NVML</span></div>'
+          +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built on governed sovereign compute.</p>'
+          +'<div class="hero-counters" role="group" aria-label="platform counters">'
+          +'<div class="hctr"><span class="hctr-k mono">ENERGY <em class="mlabel live" id="hero-joules-tag">LIVE</em></span>'
+          +'<span class="hctr-v mono" id="hero-joules" data-maturity="live">LIVE ledger (empty)</span>'
+          +'<span class="hctr-d">LIVE ledger \u00b7 not joules \u00b7 not MEASURED</span></div>'
           +'<div class="hctr"><span class="hctr-k mono">GOVERNED GATE <em class="mlabel live">LIVE</em></span>'
           +'<span class="hctr-v mono" id="hero-gate"><span class="rmark" aria-hidden="true"></span>\u2014</span>'
           +'<span class="hctr-d">P1\u2013P6 deny-by-default result</span></div>'
@@ -6538,37 +6524,33 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +HON;
         // formulas instilled
         H('cc-formulas', window.a11oyFormula('F1')+window.a11oyFormula('F19')+window.a11oyFormula('F11')+window.a11oyFormula('F18')+window.a11oyFormula('F12'));
-        // BATCH3-hero-fix live-fill (FIX-1 endpoint repoint): runs AFTER paint, non-blocking, HONEST-degrade.
-        // The legacy GET /v1/harvest 404s on the front door. The REAL working same-origin endpoint is
-        // /v1/energy/operator/status (200) — it carries joules_measured_total + measured_token_joules + stub_mode.
-        // Per szl_joules_truth: the per-token energy counter is labeled MEASURED only when stub_mode===false AND a
-        // real measured reading exists; otherwise honest SAMPLE / '—' / 'measured pending' — NEVER a fabricated number.
+        // ENERGY slot = LIVE ledger, never joules, never a MEASURED chip (ATELIER 2026-08-28).
+        // Empty reachable ledger → "LIVE ledger (empty)". Unreachable → ROADMAP / pending.
         (async function(){
           var _tagEl=document.getElementById('hero-joules-tag');
           var _hj=document.getElementById('hero-joules');
-          try{ var _eh=await window.getJSON(API+'/v1/energy/operator/status');
-            var _stub=(_eh&&_eh.stub_mode===true);
-            // measured per-token energy (NVML), only honest when the meter is real (not stub)
-            var _mjt=(_eh&&_eh.measured_token_joules!=null)?Number(_eh.measured_token_joules):null;
-            var _mt=(_eh&&_eh.measured_tokens!=null)?Number(_eh.measured_tokens):0;
-            var _jmt=(_eh&&_eh.joules_measured_total!=null)?Number(_eh.joules_measured_total):null;
-            // sample per-token fallback when in stub mode
-            var _sjt=(_eh&&_eh.sample_token_joules!=null)?Number(_eh.sample_token_joules):null;
-            if(!_stub){
-              // real NVML meter present (stub_mode===false) -> honest MEASURED label
-              if(_tagEl){_tagEl.textContent='MEASURED'; _tagEl.classList.add('live');}
-              if(_hj)_hj.setAttribute('data-maturity','measured');
-              if(_mjt!=null && _mt>0){ setTxt('hero-joules', _mjt.toFixed(2)+' J/tok'); }
-              else if(_jmt!=null && _jmt>0 && _mjt!=null){ setTxt('hero-joules', _mjt.toFixed(2)+' J/tok'); }
-              else { setTxt('hero-joules','measured pending'); }   // real meter, no job yet — honest, never faked
+          function _energyEmpty(){
+            if(_tagEl){_tagEl.textContent='LIVE'; _tagEl.classList.add('live');}
+            if(_hj)_hj.setAttribute('data-maturity','live');
+            setTxt('hero-joules','LIVE ledger (empty)');
+          }
+          function _energyPending(){
+            if(_tagEl){_tagEl.textContent='ROADMAP'; _tagEl.classList.remove('live');}
+            if(_hj)_hj.setAttribute('data-maturity','roadmap');
+            setTxt('hero-joules','pending');
+          }
+          try{ var _led=await window.getJSON(API+'/v1/energy/ledger');
+            var _rs=(_led&&(_led.receipts||_led.items))||[];
+            var _n=Array.isArray(_rs)?_rs.length:0;
+            var _cl=(_led&&_led.chain_length!=null)?Number(_led.chain_length):_n;
+            if(_cl>0){
+              if(_tagEl){_tagEl.textContent='LIVE'; _tagEl.classList.add('live');}
+              if(_hj)_hj.setAttribute('data-maturity','live');
+              setTxt('hero-joules','LIVE ledger ('+_cl+' receipts)');
             } else {
-              // stub/simulated meter -> honest SAMPLE label, never claim MEASURED
-              if(_tagEl) _tagEl.textContent='SAMPLE';
-              if(_hj)_hj.setAttribute('data-maturity','sample');
-              if(_sjt!=null){ setTxt('hero-joules', _sjt.toFixed(2)+' J/tok'); }
-              else { setTxt('hero-joules','\u2014 J/tok'); }
+              _energyEmpty();
             }
-          }catch(_e){ setTxt('hero-joules','measured pending'); if(_tagEl)_tagEl.textContent='SAMPLE'; }   // NEVER a fake number
+          }catch(_e){ _energyPending(); }
           try{ var _g=await window.getJSON(API+'/v1/policy/decisions/feed?limit=1');
             var _v=((_g&&_g.verdicts)||[])[0];
             setHTML('hero-gate','<span class="rmark" aria-hidden="true"></span>'+(_v?esc(String(_v.decision||_v.verdict||'').toUpperCase()||'logged'):'no decisions yet'));
@@ -6634,42 +6616,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     };
 
     /* ============================================================================
-       CORE-5 #3 — GOVERNED DECISION LOOP  (3D, P1–P6)
+       CORE-5 #3 — GOVERNED DECISION  (HTML nav · GDW UNAVAILABLE · EXECUTION ROADMAP)
        ============================================================================ */
-    V.decision={ title:'Governed Decision', badge:'P1–P6 · 3D · SIGNED',
-      sub:'The 6-stage governed loop every decision passes through: P1 Ingest → P2 Reason → P3 Gate (non-interference) → P4 Forecast+Evidence → P5 Recommend → P6 Sign-receipt. Each run emits a real DSSE-signed receipt. The 3D trace shows the live stage chain.',
-      render:async function(c){
-        c.innerHTML='<div class="kpis">'
-          +kpi('Verdict','gd-verdict','this run','')
-          +kpi('Λ advisory','gd-lam','vs floor 0.90','teal')
-          +kpi('Receipt','gd-sig','DSSE signed','teal')
-          +kpi('Stages','gd-stages','P1–P6')
-          +'</div>'
-          +'<div class="grid2">'
-          +card('Governed loop — stage-chain trace','P1→P6 · '+window.a11oyPoweredBy(['F1','F19','F18']),box3d('gd-3d'))
-          +card('Decision brief','live · auto-poll · <span id="gd-stamp" class="mono dim" style="font-size:10px"></span>','<div id="gd-brief"><div class="row mono dim">running governed turn…</div></div>')
-          +'</div>'
-          +card('Signed receipt (verify in-browser against /cosign.pub)','tamper-evident','<pre class="out" id="gd-receipt" style="max-height:240px">loading…</pre>')
-          +'<div class="card"><div class="card-h"><span class="card-t">Formulas powering the loop</span><span class="card-ep">honest maturity</span></div><div id="gd-formulas"></div></div>'
-          +HON;
-        H('gd-formulas', window.a11oyFormula('F1')+window.a11oyFormula('F19')+window.a11oyFormula('F18'));
-        window.a11oyPoll(async function(){
-          try{ var d=await gj(API+'/v1/governed-decision');
-            var rec=d.recommendation||{}; var loop=d.loop||[];
-            T('gd-verdict', (rec.requires_human_approval?'HOLD · HITL':'ADVISORY')); var ve=E('gd-verdict'); if(ve)ve.style.color=AMBER;
-            T('gd-lam',(d.lambda_advisory||0).toFixed?d.lambda_advisory.toFixed(3):d.lambda_advisory);
-            T('gd-sig', d.receipt&&d.receipt.signed?'SIGNED':'UNSIGNED'); T('gd-stages','6');
-            H('gd-brief','<div class="mono" style="font-size:12px;line-height:1.6;color:#cfcfcf">'+esc(d.brief||'')+'</div>'
-              +'<div class="brain-note">Recommendation: <b>'+esc(rec.title||'')+'</b> · owner '+esc(rec.owner||'')+' · rollback: '+esc(rec.rollback_path||'')+'</div>');
-            var rcv=E('gd-receipt'); if(rcv) rcv.textContent=JSON.stringify(d.receipt||{},null,2);
-            // 3D loop trace
-            var stages=[{id:'P1',name:'P1 Ingest'},{id:'P2',name:'P2 Reason'},{id:'P3',name:'P3 Gate'},{id:'P4',name:'P4 Forecast'},{id:'P5',name:'P5 Recommend'},{id:'P6',name:'P6 Sign'}];
-            stages.forEach(function(s,i){ s.color=(i===5?GOLD:TEAL); s.val=7; });
-            var links=[]; for(var i=0;i<stages.length-1;i++) links.push({source:stages[i].id,target:stages[i+1].id});
-            window.a11oyFG('gd-3d',stages,links,{dagMode:'lr',dist:60,cooldown:140});
-          }catch(e){ H('gd-brief','<div class="row mono" style="color:'+RED+'">/v1/governed-decision error: '+esc(e.message)+'</div>'); }
-        }, 'gd-stamp');
-      }
+    V.decision={ title:'Governed Decision', badge:'GDW UNAVAILABLE · EXECUTION ROADMAP',
+      sub:'HTML nav only. The Governed Decision Workspace is UNAVAILABLE. Execution is ROADMAP. Draft a decision, then approve the draft — approve does not run and does not mint a live SIGNED loop.',
+      render:async function(c){ _gdwDraftPlane(c,'decision',HON); }
     };
 
     /* ============================================================================
@@ -15111,9 +15062,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
          signal, but reading energy off it is NOT a power measurement — joules stay SAMPLE
          until a fresh on-box NVML exporter sample exists on a sovereign GPU node. */
       var _jl=_jl_pre;
-      var _jmeasured=(_jl==='measured');
       h+='<div class="honesty" style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
-        +'<span class="badge" style="border:1px solid '+(_jmeasured?'#4fb37f':'#c9a05f')+';color:'+(_jmeasured?'#5fe39a':'#c9a05f')+'">JOULES '+(_jmeasured?'MEASURED':'SAMPLE')+'</span>'
+        +'<span class="badge" style="border:1px solid #c9a05f;color:#c9a05f">JOULES SAMPLE</span>'
         +'<span class="dim" style="font-size:11.5px">This is a real grid <b>price/carbon</b> signal, not a power meter. Per <code>szl_joules_truth</code> (doctrine v11), joules read <b>SAMPLE</b> until a fresh on-box NVML exporter sample is present on a sovereign GPU node — we never fabricate a “measured” number, and this feed never sets <code>sovereign:true</code>.</span></div>';
       /* thermal-pinn-panel — honest MODELED thermal-aware-scheduling capability.
          Probes the /pinn/thermal capability endpoint; if not deployed yet, shows an
@@ -15218,8 +15168,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                +receipts.length+' receipts in Khipu lake · chain integrity: '+(d.chain&&d.chain.ok?'<span style="color:var(--teal)">OK</span>':'<span style="color:var(--err)">FAIL</span>')+'</p>';
           if(!receipts.length){
             html+='<div style="border:1px solid var(--gold-line);border-radius:8px;padding:1.2rem;color:var(--muted);font-family:var(--mono);font-size:.85rem">';
-            html+='<b style="color:var(--cream)">0 receipts</b> — sovereign GPU + meter are offline.<br>';
-            html+='When the meter is running, every inference turn mints a signed energy receipt here.';
+            html+='<b style="color:var(--cream)">LIVE ledger (empty)</b> — 0 receipts. Not joules. Not MEASURED.<br>';
+            html+='The energy ledger endpoint is reachable and empty. ROADMAP until a real NVML delta exists.';
             html+='</div>';
           } else {
             receipts.slice(0,10).forEach(function(r){

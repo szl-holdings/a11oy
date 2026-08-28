@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - landing mobile nav, ENERGY honesty, receipt source, warhacker fragment
+- Landing hamburger (`.menu-toggle`, 44px targets) restores header links that were
+  `display:none` under 760px / 680px with no menu. Additive CSS/JS only; no HTML rewrite.
+- Console ENERGY slot is the LIVE energy ledger, never joules and never a MEASURED
+  chip. Empty reachable ledger reads `LIVE ledger (empty)`; unreachable is
+  ROADMAP / `pending`.
+- Landing LLM Router copy is STALE NOT_MEASURED · snapshot 2026-07-11 — not live,
+  not healthy, not MEASURED. Viz/router wiring and `/v1/chat` are untouched.
+- Ask & Act / Governed Decision stay HTML nav. GDW UNAVAILABLE. EXECUTION ROADMAP.
+  The surface is a local draft-then-approve plane; approve does not run.
+- Landing hero receipts cite the same `/api/a11oy/v1/ledger` SAMPLE source as the
+  runtime card. A different lake/overview total is labelled SAMPLE/historical beside
+  it; no third number is invented.
+- `/warhacker` 307 Location is `/console#arena` so the eval-arena fragment survives.
+
 ### Added - runtime evidence hardening
 - Added the responsive `/frontier-now` and `/now` read-only estate cockpit with
   no-store summary/inventory projections, explicit unavailable capability and

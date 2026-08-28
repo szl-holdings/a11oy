@@ -12958,7 +12958,8 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
 @app.get("/warhacker")
 async def warhacker_page() -> Response:
     # RETIRED 2026-06-27: archived per founder (BRIEF.md: "warhacker is ARCHIVED").
-    return _PTG_Redirect(url="/console", status_code=307)
+    # Keep the eval-arena fragment so /warhacker and /warhacker#arena both land on the arena tab.
+    return _PTG_Redirect(url="/console#arena", status_code=307)
 
 
 # ---------------------------------------------------------------------------
