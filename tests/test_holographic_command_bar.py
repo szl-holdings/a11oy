@@ -9,6 +9,7 @@ PR 1391's gold/tan restore (#0a0a0a / #c9b787 / #5fb3a3) is not.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -53,6 +54,17 @@ def test_shared_bar_assets_are_kanchay_and_copied() -> None:
     assert "szl_command_bar.css" in DOCKER
     assert '"szl_command_bar.js": _VENDOR_JS_CT' in SERVE
     assert '"szl_command_bar.css": _VENDOR_CSS_CT' in SERVE
+    lockstep_cfg = json.loads(
+        (ROOT / ".github" / "copy-sync-lockstep.json").read_text(encoding="utf-8")
+    )
+    extra = set(lockstep_cfg.get("extra_mirror_paths") or [])
+    image_only = set(lockstep_cfg.get("image_only_assets") or [])
+    assert "static/shared/szl_command_bar.js" in extra
+    assert "static/shared/szl_command_bar.css" in extra
+    assert "static/shared/szl_command_bar.js" not in image_only
+    assert "static/shared/szl_command_bar.css" not in image_only
+    hf_sync = (ROOT / ".github" / "workflows" / "hf-sync.yml").read_text(encoding="utf-8")
+    assert "dockerfile-path: Dockerfile" in hf_sync
     assert "/static/shared/szl_command_bar.css" in CONSOLE
     assert "/static/shared/szl_command_bar.js" in CONSOLE
     assert "data-szl-command-bar" in CONSOLE
@@ -91,6 +103,9 @@ def test_no_investor_route_stub() -> None:
     assert "V.investor=" in CONSOLE
     assert "/console?view=investor" in CONSOLE
     assert "/console?view=investor" in BAR_JS
+    assert 'url="/console?view=investor"' in SERVE
+    assert 'app.add_api_route("/investor"' in SERVE
+    assert "_investor_view_redirect" in SERVE
 
 
 def test_console_deep_links_are_query_with_hash_fallback() -> None:

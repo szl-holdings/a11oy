@@ -685,7 +685,7 @@ details.raw[open] summary{color:var(--muted);}
 <div class="topbar szl-hbar" data-szl-command-bar data-surface="Command Platform" data-origin="product">
   <button class="menu-btn" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleSide()">☰</button>
   <!-- Holographic three-zone bar is mounted by /static/shared/szl_command_bar.js.
-       Investor View is an in-console view (go('investor')), never a /investor 404. -->
+       Investor View is an in-console view (go('investor')); /investor is a 307 alias onto the same chrome. -->
   <nav class="switcher" aria-label="Surfaces">
     <span class="lbl">SURFACE</span>
     <a class="flag active" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
@@ -16674,8 +16674,8 @@ window.a11oyInvestor = (function(){
 </script>
 <script>
 /* Investor View — first-class in-console VIEW (ÑAWI design lane). Not a density
-   toggle and not a /investor route (that path does not exist). Doctrine, locked-8,
-   one receipt, one Verify CTA, then a11oy.net diligence. */
+   toggle and not a stub page. /investor is a 307 alias onto this chrome
+   (?view=investor). Doctrine, locked-8, one receipt, one Verify CTA, then a11oy.net diligence. */
 (function(){
   function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0, iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
   whenReady(function(){

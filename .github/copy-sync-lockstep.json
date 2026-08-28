@@ -6,6 +6,11 @@
   ".js",
   ".css"
  ],
+ "_extra_mirror_comment": "Served per-file COPY assets that MUST ship via the Dockerfile-derived hf-sync deploy (reusable-hf-deploy dockerfile-path: Dockerfile). They are NOT image_only vendor/SPA blobs. Listing them here names the contract CHECK 3 reads when a legacy APP_FILES mirror is present; the pinned source-derived controller already publishes the exact COPY set. Do not move these into image_only_assets.",
+ "extra_mirror_paths": [
+  "static/shared/szl_command_bar.js",
+  "static/shared/szl_command_bar.css"
+ ],
  "image_only_assets": [
   "a11oy_code_ide.html",
   "agent.html",

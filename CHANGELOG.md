@@ -16,7 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `#0a0a0a`. Honest UNKNOWN / ROADMAP / UNAVAILABLE empty states stay.
 - Public header is Command | Proof registry ↗ (`https://a11oy.net`). Sidebar IA
   is Home / Operate / Build / Observe / Govern / Research / More. Investor View
-  is an in-console `?view=investor` surface, not a `/investor` route.
+  is an in-console `?view=investor` surface; `/investor` 307-aliases onto that
+  same chrome (no stub page, no second IA).
 - `go()` writes `?view=` (hash still resolves so legacy `/console#ask` links
   keep working). First fold is receipt stream + gate + Verify on a11oy.net;
   kernel pull and 13-axis radar sit below the fold. Λ stays Conjecture 1, gray.

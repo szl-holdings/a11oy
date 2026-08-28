@@ -54,6 +54,7 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/agent/code/status",        # GCAK — kernel + gate status
     "/api/a11oy/v1/agent/code/receipts",      # GCAK — signed per-cell receipt chain
     "/api/a11oy/v1/pinn/thermal",             # MODELED thermal field — console energy view probes it (no 404)
+    "/investor",                              # Investor View alias → /console?view=investor (same chrome)
     "/ungoverned",                            # investor-WOW deep-link → /console#wowtoggle (V.wowtoggle)
     "/ungoverned-vs-a11oy",                   # investor-WOW deep-link → /console#wowtoggle
     "/vs",                                    # investor-WOW deep-link → /console#wowtoggle
@@ -193,3 +194,16 @@ def test_frontier_now_routes_are_owned_and_precede_production_catchalls():
         assert index < spa_index
         if path.startswith("/api/a11oy/"):
             assert index < api_proxy_index
+
+
+def test_investor_alias_is_307_onto_console_view_not_404():
+    """GET /investor must 307 onto the same chrome, not a stub or SPA soft-200."""
+    from starlette.testclient import TestClient
+
+    client = TestClient(serve.app, follow_redirects=False)
+    response = client.get("/investor")
+    assert response.status_code == 307, (
+        f"/investor must 307 onto /console?view=investor, got {response.status_code}"
+    )
+    location = response.headers.get("location") or ""
+    assert location.endswith("/console?view=investor") or location == "/console?view=investor"

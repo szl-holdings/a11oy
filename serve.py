@@ -12860,6 +12860,16 @@ for _cc_path in ("/command", "/command-center"):
     app.add_api_route(_cc_path, _command_center_redirect, methods=["GET"], include_in_schema=False)
 
 
+# /investor — alias onto the same console chrome (Investor View). No stub page,
+# no second IA. SPA catch-all would otherwise swallow this path as a soft HTML
+# 200. Registered BEFORE /{full_path:path}. 307 matches /command and /ungoverned.
+async def _investor_view_redirect() -> Response:
+    return _PTG_Redirect(url="/console?view=investor", status_code=307)
+
+
+app.add_api_route("/investor", _investor_view_redirect, methods=["GET"], include_in_schema=False)
+
+
 # /pinn — Physical-Bounds Certifier surface (distinct from /pinn-console).
 # Served from pages/pinn.html (COPYed wholesale by `COPY pages/ ./pages/`).
 @app.get("/pinn")
