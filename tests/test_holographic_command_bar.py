@@ -106,6 +106,17 @@ def test_no_investor_route_stub() -> None:
     assert 'url="/console?view=investor"' in SERVE
     assert 'app.add_api_route("/investor"' in SERVE
     assert "_investor_view_redirect" in SERVE
+    # Destination is V.investor (go('investor')), not the leftover overlay.
+    assert 'id="inv-overlay"' in CONSOLE
+    overlay_js = CONSOLE.split('id="inv-mode-js"', 1)[1].split("</script>", 1)[0]
+    assert "go('investor')" in overlay_js
+    assert "o.classList.toggle('open', !!open)" not in overlay_js.split("function open()")[1].split("function close()")[0]
+    view = CONSOLE.split("V.investor=", 1)[1]
+    assert "{F1, F4, F7, F11, F12, F18, F19, F22}" in view[:2500]
+    assert "Verify a receipt" in view[:4000]
+    assert "Open diligence on a11oy.net" in view[:4000]
+    assert "UNAVAILABLE" in view[:4500]
+    assert "if(VIEWS[view]){ go(view); return true; }" in CONSOLE
 
 
 def test_console_deep_links_are_query_with_hash_fallback() -> None:

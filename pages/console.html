@@ -2612,7 +2612,14 @@ function szlViewFromLocation(){
 const start=szlViewFromLocation();
 /* defer initial render until all inline scripts (helpers + frontier loaders) have executed,
    so deep-links to tabs whose loaders live in a later script block resolve correctly */
-function _bootGo(){go(VIEWS[start]?start:'command');}
+function _bootGo(){
+  var view=(typeof szlViewFromLocation==='function'?szlViewFromLocation():start);
+  function run(){ if(VIEWS[view]){ go(view); return true; } return false; }
+  if(run()) return;
+  var n=0, iv=setInterval(function(){
+    if(run()||n++>80){ clearInterval(iv); if(!VIEWS[view]) go(VIEWS.command?'command':'command'); }
+  },40);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_bootGo);else setTimeout(_bootGo,0);
 </script>
 
@@ -16665,9 +16672,13 @@ window.a11oyInvestor = (function(){
     document.addEventListener('keydown', function(e){
       try{ if(e.key==='Escape'){ close(); } }catch(_){}
     });
-    // Auto-open on deep-link so a shared investor link lands on the story.
+    // Compatibility: leftover overlay markup may remain. Deep-links must land
+    // on V.investor via go('investor'), never revive the overlay as destination.
+    // ?view=investor is the alias write path and must not open #inv-overlay.
     var q=(window.location.search||''); var h=(window.location.hash||'');
-    if(/[?&]investor=1\b/.test(q) || /(^|#)investor$/.test(h)){ open(); }
+    var viewQ='';
+    try{ viewQ=new URLSearchParams(q).get('view')||''; }catch(_){}
+    if(viewQ==='investor' || /[?&]investor=1\b/.test(q) || /(^|#)investor$/.test(h)){ open(); }
   }catch(_){}
   return { open:open, close:close, toggle:toggle };
 })();
