@@ -84,7 +84,7 @@ BEGIN
             membership.member_role
         );
         EXECUTE pg_catalog.format(
-            'GRANT %I TO %I WITH INHERIT FALSE, SET FALSE',
+            'GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE',
             membership.capability_role,
             membership.member_role
         );

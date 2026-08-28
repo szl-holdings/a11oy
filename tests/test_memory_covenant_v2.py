@@ -296,8 +296,8 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
             path = root / validator.CORRECTIVE_MIGRATION
             self.replace_once(
                 path,
-                "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE",
-                "GRANT %I TO %I WITH INHERIT TRUE, SET TRUE",
+                "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE",
+                "GRANT %I TO %I WITH INHERIT TRUE, SET TRUE, ADMIN TRUE",
             )
             self.assert_contract_error(root, "delegated inbound inherit disable")
 
