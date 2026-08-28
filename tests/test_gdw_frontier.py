@@ -1231,6 +1231,9 @@ def test_supervisor_collects_expired_requests_before_quota_admission(
         assert gdw_runtime.drain_once(workspace=workspace)["failed"] == 0
         future = datetime.now(timezone.utc) + timedelta(seconds=2)
         monkeypatch.setattr(gdw_workspace, "_utc_now", lambda: future)
+        compaction = gdw_runtime.drain_once(workspace=workspace)
+        assert compaction["garbage_collected"]["requests_tombstoned"] == 0
+        assert compaction["garbage_collected"]["effects_compacted"] > 0
         cleanup = gdw_runtime.drain_once(workspace=workspace)
         assert cleanup["garbage_collected"]["requests_tombstoned"] == 1
         second = client.post(

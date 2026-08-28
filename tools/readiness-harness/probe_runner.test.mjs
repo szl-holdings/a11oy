@@ -2,7 +2,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { findEvidenceLabels, findTimestamp, validateSchema } from "./probe_runner.mjs";
+import {
+  evaluateFreshness,
+  findEvidenceLabels,
+  findTimestamp,
+  validateSchema,
+} from "./probe_runner.mjs";
 
 test("freshness prefers response observation time over an idle policy event", () => {
   const body = {
@@ -11,6 +16,23 @@ test("freshness prefers response observation time over an idle policy event", ()
   };
 
   assert.equal(findTimestamp(body)?.toISOString(), "2026-07-26T01:05:07.000Z");
+});
+
+test("freshness recognizes explicit snake- and camel-case observation clocks", () => {
+  for (const key of ["observed_at", "observedAt"]) {
+    const body = {
+      timestamp: "2026-06-05T23:32:40Z",
+      [key]: "2026-07-26T01:05:07Z",
+    };
+
+    assert.equal(findTimestamp(body)?.toISOString(), "2026-07-26T01:05:07.000Z");
+    assert.equal(evaluateFreshness(
+      "/api/a11oy/provenance",
+      { freshnessSLA: 60 },
+      body,
+      Date.parse("2026-07-26T01:06:00Z"),
+    ).freshOk, true);
+  }
 });
 
 test("freshness prefers nested source fetch time over a market event timestamp", () => {
