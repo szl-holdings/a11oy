@@ -38,6 +38,10 @@ def test_try_khipu_panel_present_on_command_center_only():
     # wrap Command Center only
     assert "V.command" in slice_ or "command.render" in slice_
     assert "currentView()!=='command'" in slice_ or "currentView()!==\"command\"" in slice_
+    # 1396 owns ?view= deep links (Investor View). Honor that param so Try Khipu
+    # does not mount on a non-command surface.
+    assert "URLSearchParams" in slice_
+    assert "get('view')" in slice_ or 'get("view")' in slice_
 
 
 def test_try_khipu_panel_has_no_tokens_per_second_marketing():

@@ -17149,7 +17149,10 @@ window.a11oyInvestor = (function(){
     });
   }
   function currentView(){
-    return String((location.hash||'#command').replace(/^#/,'').split(/[/?]/)[0]||'command');
+    var q='';
+    try{ q=String((new URLSearchParams(location.search||'')).get('view')||'').trim(); }catch(_e){}
+    var h=String((location.hash||'').replace(/^#/,'').split(/[/?]/)[0]||'');
+    return q||h||'command';
   }
   function inject(c){
     if(currentView()!=='command') return;

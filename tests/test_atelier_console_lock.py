@@ -70,7 +70,6 @@ def test_ask_and_act_is_not_a_live_control_plane() -> None:
     assert "not a live control plane" in html
     # Last-wins overlay and the initial VIEWS.ask both carry the honest badge.
     assert html.count("NOT A LIVE CONTROL PLANE") >= 2
-    assert "Ask & Act (demo)" in html
     # Do not keep the OPERATOR control-plane claim on Ask & Act.
     ask_first = html.find("ask:{title:'Ask & Act'")
     assert ask_first >= 0
@@ -80,3 +79,13 @@ def test_ask_and_act_is_not_a_live_control_plane() -> None:
     assert overlay >= 0
     overlay_block = html[overlay : overlay + 700]
     assert "not a live control plane" in overlay_block.lower() or "NOT A LIVE CONTROL PLANE" in overlay_block
+
+
+def test_does_not_retune_nawi_command_bar_or_rail() -> None:
+    """PR 1396 owns KANCHAY bar, 7-module rail, Command|Proof, Proof registry."""
+    html = _console()
+    assert '["ask","\\u2726","Ask & Act (demo)"]' not in html
+    panel = html[html.find("/* try-khipu-panel") : html.find("/* end try-khipu-panel */")]
+    assert "Proof registry" not in panel
+    assert "mod-home" not in panel
+    assert "Command|Proof" not in panel

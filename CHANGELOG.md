@@ -147,6 +147,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `https://szlholdings-szl-model-inference-lab.hf.space/v1`. Forge lab stays
   SNAPSHOT — not a trainer, not Serve Studio. Energy-attested-runs 8/8 is
   SIMULATED. Ask & Act on `/console` is not a live control plane.
+  Console chrome, landing header, and the 7-module rail stay with PR 1396.
   Λ = Conjecture 1.
 
 ### Added - investor-hittable Khipu CPU lab
