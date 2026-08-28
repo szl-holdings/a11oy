@@ -160,6 +160,8 @@ def test_surfaces_wire_shared_bar_and_dedicated_page() -> None:
     assert '["estate"' in CONSOLE
     assert "Models + Kernels" in CONSOLE
     assert "SZLEstate.mount" in CONSOLE
+    assert "function mountEstate(id, compact)" in CONSOLE
+    assert "['command','estate','mesh']" in CONSOLE
     assert "pages/estate.html" in SERVE
     assert '"/estate"' in SERVE
     # /models remains the 1392 ecosystem atlas deep-link; this PR does not steal it.
@@ -177,6 +179,9 @@ def test_surfaces_wire_shared_bar_and_dedicated_page() -> None:
     assert "Conjecture 1" in ESTATE_PAGE
     assert "live runtime" in ESTATE_PAGE
     assert "pages/estate.html" not in DOCKER
+    yml = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+    assert "tests/test_series_a_estate.py" in yml
+    assert "tests/test_holographic_command_bar.py" in yml
 
 
 def test_estate_routes_serve_html_not_spa_stub() -> None:

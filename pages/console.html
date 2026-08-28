@@ -6494,6 +6494,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        (not a bare "…") so a card mid-fetch reads as LOADING, never BROKEN. */
     function kpi(k,id,d,cls){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" id="'+id+'"><span class="skel skel-val"></span></div><div class="d">'+(d||'')+'</div></div>'; }
     function card(t,ep,inner){ return '<div class="card"><div class="card-h"><span class="card-t">'+t+'</span><span class="card-ep">'+(ep||'')+'</span></div>'+inner+'</div>'; }
+    function mountEstate(id, compact){
+      var n=0;
+      (function boot(){
+        try{
+          if(window.SZLEstate){ window.SZLEstate.mount(document.getElementById(id),{compact:!!compact}); return; }
+        }catch(_e){}
+        if(++n<50) setTimeout(boot, 40);
+      })();
+    }
     /* BATCH2B: box3d now ships a CSS-only skeleton (node-cluster + "initializing mesh\u2026")
        so the 3D hero NEVER paints as a blank/white void during the WebGL init / feed window.
        a11oyFG clears host.innerHTML on success, replacing this placeholder. */
@@ -6638,7 +6647,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           }catch(e){ if(el('cc-stream')&&el('cc-stream').querySelector('.skel')) H('cc-stream','<div class="row mono dim">receipt stream not available right now — shown honestly, not faked.</div>'); }
         }, 'cc-stamp');
         T('cc-slsa','SLSA L1+L2');
-        try{ if(window.SZLEstate) window.SZLEstate.mount(document.getElementById('szl-series-a-cards'),{compact:true}); }catch(_e){}
+        mountEstate('szl-series-a-cards', true);
       }
     };
 
@@ -6650,7 +6659,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div id="szl-estate-full"></div>'
           +'<p class="szl-estate-foot"><a href="/estate">Dedicated estate surface</a> · Lean-8 reads /api/a11oy/v1/honest</p>'
           +'</section>';
-        try{ if(window.SZLEstate) window.SZLEstate.mount(document.getElementById('szl-estate-full'),{compact:false}); }catch(_e){}
+        mountEstate('szl-estate-full', false);
       }
     };
 
@@ -16194,7 +16203,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                    'cybPosture','cybThreat','cybSurface','cybIncident','cybZero',
                    'fltGov','fltObs','fltOrch','fltReceipts','fltTopo',
                    'pvaAnchor','pvaGraph','pvaHealth','pvaPqc','pvaVerify']],
-    ['Home',      ['command','mesh']]
+    ['Home',      ['command','estate','mesh']]
   ];
   var LAB_KEYS={entangle:1,neuro:1,sovereignty:1,scaling:1,conjecturefactory:1,energyGrid:1,reciprocity:1,allodialai:1};
   var LAB_HONEST='EXPERIMENTAL · not a locked-8 claim';
