@@ -141,7 +141,9 @@ Locked architecture (do not merge the two hosts):
 
 **www.a-11-oy.com is NXDOMAIN** while apex sends `Strict-Transport-Security: max-age=31536000; includeSubDomains`. Browsers that have seen the apex will refuse `http://www.a-11-oy.com` and have nothing to connect to on HTTPS. DNS is Cloudflare/ops (Stephen). This app cannot create the `www` record.
 
-**HTTP `Link: rel="canonical"` to `https://huggingface.co/spaces/SZLHOLDINGS/a11oy`** is injected by the Hugging Face Space proxy (`x-proxied-replica`). HTML `<link rel="canonical">` on `/` is already `https://a-11-oy.com/`. Stripping the HF Link header is a Cloudflare transform (KALLPA), not an in-app header.
+**HTTP `Link: rel="canonical"`** to `https://huggingface.co/spaces/SZLHOLDINGS/a11oy` was MEASURED on every probed apex path (box, 2026-08-28 13:05–13:13 ET). Hugging Face may still inject that header at the Space proxy. This app now stamps `Link: <https://a-11-oy.com{path}>; rel="canonical"` on public product GET/HEAD/OPTIONS and drops a Space or furniture-shop canonical from its own response. Do not make `huggingface.co/spaces` or `a11oy.com` the product canonical. If the HF proxy still appends a second Link after origin, that remaining conflict is provider-side; HF custom domain stays **PENDING** (`_huggingface.a-11-oy.com` NXDOMAIN, www NXDOMAIN — Stephen/DNS).
+
+**HEAD 405 is the app, not Cloudflare.** Same 405 on `https://szlholdings-a11oy.hf.space/trust` and `/console` (`Server: szl`). `/sitemap.xml` was GET 200 / HEAD 405 — now GET+HEAD. OPTIONS `/` and `/console` now send `Allow` and `Access-Control-Allow-Methods`.
 
 **Do not** 301 `a11oy.net` onto `a-11-oy.com` from this app (the old sunset middleware was a landmine if `.net` DNS ever pointed at the Space).
 

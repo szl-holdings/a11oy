@@ -107,3 +107,60 @@ def test_registry_host_helper():
     assert cd.CANONICAL_HOST == "a-11-oy.com"
     assert cd.REGISTRY_HOST == "a11oy.net"
     assert not hasattr(cd, "SUNSET_DOMAIN")
+
+
+def test_product_canonical_url_never_uses_space_or_furniture_host():
+    assert cd.product_canonical_url("/trust") == "https://a-11-oy.com/trust"
+    assert cd.product_canonical_url("/") == "https://a-11-oy.com/"
+    assert "huggingface.co" not in cd.product_canonical_url("/console")
+    assert "a11oy.com" not in cd.product_canonical_url("/console").replace("a-11-oy.com", "")
+
+
+def test_product_get_stamps_link_canonical_not_hf_space():
+    c = _app()
+    r = c.get("/frontier", headers={"host": "a-11-oy.com"})
+    assert r.status_code == 200
+    joined = " ".join(
+        r.headers.get_list("link")
+        if hasattr(r.headers, "get_list")
+        else [r.headers.get("link") or ""]
+    )
+    assert "<https://a-11-oy.com/frontier>" in joined
+    assert "canonical" in joined.lower()
+    assert "huggingface.co/spaces/" not in joined
+    furniture = "a11oy.com"
+    assert furniture not in joined
+
+
+def test_registry_get_does_not_rewrite_product_canonical_link():
+    c = _app()
+    r = c.get("/frontier", headers={"host": "a11oy.net"})
+    assert r.status_code == 200
+    joined = " ".join(
+        r.headers.get_list("link")
+        if hasattr(r.headers, "get_list")
+        else [r.headers.get("link") or ""]
+    ).lower()
+    assert "rel=" not in joined or "canonical" not in joined
+
+
+def test_apply_product_canonical_link_drops_hf_space_header():
+    from starlette.responses import Response
+
+    response = Response(status_code=200)
+    response.headers["link"] = '<https://huggingface.co/spaces/SZLHOLDINGS/a11oy>; rel="canonical"'
+    cd.apply_product_canonical_link(response, "/trust")
+    joined = " ".join(
+        response.headers.getlist("link")
+        if hasattr(response.headers, "getlist")
+        else (
+            response.headers.get_list("link")
+            if hasattr(response.headers, "get_list")
+            else [response.headers.get("link") or ""]
+        )
+    )
+    assert "<https://a-11-oy.com/trust>" in joined
+    assert "huggingface.co/spaces/" not in joined
+    furniture = "a11oy.com"
+    assert furniture not in joined
+

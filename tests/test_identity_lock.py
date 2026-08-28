@@ -45,7 +45,7 @@ _SKIP_PARTS = {
     "live_snapshots",
 }
 _SCAN_SUFFIXES = {".html", ".htm", ".json", ".xml", ".xhtml"}
-_HTML_DOCUMENT_PATHS = ("/", "/console", "/trust", "/assurance", "/robots.txt")
+_HTML_DOCUMENT_PATHS = ("/", "/console", "/trust", "/assurance", "/robots.txt", "/sitemap.xml")
 
 
 def _should_scan(path: Path) -> bool:
@@ -159,6 +159,7 @@ _QHAPAQ_HEAD_PATHS = (
     "/trust",
     "/assurance",
     "/robots.txt",
+    "/sitemap.xml",
     "/healthz",
     "/readyz",
     "/api/health",
@@ -203,6 +204,45 @@ def test_trust_get_body_uses_product_canonical():
     assert _FURNITURE_HOST.encode("ascii") not in body
     assert b"a11oy.net" in body
     assert b"/verify" in body
+
+
+def test_http_link_canonical_is_product_origin_not_hf_space():
+    """Crawlers must not see huggingface.co/spaces as the product canonical."""
+    from starlette.testclient import TestClient
+
+    import serve
+
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    expected = {
+        "/": "https://a-11-oy.com/",
+        "/console": "https://a-11-oy.com/console",
+        "/trust": "https://a-11-oy.com/trust",
+        "/sitemap.xml": "https://a-11-oy.com/sitemap.xml",
+    }
+    for path, url in expected.items():
+        response = client.get(path)
+        assert response.status_code == 200, path
+        links = response.headers.get_list("link") if hasattr(response.headers, "get_list") else [response.headers.get("link") or ""]
+        joined = " ".join(links)
+        assert f"<{url}>" in joined, path
+        assert "canonical" in joined.lower()
+        assert "huggingface.co/spaces/" not in joined.lower()
+        assert _FURNITURE_HOST not in joined
+
+
+def test_options_on_documents_declares_allow_and_methods():
+    from starlette.testclient import TestClient
+
+    import serve
+
+    client = TestClient(serve.app, raise_server_exceptions=False)
+    for path in ("/", "/console"):
+        response = client.options(path)
+        assert response.status_code == 200, path
+        allow = response.headers.get("allow") or ""
+        acam = response.headers.get("access-control-allow-methods") or ""
+        assert "GET" in allow and "HEAD" in allow and "OPTIONS" in allow
+        assert "GET" in acam and "HEAD" in acam
 
 
 def test_verify_page_is_the_interactive_tool_not_the_registry():

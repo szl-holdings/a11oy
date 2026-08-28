@@ -13780,6 +13780,21 @@ async def robots_txt() -> Response:
     return Response("User-agent: *\nAllow: /\n", media_type="text/plain")
 
 
+# QHAPAQ addendum 2026-08-28 13:05–13:13 ET: GET /sitemap.xml 200 / HEAD 405
+# on the app (Server: szl), same as documents. Explicit GET+HEAD; FileResponse
+# omits the body on HEAD.
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
+async def sitemap_xml() -> Response:
+    f = STATIC_DIR / "sitemap.xml"
+    if f.is_file():
+        return FileResponse(f, media_type="application/xml")
+    return Response(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>\n',
+        media_type="application/xml",
+    )
+
+
 @app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
@@ -15850,11 +15865,13 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
     )
 
 
-# Belt-and-suspenders: HTML document and health JSON routes must accept HEAD
-# even if a later registration re-added them as GET-only. QHAPAQ 2026-08-28:
-# GET-only /api/a11oy/* HEAD-fell-through to the Node proxy (404). HF Space
-# Link: rel=canonical to the Space URL is injected by the Hugging Face proxy
-# (not this app) — KALLPA owns any Cloudflare transform to strip it.
+# Belt-and-suspenders: HTML document, sitemap, and health JSON routes must
+# accept HEAD even if a later registration re-added them as GET-only.
+# QHAPAQ 2026-08-28: GET-only /api/a11oy/* HEAD-fell-through to the Node
+# proxy (404). Same HEAD 405 on szlholdings-a11oy.hf.space (Server: szl) —
+# the app, not Cloudflare. This app stamps Link rel=canonical to
+# https://a-11-oy.com{path}; huggingface.co/spaces is never the product
+# canonical. HF custom domain stays PENDING.
 try:
     import a11oy_canonical_domain as _canon_head_mod
     _canon_head_mod.ensure_html_documents_accept_head(app)

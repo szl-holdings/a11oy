@@ -27,10 +27,14 @@ DX — routes, contracts, env, promote path (staging Space ≠ prod DNS):
 - Routes: product HTML and /verify live on a-11-oy.com. The lasting public
   receipt RECORD belongs on a11oy.net. Do not merge the two origins.
 - Contracts: crawlers and health monitors send HEAD. HTML documents, robots.txt,
-  and the health JSON probes below must HEAD with the same status+headers as GET
-  and an empty body. Starlette Route(..., methods=["GET"]) / FastAPI @app.get is
-  the usual 405. GET-only /api/a11oy/* is worse: the Node proxy catch-all already
-  accepts HEAD, so monitors see 404 instead of 405 (QHAPAQ 2026-08-28).
+  sitemap.xml, and the health JSON probes below must HEAD with the same
+  status+headers as GET and an empty body. Starlette Route(..., methods=["GET"])
+  / FastAPI @app.get is the usual 405 — including on the Space (Server: szl),
+  not Cloudflare. GET-only /api/a11oy/* is worse: the Node proxy catch-all
+  already accepts HEAD, so monitors see 404 instead of 405 (QHAPAQ 2026-08-28).
+  Public product GET/HEAD stamp Link rel=canonical to https://a-11-oy.com{path}.
+  huggingface.co/spaces is never the product canonical. OPTIONS on documents
+  send Allow and Access-Control-Allow-Methods.
 - Env: Space runtime vars configure the app. Prod DNS is Cloudflare in front
   of the Space. x-szl-wire-d: LIVE is DSSE Wire D provenance, not "domain LIVE".
   HF custom domain stays PENDING. www DNS is Stephen, not this app.
@@ -61,7 +65,12 @@ HEALTH_JSON_HEAD_PATHS = (
     "/api/a11oy/healthz",
     "/api/a11oy/v1/health",
 )
-GET_HEAD_PATHS = HTML_DOCUMENT_HEAD_PATHS + HEALTH_JSON_HEAD_PATHS
+GET_HEAD_PATHS = HTML_DOCUMENT_HEAD_PATHS + HEALTH_JSON_HEAD_PATHS + (
+    "/sitemap.xml",
+)
+
+_OPTIONS_ALLOW = "GET, HEAD, OPTIONS"
+_OPTIONS_ACAM = "GET, HEAD, POST, OPTIONS"
 
 
 def _host_without_port(host: str) -> str:
@@ -84,12 +93,76 @@ def _is_forbidden_public_host(host: str) -> bool:
     return h == FORBIDDEN_PUBLIC_HOST or h.endswith("." + FORBIDDEN_PUBLIC_HOST)
 
 
+def _normalize_path(path: str) -> str:
+    raw = (path or "/").split("?")[0] or "/"
+    if raw != "/" and raw.endswith("/"):
+        return raw.rstrip("/") or "/"
+    return raw
+
+
+def product_canonical_url(path: str) -> str:
+    """Public product canonical. Never huggingface.co/spaces, never a11oy.com."""
+    return f"https://{CANONICAL_HOST}{_normalize_path(path)}"
+
+
+def _iter_link_values(headers) -> list:
+    if hasattr(headers, "getlist"):
+        return [v for v in (headers.getlist("link") or []) if v]
+    if hasattr(headers, "get_list"):
+        return [v for v in (headers.get_list("link") or []) if v]
+    raw = headers.get("link")
+    return [raw] if raw else []
+
+
+def _is_rel_canonical(value: str) -> bool:
+    lower = value.lower().replace("'", '"')
+    return 'rel="canonical"' in lower or "rel=canonical" in lower
+
+
+def apply_product_canonical_link(response, path: str) -> None:
+    """Stamp Link rel=canonical to https://a-11-oy.com{path}; drop Space/furniture."""
+    headers = response.headers
+    kept = []
+    for value in _iter_link_values(headers):
+        if _is_rel_canonical(value):
+            continue
+        kept.append(value)
+    if "link" in headers:
+        del headers["link"]
+    for value in kept:
+        if hasattr(headers, "append"):
+            headers.append("link", value)
+        else:
+            headers["link"] = value
+    canonical = f'<{product_canonical_url(path)}>; rel="canonical"'
+    if hasattr(headers, "append") and kept:
+        headers.append("link", canonical)
+    else:
+        headers["link"] = canonical
+
+
+def _options_response(existing=None, path: str = "/"):
+    from starlette.responses import Response
+
+    response = Response(status_code=200)
+    if existing is not None:
+        for key, value in existing.headers.items():
+            if key.lower().startswith("access-control-"):
+                response.headers[key] = value
+    response.headers["Allow"] = _OPTIONS_ALLOW
+    if "access-control-allow-methods" not in response.headers:
+        response.headers["Access-Control-Allow-Methods"] = _OPTIONS_ACAM
+    apply_product_canonical_link(response, path)
+    return response
+
+
 def ensure_html_documents_accept_head(app):
     """Add HEAD to pinned HTML document and health JSON routes that accept GET.
 
     FastAPI ``@app.get`` and Starlette ``Route(..., methods=["GET"])`` do not
     accept HEAD. Live MEASURED 2026-08-28: 405 on documents and /healthz;
     404 on /api/a11oy/healthz because the proxy catch-all already lists HEAD.
+    Same 405 on szlholdings-a11oy.hf.space (Server: szl) — the app, not Cloudflare.
     Starlette Response / FileResponse already omit the body on HEAD.
     """
     router = getattr(app, "router", app)
@@ -101,9 +174,6 @@ def ensure_html_documents_accept_head(app):
             continue
         if "GET" not in methods:
             continue
-        if "HEAD" in methods:
-            patched.append(path)
-            continue
         if not isinstance(methods, set):
             methods = set(methods)
             route.methods = methods
@@ -113,18 +183,49 @@ def ensure_html_documents_accept_head(app):
 
 
 def register(app):
-    """Install the two-origin identity lock. Never 301 .net onto the product host."""
+    """Install the two-origin identity lock. Never 301 .net onto the product host.
+
+    Also: product Link rel=canonical is https://a-11-oy.com{path}. The Hugging
+    Face Space URL is never the HTTP canonical. OPTIONS on public documents
+    carries Allow + Access-Control-Allow-Methods. HF custom domain stays
+    PENDING (no verification TXT/CNAME; www NXDOMAIN is Stephen).
+    """
 
     @app.middleware("http")
     async def _two_origin_identity(request, call_next):
-        # Pass through. Explicitly do not 301 a11oy.net → a-11-oy.com and do not
-        # 301 a-11-oy.com → a11oy.net. Never set Location to a11oy.com.
-        return await call_next(request)
+        # Do not 301 a11oy.net → a-11-oy.com and do not 301 a-11-oy.com → a11oy.net.
+        # Never set Location to a11oy.com.
+        path = _normalize_path(getattr(request.url, "path", "/") or "/")
+        host = request.headers.get("host") or ""
+
+        if request.method == "OPTIONS":
+            response = await call_next(request)
+            if _is_registry_host(host):
+                return response
+            if "access-control-allow-methods" in response.headers:
+                if "allow" not in response.headers:
+                    response.headers["Allow"] = _OPTIONS_ALLOW
+                apply_product_canonical_link(response, path)
+                return response
+            if response.status_code == 405 or path in GET_HEAD_PATHS:
+                return _options_response(response, path)
+            if "allow" not in response.headers:
+                response.headers["Allow"] = _OPTIONS_ALLOW
+            apply_product_canonical_link(response, path)
+            return response
+
+        response = await call_next(request)
+        if _is_registry_host(host):
+            return response
+        if request.method in ("GET", "HEAD") and 200 <= response.status_code < 300:
+            apply_product_canonical_link(response, path)
+        return response
 
     ensure_html_documents_accept_head(app)
     return [
         (
             f"two-origin identity: product=https://{CANONICAL_HOST} "
-            f"registry=https://{REGISTRY_HOST}; no cross-origin 301"
+            f"registry=https://{REGISTRY_HOST}; no cross-origin 301; "
+            f"Link rel=canonical https://{CANONICAL_HOST}{{path}}"
         )
     ]

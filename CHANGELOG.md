@@ -58,6 +58,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `tier_counts.LOCKED-PROVEN=25` of 144 stays a catalog tag, labelled
   genome, never the kernel chip, never green. Lean-8 ≠ genome-144. The
   8 and the 25 are unchanged.
+- HEAD 405 is the app (`Server: szl`), including on
+  `szlholdings-a11oy.hf.space`. `/sitemap.xml` now accepts HEAD.
+  OPTIONS `/` and `/console` send `Allow` and `Access-Control-Allow-Methods`.
+  HTTP `Link` rel=canonical on public product responses is
+  `https://a-11-oy.com{path}`; `huggingface.co/spaces` and the furniture
+  host are never that canonical. HF custom domain stays PENDING
+  (`_huggingface.a-11-oy.com` NXDOMAIN; www NXDOMAIN is Stephen).
 
 ### Added - investor-hittable Khipu CPU lab
 - Sovereign ensemble voter is now `khipu-gguf` against the pinned SZL-Khipu
