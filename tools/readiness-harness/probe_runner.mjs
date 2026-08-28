@@ -351,6 +351,35 @@ function findEvidenceLabels(obj, candidateLabels = []) {
   return found;
 }
 
+function findEvidenceContradictions(spec, body) {
+  if (
+    spec?.schema !== "kevgate"
+    || body === null
+    || typeof body !== "object"
+    || Array.isArray(body)
+  ) {
+    return [];
+  }
+
+  const items = Array.isArray(body.items) ? body.items : [];
+  const contradictions = [];
+  items.slice(0, 30).forEach((item, index) => {
+    if (item === null || typeof item !== "object" || Array.isArray(item)) return;
+    const dataKind = String(item.data_kind || "").trim().toLowerCase();
+    if (dataKind !== "live" && dataKind !== "cached") return;
+    const cvssSource = String(item.cvss_src || "").trim().toLowerCase();
+    const cacheState = String(item.cvss_cache_state || "").trim().toLowerCase();
+    if (cvssSource !== "nvd" || cacheState !== "fresh") {
+      contradictions.push({
+        path: `items[${index}].cvss_evidence`,
+        value: `${cvssSource || "missing"}/${cacheState || "missing"}`,
+        normalized: "inconsistent",
+      });
+    }
+  });
+  return contradictions;
+}
+
 function evaluateEndpointLabels(httpStatus, spec, body) {
   const allowStatuses = (spec.degradedRules?.allowStatuses) || [200];
   if (!allowStatuses.includes(httpStatus)) {
@@ -361,7 +390,10 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
   const allowed = new Set(allowLabels.map((value) => String(value).trim().toLowerCase()));
   const lieSet = new Set(liesIf.map((value) => String(value).trim().toLowerCase()));
   const labels = findEvidenceLabels(body, [...allowLabels, ...liesIf]);
-  const disallowed = labels.filter((entry) => !allowed.has(entry.normalized));
+  const disallowed = [
+    ...labels.filter((entry) => !allowed.has(entry.normalized)),
+    ...findEvidenceContradictions(spec, body),
+  ];
   const lie = labels.find((entry) => lieSet.has(entry.normalized)) || null;
   return {
     checked: true,
