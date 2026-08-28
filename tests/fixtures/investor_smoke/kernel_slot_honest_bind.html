@@ -28,12 +28,11 @@ async function loadLockedKernel(){
   $('cnt-locked').firstChild.nodeValue=(kernel==null?'N/A':kernel);
 })();
 (async function loadConsoleKernel(){
-  let kernelN='UNAVAILABLE';
+  let kernelN='N/A';
   try{
     const h=await getJSON('/v1/honest');
     if(h&&h.locked_formula_count===8) kernelN='8';
-    else kernelN='N/A';
-  }catch(e){ kernelN='N/A'; }
+  }catch(e){}
   document.body.insertAdjacentHTML('beforeend',
     `<div class="kpi" id="cnt-locked"><div class="v">${kernelN}</div></div>`);
 })();
