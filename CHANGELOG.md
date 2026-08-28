@@ -53,18 +53,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Immune.
 
 ### Changed - HF Dockerfile COPY pin
-- Protected-base HF candidate admission now proves one reviewed Dockerfile
-  transformation: insert `static/shared/szl_command_bar.js` and
-  `static/shared/szl_command_bar.css` on the existing shared COPY line (same
-  tokens as PR 1396). ÑAWI keeps those COPY bytes and chrome. Ordinary
-  candidates still fail closed on any other Dockerfile SHA change. After this
-  controller lands on protected `main`, a candidate matching that insertion is
-  admitted with comparator `missing-hf` for the two new COPY sources
-  (`files_compared` = protected base + 2) plus ordinary review-bound drift.
-  This PR does not carry a competing Dockerfile. Its own Immutable HF
-  repository byte parity is named-RED (`candidate changed protected admission
-  authority`) because the live job executes the baseline controller; that RED
-  is the gate, not a skip. PR 1363 remains HOLD.
+- Stacked successor for PR 1396: this PR lands first on protected `main` with
+  the shared COPY line tokens `static/shared/szl_command_bar.js` and
+  `static/shared/szl_command_bar.css` (byte-identical to 1396 head `41443b93`)
+  plus the protected-base admission pin for that insertion. ÑAWI keeps chrome
+  (`pages/console.html`, serve allowlist, lockstep extra_mirror). After merge,
+  1396 rebases with no Dockerfile delta. Ordinary candidates still fail closed
+  on any other Dockerfile SHA change. The pin applies only while protected
+  base still lacks those two tokens; once they are on `main` it does not
+  intercept later Dockerfile edits. This PR's own Immutable HF repository byte
+  parity is named-RED (baseline controller is unchanged; candidate changes
+  that controller and Dockerfile). That RED is the gate, not a skip. PR 1363
+  remains HOLD.
 
 ## [1.1.0] — 2026-07-13
 

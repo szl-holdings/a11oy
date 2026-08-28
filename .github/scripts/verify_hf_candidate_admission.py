@@ -387,6 +387,15 @@ def validate_dockerfile_copy_transition(
     }
 
 
+def dockerfile_copy_pin_applicable(base_source: bytes) -> bool:
+    """True only while protected base still lacks the two COPY tokens."""
+
+    return (
+        PINNED_COPY_INSERTION not in base_source
+        and base_source.count(BASE_SHARED_COPY_LINE) == 1
+    )
+
+
 def validate_dockerfile_copy_pin(
     *,
     base_tree: dict[str, str],
@@ -1015,32 +1024,50 @@ def _execute(args: argparse.Namespace) -> int:
         DOCKERFILE_PATH
     )
     if verifier_unchanged and dockerfile_changed:
-        report = prove_dockerfile_copy_pin(
+        base_dockerfile = read_bound_github_file(
+            verifier,
+            tree=base_tree,
+            github_repo=args.github_repo,
+            github_ref=args.base_ref,
+            path=DOCKERFILE_PATH,
+            revision="base",
+        )
+        if dockerfile_copy_pin_applicable(base_dockerfile):
+            report = prove_dockerfile_copy_pin(
+                verifier,
+                tools_script=args.tools_script,
+                github_repo=args.github_repo,
+                base_ref=args.base_ref,
+                github_ref=args.github_ref,
+                hf_repo=args.hf_repo,
+                base_tree=base_tree,
+                head_tree=head_tree,
+            )
+            args.report_out.write_text(
+                json.dumps(report, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            print(
+                "HF Dockerfile COPY pin admitted: "
+                f"base={args.base_ref} head={args.github_ref} "
+                f"hf={report['hf_ref']} "
+                f"copy_sources={len(PINNED_COPY_SOURCES)} "
+                f"review_bound={len(report['review_bound_drift_paths'])}"
+            )
+            for path in PINNED_COPY_SOURCES:
+                print(f"::notice title=Pinned HF Dockerfile COPY source::{path}")
+            for path in report["review_bound_drift_paths"]:
+                print(f"::notice title=Review-bound HF candidate drift::{path}")
+            return 0
+        return delegate_ordinary_candidate(
             verifier,
             tools_script=args.tools_script,
             github_repo=args.github_repo,
             base_ref=args.base_ref,
             github_ref=args.github_ref,
             hf_repo=args.hf_repo,
-            base_tree=base_tree,
-            head_tree=head_tree,
+            report_out=args.report_out,
         )
-        args.report_out.write_text(
-            json.dumps(report, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-        print(
-            "HF Dockerfile COPY pin admitted: "
-            f"base={args.base_ref} head={args.github_ref} "
-            f"hf={report['hf_ref']} "
-            f"copy_sources={len(PINNED_COPY_SOURCES)} "
-            f"review_bound={len(report['review_bound_drift_paths'])}"
-        )
-        for path in PINNED_COPY_SOURCES:
-            print(f"::notice title=Pinned HF Dockerfile COPY source::{path}")
-        for path in report["review_bound_drift_paths"]:
-            print(f"::notice title=Review-bound HF candidate drift::{path}")
-        return 0
 
     if verifier_unchanged:
         return delegate_ordinary_candidate(

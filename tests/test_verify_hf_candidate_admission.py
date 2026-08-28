@@ -354,24 +354,23 @@ class CandidateAdmissionTests(unittest.TestCase):
         self.assertEqual(report["copy_sources"], list(MODULE.PINNED_COPY_SOURCES))
         self.assertEqual(report["head_blob"], oid(head))
 
-    def test_live_dockerfile_accepts_only_the_pinned_insertion(self) -> None:
+    def test_live_dockerfile_carries_1396_shared_copy_line(self) -> None:
         live = (ROOT / "Dockerfile").read_bytes()
-        self.assertNotIn(MODULE.PINNED_COPY_INSERTION, live)
-        admitted = live.replace(
-            MODULE.BASE_SHARED_COPY_LINE,
+        self.assertEqual(live.count(MODULE.HEAD_SHARED_COPY_LINE), 1)
+        self.assertEqual(live.count(MODULE.BASE_SHARED_COPY_LINE), 0)
+        predecessor = live.replace(
             MODULE.HEAD_SHARED_COPY_LINE,
+            MODULE.BASE_SHARED_COPY_LINE,
             1,
         )
-        report = MODULE.validate_dockerfile_copy_transition(live, admitted)
+        report = MODULE.validate_dockerfile_copy_transition(predecessor, live)
         self.assertEqual(report["delta"], "exact-shared-copy-insertion")
         self.assertEqual(
-            admitted.replace(
-                MODULE.HEAD_SHARED_COPY_LINE,
-                MODULE.BASE_SHARED_COPY_LINE,
-                1,
-            ),
-            live,
+            report["head_blob"],
+            "cb5eb49b1c3b38e9150d6085013b979a11e1e9fd",
         )
+        self.assertFalse(MODULE.dockerfile_copy_pin_applicable(live))
+        self.assertTrue(MODULE.dockerfile_copy_pin_applicable(predecessor))
 
     def test_dockerfile_copy_transition_rejects_any_extra_change(self) -> None:
         base, head = sample_dockerfiles()
@@ -559,7 +558,7 @@ class CandidateAdmissionTests(unittest.TestCase):
             )
 
     def test_dockerfile_change_routes_to_copy_pin(self) -> None:
-        base, head, _, _ = dockerfile_pin_trees()
+        base, head, base_source, _ = dockerfile_pin_trees()
         fake = SimpleNamespace(
             verify_ancestry=mock.Mock(),
             github_blob_tree=mock.Mock(side_effect=[base, head]),
@@ -577,6 +576,11 @@ class CandidateAdmissionTests(unittest.TestCase):
             report_path = root / "report.json"
             with (
                 mock.patch.object(MODULE, "load_verifier", return_value=fake),
+                mock.patch.object(
+                    MODULE,
+                    "read_bound_github_file",
+                    return_value=base_source,
+                ),
                 mock.patch.object(
                     MODULE,
                     "prove_dockerfile_copy_pin",
@@ -611,6 +615,55 @@ class CandidateAdmissionTests(unittest.TestCase):
                 json.loads(report_path.read_text(encoding="utf-8")),
                 pin_report,
             )
+
+    def test_spent_copy_pin_does_not_intercept_later_dockerfile_edits(self) -> None:
+        base, head, _, head_source = dockerfile_pin_trees()
+        fake = SimpleNamespace(
+            verify_ancestry=mock.Mock(),
+            github_blob_tree=mock.Mock(side_effect=[base, head]),
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            tools = root / "tools.py"
+            tools.write_text("# comparator\n", encoding="utf-8")
+            report_path = root / "report.json"
+            with (
+                mock.patch.object(MODULE, "load_verifier", return_value=fake),
+                mock.patch.object(
+                    MODULE,
+                    "read_bound_github_file",
+                    return_value=head_source,
+                ),
+                mock.patch.object(
+                    MODULE,
+                    "prove_dockerfile_copy_pin",
+                    return_value={"hf_ref": "3" * 40, "review_bound_drift_paths": []},
+                ) as prove,
+                mock.patch.object(
+                    MODULE,
+                    "delegate_ordinary_candidate",
+                    return_value=17,
+                ) as delegate,
+            ):
+                result = MODULE.main(
+                    [
+                        "--tools-script",
+                        str(tools),
+                        "--github-repo",
+                        "szl-holdings/a11oy",
+                        "--base-ref",
+                        "1" * 40,
+                        "--github-ref",
+                        "2" * 40,
+                        "--hf-repo",
+                        "SZLHOLDINGS/a11oy",
+                        "--report-out",
+                        str(report_path),
+                    ]
+                )
+            self.assertEqual(result, 17)
+            prove.assert_not_called()
+            delegate.assert_called_once()
 
     def test_verifier_and_dockerfile_change_does_not_use_the_copy_pin(self) -> None:
         base, head = successor_trees()
