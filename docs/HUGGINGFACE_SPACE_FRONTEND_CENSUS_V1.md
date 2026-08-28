@@ -30,7 +30,8 @@ Every `RUNNING` Space is rendered at:
 The browser contract checks:
 
 - HTTP reachability
-- viewport metadata
+- device-width viewport metadata
+- at least one visible primary interaction target
 - document-level horizontal overflow
 - primary controls below 44 × 44 CSS pixels
 - uncaught page errors

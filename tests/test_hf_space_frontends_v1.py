@@ -39,6 +39,7 @@ def _page(**overrides):
             "inner_width": 390,
             "scroll_width": 390,
             "horizontal_overflow": False,
+            "primary_targets": 1,
             "undersized_primary_targets": [],
         },
     }
@@ -91,6 +92,87 @@ def test_page_contract_passes_clean_result() -> None:
     assert MODULE.evaluate_page(_page()) == []
 
 
+def test_page_contract_rejects_fixed_width_and_blank_shell() -> None:
+    result = _page(
+        metrics={
+            "viewport_meta": "width=1024",
+            "inner_width": 390,
+            "scroll_width": 390,
+            "horizontal_overflow": False,
+            "primary_targets": 0,
+            "undersized_primary_targets": [],
+        }
+    )
+    codes = {failure["code"] for failure in MODULE.evaluate_page(result)}
+    assert codes == {"VIEWPORT_META_UNSAFE", "PRIMARY_TARGETS_MISSING"}
+
+
+def test_browser_probe_counts_only_actionable_in_view_targets() -> None:
+    source = SCRIPT.read_text(encoding="utf-8")
+    for contract in (
+        "rect.bottom > 0",
+        "rect.top < window.innerHeight",
+        "Number(style.opacity) <= 0",
+        "filter.matchAll(/opacity[(]([^)]*)[)]/gi)",
+        "filterMakesTransparent(style.filter)",
+        "style.pointerEvents === 'none'",
+        "node.hasAttribute('inert')",
+        "node.getAttribute('aria-disabled') === 'true'",
+        "document.elementFromPoint(x, y)",
+        "hit === el || el.contains(hit)",
+        "style.overflowX !== 'visible'",
+        "const bounds = effectiveBounds(el)",
+        "hasMinimumHitArea(el, bounds)",
+        "window.devicePixelRatio || 1",
+        "const maxHitCoverageCells = 1000000",
+        "coverageCells > remainingHitCoverageCells",
+        "new Uint32Array((rows + 1) * stride)",
+        "if (!hitAt(el, x, y)) blockedInRow += 1",
+        "blockedPrefix[bottom * stride + right]",
+        "if (blocked === 0) return true",
+        "Math.floor((bounds.width - 44) / sampleStep) + 1",
+        "Math.floor((bounds.height - 44) / sampleStep) + 1",
+        "originX < originCountX",
+        "originY < originCountY",
+        "hit_area_scan_exhausted: hitArea === null",
+        "hit_area_samples_reserved: maxHitCoverageCells - remainingHitCoverageCells",
+        "item.hit_testable_44 !== true",
+        "el.matches(':disabled')",
+        "el.getAttribute('aria-disabled') === 'true'",
+        "if (el.getAttribute('role') === 'button') return el.tabIndex >= 0",
+        ".filter(actionable)",
+    ):
+        assert contract in source
+    assert "const hitTestable" not in source
+    assert "!hitTestable(el)" not in source
+    assert "[x + 1, y + 1]" not in source
+    assert "const startsX =" not in source
+    assert "const startsY =" not in source
+
+
+def test_page_contract_fails_distinctly_when_hit_scan_budget_is_exhausted() -> None:
+    result = _page(
+        metrics={
+            "viewport_meta": "width=device-width, initial-scale=1",
+            "inner_width": 390,
+            "scroll_width": 390,
+            "horizontal_overflow": False,
+            "primary_targets": 1,
+            "undersized_primary_targets": [
+                {
+                    "tag": "BUTTON",
+                    "width": 1000,
+                    "height": 1000,
+                    "hit_testable_44": None,
+                    "hit_area_scan_exhausted": True,
+                }
+            ],
+        }
+    )
+    codes = {failure["code"] for failure in MODULE.evaluate_page(result)}
+    assert codes == {"PRIMARY_TARGET_HIT_SCAN_EXHAUSTED"}
+
+
 def test_page_contract_rejects_hard_viewport_failures() -> None:
     result = _page(
         http_status=500,
@@ -100,6 +182,7 @@ def test_page_contract_rejects_hard_viewport_failures() -> None:
             "inner_width": 390,
             "scroll_width": 430,
             "horizontal_overflow": True,
+            "primary_targets": 1,
             "undersized_primary_targets": [
                 {"tag": "BUTTON", "text": "Run", "width": 36, "height": 32}
             ],
