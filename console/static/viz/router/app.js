@@ -2,9 +2,10 @@
 //
 // The visual layer never upgrades configuration or a successful render into a
 // claim of live inference. A green endpoint state requires a validated response
-// from /v1/router/stats; its value is labelled as the backend describes it: a
-// deterministic catalog pulse, not production QPS. When the endpoint cannot be
-// validated, the same transparent local affinity calculation is shown as MODELED.
+// from /v1/router/stats; its value is labelled as the backend describes it:
+// trusted routing decisions since process start, not production QPS or token
+// throughput. When the endpoint cannot be validated, the same transparent local
+// affinity calculation is shown as MODELED.
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -205,27 +206,40 @@ function graphStats(){
 }
 
 function normalizeStats(payload){
-  if(!payload || typeof payload !== 'object' || payload.state !== 'MODELED' ||
-     payload.mode !== 'modeled' || payload.throughput_state !== 'MODELED' ||
+  const liveEnvelope = payload?.state === 'LIVE' && payload?.mode === 'live' && payload?.catalog_state === 'LIVE';
+  const driftEnvelope = payload?.state === 'DEGRADED' && payload?.mode === 'degraded' && payload?.catalog_state === 'DRIFT';
+  if(!payload || typeof payload !== 'object' || (!liveEnvelope && !driftEnvelope) ||
+     payload.data_kind !== 'live' || payload.throughput_state !== 'OBSERVED' ||
+     payload.counter_scope !== 'process_lifetime' ||
      !Array.isArray(payload.routes)){
-    throw new Error('router stats envelope is not an explicitly modeled route array');
+    throw new Error('router stats envelope is not an observed process counter');
   }
   const routes = payload.routes.map(route=>({
     organ:String(route?.organ ?? ''), tier:String(route?.tier ?? ''), model:String(route?.model ?? ''),
-    throughput:Number(route?.throughput), license:String(route?.license ?? '')
+    throughput:route?.throughput, routingDecisions:route?.routing_decisions,
+    throughputUnit:String(route?.throughput_unit ?? ''), license:String(route?.license ?? '')
   })).filter(route =>
-    route.organ && /^T[0-6]$/.test(route.tier) && route.model &&
-    Number.isFinite(route.throughput) && route.throughput >= 0 &&
+    route.organ && /^T\d+$/.test(route.tier) && route.model &&
+    Number.isSafeInteger(route.throughput) && route.throughput >= 0 &&
+    route.routingDecisions === route.throughput &&
+    route.throughputUnit === 'routing_decisions_since_process_start' &&
     Object.hasOwn(LIC,route.license)
   );
   if(!routes.length || routes.length !== payload.routes.length) throw new Error('router stats routes failed schema validation');
-  if(!Number.isFinite(Number(payload.servedThisWindow))) throw new Error('router stats signal is not numeric');
+  if(!Number.isSafeInteger(payload.servedThisWindow) || payload.servedThisWindow < 0) throw new Error('router stats counter is not a non-negative integer');
+  if(!Number.isSafeInteger(payload.routingDecisionsSinceStart) || payload.routingDecisionsSinceStart < 0) throw new Error('router stats canonical total is not a non-negative integer');
   const routeTotal = routes.reduce((sum,route)=>sum+route.throughput,0);
-  if(Math.abs(routeTotal-Number(payload.servedThisWindow)) > 0.001) throw new Error('router stats signal does not equal route total');
+  if(routeTotal !== payload.servedThisWindow) throw new Error('router stats counter does not equal route total');
+  if(routeTotal !== payload.routingDecisionsSinceStart) throw new Error('router stats canonical total does not reconcile');
+  if(typeof payload.counter_started_at !== 'string' || !Number.isFinite(Date.parse(payload.counter_started_at)) ||
+     typeof payload.observed_at !== 'string' || !Number.isFinite(Date.parse(payload.observed_at))){
+    throw new Error('router stats timestamps are invalid');
+  }
   return {
-    mode:'endpoint', state:'MODELED', source:String(payload.source || 'unlabelled endpoint source'),
-    catalogState:String(payload.catalog_state || 'UNKNOWN'), throughputState:'MODELED', routes,
-    servedThisWindow:Number(payload.servedThisWindow), honesty:String(payload.honesty || '')
+    mode:'endpoint', state:payload.state, source:String(payload.source || 'unlabelled endpoint source'),
+    catalogState:String(payload.catalog_state || 'UNKNOWN'), throughputState:'OBSERVED', routes,
+    servedThisWindow:payload.servedThisWindow,
+    counterStartedAt:String(payload.counter_started_at || ''), honesty:String(payload.honesty || '')
   };
 }
 
@@ -239,8 +253,8 @@ function renderRouteFeed(stats,state){
     const title = document.createElement('strong');
     title.textContent = `${route.tier} · ${route.organ} → ${route.model}`;
     const detail = document.createElement('span');
-    detail.textContent = state === 'responding'
-      ? `${Math.round(route.throughput)} modeled load · ${route.license}`
+    detail.textContent = state === 'responding' || state === 'counter-degraded'
+      ? `${Math.round(route.throughput)} routing decisions · ${route.license}`
       : `${Math.round(route.throughput)} modeled load · ${route.license}${route.task ? ` · ${route.task}` : ''}`;
     item.append(title,detail); feed.append(item);
   }
@@ -255,10 +269,15 @@ function setOperationalState(stats,state,detail){
   const signalLabel = document.getElementById('signalLabel');
   document.getElementById('signalValue').textContent = String(Math.round(stats.servedThisWindow));
   if(state === 'responding'){
-    pill.textContent = 'MODELED ENDPOINT · RESPONDING'; pill.className = 'pill modeled';
-    signalLabel.textContent = 'modeled load · not QPS';
+    pill.textContent = 'LIVE COUNTER · RESPONDING'; pill.className = 'pill responding';
+    signalLabel.textContent = 'routing decisions · process lifetime';
     source.textContent = `Validated response · catalog ${stats.catalogState} · ${stats.source}`;
-    routeMode.textContent = stats.honesty || 'Endpoint-derived catalog signal; not production traffic.';
+    routeMode.textContent = stats.honesty || 'Observed routing-decision counter; not QPS or inference completions.';
+  }else if(state === 'counter-degraded'){
+    pill.textContent = 'DEGRADED · LIVE COUNTER'; pill.className = 'pill degraded';
+    signalLabel.textContent = 'routing decisions · process lifetime';
+    source.textContent = `Validated response · catalog ${stats.catalogState} · ${stats.source}`;
+    routeMode.textContent = stats.honesty || 'Exact counts retained; runtime catalog drift requires operator review.';
   }else if(state === 'degraded'){
     pill.textContent = 'DEGRADED · MODELED FALLBACK'; pill.className = 'pill degraded';
     signalLabel.textContent = 'modeled affinity load';
@@ -278,7 +297,10 @@ function setOperationalState(stats,state,detail){
 function updateRouteVisuals(routes){
   disposeRoutes();
   modelMeshes.forEach(mesh=>{ mesh.userData.active=false; mesh.material.emissiveIntensity=mesh.userData.baseEmissive; });
-  routes.forEach(route=>{ if(!sovereign || route.license === 'GREEN') lightRoute(route); });
+  routes.forEach(route=>{
+    if(Number(route.throughput) <= 0) return;
+    if(!sovereign || route.license === 'GREEN') lightRoute(route);
+  });
   syncLabelStates();
 }
 
@@ -291,13 +313,13 @@ async function poll(){
     clearTimeout(timeout);
     if(!response.ok) throw new Error(`HTTP ${response.status}`);
     const stats = normalizeStats(await response.json());
-    if(stats.source !== 'szl_brain.TIERS'){
+    if(stats.source !== 'szl_llm_registry.router_stats_snapshot'){
       localModelAt = Date.now();
       setOperationalState(graphStats(),'degraded',stats.source);
       return;
     }
     endpointResponseAt = Date.now();
-    setOperationalState(stats,'responding','validated schema');
+    setOperationalState(stats,stats.state === 'DEGRADED' ? 'counter-degraded' : 'responding','validated schema');
   }catch(error){
     localModelAt = Date.now();
     const reason = error?.name === 'AbortError' ? 'timeout' : String(error?.message || error);
@@ -310,7 +332,7 @@ async function poll(){
 function updateFreshness(){
   const node = document.getElementById('freshnessState');
   const now = Date.now();
-  if(lastState === 'responding' && endpointResponseAt){
+  if((lastState === 'responding' || lastState === 'counter-degraded') && endpointResponseAt){
     const seconds = Math.max(0,Math.floor((now-endpointResponseAt)/1000));
     node.textContent = `Validated response received ${seconds}s ago (response age, not model age).`;
   }else if(localModelAt){

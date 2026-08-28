@@ -385,19 +385,93 @@ _FORUM_LOG: list[dict] = []
 _FORUM_LOCK = threading.Lock()
 _FORUM_MAX = 500
 
-def _forum_append(receipt: dict) -> None:
+# Exact, process-lifetime routing-decision counters. These are incremented only
+# by trusted local writers that also append the corresponding receipt to the
+# forum. GETs never mutate them, and arbitrary /forum/ingest payloads are not
+# counted. The counters reset on process rebuild; that bounded window is part of
+# every public snapshot so a zero remains a real observation rather than a
+# fabricated traffic claim.
+_ROUTER_COUNTER_STARTED_AT = (
+    datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+)
+_ROUTER_DECISIONS_BY_ROUTE: dict[tuple[int, str], int] = {}
+
+
+def _routing_receipt_key(receipt: dict) -> tuple[int, str]:
+    """Return the exact tier/model key for a trusted routing receipt.
+
+    This validator runs before either the forum or counter is mutated. A trusted
+    caller that loses its tier/model evidence must fail closed instead of
+    creating an unattributed count that cannot reconcile with the public total.
+    """
+    raw_tier = receipt.get("tier_selected")
+    raw_model_id = receipt.get("model_id")
+    if type(raw_tier) is not int or raw_tier < 0:
+        raise ValueError("routing receipt tier_selected must be a non-negative integer")
+    if type(raw_model_id) is not str:
+        raise ValueError("routing receipt model_id must be a string")
+    model_id = raw_model_id.strip()
+    if not model_id:
+        raise ValueError("routing receipt model_id is required for counter attribution")
+    return raw_tier, model_id
+
+
+def _forum_append(receipt: dict, *, routing_decision: bool = False) -> None:
+    route_key = _routing_receipt_key(receipt) if routing_decision else None
     with _FORUM_LOCK:
         _FORUM_LOG.append(receipt)
         if len(_FORUM_LOG) > _FORUM_MAX:
             _FORUM_LOG.pop(0)
+        if route_key is not None:
+            _ROUTER_DECISIONS_BY_ROUTE[route_key] = (
+                _ROUTER_DECISIONS_BY_ROUTE.get(route_key, 0) + 1
+            )
+
+
+def router_stats_snapshot() -> dict[str, Any]:
+    """Observe exact trusted routing decisions since this process started.
+
+    The snapshot is LIVE because it reads the running process counter at request
+    time. Counts are OBSERVED routing decisions, not inference completions,
+    tokens, requests per second, or a synthetic display signal.
+    """
+    with _FORUM_LOCK:
+        routes = [
+            {
+                "tier": tier,
+                "model_id": model_id,
+                "routing_decisions": count,
+            }
+            for (tier, model_id), count in sorted(_ROUTER_DECISIONS_BY_ROUTE.items())
+        ]
+        total = sum(item["routing_decisions"] for item in routes)
+        started_at = _ROUTER_COUNTER_STARTED_AT
+    return {
+        "state": "LIVE",
+        "counter_state": "OBSERVED",
+        "counter_scope": "process_lifetime",
+        "counter_started_at": started_at,
+        "observed_at": _now(),
+        "routing_decisions_total": total,
+        "routes": routes,
+        "source": "trusted szl_llm_registry routing-receipt writes",
+        "honesty": (
+            "Exact in-process routing-decision counts since counter_started_at; "
+            "resets on rebuild. These are not inference completions, tokens, QPS, "
+            "or production traffic outside this process."
+        ),
+    }
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
 
 def _lambda_gm(axes: list[float]) -> float:
     if not axes: return 0.5
     c = [max(1e-9, min(1.0, float(v))) for v in axes]
     return math.exp(sum(math.log(v) for v in c) / len(c))
+
 
 def _api_key_wired(env_var: str) -> bool:
     """Check if an API key env var is set (real check, not mocked)."""
@@ -1512,8 +1586,11 @@ def register(app: FastAPI) -> dict:
                 "doctrine": DOCTRINE, "kernel_commit": _KERNEL,
                 "conjecture_note": "Λ = Conjecture 1 — NOT a theorem. CAUCHY_ND sorry open.",
             }
-            _forum_append({**sov_receipt, "prompt_preview": prompt[:80] if prompt else "",
-                           "source": "a11oy"})
+            _forum_append(
+                {**sov_receipt, "prompt_preview": prompt[:80] if prompt else "",
+                 "source": "a11oy"},
+                routing_decision=True,
+            )
             _sov_resp = {
                 "response": response_text,
                 "model_selected": sov_enriched,
@@ -1626,7 +1703,10 @@ def register(app: FastAPI) -> dict:
                 f"Tier selection + Λ={lam:.4f} + receipt are REAL. Reason: {reason}"
             )
 
-        _forum_append({**receipt, "prompt_preview": prompt[:80] if prompt else "", "source": "a11oy"})
+        _forum_append(
+            {**receipt, "prompt_preview": prompt[:80] if prompt else "", "source": "a11oy"},
+            routing_decision=True,
+        )
 
         _resp = {
             "response": response_text,

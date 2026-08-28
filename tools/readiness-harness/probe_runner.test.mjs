@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  evaluateEndpointLabels,
   evaluateFreshness,
   findEvidenceLabels,
   findTimestamp,
@@ -82,6 +83,82 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
   assert.equal(validateSchema("tab_matrix", {
     matrix_available: false,
     probe_verdict_available: false,
+  }).ok, false);
+});
+
+test("router-stats schema requires live observed process counters", () => {
+  const live = {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
+    catalog_state: "LIVE",
+    throughput_state: "OBSERVED",
+    routes: [{ tier: "T0", model: "alpha", routing_decisions: 0 }],
+    servedThisWindow: 0,
+    routingDecisionsSinceStart: 0,
+    tiers: ["T0"],
+    counter_scope: "process_lifetime",
+    counter_started_at: "2026-08-26T12:00:00Z",
+    observed_at: "2026-08-26T12:00:01Z",
+    source: "szl_llm_registry.router_stats_snapshot",
+    honesty: "Exact trusted routing decisions; not QPS.",
+  };
+  assert.equal(validateSchema("router_stats", live).ok, true);
+
+  assert.equal(validateSchema("router_stats", {
+    ...live,
+    throughput_state: "MODELED",
+  }).ok, false);
+  assert.equal(validateSchema("router_stats", {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
+    throughput_state: "MODELED",
+    routes: [],
+  }).ok, false);
+  assert.equal(validateSchema("router_stats", {
+    ...live,
+    source: "wall-clock display signal",
+  }).ok, false);
+  assert.equal(validateSchema("router_stats", {
+    ...live,
+    routes: [],
+  }).ok, false);
+  assert.equal(validateSchema("router_stats", {
+    ...live,
+    servedThisWindow: -1,
+    routingDecisionsSinceStart: -1,
+  }).ok, false);
+  assert.equal(validateSchema("router_stats", {
+    ...live,
+    servedThisWindow: 0.5,
+    routingDecisionsSinceStart: 0.5,
+  }).ok, false);
+});
+
+test("router counter evidence is inspected without weakening root labels", () => {
+  const spec = {
+    degradedRules: {
+      allowStatuses: [200],
+      allowLabels: ["live", "cached"],
+      liesIf: ["mock", "fabricated", "placeholder"],
+    },
+  };
+  assert.equal(evaluateEndpointLabels(200, spec, {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
+    throughput_state: "OBSERVED",
+  }).ok, true);
+  assert.equal(evaluateEndpointLabels(200, spec, {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
+    throughput_state: "MODELED",
+  }).ok, false);
+  assert.equal(evaluateEndpointLabels(200, spec, {
+    state: "OBSERVED",
+    throughput_state: "OBSERVED",
   }).ok, false);
 });
 

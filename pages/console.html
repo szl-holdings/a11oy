@@ -1472,7 +1472,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="card"><div class="card-h"><span class="card-t">Technique \u2192 tactic graph</span><span class="card-ep" id="at-cap">fetching large dataset (~50MB)\u2026</span></div><div class="cyto" id="at-cy"><div class="row mono dim" style="padding:1rem">Loading MITRE ATT&CK STIX (~50MB, may take ~10\u201320s)\u2026</div></div><div class="brain-note">Large official dataset; we parse a bounded subset (first ~120 techniques) for a responsive graph. Tactics in teal, techniques in gold.</div></div>${HONEST}`;window.attack_load();}},
 
   llm:{title:'Model Router',badge:'5-TIER',sub:'The platform routes each task to the right model tier by cost and capability. A real model call when a key is present, an honest stub otherwise \u2014 the tier choice and the trust receipt are always real.',
-    render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tier throughput</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="l-bars"></canvas></div></div>
+    render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Routing decisions by model</span><span class="card-ep">observed · process lifetime</span></div><div class="chartbox"><canvas id="l-bars"></canvas></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Model roster</span><span class="card-ep">live</span></div><div id="l-host" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div></div>
       <details class="raw"><summary>raw tiers</summary><pre class="out" id="l-out">loading\u2026</pre></details>${HONEST}`;
       try{const d=await getJSON(API+'/v1/llm/tiers').catch(()=>orgGet('core','/api/a11oy/v1/reason/tiers'));setOut('l-out',d);const tiers=d.tiers||[];setHTML('l-host','');tiers.forEach(t=>addHTML('l-host',`<div class="row"><span class="badge b-teal">T${esc(t.rank??'')}</span><span>${esc(t.id||t.model||'')}</span><span class="spacer mono dim">${esc(t.use||'')}</span></div>`));}catch(e){setHTML('l-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
@@ -10446,7 +10446,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     return h+'</tbody></table></div>'; }
   function err(id,e){ H(id,'<div class="row mono dim">feed unavailable: '+esc((e&&e.message)||e)+'</div>'); }
 
-  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Fleet topology, health, \u039b status and MCP-tool counts are probed <b>live in-process</b> from the real capabilities mesh (0 client CDN), freshness labeled. The decision ledger is a <b>real hash-chained</b> receipt store (SHA-chain, tamper-evident), DSSE-signed where a key is present \u2014 never a fabricated signature. Router throughput is a <b>live in-memory counter</b>, labeled as such; it is not a billing meter. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail oracle). Eight formulas are locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green, never counted as locked. SLSA L1 honest; L2 .att emitted (not independently verified) build-provenance · L3 roadmap (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation).</div>';
+  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Fleet topology, health, \u039b status and MCP-tool counts are probed <b>live in-process</b> from the real capabilities mesh (0 client CDN), freshness labeled. The decision ledger is a <b>real hash-chained</b> receipt store (SHA-chain, tamper-evident), DSSE-signed where a key is present \u2014 never a fabricated signature. Router values are <b>observed routing-decision counts since process start</b>; they reset on rebuild and are not QPS, token throughput, inference completions, external traffic, or a billing meter. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail oracle). Eight formulas are locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green, never counted as locked. SLSA L1 honest; L2 .att emitted (not independently verified) build-provenance · L3 roadmap (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation).</div>';
 
   /* ---- Tab 1: Fleet Topology & Health ---- */
   window.renderFltTopo=function(c){
@@ -10502,10 +10502,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   window.renderFltOrch=function(c){
     c.innerHTML=
       card('Orchestration & Routing \u2014 model tier router '+dl(),'GET '+AB+'/router/stats',
-        '<div class="kpis">'+kpi('Mode','flt-or-mode','router state')+kpi('Served','flt-or-served','this window')+
+        '<div class="kpis">'+kpi('Mode','flt-or-mode','router state')+kpi('Decisions','flt-or-served','since process start')+
          kpi('Tiers','flt-or-tiers','routing tiers')+kpi('Routes','flt-or-routes','organ\u2192model')+'</div>'+
         '<div class="chartbox" style="height:160px;margin:.6rem 0"><canvas id="flt-or-bar"></canvas></div>')+
-      card('Route table','organ \u00b7 tier \u00b7 model \u00b7 throughput','<div id="flt-or-tbl"><div class="row mono dim">loading\u2026</div></div>')+
+      card('Route table','organ \u00b7 tier \u00b7 model \u00b7 routing decisions','<div id="flt-or-tbl"><div class="row mono dim">loading\u2026</div></div>')+
       '<div class="mono dim" style="font-size:11px" id="flt-or-hon"></div>'+HON;
     poll(function(){ getJSON(AB+'/router/stats').then(function(d){ var routes=d.routes||[];
       H('flt-or-mode',esc(d.mode||'\u2014')); H('flt-or-served',fnum(d.servedThisWindow));
@@ -10515,7 +10515,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         '<span style="color:'+CREAM+'">'+esc(r.organ||'\u2014')+'</span>',
         '<span class="badge mono" style="color:'+GOLD+';border:1px solid '+GOLD+'66">'+esc(r.tier||'')+'</span>',
         esc(r.model||''), fnum(r.throughput), '<span class="dim">'+esc(r.license||'')+'</span>' ]; });
-      H('flt-or-tbl',tbl(['organ','tier','model','throughput','license'],rows));
+      H('flt-or-tbl',tbl(['organ','tier','model','routing decisions','license'],rows));
       H('flt-or-hon','Source: '+esc(d.source||'')+' \u00b7 '+esc(d.honesty||''));
     }).catch(function(e){err('flt-or-tbl',e);}); },'flt-or');
   };
@@ -10575,7 +10575,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function regAll(){ if(!window.VIEWS){ return setTimeout(regAll,120); }
     reg('fltTopo','AI-Fleet \u2014 Topology & Health','LIVE \u00b7 capabilities mesh','3D fleet topology of the governed agent mesh: per-agent role, health, \u039b status, MCP-tool counts, BFT quorum (F12), and peer capabilities \u2014 probed live in-process. 0 client CDN, auto-poll.',window.renderFltTopo);
     reg('fltReceipts','AI-Fleet \u2014 Decision-Receipt Stream','LIVE \u00b7 hash-chained ledger','The real hash-chained decision ledger: head sequence, chain root, per-receipt prior-hash linkage (tamper-evident) and a live governed-decision feed. DSSE-signed where a key is present.',window.renderFltReceipts);
-    reg('fltOrch','AI-Fleet \u2014 Orchestration & Routing','LIVE \u00b7 tier router','Model-tier orchestration: which organ routes to which tier/model, live in-memory throughput per route, served-this-window counter, and licensing posture. Throughput labeled live counter, not a billing meter.',window.renderFltOrch);
+    reg('fltOrch','AI-Fleet \u2014 Orchestration & Routing','LIVE \u00b7 tier router','Model-tier orchestration: the runtime catalog plus observed routing-decision counts since process start and licensing posture. Counts reset on rebuild; they are not QPS, tokens, inference completions, external traffic, or a billing meter.',window.renderFltOrch);
     reg('fltGov','AI-Fleet \u2014 Governance-Gate Status','LIVE \u00b7 deny-by-default','Governance gates that fence every fleet action: how many are Lean machine-verified, kernel-canonical counts, and a governed fleet decision run sealed with a DSSE receipt. \u039b advisory + human-approval flag.',window.renderFltGov);
     reg('fltObs','AI-Fleet \u2014 Per-Agent Observability','LIVE \u00b7 signed MELT','Signed observability across the fleet: MELT metrics (DAG depth, organs reachable, signed spans, chain-verified traces) and live mesh reachability + latency per agent. New-Relic-but-signed.',window.renderFltObs);
   }
@@ -12330,36 +12330,36 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* ===== routerarena — live model-routing cost/latency arena ===== */
-    V.routerarena={ title:'Routing Arena', badge:'LIVE router stats \u00b7 0 codenames', sub:'Live model-routing arena: a11oy routes each organ\u2019s task through the Λ-gate to a tier of open + closed models. This pulls the live router stats and model registry and shows, per organ/tier, the routed model, measured throughput, and license posture (GREEN = open-weight) \u2014 the governed routing decision made visible. No user-visible codenames; trust never 100%.',
+    V.routerarena={ title:'Routing Arena', badge:'LIVE router stats \u00b7 0 codenames', sub:'Live model-routing arena: a11oy routes each organ\u2019s task through the Λ-gate to a tier of open + closed models. This pulls the runtime model catalog and observed routing-decision counts since process start. Counts reset on rebuild and are not QPS, tokens, inference completions, or external traffic. No user-visible codenames; trust never 100%.',
       render: async function(c){
         c.innerHTML='<div class="kpis">'
-          +'<div class="kpi"><div class="k">Active routes</div><div class="v" id="ra-n">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Catalog routes</div><div class="v" id="ra-n">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Models in registry</div><div class="v teal" id="ra-m">\u2014</div></div>'
-          +'<div class="kpi"><div class="k">Open-weight (GREEN)</div><div class="v" id="ra-g">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">GREEN policy class</div><div class="v" id="ra-g">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Router</div><div class="v" id="ra-mode">\u2014</div></div></div>'
-          +'<div class="card"><div class="card-h"><span class="card-t">Live organ \u2192 tier \u2192 model routing &amp; throughput</span><span class="card-ep">router/stats \u00b7 llm/registry</span></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Organ \u2192 tier \u2192 model routing-decision counts</span><span class="card-ep">router/stats \u00b7 llm/registry</span></div>'
           +'<div class="echart" id="ra-chart" style="height:300px"></div>'
           +'<div id="ra-tbl" style="overflow:auto;margin-top:.5rem"><div class="row mono dim">loading live router stats\u2026</div></div></div>'
-          +honestNote('Routes + throughput are read live from the router; license GREEN = open-weight. Λ-gate routing is real deterministic math.');
+          +honestNote('Catalog routes and process-lifetime routing-decision counts are read live from the router. Zero is valid; GREEN/AMBER are router policy classes, not open-weight claims. Counts are not QPS or token throughput. Λ-gate routing is real deterministic math.');
         try{
           var st=await gj('/api/a11oy/v1/router/stats');
           var routes=st.routes||[]; T('ra-n',routes.length); T('ra-mode',st.mode||'\u2014');
           var me=E('ra-mode'); if(me) me.className='v '+(st.mode==='live'?'teal':'warn');
           T('ra-g',routes.filter(function(r){return (r.license||'')==='GREEN';}).length);
           try{ var reg=await gj('/api/a11oy/v1/llm/registry'); T('ra-m',reg.model_count||reg.count||(reg.models&&reg.models.length)||'\u2014'); }catch(e){ T('ra-m','\u2014'); }
-          // chart: throughput per route, colored by license
+          // chart: process-lifetime routing decisions per catalog route, colored by license
           if(window.echarts){
             var host=E('ra-chart'); if(host){ var ch=echarts.init(host,null,{renderer:'canvas'});
               ch.setOption({backgroundColor:'transparent',grid:{left:54,right:18,top:18,bottom:64},
-                tooltip:{trigger:'axis',formatter:function(p){var r=routes[p[0].dataIndex];return esc(r.organ+' / '+r.tier)+'<br>'+esc(r.model)+'<br>throughput '+r.throughput+'<br>license '+esc(r.license);}},
+                tooltip:{trigger:'axis',formatter:function(p){var r=routes[p[0].dataIndex];return esc(r.organ+' / '+r.tier)+'<br>'+esc(r.model)+'<br>routing decisions '+r.throughput+'<br>license '+esc(r.license);}},
                 xAxis:{type:'category',data:routes.map(function(r){return r.organ+'\u00b7'+r.tier;}),axisLabel:{color:'#9aa0a8',fontSize:8,rotate:34}},
-                yAxis:{type:'value',name:'throughput',nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLabel:{color:'#777',fontSize:8},splitLine:{lineStyle:{color:GRID}}},
+                yAxis:{type:'value',name:'decisions',nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLabel:{color:'#777',fontSize:8},splitLine:{lineStyle:{color:GRID}}},
                 series:[{type:'bar',data:routes.map(function(r){return {value:r.throughput||0,itemStyle:{color:(r.license==='GREEN'?TEAL:GOLD)}};}),barWidth:'52%'}]});
               window.addEventListener('resize',function(){ch.resize();},{passive:true});
             }
           }
           var h=['<table class="mono" style="width:100%;min-width:560px;border-collapse:collapse;font-size:10px"><thead><tr>'];
-          ['Organ','Tier','Routed model','Throughput','License'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
+          ['Organ','Tier','Routed model','Routing decisions','License'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
           h.push('</tr></thead><tbody>');
           routes.forEach(function(r){
             h.push('<tr style="border-bottom:1px solid #1c1c1a">'
@@ -13522,7 +13522,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +'<div class="brain-note"><b>How to read this.</b> The surface is validation loss over routing-model <b>width</b> (log2) and <b>depth</b>, built from the <b>published Gemstones scaling law</b> '
       +'<code>L(N,D)=E+A/N^a+B/D^b</code> (McLeish et al., <a href="https://arxiv.org/abs/2502.06857" target="_blank" rel="noopener" style="color:'+TEAL+'">arXiv:2502.06857</a>) \u2014 whose core finding is that the optimal shape is '
       +'<b>shape-sensitive</b>, not a single Chinchilla ratio. The gold ridge is the derived Chinchilla-optimal frontier; the red point is the <b>current Chaski router shape, which is a clearly-labelled SAMPLE</b> '
-      +'(the live <code>/router/stats</code> endpoint reports per-tier throughput/model/license \u2014 shown below \u2014 but does not carry model width/depth shape, so this surface point stays a clearly-labelled SAMPLE). The \u03bb slider tilts the objective toward width- or depth-cost. '
+      +'(the live <code>/router/stats</code> endpoint reports process-lifetime routing-decision counts plus model/license \u2014 shown below \u2014 but does not carry model width/depth shape, so this surface point stays a clearly-labelled SAMPLE). The \u03bb slider tilts the objective toward width- or depth-cost. '
       +'<b>Published-research surface + a SAMPLE overlay \u2014 a heuristic sizing view, never a proof.</b> \u039b stays <b>Conjecture\u00a01</b>; locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
       +(window.HONEST||'');
     var sl=E('gem-slider'); if(sl){ sl.addEventListener('input', function(){ setLambda((+sl.value)/100); }); }
@@ -13531,12 +13531,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     // best-effort: if the command-log later exposes a routing-quality metric, we keep the
     // SAMPLE label honest (we do NOT fabricate a live point). Poll only to keep the badge fresh.
     (function(){
-      function run(){ try{ getPublic('/api/a11oy/v1/router/metrics',12000).then(function(j){ var el1=document.getElementById('gem-fleet'), elk=document.getElementById('gem-fleet-k'); if(!j||!j.routes){ if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; return; } var rows=j.routes.map(function(r){ return (r.organ||'?')+' '+(r.tier||'')+' \u00b7 '+(r.model||'?')+' \u00b7 '+(r.throughput!=null?r.throughput+' tok/s':'')+' \u00b7 '+(r.license||''); }); if(el1) el1.innerHTML='<b>'+esc((j.data_kind||'live').toUpperCase())+'</b> /router/metrics ('+esc(j.mode||'')+') \u2014 '+j.routes.length+' tiers: '+esc(rows.join('  |  ')); if(elk) elk.textContent=j.routes.length+' tiers'; }).catch(function(){ var el1=document.getElementById('gem-fleet'); if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; }); }catch(e){} }
+      function run(){ try{ getPublic('/api/a11oy/v1/router/metrics',12000).then(function(j){ var el1=document.getElementById('gem-fleet'), elk=document.getElementById('gem-fleet-k'); if(!j||!j.routes){ if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; return; } var rows=j.routes.map(function(r){ return (r.organ||'?')+' '+(r.tier||'')+' \u00b7 '+(r.model||'?')+' \u00b7 '+(r.throughput!=null?r.throughput+' decisions':'')+' \u00b7 '+(r.license||''); }); if(el1) el1.innerHTML='<b>'+esc((j.data_kind||'live').toUpperCase())+'</b> /router/metrics ('+esc(j.mode||'')+') \u2014 '+j.routes.length+' routes: '+esc(rows.join('  |  ')); if(elk) elk.textContent=j.routes.length+' routes'; }).catch(function(){ var el1=document.getElementById('gem-fleet'); if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; }); }catch(e){} }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
   };
 
-  R.reg('gemstones_frontier','Scaling Frontier (Router Sizing)','MODELED \u00b7 ECHARTS-GL \u00b7 GEMSTONES (arXiv:2502.06857)','Active research: how should the router scale (width vs depth)? echarts-gl surface3D of validation loss vs (width, depth) from the PUBLISHED Gemstones scaling law L(N,D)=E+A/N^a+B/D^b (McLeish et al., NeurIPS 2025, arXiv:2502.06857), with the derived Chinchilla-optimal ridge and the current Chaski router shape as a clearly-labelled SAMPLE point (live /router/stats reports per-tier throughput but no width/depth shape). A \u03bb slider tilts the objective. Published-research surface + SAMPLE overlay \u2014 a heuristic sizing view, never a proof. \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderGemstonesFrontier);
+  R.reg('gemstones_frontier','Scaling Frontier (Router Sizing)','MODELED \u00b7 ECHARTS-GL \u00b7 GEMSTONES (arXiv:2502.06857)','Active research: how should the router scale (width vs depth)? echarts-gl surface3D of validation loss vs (width, depth) from the PUBLISHED Gemstones scaling law L(N,D)=E+A/N^a+B/D^b (McLeish et al., NeurIPS 2025, arXiv:2502.06857), with the derived Chinchilla-optimal ridge and the current Chaski router shape as a clearly-labelled SAMPLE point (live /router/stats reports routing-decision counts but no width/depth shape). A \u03bb slider tilts the objective. Published-research surface + SAMPLE overlay \u2014 a heuristic sizing view, never a proof. \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderGemstonesFrontier);
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',function(){R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier');}); }
   else { R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier'); }
 })();
