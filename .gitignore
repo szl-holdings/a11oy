@@ -1,5 +1,12 @@
 .repos/
 node_modules/
+# Cloud Agent / local dev virtualenv (created by .cursor/install.sh; NOT shipped —
+# the HF Space build installs its own pinned deps from the Dockerfile).
+.venv/
+# Local GDW runtime storage (gdw_runtime.py prepares output/gdw/*.sqlite3 + proofs)
+# and UNAY vector state — generated when the dev server boots; never committed.
+output/
+_unay_data/
 dist/
 __pycache__/
 *.pyc

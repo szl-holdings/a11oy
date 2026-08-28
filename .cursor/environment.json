@@ -1,0 +1,17 @@
+{
+  "name": "a11oy",
+  "install": "bash .cursor/install.sh",
+  "terminals": [
+    {
+      "name": "a11oy-server",
+      "command": "source .venv/bin/activate && PORT=7860 python gdw_runtime.py",
+      "description": "a11oy Brand Orchestration Layer (FastAPI) on http://localhost:7860 — SPA at /, governed APIs under /api/a11oy/v1/*. Booted via the fail-closed GDW runtime entrypoint (gdw_runtime.py -> serve.py)."
+    }
+  ],
+  "ports": [
+    {
+      "name": "a11oy-web",
+      "port": 7860
+    }
+  ]
+}
