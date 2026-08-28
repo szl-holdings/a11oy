@@ -9642,26 +9642,34 @@ async def a11oy_observability_summary_v2() -> JSONResponse:
                          "latency_ms": c["latency_ms"],
                          "url": "in-image capability", "name": c["name"],
                          "kind": c["kind"]}
-    ch = _a11oy_build_chain(24)
+    # Do not call _a11oy_build_chain(24) here. That SAMPLE depth is not a live DAG.
     return JSONResponse({
         "self_contained": True,
         "brain": "a11oy",
         "capabilities": _A11OY_CAPS,
         "mesh_reach": mesh,
         "signed_spans": None,
-        "dag_depth": ch["depth"],
-        "melt": {"metrics": {"dag_depth": ch["depth"]},
+        "dag_depth": None,
+        "observed": False,
+        "state": "UNAVAILABLE",
+        "melt": {"metrics": {},
                  "events": {"signed_spans": None}},
         "receipt_evidence": {
             "state": "inventory",
-            "hash_chain_depth": ch["depth"],
+            "hash_chain_depth": None,
             "signed_spans_observed": None,
             "chain_verified_observed": None,
+            "sample_chain": {
+                "state": "SAMPLE",
+                "operational": False,
+                "note": "deterministic SAMPLE fixture exists on other routes; not a live observation",
+            },
         },
         "observation_state": "inventory",
         "note": "Self-contained capability inventory. Nodes are named a11oy internal "
                 "functions, not runtime health or provenance observations. No latency, "
-                "signature, or attestation state is inferred. Λ = Conjecture 1 (advisory).",
+                "signature, or attestation state is inferred. SAMPLE chain depth is "
+                "not a live dag_depth. Organ counts are not invented. Λ = Conjecture 1 (advisory).",
     })
 
 
@@ -12875,20 +12883,20 @@ app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=
 
 # /killinchu — path bridge. Hub inventory page is reachable; the inference
 # Space timed out (KALLPA 2026-08-28). Do not stamp this runtime LIVE.
-# HTML /killinchu still 307s to the Space URL for deep links; treat a hang as
-# UNAVAILABLE, not a live product. Landing copy must say UNAVAILABLE.
+# Do not 307 browsers to *.hf.space (not user-visible as a live product URL).
+# Send them to the Hub inventory page and label the runtime UNAVAILABLE.
 _KILLINCHU_CANONICAL = "https://szlholdings-killinchu.hf.space"
 _KILLINCHU_HUB = "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
 
 
 async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
-    suffix = f"/{full_path}" if full_path else "/"
-    target = f"{_KILLINCHU_CANONICAL}{suffix}"
+    target = _KILLINCHU_HUB
     if request.url.query:
         target = f"{target}?{request.url.query}"
     response = _PTG_Redirect(url=target, status_code=307)
     response.headers["X-SZL-Route-State"] = "UNAVAILABLE_RUNTIME"
     response.headers["X-SZL-Killinchu-Hub"] = _KILLINCHU_HUB
+    response.headers["X-SZL-Killinchu-Inference"] = _KILLINCHU_CANONICAL
     response.headers["Link"] = f'<{_KILLINCHU_HUB}>; rel="alternate"'
     return response
 

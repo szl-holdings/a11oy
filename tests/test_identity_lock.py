@@ -231,6 +231,9 @@ def test_killinchu_path_bridge_labels_runtime_unavailable():
     client = TestClient(serve.app, raise_server_exceptions=False)
     response = client.get("/killinchu", follow_redirects=False)
     assert response.status_code == 307
+    location = response.headers.get("location") or ""
+    assert location.startswith("https://huggingface.co/spaces/SZLHOLDINGS/killinchu")
+    assert "szlholdings-killinchu.hf.space" not in location
     assert response.headers.get("X-SZL-Route-State") == "UNAVAILABLE_RUNTIME"
     hub = response.headers.get("X-SZL-Killinchu-Hub") or ""
     assert hub.startswith("https://huggingface.co/spaces/SZLHOLDINGS/killinchu")
@@ -253,6 +256,34 @@ def test_empty_observability_dag_is_unavailable_not_a_live_zero():
     summary = obs.health_summary()
     assert summary["state"] == "UNAVAILABLE"
     assert "last 0 traces" in summary["window"]
+
+
+def test_observability_summary_does_not_feed_sample_depth_or_invent_organs():
+    """SAMPLE chain depth 24 and inventory organ counts are not live."""
+    from starlette.testclient import TestClient
+
+    import serve
+
+    body = TestClient(serve.app, raise_server_exceptions=False).get(
+        "/api/a11oy/v1/observability/summary"
+    ).json()
+    state = body.get("observation_state") or body.get("state")
+    melt = ((body.get("melt") or {}).get("metrics")) or {}
+    assert melt.get("dag_depth") != 24
+    assert body.get("dag_depth") != 24
+    if state in ("inventory", "UNAVAILABLE", "IDLE") or body.get("observed") is False:
+        assert melt.get("organs_reachable") is None
+        assert body.get("dag_depth") is None
+
+
+def test_pages_landing_does_not_treat_killinchu_or_organs_as_live():
+    html = (ROOT / "pages" / "landing.html").read_text(encoding="utf-8")
+    assert 'href="https://szlholdings-killinchu.hf.space/"' not in html
+    assert "huggingface.co/spaces/SZLHOLDINGS/killinchu" in html
+    assert "UNAVAILABLE" in html
+    assert "<h4>Live</h4>" not in html
+    assert "observation_state" in html
+    assert "organs_reachable" in html
 
 
 def test_empty_compute_fabric_status_is_unavailable(monkeypatch):

@@ -43,6 +43,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a11oy's defense Λ as killinchu-live.
 - Empty observability DAG (depth 0 / IDLE) and an empty compute-fabric
   probe are labelled UNAVAILABLE. Process-local zero is not a live number.
+- `/api/a11oy/v1/observability/summary` does not feed SAMPLE chain depth 24
+  as live `dag_depth`, and does not invent `organs_reachable` while
+  `observation_state` is inventory / unobserved. `/landing` paints
+  UNAVAILABLE in that case and no longer links killinchu at `*.hf.space`.
+- `/killinchu` 307s to the Hub inventory page, not the timed-out inference
+  Space. Runtime stays UNAVAILABLE. `hf-sync.yml`: staging Space ≠ prod DNS;
+  GitHub SHA and Space runtime SHA can drift.
 - Trust Center and `/verify` now say in plain language: the lasting public
   RECORD belongs on `a11oy.net`; `/verify` is the interactive tool on
   `a-11-oy.com`. The two hosts stay separate.

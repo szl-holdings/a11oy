@@ -520,14 +520,22 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         state = observability_dag_state(dag)
         depth = dag.get("depth") if dag.get("available") else None
         dag_depth = depth if state != "UNAVAILABLE" else None
+        # Inventory / empty DAG: do not invent a live organ count or a live depth.
+        organs_reachable = None
+        organs_total = None
+        if state != "UNAVAILABLE":
+            organs_reachable = reachable
+            organs_total = len(organ_reach)
         return JSONResponse({
             "ok": True,
             "state": state,
+            "observation_state": "UNAVAILABLE" if state == "UNAVAILABLE" else "OBSERVED",
+            "observed": state != "UNAVAILABLE",
             "pitch": "New-Relic-but-signed: MELT + distributed tracing where every span is a "
                      "DSSE-signed, replayable receipt on the Khipu DAG.",
             "melt": {
                 "metrics": {"dag_depth": dag_depth,
-                            "organs_reachable": reachable, "organs_total": len(organ_reach)},
+                            "organs_reachable": organs_reachable, "organs_total": organs_total},
                 "events": {"signed_spans": len(dag.get("spans", [])) if state != "UNAVAILABLE" else None},
                 "logs": {"note": "structured JSON logs (trace_id/span_id) emitted by szl_be_hardening per request"},
                 "traces": {"chain_verified": dag.get("chain", {}).get("ok") if state != "UNAVAILABLE" else None,
@@ -536,6 +544,7 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             "mesh_reach": organ_reach,
             "spans_available": dag.get("available") and state != "UNAVAILABLE",
             "honesty": "empty process-local DAG is UNAVAILABLE, not a measured live zero; "
+                       "organ counts are omitted unless the DAG is observed; "
                        "an unreachable organ is shown 'unreachable', never green.",
             "doctrine": DOCTRINE, "lambda_status": LAMBDA_STATUS, "slsa": SLSA_NOTE,
         })
