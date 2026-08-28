@@ -661,7 +661,7 @@ def _validate_roles_and_grants(sql_text: str, label: str, errors: list[str]) -> 
             "REVOKE ADMIN OPTION FOR %I FROM %I CASCADE"
         ),
         "delegated inbound inherit disable": (
-            "GRANT %I TO %I WITH INHERIT FALSE, SET FALSE, ADMIN FALSE"
+            "GRANT %I TO %I WITH INHERIT FALSE, ADMIN FALSE"
         ),
         "schema ACL catalog sweep": (
             "namespace.nspacl"
