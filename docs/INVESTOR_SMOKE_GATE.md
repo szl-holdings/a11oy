@@ -106,6 +106,30 @@ tolerant 6-hour schedule (majority-down only) and is **not** this fail-closed ga
 - No POST to live endpoints.
 - No genome.json rewrite.
 
+## Measured live (2026-08-28, GET/HEAD only, no POST)
+
+Primary origin `https://a-11-oy.com` plus `https://a11oy.net`. This is a probe
+record, not a claim that production is green.
+
+| ID | Status | Evidence |
+|---|---|---|
+| S1 | PASS | GET `/` → 200 on both origins |
+| S2 | FAIL (KALLPA) | HEAD `/console` `/trust` `/healthz` `/readyz` `/api/health` = 405 while GET = 200; HEAD `/api/a11oy/healthz` = 404 while GET = 200; GET `/api/health`, `/healthz`, `/api/a11oy/v1/health` have no signer enum. Lean SHA is not enough. |
+| S3 | FAIL | `GET /api/a11oy/v1/live/iss` `mode=live` with unlabeled `latitude` / `longitude` / `altitude` / `velocity` |
+| S4 | UNAVAILABLE | no staging URL |
+| S5 | PASS | GET `/api/a11oy/v1/ledger` and `/energy/ledger` → 200, no mint |
+| S6 | UNAVAILABLE | no live refuse path |
+| S7 | FAIL (INTI) | source bind still genome→kernel slot. Live `GET /api/a11oy/v1/honest` **does** expose `locked_formula_count=8` (bind target exists). |
+| S8 | PASS | undeclared `*.js` → JSON 404 |
+| S9 | UNAVAILABLE | gated routes unpublished |
+| S10 | PASS | `/og-card.png`, `/social-preview-v5.png`, `/social-preview-series-a.png` → 200 `image/png` |
+| S11 | PASS | `https://szlholdings-a11oy.hf.space/` → 200 |
+| S12 | PASS | README YAML |
+| Try Khipu source | PASS | `pages/console.html` `#try-khipu-panel` (after #1390) |
+| Try Khipu live HTML | FAIL | GET `/console` 200 without `try-khipu-panel` (Space not yet carrying that SHA; do not invent the string) |
+| L1–L6 | SNAPSHOT 2026-08-28 | not executed |
+| wire-D | UNCONFIGURED | L2 roadmap |
+
 ## Run locally
 
 ```bash
