@@ -134,6 +134,7 @@ def test_product_canonical_url_never_uses_space_or_furniture_host():
 
 @pytest.mark.parametrize("host", ["a-11-oy.com", "www.a-11-oy.com"])
 def test_product_apex_host_stamps_link_canonical_not_hf_space(host):
+    """Host www still emits apex canonical even while live www GET is CF 404."""
     c = _app()
     r = c.get("/frontier", headers={"host": host})
     assert r.status_code == 200

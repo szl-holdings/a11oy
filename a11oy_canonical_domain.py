@@ -40,8 +40,12 @@ DX — routes, contracts, env, promote path (staging Space ≠ prod DNS):
 - Env: Space runtime vars configure the app. Prod DNS is Cloudflare orange-cloud
   (proxied) in front of the Space. This app does not change DNS. x-szl-wire-d:
   LIVE is DSSE Wire D provenance, not "domain LIVE". HF custom domain stays
-  PENDING/UNAVAILABLE in product. www.a-11-oy.com is NXDOMAIN (UNAVAILABLE).
-  www DNS is Stephen, not this app. Do not merge PR 1363.
+  PENDING/UNAVAILABLE in product. www.a-11-oy.com GET / is Cloudflare HTTP 404
+  (UNAVAILABLE until Cloudflare 301 www → apex). MEASURED 2026-08-28 ~18:06 UTC:
+  DNS resolves via Cloudflare IPv6 2606:4700:…; the 404 is Cloudflare, not the
+  Space. Do not add a second HF custom domain. This app does not change DNS.
+  Host-aware Link on Host www still emits https://a-11-oy.com{path}.
+  Do not merge PR 1363.
 - Promote: hf-sync publishes GitHub main → Space SZLHOLDINGS/a11oy
   (szlholdings-a11oy.hf.space READY). Staging Space ≠ prod DNS. Apex
   a-11-oy.com stays Cloudflare orange-cloud. Stephen may later add the HF
@@ -253,8 +257,11 @@ def register(app):
     On a-11-oy.com / www, canonical is https://a-11-oy.com{path}. The Hugging
     Face Space URL is never the public product canonical. OPTIONS on public
     documents carries Allow + Access-Control-Allow-Methods. HF custom domain
-    stays PENDING/UNAVAILABLE. Keep orange-cloud. Do not grey-cloud. This app
-    does not change DNS (verify TXT is Stephen, without dropping the proxy).
+    stays PENDING/UNAVAILABLE. Keep orange-cloud. Do not grey-cloud. www GET /
+    is Cloudflare HTTP 404 (UNAVAILABLE until Cloudflare 301 www → apex). Do
+    not add a second HF custom domain. This app does not change DNS (verify
+    TXT is Stephen, without dropping the proxy). Host-aware Link on www still
+    emits https://a-11-oy.com{path}.
     """
 
     @app.middleware("http")

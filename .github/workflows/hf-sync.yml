@@ -13,9 +13,10 @@ name: Sync and Relock Canonical Hugging Face Space
 # stays Cloudflare orange-cloud (proxied). HF custom domain stays
 # PENDING/UNAVAILABLE in product. Stephen may later add the HF verify TXT
 # (_huggingface.a-11-oy.com) WITHOUT dropping that proxy. Keep orange-cloud.
-# Do not grey-cloud. Do not stamp LIVE. www.a-11-oy.com is NXDOMAIN
-# (UNAVAILABLE). www DNS is Stephen. x-szl-wire-d LIVE is DSSE Wire D
-# provenance, not domain LIVE.
+# Do not grey-cloud. Do not stamp LIVE. www.a-11-oy.com GET / is
+# Cloudflare HTTP 404 (UNAVAILABLE until Cloudflare 301 www → apex).
+# Do not add a second HF custom domain. This workflow does not change DNS.
+# x-szl-wire-d LIVE is DSSE Wire D provenance, not domain LIVE.
 on:
   push:
     branches: [main]

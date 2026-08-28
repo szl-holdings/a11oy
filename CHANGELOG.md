@@ -72,7 +72,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `huggingface.co/spaces`, never the furniture host. HF custom domain stays PENDING/UNAVAILABLE.
   Keep orange-cloud (proxied apex). Do not grey-cloud. This PR does not
   change DNS; Stephen may add `_huggingface.a-11-oy.com` TXT later without
-  dropping the Cloudflare proxy. www NXDOMAIN is Stephen.
+  dropping the Cloudflare proxy. www GET / is Cloudflare HTTP 404
+  (UNAVAILABLE until Cloudflare 301 www → apex); this PR does not mint DNS
+  and does not add a second HF custom domain.
   `x-szl-wire-d: LIVE` is DSSE Wire D provenance, not domain LIVE; that
   distinction lives in a11oy-only DX comments (`a11oy_canonical_domain.py`),
   not in shared `szl_provenance.py` (killinchu byte identity).

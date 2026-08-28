@@ -15876,8 +15876,10 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
 # https://a-11-oy.com{path}; huggingface.co/spaces is never the product
 # canonical. On *.hf.space the app omits a Space Hub canonical. HF custom
 # domain stays PENDING/UNAVAILABLE. Keep orange-cloud.
-# Do not grey-cloud. www.a-11-oy.com is NXDOMAIN (UNAVAILABLE).
-# This app does not change DNS. x-szl-wire-d LIVE is Wire D, not domain LIVE.
+# Do not grey-cloud. www.a-11-oy.com GET / is Cloudflare HTTP 404
+# (UNAVAILABLE until Cloudflare 301 www → apex). Do not add a second HF
+# custom domain. This app does not change DNS. x-szl-wire-d LIVE is Wire D,
+# not domain LIVE.
 try:
     import a11oy_canonical_domain as _canon_head_mod
     _canon_head_mod.ensure_html_documents_accept_head(app)

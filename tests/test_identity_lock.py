@@ -213,22 +213,24 @@ def test_http_link_canonical_is_product_origin_not_hf_space():
     import serve
 
     client = TestClient(serve.app, raise_server_exceptions=False)
-    headers = {"host": "a-11-oy.com"}
     expected = {
         "/": "https://a-11-oy.com/",
         "/console": "https://a-11-oy.com/console",
         "/trust": "https://a-11-oy.com/trust",
         "/sitemap.xml": "https://a-11-oy.com/sitemap.xml",
     }
-    for path, url in expected.items():
-        response = client.get(path, headers=headers)
-        assert response.status_code == 200, path
-        links = response.headers.get_list("link") if hasattr(response.headers, "get_list") else [response.headers.get("link") or ""]
-        joined = " ".join(links)
-        assert f"<{url}>" in joined, path
-        assert "canonical" in joined.lower()
-        assert "huggingface.co/spaces/" not in joined.lower()
-        assert _FURNITURE_HOST not in joined
+    for host in ("a-11-oy.com", "www.a-11-oy.com"):
+        headers = {"host": host}
+        for path, url in expected.items():
+            response = client.get(path, headers=headers)
+            assert response.status_code == 200, (host, path)
+            links = response.headers.get_list("link") if hasattr(response.headers, "get_list") else [response.headers.get("link") or ""]
+            joined = " ".join(links)
+            assert f"<{url}>" in joined, (host, path)
+            assert "canonical" in joined.lower()
+            assert "huggingface.co/spaces/" not in joined.lower()
+            assert _FURNITURE_HOST not in joined
+            assert "https://www.a-11-oy.com" not in joined
 
     space = client.get("/trust", headers={"host": "szlholdings-a11oy.hf.space"})
     space_link = " ".join(
@@ -543,8 +545,10 @@ def test_ayni_lock_does_not_drift():
     """AYNI: product Link canonical, no .net 301, HEAD is the app, orange-cloud.
 
     Do not grey-cloud the apex. Do not stamp HF custom domain LIVE. This repo
-    does not change DNS. Stephen may add the HF verify TXT later without
-    dropping the Cloudflare proxy. Does not merge PR 1363.
+    does not change DNS and does not add a second HF custom domain. www GET /
+    is Cloudflare HTTP 404 (UNAVAILABLE until Cloudflare 301 www → apex).
+    Stephen may add the HF verify TXT later without dropping the Cloudflare
+    proxy. Does not merge PR 1363.
     """
     texts = {
         "canon": (ROOT / "a11oy_canonical_domain.py").read_text(encoding="utf-8"),
@@ -563,7 +567,9 @@ def test_ayni_lock_does_not_drift():
         assert "orange-cloud" in blob, name
         assert "do not grey-cloud" in blob.lower(), name
         assert "PENDING" in blob, name
-        assert "NXDOMAIN" in blob, name
+        assert "www.a-11-oy.com" in blob, name
+        assert "Cloudflare HTTP 404" in blob, name
+        assert "NXDOMAIN" not in blob, name
 
     canon = texts["canon"]
     assert "huggingface.co/spaces is never the product canonical" in canon
@@ -576,7 +582,9 @@ def test_ayni_lock_does_not_drift():
     assert "- Contracts:" in canon
     assert "- Env:" in canon
     assert "- Promote:" in canon
-    assert "www.a-11-oy.com is NXDOMAIN" in canon
+    assert "www.a-11-oy.com GET / is Cloudflare HTTP 404" in canon
+    assert "UNAVAILABLE until Cloudflare 301" in canon
+    assert "Do not add a second HF custom domain" in canon
     assert "x-szl-wire-d" in canon
     assert "not \"domain LIVE\"" in canon
     assert "Do not merge PR 1363" in canon

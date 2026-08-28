@@ -27,9 +27,10 @@ release evidence before claiming relock.
 (proxied) on the apex. Stephen may add `_huggingface.a-11-oy.com` TXT later
 **without** dropping that proxy. Do not grey-cloud (DNS-only) to make Hugging
 Face report READY. HF custom domain stays PENDING/UNAVAILABLE in product.
-Do not stamp LIVE. `www.a-11-oy.com` is NXDOMAIN (UNAVAILABLE); DNS is
-Stephen, not this app. `x-szl-wire-d: LIVE` is DSSE Wire D provenance,
-not domain LIVE.
+Do not stamp LIVE. `www.a-11-oy.com` GET `/` is Cloudflare HTTP 404
+(UNAVAILABLE until Cloudflare 301 www → apex). Do not add a second HF
+custom domain. This repo does not change DNS. `x-szl-wire-d: LIVE` is
+DSSE Wire D provenance, not domain LIVE.
 
 ---
 

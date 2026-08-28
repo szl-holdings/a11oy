@@ -44,8 +44,9 @@ This repository does not change DNS. Keep the Cloudflare orange-cloud
 (proxied) apex. Stephen may later add the Hugging Face verification TXT
 (`_huggingface.a-11-oy.com`) **without** dropping that proxy. Do not grey-cloud
 (DNS-only) to make Hugging Face report READY. Public 200 on the proxied apex
-beats a green HF domain row. `www.a-11-oy.com` is NXDOMAIN (UNAVAILABLE);
-DNS is Stephen, not this app. Completing the pending Hugging Face binding is an
+beats a green HF domain row. `www.a-11-oy.com` GET `/` is Cloudflare HTTP 404
+(UNAVAILABLE until Cloudflare 301 www → apex). Do not add a second HF custom
+domain. This repository does not change DNS. Completing the pending Hugging Face binding is an
 external operator action (`docs/runbook.md` INC-05).
 
 ## Proxy header boundary
