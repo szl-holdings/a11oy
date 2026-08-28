@@ -469,15 +469,18 @@ BEGIN
     IF EXISTS (
         SELECT 1 FROM pg_roles WHERE rolname = 'a11oy_memory_stale_grantee'
     ) THEN
-        IF NOT pg_has_role(
-            'a11oy_memory_stale_grantee',
-            'a11oy_memory_app',
-            'member'
-        ) OR NOT pg_has_role(
-            'a11oy_memory_stale_grantee',
-            'a11oy_memory_worker',
-            'member'
-        ) THEN
+        -- PostgreSQL 16+ pg_has_role(..., 'MEMBER') means SET ROLE, not the
+        -- membership row. Delegated members keep the row with INHERIT/SET false.
+        IF (
+            SELECT count(*)
+              FROM pg_auth_members AS edge
+             WHERE edge.roleid IN (
+                 'a11oy_memory_app'::regrole,
+                 'a11oy_memory_worker'::regrole
+             )
+               AND edge.member = 'a11oy_memory_stale_grantee'::regrole
+               AND NOT edge.admin_option
+        ) <> 2 THEN
             RAISE EXCEPTION 'Seeded inbound capability membership was not preserved';
         END IF;
     END IF;
