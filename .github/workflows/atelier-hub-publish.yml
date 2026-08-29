@@ -170,13 +170,29 @@ jobs:
                   ("SZLHOLDINGS/szl-governed-norm", "governed_norm.py"),
               ]
               for repo, name in per:
-                  src = kdir / name
-                  if src.exists():
-                      api.upload_file(path_or_fileobj=str(src), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} from szl-khipu — not a 1.5B retrain")
+                  srcp = kdir / name
+                  if srcp.exists():
+                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} from szl-khipu — not a 1.5B retrain")
                       print("published", repo, name)
+
+              # One-hop deps so per-organ imports resolve. Do not rewrite GitHub-canonical READMEs.
+              for repo, name in (
+                  ("SZLHOLDINGS/szl-block-kv", "chain.py"),
+                  ("SZLHOLDINGS/szl-governed-norm", "chain.py"),
+                  ("SZLHOLDINGS/szl-lambda-gate", "doctrine.py"),
+              ):
+                  srcp = kdir / name
+                  if srcp.exists():
+                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} one-hop dep so the organ imports")
+                      print("published", repo, name, "(dep)")
 
               api.upload_file(path_or_fileobj=str(kdir / "nemo_rules.py"), path_in_repo="szl_nemo/rules.py", repo_id="SZLHOLDINGS/szl-nemo", repo_type="model", commit_message="code(atelier): rule_check R1-R5 — joblib stays quarantined")
               print("published SZLHOLDINGS/szl-nemo szl_nemo/rules.py")
+
+          tc = root / "kit" / "train_cohort.py"
+          if tc.exists():
+              api.upload_file(path_or_fileobj=str(tc), path_in_repo="train_cohort.py", repo_id="SZLHOLDINGS/szl-training-scripts", repo_type="model", commit_message="code(atelier): CPU silhouette trainer — not a 1.5B retrain")
+              print("published SZLHOLDINGS/szl-training-scripts train_cohort.py")
 
           print("done. Did not retrain 1.5B. Energy UNAVAILABLE.")
           PY
