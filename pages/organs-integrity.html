@@ -242,18 +242,41 @@ async function evaluate(flags){
   const receipt = await sha256Hex(JSON.stringify(body));
   return {ok:true, receipt_sha256: receipt, signing:"STRUCTURAL-ONLY — Web Crypto SHA-256", body};
 }
+function el(tag, className, text){
+  const n = document.createElement(tag);
+  if (className) n.className = className;
+  if (text != null) n.textContent = String(text);
+  return n;
+}
 function render(env, label){
   const ev = env.body || env;
   const blocked = !!ev.blocked;
-  document.getElementById("hero").innerHTML =
-    `<span class="k">${label} · ${ev.chain_alg || "SHA-256"} · kernel ${ev.kernel_commit || "c7c0ba17"}</span>
-     <p class="statement">${ev.live_count}/5 LIVE · ${ev.reason}</p>
-     <span class="verdict ${blocked?"false":"ok"}">${blocked?"BLOCKED":"advisory body"} · energy UNAVAILABLE · Conjecture 1 OPEN</span>`;
-  document.getElementById("organs").innerHTML = (ev.organs||[]).map(o =>
-    `<div class="metric"><div class="k">${o.name} · ${o.quechua}</div>
-     <div class="v ${o.status==="DOWN"?"false":"ok"}">${o.status}</div>
-     <div class="k" style="margin-top:6px">${o.honesty} · ${(o.formulas||[]).join("+")}<br>${o.detail}</div></div>`
-  ).join("");
+  const hero = document.getElementById("hero");
+  hero.replaceChildren();
+  hero.append(
+    el("span", "k", `${label} · ${ev.chain_alg || "SHA-256"} · kernel ${ev.kernel_commit || "c7c0ba17"}`),
+    el("p", "statement", `${ev.live_count}/5 LIVE · ${ev.reason || ""}`),
+    el("span", `verdict ${blocked?"false":"ok"}`,
+      `${blocked?"BLOCKED":"advisory body"} · energy UNAVAILABLE · Conjecture 1 OPEN`)
+  );
+  const organsEl = document.getElementById("organs");
+  organsEl.replaceChildren();
+  for (const o of (ev.organs || [])){
+    const card = el("div", "metric");
+    card.append(
+      el("div", "k", `${o.name} · ${o.quechua}`),
+      el("div", `v ${o.status==="DOWN"?"false":"ok"}`, o.status)
+    );
+    const meta = el("div", "k");
+    meta.style.marginTop = "6px";
+    meta.append(
+      document.createTextNode(`${o.honesty} · ${(o.formulas||[]).join("+")}`),
+      document.createElement("br"),
+      document.createTextNode(o.detail || "")
+    );
+    card.append(meta);
+    organsEl.append(card);
+  }
   document.getElementById("receipt").textContent = JSON.stringify(env, null, 2);
 }
 async function run(flags, label){
@@ -277,8 +300,12 @@ async function run(flags, label){
       clearTimeout(t);
       if (!r.ok) continue;
       const j = await r.json();
+      const verdict = (j.body && j.body.verdict) || j.verdict || "answered";
+      const rcpt = j.receipt_sha256 || "";
       document.getElementById("surface-note").textContent =
-        `In-browser kernel ran. Live API also answered from ${url} — compare receipts.`;
+        `In-browser kernel ran. Live API ${url} verdict ${verdict}` +
+        (rcpt ? ` · receipt ${rcpt.slice(0,16)}…` : "") +
+        " — compare receipts.";
       return;
     } catch (e) { /* honest miss; browser kernel already rendered */ }
   }
