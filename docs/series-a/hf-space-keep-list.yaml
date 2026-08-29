@@ -1,4 +1,4 @@
-as_of: "2026-08-29"
+as_of: "2026-08-29T18:05:00Z"
 state: LIVE
 action: pause_and_private_never_delete
 product: https://a-11-oy.com
@@ -12,22 +12,27 @@ counts:
   models: 43
   datasets: 36
 keep:
-  - id: SZLHOLDINGS/README
-    role: org_card
   - id: SZLHOLDINGS/a11oy
     role: product
     dest: https://a-11-oy.com
   - id: SZLHOLDINGS/killinchu
     role: defense_vertical
+  - id: SZLHOLDINGS/david-leads
+    role: insurance_vertical
+  - id: SZLHOLDINGS/anatomy
+    role: living_map
   - id: SZLHOLDINGS/immune
     role: safety_kernel
-  - id: SZLHOLDINGS/szl-khipu
-    role: model_demo
+  - id: SZLHOLDINGS/szl-real-estate
+    role: public_records_underwriting
   - id: SZLHOLDINGS/szl-atelier
     role: artifact_walk
-  - id: SZLHOLDINGS/governed-receipt-verifier
-    role: receipt_replay
+folded_private_recapture:
+  - SZLHOLDINGS/szl-khipu
+  - SZLHOLDINGS/governed-receipt-verifier
+org_card: SZLHOLDINGS/README
 gpu:
   id: SZLHOLDINGS/szl-command-lab
   prior: t4-small
   after: paused_cpu_basic_requested
+note: "Unauthenticated Hub author-list recapture 2026-08-29T18:05:00Z. README is the org card, not one of the seven. None deleted."
