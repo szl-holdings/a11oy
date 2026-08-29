@@ -17,7 +17,9 @@ Routes:
   POST /api/{ns}/v1/ayllu/ask      — one persona, bounded + honest + receipted
   POST /api/{ns}/v1/ayllu/council  — bounded multi-persona deliberation (capped fan-out)
   GET  /api/{ns}/v1/ayllu/lounge   — recent collaboration feed
+  GET  /api/{ns}/v1/ayllu/winay    — Wiñay/Huklla/IIT honesty contract (not a live Φ)
   GET  /ayllu                      — honest human-readable chat + council page
+  GET  /ayllu/psyche               — honesty map. IIT φ_s UNAVAILABLE. Presence CONJECTURE.
 """
 from __future__ import annotations
 
@@ -690,7 +692,7 @@ section[id]{scroll-margin-top:72px}
 </style></head><body>
 <header class="topbar"><div class="tb-wrap">
 <a class="tb-brand" href="/ayllu">Ayllu <span id="badge" class="badge">…</span></a>
-<nav class="tb-nav" aria-label="Ayllu sections"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a href="#sec-organism">Second Brain</a><a href="#sec-mesh">Mesh</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
+<nav class="tb-nav" aria-label="Ayllu sections"><a href="#sec-ask">Ask</a><a href="#sec-council">Council</a><a href="#sec-roster">Roster</a><a href="#sec-lounge">Lounge</a><a href="#sec-organism">Second Brain</a><a href="#sec-mesh">Mesh</a><a href="/ayllu/psyche">Psyche</a><a class="tb-home" href="/console" title="Back to the a11oy command centre">&#8592; a11oy command centre</a></nav>
 </div></header>
 <main>
 <h1>Ayllu</h1>
@@ -756,6 +758,7 @@ section[id]{scroll-margin-top:72px}
   </div>
   <div class="links">
     <a href="/living-anatomy">Living anatomy</a>
+    <a href="/ayllu/psyche">Wiñay honesty</a>
     <a href="/api/__NS__/v1/ayllu/second-brain">Second Brain contract</a>
     <a href="/formulas">PURIQ formulas</a>
     <a href="/wires">The constitution</a>
@@ -1010,6 +1013,145 @@ def _page_html(ns: str) -> str:
     )
 
 
+_PSYCHE_PAGE = r"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'; worker-src 'none'; upgrade-insecure-requests">
+<title>Wiñay honesty — Ayllu on a-11-oy.com</title>
+<meta name="description" content="Product-origin honesty map. Huklla H is MODELED, not IIT Φ. φ_s UNAVAILABLE. Presence CONJECTURE. This origin runs the council desk, not the pulse.">
+<style>
+:root{--void:#080c14;--panel:#0d1520;--line:#16202c;--teal:#3af4c8;--fg:#dfe7ee;--dim:#7f93a6;--gold:#d4a444}
+*{box-sizing:border-box}
+body{margin:0;background:var(--void);color:var(--fg);
+font:15px/1.55 ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:36px 22px 64px}
+h1{color:var(--teal);margin:.4rem 0 8px;font-size:26px}
+h2{font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);margin:0 0 8px}
+.sub{color:var(--dim);margin:0 0 18px}
+.banner{font:11px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;margin:0 0 14px}
+.links{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 18px}
+.links a{color:var(--teal);text-decoration:none;font-size:12px;border:1px solid var(--line);border-radius:16px;padding:8px 12px;min-height:44px;display:inline-flex;align-items:center}
+table{width:100%;border-collapse:collapse;font:13px/1.45 ui-monospace,monospace}
+th,td{text-align:left;padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--dim);font-weight:500}
+.MEASURED{color:#7dffb0}
+.MODELED{color:var(--gold)}
+.CONJECTURE,.UNAVAILABLE{color:#e66}
+.REPORTED{color:#7ad7ff}
+.prov{color:var(--dim);font-size:12px;margin-top:18px;line-height:1.6}
+code{color:var(--teal)}
+p,li{color:#c8d0d8}
+</style></head><body>
+<main>
+<div class="banner">a-11-oy.com · product origin · Λ = Conjecture 1</div>
+<h1>Wiñay honesty</h1>
+<p class="sub">This origin runs the council desk. It does not run the pulse. Huklla H is a cheapest pentagon cut — MODELED, not IIT Φ. φ_s is UNAVAILABLE. Presence stays CONJECTURE. AGI stays CONJECTURE. Joules stay null.</p>
+<nav class="links" aria-label="Origins">
+  <a href="/ayllu">Council desk</a>
+  <a href="/api/__NS__/v1/ayllu/winay">winay contract</a>
+  <a href="https://a11oy.net/ayllu/psyche/">Proof RECORD</a>
+  <a href="https://huggingface.co/spaces/SZLHOLDINGS/ayllu">Pulse organ · location</a>
+  <a href="/console">Command centre</a>
+</nav>
+<section class="card">
+  <h2>Two origins. Two jobs.</h2>
+  <p><b>Product</b> is this page and <a href="/ayllu">/ayllu</a> — the runnable council. Semantic consensus stays NOT_MEASURED. LIVE only when a reachable backend answers.</p>
+  <p><b>Pulse organ</b> is the split-out Space. A listed URL is location only. Occupancy, closure C, and ignition I are MEASURED there. This page does not re-score them.</p>
+  <p><b>Proof</b> is <a href="https://a11oy.net/ayllu/psyche/">a11oy.net/ayllu/psyche/</a>. Static RECORD. First paint here does not fetch Hugging Face or invent Φ.</p>
+</section>
+<section class="card">
+  <h2>Honesty lattice</h2>
+  <table>
+    <thead><tr><th>Quantity</th><th>Label</th><th>Bound</th></tr></thead>
+    <tbody>
+      <tr><td>Occupancy / closure C / ignition I</td><td class="MEASURED">MEASURED</td><td>On the pulse organ. Not a TPM.</td></tr>
+      <tr><td>Wiñay metabolism / sync R / σ</td><td class="MODELED">MODELED</td><td>Autopoietic mix. Not IIT intrinsicality.</td></tr>
+      <tr><td>Huklla H</td><td class="MODELED">MODELED</td><td>min-cut / E over 15 bipartitions. Not IIT φ_s. Not Φ.</td></tr>
+      <tr><td>Imaymana D</td><td class="MODELED">MODELED</td><td>Normalized entropy of organ loads. Never multiplied into a fake Φ.</td></tr>
+      <tr><td>IIT φ_s / Φ-structure / main complex</td><td class="UNAVAILABLE">UNAVAILABLE</td><td>No interventional TPM. Exclusion search refused.</td></tr>
+      <tr><td>Phenomenal presence</td><td class="CONJECTURE">CONJECTURE</td><td>Not a function of C, I, H, or D.</td></tr>
+      <tr><td>AGI</td><td class="CONJECTURE">CONJECTURE</td><td>Eleven seats, one backend, fail-closed.</td></tr>
+      <tr><td>Joules</td><td class="UNAVAILABLE">null</td><td>Energy is not claimed.</td></tr>
+      <tr><td>Λ uniqueness</td><td class="CONJECTURE">CONJECTURE 1</td><td>Advisory. Never a theorem.</td></tr>
+    </tbody>
+  </table>
+</section>
+<section class="card">
+  <h2>What would be required to run IIT</h2>
+  <p>A discrete-unit TPM, interventional cause and effect repertoires, φ_s over the MIP, then a main-complex search, then Φ-structure. Until that substrate exists, the honest IIT result is <code>φ_s = UNAVAILABLE</code>. Albantakis et al. 2023 PLOS Comp Biol e1011465. Aaronson 2014: a high cheap-cut score is not a mind.</p>
+</section>
+<p class="prov">Canonical source github.com/szl-holdings/ayllu. Product origin a-11-oy.com. Proof origin a11oy.net. Never a11oy.com. Apache-2.0. Doctrine v11.</p>
+</main>
+</body></html>
+"""
+
+
+def _psyche_html(ns: str) -> str:
+    return _PSYCHE_PAGE.replace("__NS__", ns)
+
+
+def winay_contract(ns: str = "a11oy") -> dict[str, Any]:
+    """Honesty labels only. Not a live Huklla score. Not IIT Φ."""
+    return {
+        "schema": "szl.ayllu.winay-record/v1",
+        "surface": {
+            "name": "Wiñay Huklla IIT honesty",
+            "url": "https://a-11-oy.com/ayllu/psyche",
+            "publisher": "SZL Holdings",
+            "meaning": (
+                "Product-origin honesty map. This origin runs the council desk. "
+                "The pulse organ is the split-out Space. IIT φ_s is UNAVAILABLE."
+            ),
+        },
+        "origins": {
+            "product": "https://a-11-oy.com/ayllu/psyche",
+            "council": "https://a-11-oy.com/ayllu",
+            "proof": "https://a11oy.net/ayllu/psyche/",
+            "source": "https://github.com/szl-holdings/ayllu",
+            "space": "https://huggingface.co/spaces/SZLHOLDINGS/ayllu",
+            "space_is_location_only": True,
+            "contract": f"/api/{ns}/v1/ayllu/winay",
+        },
+        "labels": {
+            "occupancy": "MEASURED",
+            "closure_C": "MEASURED",
+            "ignition_I": "MEASURED",
+            "sync_R": "MODELED",
+            "sigma": "MODELED",
+            "huklla_H": "MODELED",
+            "imaymana_D": "MODELED",
+            "iit_phi_s": "UNAVAILABLE",
+            "iit_Phi_structure": "UNAVAILABLE",
+            "main_complex": "UNAVAILABLE",
+            "presence": "CONJECTURE",
+            "agi": "CONJECTURE",
+            "joules": None,
+            "lambda": "CONJECTURE_1",
+        },
+        "huklla": {
+            "definition": "H = min_cut / E over 15 bipartitions of the five-organ cycle.",
+            "uniform": 0.4,
+            "silent_organ": 0.0,
+            "note": "Cheapest pentagon cut. Not IIT Φ. Not presence.",
+        },
+        "iit": {
+            "reference": "Albantakis et al. 2023 PLOS Computational Biology 19(10) e1011465",
+            "requires": "transition probability matrix of discrete units under intervention",
+            "phi_s": None,
+            "honesty": "UNAVAILABLE",
+            "note": "No TPM. Huklla H is not Φ. Exclusion search is refused.",
+        },
+        "boundaries": {
+            "this_origin_runs_the_council": True,
+            "this_origin_runs_the_pulse": False,
+            "presence_is_a_function_of_C_I_H_or_D": False,
+            "http_response_proves_capability": False,
+            "never": "a11oy.com",
+        },
+    }
+
+
 def register(app, ns: str = "a11oy") -> str:
     """Mount the ayllu routes on `app`. Returns a status string."""
     from fastapi import Request
@@ -1260,6 +1402,12 @@ def register(app, ns: str = "a11oy") -> str:
     async def _page(request: "Request") -> "HTMLResponse":
         return HTMLResponse(_page_html(ns))
 
+    async def _psyche_page(request: "Request") -> "HTMLResponse":
+        return HTMLResponse(_psyche_html(ns))
+
+    async def _winay(request: "Request") -> "JSONResponse":
+        return JSONResponse(winay_contract(ns))
+
     app.add_api_route(f"/api/{ns}/v1/ayllu/roster", _roster, methods=["GET"],
                       tags=["ayllu"],
                       summary="a11oy-native agent roster + live/stub backend status")
@@ -1280,12 +1428,17 @@ def register(app, ns: str = "a11oy") -> str:
                       summary="Bounded multi-persona deliberation (capped fan-out; optional 2-round debate mode after arXiv:2305.14325)")
     app.add_api_route(f"/api/{ns}/v1/ayllu/lounge", _lounge_feed, methods=["GET"],
                       tags=["ayllu"], summary="Opt-in collaboration lounge feed")
+    app.add_api_route(f"/api/{ns}/v1/ayllu/winay", _winay, methods=["GET"],
+                      tags=["ayllu"],
+                      summary="Wiñay/Huklla/IIT honesty contract. Not a live Φ. Presence CONJECTURE.")
     app.add_api_route("/ayllu", _page, methods=["GET"], include_in_schema=False)
+    app.add_api_route("/ayllu/psyche", _psyche_page, methods=["GET"],
+                      include_in_schema=False)
 
     return (
         f"ok — ayllu registered: {len(ROSTER)} personas; live model backend "
         f"({_backend.backend_status().get('mode')}); bounded-autonomy Λ-gate; "
-        f"/ayllu + /api/{ns}/v1/ayllu/roster|model-binding|ask|council|lounge; "
+        f"/ayllu + /ayllu/psyche + /api/{ns}/v1/ayllu/roster|model-binding|ask|council|lounge|winay; "
         f"debate-mode council; council_khipu={council_storage.get('backend')} "
         f"(process_restart_durable={council_storage.get('durable')}, "
         f"redeploy=NOT_VERIFIED); version={__version__}"
