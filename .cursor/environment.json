@@ -1,0 +1,4 @@
+{
+  "install": "bash .cursor/install.sh",
+  "start": "source .venv/bin/activate && PORT=7860 python gdw_runtime.py"
+}
