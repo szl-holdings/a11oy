@@ -398,6 +398,7 @@
       <a class="hide-sm" href="#surfaces">Surfaces</a>
       <a class="hide-sm" href="/ecosystem">Ecosystem</a>
       <a class="hide-sm" href="/anatomy-v5">Anatomy v5</a>
+      <a class="hide-sm" href="/organs/integrity">Organ integrity</a>
       <a class="hide-sm" href="#proof">The proof</a>
       <a class="hide-sm" href="#honesty">Honesty</a>
       <a class="hide-sm" href="/console#arena">Eval arena</a>
@@ -662,6 +663,64 @@
     </div>
   </div>
 </section>
+
+
+<!-- ====================== ORGAN INTEGRITY KERNEL ====================== -->
+<section class="band wrap" id="organ-integrity">
+  <p class="kick">Fail-closed kernel · not the 3D picture</p>
+  <h2>Prove the organs. Zero the heart. Watch the body block.</h2>
+  <p class="intro">The 3D twin is the map. This is the integrity kernel on this host:
+    HEART / YUYAY, CIRCULATORY / YAWAR, BRAIN / YACHAY, NERVOUS / OTel, SKELETON / Khipu.
+    Any DOWN organ or a WILLAY veto fail-closes. Λ stays Conjecture 1 OPEN.
+    Energy is UNAVAILABLE. Never a fabricated joule. Receipts are STRUCTURAL-ONLY SHA-256.</p>
+  <div class="cta-row">
+    <button class="btn btn-primary" id="oi-healthy" type="button">Healthy cycle</button>
+    <button class="btn btn-ghost" id="oi-zero" type="button">Zero heart</button>
+    <button class="btn btn-ghost" id="oi-joule" type="button">Fabricate a joule</button>
+    <a class="btn btn-lattice" href="/organs/integrity">Open Evidence Bay →</a>
+  </div>
+  <p class="sub" id="oi-reason" style="margin-top:12px">Kernel not yet queried.</p>
+  <div id="oi-grid" class="estate-grid" aria-live="polite"></div>
+</section>
+<script>
+(function(){
+  const API = "/api/a11oy/v1/organs/integrity";
+  const grid = document.getElementById("oi-grid");
+  const reason = document.getElementById("oi-reason");
+  async function run(flags){
+    if (!grid || !reason) return;
+    reason.textContent = "running…";
+    try {
+      const r = await fetch(API, {
+        method: flags && Object.keys(flags).length ? "POST" : "GET",
+        headers: {"content-type":"application/json"},
+        body: flags && Object.keys(flags).length ? JSON.stringify(flags) : undefined,
+        cache: "no-store"
+      });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const j = await r.json();
+      const ev = j.body || j;
+      reason.textContent = (ev.live_count || 0) + "/5 LIVE · " + (ev.reason || "") +
+        (ev.blocked ? " · BLOCKED" : " · advisory body") +
+        " · energy UNAVAILABLE · Conjecture 1 OPEN";
+      grid.innerHTML = (ev.organs || []).map(function(o){
+        return '<div class="estate-cell"><b>' + o.name + " · " + o.quechua + "</b><p>" +
+          o.status + " · " + o.honesty + "<br>" + o.detail + "</p></div>";
+      }).join("");
+    } catch (e) {
+      reason.textContent = "organ-integrity API UNAVAILABLE (" + e + ") — not faked live";
+      grid.innerHTML = "";
+    }
+  }
+  const h = document.getElementById("oi-healthy");
+  const z = document.getElementById("oi-zero");
+  const j = document.getElementById("oi-joule");
+  if (h) h.addEventListener("click", function(){ run({}); });
+  if (z) z.addEventListener("click", function(){ run({zero_heart:true}); });
+  if (j) j.addEventListener("click", function(){ run({fabricate_joule:true}); });
+  run({});
+})();
+</script>
 
 <!-- ====================== PUBLIC ECOSYSTEM ATLAS ====================== -->
 <section class="band" id="ecosystem">

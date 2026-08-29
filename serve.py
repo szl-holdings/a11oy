@@ -790,6 +790,17 @@ try:
 except Exception as _szl_oh_e:  # pragma: no cover
     print(f"[a11oy] Organ-health proxy NOT registered: {_szl_oh_e!r}; existing routes unaffected", file=__import__("sys").stderr)
 
+# ── Five-organ fail-closed integrity kernel (szl-organ-integrity) ──
+# GET/POST /api/a11oy/v1/organs/integrity runs HEART/YAWAR/YACHAY/OTel/Khipu.
+# Zero heart or a fabricated joule BLOCKS. Energy UNAVAILABLE. Λ advisory.
+# SHA-256 chain. proven_trust false. Locked-proven stays 8. Additive.
+try:
+    import szl_organ_integrity as _szl_organ_integrity
+    _szl_oi_status = _szl_organ_integrity.register(app, ns="a11oy")
+    print(f"[a11oy] Organ-integrity kernel registered: /api/a11oy/v1/organs/integrity ({_szl_oi_status})", file=__import__("sys").stderr)
+except Exception as _szl_oi_e:  # pragma: no cover
+    print(f"[a11oy] Organ-integrity kernel NOT registered: {_szl_oi_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
 # ── Backend hardening (devJ) — szl_backend_hardening ──
 # Reusable concurrent + short-timeout + TTL-cache helpers (probe_with_timeout,
 # probe_all_concurrent, TTLCache, probe_fabric_pool, cached_aggregate) that the
