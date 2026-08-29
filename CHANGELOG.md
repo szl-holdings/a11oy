@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - five-space operator is a cited BIND package
+- `/five-space` is cited in Bound packages (`#bound`) and the footer, same class
+  as `/lyte`. Not a fifth flagship. Primary nav unchanged. Console surface strip
+  lists the bind. GET 200 / status BIND. Does not replace `/console`.
+
 ### Added - five-space operator BIND on /five-space
 - `/five-space` is a 0-CDN BIND hologram of Command · Loop · Queue · Memory · Ledger.
   Status from `/api/a11oy/v1/five-space/{healthz,status}`. First paint CONNECTING.
