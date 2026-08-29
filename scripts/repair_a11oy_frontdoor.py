@@ -9,6 +9,7 @@ SPEC_PATH = Path(__file__).resolve().parents[1] / "config" / "a11oy-frontdoor" /
 
 MEASURED_INTERMEDIATE = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, separately reported signer state, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>'
 MEASURED_FINAL = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>'
+MEASURED_NVIDIA = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present. Never used for GPU joules without a live exporter delta.</p></div>'
 MOBILE_INTERMEDIATE_BLOCK = '''  @media(max-width:560px){
     .wrap{padding-inline:16px}
     section.band{padding:64px 0}
@@ -35,7 +36,7 @@ MOBILE_FINAL = (
 )
 
 REVIEWED_SUCCESSORS = {
-    "measured_legend": MEASURED_FINAL,
+    "measured_legend": MEASURED_NVIDIA,
     "mobile_layout_hardening": MOBILE_FINAL,
 }
 
@@ -49,10 +50,13 @@ def load_spec() -> dict:
 
 
 def _converge_reviewed_successors(text: str) -> str:
-    if MEASURED_FINAL not in text:
-        if text.count(MEASURED_INTERMEDIATE) != 1:
+    if MEASURED_NVIDIA not in text:
+        if text.count(MEASURED_FINAL) == 1:
+            text = text.replace(MEASURED_FINAL, MEASURED_NVIDIA, 1)
+        elif text.count(MEASURED_INTERMEDIATE) == 1:
+            text = text.replace(MEASURED_INTERMEDIATE, MEASURED_NVIDIA, 1)
+        else:
             raise PatchError("measured_legend: reviewed successor anchor is absent or ambiguous")
-        text = text.replace(MEASURED_INTERMEDIATE, MEASURED_FINAL, 1)
 
     if MOBILE_FINAL not in text:
         late_intermediate = (
@@ -132,8 +136,8 @@ def validate_truth(text: str) -> list[str]:
         "Receipt records · signer state separate",
         "min-height:44px",
         "overflow-wrap:anywhere",
-        "The front door no longer hardcodes organization totals",
-        MEASURED_FINAL,
+        "Hub collections are a catalog, not a zoo",
+        MEASURED_NVIDIA,
         MOBILE_FINAL,
     ]
     for token in required:
