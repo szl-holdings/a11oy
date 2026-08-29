@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — packages/wire-d/wire_d/core.py
+# VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — packages/wire-d/wire_d/core.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 SZL Holdings · Yachay — Live 3D Wires (PURIQ / Doctrine v12 = v11 + Puriq)

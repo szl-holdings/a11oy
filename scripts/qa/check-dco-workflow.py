@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — scripts/qa/check-dco-workflow.py
+# VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — scripts/qa/check-dco-workflow.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 """Regression guard for the platform DCO workflow.
 

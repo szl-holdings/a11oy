@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — artifacts/a11oy/src/data/brands.ts
+// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — artifacts/a11oy/src/data/brands.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 export type DriftType = 'token' | 'voice' | 'none';
 
@@ -85,8 +85,8 @@ export const brandsData: Record<string, Brand[]> = {
     },
     {
       id: 'pulse',
-      name: 'LUMINA',
-      tagline: 'LUMINA — AI Executive Briefing',
+      name: 'Briefing',
+      tagline: 'Executive Briefing',
       color: '#c9b787',
       healthScore: 91,
       lastAudit: '2026-04-22',
@@ -136,8 +136,8 @@ export const brandsData: Record<string, Brand[]> = {
     },
     {
       id: 'aegis',
-      name: 'PARAGON',
-      tagline: 'PARAGON — Defense & Intelligence',
+      name: 'Defense',
+      tagline: 'Defense & Intelligence',
       color: '#8a8a8a',
       healthScore: 79,
       lastAudit: '2026-04-12',
