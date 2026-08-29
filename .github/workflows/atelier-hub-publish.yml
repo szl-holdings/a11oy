@@ -65,14 +65,14 @@ jobs:
           api = HfApi(token=token)
           root = Path("atelier")
 
-          # --- Space ---
-          api.create_repo(
-              repo_id="SZLHOLDINGS/szl-atelier",
-              repo_type="space",
-              space_sdk="static",
-              exist_ok=True,
-              private=False,
-          )
+          def ensure_model(repo_id: str) -> None:
+              try:
+                  api.create_repo(repo_id=repo_id, repo_type="model", exist_ok=True, private=False)
+              except Exception as e:
+                  print("ensure_model skip", repo_id, type(e).__name__)
+
+          # Space already exists. create_repo counts against the 20/day
+          # space-creation cap even with exist_ok=True — never call it here.
           api.upload_folder(
               folder_path=str(root),
               repo_id="SZLHOLDINGS/szl-atelier",
@@ -114,7 +114,7 @@ jobs:
               ("SZLHOLDINGS/ReceiptAgent-Nano", "cards/ReceiptAgent-Nano.md", "receipt_agent.npz"),
           ]
           for repo, card, npz in nanos:
-              api.create_repo(repo_id=repo, repo_type="model", exist_ok=True, private=False)
+              ensure_model(repo)
               api.upload_file(path_or_fileobj=str(root / card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): MEASURED nano silhouette — not a 1.5B retrain")
               api.upload_file(path_or_fileobj=str(wdir / npz), path_in_repo=npz, repo_id=repo, repo_type="model", commit_message="weights(atelier): CPU NumPy checkpoint seed=20260721")
               print("published", repo, npz)
@@ -144,7 +144,7 @@ jobs:
           for name in ("qantu", "waman", "chakana", "tinku"):
               repo = f"SZLHOLDINGS/{name}"
               card = root / "cards" / f"{name}.md"
-              api.create_repo(repo_id=repo, repo_type="model", exist_ok=True, private=False)
+              ensure_model(repo)
               api.upload_file(path_or_fileobj=str(card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): ROADMAP organ — not a checkpoint")
               print("published ROADMAP card", repo)
 
@@ -152,7 +152,7 @@ jobs:
           # Do not rewrite GitHub-canonical torch-ext READMEs (szl-formulas, szl-blocked).
           kdir = root / "kit" / "kernels"
           if kdir.is_dir():
-              api.create_repo(repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", exist_ok=True, private=False)
+              ensure_model("SZLHOLDINGS/szl-khipu-kernels")
               kcard = root / "cards" / "szl-khipu-kernels.md"
               if kcard.exists():
                   api.upload_file(path_or_fileobj=str(kcard), path_in_repo="README.md", repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", commit_message="card(atelier): kernel suite — SOFTWARE not SGD")
