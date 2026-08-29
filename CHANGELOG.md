@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - readiness honesty clocks and SAMPLE labels
+- Required probe surfaces no longer return SAMPLE/DEGRADED/UNAVAILABLE as
+  root evidence labels on HTTP 200. Bundled CISA/MITRE snapshots are
+  `cached` with a request-time `observed_at` clock. Mixed KEV enrichment
+  stays `cached` (never promoted to `live`). `/ledger` and
+  `/receipt/export` serve live-empty operational envelopes; the
+  deterministic SAMPLE chain remains on `/api/a11oy/v2/command-log`.
+- Observability summary root `state`/`data_kind` is the live mesh probe;
+  empty DAG metrics stay omitted (not a live zero). RAG status is a live
+  observation of index posture (`built` remains explicit).
+- Phase-B middleware stamps `observed_at` on the remaining required
+  ledger/sec paths. Fail-closed: unknown kinds and HTTP 5xx are not
+  rewritten into cached evidence.
+
 ### Changed - KANCHAY command bar and Lean-8 kernel chip
 - Console chrome uses the KANCHAY house palette (void `#080c14`, proof teal
   `#3af4c8`, lattice `#5b8dee`, gold `#d7b96b`, Space Grotesk + JetBrains Mono).

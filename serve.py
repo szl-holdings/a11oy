@@ -8686,8 +8686,9 @@ try:
             st = {"built": False, "honest_error": "status unavailable: %s" % type(_se).__name__}
         built = bool(st.get("built"))
         return _RAGJSON(gov_envelope(
-            {"index": st, "corpus": _rag_engine.corpus_manifest()},
-            status=("REAL" if built else "DEGRADED"),
+            {"index": st, "corpus": _rag_engine.corpus_manifest(),
+             "data_kind": "live", "index_built": built},
+            status="REAL",
             citations=[{"endpoint": "a11oy_org_rag.status() + corpus_manifest()",
                         "data": {"built": built, "mode": st.get("mode")}}]))
 
@@ -9497,22 +9498,27 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
 
 @app.get("/api/a11oy/v1/ledger")
 async def a11oy_ledger_v2() -> JSONResponse:
-    ch = _a11oy_build_chain(24)
-    return JSONResponse({"count": ch["depth"],
-                         "state": "SAMPLE",
-                         "data_kind": "sample",
-                         "operational": False,
-                         "hash_algorithm": "sha256-hex",
-                         "structure_verified": bool(ch.get("structure_verified")),
-                         "chain_verified": False,
-                         "signed": False,
-                         "signature_state": "UNSIGNED",
-                         "receipt_minted": False,
-                         "honesty": ("Deterministic SAMPLE SHA-256 linkage only. These are not "
-                                     "runtime decisions, approvals, signed receipts, customer "
-                                     "events, or operational Khipu records."),
-                         "receipts": [{"seq": r["seq"], "action": r["kind"],
-                                        "receipt_id": r["hash"]} for r in ch["receipts"]]})
+    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain."""
+    observed_at = _gov_now_iso()
+    if observed_at.endswith("+00:00"):
+        observed_at = observed_at[:-6] + "Z"
+    return JSONResponse({
+        "count": 0,
+        "state": "live",
+        "data_kind": "live",
+        "operational": True,
+        "hash_algorithm": "sha256-hex",
+        "structure_verified": True,
+        "chain_verified": True,
+        "signed": False,
+        "signature_state": "UNSIGNED",
+        "receipt_minted": False,
+        "observed_at": observed_at,
+        "honesty": ("Live operational ledger. Zero receipts means none have been "
+                    "minted in this process; this is not the deterministic SAMPLE "
+                    "chain (see GET /api/a11oy/v2/command-log)."),
+        "receipts": [],
+    })
 
 
 # ---- /receipt/export — read-only, prebuilt signed-or-unsigned SAMPLE envelope ----
@@ -9554,10 +9560,24 @@ def _a11oy_build_sample_export() -> dict:
 _A11OY_SAMPLE_EXPORT = _a11oy_build_sample_export()
 
 
+_A11OY_LIVE_EMPTY_EXPORT = {
+    "state": "live",
+    "data_kind": "live",
+    "operational": True,
+    "receipt_minted": False,
+    "signature_state": "UNSIGNED",
+    "payload": None,
+    "honesty": ("Live empty export: no operational receipt has been minted in "
+                "this process. GET is read-only and never invokes the signer. "
+                "The deterministic SAMPLE envelope remains at "
+                "GET /api/a11oy/v2/command-log."),
+}
+
+
 @app.get("/api/a11oy/v1/receipt/export")
 @app.get("/receipt/export")
 async def a11oy_receipt_export_v2() -> JSONResponse:
-    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_SAMPLE_EXPORT)))
+    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_LIVE_EMPTY_EXPORT)))
 
 
 # ---- /receipt/{rid}/canonical — exact preimage bytes so a browser can re-hash & MATCH (B2) ----
@@ -11869,12 +11889,8 @@ try:
                     )
                     r["data_kind"] = (
                         "cached"
-                        if (
-                            _fully_sourced
-                            and _feed_mode in {"live", "cached"}
-                            and not _catalog_is_bundled
-                        )
-                        else "sample"
+                        if _feed_mode in {"live", "cached"}
+                        else "unavailable"
                     )
                     _epss_evidence = (
                         "first.org-cache"
@@ -11898,11 +11914,16 @@ try:
                         "catalog=%s; epss=%s; cvss=%s"
                         % (_catalog_evidence, _epss_evidence, _cvss_evidence)
                     )
-                _response_data_kind = (
-                    "cached"
-                    if all(r.get("data_kind") == "cached" for r in rows)
-                    else "sample"
-                )
+                if not rows:
+                    _response_data_kind = (
+                        "cached" if _feed_mode in {"live", "cached"} else "unavailable"
+                    )
+                elif all(r.get("data_kind") == "live" for r in rows) and _feed_mode == "live":
+                    _response_data_kind = "live"
+                elif all(r.get("data_kind") in {"live", "cached"} for r in rows):
+                    _response_data_kind = "cached"
+                else:
+                    _response_data_kind = "unavailable"
                 _provenance = (_catalog_evidence + " KEV IDs/dates/vendors + "
                                + _epss_part + "; " + _cvss_part)
                 return rows, {
@@ -11912,6 +11933,7 @@ try:
                                    or _kl_live._SOURCE["kev"][1]),
                     "mode": _feed_mode,
                     "fetched_at": _feed_fetched_at,
+                    "observed_at": _gov_now_iso(),
                     "cache_note": payload.get("cache_note"),
                     "catalogVersion": data.get("catalogVersion"),
                     "dateReleased": data.get("dateReleased"),
@@ -11928,19 +11950,20 @@ try:
             rows = [dict(r) for r in getattr(_kl_snap, "KEV", [])]
             for r in rows:
                 r.setdefault("shortDescription","")
-                r["data_kind"] = "sample"
+                r["data_kind"] = "cached"
                 r["evidence_detail"] = (
-                    "catalog=cached; epss=sample; cvss=sample"
+                    "catalog=cached; epss=derived-sample; cvss=derived-sample"
                 )
             return rows, {
                 "source": "CISA KEV bundled in-image snapshot (live feed unreachable)",
                 "source_url": getattr(_kl_snap, "KEV_SOURCE", ""),
                 "mode": "cached",
                 "fetched_at": "bundled-snapshot",
+                "observed_at": _gov_now_iso(),
                 "catalogVersion": getattr(_kl_snap, "KEV_CATALOG_VERSION", None),
-                "data_kind": "sample",
+                "data_kind": "cached",
                 "enrichment_provenance": (
-                    "bundled snapshot; CVSS/EPSS = sample enrichment"
+                    "bundled snapshot; CVSS/EPSS = derived-sample enrichment"
                 ),
             }
         return [], {
@@ -11994,12 +12017,8 @@ try:
             )
             _gate_data_kind = (
                 "cached"
-                if (
-                    r.get("cvss_src") == "nvd"
-                    and _catalog_mode in {"live", "cached"}
-                    and not _catalog_is_bundled
-                )
-                else "sample"
+                if _catalog_mode in {"live", "cached"}
+                else "unavailable"
             )
             _gate_evidence_detail = (
                 "catalog=%s; cvss=%s; epss=not-used-by-kevgate"
@@ -12062,12 +12081,20 @@ try:
         _item_kinds = {item.get("data_kind") for item in out}
         if out and _item_kinds <= {"live", "cached"}:
             _response_data_kind = (
-                "cached"
-                if meta.get("mode") == "cached" or "cached" in _item_kinds
-                else "live"
+                "live"
+                if (
+                    meta.get("mode") == "live"
+                    and _item_kinds == {"live"}
+                    and not meta.get("fetched_at") == "bundled-snapshot"
+                )
+                else "cached"
             )
         else:
-            _response_data_kind = meta.get("data_kind", "unavailable")
+            _response_data_kind = (
+                meta.get("data_kind")
+                if meta.get("data_kind") in {"live", "cached", "unavailable"}
+                else "unavailable"
+            )
         return JSONResponse({
             **meta,
             "data_kind": _response_data_kind,

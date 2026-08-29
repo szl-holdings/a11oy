@@ -15,11 +15,18 @@ Data is a REAL, clearly-labelled sample:
     sequencing for pathfinding demonstration.
   - Threat actors: real public group names (MITRE ATT&CK Groups) with sample
     attribution edges.
-Honesty: this is a bundled snapshot sample, surfaced as "sample" in the UI — never
-presented as a live feed. No fabricated CVE IDs.
+Honesty: this is a bundled in-image snapshot, surfaced as data_kind=cached with a
+request-time observed_at clock — never presented as a live catalog fetch. No
+fabricated CVE IDs.
 DCO: Signed-off-by: Perplexity Computer Agent <agent@perplexity.ai>
 """
+from datetime import datetime, timezone
+
 from fastapi.responses import JSONResponse
+
+
+def _observed_at() -> str:
+    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 # ---- Real CISA KEV sample (verbatim subset, catalogVersion 2025.09.30) ----
 # Each enriched with a representative CVSS base score and sample EPSS probability.
@@ -170,8 +177,9 @@ def register(app, brand="a11oy"):
             "source_url": KEV_SOURCE,
             "catalogVersion": KEV_CATALOG_VERSION,
             "dateReleased": KEV_DATE_RELEASED,
-            "data_kind": "sample",
-            "note": "Verbatim real KEV entries; CVSS/EPSS are representative sample enrichment (FIRST.org EPSS is the production source). Sovereign: served same-origin, no CDN.",
+            "observed_at": _observed_at(),
+            "data_kind": "cached",
+            "note": "Verbatim real KEV entries from the bundled in-image snapshot; CVSS/EPSS are representative cached enrichment (FIRST.org EPSS is the production source). Sovereign: served same-origin, no CDN.",
             "count": len(KEV),
             "vulnerabilities": KEV,
         })
@@ -184,7 +192,9 @@ def register(app, brand="a11oy"):
         return JSONResponse({
             "source": "CISA KEV-derived CVE rows + NVD CVSS / sample EPSS (bundled snapshot)",
             "source_url": KEV_SOURCE,
-            "data_kind": "sample",
+            "dateReleased": KEV_DATE_RELEASED,
+            "observed_at": _observed_at(),
+            "data_kind": "cached",
             "count": len(rows),
             "cves": rows,
         })
@@ -194,7 +204,8 @@ def register(app, brand="a11oy"):
         return JSONResponse({
             "source": "MITRE ATT&CK Enterprise matrix (public technique/tactic IDs); kill-chain edges are sample sequencing",
             "source_url": "https://attack.mitre.org/",
-            "data_kind": "sample",
+            "observed_at": _observed_at(),
+            "data_kind": "cached",
             "tactics": ATTACK_TACTICS,
             "techniques": ATTACK_TECHNIQUES,
             "edges": _attack_edges(),
@@ -206,7 +217,8 @@ def register(app, brand="a11oy"):
         return JSONResponse({
             "source": "MITRE ATT&CK Enterprise techniques (public), bucketed into severity rings by sample frequency",
             "source_url": "https://attack.mitre.org/",
-            "data_kind": "sample",
+            "observed_at": _observed_at(),
+            "data_kind": "cached",
             "tactics": ATTACK_TACTICS,
             "techniques": ATTACK_TECHNIQUES,
         })
@@ -224,7 +236,8 @@ def register(app, brand="a11oy"):
         return JSONResponse({
             "source": "MITRE ATT&CK Groups (public actor names) + technique usage; attribution edges are sample",
             "source_url": "https://attack.mitre.org/groups/",
-            "data_kind": "sample",
+            "observed_at": _observed_at(),
+            "data_kind": "cached",
             "nodes": nodes,
             "edges": edges,
         })

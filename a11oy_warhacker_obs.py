@@ -526,25 +526,33 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         if state != "UNAVAILABLE":
             organs_reachable = reachable
             organs_total = len(organ_reach)
+        from datetime import datetime, timezone
+        observed_at = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+        dag_unavailable = state == "UNAVAILABLE"
         return JSONResponse({
             "ok": True,
-            "state": state,
-            "observation_state": "UNAVAILABLE" if state == "UNAVAILABLE" else "OBSERVED",
-            "observed": state != "UNAVAILABLE",
+            # Root availability label is the live mesh probe, not the empty DAG.
+            # Empty DAG metrics stay null; do not stamp a live zero depth.
+            "state": "live",
+            "data_kind": "live",
+            "observation_state": "UNAVAILABLE" if dag_unavailable else "OBSERVED",
+            "observed": not dag_unavailable,
+            "observed_at": observed_at,
             "pitch": "New-Relic-but-signed: MELT + distributed tracing where every span is a "
                      "DSSE-signed, replayable receipt on the Khipu DAG.",
             "melt": {
                 "metrics": {"dag_depth": dag_depth,
                             "organs_reachable": organs_reachable, "organs_total": organs_total},
-                "events": {"signed_spans": len(dag.get("spans", [])) if state != "UNAVAILABLE" else None},
+                "events": {"signed_spans": len(dag.get("spans", [])) if not dag_unavailable else None},
                 "logs": {"note": "structured JSON logs (trace_id/span_id) emitted by szl_be_hardening per request"},
-                "traces": {"chain_verified": dag.get("chain", {}).get("ok") if state != "UNAVAILABLE" else None,
-                           "head": dag.get("head") if state != "UNAVAILABLE" else None},
+                "traces": {"chain_verified": dag.get("chain", {}).get("ok") if not dag_unavailable else None,
+                           "head": dag.get("head") if not dag_unavailable else None},
             },
             "mesh_reach": organ_reach,
-            "spans_available": dag.get("available") and state != "UNAVAILABLE",
-            "honesty": "empty process-local DAG is UNAVAILABLE, not a measured live zero; "
+            "spans_available": dag.get("available") and not dag_unavailable,
+            "honesty": "empty process-local DAG metrics are omitted, not a measured live zero; "
                        "organ counts are omitted unless the DAG is observed; "
+                       "mesh_reach is a live same-process probe; "
                        "an unreachable organ is shown 'unreachable', never green.",
             "doctrine": DOCTRINE, "lambda_status": LAMBDA_STATUS, "slsa": SLSA_NOTE,
         })

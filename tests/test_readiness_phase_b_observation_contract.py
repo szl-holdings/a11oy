@@ -77,9 +77,15 @@ class PhaseBPayloadTests(unittest.TestCase):
                 {
                     "/api/a11oy/provenance",
                     "/api/a11oy/v1/energy/sci",
+                    "/api/a11oy/v1/ledger",
                     "/api/a11oy/v1/observability/summary",
                     "/api/a11oy/v1/observability/business",
                     "/api/a11oy/v1/mesh/state",
+                    "/api/a11oy/v1/sec/cve",
+                    "/api/a11oy/v1/sec/attack",
+                    "/api/a11oy/v1/sec/threats",
+                    "/api/a11oy/v1/sec/threatgraph",
+                    "/api/a11oy/v1/sec/kevgate",
                 }
             ),
         )
@@ -229,7 +235,8 @@ class PhaseBMiddlewareTests(unittest.TestCase):
         self.assertEqual(payload["data_kind"], "cached")
         self.assertEqual(payload["detail"], note)
         self.assertEqual(payload["note"], note)
-        self.assertNotIn("observed_at", payload)
+        self.assertIn("observed_at", payload)
+        self.assertTrue(str(payload["observed_at"]).endswith("Z"))
 
     def test_non_json_response_is_not_consumed(self) -> None:
         app = _FakeApp()
