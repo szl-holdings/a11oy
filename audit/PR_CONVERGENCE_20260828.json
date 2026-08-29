@@ -1,0 +1,84 @@
+{
+  "actions": [
+    {
+      "checks_nonterminal": [
+        "wheel-guard",
+        "Operational STATUS aggregate contract (Wave R Dev 2 — pytest, offline)",
+        "Frontier-endpoint governance contract (pytest — Wave J Dev 3)",
+        "Energy-operator autostart + /readyz redeploy-stall guard (pytest)",
+        "Frontier Index honesty — no catalog label a backend doesn't emit (Wave Q Dev 5)",
+        "What's New feed lists only registered surfaces (drift-proof)",
+        "Analyze (javascript-typescript)",
+        "Build image + SBOM (push on main + release)"
+      ],
+      "decision": "SKIP",
+      "head_ref": "kernel/estate-wire-20260828",
+      "head_sha": "bb108c69115b2a1b733d514ca3513a81d8f56c33",
+      "number": 1412,
+      "reason": "CHECKS_NONTERMINAL",
+      "title": "feat(kernels): register kernel estate organ that import+calls SZL kernels"
+    },
+    {
+      "decision": "SKIP",
+      "head_ref": "cursor/series-a-holographic-estate-537c",
+      "head_sha": "c5953eefde70f400c4541349cc4249c9323ed66b",
+      "number": 1405,
+      "reason": "EXPLICIT_HOLD_CONTRACT",
+      "title": "feat(ui): bind Series A models and kernels as holographic estate cards"
+    },
+    {
+      "decision": "SKIP",
+      "head_ref": "cursor/strip-stale-product-names-74cc",
+      "head_sha": "2c54c8286e0bb8cf2dc241f09c0bbf2110179da4",
+      "number": 1393,
+      "reason": "DRAFT",
+      "title": "fix(ui): strip KORA/LUMINA/PARAGON from live web UI"
+    },
+    {
+      "checks_nonterminal": [
+        "What's New feed lists only registered surfaces (drift-proof)",
+        "Analyze (actions)",
+        "Analyze (javascript-typescript)",
+        "secrets / TruffleHog Secret Scan",
+        "docs / Markdown lint",
+        "Protected base matches immutable HF repository",
+        "anatomy-map-drift / Anatomy map honest & in sync (locked-8 + Λ=Conjecture-1)",
+        "Immutable HF repository byte parity",
+        "every registered surface ships an honesty manifest the wall can read",
+        "contract",
+        "Frontier model admission + HF estate honesty (pytest, offline)",
+        "Shared guarded-surface wrapper — one bad surface never 500s the SPA (pytest, offline)",
+        "Frontier-endpoint governance contract (pytest — Wave J Dev 3)",
+        "Investor smoke live probes",
+        "Frontier Index honesty — no catalog label a backend doesn't emit (Wave Q Dev 5)",
+        "Energy-operator autostart + /readyz redeploy-stall guard (pytest)",
+        "Operational STATUS aggregate contract (Wave R Dev 2 — pytest, offline)",
+        "Energy /metrics private-address egress guard (pytest, offline)",
+        "Operator & reason endpoint tests (pytest)",
+        "Demo-critical route-table regression guard (pytest)",
+        "vendor-sync",
+        "Grype CVE gate (fail on HIGH/CRITICAL)",
+        "GDW authenticated durability and promotion contract",
+        "Wave 26 MODELED Lambda-AttnRes and replay contracts",
+        "Trivy filesystem scan",
+        "Build image + SBOM (push on main + release)",
+        "Canonical web clean build",
+        "Receipt + UDS validation",
+        "Banned-token scan (Doctrine v7 §1)",
+        "Gitleaks secret scan",
+        "Gitleaks secret scan"
+      ],
+      "decision": "SKIP",
+      "head_ref": "feat/oro-operational-control-plane-v3-20260817",
+      "head_sha": "5762a47057c7536ab1fc17647020af87ca3c36fa",
+      "number": 1333,
+      "reason": "CHECKS_NONTERMINAL",
+      "title": "feat(oro): add standalone obligation-ranked orbit control plane"
+    }
+  ],
+  "baseline_main": "213898846413cc7b068198e945d58fcc6cb1629c",
+  "complete": true,
+  "final_main": "213898846413cc7b068198e945d58fcc6cb1629c",
+  "repository": "szl-holdings/a11oy",
+  "schema": "szl.pr-convergence/v1"
+}
