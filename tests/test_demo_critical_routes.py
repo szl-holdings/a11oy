@@ -80,6 +80,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/immune/field",              # same-origin Channel B Field catalog
     "/lyte",                                   # LYTE lattice BIND package (not a flagship)
     "/api/a11oy/v1/lyte/status",               # honest BIND status — never fabricated LIVE
+    "/five-space",                             # five-space operator BIND package (not /console)
+    "/api/a11oy/v1/five-space/status",         # honest BIND status — never fabricated LIVE
 ]
 
 

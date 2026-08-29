@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - five-space operator BIND on /five-space
+- `/five-space` is a 0-CDN BIND hologram of Command · Loop · Queue · Memory · Ledger.
+  Status from `/api/a11oy/v1/five-space/{healthz,status}`. First paint CONNECTING.
+  STRUCTURAL-ONLY, SAMPLE loop, UNSIGNED-honest receipts. Energy UNAVAILABLE.
+  sovereign=false. Does not replace `/console`. Not a Vite dump onto the flagship.
+  Not a second flagship. Not a production certificate. Lasting RECORD is
+  `https://a11oy.net/five-space/`. Λ = Conjecture 1. Never a11oy.com.
+
 ### Changed - Hub Spaces public cut is 7 KEEP
 - `GET /spaces` is the operator desk for the MEASURED Hub cut: 7 public
   keepers, not the historical 26-tile registry. Inventory health compares
