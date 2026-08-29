@@ -3980,6 +3980,12 @@ try:
     app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    # ATELIER (2026-08-29): declared product surface. No new Dockerfile COPY —
+    # HF byte-parity treats Dockerfile as a protected admission input.
+    # GET /atelier 307s to the RUNNING Space. Proof copy: a11oy.net/atelier.
+    # This path must not 404 as undeclared SPA fallback.
+    app.add_api_route("/atelier", lambda: _PTG_Redirect(url="https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier", status_code=307), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/a11oy/atelier", lambda: _PTG_Redirect(url="https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier", status_code=307), methods=["GET"], include_in_schema=False)
     # AGENTIC GPU OPERATOR tab — live sovereign posture (/code/healthz), reactive⇄
     # proactive scheduler activity + energy window. Standalone sovereign page (0 CDN);
     # scheduler-status + energy/budget panels degrade honestly when not yet wired.

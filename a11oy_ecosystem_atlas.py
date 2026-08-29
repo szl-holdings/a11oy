@@ -90,6 +90,18 @@ CURATED_SURFACES: dict[str, list[dict[str, str]]] = {
             "owner": "szl-holdings/a11oy",
         },
         {
+            "id": "SZL Atelier",
+            "kind": "runtime",
+            "href": "/atelier",
+            "owner": "szl-holdings/szl-atelier",
+        },
+        {
+            "id": "SZLHOLDINGS/szl-atelier",
+            "kind": "space",
+            "href": "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier",
+            "owner": "szl-holdings/szl-atelier",
+        },
+        {
             "id": "Fail-closed organ integrity",
             "kind": "runtime",
             "href": "/organs/integrity",
