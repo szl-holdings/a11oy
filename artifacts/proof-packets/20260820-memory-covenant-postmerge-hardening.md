@@ -2,11 +2,11 @@
 
 # Memory Covenant v2 post-merge hardening — local evidence packet
 
-**Base:** protected `main` commit `e484563ab3bce2e655f27876042821e991e8651f`
+**Base:** protected `main` commit `2b3bd296818a30e0edbf49987db35c787e914d2f`
 
 **Scope:** source migrations and qualification gates only
 
-**Status:** local static and embedded PostgreSQL 18 qualification passed; container CI remains pending
+**Status:** local static qualification passed; exact-head PostgreSQL 18 container CI remains pending
 
 This packet records a corrective successor to the source merged through PR #1362.
 It does not claim that a production database was migrated, that production logins
@@ -23,7 +23,6 @@ were bound to the capability roles, or that a memory worker is live.
 | `tests/test_memory_covenant_v2.py` | `1882450b23da396bcc3a8d4302a6f96ab3cedd5e1a118bcea25260ad42ec775d` |
 | `tests/memory_covenant_acceptance.sql` | `48f20ce51c1799be3f8e87c694798a47c85348654e41c4447edf597f228aa813` |
 | `.github/workflows/memory-covenant-v2.yml` | `1dec85fe5917beaee58f230ff4bbbc4fe8ab8e71d3a7f720c41e0e2cc90d1b44` |
-)
 
 ## Corrective controls
 
@@ -34,6 +33,12 @@ were bound to the capability roles, or that a memory worker is live.
   `NOBYPASSRLS`. Missing role-management authority aborts the transaction.
 - Every outbound membership from either capability role is revoked, preventing
   inherited privileges or a later `SET ROLE` into a stale privileged parent.
+- Legitimate inbound runtime memberships are preserved, but every stale
+  `ADMIN OPTION` is revoked so a runtime principal cannot delegate either
+  capability role to arbitrary principals.
+- Every user-defined rewrite rule on a covenant relation is removed before
+  application-table queries and trigger reconstruction, preventing rules from
+  discarding or redirecting writes around the append-only controls.
 - Every existing policy on each covenant table is removed before the sole
   tenant/security-domain isolation policy is installed on each application
   data table. The owner-only binding table remains policy-free, preventing
@@ -78,14 +83,13 @@ were bound to the capability roles, or that a memory worker is live.
 |---|---|
 | Static migration validator | `PASS` |
 | Adversarial validator tests | `77` tests passed |
-)
 | Python compilation | validator and adversarial tests compiled |
-| PostgreSQL parser (`pglast 8.4`) | base `68`, hardening `24`, corrective `74`, acceptance `43` statements parsed |
-| Embedded PostgreSQL `18.3` (`PGlite 0.5.5`) | clean-install acceptance, FORCE-RLS/GUC-filter hidden-row reproduction, non-superuser corrective rejection, failed-preflight RLS/owner/policy atomicity, revoked temporary binding ACL/policy proof, full second pass, and final acceptance passed |
-| Unprivileged migration-role probe | rejected with SQLSTATE `42501`; transaction did not continue |
-| Rollback residue | memory `0`, receipt `0`, outbox `0` |
+| PostgreSQL parser | not rerun locally: `pglast` is unavailable in this workspace |
+| PostgreSQL 18 execution | not run on this repaired tree locally; exact-head hosted CI is required |
+| Unprivileged migration-role probe | pending exact-head hosted PostgreSQL 18 CI |
+| Rollback residue | pending exact-head hosted PostgreSQL 18 CI |
 | Workflow YAML parse (`PyYAML 6.0.3`) | passed |
-| GitHub Actions lint (`actionlint 1.7.12`) | passed |
+| GitHub Actions lint | not run locally: `actionlint` is unavailable in this workspace |
 | Whitespace check | `git diff --check` passed |
 | PostgreSQL 18 container/Neon execution | not run locally: this workspace has no Docker or PostgreSQL server binaries |
 
@@ -94,7 +98,8 @@ SHA-256 identities, creates an attacker-selected current schema, and applies the
 clean-install migrations. It seeds a substring-spoofed unbound helper, an
 untrusted binding row hidden from its non-superuser owner by FORCE RLS and a
 GUC-filtered policy, no-op trigger helpers, missing and arbitrary triggers,
-disabled RLS, inherited capability membership, arbitrary table and column ACLs,
+disabled RLS, inherited capability membership, inbound capability memberships
+with `ADMIN OPTION`, a user-defined update rewrite rule, arbitrary table and column ACLs,
 schema `CREATE`, `PUBLIC` and arbitrary function grants, pre-correction role
 attributes, a permissive policy, and receipt-only foreign keys. It proves that
 the stale owner sees zero binding rows but the corrective preflight still fails,

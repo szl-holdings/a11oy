@@ -84,6 +84,42 @@ BEGIN
 END;
 $$;
 
+-- Rewrite rules can discard or redirect writes before trigger enforcement.
+-- Covenant relations are tables, so they have no required _RETURN rule; keep
+-- that catalog-reserved identity fail-closed while removing every user rule.
+DO $$
+DECLARE
+    rewrite_row record;
+BEGIN
+    FOR rewrite_row IN
+        SELECT relation.relname AS table_name, rewrite.rulename AS rule_name
+          FROM pg_catalog.pg_rewrite AS rewrite
+          JOIN pg_catalog.pg_class AS relation
+            ON relation.oid = rewrite.ev_class
+          JOIN pg_catalog.pg_namespace AS namespace
+            ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND rewrite.rulename <> '_RETURN'
+    LOOP
+        EXECUTE pg_catalog.format(
+            'DROP RULE %I ON public.%I',
+            rewrite_row.rule_name,
+            rewrite_row.table_name
+        );
+    END LOOP;
+END;
+$$;
+
 -- A stale function owner can replace either trigger helper while retaining the
 -- same function identity. Restore both bodies before transferring ownership,
 -- then rebuild every non-internal covenant trigger from a known-empty set.

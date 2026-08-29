@@ -572,6 +572,9 @@ def _validate_append_only(base: str, corrective: str, errors: list[str]) -> None
         ("FROM pg_catalog.pg_trigger AS trigger", "corrective all-trigger catalog sweep"),
         ("AND NOT trigger.tgisinternal", "corrective internal-trigger preservation"),
         ("DROP TRIGGER %I ON public.%I", "corrective stale-trigger removal"),
+        ("FROM pg_catalog.pg_rewrite AS rewrite", "corrective rewrite-rule catalog sweep"),
+        ("AND rewrite.rulename <> '_RETURN'", "corrective internal rewrite-rule preservation"),
+        ("DROP RULE %I ON public.%I", "corrective stale rewrite-rule removal"),
     ):
         _require_token(token, corrective_sql, label, errors)
     trigger_sweep = re.search(
@@ -590,6 +593,23 @@ def _validate_append_only(base: str, corrective: str, errors: list[str]) -> None
         if observed_tables != frozenset(ALL_COVENANT_TABLES):
             errors.append(
                 "corrective trigger sweep table set differs from covenant tables"
+            )
+    rewrite_sweep = re.search(
+        r"FROM\s+pg_catalog\.pg_rewrite\s+AS\s+rewrite\b.*?"
+        r"relation\.relname\s+IN\s*\((?P<tables>.*?)\)\s+"
+        r"AND\s+rewrite\.rulename\s*<>\s*'_RETURN'",
+        corrective_sql,
+        re.IGNORECASE,
+    )
+    if rewrite_sweep is None:
+        errors.append("cannot inspect corrective covenant rewrite-rule sweep")
+    else:
+        observed_tables = frozenset(
+            re.findall(r"'([^']+)'", rewrite_sweep.group("tables"))
+        )
+        if observed_tables != frozenset(ALL_COVENANT_TABLES):
+            errors.append(
+                "corrective rewrite-rule sweep table set differs from covenant tables"
             )
     for table in ("memory_records", "memory_outbox"):
         trigger = f"{table}_touch_updated_at"
@@ -880,6 +900,9 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "stale capability parent seed": (
             "GRANT a11oy_memory_stale_parent"
         ),
+        "inbound capability delegation seed": (
+            "TO a11oy_memory_stale_grantee WITH ADMIN OPTION"
+        ),
         "stale relation owner seed": (
             "ALTER TABLE public.memory_context_bindings"
         ),
@@ -946,6 +969,9 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
         "arbitrary user trigger seed": (
             "CREATE TRIGGER memory_records_stale_trigger"
         ),
+        "arbitrary rewrite rule seed": (
+            "CREATE RULE memory_records_stale_update AS"
+        ),
         "disabled RLS seed": (
             "ALTER TABLE public.memory_records DISABLE ROW LEVEL SECURITY"
         ),
@@ -983,7 +1009,10 @@ def _validate_workflow(text: str, errors: list[str]) -> None:
             "test \"$planted_binding_count\" = \"1\""
         ),
         "runtime application membership cleanup": (
-            "REVOKE a11oy_memory_app FROM a11oy_memory_stale_grantee"
+            "DELETE FROM public.memory_context_bindings WHERE tenant_id = 'revoked-grant-tenant'\""
+        ),
+        "inbound capability membership preservation assertion": (
+            'test "$inbound_membership_count" = "2"'
         ),
         "outbound membership evidence": (
             "'outbound_memberships'"

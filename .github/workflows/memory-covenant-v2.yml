@@ -172,6 +172,8 @@ jobs:
           CREATE ROLE a11oy_memory_stale_owner NOLOGIN;
           GRANT a11oy_memory_stale_parent
             TO a11oy_memory_app, a11oy_memory_worker;
+          GRANT a11oy_memory_app, a11oy_memory_worker
+            TO a11oy_memory_stale_grantee WITH ADMIN OPTION;
           ALTER TABLE public.memory_records
             OWNER TO a11oy_memory_stale_owner;
           ALTER TABLE public.memory_context_bindings
@@ -213,6 +215,8 @@ jobs:
           CREATE TRIGGER memory_records_stale_trigger
             BEFORE UPDATE ON public.memory_records
             FOR EACH ROW EXECUTE FUNCTION public.memory_touch_updated_at();
+          CREATE RULE memory_records_stale_update AS
+            ON UPDATE TO public.memory_records DO INSTEAD NOTHING;
           ALTER TABLE public.memory_records DISABLE ROW LEVEL SECURITY;
           ALTER TABLE public.memory_evidence_refs DISABLE ROW LEVEL SECURITY;
           ALTER TABLE public.memory_outbox DISABLE ROW LEVEL SECURITY;
@@ -425,6 +429,10 @@ jobs:
             evidence/memory-covenant-v2/corrective-only-acceptance.log
           grep -F '"context_binding_rows": 0' \
             evidence/memory-covenant-v2/corrective-only-acceptance.log
+          inbound_membership_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid IN ('a11oy_memory_app'::regrole, 'a11oy_memory_worker'::regrole) AND member = 'a11oy_memory_stale_grantee'::regrole AND NOT admin_option")"
+          test "$inbound_membership_count" = "2"
 
           echo '=== prove revoked binding grant lacks durable provenance ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
           docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
@@ -482,7 +490,7 @@ jobs:
           test "$planted_binding_count" = "1"
           docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
-            -c "DELETE FROM public.memory_context_bindings WHERE tenant_id = 'revoked-grant-tenant'; REVOKE a11oy_memory_app FROM a11oy_memory_stale_grantee"
+            -c "DELETE FROM public.memory_context_bindings WHERE tenant_id = 'revoked-grant-tenant'"
 
           echo '=== full second pass ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
           for migration in \

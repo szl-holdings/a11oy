@@ -287,8 +287,36 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             path = root / validator.CORRECTIVE_MIGRATION
-            self.replace_once(path, "FROM pg_catalog.pg_policy AS p", "FROM pg_catalog.pg_policy_without_sweep AS p")
-            self.assert_contract_error(root, "all-policy catalog sweep")
+            self.replace_once(
+                path,
+                "SELECT c.relname AS table_name, p.polname AS policy_name\n"
+                "          FROM pg_catalog.pg_policy AS p",
+                "SELECT c.relname AS table_name, p.polname AS policy_name\n"
+                "          FROM pg_catalog.pg_policy_without_sweep AS p",
+            )
+            self.assert_contract_error(root, "cannot inspect corrective covenant-policy sweep")
+
+    def test_stale_rewrite_rule_sweep_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "FROM pg_catalog.pg_rewrite AS rewrite",
+                "FROM pg_catalog.pg_rewrite_without_sweep AS rewrite",
+            )
+            self.assert_contract_error(root, "rewrite-rule catalog sweep")
+
+    def test_inbound_admin_option_revoke_removal_fails(self) -> None:
+        temp, root = self.make_fixture()
+        with temp:
+            path = root / validator.CORRECTIVE_MIGRATION
+            self.replace_once(
+                path,
+                "REVOKE ADMIN OPTION FOR %I FROM %I CASCADE",
+                "REVOKE %I FROM %I CASCADE",
+            )
+            self.assert_contract_error(root, "delegation-right revoke")
 
     def test_delegated_inbound_inherit_disable_removal_fails(self) -> None:
         temp, root = self.make_fixture()
@@ -333,8 +361,12 @@ class MemoryCovenantV2ContractTests(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             path = root / validator.HARDENING_MIGRATION
-            self.replace_once(path, "FROM pg_catalog.pg_auth_members AS edge", "FROM pg_catalog.unchecked_auth_members AS edge")
-            self.assert_contract_error(root, "role-membership catalog sweep")
+            self.replace_once(
+                path,
+                "child.rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')",
+                "child.rolname IN ('a11oy_memory_unchecked')",
+            )
+            self.assert_contract_error(root, "capability membership selector")
 
     def test_stale_schema_create_sweep_removal_fails(self) -> None:
         temp, root = self.make_fixture()

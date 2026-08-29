@@ -129,6 +129,31 @@ DO $$
 BEGIN
     IF EXISTS (
         SELECT 1
+          FROM pg_rewrite AS rewrite
+          JOIN pg_class AS relation ON relation.oid = rewrite.ev_class
+          JOIN pg_namespace AS namespace ON namespace.oid = relation.relnamespace
+         WHERE namespace.nspname = 'public'
+           AND relation.relname IN (
+               'memory_records',
+               'memory_evidence_refs',
+               'memory_outbox',
+               'memory_receipts',
+               'memory_query_audit',
+               'memory_index_generations',
+               'memory_idempotency',
+               'memory_context_bindings'
+           )
+           AND rewrite.rulename <> '_RETURN'
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant relation retained a user rewrite rule';
+    END IF;
+END;
+$$;
+
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1
           FROM pg_roles
          WHERE rolname IN ('a11oy_memory_app', 'a11oy_memory_worker')
            AND (
@@ -159,6 +184,17 @@ BEGIN
          )
     ) THEN
         RAISE EXCEPTION 'Memory Covenant capability role retained an inherited parent';
+    END IF;
+    IF EXISTS (
+        SELECT 1
+          FROM pg_auth_members AS edge
+         WHERE edge.roleid IN (
+             'a11oy_memory_app'::regrole,
+             'a11oy_memory_worker'::regrole
+         )
+           AND edge.admin_option
+    ) THEN
+        RAISE EXCEPTION 'Memory Covenant capability membership retained ADMIN OPTION';
     END IF;
 END;
 $$;
