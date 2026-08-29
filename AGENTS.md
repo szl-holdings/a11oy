@@ -148,6 +148,22 @@ external consumers, but the test suite does not depend on the host materializing
 - `npx tsx packages/measurement/composition_overhead.ts` — Λ-axis composition latency
 - `npx tsx packages/measurement/merkle_dag_p50.ts` — Merkle DAG write latency
 
+### Cursor Cloud specific instructions
+
+Cloud Agents checkout `main` and run the personal/repo `install` command from
+`.cursor/environment.json`. That command is `bash .cursor/install.sh`. The
+script must exist on the checked-out ref or setup exits 127 (`No such file or
+directory`) and `setupStatus` stays `INSTALL_FAILED`.
+
+`.cursor/install.sh` is idempotent: it creates `.venv` with the HF Space
+`Dockerfile` Python pins plus pytest, then runs `pnpm install --frozen-lockfile`.
+The `start` command boots the fail-closed GDW entrypoint on port `7860`
+(`gdw_runtime.py` → `serve.py`). Demo-critical routes are listed under
+[Live surfaces](#live-surfaces).
+
+Do not point `install` at `.cursor/install.sh` from a dashboard-only environment
+until this file is on the branch being checked out.
+
 ### Known build limitations
 
 - **The broader `web/` SPA cannot start standalone**: it still depends on packages and
