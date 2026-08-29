@@ -75,6 +75,9 @@ DEMO_CRITICAL_ROUTES = [
     "/frontier-now",                           # responsive Frontier Now PAGE
     "/api/a11oy/v1/khipu/status",              # live CPU-lab pin + READY/FAILED (no sign on GET)
     "/api/a11oy/v1/khipu/chat",                # same-origin Try Khipu proxy (max_tokens<=32)
+    "/immune",                                 # first-class IMMUNE product tab
+    "/api/a11oy/v1/immune/kernel",             # same-origin Channel A /readyz probe
+    "/api/a11oy/v1/immune/field",              # same-origin Channel B Field catalog
 ]
 
 

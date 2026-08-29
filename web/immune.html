@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Immune (Hukulla) — fail-closed egress gate · SZL Holdings</title>
-<meta name="description" content="Honest operational view of the Immune organ (Quechua role 'Hukulla') — a fail-closed, deny-by-default egress gate. Status, trace, signature, and Khipu-chain evidence are shown only when returned by the live backend. Lambda = Conjecture 1; Khipu = Conjecture 2; trust never 100%."/>
+<title>IMMUNE — fail-closed kernel · SZL Holdings</title>
+<meta name="description" content="Public IMMUNE tab: Hukulla fail-closed egress gate, same-origin Channel A kernel probe, and Channel B Field lattice (exile/mesh/quorum/delta). Hunt/isolate/deceive — never strike people. Status is CONNECTING, REACHABLE, or UNAVAILABLE — never fabricated LIVE or PASS. Lambda = Conjecture 1; Khipu = Conjecture 2; trust never 100%."/>
 <!-- 0 runtime CDN (doctrine v11): system fonts only — no Google Fonts, no external assets. -->
 <style>
 :root{
@@ -69,6 +69,10 @@ textarea:focus,input:focus{outline:none;border-color:var(--teal-line);}
 button.run{margin-top:.6rem;padding:.55rem 1.1rem;border-radius:7px;border:1px solid var(--teal-line);background:var(--teal-soft);color:var(--teal);font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:.15s;}
 button.run:hover{background:rgba(95,179,163,.18);color:var(--cream);}
 button.run:focus-visible,.preset:focus-visible,.flag:focus-visible{outline:2px solid var(--teal);outline-offset:2px;}
+.kernel-actions{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.7rem;}
+.kernel-actions a,.kernel-actions button{min-height:44px;display:inline-flex;align-items:center;}
+#kernelFrameHost{margin-top:.8rem;}
+#kernelFrameHost iframe{width:100%;min-height:72vh;border:1px solid var(--gold-line);border-radius:8px;background:#000;}
 .preset{display:inline-block;margin:.3rem .3rem 0 0;padding:.2rem .5rem;border-radius:5px;border:1px solid var(--gold-line);color:var(--muted);font-family:var(--mono);font-size:10.5px;cursor:pointer;}
 .preset:hover{color:var(--cream);border-color:var(--teal-line);}
 .verdict-box{margin-top:.8rem;border:1px solid var(--gold-line);border-radius:8px;padding:.85rem 1rem;background:var(--panel2);font-family:var(--mono);font-size:12px;line-height:1.8;}
@@ -104,9 +108,10 @@ code{font-family:var(--mono);color:var(--teal);}
 <body>
 <div class="topbar">
   <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span>
-  <span class="live"><span class="live-dot" id="liveDot"></span><span id="liveTag" aria-live="polite">IMMUNE · PROBING</span></span>
+  <span class="live"><span class="live-dot" id="liveDot"></span><span id="liveTag" aria-live="polite">IMMUNE · CONNECTING</span></span>
   <span class="switcher">
     <a class="flag active" href="/immune">Immune</a>
+    <a class="flag" href="/nemo">Nemo</a>
     <a class="flag" href="/energy">Energy</a>
     <a class="flag" href="/fleet-c2">Fleet C2</a>
     <a class="flag" href="/living-anatomy">Living Anatomy</a>
@@ -115,18 +120,75 @@ code{font-family:var(--mono);color:var(--teal);}
 </div>
 
 <div class="wrap">
-  <h1>Immune (Hukulla) — fail-closed egress gate<span class="badge" id="organBadge">deny-by-default · evidence pending</span></h1>
+  <h1>IMMUNE — fail-closed kernel<span class="badge" id="organBadge">deny-by-default · connecting</span></h1>
   <p class="lede">
-    The <b>Immune</b> organ (Quechua role <b>Hukulla</b>) is a <b>fail-closed, deny-by-default</b> egress gate.
-    Submitted actions are sent to the live threat-signature, size, and
-    <b>&Lambda;-gate</b> inspection path (MIN of supplied trust axes &lt; 0.5 &rarr; deny). When the backend
-    returns a Khipu receipt, its digest, sequence, signature, chain result, and trace context are shown below.
+    The <b>IMMUNE</b> kernel (organ role <b>Hukulla</b>) is a <b>fail-closed, deny-by-default</b> admission
+    and egress gate: SENTRA inspection, YAWAR SHA-256 receipts, HUKLLA tripwires, MESH 3-of-4, NEMO R1–R5.
+    This tab is first-class on a-11-oy.com. The public kernel lives at
+    <a href="https://szlholdings-immune.hf.space"><code>SZLHOLDINGS/immune</code></a>;
+    the COP overlay sibling is
+    <a href="https://szlholdings-immune-lattice.hf.space"><code>SZLHOLDINGS/immune-lattice</code></a>.
+    Neither Space is deleted. Channel B Field cells (RANGE.CLOUD.EXILE, RANGE.FALLBACK.MESH,
+    CERT.CELL.QUORUM, FIELD.LATTICE.DELTA) compile public Ukraine COP doctrine as
+    <b>hunt / isolate / deceive</b> — never strike people. RANGE twins only; actuation is SIMULATED.
+    This flagship tab cites the lattice; it is not a second COP. This page never fabricates <b>LIVE</b> or <b>PASS</b> —
+    first paint is <b>CONNECTING</b>; a failed probe is <b>UNAVAILABLE</b>; a successful
+    <code>/readyz</code> read is <b>REACHABLE</b> (and <b>WRITE-READY</b> only when the kernel says so).
+    Submitted actions below hit the live Hukulla inspection path (MIN of supplied trust axes < 0.5 &rarr; deny).
     No receipt or signature state is inferred by this page. Proven Lean backing:
     <code>ImmuneNeymanPearsonOpt.lean</code> (Neyman&ndash;Pearson-optimal egress) and
     <code>FrontierWelfordVariance.lean</code> (Welford online variance). These back the gate but are
     <b>not</b> folded into the locked-8 proven set. &Lambda; = <b>Conjecture&nbsp;1</b> (not a theorem);
     Khipu = Conjecture&nbsp;2; trust is never 100%; effectors simulated; no fabricated data.
   </p>
+
+  <div class="panel" id="kernelPanel">
+    <h2>Live kernel <span class="meta">GET /api/a11oy/v1/immune/kernel → SZLHOLDINGS/immune /readyz</span></h2>
+    <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+      Same-origin probe so this page stays 0-CDN. Channel A is the public kernel.
+      Channel B is the lattice COP overlay — its <code>/readyz</code> is intercepted by the Hub proxy;
+      that 502 HTML is not kernel death. Click-to-embed is operator-initiated, never first-paint.
+    </p>
+    <div class="cards">
+      <div class="card"><div class="lbl">Reachability</div><div class="big" id="kReach">CONNECTING</div><div class="sub" id="kReachSub">first paint — not UNAVAILABLE</div></div>
+      <div class="card"><div class="lbl">Write-ready</div><div class="big" id="kWrite">—</div><div class="sub" id="kWriteSub">forwarded only when observed</div></div>
+      <div class="card"><div class="lbl">Authority</div><div class="big" id="kAuth">—</div><div class="sub" id="kAuthSub">never inferred PASS</div></div>
+      <div class="card"><div class="lbl">Receipts / kid</div><div class="big" id="kLedger">—</div><div class="sub" id="kKidSub">ledger + key id</div></div>
+    </div>
+    <div class="kv" id="kernelKv" aria-live="polite"><span class="k">status</span><span class="v">CONNECTING</span></div>
+    <div class="kernel-actions">
+      <a class="flag" href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">Open Channel A kernel</a>
+      <a class="flag" href="https://szlholdings-immune-lattice.hf.space" target="_blank" rel="noopener">Open Channel B lattice</a>
+      <a class="flag" href="https://github.com/szl-holdings/immune" target="_blank" rel="noopener">GitHub kernel</a>
+      <button class="run" id="embedBtn" type="button">Embed live kernel</button>
+    </div>
+    <div id="kernelFrameHost"></div>
+  </div>
+
+  <div class="panel" id="fieldPanel">
+    <h2>Field lattice <span class="meta">GET /api/a11oy/v1/immune/field → Channel B /api/field</span></h2>
+    <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+      Same-origin probe of <code>SZLHOLDINGS/immune-lattice</code>. Cells are compiled as
+      hunt / isolate / deceive — never strike people. First paint is <b>CONNECTING</b>.
+      A failed probe is <b>UNAVAILABLE</b> (cells are not invented). A JSON catalog is
+      <b>REACHABLE</b>, not LIVE. This page is a citation, not a second COP.
+    </p>
+    <div class="cards">
+      <div class="card"><div class="lbl">Reachability</div><div class="big" id="fReach">CONNECTING</div><div class="sub" id="fReachSub">first paint — not UNAVAILABLE</div></div>
+      <div class="card"><div class="lbl">Λ / doctrine</div><div class="big" id="fDoc">—</div><div class="sub" id="fLam">Conjecture 1 — not a theorem</div></div>
+      <div class="card"><div class="lbl">Actuation</div><div class="big" id="fAct">—</div><div class="sub">SIMULATED only</div></div>
+      <div class="card"><div class="lbl">Rule</div><div class="big" id="fRule">—</div><div class="sub" id="fRuleSub">never strike people</div></div>
+    </div>
+    <div class="cards" id="fieldCells"></div>
+    <div class="kv" id="fieldKv" aria-live="polite"><span class="k">status</span><span class="v">CONNECTING</span></div>
+    <div class="kernel-actions">
+      <a class="flag" href="https://szlholdings-immune-lattice.hf.space" target="_blank" rel="noopener">Open Channel B lattice</a>
+      <a class="flag" href="https://github.com/szl-holdings/immune-lattice" target="_blank" rel="noopener">GitHub lattice</a>
+      <a class="flag" href="https://a11oy.net/" target="_blank" rel="noopener">Proof registry</a>
+      <button class="run" id="embedFieldBtn" type="button">Embed live lattice</button>
+    </div>
+    <div id="fieldFrameHost"></div>
+  </div>
 
   <div class="cards">
     <div class="card"><div class="lbl">Verdicts (this process)</div><div class="big" id="cVerdicts">—</div><div class="sub" id="cVerdictsSub">resets on restart</div></div>
@@ -157,7 +219,7 @@ code{font-family:var(--mono);color:var(--teal);}
 
     <div class="panel">
       <h2>Live status <span class="meta" id="statusEp">GET /api/a11oy/v1/immune/status</span></h2>
-      <div class="kv" id="statusKv" aria-live="polite"><span class="k">status</span><span class="v">PROBING</span></div>
+      <div class="kv" id="statusKv" aria-live="polite"><span class="k">status</span><span class="v">CONNECTING</span></div>
       <div class="simnote" id="honestyNote">
         Λ = Conjecture 1 (NOT a theorem). Khipu = Conjecture 2. Trust never 100%. Effectors simulated.
         Decision feed is in-memory (resets on restart) — empty means IDLE, never faked.
@@ -178,7 +240,7 @@ code{font-family:var(--mono);color:var(--teal);}
   <div class="footnote" id="leanFoot">
     Proven Lean backing: Lutar/Wave11/ImmuneNeymanPearsonOpt.lean · Lutar/Innovations/round11/FrontierWelfordVariance.lean.
     Locked-proven set = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17 — the immune Lean backing is cited, NOT folded in.
-    SLSA L1/L2/L3-roadmap · 0 runtime CDN. This page reads only the live /api/a11oy/v1/immune/* endpoints.
+    SLSA L1/L2/L3-roadmap · 0 runtime CDN. This page reads only the live /api/a11oy/v1/immune/* endpoints (Hukulla organ + same-origin kernel and Field probes). Channel A = SZLHOLDINGS/immune. Channel B = SZLHOLDINGS/immune-lattice Field (exile/mesh/quorum/delta). Neither Space is deleted. Hunt / isolate / deceive — never strike people.
   </div>
 </div>
 
@@ -324,9 +386,107 @@ document.querySelectorAll(".preset").forEach(p=>p.addEventListener("click",()=>{
 }));
 document.getElementById("runBtn").addEventListener("click",runVerdict);
 
-async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed()]); }
+function kernelAuthorityLabel(s){
+  if(!s||typeof s!=="object")return null;
+  if(present(s.evidence_state))return s.evidence_state;
+  if(typeof s.authority==="string")return s.authority;
+  if(s.authority&&typeof s.authority==="object"){
+    return s.authority.evidenceState||s.authority.evidence_state||s.authority.status||null;
+  }
+  return null;
+}
+
+async function loadKernel(){
+  const result = await requestJSON(BASE + "/kernel");
+  const kv = document.getElementById("kernelKv");
+  const s = result.data||{};
+  const reach = result.ok && s.reachability==="REACHABLE" ? "REACHABLE" : (result.ok||result.status!=null ? "UNAVAILABLE" : "UNAVAILABLE");
+  document.getElementById("kReach").textContent = reach;
+  document.getElementById("kReachSub").textContent = reach==="REACHABLE" ? "Channel A /readyz answered JSON" : requestFailure(result);
+  const writeReady = s.write_ready===true;
+  document.getElementById("kWrite").textContent = typeof s.write_ready==="boolean"?String(s.write_ready):"—";
+  document.getElementById("kWriteSub").textContent = writeReady?"WRITE-READY (not LIVE)":"not claimed";
+  const auth = kernelAuthorityLabel(s);
+  document.getElementById("kAuth").textContent = present(auth)?String(auth):"—";
+  document.getElementById("kLedger").textContent = present(s.ledger)?String(s.ledger):"—";
+  document.getElementById("kKidSub").textContent = present(s.key_id)?"kid "+s.key_id:"key id unobserved";
+  kv.innerHTML =
+    row("reachability",reach)+
+    row("write_ready",typeof s.write_ready==="boolean"?String(s.write_ready):null)+
+    row("evidence",s.evidence_state)+
+    row("key id",s.key_id)+
+    row("ledger",s.ledger)+
+    row("channel A",s.channel_a&&s.channel_a.space)+
+    row("channel B",s.channel_b&&s.channel_b.space)+
+    row("error",s.error||(!result.ok?requestFailure(result):null))+
+    row("observed at",s.fetchedAt||s.observed_at)+
+    '<div><span class="k">kernel</span><span class="pill '+(reach==="REACHABLE"?(writeReady?"green":"yellow"):"red")+'">'+esc(reach+(writeReady?" · WRITE-READY":""))+'</span></div>';
+}
+
+document.getElementById("embedBtn").addEventListener("click",function(){
+  const host=document.getElementById("kernelFrameHost");
+  if(host.querySelector("iframe"))return;
+  const f=document.createElement("iframe");
+  f.title="IMMUNE kernel Space";
+  f.src="https://szlholdings-immune.hf.space";
+  f.setAttribute("loading","lazy");
+  host.appendChild(f);
+  this.textContent="Kernel embedded";
+});
+
+async function loadField(){
+  const result = await requestJSON(BASE + "/field");
+  const kv = document.getElementById("fieldKv");
+  const s = result.data||{};
+  const reach = result.ok && s.reachability==="REACHABLE" ? "REACHABLE" : "UNAVAILABLE";
+  document.getElementById("fReach").textContent = reach;
+  document.getElementById("fReachSub").textContent = reach==="REACHABLE" ? "Channel B /api/field answered JSON" : requestFailure(result);
+  document.getElementById("fDoc").textContent = present(s.field_doctrine)?String(s.field_doctrine):(present(s.lambda_status)?String(s.lambda_status):"—");
+  document.getElementById("fLam").textContent = present(s.lambda_status)?String(s.lambda_status):"Conjecture 1 — not a theorem";
+  document.getElementById("fAct").textContent = present(s.actuation)?String(s.actuation):"—";
+  document.getElementById("fRule").textContent = present(s.rule)?String(s.rule).slice(0,42):"—";
+  document.getElementById("fRuleSub").textContent = "never strike people";
+  const host = document.getElementById("fieldCells");
+  const cells = Array.isArray(s.cells)?s.cells:[];
+  if(reach!=="REACHABLE" || !cells.length){
+    host.replaceChildren();
+  }else{
+    host.innerHTML = cells.map(function(c){
+      const name=c&&c.name||c&&c.id||"cell";
+      const verb=c&&c.verb||"—";
+      const take=c&&c.take||"";
+      return '<div class="card"><div class="lbl">'+esc(name)+'</div><div class="big">'+esc(verb)+'</div><div class="sub">'+esc(take)+'</div></div>';
+    }).join("");
+  }
+  kv.innerHTML =
+    row("reachability",reach)+
+    row("doctrine",s.field_doctrine)+
+    row("lambda",s.lambda_status)+
+    row("actuation",s.actuation)+
+    row("rule",s.rule)+
+    row("cells",typeof s.cell_count==="number"?String(s.cell_count):null)+
+    row("channel",s.space)+
+    row("error",s.error||(!result.ok?requestFailure(result):null))+
+    row("observed at",s.fetchedAt||s.observed_at)+
+    '<div><span class="k">field</span><span class="pill '+(reach==="REACHABLE"?"green":"red")+'">'+esc(reach)+'</span></div>';
+}
+
+document.getElementById("embedFieldBtn").addEventListener("click",function(){
+  const host=document.getElementById("fieldFrameHost");
+  if(host.querySelector("iframe"))return;
+  const f=document.createElement("iframe");
+  f.title="IMMUNE lattice Space";
+  f.src="https://szlholdings-immune-lattice.hf.space";
+  f.setAttribute("loading","lazy");
+  host.appendChild(f);
+  this.textContent="Lattice embedded";
+});
+
+async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed(),loadKernel(),loadField()]); }
 loadAll();
 setInterval(loadStatus, 8000);
+setInterval(loadKernel, 8000);
+setInterval(loadField, 8000);
 </script>
 </body>
 </html>

@@ -4020,8 +4020,8 @@ try:
     # /api/a11oy/v1/immune/verdict and shows the REAL deny/allow + signals + signed
     # Khipu receipt digest. Title "Immune (Hukulla) — fail-closed egress gate". NEVER a
     # codename. Replaces the prior 200 SPA shell that read nothing real.
-    app.add_api_route("/immune", _ptg_serve("immune.html"), methods=["GET"], include_in_schema=False)
-    app.add_api_route("/a11oy/immune", _ptg_serve("immune.html"), methods=["GET"], include_in_schema=False)
+    app.add_api_route("/immune", _ptg_serve("immune.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/a11oy/immune", _ptg_serve("immune.html"), methods=["GET", "HEAD"], include_in_schema=False)
     # MATERIALS (Q'allariy) tab (2026-06-16): the honest, user-visible Verifiable
     # Alloy & Crystal Discovery surface. Standalone sovereign page (0 runtime CDN),
     # binds to live /api/a11oy/v1/materials/* — a crystal-novelty form that POSTs to

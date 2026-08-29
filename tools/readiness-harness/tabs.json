@@ -18,10 +18,10 @@
     "UNAVAILABLE": "The source or evidence is not available; no replacement value is fabricated."
   },
   "summary": {
-    "tabs": 141,
+    "tabs": 139,
     "endpoints": 100,
-    "tabsWithCitations": 36,
-    "staticTabs": 41
+    "tabsWithCitations": 35,
+    "staticTabs": 40
   },
   "endpoints": {
     "/api/a11oy/v1/lambda": {
@@ -3585,24 +3585,6 @@
       }
     },
     {
-      "key": "estate",
-      "title": "estate",
-      "group": "Console",
-      "route": "/console#estate",
-      "endpoints": [
-        "/api/a11oy/v1/models/series-a",
-        "/api/a11oy/v1/honest"
-      ],
-      "citationsRequired": true,
-      "sampleLabelAllowed": false,
-      "static": false,
-      "degradedRules": {
-        "allowSampleLabel": false,
-        "failOnUnlabeledPlaceholder": true,
-        "failOnMissingCitation": true
-      }
-    },
-    {
       "key": "evidence",
       "title": "evidence",
       "group": "Console",
@@ -4030,21 +4012,6 @@
       "title": "honest",
       "group": "Console",
       "route": "/console#honest",
-      "endpoints": [],
-      "citationsRequired": false,
-      "sampleLabelAllowed": false,
-      "static": true,
-      "degradedRules": {
-        "allowSampleLabel": false,
-        "failOnUnlabeledPlaceholder": true,
-        "failOnMissingCitation": false
-      }
-    },
-    {
-      "key": "investor",
-      "title": "investor",
-      "group": "Console",
-      "route": "/console#investor",
       "endpoints": [],
       "citationsRequired": false,
       "sampleLabelAllowed": false,
