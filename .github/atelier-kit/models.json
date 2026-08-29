@@ -603,12 +603,12 @@
       "benches": [
         {
           "name": "Trainer",
-          "value": "TRL SFT / HF Jobs",
-          "evidence": "HUB"
+          "value": "Unsloth QLoRA / HF Jobs A10G",
+          "evidence": "MEASURED"
         },
         {
           "name": "Adapter",
-          "value": "adapter_model.safetensors",
+          "value": "adapter-unsloth/adapter_model.safetensors",
           "evidence": "HUB"
         },
         {
@@ -620,15 +620,20 @@
         {
           "name": "Unsloth profile",
           "value": "r=8 \u00b7 rsLoRA \u00b7 attn+mlp \u00b7 packing=false",
-          "evidence": "KERNEL",
-          "vs": "Owner-metal recipe. Not a GPU retrain. Silhouette is the CPU 5-8-2."
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. Unique doctrine mouth. Eval none-this-run."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "0.840",
+          "evidence": "MEASURED",
+          "vs": "160 steps \u00b7 80 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
         }
       ],
       "files": [
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
         "adapter_model.safetensors",
-        "adapter_config.json",
-        "chat_template.jinja",
-        "training_args.bin",
         "willay.npz (atelier silhouette)"
       ],
       "limitations": [
@@ -731,12 +736,19 @@
         {
           "name": "Unsloth profile",
           "value": "r=8 \u00b7 rsLoRA \u00b7 attn-only q,k,v,o",
-          "evidence": "KERNEL",
-          "vs": "Unique cut: courier cannot author through MLP. Owner-metal. Not retrained here."
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. Unique cut: MLP frozen so the courier cannot author."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "1.932",
+          "evidence": "MEASURED",
+          "vs": "120 steps \u00b7 45 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
         }
       ],
       "files": [
-        "safetensors adapter",
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
         "chaski.npz (atelier silhouette)"
       ],
       "limitations": [
@@ -786,12 +798,19 @@
         {
           "name": "Unsloth profile",
           "value": "r=16 \u00b7 rsLoRA \u00b7 attn+mlp \u00b7 packing=auto",
-          "evidence": "KERNEL",
-          "vs": "50/50 mix is the identity. Owner-metal recipe."
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. 50/50 mix is the identity. Eval none-this-run."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "0.559",
+          "evidence": "MEASURED",
+          "vs": "120 steps \u00b7 45 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
         }
       ],
       "files": [
-        "PEFT safetensors",
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
         "chaski_5050.npz (atelier silhouette)"
       ],
       "limitations": [
@@ -835,12 +854,19 @@
         {
           "name": "Unsloth profile",
           "value": "r=8 \u00b7 attn-only \u00b7 packing=false \u00b7 lr=5e-5",
-          "evidence": "KERNEL",
-          "vs": "R2 is a refinement. Do not overwrite R1. Owner-metal."
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. R2 refinement. R1 stays. Eval none-this-run."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "2.739",
+          "evidence": "MEASURED",
+          "vs": "80 steps \u00b7 45 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
         }
       ],
       "files": [
-        "PEFT safetensors",
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
         "chaski_r2.npz (atelier silhouette)"
       ],
       "limitations": [
