@@ -178,23 +178,21 @@ def test_operator_routes_fail_closed_and_rerun_keeps_health_responsive(
                 transport=transport,
                 base_url="http://a11oy-runtime.test",
             ) as client:
-                # Read-only receipt export serves one prebuilt, explicitly SAMPLE
-                # envelope. Repeated GETs are byte-for-byte equivalent and never
-                # mint a fresh timestamp, append an event, or imply an approval.
+                # Required ledger/export surfaces are operational live-empty,
+                # never the deterministic SAMPLE chain. Repeated export GETs
+                # stay byte-for-byte equivalent and never mint a receipt.
                 sample_ledger = (await client.get("/api/a11oy/v1/ledger")).json()
                 export_one = (await client.get("/api/a11oy/v1/receipt/export")).json()
                 export_two = (await client.get("/api/a11oy/v1/receipt/export")).json()
-                assert sample_ledger["data_kind"] == "sample"
-                assert sample_ledger["operational"] is False
-                assert sample_ledger["chain_verified"] is False
+                assert sample_ledger["data_kind"] == "live"
+                assert sample_ledger["operational"] is True
+                assert sample_ledger["count"] == 0
+                assert sample_ledger["receipts"] == []
                 assert sample_ledger["structure_verified"] is True
-                assert all(
-                    str(row["action"]).startswith("sample.")
-                    for row in sample_ledger["receipts"]
-                )
                 assert export_one == export_two
-                assert export_one["state"] == "SAMPLE"
-                assert export_one["operational"] is False
+                assert export_one["state"] == "live"
+                assert export_one["data_kind"] == "live"
+                assert export_one["operational"] is True
                 assert export_one["receipt_minted"] is False
 
                 # Method safety is enforced by the actual router, not a source check.

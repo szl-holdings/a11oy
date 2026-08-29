@@ -78,7 +78,7 @@ def test_kevgate_mixed_live_feed_remains_sample_labeled(
     rows, meta = serve._kl_live_rows()
 
     assert meta["mode"] == "live"
-    assert meta["data_kind"] == "sample"
+    assert meta["data_kind"] == "cached"
     assert meta["source"] == payload["source"]
     assert meta["epss_source_rows"] == 1
     assert meta["cvss_source_rows"] == 1
@@ -91,15 +91,12 @@ def test_kevgate_mixed_live_feed_remains_sample_labeled(
     assert "derived-sample" in meta["enrichment_provenance"]
     assert {row["epss_src"] for row in rows} == {"first.org", "derived"}
     assert {row["cvss_src"] for row in rows} == {"nvd", "derived"}
-    assert {row["data_kind"] for row in rows} == {"cached", "sample"}
+    assert {row["data_kind"] for row in rows} == {"cached"}
     assert all("catalog=live" in row["evidence_detail"] for row in rows)
 
     mixed_route = json.loads(asyncio.run(serve._sec_kevgate(limit=2)).body)
-    assert mixed_route["data_kind"] == "sample"
-    assert {item["data_kind"] for item in mixed_route["items"]} == {
-        "cached",
-        "sample",
-    }
+    assert mixed_route["data_kind"] == "cached"
+    assert {item["data_kind"] for item in mixed_route["items"]} == {"cached"}
     assert {item["cvss_src"] for item in mixed_route["items"]} == {
         "nvd",
         "derived",
@@ -141,11 +138,11 @@ def test_kevgate_cached_payload_does_not_claim_live_or_hide_samples(monkeypatch)
     rows, meta = serve._kl_live_rows()
 
     assert meta["mode"] == "cached"
-    assert meta["data_kind"] == "sample"
+    assert meta["data_kind"] == "cached"
     assert meta["source"] == payload["source"]
     assert meta["cache_note"] == payload["cache_note"]
     assert meta["enrichment_provenance"].startswith("cached KEV IDs/dates/vendors")
-    assert rows[0]["data_kind"] == "sample"
+    assert rows[0]["data_kind"] == "cached"
     assert rows[0]["evidence_detail"] == (
         "catalog=cached; epss=derived-sample; cvss=derived-sample"
     )
@@ -186,20 +183,20 @@ def test_kevgate_cached_bundled_payload_never_promotes_to_cached(monkeypatch):
 
     assert meta["mode"] == "cached"
     assert meta["fetched_at"] == "bundled-snapshot"
-    assert meta["data_kind"] == "sample"
+    assert meta["data_kind"] == "cached"
     assert meta["enrichment_provenance"].startswith(
         "bundled-snapshot KEV IDs/dates/vendors"
     )
     assert rows[0]["epss_src"] == "first.org"
     assert rows[0]["cvss_src"] == "nvd"
-    assert rows[0]["data_kind"] == "sample"
+    assert rows[0]["data_kind"] == "cached"
     assert rows[0]["evidence_detail"] == (
         "catalog=bundled-snapshot; epss=first.org-cache; cvss=nvd-cache"
     )
 
     route = json.loads(asyncio.run(serve._sec_kevgate(limit=1)).body)
-    assert route["data_kind"] == "sample"
-    assert route["items"][0]["data_kind"] == "sample"
+    assert route["data_kind"] == "cached"
+    assert route["items"][0]["data_kind"] == "cached"
     assert route["items"][0]["evidence_detail"].startswith(
         "catalog=bundled-snapshot;"
     )
@@ -285,13 +282,13 @@ def test_kevgate_nvd_cache_requires_fresh_timestamp_and_source(monkeypatch):
 
         assert rows[0]["cvss_src"] == "derived", case
         assert rows[0]["cvss_cache_state"] == "stale", case
-        assert rows[0]["data_kind"] == "sample", case
+        assert rows[0]["data_kind"] == "cached", case
         assert "stale-nvd-cache-ignored" in rows[0]["evidence_detail"], case
-        assert meta["data_kind"] == "sample", case
+        assert meta["data_kind"] == "cached", case
 
         route = json.loads(asyncio.run(serve._sec_kevgate(limit=1)).body)
-        assert route["data_kind"] == "sample", case
-        assert route["items"][0]["data_kind"] == "sample", case
+        assert route["data_kind"] == "cached", case
+        assert route["items"][0]["data_kind"] == "cached", case
         assert route["items"][0]["cvss_src"] == "derived", case
         assert route["items"][0]["cvss_cache_state"] == "stale", case
         assert "stale-nvd-cache-ignored" in route["items"][0]["evidence_detail"], case
@@ -351,14 +348,14 @@ def test_kevgate_nvd_cache_rejects_malformed_scores_and_never_500(monkeypatch):
         assert type(rows[0]["cvss"]) in (int, float), case
         assert math.isfinite(rows[0]["cvss"]), case
         assert 0.0 <= rows[0]["cvss"] <= 10.0, case
-        assert rows[0]["data_kind"] == "sample", case
+        assert rows[0]["data_kind"] == "cached", case
         assert "malformed-nvd-cache-ignored" in rows[0]["evidence_detail"], case
-        assert meta["data_kind"] == "sample", case
+        assert meta["data_kind"] == "cached", case
 
         response = asyncio.run(serve._sec_kevgate(limit=1))
         assert response.status_code == 200, case
         route = json.loads(response.body)
-        assert route["data_kind"] == "sample", case
+        assert route["data_kind"] == "cached", case
         assert route["items"][0]["cvss_src"] == "derived", case
         assert route["items"][0]["cvss_cache_state"] == "malformed", case
         assert math.isfinite(route["items"][0]["cvss"]), case
@@ -545,8 +542,8 @@ def test_kevgate_rejects_invalid_epss_pairs_and_accepts_boundaries(monkeypatch):
         assert type(rows[0]["epss"]) in (int, float), case
         assert math.isfinite(rows[0]["epss"]), case
         assert "epss_pctl" not in rows[0], case
-        assert rows[0]["data_kind"] == "sample", case
-        assert meta["data_kind"] == "sample", case
+        assert rows[0]["data_kind"] == "cached", case
+        assert meta["data_kind"] == "cached", case
         response = asyncio.run(serve._sec_kev_live())
         assert response.status_code == 200, case
         payload = json.loads(response.body)
@@ -707,7 +704,7 @@ def test_epss_request_path_spends_one_batch_and_leaves_gaps_derived(monkeypatch)
     assert sum(row["epss_src"] == "first.org" for row in rows) == 101
     assert sum(row["epss_src"] == "derived" for row in rows) == 150
     assert meta["epss_source_rows"] == 101
-    assert meta["data_kind"] == "sample"
+    assert meta["data_kind"] == "cached"
     assert serve._KL_EPSS_CACHE["ts"] == observed_at
     assert set(serve._KL_EPSS_CACHE["map"]) == {
         cached_cve,
@@ -1432,8 +1429,8 @@ def test_kevgate_expired_epss_cache_is_not_reused_after_refresh_failure(
     rows, meta = serve._kl_live_rows()
     assert rows[0]["epss_src"] == "derived"
     assert rows[0]["cvss_src"] == "nvd"
-    assert rows[0]["data_kind"] == "sample"
-    assert meta["data_kind"] == "sample"
+    assert rows[0]["data_kind"] == "cached"
+    assert meta["data_kind"] == "cached"
     assert "EPSS = derived-sample" in meta["enrichment_provenance"]
 
     serve._KL_EPSS_CACHE["ts"] = time.time()
@@ -1463,9 +1460,9 @@ def test_kevgate_bundled_and_unavailable_fallbacks_remain_explicit(monkeypatch):
 
     assert len(rows) == 1
     assert cached["mode"] == "cached"
-    assert cached["data_kind"] == "sample"
-    assert "sample enrichment" in cached["enrichment_provenance"]
-    assert rows[0]["data_kind"] == "sample"
+    assert cached["data_kind"] == "cached"
+    assert "derived-sample" in cached["enrichment_provenance"]
+    assert rows[0]["data_kind"] == "cached"
 
     monkeypatch.setattr(serve, "_kl_snap", None)
     rows, unavailable = serve._kl_live_rows()

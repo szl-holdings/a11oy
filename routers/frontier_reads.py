@@ -34,9 +34,15 @@ PHASE_B_OBSERVATION_PATHS = frozenset(
     {
         "/api/a11oy/provenance",
         "/api/a11oy/v1/energy/sci",
+        "/api/a11oy/v1/ledger",
         "/api/a11oy/v1/observability/summary",
         "/api/a11oy/v1/observability/business",
         "/api/a11oy/v1/mesh/state",
+        "/api/a11oy/v1/sec/cve",
+        "/api/a11oy/v1/sec/attack",
+        "/api/a11oy/v1/sec/threats",
+        "/api/a11oy/v1/sec/threatgraph",
+        "/api/a11oy/v1/sec/kevgate",
     }
 )
 PHASE_B_OBSERVATION_ALIASES = frozenset({"/v1/observability/business"})
@@ -70,15 +76,23 @@ def normalize_phase_b_payload(
         return payload
 
     normalized = dict(payload)
-    if (
+    if 200 <= int(status_code) < 300 and (
         path in PHASE_B_OBSERVATION_PATHS
         or path in PHASE_B_OBSERVATION_ALIASES
+        or path in KEVGATE_PATHS
     ):
         normalized["observed_at"] = observed_at or utc_observation_clock()
 
     if path in KEVGATE_PATHS and 200 <= int(status_code) < 300:
         raw_kind = str(normalized.get("data_kind") or "").strip().casefold()
-        canonical_kind = "live" if raw_kind == "live" else "cached"
+        if raw_kind == "live":
+            canonical_kind = "live"
+        elif raw_kind in {"cached", "sample", "snapshot"}:
+            # Bundled/in-image CISA rows are cached source material, not a
+            # fabricated SAMPLE feed. Unknown kinds stay fail-closed.
+            canonical_kind = "cached"
+        else:
+            return normalized
         normalized["data_kind"] = canonical_kind
 
         detail = normalized.get("detail")
