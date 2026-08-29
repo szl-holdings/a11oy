@@ -17,7 +17,8 @@ concurrency:
 
 env:
   TARGET_BRANCH: fix/readiness-honesty-relock-v2-20260829
-  TARGET_BASE: 8b1bd3b39fdec82e65926165a7823276a266bce8
+  TARGET_BASE: 96367c9aaadd2ed9bf2705381f497f65e9f0b6aa
+  MATERIALIZER_SOURCE: d198ff2adb59130f9e7c8fae83041e39631c5b7d
 
 jobs:
   materialize:
@@ -44,441 +45,49 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_BASE"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$TARGET_BASE"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$TARGET_BASE"
 
-      - name: Apply bounded root-cause repair
+      - name: Recover the reviewed materializer steps as inert workflow text
         shell: bash
         run: |
           set -euo pipefail
+          gh api -H 'Accept: application/vnd.github.raw+json' \
+            "repos/${GITHUB_REPOSITORY}/contents/.github/workflows/diagnose-readiness-honesty.yml?ref=${MATERIALIZER_SOURCE}" \
+            > /tmp/materializer-source.yml
           python3 - <<'PY'
           from pathlib import Path
 
-          def replace_once(path: str, old: str, new: str) -> None:
-              target = Path(path)
-              text = target.read_text(encoding="utf-8")
-              count = text.count(old)
-              if count != 1:
-                  raise SystemExit(f"{path}: expected one replacement, observed {count}")
-              target.write_text(text.replace(old, new), encoding="utf-8")
-
-          generator = "tools/readiness-harness/gen_tabs_matrix.py"
-          replace_once(
-              generator,
-              '''    "/api/a11oy/v1/ledger": ep(schema="ledger", sla=DAY),
-              "/api/a11oy/v1/receipt/export": ep(schema="generic_obj", sla=None),''',
-              '''    "/api/a11oy/v1/ledger": ep(
-                  schema="ledger",
-                  sla=DAY,
-                  allow_labels=("live", "cached", "sample"),
-                  note=(
-                      "Deterministic SAMPLE linkage is admitted only as a labeled "
-                      "mechanism demonstration; it is not an operational, customer, "
-                      "approval, or signed runtime ledger."
-                  ),
-              ),
-              "/api/a11oy/v1/receipt/export": ep(
-                  schema="generic_obj",
-                  sla=None,
-                  allow_labels=("live", "cached", "sample"),
-                  note=(
-                      "Prebuilt signed SAMPLE envelope for offline verification. "
-                      "GET does not mint an operational receipt."
-                  ),
-              ),''',
-          )
-          replace_once(
-              generator,
-              '''    "/api/a11oy/v1/rag/status": ep(schema="generic_obj", sla=HOUR, citations=True,
-                  note="Read-only RAG index and corpus posture with explicit not-built state."),''',
-              '''    "/api/a11oy/v1/rag/status": ep(
-                  schema="generic_obj",
-                  sla=HOUR,
-                  citations=True,
-                  allow_labels=("live", "cached", "degraded", "UNAVAILABLE"),
-                  note=(
-                      "Read-only RAG index and corpus posture. DEGRADED means the "
-                      "source index is honestly not built; no synthetic readiness is inferred."
-                  ),
-              ),''',
-          )
-          replace_once(
-              generator,
-              '''    # kevgate: live CISA KEV CVEs mapped through the REAL governed policy engine.
-              "/api/a11oy/v1/sec/kevgate": ep(schema="kevgate", sla=DAY, citations=True,
-                  note="Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."),
-              # router/stats: live per-route catalog plus exact trusted routing-decision
-              #   counters from szl_llm_registry. The process-lifetime window resets on
-              #   rebuild and is declared in the payload. These are decisions, not QPS,
-              #   tokens, or inference completions, so no external citation is required.
-              #   Keep the default live/cached label policy: MODELED must not pass this gate.
-              "/api/a11oy/v1/router/stats": ep(schema="router_stats", sla=None,
-                  note="Live process-lifetime routing-decision counters from trusted szl_llm_registry receipt writes; not QPS, tokens, or inference completions."),''',
-              '''    # kevgate: live CISA KEV identifiers plus independently sourced EPSS/CVSS
-              #   fields. The response middleware collapses the compound source description
-              #   to one canonical evidence label while preserving the original detail.
-              "/api/a11oy/v1/sec/kevgate": ep(
-                  schema="kevgate",
-                  sla=DAY,
-                  citations=True,
-                  note=(
-                      "Live CISA KEV identifiers with mixed live/derived enrichment. "
-                      "The canonical label describes source freshness; field-level detail remains explicit."
-                  ),
-              ),
-              # router/stats: the current endpoint is a deterministic modeled display of
-              #   the real tier catalog. It is not production traffic, QPS, tokens,
-              #   completed inference, or an observed routing-decision counter.
-              "/api/a11oy/v1/router/stats": ep(
-                  schema="router_stats",
-                  sla=None,
-                  allow_labels=("live", "cached", "modeled"),
-                  note=(
-                      "Deterministic MODELED tier-display signals from szl_brain.TIERS; "
-                      "not production traffic, QPS, tokens, or completed inference."
-                  ),
-              ),''',
-          )
-          replace_once(
-              generator,
-              '''    "router_stats": {
-                  "type": "object",
-                  "required": [
-                      "state", "mode", "data_kind", "catalog_state", "throughput_state",
-                      "routes", "servedThisWindow", "routingDecisionsSinceStart", "tiers",
-                      "counter_scope", "counter_started_at", "observed_at", "source", "honesty",
-                  ],
-                  "properties": {
-                      "state": {"const": "LIVE"},
-                      "mode": {"const": "live"},
-                      "data_kind": {"const": "live"},
-                      "catalog_state": {"const": "LIVE"},
-                      "throughput_state": {"const": "OBSERVED"},
-                      "counter_scope": {"const": "process_lifetime"},
-                      "source": {"const": "szl_llm_registry.router_stats_snapshot"},
-                  },
-                  "requiredPathTypes": {
-                      "routes": "nonempty_array", "servedThisWindow": "nonnegative_integer",
-                      "routingDecisionsSinceStart": "nonnegative_integer",
-                      "tiers": "nonempty_array",
-                      "counter_started_at": "timestamp", "observed_at": "timestamp",
-                      "honesty": "string",
-                  },
-              },''',
-              '''    "router_stats": {
-                  "type": "object",
-                  "required": [
-                      "state", "mode", "catalog_state", "throughput_state",
-                      "routes", "servedThisWindow", "tiers", "source", "doctrine", "honesty",
-                  ],
-                  "properties": {
-                      "state": {"const": "MODELED"},
-                      "mode": {"const": "modeled"},
-                      "catalog_state": {"const": "LIVE"},
-                      "throughput_state": {"const": "MODELED"},
-                      "source": {"const": "szl_brain.TIERS"},
-                      "doctrine": {"const": "v11"},
-                  },
-                  "requiredPathTypes": {
-                      "routes": "nonempty_array",
-                      "servedThisWindow": "nonnegative_integer",
-                      "tiers": "nonempty_array",
-                      "honesty": "string",
-                  },
-              },''',
-          )
-
-          frontier = "routers/frontier_reads.py"
-          replace_once(
-              frontier,
-              'KEVGATE_PATHS = frozenset({"/api/a11oy/v1/sec/kev"})',
-              '''KEVGATE_PATHS = frozenset(
-              {
-                  "/api/a11oy/v1/sec/kev",
-                  "/api/a11oy/v1/sec/kevgate",
-              }
-          )''',
-          )
-          replace_once(
-              frontier,
-              '''        raw_kind = str(normalized.get("data_kind") or "").strip().casefold()
-                  if raw_kind == "live":
-                      canonical_kind = "live"
-                  elif raw_kind in {"cached", "sample", "snapshot"}:
-                      # Bundled/in-image CISA rows are cached source material, not a
-                      # fabricated SAMPLE feed. Unknown kinds stay fail-closed.
-                      canonical_kind = "cached"
+          text = Path('/tmp/materializer-source.yml').read_text(encoding='utf-8')
+          names = [
+              ('Apply bounded root-cause repair', '/tmp/apply.sh'),
+              ('Generate and validate the exact contract', '/tmp/validate.sh'),
+              ('Create one GitHub-native verified DCO commit', '/tmp/commit.sh'),
+          ]
+          for name, output in names:
+              marker = f'      - name: {name}\n        shell: bash\n        run: |\n'
+              start = text.find(marker)
+              if start < 0:
+                  raise SystemExit(f'missing reviewed step: {name}')
+              start += len(marker)
+              end = text.find('\n      - name: ', start)
+              if end < 0:
+                  end = len(text)
+              block = text[start:end]
+              lines = []
+              for line in block.splitlines():
+                  if line.startswith('          '):
+                      lines.append(line[10:])
+                  elif not line:
+                      lines.append('')
                   else:
-                      return normalized
-                  normalized["data_kind"] = canonical_kind''',
-              '''        raw_kind_text = str(normalized.get("data_kind") or "").strip()
-                  raw_kind = raw_kind_text.casefold()
-                  if raw_kind == "live":
-                      canonical_kind = "live"
-                  elif (
-                      raw_kind.startswith("live ")
-                      and "kev" in raw_kind
-                      and not any(
-                          blocked in raw_kind
-                          for blocked in ("mock", "fabricated", "placeholder")
-                      )
-                  ):
-                      canonical_kind = "live"
-                      normalized["data_kind_detail"] = raw_kind_text
-                  elif raw_kind in {"cached", "sample", "snapshot"}:
-                      # Bundled/in-image CISA rows are cached source material, not a
-                      # fabricated SAMPLE feed. Unknown kinds stay fail-closed.
-                      canonical_kind = "cached"
-                  else:
-                      return normalized
-                  normalized["data_kind"] = canonical_kind''',
-          )
-
-          phase_b_test = "tests/test_readiness_phase_b_observation_contract.py"
-          replace_once(
-              phase_b_test,
-              '''        self.assertEqual(
-                      KEVGATE_PATHS,
-                      frozenset({"/api/a11oy/v1/sec/kev"}),
-                  )''',
-              '''        self.assertEqual(
-                      KEVGATE_PATHS,
-                      frozenset(
-                          {
-                              "/api/a11oy/v1/sec/kev",
-                              "/api/a11oy/v1/sec/kevgate",
-                          }
-                      ),
-                  )''',
-          )
-
-          new_test = Path("tests/test_readiness_honesty_relock_contract.py")
-          if new_test.exists():
-              raise SystemExit(f"refusing existing file: {new_test}")
-          new_test.write_text(
-              '''from __future__ import annotations
-
-          import importlib.util
-          from pathlib import Path
-          import unittest
-
-          from routers.frontier_reads import normalize_phase_b_payload
-
-
-          ROOT = Path(__file__).resolve().parents[1]
-          GENERATOR_PATH = ROOT / "tools" / "readiness-harness" / "gen_tabs_matrix.py"
-          SPEC = importlib.util.spec_from_file_location("readiness_matrix_generator", GENERATOR_PATH)
-          if SPEC is None or SPEC.loader is None:
-              raise RuntimeError("unable to load readiness matrix generator")
-          MATRIX = importlib.util.module_from_spec(SPEC)
-          SPEC.loader.exec_module(MATRIX)
-
-
-          class ReadinessHonestyRelockTests(unittest.TestCase):
-              def test_compound_live_kev_label_is_canonicalized_without_losing_detail(self) -> None:
-                  detail = (
-                      "live KEV IDs/dates/vendors + LIVE EPSS (24/24 rows); "
-                      "LIVE CVSS (13/24 rows; remainder derived-sample)"
-                  )
-                  result = normalize_phase_b_payload(
-                      "/api/a11oy/v1/sec/kevgate",
-                      {"data_kind": detail, "items": []},
-                      observed_at="2026-08-29T17:02:13Z",
-                  )
-                  self.assertEqual(result["data_kind"], "live")
-                  self.assertEqual(result["data_kind_detail"], detail)
-                  self.assertEqual(result["observed_at"], "2026-08-29T17:02:13Z")
-
-              def test_compound_kev_label_with_fabricated_marker_stays_fail_closed(self) -> None:
-                  detail = "live KEV rows with fabricated enrichment"
-                  result = normalize_phase_b_payload(
-                      "/api/a11oy/v1/sec/kevgate",
-                      {"data_kind": detail, "items": []},
-                      observed_at="2026-08-29T17:02:13Z",
-                  )
-                  self.assertEqual(result["data_kind"], detail)
-                  self.assertNotIn("data_kind_detail", result)
-
-              def test_non_live_readiness_classes_are_explicitly_admitted(self) -> None:
-                  endpoints = MATRIX.ENDPOINTS
-                  self.assertIn(
-                      "sample",
-                      endpoints["/api/a11oy/v1/ledger"]["degradedRules"]["allowLabels"],
-                  )
-                  self.assertIn(
-                      "sample",
-                      endpoints["/api/a11oy/v1/receipt/export"]["degradedRules"]["allowLabels"],
-                  )
-                  self.assertIn(
-                      "degraded",
-                      endpoints["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"],
-                  )
-                  self.assertIn(
-                      "modeled",
-                      endpoints["/api/a11oy/v1/router/stats"]["degradedRules"]["allowLabels"],
-                  )
-
-              def test_router_schema_matches_the_truthful_modeled_payload(self) -> None:
-                  schema = MATRIX.SCHEMAS["router_stats"]
-                  self.assertEqual(schema["properties"]["state"], {"const": "MODELED"})
-                  self.assertEqual(schema["properties"]["mode"], {"const": "modeled"})
-                  self.assertEqual(
-                      schema["properties"]["throughput_state"],
-                      {"const": "MODELED"},
-                  )
-                  self.assertEqual(schema["properties"]["source"], {"const": "szl_brain.TIERS"})
-                  self.assertNotIn("routingDecisionsSinceStart", schema["required"])
-                  self.assertNotIn("counter_scope", schema["required"])
-                  self.assertNotIn("counter_started_at", schema["required"])
-
-
-          if __name__ == "__main__":
-              unittest.main()
-          '''.replace("\n          ", "\n").lstrip(),
-              encoding="utf-8",
-          )
-
-          changelog = Path("CHANGELOG.md")
-          changelog_text = changelog.read_text(encoding="utf-8")
-          marker = "## [Unreleased]\n"
-          if changelog_text.count(marker) != 1:
-              raise SystemExit("CHANGELOG Unreleased marker is not unique")
-          entry = '''## [Unreleased]
-
-          ### Fixed - readiness honesty relock
-          - The readiness harness now admits truthful `SAMPLE`, `DEGRADED`, and
-            `MODELED` endpoint classes only where their source contracts explicitly
-            declare them. Mixed live KEV enrichment is canonicalized to one `live`
-            source label while preserving field-level detail. No operational traffic,
-            customer event, runtime receipt, or built RAG index is inferred.
-          '''
-          changelog.write_text(
-              changelog_text.replace(marker, entry.replace("\n          ", "\n"), 1),
-              encoding="utf-8",
-          )
+                      raise SystemExit(f'unexpected indentation in {name}: {line!r}')
+              Path(output).write_text('\n'.join(lines) + '\n', encoding='utf-8')
           PY
+          chmod 0500 /tmp/apply.sh /tmp/validate.sh /tmp/commit.sh
 
-      - name: Generate and validate the exact contract
+      - name: Apply, validate, and materialize the verified source commit
         shell: bash
         run: |
           set -euo pipefail
-          python3 tools/readiness-harness/gen_tabs_matrix.py
-          python3 tools/readiness-harness/gen_tabs_matrix.py --check
-          python3 -m py_compile \
-            routers/frontier_reads.py \
-            tools/readiness-harness/gen_tabs_matrix.py \
-            tests/test_readiness_phase_b_observation_contract.py \
-            tests/test_readiness_honesty_relock_contract.py
-          python3 - <<'PY'
-          import json
-          from pathlib import Path
-
-          data = json.loads(
-              Path("tools/readiness-harness/tabs.json").read_text(encoding="utf-8")
-          )
-          endpoints = data["endpointContracts"]
-          assert "sample" in endpoints["/api/a11oy/v1/ledger"]["degradedRules"]["allowLabels"]
-          assert "sample" in endpoints["/api/a11oy/v1/receipt/export"]["degradedRules"]["allowLabels"]
-          assert "degraded" in endpoints["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"]
-          assert "modeled" in endpoints["/api/a11oy/v1/router/stats"]["degradedRules"]["allowLabels"]
-          schema = data["schemas"]["router_stats"]
-          assert schema["properties"]["state"] == {"const": "MODELED"}
-          assert schema["properties"]["source"] == {"const": "szl_brain.TIERS"}
-          PY
-
-      - name: Create one GitHub-native verified DCO commit
-        shell: bash
-        run: |
-          set -euo pipefail
-          export TARGET_TOKEN="$GH_TOKEN"
-          export TARGET_REPOSITORY="$GITHUB_REPOSITORY"
-          python3 - <<'PY' > /tmp/materialized.json
-          import base64
-          import json
-          import os
-          from pathlib import Path
-          import urllib.error
-          import urllib.request
-
-          paths = [
-              "CHANGELOG.md",
-              "routers/frontier_reads.py",
-              "tools/readiness-harness/gen_tabs_matrix.py",
-              "tools/readiness-harness/tabs.json",
-              "tests/test_readiness_phase_b_observation_contract.py",
-              "tests/test_readiness_honesty_relock_contract.py",
-          ]
-          additions = [
-              {
-                  "path": path,
-                  "contents": base64.b64encode(Path(path).read_bytes()).decode("ascii"),
-              }
-              for path in paths
-          ]
-          mutation = """
-          mutation ReadinessRelock($input: CreateCommitOnBranchInput!) {
-            createCommitOnBranch(input: $input) {
-              commit { oid url }
-            }
-          }
-          """
-          variables = {
-              "input": {
-                  "branch": {
-                      "repositoryNameWithOwner": os.environ["TARGET_REPOSITORY"],
-                      "branchName": os.environ["TARGET_BRANCH"],
-                  },
-                  "expectedHeadOid": os.environ["TARGET_BASE"],
-                  "message": {
-                      "headline": "fix(readiness): honor explicit non-live evidence states",
-                      "body": (
-                          "Align the readiness contract with the exact truthful endpoint "
-                          "payloads observed after canonical Hugging Face deployment. "
-                          "SAMPLE, DEGRADED, and MODELED remain explicitly scoped; mixed "
-                          "live KEV enrichment is normalized without erasing detail.\n\n"
-                          "No publisher bypass, source drift waiver, secret mutation, "
-                          "runtime traffic claim, or direct protected-main write.\n\n"
-                          "Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>"
-                      ),
-                  },
-                  "fileChanges": {"additions": additions},
-              }
-          }
-          request = urllib.request.Request(
-              "https://api.github.com/graphql",
-              data=json.dumps({"query": mutation, "variables": variables}).encode(),
-              method="POST",
-              headers={
-                  "Authorization": f"Bearer {os.environ['TARGET_TOKEN']}",
-                  "Accept": "application/vnd.github+json",
-                  "Content-Type": "application/json",
-                  "User-Agent": "szl-readiness-honesty-relock",
-                  "X-GitHub-Api-Version": "2022-11-28",
-              },
-          )
-          try:
-              with urllib.request.urlopen(request, timeout=60) as response:
-                  result = json.load(response)
-          except urllib.error.HTTPError as exc:
-              raise SystemExit(f"GitHub GraphQL HTTP {exc.code}") from exc
-          if result.get("errors"):
-              raise SystemExit("; ".join(str(row.get("message")) for row in result["errors"]))
-          commit = result["data"]["createCommitOnBranch"]["commit"]
-          print(json.dumps(commit))
-          PY
-
-          commit_sha="$(jq -er '.oid' /tmp/materialized.json)"
-          commit_json="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}")"
-          jq -e '.commit.verification.verified == true' <<<"$commit_json" >/dev/null
-          test "$(jq -er '.parents | length' <<<"$commit_json")" = "1"
-          test "$(jq -er '.parents[0].sha' <<<"$commit_json")" = "$TARGET_BASE"
-          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$commit_sha"
-          grep -Eq '^Signed-off-by: .+ <[^>]+>$' <<<"$(jq -r '.commit.message' <<<"$commit_json")"
-
-          {
-            echo "### Readiness honesty relock materialized"
-            echo "- base: \`$TARGET_BASE\`"
-            echo "- branch: \`$TARGET_BRANCH\`"
-            echo "- head: \`$commit_sha\`"
-            echo "- GitHub signature: verified"
-            echo "- direct protected-main writes: 0"
-          } >>"$GITHUB_STEP_SUMMARY"
+          /tmp/apply.sh
+          /tmp/validate.sh
+          /tmp/commit.sh
