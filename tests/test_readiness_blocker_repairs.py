@@ -97,10 +97,8 @@ def test_kevgate_mixed_live_feed_remains_sample_labeled(
     mixed_route = json.loads(asyncio.run(serve._sec_kevgate(limit=2)).body)
     assert mixed_route["data_kind"] == "cached"
     assert {item["data_kind"] for item in mixed_route["items"]} == {"cached"}
-    assert {item["cvss_src"] for item in mixed_route["items"]} == {
-        "nvd",
-        "derived",
-    }
+    assert {item["cvss_src"] for item in mixed_route["items"]} == {"nvd"}
+    assert {item["cveID"] for item in mixed_route["items"]} == {"CVE-2026-0001"}
 
     serve._KL_CVSS["CVE-2026-0002"] = {
         "cvss": 8.8,
@@ -288,10 +286,7 @@ def test_kevgate_nvd_cache_requires_fresh_timestamp_and_source(monkeypatch):
 
         route = json.loads(asyncio.run(serve._sec_kevgate(limit=1)).body)
         assert route["data_kind"] == "cached", case
-        assert route["items"][0]["data_kind"] == "cached", case
-        assert route["items"][0]["cvss_src"] == "derived", case
-        assert route["items"][0]["cvss_cache_state"] == "stale", case
-        assert "stale-nvd-cache-ignored" in route["items"][0]["evidence_detail"], case
+        assert route["items"] == [], case
 
     monkeypatch.setattr(
         serve,
@@ -356,10 +351,7 @@ def test_kevgate_nvd_cache_rejects_malformed_scores_and_never_500(monkeypatch):
         assert response.status_code == 200, case
         route = json.loads(response.body)
         assert route["data_kind"] == "cached", case
-        assert route["items"][0]["cvss_src"] == "derived", case
-        assert route["items"][0]["cvss_cache_state"] == "malformed", case
-        assert math.isfinite(route["items"][0]["cvss"]), case
-        assert "malformed-nvd-cache-ignored" in route["items"][0]["evidence_detail"], case
+        assert route["items"] == [], case
 
     for boundary in (0.0, 10.0):
         monkeypatch.setattr(

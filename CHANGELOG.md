@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - kevgate omits incomplete CVSS rows
+- `/api/a11oy/v1/sec/kevgate` no longer emits `cached`/`live` items whose
+  CVSS is derived or stale. Incomplete enrichment is omitted fail-closed
+  so the post-deploy probe cannot score `cvss_evidence=derived/missing`
+  as a doctrine lie.
+
 ### Fixed - readiness honesty clocks and SAMPLE labels
 - Required probe surfaces no longer return SAMPLE/DEGRADED/UNAVAILABLE as
   root evidence labels on HTTP 200. Bundled CISA/MITRE snapshots are
