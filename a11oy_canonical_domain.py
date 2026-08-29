@@ -64,7 +64,7 @@ FORBIDDEN_PUBLIC_HOST = "a11oy.com"
 
 # HTML document paths crawlers and monitors probe with HEAD. GET-only FastAPI
 # routes 405 on HEAD; /verify and /ecosystem already declare GET+HEAD and 200.
-HTML_DOCUMENT_HEAD_PATHS = ("/", "/console", "/trust", "/assurance", "/robots.txt")
+HTML_DOCUMENT_HEAD_PATHS = ("/", "/console", "/command", "/trust", "/assurance", "/robots.txt")
 # QHAPAQ S1–S12 MEASURED 2026-08-28 13:05–13:12 ET: GET 200 / HEAD 405 on
 # /healthz /readyz /api/health; GET 200 / HEAD 404 on /api/a11oy/healthz and
 # /api/a11oy/v1/health (HEAD fell through to the /api/a11oy/{path} proxy).

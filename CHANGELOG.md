@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - public Command Center BIND on /command
+- `/command` is a 0-CDN public SPA (receipt lake, proof lab, estate, investor,
+  developer). Pathname routing under `/command/*`. Does not replace `/console`.
+  Not a landing card. Not a second flagship. Product door stays Products /
+  Catalog / Proof. `/command-center` 307s to `/command`. Proof stays on
+  a11oy.net. Λ = Conjecture 1. Estate labels are SOFTWARE/REPORTED. Range
+  circuit SAT is local MEASURED. Never a11oy.com.
+
 ### Added - five-space operator BIND on /five-space
 - `/five-space` is a 0-CDN BIND hologram of Command · Loop · Queue · Memory · Ledger.
   Status from `/api/a11oy/v1/five-space/{healthz,status}`. First paint CONNECTING.
