@@ -29,11 +29,14 @@ SLSA L1 honest; Khipu/cosign signature = DSSE-PLACEHOLDER (never faked). NO BAND
 from __future__ import annotations
 
 import hashlib
+import importlib
 import json
+import os
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Dict, List, Optional, Tuple
 
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
@@ -209,6 +212,152 @@ GAP_REPORT = {
     "locked": LOCKED,
 }
 
+KERNEL_DOCTRINE = {
+    "version": "v11",
+    "lambda": "Conjecture 1",
+    "locked_proven": 8,
+    "joblib": "QUARANTINED",
+    "pickle": "QUARANTINED",
+}
+
+ESTATE: Tuple[Dict[str, str], ...] = (
+    {"key": "szl-kernels", "module": "szl_kernels", "hub_id": "SZLHOLDINGS/szl-kernels", "probe": "selfcheck"},
+    {"key": "szl-governed-norm", "module": "szl_governed_norm", "hub_id": "SZLHOLDINGS/szl-governed-norm", "probe": "selfcheck"},
+    {"key": "szl-lambda-gate", "module": "szl_lambda_gate", "hub_id": "SZLHOLDINGS/szl-lambda-gate", "probe": "selfcheck"},
+    {"key": "governed-inference-meter", "module": "governed_inference_meter", "hub_id": "SZLHOLDINGS/governed-inference-meter", "probe": "selfcheck"},
+    {"key": "szl-receipt-attn", "module": "szl_receipt_attn", "hub_id": "SZLHOLDINGS/szl-receipt-attn", "probe": "selfcheck"},
+    {"key": "szl-maskmod", "module": "szl_maskmod", "hub_id": "SZLHOLDINGS/szl-maskmod", "probe": "selfcheck"},
+    {"key": "szl-block-kv", "module": "szl_block_kv", "hub_id": "SZLHOLDINGS/szl-block-kv", "probe": "selfcheck"},
+    {"key": "YARQA-ATTN", "module": "yarqa_attn", "hub_id": "SZLHOLDINGS/YARQA-ATTN", "probe": "selfcheck"},
+    {"key": "szl-ouroboros", "module": "szl_ouroboros", "hub_id": "SZLHOLDINGS/szl-ouroboros", "probe": "selfcheck"},
+    {"key": "szl-invariants", "module": "szl_invariants", "hub_id": "SZLHOLDINGS/szl-invariants", "probe": "selfcheck"},
+    {"key": "szl-formulas", "module": "szl_formulas", "hub_id": "SZLHOLDINGS/szl-formulas", "probe": "selfcheck"},
+    {"key": "szl-blocked", "module": "szl_blocked", "hub_id": "SZLHOLDINGS/szl-blocked", "probe": "selfcheck"},
+    {"key": "szl-govsign", "module": "szl_govsign", "hub_id": "SZLHOLDINGS/szl-govsign", "probe": "selfcheck"},
+    {"key": "szl-provctl", "module": "szl_provctl", "hub_id": "SZLHOLDINGS/szl-provctl", "probe": "selfcheck"},
+    {"key": "szl-nemo", "module": "szl_nemo", "hub_id": "SZLHOLDINGS/szl-nemo", "probe": "rule_check"},
+    {"key": "szl-serve", "module": "szl_serve", "hub_id": "SZLHOLDINGS/szl-serve", "probe": "selfcheck"},
+)
+
+
+def list_estate() -> List[Dict[str, str]]:
+    return [dict(e) for e in ESTATE]
+
+
+def cuda_status() -> Dict[str, Any]:
+    try:
+        import torch  # type: ignore
+
+        if bool(torch.cuda.is_available()):
+            try:
+                name = str(torch.cuda.get_device_name(0))
+            except Exception:
+                name = "cuda:0"
+            return {"status": "LIVE", "device": name}
+    except Exception as exc:
+        return {
+            "status": "UNAVAILABLE",
+            "reason": f"{type(exc).__name__}: {exc}",
+            "note": "GPU kernels stay ROADMAP; no fake CUDA",
+        }
+    return {
+        "status": "UNAVAILABLE",
+        "reason": "torch.cuda.is_available() is False",
+        "note": "GPU kernels stay ROADMAP; no fake CUDA",
+    }
+
+
+def _kernel_extend_sys_path() -> None:
+    extra = os.environ.get("SZL_KERNEL_PATHS", "")
+    if not extra:
+        return
+    for raw in extra.split(os.pathsep):
+        path = raw.strip()
+        if path and path not in sys.path:
+            sys.path.insert(0, path)
+
+
+def _kernel_summarize(result: Any) -> Any:
+    if result is None or isinstance(result, (str, int, float, bool)):
+        return result
+    if isinstance(result, tuple) and len(result) == 2 and isinstance(result[0], bool):
+        ok, violated = result
+        return {"ok": ok, "violated": list(violated) if violated is not None else []}
+    if isinstance(result, dict):
+        out: Dict[str, Any] = {}
+        for key in ("ok", "version", "label", "path", "lambda", "note"):
+            if key in result:
+                out[key] = result[key]
+        if "ok" not in out and "arithmetic_ok" in result:
+            out["ok"] = bool(result["arithmetic_ok"])
+        return out or {"keys": sorted(result.keys())[:12]}
+    return type(result).__name__
+
+
+def _kernel_call_probe(mod: Any, probe: str) -> Any:
+    if probe == "rule_check":
+        return getattr(mod, "rule_check")(
+            "hello", "this is MEASURED software, not a score"
+        )
+    fn = getattr(mod, probe, None)
+    if fn is None:
+        raise AttributeError(f"{getattr(mod, '__name__', '?')} has no {probe}()")
+    return fn()
+
+
+def probe_member(entry: Dict[str, str]) -> Dict[str, Any]:
+    rec = dict(entry)
+    rec["joblib"] = "QUARANTINED"
+    rec["pickle"] = "QUARANTINED"
+    try:
+        mod = importlib.import_module(entry["module"])
+    except Exception as exc:
+        rec.update(
+            {
+                "status": "UNAVAILABLE",
+                "called": False,
+                "reason": f"{type(exc).__name__}: {exc}",
+            }
+        )
+        return rec
+    try:
+        result = _kernel_call_probe(mod, entry["probe"])
+        rec.update(
+            {
+                "status": "LIVE",
+                "via": f"{entry['module']}.{entry['probe']}",
+                "called": True,
+                "probe_result": _kernel_summarize(result),
+            }
+        )
+        return rec
+    except Exception as exc:
+        rec.update(
+            {
+                "status": "UNAVAILABLE",
+                "called": True,
+                "reason": f"{type(exc).__name__}: {exc}",
+            }
+        )
+        return rec
+
+
+def probe_estate() -> Dict[str, Any]:
+    _kernel_extend_sys_path()
+    kernels = [probe_member(dict(e)) for e in ESTATE]
+    live = sum(1 for k in kernels if k.get("status") == "LIVE")
+    return {
+        "ok": True,
+        "live": live,
+        "enumerated": len(kernels),
+        "cuda": cuda_status(),
+        "doctrine": KERNEL_DOCTRINE,
+        "joblib": "QUARANTINED",
+        "pickle": "QUARANTINED",
+        "lambda": "Conjecture 1 (advisory)",
+        "kernels": kernels,
+    }
+
 
 def register(app: FastAPI) -> None:
     """Register hub HTML tabs + JSON endpoints. Call BEFORE the SPA catch-all.
@@ -331,3 +480,19 @@ def register(app: FastAPI) -> None:
     @app.get("/api/a11oy/v1/hub/gap-report")
     async def hub_gap_report() -> JSONResponse:
         return _json(GAP_REPORT, "gap-report")
+
+    @app.get("/api/a11oy/v1/kernel-estate", include_in_schema=False)
+    async def hub_kernel_estate() -> JSONResponse:
+        return JSONResponse(probe_estate())
+
+    @app.get("/api/a11oy/v1/kernel-estate/{key}", include_in_schema=False)
+    async def hub_kernel_estate_one(key: str) -> JSONResponse:
+        entry: Optional[Dict[str, str]] = next(
+            (dict(e) for e in ESTATE if e["key"] == key), None
+        )
+        if entry is None:
+            return JSONResponse(
+                {"status": "UNAVAILABLE", "reason": f"unknown kernel {key!r}"},
+                status_code=404,
+            )
+        return JSONResponse(probe_member(entry))

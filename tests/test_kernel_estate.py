@@ -13,7 +13,7 @@ pytest.importorskip("starlette.testclient")
 from fastapi import FastAPI  # noqa: E402
 from starlette.testclient import TestClient  # noqa: E402
 
-import szl_kernel_estate as ke  # noqa: E402
+import szl_hub as ke  # noqa: E402
 
 REQUIRED = [
     "szl-kernels",
@@ -79,8 +79,7 @@ def test_injected_kernel_is_actually_called(monkeypatch):
 
 def test_register_endpoint_calls_probe():
     app = FastAPI()
-    status = ke.register(app, ns="a11oy")
-    assert "kernel-estate" in status
+    ke.register(app)
     client = TestClient(app)
     resp = client.get("/api/a11oy/v1/kernel-estate")
     assert resp.status_code == 200

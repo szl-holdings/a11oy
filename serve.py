@@ -4503,20 +4503,6 @@ for _mined_mod in (
         print(f"[a11oy] MINED-UPGRADE {_mined_mod} NOT registered: {_mined_e!r}; SPA + API unaffected", file=sys.stderr)
 
 # ---------------------------------------------------------------------------
-# ADDITIVE (KERNEL ESTATE, 2026-08): import+call every published SZL kernel
-# (szl-kernels suite + attention trio + YARQA + governance series + meter +
-# serve) or report honest UNAVAILABLE. joblib/pickle quarantined. GPU cubins
-# stay ROADMAP unless CUDA is actually present. register() BEFORE SPA catch-all.
-# ---------------------------------------------------------------------------
-try:
-    import szl_kernel_estate as _szl_kernel_estate
-    _ke_status = _szl_kernel_estate.register(app, ns="a11oy")
-    print(f"[a11oy] kernel-estate registered: {_ke_status}", file=sys.stderr)
-except Exception as _ke_e:
-    if not _optional_module_absent(_ke_e, "szl_kernel_estate", "SZL kernel estate"):
-        print(f"[a11oy] kernel-estate NOT registered: {_ke_e!r}; SPA + API unaffected", file=sys.stderr)
-
-# ---------------------------------------------------------------------------
 # ADDITIVE (RE-SWEEP WAVE 2, 2026-06, Yachay): four MORE self-contained,
 # dependency-free operator surfaces from the P0 re-sweep backlog. Same doctrine:
 # adopt a PERMISSIVE pattern (MIT/Apache), attribute in NOTICE, EVOLVE to an
