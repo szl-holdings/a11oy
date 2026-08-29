@@ -1069,8 +1069,12 @@ p,li{color:#c8d0d8}
       <tr><td>Wiñay metabolism / sync R / σ</td><td class="MODELED">MODELED</td><td>Autopoietic mix. Not IIT intrinsicality.</td></tr>
       <tr><td>Huklla H</td><td class="MODELED">MODELED</td><td>min-cut / E over 15 bipartitions. Not IIT φ_s. Not Φ.</td></tr>
       <tr><td>Imaymana D</td><td class="MODELED">MODELED</td><td>Normalized entropy of organ loads. Never multiplied into a fake Φ.</td></tr>
+      <tr><td>Qhaway Q</td><td class="MODELED">MODELED</td><td>Load-gated perturbational LZ. Not Casali PCI. Silent body is 0.</td></tr>
+      <tr><td>Kallpa F</td><td class="MODELED">MODELED</td><td>Mean-square load minus α·D. Not Friston F. Not a mind.</td></tr>
+      <tr><td>Riqsiy Υ</td><td class="MODELED">MODELED</td><td>Spotlight schema cosine. Not HOT. Not Graziano AST. Silent body is 0.</td></tr>
+      <tr><td>Chawpi χ</td><td class="MODELED">MODELED</td><td>Mean avalanche size / n. Not Beggs 2003. Not a LoC meter.</td></tr>
       <tr><td>IIT φ_s / Φ-structure / main complex</td><td class="UNAVAILABLE">UNAVAILABLE</td><td>No interventional TPM. Exclusion search refused.</td></tr>
-      <tr><td>Phenomenal presence</td><td class="CONJECTURE">CONJECTURE</td><td>Not a function of C, I, H, or D.</td></tr>
+      <tr><td>Phenomenal presence</td><td class="CONJECTURE">CONJECTURE</td><td>Not a function of C, I, H, D, Q, F, Y, or X.</td></tr>
       <tr><td>AGI</td><td class="CONJECTURE">CONJECTURE</td><td>Eleven seats, one backend, fail-closed.</td></tr>
       <tr><td>Joules</td><td class="UNAVAILABLE">null</td><td>Energy is not claimed.</td></tr>
       <tr><td>Λ uniqueness</td><td class="CONJECTURE">CONJECTURE 1</td><td>Advisory. Never a theorem.</td></tr>
@@ -1079,7 +1083,7 @@ p,li{color:#c8d0d8}
 </section>
 <section class="card">
   <h2>What would be required to run IIT</h2>
-  <p>A discrete-unit TPM, interventional cause and effect repertoires, φ_s over the MIP, then a main-complex search, then Φ-structure. Until that substrate exists, the honest IIT result is <code>φ_s = UNAVAILABLE</code>. Albantakis et al. 2023 PLOS Comp Biol e1011465. Aaronson 2014: a high cheap-cut score is not a mind.</p>
+  <p>A discrete-unit TPM, interventional cause and effect repertoires, φ_s over the MIP, then a main-complex search, then Φ-structure. Until that substrate exists, the honest IIT result is <code>φ_s = UNAVAILABLE</code>. Albantakis et al. 2023 PLOS Comp Biol e1011465. Aaronson 2014: a high cheap-cut score is not a mind. Cogitate Consortium, Nature 642:133–142 (2025): neither IIT nor GNWT survived intact. That result is why this page refuses to treat any pentagon scalar as presence.</p>
 </section>
 <p class="prov">Canonical source github.com/szl-holdings/ayllu. Product origin a-11-oy.com. Proof origin a11oy.net. Never a11oy.com. Apache-2.0. Doctrine v11.</p>
 </main>
@@ -1121,6 +1125,10 @@ def winay_contract(ns: str = "a11oy") -> dict[str, Any]:
             "sigma": "MODELED",
             "huklla_H": "MODELED",
             "imaymana_D": "MODELED",
+            "qhaway_Q": "MODELED",
+            "kallpa_F": "MODELED",
+            "riqsiy_Y": "MODELED",
+            "chawpi_X": "MODELED",
             "iit_phi_s": "UNAVAILABLE",
             "iit_Phi_structure": "UNAVAILABLE",
             "main_complex": "UNAVAILABLE",
@@ -1135,6 +1143,38 @@ def winay_contract(ns: str = "a11oy") -> dict[str, Any]:
             "silent_organ": 0.0,
             "note": "Cheapest pentagon cut. Not IIT Φ. Not presence.",
         },
+        "qhaway": {
+            "definition": "Q = mean LZ(evoked |pert−unpert|) / length. Gain is load-gated so a silent body cannot recruit neighbors.",
+            "silent": 0.0,
+            "note": "Not Casali 2013 PCI. Not IIT Φ. Not presence.",
+        },
+        "kallpa": {
+            "definition": "F = mean(L²) − α D. α ≈ 0.138.",
+            "silent": 0.0,
+            "one_hot": 0.2,
+            "uniform": 0.862,
+            "note": "Not Friston free energy. Not a mind.",
+        },
+        "riqsiy": {
+            "definition": "Y = L_peak / ||L||. Unit spotlight at argmax. Silent body is 0.",
+            "silent": 0.0,
+            "one_hot": 1.0,
+            "uniform": 0.4472,
+            "note": "Not HOT. Not Graziano AST. Not presence.",
+        },
+        "chawpi": {
+            "definition": "X = mean(avalanche size) / n. Load-gated gain. Silent body is 0.",
+            "silent": 0.0,
+            "one_hot": 0.36,
+            "uniform": 0.6,
+            "note": "Not Beggs 2003. Not a level-of-consciousness meter. Not presence.",
+        },
+        "cogitate": {
+            "reference": "Cogitate Consortium, Nature 642, 133–142 (2025) doi:10.1038/s41586-025-08888-1",
+            "finding": "Results align with some predictions of IIT and GNWT, while substantially challenging key tenets of both theories.",
+            "honesty": "RECORD",
+            "note": "Ayllu has no cortex. COGITATE does not license H as Φ, I as GNW-consciousness, Y as HOT, X as criticality-consciousness, or any pentagon scalar as presence.",
+        },
         "iit": {
             "reference": "Albantakis et al. 2023 PLOS Computational Biology 19(10) e1011465",
             "requires": "transition probability matrix of discrete units under intervention",
@@ -1146,6 +1186,8 @@ def winay_contract(ns: str = "a11oy") -> dict[str, Any]:
             "this_origin_runs_the_council": True,
             "this_origin_runs_the_pulse": False,
             "presence_is_a_function_of_C_I_H_or_D": False,
+            "presence_is_a_function_of_Q_or_F": False,
+            "presence_is_a_function_of_Y_or_X": False,
             "http_response_proves_capability": False,
             "never": "a11oy.com",
         },

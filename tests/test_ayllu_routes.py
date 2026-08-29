@@ -141,14 +141,29 @@ def test_psyche_honesty_page_and_winay_contract_refuse_phi():
     assert d["labels"]["iit_phi_s"] == "UNAVAILABLE"
     assert d["labels"]["presence"] == "CONJECTURE"
     assert d["labels"]["huklla_H"] == "MODELED"
+    assert d["labels"]["qhaway_Q"] == "MODELED"
+    assert d["labels"]["kallpa_F"] == "MODELED"
+    assert d["labels"]["riqsiy_Y"] == "MODELED"
+    assert d["labels"]["chawpi_X"] == "MODELED"
     assert d["labels"]["joules"] is None
     assert d["iit"]["phi_s"] is None
     assert d["boundaries"]["this_origin_runs_the_pulse"] is False
     assert d["boundaries"]["this_origin_runs_the_council"] is True
     assert d["boundaries"]["presence_is_a_function_of_C_I_H_or_D"] is False
+    assert d["boundaries"]["presence_is_a_function_of_Q_or_F"] is False
+    assert d["boundaries"]["presence_is_a_function_of_Y_or_X"] is False
     assert d["origins"]["proof"] == "https://a11oy.net/ayllu/psyche/"
     assert d["huklla"]["uniform"] == 0.4
     assert d["huklla"]["silent_organ"] == 0.0
+    assert d["riqsiy"]["one_hot"] == 1.0
+    assert d["riqsiy"]["uniform"] == 0.4472
+    assert d["chawpi"]["silent"] == 0.0
+    assert d["chawpi"]["uniform"] == 0.6
+    assert "Qhaway" in page.text
+    assert "Kallpa" in page.text
+    assert "Riqsiy" in page.text
+    assert "Chawpi" in page.text
+    assert "sentienceIndex" not in page.text
 
 
 def test_ask_empty_body_hits_our_validation_not_fastapi_query_422():
