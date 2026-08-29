@@ -123,6 +123,23 @@ jobs:
           api.upload_file(path_or_fileobj=str(wdir / "lambda_gate.npz"), path_in_repo="lambda_gate.npz", repo_id="SZLHOLDINGS/szl-khipu", repo_type="model", commit_message="weights(atelier): 1-D lambda-gate silhouette — Conjecture 1 OPEN")
           print("published SZLHOLDINGS/szl-khipu lambda_gate.npz")
 
+          # Doctrine/courier CPU silhouettes. Do not clobber 0.5B/0.8B adapters.
+          def write_mlp(key, fname):
+              pck = src[key]
+              np.savez_compressed(wdir / fname, w1=arr(pck["w1"]), b1=arr(pck["b1"]), w2=arr(pck["w2"]), b2=arr(pck["b2"]), holdoutAcc=np.float64(pck["holdoutAcc"]), seed=seed)
+
+          cohort = [
+              ("willay", "willay.npz", "SZLHOLDINGS/WILLAY"),
+              ("chaski", "chaski.npz", "SZLHOLDINGS/chaski"),
+              ("chaski5050", "chaski_5050.npz", "SZLHOLDINGS/chaski-5050"),
+              ("chaskiR2", "chaski_r2.npz", "SZLHOLDINGS/chaski-r2"),
+          ]
+          for key, fname, repo in cohort:
+              if key in src:
+                  write_mlp(key, fname)
+                  api.upload_file(path_or_fileobj=str(wdir / fname), path_in_repo=fname, repo_id=repo, repo_type="model", commit_message="weights(atelier): CPU NumPy silhouette seed=20260721 — not a GPU retrain")
+                  print("published", repo, fname)
+
           # ROADMAP organs — honest empty-seat cards. No fake weights.
           for name in ("qantu", "waman", "chakana", "tinku"):
               repo = f"SZLHOLDINGS/{name}"
