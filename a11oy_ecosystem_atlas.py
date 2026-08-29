@@ -319,13 +319,7 @@ def register(app: Any, ns: str = "a11oy") -> str:
     routes.extend(Route(path, _atlas_page, methods=["GET", "HEAD"]) for path in page_paths)
     routes.append(Route("/anatomy-v5", _anatomy_page, methods=["GET", "HEAD"]))
     app.router.routes[0:0] = routes
-    extra = ""
-    try:
-        import szl_organ_integrity
-        extra = " + " + szl_organ_integrity.register(app, ns)
-    except Exception as exc:
-        extra = f" + organ-integrity UNAVAILABLE ({type(exc).__name__})"
-    return f"ok: atlas API + {len(page_paths)} deep-link pages + Anatomy v5{extra}"
+    return f"ok: atlas API + {len(page_paths)} deep-link pages + Anatomy v5"
 
 
 if __name__ == "__main__":
