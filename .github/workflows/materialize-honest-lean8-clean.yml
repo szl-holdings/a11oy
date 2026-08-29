@@ -17,8 +17,8 @@ concurrency:
 
 env:
   SOURCE_SHA: a9b2f2970c20b7e87639db19684548ff518f1d36
-  TARGET_BRANCH: fix/honest-lean8-bind-clean-20260829
-  TARGET_BASE: 5f5610edb6ed43e792d756470bc2d0eba049e0ff
+  TARGET_BRANCH: fix/honest-lean8-bind-clean-v2-20260829
+  TARGET_BASE: 117e7c7fcd40da2a449ceff4bd4bb101cc5a388e
 
 jobs:
   materialize:
