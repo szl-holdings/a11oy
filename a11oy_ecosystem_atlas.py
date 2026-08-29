@@ -146,6 +146,26 @@ CURATED_SURFACES: dict[str, list[dict[str, str]]] = {
             "owner": "szl-holdings/killinchu",
         },
     ],
+    "lyte": [
+        {
+            "id": "szl-holdings/lyte-lattice",
+            "kind": "source",
+            "href": "https://github.com/szl-holdings/lyte-lattice",
+            "owner": "szl-holdings/lyte-lattice",
+        },
+        {
+            "id": "LYTE lattice BIND",
+            "kind": "runtime",
+            "href": "/lyte",
+            "owner": "szl-holdings/lyte-lattice",
+        },
+        {
+            "id": "SZLHOLDINGS/lyte-lattice",
+            "kind": "space",
+            "href": "https://huggingface.co/spaces/SZLHOLDINGS/lyte-lattice",
+            "owner": "szl-holdings/lyte-lattice",
+        },
+    ],
 }
 
 _CACHE_TTL_SECONDS = 300.0

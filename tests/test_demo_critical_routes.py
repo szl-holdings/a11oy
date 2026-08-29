@@ -78,6 +78,8 @@ DEMO_CRITICAL_ROUTES = [
     "/immune",                                 # first-class IMMUNE product tab
     "/api/a11oy/v1/immune/kernel",             # same-origin Channel A /readyz probe
     "/api/a11oy/v1/immune/field",              # same-origin Channel B Field catalog
+    "/lyte",                                   # LYTE lattice BIND package (not a flagship)
+    "/api/a11oy/v1/lyte/status",               # honest BIND status — never fabricated LIVE
 ]
 
 
