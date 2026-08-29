@@ -1729,6 +1729,16 @@ except Exception as _frontier_page_e:  # pragma: no cover
     print(f"[a11oy] Frontier page NOT registered: {_frontier_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# N1–N25 factory organs. Runtime on the product origin only.
+# Proof RECORD is https://a11oy.net/factory/. Not 25 public Spaces.
+try:
+    import a11oy_n25_organs as _a11oy_n25_organs
+    _n25_organs_status = _a11oy_n25_organs.register(app, ns="a11oy")
+    print(f"[a11oy] N1–N25 organs registered: {_n25_organs_status}", file=__import__("sys").stderr)
+except Exception as _n25_organs_e:  # pragma: no cover
+    print(f"[a11oy] N1–N25 organs NOT registered: {_n25_organs_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN GRAPH (self-writing brain substrate) -- GET /api/a11oy/v1/brain/graph is the
 # MODELED derived view that HARVESTS the real estate (64 frontier surfaces + 23 PURIQ
 # formulas incl. the flagged locked-8 + 34 active org repos + topic clusters) into a
