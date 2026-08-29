@@ -910,11 +910,30 @@
   }
 
   function setTiers(t){
-    // t: {locked, semantic, evidence, conjecture}
-    $("pt-locked").textContent     = (num(t.locked)     === null) ? "N/A" : t.locked;
+    // Kernel Lean-8 chip is bound only from loadLockedKernel() via /honest
+    // locked_formula_count. Never genome LOCKED-PROVEN. Never proof_tiers catalog.
     $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
     $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
+  }
+  async function loadLockedKernel(){
+    try{
+      const h = await getJSON("/api/a11oy/v1/honest");
+      const n = num(h && h.locked_formula_count);
+      $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
+    }catch(e){ $("pt-locked").textContent = "N/A"; }
+  }
+  function setCatalogNote(n){
+    let el = $("pt-catalog");
+    if(!el){
+      const grid = document.querySelector("#proof .grid");
+      if(!grid) return;
+      el = document.createElement("p");
+      el.id = "pt-catalog";
+      el.className = "intro";
+      grid.insertAdjacentElement("afterend", el);
+    }
+    el.textContent = (num(n)===null) ? "" : ("Genome catalog LOCKED-PROVEN = "+n+" (catalog, not kernel). Lean-8 is not genome-144.");
   }
 
   function setVerticals(v){
@@ -973,7 +992,7 @@
       const o = await getJSON("/api/a11oy/v1/org/overview");
       if(!o || o.status === "UNAVAILABLE") return false;
       let any = false;
-      if(o.proof_tiers){ setTiers(o.proof_tiers); $("proof-src").innerHTML = liveChip("overview"); any = true; }
+      if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote((o.thesis_stats&&o.thesis_stats.locked_proven_count) || o.proof_tiers.locked); $("proof-src").innerHTML = liveChip("overview"); any = true; }
       if(Array.isArray(o.verticals)){
         const vm = {};
         o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
@@ -996,8 +1015,9 @@
       const g = await getJSON("/api/a11oy/v1/genome");
       if(g && g.status === "UNAVAILABLE") throw new Error("genome unavailable");
       const tc = g.tier_counts || {};
-      setTiers({ locked: tc["LOCKED-PROVEN"], semantic: tc["SEMANTIC-VERIFIED"],
+      setTiers({ semantic: tc["SEMANTIC-VERIFIED"],
                  evidence: tc["evidence-backed"], conjecture: tc["CONJECTURE"] });
+      setCatalogNote(tc["LOCKED-PROVEN"]);
       $("proof-src").innerHTML = liveChip("genome");
     }catch(e){
       setTiers({}); $("proof-src").innerHTML = downChip("UNAVAILABLE");
@@ -1095,6 +1115,7 @@
   (async function(){
     loadEstatePulse();
     loadOverclaimMetrics();
+    loadLockedKernel();
     const ov = await loadOverview();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",
