@@ -88,10 +88,14 @@ def test_routes_wired_in_serve_and_image() -> None:
     assert "web/khipu.html" in DOCKER
 
 
-def test_landing_binds_the_organ() -> None:
-    assert 'href="/khipu"' in LANDING
-    assert "SZL KHIPU" in LANDING
-    assert "KHIPU" in LANDING
+def test_landing_does_not_expand_the_door() -> None:
+    # NVIDIA-style door stays Products / Catalog / Proof. LYTE is the one BIND
+    # package on the door. KHIPU is a bound path (GET /khipu), not a fifth flagship
+    # and not a surface card.
+    assert 'id="bind-khipu"' not in LANDING
+    assert 'href="/khipu"' not in LANDING
+    assert "three flagships" in LANDING
+    assert "Not nine surfaces" in LANDING or "not nine surfaces" in LANDING
 
 
 def test_selftest() -> None:
