@@ -2,8 +2,12 @@
 # © 2026 Lutar, Stephen P. — SZL Holdings
 """Packet 8 Decision Integrity on a-11-oy.com.
 
-Mounts GET /decision and /api/a11oy/v1/decision/*. Evaluates frozen
-demonstration cases through verticals/_kernel/a11oy_kernel.py.
+Mounts GET /decision and vanity paths /terra /aegis /puriq-markets /puriq
+/counsel plus /api/a11oy/v1/decision/*. Evaluates frozen demonstration
+cases through verticals/_kernel/a11oy_kernel.py.
+
+Hub Space create is capped at 20/day. These desks are the same kernel on
+a-11-oy.com, not four Spaces.
 
 Formula authority NONE. Models and market signals never authorize.
 Status stays ROADMAP. Does not stamp LIVE. Does not wait on Hub Spaces.
@@ -22,6 +26,15 @@ KERNEL_PATH = VERTICALS_DIR / "_kernel" / "a11oy_kernel.py"
 PAGES_DIR = ROOT / "pages"
 
 VERTICAL_IDS = ("terra", "aegis", "puriq-markets", "counsel")
+PAGE_ALIASES = (
+    "/decision",
+    "/a11oy/decision",
+    "/terra",
+    "/aegis",
+    "/puriq-markets",
+    "/puriq",
+    "/counsel",
+)
 STATUS = "ROADMAP"
 DATA_LABEL = "SAMPLE"
 
@@ -230,9 +243,9 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
         (f"/api/{ns}/v1/decision/healthz", _healthz, ["GET"]),
         ("/v1/decision", _index, ["GET"]),
         ("/v1/decision/healthz", _healthz, ["GET"]),
-        ("/decision", _page, ["GET", "HEAD"]),
-        ("/a11oy/decision", _page, ["GET", "HEAD"]),
     ]
+    for alias in PAGE_ALIASES:
+        paths.append((alias, _page, ["GET", "HEAD"]))
     registered = []
     for path, fn, methods in paths:
         app.router.routes.insert(0, Route(path, fn, methods=methods))

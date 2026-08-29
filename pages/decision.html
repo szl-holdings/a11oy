@@ -4,11 +4,12 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Decision Assurance — a11oy</title>
-<meta name="description" content="Packet 8 Decision Integrity Kernel on a-11-oy.com. Terra, Aegis, Puriq Markets and Counsel. Frozen demonstration cases. Formula authority NONE."/>
+<meta name="description" content="Packet 8 Decision Integrity Kernel on a-11-oy.com. Terra, Aegis, Puriq Markets and Counsel at /terra /aegis /puriq-markets /counsel. Frozen demonstration cases. Formula authority NONE."/>
 <link rel="canonical" href="https://a-11-oy.com/decision"/>
 <!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
-     GET /decision is a declared product surface. Status ROADMAP. Formula authority NONE.
-     Λ = Conjecture 1. Not legal advice. Not a trading bot. Not a Palantir clone. -->
+     GET /decision /terra /aegis /puriq-markets /counsel are declared product surfaces.
+     Status ROADMAP. Formula authority NONE. Λ = Conjecture 1.
+     Not legal advice. Not a trading bot. Not a Palantir clone. Hub Spaces not required. -->
 <style>
 :root {
   --ink:#09090b; --ink-2:#121214; --ink-3:#1c1c20; --paper:#f2efe8; --paper-dim:#c8c2b4;
@@ -67,7 +68,7 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
 <main>
   <div class="kicker">Packet 8 · Decision Integrity Kernel 8.0.0</div>
   <h1>Decision Assurance</h1>
-  <p class="lede">Turn a recommendation into an authorized, replayable outcome — or refuse it. Terra, Aegis, Puriq Markets and Counsel run here on a-11-oy.com. Frozen demonstration cases. Fail-closed. Formulas do not grant authority.</p>
+  <p class="lede">Turn a recommendation into an authorized, replayable outcome — or refuse it. Terra, Aegis, Puriq Markets and Counsel run here on a-11-oy.com at /terra /aegis /puriq-markets /counsel. Frozen demonstration cases. Fail-closed. Formulas do not grant authority. No Hugging Face Space is required.</p>
   <div class="row" id="meta"></div>
   <div class="tabs" id="verticals"></div>
   <div class="grid two">
@@ -90,6 +91,13 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
   </footer>
 </main>
 <script>
+const PATH_TO_VERTICAL = {
+  "/terra": "terra",
+  "/aegis": "aegis",
+  "/puriq-markets": "puriq-markets",
+  "/puriq": "puriq-markets",
+  "/counsel": "counsel"
+};
 const meta = document.getElementById("meta");
 const tabs = document.getElementById("verticals");
 const casesEl = document.getElementById("cases");
@@ -106,6 +114,25 @@ function chip(text, cls) {
   return s;
 }
 
+function pathOf(id) {
+  return "/" + id;
+}
+
+function verticalFromLocation() {
+  const path = (location.pathname || "").replace(/\/+$/, "") || "/decision";
+  if (PATH_TO_VERTICAL[path]) return PATH_TO_VERTICAL[path];
+  const q = new URLSearchParams(location.search).get("v");
+  if (q === "terra" || q === "aegis" || q === "puriq-markets" || q === "counsel") return q;
+  return "terra";
+}
+
+function syncPath(id) {
+  const want = pathOf(id);
+  const now = (location.pathname || "").replace(/\/+$/, "");
+  if (now === want) return;
+  history.pushState({vertical: id}, "", want);
+}
+
 async function boot() {
   const cat = await fetch("/api/a11oy/v1/decision").then((r) => r.json());
   meta.appendChild(chip("kernel " + (cat.kernel_version || "")));
@@ -117,16 +144,18 @@ async function boot() {
     const b = document.createElement("button");
     b.textContent = v.display_name + " · " + v.case_count + " cases";
     b.dataset.id = v.id;
-    b.addEventListener("click", () => show(v.id, b));
+    b.addEventListener("click", () => show(v.id, b, true));
     tabs.appendChild(b);
   });
-  const first = tabs.querySelector("button");
-  if (first) show(first.dataset.id, first);
+  const want = verticalFromLocation();
+  const first = tabs.querySelector('button[data-id="' + want + '"]') || tabs.querySelector("button");
+  if (first) show(first.dataset.id, first, false);
 }
 
-async function show(id, btn) {
+async function show(id, btn, push) {
   current = id;
   tabs.querySelectorAll("button").forEach((el) => el.classList.toggle("on", el === btn));
+  if (push) syncPath(id);
   const data = await fetch("/api/a11oy/v1/decision/" + encodeURIComponent(id)).then((r) => r.json());
   vtitle.textContent = data.display_name || id;
   vwedge.textContent = data.wedge || "";
@@ -154,6 +183,12 @@ async function run(item) {
   if (data.receipt && data.receipt.digest) status.appendChild(chip("digest " + data.receipt.digest.slice(0, 12), "mute"));
   out.textContent = JSON.stringify(data, null, 2);
 }
+
+window.addEventListener("popstate", () => {
+  const id = verticalFromLocation();
+  const btn = tabs.querySelector('button[data-id="' + id + '"]');
+  if (btn) show(id, btn, false);
+});
 
 boot().catch((err) => { out.textContent = String(err); });
 </script>
