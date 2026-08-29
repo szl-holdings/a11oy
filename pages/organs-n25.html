@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <meta name="theme-color" content="#0a0e14" />
+  <title>a11oy — N1–N25 organs</title>
+  <meta name="description" content="Twenty-five factory organs run on a-11-oy.com with hashed receipts. Not 25 public Spaces. GPU tune stays unavailable." />
+  <style>
+    :root { --bg:#0a0e14; --panel:#111824; --line:#1f2b3a; --fg:#e6edf3; --mut:#8b97a8; --ok:#3fb950; --warn:#d29922; --bad:#f85149; --acc:#58a6ff; }
+    * { box-sizing: border-box; }
+    body { margin:0; background:var(--bg); color:var(--fg); font:14px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    header { padding:18px 24px; border-bottom:1px solid var(--line); background:var(--panel); }
+    h1 { margin:0; font-size:19px; letter-spacing:.3px; }
+    .sub { color:var(--mut); font-size:12px; margin-top:4px; }
+    a { color:var(--acc); }
+    .wrap { padding:18px 24px; max-width:1280px; margin:0 auto; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; }
+    button.org { text-align:left; background:var(--panel); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:10px; min-height:72px; cursor:pointer; }
+    button.org[aria-pressed="true"] { border-color:var(--acc); }
+    .id { color:var(--mut); font-size:11px; }
+    .live { color:var(--ok); font-size:11px; float:right; }
+    form { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
+    input { flex:1; min-width:220px; min-height:44px; background:#0d1420; color:var(--fg); border:1px solid var(--line); border-radius:6px; padding:8px 12px; font:13px ui-monospace,monospace; }
+    button.run { min-height:44px; min-width:120px; background:#0d1420; color:var(--fg); border:1px solid var(--acc); border-radius:6px; padding:8px 14px; cursor:pointer; }
+    pre { background:#0d1420; border:1px solid var(--line); border-radius:8px; padding:12px; overflow:auto; max-height:420px; }
+    .meta { color:var(--mut); font-size:12px; margin:8px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>N1–N25 organs</h1>
+    <p class="sub">Product origin · a-11-oy.com/organs · honesty LIVE · not 25 public Spaces · GPU tune UNAVAILABLE</p>
+    <p class="sub"><a href="/">Home</a> · <a href="/factory">Factory</a> · <a href="/organs/integrity">Integrity kernel</a> · <a href="/api/a11oy/v1/organs/n">Catalog JSON</a> · <a href="https://a11oy.net/">Proof registry</a></p>
+  </header>
+  <main class="wrap">
+    <div id="grid" class="grid"></div>
+    <p class="meta" id="job"></p>
+    <form id="f">
+      <input id="prompt" maxlength="2000" placeholder="Run input" aria-label="Organ input" />
+      <button class="run" type="submit">Run organ</button>
+    </form>
+    <p class="meta" id="status"></p>
+    <pre id="out">POST /api/a11oy/v1/organs/n/N1</pre>
+  </main>
+  <script>
+    const grid = document.getElementById("grid");
+    const job = document.getElementById("job");
+    const prompt = document.getElementById("prompt");
+    const status = document.getElementById("status");
+    const out = document.getElementById("out");
+    let items = [];
+    let active = "N1";
+    function paint() {
+      grid.innerHTML = "";
+      items.forEach((item) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "org";
+        b.setAttribute("aria-pressed", String(item.id === active));
+        b.innerHTML = '<span class="live">LIVE</span><div class="id">' + item.id + '</div><div>' + item.title + '</div>';
+        b.addEventListener("click", () => { active = item.id; select(); paint(); });
+        grid.appendChild(b);
+      });
+    }
+    function select() {
+      const item = items.find((x) => x.id === active) || items[0];
+      if (!item) return;
+      job.textContent = item.id + " · " + item.job + " · POST /api/a11oy/v1/organs/n/" + item.id;
+      prompt.placeholder = item.placeholder || item.job;
+    }
+    document.getElementById("f").addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      status.textContent = "running…";
+      try {
+        const res = await fetch("/api/a11oy/v1/organs/n/" + active, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ prompt: prompt.value })
+        });
+        const data = await res.json();
+        status.textContent = (data.status || res.status) + " · " + (data.hash || "").slice(0, 16);
+        out.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        status.textContent = "error";
+        out.textContent = String(err);
+      }
+    });
+    fetch("/api/a11oy/v1/organs/n").then((r) => r.json()).then((d) => {
+      items = d.items || [];
+      paint();
+      select();
+    }).catch((err) => { out.textContent = String(err); });
+  </script>
+</body>
+</html>

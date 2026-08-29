@@ -75,7 +75,13 @@ def register(app: Any, ns: str = "a11oy") -> str:
         f"[moved {len(routes)} routes to front]",
         file=sys.stderr,
     )
-    return f"organ-integrity-ok routes={len(routes)}"
+    try:
+        import szl_n25_organs as _n25
+        n25 = _n25.register(app, ns)
+    except Exception as _n25_e:  # pragma: no cover
+        n25 = f"n25-skip {_n25_e!r}"
+        print(f"[a11oy] N1–N25 organs NOT registered: {_n25_e!r}", file=sys.stderr)
+    return f"organ-integrity-ok routes={len(routes)} n25={n25}"
 
 
 if __name__ == "__main__":
