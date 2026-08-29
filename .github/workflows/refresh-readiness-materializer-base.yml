@@ -1,0 +1,67 @@
+name: Refresh readiness materializer base
+
+on:
+  push:
+    branches:
+      - fix/readiness-honesty-relock-20260829
+    paths:
+      - .github/workflows/refresh-readiness-materializer-base.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-readiness-materializer-base
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: fix/readiness-honesty-relock-v2-20260829
+      CONTROL_BRANCH: fix/readiness-honesty-relock-20260829
+      MATERIALIZER_PATH: .github/workflows/diagnose-readiness-honesty.yml
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Bind materializer to current exact main
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          target_head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')"
+          test "$target_head" = "$current_main"
+
+          meta="$(gh api "repos/${GITHUB_REPOSITORY}/contents/${MATERIALIZER_PATH}?ref=${CONTROL_BRANCH}")"
+          blob_sha="$(jq -er '.sha' <<<"$meta")"
+          content="$(jq -er '.content' <<<"$meta" | tr -d '\n' | base64 -d)"
+          old_count="$(grep -Ec '^  TARGET_BASE: [0-9a-f]{40}$' <<<"$content")"
+          test "$old_count" = "1"
+          updated="$(sed -E "s/^  TARGET_BASE: [0-9a-f]{40}$/  TARGET_BASE: ${current_main}/" <<<"$content")"
+          test "$(grep -Ec "^  TARGET_BASE: ${current_main}$" <<<"$updated")" = "1"
+          encoded="$(printf '%s\n' "$updated" | base64 -w0)"
+
+          jq -n \
+            --arg message $'ci(readiness): rebind materializer to exact main\n\nSigned-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>' \
+            --arg content "$encoded" \
+            --arg sha "$blob_sha" \
+            --arg branch "$CONTROL_BRANCH" \
+            '{message:$message,content:$content,sha:$sha,branch:$branch}' \
+            > /tmp/update.json
+          gh api --method PUT \
+            "repos/${GITHUB_REPOSITORY}/contents/${MATERIALIZER_PATH}" \
+            --input /tmp/update.json >/tmp/result.json
+          jq -e '.commit.sha | length == 40' /tmp/result.json >/dev/null
+
+          {
+            echo "### Materializer rebound"
+            echo "- target branch: \`$TARGET_BRANCH\`"
+            echo "- exact base: \`$current_main\`"
+            echo "- secret values read or printed: false"
+          } >>"$GITHUB_STEP_SUMMARY"
