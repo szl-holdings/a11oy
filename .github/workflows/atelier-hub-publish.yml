@@ -79,7 +79,8 @@ jobs:
               repo_type="space",
               allow_patterns=[
                   "*.md", "*.html", "*.css", "*.js", "*.json", "*.py",
-                  "LICENSE", "kit/*", "cards/*", "weights/*",
+                  "LICENSE", "kit/*", "kit/**", "kit/kernels/*", "kit/kernels/**",
+                  "cards/*", "weights/*",
               ],
               ignore_patterns=[".git*", ".github/*"],
               commit_message="publish(atelier): walk + MEASURED nano weights from szl-holdings/szl-atelier",
@@ -129,6 +130,36 @@ jobs:
               api.create_repo(repo_id=repo, repo_type="model", exist_ok=True, private=False)
               api.upload_file(path_or_fileobj=str(card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): ROADMAP organ — not a checkpoint")
               print("published ROADMAP card", repo)
+
+          # Kernel pack — SOFTWARE, not SGD. Never clobber 1.5B safetensors/GGUF.
+          # Do not rewrite GitHub-canonical torch-ext READMEs (szl-formulas, szl-blocked).
+          kdir = root / "kit" / "kernels"
+          if kdir.is_dir():
+              api.create_repo(repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", exist_ok=True, private=False)
+              kcard = root / "cards" / "szl-khipu-kernels.md"
+              if kcard.exists():
+                  api.upload_file(path_or_fileobj=str(kcard), path_in_repo="README.md", repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", commit_message="card(atelier): kernel suite — SOFTWARE not SGD")
+              for pth in sorted(list(kdir.glob("*.py")) + list(kdir.glob("README.md"))):
+                  api.upload_file(path_or_fileobj=str(pth), path_in_repo=f"kernels/{pth.name}", repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", commit_message=f"code(atelier): {pth.name} fail-closed organ")
+              print("published SZLHOLDINGS/szl-khipu-kernels pack")
+
+              per = [
+                  ("SZLHOLDINGS/YARQA-ATTN", "yarqa.py"),
+                  ("SZLHOLDINGS/szl-maskmod", "maskmod.py"),
+                  ("SZLHOLDINGS/szl-receipt-attn", "receipt_attn.py"),
+                  ("SZLHOLDINGS/szl-ouroboros", "ouroboros.py"),
+                  ("SZLHOLDINGS/szl-block-kv", "block_kv.py"),
+                  ("SZLHOLDINGS/szl-lambda-gate", "lambda_gate.py"),
+                  ("SZLHOLDINGS/szl-governed-norm", "governed_norm.py"),
+              ]
+              for repo, name in per:
+                  src = kdir / name
+                  if src.exists():
+                      api.upload_file(path_or_fileobj=str(src), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} from szl-khipu — not a 1.5B retrain")
+                      print("published", repo, name)
+
+              api.upload_file(path_or_fileobj=str(kdir / "nemo_rules.py"), path_in_repo="szl_nemo/rules.py", repo_id="SZLHOLDINGS/szl-nemo", repo_type="model", commit_message="code(atelier): rule_check R1-R5 — joblib stays quarantined")
+              print("published SZLHOLDINGS/szl-nemo szl_nemo/rules.py")
 
           print("done. Did not retrain 1.5B. Energy UNAVAILABLE.")
           PY
