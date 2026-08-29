@@ -1,0 +1,140 @@
+# claims-ledger.yaml
+# Marketing copy reads from this file. It never hardcodes a number.
+# Default current_state: UNKNOWN
+# as_of: 2026-08-29
+# schema: a11oy.claims.v1
+
+schema: a11oy.claims.v1
+lexicon: "a11oy — governed execution fabric for consequential AI"
+as_of: "2026-08-29"
+
+claims:
+  - id: CLM-ORG-REPOS
+    statement: Public GitHub repositories in org szl-holdings
+    value: "95"
+    current_state: LIVE
+    source_command: "GitHub search API org:szl-holdings"
+    evidence_artifact: "authenticated connector 2026-08-29, total_count=95"
+    freshness_hours: 0
+    stale_after_hours: 24
+    notes: Includes archived. Not a product metric.
+
+  - id: CLM-HF-MODELS
+    statement: Hugging Face models under SZLHOLDINGS
+    value: "42"
+    current_state: SNAPSHOT
+    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
+    evidence_artifact: "browser fetch 2026-08-29 — not HF API"
+    freshness_hours: 6
+    stale_after_hours: 24
+
+  - id: CLM-HF-SPACES
+    statement: Hugging Face Spaces under SZLHOLDINGS
+    value: "44"
+    current_state: SNAPSHOT
+    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
+    evidence_artifact: "browser fetch 2026-08-29 — not HF API"
+    freshness_hours: 6
+    stale_after_hours: 24
+    notes: Five-Space doctrine is contradicted. See contradiction-ledger C-HF-SPRAWL.
+
+  - id: CLM-HF-DATASETS
+    statement: Hugging Face datasets under SZLHOLDINGS
+    value: "28"
+    current_state: SNAPSHOT
+    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
+    evidence_artifact: "browser fetch 2026-08-29 — not HF API"
+    freshness_hours: 6
+    stale_after_hours: 24
+    notes: szl-lake is canonical for NDJSON receipts per its README.
+
+  - id: CLM-KHIPU-DL
+    statement: SZL-Khipu-1.5B downloads
+    value: "502"
+    current_state: SNAPSHOT
+    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
+    evidence_artifact: "browser fetch 2026-08-29"
+    freshness_hours: 6
+    stale_after_hours: 24
+    notes: Council synthesis cited ~2.36k. Live Hub listing is 502. See C-KHIPU-DOWNLOADS.
+
+  - id: CLM-TABLES-848
+    statement: Database tables
+    value: "848"
+    current_state: UNKNOWN
+    surface_state: SNAPSHOT
+    verified_at: "2026-05-12T00:00:00Z"
+    notes: Stale. Do not reprint as LIVE.
+
+  - id: CLM-ENDPOINTS-5524
+    statement: API endpoint declarations
+    value: "5524"
+    current_state: UNKNOWN
+    surface_state: SNAPSHOT
+    verified_at: "2026-05-12T00:00:00Z"
+    notes: Stale. Do not reprint as LIVE.
+
+  - id: CLM-TESTS-1220
+    statement: Passing platform tests
+    value: "1220"
+    current_state: UNKNOWN
+    surface_state: SNAPSHOT
+    verified_at: "2026-05-12T00:00:00Z"
+    notes: Stale. Do not reprint as LIVE.
+
+  - id: CLM-LAMBDA-OVERHEAD
+    statement: Lambda overhead median
+    value: "<=0.59ms"
+    current_state: UNKNOWN
+    surface_state: SNAPSHOT
+    verified_at: "2026-05-12T00:00:00Z"
+    notes: Stale. Do not reprint as LIVE.
+
+  - id: CLM-DOCTRINE-LOCK
+    statement: Doctrine lock
+    value: "v11 LOCKED 749/14/163"
+    current_state: LIVE
+    source_command: "GET https://a-11-oy.com/api/a11oy/v1/honest"
+    evidence_artifact: "honest API 2026-08-29"
+    freshness_hours: 0
+    stale_after_hours: 24
+
+  - id: CLM-LAMBDA-CONJECTURE
+    statement: Lambda uniqueness
+    value: "Conjecture 1"
+    current_state: LIVE
+    source_command: "GET https://a-11-oy.com/api/a11oy/v1/honest"
+    notes: Never a theorem.
+
+  - id: CLM-LOCKED-FORMULAS
+    statement: Locked formulas
+    value: "8 — F1 F4 F7 F11 F12 F18 F19 F22"
+    current_state: LIVE
+    source_command: "GET https://a-11-oy.com/api/a11oy/v1/honest"
+
+  - id: CLM-KERNEL
+    statement: Lean kernel pin
+    value: "c7c0ba17"
+    current_state: LIVE
+    source_command: "GET https://a-11-oy.com/api/a11oy/v1/honest"
+
+  - id: CLM-A11OY-HEAD
+    statement: a11oy main tree SHA at pack time
+    value: "2b67b63624a3f4bf35787cfa5260d7960f1a76d5"
+    current_state: LIVE
+    source_command: "GitHub get_repository_tree szl-holdings/a11oy main"
+    evidence_artifact: "this PR parent"
+    freshness_hours: 0
+    stale_after_hours: 24
+
+  - id: CLM-HF-WRITE-SESSION
+    statement: Hugging Face write from the producing session
+    value: UNAVAILABLE
+    current_state: UNAVAILABLE
+    notes: No Hugging Face connector. Do not mint a fake Hub commit.
+
+  - id: CLM-CHATGPT-SHARES
+    statement: Four ChatGPT share-link transcripts
+    value: UNKNOWN
+    current_state: UNKNOWN
+    notes: Unfetchable. Not fabricated. Design context only.
