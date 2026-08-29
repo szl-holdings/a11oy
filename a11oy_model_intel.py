@@ -792,7 +792,12 @@ def _series_a_bind_card(spec: dict[str, Any], live: Optional[dict[str, Any]],
                         freshness: dict[str, Any]) -> dict[str, Any]:
     """Honest Hub bind for one pinned Series A card. Never stamps OPERATIONAL."""
     hub_id = spec.get("hub_id")
-    fetch_status = (freshness or {}).get("status")
+    raw_fetch_status = (freshness or {}).get("status")
+    fetch_status = (
+        raw_fetch_status
+        if raw_fetch_status in {"live", "cached", "stale", "unavailable"}
+        else "unavailable"
+    )
     fetch_error = (freshness or {}).get("error")
     live_present = bool(live and live.get("repository_id") == hub_id)
 
