@@ -11,52 +11,52 @@ as_of: "2026-08-29"
 claims:
   - id: CLM-ORG-REPOS
     statement: Public GitHub repositories in org szl-holdings
-    value: "95"
+    value: "98"
     current_state: LIVE
     source_command: "GitHub search API org:szl-holdings"
-    evidence_artifact: "authenticated connector 2026-08-29, total_count=95"
+    evidence_artifact: "authenticated connector 2026-08-29"
     freshness_hours: 0
     stale_after_hours: 24
     notes: Includes archived. Not a product metric.
 
   - id: CLM-HF-MODELS
     statement: Hugging Face models under SZLHOLDINGS
-    value: "42"
-    current_state: SNAPSHOT
-    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
-    evidence_artifact: "browser fetch 2026-08-29 — not HF API"
-    freshness_hours: 6
+    value: "43"
+    current_state: LIVE
+    source_command: "Hugging Face API list_models author=SZLHOLDINGS"
+    evidence_artifact: "authenticated admin token 2026-08-29"
+    freshness_hours: 0
     stale_after_hours: 24
 
   - id: CLM-HF-SPACES
     statement: Hugging Face Spaces under SZLHOLDINGS
-    value: "44"
-    current_state: SNAPSHOT
-    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
-    evidence_artifact: "browser fetch 2026-08-29 — not HF API"
-    freshness_hours: 6
+    value: "7 public · 38 private · 45 total"
+    current_state: LIVE
+    source_command: "Hugging Face API list_spaces author=SZLHOLDINGS after keep-7 reapply"
+    evidence_artifact: "authenticated re-read 2026-08-29; unexpected public = none"
+    freshness_hours: 0
     stale_after_hours: 24
-    notes: Five-Space doctrine is contradicted. See contradiction-ledger C-HF-SPRAWL.
+    notes: Never deleted. Archive set is private and paused. Product Space a11oy was not mutated.
 
   - id: CLM-HF-DATASETS
     statement: Hugging Face datasets under SZLHOLDINGS
-    value: "28"
-    current_state: SNAPSHOT
-    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
-    evidence_artifact: "browser fetch 2026-08-29 — not HF API"
-    freshness_hours: 6
+    value: "36"
+    current_state: LIVE
+    source_command: "Hugging Face API list_datasets author=SZLHOLDINGS"
+    evidence_artifact: "authenticated admin token 2026-08-29"
+    freshness_hours: 0
     stale_after_hours: 24
-    notes: szl-lake is canonical for NDJSON receipts per its README.
+    notes: 28 public · 8 private. Not bulk-privatized.
 
   - id: CLM-KHIPU-DL
     statement: SZL-Khipu-1.5B downloads
     value: "502"
-    current_state: SNAPSHOT
-    source_command: "HTML scrape huggingface.co/SZLHOLDINGS"
-    evidence_artifact: "browser fetch 2026-08-29"
-    freshness_hours: 6
+    current_state: LIVE
+    source_command: "Hugging Face API model card SZLHOLDINGS/SZL-Khipu-1.5B downloads"
+    evidence_artifact: "authenticated API 2026-08-29"
+    freshness_hours: 0
     stale_after_hours: 24
-    notes: Council synthesis cited ~2.36k. Live Hub listing is 502. See C-KHIPU-DOWNLOADS.
+    notes: Prior ~2.36k is contradicted. Telemetry, not adoption evidence.
 
   - id: CLM-TABLES-848
     statement: Database tables
@@ -118,20 +118,15 @@ claims:
     current_state: LIVE
     source_command: "GET https://a-11-oy.com/api/a11oy/v1/honest"
 
-  - id: CLM-A11OY-HEAD
-    statement: a11oy main tree SHA at pack time
-    value: "2b67b63624a3f4bf35787cfa5260d7960f1a76d5"
+  - id: CLM-HF-WRITE-SESSION
+    statement: Hugging Face write from this session
+    value: "LIVE — keep-7 reapplied; leaked Spaces privatized+paused; khipu + verifier restored public"
     current_state: LIVE
-    source_command: "GitHub get_repository_tree szl-holdings/a11oy main"
-    evidence_artifact: "this PR parent"
+    source_command: "HfApi as org admin betterwithage on SZLHOLDINGS"
+    evidence_artifact: "reapply 2026-08-29; public re-read = 7, unexpected = none"
     freshness_hours: 0
     stale_after_hours: 24
-
-  - id: CLM-HF-WRITE-SESSION
-    statement: Hugging Face write from the producing session
-    value: UNAVAILABLE
-    current_state: UNAVAILABLE
-    notes: No Hugging Face connector. Do not mint a fake Hub commit.
+    notes: Token used in-memory. Not stored in git. Product Space a11oy was not mutated.
 
   - id: CLM-CHATGPT-SHARES
     statement: Four ChatGPT share-link transcripts
