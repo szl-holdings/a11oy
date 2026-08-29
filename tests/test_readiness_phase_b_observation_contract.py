@@ -95,7 +95,12 @@ class PhaseBPayloadTests(unittest.TestCase):
         )
         self.assertEqual(
             KEVGATE_PATHS,
-            frozenset({"/api/a11oy/v1/sec/kev"}),
+            frozenset(
+                {
+                    "/api/a11oy/v1/sec/kev",
+                    "/api/a11oy/v1/sec/kevgate",
+                }
+            ),
         )
 
     def test_every_phase_b_surface_gets_the_supplied_clock(self) -> None:

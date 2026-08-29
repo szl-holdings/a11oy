@@ -46,7 +46,12 @@ PHASE_B_OBSERVATION_PATHS = frozenset(
     }
 )
 PHASE_B_OBSERVATION_ALIASES = frozenset({"/v1/observability/business"})
-KEVGATE_PATHS = frozenset({"/api/a11oy/v1/sec/kev"})
+KEVGATE_PATHS = frozenset(
+    {
+        "/api/a11oy/v1/sec/kev",
+        "/api/a11oy/v1/sec/kevgate",
+    }
+)
 _PHASE_B_MUTATED_PATHS = (
     PHASE_B_OBSERVATION_PATHS
     | PHASE_B_OBSERVATION_ALIASES
@@ -84,9 +89,20 @@ def normalize_phase_b_payload(
         normalized["observed_at"] = observed_at or utc_observation_clock()
 
     if path in KEVGATE_PATHS and 200 <= int(status_code) < 300:
-        raw_kind = str(normalized.get("data_kind") or "").strip().casefold()
+        raw_kind_text = str(normalized.get("data_kind") or "").strip()
+        raw_kind = raw_kind_text.casefold()
         if raw_kind == "live":
             canonical_kind = "live"
+        elif (
+            raw_kind.startswith("live ")
+            and "kev" in raw_kind
+            and not any(
+                blocked in raw_kind
+                for blocked in ("mock", "fabricated", "placeholder")
+            )
+        ):
+            canonical_kind = "live"
+            normalized["data_kind_detail"] = raw_kind_text
         elif raw_kind in {"cached", "sample", "snapshot"}:
             # Bundled/in-image CISA rows are cached source material, not a
             # fabricated SAMPLE feed. Unknown kinds stay fail-closed.
