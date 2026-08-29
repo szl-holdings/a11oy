@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - IMMUNE command-center lattice on /immune
+- `/immune` is now a 0-CDN cinematic command-center HUD: canvas lattice globe
+  (drag to orbit), live kernel/field/organ chips, inspect-to-verdict, gates,
+  and decision feed — bound only to same-origin `/api/a11oy/v1/immune/*`.
+- Honesty contract unchanged: first paint CONNECTING, failed probe UNAVAILABLE,
+  never fabricates LIVE or PASS. Channel A/B embeds stay operator-initiated.
+  Hunt / isolate / deceive — never strike people. Λ = Conjecture 1.
+  This tab cites the lattice; it is not a second COP.
+
+
 ### Fixed - readiness honesty relock
 - The readiness harness now admits truthful `SAMPLE`, `DEGRADED`, and
   `MODELED` endpoint classes only where their source contracts explicitly
