@@ -13,35 +13,39 @@
     *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;background:radial-gradient(circle at 50% -20%,rgba(45,137,115,.2),transparent 38%),linear-gradient(180deg,#06100e,var(--bg));color:var(--ink);font-family:var(--sans)}a{color:inherit;text-decoration:none}a,button{touch-action:manipulation}a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--teal);outline-offset:3px}.skip{position:fixed;left:12px;top:8px;z-index:100;transform:translateY(-160%);border-radius:8px;background:var(--teal);color:#03100c;padding:10px 13px;font:12px var(--mono)}.skip:focus{transform:none}.wrap{width:min(1220px,calc(100% - 32px));margin:auto}.mono{font-family:var(--mono)}
     header{position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);background:rgba(5,11,10,.88);backdrop-filter:blur(18px)}header .wrap{min-height:66px;display:flex;align-items:center;gap:18px}.brand{min-height:44px;display:flex;align-items:center;gap:10px;font-weight:750}.mark{width:30px;height:30px;display:grid;place-items:center;border:1px solid var(--teal);border-radius:50%;color:var(--teal);box-shadow:0 0 24px rgba(58,244,200,.2)}nav{display:flex;gap:7px;align-items:center;margin-left:auto;flex-wrap:wrap}nav a{min-height:44px;display:inline-flex;align-items:center;font:11px var(--mono);color:var(--muted);padding:9px 11px;border-radius:9px}nav a:hover{background:rgba(58,244,200,.07);color:var(--ink)}nav .primary{border:1px solid rgba(58,244,200,.35);color:var(--teal)}
     .hero{padding:64px 0 30px}.eyebrow{font:11px var(--mono);letter-spacing:.16em;color:var(--teal);text-transform:uppercase}.hero h1{font-size:clamp(2.7rem,7vw,6.4rem);line-height:.9;letter-spacing:-.06em;margin:18px 0}.hero h1 span{color:transparent;background:linear-gradient(90deg,var(--teal),var(--blue));background-clip:text}.hero p{max-width:820px;margin:0;color:var(--muted);font-size:1.08rem;line-height:1.7}.badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:23px}.badge{border:1px solid var(--line);border-radius:999px;padding:7px 10px;color:var(--muted);font:10px var(--mono);overflow-wrap:anywhere}.badges a.badge{min-height:44px;display:inline-flex;align-items:center}.badge.live,.badge.measured{border-color:rgba(58,244,200,.42);color:var(--teal)}.badge.cached,.badge.stalecache,.badge.snapshot,.badge.modeled,.badge.observed,.badge.available,.badge.degraded,.badge.readyunmeasured{border-color:rgba(217,188,117,.4);color:var(--amber)}.badge.unavailable,.badge.error,.badge.unconfigured,.badge.conflict{border-color:rgba(236,130,126,.4);color:var(--red)}
-    .vitals{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:20px 0 34px}.vital{min-height:104px;border:1px solid var(--line);border-radius:14px;padding:15px;background:linear-gradient(150deg,rgba(13,29,25,.94),rgba(7,15,13,.96))}.vital b{display:block;margin-bottom:7px;color:var(--teal);font:650 1.45rem var(--mono);overflow-wrap:anywhere}.vital span{color:var(--muted);font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em}.vital small{display:block;margin-top:8px;color:#667e77;font:9px var(--mono)}
+    .vitals{display:grid;grid-template-columns:repeat(7,1fr);gap:10px;margin:20px 0 18px}.vital{min-height:104px;border:1px solid var(--line);border-radius:14px;padding:15px;background:linear-gradient(150deg,rgba(13,29,25,.94),rgba(7,15,13,.96))}.vital b{display:block;margin-bottom:7px;color:var(--teal);font:650 1.45rem var(--mono);overflow-wrap:anywhere}.vital b.down{color:var(--red)}.vital span{color:var(--muted);font:10px var(--mono);text-transform:uppercase;letter-spacing:.08em}.vital small{display:block;margin-top:8px;color:#667e77;font:9px var(--mono)}
     .tabs{position:sticky;top:67px;z-index:20;display:flex;gap:7px;overflow:auto;overscroll-behavior-inline:contain;scrollbar-width:thin;padding:12px 0;background:linear-gradient(180deg,rgba(5,11,10,.97),rgba(5,11,10,.83),transparent)}.tab{min-height:44px;border:1px solid var(--line);border-radius:999px;background:var(--panel);color:var(--muted);padding:9px 13px;white-space:nowrap;cursor:pointer;font:11px var(--mono)}.tab.active,.tab:hover{color:#03100c;background:var(--teal);border-color:var(--teal)}
     .view{display:none;padding:15px 0 72px}.view.active{display:block}.section-head{display:flex;justify-content:space-between;align-items:end;gap:18px;margin:16px 0 20px}.section-head h2{font-size:clamp(1.7rem,4vw,3rem);letter-spacing:-.04em;margin:0}.section-head p{max-width:610px;color:var(--muted);line-height:1.6;margin:0}.panel{border:1px solid var(--line);border-radius:16px;background:linear-gradient(150deg,rgba(13,29,25,.93),rgba(6,13,11,.98));padding:20px}
     .organism{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:14px}.organism>*,.nervous-grid>*,.formula>*{min-width:0}.body{position:relative;min-height:570px;overflow:hidden}.body:before{content:"";position:absolute;inset:7% 15%;border:1px solid rgba(58,244,200,.12);border-radius:45% 45% 32% 32%;box-shadow:inset 0 0 90px rgba(58,244,200,.035)}.spine{position:absolute;top:16%;bottom:14%;left:50%;width:1px;background:linear-gradient(transparent,var(--teal),transparent);opacity:.45}.nerve{position:absolute;height:1px;background:linear-gradient(90deg,transparent,rgba(108,156,255,.48),transparent);transform-origin:left center}.organ{position:absolute;width:142px;min-height:82px;padding:12px;border:1px solid var(--line);border-radius:13px;background:rgba(8,19,16,.94);box-shadow:0 0 30px rgba(58,244,200,.035)}.organ b{display:block;font-size:13px}.organ small{display:block;margin-top:5px;color:var(--muted);font:9px var(--mono);line-height:1.4}.organ .dot{position:absolute;right:10px;top:10px;width:7px;height:7px;border-radius:50%;background:var(--red)}.organ.live .dot{background:var(--teal);box-shadow:0 0 10px var(--teal)}.organ.cached .dot,.organ.stalecache .dot,.organ.snapshot .dot,.organ.modeled .dot,.organ.observed .dot,.organ.available .dot,.organ.degraded .dot{background:var(--amber)}.brain{left:calc(50% - 71px);top:5%}.router{left:calc(50% - 71px);top:26%}.models{left:5%;top:26%}.kernels{right:5%;top:26%}.data{left:5%;top:53%}.spaces{right:5%;top:53%}.formulas{left:calc(50% - 71px);top:73%}.receipts{left:calc(50% - 71px);top:48%}.readout{display:grid;gap:10px}.readout article{min-width:0;border:1px solid var(--line);border-radius:13px;padding:15px;background:rgba(8,18,15,.7)}.readout h3{font-size:13px;margin:0 0 9px}.readout pre{margin:0;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted);font:10px/1.55 var(--mono);max-height:165px;overflow:auto}.source{display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px 12px;margin-top:10px;color:#668078;font:9px var(--mono)}.source span{min-width:0;overflow-wrap:anywhere}
     .nervous-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:14px}.route-list,.formula-list{display:grid;gap:8px}.route{display:grid;grid-template-columns:minmax(130px,1fr) repeat(3,minmax(78px,.45fr));gap:10px;align-items:center;border:1px solid var(--line);border-radius:11px;padding:12px;background:rgba(6,14,12,.72);font:10px var(--mono)}.route strong{font:600 12px var(--sans);overflow-wrap:anywhere}.route span{color:var(--muted);overflow-wrap:anywhere}.route .signal.live{color:var(--teal)}.route .signal.cached,.route .signal.stalecache,.route .signal.snapshot,.route .signal.modeled,.route .signal.observed,.route .signal.available,.route .signal.degraded{color:var(--amber)}.route .signal.unavailable,.route .signal.error{color:var(--red)}.json{margin:0;max-height:570px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;color:#9bb3ad;font:10px/1.55 var(--mono)}
     .formula-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px}.formula-tools input{min-height:44px;flex:1;min-width:180px;border:1px solid var(--line);border-radius:10px;background:#07110f;color:var(--ink);padding:11px 13px;font:11px var(--mono)}.formula-tools .badge{max-width:100%}.formula{display:grid;grid-template-columns:minmax(130px,.7fr) minmax(160px,1fr) 2fr;gap:12px;border:1px solid var(--line);border-radius:12px;padding:14px;background:rgba(7,16,14,.75)}.formula b{font-size:13px}.formula .tier{color:var(--blue);font:10px var(--mono);text-transform:uppercase}.formula p{margin:0;color:var(--muted);font:10px/1.55 var(--mono);overflow-wrap:anywhere}.empty{border:1px dashed var(--line);border-radius:13px;padding:26px;text-align:center;color:var(--muted)}
     .wire-d-grid{display:grid;grid-template-columns:minmax(260px,.7fr) minmax(0,1.3fr);gap:14px}.probe-actions{display:grid;gap:10px;margin-top:18px}.probe-actions label{color:var(--muted);font:10px var(--mono);text-transform:uppercase}.probe-actions select,.probe-actions button{min-height:46px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:11px var(--mono)}.probe-actions select{width:100%;background:#07110f;color:var(--ink)}.probe-actions button{cursor:pointer;background:var(--teal);color:#03100c;font-weight:750}.probe-actions button:disabled,.probe-actions select:disabled{cursor:not-allowed;opacity:.48}.wire-note{color:var(--muted);font-size:12px;line-height:1.65}.wire-note strong{color:var(--amber)}
-    footer{border-top:1px solid var(--line);padding:34px 0 48px;color:var(--muted);font-size:12px;line-height:1.65}footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}footer a{color:var(--teal)}
-    @media(max-width:960px){.vitals{grid-template-columns:repeat(3,minmax(0,1fr))}.organism,.nervous-grid,.wire-d-grid{grid-template-columns:1fr}.body{min-height:540px}.route{grid-template-columns:1fr 1fr}.formula{grid-template-columns:1fr}}
+    .failclosed{margin:0 0 22px}.failclosed .eyebrow{margin-bottom:10px}.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.grid5 .vital{min-height:92px}footer{border-top:1px solid var(--line);padding:34px 0 48px;color:var(--muted);font-size:12px;line-height:1.65}footer .wrap{display:flex;justify-content:space-between;gap:30px;flex-wrap:wrap}footer a{color:var(--teal)}
+    @media(max-width:1100px){.vitals,.grid5{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:960px){.vitals,.grid5{grid-template-columns:repeat(3,minmax(0,1fr))}.organism,.nervous-grid,.wire-d-grid{grid-template-columns:1fr}.body{min-height:540px}.route{grid-template-columns:1fr 1fr}.formula{grid-template-columns:1fr}}
     @media(max-width:800px){.brand small{display:none}}
     @media(max-width:680px){header{position:static}header .wrap{flex-wrap:wrap;padding:11px 0 8px}nav{width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}nav a{flex:0 0 auto}.tabs{top:0}}
-    @media(max-width:620px){.hero{padding-top:44px}.vitals{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:16px}.body{min-height:690px}.body:before{inset:5% 4%}.organ{width:126px}.brain{left:calc(50% - 63px)}.router{left:calc(50% - 63px);top:22%}.models{left:2%;top:39%}.kernels{right:2%;top:39%}.receipts{left:calc(50% - 63px);top:54%}.data{left:2%;top:69%}.spaces{right:2%;top:69%}.formulas{left:calc(50% - 63px);top:84%}.route{grid-template-columns:1fr}.section-head{align-items:start;flex-direction:column}.formula-tools{align-items:stretch;flex-direction:column}.formula-tools input{min-width:0;width:100%}}
+    @media(max-width:620px){.hero{padding-top:44px}.vitals,.grid5{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:16px}.body{min-height:690px}.body:before{inset:5% 4%}.organ{width:126px}.brain{left:calc(50% - 63px)}.router{left:calc(50% - 63px);top:22%}.models{left:2%;top:39%}.kernels{right:2%;top:39%}.receipts{left:calc(50% - 63px);top:54%}.data{left:2%;top:69%}.spaces{right:2%;top:69%}.formulas{left:calc(50% - 63px);top:84%}.route{grid-template-columns:1fr}.section-head{align-items:start;flex-direction:column}.formula-tools{align-items:stretch;flex-direction:column}.formula-tools input{min-width:0;width:100%}}
   </style>
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
   <header><div class="wrap">
     <a class="brand" href="/"><span class="mark">A</span><span>a11oy <small class="mono" style="color:var(--muted);font-weight:400">/ Anatomy v5</small></span></a>
-    <nav aria-label="Primary"><a href="/ecosystem">Ecosystem</a><a href="/spaces">All Spaces</a><a href="/formulas">Formulas</a><a href="/living-anatomy">3D Anatomy</a><a class="primary" href="/console">Command center</a></nav>
+    <nav aria-label="Primary"><a href="/ecosystem">Ecosystem</a><a href="/organs/integrity">Organs</a><a href="/spaces">All Spaces</a><a href="/formulas">Formulas</a><a href="/living-anatomy">3D Anatomy</a><a class="primary" href="/console">Command center</a></nav>
   </div></header>
   <main id="main">
     <section class="hero"><div class="wrap">
       <div class="eyebrow">Real signals | one governed organism</div>
       <h1>The estate is<br><span>alive and inspectable.</span></h1>
-      <p>Anatomy v5 joins the public inventory, Brain pulse, inference router, mesh, Space health, full wired formula index, and Wire-D cross-mesh evidence. Each organ keeps its source and state; a failed probe stays visibly unavailable.</p>
-      <div class="badges" id="probe-badges" aria-live="polite"><span class="badge">CONNECTING TO EIGHT EVIDENCE SURFACES</span></div>
+      <p>Anatomy v5 joins the public inventory, Brain pulse, inference router, mesh, Space health, full wired formula index, Wire-D, and the fail-closed five-organ kernel (HEART/YUYAY, BRAIN/YACHAY, CIRCULATORY/YAWAR, NERVOUS/OTel, SKELETON/Khipu). Each organ keeps its source and state; a failed probe stays visibly unavailable. Zero a Yuyay axis and the body blocks.</p>
+      <div class="badges" id="probe-badges" aria-live="polite"><span class="badge">CONNECTING TO NINE EVIDENCE SURFACES</span></div>
     </div></section>
     <div class="wrap">
       <section class="vitals" id="vitals" aria-live="polite"><div class="vital"><b>--</b><span>Loading evidence</span><small>No placeholder is a claim.</small></div></section>
+      <section class="failclosed" id="failclosed" aria-label="Fail-closed five-organ kernel">
+        <div class="eyebrow">Fail-closed kernel · HEART YUYAY · BRAIN YACHAY · CIRCULATORY YAWAR · NERVOUS OTel · SKELETON Khipu · energy UNAVAILABLE · Λ = Conjecture 1 OPEN</div>
+        <div class="grid5" id="failclosed-organs"><div class="vital"><b>--</b><span>Kernel pending</span><small>Never a fabricated LIVE.</small></div></div>
+      </section>
       <div class="tabs" role="tablist" aria-label="Anatomy views">
         <button class="tab active" id="tab-organism" data-view="organism" role="tab" aria-selected="true" aria-controls="view-organism" tabindex="0">Organism</button>
         <button class="tab" id="tab-nervous" data-view="nervous" role="tab" aria-selected="false" aria-controls="view-nervous" tabindex="-1">Router nervous system</button>
@@ -95,7 +99,7 @@
       </section>
     </div>
   </main>
-  <footer><div class="wrap"><span>Anatomy v5 is a read-only digital twin. It does not train models, mutate datasets, or mint receipts on GET. The Wire-D button is an explicit receipted POST.</span><span><a href="/api/a11oy/v1/ecosystem/atlas">Atlas JSON</a> | <a href="/api/a11oy/v1/genome">Genome JSON</a> | <a href="/api/a11oy/v1/formulas/index">Wired formula JSON</a> | <a href="/api/a11oy/v1/wire-d/status">Wire-D JSON</a> | <a href="/.well-known/szl-source.json">Source attestation</a></span></div></footer>
+  <footer><div class="wrap"><span>Anatomy v5 is a read-only digital twin. It does not train models, mutate datasets, or mint receipts on GET. The Wire-D button is an explicit receipted POST.</span><span><a href="/api/a11oy/v1/ecosystem/atlas">Atlas JSON</a> | <a href="/api/a11oy/v1/genome">Genome JSON</a> | <a href="/api/a11oy/v1/formulas/index">Wired formula JSON</a> | <a href="/api/a11oy/v1/wire-d/status">Wire-D JSON</a> | <a href="/api/a11oy/v1/organs/integrity">Organ integrity JSON</a> | <a href="/organs/integrity">Evidence Bay</a> | <a href="/.well-known/szl-source.json">Source attestation</a></span></div></footer>
   <script>
   (()=>{
     'use strict';
@@ -107,7 +111,8 @@
       spaces:['/api/a11oy/v1/spaces/health'],
       genome:['/api/a11oy/v1/genome'],
       formulas:['/api/a11oy/v1/formulas/index'],
-      wireD:['/api/a11oy/v1/wire-d/status']
+      wireD:['/api/a11oy/v1/wire-d/status'],
+      integrity:['/api/a11oy/v1/organs/integrity','/api/organs/integrity','/v1/organs/integrity']
     };
     const probes={};
     const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -144,6 +149,13 @@
         return 'OBSERVED';
       }
       if(name==='wireD')return declared||'UNAVAILABLE';
+      if(name==='integrity'){
+        const ev=data?.body||data||{};
+        if(ev.blocked===true)return 'DEGRADED';
+        if(Number(ev.live_count)===5 && String(ev.verdict||'')==='ADVISORY_BODY')return 'LIVE';
+        if(Array.isArray(ev.organs)&&ev.organs.length)return 'OBSERVED';
+        return declared||'UNAVAILABLE';
+      }
       if(name==='formulas'||name==='genome'){
         return ['UNAVAILABLE','ERROR','DEGRADED'].includes(declared)?declared:'AVAILABLE';
       }
@@ -168,11 +180,23 @@
       const routes=arrayAt(router,['routes','tiers','data.routes']);const wiredRows=arrayAt(formulas,['wired','formulas','entries']);const genomeRows=arrayAt(genome,['entries','genome']);const spaceRows=arrayAt(spaces,['spaces','resources','results']);
       const surfacesLit=valueAt(brain,['lit.surfaces_lit','surfaces_lit.count','surfaces_lit','surface_count']);
       const organsLit=valueAt(brain,['lit.organs_lit','organs_lit.count','organs_lit']);
+      const integ=probes.integrity?.data?.body||probes.integrity?.data||{};
+      const integLive=integ.live_count;
       const vitals=[
         [simple(counts.models),'Models',probes.atlas?.state],[simple(counts.kernels),'Governed kernels',probes.atlas?.state],[simple(genomeRows.length||genome.count),'Formula genome',probes.genome?.state],
-        [simple(routes.length),'Router routes',probes.router?.state],[simple(surfacesLit),'Brain-lit surfaces',probes.brain?.state],[simple(spaceRows.length||counts.spaces),'Spaces observed',probes.spaces?.state]
+        [simple(routes.length),'Router routes',probes.router?.state],[simple(surfacesLit),'Brain-lit surfaces',probes.brain?.state],[simple(spaceRows.length||counts.spaces),'Spaces observed',probes.spaces?.state],
+        [integLive==null?'--':integLive+'/5','Fail-closed organs',probes.integrity?.state]
       ];
       document.getElementById('vitals').innerHTML=vitals.map(([v,l,s])=>`<div class="vital"><b>${esc(v)}</b><span>${esc(l)}</span><small>${esc(s||'UNAVAILABLE')} | source-derived</small></div>`).join('');
+      const fc=document.getElementById('failclosed-organs');
+      if(fc){
+        const organs=Array.isArray(integ.organs)?integ.organs:[];
+        if(organs.length){
+          fc.innerHTML=organs.map(o=>`<div class="vital"><b class="${o.status==='DOWN'?'down':''}">${esc(o.status||'--')}</b><span>${esc(o.name)} · ${esc(o.quechua)}</span><small>${esc((o.formulas||[]).join('+'))} · ${esc(o.honesty||'')} · ${esc(o.detail||'')}</small></div>`).join('');
+        } else {
+          fc.innerHTML=`<div class="vital"><b>--</b><span>Fail-closed kernel</span><small>${esc(probes.integrity?.error||probes.integrity?.state||'UNAVAILABLE')} · never faked LIVE</small></div>`;
+        }
+      }
       const brainLit=[surfacesLit!==null?surfacesLit+' surfaces':null,organsLit!==null?organsLit+' organs':null].filter(Boolean).join(' | ');
       document.getElementById('organ-brain').textContent=brainLit||probes.brain?.state||'UNAVAILABLE';
       document.getElementById('organ-router').textContent=routes.length?routes.length+' routes observed':(probes.router?.state||'UNAVAILABLE');
@@ -182,7 +206,7 @@
       document.getElementById('organ-spaces').textContent=counts.spaces!==undefined?counts.spaces+' inventory entries':(probes.spaces?.state||'UNAVAILABLE');
       document.getElementById('organ-formulas').textContent=genomeRows.length?genomeRows.length+' genome | '+wiredRows.length+' wired':(probes.genome?.state||'UNAVAILABLE');
       document.getElementById('organ-receipts').textContent=probes.mesh?.state||'UNAVAILABLE';
-      const readoutKeys=['brain','router','atlas','spaces'];
+      const readoutKeys=['integrity','brain','router','atlas'];
       document.getElementById('readout').innerHTML=readoutKeys.map(key=>{const p=probes[key];return `<article><h3>${esc(key[0].toUpperCase()+key.slice(1))} <span class="badge ${stateClass(p?.state)}">${esc(p?.state||'UNAVAILABLE')}</span></h3><pre>${esc(p?.data?bounded(p.data,620):(p?.error||'No response'))}</pre><div class="source"><span>${esc(p?.endpoint)}</span><span>${esc(p?.read_at||'')}</span></div></article>`}).join('');
       renderRoutes(routes,router);renderFormulas(genomeRows,wiredRows);renderWireD(probes.wireD);document.getElementById('mesh-json').textContent=probes.mesh?.data?bounded(probes.mesh.data,12000):(probes.mesh?.error||'UNAVAILABLE');
       document.getElementById('raw-json').textContent=bounded(probes,32000);
