@@ -44,6 +44,14 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertNotIn("googleapis.com", text)
         self.assertNotIn("cdn.", text)
         self.assertIn("Formula authority NONE", text)
+        self.assertIn("PATH_TO_VERTICAL", text)
+        for path in ("/terra", "/aegis", "/puriq-markets", "/counsel"):
+            self.assertIn(path, text)
+
+    def test_page_aliases_cover_the_four_desks(self) -> None:
+        for path in ("/decision", "/terra", "/aegis", "/puriq-markets", "/puriq", "/counsel"):
+            self.assertIn(path, surface.PAGE_ALIASES)
+        self.assertEqual(surface.PAGE_ALIASES[0], "/decision")
 
 
 if __name__ == "__main__":
