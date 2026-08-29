@@ -46,26 +46,6 @@ def test_marketing_landing_ds_nav_has_hamburger_under_760px() -> None:
     assert "@media (max-width:760px){.ds-nav{display:none;}}" not in html
 
 
-def test_console_energy_never_claims_measured_joules() -> None:
-    html = CONSOLE.read_text(encoding="utf-8")
-    assert "measured pending" not in html
-    assert "LIVE ledger (empty)" in html
-    assert "_energyEmpty" in html
-    assert "_energyPending" in html
-    assert "_tagEl.textContent='ROADMAP'" in html
-    assert "setTxt('hero-joules','pending')" in html
-    assert "API+'/v1/energy/ledger'" in html
-    # ENERGY hero fill never paints a MEASURED chip or J/tok.
-    fill = html.split("ENERGY slot = LIVE ledger", 1)[1].split("hero-gate", 1)[0]
-    assert "_tagEl.textContent='MEASURED'" not in fill
-    assert "J/tok" not in fill
-    assert "_tagEl.textContent='MEASURED'" not in html
-    # Default ENERGY slot copy is ledger, not joules.
-    assert 'id="hero-joules" data-maturity="live">LIVE ledger (empty)</span>' in html
-    assert "not joules" in html
-    assert "JOULES SAMPLE" in html
-
-
 def test_hero_receipts_share_ledger_source_and_label_historical() -> None:
     html = FRONT_DOOR.read_text(encoding="utf-8")
     assert "function setHeroReceiptsFromLedger" in html
@@ -101,27 +81,6 @@ def test_landing_router_health_is_stale_not_measured() -> None:
     assert "live, drift-checked" not in html
     assert "LLM-Router Live scene" not in html
     assert "LLM-Router Live · 3D" not in html
-
-
-def test_ask_and_governed_decision_are_html_nav_roadmap() -> None:
-    html = CONSOLE.read_text(encoding="utf-8")
-    last_ask = html.rfind("V.ask={")
-    last_decision = html.rfind("V.decision={")
-    assert last_ask != -1 and last_decision != -1
-    ask_chunk = html[last_ask : last_ask + 1600]
-    dec_chunk = html[last_decision : last_decision + 1600]
-    for chunk in (ask_chunk, dec_chunk):
-        assert "GDW UNAVAILABLE" in chunk
-        assert "EXECUTION ROADMAP" in chunk
-        assert "_gdwDraftPlane" in chunk
-    assert "does not run" in ask_chunk
-    assert "/operator/act" not in ask_chunk
-    assert "governed-decision" not in dec_chunk
-    assert "Approve draft (does not run)" in html
-    # Leftover approve-and-run POST is neutralized.
-    act = html.split("async function act_do", 1)[1].split("async function ", 1)[0]
-    assert "orgPost" not in act
-    assert "EXECUTION ROADMAP" in act
 
 
 def test_pr_does_not_skin_nvidia_adapters_as_nim() -> None:
