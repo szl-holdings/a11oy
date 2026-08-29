@@ -2,6 +2,8 @@
 """Remove the obsolete whole-Dockerfile hash freeze from the admission regression."""
 from pathlib import Path
 
+# This no-semantic-change marker intentionally triggers the already-present
+# non-default-branch materializer workflow.
 path = Path("tests/test_verify_hf_candidate_admission.py")
 text = path.read_text(encoding="utf-8")
 old = '''        self.assertEqual(
