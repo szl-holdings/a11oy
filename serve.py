@@ -1172,6 +1172,16 @@ try:
 except Exception as _szl_five_e:  # pragma: no cover
     print(f"[a11oy] Five-space operator BIND NOT registered: {_szl_five_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- NEXUS analog workstation BIND hologram — vanity path, not a landing door.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+# Same class as /five-space and /khipu. Not a flagship. Hub Space private.
+try:
+    import szl_nexus as _szl_nexus
+    _szl_nexus.register(app, ns="a11oy")
+    print("[a11oy] NEXUS BIND registered: /api/a11oy/v1/nexus/{healthz,status} — not a flagship, Hub private UNAVAILABLE", file=__import__("sys").stderr)
+except Exception as _szl_nexus_e:  # pragma: no cover
+    print(f"[a11oy] NEXUS BIND NOT registered: {_szl_nexus_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- SDA (Space / Domain Awareness — Counter-UAS) — HONEST defense surface (SWEEP D1).
 # The /sda + /counter-uas pages historically served a 200 SPA shell with NO backing
 # /api/a11oy/v1/sda/* API (404). szl_sda wires the CANONICAL honest surface: vessel
@@ -4065,6 +4075,10 @@ try:
     # Not a flagship. Not a production certificate. Does not replace /console.
     app.add_api_route("/five-space", _ptg_serve("five-space.html"), methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/a11oy/five-space", _ptg_serve("five-space.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    # NEXUS analog workstation (AO-2026-08-29-003). Vanity path like /five-space /khipu.
+    # Not a flagship. Not a landing door. Hub Space private. Energy UNAVAILABLE.
+    app.add_api_route("/nexus", _ptg_serve("nexus.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/a11oy/nexus", _ptg_serve("nexus.html"), methods=["GET", "HEAD"], include_in_schema=False)
     # MATERIALS (Q'allariy) tab (2026-06-16): the honest, user-visible Verifiable
     # Alloy & Crystal Discovery surface. Standalone sovereign page (0 runtime CDN),
     # binds to live /api/a11oy/v1/materials/* — a crystal-novelty form that POSTs to

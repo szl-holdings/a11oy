@@ -37,6 +37,7 @@ SERVED_GLOBS = [
     "web/nemo.html",
     "web/immune.html",
     "web/lyte.html",
+    "web/nexus.html",
     "web/estate-hologram.html",
     "static-vendor/*.js",
     "static-vendor/*.css",
