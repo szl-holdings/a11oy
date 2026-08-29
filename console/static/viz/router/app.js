@@ -255,7 +255,7 @@ function renderRouteFeed(stats,state){
     const detail = document.createElement('span');
     detail.textContent = state === 'responding' || state === 'counter-degraded'
       ? `${Math.round(route.throughput)} routing decisions · ${route.license}`
-      : `${Math.round(route.throughput)} modeled load · ${route.license}${route.task ? ` · ${route.task}` : ''}`;
+      : `${Math.round(route.throughput)} modeled load · not QPS · ${route.license}${route.task ? ` · ${route.task}` : ''}`;
     item.append(title,detail); feed.append(item);
   }
 }

@@ -773,7 +773,18 @@ details.raw[open] summary{color:var(--muted);}
     <button type="button" class="nav-item" data-view="energyReceipts" onclick="go('energyReceipts')"><span class="ico">⎙</span>Energy Receipts</button>
     <button type="button" class="nav-item" data-view="energyGrid" onclick="go('energyGrid')"><span class="ico">⊟</span>Grid Settings</button>
 
-    <div class="side-foot">Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
+    <div class="side-foot">Kernel · Lean-8 <span id="cnt-locked">—</span> from /honest locked_formula_count (GET /api/a11oy/v1/honest, 8 or N/A). LOCKED-PROVEN (catalog) is labelled separately, catalog:true, never the kernel.<br>Trust score (Λ) = Conjecture 1 (+conditional-proven)<br>8 locked-proven + 80+ experimental CI-green<br>SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap · 5 services<br>Verifiable receipts · honest by design</div>
+    <script>
+    (async function loadConsoleKernel(){
+      let kernelN='N/A';
+      try{
+        const h=await fetch('/api/a11oy/v1/honest').then(function(r){return r.json();});
+        if(h&&h.locked_formula_count===8) kernelN='8';
+      }catch(e){}
+      var el=document.getElementById('cnt-locked');
+      if(el&&el.firstChild) el.firstChild.nodeValue=kernelN;
+    })();
+    </script>
   </aside>
 
   <main class="content" id="content"><div class="view-sub">loading…</div></main>
