@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Series A holographic models + kernels estate
+- Command Center first-fold and a dedicated `/estate` surface bind
+  the public SZL model and kernel inventory as KANCHAY holographic cards
+  (void `#080c14`, proof `#3af4c8`, lattice `#5b8dee`, gold `#d7b96b`).
+- Live Hub listing metadata is **REPORTED**. No weights = **ROADMAP**. Fetch
+  fail = **UNAVAILABLE**. A11OY-MINI GGUF filenames are observed from the Hub
+  listing; evals stay none this run. Sage INT8/FP8 is a ROADMAP fourth kernel,
+  not shipped. YARQA-ATTN is KERNEL-owned, not a fourth Triton stack.
+  Killinchu-named Hub IDs stay outside this inventory. Lean-8 still reads
+  `/api/a11oy/v1/honest` `locked_formula_count` (exactly 8 else UNAVAILABLE).
+  Λ stays Conjecture 1. No Dockerfile change; cards reuse `szl_command_bar.*`.
+  Every card shows exact Hub id, GitHub source (or UNAVAILABLE), evidence class
+  (REPORTED / SOFTWARE / ROADMAP; MEASURED is never stamped here because this
+  endpoint does not re-hash), Hub listing SHA, and what it is not.
+  `/estate` is contracted in `tools/readiness-harness/tabs.json`. `pages/estate.html`
+  ships via wholesale `COPY pages/ ./pages/` (HF COPY parity, no allowlist).
+
 ### Fixed - kevgate omits incomplete CVSS rows
 - `/api/a11oy/v1/sec/kevgate` no longer emits `cached`/`live` items whose
   CVSS is derived or stale. Incomplete enrichment is omitted fail-closed

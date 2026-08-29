@@ -68,6 +68,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/frontier-index/catalog",    # Wave-Q honest ecosystem catalog the status aggregate is built on (drift-proof source)
     "/api/a11oy/v1/models/frontier-adoption",  # Wave-26 pinned model-admission contract
     "/api/a11oy/v1/models/estate",             # Wave-26 fail-closed live HF estate merge
+    "/api/a11oy/v1/models/series-a",           # Series A holographic models+kernels bind
+    "/estate",                                 # dedicated models+kernels surface
     "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
     "/frontier-now",                           # responsive Frontier Now PAGE
     "/api/a11oy/v1/khipu/status",              # live CPU-lab pin + READY/FAILED (no sign on GET)

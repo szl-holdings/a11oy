@@ -929,5 +929,5 @@ jobs:
         # operation evidence, quarantine behavior, malformed-registry refusal,
         # zero deletion authority, stale-cache labeling, and API merge semantics.
         run: |
-          pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_demo_critical_routes.py -q
+          pytest tests/test_frontier_model_admission.py tests/test_model_intel_frontier_estate.py tests/test_demo_critical_routes.py tests/test_series_a_estate.py tests/test_holographic_command_bar.py -q
           python model_release/frontier-qualification/frontier_admission_guard.py audit

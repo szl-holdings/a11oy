@@ -725,6 +725,7 @@ details.raw[open] summary{color:var(--muted);}
     <!-- ── 1 · HOME ─────────────────────────────────────────────────────── -->
     <div class="nav-group mod-home">Home</div>
     <button type="button" class="nav-item active" data-view="command" aria-current="page" onclick="go('command')"><span class="ico">◎</span>Command Center</button>
+    <button type="button" class="nav-item" data-view="estate" onclick="go('estate')"><span class="ico">▣</span>Models + Kernels</button>
     <button type="button" class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</button>
 
     <!-- ── 2 · OPERATE ──────────────────────────────────────────────────── -->
@@ -6493,6 +6494,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        (not a bare "…") so a card mid-fetch reads as LOADING, never BROKEN. */
     function kpi(k,id,d,cls){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" id="'+id+'"><span class="skel skel-val"></span></div><div class="d">'+(d||'')+'</div></div>'; }
     function card(t,ep,inner){ return '<div class="card"><div class="card-h"><span class="card-t">'+t+'</span><span class="card-ep">'+(ep||'')+'</span></div>'+inner+'</div>'; }
+    function mountEstate(id, compact){
+      var n=0;
+      (function boot(){
+        try{
+          if(window.SZLEstate){ window.SZLEstate.mount(document.getElementById(id),{compact:!!compact}); return; }
+        }catch(_e){}
+        if(++n<50) setTimeout(boot, 40);
+      })();
+    }
     /* BATCH2B: box3d now ships a CSS-only skeleton (node-cluster + "initializing mesh\u2026")
        so the 3D hero NEVER paints as a blank/white void during the WebGL init / feed window.
        a11oyFG clears host.innerHTML on success, replacing this placeholder. */
@@ -6567,6 +6577,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +kpi('Build security','cc-slsa','SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap','teal')
           +'</div>'
           +card('Rolling receipt stream',''+liveDot()+'live · one tamper-evident chain','<div id="cc-stream">'+skelRows(3)+'</div>')
+          +'<section class="szl-estate-fold" aria-label="Series A models and kernels">'
+          +'<div class="card-h"><span class="card-t">Models + kernels</span><span class="card-ep mono">Hub listing · REPORTED</span></div>'
+          +'<div id="szl-series-a-cards"></div></section>'
           +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read “Services up”.</b> This Space runs the <b>governed mesh</b> — the in-image capability mesh is <b>6/6 healthy</b> (Byzantine quorum 4/4 REACHED, see the <b>UDS 4/4 Quorum</b> tab). The heavy <b>organ backends (Reasoning / Policy / Operator / Receipts)</b> run on <b>dedicated infrastructure (roadmap)</b>, so on this demo Space they are shown honestly as <b>not-deployed-here</b> rather than faked “up”. Same truth, two probes: the governed mesh a11oy actually runs on is fully healthy; the organ backends are not deployed on this Space.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
           +'<div class="grid2 szl-below-fold">'
           +card('Trust posture (13-axis Λ)','live '+window.a11oyPoweredBy(['F19','F1']),'<div class="chartbox"><canvas id="cc-radar"></canvas></div>')
@@ -6634,6 +6647,19 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           }catch(e){ if(el('cc-stream')&&el('cc-stream').querySelector('.skel')) H('cc-stream','<div class="row mono dim">receipt stream not available right now — shown honestly, not faked.</div>'); }
         }, 'cc-stamp');
         T('cc-slsa','SLSA L1+L2');
+        mountEstate('szl-series-a-cards', true);
+      }
+    };
+
+    V.estate={ title:'Models + Kernels', badge:'SERIES A · HUB LISTING',
+      sub:'Public SZL models and kernels as holographic cards. Hub metadata is REPORTED. No weights = ROADMAP. Fetch fail = UNAVAILABLE. Lean-8 is /honest, not the genome catalog. Λ = Conjecture 1.',
+      render:async function(c){
+        c.innerHTML='<section class="szl-estate-fold" aria-label="Series A models and kernels">'
+          +'<p class="szl-estate-legend"><span>See the Hub listing</span><span>Decide from the honest label</span><span>Act on the card</span></p>'
+          +'<div id="szl-estate-full"></div>'
+          +'<p class="szl-estate-foot"><a href="/estate">Dedicated estate surface</a> · Lean-8 reads /api/a11oy/v1/honest</p>'
+          +'</section>';
+        mountEstate('szl-estate-full', false);
       }
     };
 
@@ -15962,6 +15988,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   var SPEC = [
     ["Home", [
       ["command","\u25ce","Command Center"],
+      ["estate","\u25a3","Models + Kernels","/estate"],
       ["investor","\u25c7","Investor View"],
       ["mesh","\u22b9","Live System Map"]
     ]],
@@ -16176,7 +16203,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                    'cybPosture','cybThreat','cybSurface','cybIncident','cybZero',
                    'fltGov','fltObs','fltOrch','fltReceipts','fltTopo',
                    'pvaAnchor','pvaGraph','pvaHealth','pvaPqc','pvaVerify']],
-    ['Home',      ['command','mesh']]
+    ['Home',      ['command','estate','mesh']]
   ];
   var LAB_KEYS={entangle:1,neuro:1,sovereignty:1,scaling:1,conjecturefactory:1,energyGrid:1,reciprocity:1,allodialai:1};
   var LAB_HONEST='EXPERIMENTAL · not a locked-8 claim';

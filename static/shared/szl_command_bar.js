@@ -32,6 +32,7 @@
     { label: 'Open diligence room', href: PROOF },
     { label: 'Proof registry', href: PROOF },
     { label: 'Command Center', href: '/console?view=command' },
+    { label: 'Models + Kernels', href: '/estate' },
     { label: 'Ask & Act', href: '/console?view=ask' },
     { label: 'Investor View', href: '/console?view=investor' },
     { label: 'WILLAY — signed refusals', href: '/willay' },
@@ -201,6 +202,7 @@
       var extras = [
         { label: 'Verify a receipt', href: '/verify' },
         { label: 'WILLAY', href: '/willay' },
+        { label: 'Models + Kernels', href: '/estate' },
         { label: 'Ask & Act', href: '/console?view=ask' }
       ];
       extras.forEach(function (it) {
@@ -356,7 +358,140 @@
     document.querySelectorAll('[data-szl-command-bar]').forEach(mount);
   }
 
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function chipClass(label) {
+    var k = String(label || '').toUpperCase();
+    if (k === 'REPORTED' || k === 'LIVE') return 'szl-holo-chip szl-holo-chip--reported';
+    if (k === 'MEASURED') return 'szl-holo-chip szl-holo-chip--measured';
+    if (k === 'SOFTWARE') return 'szl-holo-chip szl-holo-chip--software';
+    if (k === 'ROADMAP') return 'szl-holo-chip szl-holo-chip--roadmap';
+    if (k === 'UNAVAILABLE' || k === 'UNKNOWN') return 'szl-holo-chip szl-holo-chip--off';
+    return 'szl-holo-chip';
+  }
+
+  function shortSha(sha) {
+    var s = String(sha || '');
+    return s.length === 40 ? (s.slice(0, 12) + '…') : (s || 'UNAVAILABLE');
+  }
+
+  function renderCard(card, compact) {
+    var listing = (card && card.listing) || {};
+    var arts = (card && card.artifacts) || {};
+    var evals = (card && card.evals) || {};
+    var pin = (card && card.revision_pin) || {};
+    var gguf = arts.gguf_files || [];
+    var relatedGguf = arts.related_gguf_files || [];
+    var ggufNote = '';
+    if (gguf.length) ggufNote = gguf.join(', ');
+    else if (relatedGguf.length) ggufNote = (arts.related_gguf_repo || '') + ': ' + relatedGguf.join(', ');
+    var lane = String((card && card.lane) || 'model').toUpperCase();
+    var owner = card && card.owner ? String(card.owner) : lane;
+    var github = card && card.github;
+    var hubId = (card && card.hub_id) || 'UNAVAILABLE';
+    var evidence = (card && card.evidence_class) || listing.label || 'UNAVAILABLE';
+    var href = (card && (card.hub_href || card.act_href)) || '#';
+    var act = (card && card.act_href) || href;
+    var lambda = (card && card.lambda) || {};
+    var notTriton = card && card.not_triton_stack;
+    var notClaim = (card && card.not) || 'Not OPERATIONAL. Not Lean-8.';
+    var filesLine = ggufNote
+      ? ('GGUF ' + ggufNote)
+      : (arts.has_adapter ? 'adapter file REPORTED' : (arts.weight_bearing ? 'weight filenames REPORTED' : 'no weight file'));
+    if (lane === 'KERNEL') filesLine = arts.file_count ? ('kernel files REPORTED · n=' + arts.file_count) : filesLine;
+    var html = '<article class="szl-holo-card" data-lane="' + esc(lane.toLowerCase()) + '" data-id="' + esc(card && card.id) + '" data-hub="' + esc(hubId) + '" data-evidence="' + esc(evidence) + '">'
+      + '<header class="szl-holo-card-h">'
+      + '<span class="szl-holo-k">' + esc(owner) + (notTriton ? ' · NOT TRITON STACK' : '') + '</span>'
+      + '<h3 class="szl-holo-title">' + esc(card && card.title) + '</h3>'
+      + '<p class="szl-holo-one">' + esc(card && card.one_line) + '</p>'
+      + '</header>'
+      + '<dl class="szl-holo-facts">'
+      + '<div><dt>Hub id</dt><dd><code class="szl-holo-id">' + esc(hubId) + '</code></dd></div>'
+      + '<div><dt>GitHub</dt><dd>' + (github
+        ? ('<a href="' + esc(github) + '" target="_blank" rel="noopener noreferrer">' + esc(github.replace(/^https:\/\/github.com\//, '')) + '</a>')
+        : '<span class="' + chipClass('UNAVAILABLE') + '">UNAVAILABLE</span> no public source repo') + '</dd></div>'
+      + '<div><dt>Class</dt><dd><span class="' + chipClass(evidence) + '">' + esc(evidence) + '</span></dd></div>'
+      + '<div><dt>Revision</dt><dd><span class="' + chipClass(pin.label) + '">' + esc(pin.label || 'UNAVAILABLE') + '</span> '
+      + '<code class="szl-holo-id">' + esc(shortSha(pin.sha)) + '</code></dd></div>'
+      + '<div><dt>See</dt><dd><span class="' + chipClass(listing.label) + '">' + esc(listing.label || 'UNAVAILABLE') + '</span> '
+      + esc(listing.pipeline_tag || listing.sdk || listing.note || 'Hub listing') + '</dd></div>'
+      + '<div><dt>Decide</dt><dd><span class="' + chipClass(arts.label) + '">' + esc(arts.label || 'UNAVAILABLE') + '</span> '
+      + esc(filesLine) + '</dd></div>'
+      + '<div><dt>Not</dt><dd>' + esc(notClaim) + '</dd></div>'
+      + (compact ? '' : ('<div><dt>Evals</dt><dd><span class="' + chipClass(evals.label) + '">' + esc(evals.label || 'ROADMAP') + '</span> '
+      + esc(evals.note || '') + '</dd></div>'))
+      + '</dl>'
+      + '<p class="szl-holo-lambda" title="Λ = Conjecture 1 — advisory, never a theorem, never a gate">Λ = '
+      + esc(lambda.label || 'Conjecture 1') + ' · never a theorem</p>'
+      + (compact ? '' : ('<p class="szl-holo-note">' + esc(arts.note || listing.note || '') + '</p>'))
+      + '<footer class="szl-holo-act">'
+      + (card && card.hub_href ? '<a href="' + esc(card.hub_href) + '" target="_blank" rel="noopener noreferrer">Hub card ↗</a>' : '')
+      + (github ? '<a href="' + esc(github) + '" target="_blank" rel="noopener noreferrer">GitHub source ↗</a>' : '')
+      + (act && act !== href ? '<a href="' + esc(act) + '">Act</a>' : '')
+      + '</footer></article>';
+    return html;
+  }
+
+  function renderRoadmap(card) {
+    var notClaim = (card && card.not) || 'Not shipped. Not a Hub id.';
+    return '<article class="szl-holo-card szl-holo-card--roadmap" data-lane="kernel" data-id="' + esc(card && card.id) + '" data-hub="UNAVAILABLE" data-evidence="ROADMAP">'
+      + '<header class="szl-holo-card-h"><span class="szl-holo-k">KERNEL · NOT SHIPPED</span>'
+      + '<h3 class="szl-holo-title">' + esc(card && card.title) + '</h3>'
+      + '<p class="szl-holo-one">' + esc(card && card.one_line) + '</p></header>'
+      + '<dl class="szl-holo-facts">'
+      + '<div><dt>Hub id</dt><dd><code class="szl-holo-id">UNAVAILABLE</code></dd></div>'
+      + '<div><dt>GitHub</dt><dd><span class="szl-holo-chip szl-holo-chip--off">UNAVAILABLE</span> no public source repo</dd></div>'
+      + '<div><dt>Class</dt><dd><span class="szl-holo-chip szl-holo-chip--roadmap">ROADMAP</span></dd></div>'
+      + '<div><dt>Revision</dt><dd><span class="szl-holo-chip szl-holo-chip--off">UNAVAILABLE</span></dd></div>'
+      + '<div><dt>Not</dt><dd>' + esc(notClaim) + '</dd></div>'
+      + '</dl>'
+      + '<p class="szl-holo-lambda">Λ = Conjecture 1 · never a theorem</p></article>';
+  }
+
+  function mountEstate(root, opts) {
+    if (!root) return;
+    opts = opts || {};
+    var compact = !!opts.compact;
+    root.classList.add('szl-estate-grid');
+    if (compact) root.classList.add('is-compact');
+    root.setAttribute('data-szl-estate', compact ? 'compact' : 'full');
+    root.innerHTML = '<div class="szl-empty" data-kind="unknown"><span class="szl-empty__k">UNKNOWN</span>'
+      + '<span class="szl-empty__d">probing Hub listing…</span></div>';
+    fetchJson(opts.endpoint || '/api/a11oy/v1/models/series-a', 10000).then(function (d) {
+      if (!d || !Array.isArray(d.cards)) throw new Error('bad payload');
+      var models = d.cards.filter(function (c) { return c.lane === 'model'; });
+      var kernels = d.cards.filter(function (c) { return c.lane === 'kernel'; });
+      var road = d.roadmap_kernels || [];
+      var parts = [];
+      parts.push('<div class="szl-estate-legend" role="note">'
+        + '<span>SEE Hub listing</span><span>DECIDE honest label</span><span>ACT open the card</span>'
+        + '<span class="szl-holo-lambda">Λ = Conjecture 1 · catalog LOCKED-PROVEN is not Lean-8</span></div>');
+      parts.push('<h4 class="szl-estate-h">Models</h4><div class="szl-estate-tiles">');
+      models.forEach(function (c) { parts.push(renderCard(c, compact)); });
+      parts.push('</div><h4 class="szl-estate-h">Kernels</h4><div class="szl-estate-tiles">');
+      kernels.forEach(function (c) { parts.push(renderCard(c, compact)); });
+      road.forEach(function (c) { parts.push(renderRoadmap(c)); });
+      parts.push('</div>');
+      if (!compact) {
+        parts.push('<p class="szl-estate-foot">Killinchu-named Hub IDs are outside this inventory. '
+          + 'Sage INT8/FP8 stays ROADMAP. YARQA-ATTN is KERNEL-owned, not a fourth Triton stack. '
+          + 'Never OPERATIONAL from this listing. Lean-8 reads /api/a11oy/v1/honest locked_formula_count.</p>');
+      } else {
+        parts.push('<p class="szl-estate-foot"><a href="/estate">Open models + kernels</a></p>');
+      }
+      root.innerHTML = parts.join('');
+    }).catch(function () {
+      root.innerHTML = '<div class="szl-empty" data-kind="unavailable"><span class="szl-empty__k">UNAVAILABLE</span>'
+        + '<span class="szl-empty__d">Hub listing could not be fetched. No inventory is invented.</span></div>';
+    });
+  }
+
   global.SZLCommandBar = { mount: mount, mountAll: mountAll };
+  global.SZLEstate = { mount: mountEstate };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountAll);
   else mountAll();
 })(window);
