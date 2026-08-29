@@ -194,5 +194,14 @@ jobs:
               api.upload_file(path_or_fileobj=str(tc), path_in_repo="train_cohort.py", repo_id="SZLHOLDINGS/szl-training-scripts", repo_type="model", commit_message="code(atelier): CPU silhouette trainer — not a 1.5B retrain")
               print("published SZLHOLDINGS/szl-training-scripts train_cohort.py")
 
+          ru = root / "kit" / "receipted_unsloth.py"
+          if ru.exists():
+              api.upload_file(path_or_fileobj=str(ru), path_in_repo="receipted_unsloth.py", repo_id="SZLHOLDINGS/szl-training-scripts", repo_type="model", commit_message="code(atelier): receipted Unsloth v2 profiles — not a GPU retrain")
+              print("published SZLHOLDINGS/szl-training-scripts receipted_unsloth.py")
+          recipes = root / "unsloth-recipes.json"
+          if recipes.exists():
+              api.upload_file(path_or_fileobj=str(recipes), path_in_repo="unsloth-recipes.json", repo_id="SZLHOLDINGS/szl-training-scripts", repo_type="model", commit_message="recipe(atelier): Unsloth profiles RECIPE not MEASURED — energy UNAVAILABLE")
+              print("published SZLHOLDINGS/szl-training-scripts unsloth-recipes.json")
+
           print("done. Did not retrain 1.5B. Energy UNAVAILABLE.")
           PY
