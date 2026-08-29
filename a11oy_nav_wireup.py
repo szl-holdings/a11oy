@@ -64,6 +64,7 @@ _SURFACES = [
     ("/sovereign",      "\u26D3",     "Sovereign Ledger"),                  # khipu health+spend
     ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
     ("/immune",         "\u2B21",     "IMMUNE"),                            # ⬡
+    ("/lyte",           "\u2696",     "LYTE lattice"),                      # ⚖ BIND package, not flagship
     ("/autoreview",     "\u2713",     "Auto-Review (Governed Autonomy)"),   # ✓
     ("/factory",        "\u2699",     "Governed Factory"),                  # ⚙
     ("/constitution",   "\u00A7",     "Constitution"),                      # §
@@ -93,6 +94,7 @@ _SURFACE_GROUP_OF = {
     "/sovereign": "Sovereign & Agentic Core",
     "/nemo": "Sovereign & Agentic Core",
     "/immune": "Sovereign & Agentic Core",
+    "/lyte": "Sovereign & Agentic Core",
     "/autoreview": "Sovereign & Agentic Core",
     "/factory": "Sovereign & Agentic Core",
     "/constitution": "Sovereign & Agentic Core",
@@ -211,7 +213,7 @@ _REL_MARKER = b'data-related-surfaces="qa10"'
 # Flagship surfaces that get the cross-link strip. /restraint-bench (the REAL
 # Restraint page) is used, not /restraint (generic shell fallthrough).
 _FLAGSHIP_PATHS = {
-    "/nemo", "/immune", "/autoreview", "/factory", "/constitution",
+    "/nemo", "/immune", "/lyte", "/autoreview", "/factory", "/constitution",
     "/energy", "/agent-loop", "/quant", "/grc", "/restraint-bench",
     "/code", "/fleet-c2", "/living-anatomy",
 }
@@ -223,6 +225,7 @@ def _build_related_strip(current_path: str) -> bytes:
     rel = [
         ("/nemo", "SZL-Nemo"),
         ("/immune", "IMMUNE"),
+        ("/lyte", "LYTE lattice"),
         ("/autoreview", "Auto-Review"),
         ("/factory", "Factory"),
         ("/constitution", "Constitution"),

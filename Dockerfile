@@ -547,6 +547,10 @@ COPY static/energy_3d.js ./static/energy_3d.js
 # Grid Energy Harvest honest dashboard (/energy-harvest); served via _ptg_serve from /app/web/.
 # … (full rationale: docs/DOCKERFILE_NOTES.md §73)
 COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html ./web/
+# LYTE lattice BIND hologram page + status module (AO-2026-08-29-001).
+# Cite GitHub. Not a second flagship. Not a product certificate.
+COPY web/lyte.html ./web/lyte.html
+COPY szl_lyte_lattice.py ./
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # … (full rationale: docs/DOCKERFILE_NOTES.md §74)
 

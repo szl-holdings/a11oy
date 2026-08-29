@@ -36,6 +36,7 @@ SERVED_GLOBS = [
     "console/*.html",
     "web/nemo.html",
     "web/immune.html",
+    "web/lyte.html",
     "web/estate-hologram.html",
     "static-vendor/*.js",
     "static-vendor/*.css",
