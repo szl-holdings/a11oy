@@ -21,6 +21,6 @@ An operator can run one consequential-shaped tool call and observe that governan
 
 - Production ATO / FedRAMP
 - DSSE-LIVE cosign identity in this browser session
-- Λ uniqueness as a theorem
+- Λ uniqueness as a theorem (Λ = Conjecture 1, never a theorem)
 - Universal safety
 - Customer adoption
