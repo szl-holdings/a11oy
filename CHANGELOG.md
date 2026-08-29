@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - Command Center /run /eval /estate on a-11-oy.com
+- `GET /run` is the governed inference theater (0-CDN, HASH-LINKED local
+  receipts). Origin signer is ABSENT, so nothing here is SIGNED.
+- `GET /eval` and `GET /eval-arena` serve the adversarial arena HTML over
+  the already-LIVE `POST /api/a11oy/v1/eval/run`.
+- `GET /estate` is now declared through `szl_hub.register` (the page already
+  shipped; undeclared path had been an honest 404).
+- Hub launch includes Run / Eval. Does not steal `/console`. Does not land
+  on a11oy.net. No Grok preview dump. No DNS change. Λ = Conjecture 1.
+
+
 ### Changed - Hub Spaces public cut is 7 KEEP
 - `GET /spaces` is the operator desk for the MEASURED Hub cut: 7 public
   keepers, not the historical 26-tile registry. Inventory health compares

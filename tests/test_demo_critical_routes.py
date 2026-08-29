@@ -71,6 +71,9 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/models/series-a",           # Series A holographic models+kernels bind
     "/estate",                                 # dedicated models+kernels surface
     "/atelier",                                # forty-model walk (declared product surface)
+    "/run",                                    # governed inference theater (declared product surface)
+    "/eval",                                   # adversarial arena HTML (szl_eval_arena already live as API)
+    "/eval-arena",                             # alias of /eval
     "/api/a11oy/v1/frontier-now/summary",      # read-only estate proof projection
     "/frontier-now",                           # responsive Frontier Now PAGE
     "/api/a11oy/v1/khipu/status",              # live CPU-lab pin + READY/FAILED (no sign on GET)

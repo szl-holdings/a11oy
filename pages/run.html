@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+© 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
+GET /run is a declared product surface. 0 runtime CDN. Deny by default.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Run — governed inference theater · a11oy</title>
+<meta name="description" content="Deny-by-default inference theater on a-11-oy.com. HASH-LINKED local receipts. Signer ABSENT. Λ = Conjecture 1."/>
+<style>
+:root{--bg:#080c14;--panel:#101826;--ink:#eef4fb;--mut:#8a97ab;--gold:#d9b35c;--line:#1d2a3d;--ok:#3af4c8;--warn:#ffcf5c;--bad:#ff6b6b;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:radial-gradient(1200px 600px at 10% -10%,#142038 0%,var(--bg) 55%);color:var(--ink);font:15px/1.55 var(--sans)}
+a{color:var(--gold);text-decoration:none}a:hover{text-decoration:underline}
+.wrap{max-width:1120px;margin:0 auto;padding:22px 18px 72px}
+.top{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--line);padding-bottom:14px}
+.brand{font-weight:700;letter-spacing:.08em;color:var(--gold);text-transform:uppercase;font-size:13px}
+.nav a{margin-left:12px;font-size:12.5px;color:var(--mut)}
+.nav a:hover{color:var(--gold);text-decoration:none}
+.kicker{font:11px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin:22px 0 8px}
+h1{font-size:30px;margin:0 0 8px;letter-spacing:.01em}
+.sub{color:var(--mut);max-width:68ch;margin:0 0 16px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 22px}
+.pill{font:11px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;border:1px solid var(--line);border-radius:999px;padding:5px 10px;color:var(--mut)}
+.pill.ok{color:var(--ok);border-color:#1f5a4a}.pill.warn{color:var(--warn);border-color:#5a4a1f}.pill.bad{color:var(--bad);border-color:#5a1f1f}
+.theater{background:rgba(16,24,38,.72);border:1px solid var(--line);border-radius:14px;padding:18px 18px 16px;margin:0 0 18px}
+.theater.blocked{border-color:#5a1f2a;box-shadow:0 0 0 1px rgba(255,107,107,.08)}
+.theater.admitted{border-color:#1f5a4a}
+.row{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start}
+.v{font:11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--mut)}
+h2{font-size:18px;margin:6px 0 8px}
+.claim{color:var(--mut);max-width:70ch}
+.steps{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin:16px 0 8px}
+@media(max-width:820px){.steps{grid-template-columns:1fr 1fr}}
+.step{border:1px solid var(--line);border-radius:10px;padding:10px 11px;background:#0b1220;min-height:96px}
+.step.on{border-color:rgba(217,179,92,.45);background:#141c2c}
+.n{font:10px/1 var(--mono);color:var(--mut);letter-spacing:.12em}
+.reason{margin:10px 0 0;color:var(--ink)}
+label{display:block;font-size:12px;color:var(--mut);margin:10px 0 6px}
+textarea{width:100%;min-height:78px;background:#0a101a;color:var(--ink);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font:13px/1.45 var(--sans)}
+button{background:var(--gold);color:#140f04;border:0;border-radius:8px;padding:9px 16px;font-weight:650;cursor:pointer}
+button.ghost{background:transparent;color:var(--gold);border:1px solid var(--gold)}
+button:disabled{opacity:.5;cursor:default}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0 0}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:10px}
+.card{display:block;width:100%;text-align:left;background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 13px;font-weight:400}
+.card:hover{border-color:var(--gold)}
+.card b{display:block;margin-bottom:4px}
+.card span{color:var(--mut);font-size:12.5px}
+.honest{border-left:3px solid var(--warn);background:rgba(255,207,92,.06);padding:12px 14px;border-radius:0 10px 10px 0;margin:22px 0;font-size:13.5px;color:#d8dbe6}
+footer{margin-top:28px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
+code{font-family:var(--mono);font-size:12px;color:var(--gold)}
+#chain{font:11.5px/1.5 var(--mono);color:var(--mut);word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">a11oy · command center</div>
+    <nav class="nav" aria-label="Product">
+      <a href="/">home</a>
+      <a href="/hub">hub</a>
+      <a href="/atelier">atelier</a>
+      <a href="/run">run</a>
+      <a href="/eval">eval</a>
+      <a href="/estate">estate</a>
+      <a href="/console">console</a>
+    </nav>
+  </div>
+  <p class="kicker">Governed inference theater</p>
+  <h1>Run</h1>
+  <p class="sub">Every claim walks ingest → self-doubt → locked formula → quorum → receipt. Deny by default. This plane is HASH-LINKED local inference. The origin signer is ABSENT, so nothing here becomes SIGNED. Λ stays Conjecture 1.</p>
+  <div class="pills">
+    <span class="pill">MODELED</span>
+    <span class="pill warn">UNSIGNED</span>
+    <span class="pill warn">CONJECTURE</span>
+    <span class="pill ok">LOCKED-8</span>
+  </div>
+
+  <section class="theater" id="theater" aria-live="polite">
+    <p class="v">idle</p>
+    <h2>Select a scenario or submit a claim.</h2>
+    <p class="claim">Deny by default. Every run writes a local HASH-LINKED receipt. Origin signer is ABSENT.</p>
+  </section>
+
+  <section>
+    <h2 style="font-size:16px;color:var(--gold)">Submit a claim</h2>
+    <p class="sub">Try painting Λ as a theorem, firing an effector, routing a trade, or fabricating a joule. The organism should refuse.</p>
+    <label for="claim">Claim</label>
+    <textarea id="claim" placeholder="Declare Λ uniqueness proven…"></textarea>
+    <div class="actions">
+      <button id="gov" type="button">Govern this claim</button>
+      <a class="ghost" href="/eval" style="display:inline-flex;align-items:center;padding:8px 14px;border:1px solid var(--gold);border-radius:8px;color:var(--gold)">Open eval arena</a>
+    </div>
+  </section>
+
+  <section>
+    <h2 style="font-size:16px;color:var(--gold);margin-top:28px">Scenarios</h2>
+    <div class="grid" id="scenarios"></div>
+  </section>
+
+  <div class="honest"><b>What is honest right now.</b> This page is a declared HTML surface on a-11-oy.com. The step theater is MODELED local governance — not a live Khipu mint, not NVML, not a public effector. Receipts are SHA-256 in the browser (HASH-LINKED). Locked-proven formulas remain {F1, F4, F7, F11, F12, F18, F19, F22}. Λ-uniqueness is Conjecture 1 and is never painted as a theorem. Live model eval lives at <a href="/eval">/eval</a> and <code>POST /api/a11oy/v1/eval/run</code>.</div>
+  <p id="chain">receipt chain: (none yet)</p>
+  <footer>SZL Holdings · Apache-2.0 · Doctrine v11 LOCKED · 749 / 14 / 163 · kernel c7c0ba17 · product origin a-11-oy.com · proof a11oy.net</footer>
+</div>
+<script>
+const LOCKED8=["F1","F4","F7","F11","F12","F18","F19","F22"];
+const SCENARIOS=[
+  {id:"a11oy-replay",vertical:"a11oy",title:"Replay an identical input",claim:"Hash the same admitted body twice. F1 must hold.",verdict:"ADMITTED",signing:"HASH-LINKED",reason:"Replay-hash determinism is locked-proven. Signer remains ABSENT, so the receipt is HASH-LINKED, not SIGNED.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Claim accepted as local operator input."},{label:"Self-doubt",honesty:"CONJECTURE",detail:"Λ advisory. Does not pass or fail the gate."},{label:"F1",honesty:"LOCKED",detail:"Replay-hash determinism holds."},{label:"Quorum",honesty:"MODELED",detail:"Local 3-of-4 silhouette. Not a live Khipu mint."},{label:"Receipt",honesty:"MEASURED",detail:"SHA-256 chain advanced. in ≡ out."}]},
+  {id:"a11oy-lambda",vertical:"a11oy",title:"Paint Λ as a theorem",claim:"Declare Λ-Aggregator uniqueness proven and paint it green.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"Λ is Conjecture 1. Asking the gate to pass uniqueness is refused. Never painted green.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Claim parsed."},{label:"Self-doubt",honesty:"CONJECTURE",detail:"Uniqueness is open. Gate collapses to BLOCKED."},{label:"Λ",honesty:"CONJECTURE",detail:"Not in the locked-8."},{label:"Quorum",honesty:"BLOCKED",detail:"No vote on a conjecture as if it were a theorem."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal receipt minted. in ≡ out."}]},
+  {id:"killinchu-fuse",vertical:"killinchu",title:"Fuse a synthetic track",claim:"Track 7 enters a restricted corridor. Fuse sensors. Do not fire.",verdict:"ADMITTED",signing:"HASH-LINKED",reason:"Public catalog is synthetic. Fusion and ROE logging are admitted. Effector remains refused.",steps:[{label:"Ingest",honesty:"SAMPLE",detail:"Synthetic track. Not a live radar feed."},{label:"ROE",honesty:"SOURCE",detail:"No public effector. Strike-people is hard-deny."},{label:"F4",honesty:"LOCKED",detail:"DAG remains acyclic."},{label:"3-of-4",honesty:"MODELED",detail:"Witness silhouette. Not a live BFT round."},{label:"Receipt",honesty:"MEASURED",detail:"Interdiction log HASH-LINKED."}]},
+  {id:"killinchu-fire",vertical:"killinchu",title:"Authorize a public effector",claim:"Fire on Track 7 from the public surface.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"No public effector. Hunt / isolate / deceive — never strike people.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Effector request."},{label:"ROE",honesty:"BLOCKED",detail:"Public surface has no effector path."},{label:"F7",honesty:"LOCKED",detail:"FIFO egress refuses the action."},{label:"Quorum",honesty:"BLOCKED",detail:"A single operator cannot lift a hard deny."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal receipt. in ≡ out."}]},
+  {id:"immune-isolate",vertical:"immune",title:"Isolate a prompt injection",claim:"Hunt, isolate, deceive the injected tool-call. Do not strike a person.",verdict:"ADMITTED",signing:"HASH-LINKED",reason:"Fail-closed kernel admits isolate/deceive. Never fabricates LIVE or PASS.",steps:[{label:"Ingest",honesty:"MODELED",detail:"Injection silhouette."},{label:"Hukulla",honesty:"SOURCE",detail:"Fail-closed egress."},{label:"F7",honesty:"LOCKED",detail:"Ordered isolate before any emit."},{label:"Field",honesty:"MODELED",detail:"Lattice exile/mesh."},{label:"Receipt",honesty:"MEASURED",detail:"Append-only SHA-256 chain."}]},
+  {id:"immune-strike",vertical:"immune",title:"Strike a person",claim:"Authorize kinetic or personal harm from IMMUNE.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"Hunt / isolate / deceive. Never strike people. Hard deny.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Harm request."},{label:"Hukulla",honesty:"BLOCKED",detail:"Tripwire. No lift."},{label:"F7",honesty:"LOCKED",detail:"Egress refuses."},{label:"Field",honesty:"BLOCKED",detail:"Lattice will not vote harm."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal. in ≡ out."}]},
+  {id:"fin-advisory",vertical:"finance",title:"Emit an advisory signal",claim:"Publish a paper-only advisory with a receipt. Not a trade.",verdict:"ADMITTED",signing:"HASH-LINKED",reason:"Paper-only. Not financial advice. Advisory emit is admitted; execution is not.",steps:[{label:"Ingest",honesty:"MODELED",detail:"Research signal."},{label:"Advice",honesty:"SOURCE",detail:"Explicitly not advice."},{label:"F22",honesty:"LOCKED",detail:"Emit monotone."},{label:"Witness",honesty:"MODELED",detail:"szl-quant-witness silhouette."},{label:"Receipt",honesty:"MEASURED",detail:"HASH-LINKED advisory."}]},
+  {id:"fin-trade",vertical:"finance",title:"Execute a live trade",claim:"Route an order from the public command center.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"Paper-only estate. No live order routing from this plane.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Order intent."},{label:"Broker",honesty:"UNAVAILABLE",detail:"No broker session."},{label:"F7",honesty:"LOCKED",detail:"Egress deny."},{label:"Risk",honesty:"BLOCKED",detail:"Approval cannot lift a hard deny."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal. in ≡ out."}]},
+  {id:"ins-bind",vertical:"insurance",title:"Bind a policy with occupancy UNAVAILABLE",claim:"Bind coverage while occupancy is UNAVAILABLE.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"Occupancy UNAVAILABLE is a hard deny. a11oy will not invent a resident.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Bind request."},{label:"Occupancy",honesty:"UNAVAILABLE",detail:"Missing field is a deny, not a default."},{label:"F1",honesty:"LOCKED",detail:"Missing input cannot replay as present."},{label:"Underwrite",honesty:"BLOCKED",detail:"No silent default occupancy."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal. in ≡ out."}]},
+  {id:"energy-joule",vertical:"a11oy",title:"Fabricate a joule",claim:"Report tokens/joule without a live NVML meter.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"Energy is MEASURED from a live exporter or it is UNAVAILABLE. No joule is invented.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Energy claim."},{label:"Meter",honesty:"UNAVAILABLE",detail:"No NVML in this plane."},{label:"F12",honesty:"LOCKED",detail:"Kuramoto additive. No free energy."},{label:"Attest",honesty:"BLOCKED",detail:"szl-energy-attest refuses fabrication."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal. in ≡ out."}]},
+  {id:"khipu-one",vertical:"khipu",title:"1-of-4 admit",claim:"Admit with a single witness.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"1-of-4 is not consensus. Deny by default.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Single witness."},{label:"Quorum",honesty:"BLOCKED",detail:"Below 3-of-4."},{label:"F4",honesty:"LOCKED",detail:"Acyclic, but unsafe."},{label:"1-of-4",honesty:"BLOCKED",detail:"Hard deny."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal. in ≡ out."}]},
+  {id:"counsel-signed",vertical:"counsel",title:"Mint a SIGNED opinion",claim:"Mark the opinion SIGNED while the origin signer is ABSENT.",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"SIGNED is a verification result. Missing keys disable signing; they do not mint a replacement identity.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Signed-opinion request."},{label:"Signer",honesty:"ABSENT",detail:"Origin signer ABSENT."},{label:"F1",honesty:"LOCKED",detail:"Cannot replay a signature that was not produced."},{label:"Seats",honesty:"BLOCKED",detail:"Council cannot vote a key into existence."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal. in ≡ out."}]}
+];
+function judge(text){
+  const t=(text||"").trim(); const l=t.toLowerCase();
+  if(!t) return {id:"empty",vertical:"a11oy",title:"Empty claim",claim:"(empty)",verdict:"BLOCKED",signing:"UNSIGNED-honest",reason:"Deny by default. An empty claim is not an admission.",steps:[{label:"Ingest",honesty:"BLOCKED",detail:"No body."},{label:"Self-doubt",honesty:"BLOCKED",detail:"Nothing to score."},{label:"F1",honesty:"LOCKED",detail:"Empty does not replay as a decision."},{label:"Quorum",honesty:"BLOCKED",detail:"No vote."},{label:"Receipt",honesty:"MEASURED",detail:"Refusal. in ≡ out."}]};
+  if(/(proven|theorem|proved).{0,24}(lambda|λ|uniqueness)|lambda.{0,24}(proven|theorem)/i.test(l)) return Object.assign({}, SCENARIOS.find(s=>s.id==="a11oy-lambda"), {claim:t});
+  if(/\b(signed|dsse|cosign)\b/.test(l) && !/unsigned/.test(l)) return Object.assign({}, SCENARIOS.find(s=>s.id==="counsel-signed"), {claim:t});
+  if(/\b(joule|nvml|over-unity|free energy|tokens\/joule)\b/.test(l)) return Object.assign({}, SCENARIOS.find(s=>s.id==="energy-joule"), {claim:t});
+  if(/\b(fire|shoot|kill|strike|effector|missile)\b/.test(l)) return Object.assign({}, SCENARIOS.find(s=>s.id==="killinchu-fire"), {claim:t});
+  if(/\b(trade|order|buy|sell|broker)\b/.test(l)) return Object.assign({}, SCENARIOS.find(s=>s.id==="fin-trade"), {claim:t});
+  return {id:"freeform",vertical:"a11oy",title:"Governed freeform",claim:t,verdict:"ADMITTED",signing:"HASH-LINKED",reason:"No hard-deny pattern matched. Admitted as HASH-LINKED local inference. Not SIGNED. Not production.",steps:[{label:"Ingest",honesty:"SOURCE",detail:"Operator claim."},{label:"Self-doubt",honesty:"CONJECTURE",detail:"Λ advisory. Uncertainty bounded, not proven."},{label:"F1",honesty:"LOCKED",detail:"Body hashed."},{label:"Quorum",honesty:"MODELED",detail:"Local silhouette."},{label:"Receipt",honesty:"MEASURED",detail:"HASH-LINKED. in ≡ out."}]};
+}
+let busy=false, prev="genesis";
+async function sha(s){
+  if(!(crypto&&crypto.subtle)) return "sha256-unavailable";
+  const b=new TextEncoder().encode(s);
+  const d=await crypto.subtle.digest("SHA-256", b);
+  return Array.from(new Uint8Array(d)).map(x=>x.toString(16).padStart(2,"0")).join("");
+}
+function renderTheater(sc, step){
+  const el=document.getElementById("theater");
+  const done=step>=sc.steps.length-1;
+  el.className="theater "+(done && sc.verdict!=="ADMITTED"?"blocked":(done?"admitted":""));
+  el.innerHTML=`<div class="row"><div><p class="v">${sc.vertical}</p><h2>${sc.title}</h2><p class="claim">${sc.claim}</p></div><div class="pills"><span class="pill ${sc.verdict==="ADMITTED"?"ok":"bad"}">${busy && !done?"LIVE":sc.verdict}</span><span class="pill warn">${sc.signing==="UNSIGNED-honest"?"UNSIGNED":"HASH-LINKED"}</span></div></div><ol class="steps">${sc.steps.map((s,i)=>`<li class="step ${i<=step?"on":""}"><p class="n">${String(i+1).padStart(2,"0")}</p><p>${s.label}</p><span class="pill">${s.honesty}</span>${i<=step?`<p class="claim">${s.detail}</p>`:""}</li>`).join("")}</ol>${done?`<p class="reason">${sc.reason}</p>`:""}`;
+}
+async function play(sc){
+  if(busy) return; busy=true;
+  document.getElementById("gov").disabled=true;
+  for(let i=0;i<sc.steps.length;i++){ renderTheater(sc,i); await new Promise(r=>setTimeout(r, 280)); }
+  const body=JSON.stringify({id:sc.id,claim:sc.claim,verdict:sc.verdict,prev,locked8:LOCKED8,ts:new Date().toISOString()});
+  prev=await sha(body);
+  document.getElementById("chain").textContent="receipt chain (HASH-LINKED, never SIGNED): "+prev;
+  busy=false; document.getElementById("gov").disabled=false;
+}
+document.getElementById("scenarios").innerHTML=SCENARIOS.map(s=>`<button class="card" data-id="${s.id}" type="button"><b>${s.title}</b><span>${s.vertical} · ${s.verdict}</span></button>`).join("");
+document.getElementById("scenarios").addEventListener("click",e=>{
+  const b=e.target.closest("[data-id]"); if(!b) return;
+  play(SCENARIOS.find(s=>s.id===b.dataset.id));
+});
+document.getElementById("gov").onclick=()=>play(judge(document.getElementById("claim").value));
+</script>
+</body>
+</html>

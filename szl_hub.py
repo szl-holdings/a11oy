@@ -14,6 +14,7 @@ What it adds (every concern produced by the parallel agents gets a place here):
   HTML tabs (served from /app/pages/, dedicated GET routes):
     /docs /pricing /api-keys /sdk /status /observability /security
     /compliance /cued-engagement /uds /counter-uas /audit /gap-report /hub
+    /atelier /run /eval /eval-arena /estate
   JSON endpoints (local, no Node, Khipu-receipted):
     /api/a11oy/v1/hub/manifest
     /api/a11oy/v1/hub/cue/sample
@@ -107,6 +108,10 @@ TABS = [
     {"route": "/gap-report", "name": "Gap Report", "purpose": "Live gap-audit heatmap (partial-public)", "source": "completeness_audit", "status": "GREEN"},
     {"route": "/hub", "name": "Hub Index", "purpose": "One front door linking every tab", "source": "this-pass", "status": "GREEN"},
     {"route": "/atelier", "name": "Atelier", "purpose": "Artifact walk of Hub cuts. Not 40 product SKUs. Not a fourth flagship.", "source": "szl-atelier", "status": "GREEN"},
+    {"route": "/run", "name": "Run", "purpose": "Governed inference theater. Deny by default. HASH-LINKED, never SIGNED.", "source": "command-center", "status": "GREEN"},
+    {"route": "/eval", "name": "Eval", "purpose": "Adversarial arena plus live szl_eval_arena runner", "source": "command-center", "status": "GREEN"},
+    {"route": "/eval-arena", "name": "Eval arena", "purpose": "Alias of /eval", "source": "command-center", "status": "GREEN"},
+    {"route": "/estate", "name": "Estate", "purpose": "Models and kernels as listed. Hub metadata is REPORTED.", "source": "command-center", "status": "GREEN"},
 ]
 
 # DoD Group 1–5 reference (ADVERSARY_DRONE_CATALOG.md §1).
@@ -453,8 +458,9 @@ def register(app: FastAPI) -> None:
         ("/cued-engagement", "cued-engagement"), ("/uds", "uds"),
         ("/counter-uas", "counter-uas"), ("/audit", "audit"),
         ("/gap-report", "gap-report"), ("/hub", "hub"), ("/atelier", "atelier"),
+        ("/run", "run"), ("/eval", "eval"), ("/eval-arena", "eval"), ("/estate", "estate"),
     ]:
-        app.add_api_route(route, _page(fname), methods=["GET"], include_in_schema=False)
+        app.add_api_route(route, _page(fname), methods=["GET", "HEAD"], include_in_schema=False)
 
     # JSON endpoints (Khipu-receipted).
     @app.get("/api/a11oy/v1/hub/manifest")
