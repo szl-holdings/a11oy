@@ -551,6 +551,9 @@ COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-hol
 # Cite GitHub. Not a second flagship. Not a product certificate.
 COPY web/lyte.html ./web/lyte.html
 COPY szl_lyte_lattice.py ./
+# KHIPU product organ. GET /khipu HTML is exact. CUDA UNAVAILABLE. Conjecture 1 OPEN.
+COPY web/khipu.html ./web/khipu.html
+COPY szl_khipu_organ.py ./
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # … (full rationale: docs/DOCKERFILE_NOTES.md §74)
 
