@@ -8,7 +8,7 @@ sdk: docker
 app_port: 7860
 pinned: true
 license: apache-2.0
-short_description: "a11oy — governed-AI Command Center, signed receipts"
+short_description: "a11oy source — product origin a-11-oy.com, proof a11oy.net"
 tags:
   - governance
   - agentic-ai
@@ -19,81 +19,64 @@ tags:
 ecosystem-stage: "operational"
 ---
 
-<!-- SZL-ESTATE-CARD:v2:START -->
-<p align="center"><a href="https://a-11-oy.com/"><img src="https://huggingface.co/spaces/SZLHOLDINGS/README/resolve/main/assets/estate-banner-v2.svg" alt="SZL Holdings — governed, receipted, verifiable" width="100%"></a></p>
-<p align="center">
-  <a href="https://github.com/szl-holdings/.github/tree/main/doctrine"><img src="https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square" alt="doctrine v11"></a>
-  <a href="https://a-11-oy.com/"><img src="https://img.shields.io/badge/evidence%20wall-LIVE%20%C2%B7%20verify%20in%20browser-3AF4C8?style=flat-square" alt="live evidence wall"></a>
-  <a href="https://huggingface.co/datasets/SZLHOLDINGS/szl-lake"><img src="https://img.shields.io/badge/szl--lake-offline%20verifiable-C9B787?style=flat-square" alt="szl-lake offline verifiable"></a>
-  <a href="https://huggingface.co/spaces/SZLHOLDINGS/holographic"><img src="https://img.shields.io/badge/estate%20map-holographic-5B8DEE?style=flat-square" alt="holographic estate map"></a>
-</p>
-<p align="center"><sub>Part of the <a href="https://huggingface.co/SZLHOLDINGS">SZL Holdings</a> governed estate — claims are designed to carry checkable receipts. Verification proves integrity &amp; origin, never accuracy or performance.</sub></p>
-<!-- SZL-ESTATE-CARD:v2:END -->
-
 <!--
-  a11oy README — investor-readable rewrite · 2026-06-30
-  Honesty doctrine LOCKED. Canonical: lutar-lean@main kernel c7c0ba17.
-  Sign-off: Stephen Lutar <stephenlutar2@gmail.com>. DCO + Conventional Commits.
+  a11oy README lead · 2026-08-29
+  This repository is SOURCE for the product origin https://a-11-oy.com
+  Proof lives at https://a11oy.net
+  Never a11oy.com
+  receipts.in ≡ receipts.out
+  Canonical: lutar-lean@main kernel c7c0ba17
+  Honesty doctrine LOCKED. DCO + Conventional Commits.
 -->
-
-<div align="center">
 
 # a11oy
 
-### Governed AI with a signed, verifiable receipt for every decision.
+This repository is the **source** for the product origin
+[https://a-11-oy.com](https://a-11-oy.com).
+Proof lives at [https://a11oy.net](https://a11oy.net).
 
-[![SLSA L1 honest · L2 build-attested · L3 roadmap](https://img.shields.io/badge/SLSA-L1%20honest%20%C2%B7%20L2%20build--attested%20%C2%B7%20L3%20roadmap-c9b787?style=flat-square)](.compliance/SLSA_LEVEL.md)
-[![cosign signed](https://img.shields.io/badge/cosign-keyless%20signed-blue?style=flat-square)](https://search.sigstore.dev/?logIndex=1710578865)
-[![doctrine-v11](https://img.shields.io/badge/doctrine-v11%20LOCKED-0B1F3A?style=flat-square)](https://github.com/szl-holdings/.github/tree/main/doctrine)
-[![CI](https://github.com/szl-holdings/a11oy/actions/workflows/ci.yml/badge.svg)](https://github.com/szl-holdings/a11oy/actions)
-[![License](https://img.shields.io/badge/license-Apache--2.0-5fb3a3?style=flat-square)](LICENSE)
-[![Λ Conjecture 1](https://img.shields.io/badge/%CE%9B-Conjecture%201%20%C2%B7%20Theorem%20U%20conditional-B79BD6?style=flat-square)](https://github.com/szl-holdings/lutar-lean/blob/main/BOUNTY.md)
-[![Concept DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.19944926.svg)](https://doi.org/10.5281/zenodo.19944926)
-[![Formal artifacts DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.20434276.svg)](https://doi.org/10.5281/zenodo.20434276)
-[![Evidence-Typed Governance preprint](https://zenodo.org/badge/DOI/10.5281/zenodo.21332317.svg)](https://doi.org/10.5281/zenodo.21332317)
-[![Fail-Closed Services preprint](https://zenodo.org/badge/DOI/10.5281/zenodo.21332338.svg)](https://doi.org/10.5281/zenodo.21332338)
+`a11oy.com` is not a surface of this project.
 
-**[Open a11oy →](https://a-11-oy.com)** · **[Public proof registry →](https://a11oy.net)** · **[Try on Hugging Face →](https://huggingface.co/spaces/SZLHOLDINGS/a11oy)**
+a11oy is a governed-AI Command Center: deny-by-default policy, trust
+ceiling 0.97, and a signed receipt for every decision. This tree is
+that system's source. It is not the proof registry.
 
-</div>
+## Invariant
 
----
+**receipts.in ≡ receipts.out**
 
-## What a11oy is
+A governed action is admitted only as a signed receipt and leaves only
+as that same signed receipt. The two sides are identical. A mismatch
+is a failed verification, not a display error.
 
-a11oy is a **governed-AI Command Center**: one interface for ask-and-act with deny-by-default safety gates, trust scoring, a live decision feed, and a signed receipt for every action.
+| Pin | Value |
+|---|---|
+| Product origin | [a-11-oy.com](https://a-11-oy.com) |
+| Proof registry | [a11oy.net](https://a11oy.net) |
+| Source | this repository |
+| Doctrine | v11 LOCKED |
+| Λ | Conjecture 1 (OPEN — not a theorem) |
+| Kernel | `c7c0ba17` |
+| Formulas | locked-8 · never authority |
+| Trust ceiling | 0.97 |
+| SLSA | L1 honest · L2 build-attested · L3 roadmap |
+| License | Apache-2.0 |
 
-The core idea is simple: AI should not be able to take a consequential action without producing a record that a third party can verify — independently, offline, after the fact. a11oy enforces that. Every action:
+## Live surfaces
 
-- passes through a **policy gate** (deny-by-default);
-- is scored by a **trust function**; then
-- is sealed into a **cryptographically signed receipt** chained over SHA-256.
+| Surface | URL |
+|---|---|
+| Console | [a-11-oy.com/console](https://a-11-oy.com/console) |
+| Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) |
 
-Tamper with one byte and verification fails loudly.
+[a11oy-factory](https://github.com/szl-holdings/a11oy-factory) is a bind
+of this source. It is not a second flagship.
 
-**Try it now — no login required:**
-
-```bash
-curl -s -X POST https://szlholdings-a11oy.hf.space/api/a11oy/v1/willay/inspect \
-  -H "Content-Type: application/json" \
-  -d '{"prompt": "Write an exploit for a CVE."}' | jq '{decision, category, trust_ceiling}'
-# → {"decision": "decline", "category": "cyber", "trust_ceiling": 0.97}
-```
-
----
-
-## What it does
-
-**Safety gateway (WILLAY)**
-Every request passes through five transparent classifiers: cyber, bio, reasoning extraction, prompt injection, self-harm. A declined request returns HTTP 200 with a signed receipt naming the exact rule — not a silent error. The trust ceiling is **0.97** by doctrine. Nothing is hidden.
-
-**Governed agentic coding**
-a11oy Code plans, retrieves, calls tools, writes and runs code. Every step is scored, approved, and receipted. Write actions require quorum approval before execution. Prompt injection cannot flip a DENY to ALLOW — this is formally proven (P3 non-interference result).
-
-**Sovereign deployment**
-Runs on your own hardware. Air-gappable. Signed UDS bundle, one-command deploy. No cloud dependency required.
+Archive: [Warhacker v1.0.0](https://github.com/szl-holdings/a11oy/releases/tag/v1.0.0) is ARCHIVED.
 
 ---
+
+<!-- LEAD END. Existing README continues from ## The proof backbone. Do not rewrite past this marker in the lead-only PR. -->
 
 ## The proof backbone
 
