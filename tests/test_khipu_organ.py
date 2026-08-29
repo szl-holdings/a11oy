@@ -96,7 +96,8 @@ def test_routes_wired_in_serve_and_image() -> None:
     st = khipu.status()
     assert st["origins"]["product"] == "https://a-11-oy.com"
     assert st["origins"]["proof"] == "https://a11oy.net"
-    assert st["holdings"]["kind"] == "product-origin hologram"
+    assert "holdings" not in st
+    assert "holdings.a-11-oy.com" not in PAGE
 
 
 def test_landing_does_not_expand_the_door() -> None:

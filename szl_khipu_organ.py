@@ -38,7 +38,6 @@ _SOURCE = "https://github.com/szl-holdings/szl-khipu"
 _HUB_SPACE = "https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu"
 _PRODUCT = "https://a-11-oy.com/khipu"
 _PROOF = "https://a11oy.net/khipu/"
-_HOLDINGS = "https://holdings.a-11-oy.com/khipu/"
 _LOCKED_PROVEN = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 _KERNEL_COMMIT = "c7c0ba17"
 _YUYAY = [
@@ -172,12 +171,7 @@ def status() -> Dict[str, Any]:
         "origins": {
             "product": "https://a-11-oy.com",
             "proof": "https://a11oy.net",
-            "note": "Two public origins only. Never a11oy.com. holdings.a-11-oy.com is a product-origin hologram, not a third origin.",
-        },
-        "holdings": {
-            "url": _HOLDINGS,
-            "kind": "product-origin hologram",
-            "origin": "https://a-11-oy.com",
+            "note": "Two public origins only: a-11-oy.com and a11oy.net. Never a11oy.com.",
         },
         "duals": {"Ari": "GreenLight", "Kay Pacha": "Anatomy"},
         "cuts": _CUTS,
