@@ -77,7 +77,7 @@ def _receipt(organ: dict[str, str], prompt: str, status: str, output: dict[str, 
         "id": organ["id"],
         "title": organ["title"],
         "status": status,
-        "honesty": "LIVE",
+        "honesty": organ["evidence_class"],
         "evidence_class": organ["evidence_class"],
         "formula_grants_authority": False,
         "input": {"prompt": prompt},
@@ -314,13 +314,13 @@ _RUNNERS = {
 def catalog() -> dict[str, Any]:
     return {
         "schema": "szl.organ-catalog/v1",
-        "honesty": "LIVE",
+        "honesty": "PER_ORGAN_EVIDENCE_CLASS",
         "count": 25,
         "admitted_public": False,
         "origin": "https://a-11-oy.com/organs",
         "proof_record": "https://a11oy.net/factory/",
-        "items": [{k: o[k] for k in ("id", "title", "body", "job", "evidence_class")} | {"honesty": "LIVE", "run": f"POST /api/a11oy/v1/organs/{o['id']}"} for o in ORGANS],
-        "note": "N1–N25 execute on the product origin. Not 25 public Spaces. GPU tune remains UNAVAILABLE.",
+        "items": [{k: o[k] for k in ("id", "title", "body", "job", "evidence_class")} | {"honesty": o["evidence_class"], "run": f"POST /api/a11oy/v1/organs/{o['id']}"} for o in ORGANS],
+        "note": "N1–N25 execute on the product origin with per-organ evidence classes. Not 25 public Spaces. GPU tune remains UNAVAILABLE.",
     }
 
 
@@ -365,9 +365,9 @@ pre {{ overflow:auto; background:#0b1220; border:1px solid var(--line); border-r
     <a href="/verify">Verify</a>
     <a href="https://a11oy.net/factory/">Proof RECORD</a>
   </nav>
-  <p class="banner">LIVE on a-11-oy.com. Honesty LIVE. Public Hub admission false. GPU tune UNAVAILABLE. Formulas never grant authority. Not 25 public Spaces.</p>
+  <p class="banner">Route served from a-11-oy.com. Each organ retains its explicit SIMULATED, MODELED, MEASURED, or UNAVAILABLE evidence class. Public Hub admission false. GPU tune UNAVAILABLE. Formulas never grant authority. Not 25 public Spaces.</p>
   <h1>N1–N25 organs</h1>
-  <p>Twenty-five category organs execute here. Receipts are hashed in this runtime. Proof copy lives on a11oy.net.</p>
+  <p>Twenty-five bounded demonstration organs execute here. Each response exposes its own evidence class. Receipts are SHA-256 integrity records from this process, not signed production receipts. Proof copy lives on a11oy.net.</p>
   <div class="grid" id="grid">{items}</div>
   <form id="f">
     <input id="q" aria-label="Organ input" placeholder="Prompt to serve (schema-checked, no GPU claim)"/>
