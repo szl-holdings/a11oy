@@ -21,6 +21,8 @@ from packages.inference.src.voters.khipu_gguf import (
     KHIPU_GGUF_FILE,
     KHIPU_GGUF_SHA256,
     KHIPU_LAB_DUMMY_BEARER,
+    KHIPU_LAB_LOCKED_ORIGIN,
+    KHIPU_LAB_V1,
     KHIPU_MAX_TOKENS,
     KHIPU_MEASURED_PROBE_2026_08_28,
     KHIPU_MODEL_REPO,
@@ -31,6 +33,7 @@ from packages.inference.src.voters.khipu_gguf import (
     clamp_max_tokens,
     extract_lab_receipt,
     khipu_lab_base,
+    khipu_lab_v1,
     khipu_pin,
 )
 
@@ -93,6 +96,10 @@ def test_pin_matches_measured_2026_08_28():
     assert pin["stream"] is False
     assert pin["gpu_inference_endpoint"] == "ROADMAP"
     assert pin["forge_lab"] == "SNAPSHOT"
+    assert pin["forge_lab_role"] == "not a trainer, not Serve Studio"
+    assert pin["energy_attested_runs"] == "8/8 SIMULATED"
+    assert pin["lab_v1"] == KHIPU_LAB_V1
+    assert pin["locked_lab_v1"] == "https://szlholdings-szl-model-inference-lab.hf.space/v1"
     assert pin["killinchu_detector"] == "SIMULATED"
     assert pin["lambda"] == "Conjecture 1"
     assert "tokens" not in pin
@@ -123,6 +130,31 @@ def test_clamp_max_tokens():
 def test_lab_base_override(monkeypatch):
     monkeypatch.setenv("A11OY_KHIPU_LAB_BASE", "http://127.0.0.1:9/")
     assert khipu_lab_base() == "http://127.0.0.1:9"
+    assert khipu_lab_v1() == "http://127.0.0.1:9/v1"
+
+
+def test_lab_base_rejects_forge_lab_trainer_and_studio(monkeypatch):
+    monkeypatch.setenv(
+        "A11OY_KHIPU_LAB_BASE",
+        "https://szlholdings-szl-forge-lab.static.hf.space/v1",
+    )
+    assert khipu_lab_base() == KHIPU_LAB_LOCKED_ORIGIN
+    assert khipu_lab_v1() == KHIPU_LAB_V1
+    monkeypatch.setenv("A11OY_KHIPU_LAB_BASE", "https://trainer.example/v1")
+    assert khipu_lab_v1() == KHIPU_LAB_V1
+    monkeypatch.setenv("A11OY_KHIPU_LAB_BASE", "https://serve-studio.example/v1")
+    assert khipu_lab_v1() == KHIPU_LAB_V1
+    monkeypatch.setenv("A11OY_KHIPU_LAB_BASE", "https://evil.example/v1")
+    assert khipu_lab_v1() == KHIPU_LAB_V1
+
+
+def test_locked_lab_v1_is_inference_lab_only(monkeypatch):
+    monkeypatch.delenv("A11OY_KHIPU_LAB_BASE", raising=False)
+    assert KHIPU_LAB_V1 == "https://szlholdings-szl-model-inference-lab.hf.space/v1"
+    assert khipu_lab_v1() == KHIPU_LAB_V1
+    assert "forge-lab" not in khipu_lab_v1()
+    assert "trainer" not in khipu_lab_v1()
+    assert "studio" not in khipu_lab_v1()
 
 
 def test_extract_lab_receipt_unsigned():
