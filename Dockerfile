@@ -657,6 +657,7 @@ COPY a11oy_ecosystem_atlas.py ./a11oy_ecosystem_atlas.py
 # pages/organs-integrity.html rides the wholesale COPY pages/ above.
 COPY organ_integrity.py ./organ_integrity.py
 COPY szl_organ_integrity.py ./szl_organ_integrity.py
+COPY szl_n25_organs.py ./szl_n25_organs.py
 
 # AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — server-side
 # per-request DSSE re-verification of committed council decision receipts,

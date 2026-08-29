@@ -800,6 +800,15 @@ try:
 except Exception as _szl_oi_e:  # pragma: no cover
     print(f"[a11oy] organ-integrity kernel NOT registered: {_szl_oi_e!r}; existing routes unaffected", file=__import__("sys").stderr)
 
+# N1–N25 organs on the product origin (GET /organs + POST /api/a11oy/v1/organs/n/{id}).
+# Does not collide with /organs/integrity. Front-moved by register(). Not 25 Spaces.
+try:
+    import szl_n25_organs as _szl_n25
+    _szl_n25_status = _szl_n25.register(app, ns="a11oy")
+    print(f"[a11oy] N1–N25 organs registered: /organs ({_szl_n25_status})", file=__import__("sys").stderr)
+except Exception as _szl_n25_e:  # pragma: no cover
+    print(f"[a11oy] N1–N25 organs NOT registered: {_szl_n25_e!r}; existing routes unaffected", file=__import__("sys").stderr)
+
 # ── Backend hardening (devJ) — szl_backend_hardening ──
 # Reusable concurrent + short-timeout + TTL-cache helpers (probe_with_timeout,
 # probe_all_concurrent, TTLCache, probe_fabric_pool, cached_aggregate) that the
