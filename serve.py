@@ -1151,6 +1151,17 @@ try:
 except Exception as _szl_lyte_e:  # pragma: no cover
     print(f"[a11oy] LYTE lattice BIND NOT registered: {_szl_lyte_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- KHIPU product organ — original cuts, duals Ari=GreenLight / Kay Pacha=Anatomy.
+# GET /khipu HTML is exact. /khipu/{hash} stays the receipt API. CUDA UNAVAILABLE.
+# API is /api/a11oy/v1/khipu-organ/* so the receipt DAG at /api/a11oy/v1/khipu/* is
+# not shadowed. Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_khipu_organ as _szl_khipu_organ
+    _szl_khipu_organ.register(app, ns="a11oy")
+    print("[a11oy] KHIPU organ registered: /api/a11oy/v1/khipu-organ/{healthz,status,lambda,greenlight,anatomy,prefix,route} — does not shadow /api/a11oy/v1/khipu/* receipt DAG; CUDA UNAVAILABLE, proven_trust false", file=__import__("sys").stderr)
+except Exception as _szl_khipu_e:  # pragma: no cover
+    print(f"[a11oy] KHIPU organ NOT registered: {_szl_khipu_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- SDA (Space / Domain Awareness — Counter-UAS) — HONEST defense surface (SWEEP D1).
 # The /sda + /counter-uas pages historically served a 200 SPA shell with NO backing
 # /api/a11oy/v1/sda/* API (404). szl_sda wires the CANONICAL honest surface: vessel
@@ -4036,6 +4047,10 @@ try:
     app.add_api_route("/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/a11oy/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/lattice", _ptg_serve("lyte.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    # KHIPU product organ (2026-08-29). GET /khipu HTML is exact so it does not
+    # collide with /khipu/{hash} receipt lookup. Original cuts only. CUDA UNAVAILABLE.
+    app.add_api_route("/khipu", _ptg_serve("khipu.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/a11oy/khipu", _ptg_serve("khipu.html"), methods=["GET", "HEAD"], include_in_schema=False)
     # MATERIALS (Q'allariy) tab (2026-06-16): the honest, user-visible Verifiable
     # Alloy & Crystal Discovery surface. Standalone sovereign page (0 runtime CDN),
     # binds to live /api/a11oy/v1/materials/* — a crystal-novelty form that POSTs to
