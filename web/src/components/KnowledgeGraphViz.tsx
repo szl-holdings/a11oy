@@ -18,10 +18,10 @@ const VERTICAL_NODE_COLORS: Record<string, string> = {
 };
 
 const VERTICAL_LABELS: Record<string, string> = {
-  'lyte-revenue': 'KORA',
+  'lyte-revenue': 'Intelligence',
   'vessels-maritime': 'SEXTANT',
   'terra-real-estate': 'DOMAINE',
-  'aegis-defense': 'PARAGON',
+  'aegis-defense': 'Defense',
   'prism-counsel': 'Counsel',
   'carlota-jo': 'Carlota Jo',
   'alloy-core': 'Alloy',

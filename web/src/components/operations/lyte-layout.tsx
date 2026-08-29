@@ -71,7 +71,7 @@ import { Link, useLocation } from 'wouter';
 
 const COMMAND_ONBOARDING_CONFIG: OnboardingConfig = {
   appId: 'command',
-  appName: 'KORA',
+  appName: 'Intelligence',
   accentColor: '#d4a054',
   steps: [
     {
@@ -798,7 +798,7 @@ export function CommandLayout({ children }: { children: ReactNode }) {
           className="flex-1 overflow-auto"
           style={{ background: BG.main }}
         >
-          <SectionErrorBoundary sectionName="KORA">{children}</SectionErrorBoundary>
+          <SectionErrorBoundary sectionName="Intelligence">{children}</SectionErrorBoundary>
         </main>
         <ServiceStatusRail />
       </div>

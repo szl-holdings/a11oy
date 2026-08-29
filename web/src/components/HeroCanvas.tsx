@@ -20,7 +20,7 @@ const STATIONS = [
   { angle: 18, r: 158, label: 'SEXTANT' },
   { angle: 102, r: 210, label: 'COUNSEL' },
   { angle: 198, r: 110, label: 'DOMAINE' },
-  { angle: 286, r: 158, label: 'PARAGON' },
+  { angle: 286, r: 158, label: 'DEFENSE' },
 ];
 
 const TICKS = Array.from({ length: 36 }, (_, i) => i * 10);
