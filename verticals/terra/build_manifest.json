@@ -1,0 +1,60 @@
+{
+  "compiler_version": "8.0.0",
+  "deterministic": true,
+  "network_calls": 0,
+  "outputs": {
+    "RUNBOOK.md": {
+      "bytes": 2102,
+      "sha256": "e79ccdac80511b1fea5a1ca4609ab978d23fb42af2399b4a6b548eccaac5aa92"
+    },
+    "connector_registry.json": {
+      "bytes": 3541,
+      "sha256": "105d9737518f6a8f2f02557a8502d3caac17f4f6ec88ada4de27250a56a5ab2e"
+    },
+    "data_rights.json": {
+      "bytes": 1095,
+      "sha256": "bdf12d7019bcc91e153bc50aedb3bf67e456a475013b5049f311d45d4162d319"
+    },
+    "domain_graph.schema.json": {
+      "bytes": 3778,
+      "sha256": "8ff51d4cd4943f358d056b9434534f2b8e33e43c6510165719a3d57fb5c7092d"
+    },
+    "evaluation_plan.json": {
+      "bytes": 3971,
+      "sha256": "1d831f6ea66def3bab007bfbdf10ee51cb9d040457f8179fbd442a983dce7515"
+    },
+    "investor_demo.json": {
+      "bytes": 1290,
+      "sha256": "3d9675c5cc995b9c6fc3724b9fe273b5e1d51b430163b95a3dd8b56bae4939c0"
+    },
+    "openapi.json": {
+      "bytes": 9825,
+      "sha256": "92071fc8aa88a9276e46f82d3bb9bad05dde5f6b0ec64916bf2d0ca14af4c3a9"
+    },
+    "pilot_plan.json": {
+      "bytes": 293,
+      "sha256": "b011cf8ce1b4045f811b760a8b98c9053df078f81d4299a949f13600cd251daa"
+    },
+    "policy_bundle.json": {
+      "bytes": 1458,
+      "sha256": "89beb07f782846603412f47fa4958b00a35293376613ce99489067cb0eccb7a4"
+    },
+    "production_release_plan.json": {
+      "bytes": 5678,
+      "sha256": "d2d1c58008ef113903b153f33ad76942bb894cad38f414b87ed62941cc5bd5b1"
+    },
+    "ui_contract.json": {
+      "bytes": 1821,
+      "sha256": "f1ea05dc826371a60f1a95db2fe80da3be69965fc8abd84e8487f54b4bc05dd1"
+    },
+    "vertical_manifest.json": {
+      "bytes": 4250,
+      "sha256": "e1fa1158ecfaecd7d66f818d6c3ddf5d3caa313b5261e10c6360c38d79ce9648"
+    }
+  },
+  "program_digest": "9f72a0a97cc99c52279cc7f75984d8df05b50b050385994208566582638786a2",
+  "provider_mutations": 0,
+  "schema": "szl.focus-vertical-build/v8",
+  "vertical_id": "terra",
+  "vertical_manifest_digest": "f2dba8ed8a6bb36e4100b2eaaa055e6c3ff73ef9e5064a1c0a452b6298d8af81"
+}

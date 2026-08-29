@@ -1,0 +1,11 @@
+{
+  "adapter": "szl-holdings/a11oy/huggingface/spaces/terra-assurance",
+  "app_port": 7860,
+  "canonical_source": "szl-holdings/a11oy/verticals/terra",
+  "github_adapter": "szl-holdings/szl-real-estate",
+  "sdk": "docker",
+  "source_visible": false,
+  "space_id": "SZLHOLDINGS/terra-assurance",
+  "status": "ROADMAP",
+  "visibility": "private"
+}

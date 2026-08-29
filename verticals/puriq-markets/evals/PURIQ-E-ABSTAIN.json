@@ -1,0 +1,171 @@
+{
+  "case_id": "puriq-stale",
+  "eval_id": "PURIQ-E-ABSTAIN",
+  "expected_reason_codes": [
+    "STALE_OR_UNAVAILABLE_SOURCE"
+  ],
+  "expected_state": "ABSTAINED",
+  "payload": {
+    "allowed_actions": [
+      "read public market and forecast data",
+      "normalize event and resolution criteria",
+      "calculate calibration and disagreement",
+      "build scenario impact",
+      "draft risk brief",
+      "request committee decision",
+      "record resolution and scoring outcome"
+    ],
+    "case_id": "puriq-stale",
+    "chain_index": 3,
+    "chain_len": 10,
+    "contradictions": [],
+    "evidence": [
+      {
+        "citation": "tape",
+        "claim": "Quoted probability present",
+        "class": "OFFICIAL",
+        "id": "ev-px",
+        "source_id": "poly",
+        "weight": 0.8
+      }
+    ],
+    "graph": {
+      "edges": [
+        {
+          "from": "f1",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f4",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f7",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "policy",
+          "rel": "requires",
+          "to": "authority"
+        },
+        {
+          "from": "authority",
+          "rel": "signs",
+          "to": "receipt"
+        },
+        {
+          "from": "poly",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "uma",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "poly",
+          "rel": "asserts",
+          "to": "ev-px"
+        },
+        {
+          "from": "ev-px",
+          "rel": "about",
+          "to": "entity"
+        },
+        {
+          "from": "ev-px",
+          "rel": "weights",
+          "to": "f4"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "entity",
+          "kind": "entity",
+          "label": "stale event"
+        },
+        {
+          "id": "policy",
+          "kind": "policy",
+          "label": "Policy DENY"
+        },
+        {
+          "id": "authority",
+          "kind": "authority",
+          "label": "Human authority"
+        },
+        {
+          "id": "receipt",
+          "kind": "receipt",
+          "label": "Receipt"
+        },
+        {
+          "id": "f1",
+          "kind": "formula",
+          "label": "F1 identity"
+        },
+        {
+          "id": "f4",
+          "kind": "formula",
+          "label": "F4 aggregate"
+        },
+        {
+          "id": "f7",
+          "kind": "formula",
+          "label": "F7 freshness"
+        },
+        {
+          "id": "poly",
+          "kind": "source",
+          "label": "public event market"
+        },
+        {
+          "id": "uma",
+          "kind": "source",
+          "label": "resolution source"
+        },
+        {
+          "id": "ev-px",
+          "kind": "evidence",
+          "label": "tape"
+        }
+      ]
+    },
+    "prior_approval": false,
+    "prohibited_actions": [
+      "wallet or private-key custody",
+      "order placement, cancellation or signing",
+      "autonomous trading",
+      "market manipulation or wash trading",
+      "insider-information use",
+      "claim that market probability is truth or financial advice"
+    ],
+    "proposed_action": "draft risk brief",
+    "sources": [
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "poly",
+        "name": "public event market",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      },
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "UNAVAILABLE",
+        "id": "uma",
+        "name": "resolution source",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      }
+    ],
+    "used_fuel": 2,
+    "vertical_id": "puriq-markets"
+  }
+}
