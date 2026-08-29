@@ -15,3 +15,5 @@ Formula authority is **NONE**. Models, formulas and market signals never authori
 
 Parent pin at land: `60154ba5d752139493f3e2d2971668a6d56e61c2`.
 Program digest: `9f72a0a97cc99c52279cc7f75984d8df05b50b050385994208566582638786a2`.
+
+Canonical site desk: [`/decision`](https://a-11-oy.com/decision) on a-11-oy.com. Hub Spaces are optional private adapters and are not required to run these cases.
