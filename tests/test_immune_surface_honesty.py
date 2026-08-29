@@ -13,13 +13,15 @@ SERVE = (ROOT / "serve.py").read_text(encoding="utf-8")
 
 
 def test_initial_and_missing_status_never_claim_live_or_real() -> None:
-    assert 'id="liveTag" aria-live="polite">IMMUNE · PROBING<' in IMMUNE
-    assert 'id="organBadge">deny-by-default · evidence pending<' in IMMUNE
+    assert 'id="liveTag" aria-live="polite">IMMUNE · CONNECTING<' in IMMUNE
+    assert 'id="organBadge">deny-by-default · connecting<' in IMMUNE
     assert 's.status||"REAL"' not in IMMUNE
     assert 'IMMUNE · LIVE</span>' not in IMMUNE
     assert "connectionState(null,false)" in IMMUNE
     assert 'row("status","UNAVAILABLE")' in IMMUNE
     assert 'const normalized=present(state)?String(state).trim().toUpperCase():"UNKNOWN"' in IMMUNE
+    assert "first paint is <b>CONNECTING</b>" in IMMUNE
+    assert 'id="kReach">CONNECTING<' in IMMUNE
 
 
 def test_http_and_parse_failures_retain_evidence() -> None:
@@ -71,3 +73,20 @@ def test_page_loader_uses_local_web_directory_outside_the_container() -> None:
     assert '_PTG_IMAGE_WEB = Path("/app/web")' in SERVE
     assert '_PTG_LOCAL_WEB = Path(__file__).resolve().parent / "web"' in SERVE
     assert "_PTG_IMAGE_WEB if _PTG_IMAGE_WEB.is_dir() else _PTG_LOCAL_WEB" in SERVE
+
+
+def test_immune_route_accepts_head() -> None:
+    assert 'app.add_api_route("/immune", _ptg_serve("immune.html"), methods=["GET", "HEAD"]' in SERVE
+    assert 'app.add_api_route("/a11oy/immune", _ptg_serve("immune.html"), methods=["GET", "HEAD"]' in SERVE
+
+
+def test_kernel_panel_is_same_origin_and_never_auto_embeds() -> None:
+    assert "GET /api/a11oy/v1/immune/kernel" in IMMUNE
+    assert "async function loadKernel()" in IMMUNE
+    assert 'requestJSON(BASE + "/kernel")' in IMMUNE
+    assert 's.reachability==="REACHABLE"' in IMMUNE
+    assert 'iframe src="https://szlholdings-immune.hf.space"' not in IMMUNE
+    assert 'f.src="https://szlholdings-immune.hf.space"' in IMMUNE
+    assert "Neither Space is deleted" in IMMUNE
+    assert "szlholdings-immune-lattice.hf.space" in IMMUNE
+    assert "never fabricates <b>LIVE</b> or <b>PASS</b>" in IMMUNE

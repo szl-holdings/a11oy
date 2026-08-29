@@ -63,6 +63,7 @@ _SURFACES = [
     ("/cockpit",        "\u2318",     "Command Cockpit"),                   # ⌘
     ("/sovereign",      "\u26D3",     "Sovereign Ledger"),                  # khipu health+spend
     ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
+    ("/immune",         "\u2B21",     "IMMUNE"),                            # ⬡
     ("/autoreview",     "\u2713",     "Auto-Review (Governed Autonomy)"),   # ✓
     ("/factory",        "\u2699",     "Governed Factory"),                  # ⚙
     ("/constitution",   "\u00A7",     "Constitution"),                      # §
@@ -91,6 +92,7 @@ _SURFACE_GROUP_OF = {
     "/cockpit": "Sovereign & Agentic Core",
     "/sovereign": "Sovereign & Agentic Core",
     "/nemo": "Sovereign & Agentic Core",
+    "/immune": "Sovereign & Agentic Core",
     "/autoreview": "Sovereign & Agentic Core",
     "/factory": "Sovereign & Agentic Core",
     "/constitution": "Sovereign & Agentic Core",
@@ -209,7 +211,7 @@ _REL_MARKER = b'data-related-surfaces="qa10"'
 # Flagship surfaces that get the cross-link strip. /restraint-bench (the REAL
 # Restraint page) is used, not /restraint (generic shell fallthrough).
 _FLAGSHIP_PATHS = {
-    "/nemo", "/autoreview", "/factory", "/constitution",
+    "/nemo", "/immune", "/autoreview", "/factory", "/constitution",
     "/energy", "/agent-loop", "/quant", "/grc", "/restraint-bench",
     "/code", "/fleet-c2", "/living-anatomy",
 }
@@ -220,6 +222,7 @@ def _build_related_strip(current_path: str) -> bytes:
     other. Inline-styled (0 CDN). Honest labels; the current page is omitted."""
     rel = [
         ("/nemo", "SZL-Nemo"),
+        ("/immune", "IMMUNE"),
         ("/autoreview", "Auto-Review"),
         ("/factory", "Factory"),
         ("/constitution", "Constitution"),
@@ -558,6 +561,7 @@ if __name__ == "__main__":
     assert n2.count('data-related-surfaces="qa10"') == 1, "related strip must be idempotent"
     assert "Auto-Review" in n1 and "/autoreview" in n1, "strip must cross-link surfaces"
     assert "/restraint-bench" in n1, "strip must cross-link the real Restraint page"
+    assert "/immune" in n1, "strip must cross-link the IMMUNE tab"
     assert "/nemo" not in n1.split('data-related-surfaces="qa10"')[1].split("</nav>")[0], \
         "related strip must omit the current page (/nemo)"
     assert n1 == n2, "second nemo render must be byte-identical"

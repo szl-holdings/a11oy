@@ -30,6 +30,10 @@ ENDPOINTS (dual-registered under /api/a11oy/v1/immune/* AND /v1/immune/*):
                     real feed; resets on restart — empty = IDLE, never faked).
   GET  /threats  -> the threats_full STIX/MITRE corpus.
   GET  /verify   -> re-walk the immune Khipu chain (judge-verifiable integrity).
+  GET  /kernel   -> same-origin probe of the public IMMUNE kernel Space
+                    (SZLHOLDINGS/immune /readyz). REACHABLE vs UNAVAILABLE only;
+                    never fabricates LIVE or PASS. write_ready is forwarded
+                    verbatim when the probe succeeds.
 
 INSPECTION LOGIC (byte-identical to serve.py's embedded immune block):
   _THREAT_SIGNATURES = ["DROP TABLE","rm -rf","<script","eval(","subprocess","../../etc"]
@@ -53,9 +57,12 @@ import collections
 import datetime
 import hashlib
 import json
+import os
 import secrets
 import threading
 import time
+import urllib.error
+import urllib.request
 from typing import Any, Optional
 
 from fastapi import Request
@@ -83,6 +90,23 @@ _LEAN_PROOFS = [
 ]
 _LOCKED_PROVEN = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]  # EXACTLY 8 @ c7c0ba17
 _KERNEL_COMMIT = "c7c0ba17"
+
+# Public kernel Space (Channel A). Browser CSP is connect-src 'self', so this
+# page cannot fetch hf.space directly — the product tab probes same-origin.
+# Channel B (immune-lattice) is the COP overlay sibling; its /readyz is intercepted
+# by the HF proxy (502 HTML). Do not treat that 502 as kernel death.
+_KERNEL_SPACE_URL = os.environ.get(
+    "IMMUNE_KERNEL_BASE", "https://szlholdings-immune.hf.space"
+).rstrip("/")
+_KERNEL_LATTICE_URL = os.environ.get(
+    "IMMUNE_LATTICE_BASE", "https://szlholdings-immune-lattice.hf.space"
+).rstrip("/")
+_KERNEL_TIMEOUT = float(os.environ.get("IMMUNE_KERNEL_TIMEOUT", "8"))
+_KERNEL_CACHE_TTL = float(os.environ.get("IMMUNE_KERNEL_CACHE_TTL", "8"))
+_KERNEL_UA = (
+    "Mozilla/5.0 (compatible; a11oy-immune-kernel-probe/1.0; +https://a-11-oy.com/immune)"
+)
+_KERNEL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 
 # ---------------------------------------------------------------------------
 # REAL inspection logic — byte-identical to serve.py's embedded immune block.
@@ -382,6 +406,95 @@ def _verify_chain() -> dict:
     }
 
 
+def _probe_json(url: str) -> tuple[Optional[int], Any, Optional[str]]:
+    """Public read-only GET. Fail closed: never invent a JSON body."""
+    req = urllib.request.Request(
+        url,
+        headers={"Accept": "application/json", "User-Agent": _KERNEL_UA},
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_KERNEL_TIMEOUT) as resp:  # nosec - public read-only
+            raw = resp.read(65536)
+            status = int(getattr(resp, "status", 200) or 200)
+        text = raw.decode("utf-8", "replace").strip()
+        if not text:
+            return status, None, "empty body"
+        try:
+            return status, json.loads(text), None
+        except json.JSONDecodeError:
+            return status, None, "upstream non-JSON"
+    except urllib.error.HTTPError as exc:
+        return int(exc.code), None, "HTTP " + str(exc.code)
+    except Exception as exc:  # noqa: BLE001 — honest UNAVAILABLE, never crash the organ
+        return None, None, type(exc).__name__
+
+
+def _kernel(now: Optional[float] = None, probe=_probe_json) -> dict:
+    """Same-origin kernel probe. REACHABLE / UNAVAILABLE only — never LIVE or PASS."""
+    ts = time.time() if now is None else float(now)
+    cached = _KERNEL_CACHE.get("payload")
+    cached_at = float(_KERNEL_CACHE.get("at") or 0)
+    if cached and (ts - cached_at) < _KERNEL_CACHE_TTL:
+        out = dict(cached)
+        out["cached"] = True
+        return out
+
+    status, data, err = probe(_KERNEL_SPACE_URL + "/readyz")
+    body = data if isinstance(data, dict) else {}
+    write_ready = body.get("write_ready") if isinstance(body.get("write_ready"), bool) else None
+    authority = body.get("authority")
+    if isinstance(authority, dict):
+        key_id = authority.get("keyId") or authority.get("key_id") or authority.get("kid")
+        evidence_state = authority.get("evidenceState") or authority.get("evidence_state")
+    else:
+        key_id = body.get("keyId") or body.get("key_id") or body.get("kid")
+        evidence_state = body.get("evidenceState") or body.get("evidence_state")
+        authority = authority if authority is not None else evidence_state
+    ledger = body.get("receiptCount")
+    if ledger is None:
+        ledger = body.get("ledger")
+    reachable = status == 200 and isinstance(data, dict)
+    payload = {
+        "ok": reachable,
+        "reachability": "REACHABLE" if reachable else "UNAVAILABLE",
+        "write_ready": write_ready if reachable else None,
+        "authority": authority if reachable else None,
+        "evidence_state": evidence_state if reachable else None,
+        "key_id": key_id if reachable else None,
+        "ledger": ledger if reachable else None,
+        "blockers": body.get("blockers") if reachable else None,
+        "upstream_status": body.get("status") if reachable else None,
+        "upstream_http": status,
+        "error": None if reachable else (err or "kernel unobserved"),
+        "channel_a": {
+            "space": "SZLHOLDINGS/immune",
+            "url": _KERNEL_SPACE_URL,
+            "contract": "/readyz",
+        },
+        "channel_b": {
+            "space": "SZLHOLDINGS/immune-lattice",
+            "url": _KERNEL_LATTICE_URL,
+            "contract": "/api/immune/state",
+            "note": "COP overlay sibling. HF proxy intercepts /readyz; a 502 HTML there is not kernel death.",
+        },
+        "product_tab": "/immune",
+        "honesty": {
+            "lambda": "Conjecture 1 (NOT a theorem)",
+            "never_fabricate": ["LIVE", "PASS"],
+            "first_paint": "CONNECTING",
+            "failed_probe": "UNAVAILABLE",
+            "write_ready_true": "REACHABLE (not LIVE)",
+        },
+        "organ": _ORGAN_NAME,
+        "cached": False,
+    }
+    enveloped = _gov(payload, status="REAL" if reachable else "DEGRADED")
+    _KERNEL_CACHE["at"] = ts
+    _KERNEL_CACHE["payload"] = enveloped
+    return enveloped
+
+
 # ---------------------------------------------------------------------------
 # Registration — dual-register under /api/{ns}/v1/immune/* AND /v1/immune/*.
 # Mirrors szl_kverify's add_api_route pattern. Registered BEFORE the SPA catch-
@@ -425,6 +538,9 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _h_verify():  # noqa: ANN202
         return JSONResponse(_verify_chain())
 
+    async def _h_kernel():  # noqa: ANN202
+        return JSONResponse(_kernel())
+
     prefixes = [f"/api/{ns}/v1/immune", "/v1/immune"]
     routes: list[str] = []
     for p in prefixes:
@@ -435,8 +551,9 @@ def register(app, ns: str = "a11oy") -> dict:
         app.add_api_route(f"{p}/feed", _h_feed, methods=["GET"], include_in_schema=True)
         app.add_api_route(f"{p}/verdict", _h_verdict, methods=["POST", "GET"], include_in_schema=True)
         app.add_api_route(f"{p}/verify", _h_verify, methods=["GET"], include_in_schema=True)
+        app.add_api_route(f"{p}/kernel", _h_kernel, methods=["GET", "HEAD"], include_in_schema=True)
         routes.extend([f"{p}/healthz", f"{p}/status", f"{p}/gates", f"{p}/threats",
-                       f"{p}/feed", f"{p}/verdict", f"{p}/verify"])
+                       f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel"])
 
     print(f"[{ns}] szl_immune routes registered "
           f"(Immune (Hukulla) fail-closed egress gate, {len(routes)} routes)", flush=True)
