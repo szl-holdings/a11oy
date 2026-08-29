@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - readiness honesty relock
+- The readiness harness now admits truthful `SAMPLE`, `DEGRADED`, and
+  `MODELED` endpoint classes only where their source contracts explicitly
+  declare them. Mixed live KEV enrichment is canonicalized to one `live`
+  source label while preserving field-level detail. No operational traffic,
+  customer event, runtime receipt, or built RAG index is inferred.
+
 ### Fixed - live UI stale product names
 - Remaining flagship web/src copy no longer presents KORA, LUMINA, or
   PARAGON as current products (Intelligence / Briefing / Defense).

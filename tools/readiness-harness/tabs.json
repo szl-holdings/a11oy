@@ -297,7 +297,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "sample"
         ],
         "liesIf": [
           "mock",
@@ -305,7 +306,7 @@
           "placeholder"
         ]
       },
-      "note": ""
+      "note": "Deterministic SAMPLE linkage is admitted only as a labeled mechanism demonstration; it is not an operational, customer, approval, or signed runtime ledger."
     },
     "/api/a11oy/v1/receipt/export": {
       "method": "GET",
@@ -318,7 +319,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "sample"
         ],
         "liesIf": [
           "mock",
@@ -326,7 +328,7 @@
           "placeholder"
         ]
       },
-      "note": ""
+      "note": "Prebuilt signed SAMPLE envelope for offline verification. GET does not mint an operational receipt."
     },
     "/api/a11oy/cosign.pub": {
       "method": "GET",
@@ -511,7 +513,9 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "degraded",
+          "UNAVAILABLE"
         ],
         "liesIf": [
           "mock",
@@ -519,7 +523,7 @@
           "placeholder"
         ]
       },
-      "note": "Read-only RAG index and corpus posture with explicit not-built state."
+      "note": "Read-only RAG index and corpus posture. DEGRADED means the source index is honestly not built; no synthetic readiness is inferred."
     },
     "/api/a11oy/v1/energy/live": {
       "method": "GET",
@@ -1443,7 +1447,7 @@
           "placeholder"
         ]
       },
-      "note": "Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."
+      "note": "Live CISA KEV identifiers with mixed live/derived enrichment. The canonical label describes source freshness; field-level detail remains explicit."
     },
     "/api/a11oy/v1/router/stats": {
       "method": "GET",
@@ -1456,7 +1460,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "modeled"
         ],
         "liesIf": [
           "mock",
@@ -1464,7 +1469,7 @@
           "placeholder"
         ]
       },
-      "note": "Live process-lifetime routing-decision counters from trusted szl_llm_registry receipt writes; not QPS, tokens, or inference completions."
+      "note": "Deterministic MODELED tier-display signals from szl_brain.TIERS; not production traffic, QPS, tokens, or completed inference."
     },
     "/api/a11oy/v1/scaling/summary": {
       "method": "GET",
@@ -2783,49 +2788,39 @@
       "required": [
         "state",
         "mode",
-        "data_kind",
         "catalog_state",
         "throughput_state",
         "routes",
         "servedThisWindow",
-        "routingDecisionsSinceStart",
         "tiers",
-        "counter_scope",
-        "counter_started_at",
-        "observed_at",
         "source",
+        "doctrine",
         "honesty"
       ],
       "properties": {
         "state": {
-          "const": "LIVE"
+          "const": "MODELED"
         },
         "mode": {
-          "const": "live"
-        },
-        "data_kind": {
-          "const": "live"
+          "const": "modeled"
         },
         "catalog_state": {
           "const": "LIVE"
         },
         "throughput_state": {
-          "const": "OBSERVED"
-        },
-        "counter_scope": {
-          "const": "process_lifetime"
+          "const": "MODELED"
         },
         "source": {
-          "const": "szl_llm_registry.router_stats_snapshot"
+          "const": "szl_brain.TIERS"
+        },
+        "doctrine": {
+          "const": "v11"
         }
       },
       "requiredPathTypes": {
         "routes": "nonempty_array",
         "servedThisWindow": "nonnegative_integer",
-        "routingDecisionsSinceStart": "nonnegative_integer",
         "tiers": "nonempty_array",
-        "counter_started_at": "timestamp",
-        "observed_at": "timestamp",
         "honesty": "string"
       }
     },

@@ -110,8 +110,25 @@ ENDPOINTS = {
     # NOTE: the console calls /api/a11oy/provenance (NO /v1/). /v1/provenance is 404.
     "/api/a11oy/provenance": ep(schema="provenance", sla=DAY, citations=True,
         note="Combined provenance board (note: /provenance, NOT /v1/provenance)."),
-    "/api/a11oy/v1/ledger": ep(schema="ledger", sla=DAY),
-    "/api/a11oy/v1/receipt/export": ep(schema="generic_obj", sla=None),
+    "/api/a11oy/v1/ledger": ep(
+        schema="ledger",
+        sla=DAY,
+        allow_labels=("live", "cached", "sample"),
+        note=(
+            "Deterministic SAMPLE linkage is admitted only as a labeled "
+            "mechanism demonstration; it is not an operational, customer, "
+            "approval, or signed runtime ledger."
+        ),
+    ),
+    "/api/a11oy/v1/receipt/export": ep(
+        schema="generic_obj",
+        sla=None,
+        allow_labels=("live", "cached", "sample"),
+        note=(
+            "Prebuilt signed SAMPLE envelope for offline verification. "
+            "GET does not mint an operational receipt."
+        ),
+    ),
     "/api/a11oy/cosign.pub": ep(schema="text", sla=None,
         note="Public signing key for offline receipt verification."),
 
@@ -131,8 +148,16 @@ ENDPOINTS = {
         note="Governed multi-step agent run; an invalid or incomplete request may honestly validate with 400/422."),
     "/api/a11oy/v1/rag/query": ep(schema="generic_obj", sla=HOUR, citations=True,
         note="GET is the read-only governed RAG descriptor; POST performs a query. The readiness probe uses GET."),
-    "/api/a11oy/v1/rag/status": ep(schema="generic_obj", sla=HOUR, citations=True,
-        note="Read-only RAG index and corpus posture with explicit not-built state."),
+    "/api/a11oy/v1/rag/status": ep(
+        schema="generic_obj",
+        sla=HOUR,
+        citations=True,
+        allow_labels=("live", "cached", "degraded", "UNAVAILABLE"),
+        note=(
+            "Read-only RAG index and corpus posture. DEGRADED means the "
+            "source index is honestly not built; no synthetic readiness is inferred."
+        ),
+    ),
 
     # ── Energy / GSF SCI ──
     "/api/a11oy/v1/energy/live": ep(schema="generic_obj", sla=30,
@@ -264,16 +289,30 @@ ENDPOINTS = {
     #   source + source_url, so citations are required; data must be fresh.
     "/api/a11oy/v1/feeds/pulse": ep(schema="feeds_pulse", sla=5 * MIN, citations=True,
         note="Live data-feed liveness/provenance heartbeat; each item cites source_url."),
-    # kevgate: live CISA KEV CVEs mapped through the REAL governed policy engine.
-    "/api/a11oy/v1/sec/kevgate": ep(schema="kevgate", sla=DAY, citations=True,
-        note="Live CISA KEV -> deny-by-default gate impact; gates_fired is the real engine result."),
-    # router/stats: live per-route catalog plus exact trusted routing-decision
-    #   counters from szl_llm_registry. The process-lifetime window resets on
-    #   rebuild and is declared in the payload. These are decisions, not QPS,
-    #   tokens, or inference completions, so no external citation is required.
-    #   Keep the default live/cached label policy: MODELED must not pass this gate.
-    "/api/a11oy/v1/router/stats": ep(schema="router_stats", sla=None,
-        note="Live process-lifetime routing-decision counters from trusted szl_llm_registry receipt writes; not QPS, tokens, or inference completions."),
+    # kevgate: live CISA KEV identifiers plus independently sourced EPSS/CVSS
+    #   fields. The response middleware collapses the compound source description
+    #   to one canonical evidence label while preserving the original detail.
+    "/api/a11oy/v1/sec/kevgate": ep(
+        schema="kevgate",
+        sla=DAY,
+        citations=True,
+        note=(
+            "Live CISA KEV identifiers with mixed live/derived enrichment. "
+            "The canonical label describes source freshness; field-level detail remains explicit."
+        ),
+    ),
+    # router/stats: the current endpoint is a deterministic modeled display of
+    #   the real tier catalog. It is not production traffic, QPS, tokens,
+    #   completed inference, or an observed routing-decision counter.
+    "/api/a11oy/v1/router/stats": ep(
+        schema="router_stats",
+        sla=None,
+        allow_labels=("live", "cached", "modeled"),
+        note=(
+            "Deterministic MODELED tier-display signals from szl_brain.TIERS; "
+            "not production traffic, QPS, tokens, or completed inference."
+        ),
+    ),
 
     # ── Metabolic scaling (szl_scaling.py — DETERMINISTIC, reproduces documented numerics) ──
     # These are pure closed-form computations of published allometric/scaling laws,
@@ -674,24 +713,21 @@ SCHEMAS = {
     "router_stats": {
         "type": "object",
         "required": [
-            "state", "mode", "data_kind", "catalog_state", "throughput_state",
-            "routes", "servedThisWindow", "routingDecisionsSinceStart", "tiers",
-            "counter_scope", "counter_started_at", "observed_at", "source", "honesty",
+            "state", "mode", "catalog_state", "throughput_state",
+            "routes", "servedThisWindow", "tiers", "source", "doctrine", "honesty",
         ],
         "properties": {
-            "state": {"const": "LIVE"},
-            "mode": {"const": "live"},
-            "data_kind": {"const": "live"},
+            "state": {"const": "MODELED"},
+            "mode": {"const": "modeled"},
             "catalog_state": {"const": "LIVE"},
-            "throughput_state": {"const": "OBSERVED"},
-            "counter_scope": {"const": "process_lifetime"},
-            "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+            "throughput_state": {"const": "MODELED"},
+            "source": {"const": "szl_brain.TIERS"},
+            "doctrine": {"const": "v11"},
         },
         "requiredPathTypes": {
-            "routes": "nonempty_array", "servedThisWindow": "nonnegative_integer",
-            "routingDecisionsSinceStart": "nonnegative_integer",
+            "routes": "nonempty_array",
+            "servedThisWindow": "nonnegative_integer",
             "tiers": "nonempty_array",
-            "counter_started_at": "timestamp", "observed_at": "timestamp",
             "honesty": "string",
         },
     },
