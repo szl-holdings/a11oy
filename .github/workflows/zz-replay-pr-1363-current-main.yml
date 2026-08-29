@@ -1,0 +1,165 @@
+name: Rebuild universal frontend controller on current main
+
+on:
+  push:
+    branches:
+      - fix/hf-universal-frontend-current-main-20260828
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rebuild-hf-universal-frontend-current-main-20260828
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    if: github.repository == 'szl-holdings/a11oy' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out current-main successor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/hf-universal-frontend-current-main-20260828
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Replay exact PR 1363 delta without stale ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' > /tmp/pr.env
+          import json, urllib.request
+          url = 'https://api.github.com/repos/szl-holdings/a11oy/pulls/1363'
+          req = urllib.request.Request(url, headers={
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'szl-current-main-rebuilder/1',
+              'X-GitHub-Api-Version': '2022-11-28',
+          })
+          with urllib.request.urlopen(req, timeout=30) as response:
+              pr = json.load(response)
+          if pr.get('state') != 'open':
+              raise SystemExit('PR 1363 is not open')
+          head = pr.get('head') or {}
+          base = pr.get('base') or {}
+          head_repo = head.get('repo') or {}
+          if head_repo.get('full_name') != 'szl-holdings/a11oy':
+              raise SystemExit('PR 1363 head repository is not canonical')
+          for key, value in {
+              'SOURCE_HEAD': head.get('sha'),
+              'SOURCE_BASE': base.get('sha'),
+          }.items():
+              if not isinstance(value, str) or len(value) != 40:
+                  raise SystemExit(f'{key} is not an exact SHA')
+              print(f'{key}={value}')
+          PY
+          . /tmp/pr.env
+          git fetch --no-tags origin "$SOURCE_BASE" "$SOURCE_HEAD"
+          test "$(git rev-parse HEAD^)" = "$(git rev-parse origin/main)" || {
+            echo 'successor is no longer based directly on current main' >&2
+            exit 1
+          }
+          git diff --binary "$SOURCE_BASE" "$SOURCE_HEAD" -- \
+            . ':(exclude).github/workflows/zz-replay-pr-1363-current-main.yml' \
+            > /tmp/pr-1363.patch
+          test -s /tmp/pr-1363.patch
+          git apply --3way --index /tmp/pr-1363.patch
+
+      - name: Enforce real deployed-shell admission contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          candidates = []
+          for path in Path('.').rglob('*.py'):
+              if any(part in {'.git', '.venv', 'node_modules'} for part in path.parts):
+                  continue
+              try:
+                  text = path.read_text(encoding='utf-8')
+              except (OSError, UnicodeError):
+                  continue
+              score = sum(term in text for term in (
+                  'SOURCE_BOUND_VERIFIED', 'provider_mutation_admitted',
+                  'app_file', 'entrypoint', 'card_data',
+              ))
+              if score >= 3:
+                  candidates.append((score, path, text))
+          if not candidates:
+              raise SystemExit('no unique universal-frontend controller candidate found')
+          candidates.sort(key=lambda item: (-item[0], str(item[1])))
+          top_score = candidates[0][0]
+          top = [item for item in candidates if item[0] == top_score]
+          if len(top) != 1:
+              raise SystemExit('universal-frontend controller candidate is ambiguous')
+          _, path, text = top[0]
+
+          # The replay is admissible only when the controller already encodes
+          # all six exact-shell refusal boundaries. This deliberately refuses
+          # to invent source logic by heuristic replacement.
+          required = (
+              'app_file',
+              'SOURCE_BOUND_VERIFIED',
+              'provider_mutation_admitted',
+              'docker',
+              'mixed',
+              'ambiguous',
+          )
+          missing = [term for term in required if term.casefold() not in text.casefold()]
+          if missing:
+              raise SystemExit(
+                  f'{path} lacks exact deployed-shell boundaries: {missing}'
+              )
+
+          # Require a configured-entrypoint-first implementation rather than
+          # admitting root filename heuristics as authority.
+          app_positions = [m.start() for m in re.finditer(r'app_file', text, re.I)]
+          heuristic_positions = [m.start() for m in re.finditer(r'index\.html|app\.py|streamlit', text, re.I)]
+          if not app_positions:
+              raise SystemExit(f'{path} does not inspect app_file metadata')
+          if heuristic_positions and min(app_positions) > min(heuristic_positions):
+              raise SystemExit(
+                  f'{path} evaluates filename heuristics before configured app_file metadata'
+              )
+          Path('/tmp/controller-path.txt').write_text(str(path), encoding='utf-8')
+          PY
+
+      - name: Run repository-native focused qualification
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m compileall -q .github scripts tools tests 2>/dev/null || true
+          git diff --cached --check
+          if test -f package.json && command -v corepack >/dev/null 2>&1; then
+            corepack enable
+          fi
+          if test -f pnpm-lock.yaml && command -v pnpm >/dev/null 2>&1; then
+            pnpm install --frozen-lockfile --ignore-scripts
+          fi
+          mapfile -t focused < <(git diff --cached --name-only | grep -E '(^|/)(test[^/]*|tests?)/|test_.*\.py$|\.test\.[cm]?[jt]sx?$' || true)
+          if ((${#focused[@]})); then
+            for file in "${focused[@]}"; do
+              case "$file" in
+                *.py) python3 -m pytest -q "$file" ;;
+                *.test.js|*.test.mjs|*.test.cjs) node --test "$file" ;;
+              esac
+            done
+          fi
+
+      - name: Commit clean current-main successor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/zz-replay-pr-1363-current-main.yml
+          git add -A
+          git diff --cached --check
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit \
+            -m 'fix(hf): rebuild universal frontend controller on current main' \
+            -m 'Replay the exact PR 1363 source delta without its stale ancestry, require configured app_file resolution before filename heuristics, preserve default-deny mutation admission for Docker/mixed/ambiguous shells, and remove this bounded rebuild workflow.' \
+            -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/hf-universal-frontend-current-main-20260828
