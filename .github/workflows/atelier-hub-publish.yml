@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: Apache-2.0
+# Publish the SZL Atelier walk + MEASURED nano checkpoints to Hub.
+# Does not retrain 1.5B. Does not invent MMLU/joules. ROADMAP stays ROADMAP.
+# Lambda = Conjecture 1 OPEN. Energy UNAVAILABLE.
+#
+# Uses HF_ORG_TOKEN already bound on this repo. szl-atelier's own hf-space.yml
+# cannot publish until that repo has the org token.
+#
+# Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+
+name: Publish SZL Atelier Hub surfaces
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/atelier-hub-publish.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atelier-hub-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Space + nano checkpoints
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out szl-atelier source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/szl-atelier
+          path: atelier
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Hub client
+        run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "numpy==2.2.6"
+
+      - name: Publish Space and MEASURED nano files
+        env:
+          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "HF_ORG_TOKEN missing — cannot publish."
+            exit 1
+          fi
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import json
+          import numpy as np
+          from huggingface_hub import HfApi
+
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          root = Path("atelier")
+
+          # --- Space ---
+          api.create_repo(
+              repo_id="SZLHOLDINGS/szl-atelier",
+              repo_type="space",
+              space_sdk="static",
+              exist_ok=True,
+              private=False,
+          )
+          api.upload_folder(
+              folder_path=str(root),
+              repo_id="SZLHOLDINGS/szl-atelier",
+              repo_type="space",
+              allow_patterns=[
+                  "*.md", "*.html", "*.css", "*.js", "*.json", "*.py",
+                  "LICENSE", "kit/*", "cards/*", "weights/*",
+              ],
+              ignore_patterns=[".git*", ".github/*"],
+              commit_message="publish(atelier): walk + MEASURED nano weights from szl-holdings/szl-atelier",
+          )
+          print("published space SZLHOLDINGS/szl-atelier")
+
+          src = json.loads((root / "nano-weights.json").read_text())
+          wdir = root / "weights"
+          wdir.mkdir(exist_ok=True)
+
+          def arr(x):
+              return np.asarray(x, dtype=np.float64)
+
+          seed = np.int64(src["seed"])
+          m = src["miniEmbed"]
+          np.savez_compressed(wdir / "mini_embed.npz", table=arr(m["table"]), V=np.int64(m["V"]), d=np.int64(m["d"]), seed=np.int64(m["seed"]), retrievalHitAt2=np.float64(m["retrievalHitAt2"]))
+          mo = src["moons"]
+          np.savez_compressed(wdir / "moons.npz", w1=arr(mo["w1"]), b1=arr(mo["b1"]), w2=arr(mo["w2"]), b2=arr(mo["b2"]), holdoutAcc=np.float64(mo["holdoutAcc"]), silhouette=np.float64(mo["silhouette"]), seed=seed)
+          k = src["tinyKhipu"]
+          np.savez_compressed(wdir / "tiny_khipu.npz", w1=arr(k["w1"]), b1=arr(k["b1"]), w2=arr(k["w2"]), b2=arr(k["b2"]), holdoutAcc=np.float64(k["holdoutAcc"]), abstainRecall=np.float64(k["abstainRecall"]), navigateRecall=np.float64(k["navigateRecall"]), seed=seed)
+          r = src["receiptAgent"]
+          np.savez_compressed(wdir / "receipt_agent.npz", w1=arr(r["w1"]), b1=arr(r["b1"]), w2=arr(r["w2"]), b2=arr(r["b2"]), holdoutAcc=np.float64(r["holdoutAcc"]), seed=seed)
+          g = src["lambdaGate"]
+          np.savez_compressed(wdir / "lambda_gate.npz", w=np.float64(g["w"]), b=np.float64(g["b"]), lambdaStar=np.float64(g["lambdaStar"]), holdoutAcc=np.float64(g["holdoutAcc"]), falseOpenRate=np.float64(g["falseOpenRate"]), seed=seed)
+
+          # MEASURED / SYNTHETIC nanos — write card + npz. Never touch 1.5B safetensors.
+          nanos = [
+              ("SZLHOLDINGS/MiniEmbed-Nano", "cards/MiniEmbed-Nano.md", "mini_embed.npz"),
+              ("SZLHOLDINGS/Moons-Nano", "cards/Moons-Nano.md", "moons.npz"),
+              ("SZLHOLDINGS/TinyKhipu-Nano", "cards/TinyKhipu-Nano.md", "tiny_khipu.npz"),
+              ("SZLHOLDINGS/ReceiptAgent-Nano", "cards/ReceiptAgent-Nano.md", "receipt_agent.npz"),
+          ]
+          for repo, card, npz in nanos:
+              api.create_repo(repo_id=repo, repo_type="model", exist_ok=True, private=False)
+              api.upload_file(path_or_fileobj=str(root / card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): MEASURED nano silhouette — not a 1.5B retrain")
+              api.upload_file(path_or_fileobj=str(wdir / npz), path_in_repo=npz, repo_id=repo, repo_type="model", commit_message="weights(atelier): CPU NumPy checkpoint seed=20260721")
+              print("published", repo, npz)
+
+          # lambda silhouette rides the existing szl-khipu model id (do not clobber README)
+          api.upload_file(path_or_fileobj=str(wdir / "lambda_gate.npz"), path_in_repo="lambda_gate.npz", repo_id="SZLHOLDINGS/szl-khipu", repo_type="model", commit_message="weights(atelier): 1-D lambda-gate silhouette — Conjecture 1 OPEN")
+          print("published SZLHOLDINGS/szl-khipu lambda_gate.npz")
+
+          # ROADMAP organs — honest empty-seat cards. No fake weights.
+          for name in ("qantu", "waman", "chakana", "tinku"):
+              repo = f"SZLHOLDINGS/{name}"
+              card = root / "cards" / f"{name}.md"
+              api.create_repo(repo_id=repo, repo_type="model", exist_ok=True, private=False)
+              api.upload_file(path_or_fileobj=str(card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): ROADMAP organ — not a checkpoint")
+              print("published ROADMAP card", repo)
+
+          print("done. Did not retrain 1.5B. Energy UNAVAILABLE.")
+          PY
