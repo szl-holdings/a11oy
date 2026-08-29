@@ -47,6 +47,22 @@ def test_three_products_max() -> None:
     assert "<h3>Real estate</h3>" not in FRONT
 
 
+def test_lyte_is_bound_package_not_flagship() -> None:
+    """LYTE binds onto the product door as a package. Not a fourth flagship."""
+    nav = FRONT.split('<nav class="nav-links" id="site-nav">', 1)[1].split("</nav>", 1)[0]
+    assert 'href="/lyte"' in nav
+    assert 'id="bind-lyte"' in FRONT
+    assert "LYTE lattice" in FRONT
+    assert "BIND package" in FRONT
+    assert "not a flagship" in FRONT.lower() or "Not a fourth product" in FRONT
+    assert 'id="product-lyte"' not in FRONT
+    assert FRONT.count('class="card product-card"') == 3
+    # lexicon_gate on the front door bans title-case Lyte.
+    import re
+
+    assert re.search(r"\bLyte\b", FRONT) is None
+
+
 def test_hub_collections_are_the_catalog() -> None:
     catalog = FRONT.split('id="catalog"', 1)[1].split("</section>", 1)[0]
     for url in COLLECTIONS:
