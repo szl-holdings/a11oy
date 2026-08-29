@@ -43,7 +43,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install exact core test dependencies
-        run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+        run: |
+          python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+          python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/oro-loopback.txt
       - name: Compile the complete ORO runtime
         run: python3 -m compileall -q oro tests/test_oro_operational_v3.py
       - name: Validate committed JSON schemas
@@ -72,12 +74,19 @@ jobs:
           set -euo pipefail
           python3 -m uvicorn oro.api:app --host 127.0.0.1 --port 8877 >"$RUNNER_TEMP/oro-uvicorn.log" 2>&1 &
           echo $! >"$RUNNER_TEMP/oro-uvicorn.pid"
+          ready=0
           for attempt in $(seq 1 40); do
             if curl --fail --silent --show-error http://127.0.0.1:8877/api/a11oy/v1/oro/readyz >"$RUNNER_TEMP/oro-ready.json"; then
+              ready=1
               break
             fi
             sleep 0.25
           done
+          if [ "$ready" != "1" ]; then
+            echo "ORO loopback did not become ready; uvicorn log:" >&2
+            cat "$RUNNER_TEMP/oro-uvicorn.log" >&2 || true
+            exit 1
+          fi
           curl --fail --silent --show-error http://127.0.0.1:8877/api/a11oy/v1/oro/healthz >"$RUNNER_TEMP/oro-health.json"
           curl --fail --silent --show-error http://127.0.0.1:8877/api/a11oy/v1/oro/contract >"$RUNNER_TEMP/oro-contract.json"
           curl --fail --silent --show-error http://127.0.0.1:8877/oro >"$RUNNER_TEMP/oro-dashboard.html"

@@ -2,8 +2,8 @@
   "manifestVersion": 1,
   "payloadRoot": "deploy",
   "generator": "scripts/payload_manifest.py",
-  "fileCount": 13,
-  "aggregateSha256": "84da47989f7d50a8186f482f454cb4625f8c3bae410f31006e1b4f6886398581",
+  "fileCount": 15,
+  "aggregateSha256": "bdf572e698e9bbe831dea1a421216da15264c13feef9482db2b0718f115c2adf",
   "files": [
     {
       "path": "attestations.jsonl",
@@ -34,6 +34,16 @@
       "path": "manifests/proof-ledger-pvc.yaml",
       "size": 270,
       "sha256": "3804fdcf3a0b6ea767c3aaf3a373f8d82976d1824c9249b27cd515c91d567244"
+    },
+    {
+      "path": "oro/Dockerfile",
+      "size": 1694,
+      "sha256": "0c2119fa9dbf04fd04d7344f922b56cb348eb14f2b1973d2ceef2a0b3e827aed"
+    },
+    {
+      "path": "oro/compose.yaml",
+      "size": 1898,
+      "sha256": "8edcf5f5f31b67c0fbcfc3a6725d4bd6716eb3507ca0fbc57cd803a6e5427102"
     },
     {
       "path": "peat-node.yaml",
