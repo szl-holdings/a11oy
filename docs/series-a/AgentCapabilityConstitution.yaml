@@ -1,0 +1,48 @@
+apiVersion: a11oy.szl/v1
+kind: AgentCapabilityConstitution
+metadata:
+  name: series-a-vertical-slice
+  version: "2026.08.29-1"
+  signed: SOFTWARE-SIGNED
+  expires: "2026-11-27T00:00:00Z"
+  reapproval_days: 90
+  lexicon: "a11oy — governed execution fabric"
+spec:
+  deny_by_default: true
+  calibration_plane: proposal-only
+  prohibited_tools:
+    - production.write
+    - production.deploy
+    - unsloth.codex_bridge
+    - shell.exec_privileged
+    - huggingface.push
+  allowed_tools:
+    - fixture.echo
+    - fixture.hash
+    - fixture.deny_demo
+    - aql.query
+    - twin.preview
+  allowed_delegation: []
+  approval:
+    default: auto
+    two_person:
+      - fixture.announce
+    human_required_side_effects:
+      - REVERSIBLE
+      - IRREVERSIBLE
+  budgets:
+    per_run:
+      tools: 8
+      writes: 0
+      cost_usd: 0
+  side_effects:
+    fixture.echo: NONE
+    fixture.hash: NONE
+    fixture.deny_demo: NONE
+    aql.query: NONE
+    twin.preview: NONE
+    production.write: IRREVERSIBLE
+  notes:
+    - Local model endpoints that allow code execution stay localhost-bound with a rotating secret and must be registered as a governed MCP capability before privileged integration.
+    - Unsloth server-side tools run as the host user; do not wire them into Codex.
+    - Bricklayer-adjacent policy-enforcement code is blocked until IP_RISK_REGISTER.md is populated.
