@@ -582,26 +582,36 @@ def _client() -> httpx.Client:
 
 def _flight_wait_failure(rec: Optional[dict[str, Any]]) -> dict[str, Any]:
     error = f"single-flight wait exceeded {_source_http_timeout_s():g}s source budget"
+    observed_at = time.time()
     if rec:
         return {"value": rec["value"], "freshness": {
             "status": "stale",
-            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "age_s": round(max(0.0, observed_at - rec["fetched_at"]), 1),
             "fetched_at": rec["fetched_at"],
             "error": error,
         }}
-    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+    return {"value": None, "freshness": {
+        "status": "unavailable",
+        "fetched_at": observed_at,
+        "error": error,
+    }}
 
 
 def _refresh_failure(rec: Optional[dict[str, Any]], exc: BaseException) -> dict[str, Any]:
     error = f"{type(exc).__name__}: {str(exc)[:160]}"
+    observed_at = time.time()
     if rec:
         return {"value": rec["value"], "freshness": {
             "status": "stale",
-            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "age_s": round(max(0.0, observed_at - rec["fetched_at"]), 1),
             "fetched_at": rec["fetched_at"],
             "error": error[:160],
         }}
-    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+    return {"value": None, "freshness": {
+        "status": "unavailable",
+        "fetched_at": observed_at,
+        "error": error,
+    }}
 
 
 def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", headers=None) -> dict[str, Any]:
@@ -610,7 +620,9 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     refreshes for one key are coalesced into exactly one upstream operation."""
     if not _source_url_allowed(url):
         return {"value": None, "freshness": {
-            "status": "unavailable", "error": "external feed URL requires HTTPS",
+            "status": "unavailable",
+            "fetched_at": time.time(),
+            "error": "external feed URL requires HTTPS",
         }}
     rec = _CACHE.get(key)
     now = time.time()
@@ -1517,6 +1529,32 @@ def cited_leaders(vertical: str) -> list[dict[str, str]]:
     return CITED_LEADERS.get(vertical, [])
 
 
+# Finance probe allowLabels are live/cached/reference/unofficial-fallback.
+# Unofficial Yahoo misses must not emit freshness.status=unavailable (or
+# missing fetched_at) on HTTP 200. Last-good stale cache is cached + age_s.
+_FINANCE_PUBLIC_FRESHNESS = frozenset({"live", "cached"})
+
+
+def _finance_public_series(series: dict[str, Any]) -> dict[str, Any]:
+    """Omit unofficial rows the readiness probe cannot honestly admit."""
+    public: dict[str, Any] = {}
+    for key, entry in series.items():
+        if not isinstance(entry, dict):
+            continue
+        freshness = dict(entry.get("freshness") or {})
+        status = str(freshness.get("status") or "")
+        fetched_at = freshness.get("fetched_at")
+        if fetched_at is None:
+            continue
+        if status == "stale" and entry.get("value") is not None:
+            freshness["status"] = "cached"
+            status = "cached"
+        if status not in _FINANCE_PUBLIC_FRESHNESS:
+            continue
+        public[key] = {**entry, "freshness": freshness}
+    return public
+
+
 # ===========================================================================
 # REGISTER — additive routes BEFORE SPA catch-all.
 # ===========================================================================
@@ -1575,9 +1613,10 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
         cve, fx = values[cursor:cursor + 2]
         return JSONResponse({"vertical": "finance",
                              "equities_official": official,
-                             "equities": eq,
+                             "equities": _finance_public_series(eq),
                              "equities_note": ("equities_official = Polygon.io (official, key-gated); "
-                                               "equities = Yahoo v8 (unofficial fallback)"),
+                                               "equities = Yahoo v8 (unofficial fallback); "
+                                               "Yahoo misses are omitted, not stamped unavailable"),
                              "crypto": crypto,
                              "fx": fx, "fintech_cve": cve,
                              "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})

@@ -342,6 +342,11 @@ const finance = {
 assert.equal(probe.validateSchema("vert_finance_feed", finance).ok, true);
 delete finance.fx.freshness.fetched_at;
 assert.equal(probe.validateSchema("vert_finance_feed", finance).ok, false);
+finance.fx.freshness.fetched_at = 1786449600;
+delete finance.equities.SPY;
+assert.equal(probe.validateSchema("vert_finance_feed", finance).ok, true);
+delete finance.equities_official.SPY;
+assert.equal(probe.validateSchema("vert_finance_feed", finance).ok, false);
 """
     )
     assert result.returncode == 0, result.stderr
