@@ -11,21 +11,26 @@ A frontend failure may be repaired only in the application’s canonical source 
 - `DIVERGENT` — explicit links are missing, unresolved, or point to multiple repositories; or multiple normalized name matches exist.
 - `UNAVAILABLE` — no public source mapping can be established.
 
-Only `EXACT` is write-authoritative without additional review. `INFERRED` may be used for investigation, not automatic promotion.
+`EXACT` identifies a canonical source repository for owner-reviewed source changes and promotion through that repository's protected writer. It does not authorize a direct Hugging Face mutation. `INFERRED` may be used for investigation only, while `DIVERGENT` and `UNAVAILABLE` remain blocked pending explicit ownership evidence.
 
 ## Captured state
 
 For each public Space, the map records:
 
 - Hugging Face repository and runtime revisions
+- README bytes fetched from the exact recorded Hugging Face repository revision through an immutable `/raw/<sha>` or `/resolve/<sha>` URL
 - runtime stage and SDK
 - public README hash and front-matter keys
 - explicit SZL Holdings GitHub links
 - verified or inferred source-repository candidates
-- source-repository default branch, visibility, archival state, and latest push time
-- deployment-workflow filename candidates under `.github/workflows`
+- canonical source-repository default branch, exact branch-head revision, visibility, and archival state
+- deployment-workflow filename candidates under `.github/workflows` at that exact GitHub revision
+
+The managed card does not contain the Hugging Face commit that contains the card: embedding that value would create a non-converging self-reference. Instead, each exact mapping binds the Hub revision to the README hash and canonical GitHub revision. The rollout report supplements that record with exact readback hashes for every required managed card and framework-adapter path.
 
 A single workflow filename candidate is not proof of single-writer authority. It is labeled only as a candidate until workflow contents, target resource, and protected promotion behavior are reviewed.
+
+Candidate records in a `DIVERGENT` mapping retain repository identity only. Mutable branch, visibility, and archival fields are omitted, and workflow discovery remains blocked until exactly one canonical repository has been established.
 
 ## Mutation boundary
 

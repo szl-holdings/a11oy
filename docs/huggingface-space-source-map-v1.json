@@ -32,65 +32,36 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "e2a8312405ddf8d6875d69de7886feff17ffd991",
         "sha256": "28237f18c0f0021678a9666b2be4e46f783612895a03f9c55b5fb53c00e21622",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/a11oy/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/a11oy/raw/e2a8312405ddf8d6875d69de7886feff17ffd991/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/a11oy",
-            "html_url": "https://github.com/szl-holdings/a11oy",
-            "pushed_at": "2026-08-18T03:33:05Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/a11oy"
           },
           {
-            "archived": true,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/developers",
-            "html_url": "https://github.com/szl-holdings/developers",
-            "pushed_at": "2026-07-29T23:07:25Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/developers"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/killinchu",
-            "html_url": "https://github.com/szl-holdings/killinchu",
-            "pushed_at": "2026-08-18T03:27:43Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/killinchu"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean",
-            "pushed_at": "2026-08-17T23:52:18Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/lutar-lean"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-cookbook",
-            "html_url": "https://github.com/szl-holdings/szl-cookbook",
-            "pushed_at": "2026-08-18T00:11:08Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-cookbook"
           }
         ],
         "canonical": null,
@@ -135,101 +106,52 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "d66357340a13958adffb188ea63ab823f42820b7",
         "sha256": "5b6460220a8bdf7db4191e0eb9ecb272a493e2a68f9dae7797be608043cf8998",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/anatomy/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/anatomy/raw/d66357340a13958adffb188ea63ab823f42820b7/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/a11oy",
-            "html_url": "https://github.com/szl-holdings/a11oy",
-            "pushed_at": "2026-08-18T03:33:05Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/a11oy"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/anatomy",
-            "html_url": "https://github.com/szl-holdings/anatomy",
-            "pushed_at": "2026-08-02T01:19:23Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/anatomy"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-            "pushed_at": "2026-07-13T08:14:32Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/hatun-mcp",
-            "html_url": "https://github.com/szl-holdings/hatun-mcp",
-            "pushed_at": "2026-08-17T23:59:13Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/hatun-mcp"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/khipu-consensus",
-            "html_url": "https://github.com/szl-holdings/khipu-consensus",
-            "pushed_at": "2026-08-17T22:55:53Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/khipu-consensus"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/killinchu",
-            "html_url": "https://github.com/szl-holdings/killinchu",
-            "pushed_at": "2026-08-18T03:27:43Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/killinchu"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean",
-            "pushed_at": "2026-08-17T23:52:18Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/lutar-lean"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-mesh",
-            "html_url": "https://github.com/szl-holdings/szl-mesh",
-            "pushed_at": "2026-08-17T22:49:28Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-mesh"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-papers",
-            "html_url": "https://github.com/szl-holdings/szl-papers",
-            "pushed_at": "2026-08-17T20:46:10Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-papers"
           }
         ],
         "canonical": null,
@@ -264,8 +186,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "a3862909c43e03c1259ac85ccb89fa2989a346ac",
         "sha256": "a4507eb7b679ca9fa634620d8ac614e34e69d5c610b2246feb4df75c2ef2cc4e",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/cosmos/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/cosmos/raw/a3862909c43e03c1259ac85ccb89fa2989a346ac/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -273,20 +196,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
-          "pushed_at": "2026-08-18T03:27:27Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -296,6 +219,7 @@
       "space_id": "SZLHOLDINGS/cosmos",
       "workflow_candidates": {
         "candidate_count": 22,
+        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
         "paths": [
           ".github/workflows/anatomy-map-hf-drift.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
@@ -346,8 +270,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "fc4ad0d4a39c9944cdf237be2a66bfea711662b7",
         "sha256": "7c89a9fa4c5067c88134686544bf77f22a60c54c4c81aa475758c18e6c771e18",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/david-leads/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/david-leads/raw/fc4ad0d4a39c9944cdf237be2a66bfea711662b7/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -355,20 +280,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "6886b16b7b2d215310fb9f1cb698cddbf1e231ab",
             "disabled": false,
             "full_name": "szl-holdings/david-leads",
             "html_url": "https://github.com/szl-holdings/david-leads",
-            "pushed_at": "2026-08-08T20:44:21Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "6886b16b7b2d215310fb9f1cb698cddbf1e231ab",
           "disabled": false,
           "full_name": "szl-holdings/david-leads",
           "html_url": "https://github.com/szl-holdings/david-leads",
-          "pushed_at": "2026-08-08T20:44:21Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -378,6 +303,7 @@
       "space_id": "SZLHOLDINGS/david-leads",
       "workflow_candidates": {
         "candidate_count": 3,
+        "github_ref": "6886b16b7b2d215310fb9f1cb698cddbf1e231ab",
         "paths": [
           ".github/workflows/hf-deploy.yml",
           ".github/workflows/hf-drift-check.yml",
@@ -408,29 +334,20 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "6a738416eaeff8911bb39e9fa164c8472406feaf",
         "sha256": "91812f740e14dbd769a2bd85425b8c4c0a734cb69fce53c2997e1b41e1a5a1a4",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attest-holo/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attest-holo/raw/6a738416eaeff8911bb39e9fa164c8472406feaf/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/energy-attest-holo",
-            "html_url": "https://github.com/szl-holdings/energy-attest-holo",
-            "pushed_at": "2026-08-18T00:23:33Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/energy-attest-holo"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-energy-attest",
-            "html_url": "https://github.com/szl-holdings/szl-energy-attest",
-            "pushed_at": "2026-08-17T20:46:31Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-energy-attest"
           }
         ],
         "canonical": null,
@@ -466,29 +383,20 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "110f2fffcf173e18d319f5e04c6aff2c5f0a183c",
         "sha256": "342904643c0bbdfe8ea93b79384b605f20cd7b07c1eb16ffb9d382e1c66f5c5f",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs/raw/110f2fffcf173e18d319f5e04c6aff2c5f0a183c/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-            "pushed_at": "2026-07-13T08:14:32Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
           }
         ],
         "canonical": null,
@@ -520,8 +428,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "832eaad8447cec83a1be335e2187fd302e89ff60",
         "sha256": "012abc5d560cdfa08c846071869101c021d4101a39cf6fc3de06db55a990886c",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench/raw/832eaad8447cec83a1be335e2187fd302e89ff60/README.md"
       },
       "sdk": "gradio",
       "source_mapping": {
@@ -558,8 +467,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "b21c6a1fa8d62d87d5bae30dd62090f77b4fc773",
         "sha256": "d9c6429dca8c396e7a679ed97caf048fbb678d9df8c2239dff766bbe2b572d1d",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-norm-holo/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-norm-holo/raw/b21c6a1fa8d62d87d5bae30dd62090f77b4fc773/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -567,20 +477,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
-          "pushed_at": "2026-08-18T03:27:27Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -590,6 +500,7 @@
       "space_id": "SZLHOLDINGS/governed-norm-holo",
       "workflow_candidates": {
         "candidate_count": 22,
+        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
         "paths": [
           ".github/workflows/anatomy-map-hf-drift.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
@@ -639,29 +550,20 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "be8c33be5d44a177d99136f8e3d08ef86b1d8cf8",
         "sha256": "9c463414faad5abb8bcde89c0b96c513031a45e221690ecf7d7f8046e845b5c0",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier/raw/be8c33be5d44a177d99136f8e3d08ef86b1d8cf8/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-            "pushed_at": "2026-07-13T08:14:32Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
           }
         ],
         "canonical": null,
@@ -698,38 +600,24 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "25584d5fba590069a1f41a1b28e77894fa89faea",
         "sha256": "08c4956b5d38dc79238c495565ae98806d6630b75314ad4bdc4eca295e060884",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/guardrail-receipt/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/guardrail-receipt/raw/25584d5fba590069a1f41a1b28e77894fa89faea/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-            "pushed_at": "2026-07-13T08:14:32Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-guardrail-receipt",
-            "html_url": "https://github.com/szl-holdings/szl-guardrail-receipt",
-            "pushed_at": "2026-07-09T15:35:14Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-guardrail-receipt"
           }
         ],
         "canonical": null,
@@ -767,56 +655,32 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "1b356761076e34a4eda669f6495722ab28d786a1",
         "sha256": "43739475659068a41ed4093e83d9015916da6a38cb0f2b2996ac762fae63fa64",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/hatun-mcp/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/hatun-mcp/raw/1b356761076e34a4eda669f6495722ab28d786a1/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/hatun-mcp",
-            "html_url": "https://github.com/szl-holdings/hatun-mcp",
-            "pushed_at": "2026-08-17T23:59:13Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/hatun-mcp"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean",
-            "pushed_at": "2026-08-17T23:52:18Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/lutar-lean"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/ouroboros",
-            "html_url": "https://github.com/szl-holdings/ouroboros",
-            "pushed_at": "2026-08-18T00:10:20Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/ouroboros"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/platform",
-            "html_url": "https://github.com/szl-holdings/platform",
-            "pushed_at": "2026-08-18T03:33:22Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/platform"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-router",
-            "html_url": "https://github.com/szl-holdings/szl-router",
-            "pushed_at": "2026-08-17T23:52:50Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-router"
           }
         ],
         "canonical": null,
@@ -851,8 +715,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "8167bade8d9e6c2d0430241555be2b3a7b6307a0",
         "sha256": "ed439bbdb6344d02dad1ae0eddf9a8b9effd8c9d7b016dd01697d98fee184b73",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/holographic/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/holographic/raw/8167bade8d9e6c2d0430241555be2b3a7b6307a0/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -860,20 +725,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
-          "pushed_at": "2026-08-18T03:27:27Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -883,6 +748,7 @@
       "space_id": "SZLHOLDINGS/holographic",
       "workflow_candidates": {
         "candidate_count": 22,
+        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
         "paths": [
           ".github/workflows/anatomy-map-hf-drift.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
@@ -932,29 +798,20 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "668d42a2124b80c68c920513ffe2cc2ebe88a5bd",
         "sha256": "9259a927d5c3e6d7d299742d02d1fbecb735ca1ffb6ba12f0feef5a53356c44c",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/immune/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/immune/raw/668d42a2124b80c68c920513ffe2cc2ebe88a5bd/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-            "pushed_at": "2026-07-13T08:14:32Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/immune",
-            "html_url": "https://github.com/szl-holdings/immune",
-            "pushed_at": "2026-08-17T22:52:43Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/immune"
           }
         ],
         "canonical": null,
@@ -1000,101 +857,52 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "bac9a43594412e7bd455a7c60f4fe2bad95b890c",
         "sha256": "b7aa15147272a23563c39bacf9888a5bcaf744f64ec3e115ec02ce2174941fb0",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/killinchu/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/killinchu/raw/bac9a43594412e7bd455a7c60f4fe2bad95b890c/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": true,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/developers",
-            "html_url": "https://github.com/szl-holdings/developers",
-            "pushed_at": "2026-07-29T23:07:25Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/developers"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-            "pushed_at": "2026-07-13T08:14:32Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/khipu-consensus",
-            "html_url": "https://github.com/szl-holdings/khipu-consensus",
-            "pushed_at": "2026-08-17T22:55:53Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/khipu-consensus"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/killinchu",
-            "html_url": "https://github.com/szl-holdings/killinchu",
-            "pushed_at": "2026-08-18T03:27:43Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/killinchu"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean",
-            "pushed_at": "2026-08-17T23:52:18Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/lutar-lean"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/ouroboros",
-            "html_url": "https://github.com/szl-holdings/ouroboros",
-            "pushed_at": "2026-08-18T00:10:20Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/ouroboros"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/platform",
-            "html_url": "https://github.com/szl-holdings/platform",
-            "pushed_at": "2026-08-18T03:33:22Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/platform"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-cookbook",
-            "html_url": "https://github.com/szl-holdings/szl-cookbook",
-            "pushed_at": "2026-08-18T00:11:08Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-cookbook"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-formula-ledger",
-            "html_url": "https://github.com/szl-holdings/szl-formula-ledger",
-            "pushed_at": "2026-07-22T03:31:12Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-formula-ledger"
           }
         ],
         "canonical": null,
@@ -1130,29 +938,20 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "c028bd8b4740913740ec4b09887b5a8e7885e1c3",
         "sha256": "2fed0278f4d63462fb9676c38124c6845df8e7448e533e7aa243bf08e3c48e3e",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/lambda-gate-holo/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/lambda-gate-holo/raw/c028bd8b4740913740ec4b09887b5a8e7885e1c3/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean",
-            "pushed_at": "2026-08-17T23:52:18Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/lutar-lean"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-formula-ledger",
-            "html_url": "https://github.com/szl-holdings/szl-formula-ledger",
-            "pushed_at": "2026-07-22T03:31:12Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-formula-ledger"
           }
         ],
         "canonical": null,
@@ -1170,7 +969,7 @@
       "explicit_github_repositories": [
         "szl-holdings/governed-receipt-spec"
       ],
-      "hf_repository_sha": "11fdd788a5790d1fb02f0ce29ac480885d405c2a",
+      "hf_repository_sha": "b71e76a8461c4a9a1ccf2d9610dd8905694a3488",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -1186,8 +985,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "b71e76a8461c4a9a1ccf2d9610dd8905694a3488",
         "sha256": "98fa778473f0010b37c963461046cc7da7fc915f9440f2127f3ae3dcb9fc275d",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live/raw/b71e76a8461c4a9a1ccf2d9610dd8905694a3488/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -1195,20 +995,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-            "pushed_at": "2026-07-13T08:14:32Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
           "disabled": false,
           "full_name": "szl-holdings/governed-receipt-spec",
           "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-          "pushed_at": "2026-07-13T08:14:32Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -1218,6 +1018,7 @@
       "space_id": "SZLHOLDINGS/llm-router-live",
       "workflow_candidates": {
         "candidate_count": 0,
+        "github_ref": "007106bcb0212138345e19eb5efba8bb69327d57",
         "paths": [],
         "single_writer_candidate": false,
         "state": "OBSERVED"
@@ -1246,47 +1047,28 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "3b6992b5dcad5ebcae64676768aa182f20dc87cf",
         "sha256": "4f3aff9fef76535672484f75856c7ed16305396d04a7b518263e28e7d9e5f253",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/receipt-chain-live/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/receipt-chain-live/raw/3b6992b5dcad5ebcae64676768aa182f20dc87cf/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/a11oy",
-            "html_url": "https://github.com/szl-holdings/a11oy",
-            "pushed_at": "2026-08-18T03:33:05Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/a11oy"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/receipt-chain-live",
-            "html_url": "https://github.com/szl-holdings/receipt-chain-live",
-            "pushed_at": "2026-08-18T00:24:13Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/receipt-chain-live"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-lake",
-            "html_url": "https://github.com/szl-holdings/szl-lake",
-            "pushed_at": "2026-08-18T02:05:05Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-lake"
           }
         ],
         "canonical": null,
@@ -1322,29 +1104,20 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "3485c33dd907ee040178e06dcf917b2ec5615135",
         "sha256": "1f28671d5d95b624c3c8cfd4b71733292b3f5f88998409b4154b948ad1fef18e",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/sda/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/sda/raw/3485c33dd907ee040178e06dcf917b2ec5615135/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/sda",
-            "html_url": "https://github.com/szl-holdings/sda",
-            "pushed_at": "2026-08-08T21:22:12Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/sda"
           }
         ],
         "canonical": null,
@@ -1375,8 +1148,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "4a927e81a126b0253c3e242d10c64d9e323879fb",
         "sha256": "6994332627ee4ca52a9607e47a560c2e2c46ecb9848b7d7fcc8b8efbc6ededb2",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-blocked-live/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-blocked-live/raw/4a927e81a126b0253c3e242d10c64d9e323879fb/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1412,8 +1186,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "12029395a2a838f707e92e23ca9c12945daa64e3",
         "sha256": "f72e95396bdd21469b04a341e3515cbdedcf9e91e258dfe82df6fb7817ddcb13",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live/raw/12029395a2a838f707e92e23ca9c12945daa64e3/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1421,20 +1196,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
             "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
             "html_url": "https://github.com/szl-holdings/lutar-lean",
-            "pushed_at": "2026-08-17T23:52:18Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
           "disabled": false,
           "full_name": "szl-holdings/lutar-lean",
           "html_url": "https://github.com/szl-holdings/lutar-lean",
-          "pushed_at": "2026-08-17T23:52:18Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -1444,6 +1219,7 @@
       "space_id": "SZLHOLDINGS/szl-estate-live",
       "workflow_candidates": {
         "candidate_count": 0,
+        "github_ref": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
         "paths": [],
         "single_writer_candidate": false,
         "state": "OBSERVED"
@@ -1469,8 +1245,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "4107ff178260228b585bf28ad3d90e36c0929372",
         "sha256": "fad975c59094f0a05a7f97dccec0f48193af4547685b43f0819afb8d84d2e403",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-forge-lab/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-forge-lab/raw/4107ff178260228b585bf28ad3d90e36c0929372/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1478,20 +1255,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
-          "pushed_at": "2026-08-18T03:27:27Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -1501,6 +1278,7 @@
       "space_id": "SZLHOLDINGS/szl-forge-lab",
       "workflow_candidates": {
         "candidate_count": 22,
+        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
         "paths": [
           ".github/workflows/anatomy-map-hf-drift.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
@@ -1546,8 +1324,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "f11d6dbede9ba277409c5da3728efc0e15e975b4",
         "sha256": "277ac5486658814381a05d0fbf3c6a15d9e375a49d4ad67317c261d6bceb03be",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-govsign-live/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-govsign-live/raw/f11d6dbede9ba277409c5da3728efc0e15e975b4/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1584,8 +1363,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "c9917d43167ef7e2430c52ce67af54c9bfacafcc",
         "sha256": "d4d7b1eb10f9c7eacd359af8f65df810ad0d95899782a4ffdc88646bd4c40372",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-kernels-live/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-kernels-live/raw/c9917d43167ef7e2430c52ce67af54c9bfacafcc/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1593,20 +1373,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "6c48224a8e8a4ddd05b8e1e46b4948a61634ee66",
             "disabled": false,
             "full_name": "szl-holdings/szl-kernels-live",
             "html_url": "https://github.com/szl-holdings/szl-kernels-live",
-            "pushed_at": "2026-08-18T00:24:31Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "6c48224a8e8a4ddd05b8e1e46b4948a61634ee66",
           "disabled": false,
           "full_name": "szl-holdings/szl-kernels-live",
           "html_url": "https://github.com/szl-holdings/szl-kernels-live",
-          "pushed_at": "2026-08-18T00:24:31Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -1616,6 +1396,7 @@
       "space_id": "SZLHOLDINGS/szl-kernels-live",
       "workflow_candidates": {
         "candidate_count": 1,
+        "github_ref": "6c48224a8e8a4ddd05b8e1e46b4948a61634ee66",
         "paths": [
           ".github/workflows/hf-space-deploy.yml"
         ],
@@ -1647,29 +1428,20 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "968a954fff0726ff9d137175a1c86c491b09fad3",
         "sha256": "d15b5fff3a5ac9c282c034f04600ad128e692f55854ddce0f89cf63b1981343a",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab/raw/968a954fff0726ff9d137175a1c86c491b09fad3/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/.github"
           },
           {
-            "archived": false,
-            "default_branch": "main",
-            "disabled": false,
             "full_name": "szl-holdings/szl-forge",
-            "html_url": "https://github.com/szl-holdings/szl-forge",
-            "pushed_at": "2026-08-17T22:53:56Z",
-            "visibility": "public"
+            "html_url": "https://github.com/szl-holdings/szl-forge"
           }
         ],
         "canonical": null,
@@ -1703,8 +1475,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "dbfc7a8e0e67c6fc77c5436fe37d970748361d32",
         "sha256": "a2eb5426aa30bc84124bb0e7fbc7634493c52632c27e765de03568ec8fd6dd7c",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-provctl-live/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-provctl-live/raw/dbfc7a8e0e67c6fc77c5436fe37d970748361d32/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1712,20 +1485,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "bf0903cdad0a78d06542fd5457db8d1daf82ea43",
             "disabled": false,
             "full_name": "szl-holdings/szl-provctl-live",
             "html_url": "https://github.com/szl-holdings/szl-provctl-live",
-            "pushed_at": "2026-08-18T00:23:15Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "bf0903cdad0a78d06542fd5457db8d1daf82ea43",
           "disabled": false,
           "full_name": "szl-holdings/szl-provctl-live",
           "html_url": "https://github.com/szl-holdings/szl-provctl-live",
-          "pushed_at": "2026-08-18T00:23:15Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -1735,6 +1508,7 @@
       "space_id": "SZLHOLDINGS/szl-provctl-live",
       "workflow_candidates": {
         "candidate_count": 1,
+        "github_ref": "bf0903cdad0a78d06542fd5457db8d1daf82ea43",
         "paths": [
           ".github/workflows/hf-static-space.yml"
         ],
@@ -1763,8 +1537,9 @@
           "title"
         ],
         "http_status": 200,
+        "revision": "f09581519c14da556530515596298e15f676a1a8",
         "sha256": "63a57d7662e3fbc30ca4034b0f86e6907bcd1b37af1312c8a46ea567f6fcbbee",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/yarqa/raw/main/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/yarqa/raw/f09581519c14da556530515596298e15f676a1a8/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -1772,20 +1547,20 @@
           {
             "archived": false,
             "default_branch": "main",
+            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
-            "pushed_at": "2026-08-18T03:27:27Z",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
+          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
-          "pushed_at": "2026-08-18T03:27:27Z",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -1795,6 +1570,7 @@
       "space_id": "SZLHOLDINGS/yarqa",
       "workflow_candidates": {
         "candidate_count": 22,
+        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
         "paths": [
           ".github/workflows/anatomy-map-hf-drift.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
