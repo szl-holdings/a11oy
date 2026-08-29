@@ -551,6 +551,10 @@ COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-hol
 # Cite GitHub. Not a second flagship. Not a product certificate.
 COPY web/lyte.html ./web/lyte.html
 COPY szl_lyte_lattice.py ./
+# NEXUS analog workstation BIND hologram (AO-2026-08-29-002).
+# Cite GitHub. Not a fourth flagship. Not a product certificate. Hub Space private.
+COPY web/nexus.html ./web/nexus.html
+COPY szl_nexus.py ./
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # … (full rationale: docs/DOCKERFILE_NOTES.md §74)
 

@@ -1151,6 +1151,15 @@ try:
 except Exception as _szl_lyte_e:  # pragma: no cover
     print(f"[a11oy] LYTE lattice BIND NOT registered: {_szl_lyte_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- NEXUS analog BIND hologram — cite GitHub, do not clone silicon, not a flagship --
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+try:
+    import szl_nexus as _szl_nexus
+    _szl_nexus.register(app, ns="a11oy")
+    print("[a11oy] NEXUS analog BIND registered: /api/a11oy/v1/nexus/{healthz,status} — not certified, Hub private UNAVAILABLE", file=__import__("sys").stderr)
+except Exception as _szl_nexus_e:  # pragma: no cover
+    print(f"[a11oy] NEXUS analog BIND NOT registered: {_szl_nexus_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- SDA (Space / Domain Awareness — Counter-UAS) — HONEST defense surface (SWEEP D1).
 # The /sda + /counter-uas pages historically served a 200 SPA shell with NO backing
 # /api/a11oy/v1/sda/* API (404). szl_sda wires the CANONICAL honest surface: vessel
@@ -4036,6 +4045,10 @@ try:
     app.add_api_route("/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/a11oy/lyte", _ptg_serve("lyte.html"), methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/lattice", _ptg_serve("lyte.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    # NEXUS analog BIND hologram (AO-2026-08-29-002). Cite GitHub. Not a flagship.
+    # Not a production certificate. Hub Space is private — do not 307 onto it.
+    app.add_api_route("/nexus", _ptg_serve("nexus.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/a11oy/nexus", _ptg_serve("nexus.html"), methods=["GET", "HEAD"], include_in_schema=False)
     # MATERIALS (Q'allariy) tab (2026-06-16): the honest, user-visible Verifiable
     # Alloy & Crystal Discovery surface. Standalone sovereign page (0 runtime CDN),
     # binds to live /api/a11oy/v1/materials/* — a crystal-novelty form that POSTs to
