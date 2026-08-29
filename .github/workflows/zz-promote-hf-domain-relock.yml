@@ -1,0 +1,50 @@
+name: Promote current-main HF and domain relock
+
+on:
+  push:
+    branches:
+      - ops/relock-hf-domains-current-main-20260828
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: promote-hf-domain-relock-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: github.repository == 'szl-holdings/a11oy' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out exact relock branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Remove bootstrap and enable protected auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          workflow='.github/workflows/zz-promote-hf-domain-relock.yml'
+          test -f "$workflow"
+          git rm "$workflow"
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit \
+            -m 'chore(ci): remove bounded relock promoter' \
+            -m 'Remove the branch-scoped promotion bootstrap before protected admission.' \
+            -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+          pr="$(gh api \
+            "repos/${GITHUB_REPOSITORY}/pulls?state=open&head=${GITHUB_REPOSITORY_OWNER}:${GITHUB_REF_NAME}" \
+            --jq 'if length == 1 then .[0].number else error("expected exactly one relock PR") end')"
+          gh pr ready "$pr" --repo "$GITHUB_REPOSITORY" || true
+          gh pr merge "$pr" --repo "$GITHUB_REPOSITORY" --auto --squash
