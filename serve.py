@@ -1162,6 +1162,16 @@ try:
 except Exception as _szl_khipu_e:  # pragma: no cover
     print(f"[a11oy] KHIPU organ NOT registered: {_szl_khipu_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- Five-space operator BIND hologram — Command/Loop/Queue/Memory/Ledger.
+# Additive, try/except-guarded, registered BEFORE the SPA catch-all.
+# Not a Vite dump. Not a second flagship. Does not replace /console.
+try:
+    import szl_five_space as _szl_five_space
+    _szl_five_space.register(app, ns="a11oy")
+    print("[a11oy] Five-space operator BIND registered: /api/a11oy/v1/five-space/{healthz,status} — not certified, not /console", file=__import__("sys").stderr)
+except Exception as _szl_five_e:  # pragma: no cover
+    print(f"[a11oy] Five-space operator BIND NOT registered: {_szl_five_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- SDA (Space / Domain Awareness — Counter-UAS) — HONEST defense surface (SWEEP D1).
 # The /sda + /counter-uas pages historically served a 200 SPA shell with NO backing
 # /api/a11oy/v1/sda/* API (404). szl_sda wires the CANONICAL honest surface: vessel
@@ -4051,6 +4061,10 @@ try:
     # collide with /khipu/{hash} receipt lookup. Original cuts only. CUDA UNAVAILABLE.
     app.add_api_route("/khipu", _ptg_serve("khipu.html"), methods=["GET", "HEAD"], include_in_schema=False)
     app.add_api_route("/a11oy/khipu", _ptg_serve("khipu.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    # Five-space operator BIND hologram (AO-2026-08-29-002). Cite in-tree bind.
+    # Not a flagship. Not a production certificate. Does not replace /console.
+    app.add_api_route("/five-space", _ptg_serve("five-space.html"), methods=["GET", "HEAD"], include_in_schema=False)
+    app.add_api_route("/a11oy/five-space", _ptg_serve("five-space.html"), methods=["GET", "HEAD"], include_in_schema=False)
     # MATERIALS (Q'allariy) tab (2026-06-16): the honest, user-visible Verifiable
     # Alloy & Crystal Discovery surface. Standalone sovereign page (0 runtime CDN),
     # binds to live /api/a11oy/v1/materials/* — a crystal-novelty form that POSTs to
