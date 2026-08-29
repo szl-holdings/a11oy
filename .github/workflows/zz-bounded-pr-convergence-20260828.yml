@@ -1,0 +1,366 @@
+name: Bounded a11oy PR convergence
+
+on:
+  push:
+    branches:
+      - ops/bounded-pr-convergence-20260828
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: bounded-pr-convergence-20260828
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    if: github.repository == 'szl-holdings/a11oy' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact controller branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ops/bounded-pr-convergence-20260828
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Update only admissible branches and enable protected auto-merge
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_REPOSITORY: szl-holdings/a11oy
+          CONTROLLER_BRANCH: ops/bounded-pr-convergence-20260828
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          from pathlib import Path
+          import re
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          API = "https://api.github.com"
+          GRAPHQL = "https://api.github.com/graphql"
+          REPOSITORY = os.environ["EXPECTED_REPOSITORY"]
+          OWNER, NAME = REPOSITORY.split("/", 1)
+          TOKEN = os.environ["GH_TOKEN"]
+          CONTROLLER_BRANCH = os.environ["CONTROLLER_BRANCH"]
+          WORKFLOW = Path(".github/workflows/zz-bounded-pr-convergence-20260828.yml")
+          RECEIPT = Path("audit/PR_CONVERGENCE_20260828.json")
+          ALLOWED_CONCLUSIONS = {"success", "neutral", "skipped"}
+          HOLD_PATTERNS = (
+              r"\bdraft\s*/\s*hold\b",
+              r"\bkeep this pr draft\b",
+              r"\bdo not merge\b",
+              r"\bno merge .* authorized\b",
+              r"\bpending an independent review\b",
+              r"\bindependent exact-head review:\s*pending\b",
+              r"\bstack\s*/\s*landing order\b",
+              r"\bmust integrate current protected main\b",
+              r"\brebuild this tree on the new signed main\b",
+              r"\bcurrent unresolved p[01]\b",
+          )
+
+          def request_json(
+              method: str,
+              url: str,
+              payload: object | None = None,
+          ) -> object:
+              body = None
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {TOKEN}",
+                  "User-Agent": "szl-bounded-pr-convergence/1",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              }
+              if payload is not None:
+                  body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              request = urllib.request.Request(url, data=body, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      if response.status == 204:
+                          return {}
+                      return json.load(response)
+              except urllib.error.HTTPError as error:
+                  detail = error.read(4096).decode("utf-8", "replace")
+                  raise RuntimeError(
+                      f"GitHub API {method} {url} failed with {error.code}: {detail}"
+                  ) from error
+
+          def get(path: str) -> object:
+              return request_json("GET", API + path)
+
+          def paginate(path: str, key: str | None = None) -> list[dict]:
+              rows: list[dict] = []
+              page = 1
+              while page <= 100:
+                  separator = "&" if "?" in path else "?"
+                  response = get(f"{path}{separator}per_page=100&page={page}")
+                  if key is None:
+                      if not isinstance(response, list):
+                          raise RuntimeError(f"expected list inventory for {path}")
+                      batch = response
+                  else:
+                      if not isinstance(response, dict) or not isinstance(response.get(key), list):
+                          raise RuntimeError(f"expected object inventory for {path}")
+                      batch = response[key]
+                  if any(not isinstance(row, dict) for row in batch):
+                      raise RuntimeError(f"malformed inventory row for {path}")
+                  rows.extend(batch)
+                  if len(batch) < 100:
+                      return rows
+                  page += 1
+              raise RuntimeError(f"pagination bound exceeded for {path}")
+
+          def graphql(query: str, variables: dict) -> dict:
+              response = request_json(
+                  "POST", GRAPHQL, {"query": query, "variables": variables}
+              )
+              if not isinstance(response, dict):
+                  raise RuntimeError("GraphQL response is not an object")
+              errors = response.get("errors")
+              if errors:
+                  raise RuntimeError(f"GraphQL failed: {json.dumps(errors)[:2000]}")
+              data = response.get("data")
+              if not isinstance(data, dict):
+                  raise RuntimeError("GraphQL data is missing")
+              return data
+
+          def main_sha() -> str:
+              payload = get(f"/repos/{REPOSITORY}/branches/main")
+              commit = payload.get("commit") if isinstance(payload, dict) else None
+              sha = commit.get("sha") if isinstance(commit, dict) else None
+              if not isinstance(sha, str) or not re.fullmatch(r"[0-9a-f]{40}", sha):
+                  raise RuntimeError("protected main identity is unavailable")
+              return sha
+
+          def review_state(number: int) -> tuple[str | None, list[dict]]:
+              query = """
+              query($owner:String!,$name:String!,$number:Int!,$cursor:String) {
+                repository(owner:$owner,name:$name) {
+                  pullRequest(number:$number) {
+                    reviewDecision
+                    reviewThreads(first:100,after:$cursor) {
+                      nodes { id isResolved isOutdated }
+                      pageInfo { hasNextPage endCursor }
+                    }
+                  }
+                }
+              }
+              """
+              cursor = None
+              decision = None
+              threads: list[dict] = []
+              while True:
+                  data = graphql(
+                      query,
+                      {
+                          "owner": OWNER,
+                          "name": NAME,
+                          "number": number,
+                          "cursor": cursor,
+                      },
+                  )
+                  repository = data.get("repository")
+                  pull = repository.get("pullRequest") if isinstance(repository, dict) else None
+                  if not isinstance(pull, dict):
+                      raise RuntimeError(f"PR #{number} vanished during review readback")
+                  decision = pull.get("reviewDecision")
+                  inventory = pull.get("reviewThreads")
+                  if not isinstance(inventory, dict):
+                      raise RuntimeError(f"PR #{number} review threads unavailable")
+                  nodes = inventory.get("nodes")
+                  page_info = inventory.get("pageInfo")
+                  if not isinstance(nodes, list) or not isinstance(page_info, dict):
+                      raise RuntimeError(f"PR #{number} review inventory malformed")
+                  threads.extend(row for row in nodes if isinstance(row, dict))
+                  if not page_info.get("hasNextPage"):
+                      break
+                  cursor = page_info.get("endCursor")
+                  if not isinstance(cursor, str) or not cursor:
+                      raise RuntimeError(f"PR #{number} review pagination malformed")
+              unresolved = [
+                  row
+                  for row in threads
+                  if row.get("isResolved") is False and row.get("isOutdated") is False
+              ]
+              return decision if isinstance(decision, str) else None, unresolved
+
+          def node_id(number: int) -> str:
+              data = graphql(
+                  """
+                  query($owner:String!,$name:String!,$number:Int!) {
+                    repository(owner:$owner,name:$name) {
+                      pullRequest(number:$number) { id }
+                    }
+                  }
+                  """,
+                  {"owner": OWNER, "name": NAME, "number": number},
+              )
+              repository = data.get("repository")
+              pull = repository.get("pullRequest") if isinstance(repository, dict) else None
+              value = pull.get("id") if isinstance(pull, dict) else None
+              if not isinstance(value, str) or not value:
+                  raise RuntimeError(f"PR #{number} node identity unavailable")
+              return value
+
+          baseline_main = main_sha()
+          pulls = paginate(f"/repos/{REPOSITORY}/pulls?state=open&base=main&sort=updated&direction=asc")
+          receipt: dict[str, object] = {
+              "schema": "szl.pr-convergence/v1",
+              "repository": REPOSITORY,
+              "baseline_main": baseline_main,
+              "actions": [],
+          }
+          actions: list[dict] = receipt["actions"]  # type: ignore[assignment]
+
+          for summary in pulls:
+              number = summary.get("number")
+              if type(number) is not int or number <= 0:
+                  raise RuntimeError("open PR inventory contains malformed number")
+              pr = get(f"/repos/{REPOSITORY}/pulls/{number}")
+              if not isinstance(pr, dict):
+                  raise RuntimeError(f"PR #{number} readback malformed")
+              head = pr.get("head") if isinstance(pr.get("head"), dict) else {}
+              base = pr.get("base") if isinstance(pr.get("base"), dict) else {}
+              head_repo = head.get("repo") if isinstance(head.get("repo"), dict) else {}
+              record = {
+                  "number": number,
+                  "title": pr.get("title"),
+                  "head_ref": head.get("ref"),
+                  "head_sha": head.get("sha"),
+                  "decision": "SKIP",
+                  "reason": "UNCLASSIFIED",
+              }
+              actions.append(record)
+
+              if head.get("ref") == CONTROLLER_BRANCH:
+                  record["reason"] = "CONTROLLER_BRANCH"
+                  continue
+              if pr.get("draft") is True:
+                  record["reason"] = "DRAFT"
+                  continue
+              if base.get("ref") != "main" or head_repo.get("full_name") != REPOSITORY:
+                  record["reason"] = "CROSS_REPOSITORY_OR_NON_MAIN"
+                  continue
+              body = str(pr.get("body") or "").casefold()
+              if any(re.search(pattern, body) for pattern in HOLD_PATTERNS):
+                  record["reason"] = "EXPLICIT_HOLD_CONTRACT"
+                  continue
+              head_sha = head.get("sha")
+              if not isinstance(head_sha, str) or not re.fullmatch(r"[0-9a-f]{40}", head_sha):
+                  record["reason"] = "MALFORMED_HEAD"
+                  continue
+
+              checks = paginate(
+                  f"/repos/{REPOSITORY}/commits/{head_sha}/check-runs",
+                  key="check_runs",
+              )
+              if not checks:
+                  record["reason"] = "NO_CHECK_EVIDENCE"
+                  continue
+              nonterminal = [row for row in checks if row.get("status") != "completed"]
+              failed = [
+                  row
+                  for row in checks
+                  if row.get("status") == "completed"
+                  and row.get("conclusion") not in ALLOWED_CONCLUSIONS
+              ]
+              if nonterminal:
+                  record["reason"] = "CHECKS_NONTERMINAL"
+                  record["checks_nonterminal"] = [row.get("name") for row in nonterminal]
+                  continue
+              if failed:
+                  record["reason"] = "CHECKS_FAILED"
+                  record["checks_failed"] = [
+                      {"name": row.get("name"), "conclusion": row.get("conclusion")}
+                      for row in failed
+                  ]
+                  continue
+
+              status = get(f"/repos/{REPOSITORY}/commits/{head_sha}/status")
+              if isinstance(status, dict) and status.get("total_count", 0) and status.get("state") != "success":
+                  record["reason"] = "COMBINED_STATUS_NOT_SUCCESS"
+                  record["combined_status"] = status.get("state")
+                  continue
+
+              review_decision, unresolved = review_state(number)
+              record["review_decision"] = review_decision
+              record["unresolved_current_threads"] = len(unresolved)
+              if review_decision == "CHANGES_REQUESTED":
+                  record["reason"] = "CHANGES_REQUESTED"
+                  continue
+              if unresolved:
+                  record["reason"] = "UNRESOLVED_CURRENT_THREADS"
+                  continue
+
+              if main_sha() != baseline_main:
+                  record["reason"] = "MAIN_CHANGED_DURING_CONTROLLER"
+                  break
+
+              mergeable = pr.get("mergeable")
+              mergeable_state = pr.get("mergeable_state")
+              record["mergeable"] = mergeable
+              record["mergeable_state"] = mergeable_state
+              if mergeable_state == "behind":
+                  result = request_json(
+                      "PUT",
+                      API + f"/repos/{REPOSITORY}/pulls/{number}/update-branch",
+                      {"expected_head_sha": head_sha},
+                  )
+                  record["decision"] = "UPDATE_BRANCH"
+                  record["reason"] = "BEHIND_CURRENT_MAIN"
+                  record["api_result"] = result
+                  continue
+              if mergeable is not True or mergeable_state != "clean":
+                  record["reason"] = f"NOT_CLEAN:{mergeable_state}"
+                  continue
+              if pr.get("auto_merge") is not None:
+                  record["decision"] = "ALREADY_AUTO_MERGE"
+                  record["reason"] = "ADMISSIBLE"
+                  continue
+
+              mutation = """
+              mutation($pullRequestId:ID!) {
+                enablePullRequestAutoMerge(input:{pullRequestId:$pullRequestId,mergeMethod:SQUASH}) {
+                  pullRequest { number autoMergeRequest { enabledAt mergeMethod } }
+                }
+              }
+              """
+              result = graphql(mutation, {"pullRequestId": node_id(number)})
+              record["decision"] = "ENABLE_AUTO_MERGE"
+              record["reason"] = "ADMISSIBLE"
+              record["api_result"] = result
+
+          receipt["final_main"] = main_sha()
+          receipt["complete"] = receipt["final_main"] == baseline_main
+          RECEIPT.parent.mkdir(parents=True, exist_ok=True)
+          RECEIPT.write_text(
+              json.dumps(receipt, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          if not WORKFLOW.is_file():
+              raise RuntimeError("self-deleting controller workflow is missing")
+          WORKFLOW.unlink()
+          PY
+
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add audit/PR_CONVERGENCE_20260828.json \
+            .github/workflows/zz-bounded-pr-convergence-20260828.yml
+          git diff --cached --check
+          git commit \
+            -m "ops(pr): record bounded convergence decisions" \
+            -m "Update only exact same-repository branches that were behind and enable protected squash auto-merge only for terminal-green, review-clean, non-held heads. Remove the one-shot controller." \
+            -m "Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>"
+          git push origin HEAD:ops/bounded-pr-convergence-20260828
