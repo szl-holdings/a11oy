@@ -1,0 +1,57 @@
+name: Materialize post-merge green repair v3
+
+on:
+  push:
+    branches:
+      - ops/materialize-post-merge-green-20260829
+    paths:
+      - .github/workflows/materialize-post-merge-green-v3.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-post-merge-green-v3-20260829
+  cancel-in-progress: false
+
+env:
+  TARGET_BRANCH: fix/post-merge-green-20260829
+  TARGET_BASE: 1f796be460462905404335dc9ba1552f78ef060c
+  SCRIPT_REF: d50c42d7b4ee1a8ea39736b8aa7ca430da19a005
+  SCRIPT_SHA256: 5706c90defd48b8871749188883fe51122d478744e6114ecc7a08f971ae3d852
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact target branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Fetch and verify protected repair oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api -H 'Accept: application/vnd.github.raw+json' \
+            "repos/${GITHUB_REPOSITORY}/contents/ops/post_merge_green/materialize_v3.py?ref=${SCRIPT_REF}" \
+            > /tmp/materialize_v3.py
+          printf '%s  %s\n' "$SCRIPT_SHA256" /tmp/materialize_v3.py | sha256sum -c -
+          chmod 0500 /tmp/materialize_v3.py
+
+      - name: Qualify and create one exact verified commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          /tmp/materialize_v3.py
