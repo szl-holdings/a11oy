@@ -37,6 +37,26 @@ jobs:
           path: atelier
           persist-credentials: false
 
+      - name: Check out a11oy overlay kit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: a11oy-src
+          persist-credentials: false
+
+      - name: Overlay receipted Unsloth v2 kit
+        run: |
+          set -euo pipefail
+          mkdir -p atelier/kit
+          if [ -f a11oy-src/.github/atelier-kit/receipted_unsloth.py ]; then
+            cp a11oy-src/.github/atelier-kit/receipted_unsloth.py atelier/kit/receipted_unsloth.py
+          fi
+          if [ -f a11oy-src/.github/atelier-kit/unsloth-recipes.json ]; then
+            cp a11oy-src/.github/atelier-kit/unsloth-recipes.json atelier/unsloth-recipes.json
+          fi
+          if [ -f a11oy-src/.github/atelier-kit/kit-README.md ]; then
+            cp a11oy-src/.github/atelier-kit/kit-README.md atelier/kit/README.md
+          fi
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
