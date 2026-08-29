@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>a11oy Command Center</title>
+  <meta name="description" content="Governed command on a-11-oy.com. Deny by default. Receipts. Proof lab. Lambda = Conjecture 1. Proof stays on a11oy.net."/>
+  <link rel="canonical" href="https://a-11-oy.com/command"/>
+  <meta property="og:title" content="a11oy Command Center"/>
+  <meta property="og:url" content="https://a-11-oy.com/command"/>
+  <style>
+    :root {
+      --void:#080c14; --panel:#0a1019; --panel-2:#12161d;
+      --teal:#3af4c8; --fg:#e8eef6; --muted:#aebccf; --border:#1c2942;
+      --deny:#e25c5c; --signal:#e4d3a5; --conjecture:#7b8898;
+      --sans: ui-sans-serif, system-ui, sans-serif;
+      --display: ui-sans-serif, system-ui, sans-serif;
+      --mono: ui-monospace, Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; background:var(--void); color:var(--fg); font-family:var(--sans); line-height:1.55; }
+    a { color:var(--teal); text-decoration:none; }
+    button, [role=button] { cursor:pointer; }
+    button:disabled { cursor:not-allowed; opacity:.5; }
+    h1,h2,h3 { font-family:var(--display); letter-spacing:-.03em; line-height:1.1; text-wrap:balance; }
+    .wrap { max-width:72rem; margin:0 auto; padding:0 1.5rem; }
+    header { position:sticky; top:0; z-index:40; border-bottom:1px solid var(--border); background:rgba(8,12,20,.8); backdrop-filter:blur(12px); }
+    .bar { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:3.5rem; }
+    .brand { display:flex; align-items:center; gap:.6rem; color:var(--fg); font-family:var(--display); font-weight:600; letter-spacing:.16em; text-transform:uppercase; font-size:.85rem; }
+    .mark { width:.9rem; height:.9rem; background:var(--teal); border-radius:2px; position:relative; }
+    .mark::after { content:""; position:absolute; inset:3px; background:var(--void); border-radius:1px; }
+    nav a { display:inline-flex; min-height:2.75rem; align-items:center; padding:0 .75rem; color:var(--muted); font-size:.875rem; }
+    nav a.active { color:var(--teal); }
+    .menu { display:none; min-width:2.75rem; min-height:2.75rem; border:1px solid var(--border); background:transparent; color:var(--fg); border-radius:6px; }
+    main { min-height:70dvh; padding:2.5rem 0 4rem; }
+    .kicker { font-family:var(--mono); font-size:.7rem; letter-spacing:.18em; text-transform:uppercase; color:var(--teal); }
+    .muted { color:var(--muted); }
+    .grid { display:grid; gap:.75rem; }
+    .g3 { grid-template-columns:repeat(auto-fit,minmax(14rem,1fr)); }
+    .g2 { grid-template-columns:repeat(auto-fit,minmax(16rem,1fr)); }
+    .card { border:1px solid var(--border); background:var(--panel); border-radius:14px; padding:1.25rem; }
+    .badge { display:inline-block; font-family:var(--mono); font-size:.65rem; letter-spacing:.08em; text-transform:uppercase; border:1px solid var(--border); padding:.2rem .45rem; border-radius:4px; color:var(--muted); }
+    .badge.MEASURED { color:var(--teal); border-color:rgba(58,244,200,.3); background:rgba(58,244,200,.1); }
+    .badge.BLOCKED, .badge.DENY { color:var(--deny); border-color:rgba(226,92,92,.3); background:rgba(226,92,92,.1); }
+    .badge.CONJECTURE { color:var(--conjecture); }
+    .badge.MODELED, .badge.REPORTED, .badge.SOFTWARE { background:var(--panel-2); }
+    .badge.UNAVAILABLE { color:var(--signal); }
+    .btn { display:inline-flex; min-height:2.75rem; align-items:center; justify-content:center; gap:.5rem; padding:0 1rem; border-radius:6px; border:1px solid transparent; font-size:.875rem; font-weight:500; }
+    .btn-p { background:var(--teal); color:var(--void); }
+    .btn-g { background:transparent; color:var(--fg); border-color:var(--border); }
+    .btn-q { background:var(--panel-2); color:var(--muted); border-color:var(--border); }
+    .skip { position:absolute; left:-999px; }
+    .skip:focus { left:1rem; top:1rem; z-index:80; }
+    input, select, textarea { width:100%; min-height:2.75rem; background:var(--void); color:var(--fg); border:1px solid var(--border); border-radius:6px; padding:.5rem .75rem; font:inherit; }
+    textarea { min-height:6rem; }
+    table { width:100%; border-collapse:collapse; font-size:.875rem; }
+    th { text-align:left; font-family:var(--mono); font-size:.7rem; color:var(--muted); text-transform:uppercase; padding:.75rem 1rem; }
+    td { border-top:1px solid var(--border); padding:.75rem 1rem; }
+    footer { border-top:1px solid var(--border); padding:2rem 0; font-size:.75rem; color:var(--muted); }
+    .mono { font-family:var(--mono); }
+    .ok { color:var(--teal); } .no { color:var(--deny); }
+    @media (max-width: 800px) {
+      .desk { display:none; }
+      .menu { display:inline-flex; }
+      .mob { display:none; border-top:1px solid var(--border); padding:.5rem 1rem 1rem; }
+      .mob.open { display:block; }
+      .mob a { display:flex; min-height:2.75rem; color:var(--muted); }
+    }
+    @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; } }
+  </style>
+</head>
+<body>
+  <a href="#main" class="skip btn btn-p">Skip to main</a>
+  <header>
+    <div class="wrap bar">
+      <a class="brand" href="/command">
+        <span class="mark" aria-hidden="true"></span> a11oy <span class="muted" style="letter-spacing:0;font-weight:400">command</span>
+      </a>
+      <nav class="desk" aria-label="Primary">
+        <a href="/command" data-nav="home">Origin</a>
+        <a href="/command/console" data-nav="console">Receipts</a>
+        <a href="/command/zk" data-nav="zk">Proof</a>
+        <a href="/command/census" data-nav="census">Estate</a>
+        <a href="/command/invest" data-nav="invest">Investor</a>
+        <a href="/command/build" data-nav="build">Developer</a>
+        <a href="/console">Operator</a>
+      </nav>
+      <button class="menu" type="button" aria-label="Menu">☰</button>
+    </div>
+    <nav class="mob" aria-label="Mobile"></nav>
+  </header>
+  <main id="main" class="wrap"></main>
+  <footer>
+    <div class="wrap">
+      <p>Product origin <a href="https://a-11-oy.com">a-11-oy.com</a> · Proof <a href="https://a11oy.net">a11oy.net</a> · Λ = Conjecture 1 · Energy UNAVAILABLE in this browser.</p>
+      <p class="mono">Signer UNSIGNED-honest · No secret values · This surface is MODELED on static origin until the Space runtime signs a write. Operator console stays at /console.</p>
+    </div>
+  </footer>
+<script>
+const P = (1n<<255n)-19n, N = P-1n, G = 2n;
+const GENESIS = "0".repeat(64);
+const CATALOG = [
+  {id:"inspect", title:"Inspect receipt chain", needs:false, d:"ALLOW", reason:"Read-only local verification."},
+  {id:"estate", title:"List public estate", needs:false, d:"ALLOW", reason:"Public inventory. Location only."},
+  {id:"score", title:"Score Lambda advisory", needs:false, d:"ALLOW", reason:"Advisory organ. Output labeled CONJECTURE."},
+  {id:"infer", title:"Governed inference", needs:true, d:"ALLOW", reason:"User-initiated. Static origin cannot spend a key — BLOCKED here."},
+  {id:"zk_prove", title:"Seal modeled ZK transcript", needs:true, d:"ALLOW", reason:"Public transcript only."},
+  {id:"claim_proven", title:"Declare Lambda proven", needs:false, d:"DENY", reason:"Lambda uniqueness is Conjecture 1."},
+  {id:"exfiltrate", title:"Export signer material", needs:false, d:"DENY", reason:"No secret-value disclosure."},
+  {id:"unsigned_deploy", title:"Unsigned production push", needs:false, d:"DENY", reason:"Unsigned deploy is outside authority."},
+];
+const ESTATE = [
+  ["a11oy","CORE","Product origin","VERIFIED_CURRENT","SOFTWARE","Python"],
+  ["a11oy-net","CORE","Proof registry","VERIFIED_CURRENT","SOFTWARE","HTML"],
+  ["lutar-lean","CORE","Lean 4 kernel","VERIFIED_CURRENT","REPORTED","Lean"],
+  ["szl-router","CORE","Governed router","VERIFIED_CURRENT","SOFTWARE","Python"],
+  ["ouroboros","CORE","Self-host loop","LISTED","REPORTED","Python"],
+];
+function badge(h){ return `<span class="badge ${h}">${h}</span>`; }
+function mod(a,m=P){ const r=a%m; return r<0n?r+m:r; }
+function modPow(b,e,m=P){ let x=mod(b,m), k=e<0n?0n:e, o=1n; while(k>0n){ if(k&1n) o=(o*x)%m; x=(x*x)%m; k>>=1n;} return o; }
+function randBelow(max){ const buf=new Uint8Array(40); crypto.getRandomValues(buf); let x=0n; for(const n of buf) x=(x<<8n)|BigInt(n); return (x%(max-1n))+1n; }
+function hex(n){ return n.toString(16); }
+function shortHex(n){ const h=hex(n); return h.length<=16?h:h.slice(0,8)+"…"+h.slice(-4); }
+function shortHash(h){ return h.slice(0,8)+"…"+h.slice(-4); }
+async function sha256Hex(s){ const b=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join(""); }
+function verifySchnorr(Y,t,c,s){ return modPow(G,s)===mod(t*modPow(Y,c)); }
+function simulate(Y){ const c=randBelow(N), s=randBelow(N); const inv=modPow(modPow(Y,c), P-2n); return {t:mod(modPow(G,s)*inv), c, s}; }
+function rangeCircuit(x,T,n=8){
+  const v=Math.trunc(x); const bits=[]; for(let i=0;i<n;i++) bits.push((v>>i)&1);
+  const recon=bits.reduce((a,b,i)=>a+b*2**i,0);
+  const cs=[...bits.map((b,i)=>({ok:b===0||b===1,label:`b${i}·(b${i}−1)=0`})),
+    {ok:recon===v,label:"x = Σ bᵢ·2ⁱ"}, {ok:v>=0&&v<2**n,label:`0 ≤ x < 2^${n}`}, {ok:v>=T,label:"x ≥ T"}];
+  return {cs, sat:cs.every(c=>c.ok)};
+}
+const LAKE_KEY="a11oy-origin-lake";
+function loadLake(){ try { return JSON.parse(localStorage.getItem(LAKE_KEY)||"[]"); } catch { return []; } }
+function saveLake(r){ localStorage.setItem(LAKE_KEY, JSON.stringify(r)); }
+async function sealReceipt(action, decision, reason, payload=""){
+  const receipts=loadLake();
+  const prev=receipts.at(-1)?.hash || GENESIS;
+  const body={id:crypto.randomUUID(), ts:new Date().toISOString(), action, decision, reason, payload, prev};
+  body.hash=await sha256Hex(JSON.stringify(body));
+  receipts.push(body); saveLake(receipts); return body;
+}
+function evaluate(kind, prompt){
+  const item=CATALOG.find(c=>c.id===kind); if(!item) return {decision:"DENY", reason:"Unknown. Deny by default."};
+  if(item.d==="DENY") return {decision:"DENY", reason:item.reason};
+  if(kind==="infer") return {decision:"BLOCKED", reason:"Static origin has no server key. Refused rather than guessed."};
+  if(kind==="zk_prove"){
+    const t=(prompt||"").trim();
+    if(!t) return {decision:"BLOCKED", reason:"Empty transcript."};
+    if(/("x"|"secret"|"witness"|"nonce")\s*:/i.test(t)) return {decision:"DENY", reason:"Witness material cannot enter the lake."};
+  }
+  return {decision:item.d, reason:item.reason};
+}
+
+const $ = (sel, el=document) => el.querySelector(sel);
+function page(){
+  const h = (location.hash || "").replace(/^#\/?/, "");
+  if (h) return h.split("/")[0] || "home";
+  const p = (location.pathname || "/").replace(/\/+$/, "") || "/";
+  if (p === "/command" || p === "/origin" || p === "/") return "home";
+  if (p.startsWith("/command/")) return p.slice("/command/".length).split("/")[0] || "home";
+  return p.replace(/^\//, "").split("/")[0] || "home";
+}
+function nav(){
+  document.querySelectorAll("[data-nav]").forEach(a => a.classList.toggle("active", a.dataset.nav===page() || (page()==="home"&&a.dataset.nav==="home")));
+}
+$(".menu").onclick = () => {
+  const m=$(".mob"); m.classList.toggle("open");
+  if(!m.dataset.ready){ m.innerHTML=[...document.querySelectorAll("nav.desk a")].map(a=>a.outerHTML).join(""); m.dataset.ready="1"; }
+};
+
+function home(){
+  return `
+  <p class="kicker">Product origin · a-11-oy.com</p>
+  <h1>Control before capability.</h1>
+  <p class="muted" style="max-width:40rem">a11oy Command lives on this host. Deny by default. Hash-chained receipts. Λ is Conjecture 1 — never green. The operator runtime stays at /console. Proof stays on a11oy.net.</p>
+  <p style="margin-top:1.5rem;display:flex;gap:.75rem;flex-wrap:wrap">
+    <a class="btn btn-p" href="/command/console">Open receipt lake</a>
+    <a class="btn btn-g" href="/console">Operator console</a>
+    <a class="btn btn-g" href="/command/zk">Proof lab</a>
+    <a class="btn btn-g" href="https://a11oy.net">Proof registry</a>
+  </p>
+  <ul class="grid g3" style="margin-top:2.5rem;list-style:none;padding:0">
+    <li class="card"><p class="kicker">Fail closed</p><h3>Deny by default</h3><p class="muted">Unknown acts, unsigned deploys, and proof-closure return DENY with a receipt.</p></li>
+    <li class="card"><p class="kicker">Receipts</p><h3>Every change hashed</h3><p class="muted">SHA-256 chain in this browser. Re-verify offline. No secrets in the lake.</p></li>
+    <li class="card"><p class="kicker">Honesty</p><h3>Gray over fake live</h3><p class="muted">Energy UNAVAILABLE. Signer UNSIGNED-honest. SNARK proving ROADMAP.</p></li>
+  </ul>`;
+}
+function consolePage(){
+  const radios = CATALOG.map((c,i)=>`<label style="display:flex;gap:.6rem;min-height:2.75rem;align-items:center"><input type="radio" name="act" value="${c.id}" ${i===0?"checked":""}/> ${c.title} ${badge(c.d)}</label>`).join("");
+  return `<p class="kicker">Receipt lake · local to this browser</p><h1>Act. Get a receipt. Or a denial.</h1>
+  <p class="muted">This lake is MODELED in-browser. The operator runtime is <a href="/console">/console</a>.</p>
+  <div class="grid g2" style="margin-top:1.5rem">
+    <div class="card">
+      ${radios}
+      <textarea id="prompt" placeholder="Prompt only for inference / ZK seal"></textarea>
+      <div style="display:flex;gap:.5rem;margin-top:1rem;flex-wrap:wrap">
+        <button class="btn btn-p" id="submit">Submit</button>
+        <button class="btn btn-g" id="verify">Verify chain</button>
+      </div>
+      <p class="muted mono" id="status" style="margin-top:.75rem"></p>
+    </div>
+    <div class="card" id="lake"></div>
+  </div>`;
+}
+function renderLake(){
+  const r=loadLake();
+  $("#lake").innerHTML = r.length? `<p class="kicker">${r.length} receipts</p>`+r.slice().reverse().map(x=>`<div style="border-top:1px solid var(--border);padding:.75rem 0"><div>${x.action} ${badge(x.decision)}</div><div class="mono muted">${shortHash(x.hash)}</div></div>`).join("") : `<p class="muted">Empty lake. Submit an allowed act.</p>`;
+}
+function censusPage(){
+  return `<p class="kicker">Estate</p><h1>Location is not quality.</h1>
+  <p class="muted">GitHub org szl-holdings · Hub SZLHOLDINGS. Hub RUNNING is not production ready. Labels below are SOFTWARE or REPORTED — not live meters.</p>
+  <div class="card" style="margin-top:1.5rem;overflow:auto">
+  <table><thead><tr><th>Repo</th><th>Group</th><th>Role</th><th>Disposition</th><th>Honesty</th></tr></thead>
+  <tbody>${ESTATE.map(r=>`<tr><td class="mono">${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td>${badge(r[4])}</td></tr>`).join("")}</tbody></table></div>
+  <p class="muted" style="margin-top:1rem">Full census lives on <a href="https://a11oy.net/estate/">a11oy.net/estate</a>.</p>`;
+}
+function investPage(){
+  return `<p class="kicker">Investor map</p><h1>What is sold. What is not.</h1>
+  <div class="grid g2" style="margin-top:1.5rem">
+    <article class="card"><h3>Sold</h3><p class="muted">Governed command. Receipts. Deny-by-default policy. Honesty classes. A public origin on a-11-oy.com.</p></article>
+    <article class="card"><h3>Not sold</h3><p class="muted">Λ proven. Energy meters. Production SNARKs. “Hub RUNNING means ready.” Signer keys.</p></article>
+  </div>`;
+}
+function buildPage(){
+  return `<p class="kicker">Developer map</p><h1>Public origin. GitHub is the source of truth.</h1>
+  <ol class="muted" style="margin-top:1rem">
+    <li>Product origin a-11-oy.com (this host).</li>
+    <li>Proof a11oy.net (separate failure domain).</li>
+    <li>Source GitHub szl-holdings/a11oy. Promote via Space sync. Not Replit.</li>
+    <li>Unsigned deploy DENY. Witness material DENY.</li>
+  </ol>`;
+}
+function zkPage(){
+  return `<p class="kicker">Proof lab ${badge("MODELED")}</p>
+  <h1>Prove knowledge. Reveal nothing.</h1>
+  <p class="muted">Sigma is runnable here. Range circuits satisfy locally. Succinct proving is ROADMAP. Λ stays conjecture. Lasting public RECORD stays on a11oy.net.</p>
+  <div style="display:flex;gap:.5rem;margin:1.25rem 0;flex-wrap:wrap">
+    <button class="btn btn-g zk-tab active" data-z="sigma">Sigma</button>
+    <button class="btn btn-g zk-tab" data-z="snark">SNARKs</button>
+  </div>
+  <div id="zkroot"></div>`;
+}
+function sigmaUI(){
+  return `<div class="grid g2">
+    <div class="card">
+      <p class="kicker">Prover</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin:.75rem 0">
+        <button class="btn btn-g mode" data-m="honest">Honest</button>
+        <button class="btn btn-g mode" data-m="cheat">Cheater</button>
+        <button class="btn btn-g mode" data-m="simulate">Simulator</button>
+      </div>
+      <p class="mono muted" id="pstate">Witness: —</p>
+      <button class="btn btn-p" id="znext">Mint keypair</button>
+      <button class="btn btn-q" id="zreset">Reset</button>
+    </div>
+    <div class="card">
+      <p class="kicker">Verifier · wire</p>
+      <p class="mono">g^s ≟ t · Y^c (mod p)</p>
+      <p class="mono" id="vstate">No check yet.</p>
+    </div>
+  </div>`;
+}
+function snarkUI(){
+  return `<div class="card">
+    <p class="kicker">Range credential ${badge("MEASURED")}</p>
+    <p class="muted">Prove age ≥ T. The value stays off the verifier. MEASURED here means the circuit ran in this browser — not a production SNARK.</p>
+    <label class="muted">Age x <input type="number" id="age" value="21" min="0" max="255"/></label>
+    <label class="muted">Threshold T <input type="number" id="th" value="18" min="0" max="255"/></label>
+    <button class="btn btn-p" id="rsat" style="margin-top:1rem">Satisfy circuit</button>
+    <p class="mono" id="rstate" style="margin-top:.75rem">Verifier sees T only. x = hidden.</p>
+  </div>
+  <p class="muted" style="margin-top:1rem">Groth16 proving ${badge("ROADMAP")}.</p>`;
+}
+
+const Z = { mode:"honest", phase:"idle", x:null, Y:null, r:null, t:null, c:null, s:null };
+function zLabel(){
+  if(Z.phase==="idle") return Z.mode==="simulate"?"Publish Y":Z.mode==="cheat"?"Publish a statement you cannot prove":"Mint keypair";
+  if(Z.mode==="simulate"&&Z.phase==="keyed") return "Forge transcript (no witness)";
+  if(Z.phase==="keyed") return "Commit t = g^r";
+  if(Z.phase==="committed") return "Random challenge";
+  if(Z.phase==="challenged") return Z.mode==="cheat"?"Guess a response":"Respond s = r + c·x";
+  if(Z.phase==="responded") return "Verify g^s ≟ t·Y^c";
+  return null;
+}
+function bindZk(){
+  const root=$("#zkroot"); root.innerHTML=sigmaUI();
+  document.querySelectorAll(".zk-tab").forEach(b=>b.onclick=()=>{
+    document.querySelectorAll(".zk-tab").forEach(x=>x.classList.remove("active"));
+    b.classList.add("active");
+    if(b.dataset.z==="snark"){ root.innerHTML=snarkUI(); $("#rsat").onclick=()=>{ const o=rangeCircuit(Number($("#age").value), Number($("#th").value)); $("#rstate").innerHTML = (o.sat?'<span class="ok">CIRCUIT SAT</span>':'<span class="no">CIRCUIT UNSAT</span>')+" · verifier sees T="+$("#th").value+", x=hidden"; }; }
+    else bindZk();
+  });
+  const next=$("#znext"), st=$("#pstate"), vs=$("#vstate");
+  document.querySelectorAll(".mode").forEach(b=>b.onclick=()=>{ Z.mode=b.dataset.m; Z.phase="idle"; Z.x=Z.Y=Z.r=Z.t=Z.c=Z.s=null; next.textContent=zLabel(); st.textContent="Witness: —"; vs.textContent="No check yet."; });
+  $("#zreset").onclick=()=>{ Z.phase="idle"; Z.x=Z.Y=Z.r=Z.t=Z.c=Z.s=null; next.textContent=zLabel(); };
+  next.onclick=()=>{
+    if(Z.phase==="idle"){ const x=randBelow(N); Z.Y=modPow(G,x); Z.x=Z.mode==="honest"?x:null; Z.phase="keyed"; st.textContent="Witness: "+(Z.x?"held locally":"absent")+" · Y "+shortHex(Z.Y); }
+    else if(Z.mode==="simulate"&&Z.phase==="keyed"){ const f=simulate(Z.Y); Z.t=f.t; Z.c=f.c; Z.s=f.s; const ok=verifySchnorr(Z.Y,Z.t,Z.c,Z.s); vs.innerHTML=ok?'<span class="ok">ACCEPT · unused witness. MODELED zero-knowledge.</span>':'<span class="no">REJECT</span>'; Z.phase="done"; }
+    else if(Z.phase==="keyed"){ Z.r=randBelow(N); Z.t=modPow(G,Z.r); Z.phase="committed"; }
+    else if(Z.phase==="committed"){ Z.c=randBelow(N); Z.phase="challenged"; }
+    else if(Z.phase==="challenged"){ Z.s=Z.mode==="honest"&&Z.x!=null? mod(Z.r+Z.c*Z.x,N): randBelow(N); Z.phase="responded"; }
+    else if(Z.phase==="responded"){ const ok=verifySchnorr(Z.Y,Z.t,Z.c,Z.s); vs.innerHTML=ok?'<span class="ok">ACCEPT · equation holds</span>':'<span class="no">REJECT · equation fails</span>'; Z.phase="done"; }
+    next.textContent=zLabel()||"Done";
+    if(!zLabel()) next.disabled=true; else next.disabled=false;
+  };
+}
+
+const PAGES = { home, console:consolePage, census:censusPage, invest:investPage, build:buildPage, zk:zkPage };
+function render(){
+  nav();
+  const id = page();
+  $("#main").innerHTML = (PAGES[id]||home)();
+  if(id==="console"){
+    renderLake();
+    $("#submit").onclick=async()=>{
+      const kind=document.querySelector("[name=act]:checked").value;
+      const ev=evaluate(kind, $("#prompt").value);
+      await sealReceipt(kind, ev.decision, ev.reason, kind==="zk_prove"?$("#prompt").value.slice(0,4000):"");
+      $("#status").textContent=ev.decision+" · "+ev.reason;
+      renderLake();
+    };
+    $("#verify").onclick=async()=>{
+      const r=loadLake(); let prev=GENESIS, ok=true;
+      for(const x of r){ const {hash, ...rest}=x; const h=await sha256Hex(JSON.stringify(rest)); if(h!==x.hash||x.prev!==prev) ok=false; prev=x.hash; }
+      $("#status").textContent=ok?`MEASURED ${r.length} receipts. Chain intact.`:"Chain broken.";
+    };
+  }
+  if(id==="zk") bindZk();
+}
+window.addEventListener("hashchange", render);
+window.addEventListener("popstate", render);
+render();
+</script>
+</body>
+</html>
