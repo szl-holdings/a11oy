@@ -1,0 +1,33 @@
+as_of: "2026-08-29"
+state: LIVE
+action: pause_and_private_never_delete
+product: https://a-11-oy.com
+proof: https://a11oy.net
+hub: https://huggingface.co/SZLHOLDINGS
+collection: https://huggingface.co/collections/SZLHOLDINGS/canonical-public-spaces-7-6a9315ac72207f841dff230d
+counts:
+  spaces_total: 45
+  spaces_public: 7
+  spaces_private: 38
+  models: 43
+  datasets: 36
+keep:
+  - id: SZLHOLDINGS/README
+    role: org_card
+  - id: SZLHOLDINGS/a11oy
+    role: product
+    dest: https://a-11-oy.com
+  - id: SZLHOLDINGS/killinchu
+    role: defense_vertical
+  - id: SZLHOLDINGS/immune
+    role: safety_kernel
+  - id: SZLHOLDINGS/szl-khipu
+    role: model_demo
+  - id: SZLHOLDINGS/szl-atelier
+    role: artifact_walk
+  - id: SZLHOLDINGS/governed-receipt-verifier
+    role: receipt_replay
+gpu:
+  id: SZLHOLDINGS/szl-command-lab
+  prior: t4-small
+  after: paused_cpu_basic_requested
