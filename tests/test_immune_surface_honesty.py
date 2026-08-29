@@ -90,3 +90,11 @@ def test_kernel_panel_is_same_origin_and_never_auto_embeds() -> None:
     assert "Neither Space is deleted" in IMMUNE
     assert "szlholdings-immune-lattice.hf.space" in IMMUNE
     assert "never fabricates <b>LIVE</b> or <b>PASS</b>" in IMMUNE
+    assert 'id="fReach">CONNECTING<' in IMMUNE
+    assert "async function loadField()" in IMMUNE
+    assert 'requestJSON(BASE + "/field")' in IMMUNE
+    assert "hunt / isolate / deceive" in IMMUNE
+    assert "never strike people" in IMMUNE
+    assert "not a second COP" in IMMUNE
+    assert 'f.src="https://szlholdings-immune-lattice.hf.space"' in IMMUNE
+    assert "RANGE.CLOUD.EXILE" in IMMUNE

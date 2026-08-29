@@ -34,6 +34,12 @@ ENDPOINTS (dual-registered under /api/a11oy/v1/immune/* AND /v1/immune/*):
                     (SZLHOLDINGS/immune /readyz). REACHABLE vs UNAVAILABLE only;
                     never fabricates LIVE or PASS. write_ready is forwarded
                     verbatim when the probe succeeds.
+  GET  /field    -> same-origin probe of Channel B Field catalog
+                    (SZLHOLDINGS/immune-lattice /api/field). RANGE cells
+                    compiled as hunt/isolate/deceive — never strike people.
+                    REACHABLE vs UNAVAILABLE only; never LIVE or PASS.
+                    Actuation is SIMULATED. This flagship does not become a
+                    second COP.
 
 INSPECTION LOGIC (byte-identical to serve.py's embedded immune block):
   _THREAT_SIGNATURES = ["DROP TABLE","rm -rf","<script","eval(","subprocess","../../etc"]
@@ -107,6 +113,7 @@ _KERNEL_UA = (
     "Mozilla/5.0 (compatible; a11oy-immune-kernel-probe/1.0; +https://a-11-oy.com/immune)"
 )
 _KERNEL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
+_FIELD_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 
 # ---------------------------------------------------------------------------
 # REAL inspection logic — byte-identical to serve.py's embedded immune block.
@@ -475,8 +482,8 @@ def _kernel(now: Optional[float] = None, probe=_probe_json) -> dict:
         "channel_b": {
             "space": "SZLHOLDINGS/immune-lattice",
             "url": _KERNEL_LATTICE_URL,
-            "contract": "/api/immune/state",
-            "note": "COP overlay sibling. HF proxy intercepts /readyz; a 502 HTML there is not kernel death.",
+            "contract": "/api/field",
+            "note": "COP overlay sibling (Field cells). HF proxy intercepts /readyz; a 502 HTML there is not kernel death.",
         },
         "product_tab": "/immune",
         "honesty": {
@@ -492,6 +499,68 @@ def _kernel(now: Optional[float] = None, probe=_probe_json) -> dict:
     enveloped = _gov(payload, status="REAL" if reachable else "DEGRADED")
     _KERNEL_CACHE["at"] = ts
     _KERNEL_CACHE["payload"] = enveloped
+    return enveloped
+
+
+def _field(now: Optional[float] = None, probe=_probe_json) -> dict:
+    """Same-origin Channel B Field probe. REACHABLE / UNAVAILABLE only — never LIVE or PASS."""
+    ts = time.time() if now is None else float(now)
+    cached = _FIELD_CACHE.get("payload")
+    cached_at = float(_FIELD_CACHE.get("at") or 0)
+    if cached and (ts - cached_at) < _KERNEL_CACHE_TTL:
+        out = dict(cached)
+        out["cached"] = True
+        return out
+
+    status, data, err = probe(_KERNEL_LATTICE_URL + "/api/field")
+    body = data if isinstance(data, dict) else {}
+    reachable = status == 200 and isinstance(data, dict)
+    raw_cells = body.get("cells") if reachable else None
+    cells = raw_cells if isinstance(raw_cells, list) else None
+    raw_hunts = body.get("hunts") if reachable else None
+    hunts = None
+    if isinstance(raw_hunts, list):
+        hunts = []
+        for item in raw_hunts:
+            if not isinstance(item, dict):
+                continue
+            hunts.append({
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "cluster": item.get("cluster") or item.get("attck") or item.get("pack"),
+            })
+    payload = {
+        "ok": reachable,
+        "reachability": "REACHABLE" if reachable else "UNAVAILABLE",
+        "lambda_status": body.get("lambda_status") if reachable else None,
+        "actuation": body.get("actuation") if reachable else None,
+        "rule": body.get("rule") if reachable else None,
+        "cells": cells,
+        "hunts": hunts,
+        "cell_count": len(cells) if cells is not None else None,
+        "upstream_http": status,
+        "error": None if reachable else (err or "field unobserved"),
+        "channel": "B",
+        "space": "SZLHOLDINGS/immune-lattice",
+        "contract": "/api/field",
+        "url": _KERNEL_LATTICE_URL + "/api/field",
+        "product_tab": "/immune",
+        "honesty": {
+            "lambda": "Conjecture 1 (NOT a theorem)",
+            "never_fabricate": ["LIVE", "PASS"],
+            "first_paint": "CONNECTING",
+            "failed_probe": "UNAVAILABLE",
+            "actuation": "SIMULATED",
+            "rule": "hunt isolate deceive — never strike people",
+            "not_a_second_cop": True,
+        },
+        "organ": _ORGAN_NAME,
+        "cached": False,
+        "field_doctrine": body.get("doctrine") if reachable else None,
+    }
+    enveloped = _gov(payload, status="REAL" if reachable else "DEGRADED")
+    _FIELD_CACHE["at"] = ts
+    _FIELD_CACHE["payload"] = enveloped
     return enveloped
 
 
@@ -541,6 +610,9 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _h_kernel():  # noqa: ANN202
         return JSONResponse(_kernel())
 
+    async def _h_field():  # noqa: ANN202
+        return JSONResponse(_field())
+
     prefixes = [f"/api/{ns}/v1/immune", "/v1/immune"]
     routes: list[str] = []
     for p in prefixes:
@@ -552,8 +624,9 @@ def register(app, ns: str = "a11oy") -> dict:
         app.add_api_route(f"{p}/verdict", _h_verdict, methods=["POST", "GET"], include_in_schema=True)
         app.add_api_route(f"{p}/verify", _h_verify, methods=["GET"], include_in_schema=True)
         app.add_api_route(f"{p}/kernel", _h_kernel, methods=["GET", "HEAD"], include_in_schema=True)
+        app.add_api_route(f"{p}/field", _h_field, methods=["GET", "HEAD"], include_in_schema=True)
         routes.extend([f"{p}/healthz", f"{p}/status", f"{p}/gates", f"{p}/threats",
-                       f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel"])
+                       f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel", f"{p}/field"])
 
     print(f"[{ns}] szl_immune routes registered "
           f"(Immune (Hukulla) fail-closed egress gate, {len(routes)} routes)", flush=True)

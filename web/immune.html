@@ -4,7 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>IMMUNE — fail-closed kernel · SZL Holdings</title>
-<meta name="description" content="Public IMMUNE tab: Hukulla fail-closed egress gate plus a same-origin probe of the live SZLHOLDINGS/immune kernel Space. Status is CONNECTING, REACHABLE, or UNAVAILABLE — never fabricated LIVE or PASS. Lambda = Conjecture 1; Khipu = Conjecture 2; trust never 100%."/>
+<meta name="description" content="Public IMMUNE tab: Hukulla fail-closed egress gate, same-origin Channel A kernel probe, and Channel B Field lattice (exile/mesh/quorum/delta). Hunt/isolate/deceive — never strike people. Status is CONNECTING, REACHABLE, or UNAVAILABLE — never fabricated LIVE or PASS. Lambda = Conjecture 1; Khipu = Conjecture 2; trust never 100%."/>
 <!-- 0 runtime CDN (doctrine v11): system fonts only — no Google Fonts, no external assets. -->
 <style>
 :root{
@@ -128,7 +128,10 @@ code{font-family:var(--mono);color:var(--teal);}
     <a href="https://szlholdings-immune.hf.space"><code>SZLHOLDINGS/immune</code></a>;
     the COP overlay sibling is
     <a href="https://szlholdings-immune-lattice.hf.space"><code>SZLHOLDINGS/immune-lattice</code></a>.
-    Neither Space is deleted. This page never fabricates <b>LIVE</b> or <b>PASS</b> —
+    Neither Space is deleted. Channel B Field cells (RANGE.CLOUD.EXILE, RANGE.FALLBACK.MESH,
+    CERT.CELL.QUORUM, FIELD.LATTICE.DELTA) compile public Ukraine COP doctrine as
+    <b>hunt / isolate / deceive</b> — never strike people. RANGE twins only; actuation is SIMULATED.
+    This flagship tab cites the lattice; it is not a second COP. This page never fabricates <b>LIVE</b> or <b>PASS</b> —
     first paint is <b>CONNECTING</b>; a failed probe is <b>UNAVAILABLE</b>; a successful
     <code>/readyz</code> read is <b>REACHABLE</b> (and <b>WRITE-READY</b> only when the kernel says so).
     Submitted actions below hit the live Hukulla inspection path (MIN of supplied trust axes < 0.5 &rarr; deny).
@@ -160,6 +163,31 @@ code{font-family:var(--mono);color:var(--teal);}
       <button class="run" id="embedBtn" type="button">Embed live kernel</button>
     </div>
     <div id="kernelFrameHost"></div>
+  </div>
+
+  <div class="panel" id="fieldPanel">
+    <h2>Field lattice <span class="meta">GET /api/a11oy/v1/immune/field → Channel B /api/field</span></h2>
+    <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+      Same-origin probe of <code>SZLHOLDINGS/immune-lattice</code>. Cells are compiled as
+      hunt / isolate / deceive — never strike people. First paint is <b>CONNECTING</b>.
+      A failed probe is <b>UNAVAILABLE</b> (cells are not invented). A JSON catalog is
+      <b>REACHABLE</b>, not LIVE. This page is a citation, not a second COP.
+    </p>
+    <div class="cards">
+      <div class="card"><div class="lbl">Reachability</div><div class="big" id="fReach">CONNECTING</div><div class="sub" id="fReachSub">first paint — not UNAVAILABLE</div></div>
+      <div class="card"><div class="lbl">Λ / doctrine</div><div class="big" id="fDoc">—</div><div class="sub" id="fLam">Conjecture 1 — not a theorem</div></div>
+      <div class="card"><div class="lbl">Actuation</div><div class="big" id="fAct">—</div><div class="sub">SIMULATED only</div></div>
+      <div class="card"><div class="lbl">Rule</div><div class="big" id="fRule">—</div><div class="sub" id="fRuleSub">never strike people</div></div>
+    </div>
+    <div class="cards" id="fieldCells"></div>
+    <div class="kv" id="fieldKv" aria-live="polite"><span class="k">status</span><span class="v">CONNECTING</span></div>
+    <div class="kernel-actions">
+      <a class="flag" href="https://szlholdings-immune-lattice.hf.space" target="_blank" rel="noopener">Open Channel B lattice</a>
+      <a class="flag" href="https://github.com/szl-holdings/immune-lattice" target="_blank" rel="noopener">GitHub lattice</a>
+      <a class="flag" href="https://a11oy.net/" target="_blank" rel="noopener">Proof registry</a>
+      <button class="run" id="embedFieldBtn" type="button">Embed live lattice</button>
+    </div>
+    <div id="fieldFrameHost"></div>
   </div>
 
   <div class="cards">
@@ -212,7 +240,7 @@ code{font-family:var(--mono);color:var(--teal);}
   <div class="footnote" id="leanFoot">
     Proven Lean backing: Lutar/Wave11/ImmuneNeymanPearsonOpt.lean · Lutar/Innovations/round11/FrontierWelfordVariance.lean.
     Locked-proven set = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ kernel c7c0ba17 — the immune Lean backing is cited, NOT folded in.
-    SLSA L1/L2/L3-roadmap · 0 runtime CDN. This page reads only the live /api/a11oy/v1/immune/* endpoints (Hukulla organ + same-origin kernel probe). Channel A = SZLHOLDINGS/immune. Channel B = SZLHOLDINGS/immune-lattice. Neither Space is deleted.
+    SLSA L1/L2/L3-roadmap · 0 runtime CDN. This page reads only the live /api/a11oy/v1/immune/* endpoints (Hukulla organ + same-origin kernel and Field probes). Channel A = SZLHOLDINGS/immune. Channel B = SZLHOLDINGS/immune-lattice Field (exile/mesh/quorum/delta). Neither Space is deleted. Hunt / isolate / deceive — never strike people.
   </div>
 </div>
 
@@ -406,10 +434,59 @@ document.getElementById("embedBtn").addEventListener("click",function(){
   this.textContent="Kernel embedded";
 });
 
-async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed(),loadKernel()]); }
+async function loadField(){
+  const result = await requestJSON(BASE + "/field");
+  const kv = document.getElementById("fieldKv");
+  const s = result.data||{};
+  const reach = result.ok && s.reachability==="REACHABLE" ? "REACHABLE" : "UNAVAILABLE";
+  document.getElementById("fReach").textContent = reach;
+  document.getElementById("fReachSub").textContent = reach==="REACHABLE" ? "Channel B /api/field answered JSON" : requestFailure(result);
+  document.getElementById("fDoc").textContent = present(s.field_doctrine)?String(s.field_doctrine):(present(s.lambda_status)?String(s.lambda_status):"—");
+  document.getElementById("fLam").textContent = present(s.lambda_status)?String(s.lambda_status):"Conjecture 1 — not a theorem";
+  document.getElementById("fAct").textContent = present(s.actuation)?String(s.actuation):"—";
+  document.getElementById("fRule").textContent = present(s.rule)?String(s.rule).slice(0,42):"—";
+  document.getElementById("fRuleSub").textContent = "never strike people";
+  const host = document.getElementById("fieldCells");
+  const cells = Array.isArray(s.cells)?s.cells:[];
+  if(reach!=="REACHABLE" || !cells.length){
+    host.replaceChildren();
+  }else{
+    host.innerHTML = cells.map(function(c){
+      const name=c&&c.name||c&&c.id||"cell";
+      const verb=c&&c.verb||"—";
+      const take=c&&c.take||"";
+      return '<div class="card"><div class="lbl">'+esc(name)+'</div><div class="big">'+esc(verb)+'</div><div class="sub">'+esc(take)+'</div></div>';
+    }).join("");
+  }
+  kv.innerHTML =
+    row("reachability",reach)+
+    row("doctrine",s.field_doctrine)+
+    row("lambda",s.lambda_status)+
+    row("actuation",s.actuation)+
+    row("rule",s.rule)+
+    row("cells",typeof s.cell_count==="number"?String(s.cell_count):null)+
+    row("channel",s.space)+
+    row("error",s.error||(!result.ok?requestFailure(result):null))+
+    row("observed at",s.fetchedAt||s.observed_at)+
+    '<div><span class="k">field</span><span class="pill '+(reach==="REACHABLE"?"green":"red")+'">'+esc(reach)+'</span></div>';
+}
+
+document.getElementById("embedFieldBtn").addEventListener("click",function(){
+  const host=document.getElementById("fieldFrameHost");
+  if(host.querySelector("iframe"))return;
+  const f=document.createElement("iframe");
+  f.title="IMMUNE lattice Space";
+  f.src="https://szlholdings-immune-lattice.hf.space";
+  f.setAttribute("loading","lazy");
+  host.appendChild(f);
+  this.textContent="Lattice embedded";
+});
+
+async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed(),loadKernel(),loadField()]); }
 loadAll();
 setInterval(loadStatus, 8000);
 setInterval(loadKernel, 8000);
+setInterval(loadField, 8000);
 </script>
 </body>
 </html>
