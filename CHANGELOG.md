@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - five-space operator BIND on /five-space
+- `/five-space` is a 0-CDN BIND hologram of Command · Loop · Queue · Memory · Ledger.
+  Status from `/api/a11oy/v1/five-space/{healthz,status}`. First paint CONNECTING.
+  STRUCTURAL-ONLY, SAMPLE loop, UNSIGNED-honest receipts. Energy UNAVAILABLE.
+  sovereign=false. Does not replace `/console`. Not a Vite dump onto the flagship.
+  Not a second flagship. Not a production certificate. Lasting RECORD is
+  `https://a11oy.net/five-space/`. Λ = Conjecture 1. Never a11oy.com.
+
+
 ### Changed - IMMUNE command-center lattice on /immune
 - `/immune` is now a 0-CDN cinematic command-center HUD: canvas lattice globe
   (drag to orbit), live kernel/field/organ chips, inspect-to-verdict, gates,

@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Five-space operator — BIND hologram · SZL Holdings</title>
+<meta name="description" content="BIND_AS_A11OY_PACKAGE. Command · Loop · Queue · Memory · Ledger. Not a second flagship. Not a production certificate of a-11-oy.com. Does not replace /console. STRUCTURAL-ONLY. SAMPLE loop. UNSIGNED-honest receipts. Energy UNAVAILABLE. Lasting RECORD is a11oy.net/five-space/. Λ = Conjecture 1. sovereign=false."/>
+<!-- 0 runtime CDN (doctrine v11): system fonts only — no Google Fonts, no external assets. -->
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --elev:#121212;
+  --gold:#c9b787; --teal:#5fb3a3; --cream:#f5f5f5; --paragraph:#9a9a9a;
+  --muted:#888; --dim:#555; --warn:#c9a05f; --err:#b06a5a;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --display:ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --serif:ui-serif,Georgia,'Times New Roman',serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+a{color:inherit;text-decoration:none;}
+a:hover{color:var(--teal);}
+button,input,select,textarea{font:inherit;color:inherit;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--warn);box-shadow:0 0 6px var(--warn);}
+.live-dot.ready{background:var(--gold);box-shadow:0 0 6px var(--gold);}
+.live-dot.error{background:var(--err);box-shadow:0 0 6px var(--err);}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;min-height:44px;display:inline-flex;align-items:center;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1180px;margin:0 auto;padding:1.6rem 1.4rem 6rem;}
+h1{font-family:var(--serif);font-size:1.85rem;font-weight:500;margin:.2rem 0 .3rem;letter-spacing:-.02em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--warn);border:1px solid rgba(201,160,95,.4);background:rgba(201,160,95,.08);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:78ch;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.spaces{display:flex;flex-wrap:wrap;gap:.4rem;margin:0 0 1.1rem;}
+.spaces button{min-height:44px;padding:0 .9rem;border-radius:8px;border:1px solid var(--gold-line);background:transparent;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;}
+.spaces button.on{color:var(--ground);background:var(--gold);border-color:var(--gold);font-weight:600;}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.15rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.5;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;}
+.panel h2{font-family:var(--serif);font-size:1.15rem;font-weight:500;margin:0 0 .35rem;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-weight:500;margin-left:.5rem;}
+.kv{font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.9;margin-top:.5rem;}
+.kv .k{color:var(--dim);display:inline-block;min-width:150px;}
+.kv .v{color:var(--cream);}
+.pill{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;padding:.18rem .5rem;border-radius:5px;border:1px solid var(--gold-line);color:var(--warn);}
+.simnote{border:1px solid var(--warn);background:rgba(201,160,95,.06);border-radius:8px;padding:.7rem .9rem;margin:.8rem 0 1rem;font-family:var(--mono);font-size:11px;color:#d8c39a;line-height:1.65;}
+.row{display:flex;flex-wrap:wrap;gap:.55rem;margin:.7rem 0;}
+.btn{min-height:44px;padding:0 1rem;border-radius:8px;border:1px solid var(--gold);background:var(--gold);color:var(--ground);font-weight:600;cursor:pointer;}
+.btn.ghost{background:transparent;color:var(--gold);}
+.chk{display:flex;align-items:flex-start;gap:.55rem;margin:.4rem 0;font-size:.92rem;color:var(--paragraph);}
+.chk input{width:18px;height:18px;margin-top:.15rem;flex:0 0 auto;}
+.item{border:1px solid var(--gold-soft);border-radius:8px;padding:.75rem .85rem;margin:.5rem 0;background:var(--elev);}
+.item h3{margin:0 0 .25rem;font-size:1rem;}
+.item p{margin:0;color:var(--paragraph);font-size:.9rem;line-height:1.5;}
+.item .meta{font-family:var(--mono);font-size:10.5px;color:var(--dim);margin-top:.4rem;}
+.table-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch;}
+table{width:100%;border-collapse:collapse;font-family:var(--mono);font-size:11.5px;margin-top:.5rem;}
+th,td{text-align:left;padding:.34rem .5rem;border-bottom:1px solid var(--gold-soft);color:var(--paragraph);vertical-align:top;}
+th{color:var(--dim);text-transform:uppercase;letter-spacing:.06em;font-size:9.5px;}
+.pins{display:flex;flex-wrap:wrap;gap:.55rem .9rem;margin:.8rem 0 0;font-family:var(--mono);font-size:12px;}
+.pins a{color:var(--teal);border-bottom:1px solid var(--teal-line);}
+code{font-family:var(--mono);color:var(--teal);}
+.footnote{font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:1.6rem;line-height:1.7;}
+.digest{color:var(--gold);word-break:break-all;}
+.field{display:grid;gap:.3rem;margin:.55rem 0;}
+.field label{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);}
+.field input,.field textarea,.field select{min-height:44px;padding:.55rem .7rem;border-radius:8px;border:1px solid var(--gold-line);background:#080808;color:var(--cream);}
+.field textarea{min-height:88px;resize:vertical;}
+.dock{display:none;}
+.space{display:none;}
+.space.on{display:block;}
+.empty{color:var(--muted);font-size:.9rem;}
+@media(max-width:760px){
+  .topbar{position:static;padding:.55rem .8rem;gap:.55rem;}
+  .switcher{order:3;width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;padding-bottom:.15rem;}
+  .flag{flex:0 0 auto;}
+  .wrap{padding:1.15rem .85rem 6.5rem;}
+  h1{font-size:1.45rem;line-height:1.25;}
+  .badge{display:block;width:max-content;max-width:100%;margin:.55rem 0 0;white-space:normal;}
+  .panel{padding:.85rem;}
+  .kv .k{min-width:130px;}
+  .spaces{display:none;}
+  .dock{position:fixed;inset:auto 0 0 0;z-index:70;display:grid;grid-template-columns:repeat(5,1fr);border-top:1px solid var(--gold-line);background:rgba(10,10,10,.96);padding:.25rem 0 env(safe-area-inset-bottom);}
+  .dock button{min-height:52px;border:0;background:transparent;color:var(--muted);font-family:var(--mono);font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;}
+  .dock button.on{color:var(--gold);}
+}
+@media(max-width:420px){
+  .cards{grid-template-columns:minmax(0,1fr);}
+  .kv>div{display:grid;grid-template-columns:minmax(0,.7fr) minmax(0,1.3fr);gap:.5rem;}
+  .kv .k{min-width:0;}
+  .kv .v,.digest{overflow-wrap:anywhere;word-break:break-word;}
+}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span>
+  <span class="live"><span class="live-dot" id="liveDot"></span><span id="liveTag" aria-live="polite">OPERATOR · CONNECTING</span></span>
+  <span class="switcher">
+    <a class="flag active" href="/five-space">Five-space</a>
+    <a class="flag" href="/lyte">LYTE lattice</a>
+    <a class="flag" href="/immune">Immune</a>
+    <a class="flag" href="/console">Command</a>
+    <a class="flag" href="/operator">Shell</a>
+    <a class="flag" href="/">Home</a>
+  </span>
+</div>
+
+<div class="wrap">
+  <h1>Five-space operator<span class="badge" id="organBadge">BIND · connecting</span></h1>
+  <p class="lede">
+    <b>BIND_AS_A11OY_PACKAGE.</b> Command · Loop · Queue · Memory · Ledger.
+    This tab is <b>not a second flagship</b>, <b>not a production certificate</b>
+    of a-11-oy.com, and <b>does not replace /console</b>. Loop compiles SAMPLE ideas
+    in this browser. Receipts are UNSIGNED-honest. The lasting RECORD is
+    <a href="https://a11oy.net/five-space/">a11oy.net/five-space/</a>. Never a11oy.com.
+  </p>
+  <p class="lede">
+    First paint is <b>CONNECTING</b>. This page never fabricates <b>LIVE</b>, <b>RUNNING</b>, or <b>PASS</b>.
+    Energy stays UNAVAILABLE. Λ = Conjecture 1. sovereign=false.
+  </p>
+
+  <nav class="spaces" aria-label="Five spaces">
+    <button type="button" data-space="command" class="on">Command</button>
+    <button type="button" data-space="loop">Loop</button>
+    <button type="button" data-space="queue">Queue</button>
+    <button type="button" data-space="memory">Memory</button>
+    <button type="button" data-space="ledger">Ledger</button>
+  </nav>
+
+  <div class="simnote" id="bindNote">
+    Required evidence unavailable until <code>GET /api/a11oy/v1/five-space/status</code> answers.
+    Status is CONNECTING, BIND, or UNAVAILABLE — never fabricated LIVE or PASS.
+  </div>
+
+  <section id="space-command" class="space on">
+    <div class="cards">
+      <article class="card"><div class="lbl">Bind</div><div class="big" id="cBind">CONNECTING</div><div class="sub">package, not flagship</div></article>
+      <article class="card"><div class="lbl">Certificate</div><div class="big" id="cCert">CONNECTING</div><div class="sub">a-11-oy.com production cert</div></article>
+      <article class="card"><div class="lbl">Λ</div><div class="big" id="cLam">CONNECTING</div><div class="sub">Conjecture 1 · never green</div></article>
+      <article class="card"><div class="lbl">Joule</div><div class="big" id="cJoule">CONNECTING</div><div class="sub">this bind does not read RAPL</div></article>
+      <article class="card"><div class="lbl">Trust</div><div class="big" id="cTrust">CONNECTING</div><div class="sub">proven_trust stays false</div></article>
+      <article class="card"><div class="lbl">Sovereign</div><div class="big" id="cSov">CONNECTING</div><div class="sub">this surface is not sovereign</div></article>
+    </div>
+    <div class="panel">
+      <h2>Two-origin lock<span class="meta">never merge the hosts</span></h2>
+      <div class="kv">
+        <div><span class="k">product</span><span class="v">a-11-oy.com/five-space</span></div>
+        <div><span class="k">proof</span><span class="v">a11oy.net/five-space/</span></div>
+        <div><span class="k">console</span><span class="v">untouched — this tab is not /console</span></div>
+        <div><span class="k">never</span><span class="v">a11oy.com</span></div>
+      </div>
+      <div class="pins">
+        <a href="/console">live console</a>
+        <a href="/verify">verify a receipt</a>
+        <a href="https://a11oy.net/five-space/">proof RECORD</a>
+        <a href="/lyte">LYTE bind</a>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>Estate<span class="meta">STRUCTURAL-ONLY cites</span></h2>
+      <p class="lede" style="margin-top:0">Select projects for the next loop. The kernel compiles SAMPLE ideas. It does not execute them.</p>
+      <div id="estate"></div>
+      <div class="row">
+        <button class="btn" id="runLoop" type="button">Run loop</button>
+        <button class="btn ghost" id="resetDemo" type="button">Reset local SAMPLE</button>
+      </div>
+      <p class="item meta" id="loopMeta">No loops yet this session.</p>
+    </div>
+  </section>
+
+  <section id="space-loop" class="space">
+    <div class="panel">
+      <h2>Loop<span class="meta">SAMPLE compile</span></h2>
+      <p class="lede" style="margin-top:0">Each run emits frontier ideas into the Queue as BLOCKED. Admit is a named human act on Queue. This compile is SAMPLE — not a production receipt.</p>
+      <div id="loopList" class="empty">No ideas yet. Run a loop from Command.</div>
+    </div>
+  </section>
+
+  <section id="space-queue" class="space">
+    <div class="panel">
+      <h2>Queue<span class="meta">deny by default</span></h2>
+      <p class="lede" style="margin-top:0">BLOCKED until a human admits or refuses. Admit requires the attestation checkbox. This tab does not auto-admit.</p>
+      <div id="queueList" class="empty">Queue empty.</div>
+    </div>
+  </section>
+
+  <section id="space-memory" class="space">
+    <div class="panel">
+      <h2>Memory<span class="meta">STALE is a state</span></h2>
+      <p class="lede" style="margin-top:0">WORKING and EPISODIC writes are allowed. DOCTRINE stays deny-by-default until a named unlock. Retrieve returns STALE when the envelope expires — never a confident guess.</p>
+      <form id="memForm">
+        <div class="field">
+          <label for="memClass">Class</label>
+          <select id="memClass">
+            <option value="WORKING">WORKING</option>
+            <option value="EPISODIC">EPISODIC</option>
+            <option value="DOCTRINE">DOCTRINE (deny-by-default)</option>
+          </select>
+        </div>
+        <div class="field"><label for="memKey">Key</label><input id="memKey" maxlength="80" placeholder="doctrine.bind" required/></div>
+        <div class="field"><label for="memBody">Body</label><textarea id="memBody" required placeholder="What must be remembered."></textarea></div>
+        <div class="field"><label for="memFresh">Freshness hours</label><input id="memFresh" type="number" min="1" max="168" value="24"/></div>
+        <div class="chk"><input id="memUnlock" type="checkbox"/><label for="memUnlock">Unlock DOCTRINE for this write (named human act)</label></div>
+        <div class="row"><button class="btn" type="submit">Write memory</button></div>
+      </form>
+      <p class="item meta" id="memNote"></p>
+      <div id="memList" class="empty">No memory records.</div>
+    </div>
+  </section>
+
+  <section id="space-ledger" class="space">
+    <div class="panel">
+      <h2>Ledger<span class="meta">UNSIGNED-honest</span></h2>
+      <p class="lede" style="margin-top:0">Every loop, admit, refuse, and memory write seals a SHA-256 chain entry in this browser. Not Cosign. Not DSSE. Not the lasting RECORD. Verify a production receipt on <a href="/verify">/verify</a>.</p>
+      <div class="kv">
+        <div><span class="k">chain</span><span class="v" id="chainOk">CONNECTING</span></div>
+        <div><span class="k">depth</span><span class="v" id="chainDepth">0</span></div>
+        <div><span class="k">head</span><span class="v digest" id="chainHead">0</span></div>
+      </div>
+      <div class="table-scroll" role="region" aria-label="Local SAMPLE receipts">
+        <table>
+          <thead><tr><th>When</th><th>Kind</th><th>Summary</th><th>Hash</th></tr></thead>
+          <tbody id="ledgerBody"><tr><td colspan="4">No receipts yet.</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <p class="footnote">
+    Λ = Conjecture 1 · locked-8 untouched {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 ·
+    Doctrine v11 LOCKED · Apache-2.0 · Never a11oy.com · Hugging Face is not a front door ·
+    This tab is a BIND hologram, not a Vite dump onto the flagship.
+  </p>
+</div>
+
+<nav class="dock" aria-label="Five spaces">
+  <button type="button" data-space="command" class="on">Command</button>
+  <button type="button" data-space="loop">Loop</button>
+  <button type="button" data-space="queue">Queue</button>
+  <button type="button" data-space="memory">Memory</button>
+  <button type="button" data-space="ledger">Ledger</button>
+</nav>
+
+<script>
+(function () {
+  var KEY = "szl-five-space-operator-v1";
+  var GENESIS = "0000000000000000000000000000000000000000000000000000000000000000";
+  var PROJECTS = [
+    {id:"a11oy", name:"a11oy", honesty:"STRUCTURAL-ONLY", notes:"Governed-AI Command Center. Named home a-11-oy.com."},
+    {id:"khipu", name:"KHIPU", honesty:"STRUCTURAL-ONLY", notes:"3-of-4 consensus silhouette. Energy UNAVAILABLE."},
+    {id:"memory-covenant", name:"Memory Covenant", honesty:"STRUCTURAL-ONLY", notes:"WORKING / EPISODIC / DOCTRINE. Stale is a state."},
+    {id:"lyte", name:"LYTE lattice", honesty:"ADMITTED", notes:"BIND package, not a second flagship."}
+  ];
+  var state = load();
+  function isoNow() { return new Date().toISOString().replace(/\.\d{3}Z$/, "Z"); }
+  function hex(buf) { return Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join(""); }
+  function sha256(text) { return crypto.subtle.digest("SHA-256", new TextEncoder().encode(text)).then(hex); }
+  function load() {
+    try { var raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+    return {selected:["a11oy","khipu"], loops:[], ideas:[], proposals:[], memory:[], receipts:[], doctrineUnlocked:false};
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} }
+  function prevHash() { var r = state.receipts[state.receipts.length - 1]; return r ? r.chainHash : GENESIS; }
+  function seal(kind, summary, payload) {
+    var createdAt = isoNow(); var prev = prevHash(); var payloadJson = JSON.stringify(payload);
+    return sha256(payloadJson).then(function (payloadHash) {
+      return sha256(createdAt + ":" + kind + ":" + payloadHash).then(function (idFull) {
+        var id = idFull.slice(0, 16);
+        return sha256(prev + "|" + payloadHash + "|" + id + "|" + createdAt).then(function (chainHash) {
+          var rec = {id:id, kind:kind, summary:summary, createdAt:createdAt, prevHash:prev, payloadHash:payloadHash, chainHash:chainHash, signer:"UNSIGNED-honest", lambdaStatus:"CONJECTURE-1", energy:"UNAVAILABLE"};
+          state.receipts.push(rec); save(); return rec;
+        });
+      });
+    });
+  }
+  function verifyChain() {
+    var chain = Promise.resolve(true); var prev = GENESIS;
+    state.receipts.forEach(function (entry) {
+      chain = chain.then(function (ok) {
+        if (!ok) return false;
+        if (entry.prevHash !== prev) return false;
+        return sha256(entry.prevHash + "|" + entry.payloadHash + "|" + entry.id + "|" + entry.createdAt).then(function (expected) {
+          if (expected !== entry.chainHash) return false; prev = entry.chainHash; return true;
+        });
+      });
+    });
+    return chain;
+  }
+  function ideasFor(project) {
+    var at = isoNow();
+    return [
+      {id: project.id + "-g1", project: project.id, theme: "governed-agent-mesh", description: "Use " + project.name + " as a substrate in a governed agent mesh. Policy on every call path. Simulation before execution.", risk: "medium"},
+      {id: project.id + "-p1", project: project.id, theme: "self-describing-payloads", description: "Payloads on " + project.name + " carry intent, constraints, and observability contracts. Orchestrators compile; they do not guess.", risk: "low"},
+      {id: project.id + "-a1", project: project.id, theme: "adversarial-governance", description: "Red-team the governance around " + project.name + ". This surface studies architecture. It does not emit exploits.", risk: "high"}
+    ].map(function (x) { x.createdAt = at; return x; });
+  }
+  function showSpace(id) {
+    document.querySelectorAll(".space").forEach(function (el) { el.classList.toggle("on", el.id === "space-" + id); });
+    document.querySelectorAll("[data-space]").forEach(function (el) { el.classList.toggle("on", el.getAttribute("data-space") === id); });
+    if (location.hash !== "#" + id) history.replaceState(null, "", "#" + id);
+  }
+  function renderEstate() {
+    var box = document.getElementById("estate");
+    box.innerHTML = PROJECTS.map(function (p) {
+      var on = state.selected.indexOf(p.id) >= 0 ? "checked" : "";
+      return '<label class="chk"><input type="checkbox" data-proj="' + p.id + '" ' + on + '/><span><b>' + p.name + '</b> · ' + p.honesty + '<br/>' + p.notes + '</span></label>';
+    }).join("");
+    box.querySelectorAll("input").forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        var id = inp.getAttribute("data-proj");
+        if (inp.checked) { if (state.selected.indexOf(id) < 0) state.selected.push(id); }
+        else { state.selected = state.selected.filter(function (x) { return x !== id; }); }
+        save();
+      });
+    });
+  }
+  function renderLoop() {
+    var el = document.getElementById("loopList");
+    if (!state.ideas.length) { el.className = "empty"; el.textContent = "No ideas yet. Run a loop from Command."; return; }
+    el.className = "";
+    el.innerHTML = state.ideas.slice().reverse().map(function (idea) {
+      return '<article class="item"><h3>' + idea.theme + ' · ' + idea.project + '</h3><p>' + idea.description + '</p><div class="meta">' + idea.risk + ' · SAMPLE · ' + idea.createdAt + '</div></article>';
+    }).join("");
+  }
+  function renderQueue() {
+    var el = document.getElementById("queueList");
+    if (!state.proposals.length) { el.className = "empty"; el.textContent = "Queue empty."; return; }
+    el.className = "";
+    el.innerHTML = state.proposals.slice().reverse().map(function (p) {
+      var acts = "";
+      if (p.status === "BLOCKED") {
+        acts = '<div class="chk"><input id="att-' + p.id + '" type="checkbox"/><label for="att-' + p.id + '">I attest this admit</label></div>' +
+          '<div class="row"><button class="btn" data-admit="' + p.id + '" type="button">Admit</button>' +
+          '<button class="btn ghost" data-refuse="' + p.id + '" type="button">Refuse</button></div>';
+      }
+      return '<article class="item"><h3>' + p.idea.theme + '</h3><p>' + p.idea.description + '</p>' +
+        '<div class="meta"><span class="pill">' + p.status + '</span> · SAMPLE · ' + p.idea.project + '</div>' + acts + '</article>';
+    }).join("");
+    el.querySelectorAll("[data-admit]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var id = btn.getAttribute("data-admit");
+        var box = document.getElementById("att-" + id);
+        if (!box || !box.checked) { alert("Admit requires the attestation checkbox."); return; }
+        decide(id, "ADMITTED");
+      });
+    });
+    el.querySelectorAll("[data-refuse]").forEach(function (btn) {
+      btn.addEventListener("click", function () { decide(btn.getAttribute("data-refuse"), "REFUSED"); });
+    });
+  }
+  function memoryStale(rec) { return (Date.now() - new Date(rec.writtenAt).getTime()) / 3600000 >= rec.freshnessHours; }
+  function renderMemory() {
+    var el = document.getElementById("memList");
+    if (!state.memory.length) { el.className = "empty"; el.textContent = "No memory records."; return; }
+    el.className = "";
+    el.innerHTML = state.memory.slice().reverse().map(function (m) {
+      return '<article class="item"><h3>' + m.key + '</h3><p>' + m.body + '</p><div class="meta"><span class="pill">' + m.klass + '</span> · ' + (memoryStale(m) ? "STALE" : "FRESH") + ' · ' + m.writtenAt + '</div></article>';
+    }).join("");
+  }
+  function renderLedger() {
+    document.getElementById("chainDepth").textContent = String(state.receipts.length);
+    document.getElementById("chainHead").textContent = state.receipts.length ? state.receipts[state.receipts.length - 1].chainHash : GENESIS;
+    verifyChain().then(function (ok) { document.getElementById("chainOk").textContent = ok ? "MEASURED intact (this browser)" : "BROKEN"; });
+    var body = document.getElementById("ledgerBody");
+    if (!state.receipts.length) { body.innerHTML = '<tr><td colspan="4">No receipts yet.</td></tr>'; return; }
+    body.innerHTML = state.receipts.slice().reverse().map(function (r) {
+      return '<tr><td>' + r.createdAt + '</td><td>' + r.kind + '</td><td>' + r.summary + '</td><td class="digest">' + r.chainHash.slice(0, 16) + '</td></tr>';
+    }).join("");
+  }
+  function renderAll() {
+    renderEstate(); renderLoop(); renderQueue(); renderMemory(); renderLedger();
+    var n = state.loops.length;
+    document.getElementById("loopMeta").textContent = n ? (n + " loop(s) · " + state.proposals.length + " in queue · energy UNAVAILABLE") : "No loops yet this session.";
+  }
+  function runLoop() {
+    var selected = PROJECTS.filter(function (p) { return state.selected.indexOf(p.id) >= 0; });
+    if (!selected.length) { alert("Select at least one project."); return; }
+    var ideas = []; selected.forEach(function (p) { ideas = ideas.concat(ideasFor(p)); });
+    state.ideas = state.ideas.concat(ideas);
+    var runId = "loop-" + Date.now().toString(36);
+    seal("loop", "Compiled " + ideas.length + " SAMPLE ideas", {runId: runId, n: ideas.length}).then(function (rec) {
+      ideas.forEach(function (idea) { state.proposals.push({id: idea.id, idea: idea, status: "BLOCKED", loopId: runId, receiptId: rec.id}); });
+      state.loops.push({id: runId, startedAt: rec.createdAt, ideaCount: ideas.length, receiptId: rec.id});
+      save(); renderAll(); showSpace("queue");
+    });
+  }
+  function decide(id, decision) {
+    var p = state.proposals.filter(function (x) { return x.id === id; })[0];
+    if (!p || p.status !== "BLOCKED") return;
+    seal(decision === "ADMITTED" ? "admit" : "refuse", decision + " " + p.idea.theme, {id: id}).then(function () {
+      p.status = decision; p.decidedAt = isoNow(); save(); renderAll();
+    });
+  }
+  document.getElementById("runLoop").addEventListener("click", runLoop);
+  document.getElementById("resetDemo").addEventListener("click", function () {
+    state = {selected:["a11oy","khipu"], loops:[], ideas:[], proposals:[], memory:[], receipts:[], doctrineUnlocked:false};
+    save(); renderAll();
+  });
+  document.getElementById("memForm").addEventListener("submit", function (ev) {
+    ev.preventDefault();
+    var klass = document.getElementById("memClass").value;
+    var note = document.getElementById("memNote");
+    if (klass === "DOCTRINE" && !document.getElementById("memUnlock").checked) {
+      note.textContent = "DOCTRINE write refused. Named unlock required."; return;
+    }
+    var rec = {id:"mem-"+Date.now().toString(36), klass:klass, key:document.getElementById("memKey").value.trim(), body:document.getElementById("memBody").value.trim(), writtenAt:isoNow(), freshnessHours:Number(document.getElementById("memFresh").value)||24, stale:false};
+    seal("memory-write", "Wrote " + klass + " " + rec.key, rec).then(function () {
+      state.memory.push(rec); save();
+      note.textContent = "Wrote " + klass + " as SAMPLE. STALE after " + rec.freshnessHours + "h.";
+      document.getElementById("memForm").reset(); document.getElementById("memFresh").value = "24"; renderAll();
+    });
+  });
+  document.querySelectorAll("[data-space]").forEach(function (el) {
+    el.addEventListener("click", function () { showSpace(el.getAttribute("data-space")); });
+  });
+  var initial = (location.hash || "#command").replace("#", "");
+  if (["command","loop","queue","memory","ledger"].indexOf(initial) < 0) initial = "command";
+  showSpace(initial); renderAll();
+  function paintBind(s) {
+    var bind = (s && s.state) || "UNAVAILABLE";
+    document.getElementById("liveTag").textContent = "OPERATOR · " + bind;
+    document.getElementById("organBadge").textContent = bind + " · not certified";
+    document.getElementById("cBind").textContent = bind;
+    document.getElementById("cCert").textContent = (s && s.product && s.product.certified) ? "CERTIFIED" : "false";
+    document.getElementById("cLam").textContent = "Conjecture 1";
+    document.getElementById("cJoule").textContent = "UNAVAILABLE";
+    document.getElementById("cTrust").textContent = "false";
+    document.getElementById("cSov").textContent = "false";
+    document.getElementById("bindNote").textContent = (s && s.state_note) ? s.state_note : "Status UNAVAILABLE. This tab stays BIND/CONNECTING — never fabricated LIVE.";
+    document.getElementById("liveDot").className = "live-dot" + (bind === "BIND" ? " ready" : (bind === "UNAVAILABLE" ? " error" : ""));
+  }
+  fetch("/api/a11oy/v1/five-space/status").then(function (r) {
+    if (!r.ok) throw new Error("status " + r.status);
+    return r.json();
+  }).then(paintBind).catch(function () {
+    paintBind({state:"UNAVAILABLE", product:{certified:false}, state_note:"Same-origin status UNAVAILABLE. First paint stays honest. This tab never fabricates LIVE, RUNNING, or PASS."});
+  });
+})();
+</script>
+</body>
+</html>
