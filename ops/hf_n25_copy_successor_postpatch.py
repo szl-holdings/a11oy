@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Remove the obsolete whole-Dockerfile hash freeze from the admission regression."""
 from pathlib import Path
+import subprocess
 
 # This no-semantic-change marker intentionally triggers the already-present
 # non-default-branch materializer workflow.
@@ -18,4 +19,12 @@ if text.count(old) != 1:
         "tests/test_verify_hf_candidate_admission.py: obsolete blob assertion was not unique"
     )
 path.write_text(text.replace(old, new, 1), encoding="utf-8")
-print("updated admission regression to bind the current exact Dockerfile bytes")
+
+# `git diff --name-only` omits an untracked file. Intent-to-add makes the new
+# regression visible to the exact-path and diff-check gates without creating a
+# local commit or changing its bytes.
+subprocess.run(
+    ["git", "add", "-N", "tests/test_verify_hf_n25_copy_admission.py"],
+    check=True,
+)
+print("updated admission regression and exposed the new N25 test to diff validation")
