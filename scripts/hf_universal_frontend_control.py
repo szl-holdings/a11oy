@@ -49,7 +49,7 @@ UNIVERSAL_CSS = f"""{STYLE_START}
 html {{ -webkit-text-size-adjust: 100%; }}
 body {{ min-width: 0; overflow-x: hidden; }}
 img, svg, video, canvas {{ max-width: 100%; height: auto; }}
-button, [role="button"], input, select, textarea, a.sz-control {{ min-height: 44px; }}
+button, [role="button"], input, select, textarea, a.sz-control, nav a, header a, #fw-hash-btn {{ min-height: 44px; min-width: 44px; }}
 button, [role="button"], a, input, select, textarea {{ touch-action: manipulation; }}
 :where(pre, code, kbd, samp, .mono, [data-revision], [data-receipt], [data-hash]) {{
   overflow-wrap: anywhere; word-break: break-word;
