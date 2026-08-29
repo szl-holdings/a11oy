@@ -1,25 +1,12 @@
-# Hugging Face write status
+# Hugging Face write status — 2026-08-29
 
-**State:** UNAVAILABLE  
-**As of:** 2026-08-29  
-**Reason:** No Hugging Face connector in the operator session that produced this pack.
+**State:** LIVE (this session).
 
-Zero-Bandaid: do not mint a fake Hub commit, a synthetic Space, or a fabricated dataset revision.
+Authenticated as `betterwithage`, org admin on `SZLHOLDINGS`.
 
-## What was observed (read-only HTML scrape)
+Executed: pause + private on 38 Spaces. Public keep set is 7. None deleted. T4 on `szl-command-lab` paused. Product Space `SZLHOLDINGS/a11oy` was not mutated.
 
-| Item | Value | State |
-| --- | --- | --- |
-| Org | https://huggingface.co/SZLHOLDINGS | SNAPSHOT |
-| Models | 42 | SNAPSHOT |
-| Datasets | 28 | SNAPSHOT |
-| Spaces | 44 | SNAPSHOT — contradicts pin-five |
-| SZL-Khipu-1.5B downloads | 502 | SNAPSHOT |
+Product origin: https://a-11-oy.com
+Proof origin: https://a11oy.net
 
-Canonical receipt lake remains the existing szl-lake dataset. Flight Recorder writes into that path when an ACK is possible. Until then, `lakeSync: PENDING_SYNC`.
-
-## Pin-five remaining work
-
-Relabel or redirect extra Spaces. Do not silently delete. Deletion breaks the receipt/provenance story.
-
-This file is the honest placeholder until an authenticated HF write exists.
+Token was pasted in chat. Used in-memory only. Rotate it at https://huggingface.co/settings/tokens.
