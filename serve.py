@@ -12064,6 +12064,14 @@ try:
             if r.get("cwe") in ("CWE-77","CWE-78","CWE-94","CWE-502"):
                 mapped.append("gate-04 dual-use-detection")
             mapped.append("gate-08 receipt-hash")  # every governed action is receipted
+            # Fail-closed: do not emit cached/live items whose CVSS is derived
+            # or stale. The readiness probe treats that as a doctrine lie.
+            _cvss_complete = (
+                r.get("cvss_src") == "nvd"
+                and str(r.get("cvss_cache_state") or "").strip().lower() == "fresh"
+            )
+            if not _cvss_complete or _gate_data_kind not in {"live", "cached"}:
+                continue
             out.append({
                 "cveID": r.get("cveID"), "vendorProject": r.get("vendorProject"),
                 "product": r.get("product"), "cvss": sev,
