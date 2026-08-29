@@ -13965,6 +13965,22 @@ except Exception as _assurance_e:
 # ============================================================================
 
 # ============================================================================
+# BEGIN: Packet 8 Decision Integrity desk
+# ADDITIVE. Path namespace /api/a11oy/v1/decision and GET /decision.
+# Frozen demonstration cases. Formula authority NONE. Status ROADMAP.
+# Does not stamp LIVE. Does not wait on Hub Space creation.
+# ============================================================================
+try:
+    import a11oy_decision_integrity as _a11oy_decision
+    _decision_status = _a11oy_decision.register(app, ns="a11oy")
+    print(f"[a11oy] Decision Integrity registered: {_decision_status}", file=__import__("sys").stderr)
+except Exception as _decision_e:
+    print(f"[a11oy] Decision Integrity register FAILED (non-fatal): {_decision_e!r}", file=__import__("sys").stderr)
+# ============================================================================
+# END: Packet 8 Decision Integrity desk
+# ============================================================================
+
+# ============================================================================
 # BEGIN: a11oy DEV-A DEEP FEEDS layer (RealEstate 5 + Finance 5, 10 tabs)
 # ADDITIVE. Path namespace /api/a11oy/v1/deva — no overlap with dev1 (/v1/wow),
 # dev2 (/v1/vert), or dev3 (/operator-organ). Routes are FRONT-MOVED inside

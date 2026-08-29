@@ -655,6 +655,16 @@ COPY szl_organ_integrity.py ./szl_organ_integrity.py
 # fetched from the public GitHub repo. Fail-closed; key honesty in-band.
 COPY a11oy_ayllu_wall.py ./a11oy_ayllu_wall.py
 
+# Packet 8 Decision Integrity desk on a-11-oy.com (GET /decision).
+# Frozen evals. Formula authority NONE. Status ROADMAP. Does not stamp LIVE.
+COPY a11oy_decision_integrity.py ./
+COPY verticals/_kernel/a11oy_kernel.py ./verticals/_kernel/a11oy_kernel.py
+COPY verticals/PACKET8.json ./verticals/PACKET8.json
+COPY verticals/terra ./verticals/terra
+COPY verticals/aegis ./verticals/aegis
+COPY verticals/puriq-markets ./verticals/puriq-markets
+COPY verticals/counsel ./verticals/counsel
+
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # … (full rationale: docs/DOCKERFILE_NOTES.md §96)
 ARG SZL_GIT_SHA=unknown
