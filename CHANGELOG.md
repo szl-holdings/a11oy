@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - five-space operator cited as a Bound package
+- `/five-space` is cited in Bound packages (`#bound`) and the footer, same class
+  as `/lyte`. Console surface strip lists the bind. Primary nav unchanged. Not a
+  fifth flagship. Does not replace `/console`. N1–N25 landing copy no longer
+  says blanket Honesty LIVE.
+
 ### Added - public Command Center BIND on /command
 - `/command` is a 0-CDN public SPA (receipt lake, proof lab, estate, investor,
   developer). Pathname routing under `/command/*`. Does not replace `/console`.
