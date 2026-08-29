@@ -82,6 +82,8 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/lyte/status",               # honest BIND status — never fabricated LIVE
     "/five-space",                             # five-space operator BIND package (not /console)
     "/api/a11oy/v1/five-space/status",         # honest BIND status — never fabricated LIVE
+    "/nexus",                                  # NEXUS analog vanity path (not a flagship, not a landing door)
+    "/api/a11oy/v1/nexus/status",              # honest BIND status — never fabricated LIVE
 ]
 
 
