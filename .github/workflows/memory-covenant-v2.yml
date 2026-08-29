@@ -6,22 +6,28 @@ on:
     paths:
       - migrations/20260811_memory_covenant_v2.sql
       - migrations/20260811_memory_covenant_v2_security_hardening.sql
+      - migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
       - scripts/validate_memory_covenant_v2.py
       - tests/test_memory_covenant_v2.py
       - tests/memory_covenant_acceptance.sql
       - artifacts/proof-packets/20260820-memory-covenant-neon.md
+      - artifacts/proof-packets/20260820-memory-covenant-postmerge-hardening.md
       - audit/P0-2026-08-20-memory-covenant-proof.md
+      - audit/P1-2026-08-20-memory-covenant-postmerge-hardening.md
       - .github/workflows/memory-covenant-v2.yml
   push:
     branches: [main]
     paths:
       - migrations/20260811_memory_covenant_v2.sql
       - migrations/20260811_memory_covenant_v2_security_hardening.sql
+      - migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
       - scripts/validate_memory_covenant_v2.py
       - tests/test_memory_covenant_v2.py
       - tests/memory_covenant_acceptance.sql
       - artifacts/proof-packets/20260820-memory-covenant-neon.md
+      - artifacts/proof-packets/20260820-memory-covenant-postmerge-hardening.md
       - audit/P0-2026-08-20-memory-covenant-proof.md
+      - audit/P1-2026-08-20-memory-covenant-postmerge-hardening.md
       - .github/workflows/memory-covenant-v2.yml
   workflow_dispatch: {}
 
@@ -47,6 +53,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Bind qualification to the requested source
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -97,6 +109,12 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Bind qualification to the requested source
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
 
       - name: Resolve the isolated PostgreSQL service container
         shell: bash
@@ -108,24 +126,379 @@ jobs:
           docker exec -e PGPASSWORD=postgres "${containers[0]}" \
             psql -X -U postgres -d memory_covenant -Atc 'select version()'
 
-      - name: Apply both migrations twice
+      - name: Exercise forward correction and two-pass idempotency
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p evidence/memory-covenant-v2
           : > evidence/memory-covenant-v2/migration-apply.log
-          for pass in 1 2; do
-            echo "=== migration pass ${pass} ===" | tee -a evidence/memory-covenant-v2/migration-apply.log
-            for migration in \
-              migrations/20260811_memory_covenant_v2.sql \
-              migrations/20260811_memory_covenant_v2_security_hardening.sql
-            do
-              echo "--- ${migration} ---" | tee -a evidence/memory-covenant-v2/migration-apply.log
-              docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
-                psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
-                < "$migration" \
-                | tee -a evidence/memory-covenant-v2/migration-apply.log
-            done
+          git rev-parse HEAD > evidence/memory-covenant-v2/source-sha.txt
+          sha256sum \
+            migrations/20260811_memory_covenant_v2.sql \
+            migrations/20260811_memory_covenant_v2_security_hardening.sql \
+            migrations/20260820_memory_covenant_v2_postmerge_hardening.sql \
+            scripts/validate_memory_covenant_v2.py \
+            tests/test_memory_covenant_v2.py \
+            tests/memory_covenant_acceptance.sql \
+            .github/workflows/memory-covenant-v2.yml \
+            > evidence/memory-covenant-v2/source-sha256.txt
+
+          apply_migration() {
+            local migration="$1"
+            echo "--- ${migration} ---" | tee -a evidence/memory-covenant-v2/migration-apply.log
+            docker exec -i \
+              -e PGPASSWORD=postgres \
+              -e PGOPTIONS='-c search_path=memory_attacker,public' \
+              "$PG_CONTAINER" \
+              psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+              < "$migration" \
+              | tee -a evidence/memory-covenant-v2/migration-apply.log
+          }
+
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c 'CREATE SCHEMA memory_attacker'
+
+          echo '=== clean-install migrations ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          apply_migration migrations/20260811_memory_covenant_v2.sql
+          apply_migration migrations/20260811_memory_covenant_v2_security_hardening.sql
+
+          echo '=== seed legacy/stale security state ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            <<'SQL' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          CREATE ROLE a11oy_memory_stale_grantee NOLOGIN;
+          CREATE ROLE a11oy_memory_stale_parent NOLOGIN BYPASSRLS;
+          CREATE ROLE a11oy_memory_stale_owner NOLOGIN;
+          GRANT a11oy_memory_stale_parent
+            TO a11oy_memory_app, a11oy_memory_worker;
+          GRANT a11oy_memory_app, a11oy_memory_worker
+            TO a11oy_memory_stale_grantee WITH ADMIN OPTION;
+          ALTER TABLE public.memory_records
+            OWNER TO a11oy_memory_stale_owner;
+          ALTER TABLE public.memory_context_bindings
+            OWNER TO a11oy_memory_stale_owner;
+          ALTER TABLE public.memory_context_bindings ENABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.memory_context_bindings FORCE ROW LEVEL SECURITY;
+          ALTER FUNCTION public.memory_touch_updated_at()
+            OWNER TO a11oy_memory_stale_owner;
+          ALTER FUNCTION public.memory_reject_mutation()
+            OWNER TO a11oy_memory_stale_owner;
+          ALTER FUNCTION public.a11oy_memory_context_matches(text, text)
+            OWNER TO a11oy_memory_stale_owner;
+          ALTER FUNCTION public.memory_lease_outbox(text, integer, integer)
+            OWNER TO a11oy_memory_stale_owner;
+          CREATE OR REPLACE FUNCTION public.memory_touch_updated_at()
+          RETURNS trigger LANGUAGE plpgsql
+          SET search_path = pg_catalog, pg_temp
+          AS $stale$
+          BEGIN
+            RETURN NEW;
+          END;
+          $stale$;
+          CREATE OR REPLACE FUNCTION public.memory_reject_mutation()
+          RETURNS trigger LANGUAGE plpgsql
+          SET search_path = pg_catalog, pg_temp
+          AS $stale$
+          BEGIN
+            IF TG_OP = 'DELETE' THEN
+              RETURN OLD;
+            END IF;
+            RETURN NEW;
+          END;
+          $stale$;
+          DROP TRIGGER memory_records_touch_updated_at ON public.memory_records;
+          DROP TRIGGER memory_outbox_touch_updated_at ON public.memory_outbox;
+          DROP TRIGGER memory_receipts_append_only ON public.memory_receipts;
+          DROP TRIGGER memory_query_audit_append_only ON public.memory_query_audit;
+          DROP TRIGGER memory_idempotency_append_only ON public.memory_idempotency;
+          CREATE TRIGGER memory_records_stale_trigger
+            BEFORE UPDATE ON public.memory_records
+            FOR EACH ROW EXECUTE FUNCTION public.memory_touch_updated_at();
+          CREATE RULE memory_records_stale_update AS
+            ON UPDATE TO public.memory_records DO INSTEAD NOTHING;
+          ALTER TABLE public.memory_records DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.memory_evidence_refs DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.memory_outbox DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.memory_receipts DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.memory_query_audit DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.memory_index_generations DISABLE ROW LEVEL SECURITY;
+          ALTER TABLE public.memory_idempotency DISABLE ROW LEVEL SECURITY;
+          CREATE OR REPLACE FUNCTION public.a11oy_memory_context_matches(
+              row_tenant text,
+              row_domain text
+          )
+          RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER
+          SET search_path = pg_catalog, pg_temp
+          AS $$
+            -- public.memory_context_bindings
+            SELECT row_tenant = current_setting('a11oy.tenant_id', true)
+               AND row_domain = current_setting('a11oy.security_domain', true)
+          $$;
+          INSERT INTO public.memory_context_bindings (
+              principal_oid,
+              tenant_id,
+              security_domain
+          ) VALUES (
+              'a11oy_memory_stale_grantee'::regrole,
+              'untrusted-tenant',
+              'untrusted-domain'
+          );
+          CREATE POLICY memory_context_bindings_stale_guc_filter
+            ON public.memory_context_bindings
+            USING (
+              tenant_id = current_setting('a11oy.tenant_id', true)
+              AND security_domain = current_setting(
+                'a11oy.security_domain', true
+              )
+            )
+            WITH CHECK (
+              tenant_id = current_setting('a11oy.tenant_id', true)
+              AND security_domain = current_setting(
+                'a11oy.security_domain', true
+              )
+            );
+          ALTER ROLE a11oy_memory_worker
+            SUPERUSER CREATEDB CREATEROLE LOGIN REPLICATION BYPASSRLS;
+          GRANT CREATE ON SCHEMA public
+            TO a11oy_memory_app, a11oy_memory_worker,
+               a11oy_memory_stale_grantee, a11oy_memory_stale_parent,
+               a11oy_memory_stale_owner;
+          GRANT DELETE, TRUNCATE, REFERENCES, TRIGGER
+            ON TABLE public.memory_records TO a11oy_memory_app;
+          GRANT SELECT ON TABLE public.memory_outbox TO a11oy_memory_worker;
+          GRANT SELECT ON TABLE public.memory_records,
+            public.memory_context_bindings TO a11oy_memory_stale_grantee;
+          GRANT UPDATE (classification) ON TABLE public.memory_records
+            TO a11oy_memory_stale_grantee;
+          GRANT SELECT ON TABLE public.memory_records TO PUBLIC;
+          GRANT EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer)
+            TO PUBLIC, a11oy_memory_app;
+          GRANT EXECUTE ON FUNCTION public.memory_lease_outbox(text, integer, integer)
+            TO a11oy_memory_stale_grantee WITH GRANT OPTION;
+          GRANT EXECUTE ON FUNCTION public.memory_touch_updated_at(),
+            public.memory_reject_mutation(),
+            public.a11oy_memory_context_matches(text, text)
+            TO PUBLIC, a11oy_memory_stale_grantee;
+          CREATE POLICY memory_records_stale_allow_all ON public.memory_records
+            USING (true) WITH CHECK (true);
+          ALTER TABLE public.memory_query_audit
+            DROP CONSTRAINT memory_query_audit_tenant_domain_receipt_fkey;
+          ALTER TABLE public.memory_idempotency
+            DROP CONSTRAINT memory_idempotency_tenant_domain_receipt_fkey;
+          ALTER TABLE public.memory_receipts
+            DROP CONSTRAINT memory_receipts_tenant_domain_receipt_key;
+          ALTER TABLE public.memory_query_audit
+            ADD CONSTRAINT memory_query_audit_receipt_id_fkey
+            FOREIGN KEY (receipt_id) REFERENCES public.memory_receipts(receipt_id)
+            ON DELETE RESTRICT;
+          ALTER TABLE public.memory_idempotency
+            ADD CONSTRAINT memory_idempotency_receipt_id_fkey
+            FOREIGN KEY (receipt_id) REFERENCES public.memory_receipts(receipt_id)
+            ON DELETE RESTRICT;
+          INSERT INTO public.memory_receipts (
+              receipt_id,
+              tenant_id,
+              security_domain,
+              namespace,
+              seq,
+              prev_digest,
+              digest,
+              mode,
+              operation,
+              decision,
+              request_digest,
+              receipt_json
+          ) VALUES (
+              'legacy-cross-domain-receipt',
+              'legacy-tenant',
+              'legacy-domain-a',
+              'legacy-tenant:legacy-domain-a',
+              9223372036854770001,
+              repeat('0', 64),
+              repeat('4', 64),
+              'UNSIGNED-CONTENT-DIGEST',
+              'legacy-preflight',
+              'DENY',
+              repeat('5', 64),
+              jsonb_build_object(
+                  'receipt_id', 'legacy-cross-domain-receipt',
+                  'integrity', jsonb_build_object('digest', repeat('4', 64))
+              )
+          );
+          INSERT INTO public.memory_query_audit (
+              audit_id,
+              tenant_id,
+              security_domain,
+              receipt_id,
+              query_digest,
+              result_digest,
+              audit_json
+          ) VALUES (
+              'legacy-cross-domain-audit',
+              'legacy-tenant',
+              'legacy-domain-b',
+              'legacy-cross-domain-receipt',
+              repeat('6', 64),
+              repeat('7', 64),
+              jsonb_build_object(
+                  'audit_id', 'legacy-cross-domain-audit',
+                  'query_digest', repeat('6', 64),
+                  'result_digest', repeat('7', 64)
+              )
+          );
+          SQL
+
+          spoofed_binding_marker="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT strpos(pg_get_functiondef('public.a11oy_memory_context_matches(text,text)'::regprocedure), 'public.memory_context_bindings') > 0")"
+          test "$spoofed_binding_marker" = "t"
+
+          hidden_binding_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "SET ROLE a11oy_memory_stale_owner; SELECT count(*) FROM public.memory_context_bindings")"
+          test "$hidden_binding_count" = "0"
+
+          echo '=== prove untrusted binding preflight fails closed ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          set +e
+          {
+            printf '%s\n' 'SET ROLE a11oy_memory_stale_owner;'
+            cat migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+          } | docker exec -i \
+              -e PGPASSWORD=postgres \
+              -e PGOPTIONS='-c search_path=memory_attacker,public' \
+              "$PG_CONTAINER" \
+              psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            > evidence/memory-covenant-v2/untrusted-binding-preflight.log 2>&1
+          binding_status=$?
+          set -e
+          test "$binding_status" -ne 0
+          grep -F 'pre-existing memory_context_bindings rows lack durable write provenance' \
+            evidence/memory-covenant-v2/untrusted-binding-preflight.log
+          binding_rls_state="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "SELECT relrowsecurity::text || ':' || relforcerowsecurity::text FROM pg_catalog.pg_class WHERE oid = 'public.memory_context_bindings'::pg_catalog.regclass")"
+          test "$binding_rls_state" = "true:true"
+          binding_policy_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_policy WHERE polrelid = 'public.memory_context_bindings'::pg_catalog.regclass AND polname = 'memory_context_bindings_stale_guc_filter'")"
+          test "$binding_policy_count" = "1"
+          binding_owner="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -XqAt -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "SELECT pg_catalog.pg_get_userbyid(relowner) FROM pg_catalog.pg_class WHERE oid = 'public.memory_context_bindings'::pg_catalog.regclass")"
+          test "$binding_owner" = "a11oy_memory_stale_owner"
+
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "DELETE FROM public.memory_context_bindings WHERE tenant_id = 'untrusted-tenant'"
+
+          echo '=== prove cross-domain preflight fails closed ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          set +e
+          docker exec -i \
+            -e PGPASSWORD=postgres \
+            -e PGOPTIONS='-c search_path=memory_attacker,public' \
+            "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < migrations/20260820_memory_covenant_v2_postmerge_hardening.sql \
+            > evidence/memory-covenant-v2/cross-domain-preflight.log 2>&1
+          preflight_status=$?
+          set -e
+          test "$preflight_status" -ne 0
+          grep -F 'memory_query_audit contains a cross-domain receipt reference' \
+            evidence/memory-covenant-v2/cross-domain-preflight.log
+
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c 'TRUNCATE TABLE public.memory_query_audit, public.memory_idempotency, public.memory_receipts CASCADE'
+
+          echo '=== forward corrective migration ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          apply_migration migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+
+          echo '=== corrective-only acceptance ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < tests/memory_covenant_acceptance.sql \
+            | tee evidence/memory-covenant-v2/corrective-only-acceptance.log
+          grep -F '"status": "PASS"' \
+            evidence/memory-covenant-v2/corrective-only-acceptance.log
+          grep -F '"memory_rows": 0' \
+            evidence/memory-covenant-v2/corrective-only-acceptance.log
+          grep -F '"receipt_rows": 0' \
+            evidence/memory-covenant-v2/corrective-only-acceptance.log
+          grep -F '"outbox_rows": 0' \
+            evidence/memory-covenant-v2/corrective-only-acceptance.log
+          grep -F '"context_binding_rows": 0' \
+            evidence/memory-covenant-v2/corrective-only-acceptance.log
+          inbound_membership_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_auth_members WHERE roleid IN ('a11oy_memory_app'::regrole, 'a11oy_memory_worker'::regrole) AND member = 'a11oy_memory_stale_grantee'::regrole AND NOT admin_option")"
+          test "$inbound_membership_count" = "2"
+
+          echo '=== prove revoked binding grant lacks durable provenance ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          docker exec -i -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            <<'SQL'
+          GRANT a11oy_memory_app TO a11oy_memory_stale_grantee;
+          GRANT INSERT (principal_oid, tenant_id, security_domain)
+            ON TABLE public.memory_context_bindings
+            TO a11oy_memory_stale_grantee;
+          CREATE POLICY memory_context_bindings_temporary_insert
+            ON public.memory_context_bindings
+            FOR INSERT TO a11oy_memory_stale_grantee
+            WITH CHECK (true);
+          SET ROLE a11oy_memory_stale_grantee;
+          INSERT INTO public.memory_context_bindings (
+              principal_oid,
+              tenant_id,
+              security_domain
+          ) VALUES (
+              'a11oy_memory_stale_grantee'::regrole,
+              'revoked-grant-tenant',
+              'revoked-grant-domain'
+          );
+          RESET ROLE;
+          DROP POLICY memory_context_bindings_temporary_insert
+            ON public.memory_context_bindings;
+          REVOKE ALL PRIVILEGES (principal_oid, tenant_id, security_domain)
+            ON TABLE public.memory_context_bindings
+            FROM a11oy_memory_stale_grantee;
+          SQL
+          revoked_binding_acl_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_attribute AS attribute CROSS JOIN LATERAL pg_catalog.aclexplode(attribute.attacl) AS acl WHERE attribute.attrelid = 'public.memory_context_bindings'::pg_catalog.regclass AND attribute.attnum > 0 AND NOT attribute.attisdropped AND attribute.attacl IS NOT NULL AND acl.grantee = 'a11oy_memory_stale_grantee'::pg_catalog.regrole")"
+          test "$revoked_binding_acl_count" = "0"
+          revoked_binding_policy_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM pg_catalog.pg_policy WHERE polrelid = 'public.memory_context_bindings'::pg_catalog.regclass")"
+          test "$revoked_binding_policy_count" = "0"
+          set +e
+          docker exec -i \
+            -e PGPASSWORD=postgres \
+            -e PGOPTIONS='-c search_path=memory_attacker,public' \
+            "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            < migrations/20260820_memory_covenant_v2_postmerge_hardening.sql \
+            > evidence/memory-covenant-v2/revoked-binding-provenance-preflight.log 2>&1
+          revoked_binding_status=$?
+          set -e
+          test "$revoked_binding_status" -ne 0
+          grep -F 'pre-existing memory_context_bindings rows lack durable write provenance' \
+            evidence/memory-covenant-v2/revoked-binding-provenance-preflight.log
+          planted_binding_count="$(docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
+            -c "SELECT count(*) FROM public.memory_context_bindings WHERE tenant_id = 'revoked-grant-tenant' AND security_domain = 'revoked-grant-domain'")"
+          test "$planted_binding_count" = "1"
+          docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
+            psql -X -U postgres -d memory_covenant -v ON_ERROR_STOP=1 \
+            -c "DELETE FROM public.memory_context_bindings WHERE tenant_id = 'revoked-grant-tenant'"
+
+          echo '=== full second pass ===' | tee -a evidence/memory-covenant-v2/migration-apply.log
+          for migration in \
+            migrations/20260811_memory_covenant_v2.sql \
+            migrations/20260811_memory_covenant_v2_security_hardening.sql \
+            migrations/20260820_memory_covenant_v2_postmerge_hardening.sql
+          do
+            apply_migration "$migration"
           done
 
       - name: Capture exact catalog evidence
@@ -135,7 +508,8 @@ jobs:
           docker exec -e PGPASSWORD=postgres "$PG_CONTAINER" \
             psql -X -U postgres -d memory_covenant -At -v ON_ERROR_STOP=1 \
             -c "WITH tables AS (
-                  SELECT c.relname, c.relrowsecurity, c.relforcerowsecurity,
+                  SELECT c.relname, pg_get_userbyid(c.relowner) AS owner,
+                         c.relrowsecurity, c.relforcerowsecurity,
                          count(DISTINCT p.polname) AS policy_count,
                          count(DISTINCT t.tgname) FILTER (WHERE NOT t.tgisinternal) AS trigger_count
                     FROM pg_class c
@@ -143,17 +517,84 @@ jobs:
                     LEFT JOIN pg_policy p ON p.polrelid = c.oid
                     LEFT JOIN pg_trigger t ON t.tgrelid = c.oid
                    WHERE n.nspname = 'public' AND c.relname LIKE 'memory_%' AND c.relkind = 'r'
-                   GROUP BY c.relname, c.relrowsecurity, c.relforcerowsecurity
+                   GROUP BY c.relname, c.relowner,
+                            c.relrowsecurity, c.relforcerowsecurity
                 ), roles AS (
-                  SELECT rolname, rolsuper, rolinherit, rolbypassrls, rolcanlogin
+                  SELECT rolname, rolsuper, rolcreatedb, rolcreaterole,
+                         rolreplication, rolinherit, rolbypassrls, rolcanlogin
                     FROM pg_roles
                    WHERE rolname IN ('a11oy_memory_app','a11oy_memory_worker')
+                ), memberships AS (
+                  SELECT parent.rolname AS parent_role,
+                         child.rolname AS capability_role
+                    FROM pg_auth_members edge
+                    JOIN pg_roles parent ON parent.oid = edge.roleid
+                    JOIN pg_roles child ON child.oid = edge.member
+                   WHERE child.rolname IN ('a11oy_memory_app','a11oy_memory_worker')
+                ), relation_acl AS (
+                  SELECT c.relname,
+                         CASE acl.grantee WHEN 0 THEN 'PUBLIC'
+                              ELSE pg_get_userbyid(acl.grantee) END AS grantee,
+                         acl.privilege_type,
+                         acl.is_grantable
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace,
+                         LATERAL aclexplode(COALESCE(c.relacl, acldefault('r', c.relowner))) acl
+                   WHERE n.nspname = 'public'
+                     AND c.relname LIKE 'memory_%'
+                     AND acl.grantee <> c.relowner
+                ), column_acl AS (
+                  SELECT c.relname, a.attname,
+                         CASE acl.grantee WHEN 0 THEN 'PUBLIC'
+                              ELSE pg_get_userbyid(acl.grantee) END AS grantee,
+                         acl.privilege_type,
+                         acl.is_grantable
+                    FROM pg_class c
+                    JOIN pg_namespace n ON n.oid = c.relnamespace
+                    JOIN pg_attribute a ON a.attrelid = c.oid,
+                         LATERAL aclexplode(a.attacl) acl
+                   WHERE n.nspname = 'public'
+                     AND c.relname LIKE 'memory_%'
+                     AND a.attacl IS NOT NULL
+                     AND acl.grantee <> c.relowner
+                ), function_acl AS (
+                  SELECT p.oid::regprocedure::text AS function_identity,
+                         pg_get_userbyid(p.proowner) AS owner,
+                         CASE acl.grantee WHEN 0 THEN 'PUBLIC'
+                              ELSE pg_get_userbyid(acl.grantee) END AS grantee,
+                         acl.privilege_type,
+                         acl.is_grantable
+                    FROM pg_proc p,
+                         LATERAL aclexplode(COALESCE(p.proacl, acldefault('f', p.proowner))) acl
+                   WHERE p.oid IN (
+                       'memory_touch_updated_at()'::regprocedure,
+                       'memory_reject_mutation()'::regprocedure,
+                       'a11oy_memory_context_matches(text,text)'::regprocedure,
+                       'memory_lease_outbox(text,integer,integer)'::regprocedure
+                   )
+                     AND acl.grantee <> p.proowner
+                ), schema_create_acl AS (
+                  SELECT CASE acl.grantee WHEN 0 THEN 'PUBLIC'
+                              ELSE pg_get_userbyid(acl.grantee) END AS grantee,
+                         acl.is_grantable
+                    FROM pg_namespace n,
+                         LATERAL aclexplode(COALESCE(n.nspacl, acldefault('n', n.nspowner))) acl
+                   WHERE n.nspname = 'public'
+                     AND acl.privilege_type = 'CREATE'
+                     AND acl.grantee <> n.nspowner
                 )
                 SELECT jsonb_pretty(jsonb_build_object(
                   'server_version', current_setting('server_version'),
                   'database', current_database(),
                   'tables', COALESCE((SELECT jsonb_agg(to_jsonb(tables) ORDER BY relname) FROM tables), '[]'::jsonb),
                   'roles', COALESCE((SELECT jsonb_agg(to_jsonb(roles) ORDER BY rolname) FROM roles), '[]'::jsonb),
+                  'outbound_memberships', COALESCE((SELECT jsonb_agg(to_jsonb(memberships)) FROM memberships), '[]'::jsonb),
+                  'relation_acl', COALESCE((SELECT jsonb_agg(to_jsonb(relation_acl) ORDER BY relname, grantee, privilege_type) FROM relation_acl), '[]'::jsonb),
+                  'column_acl', COALESCE((SELECT jsonb_agg(to_jsonb(column_acl) ORDER BY relname, attname, grantee, privilege_type) FROM column_acl), '[]'::jsonb),
+                  'function_acl', COALESCE((SELECT jsonb_agg(to_jsonb(function_acl) ORDER BY function_identity, grantee) FROM function_acl), '[]'::jsonb),
+                  'schema_create_acl', COALESCE((SELECT jsonb_agg(to_jsonb(schema_create_acl) ORDER BY grantee) FROM schema_create_acl), '[]'::jsonb),
+                  'context_binding_count', (SELECT count(*) FROM memory_context_bindings),
+                  'context_security_definer', (SELECT prosecdef FROM pg_proc WHERE oid='a11oy_memory_context_matches(text,text)'::regprocedure),
                   'lease_security_definer', (SELECT prosecdef FROM pg_proc WHERE oid='memory_lease_outbox(text,integer,integer)'::regprocedure)
                 ));" \
             > evidence/memory-covenant-v2/catalog.json
@@ -171,6 +612,7 @@ jobs:
           grep -F '"memory_rows": 0' evidence/memory-covenant-v2/acceptance.log
           grep -F '"receipt_rows": 0' evidence/memory-covenant-v2/acceptance.log
           grep -F '"outbox_rows": 0' evidence/memory-covenant-v2/acceptance.log
+          grep -F '"context_binding_rows": 0' evidence/memory-covenant-v2/acceptance.log
 
       - name: Upload immutable acceptance evidence
         if: always()
