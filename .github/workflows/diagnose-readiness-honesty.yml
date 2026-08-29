@@ -45,6 +45,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$TARGET_BASE"
           test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$TARGET_BASE"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')" = "$TARGET_BASE"
 
       - name: Recover the reviewed materializer steps as inert workflow text
         shell: bash
@@ -81,6 +82,16 @@ jobs:
                   else:
                       raise SystemExit(f'unexpected indentation in {name}: {line!r}')
               Path(output).write_text('\n'.join(lines) + '\n', encoding='utf-8')
+
+          validate = Path('/tmp/validate.sh')
+          validation_text = validate.read_text(encoding='utf-8')
+          old = 'endpoints = data["endpointContracts"]'
+          if validation_text.count(old) != 1:
+              raise SystemExit('reviewed validator endpoint key is not unique')
+          validate.write_text(
+              validation_text.replace(old, 'endpoints = data["endpoints"]'),
+              encoding='utf-8',
+          )
           PY
           chmod 0500 /tmp/apply.sh /tmp/validate.sh /tmp/commit.sh
 
