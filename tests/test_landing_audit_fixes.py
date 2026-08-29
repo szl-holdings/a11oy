@@ -1,24 +1,15 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Regression guards for the 2026-08-28 live-audit + ATELIER honesty fixes.
+"""Regression guards for the unfinished Cursor landing-hamburger honesty work.
 
-  1. Landing hamburger at mobile breakpoints (44px targets).
-  2. Console ENERGY slot is LIVE ledger (empty) / ROADMAP — never MEASURED, never joules.
-  3. Hero receipts cite the same SAMPLE ledger source as the runtime card.
-  4. /warhacker 307 Location keeps the #arena fragment.
-  5. Public aliases /mesh /evidence /arena /router remain registered.
-  6. Landing router health is STALE NOT_MEASURED · snapshot 2026-07-11.
-  7. Ask & Act / Governed Decision: HTML nav, GDW UNAVAILABLE, EXECUTION ROADMAP.
+Console ENERGY/joules and /warhacker fragment stay on current main. Do not
+replay the stale #1389 serve.py/console.html trees over later honesty contracts.
 """
 from pathlib import Path
-
-import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 FRONT_DOOR = ROOT / "a11oy_landing.html"
 MARKETING = ROOT / "pages" / "landing.html"
-CONSOLE = ROOT / "pages" / "console.html"
-SERVE = ROOT / "serve.py"
 NAV = ROOT / "a11oy_nav_wireup.py"
 
 
@@ -59,15 +50,6 @@ def test_hero_receipts_share_ledger_source_and_label_historical() -> None:
     )
 
 
-def test_warhacker_redirect_preserves_arena_fragment() -> None:
-    src = SERVE.read_text(encoding="utf-8")
-    assert 'url="/console#arena"' in src
-    assert "async def warhacker_page" in src
-    war = src.split("async def warhacker_page", 1)[1].split("async def ", 1)[0]
-    assert "/console#arena" in war
-    assert 'url="/console"' not in war
-
-
 def test_public_page_aliases_remain_registered() -> None:
     src = NAV.read_text(encoding="utf-8")
     for path in ("/mesh", "/evidence", "/arena", "/router"):
@@ -91,13 +73,3 @@ def test_pr_does_not_skin_nvidia_adapters_as_nim() -> None:
     assert "NVIDIA NIM" not in landing
 
 
-def test_warhacker_http_location_includes_fragment() -> None:
-    pytest.importorskip("starlette.testclient")
-    import serve
-
-    from starlette.testclient import TestClient
-
-    client = TestClient(serve.app, follow_redirects=False)
-    r = client.get("/warhacker")
-    assert r.status_code == 307
-    assert r.headers.get("location", "").endswith("/console#arena")
