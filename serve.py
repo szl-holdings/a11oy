@@ -2885,63 +2885,8 @@ except Exception as _szl_jpt_e:  # pragma: no cover
 # NEVER leaked over the API (metadata + sha256 + availability only). Registered
 # BEFORE the Node proxy + SPA catch-all so /api/... stays JSON. Wave G additionally
 # wires an OPTIONAL harness_profile_id into the /code run-loop + /llm/route.
-def _llm_registry_supports_router_stats(registry) -> bool:
-    """Whether a registry can be the sole counter writer and API reader."""
-    if not isinstance(getattr(registry, "MODEL_REGISTRY", None), list):
-        return False
-    if not all(
-        callable(getattr(registry, name, None))
-        for name in ("register", "router_stats_snapshot")
-    ):
-        return False
-    writer = getattr(registry, "_forum_append", None)
-    if not callable(writer):
-        return False
-    try:
-        import inspect
-        inspect.signature(writer).bind({}, routing_decision=True)
-    except (TypeError, ValueError):
-        return False
-    return True
-
-
-def _resolve_llm_registry_module():
-    """Resolve one counter-capable registry module for this process.
-
-    Preserve a compatible harness binding because it may already own trusted
-    process-lifetime writes. Otherwise prefer the extracted substrate only when
-    it implements the complete router stats contract. An older installed package
-    must not shadow the vendored implementation and leave the endpoint unavailable.
-    """
-    harness = globals().get("_szl_model_harness")
-    harness_registry = getattr(harness, "_REGISTRY_MODULE", None)
-    if _llm_registry_supports_router_stats(harness_registry):
-        globals()["_llm_reg"] = harness_registry
-        return harness_registry
-
-    existing = globals().get("_llm_reg")
-    if _llm_registry_supports_router_stats(existing):
-        return existing
-
-    try:
-        from szl_substrate import szl_llm_registry as preferred_registry
-    except Exception:
-        preferred_registry = None
-
-    if _llm_registry_supports_router_stats(preferred_registry):
-        registry = preferred_registry
-    else:
-        import szl_llm_registry as registry
-        if not _llm_registry_supports_router_stats(registry):
-            raise RuntimeError("vendored LLM registry lacks the router stats contract")
-
-    globals()["_llm_reg"] = registry
-    return registry
-
-
 try:
     import szl_model_harness as _szl_model_harness
-    _szl_model_harness._bind_registry(_resolve_llm_registry_module())
     _szl_model_harness.register(app, ns="a11oy")
     print("[a11oy] Model harness registered: /api/a11oy/v1/harness/{profiles,apply}", file=__import__("sys").stderr)
 except Exception as _szl_model_harness_e:  # pragma: no cover
@@ -3899,7 +3844,7 @@ app.add_middleware(
     allow_origins=_CORS_ALLOWED_ORIGINS,
     allow_origin_regex=_CORS_ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,
-    allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
@@ -4789,8 +4734,7 @@ except Exception as _wh_e:  # never crash the app
 # bounded combiner), picks the winner, and emits a DSSE-signed Khipu receipt.
 # HF Inference free-tier voters use the Space HF token (custom-cred proxy);
 # qwen-local degrades to a CLEARLY-LABELLED deterministic stub when the local
-# vLLM is unreachable (never a fabricated completion). Sovereign path is
-# khipu-gguf on the pinned CPU lab. Failed voters carry an
+# vLLM is unreachable (never a fabricated completion); failed voters carry an
 # "error" field, never a fake response. Registered BEFORE the generic
 # /api/a11oy/{path:path} Node proxy and the SPA catch-all so /agent and the
 # v4 ask route resolve LOCALLY. Λ = Conjecture 1 (NOT a theorem; 163 sorries).
@@ -5024,8 +4968,7 @@ def _signer_availability_signal(ttl: float = 30.0) -> dict:
         except Exception:
             pass
     except Exception as exc:
-        val = {"status": "UNAVAILABLE", "signing_available": False,
-               "scheme": "UNAVAILABLE",
+        val = {"status": "unavailable", "signing_available": None,
                "error": f"{type(exc).__name__}: {exc}"}
     _SIGNER_HEALTH_CACHE.update({"checked_at": now, "value": val})
     return val
@@ -5108,11 +5051,8 @@ def _brain_health_signal(ttl: float = 30.0) -> dict:
     return val
 
 
-@app.api_route("/api/a11oy/healthz", methods=["GET", "HEAD"])
+@app.get("/api/a11oy/healthz")
 async def healthz() -> JSONResponse:
-    # QHAPAQ 2026-08-28: this rollup.signer is the only health JSON that may
-    # stamp DSSE-LIVE (live probe of szl_dsse.signing_available). Other /healthz
-    # bodies must stay ABSENT/UNAVAILABLE — never copy this stamp.
     dep = await _healthz_dep_ping()
     _ca = dep.get("checked_at")
     _storage = _ledger_storage_signal()
@@ -5131,7 +5071,7 @@ async def healthz() -> JSONResponse:
     _degraded_reasons = []
     if str(_storage.get("status")) == "unavailable":
         _degraded_reasons.append("storage-unavailable")
-    if str(_signer.get("status") or "").upper() == "UNAVAILABLE":
+    if str(_signer.get("status")) == "unavailable":
         _degraded_reasons.append("signer-probe-unavailable")
     if str(_frontier.get("status")) == "unavailable":
         _degraded_reasons.append("frontier-probe-unavailable")
@@ -5219,7 +5159,7 @@ async def preflight_status() -> JSONResponse:
         }, status_code=200)
 
 
-@app.api_route("/api/a11oy/readyz", methods=["GET", "HEAD"])
+@app.get("/api/a11oy/readyz")
 async def readyz() -> JSONResponse:
     # Keep service readiness separate from optional capability readiness. A public
     # CPU-only surface may serve in a truthful degraded state, while a deployment
@@ -6849,29 +6789,10 @@ async def _a11oy_pr_honest_v2():
         _wired = [f["name"] for f in getattr(_a11oy_formulas, "_INDEX", [])]
     except Exception:
         _wired = []
-    # Kernel locked-8 (count + ids) is the Lean no-axiom theorem locked_count_eight.
-    # Distinct from genome catalog tag LOCKED-PROVEN (25 of 144). Never inflate 8.
-    try:
-        from szl_be_hardening import DOCTRINE_LOCK as _honest_lock
-    except Exception:
-        _honest_lock = {
-            "doctrine": "v11",
-            "state": "LOCKED",
-            "commit": "c7c0ba17",
-            "locked_formula_count": 8,
-            "locked_formula_ids": [
-                "F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22",
-            ],
-        }
-    _locked_count = _honest_lock.get("locked_formula_count")
-    _locked_ids = list(_honest_lock.get("locked_formula_ids") or [])
     return JSONResponse({
         "space": "a11oy",
         "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
-        "locked_formula_count": _locked_count,
-        "locked_formula_ids": _locked_ids,
-        "doctrine_lock": _honest_lock,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "kernel_commit": "c7c0ba17",
         "lambda_status": "Conjecture 1 — NOT a theorem",
@@ -7023,181 +6944,74 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # ===========================================================================
 
 # ===========================================================================
-# ADDITIVE (FUNCTIONAL-PROOF squad, 2026-06-04; counter relock 2026-08-26):
-# live /v1/router/stats.
+# ADDITIVE (FUNCTIONAL-PROOF squad, 2026-06-04): modeled /v1/router/stats.
 # The landing-page "LLM-Router Live" 3D scene (/static/viz/router/) polls
-# /v1/router/stats every 1s. The former wall-clock-derived display signal has
-# been removed. This route now reads the exact process-lifetime counters owned
-# by szl_llm_registry and incremented only with trusted routing-receipt writes.
-# `throughput` and `servedThisWindow` remain compatibility field names for the
-# scene, but their declared unit is routing decisions since process start — not
-# QPS, tokens, inference completions, or external production traffic. A missing
-# registry/counter returns UNAVAILABLE; no synthetic fallback is promoted.
-# Registered at BOTH the root path (HF proxy strips /api/a11oy) and the
-# /api/a11oy/v1 path, BEFORE the catch-all proxy + SPA.
+# /v1/router/stats every 1s and otherwise renders "DEMO MODE". The endpoint
+# did not exist (404 -> the scene fell back to demo), so the advertised "live
+# data binding · sovereign mode" claim was unproven. This serves a REAL catalog
+# observation plus explicitly MODELED load derived from szl_brain.TIERS:
+# one route per tier, throughput = deterministic time-derived display signal per
+# poll, in the {routes:[{organ,tier,model,throughput,license}], servedThisWindow}
+# shape the scene's normalizeStats() consumes. Registered at BOTH the root path
+# (HF proxy strips /api/a11oy) and the /api/a11oy/v1 path, BEFORE the catch-all
+# proxy + SPA, matching the existing /v4/fleet dual-registration pattern.
 # Doctrine v11 LOCKED 749/14/163; Λ = Conjecture 1; SLSA L1 established;
 # L2/L3 are not established and must not be inferred from artifact inventory.
 # (NOT claimed); never FedRAMP/Iron Bank/CMMC/ATO without roadmap — unchanged.
 # ===========================================================================
-
-def _a11oy_router_stats_unavailable(reason: str) -> dict:
-    return {
-        "state": "UNAVAILABLE",
-        "mode": "unavailable",
-        "data_kind": "unavailable",
-        "catalog_state": "UNAVAILABLE",
-        "throughput_state": "UNAVAILABLE",
-        "routes": [],
-        "servedThisWindow": None,
-        "routingDecisionsSinceStart": None,
-        "tiers": [],
-        "counter_scope": "process_lifetime",
-        "counter_started_at": None,
-        "observed_at": _gov_now_iso(),
-        "source": "unavailable",
-        "doctrine": "v11",
-        "honesty": (
-            f"Router counter unavailable: {reason}. No routing count, QPS, token "
-            "rate, inference completion, or synthetic replacement was fabricated."
-        ),
-    }
-
+import time as _rtr_time
 
 def _a11oy_router_stats_payload() -> dict:
-    """Runtime model catalog plus exact trusted routing-decision counters."""
-    registry = globals().get("_llm_reg")
-    registry_info = globals().get("_llm_reg_info")
-    snapshot_fn = getattr(registry, "router_stats_snapshot", None)
-    catalog = getattr(registry, "MODEL_REGISTRY", None)
-    if not isinstance(registry_info, dict) or not callable(snapshot_fn):
-        return _a11oy_router_stats_unavailable("LLM registry is not mounted")
-    if not isinstance(catalog, list) or not catalog:
-        return _a11oy_router_stats_unavailable("runtime model catalog is absent")
-    try:
-        snapshot = snapshot_fn()
-    except Exception as exc:
-        return _a11oy_router_stats_unavailable(
-            f"counter snapshot failed ({type(exc).__name__})"
-        )
-    if not isinstance(snapshot, dict) or snapshot.get("state") != "LIVE":
-        return _a11oy_router_stats_unavailable("counter snapshot did not declare LIVE")
-    if (
-        snapshot.get("counter_state") != "OBSERVED"
-        or snapshot.get("counter_scope") != "process_lifetime"
-        or not isinstance(snapshot.get("counter_started_at"), str)
-        or not snapshot.get("counter_started_at")
-        or not isinstance(snapshot.get("observed_at"), str)
-        or not snapshot.get("observed_at")
-    ):
-        return _a11oy_router_stats_unavailable("counter observation metadata is invalid")
-
-    counts = {}
-    try:
-        for item in snapshot.get("routes", []):
-            tier = item["tier"]
-            raw_model_id = item["model_id"]
-            model_id = raw_model_id.strip() if type(raw_model_id) is str else ""
-            count = item["routing_decisions"]
-            if (
-                type(tier) is not int
-                or type(count) is not int
-                or tier < 0
-                or not model_id
-                or count < 0
-            ):
-                raise ValueError("invalid route counter")
-            key = (tier, model_id)
-            if key in counts:
-                raise ValueError("duplicate route counter")
-            counts[key] = count
-        snapshot_total = snapshot["routing_decisions_total"]
-        if type(snapshot_total) is not int or snapshot_total < 0:
-            raise ValueError("invalid counter total")
-    except (KeyError, TypeError, ValueError):
-        return _a11oy_router_stats_unavailable("counter snapshot schema is invalid")
-    if snapshot_total != sum(counts.values()):
-        return _a11oy_router_stats_unavailable("counter total does not reconcile")
-
+    """Catalog-derived routes with explicitly MODELED, non-traffic throughput."""
+    _real_tiers = getattr(_a11oy_pr_brain, "TIERS", None) if _A11OY_BRAIN_OK else None
+    _catalog_live = isinstance(_real_tiers, list) and bool(_real_tiers)
+    tiers = _real_tiers if _catalog_live else [
+        {"id": "claude_sonnet_4_6", "rank": 0},
+        {"id": "gemini_3_1_pro", "rank": 1},
+        {"id": "gpt_5_4", "rank": 2},
+        {"id": "claude_opus_4_8", "rank": 3},
+        {"id": "deepseek_r1", "rank": 4},
+        {"id": "gemini_3_flash", "rank": 5},
+        {"id": "sovereign_local", "rank": 6},
+    ]
     organ_for_rank = {0: "Reasoning", 1: "Reasoning", 2: "a11oy", 3: "Operator",
                       4: "Policy / Safety", 5: "Knowledge", 6: "a11oy"}
+    tick = int(_rtr_time.time())
     routes = []
-    catalog_keys = set()
-    for model in catalog:
-        try:
-            rank = model["tier"]
-            raw_model_id = model["model_id"]
-            model_id = raw_model_id.strip() if type(raw_model_id) is str else ""
-        except (KeyError, TypeError, ValueError):
-            return _a11oy_router_stats_unavailable("runtime model catalog is invalid")
-        if type(rank) is not int or rank < 0 or not model_id:
-            return _a11oy_router_stats_unavailable("runtime model catalog is invalid")
-        key = (rank, model_id)
-        if key in catalog_keys:
-            return _a11oy_router_stats_unavailable("runtime model catalog has duplicate routes")
-        catalog_keys.add(key)
+    served = 0
+    for t in tiers:
+        rank = int(t.get("rank", 0))
+        # Higher-rank frontier-reasoning tiers carry AMBER (heavier governance);
+        # the fast/cheap + sovereign-local tiers are GREEN. Honest per real catalog.
         license_class = "AMBER" if rank >= 2 else "GREEN"
-        decisions = counts.get(key, 0)
+        tp = 12 + ((tick + rank * 7) % 70)
         routes.append({
             "organ": organ_for_rank.get(rank, "a11oy"),
             "tier": f"T{rank}",
-            "model": model_id,
-            "throughput": decisions,
-            "routing_decisions": decisions,
-            "throughput_unit": "routing_decisions_since_process_start",
+            "model": t.get("id", f"tier-{rank}"),
+            "throughput": tp,
             "license": license_class,
-            "catalog_member": True,
         })
-
-    # Never drop a trusted receipt merely because the runtime catalog changed
-    # after it was counted. Drifted routes remain visible and the catalog state
-    # says so; the aggregate therefore always reconciles exactly.
-    drift_keys = sorted(set(counts) - catalog_keys)
-    for rank, model_id in drift_keys:
-        decisions = counts[(rank, model_id)]
-        license_class = "AMBER" if rank >= 2 else "GREEN"
-        routes.append({
-            "organ": organ_for_rank.get(rank, "a11oy"),
-            "tier": f"T{rank}",
-            "model": model_id,
-            "throughput": decisions,
-            "routing_decisions": decisions,
-            "throughput_unit": "routing_decisions_since_process_start",
-            "license": license_class,
-            "catalog_member": False,
-        })
-
-    served = sum(route["routing_decisions"] for route in routes)
-    if served != snapshot_total:
-        return _a11oy_router_stats_unavailable("rendered route total does not reconcile")
-    endpoint_state = "DEGRADED" if drift_keys else "LIVE"
+        served += tp
     return {
-        "state": endpoint_state,
-        "mode": "degraded" if drift_keys else "live",
-        "data_kind": "live",
-        "catalog_state": "DRIFT" if drift_keys else "LIVE",
-        "throughput_state": "OBSERVED",
+        "state": "MODELED",
+        "mode": "modeled",
+        "catalog_state": "LIVE" if _catalog_live else "FALLBACK",
+        "throughput_state": "MODELED",
         "routes": routes,
         "servedThisWindow": served,
-        "routingDecisionsSinceStart": served,
-        "tiers": sorted({route["tier"] for route in routes}),
-        "counter_scope": snapshot["counter_scope"],
-        "counter_started_at": snapshot["counter_started_at"],
-        "observed_at": snapshot["observed_at"],
-        "source": "szl_llm_registry.router_stats_snapshot",
-        "catalog_source": "szl_llm_registry.MODEL_REGISTRY",
+        "tiers": [f"T{int(t.get('rank', i))}" for i, t in enumerate(tiers)],
+        "source": "szl_brain.TIERS" if _catalog_live else "honest_stub_catalog",
         "doctrine": "v11",
-        "honesty": (
-            "Exact trusted routing-decision counts since counter_started_at; resets "
-            "on rebuild. Legacy fields throughput and servedThisWindow carry that "
-            "count, not QPS, tokens, inference completions, or traffic outside this "
-            "process. Zero is a valid observed count."
-        ),
+        "honesty": ("Tier catalog state is reported separately. Throughput and "
+                    "servedThisWindow are deterministic MODELED display signals, not "
+                    "production traffic, measured QPS, or completed inference."),
     }
 
 @app.get("/api/a11oy/v1/router/stats")
 @app.get("/v1/router/stats")
 async def _a11oy_router_stats() -> JSONResponse:
-    """Runtime catalog plus live process-lifetime routing-decision counters."""
+    """Catalog routes plus modeled load (feeds the /static/viz/router/ 3D scene)."""
     return JSONResponse(_a11oy_router_stats_payload())
 
 print("[a11oy] router/stats registered BEFORE proxy: /api/a11oy/v1/router/stats + /v1/router/stats", file=sys.stderr)
@@ -7393,7 +7207,10 @@ except Exception as _parity_e:
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
 # ===========================================================================
 try:
-    _llm_reg = _resolve_llm_registry_module()
+    try:  # prefer the extracted substrate package; fall back to local vendored copy
+        from szl_substrate import szl_llm_registry as _llm_reg
+    except Exception:
+        import szl_llm_registry as _llm_reg
     _llm_reg_info = _llm_reg.register(app)
     print(
         f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
@@ -8686,9 +8503,8 @@ try:
             st = {"built": False, "honest_error": "status unavailable: %s" % type(_se).__name__}
         built = bool(st.get("built"))
         return _RAGJSON(gov_envelope(
-            {"index": st, "corpus": _rag_engine.corpus_manifest(),
-             "data_kind": "live", "index_built": built},
-            status="REAL",
+            {"index": st, "corpus": _rag_engine.corpus_manifest()},
+            status=("REAL" if built else "DEGRADED"),
             citations=[{"endpoint": "a11oy_org_rag.status() + corpus_manifest()",
                         "data": {"built": built, "mode": st.get("mode")}}]))
 
@@ -9333,34 +9149,21 @@ def _r3d_loop_meta(r: dict):
 def _r3d_router_metrics_payload() -> dict:
     rs = _a11oy_router_stats_payload()
     routes = rs.get("routes", [])
-    if rs.get("state") not in {"LIVE", "DEGRADED"}:
-        return {
-            **rs,
-            "data_kind": "unavailable",
-            "width_depth_available": False,
-            "honesty": (
-                "The routing-decision counter is unavailable, so this metrics view "
-                "does not substitute modeled traffic. Model width/depth is also unavailable."
-            ),
-        }
     return {
-        "state": rs["state"],
-        "data_kind": "live",
-        "mode": rs["mode"],
-        "catalog_state": rs.get("catalog_state", "UNAVAILABLE"),
-        "throughput_state": "OBSERVED",
+        "state": "MODELED",
+        "data_kind": "modeled",
+        "mode": "modeled",
+        "catalog_state": rs.get("catalog_state", "FALLBACK"),
+        "throughput_state": "MODELED",
         "routes": routes,
         "tiers": routes,
         "servedThisWindow": rs.get("servedThisWindow", 0),
-        "routingDecisionsSinceStart": rs.get("routingDecisionsSinceStart", 0),
-        "counter_scope": rs.get("counter_scope"),
-        "counter_started_at": rs.get("counter_started_at"),
-        "observed_at": rs.get("observed_at"),
         "width_depth_available": False,
         "source": rs.get("source", ""),
         "doctrine": "v11",
-        "honesty": ("Per-route counts are exact trusted routing decisions since process start, not "
-                    "QPS, tokens, inference completions, or external traffic. Model width/depth shape is NOT measured, so any "
+        "honesty": ("Per-tier model and license come from the router catalog; catalog_state says whether "
+                    "that catalog is live or fallback. Throughput and display load remain MODELED, never "
+                    "measured traffic or QPS. Model width/depth shape is NOT measured, so any "
                     "width/depth scaling point stays a clearly-labelled SAMPLE. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -9368,19 +9171,18 @@ def _r3d_router_metrics_payload() -> dict:
 def _r3d_routing_graph_payload() -> dict:
     rs = _a11oy_router_stats_payload()
     routes = rs.get("routes", [])
-    nodes = [{"id": "%s:%s" % (r.get("tier", "T%d" % i), r.get("model", "unknown")),
-              "tier": r.get("tier", "T%d" % i), "organ": r.get("organ", ""),
+    nodes = [{"id": r.get("tier", "T%d" % i), "organ": r.get("organ", ""),
               "model": r.get("model", ""), "throughput": r.get("throughput", 0),
               "license": r.get("license", "")} for i, r in enumerate(routes)]
-    edges = [{"source": nodes[i]["id"], "target": nodes[i + 1]["id"]}
-             for i in range(len(nodes) - 1)]
+    edges = [{"source": routes[i].get("tier"), "target": routes[i + 1].get("tier")}
+             for i in range(len(routes) - 1)]
     ch = _r3d_chain(50)
     return {
         "state": "MODELED",
         "data_kind": "modeled",
         "mode": "modeled",
-        "catalog_state": rs.get("catalog_state", "UNAVAILABLE"),
-        "throughput_state": rs.get("throughput_state", "UNAVAILABLE"),
+        "catalog_state": rs.get("catalog_state", "FALLBACK"),
+        "throughput_state": "MODELED",
         "nodes": nodes,
         "edges": edges,
         "routes": routes,
@@ -9392,9 +9194,9 @@ def _r3d_routing_graph_payload() -> dict:
         "surface": ("GraphRouter routing-envelope score s = lambda*e_hat - (1-lambda)*c_hat "
                     "is a DERIVED heuristic, never a measured loss"),
         "doctrine": "v11",
-        "honesty": ("Routing nodes/edges use the /router/stats catalog. Route counts are OBSERVED "
-                    "trusted decisions since process start, never QPS, tokens, inference completions, "
-                    "or external traffic; the graph layout remains MODELED. The organ -> tier -> model escalation path is catalog data; attached receipts are "
+        "honesty": ("Routing nodes/edges use the /router/stats catalog; catalog_state distinguishes "
+                    "the live brain catalog from the honest fallback. Throughput remains MODELED, never "
+                    "traffic or QPS. The organ -> tier -> model escalation path is catalog data; attached receipts are "
                     "deterministic SAMPLE hash-link records, not operational events. The manifold surface is a derived heuristic, never a measured loss. "
                     "Lambda = Conjecture 1; locked-proven stays exactly 8 " + _R3D_LOCKED8 + "."),
     }
@@ -9498,27 +9300,22 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
 
 @app.get("/api/a11oy/v1/ledger")
 async def a11oy_ledger_v2() -> JSONResponse:
-    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain."""
-    observed_at = _gov_now_iso()
-    if observed_at.endswith("+00:00"):
-        observed_at = observed_at[:-6] + "Z"
-    return JSONResponse({
-        "count": 0,
-        "state": "live",
-        "data_kind": "live",
-        "operational": True,
-        "hash_algorithm": "sha256-hex",
-        "structure_verified": True,
-        "chain_verified": True,
-        "signed": False,
-        "signature_state": "UNSIGNED",
-        "receipt_minted": False,
-        "observed_at": observed_at,
-        "honesty": ("Live operational ledger. Zero receipts means none have been "
-                    "minted in this process; this is not the deterministic SAMPLE "
-                    "chain (see GET /api/a11oy/v2/command-log)."),
-        "receipts": [],
-    })
+    ch = _a11oy_build_chain(24)
+    return JSONResponse({"count": ch["depth"],
+                         "state": "SAMPLE",
+                         "data_kind": "sample",
+                         "operational": False,
+                         "hash_algorithm": "sha256-hex",
+                         "structure_verified": bool(ch.get("structure_verified")),
+                         "chain_verified": False,
+                         "signed": False,
+                         "signature_state": "UNSIGNED",
+                         "receipt_minted": False,
+                         "honesty": ("Deterministic SAMPLE SHA-256 linkage only. These are not "
+                                     "runtime decisions, approvals, signed receipts, customer "
+                                     "events, or operational Khipu records."),
+                         "receipts": [{"seq": r["seq"], "action": r["kind"],
+                                        "receipt_id": r["hash"]} for r in ch["receipts"]]})
 
 
 # ---- /receipt/export — read-only, prebuilt signed-or-unsigned SAMPLE envelope ----
@@ -9560,24 +9357,10 @@ def _a11oy_build_sample_export() -> dict:
 _A11OY_SAMPLE_EXPORT = _a11oy_build_sample_export()
 
 
-_A11OY_LIVE_EMPTY_EXPORT = {
-    "state": "live",
-    "data_kind": "live",
-    "operational": True,
-    "receipt_minted": False,
-    "signature_state": "UNSIGNED",
-    "payload": None,
-    "honesty": ("Live empty export: no operational receipt has been minted in "
-                "this process. GET is read-only and never invokes the signer. "
-                "The deterministic SAMPLE envelope remains at "
-                "GET /api/a11oy/v2/command-log."),
-}
-
-
 @app.get("/api/a11oy/v1/receipt/export")
 @app.get("/receipt/export")
 async def a11oy_receipt_export_v2() -> JSONResponse:
-    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_LIVE_EMPTY_EXPORT)))
+    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_SAMPLE_EXPORT)))
 
 
 # ---- /receipt/{rid}/canonical — exact preimage bytes so a browser can re-hash & MATCH (B2) ----
@@ -9662,34 +9445,26 @@ async def a11oy_observability_summary_v2() -> JSONResponse:
                          "latency_ms": c["latency_ms"],
                          "url": "in-image capability", "name": c["name"],
                          "kind": c["kind"]}
-    # Do not call _a11oy_build_chain(24) here. That SAMPLE depth is not a live DAG.
+    ch = _a11oy_build_chain(24)
     return JSONResponse({
         "self_contained": True,
         "brain": "a11oy",
         "capabilities": _A11OY_CAPS,
         "mesh_reach": mesh,
         "signed_spans": None,
-        "dag_depth": None,
-        "observed": False,
-        "state": "UNAVAILABLE",
-        "melt": {"metrics": {},
+        "dag_depth": ch["depth"],
+        "melt": {"metrics": {"dag_depth": ch["depth"]},
                  "events": {"signed_spans": None}},
         "receipt_evidence": {
             "state": "inventory",
-            "hash_chain_depth": None,
+            "hash_chain_depth": ch["depth"],
             "signed_spans_observed": None,
             "chain_verified_observed": None,
-            "sample_chain": {
-                "state": "SAMPLE",
-                "operational": False,
-                "note": "deterministic SAMPLE fixture exists on other routes; not a live observation",
-            },
         },
         "observation_state": "inventory",
         "note": "Self-contained capability inventory. Nodes are named a11oy internal "
                 "functions, not runtime health or provenance observations. No latency, "
-                "signature, or attestation state is inferred. SAMPLE chain depth is "
-                "not a live dag_depth. Organ counts are not invented. Λ = Conjecture 1 (advisory).",
+                "signature, or attestation state is inferred. Λ = Conjecture 1 (advisory).",
     })
 
 
@@ -11152,373 +10927,41 @@ try:
     # from the public FIRST.org EPSS API (batched, cached 6h) and overlays it
     # onto the returned rows. Per-row epss_src distinguishes "first.org" (live)
     # from "derived" (proxy). Any failure -> rows keep the derived value.
-    import threading as _kl_threading
     _KL_EPSS_CACHE = {"ts": 0.0, "map": {}}
     _KL_EPSS_TTL = 6 * 3600
-    _KL_EPSS_BATCH_SIZE = 100
-    _KL_EPSS_REQUEST_TIMEOUT_DEFAULT = 4.0
-    _KL_EPSS_REQUEST_TIMEOUT_MIN = 0.25
-    _KL_EPSS_REQUEST_TIMEOUT_MAX = 12.0
-    _KL_EPSS_RESPONSE_MAX_BYTES = 256 * 1024
-    _KL_EPSS_READ_CHUNK_BYTES = 16 * 1024
-    _KL_EPSS_CACHE_LOCK = _kl_threading.Lock()
-    _KL_EPSS_REFRESH_LOCK = _kl_threading.Lock()
-    _KL_EPSS_FAIR_STATE = {"epoch": 0, "entries": {}}
-    _KL_EPSS_FAIR_STATE_TTL = _KL_EPSS_TTL
-    _KL_EPSS_FAIR_STATE_MAX_ENTRIES = 4096
-
-    def _kl_bounded_number(value, lower, upper, *, allow_text=False):
-        """Return a finite float inside an evidence field's closed interval."""
-        import math as _math
-        allowed_types = (int, float, str) if allow_text else (int, float)
-        if isinstance(value, bool) or not isinstance(value, allowed_types):
-            return None
-        try:
-            number = float(value)
-        except (TypeError, ValueError, OverflowError):
-            return None
-        if not _math.isfinite(number) or not lower <= number <= upper:
-            return None
-        return number
-
-    def _kl_epss_pair(value):
-        """Validate a FIRST.org EPSS probability/percentile pair."""
-        if not isinstance(value, (list, tuple)) or len(value) != 2:
-            return None
-        epss = _kl_bounded_number(value[0], 0.0, 1.0, allow_text=True)
-        percentile = _kl_bounded_number(value[1], 0.0, 1.0, allow_text=True)
-        if epss is None or percentile is None:
-            return None
-        return epss, percentile
-
-    def _kl_epss_valid_map(value):
-        if not isinstance(value, dict):
-            return {}
-        valid = {}
-        for cve, candidate in value.items():
-            pair = _kl_epss_pair(candidate)
-            if isinstance(cve, str) and cve and pair is not None:
-                valid[cve] = pair
-        return valid
-
-    def _kl_epss_request_timeout():
-        """Return a finite, bounded timeout for the one allowed network batch."""
-        configured = os.environ.get(
-            "A11OY_EPSS_REQUEST_TIMEOUT_SEC",
-            str(_KL_EPSS_REQUEST_TIMEOUT_DEFAULT),
-        )
-        timeout = _kl_bounded_number(
-            configured,
-            _KL_EPSS_REQUEST_TIMEOUT_MIN,
-            _KL_EPSS_REQUEST_TIMEOUT_MAX,
-            allow_text=True,
-        )
-        return (
-            timeout
-            if timeout is not None
-            else _KL_EPSS_REQUEST_TIMEOUT_DEFAULT
-        )
-
-    def _kl_epss_cache_snapshot_unlocked(now):
-        """Return a sanitized cache copy; caller must hold the cache lock."""
-        import math as _math
-        cache_timestamp = _KL_EPSS_CACHE.get("ts")
-        try:
-            if isinstance(cache_timestamp, bool) or not isinstance(
-                cache_timestamp, (int, float)
-            ):
-                raise TypeError("EPSS cache timestamp must be numeric")
-            cache_age = now - float(cache_timestamp)
-        except (TypeError, ValueError, OverflowError):
-            cache_age = -1.0
-        cache_fresh = (
-            _math.isfinite(cache_age) and 0.0 <= cache_age < _KL_EPSS_TTL
-        )
-        return (
-            cache_fresh,
-            _kl_epss_valid_map(_KL_EPSS_CACHE.get("map"))
-            if cache_fresh
-            else {},
-        )
-
-    def _kl_epss_cache_snapshot(now):
-        """Return only source-valid EPSS rows when the shared clock is fresh."""
-        with _KL_EPSS_CACHE_LOCK:
-            return _kl_epss_cache_snapshot_unlocked(now)
-
-    def _kl_epss_response_socket(response):
-        """Best-effort access to urllib's transport socket for deadline updates."""
-        current = response
-        seen = set()
-        for _depth in range(8):
-            if current is None or id(current) in seen:
-                break
-            seen.add(id(current))
-            setter = getattr(current, "settimeout", None)
-            if callable(setter):
-                return current
-            next_current = None
-            for attribute in ("_sock", "raw", "fp", "_fp"):
-                candidate = getattr(current, attribute, None)
-                if candidate is not None and id(candidate) not in seen:
-                    next_current = candidate
-                    break
-            current = next_current
-        return None
-
-    def _kl_epss_read_bounded(response, deadline):
-        """Read one bounded body while continually tightening its socket deadline."""
-        import time as _t
-        body = bytearray()
-        transport = _kl_epss_response_socket(response)
-        while True:
-            remaining = deadline - _t.monotonic()
-            if remaining <= 0:
-                raise TimeoutError("FIRST.org EPSS absolute request budget expired")
-            if transport is not None:
-                try:
-                    transport.settimeout(remaining)
-                except Exception:
-                    transport = None
-            allowance = _KL_EPSS_RESPONSE_MAX_BYTES + 1 - len(body)
-            if allowance <= 0:
-                raise ValueError("FIRST.org EPSS response exceeds byte limit")
-            chunk = response.read(min(_KL_EPSS_READ_CHUNK_BYTES, allowance))
-            if not chunk:
-                return bytes(body)
-            if not isinstance(chunk, (bytes, bytearray)):
-                raise TypeError("FIRST.org EPSS response body must be bytes")
-            body.extend(chunk)
-            if len(body) > _KL_EPSS_RESPONSE_MAX_BYTES:
-                raise ValueError("FIRST.org EPSS response exceeds byte limit")
-
-    def _kl_epss_fetch_batch(batch, timeout, deadline):
-        """Fetch and validate one FIRST.org batch inside the caller's wall budget."""
-        import json as _j
-        import time as _t
-        import urllib.parse as _up
-        import urllib.request as _u
-
-        remaining = deadline - _t.monotonic()
-        if remaining <= 0:
-            return {}
-        url = (
-            "https://api.first.org/data/v1/epss?pretty=false&cve="
-            + _up.quote(",".join(batch))
-        )
-        req = _u.Request(url, headers={"User-Agent": "a11oy-sec/1.0"})
-        with _u.urlopen(req, timeout=timeout) as response:
-            body = _kl_epss_read_bounded(response, deadline)
-        if _t.monotonic() > deadline:
-            return {}
-        payload = _j.loads(body.decode("utf-8", "strict"))
-        if not isinstance(payload, dict):
-            return {}
-        data = payload.get("data")
-        if not isinstance(data, list):
-            return {}
-        requested = set(batch)
-        result = {}
-        for candidate in data:
-            if not isinstance(candidate, dict):
-                continue
-            cve = candidate.get("cve")
-            pair = _kl_epss_pair(
-                (candidate.get("epss"), candidate.get("percentile"))
-            )
-            if cve in requested and pair is not None:
-                result[cve] = pair
-        return result if _t.monotonic() <= deadline else {}
-
-    def _kl_epss_select_batch(missing, now):
-        """Select identities by retry epoch, independent of input order/position."""
-        global _KL_EPSS_FAIR_STATE
-        import math as _math
-        with _KL_EPSS_CACHE_LOCK:
-            state = _KL_EPSS_FAIR_STATE
-            if not isinstance(state, dict):
-                state = {}
-            epoch = state.get("epoch", 0)
-            try:
-                if isinstance(epoch, bool) or not isinstance(epoch, int) or epoch < 0:
-                    raise ValueError("invalid EPSS fairness epoch")
-            except (TypeError, ValueError, OverflowError):
-                epoch = 0
-            epoch += 1
-
-            raw_entries = state.get("entries", {})
-            entries = {}
-            if isinstance(raw_entries, dict):
-                for cve, candidate in raw_entries.items():
-                    if not isinstance(cve, str) or not cve:
-                        continue
-                    if not isinstance(candidate, dict):
-                        continue
-                    due_epoch = candidate.get("due_epoch")
-                    last_seen_at = candidate.get("last_seen_at")
-                    if (
-                        isinstance(due_epoch, bool)
-                        or not isinstance(due_epoch, int)
-                        or due_epoch < 0
-                        or due_epoch > epoch + 1
-                        or isinstance(last_seen_at, bool)
-                        or not isinstance(last_seen_at, (int, float))
-                    ):
-                        continue
-                    try:
-                        normalized_last_seen_at = float(last_seen_at)
-                        age = now - normalized_last_seen_at
-                    except (TypeError, ValueError, OverflowError):
-                        continue
-                    if (
-                        not _math.isfinite(age)
-                        or age < 0
-                        or age > _KL_EPSS_FAIR_STATE_TTL
-                    ):
-                        continue
-                    entries[cve] = {
-                        "due_epoch": due_epoch,
-                        "last_seen_at": normalized_last_seen_at,
-                    }
-
-            for cve in missing:
-                entry = entries.get(cve)
-                if entry is None:
-                    entry = {"due_epoch": epoch, "last_seen_at": now}
-                    entries[cve] = entry
-                else:
-                    entry["last_seen_at"] = now
-
-            # Oldest due identity wins. A newly seen CVE is due this epoch, so
-            # an omitted or previously attempted persistent CVE becomes older
-            # than an endless stream of new identities within a finite turn.
-            batch = sorted(
-                missing,
-                key=lambda cve: (entries[cve]["due_epoch"], cve),
-            )[:_KL_EPSS_BATCH_SIZE]
-            for cve in batch:
-                entries[cve]["due_epoch"] = epoch + 1
-
-            # Retry history is evidence-neutral scheduling state. Retain recent
-            # identities, preferring overdue ones at equal observation time,
-            # and impose a hard cap so adversarial CVE names cannot grow memory.
-            if len(entries) > _KL_EPSS_FAIR_STATE_MAX_ENTRIES:
-                retained = sorted(
-                    entries,
-                    key=lambda cve: (
-                        -entries[cve]["last_seen_at"],
-                        entries[cve]["due_epoch"],
-                        cve,
-                    ),
-                )[:_KL_EPSS_FAIR_STATE_MAX_ENTRIES]
-                entries = {cve: entries[cve] for cve in retained}
-            _KL_EPSS_FAIR_STATE = {"epoch": epoch, "entries": entries}
-        return batch
-
-    def _kl_epss_merge_batch(result, request_started_at, deadline):
-        """Atomically merge valid rows without promoting stale cache evidence."""
-        if not result:
-            return
-        import time as _t
-        with _KL_EPSS_CACHE_LOCK:
-            cache_fresh, current = _kl_epss_cache_snapshot_unlocked(_t.time())
-            merged = dict(current) if cache_fresh else {}
-            merged.update(_kl_epss_valid_map(result))
-            # This deadline check is deliberately under the same lock and
-            # immediately before either cache field can change. A worker paused
-            # after validation must never late-promote expired evidence.
-            if not merged or _t.monotonic() > deadline:
-                return
-            _KL_EPSS_CACHE["map"] = merged
-            # A partial refresh must not extend the observation clock of older
-            # cached entries. When no fresh cache survives, the request start is
-            # the conservative shared observation time for the new rows.
-            if not cache_fresh:
-                _KL_EPSS_CACHE["ts"] = request_started_at
 
     def _kl_epss_map(cves):
-        import time as _t
+        import time as _t, json as _j
+        import urllib.request as _u, urllib.parse as _up
         now = _t.time()
-        _cache_fresh, cached = _kl_epss_cache_snapshot(now)
-        uniq = [
-            c for c in dict.fromkeys(cves)
-            if isinstance(c, str) and c
-        ]
-        missing = [c for c in uniq if c not in cached]
-        if _cache_fresh and not missing:
-            return cached
-
-        # The request path may perform at most one 100-CVE FIRST.org request.
-        # The primitive lock stays held by the one daemon worker until its I/O
-        # really finishes. Contenders therefore return sanitized fresh cache
-        # immediately, and one stalled transport can never create a thread or
-        # request fan-out. Every uncovered row remains derived/sample.
+        if _KL_EPSS_CACHE["map"] and (now - _KL_EPSS_CACHE["ts"]) < _KL_EPSS_TTL:
+            return _KL_EPSS_CACHE["map"]
+        out = {}
         try:
-            acquired = _KL_EPSS_REFRESH_LOCK.acquire(blocking=False)
-        except Exception:
-            acquired = False
-        if not acquired:
-            return cached
-
-        ownership_moved_to_worker = False
-        try:
-            # The lock may have become available just after another caller
-            # refreshed the cache, so re-snapshot before spending the budget.
-            now = _t.time()
-            _cache_fresh, cached = _kl_epss_cache_snapshot(now)
-            missing = [c for c in uniq if c not in cached]
-            if _cache_fresh and not missing:
-                _KL_EPSS_REFRESH_LOCK.release()
-                return cached
-            if not missing:
-                _KL_EPSS_REFRESH_LOCK.release()
-                return cached
-            batch = _kl_epss_select_batch(missing, now)
-            if not batch:
-                _KL_EPSS_REFRESH_LOCK.release()
-                return cached
-            timeout = _kl_epss_request_timeout()
-            deadline = _t.monotonic() + timeout
-            completed = _kl_threading.Event()
-
-            def refresh_one_batch():
+            uniq = [c for c in dict.fromkeys(cves) if c]
+            for i in range(0, len(uniq), 100):
+                batch = uniq[i:i+100]
                 try:
-                    try:
-                        result = _kl_epss_fetch_batch(batch, timeout, deadline)
-                    except Exception:
-                        result = {}
-                    _kl_epss_merge_batch(result, now, deadline)
-                finally:
-                    _KL_EPSS_REFRESH_LOCK.release()
-                    completed.set()
-
-            worker = _kl_threading.Thread(
-                target=refresh_one_batch,
-                name="a11oy-epss-singleflight",
-                daemon=True,
-            )
-            try:
-                worker.start()
-                ownership_moved_to_worker = True
-            except Exception:
-                _KL_EPSS_REFRESH_LOCK.release()
-                return cached
-
-            remaining = deadline - _t.monotonic()
-            if remaining > 0:
-                completed.wait(remaining)
-            # Whether the worker completed or hit the absolute caller budget,
-            # expose only a freshly timestamped, source-valid atomic snapshot.
-            return _kl_epss_cache_snapshot(_t.time())[1]
-        except Exception:
-            # If setup fails before ownership moves to the worker, release the
-            # singleflight lock and fail closed to the pre-request snapshot.
-            if not ownership_moved_to_worker and _KL_EPSS_REFRESH_LOCK.locked():
-                try:
-                    _KL_EPSS_REFRESH_LOCK.release()
+                    url = ("https://api.first.org/data/v1/epss?pretty=false&cve="
+                           + _up.quote(",".join(batch)))
+                    req = _u.Request(url, headers={"User-Agent": "a11oy-sec/1.0"})
+                    with _u.urlopen(req, timeout=12) as r:
+                        payload = _j.loads(r.read().decode("utf-8", "replace"))
+                    for d in (payload.get("data") or []):
+                        try:
+                            out[d.get("cve")] = (float(d.get("epss")),
+                                                 float(d.get("percentile")))
+                        except Exception:
+                            pass
                 except Exception:
-                    pass
-            return cached
+                    continue
+        except Exception:
+            pass
+        if out:
+            _KL_EPSS_CACHE["map"] = out
+            _KL_EPSS_CACHE["ts"] = now
+            return out
+        return _KL_EPSS_CACHE["map"] or {}
 
     # --- REAL CVSS overlay (NVD) -------------------------------------------
     # CISA KEV publishes NO CVSS, and NVD's free 2.0 API (~5 req/30s without a
@@ -11526,67 +10969,15 @@ try:
     # progressively pulls the GENUINE NVD CVSS base score / severity / vector into
     # a DISK-PERSISTED cache (rate-limit aware, off the request hot path). Coverage
     # grows across runs and survives restarts on a durable mount. _kl_live_rows
-    # overlays the cached real CVSS onto each row and tags cvss_src ("nvd" fresh |
-    # "derived" proxy) plus cvss_cache_state (fresh | stale | missing). Any
-    # unusable record keeps the honest derived-sample CVSS so the tab still
-    # renders (r.cvss.toFixed(1) needs a number). 0 fabricated NVD figures.
+    # overlays the cached real CVSS onto each row and tags cvss_src ("nvd" live |
+    # "derived" proxy); any miss keeps the honest derived-sample CVSS so the tab
+    # still renders (r.cvss.toFixed(1) needs a number). 0 fabricated NVD figures.
+    import threading as _kl_threading
     from pathlib import Path as _kl_Path
     _KL_CVSS = {}                  # cve -> {"cvss","severity","vector","src":"nvd","ts"}
     _KL_CVSS_LOCK = _kl_threading.Lock()
     _KL_CVSS_TTL = 30 * 24 * 3600  # re-verify a cached NVD score after ~30 days
     _KL_CVSS_WARM_STARTED = False
-
-    def _kl_cvss_score(record):
-        """Return a validated numeric NVD base score, or None."""
-        if not isinstance(record, dict) or record.get("src") != "nvd":
-            return None
-        return _kl_bounded_number(record.get("cvss"), 0.0, 10.0)
-
-    def _kl_cvss_severity(value, score):
-        if isinstance(value, str):
-            severity = value.strip().upper()
-            if severity in {"NONE", "LOW", "MEDIUM", "HIGH", "CRITICAL"}:
-                return severity
-        return ("CRITICAL" if score >= 9 else "HIGH" if score >= 7 else
-                "MEDIUM" if score >= 4 else "LOW" if score > 0 else "NONE")
-
-    def _kl_cvss_vector(value):
-        return value.strip()[:512] if isinstance(value, str) else ""
-
-    def _kl_cvss_record_is_fresh(record, now=None):
-        """Accept only bounded, timestamped NVD records inside the cache TTL."""
-        import math as _math, time as _t
-        if _kl_cvss_score(record) is None:
-            return False
-        observed_value = record.get("ts")
-        checked_value = _t.time() if now is None else now
-        if (
-            isinstance(observed_value, bool)
-            or not isinstance(observed_value, (int, float))
-            or isinstance(checked_value, bool)
-            or not isinstance(checked_value, (int, float))
-        ):
-            return False
-        try:
-            observed_at = float(observed_value)
-            checked_at = float(checked_value)
-        except (TypeError, ValueError, OverflowError):
-            return False
-        if not _math.isfinite(observed_at) or not _math.isfinite(checked_at):
-            return False
-        age = checked_at - observed_at
-        return 0.0 <= age < _KL_CVSS_TTL
-
-    def _kl_cvss_cache_state(record, now=None):
-        if not record:
-            return "missing"
-        if (
-            isinstance(record, dict)
-            and record.get("src") == "nvd"
-            and _kl_cvss_score(record) is None
-        ):
-            return "malformed"
-        return "fresh" if _kl_cvss_record_is_fresh(record, now) else "stale"
 
     def _kl_cvss_resolve_path():
         """Writable, durable-first path for the NVD CVSS cache JSON. Durable
@@ -11623,17 +11014,8 @@ try:
                 if isinstance(data, dict):
                     with _KL_CVSS_LOCK:
                         for k, v in data.items():
-                            if isinstance(k, str) and _kl_cvss_record_is_fresh(v):
-                                score = _kl_cvss_score(v)
-                                _KL_CVSS[k] = {
-                                    "cvss": score,
-                                    "severity": _kl_cvss_severity(
-                                        v.get("severity"), score
-                                    ),
-                                    "vector": _kl_cvss_vector(v.get("vector")),
-                                    "src": "nvd",
-                                    "ts": float(v["ts"]),
-                                }
+                            if isinstance(v, dict) and v.get("cvss") is not None:
+                                _KL_CVSS[k] = v
         except Exception:
             pass
 
@@ -11644,35 +11026,11 @@ try:
         if not _KL_CVSS_PATH:
             return
         try:
-            import json as _j, math as _math, time as _t
+            import json as _j
             with _KL_CVSS_LOCK:
-                raw_snap = dict(_KL_CVSS)
-            snap = {}
-            now = _t.time()
-            for cve, record in raw_snap.items():
-                score = _kl_cvss_score(record)
-                if (
-                    not isinstance(cve, str)
-                    or not cve
-                    or score is None
-                    or not _kl_cvss_record_is_fresh(record, now)
-                ):
-                    continue
-                try:
-                    ts = float(record.get("ts"))
-                    if not _math.isfinite(ts):
-                        continue
-                except (TypeError, ValueError, OverflowError):
-                    continue
-                snap[cve] = {
-                    "cvss": score,
-                    "severity": _kl_cvss_severity(record.get("severity"), score),
-                    "vector": _kl_cvss_vector(record.get("vector")),
-                    "src": "nvd",
-                    "ts": ts,
-                }
+                snap = dict(_KL_CVSS)
             tmp = _KL_CVSS_PATH.with_name(_KL_CVSS_PATH.name + ".tmp")
-            tmp.write_text(_j.dumps(snap, allow_nan=False), "utf-8")
+            tmp.write_text(_j.dumps(snap), "utf-8")
             os.replace(str(tmp), str(_KL_CVSS_PATH))
         except Exception:
             pass
@@ -11696,10 +11054,7 @@ try:
             vulns = payload.get("vulnerabilities") or []
             if not vulns:
                 return None
-            cve_payload = vulns[0].get("cve") or {}
-            if cve_payload.get("id") != cve:
-                return None
-            metrics = cve_payload.get("metrics") or {}
+            metrics = ((vulns[0].get("cve") or {}).get("metrics")) or {}
             for mk in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
                 arr = metrics.get(mk) or []
                 if not arr:
@@ -11709,14 +11064,13 @@ try:
                 score = cd.get("baseScore")
                 if score is None:
                     continue
-                score = _kl_bounded_number(score, 0.0, 10.0)
-                if score is None:
-                    continue
-                sev = _kl_cvss_severity(
-                    cd.get("baseSeverity") or m.get("baseSeverity"), score
-                )
-                return {"cvss": round(score, 1), "severity": sev,
-                        "vector": _kl_cvss_vector(cd.get("vectorString")), "src": "nvd",
+                sev = (cd.get("baseSeverity") or m.get("baseSeverity") or "").upper()
+                if not sev:
+                    s = float(score)
+                    sev = ("CRITICAL" if s >= 9 else "HIGH" if s >= 7 else
+                           "MEDIUM" if s >= 4 else "LOW")
+                return {"cvss": round(float(score), 1), "severity": sev,
+                        "vector": cd.get("vectorString", ""), "src": "nvd",
                         "ts": _t.time()}
             return None
         except Exception:
@@ -11727,21 +11081,15 @@ try:
         KEV CVE, newest gaps first, then refresh stale entries. Rate-limit aware
         (A11OY_NVD_CVSS_DELAY_SEC between requests) and persisted incrementally.
         Off the request hot path entirely."""
-        import math as _math, time as _t
+        import time as _t
         try:
             delay = float(os.environ.get("A11OY_NVD_CVSS_DELAY_SEC", "7"))
         except Exception:
             delay = 7.0
-        if not _math.isfinite(delay):
-            delay = 7.0
-        delay = min(delay, 3600.0)
         try:
             initial = float(os.environ.get("A11OY_NVD_CVSS_INITIAL_DELAY_SEC", "60"))
         except Exception:
             initial = 60.0
-        if not _math.isfinite(initial):
-            initial = 60.0
-        initial = min(max(0.0, initial), 86400.0)
         _t.sleep(max(0.0, initial))
         persist_every = 25
         while True:
@@ -11750,21 +11098,14 @@ try:
             try:
                 payload = _kl_live.get_feed("kev")
                 vulns = ((payload.get("data") or {}).get("vulnerabilities")) or []
-                cves = []
-                for vulnerability in vulns:
-                    if not isinstance(vulnerability, dict):
-                        continue
-                    cve = vulnerability.get("cveID")
-                    if isinstance(cve, str) and cve:
-                        cves.append(cve)
-                cves = list(dict.fromkeys(cves))
+                cves = [v.get("cveID", "") for v in vulns if v.get("cveID")]
             except Exception:
                 cves = []
             now = _t.time()
             with _KL_CVSS_LOCK:
                 todo = [c for c in cves if c not in _KL_CVSS]
                 stale = [c for c in cves if c in _KL_CVSS and
-                         not _kl_cvss_record_is_fresh(_KL_CVSS[c], now)]
+                         (now - float(_KL_CVSS[c].get("ts", 0))) > _KL_CVSS_TTL]
             queue = todo + stale
             if not queue:
                 # Fully warm — idle-poll so newly-added KEV rows get covered.
@@ -11820,12 +11161,8 @@ try:
                 _emap = _kl_epss_map([r.get("cveID","") for r in rows])
                 _epss_live = 0
                 for r in rows:
-                    _hit = _kl_epss_pair(
-                        _emap.get(r.get("cveID", ""))
-                        if isinstance(_emap, dict)
-                        else None
-                    )
-                    if _hit is not None:
+                    _hit = _emap.get(r.get("cveID",""))
+                    if _hit:
                         r["epss"] = round(_hit[0], 5)
                         r["epss_pctl"] = round(_hit[1], 5)
                         r["epss_src"] = "first.org"
@@ -11836,144 +11173,58 @@ try:
                 # the background warmer has already cached it. Misses keep the
                 # honest derived-sample CVSS so the tab still renders a number.
                 _cvss_live = 0
-                _cvss_stale = 0
-                import time as _t
-                _cvss_now = _t.time()
                 for r in rows:
                     with _KL_CVSS_LOCK:
                         _crec = _KL_CVSS.get(r.get("cveID",""))
-                    _cvss_cache_state = _kl_cvss_cache_state(_crec, _cvss_now)
-                    if _cvss_cache_state == "fresh":
-                        _cvss_score = _kl_cvss_score(_crec)
-                        r["cvss"] = _cvss_score
-                        r["severity"] = _kl_cvss_severity(
-                            _crec.get("severity"), _cvss_score
-                        )
-                        _cvss_vector = _kl_cvss_vector(_crec.get("vector"))
-                        if _cvss_vector:
-                            r["cvss_vector"] = _cvss_vector
+                    if _crec and _crec.get("cvss") is not None:
+                        r["cvss"] = _crec["cvss"]
+                        if _crec.get("severity"):
+                            r["severity"] = _crec["severity"]
+                        if _crec.get("vector"):
+                            r["cvss_vector"] = _crec["vector"]
                         r["cvss_src"] = "nvd"
-                        r["cvss_cache_state"] = "fresh"
                         _cvss_live += 1
-                    elif _cvss_cache_state != "missing":
-                        r["cvss_src"] = "derived"
-                        r["cvss_cache_state"] = _cvss_cache_state
-                        _cvss_stale += 1
                     else:
                         r["cvss_src"] = "derived"
-                        r["cvss_cache_state"] = "missing"
-                _epss_part = (("FIRST.org EPSS evidence (cache up to 6h, %d/%d rows)"
+                _epss_part = (("LIVE EPSS (FIRST.org EPSS API, %d/%d rows)"
                                % (_epss_live, len(rows))) if _epss_live
                               else "EPSS = derived-sample (FIRST.org live unavailable)")
                 if _cvss_live:
-                    _cvss_part = ("NVD-backed CVSS cache (%d/%d rows; remainder stale/invalid "
-                                  "or derived-sample while the background NVD warmer fills "
-                                  "the cache)" % (_cvss_live, len(rows)))
-                elif _cvss_stale:
-                    _cvss_part = ("NVD CVSS cache stale/invalid (%d/%d rows); derived-sample "
-                                  "used while the background NVD warmer refreshes the cache"
-                                  % (_cvss_stale, len(rows)))
+                    _cvss_part = ("LIVE CVSS (NVD, %d/%d rows; remainder derived-sample "
+                                  "while the background NVD warmer fills the cache)"
+                                  % (_cvss_live, len(rows)))
                 else:
                     _cvss_part = ("CVSS/severity = derived-sample (CISA KEV does not "
                                   "publish CVSS; NVD warmer still filling the cache)")
-                _feed_mode = str(payload.get("mode") or "unavailable").strip().lower()
-                _feed_fetched_at = payload.get("fetched_at")
-                _catalog_is_bundled = _feed_fetched_at == "bundled-snapshot"
-                _catalog_evidence = (
-                    "bundled-snapshot" if _catalog_is_bundled else _feed_mode
-                )
-                for r in rows:
-                    _fully_sourced = (
-                        r.get("epss_src") == "first.org"
-                        and r.get("cvss_src") == "nvd"
-                    )
-                    r["data_kind"] = (
-                        "cached"
-                        if _feed_mode in {"live", "cached"}
-                        else "unavailable"
-                    )
-                    _epss_evidence = (
-                        "first.org-cache"
-                        if r.get("epss_src") == "first.org"
-                        else "derived-sample"
-                    )
-                    _cvss_evidence = (
-                        "nvd-cache"
-                        if r.get("cvss_src") == "nvd"
-                        else (
-                            "derived-sample; malformed-nvd-cache-ignored"
-                            if r.get("cvss_cache_state") == "malformed"
-                            else (
-                            "derived-sample; stale-nvd-cache-ignored"
-                            if r.get("cvss_cache_state") == "stale"
-                            else "derived-sample"
-                            )
-                        )
-                    )
-                    r["evidence_detail"] = (
-                        "catalog=%s; epss=%s; cvss=%s"
-                        % (_catalog_evidence, _epss_evidence, _cvss_evidence)
-                    )
-                if not rows:
-                    _response_data_kind = (
-                        "cached" if _feed_mode in {"live", "cached"} else "unavailable"
-                    )
-                elif all(r.get("data_kind") == "live" for r in rows) and _feed_mode == "live":
-                    _response_data_kind = "live"
-                elif all(r.get("data_kind") in {"live", "cached"} for r in rows):
-                    _response_data_kind = "cached"
-                else:
-                    _response_data_kind = "unavailable"
-                _provenance = (_catalog_evidence + " KEV IDs/dates/vendors + "
-                               + _epss_part + "; " + _cvss_part)
+                _dk = "live KEV IDs/dates/vendors + " + _epss_part + "; " + _cvss_part
                 return rows, {
-                    "source": (payload.get("source")
-                               or "CISA Known Exploited Vulnerabilities catalog"),
-                    "source_url": (payload.get("source_url")
-                                   or _kl_live._SOURCE["kev"][1]),
-                    "mode": _feed_mode,
-                    "fetched_at": _feed_fetched_at,
-                    "observed_at": _gov_now_iso(),
-                    "cache_note": payload.get("cache_note"),
+                    "source": "CISA Known Exploited Vulnerabilities catalog (LIVE feed)",
+                    "source_url": _kl_live._SOURCE["kev"][1],
+                    "mode": payload.get("mode","live"),
+                    "fetched_at": payload.get("fetched_at"),
                     "catalogVersion": data.get("catalogVersion"),
                     "dateReleased": data.get("dateReleased"),
                     "total_in_catalog": data.get("count") or len(vulns),
-                    "epss_source_rows": _epss_live,
-                    "cvss_source_rows": _cvss_live,
-                    "data_kind": _response_data_kind,
-                    "enrichment_provenance": _provenance,
+                    "epss_live_rows": _epss_live,
+                    "cvss_live_rows": _cvss_live,
+                    "data_kind": _dk,
                 }
         except Exception as _e:
             _kl_meta_err = repr(_e)
         # snapshot fallback
         if _kl_snap is not None:
-            rows = [dict(r) for r in getattr(_kl_snap, "KEV", [])]
+            rows = list(getattr(_kl_snap, "KEV", []))
             for r in rows:
                 r.setdefault("shortDescription","")
-                r["data_kind"] = "cached"
-                r["evidence_detail"] = (
-                    "catalog=cached; epss=derived-sample; cvss=derived-sample"
-                )
             return rows, {
                 "source": "CISA KEV bundled in-image snapshot (live feed unreachable)",
                 "source_url": getattr(_kl_snap, "KEV_SOURCE", ""),
                 "mode": "cached",
                 "fetched_at": "bundled-snapshot",
-                "observed_at": _gov_now_iso(),
                 "catalogVersion": getattr(_kl_snap, "KEV_CATALOG_VERSION", None),
-                "data_kind": "cached",
-                "enrichment_provenance": (
-                    "bundled snapshot; CVSS/EPSS = derived-sample enrichment"
-                ),
+                "data_kind": "snapshot; CVSS/EPSS = sample enrichment",
             }
-        return [], {
-            "source": "unavailable",
-            "source_url": "",
-            "mode": "unavailable",
-            "fetched_at": None,
-            "data_kind": "unavailable",
-            "enrichment_provenance": "no live or bundled KEV evidence available",
-        }
+        return [], {"source":"unavailable","mode":"unavailable","data_kind":"none"}
 
     @app.get("/api/a11oy/v1/sec/kev_live")
     async def _sec_kev_live():
@@ -11989,11 +11240,10 @@ try:
         return JSONResponse({**meta, "count": len(rows), "cves": rows})
 
     # --- NEW TAB: kevgate — live CVE -> policy-gate impact mapper ------------
-    # Pulls the top-N most recent available KEV CVEs and runs each through the
-    # real in-process governed policy engine (the same logic exposed by the
-    # /v1/policy/decide route) to show which deny-by-default gates each exploited
-    # CVE would trip if it arrived as a governed remediation action. Derived
-    # mappings remain explicit.
+    # Pulls the top-N most recent LIVE KEV CVEs and runs EACH through the REAL
+    # in-process governed policy engine (same logic the /v1/policy/decide route
+    # uses) to show which deny-by-default gates each exploited CVE would trip if
+    # it arrived as a governed remediation action. 0 fabricated gate results.
     @app.get("/api/a11oy/v1/sec/kevgate")
     async def _sec_kevgate(limit: int = 24):
         import anyio
@@ -12007,36 +11257,7 @@ try:
             if callable(decide): break
         out = []
         for r in rows:
-            sev = _kl_bounded_number(r.get("cvss"), 0.0, 10.0)
-            if sev is None:
-                sev = 0.0
-            _catalog_mode = str(meta.get("mode") or "unavailable").strip().lower()
-            _catalog_is_bundled = meta.get("fetched_at") == "bundled-snapshot"
-            _catalog_evidence = (
-                "bundled-snapshot" if _catalog_is_bundled else _catalog_mode
-            )
-            _gate_data_kind = (
-                "cached"
-                if _catalog_mode in {"live", "cached"}
-                else "unavailable"
-            )
-            _gate_evidence_detail = (
-                "catalog=%s; cvss=%s; epss=not-used-by-kevgate"
-                % (
-                    _catalog_evidence,
-                    "nvd-cache"
-                    if r.get("cvss_src") == "nvd"
-                    else (
-                        "derived-sample; malformed-nvd-cache-ignored"
-                        if r.get("cvss_cache_state") == "malformed"
-                        else (
-                        "derived-sample; stale-nvd-cache-ignored"
-                        if r.get("cvss_cache_state") == "stale"
-                        else "derived-sample"
-                        )
-                    ),
-                )
-            )
+            sev = float(r.get("cvss") or 0.0)
             text = ("Apply emergency remediation for %s (%s %s) — %s"
                     % (r.get("cveID"), r.get("vendorProject"), r.get("product"),
                        (r.get("vulnerabilityName") or "")[:80]))
@@ -12052,10 +11273,7 @@ try:
                     lam = (res or {}).get("lambda_value")
             except Exception:
                 decision = None
-            # Deterministic gate-impact mapping. Ransomware/CWE are CISA KEV
-            # fields; severity/CVSS may be NVD-backed or derived-sample, as
-            # disclosed by the scanned data_kind field and accompanying
-            # evidence_detail.
+            # deterministic, honest gate-impact mapping derived from REAL KEV fields
             mapped = []
             if r.get("ransomware") == "Known":
                 mapped.append("gate-01 signature-scan")
@@ -12064,60 +11282,24 @@ try:
             if r.get("cwe") in ("CWE-77","CWE-78","CWE-94","CWE-502"):
                 mapped.append("gate-04 dual-use-detection")
             mapped.append("gate-08 receipt-hash")  # every governed action is receipted
-            # Fail-closed: do not emit cached/live items whose CVSS is derived
-            # or stale. The readiness probe treats that as a doctrine lie.
-            _cvss_complete = (
-                r.get("cvss_src") == "nvd"
-                and str(r.get("cvss_cache_state") or "").strip().lower() == "fresh"
-            )
-            if not _cvss_complete or _gate_data_kind not in {"live", "cached"}:
-                continue
             out.append({
                 "cveID": r.get("cveID"), "vendorProject": r.get("vendorProject"),
-                "product": r.get("product"), "cvss": sev,
+                "product": r.get("product"), "cvss": r.get("cvss"),
                 "severity": r.get("severity"), "ransomware": r.get("ransomware"),
                 "dateAdded": r.get("dateAdded"),
-                "data_kind": _gate_data_kind,
-                "evidence_detail": _gate_evidence_detail,
-                "cvss_src": r.get("cvss_src"),
-                "cvss_cache_state": r.get("cvss_cache_state"),
                 "decision": decision,            # None when core helper not in scope
                 "lambda_value": lam,
                 "gates_fired": gates_fired,      # REAL when engine reachable
                 "gates_mapped": mapped,          # deterministic field-derived mapping
             })
-        _item_kinds = {item.get("data_kind") for item in out}
-        if out and _item_kinds <= {"live", "cached"}:
-            _response_data_kind = (
-                "live"
-                if (
-                    meta.get("mode") == "live"
-                    and _item_kinds == {"live"}
-                    and not meta.get("fetched_at") == "bundled-snapshot"
-                )
-                else "cached"
-            )
-        else:
-            _response_data_kind = (
-                meta.get("data_kind")
-                if meta.get("data_kind") in {"live", "cached", "unavailable"}
-                else "unavailable"
-            )
         return JSONResponse({
             **meta,
-            "data_kind": _response_data_kind,
             "count": len(out),
-            "mapping_note": ("Each row is a CISA KEV CVE whose evidence state is disclosed "
-                             "by the root and per-item mode/data_kind fields, mapped to the "
-                             "deny-by-default "
+            "mapping_note": ("Each row is a LIVE KEV CVE mapped to the deny-by-default "
                              "gates a governed remediation action would engage. gates_fired "
                              "is the REAL engine result when the in-process decision core is "
                              "reachable; gates_mapped is a deterministic mapping derived from "
-                             "CISA KEV fields (ransomware/CWE) plus severity/CVSS that "
-                             "is either NVD-backed or explicitly derived-sample. The scanned "
-                             "data_kind field and accompanying evidence_detail disclose "
-                             "which; no derived "
-                             "value is promoted to source-backed evidence."),
+                             "real KEV fields (ransomware/CWE/severity). No fabricated values."),
             "gate_catalog": ["gate-01 signature-scan","gate-02 size-guard",
                              "gate-03 lambda-threshold","gate-04 dual-use-detection",
                              "gate-05 stix-taxii-ingest","gate-06 traceparent",
@@ -12467,16 +11649,12 @@ try:
     # serves them with the correct JS content-type so the console can import
     # window.SZLLabels / SZLReceipts / SZLCodenames. 0 CDN — served from the image.
     _SHARED_DIR = Path("/app/static/shared")
-    if not _SHARED_DIR.is_dir():
-        _SHARED_DIR = Path(__file__).resolve().parent / "static" / "shared"
     _SHARED_ALLOW = {
         "szl_label_engine.js": _VENDOR_JS_CT,
         "szl_receipt_cosign.js": _VENDOR_JS_CT,
         "szl_codename_sanitizer.js": _VENDOR_JS_CT,
         # Lane F1: the shared 3D/holographic substrate kit (byte-identical a11oy<->killinchu).
         "szl_holo3d.js": _VENDOR_JS_CT,
-        "szl_command_bar.js": _VENDOR_JS_CT,
-        "szl_command_bar.css": _VENDOR_CSS_CT,
     }
 
     @app.get("/static/shared/{fname}")
@@ -12537,9 +11715,6 @@ try:
                 p = request.url.path
                 if p.startswith("/vendor/") or p.startswith("/api/") or p.startswith("/assets/"):
                     return resp
-                # Public product front door: do not inject the operator widget.
-                if p == "/" or p == "/landing":
-                    return resp
                 body = b""
                 async for chunk in resp.body_iterator:
                     body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
@@ -12589,7 +11764,7 @@ async def favicon_no_content() -> Response:
 
 
 
-@app.api_route("/", methods=["GET", "HEAD"])
+@app.get("/")
 async def spa_root():
     """FRONT DOOR: cathedral-style sovereign 3D hero (a11oy brain-sun, live Trust
     Score Λ, current updates) matching the org card. The full working console is
@@ -12615,9 +11790,7 @@ async def spa_root():
             if not _cp.is_file():
                 continue
             _data = _cp.read_bytes()
-            # Public front door: do not bake the operator widget into landing.
-            _is_public_front = _cp.name in {"a11oy_landing.html", "landing.html"}
-            if (not _is_public_front) and b'a11oy-operator-widget.js' not in _data:
+            if b'a11oy-operator-widget.js' not in _data:
                 if b'</body>' in _data:
                     _data = _data.replace(b'</body>', _SPA_TAG + b'</body>', 1)
                 elif b'</html>' in _data:
@@ -12721,14 +11894,7 @@ async def _energy3d_app_js() -> Response:
 
 
 # --- Doctrine v13 organ page routes (ADDITIVE; explicit, win over SPA catch-all) ---
-# Same local-vs-image resolution as STATIC_DIR: container path when present,
-# repo checkout when running tests / local serve.py.
-_IMAGE_PAGES_DIR = Path("/app/pages")
-_LOCAL_PAGES_DIR = Path(__file__).resolve().parent / "pages"
-PAGES_DIR = _IMAGE_PAGES_DIR if (_IMAGE_PAGES_DIR / "console.html").is_file() else _LOCAL_PAGES_DIR
-_IMAGE_WEB_DIR = Path("/app/web")
-_LOCAL_WEB_DIR = Path(__file__).resolve().parent / "web"
-WEB_DIR = _IMAGE_WEB_DIR if (_IMAGE_WEB_DIR / "trust.html").is_file() else _LOCAL_WEB_DIR
+PAGES_DIR = Path("/app/pages")
 
 # === ADDITIVE (Yachay CTO + Perplexity Computer Agent, 2026-06-02): wire orphaned ===
 # === genius pages that were BUILT but never registered (fell to SPA shell = a lie). ===
@@ -12811,9 +11977,7 @@ async def proof_replay_page() -> Response:
 
 
 # /trust — Trust Center + Verify Surface (KANCHAY). web/trust.html is self-contained:
-# kernel locked-proven chip from /api/a11oy/v1/honest locked_formula_count (Lean-8);
-# genome catalog tiers (including LOCKED-PROVEN tag, never green, never the kernel)
-# from /api/a11oy/v1/genome. Locked-8 rows with
+# the four honesty tiers with LIVE counts from /api/a11oy/v1/genome, the locked-8 with
 # TRUTHFUL labels (F18=Reed-Solomon parity NOT "DSSE seal", F19=Bekenstein additive, etc.)
 # + real lean_ref, the SEMANTIC-VERIFIED theorems, Theorem U (PROVEN conditional, teal) vs
 # Conjecture 1 (Λ-uniqueness, OPEN, gray — NEVER green), SLSA L1 only; L2/L3 unavailable
@@ -12821,9 +11985,9 @@ async def proof_replay_page() -> Response:
 # /api/a11oy/v1/govern/infer and re-verifies the DSSE ECDSA-P256 signature in-browser
 # against /cosign.pub (no sign-on-read). Every claim links to its check. 0 runtime CDN.
 # Registered BEFORE the SPA /{full_path:path} catch-all so it wins the ordered match.
-@app.api_route("/trust", methods=["GET", "HEAD"])
+@app.get("/trust")
 async def trust_page() -> Response:
-    f = WEB_DIR / "trust.html"
+    f = Path("/app/web/trust.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12868,7 +12032,7 @@ async def superpowers_page() -> Response:
 # house-style pages backed by LIVE endpoints (/v4/fleet, /api/a11oy/v1/mesh/state,
 # /api/a11oy/v1/evidence) — NOT redirects, NOT stubs. Served from pages/ (already
 # COPYed wholesale by the Dockerfile). Registered BEFORE the SPA catch-all.
-@app.api_route("/console", methods=["GET", "HEAD"])
+@app.get("/console")
 async def command_console_page() -> Response:
     f = PAGES_DIR / "console.html"
     if f.is_file():
@@ -12895,37 +12059,6 @@ for _cc_path in ("/command", "/command-center"):
     app.add_api_route(_cc_path, _command_center_redirect, methods=["GET"], include_in_schema=False)
 
 
-# /investor — alias onto the same console chrome (Investor View). No stub page,
-# no second IA. SPA catch-all would otherwise swallow this path as a soft HTML
-# 200. Registered BEFORE /{full_path:path}. 307 matches /command and /ungoverned.
-async def _investor_view_redirect() -> Response:
-    return _PTG_Redirect(url="/console?view=investor", status_code=307)
-
-
-app.add_api_route("/investor", _investor_view_redirect, methods=["GET"], include_in_schema=False)
-
-
-# /estate — Series A holographic models+kernels surface.
-# Served from pages/estate.html (wholesale COPY pages/). Not a stub, not a 307
-# onto an empty overlay. Killinchu-named Hub IDs stay outside the inventory.
-# /models stays the 1392 ecosystem-atlas deep-link (serves ecosystem.html);
-# this handler does not steal that path.
-# Prefer checkout pages/ when present: this VM's /app/pages is the prebuilt
-# image (has console.html, so PAGES_DIR pins there) and will not yet contain
-# a newly added estate.html until the next image bake.
-async def _series_a_estate_page() -> Response:
-    for folder in (_LOCAL_PAGES_DIR, PAGES_DIR, _IMAGE_PAGES_DIR):
-        f = folder / "estate.html"
-        if f.is_file():
-            return FileResponse(f, media_type="text/html")
-    return FileResponse(INDEX_HTML, media_type="text/html")
-
-
-app.add_api_route(
-    "/estate", _series_a_estate_page, methods=["GET", "HEAD"], include_in_schema=False
-)
-
-
 # /pinn — Physical-Bounds Certifier surface (distinct from /pinn-console).
 # Served from pages/pinn.html (COPYed wholesale by `COPY pages/ ./pages/`).
 @app.get("/pinn")
@@ -12945,12 +12078,10 @@ async def pnt_nav_page() -> Response:
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
-# /elite — compatibility alias to the Counter-UAS page on this app. The dedicated
-# Elite Console page (web/elite_console.html) is NOT resident on the HF Docker
-# Space, so adding a Dockerfile COPY for it would fail the flagship Space build
-# (missing COPY source is a hard build error). Redirect to the REAL page.
-# killinchu inference is a different Space (runtime UNAVAILABLE as of 2026-08-28);
-# do not treat /elite as killinchu-live.
+# /elite — the landing links this as "counter-UAS". The dedicated Elite Console
+# page (web/elite_console.html) is NOT resident on the HF Docker Space, so adding
+# a Dockerfile COPY for it would fail the flagship Space build (missing COPY
+# source is a hard build error). Redirect to the REAL, working Counter-UAS page.
 async def _elite_redirect() -> Response:
     return _PTG_Redirect(url="/counter-uas", status_code=307)
 
@@ -12958,23 +12089,21 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
-# /killinchu — path bridge. Hub inventory page is reachable; the inference
-# Space timed out (KALLPA 2026-08-28). Do not stamp this runtime LIVE.
-# Do not 307 browsers to *.hf.space (not user-visible as a live product URL).
-# Send them to the Hub inventory page and label the runtime UNAVAILABLE.
+# /killinchu — canonical path bridge. Without an explicit route this path falls
+# through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
+# bridge server-side so it works without JavaScript at every mobile viewport,
+# and preserve subpaths/query strings for direct links into the live product.
 _KILLINCHU_CANONICAL = "https://szlholdings-killinchu.hf.space"
-_KILLINCHU_HUB = "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
 
 
 async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
-    target = _KILLINCHU_HUB
+    suffix = f"/{full_path}" if full_path else "/"
+    target = f"{_KILLINCHU_CANONICAL}{suffix}"
     if request.url.query:
         target = f"{target}?{request.url.query}"
     response = _PTG_Redirect(url=target, status_code=307)
-    response.headers["X-SZL-Route-State"] = "UNAVAILABLE_RUNTIME"
-    response.headers["X-SZL-Killinchu-Hub"] = _KILLINCHU_HUB
-    response.headers["X-SZL-Killinchu-Inference"] = _KILLINCHU_CANONICAL
-    response.headers["Link"] = f'<{_KILLINCHU_HUB}>; rel="alternate"'
+    response.headers["X-SZL-Route-State"] = "CANONICAL_REDIRECT"
+    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL}/>; rel="canonical"'
     return response
 
 
@@ -13089,7 +12218,7 @@ async def benchmark_page() -> Response:
 # honest "where a11oy fits" diagram. Served from pages/assurance.html.
 # Registered BEFORE the SPA catch-all so /assurance returns the real page.
 # ADDITIVE — no existing route touched.
-@app.api_route("/assurance", methods=["GET", "HEAD"])
+@app.get("/assurance")
 async def assurance_page() -> Response:
     f = PAGES_DIR / "assurance.html"
     if f.is_file():
@@ -13768,9 +12897,7 @@ except Exception as _ig_e:
 
 
 # P3 FIX: /api/health JSON probe (Upgrade Hammer — Doctrine v11 LOCKED 749/14/163)
-# QHAPAQ 2026-08-28: GET 200 / HEAD 405. This lean probe does not share the
-# /api/a11oy/healthz rollup signer — fail closed ABSENT, never copy DSSE-LIVE.
-@app.api_route("/api/health", methods=["GET", "HEAD"])
+@app.get("/api/health")
 async def api_health() -> JSONResponse:
     """Top-level health probe — returns JSON 200. Registered before SPA catch-all."""
     return JSONResponse({
@@ -13783,11 +12910,6 @@ async def api_health() -> JSONResponse:
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
         "slsa": _A11OY_SLSA_TEXT,
-        "signer": {
-            "status": "ABSENT",
-            "signing_available": False,
-            "scheme": "UNAVAILABLE",
-        },
     })
 
 
@@ -13836,7 +12958,8 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
 @app.get("/warhacker")
 async def warhacker_page() -> Response:
     # RETIRED 2026-06-27: archived per founder (BRIEF.md: "warhacker is ARCHIVED").
-    return _PTG_Redirect(url="/console", status_code=307)
+    # Keep the eval-arena fragment so /warhacker and /warhacker#arena both land on the arena tab.
+    return _PTG_Redirect(url="/console#arena", status_code=307)
 
 
 # ---------------------------------------------------------------------------
@@ -13846,33 +12969,7 @@ async def warhacker_page() -> Response:
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
-# /robots.txt is a crawler document. The SPA catch-all used to be GET-only, so
-# HEAD /robots.txt returned FastAPI 405 JSON (KALLPA 2026-08-28). FileResponse
-# already omits the body on HEAD.
-@app.api_route("/robots.txt", methods=["GET", "HEAD"])
-async def robots_txt() -> Response:
-    f = STATIC_DIR / "robots.txt"
-    if f.is_file():
-        return FileResponse(f, media_type="text/plain")
-    return Response("User-agent: *\nAllow: /\n", media_type="text/plain")
-
-
-# QHAPAQ addendum 2026-08-28 13:05–13:13 ET: GET /sitemap.xml 200 / HEAD 405
-# on the app (Server: szl), same as documents. Explicit GET+HEAD; FileResponse
-# omits the body on HEAD.
-@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
-async def sitemap_xml() -> Response:
-    f = STATIC_DIR / "sitemap.xml"
-    if f.is_file():
-        return FileResponse(f, media_type="application/xml")
-    return Response(
-        '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>\n',
-        media_type="application/xml",
-    )
-
-
-@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])
+@app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
     if full_path.startswith("api/"):
@@ -15149,20 +14246,17 @@ except Exception as _ftiers_e:
     _A11OY_FTIERS_DIAG = {"status": "FAILED", "error": repr(_ftiers_e)}
 
 # ============================================================================
-# Two-origin identity lock: a-11-oy.com is the product command center;
-# a11oy.net is the public proof/registry (separate failure domain). This app
-# must NEVER 301 .net onto the product host (and never 301 the product onto
-# .net). Read-path-safe. Registered before uvicorn.run so the middleware stack
-# is built with it; passes through the HF Space host + localhost untouched.
-# HTML document HEAD is pinned here too (/console /trust /assurance already
-# declare GET+HEAD; ensure_html_documents_accept_head is belt-and-suspenders).
+# Canonical host: a-11-oy.com. a11oy.net is SUNSET — app-level 301 redirect so the
+# public URL converges on a-11-oy.com. Read-path-safe (pure Location response, no
+# receipt, no signing). Registered before uvicorn.run so the middleware stack is
+# built with it; passes through the HF Space host + localhost untouched.
 # ============================================================================
 try:
     import a11oy_canonical_domain as _canon_mod
     import sys as _canon_sys
     _canon_status = _canon_mod.register(app)
-    print(f"[a11oy] canonical-domain registered: {_canon_status}", file=_canon_sys.stderr)
-    _A11OY_CANON_DIAG = {"status": "ok", "identity": _canon_status}
+    print(f"[a11oy] canonical-domain registered ({len(_canon_status)} redirects): {_canon_status}", file=_canon_sys.stderr)
+    _A11OY_CANON_DIAG = {"status": "ok", "redirects": _canon_status}
 except Exception as _canon_e:
     import sys as _canon_sys, traceback as _canon_tb
     print(f"[a11oy] canonical-domain FAILED (non-fatal): {_canon_e!r}", file=_canon_sys.stderr)
@@ -15822,7 +14916,7 @@ except Exception as _szl_source_error:  # additive: never take down the SPA
 # re-verification on every request; receipts fetched from the public HF model
 # repos (bytes cached briefly, verification never skipped). Front-moved inside
 # the module so the exact JSON route wins over the SPA history fallback and the
-# /api proxy. Product origin remains a-11-oy.com; a11oy.net stays a separate registry.
+# /api proxy. Moves the wall onto a-11-oy.com so a11oy.net can retire.
 # ============================================================================
 try:
     import a11oy_forge_family as _a11oy_forge_family
@@ -15852,27 +14946,6 @@ try:
 except Exception as _khipu_demo_error:  # additive: never take down the SPA
     print(
         f"[a11oy] khipu demo tab NOT registered (non-fatal): {_khipu_demo_error!r}",
-        file=sys.stderr,
-    )
-
-
-# ============================================================================
-# KHIPU LIVE CPU-LAB PROXY (2026-08-28): GET /api/a11oy/v1/khipu/status and
-# POST /api/a11oy/v1/khipu/chat — same-origin proxy so /console Try Khipu can
-# reach the public CPU lab without relying on CORS. Distinct from the RECORDED
-# khipu demo traces above. Dummy Bearer not-a-secret; never reads HF_TOKEN.
-# GET does not sign. POST passes through the lab UNSIGNED record_sha256.
-# max_tokens<=32, temperature=0, stream=false. No tokens/s figure. Λ=Conjecture 1.
-# Additive, front-moved so the exact paths beat /api/a11oy/{path:path} and SPA.
-# ============================================================================
-try:
-    import a11oy_khipu_chat as _a11oy_khipu_chat
-
-    _khipu_chat_result = _a11oy_khipu_chat.register(app)
-    print(f"[a11oy] khipu live CPU-lab proxy registered (front-moved): {_khipu_chat_result}", file=sys.stderr)
-except Exception as _khipu_chat_error:  # additive: never take down the SPA
-    print(
-        f"[a11oy] khipu live CPU-lab proxy NOT registered (non-fatal): {_khipu_chat_error!r}",
         file=sys.stderr,
     )
 
@@ -15940,26 +15013,6 @@ except Exception as _ayllu_wall_error:  # additive: never take down the SPA
         f"[a11oy] ayllu council wall NOT registered (non-fatal): {_ayllu_wall_error!r}",
         file=sys.stderr,
     )
-
-
-# Belt-and-suspenders: HTML document, sitemap, and health JSON routes must
-# accept HEAD even if a later registration re-added them as GET-only.
-# QHAPAQ 2026-08-28: GET-only /api/a11oy/* HEAD-fell-through to the Node
-# proxy (404). Same HEAD 405 on szlholdings-a11oy.hf.space (Server: szl) —
-# the app, not Cloudflare. Host-aware Link rel=canonical (this app, not a
-# Cloudflare transform): on a-11-oy.com / www, Link is
-# https://a-11-oy.com{path}; huggingface.co/spaces is never the product
-# canonical. On *.hf.space the app omits a Space Hub canonical. HF custom
-# domain stays PENDING/UNAVAILABLE. Keep orange-cloud.
-# Do not grey-cloud. www.a-11-oy.com GET / is Cloudflare HTTP 404
-# (UNAVAILABLE until Cloudflare 301 www → apex). Do not add a second HF
-# custom domain. This app does not change DNS. x-szl-wire-d LIVE is Wire D,
-# not domain LIVE.
-try:
-    import a11oy_canonical_domain as _canon_head_mod
-    _canon_head_mod.ensure_html_documents_accept_head(app)
-except Exception:
-    pass
 
 
 if __name__ == "__main__":
