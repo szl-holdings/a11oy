@@ -63,7 +63,7 @@ const DEMO_NODES: GraphNode[] = [
   },
   {
     id: 'domain-aegis',
-    label: "PARAGON",
+    label: "Defense",
     type: 'domain',
     domain: 'aegis',
     description: 'Cybersecurity posture and threat intelligence',
@@ -84,7 +84,7 @@ const DEMO_NODES: GraphNode[] = [
   },
   {
     id: 'domain-lyte',
-    label: 'KORA',
+    label: 'Intelligence',
     type: 'domain',
     domain: 'lyte',
     description: 'Platform reliability and SLO management',
@@ -192,7 +192,7 @@ const DEMO_EDGES: GraphEdge[] = [
     label: 'monitors',
     strength: 0.82,
     type: 'dependency',
-    description: 'PARAGON monitors Singapore port authority access',
+    description: 'Defense monitors Singapore port authority access',
     lastActive: Date.now() - 7200000,
   },
   {
@@ -232,7 +232,7 @@ const DEMO_EDGES: GraphEdge[] = [
     label: 'informs',
     strength: 0.67,
     type: 'correlative',
-    description: 'Pattern detection informs PARAGON threat posture',
+    description: 'Pattern detection informs Defense threat posture',
     lastActive: Date.now() - 2700000,
   },
   {

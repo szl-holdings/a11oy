@@ -36,7 +36,7 @@ export function MarketingFooter() {
             </li>
             <li>
               <Link href="/marketing/apps/lyte" className="hover:text-white transition-colors">
-                KORA
+                Intelligence
               </Link>
             </li>
             <li>

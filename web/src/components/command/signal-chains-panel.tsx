@@ -155,7 +155,7 @@ const DEMO_CHAINS: SignalChain[] = [
     id: 'sc-cyber-escalate',
     name: 'Perimeter Breach → Legal Hold',
     description:
-      'When PARAGON detects a confirmed intrusion exceeding critical threshold, automatically trigger legal hold across affected subsidiaries and notify CISO.',
+      'When Defense detects a confirmed intrusion exceeding critical threshold, automatically trigger legal hold across affected subsidiaries and notify CISO.',
     triggerDomain: 'aegis',
     triggerSignal: 'intrusion_confidence_score',
     triggerThreshold: 0.85,
@@ -223,7 +223,7 @@ const DEMO_CHAINS: SignalChain[] = [
     id: 'sc-slo-breach',
     name: 'SLO Breach → On-Call Escalation',
     description:
-      'When KORA platform error budget drops below 10%, automatically page the on-call team and pause non-critical deployments.',
+      'When Intelligence platform error budget drops below 10%, automatically page the on-call team and pause non-critical deployments.',
     triggerDomain: 'lyte',
     triggerSignal: 'error_budget_remaining',
     triggerThreshold: 0.1,

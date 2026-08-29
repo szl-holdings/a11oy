@@ -50,7 +50,7 @@ const RECENT_DECISIONS = [
     id: 'REC-0418',
     title: 'Security posture remediation',
     outcome: 'achieved' as const,
-    pack: 'PARAGON',
+    pack: 'Defense',
     color: '#4f6ef7',
     impact: '94% → 97% score',
   },

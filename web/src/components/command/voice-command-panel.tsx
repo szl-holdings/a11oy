@@ -727,7 +727,7 @@ export function VoiceCommandPanel({ open, onClose, onNavigate }: VoiceCommandPan
               />
               <div>Speak to navigate, query, or approve actions</div>
               <div style={{ marginTop: 6, fontSize: '0.63rem', color: T.textMuted }}>
-                "Show me active threats" · "Navigate to PARAGON" · "Read my briefing"
+                "Show me active threats" · "Navigate to Defense" · "Read my briefing"
               </div>
             </div>
           )}
