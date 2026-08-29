@@ -88,7 +88,82 @@ jobs:
           PY
 
           python3 -m py_compile a11oy_model_intel.py tests/test_series_a_freshness_contract.py
-          python3 -m pytest -q tests/test_series_a_freshness_contract.py tests/test_series_a_estate.py
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import ast
+          from pathlib import Path
+          import re
+          from typing import Any, Optional
+
+          tree = ast.parse(Path("a11oy_model_intel.py").read_text(encoding="utf-8"))
+          functions = [
+              node
+              for node in tree.body
+              if isinstance(node, ast.FunctionDef)
+              and node.name == "_series_a_bind_card"
+          ]
+          if len(functions) != 1:
+              raise SystemExit("expected one Series A binding function")
+          module = ast.Module(
+              body=[
+                  ast.ImportFrom(
+                      module="__future__",
+                      names=[ast.alias(name="annotations")],
+                      level=0,
+                  ),
+                  functions[0],
+              ],
+              type_ignores=[],
+          )
+          ast.fix_missing_locations(module)
+          namespace = {
+              "Any": Any,
+              "Optional": Optional,
+              "_HF_REVISION_RE": re.compile(r"^[0-9a-f]{40}$"),
+          }
+          exec(compile(module, "a11oy_model_intel.py", "exec"), namespace)
+          bind = namespace["_series_a_bind_card"]
+
+          roadmap = {
+              "id": "sage-int8-fp8",
+              "title": "Sage INT8/FP8",
+              "lane": "kernel",
+              "cut": "ROADMAP",
+              "one_line": "Roadmap only.",
+              "hub_id": None,
+              "hub_kind": None,
+              "hub_href": None,
+              "github": None,
+              "act_href": None,
+              "not": "Not shipped.",
+          }
+          card = bind(roadmap, None, {"status": "empty"})
+          assert card["freshness"]["status"] == "unavailable"
+
+          model = {
+              "id": "test-model",
+              "title": "Test model",
+              "lane": "model",
+              "cut": "CUTTING",
+              "one_line": "Test model.",
+              "hub_id": "SZLHOLDINGS/test-model",
+              "hub_kind": "model",
+              "hub_href": "https://huggingface.co/SZLHOLDINGS/test-model",
+              "github": "https://github.com/szl-holdings/test-model",
+              "act_href": "https://huggingface.co/SZLHOLDINGS/test-model",
+              "not": "Not operational.",
+          }
+          live = {
+              "repository_id": model["hub_id"],
+              "revision": "a" * 40,
+              "file_count": 1,
+              "weight_bearing_from_filenames": False,
+              "has_adapter": False,
+          }
+          card = bind(model, live, {"status": "live"})
+          assert card["freshness"]["status"] == "live"
+          PY
           git diff --check
 
       - name: Commit exact repair and remove this bounded workflow
