@@ -1,0 +1,366 @@
+{
+  "info": {
+    "description": "Generated contract. No model, formula, market signal or agent grants authority.",
+    "title": "Puriq Markets API",
+    "version": "0.1.0-candidate"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/puriq-markets/actions/propose": {
+      "post": {
+        "operationId": "post_puriq_markets_actions_propose",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Create a bounded action proposal"
+      }
+    },
+    "/api/v1/puriq-markets/approvals": {
+      "post": {
+        "operationId": "post_puriq_markets_approvals",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Record authorized human review"
+      }
+    },
+    "/api/v1/puriq-markets/cases": {
+      "post": {
+        "operationId": "post_puriq_markets_cases",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Create an evidence-bound case"
+      }
+    },
+    "/api/v1/puriq-markets/decisions/evaluate": {
+      "post": {
+        "operationId": "post_puriq_markets_decisions_evaluate",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Evaluate a proposal without granting authority"
+      }
+    },
+    "/api/v1/puriq-markets/entities": {
+      "get": {
+        "operationId": "get_puriq_markets_entities",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Query tenant-scoped domain entities"
+      }
+    },
+    "/api/v1/puriq-markets/evidence": {
+      "get": {
+        "operationId": "get_puriq_markets_evidence",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "503": {
+            "description": "Not ready"
+          }
+        },
+        "summary": "Release evidence, limitations and incidents"
+      }
+    },
+    "/api/v1/puriq-markets/healthz": {
+      "get": {
+        "operationId": "get_puriq_markets_healthz",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "503": {
+            "description": "Not ready"
+          }
+        },
+        "summary": "Process liveness"
+      }
+    },
+    "/api/v1/puriq-markets/outcomes": {
+      "post": {
+        "operationId": "post_puriq_markets_outcomes",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Record or correct a measured outcome"
+      }
+    },
+    "/api/v1/puriq-markets/readyz": {
+      "get": {
+        "operationId": "get_puriq_markets_readyz",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "503": {
+            "description": "Not ready"
+          }
+        },
+        "summary": "Durable dependency-aware readiness"
+      }
+    },
+    "/api/v1/puriq-markets/receipts/{receipt_id}": {
+      "get": {
+        "operationId": "get_puriq_markets_receipts_receipt_id",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "receipt_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Fetch a decision receipt"
+      }
+    },
+    "/api/v1/puriq-markets/replay": {
+      "post": {
+        "operationId": "post_puriq_markets_replay",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Run no-side-effect replay"
+      }
+    },
+    "/api/v1/puriq-markets/signals": {
+      "get": {
+        "operationId": "get_puriq_markets_signals",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "Query evidence-bearing signals"
+      }
+    },
+    "/api/v1/puriq-markets/sources": {
+      "get": {
+        "operationId": "get_puriq_markets_sources",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid or inadmissible request"
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Unauthorized or policy denied"
+          },
+          "409": {
+            "description": "Conflict or idempotency mismatch"
+          },
+          "422": {
+            "description": "Typed validation failure"
+          },
+          "503": {
+            "description": "Required dependency unavailable"
+          }
+        },
+        "summary": "List source status, rights and revisions"
+      }
+    },
+    "/api/v1/puriq-markets/version": {
+      "get": {
+        "operationId": "get_puriq_markets_version",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "503": {
+            "description": "Not ready"
+          }
+        },
+        "summary": "Source, artifact, data, model and policy identity"
+      }
+    }
+  }
+}

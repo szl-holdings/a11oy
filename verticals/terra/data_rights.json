@@ -1,0 +1,38 @@
+{
+  "customer_data": {
+    "excluded_from_training_by_default": true,
+    "export_and_deletion_supported": true,
+    "logs_and_receipts_minimized": true,
+    "tenant_scoped": true
+  },
+  "default_training_use": "PROHIBITED",
+  "private_sources": [
+    "leases and amendments",
+    "rent roll",
+    "debt and financing",
+    "capex and property-management records",
+    "valuation and scenario systems",
+    "CRM and committee workflow"
+  ],
+  "public_sources": [
+    "NYC DOF ACRIS and parcel identifiers",
+    "NYC PLUTO/MapPLUTO",
+    "NYC DOB, HPD and OATH",
+    "FEMA, Census, Treasury, BLS and SEC where relevant",
+    "MapLibre with map/table parity"
+  ],
+  "schema": "szl.data-rights-contract/v8",
+  "source_requirements": [
+    "owner and authoritative URL",
+    "license or contract",
+    "permitted purpose",
+    "territory and user scope",
+    "collection method and rate limits",
+    "display and redistribution",
+    "retention and deletion",
+    "correction and revocation",
+    "training/evaluation permission",
+    "source revision and freshness"
+  ],
+  "vertical_id": "terra"
+}

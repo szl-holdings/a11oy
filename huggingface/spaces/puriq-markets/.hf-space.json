@@ -1,0 +1,11 @@
+{
+  "adapter": "szl-holdings/a11oy/huggingface/spaces/puriq-markets",
+  "app_port": 7860,
+  "canonical_source": "szl-holdings/a11oy/verticals/puriq-markets",
+  "github_adapter": "szl-holdings/puriq-live",
+  "sdk": "docker",
+  "source_visible": false,
+  "space_id": "SZLHOLDINGS/puriq-markets",
+  "status": "ROADMAP",
+  "visibility": "private"
+}

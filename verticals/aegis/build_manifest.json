@@ -1,0 +1,60 @@
+{
+  "compiler_version": "8.0.0",
+  "deterministic": true,
+  "network_calls": 0,
+  "outputs": {
+    "RUNBOOK.md": {
+      "bytes": 2068,
+      "sha256": "60a08e6389a81db42b1208f53254f035ad461b49513afd6545ee9d4b8f9ee89a"
+    },
+    "connector_registry.json": {
+      "bytes": 3176,
+      "sha256": "00d5308e1881cc6f88a7e02aa9a7789f889f569c93bd817c23969e61ad7b07ac"
+    },
+    "data_rights.json": {
+      "bytes": 1056,
+      "sha256": "24c25347e6eba9f51b301ca73526240a5b34290d3e70d97078406935328807ad"
+    },
+    "domain_graph.schema.json": {
+      "bytes": 3778,
+      "sha256": "56173c2a0f0ab45361d846ae01941f99c28eed7961737d0a5637f06565c275c2"
+    },
+    "evaluation_plan.json": {
+      "bytes": 3916,
+      "sha256": "eaa776a5c8d4115d405c4ce419f4018ad19cd1dbb573399bcde97e7e5fc44cc0"
+    },
+    "investor_demo.json": {
+      "bytes": 1268,
+      "sha256": "9131777796cdb28e703b17394e8329f114f8e76d76cc9a5e82e87942c2fd2444"
+    },
+    "openapi.json": {
+      "bytes": 9825,
+      "sha256": "6b8c50f416361c74d2c68c656c3bc72586382f99ca6153d88664867099dec0b9"
+    },
+    "pilot_plan.json": {
+      "bytes": 247,
+      "sha256": "0dce421c892ccf8ea098d65ea027c32d170649b7cbb6b0d4ff8fef92e4e71469"
+    },
+    "policy_bundle.json": {
+      "bytes": 1396,
+      "sha256": "0b85093afcd8de9516cf84406a1df68db9993562e1d41445e77ecdc87228a65f"
+    },
+    "production_release_plan.json": {
+      "bytes": 5705,
+      "sha256": "78dcb3622259d01a4dae76f04c023c4de3a9d69bcd6d8bd75b273b0cb00d0c32"
+    },
+    "ui_contract.json": {
+      "bytes": 1821,
+      "sha256": "d03a6eccf5f95ce3875511f56cad0828abe2da5d1a79e5d5707652cfe0cb1d15"
+    },
+    "vertical_manifest.json": {
+      "bytes": 4162,
+      "sha256": "3ae810cffb1f29d8e021d0b7a71ea686b7e1ffe6663bfeded504a9f6624157df"
+    }
+  },
+  "program_digest": "9f72a0a97cc99c52279cc7f75984d8df05b50b050385994208566582638786a2",
+  "provider_mutations": 0,
+  "schema": "szl.focus-vertical-build/v8",
+  "vertical_id": "aegis",
+  "vertical_manifest_digest": "14e72ffcde8d8d402b5efb045e9bc651be940eb4d1ed59e8431e64a000a07367"
+}

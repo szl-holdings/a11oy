@@ -1,0 +1,128 @@
+{
+  "allowed_actions": [
+    "resolve identity",
+    "create cited dossier",
+    "extract clauses, dates, rights and obligations",
+    "flag risk",
+    "model transparent scenarios",
+    "draft committee memo",
+    "request approval",
+    "record outcome"
+  ],
+  "buyer": "NYC and Northeast commercial-real-estate acquisition, asset-management, lending, brokerage, diligence and investment-committee teams.",
+  "canonical_source": {
+    "core": "szl-holdings/a11oy/verticals/terra",
+    "data_contracts": "szl-holdings/szl-lake/verticals/terra",
+    "legacy": "platform/artifacts/terra remains deprecated migration history",
+    "thin_space_adapter": "szl-holdings/szl-real-estate"
+  },
+  "decision_chain": [
+    "BBL/BIN/address/parcel identity",
+    "deeds, mortgages, leases and amendments",
+    "ownership and entity relationships",
+    "DOB, HPD, OATH, zoning, tax and hazard evidence",
+    "private lease, rent-roll, debt, capex and valuation assumptions",
+    "scenario and sensitivity analysis",
+    "evidence completeness and contradiction",
+    "analyst, legal, finance and committee approval",
+    "decision receipt",
+    "realized asset outcome"
+  ],
+  "display_name": "Terra Assurance",
+  "evaluations": [
+    "BBL/BIN/address entity-resolution precision",
+    "recorded-document and amendment-chain completeness",
+    "lease obligation/date extraction with citation",
+    "distress signal precision and historical backtest",
+    "scenario reproduction and assumption disclosure",
+    "ownership uncertainty and source-conflict handling",
+    "map/table parity and WCAG 2.2 AA",
+    "tenant and private-document isolation",
+    "no transaction or investment-advice interface"
+  ],
+  "formula_bindings": [
+    "F1",
+    "F4",
+    "F7",
+    "F12",
+    "F18",
+    "F19",
+    "F22",
+    "LAMBDA"
+  ],
+  "leaders": [
+    {
+      "name": "VTS",
+      "pattern": "lease/proposal data, cited answers and portfolio workflows",
+      "url": "https://www.vts.com/ai"
+    },
+    {
+      "name": "Cherre",
+      "pattern": "universal real-estate data model and knowledge graph",
+      "url": "https://cherre.com/products/agent-studio/"
+    },
+    {
+      "name": "Altus ARGUS",
+      "pattern": "structured financial models and auditable CRE analysis",
+      "url": "https://www.altusgroup.com/solutions/argus-intelligence/argus-assist/"
+    },
+    {
+      "name": "MapLibre",
+      "pattern": "open, extensible vector-map rendering",
+      "url": "https://maplibre.org/projects/gl-js/"
+    }
+  ],
+  "pilot": {
+    "phases": [
+      "historical baseline",
+      "read-only live observation",
+      "committee recommendation",
+      "approval workflow",
+      "outcome measurement"
+    ],
+    "scope": "one NYC-focused design partner, one property/deal cohort, public data plus a rights-cleared private document set"
+  },
+  "portfolio_role": "COMMERCIAL_BEACHHEAD",
+  "position": 1,
+  "private_connectors": [
+    "leases and amendments",
+    "rent roll",
+    "debt and financing",
+    "capex and property-management records",
+    "valuation and scenario systems",
+    "CRM and committee workflow"
+  ],
+  "prohibited_actions": [
+    "automatic offer, acquisition, sale, lease or financing commitment",
+    "investment-advice or certified-valuation claim",
+    "unlicensed owner/contact redistribution",
+    "silent assumption or valuation overwrite",
+    "high-volume source collection outside published terms"
+  ],
+  "public_connectors": [
+    "NYC DOF ACRIS and parcel identifiers",
+    "NYC PLUTO/MapPLUTO",
+    "NYC DOB, HPD and OATH",
+    "FEMA, Census, Treasury, BLS and SEC where relevant",
+    "MapLibre with map/table parity"
+  ],
+  "schema": "szl.focus-vertical/v8",
+  "space": {
+    "id": "SZLHOLDINGS/terra-assurance",
+    "initial_mode": "NYC public-data plus synthetic-document demonstration",
+    "source_visible": false,
+    "visibility": "protected"
+  },
+  "success_metrics": [
+    "time to evidence-complete property dossier",
+    "citation coverage",
+    "obligation/deadline recall",
+    "analyst correction rate",
+    "diligence cycle time",
+    "scenario reproduction rate",
+    "committee latency",
+    "decision-to-outcome linkage"
+  ],
+  "vertical_id": "terra",
+  "wedge": "NYC Property Risk-to-Committee Decision Assurance"
+}

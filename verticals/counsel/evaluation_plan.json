@@ -1,0 +1,127 @@
+{
+  "blocking_suites": [
+    {
+      "description": "matter and tenant isolation",
+      "evaluation_id": "COUNSEL-E01",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "authority citation precision and recall",
+      "evaluation_id": "COUNSEL-E02",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "authority currency and negative-treatment detection",
+      "evaluation_id": "COUNSEL-E03",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "jurisdiction fidelity",
+      "evaluation_id": "COUNSEL-E04",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "deadline and obligation accuracy",
+      "evaluation_id": "COUNSEL-E05",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "proposition-to-source coverage",
+      "evaluation_id": "COUNSEL-E06",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "privilege and confidential-data redaction",
+      "evaluation_id": "COUNSEL-E07",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "attorney correction/override rate",
+      "evaluation_id": "COUNSEL-E08",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "proof that no filing or public-advice endpoint exists",
+      "evaluation_id": "COUNSEL-E09",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    }
+  ],
+  "cross_cutting": [
+    "tenant isolation",
+    "missing/stale/contradictory evidence",
+    "data-rights denial",
+    "prompt and goal hijacking",
+    "tool overreach",
+    "approval bypass",
+    "idempotency and duplicate side effects",
+    "timeout, retry, circuit breaker and rollback",
+    "accessibility and performance",
+    "source-to-runtime readback"
+  ],
+  "promotion_rule": "Register thresholds and frozen cases before evaluation. Failed candidates remain immutable and cannot be relabeled as promoted.",
+  "schema": "szl.vertical-evaluation-plan/v8",
+  "vertical_id": "counsel"
+}

@@ -1,0 +1,47 @@
+{
+  "allowed_actions": [
+    "retrieve cited authority",
+    "summarize documents",
+    "build fact and authority timeline",
+    "draft and compare",
+    "flag deadline",
+    "request attorney review",
+    "record approved action and correction"
+  ],
+  "candidate_policy_mode": "LOG_ONLY",
+  "default_effect": "DENY",
+  "formula_grants_authority": false,
+  "market_signal_grants_authority": false,
+  "model_grants_authority": false,
+  "prohibited_actions": [
+    "public legal advice",
+    "automatic filing or client communication",
+    "uncited legal conclusion",
+    "privilege waiver or cross-matter leakage",
+    "use of stale/overruled authority without warning",
+    "model substitution for licensed attorney judgment"
+  ],
+  "promotion": [
+    "shadow evaluation",
+    "counterfactual replay",
+    "false-allow and false-deny review",
+    "approved exact policy revision",
+    "protected source promotion",
+    "runtime readback"
+  ],
+  "required_context": [
+    "authenticated principal and workload identity",
+    "tenant and resource authorization",
+    "purpose and action class",
+    "source, rights and freshness",
+    "exact vertical, policy, data and model revisions",
+    "short-lived capability and expiry",
+    "idempotency key",
+    "required human approval",
+    "postcondition",
+    "compensation or rollback",
+    "decision receipt"
+  ],
+  "schema": "szl.vertical-policy-bundle/v8",
+  "vertical_id": "counsel"
+}

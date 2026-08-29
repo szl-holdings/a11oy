@@ -1,0 +1,47 @@
+{
+  "allowed_actions": [
+    "read public market and forecast data",
+    "normalize event and resolution criteria",
+    "calculate calibration and disagreement",
+    "build scenario impact",
+    "draft risk brief",
+    "request committee decision",
+    "record resolution and scoring outcome"
+  ],
+  "candidate_policy_mode": "LOG_ONLY",
+  "default_effect": "DENY",
+  "formula_grants_authority": false,
+  "market_signal_grants_authority": false,
+  "model_grants_authority": false,
+  "prohibited_actions": [
+    "wallet or private-key custody",
+    "order placement, cancellation or signing",
+    "autonomous trading",
+    "market manipulation or wash trading",
+    "insider-information use",
+    "claim that market probability is truth or financial advice"
+  ],
+  "promotion": [
+    "shadow evaluation",
+    "counterfactual replay",
+    "false-allow and false-deny review",
+    "approved exact policy revision",
+    "protected source promotion",
+    "runtime readback"
+  ],
+  "required_context": [
+    "authenticated principal and workload identity",
+    "tenant and resource authorization",
+    "purpose and action class",
+    "source, rights and freshness",
+    "exact vertical, policy, data and model revisions",
+    "short-lived capability and expiry",
+    "idempotency key",
+    "required human approval",
+    "postcondition",
+    "compensation or rollback",
+    "decision receipt"
+  ],
+  "schema": "szl.vertical-policy-bundle/v8",
+  "vertical_id": "puriq-markets"
+}

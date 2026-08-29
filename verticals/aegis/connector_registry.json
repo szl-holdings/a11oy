@@ -1,0 +1,93 @@
+{
+  "private_connectors": [
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "Entra/Defender or Okta",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "AWS, Azure and GCP asset/configuration graphs",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "Wiz, CrowdStrike or other admitted defensive platform",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "GitHub",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "ServiceNow or Jira",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "CMDB and business-criticality registry",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    }
+  ],
+  "public_connectors": [
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "CISA KEV",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "NVD 2.0",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "MITRE ATT&CK STIX 2.1/TAXII",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "OCSF synthetic and public security events",
+      "rights_review_required": true,
+      "source_revision_required": true
+    }
+  ],
+  "schema": "szl.connector-registry/v8",
+  "secrets": "managed server-side secret store only; never client code, logs, traces, screenshots, errors or receipts",
+  "vertical_id": "aegis"
+}

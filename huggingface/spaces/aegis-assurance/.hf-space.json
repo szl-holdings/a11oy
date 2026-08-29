@@ -1,0 +1,11 @@
+{
+  "adapter": "szl-holdings/a11oy/huggingface/spaces/aegis-assurance",
+  "app_port": 7860,
+  "canonical_source": "szl-holdings/a11oy/verticals/aegis",
+  "github_adapter": "szl-holdings/immune",
+  "sdk": "docker",
+  "source_visible": false,
+  "space_id": "SZLHOLDINGS/aegis-assurance",
+  "status": "ROADMAP",
+  "visibility": "private"
+}

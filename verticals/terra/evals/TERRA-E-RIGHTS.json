@@ -1,0 +1,171 @@
+{
+  "case_id": "terra-rights-denied",
+  "eval_id": "TERRA-E-RIGHTS",
+  "expected_reason_codes": [
+    "DATA_RIGHTS_DENIED"
+  ],
+  "expected_state": "DENIED",
+  "payload": {
+    "allowed_actions": [
+      "resolve identity",
+      "create cited dossier",
+      "extract clauses, dates, rights and obligations",
+      "flag risk",
+      "model transparent scenarios",
+      "draft committee memo",
+      "request approval",
+      "record outcome"
+    ],
+    "case_id": "terra-rights-denied",
+    "chain_index": 3,
+    "chain_len": 10,
+    "contradictions": [],
+    "evidence": [
+      {
+        "citation": "ACRIS",
+        "claim": "Deed present",
+        "class": "OFFICIAL",
+        "id": "ev-deed",
+        "source_id": "acris",
+        "weight": 0.8
+      }
+    ],
+    "graph": {
+      "edges": [
+        {
+          "from": "f1",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f4",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f7",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "policy",
+          "rel": "requires",
+          "to": "authority"
+        },
+        {
+          "from": "authority",
+          "rel": "signs",
+          "to": "receipt"
+        },
+        {
+          "from": "acris",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "vault",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "acris",
+          "rel": "asserts",
+          "to": "ev-deed"
+        },
+        {
+          "from": "ev-deed",
+          "rel": "about",
+          "to": "entity"
+        },
+        {
+          "from": "ev-deed",
+          "rel": "weights",
+          "to": "f4"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "entity",
+          "kind": "entity",
+          "label": "rights denied parcel"
+        },
+        {
+          "id": "policy",
+          "kind": "policy",
+          "label": "Policy DENY"
+        },
+        {
+          "id": "authority",
+          "kind": "authority",
+          "label": "Human authority"
+        },
+        {
+          "id": "receipt",
+          "kind": "receipt",
+          "label": "Receipt"
+        },
+        {
+          "id": "f1",
+          "kind": "formula",
+          "label": "F1 identity"
+        },
+        {
+          "id": "f4",
+          "kind": "formula",
+          "label": "F4 aggregate"
+        },
+        {
+          "id": "f7",
+          "kind": "formula",
+          "label": "F7 freshness"
+        },
+        {
+          "id": "acris",
+          "kind": "source",
+          "label": "NYC DOF ACRIS"
+        },
+        {
+          "id": "vault",
+          "kind": "source",
+          "label": "uncleared vault"
+        },
+        {
+          "id": "ev-deed",
+          "kind": "evidence",
+          "label": "ACRIS"
+        }
+      ]
+    },
+    "prior_approval": false,
+    "prohibited_actions": [
+      "automatic offer, acquisition, sale, lease or financing commitment",
+      "investment-advice or certified-valuation claim",
+      "unlicensed owner/contact redistribution",
+      "silent assumption or valuation overwrite",
+      "high-volume source collection outside published terms"
+    ],
+    "proposed_action": "draft committee memo",
+    "sources": [
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "acris",
+        "name": "NYC DOF ACRIS",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      },
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "vault",
+        "name": "uncleared vault",
+        "revision": "packet8-demo",
+        "rights": "DENIED"
+      }
+    ],
+    "used_fuel": 2,
+    "vertical_id": "terra"
+  }
+}

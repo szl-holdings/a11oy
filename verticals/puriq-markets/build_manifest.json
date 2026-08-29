@@ -1,0 +1,60 @@
+{
+  "compiler_version": "8.0.0",
+  "deterministic": true,
+  "network_calls": 0,
+  "outputs": {
+    "RUNBOOK.md": {
+      "bytes": 2090,
+      "sha256": "e9696e7f51a55062fe921b335e6d99dcca8c5e145812c889cda047b65b322d7e"
+    },
+    "connector_registry.json": {
+      "bytes": 2851,
+      "sha256": "c5465f3f12c9ee40f3555dc5cfc79b6a3123a810880cc29600bf12eed478c1d8"
+    },
+    "data_rights.json": {
+      "bytes": 1157,
+      "sha256": "d9b7c961fd6edb15f80dee8f9e9da5a293d5fbdf17554940fae894a4e10e9db6"
+    },
+    "domain_graph.schema.json": {
+      "bytes": 3792,
+      "sha256": "8742ff1c5bef2450da5b01baab222dca7c80898b335f0828680d813d83054b7d"
+    },
+    "evaluation_plan.json": {
+      "bytes": 4029,
+      "sha256": "8470f54789d658d19ecc45d6c8cb7b0a97ffef9f68217836c62804a11f1270f9"
+    },
+    "investor_demo.json": {
+      "bytes": 1244,
+      "sha256": "99626d1c416e423de1c49935d658d287bc034bb59d63ee93078297d1790c2b7f"
+    },
+    "openapi.json": {
+      "bytes": 10047,
+      "sha256": "195b03b1462aece4a8fc9be0389b50e1ce97f95e714a527b5c0b7019e8e799e0"
+    },
+    "pilot_plan.json": {
+      "bytes": 271,
+      "sha256": "dec610cbcec1c37bbceb06dac7387c5c423f1b9ab4b5162004e51656a1212f28"
+    },
+    "policy_bundle.json": {
+      "bytes": 1471,
+      "sha256": "caae3aa03b766b7d029c1a0930a6613ab30e134fb61ffe1009d8f01f85085806"
+    },
+    "production_release_plan.json": {
+      "bytes": 5700,
+      "sha256": "7da6e840be3651b8e35e0b3824dffc8e340aa4efa21f7a0218de3fa00177035b"
+    },
+    "ui_contract.json": {
+      "bytes": 1885,
+      "sha256": "6abade1c8388aca2847451101260cdb09283badc9b76fff07cbff6f01a01e0e5"
+    },
+    "vertical_manifest.json": {
+      "bytes": 4463,
+      "sha256": "4e32e6eff2f461c6e99b762efa2daebd01da308fe21fdeea0704bf5236f2b4f9"
+    }
+  },
+  "program_digest": "9f72a0a97cc99c52279cc7f75984d8df05b50b050385994208566582638786a2",
+  "provider_mutations": 0,
+  "schema": "szl.focus-vertical-build/v8",
+  "vertical_id": "puriq-markets",
+  "vertical_manifest_digest": "ba83472b862c3b352856c7f33b77a29031cef176bfc92613eb2d4b0c3802865d"
+}

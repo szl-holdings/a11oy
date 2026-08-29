@@ -1,0 +1,76 @@
+{
+  "authority": "NONE",
+  "bindings": [
+    {
+      "authority": "NONE",
+      "id": "F1",
+      "limit": "does not prove source truth or domain correctness",
+      "role": "decision/evidence graph structural identity"
+    },
+    {
+      "authority": "NONE",
+      "id": "F4",
+      "limit": "does not prove optimal weights or calibrated probability",
+      "role": "bounded multi-signal aggregation"
+    },
+    {
+      "authority": "NONE",
+      "id": "F7",
+      "limit": "does not prove source truth, completeness or licensing",
+      "role": "provenance and freshness weighting"
+    },
+    {
+      "authority": "NONE",
+      "id": "F11",
+      "limit": "does not prove a remaining action is safe or authorized",
+      "role": "candidate action-space narrowing"
+    },
+    {
+      "authority": "NONE",
+      "id": "F12",
+      "limit": "does not prove real-world feasibility or optimality",
+      "role": "bounded schedule/sequence surrogate"
+    },
+    {
+      "authority": "NONE",
+      "id": "F18",
+      "limit": "does not prove sufficient evidence or privacy",
+      "role": "description and context complexity cap"
+    },
+    {
+      "authority": "NONE",
+      "id": "F19",
+      "limit": "does not prove general program termination or external shutdown",
+      "role": "finite internal workflow fuel"
+    },
+    {
+      "authority": "NONE",
+      "id": "F22",
+      "limit": "does not prove causality or outcome",
+      "role": "bounded graph-path aggregation"
+    },
+    {
+      "authority": "NONE",
+      "id": "LAMBDA",
+      "limit": "Conjecture/advisory only; never grants authority",
+      "role": "advisory multi-axis posture"
+    }
+  ],
+  "lambda": {
+    "allowed": "explain and escalate a multi-axis posture",
+    "authority": "NONE",
+    "id": "LAMBDA",
+    "prohibited": "authorization, universal uniqueness, domain correctness, financial advice, legal advice, security approval or transaction approval",
+    "status": "ADVISORY_CONJECTURAL"
+  },
+  "locked_proven": [
+    "F1",
+    "F4",
+    "F7",
+    "F11",
+    "F12",
+    "F18",
+    "F19",
+    "F22"
+  ]
+}

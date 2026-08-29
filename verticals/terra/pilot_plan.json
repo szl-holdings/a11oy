@@ -1,0 +1,10 @@
+{
+  "phases": [
+    "historical baseline",
+    "read-only live observation",
+    "committee recommendation",
+    "approval workflow",
+    "outcome measurement"
+  ],
+  "scope": "one NYC-focused design partner, one property/deal cohort, public data plus a rights-cleared private document set"
+}

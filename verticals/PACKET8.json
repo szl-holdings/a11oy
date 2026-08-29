@@ -1,0 +1,17 @@
+{
+  "compiler_version": "8.0.0",
+  "formula_authority": "NONE",
+  "initial_spaces_are_nonpublic": true,
+  "lambda": "ADVISORY_CONJECTURAL",
+  "orchestrator_published": false,
+  "parent_main": "60154ba5d752139493f3e2d2971668a6d56e61c2",
+  "program_digest": "9f72a0a97cc99c52279cc7f75984d8df05b50b050385994208566582638786a2",
+  "schema": "szl.packet8-land/v8",
+  "spaces": [
+    "SZLHOLDINGS/terra-assurance",
+    "SZLHOLDINGS/aegis-assurance",
+    "SZLHOLDINGS/puriq-markets",
+    "SZLHOLDINGS/counsel-assurance"
+  ],
+  "wedge": "Decision Assurance"
+}

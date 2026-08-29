@@ -1,0 +1,130 @@
+{
+  "allowed_actions": [
+    "read and normalize",
+    "create case",
+    "rank choke-point remediation",
+    "draft remediation",
+    "draft ticket or change record",
+    "open a non-protected remediation branch/PR after approval",
+    "verify postcondition"
+  ],
+  "buyer": "MSP/MSSP security leaders, CISOs, cloud and identity teams, GRC owners and enterprise AI-agent control owners.",
+  "canonical_source": {
+    "core": "szl-holdings/a11oy/verticals/aegis",
+    "data_contracts": "szl-holdings/szl-lake/verticals/aegis",
+    "legacy": "platform/artifacts/sentra remains deprecated migration history",
+    "modules": [
+      "szl-holdings/immune",
+      "szl-holdings/szl-defensive-control-plane"
+    ]
+  },
+  "decision_chain": [
+    "asset and workload identity",
+    "security or AI-agent observation",
+    "exposure and exploitable attack path",
+    "critical asset and blast radius",
+    "control and evidence coverage",
+    "choke-point remediation candidates",
+    "continuous action authorization",
+    "change approval",
+    "bounded draft action",
+    "rescan and postcondition",
+    "receipt and measured risk reduction"
+  ],
+  "display_name": "Aegis Assurance",
+  "evaluations": [
+    "asset and identity entity-resolution precision",
+    "attack-path precision and analyst-confirmed relevance",
+    "choke-point remediation coverage",
+    "false priority and missed-critical-path rate",
+    "tenant isolation and authorization",
+    "stale/missing/contradictory source behavior",
+    "prompt injection and tool overreach",
+    "approval bypass and idempotency",
+    "postcondition and rollback"
+  ],
+  "formula_bindings": [
+    "F1",
+    "F4",
+    "F7",
+    "F11",
+    "F18",
+    "F19",
+    "F22",
+    "LAMBDA"
+  ],
+  "leaders": [
+    {
+      "name": "Microsoft Security Exposure Management",
+      "pattern": "attack paths, choke points, blast radius and actionable recommendations",
+      "url": "https://learn.microsoft.com/en-us/security-exposure-management/work-attack-paths-overview"
+    },
+    {
+      "name": "OCSF",
+      "pattern": "vendor-neutral extensible security event schema",
+      "url": "https://ocsf.io/"
+    },
+    {
+      "name": "MITRE ATT&CK",
+      "pattern": "versioned machine-readable threat knowledge",
+      "url": "https://attack.mitre.org/resources/attack-data-and-tools/"
+    },
+    {
+      "name": "ServiceNow AI Control Tower",
+      "pattern": "discover, observe, govern, secure and measure AI assets and agents",
+      "url": "https://www.servicenow.com/products/ai-control-tower.html"
+    }
+  ],
+  "pilot": {
+    "phases": [
+      "read-only graph",
+      "case prioritization",
+      "draft remediation",
+      "approval",
+      "verified closure"
+    ],
+    "scope": "one customer environment with one identity, one cloud/security and one work-management connector"
+  },
+  "portfolio_role": "PARALLEL_ENTERPRISE_PROOF",
+  "position": 2,
+  "private_connectors": [
+    "Entra/Defender or Okta",
+    "AWS, Azure and GCP asset/configuration graphs",
+    "Wiz, CrowdStrike or other admitted defensive platform",
+    "GitHub",
+    "ServiceNow or Jira",
+    "CMDB and business-criticality registry"
+  ],
+  "prohibited_actions": [
+    "autonomous destructive remediation",
+    "offensive intrusion or exploitation",
+    "credential collection or disclosure",
+    "cross-tenant access",
+    "model-selected privilege",
+    "silent risk acceptance"
+  ],
+  "public_connectors": [
+    "CISA KEV",
+    "NVD 2.0",
+    "MITRE ATT&CK STIX 2.1/TAXII",
+    "OCSF synthetic and public security events"
+  ],
+  "schema": "szl.focus-vertical/v8",
+  "space": {
+    "id": "SZLHOLDINGS/aegis-assurance",
+    "initial_mode": "public/synthetic defensive-security demonstration plus private tenant connectors",
+    "source_visible": false,
+    "visibility": "protected"
+  },
+  "success_metrics": [
+    "time from exposure to evidence-complete case",
+    "confirmed attack paths broken",
+    "critical assets without owners",
+    "false priority rate",
+    "approval latency",
+    "verified closure rate",
+    "agent/tool denials and overrides"
+  ],
+  "vertical_id": "aegis",
+  "wedge": "Exposure-to-Remediation Decision Assurance"
+}

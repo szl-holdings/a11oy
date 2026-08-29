@@ -1,0 +1,77 @@
+{
+  "private_connectors": [
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "customer risk register",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "treasury/exposure data",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "business scenario assumptions",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "committee policy and decision records",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    }
+  ],
+  "public_connectors": [
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "Polymarket Gamma/CLOB market metadata and history",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "Metaculus public forecast and resolution data where permitted",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "Kalshi or other regulated event-contract public data where accessible and licensed",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "Federal Reserve, BLS, Treasury, SEC and other official macro/filing data",
+      "rights_review_required": true,
+      "source_revision_required": true
+    }
+  ],
+  "schema": "szl.connector-registry/v8",
+  "secrets": "managed server-side secret store only; never client code, logs, traces, screenshots, errors or receipts",
+  "vertical_id": "puriq-markets"
+}

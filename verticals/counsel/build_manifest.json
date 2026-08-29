@@ -1,0 +1,60 @@
+{
+  "compiler_version": "8.0.0",
+  "deterministic": true,
+  "network_calls": 0,
+  "outputs": {
+    "RUNBOOK.md": {
+      "bytes": 2143,
+      "sha256": "0f3e705835f95e60cd8038928d47e0c94b0fa781dcfbdfa25a41511ab6545ed1"
+    },
+    "connector_registry.json": {
+      "bytes": 3322,
+      "sha256": "d3486649eaaae02dd633e2396751371fe992ca5e7ac9332080fb49c2bf74987a"
+    },
+    "data_rights.json": {
+      "bytes": 1089,
+      "sha256": "a10deba0f198f9b3efdd90dabe9ecbe6971c0cf265cf4eb6ea8778e6bbf428d1"
+    },
+    "domain_graph.schema.json": {
+      "bytes": 3784,
+      "sha256": "bc2db83e703a38747d9fd20bd3a6df330855ee1fa6995652fb925b7f91dcb9b7"
+    },
+    "evaluation_plan.json": {
+      "bytes": 3919,
+      "sha256": "f105abcccf980e4ee40d1c353218c51c0135cdeb75a491b1e9a730cbf591c0e1"
+    },
+    "investor_demo.json": {
+      "bytes": 1243,
+      "sha256": "dbb6deda489be3ac1abc43978946ee3d4463c1a812f6fcc7618c5fc78b8f98f1"
+    },
+    "openapi.json": {
+      "bytes": 9883,
+      "sha256": "1c1cc783ddbb9193c7d28b9738bd68f7205ba4d151fc032d96077d9f21c2c376"
+    },
+    "pilot_plan.json": {
+      "bytes": 294,
+      "sha256": "3d0aa27a463e46b7f1d92c7f832a7c80a3b26078ac34524a461c7ffe68c9cf27"
+    },
+    "policy_bundle.json": {
+      "bytes": 1435,
+      "sha256": "955aad6e53d317a76d7c1c4506f5993738f8ca92342c14f1ee766423e317950f"
+    },
+    "production_release_plan.json": {
+      "bytes": 5702,
+      "sha256": "5652e3ed6fad7b14e81f12f7d7ac334380df30d6213ced2a93bb547b308fe2f5"
+    },
+    "ui_contract.json": {
+      "bytes": 1837,
+      "sha256": "6be1508026242da6ed8d879658d4a27faef8f2eb116aa8516bb43f658d45f680"
+    },
+    "vertical_manifest.json": {
+      "bytes": 4186,
+      "sha256": "80da70b62986daeee619b468f4bb1e5786eaec178733d5a6637a1eee731a378a"
+    }
+  },
+  "program_digest": "9f72a0a97cc99c52279cc7f75984d8df05b50b050385994208566582638786a2",
+  "provider_mutations": 0,
+  "schema": "szl.focus-vertical-build/v8",
+  "vertical_id": "counsel",
+  "vertical_manifest_digest": "348ffdb0cd5075552d9a262125657d0d54650497fae4d464b77393a0010fc863"
+}

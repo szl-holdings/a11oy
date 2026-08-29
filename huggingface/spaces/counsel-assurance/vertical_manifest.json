@@ -1,0 +1,129 @@
+{
+  "allowed_actions": [
+    "retrieve cited authority",
+    "summarize documents",
+    "build fact and authority timeline",
+    "draft and compare",
+    "flag deadline",
+    "request attorney review",
+    "record approved action and correction"
+  ],
+  "buyer": "Law firms and in-house legal teams needing matter context, cited authority, deadlines, review and audit.",
+  "canonical_source": {
+    "core": "szl-holdings/a11oy/verticals/counsel",
+    "data_contracts": "szl-holdings/szl-lake/verticals/counsel",
+    "research_and_eval": "szl-holdings/szl-forge",
+    "shared_ui": "selected Ayllu components after migration review",
+    "thin_space_adapter": "szl-holdings/counsel"
+  },
+  "decision_chain": [
+    "matter, client, jurisdiction and role",
+    "fact and document timeline",
+    "authority search and currency",
+    "proposition-to-source citation",
+    "deadline and obligation",
+    "draft and redline",
+    "attorney review and approval",
+    "filing or action performed by authorized human/system",
+    "receipt, correction and outcome"
+  ],
+  "display_name": "Counsel Assurance",
+  "evaluations": [
+    "matter and tenant isolation",
+    "authority citation precision and recall",
+    "authority currency and negative-treatment detection",
+    "jurisdiction fidelity",
+    "deadline and obligation accuracy",
+    "proposition-to-source coverage",
+    "privilege and confidential-data redaction",
+    "attorney correction/override rate",
+    "proof that no filing or public-advice endpoint exists"
+  ],
+  "formula_bindings": [
+    "F1",
+    "F7",
+    "F11",
+    "F18",
+    "F19",
+    "LAMBDA"
+  ],
+  "leaders": [
+    {
+      "name": "Clio",
+      "pattern": "matter-aware workflows and legal context",
+      "url": "https://www.clio.com/"
+    },
+    {
+      "name": "Harvey",
+      "pattern": "shared matter context, lawyer-built agents and professional oversight",
+      "url": "https://www.harvey.ai/"
+    },
+    {
+      "name": "CoCounsel",
+      "pattern": "authority-grounded legal research and professional workflows",
+      "url": "https://legal.thomsonreuters.com/en/products/cocounsel-legal"
+    },
+    {
+      "name": "CourtListener",
+      "pattern": "open legal opinions, dockets and citation infrastructure",
+      "url": "https://github.com/freelawproject/courtlistener"
+    },
+    {
+      "name": "LegalBench",
+      "pattern": "diverse collaborative legal-reasoning benchmark",
+      "url": "https://github.com/HazyResearch/legalbench"
+    }
+  ],
+  "pilot": {
+    "phases": [
+      "historical evaluation",
+      "read-only matter timeline",
+      "draft/research",
+      "attorney review",
+      "approved workflow record"
+    ],
+    "scope": "one qualified legal design partner, one bounded matter type, synthetic/public corpus plus authorized private matter set"
+  },
+  "portfolio_role": "PRIVATE_ATTORNEY_LED_CELL",
+  "position": 4,
+  "private_connectors": [
+    "document-management system",
+    "matter-management system",
+    "calendar/deadline system",
+    "billing/time system",
+    "firm knowledge base and licensed legal research"
+  ],
+  "prohibited_actions": [
+    "public legal advice",
+    "automatic filing or client communication",
+    "uncited legal conclusion",
+    "privilege waiver or cross-matter leakage",
+    "use of stale/overruled authority without warning",
+    "model substitution for licensed attorney judgment"
+  ],
+  "public_connectors": [
+    "CourtListener and RECAP where permitted",
+    "Federal Register",
+    "official court and agency sources",
+    "eyecite citation parsing",
+    "public-domain or licensed evaluation corpora"
+  ],
+  "schema": "szl.focus-vertical/v8",
+  "space": {
+    "id": "SZLHOLDINGS/counsel-assurance",
+    "initial_mode": "attorney-led synthetic/public-authority evaluation and private matter pilot",
+    "source_visible": false,
+    "visibility": "private"
+  },
+  "success_metrics": [
+    "citation coverage",
+    "authority currency",
+    "deadline accuracy",
+    "attorney correction rate",
+    "matter isolation",
+    "time to reviewed work product",
+    "approved-work reuse"
+  ],
+  "vertical_id": "counsel",
+  "wedge": "Matter Decision Record and Authority-Grounded Workflow Assurance"
+}

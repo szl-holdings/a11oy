@@ -1,0 +1,199 @@
+{
+  "case_id": "terra-madison",
+  "eval_id": "TERRA-E-APPROVE-01",
+  "expected_reason_codes": [
+    "HUMAN_AUTHORIZED_BOUNDED_ACTION"
+  ],
+  "expected_state": "APPROVED",
+  "payload": {
+    "allowed_actions": [
+      "resolve identity",
+      "create cited dossier",
+      "extract clauses, dates, rights and obligations",
+      "flag risk",
+      "model transparent scenarios",
+      "draft committee memo",
+      "request approval",
+      "record outcome"
+    ],
+    "case_id": "terra-madison",
+    "chain_index": 3,
+    "chain_len": 10,
+    "contradictions": [],
+    "evidence": [
+      {
+        "citation": "ACRIS CRFN demo-1",
+        "claim": "Deed chain complete through 2015.",
+        "class": "OFFICIAL",
+        "id": "ev-deed",
+        "source_id": "acris",
+        "weight": 0.92
+      },
+      {
+        "citation": "DOB 1678921",
+        "claim": "Open facade cycle with two complaints.",
+        "class": "OFFICIAL",
+        "id": "ev-facade",
+        "source_id": "dob",
+        "weight": 0.88
+      }
+    ],
+    "graph": {
+      "edges": [
+        {
+          "from": "f1",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f4",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f7",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "policy",
+          "rel": "requires",
+          "to": "authority"
+        },
+        {
+          "from": "authority",
+          "rel": "signs",
+          "to": "receipt"
+        },
+        {
+          "from": "acris",
+          "rel": "describes",
+          "to": "parcel-madison"
+        },
+        {
+          "from": "dob",
+          "rel": "describes",
+          "to": "parcel-madison"
+        },
+        {
+          "from": "acris",
+          "rel": "asserts",
+          "to": "ev-deed"
+        },
+        {
+          "from": "ev-deed",
+          "rel": "about",
+          "to": "parcel-madison"
+        },
+        {
+          "from": "ev-deed",
+          "rel": "weights",
+          "to": "f4"
+        },
+        {
+          "from": "dob",
+          "rel": "asserts",
+          "to": "ev-facade"
+        },
+        {
+          "from": "ev-facade",
+          "rel": "about",
+          "to": "parcel-madison"
+        },
+        {
+          "from": "ev-facade",
+          "rel": "weights",
+          "to": "f4"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "parcel-madison",
+          "kind": "entity",
+          "label": "11 Madison Avenue"
+        },
+        {
+          "id": "policy",
+          "kind": "policy",
+          "label": "Policy DENY"
+        },
+        {
+          "id": "authority",
+          "kind": "authority",
+          "label": "Human authority"
+        },
+        {
+          "id": "receipt",
+          "kind": "receipt",
+          "label": "Receipt"
+        },
+        {
+          "id": "f1",
+          "kind": "formula",
+          "label": "F1 identity"
+        },
+        {
+          "id": "f4",
+          "kind": "formula",
+          "label": "F4 aggregate"
+        },
+        {
+          "id": "f7",
+          "kind": "formula",
+          "label": "F7 freshness"
+        },
+        {
+          "id": "acris",
+          "kind": "source",
+          "label": "NYC DOF ACRIS"
+        },
+        {
+          "id": "dob",
+          "kind": "source",
+          "label": "NYC DOB complaints"
+        },
+        {
+          "id": "ev-deed",
+          "kind": "evidence",
+          "label": "ACRIS CRFN demo-1"
+        },
+        {
+          "id": "ev-facade",
+          "kind": "evidence",
+          "label": "DOB 1678921"
+        }
+      ]
+    },
+    "prior_approval": true,
+    "prohibited_actions": [
+      "automatic offer, acquisition, sale, lease or financing commitment",
+      "investment-advice or certified-valuation claim",
+      "unlicensed owner/contact redistribution",
+      "silent assumption or valuation overwrite",
+      "high-volume source collection outside published terms"
+    ],
+    "proposed_action": "draft committee memo",
+    "sources": [
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "acris",
+        "name": "NYC DOF ACRIS",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      },
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "dob",
+        "name": "NYC DOB complaints",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      }
+    ],
+    "used_fuel": 2,
+    "vertical_id": "terra"
+  }
+}
