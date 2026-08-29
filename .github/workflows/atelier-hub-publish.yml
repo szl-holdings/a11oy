@@ -46,7 +46,7 @@ jobs:
       - name: Overlay receipted Unsloth v2 kit
         run: |
           set -euo pipefail
-          mkdir -p atelier/kit
+          mkdir -p atelier/kit atelier/cards
           if [ -f a11oy-src/.github/atelier-kit/receipted_unsloth.py ]; then
             cp a11oy-src/.github/atelier-kit/receipted_unsloth.py atelier/kit/receipted_unsloth.py
           fi
@@ -56,6 +56,14 @@ jobs:
           if [ -f a11oy-src/.github/atelier-kit/kit-README.md ]; then
             cp a11oy-src/.github/atelier-kit/kit-README.md atelier/kit/README.md
           fi
+          if [ -f a11oy-src/.github/atelier-kit/models.json ]; then
+            cp a11oy-src/.github/atelier-kit/models.json atelier/models.json
+          fi
+          if [ -d a11oy-src/.github/atelier-kit/cards ]; then
+            cp a11oy-src/.github/atelier-kit/cards/*.md atelier/cards/ || true
+          fi
+          echo "overlay catalog $(wc -c < atelier/models.json) bytes"
+          ls atelier/cards/WILLAY.md atelier/unsloth-recipes.json atelier/kit/receipted_unsloth.py
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -106,6 +114,16 @@ jobs:
               commit_message="publish(atelier): walk + MEASURED nano weights from szl-holdings/szl-atelier",
           )
           print("published space SZLHOLDINGS/szl-atelier")
+
+          # Explicit catalog/recipes so allow_patterns cannot miss the overlay.
+          for rel, msg in (
+              ("models.json", "catalog(atelier): Unsloth unique-cut benches RECIPE/KERNEL — not a GPU retrain"),
+              ("unsloth-recipes.json", "recipe(atelier): Unsloth profiles RECIPE not MEASURED — energy UNAVAILABLE"),
+          ):
+              pth = root / rel
+              if pth.exists():
+                  api.upload_file(path_or_fileobj=str(pth), path_in_repo=rel, repo_id="SZLHOLDINGS/szl-atelier", repo_type="space", commit_message=msg)
+                  print("published space", rel)
 
           src = json.loads((root / "nano-weights.json").read_text())
           wdir = root / "weights"
