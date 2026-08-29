@@ -89,6 +89,12 @@ CURATED_SURFACES: dict[str, list[dict[str, str]]] = {
             "href": "/living-anatomy",
             "owner": "szl-holdings/a11oy",
         },
+        {
+            "id": "Fail-closed organ integrity",
+            "kind": "runtime",
+            "href": "/organs/integrity",
+            "owner": "szl-holdings/szl-organ-integrity",
+        },
     ],
     "holographic": [
         {
