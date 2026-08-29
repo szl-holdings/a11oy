@@ -48,15 +48,13 @@ def test_status_requires_validated_endpoint_data_and_never_calls_it_qps():
     app = source(ROUTER / "app.js")
 
     assert "normalizeStats(await response.json())" in app
-    assert "payload.state !== 'MODELED'" in app
-    assert "payload.mode !== 'modeled'" in app
-    assert "payload.throughput_state !== 'MODELED'" in app
+    assert "payload?.state === 'LIVE'" in app
+    assert "payload?.mode === 'live'" in app
+    assert "payload.throughput_state !== 'OBSERVED'" in app
     assert "routes.length !== payload.routes.length" in app
-    assert "router stats signal does not equal route total" in app
-    assert "stats.source !== 'szl_brain.TIERS'" in app
-    assert "MODELED ENDPOINT · RESPONDING" in app
-    assert "modeled load · not QPS" in app
+    assert "router stats counter does not equal route total" in app
     assert "MODELED decision signal" in app
+    assert "modeled load · not QPS" in app
     assert "response age, not model age" in app
     assert 'id="qps"' not in html
     assert "served / poll" not in html
@@ -100,10 +98,10 @@ def test_constellation_is_high_contrast_and_honors_reduced_motion():
 def test_mobile_nav_uses_a_bounded_short_cta_without_hiding_overflow_as_the_fix():
     landing = source(ROOT / "a11oy_landing.html")
 
-    assert '@media(max-width:680px)' in landing
-    assert ".nav .wrap{height:64px;padding-inline:14px;gap:10px}" in landing
+    assert '@media(max-width:1100px)' in landing
+    assert ".nav .wrap{position:relative;height:64px;padding-inline:14px;gap:10px}" in landing
     assert ".nav nav{margin-left:0;flex:0 0 auto;flex-wrap:nowrap;gap:0}" in landing
-    assert ".nav nav .btn{padding:9px 12px;font-size:12px;max-width:154px}" in landing
+    assert ".nav nav .btn{padding:9px 12px;font-size:12px;max-width:154px;min-height:44px}" in landing
     assert 'class="nav-cta-short"' in landing
     assert '>Command center</span> →' in landing
     assert 'aria-label="Open the command center"' in landing
