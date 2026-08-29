@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - HF Space source-map matches live unauth list_spaces (6)
+- `docs/huggingface-space-source-map-v1.json` rebuilt against the public Hub
+  Spaces API (`author=SZLHOLDINGS`, unauthenticated). Observed 6 regular
+  Spaces: a11oy, killinchu, immune, szl-khipu, szl-atelier,
+  governed-receipt-verifier. README is the org card, not an application Space.
+  Does not stamp inventory LIVE. Does not dispatch universal-frontend execute.
+  Λ = Conjecture 1.
+
 ### Changed - Hub Spaces public cut is 7 KEEP
 - `GET /spaces` is the operator desk for the MEASURED Hub cut: 7 public
   keepers, not the historical 26-tile registry. Inventory health compares
