@@ -112,6 +112,9 @@ function setChip(id,cls,val,foot){const el=$(id);if(!el)return;el.className='chi
 // ---- curated primary surfaces (always present; local to this app) ----
 const SURFACES=[
  {name:'Atelier',route:'/atelier',ic:'⬡',desc:'Artifact walk — Hub cuts, not 40 product SKUs. Not a fourth flagship.'},
+ {name:'Run',route:'/run',ic:'▶',desc:'Governed inference theater. Deny by default. HASH-LINKED, never SIGNED.'},
+ {name:'Eval',route:'/eval',ic:'▣',desc:'Adversarial arena. Live suites plus local hard-deny theater.'},
+ {name:'Estate',route:'/estate',ic:'⌂',desc:'Models and kernels as listed. Hub metadata is REPORTED.'},
  {name:'Console',route:'/console',ic:'▤',desc:'Operator console — organism, anatomy map, controls'},
  {name:'Cockpit',route:'/cockpit',ic:'✦',desc:'Live command cockpit — spine, constellation, engine'},
  {name:'Organism',route:'/console#organism',ic:'❋',desc:'The mind + six organs, rendered'},
@@ -128,7 +131,7 @@ const SURFACES=[
  {name:'Observability',route:'/observability',ic:'◎',desc:'Observability'}
 ];
 // launcher = the six operator entries Rosa asked route to
-const LAUNCH=['Console','Cockpit','Organism','a11oy.code','Energy','Audit'];
+const LAUNCH=['Console','Run','Eval','Atelier','Energy','Audit'];
 
 let PAL_INDEX=[]; // {name,route,ic,desc,group,tag,ext}
 
