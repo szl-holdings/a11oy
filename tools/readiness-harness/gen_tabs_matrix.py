@@ -466,7 +466,6 @@ SCHEMAS = {
         "requiredPaths": [
             "equities_official.SPY.freshness.status",
             "equities_official.SPY.freshness.fetched_at",
-            "equities.SPY.freshness.status", "equities.SPY.freshness.fetched_at",
             "crypto.BTC-USD.freshness.status", "crypto.BTC-USD.freshness.fetched_at",
             "fx.freshness.status", "fx.freshness.fetched_at",
             "fintech_cve.freshness.status", "fintech_cve.freshness.fetched_at",
@@ -475,8 +474,6 @@ SCHEMAS = {
             "equities_official": "object", "equities": "object", "crypto": "object",
             "equities_official.SPY.freshness.status": "string",
             "equities_official.SPY.freshness.fetched_at": "timestamp",
-            "equities.SPY.freshness.status": "string",
-            "equities.SPY.freshness.fetched_at": "timestamp",
             "crypto.BTC-USD.freshness.status": "string",
             "crypto.BTC-USD.freshness.fetched_at": "timestamp",
             "fx.freshness.status": "string", "fx.freshness.fetched_at": "timestamp",

@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - finance feed omits unofficial Yahoo misses
+- `/api/a11oy/v1/vert/finance/feed` no longer emits Yahoo v8 rows whose
+  freshness is `unavailable` or missing `fetched_at`. Official Polygon
+  SPY remains required. Last-good unofficial cache is `cached` with
+  `age_s`. Failed fetches still stamp observation-time `fetched_at` on
+  the internal envelope so other surfaces stay clock-honest. Probe
+  `allowLabels` are unchanged.
+
 ### Added - Series A holographic models + kernels estate
 - Command Center first-fold and a dedicated `/estate` surface bind
   the public SZL model and kernel inventory as KANCHAY holographic cards
