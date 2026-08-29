@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Killinchu-named Hub IDs stay outside this inventory. Lean-8 still reads
   `/api/a11oy/v1/honest` `locked_formula_count` (exactly 8 else UNAVAILABLE).
   Λ stays Conjecture 1. No Dockerfile change; cards reuse `szl_command_bar.*`.
+  Every card shows exact Hub id, GitHub source (or UNAVAILABLE), evidence class
+  (REPORTED / SOFTWARE / ROADMAP; MEASURED is never stamped here because this
+  endpoint does not re-hash), Hub listing SHA, and what it is not.
+  `/estate` is contracted in `tools/readiness-harness/tabs.json`. `pages/estate.html`
+  ships via wholesale `COPY pages/ ./pages/` (HF COPY parity, no allowlist).
 
 ### Fixed - kevgate omits incomplete CVSS rows
 - `/api/a11oy/v1/sec/kevgate` no longer emits `cached`/`live` items whose

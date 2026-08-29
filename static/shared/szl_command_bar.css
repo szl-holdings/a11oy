@@ -255,8 +255,11 @@ html[data-operator="1"] .szl-op-toggle{color:var(--proof);border-color:var(--tea
 }
 .szl-holo-chip--reported{color:var(--cream);border-color:rgba(91,141,238,0.45);background:rgba(91,141,238,0.08);}
 .szl-holo-chip--measured{color:var(--void);background:var(--proof);border-color:var(--proof);}
+.szl-holo-chip--software{color:var(--proof);border-color:rgba(58,244,200,0.45);background:rgba(58,244,200,0.08);}
 .szl-holo-chip--roadmap{color:var(--kanchay-gold);border-color:rgba(215,185,107,0.45);}
 .szl-holo-chip--off{color:var(--muted);}
+.szl-holo-id{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:var(--cream);word-break:break-all;}
+.szl-holo-facts a{color:var(--proof);text-decoration:none;word-break:break-all;}
 .szl-holo-lambda{margin:0;font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--gray)!important;}
 .szl-holo-note{margin:0;font-size:12px;color:var(--dim);line-height:1.45;}
 .szl-holo-act{display:flex;flex-wrap:wrap;gap:10px;margin-top:auto;}

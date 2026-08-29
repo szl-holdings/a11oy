@@ -3,11 +3,14 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-08-28T00:00:00Z",
+  "generatedAt": "2026-08-29T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
     "MEASURED": "Observed by an instrument or deterministic runtime check with provenance.",
+    "REPORTED": "Public listing metadata observed from a named source; not a quality score and not a re-hash.",
+    "SOFTWARE": "Canonical source code in a named GitHub repository; not a live runtime and not an eval.",
+    "ROADMAP": "Declared, not shipped. No replacement value is invented.",
     "MODELED": "Computed estimate or scenario output; not an observation.",
     "SNAPSHOT": "Versioned point-in-time artifact with an observed or generated timestamp.",
     "SAMPLE": "Demonstration or reference data; never presented as current operations.",
@@ -15,9 +18,9 @@
     "UNAVAILABLE": "The source or evidence is not available; no replacement value is fabricated."
   },
   "summary": {
-    "tabs": 140,
-    "endpoints": 98,
-    "tabsWithCitations": 35,
+    "tabs": 141,
+    "endpoints": 100,
+    "tabsWithCitations": 36,
     "staticTabs": 41
   },
   "endpoints": {
@@ -125,6 +128,54 @@
         ]
       },
       "note": ""
+    },
+    "/api/a11oy/v1/honest": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": null,
+      "citationsRequired": false,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached",
+          "UNAVAILABLE"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Lean-8 locked_formula_count. Exactly 8 else UNAVAILABLE. Catalog LOCKED-PROVEN is not this number."
+    },
+    "/api/a11oy/v1/models/series-a": {
+      "method": "GET",
+      "schema": "generic_obj",
+      "freshnessSLA": 900,
+      "citationsRequired": true,
+      "degradedRules": {
+        "allowStatuses": [
+          200
+        ],
+        "allowLabels": [
+          "live",
+          "cached",
+          "REPORTED",
+          "ROADMAP",
+          "SOFTWARE",
+          "MEASURED",
+          "UNAVAILABLE"
+        ],
+        "liesIf": [
+          "mock",
+          "fabricated",
+          "placeholder"
+        ]
+      },
+      "note": "Pinned Series A Hub inventory. Listing metadata is REPORTED. Kernel source is SOFTWARE. Fetch/parse fail is UNAVAILABLE. Never OPERATIONAL. This endpoint does not re-hash, so it never stamps MEASURED."
     },
     "/api/a11oy/v1/reason/tiers": {
       "method": "GET",
@@ -3535,6 +3586,24 @@
         "allowSampleLabel": false,
         "failOnUnlabeledPlaceholder": true,
         "failOnMissingCitation": false
+      }
+    },
+    {
+      "key": "estate",
+      "title": "estate",
+      "group": "Console",
+      "route": "/console#estate",
+      "endpoints": [
+        "/api/a11oy/v1/models/series-a",
+        "/api/a11oy/v1/honest"
+      ],
+      "citationsRequired": true,
+      "sampleLabelAllowed": false,
+      "static": false,
+      "degradedRules": {
+        "allowSampleLabel": false,
+        "failOnUnlabeledPlaceholder": true,
+        "failOnMissingCitation": true
       }
     },
     {

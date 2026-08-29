@@ -368,15 +368,22 @@
     var k = String(label || '').toUpperCase();
     if (k === 'REPORTED' || k === 'LIVE') return 'szl-holo-chip szl-holo-chip--reported';
     if (k === 'MEASURED') return 'szl-holo-chip szl-holo-chip--measured';
+    if (k === 'SOFTWARE') return 'szl-holo-chip szl-holo-chip--software';
     if (k === 'ROADMAP') return 'szl-holo-chip szl-holo-chip--roadmap';
     if (k === 'UNAVAILABLE' || k === 'UNKNOWN') return 'szl-holo-chip szl-holo-chip--off';
     return 'szl-holo-chip';
+  }
+
+  function shortSha(sha) {
+    var s = String(sha || '');
+    return s.length === 40 ? (s.slice(0, 12) + '…') : (s || 'UNAVAILABLE');
   }
 
   function renderCard(card, compact) {
     var listing = (card && card.listing) || {};
     var arts = (card && card.artifacts) || {};
     var evals = (card && card.evals) || {};
+    var pin = (card && card.revision_pin) || {};
     var gguf = arts.gguf_files || [];
     var relatedGguf = arts.related_gguf_files || [];
     var ggufNote = '';
@@ -385,27 +392,38 @@
     var lane = String((card && card.lane) || 'model').toUpperCase();
     var owner = card && card.owner ? String(card.owner) : lane;
     var github = card && card.github;
+    var hubId = (card && card.hub_id) || 'UNAVAILABLE';
+    var evidence = (card && card.evidence_class) || listing.label || 'UNAVAILABLE';
     var href = (card && (card.hub_href || card.act_href)) || '#';
     var act = (card && card.act_href) || href;
     var lambda = (card && card.lambda) || {};
     var notTriton = card && card.not_triton_stack;
+    var notClaim = (card && card.not) || 'Not OPERATIONAL. Not Lean-8.';
     var filesLine = ggufNote
       ? ('GGUF ' + ggufNote)
       : (arts.has_adapter ? 'adapter file REPORTED' : (arts.weight_bearing ? 'weight filenames REPORTED' : 'no weight file'));
     if (lane === 'KERNEL') filesLine = arts.file_count ? ('kernel files REPORTED · n=' + arts.file_count) : filesLine;
-    var html = '<article class="szl-holo-card" data-lane="' + esc(lane.toLowerCase()) + '" data-id="' + esc(card && card.id) + '">'
+    var html = '<article class="szl-holo-card" data-lane="' + esc(lane.toLowerCase()) + '" data-id="' + esc(card && card.id) + '" data-hub="' + esc(hubId) + '" data-evidence="' + esc(evidence) + '">'
       + '<header class="szl-holo-card-h">'
       + '<span class="szl-holo-k">' + esc(owner) + (notTriton ? ' · NOT TRITON STACK' : '') + '</span>'
       + '<h3 class="szl-holo-title">' + esc(card && card.title) + '</h3>'
       + '<p class="szl-holo-one">' + esc(card && card.one_line) + '</p>'
       + '</header>'
       + '<dl class="szl-holo-facts">'
+      + '<div><dt>Hub id</dt><dd><code class="szl-holo-id">' + esc(hubId) + '</code></dd></div>'
+      + '<div><dt>GitHub</dt><dd>' + (github
+        ? ('<a href="' + esc(github) + '" target="_blank" rel="noopener noreferrer">' + esc(github.replace(/^https:\/\/github.com\//, '')) + '</a>')
+        : '<span class="' + chipClass('UNAVAILABLE') + '">UNAVAILABLE</span> no public source repo') + '</dd></div>'
+      + '<div><dt>Class</dt><dd><span class="' + chipClass(evidence) + '">' + esc(evidence) + '</span></dd></div>'
+      + '<div><dt>Revision</dt><dd><span class="' + chipClass(pin.label) + '">' + esc(pin.label || 'UNAVAILABLE') + '</span> '
+      + '<code class="szl-holo-id">' + esc(shortSha(pin.sha)) + '</code></dd></div>'
       + '<div><dt>See</dt><dd><span class="' + chipClass(listing.label) + '">' + esc(listing.label || 'UNAVAILABLE') + '</span> '
       + esc(listing.pipeline_tag || listing.sdk || listing.note || 'Hub listing') + '</dd></div>'
       + '<div><dt>Decide</dt><dd><span class="' + chipClass(arts.label) + '">' + esc(arts.label || 'UNAVAILABLE') + '</span> '
       + esc(filesLine) + '</dd></div>'
-      + '<div><dt>Evals</dt><dd><span class="' + chipClass(evals.label) + '">' + esc(evals.label || 'ROADMAP') + '</span> '
-      + esc(evals.note || '') + '</dd></div>'
+      + '<div><dt>Not</dt><dd>' + esc(notClaim) + '</dd></div>'
+      + (compact ? '' : ('<div><dt>Evals</dt><dd><span class="' + chipClass(evals.label) + '">' + esc(evals.label || 'ROADMAP') + '</span> '
+      + esc(evals.note || '') + '</dd></div>'))
       + '</dl>'
       + '<p class="szl-holo-lambda" title="Λ = Conjecture 1 — advisory, never a theorem, never a gate">Λ = '
       + esc(lambda.label || 'Conjecture 1') + ' · never a theorem</p>'
@@ -419,11 +437,18 @@
   }
 
   function renderRoadmap(card) {
-    return '<article class="szl-holo-card szl-holo-card--roadmap" data-lane="kernel" data-id="' + esc(card && card.id) + '">'
+    var notClaim = (card && card.not) || 'Not shipped. Not a Hub id.';
+    return '<article class="szl-holo-card szl-holo-card--roadmap" data-lane="kernel" data-id="' + esc(card && card.id) + '" data-hub="UNAVAILABLE" data-evidence="ROADMAP">'
       + '<header class="szl-holo-card-h"><span class="szl-holo-k">KERNEL · NOT SHIPPED</span>'
       + '<h3 class="szl-holo-title">' + esc(card && card.title) + '</h3>'
       + '<p class="szl-holo-one">' + esc(card && card.one_line) + '</p></header>'
-      + '<p><span class="szl-holo-chip szl-holo-chip--roadmap">ROADMAP</span> Fourth kernel. Not listed as shipped.</p>'
+      + '<dl class="szl-holo-facts">'
+      + '<div><dt>Hub id</dt><dd><code class="szl-holo-id">UNAVAILABLE</code></dd></div>'
+      + '<div><dt>GitHub</dt><dd><span class="szl-holo-chip szl-holo-chip--off">UNAVAILABLE</span> no public source repo</dd></div>'
+      + '<div><dt>Class</dt><dd><span class="szl-holo-chip szl-holo-chip--roadmap">ROADMAP</span></dd></div>'
+      + '<div><dt>Revision</dt><dd><span class="szl-holo-chip szl-holo-chip--off">UNAVAILABLE</span></dd></div>'
+      + '<div><dt>Not</dt><dd>' + esc(notClaim) + '</dd></div>'
+      + '</dl>'
       + '<p class="szl-holo-lambda">Λ = Conjecture 1 · never a theorem</p></article>';
   }
 

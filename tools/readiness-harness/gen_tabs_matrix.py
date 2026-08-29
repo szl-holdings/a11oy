@@ -40,6 +40,9 @@ CONSOLE_ROUTE = "/console"
 STATE_VOCABULARY = {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
     "MEASURED": "Observed by an instrument or deterministic runtime check with provenance.",
+    "REPORTED": "Public listing metadata observed from a named source; not a quality score and not a re-hash.",
+    "SOFTWARE": "Canonical source code in a named GitHub repository; not a live runtime and not an eval.",
+    "ROADMAP": "Declared, not shipped. No replacement value is invented.",
     "MODELED": "Computed estimate or scenario output; not an observation.",
     "SNAPSHOT": "Versioned point-in-time artifact with an observed or generated timestamp.",
     "SAMPLE": "Demonstration or reference data; never presented as current operations.",
@@ -88,6 +91,12 @@ ENDPOINTS = {
     "/api/a11oy/v1/mcp/tools": ep(schema="mcp_tools", sla=None,
         note="Returns the 4 real flagship tools; never the fabricated 12."),
     "/api/a11oy/v1/llm/registry": ep(schema="llm_registry", sla=None),
+    "/api/a11oy/v1/honest": ep(schema="generic_obj", sla=None,
+        allow_labels=("live", "cached", "UNAVAILABLE"),
+        note="Lean-8 locked_formula_count. Exactly 8 else UNAVAILABLE. Catalog LOCKED-PROVEN is not this number."),
+    "/api/a11oy/v1/models/series-a": ep(schema="generic_obj", sla=900, citations=True,
+        allow_labels=("live", "cached", "REPORTED", "ROADMAP", "SOFTWARE", "MEASURED", "UNAVAILABLE"),
+        note="Pinned Series A Hub inventory. Listing metadata is REPORTED. Kernel source is SOFTWARE. Fetch/parse fail is UNAVAILABLE. Never OPERATIONAL. This endpoint does not re-hash, so it never stamps MEASURED."),
     "/api/a11oy/v1/reason/tiers": ep(schema="generic_obj", sla=None),
     "/api/a11oy/v1/reason/readiness": ep(schema="generic_obj", sla=None),
 
@@ -914,6 +923,8 @@ TAB_ENDPOINTS = {
     "flyharness": ["/api/a11oy/v1/harness/profiles"],
     "flyeval": ["/api/a11oy/v1/eval/suites", "/api/a11oy/v1/eval/run"],
     "flyrag": ["/api/a11oy/v1/rag/query", "/api/a11oy/v1/rag/status"],
+    # Series A holographic models + kernels. Live Hub listing; never OPERATIONAL.
+    "estate": ["/api/a11oy/v1/models/series-a", "/api/a11oy/v1/honest"],
 }
 
 # Tabs that present clearly-labelled SAMPLE/MODELED/CONNECT-READY content by design

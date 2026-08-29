@@ -67,6 +67,8 @@ _KILLINCHU_TOKEN_RE = re.compile(r"killinchu", re.IGNORECASE)
 # Series A command-center inventory. Killinchu-named Hub IDs stay outside.
 # Sage INT8/FP8 is a ROADMAP fourth kernel — never listed as shipped.
 # YARQA-ATTN is KERNEL-owned (compartment attention), not a fourth Triton stack.
+# GitHub URLs are exact public source trees. WILLAY has a Hub id and no GitHub repo.
+_FORGE = "https://github.com/szl-holdings/szl-forge/tree/main"
 SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
     {
         "id": "szl-khipu-1.5b",
@@ -77,8 +79,10 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B",
+        "github": f"{_FORGE}/khipu",
         "act_href": "/console?view=ask",
         "expect_gguf_on": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+        "not": "Not a live runtime. Not an eval. Not Lean-8. Does not approve routes.",
     },
     {
         "id": "sovereign-router",
@@ -91,6 +95,7 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_href": "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live",
         "act_href": "/console?view=llm",
         "github": "https://github.com/szl-holdings/platform/tree/main/packages/llm-router",
+        "not": "Not a foundation-model weight dump. Not OPERATIONAL from this listing.",
     },
     {
         "id": "khipu-r2",
@@ -101,7 +106,9 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/KHIPU-R2",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2",
+        "github": f"{_FORGE}/khipu_r2",
         "act_href": "https://huggingface.co/SZLHOLDINGS/KHIPU-R2",
+        "not": "Not the signed 1.5B flagship. Not an overwrite of SZL-Khipu-1.5B.",
     },
     {
         "id": "willay",
@@ -112,7 +119,9 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/WILLAY",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/WILLAY",
+        "github": None,
         "act_href": "/willay",
+        "not": "Not an approver. Not a GitHub-canonical weight tree (no public source repo).",
     },
     {
         "id": "yarqa-attn",
@@ -127,6 +136,7 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_href": "https://huggingface.co/SZLHOLDINGS/YARQA-ATTN",
         "github": "https://github.com/szl-holdings/YARQA-ATTN",
         "act_href": "https://github.com/szl-holdings/YARQA-ATTN",
+        "not": "Not a fourth Triton / Flash / Flex / paged stack. Not Lean-8.",
     },
     {
         "id": "a11oy-mini",
@@ -137,8 +147,10 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/A11OY-MINI",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/A11OY-MINI",
+        "github": f"{_FORGE}/a11oy_mini",
         "act_href": "https://huggingface.co/SZLHOLDINGS/A11OY-MINI",
         "expect_gguf": True,
+        "not": "Not an eval. Not a house-lab load. GGUF bytes are not quality.",
     },
     {
         "id": "chaski",
@@ -149,7 +161,9 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/chaski",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/chaski",
+        "github": f"{_FORGE}/chaski",
         "act_href": "https://huggingface.co/SZLHOLDINGS/chaski",
+        "not": "Not an approver. Not a live inference SLA.",
     },
     {
         "id": "qantu",
@@ -160,7 +174,9 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/qantu",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/qantu",
+        "github": f"{_FORGE}/qantu",
         "act_href": "https://huggingface.co/SZLHOLDINGS/qantu",
+        "not": "Not a loadable VLM today. No weights on this Hub id.",
     },
     {
         "id": "waman",
@@ -171,7 +187,9 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/waman",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/waman",
+        "github": f"{_FORGE}/waman",
         "act_href": "https://huggingface.co/SZLHOLDINGS/waman",
+        "not": "Not a live effector. Effector stays simulated. No weights on this Hub id.",
     },
     {
         "id": "chakana",
@@ -182,7 +200,9 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/chakana",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/chakana",
+        "github": f"{_FORGE}/chakana",
         "act_href": "https://huggingface.co/SZLHOLDINGS/chakana",
+        "not": "Not a loadable fine-tune today. Not a Hub weight dump.",
     },
     {
         "id": "tinku",
@@ -193,7 +213,9 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_id": "SZLHOLDINGS/tinku",
         "hub_kind": "model",
         "hub_href": "https://huggingface.co/SZLHOLDINGS/tinku",
+        "github": f"{_FORGE}/tinku",
         "act_href": "https://huggingface.co/SZLHOLDINGS/tinku",
+        "not": "Not a retriever. No weights on this Hub id yet.",
     },
     {
         "id": "szl-receipt-attn",
@@ -206,6 +228,7 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_href": "https://huggingface.co/SZLHOLDINGS/szl-receipt-attn",
         "github": "https://github.com/szl-holdings/szl-receipt-attn",
         "act_href": "https://github.com/szl-holdings/szl-receipt-attn",
+        "not": "Not a GPU/Triton speed claim. Not Lean-8. Not OPERATIONAL from this listing.",
     },
     {
         "id": "szl-maskmod",
@@ -218,6 +241,7 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_href": "https://huggingface.co/SZLHOLDINGS/szl-maskmod",
         "github": "https://github.com/szl-holdings/szl-maskmod",
         "act_href": "https://github.com/szl-holdings/szl-maskmod",
+        "not": "Not a GPU attention stack. GPU/Triton stays ROADMAP.",
     },
     {
         "id": "szl-block-kv",
@@ -230,6 +254,7 @@ SERIES_A_CARDS: tuple[dict[str, Any], ...] = (
         "hub_href": "https://huggingface.co/SZLHOLDINGS/szl-block-kv",
         "github": "https://github.com/szl-holdings/szl-block-kv",
         "act_href": "https://github.com/szl-holdings/szl-block-kv",
+        "not": "Not a Triton page kernel. v0 is a labeled torch gather.",
     },
 )
 
@@ -245,6 +270,7 @@ SERIES_A_ROADMAP_KERNELS: tuple[dict[str, Any], ...] = (
         "hub_kind": None,
         "hub_href": None,
         "github": None,
+        "not": "Not shipped. Not a Hub id. Not a fourth Triton stack and not YARQA-ATTN.",
     },
 )
 _FRONTIER_REGISTRY = (
@@ -817,6 +843,35 @@ def _series_a_bind_card(spec: dict[str, Any], live: Optional[dict[str, Any]],
         evals_label = "ROADMAP"
         evals_note = "Evals none this run. GGUF bytes on Hub are not an eval."
 
+    github = spec.get("github")
+    github_label = "SOFTWARE" if github else "UNAVAILABLE"
+    not_claim = spec.get("not") or (
+        "Not OPERATIONAL. Not Lean-8. Not a quality score. Hub listing is not a runtime."
+    )
+    rev = (live or {}).get("revision") if live_present else None
+    if isinstance(rev, str) and _HF_REVISION_RE.fullmatch(rev):
+        revision_pin = {
+            "sha": rev,
+            "label": "REPORTED",
+            "source": "huggingface hub listing sha",
+        }
+    else:
+        revision_pin = {
+            "sha": None,
+            "label": "UNAVAILABLE",
+            "source": "huggingface hub listing sha",
+        }
+
+    # This endpoint does not re-hash bytes, so it never stamps MEASURED.
+    if listing_label == "UNAVAILABLE":
+        evidence_class = "UNAVAILABLE"
+    elif spec.get("lane") == "kernel" and github and spec.get("cut") != "ROADMAP":
+        evidence_class = "SOFTWARE"
+    elif artifact_label == "ROADMAP" or listing_label == "ROADMAP":
+        evidence_class = "ROADMAP"
+    else:
+        evidence_class = "REPORTED"
+
     out = {
         "id": spec["id"],
         "title": spec["title"],
@@ -826,10 +881,14 @@ def _series_a_bind_card(spec: dict[str, Any], live: Optional[dict[str, Any]],
         "hub_id": hub_id,
         "hub_kind": spec.get("hub_kind"),
         "hub_href": spec.get("hub_href"),
-        "github": spec.get("github"),
+        "github": github,
+        "github_label": github_label,
         "act_href": spec.get("act_href"),
         "owner": spec.get("owner"),
         "not_triton_stack": bool(spec.get("not_triton_stack")),
+        "not": not_claim,
+        "evidence_class": evidence_class,
+        "revision_pin": revision_pin,
         "shipped": spec.get("shipped", spec.get("cut") != "ROADMAP"),
         "operational": False,
         "lambda": {"label": "Conjecture 1", "theorem": False, "gate": False},
@@ -837,7 +896,7 @@ def _series_a_bind_card(spec: dict[str, Any], live: Optional[dict[str, Any]],
             "label": listing_label,
             "note": listing_note,
             "live_present": live_present,
-            "revision": (live or {}).get("revision") if live_present else None,
+            "revision": rev if live_present else None,
             "last_modified": (live or {}).get("last_modified") if live_present else None,
             "pipeline_tag": (live or {}).get("pipeline_tag") if live_present else None,
             "library_name": (live or {}).get("library_name") if live_present else None,
@@ -858,7 +917,12 @@ def _series_a_bind_card(spec: dict[str, Any], live: Optional[dict[str, Any]],
             "error": fetch_error,
         },
     }
-    return {key: value for key, value in out.items() if value is not None}
+    keep_none = {"hub_id", "github", "hub_kind", "hub_href"}
+    return {
+        key: value
+        for key, value in out.items()
+        if value is not None or key in keep_none
+    }
 
 
 def get_series_a_estate() -> dict[str, Any]:

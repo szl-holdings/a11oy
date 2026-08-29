@@ -135,6 +135,21 @@ def test_series_a_bind_is_reported_or_unavailable_never_operational(monkeypatch)
         assert card["operational"] is False
         assert card["lambda"]["theorem"] is False
         assert card["listing"]["label"] in {"REPORTED", "UNAVAILABLE", "ROADMAP"}
+        assert card["evidence_class"] in {"MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE"}
+        assert card["evidence_class"] != "MEASURED"
+        assert "revision_pin" in card
+        assert card["revision_pin"]["label"] in {"REPORTED", "UNAVAILABLE"}
+        assert card.get("not")
+        if card["id"] == "willay":
+            assert card["hub_id"] == "SZLHOLDINGS/WILLAY"
+            assert card.get("github") is None
+            assert card["github_label"] == "UNAVAILABLE"
+        elif card["id"] == "a11oy-mini":
+            assert card["hub_id"] == "SZLHOLDINGS/A11OY-MINI"
+            assert card["github"] == "https://github.com/szl-holdings/szl-forge/tree/main/a11oy_mini"
+        elif card["lane"] == "kernel":
+            assert card["github"]
+            assert "github.com/szl-holdings/" in card["github"]
         assert "OPERATIONAL" not in (card["listing"]["note"] + card["artifacts"]["note"])
 
 
@@ -151,6 +166,8 @@ def test_series_a_fetch_fail_is_unavailable_not_invented(monkeypatch) -> None:
     assert payload["state"] == "UNAVAILABLE"
     mini = next(card for card in payload["cards"] if card["id"] == "a11oy-mini")
     assert mini["listing"]["label"] == "UNAVAILABLE"
+    assert mini["evidence_class"] == "UNAVAILABLE"
+    assert mini["revision_pin"]["label"] == "UNAVAILABLE"
     assert mini["operational"] is False
 
 
@@ -179,6 +196,17 @@ def test_surfaces_wire_shared_bar_and_dedicated_page() -> None:
     assert "Conjecture 1" in ESTATE_PAGE
     assert "live runtime" in ESTATE_PAGE
     assert "pages/estate.html" not in DOCKER
+    assert "COPY pages/ ./pages/" in DOCKER
+    assert "szl_command_bar.js" in DOCKER
+    assert "a11oy_model_intel.py" in DOCKER
+    tabs = (ROOT / "tools" / "readiness-harness" / "tabs.json").read_text(encoding="utf-8")
+    assert '"key": "estate"' in tabs
+    assert "/api/a11oy/v1/models/series-a" in tabs
+    assert "/api/a11oy/v1/honest" in tabs
+    assert "data-hub=" in BAR_JS
+    assert "revision_pin" in BAR_JS
+    assert "evidence_class" in BAR_JS
+    assert "szl-holo-chip--software" in BAR_CSS
     yml = (ROOT / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
     assert "tests/test_series_a_estate.py" in yml
     assert "tests/test_holographic_command_bar.py" in yml
