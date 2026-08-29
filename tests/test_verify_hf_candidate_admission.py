@@ -365,10 +365,7 @@ class CandidateAdmissionTests(unittest.TestCase):
         )
         report = MODULE.validate_dockerfile_copy_transition(predecessor, live)
         self.assertEqual(report["delta"], "exact-shared-copy-insertion")
-        self.assertEqual(
-            report["head_blob"],
-            "cb5eb49b1c3b38e9150d6085013b979a11e1e9fd",
-        )
+        self.assertEqual(report["head_blob"], oid(live))
         self.assertFalse(MODULE.dockerfile_copy_pin_applicable(live))
         self.assertTrue(MODULE.dockerfile_copy_pin_applicable(predecessor))
 

@@ -664,6 +664,7 @@ COPY a11oy_ecosystem_atlas.py ./a11oy_ecosystem_atlas.py
 # Anatomy v5 and living-anatomy prove HEART/BRAIN/CIRCULATORY/NERVOUS/SKELETON LIVE/DOWN.
 # pages/organs-integrity.html rides the wholesale COPY pages/ above.
 COPY organ_integrity.py ./organ_integrity.py
+COPY a11oy_n25_organs.py ./a11oy_n25_organs.py
 COPY szl_organ_integrity.py ./szl_organ_integrity.py
 
 # AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — server-side
