@@ -114,9 +114,41 @@ def test_page_and_lounge_are_200():
     assert "gradient admission" in page.text
     assert "Brain handles" in page.text
     assert "data:{error:'request unavailable'}" in page.text
+    assert 'href="/ayllu/psyche"' in page.text
     lr = c.get("/api/a11oy/v1/ayllu/lounge")
     assert lr.status_code == 200
     assert "recent" in lr.json()
+
+
+def test_psyche_honesty_page_and_winay_contract_refuse_phi():
+    c = _client()
+    page = c.get("/ayllu/psyche")
+    assert page.status_code == 200, page.text[:300]
+    assert "UNAVAILABLE" in page.text
+    assert "CONJECTURE" in page.text
+    assert "Not IIT" in page.text or "not IIT" in page.text
+    assert "https://a11oy.net/ayllu/psyche/" in page.text
+    assert "sentienceIndex" not in page.text
+    assert "https://a11oy.com" not in page.text
+    assert "Never a11oy.com" in page.text
+    assert "script-src 'none'" in page.text
+    assert "connect-src 'none'" in page.text
+    assert "/api/a11oy/v1/ayllu/winay" in page.text
+    contract = c.get("/api/a11oy/v1/ayllu/winay")
+    assert contract.status_code == 200
+    d = contract.json()
+    assert d["schema"] == "szl.ayllu.winay-record/v1"
+    assert d["labels"]["iit_phi_s"] == "UNAVAILABLE"
+    assert d["labels"]["presence"] == "CONJECTURE"
+    assert d["labels"]["huklla_H"] == "MODELED"
+    assert d["labels"]["joules"] is None
+    assert d["iit"]["phi_s"] is None
+    assert d["boundaries"]["this_origin_runs_the_pulse"] is False
+    assert d["boundaries"]["this_origin_runs_the_council"] is True
+    assert d["boundaries"]["presence_is_a_function_of_C_I_H_or_D"] is False
+    assert d["origins"]["proof"] == "https://a11oy.net/ayllu/psyche/"
+    assert d["huklla"]["uniform"] == 0.4
+    assert d["huklla"]["silent_organ"] == 0.0
 
 
 def test_ask_empty_body_hits_our_validation_not_fastapi_query_422():
