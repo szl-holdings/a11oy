@@ -1,0 +1,47 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<!-- Positive fixture: kernel chips bind to /honest locked_formula_count (8 or N/A).
+     Genome LOCKED-PROVEN remains a separately labelled catalog count, never the kernel. -->
+<html><body>
+<div class="tnum" id="pt-locked">—</div>
+<div class="cnt" id="cnt-locked">—<span class="lbl">Locked-proven kernel</span></div>
+<div class="cnt" id="cnt-genome-locked-proven">—<span class="lbl">Genome LOCKED-PROVEN catalog</span></div>
+<div class="tnum" id="pt-semantic">—</div>
+<script>
+const $=id=>document.getElementById(id);
+async function getJSON(u){const r=await fetch(u);return r.json();}
+function num(v){const n=Number(v);return Number.isFinite(n)?n:null;}
+function setTiers(t){
+  $("pt-semantic").textContent = t.semantic;
+}
+async function loadLockedKernel(){
+  try{
+    const h = await getJSON("/api/a11oy/v1/honest");
+    const n = num(h && h.locked_formula_count);
+    $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
+  }catch(e){ $("pt-locked").textContent = "N/A"; }
+}
+(async function loadTrustKernel(){
+  const h=await getJSON('/api/a11oy/v1/honest');
+  const kernel=(h&&h.locked_formula_count===8)?8:null;
+  $('cnt-locked').firstChild.nodeValue=(kernel==null?'N/A':kernel);
+})();
+(async function loadConsoleKernel(){
+  let kernelN='N/A';
+  try{
+    const h=await getJSON('/v1/honest');
+    if(h&&h.locked_formula_count===8) kernelN='8';
+  }catch(e){}
+  document.body.insertAdjacentHTML('beforeend',
+    `<div class="kpi" id="cnt-locked"><div class="v">${kernelN}</div></div>`);
+})();
+(async function loadGenomeCatalog(){
+  const g=await getJSON('/api/a11oy/v1/genome');
+  const tc=g.tier_counts||{};
+  $('cnt-genome-locked-proven').textContent=(tc['LOCKED-PROVEN']??'N/A');
+  setTiers({ semantic: tc["SEMANTIC-VERIFIED"] });
+})();
+loadLockedKernel();
+</script>
+</body></html>

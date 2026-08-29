@@ -1,0 +1,86 @@
+name: Investor smoke gate (S1–S12)
+
+# Fail-closed investor-honest quality gate. Does not merge. Does not touch
+# Dockerfile / HF byte parity. Does not rewrite genome.json. No POST.
+#
+# S7 is a BIND: landing #pt-locked via loadLockedKernel/loadKernelLocked and
+# trust/console #cnt-locked must read GET /api/a11oy/v1/honest locked_formula_count
+# (8 or N/A). Genome LOCKED-PROVEN=25 is catalog. PR 1396 landed console
+# #cnt-locked on main. S1/S2 product is 1394 on main; live probes measure
+# origin and must not invent LIVE. Do not touch 1363.
+#
+# This workflow is ordinary Actions until branch protection lists the exact
+# check-run names. This PR cannot self-certify as control-plane-required.
+#
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Investor smoke contract (S1-S12 static)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest (stdlib gate + pytest runner; no app deps)
+        run: python3 -m pip install pytest
+
+      - name: Contract tests (fixtures, labelling, skip-as-green, S12)
+        run: python3 -m pytest -q tests/test_investor_smoke_gate.py
+
+  bind:
+    name: Investor smoke bind (S7 kernel chips → /honest 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pytest
+        run: python3 -m pip install pytest
+
+      - name: S7 kernel chips must bind to /honest locked_formula_count
+        run: python3 -m pytest -q tests/test_investor_smoke_bind.py
+
+  live:
+    name: Investor smoke live probes
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Live GET/HEAD probes (no POST)
+        run: |
+          python3 scripts/investor_smoke_gate.py --mode live \
+            --origin https://a-11-oy.com

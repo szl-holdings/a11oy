@@ -1,9 +1,9 @@
 {
   "files": {
     "static-vendor/a11oy-operator-widget.js": "a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c",
-    "szl_spaces_proxy.py": "35d7b2fa2eea7c7f0c2afce2719cc8853aacc859a8384a1bd4e828d07d31a850",
-    "szl_spaces_surface.py": "607270ffc00f545b63ee03f45613725a31b990703d3a5180b468e0d174ca77d6"
+    "szl_spaces_proxy.py": "173a36487b8660512f093da72a1d646bcb847fb0f6a9484a02143c07088fe3d9",
+    "szl_spaces_surface.py": "07aa9d201d2c177d356c575237d71eb10f2ff56ca567876e01da88e65d488a36"
   },
-  "payload_id": "spaces-health-hardening-2026-08-08",
+  "payload_id": "spaces-honesty-chips-2026-08-28",
   "schema": "szl-shared-source-payload/v1"
 }

@@ -1,0 +1,30 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<!-- Negative fixture: kernel slot still bound to genome LOCKED-PROVEN. -->
+<html><body>
+<div class="cnt" id="cnt-locked">—<span class="lbl">Locked-proven</span></div>
+<div class="tnum" id="pt-locked">—</div>
+<script>
+const $=id=>document.getElementById(id);
+async function getJSON(u){const r=await fetch(u);return r.json();}
+function setTiers(t){
+  $("pt-locked").textContent = t.locked;
+}
+(async function loadGenome(){
+  const g=await getJSON('/api/a11oy/v1/genome');
+  const tc=g.tier_counts||{};
+  $('cnt-locked').firstChild.nodeValue=(tc['LOCKED-PROVEN']??'N/A');
+})();
+async function loadGenomeTiers(){
+  const g = await getJSON("/api/a11oy/v1/genome");
+  const tc = g.tier_counts || {};
+  setTiers({ locked: tc["LOCKED-PROVEN"], semantic: tc["SEMANTIC-VERIFIED"],
+             evidence: tc["evidence-backed"], conjecture: tc["CONJECTURE"] });
+}
+async function loadOverview(){
+  const o = await getJSON("/api/a11oy/v1/org/overview");
+  if(o.proof_tiers){ setTiers(o.proof_tiers); }
+}
+</script>
+</body></html>

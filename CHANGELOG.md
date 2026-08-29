@@ -25,6 +25,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (exactly 8). Genome LOCKED-PROVEN is labelled catalog, never the kernel.
   Public `/` and `/landing` no longer inject the operator widget.
 
+### Added - investor smoke gate
+- Added a fail-closed S1–S12 / L1–L6 / D1–D10 investor smoke gate
+  (`.github/workflows/investor-smoke-gate.yml`, `scripts/investor_smoke_gate.py`).
+  S7 is a kernel-chip bind: landing `#pt-locked` via `loadLockedKernel` or
+  1394 `loadKernelLocked`, plus trust/console `#cnt-locked`, must read
+  `/api/a11oy/v1/honest` `locked_formula_count` (8 or N/A). Genome
+  `LOCKED-PROVEN=25` is a catalog tier. Bind job PASSes after #1396 console
+  `#cnt-locked` on main. S1 HEAD and S2 signer product landed in 1394 on
+  main; this PR only probes. Live origin is measured, never invented.
+  Live S3 retries one ISS TimeoutError then stays FAIL. L1–L6 are
+  SNAPSHOT 2026-08-28. S4/S6/S9 are UNAVAILABLE (no POST). See
+  `docs/INVESTOR_SMOKE_GATE.md`. Proposed required-check names live in that
+  doc; `.github/BRANCH_PROTECTION.md` is Frontier v2-guarded and is not
+  edited here.
+
+### Changed - Spaces honesty chips (killinchu byte lock)
+- `szl_spaces_proxy.py` and `szl_spaces_surface.py` match killinchu main:
+  energy-attested-runs is `8/8 SIMULATED` (not MEASURED joules); szl-forge-lab
+  is `SNAPSHOT — not a trainer, not Serve Studio`. Shared-file drift stays
+  fail-closed (no allowlist).
+
+
 ### Changed - public ecosystem map
 - `/ecosystem` is now an in-app map of command-center surfaces on a-11-oy.com.
   Hub atlas inventory, ROADMAP cuts, and the canonical stored receipt RECORD
@@ -33,6 +55,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   page only. Console tiles use `?view=` keys (Home/Operate/Build/Observe/
   Govern/Research/More); hash fragments are not emitted here. ROADMAP
   chips parse `a11oy.net` as a hostname, not a URL prefix.
+
+### Fixed - public identity lock
 
 ### Fixed - public identity lock
 - Trust Center canonical (and og:url / twitter:url) is the product origin
