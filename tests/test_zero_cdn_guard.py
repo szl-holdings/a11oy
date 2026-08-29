@@ -32,6 +32,7 @@ BANNED = [
 SERVED_GLOBS = [
     "pages/console.html",
     "pages/chaski.html",
+    "pages/atelier.html",
     "console/*.html",
     "web/nemo.html",
     "web/estate-hologram.html",
