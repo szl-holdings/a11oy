@@ -662,6 +662,8 @@ COPY a11oy_ayllu_wall.py ./a11oy_ayllu_wall.py
 # Packet 8 Decision Integrity desk on a-11-oy.com (GET /decision).
 # Frozen evals. Formula authority NONE. Status ROADMAP. Does not stamp LIVE.
 COPY a11oy_decision_integrity.py ./
+# Public Command Center SPA on a-11-oy.com/command. Does not steal /console.
+COPY a11oy_command_center.py ./a11oy_command_center.py
 COPY verticals/_kernel/a11oy_kernel.py ./verticals/_kernel/a11oy_kernel.py
 COPY verticals/PACKET8.json ./verticals/PACKET8.json
 COPY verticals/terra ./verticals/terra

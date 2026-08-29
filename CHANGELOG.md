@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added - public Command Center SPA on /command
+- `a-11-oy.com/command` is the public Command Center (0-CDN SPA): origin,
+  in-browser receipt lake, proof lab, estate, investor, and developer maps.
+  `/console` stays the operator runtime. `/zk` `/invest` `/build` `/census`
+  `/origin` serve the same SPA. `/command-center` 307s to `/command`.
+- Does not steal `/console`. Does not land on a11oy.net. Landing CTAs
+  retarget `/command`. Estate labels are SOFTWARE/REPORTED. Range-circuit
+  SAT is local MEASURED only. Λ = Conjecture 1. Proof registry stays
+  https://a11oy.net.
+
 ### Changed - Hub Spaces public cut is 7 KEEP
 - `GET /spaces` is the operator desk for the MEASURED Hub cut: 7 public
   keepers, not the historical 26-tile registry. Inventory health compares

@@ -1697,6 +1697,17 @@ try:
 except Exception as _frontier_page_e:  # pragma: no cover
     print(f"[a11oy] Frontier page NOT registered: {_frontier_page_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# Command Center SPA — public product surface on a-11-oy.com.
+# Does not steal /console (operator runtime). Proof stays on a11oy.net.
+# Front-moved so /command /zk /invest /build /census /origin beat the SPA
+# catch-all and any leftover /command alias.
+try:
+    import a11oy_command_center as _a11oy_command_center
+    _command_center_status = _a11oy_command_center.register(app, ns="a11oy")
+    print(f"[a11oy] Command Center SPA registered: {_command_center_status}", file=__import__("sys").stderr)
+except Exception as _command_center_e:  # pragma: no cover
+    print(f"[a11oy] Command Center SPA NOT registered: {_command_center_e!r}; /console unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN GRAPH (self-writing brain substrate) -- GET /api/a11oy/v1/brain/graph is the
 # MODELED derived view that HARVESTS the real estate (64 frontier surfaces + 23 PURIQ
@@ -12085,14 +12096,26 @@ async def command_console_page() -> Response:
 # Each now maps to its REAL destination. Registered BEFORE the SPA catch-all so
 # they win the ordered match. ADDITIVE — no existing route touched.
 
-# /command + /command-center: the "command centre" IS the console. Old links /
-# bookmarks landed on the dead SPA shell; 307 to the real, working /console.
-async def _command_center_redirect() -> Response:
+# /command is the public Command Center SPA (pages/command-center.html).
+# Does not steal /console (operator runtime). If the SPA file is missing,
+# fall back to /console so old bookmarks still work. /command-center 307s
+# to /command. Additive — the a11oy_command_center.register() mounts may
+# already occupy /command (first match wins).
+async def _command_center_page() -> Response:
+    f = PAGES_DIR / "command-center.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
     return _PTG_Redirect(url="/console", status_code=307)
 
 
-for _cc_path in ("/command", "/command-center"):
-    app.add_api_route(_cc_path, _command_center_redirect, methods=["GET"], include_in_schema=False)
+app.add_api_route("/command", _command_center_page, methods=["GET", "HEAD"], include_in_schema=False)
+
+
+async def _command_center_alias() -> Response:
+    return _PTG_Redirect(url="/command", status_code=307)
+
+
+app.add_api_route("/command-center", _command_center_alias, methods=["GET", "HEAD"], include_in_schema=False)
 
 
 # /pinn — Physical-Bounds Certifier surface (distinct from /pinn-console).

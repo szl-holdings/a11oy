@@ -60,6 +60,7 @@ from typing import Any, Dict, List
 #   /sapa       -> generic shell; no dedicated SAPA page exists.
 # ---------------------------------------------------------------------------
 _SURFACES = [
+    ("/command",        "\u25A3",     "Command Center"),                  # ▣ origin SPA
     ("/cockpit",        "\u2318",     "Command Cockpit"),                   # ⌘
     ("/sovereign",      "\u26D3",     "Sovereign Ledger"),                  # khipu health+spend
     ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
@@ -90,6 +91,7 @@ _SURFACES = [
 # ---------------------------------------------------------------------------
 _SURFACE_GROUP_ORDER = ["Sovereign & Agentic Core", "Platform & Infrastructure"]
 _SURFACE_GROUP_OF = {
+    "/command": "Sovereign & Agentic Core",
     "/cockpit": "Sovereign & Agentic Core",
     "/sovereign": "Sovereign & Agentic Core",
     "/nemo": "Sovereign & Agentic Core",
@@ -334,6 +336,12 @@ _WEB_DIR_ALIASES = "/app/web"
 # /trust, /console already 200. Additive FileResponse / RedirectResponse, same
 # pattern as /restraint-bench. Idempotent.
 _PUBLIC_PAGE_ALIASES = (
+    ("/command", "command-center.html", "pages", "/console"),
+    ("/origin", "command-center.html", "pages", "/command"),
+    ("/zk", "command-center.html", "pages", "/command"),
+    ("/invest", "command-center.html", "pages", "/command"),
+    ("/build", "command-center.html", "pages", "/command"),
+    ("/census", "command-center.html", "pages", "/command"),
     ("/mesh", "mesh.html", "pages", "/console"),
     ("/evidence", None, "redirect", "/trust"),
     ("/arena", None, "redirect", "/console"),
