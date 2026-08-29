@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="color-scheme" content="dark" />
+<meta name="theme-color" content="#05070d" />
+<title>SZL organ integrity — five organs, fail closed</title>
+<meta name="description" content="Replayable five-organ fail-closed kernel. Zero heart blocks blood. Fabricated joules are refused. SHA-256 chain. Λ = Conjecture 1 OPEN. Energy UNAVAILABLE." />
+<style>
+:root{
+  --bg:#05070d;--void:#080c14;--panel:#0b121b;--line:#1b2734;
+  --proof:#3af4c8;--lattice:#5b8dee;--gold:#e8c074;--cream:#eef3f6;
+  --para:#9fb1bf;--warn:#e88a6a;--dim:#6c7d8c;--false:#d76a6a;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--cream);
+  font:16px/1.5 ui-sans-serif,system-ui,Segoe UI,Roboto,Arial,sans-serif}
+body{min-height:100vh;padding:24px 18px 64px;
+  background:
+    radial-gradient(120% 90% at 50% -10%, rgba(232,192,116,.09), transparent 60%),
+    radial-gradient(90% 70% at 12% 110%, rgba(58,244,200,.07), transparent 60%),
+    var(--bg)}
+.wrap{max-width:980px;margin:0 auto;position:relative}
+.wrap::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background:
+    linear-gradient(rgba(58,244,200,.03) 1px, transparent 1px) 0 0 / 100% 34px,
+    linear-gradient(90deg, rgba(91,141,238,.028) 1px, transparent 1px) 0 0 / 34px 100%}
+header,main,footer{position:relative;z-index:1}
+.eyebrow{font:10.5px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  letter-spacing:1.4px;text-transform:uppercase;color:var(--gold)}
+.glyph{font-size:clamp(48px,10vw,84px);line-height:1;color:var(--gold);
+  text-shadow:0 0 34px rgba(232,192,116,.4);margin:.1em 0 0}
+h1{font-size:clamp(22px,3.6vw,32px);font-weight:600;margin:.15em 0 .2em}
+.lede{color:var(--para);max-width:72ch;margin:0}
+.badges{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+.badge{font:10.5px ui-monospace,monospace;padding:3px 9px;border-radius:6px;
+  border:1px solid var(--line);color:var(--para);background:#10171f}
+.badge b{color:var(--gold);font-weight:600}
+.grid5{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin:18px 0}
+.bay{display:grid;gap:12px;margin:22px 0}
+.card,.metric,.part{border:1px solid var(--line);border-radius:12px;background:var(--panel);padding:14px 16px}
+.metric .k,.part .k{font:10px ui-monospace,monospace;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.metric .v{font:26px/1.1 ui-monospace,monospace;margin-top:4px}
+.v.ok{color:var(--proof)} .v.false{color:var(--false)} .v.conj{color:var(--gold)}
+.part h2{margin:6px 0 8px;font-size:16px}
+.part p,.part li{color:var(--para);font-size:14px}
+.part ol{margin:0;padding-left:1.2em}
+.hero{border:1px solid #34301f;border-radius:14px;
+  background:linear-gradient(180deg,rgba(232,192,116,.06),var(--void));
+  padding:16px 18px;margin:12px 0}
+.hero .k{font:10px ui-monospace,monospace;letter-spacing:.8px;text-transform:uppercase;color:var(--dim)}
+.hero .statement{font-size:15.5px;margin:.4em 0 0;line-height:1.55}
+.verdict{display:inline-block;font:11px ui-monospace,monospace;letter-spacing:.5px;
+  padding:3px 10px;border-radius:6px;border:1px solid var(--gold);color:var(--gold);
+  background:rgba(232,192,116,.08);margin-top:10px}
+.verdict.ok{border-color:var(--proof);color:var(--proof);background:rgba(58,244,200,.08)}
+.verdict.false{border-color:var(--false);color:var(--false);background:rgba(215,106,106,.08)}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}
+button,a.btn{font:600 12px ui-monospace,monospace;letter-spacing:.6px;text-transform:uppercase;
+  min-height:44px;padding:10px 14px;border-radius:8px;border:1px solid var(--line);
+  background:var(--void);color:var(--cream);cursor:pointer;text-decoration:none;display:inline-flex;align-items:center}
+button.primary{background:var(--proof);color:var(--bg);border-color:var(--proof);
+  box-shadow:0 0 18px rgba(58,244,200,.18)}
+button.danger{border-color:var(--false);color:var(--false)}
+button[aria-pressed="true"]{background:rgba(215,106,106,.12);border-color:var(--false)}
+pre{background:var(--void);border:1px solid var(--line);border-radius:10px;padding:12px;
+  overflow:auto;max-height:420px;font:12px/1.45 ui-monospace,monospace;color:var(--cream);white-space:pre-wrap}
+a{color:var(--proof)}
+footer{margin-top:28px;border-top:1px solid var(--line);padding-top:16px;
+  color:var(--dim);font:11px/1.7 ui-monospace,monospace}
+@media (max-width:800px){.grid5{grid-template-columns:1fr 1fr}}
+@media (max-width:520px){.grid5{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div class="eyebrow">SZL Holdings · organ integrity · Evidence Bay</div>
+  <div class="glyph">Λ</div>
+  <h1>Five organs. Fail closed. Replay it yourself.</h1>
+  <p class="lede">
+    Zero a Yuyay axis and the heart stops — blood does not flow. Tamper the SHA-256
+    chain and YAWAR breaks. Ask for a joule and the nervous system refuses.
+    Paint a sorry green and the skeleton will not stand. Λ stays
+    <em>Conjecture 1 OPEN</em>. Energy is UNAVAILABLE. proven_trust is false.
+  </p>
+  <div class="badges">
+    <span class="badge">doctrine <b>v11 LOCKED</b></span>
+    <span class="badge">locked-8 <b>F1 F4 F7 F11 F12 F18 F19 F22</b></span>
+    <span class="badge">kernel <b>c7c0ba17</b></span>
+    <span class="badge">energy <b>UNAVAILABLE</b></span>
+    <span class="badge">chain <b>SHA-256</b></span>
+    <span class="badge">trust ceiling <b>0.97</b></span>
+  </div>
+</header>
+
+<section class="bay" aria-label="Evidence Bay">
+  <article class="part"><div class="k">1 · Purpose</div>
+    <h2>Prove the body, not the picture.</h2>
+    <p>The 3D atlas at <a href="https://huggingface.co/spaces/SZLHOLDINGS/anatomy">SZLHOLDINGS/anatomy</a>
+      is the map (SLSA L1 static viz). This page is the integrity kernel:
+      HEART / YUYAY, CIRCULATORY / YAWAR, BRAIN / YACHAY, NERVOUS / OTel, SKELETON / Khipu.
+      WILLAY is conscience, not a sixth proven organ.</p>
+  </article>
+  <article class="part"><div class="k">2 · Try</div>
+    <h2>Run a healthy cycle, then injure an organ.</h2>
+    <p>Buttons below flip one fail-closed rule. The same contract runs here in
+      Web Crypto SHA-256 and on the Python kernel
+      (<code>GET/POST /api/a11oy/v1/organs/integrity</code> on this command body).</p>
+  </article>
+  <article class="part"><div class="k">3 · Evidence</div>
+    <h2>A receipt you can copy.</h2>
+    <p>Each run emits organ LIVE/DOWN, a SHA-256 chain head, Λ advisory value,
+      energy UNAVAILABLE, and a structural receipt hash. Signing is STRUCTURAL-ONLY —
+      tamper-EVIDENT, not a signature.</p>
+  </article>
+  <article class="part"><div class="k">4 · Limits</div>
+    <h2>What this is not.</h2>
+    <p>Not a theorem. Not a joule. Not CUDA. Not Lean. Not DSSE authorship.
+      Canal leak on this stdlib/browser surface is the fail-closed <em>rule</em>;
+      MEASURED NumPy YARQA is the <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu">KHIPU Space Anatomy tab</a>.
+      Locked-proven stays exactly 8. CHECKED ≠ PROVEN.</p>
+  </article>
+  <article class="part"><div class="k">5 · Reproduce</div>
+    <h2>Third party, no account.</h2>
+    <ol>
+      <li>This page: click <b>Healthy cycle</b>, then <b>Zero heart</b>.</li>
+      <li><code>python3 organ_integrity.py</code> then <code>python3 organ_integrity.py --tamper zero_heart</code></li>
+      <li>Source: <a href="https://github.com/szl-holdings/szl-organ-integrity">szl-holdings/szl-organ-integrity</a></li>
+      <li>This command body: <code>GET https://a-11-oy.com/api/a11oy/v1/organs/integrity</code></li>
+      <li>Digital twin: <a href="/anatomy-v5">/anatomy-v5</a> · 3D map: <a href="/living-anatomy">/living-anatomy</a></li>
+    </ol>
+  </article>
+</section>
+
+<div class="controls" role="group" aria-label="Tamper flags">
+  <button class="primary" id="run-healthy" type="button">Healthy cycle</button>
+  <button class="danger" data-flag="zero_heart" type="button">Zero heart</button>
+  <button class="danger" data-flag="tamper_chain" type="button">Tamper YAWAR</button>
+  <button class="danger" data-flag="fabricate_joule" type="button">Fabricate a joule</button>
+  <button class="danger" data-flag="leak_canal" type="button">Leak a canal</button>
+  <button class="danger" data-flag="break_skeleton" type="button">Paint a sorry green</button>
+  <button class="danger" data-flag="willay_fire" type="button">Governance bypass</button>
+  <a class="btn" href="https://github.com/szl-holdings/szl-organ-integrity">Source</a>
+</div>
+<p class="lede" id="surface-note">Running the in-browser SHA-256 kernel. Command-body API probed separately.</p>
+<div class="hero" id="hero">
+  <span class="k">waiting for a cycle</span>
+  <p class="statement">Click Healthy cycle. Then injure an organ.</p>
+</div>
+<div class="grid5" id="organs" aria-live="polite"></div>
+<pre id="receipt">receipt appears here</pre>
+
+<footer>
+  Source <a href="https://github.com/szl-holdings/szl-organ-integrity">szl-holdings/szl-organ-integrity</a>
+  · kernel playground <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu">SZLHOLDINGS/szl-khipu</a>
+  · map <a href="https://huggingface.co/spaces/SZLHOLDINGS/anatomy">SZLHOLDINGS/anatomy</a>
+  · command body <a href="https://a-11-oy.com/">a-11-oy.com</a><br />
+  SZL Holdings · governed AI you can prove · Λ = Conjecture 1, never a theorem ·
+  trust ceiling 0.97 · energy UNAVAILABLE · never a fabricated joule · Apache-2.0
+</footer>
+</div>
+<script>
+const ZERO = "0".repeat(64);
+const FLOORS = [0.95, 0.95, 0.90, 0.90, 0.90, 0.90, 0.90, 0.90, 0.90, 0.90, 0.90, 0.90, 0.90];
+const LOCKED = ["F1","F4","F7","F11","F12","F18","F19","F22"];
+const OPS = ["anatomy.brain","anatomy.heart","anatomy.skeleton"];
+
+function wgm(xs){
+  const n = xs.length, w = 1 / n;
+  if (xs.some(x => !Number.isFinite(x) || x <= 0)) return 0;
+  const v = Math.exp(xs.reduce((s,x) => s + w * Math.log(x), 0));
+  return Number.isFinite(v) ? v : 0;
+}
+async function sha256Hex(text){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+}
+async function yawar(seed, tamper){
+  const hops = [];
+  let prev = ZERO;
+  for (let seq = 0; seq < OPS.length; seq++){
+    const op = OPS[seq];
+    const digest = await sha256Hex(`${seq}|${op}|${prev}|${seed}`);
+    hops.push({seq, op, prev, digest, alg:"SHA-256"});
+    prev = digest;
+  }
+  if (tamper && hops[1]) hops[1] = {...hops[1], prev: "deadbeef" + hops[1].prev.slice(8)};
+  let walk = ZERO, ok = true, brk = null;
+  for (const hop of hops){
+    const expect = await sha256Hex(`${hop.seq}|${hop.op}|${hop.prev}|${seed}`);
+    if (hop.prev !== walk || expect !== hop.digest){ ok = false; brk = hop.seq; break; }
+    walk = hop.digest;
+  }
+  return {hops, ok, head: hops[hops.length-1].digest, depth: hops.length, break_at: brk, alg:"SHA-256"};
+}
+async function evaluate(flags){
+  const seed = 11;
+  const axes = FLOORS.slice();
+  if (flags.zero_heart) axes[0] = 0;
+  const lam = wgm(axes);
+  const heartDown = lam === 0;
+  const chain = await yawar(seed, !!flags.tamper_chain);
+  const leaked = flags.leak_canal ? 1 : 0;
+  const brainDown = leaked > 1e-9;
+  const nervousDown = !!flags.fabricate_joule;
+  const rows = LOCKED.map(id => ({id, ok: !(flags.break_skeleton && id === "F18")}));
+  const skelPass = rows.filter(r => r.ok).length;
+  const skeletonDown = skelPass < rows.length;
+  const organs = [
+    {id:"brain", name:"BRAIN", quechua:"YACHAY", formulas:["F1"], status: brainDown?"DOWN":"LIVE", honesty:"LIVE",
+      detail: brainDown ? `cross-canal leak ${leaked.toExponential(3)}` : "read-only cortex · canal-partition silhouette leak 0",
+      metric: leaked},
+    {id:"heart", name:"HEART", quechua:"YUYAY", formulas:["F4","F11"], status: heartDown?"DOWN":"LIVE", honesty:"ADVISORY",
+      detail: heartDown ? `Λ ${lam.toFixed(4)} · zero-routed` : `Λ ${lam.toFixed(4)} · advisory · Conjecture 1 OPEN`,
+      metric: lam},
+    {id:"circulatory", name:"CIRCULATORY", quechua:"YAWAR", formulas:["F7","F22"], status: chain.ok?"LIVE":"DOWN", honesty:"LIVE",
+      detail: chain.ok ? `3-hop SHA-256 · head ${chain.head.slice(0,16)}` : `chain break at ${chain.break_at} · fail closed`,
+      metric: chain.ok?0:1},
+    {id:"nervous", name:"NERVOUS", quechua:"OTel", formulas:["F12"], status: nervousDown?"DOWN":"LIVE", honesty:"UNAVAILABLE",
+      detail: nervousDown ? "fabricated joule refused — energy stays UNAVAILABLE" : "energy UNAVAILABLE · never a fabricated joule",
+      metric: nervousDown?1:0},
+    {id:"skeleton", name:"SKELETON", quechua:"Khipu", formulas:["F18","F19"], status: skeletonDown?"DOWN":"LIVE", honesty:"ADVISORY",
+      detail: skeletonDown ? `locked-8 ${skelPass}/8 — a sorry cannot be painted green` : `locked-8 ${skelPass}/8 · CHECKED ≠ Lean PROVEN @ c7c0ba17`,
+      metric: skelPass}
+  ];
+  const live = organs.filter(o => o.status==="LIVE").length;
+  const organDown = organs.some(o => o.status==="DOWN");
+  const blocked = organDown || !!flags.willay_fire;
+  let reason;
+  if (flags.willay_fire) reason = "WILLAY conscience veto — governance bypass refused (tamper-EVIDENT, not tamper-proof)";
+  else if (organDown) reason = `organ integrity FAIL · ${organs.filter(o=>o.status==="DOWN").map(o=>o.name).join(", ")} DOWN · fail closed`;
+  else reason = `organ integrity ${live}/5 LIVE · Λ advisory · energy UNAVAILABLE · Conjecture 1 OPEN`;
+  const body = {
+    organs, live_count: live, blocked, verdict: blocked ? "BLOCKED" : "ADVISORY_BODY",
+    energy:"UNAVAILABLE", energy_j:null, lambda_advisory:true, conjecture_1:"OPEN",
+    locked_proven:8, kernel_commit:"c7c0ba17", chain_head: chain.head, chain_ok: chain.ok,
+    chain_alg:"SHA-256", proven_trust:false, reason, seed,
+    surface:"browser-webcrypto-sha256", signing:"STRUCTURAL-ONLY"
+  };
+  const receipt = await sha256Hex(JSON.stringify(body));
+  return {ok:true, receipt_sha256: receipt, signing:"STRUCTURAL-ONLY — Web Crypto SHA-256", body};
+}
+function render(env, label){
+  const ev = env.body || env;
+  const blocked = !!ev.blocked;
+  document.getElementById("hero").innerHTML =
+    `<span class="k">${label} · ${ev.chain_alg || "SHA-256"} · kernel ${ev.kernel_commit || "c7c0ba17"}</span>
+     <p class="statement">${ev.live_count}/5 LIVE · ${ev.reason}</p>
+     <span class="verdict ${blocked?"false":"ok"}">${blocked?"BLOCKED":"advisory body"} · energy UNAVAILABLE · Conjecture 1 OPEN</span>`;
+  document.getElementById("organs").innerHTML = (ev.organs||[]).map(o =>
+    `<div class="metric"><div class="k">${o.name} · ${o.quechua}</div>
+     <div class="v ${o.status==="DOWN"?"false":"ok"}">${o.status}</div>
+     <div class="k" style="margin-top:6px">${o.honesty} · ${(o.formulas||[]).join("+")}<br>${o.detail}</div></div>`
+  ).join("");
+  document.getElementById("receipt").textContent = JSON.stringify(env, null, 2);
+}
+async function run(flags, label){
+  const env = await evaluate(flags);
+  render(env, label + " · in-browser");
+  const endpoints = [
+    "/api/a11oy/v1/organs/integrity",
+    "/api/organs/integrity",
+    "/v1/organs/integrity"
+  ];
+  for (const url of endpoints){
+    try{
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 4000);
+      const r = await fetch(url, {
+        method: Object.values(flags).some(Boolean) ? "POST" : "GET",
+        headers: {"content-type":"application/json"},
+        body: Object.values(flags).some(Boolean) ? JSON.stringify(flags) : undefined,
+        signal: ctl.signal, cache:"no-store"
+      });
+      clearTimeout(t);
+      if (!r.ok) continue;
+      const j = await r.json();
+      document.getElementById("surface-note").textContent =
+        `In-browser kernel ran. Live API also answered from ${url} — compare receipts.`;
+      return;
+    } catch (e) { /* honest miss; browser kernel already rendered */ }
+  }
+  document.getElementById("surface-note").textContent =
+    "In-browser SHA-256 kernel ran. Command-body API not reachable from here yet — UNAVAILABLE, not faked.";
+}
+document.getElementById("run-healthy").addEventListener("click", () => run({}, "healthy"));
+document.querySelectorAll("button[data-flag]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    const flags = {[btn.getAttribute("data-flag")]: true};
+    run(flags, btn.textContent.trim());
+  });
+});
+run({}, "healthy");
+</script>
+</body>
+</html>

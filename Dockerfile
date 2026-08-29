@@ -643,6 +643,13 @@ COPY a11oy_quant_signals_nav.py ./a11oy_quant_signals_nav.py
 # wholesale above; this per-file image copies only the new Python registrar.
 COPY a11oy_ecosystem_atlas.py ./a11oy_ecosystem_atlas.py
 
+# FIVE-ORGAN FAIL-CLOSED KERNEL (2026-08-29): GET/POST /api/a11oy/v1/organs/integrity
+# + Evidence Bay at /organs/integrity. Stdlib SHA-256. Energy UNAVAILABLE.
+# Anatomy v5 and living-anatomy prove HEART/BRAIN/CIRCULATORY/NERVOUS/SKELETON LIVE/DOWN.
+# pages/organs-integrity.html rides the wholesale COPY pages/ above.
+COPY organ_integrity.py ./organ_integrity.py
+COPY szl_organ_integrity.py ./szl_organ_integrity.py
+
 # AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — server-side
 # per-request DSSE re-verification of committed council decision receipts,
 # fetched from the public GitHub repo. Fail-closed; key honesty in-band.
