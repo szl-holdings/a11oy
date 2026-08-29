@@ -226,7 +226,7 @@
     background:rgba(58,244,200,0.07);border:1px solid rgba(58,244,200,0.18);
     color:var(--proof);margin-bottom:15px;font-size:19px}
   .card .golinks{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;padding-top:16px}
-  .card a.go{color:var(--proof);font-family:var(--mono);font-size:12.5px}
+  .card a.go{color:var(--proof);font-family:var(--mono);font-size:12.5px;min-height:44px;display:inline-flex;align-items:center}
   .card a.go:hover{text-decoration:underline}
   .card .num{position:absolute;top:18px;right:22px;font-family:var(--mono);font-size:13px;color:var(--ghost)}
 
@@ -320,8 +320,8 @@
   .skel{color:var(--ghost);font-family:var(--mono)}
 
   /* ecosystem atlas — public estate snapshot, never implied live until API reads */
-  .estate-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin:24px 0}
-  .estate-cell{border:1px solid var(--border);border-radius:13px;padding:15px;
+  .estate-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:24px 0}
+  .estate-cell{border:1px solid var(--border);border-radius:13px;padding:15px;min-height:44px;
     background:linear-gradient(155deg,rgba(17,30,50,.72),rgba(8,16,29,.88))}
   .estate-cell b{display:block;color:var(--proof);font:600 1.45rem var(--mono);margin-bottom:4px}
   .estate-cell span{color:var(--ghost);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}
@@ -335,7 +335,7 @@
   .honesty{border-top:1px solid var(--border);border-bottom:1px solid var(--border);
     background:linear-gradient(180deg,rgba(10,16,30,0.6),rgba(10,16,30,0.22))}
   .honesty .wrap{padding:48px 24px}
-  .legend{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin:22px 0 0}
+  .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0 0}
   @media(max-width:860px){.legend{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:480px){.legend{grid-template-columns:1fr}}
   .leg{padding:16px 17px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.03)}
@@ -343,8 +343,20 @@
   .leg p{margin:0;color:var(--sub);font-size:.9rem;line-height:1.5}
   .leg.measured .lt{color:var(--proof)}     .leg.measured{border-color:rgba(58,244,200,0.35)}
   .leg.reported .lt{color:var(--lattice)}   .leg.reported{border-color:rgba(91,141,238,0.35)}
-  .leg.unknown  .lt{color:var(--gold)}      .leg.unknown{border-color:rgba(215,185,107,0.35)}
-  .leg.conjecture .lt{color:var(--gray)}    .leg.conjecture{border-color:rgba(125,138,160,0.4)}
+  .leg.roadmap .lt{color:var(--gold)}       .leg.roadmap{border-color:rgba(215,185,107,0.35)}
+  .leg.software .lt{color:var(--lattice)}   .leg.software{border-color:rgba(91,141,238,0.28)}
+  .leg.unavailable .lt{color:var(--down)}   .leg.unavailable{border-color:rgba(232,116,110,0.38)}
+  .leg.simulated .lt{color:var(--gray)}     .leg.simulated{border-color:rgba(125,138,160,0.4)}
+  .status-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+  .chip.software{color:var(--lattice);border-color:rgba(91,141,238,0.35);background:rgba(91,141,238,0.08)}
+  .chip.software .dot{background:var(--lattice)}
+  .chip.roadmap{color:var(--gold);border-color:rgba(215,185,107,0.4);background:rgba(215,185,107,0.08)}
+  .chip.roadmap .dot{background:var(--gold)}
+  .chip.simulated{color:var(--gray);border-color:rgba(125,138,160,0.4);background:rgba(125,138,160,0.08)}
+  .chip.simulated .dot{background:var(--gray)}
+  .chip.unavailable{color:var(--down);border-color:rgba(232,116,110,0.35);background:rgba(232,116,110,0.07)}
+  .chip.unavailable .dot{background:var(--down)}
+  .product-card .lam{margin-top:auto;padding-top:14px}
   .honesty .lambda-line{margin:24px 0 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   .honesty .lambda-line .muted{max-width:640px}
   .honesty .free-energy{margin:14px 0 0;color:var(--ghost);font-size:.92rem;max-width:840px;line-height:1.6}
@@ -397,15 +409,9 @@
     </a>
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">☰</button>
     <nav class="nav-links" id="site-nav">
-      <a class="hide-sm" href="#surfaces">Surfaces</a>
-      <a class="hide-sm" href="/immune">IMMUNE</a>
-      <a class="hide-sm" href="/lyte">LYTE</a>
-      <a class="hide-sm" href="/ecosystem">Ecosystem</a>
-      <a class="hide-sm" href="/anatomy-v5">Anatomy v5</a>
-      <a class="hide-sm" href="#proof">The proof</a>
-      <a class="hide-sm" href="#honesty">Honesty</a>
-      <a class="hide-sm" href="/console#arena">Eval arena</a>
-      <a class="hide-sm" href="/observability">Observability</a>
+      <a class="hide-sm" href="#products">Products</a>
+      <a class="hide-sm" href="#catalog">Catalog</a>
+      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof</a>
       <a href="/trust">Evidence</a>
       <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
@@ -429,7 +435,7 @@
         <b>BLOCKED</b> instead of a confident guess.</p>
       <div class="cta-row">
         <a class="btn btn-primary" href="/console">Open the command center →</a>
-        <a class="btn btn-lattice" href="/immune">Open IMMUNE</a>
+        <a class="btn btn-lattice" href="https://a11oy.net" rel="noopener">Open the proof registry</a>
         <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
       </div>
       <div class="hero-stats">
@@ -461,10 +467,12 @@
     <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
     <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
     <div class="legend">
-      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>
-      <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
-      <div class="leg unknown"><div class="lt">UNKNOWN</div><p>We don't have it right now. Rendered honestly as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
-      <div class="leg conjecture"><div class="lt">CONJECTURE</div><p>Advisory and unproven. Rendered in gray, never green, never a theorem. Λ lives here.</p></div>
+      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present. Never used for GPU joules without a live exporter delta.</p></div>
+      <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel {F1,F4,F7,F11,F12,F18,F19,F22}, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
+      <div class="leg roadmap"><div class="lt">ROADMAP</div><p>Future work or an empty Hub card. Not trained, not a product SKU, and not admitted as data. The ROADMAP collection exists so those cards are not sold as models.</p></div>
+      <div class="leg software"><div class="lt">SOFTWARE</div><p>Shipped code — kernels, consoles, gates. Not LoRA-trained weights. Hub mirrors GitHub; a SOFTWARE card is not a model SKU.</p></div>
+      <div class="leg unavailable"><div class="lt">UNAVAILABLE</div><p>We don't have it right now. Rendered as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
+      <div class="leg simulated"><div class="lt">SIMULATED</div><p>A rehearsal path. killinchu effectors stay SIMULATED unless a real execution path is proved. Never painted LIVE or MEASURED.</p></div>
     </div>
     <div class="lambda-line">
       <span class="chip gray"><span class="dot"></span>Λ = Conjecture 1</span>
@@ -488,22 +496,53 @@
   <p class="pulse-time" id="pulse-checked">Checks have not completed.</p>
 </section>
 
-<!-- ====================== (1c) EXPLORE THE SURFACES ====================== -->
-<section class="band wrap" id="surfaces">
-  <p class="kick">Explore the estate</p>
-  <h2>Ten surfaces. One governed core.</h2>
-  <p class="intro">Every surface reads the same live endpoints and the same honesty doctrine. Jump straight in — the full working console is one click away.</p>
+<!-- ====================== FLAGSHIPS — three products max ====================== -->
+<section class="band wrap" id="products">
+  <p class="kick">Products · three flagships <span id="verticals-src"></span></p>
+  <h2>Three products. One evidence contract.</h2>
+  <p class="intro">The public product line is three flagships — not nine surfaces, not five verticals, and not forty Hub SKUs. Insurance, finance, and real-estate cards are not products. Λ uniqueness is <b>Conjecture&nbsp;1</b> — advisory, never a theorem, never green.</p>
   <div class="grid g3">
-    <a class="card surface-card" href="/console"><div class="ic">⌘</div><h3>Command Center</h3><p>The working console — receipt integrity, separately disclosed signer state, the self-doubt gate, the genome registry, and live organ vitals.</p><div class="golinks"><span class="go">Open /console →</span></div></a>
-    <a class="card surface-card" href="/superpowers"><div class="ic">✦</div><h3>Five Superpowers</h3><p>The five things governed inference does that ungoverned models can't — each linked to the live check that backs it.</p><div class="golinks"><span class="go">Open /superpowers →</span></div></a>
-    <a class="card surface-card" href="/console#arena"><div class="ic">⚔</div><h3>Adversarial assurance</h3><p>Run governed evaluations, inspect refusals, and trace every verdict to its evidence. The archived Warhacker route now resolves here.</p><div class="golinks"><span class="go">Open the eval arena →</span></div></a>
-    <a class="card surface-card" href="/observability"><div class="ic">◎</div><h3>Observability</h3><p>OpenTelemetry-style traces and health summaries across the organs — live, read-only, no sign-on-GET.</p><div class="golinks"><span class="go">Open /observability →</span></div></a>
-    <a class="card surface-card" href="/wires"><div class="ic">〜</div><h3>Wires</h3><p>The live wiring between organs — which probe feeds which surface, and whether it is up right now.</p><div class="golinks"><span class="go">Open /wires →</span></div></a>
-    <a class="card surface-card" href="/console#mesh"><div class="ic">◇</div><h3>Mesh</h3><p>The BFT-quorum mesh graph — 3-of-4 consensus, live state read from <span class="mono">/api/a11oy/v1/mesh/state</span>.</p><div class="golinks"><span class="go">Open the mesh →</span></div></a>
-    <a class="card surface-card" href="/formulas"><div class="ic">Σ</div><h3>Formulas</h3><p>The PURIQ agentic formula genome — live-recomputed values, each carrying its own Khipu receipt.</p><div class="golinks"><span class="go">Open /formulas →</span></div></a>
-    <a class="card surface-card" href="/trust"><div class="ic">✓</div><h3>Evidence</h3><p>The trust center: the locked-8 with truthful Lean refs, Theorem&nbsp;U vs Conjecture&nbsp;1, the receipt ledger, offline verify.</p><div class="golinks"><span class="go">Open the evidence →</span></div></a>
-    <a class="card surface-card" href="/immune"><div class="ic">⬡</div><h3>IMMUNE</h3><p>Fail-closed Hukulla kernel (Channel A) plus Field lattice (Channel B): exile, mesh, quorum, delta. Hunt / isolate / deceive — never strike people. Same-origin tab. Never fabricates LIVE or PASS.</p><div class="golinks"><span class="go">Open /immune →</span></div></a>
-    <a class="card surface-card" href="/lyte"><div class="ic">⚖</div><h3>LYTE lattice</h3><p>BIND package, not a second flagship. Named frontiers N1–N25 cited from GitHub — STRUCTURAL-ONLY hub, UNSIGNED-honest receipts, joule UNAVAILABLE unless RAPL reads. Not a production certificate.</p><div class="golinks"><span class="go">Open /lyte →</span></div></a>
+    <article class="card product-card" id="product-a11oy">
+      <div class="ic">⌘</div>
+      <h3>a11oy Command</h3>
+      <p>Governed-AI command center: deny-by-default gates, receipt integrity, separately disclosed signer state, and an honest BLOCKED when the model is not sure.</p>
+      <div class="status-row">
+        <span class="chip software"><span class="dot"></span>SOFTWARE</span>
+        <span class="chip gray"><span class="dot"></span>Λ = Conjecture 1</span>
+      </div>
+      <div class="lam"><span class="val" id="v-core">—</span><span class="cap">advisory Λ</span><span id="v-core-chip"></span></div>
+      <div class="golinks">
+        <a class="go" href="/console">Open /console →</a>
+        <a class="go" href="https://huggingface.co/spaces/SZLHOLDINGS/a11oy" rel="noopener">Space →</a>
+      </div>
+    </article>
+    <article class="card product-card" id="product-killinchu">
+      <div class="ic">⚔</div>
+      <h3>killinchu</h3>
+      <p>Counter-UAS and maritime vertical on the same receipt substrate. Public controls remain advisory. Effectors stay SIMULATED unless a real execution path is proved.</p>
+      <div class="status-row">
+        <span class="chip software"><span class="dot"></span>SOFTWARE</span>
+        <span class="chip simulated"><span class="dot"></span>SIMULATED effectors</span>
+      </div>
+      <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
+      <div class="golinks">
+        <a class="go" href="/killinchu">Open killinchu →</a>
+        <a class="go" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" rel="noopener">Space →</a>
+      </div>
+    </article>
+    <article class="card product-card" id="product-forge">
+      <div class="ic">⚙</div>
+      <h3>Forge / own-metal</h3>
+      <p>Owner-forged weights and kernels trained on metal you own. This is a training and evidence path — not a live GPU joule meter, and not forty fake model SKUs.</p>
+      <div class="status-row">
+        <span class="chip software"><span class="dot"></span>SOFTWARE</span>
+        <span class="chip roadmap"><span class="dot"></span>ROADMAP cards ≠ trained</span>
+      </div>
+      <div class="golinks">
+        <a class="go" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Flagship models →</a>
+        <a class="go" href="/api/forge/family">Forge family JSON →</a>
+      </div>
+    </article>
   </div>
 </section>
 
@@ -578,118 +617,50 @@
     </div>
   </div>
   <div class="cta-row" style="margin-top:34px">
-    <a class="btn btn-primary" href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">See it run live · IMMUNE demo →</a>
-    <a class="btn btn-ghost" href="/console#genome">Browse the genome →</a>
+    <a class="btn btn-primary" href="https://a11oy.net" rel="noopener">Open the proof registry →</a>
     <a class="btn btn-ghost" href="/trust">Read the trust center →</a>
+    <a class="btn btn-ghost" href="/console#genome">Browse the genome →</a>
   </div>
-  <p class="intro" style="margin-top:16px;opacity:.85">IMMUNE is a live, interactive demo of the same thesis you can drive yourself — a
-    real hash-chained receipt ledger, a live Sigstore&nbsp;Rekor transparency anchor, and honest
-    <b>BLOCKED</b> / <b>UNAVAILABLE</b> states instead of confident guesses. Nothing on that page is fabricated.</p>
+  <p class="intro" style="margin-top:16px;opacity:.85">Proof lives at <a href="https://a11oy.net" rel="noopener">a11oy.net</a> — RECORD, diligence, atlas. It is not a product host. Λ uniqueness is Conjecture&nbsp;1, never a theorem.</p>
 </section>
 
-<!-- ====================== (4) THE VERTICALS — live /lambda/org ====================== -->
-<section class="band" id="verticals" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
-  <div class="wrap">
-    <p class="kick">The verticals · live Λ posture <span id="verticals-src"></span></p>
-    <h2>One governed core. Five places it earns its keep.</h2>
-    <p class="intro">The same governed inference core runs across five verticals. Each card reads
-      its live advisory Λ posture from the org-wide 13-axis gate (canonical floor 0.90). Λ is
-      Conjecture&nbsp;1 — advisory, never a pass/fail oracle.</p>
-    <div class="grid g3">
-      <div class="vcard">
-        <div class="pmark">a11</div>
-        <h3>a11oy</h3>
-        <div class="tag">Core · governed inference</div>
-        <p>The platform itself — command center, receipt integrity, disclosed signer state, and the self-doubt gate.</p>
-        <div class="lam"><span class="val" id="v-core">—</span><span class="cap">advisory Λ</span><span id="v-core-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">kil</div>
-        <h3>killinchu</h3>
-        <div class="tag">Defense · counter-UAS</div>
-        <p>Auditable interdiction: receipt per decision, separately disclosed signing state, and 3-of-4 BFT consensus.</p>
-        <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">ins</div>
-        <h3>Insurance</h3>
-        <div class="tag">David Leads · lead scoring</div>
-        <p>Faithful David Leads scorer behind an F12 non-compensatory consent gate.</p>
-        <div class="lam"><span class="val" id="v-insurance">—</span><span class="cap">advisory Λ</span><span id="v-insurance-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">fin</div>
-        <h3>Finance</h3>
-        <div class="tag">Governed decisioning</div>
-        <p>Decision paths that must be reconstructable, receipt-bound, and conditionally signed only when verified signer evidence is active.</p>
-        <div class="lam"><span class="val" id="v-finance">—</span><span class="cap">advisory Λ</span><span id="v-finance-chip"></span></div>
-      </div>
-      <div class="vcard">
-        <div class="pmark">re</div>
-        <h3>Real estate</h3>
-        <div class="tag">Governed workflows</div>
-        <p>Workflow decisions captured into the same one-chain receipt ledger.</p>
-        <div class="lam"><span class="val" id="v-realestate">—</span><span class="cap">advisory Λ</span><span id="v-realestate-chip"></span></div>
-      </div>
-      <div class="vcard" style="border-style:dashed;align-items:flex-start;justify-content:center">
-        <div class="pmark" style="background:rgba(58,244,200,0.08);border-color:rgba(58,244,200,0.25);color:var(--proof)">Λ</div>
-        <h3>Org-wide Λ</h3>
-        <div class="tag">13-axis weighted geomean</div>
-        <p>The composite advisory posture across all verticals, with min≤Λ≤max SEMANTIC-VERIFIED.</p>
-        <div class="lam"><span class="val" id="v-org">—</span><span class="cap">floor 0.90</span><span id="v-org-chip"></span></div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ====================== (5) THE LIVING BODY ====================== -->
-<section class="band wrap" id="body">
-  <p class="kick">The living body</p>
-  <h2>Watch the governed organism breathe.</h2>
-  <p class="intro">The same live endpoints render as a 3D anatomical organism — organs glow when
-    their probes are healthy and dim when they're not, and receipt events travel the vessels as
-    pulses. It is an operational projection of the platform state. Every pulse links to a real
-    receipt event; its signing state remains separately disclosed.</p>
-  <div class="body-embed" id="body-embed">
-    <div class="poster" id="body-poster">
-      <div class="pulse-ring" aria-hidden="true"></div>
-      <h3>The Living Brain &amp; Body · Anatomy v5</h3>
-      <p>Two live 3D views of the same governed organism: a <b>moldable brain</b> whose eight lobes
-        are wired to live public reads (Hub assets, GitHub repos, proved theorems, organ vitals,
-        the harnessed open-weights frontier) &mdash; sculpt its cortex with your pointer &mdash;
-        and the full <b>living body</b> wired to the same probes as the console.</p>
-      <div class="cta-row" style="justify-content:center">
-        <button class="btn btn-lattice" id="brain-load" type="button">🧠 Mold the brain in-frame</button>
-        <button class="btn btn-ghost" id="body-load" type="button">Load the living body</button>
-        <a class="btn btn-primary" href="/anatomy-v5">Open the live digital twin →</a>
-        <a class="btn btn-ghost" href="/living-anatomy" target="_blank" rel="noopener">Open full-screen →</a>
-      </div>
-    </div>
-  </div>
-</section>
-
-<!-- ====================== PUBLIC ECOSYSTEM ATLAS ====================== -->
+<!-- ====================== HUB CATALOG — collections, not a zoo ====================== -->
 <section class="band" id="ecosystem">
-  <div class="wrap">
-    <p class="kick">Public estate · canonical live sources</p>
-    <h2>Models, kernels, data, and Spaces — one evidence-labelled map.</h2>
-    <p class="sub" style="max-width:790px">The front door no longer hardcodes organization totals. Open each canonical source for its current inventory; a reachable URL establishes reachability only, not source/runtime alignment or model quality.</p>
-    <div class="estate-grid" aria-label="Canonical public ecosystem sources">
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/models" target="_blank" rel="noopener"><b>OPEN</b><span>Models</span></a>
-      <a class="estate-cell" href="/kernels"><b>OPEN</b><span>Governed kernels</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/datasets" target="_blank" rel="noopener"><b>OPEN</b><span>Datasets</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/spaces" target="_blank" rel="noopener"><b>OPEN</b><span>Spaces</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS/collections" target="_blank" rel="noopener"><b>OPEN</b><span>Collections</span></a>
-      <a class="estate-cell" href="https://huggingface.co/SZLHOLDINGS" target="_blank" rel="noopener"><b>OPEN</b><span>Organization</span></a>
+  <div class="wrap" id="catalog">
+    <p class="kick">Hub catalog · four collections</p>
+    <h2>Collections are the catalog — not forty product SKUs.</h2>
+    <p class="intro">Open a collection for its current inventory. A reachable URL is reachability only — not source/runtime alignment, not model quality, and not a claim that every Hub card is trained. ROADMAP cards are empty on purpose.</p>
+    <div class="grid g4" aria-label="Canonical Hugging Face collections">
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip software"><span class="dot"></span>TRAINED WEIGHTS</span></div>
+        <h3>Flagship models</h3>
+        <p>Trained weights only. Kernels and empty ROADMAP cards live elsewhere. Λ uniqueness remains Conjecture&nbsp;1.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip software"><span class="dot"></span>SOFTWARE</span></div>
+        <h3>Kernels</h3>
+        <p>Software kernels. Not LoRA-trained models. Source on GitHub; Hub is the mirror.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip roadmap"><span class="dot"></span>ROADMAP</span></div>
+        <h3>Roadmap</h3>
+        <p>Honest empty cards. Not trained. Do not treat as product SKUs or admitted data.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip software"><span class="dot"></span>SOFTWARE</span></div>
+        <h3>Flagship Spaces</h3>
+        <p>Running product surfaces. Extra holograms are paused, not deleted. Proof stays at a11oy.net.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
     </div>
-    <div class="estate-links">
-      <a class="btn btn-primary" href="/ecosystem">Open ecosystem atlas →</a>
-      <a class="btn btn-lattice" href="/anatomy-v5">Open Anatomy v5</a>
-      <a class="btn btn-ghost" href="/models">Models</a>
-      <a class="btn btn-ghost" href="/kernels">Kernels</a>
-      <a class="btn btn-ghost" href="/ecosystem/brain">Brain</a>
-      <a class="btn btn-ghost" href="/ecosystem/holographic">Holographic</a>
-      <a class="btn btn-ghost" href="/spaces">All Spaces</a>
+    <div class="estate-grid" aria-label="Canonical public catalog sources" style="margin-top:22px">
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener"><b>OPEN</b><span>Models</span></a>
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener"><b>OPEN</b><span>Kernels</span></a>
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener"><b>OPEN</b><span>Roadmap</span></a>
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener"><b>OPEN</b><span>Spaces</span></a>
     </div>
   </div>
 </section>
@@ -748,33 +719,27 @@
         <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
           <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">github.com/szl-holdings</a></p>
       </div>
-      <div class="lk"><strong style="color:var(--ink)">Product</strong>
-        <a href="/console">Command center</a>
-        <a href="/ecosystem">Ecosystem atlas</a>
-        <a href="/anatomy-v5">Anatomy v5 · digital twin</a>
-        <a href="/console#genome">Genome registry</a>
-        <a href="/verify">Verify a receipt</a>
-        <a href="/living-anatomy">Living anatomy · 3D</a>
-        <a href="/elite">killinchu · counter-UAS</a>
-        <a href="/immune">IMMUNE · Hukulla + live kernel</a>
-        <a href="/lyte">LYTE lattice · BIND package</a>
-        <a href="https://szlholdings-immune.hf.space" target="_blank" rel="noopener">IMMUNE kernel Space</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Products</strong>
+        <a href="/console">a11oy Command</a>
+        <a href="/killinchu">killinchu · vertical</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Forge / own-metal</a>
+        <a href="/verify">Verify a receipt</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
+        <a href="https://a11oy.net" rel="noopener">Proof registry · a11oy.net</a>
         <a href="/trust">Trust center</a>
         <a href="/api/a11oy/v1/ledger">Receipt ledger</a>
         <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
         <a href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs</a></div>
-      <div class="lk"><strong style="color:var(--ink)">Router &amp; org</strong>
+      <div class="lk"><strong style="color:var(--ink)">Catalog</strong>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Flagship models</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener">Kernels · SOFTWARE</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener">ROADMAP · no admitted data</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener">Flagship Spaces</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Honesty</strong>
         <a href="/static/viz/router/">LLM Router · STALE NOT_MEASURED · snapshot 2026-07-11</a>
-        <a href="https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live" target="_blank" rel="noopener">Status Space (STALE NOT_MEASURED · snapshot 2026-07-11)</a>
-        <a href="https://github.com/szl-holdings/szl-router" target="_blank" rel="noopener">SZL Router · OpenAI-compatible</a>
-        <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">SZL Holdings · GitHub org</a>
-        <a href="#surfaces">All ten surfaces</a></div>
-      <div class="lk"><strong style="color:var(--ink)">Estate · open source</strong>
-        <a href="https://github.com/szl-holdings/ouroboros" target="_blank" rel="noopener">ouroboros · self-referential loop</a>
-        <a href="https://github.com/szl-holdings/szl-formula-ledger" target="_blank" rel="noopener">szl-formula-ledger · formula genome</a>
-        <a href="https://github.com/szl-holdings/szl-energy-attest" target="_blank" rel="noopener">szl-energy-attest · grid_context (REPORTED)</a>
-        <a href="https://huggingface.co/SZLHOLDINGS" target="_blank" rel="noopener">Hugging Face org · SZLHOLDINGS</a></div>
+        <a href="https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live" rel="noopener">Status Space (STALE NOT_MEASURED · snapshot 2026-07-11)</a>
+        <a href="https://github.com/szl-holdings" rel="noopener">SZL Holdings · GitHub org</a>
+        <a href="#honesty">Honesty doctrine</a></div>
     </div>
     <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven Lean kernel is exactly <b>8</b>
       theorems {F1,F4,F7,F11,F12,F18,F19,F22}; the 144-entry genome registry is a separate, larger
@@ -782,7 +747,8 @@
       advisory bound, never a theorem and never 1.0. Receipt-chain integrity and DSSE signing are
       distinct states; signing is claimed only when persistent signer evidence is active and verification
       passes. Read-only routes never mint receipts. Energy is MEASURED only with a live exporter delta,
-      otherwise honest SAMPLE. Supply
+      otherwise honest SAMPLE — this page does not invent live GPU joules.
+      Hub collections are a catalog, not a zoo; ROADMAP cards are not trained SKUs. Supply
       chain is SLSA L1 honest (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP.
       <b style="color:var(--sub)">Alloy by SZL Holdings.</b>
       © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0.</p>
@@ -925,11 +891,13 @@
   }
 
   function setVerticals(v){
-    // v: {core,defense,insurance,finance,realestate} advisory Λ (numbers or null)
-    [["core","v-core"],["defense","v-defense"],["insurance","v-insurance"],
-     ["finance","v-finance"],["realestate","v-realestate"]].forEach(([k,id])=>{
+    // Flagships only: a11oy command (core) and killinchu (defense).
+    // Insurance / finance / real-estate are not products on this page.
+    [["core","v-core"],["defense","v-defense"]].forEach(([k,id])=>{
+      const el = $(id);
+      if(!el) return;
       const val = fmtLam(v[k]);
-      $(id).textContent = (val===null) ? "N/A" : val;
+      el.textContent = (val===null) ? "N/A" : val;
       lamChip(id+"-chip", num(v[k]));
     });
   }
@@ -990,7 +958,7 @@
         setChain(num(ts.signed_receipts), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
         $("chain-src").innerHTML = liveChip("overview"); any = true;
       }
-      if(o.org_lambda !== undefined){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
+      if(o.org_lambda !== undefined && $("v-org")){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
       return any;
     }catch(e){ return false; }
   }
@@ -1012,13 +980,14 @@
     try{
       const d = await getJSON("/api/a11oy/v1/lambda/org");
       const v = d.verticals || {};
-      setVerticals({ core:v.core, defense:v.defense, insurance:v.insurance,
-                     finance:v.finance, realestate:v.realestate });
-      const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org));
-      $("verticals-src").innerHTML = liveChip("lambda/org");
+      setVerticals({ core:v.core, defense:v.defense });
+      if($("v-org")){ const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org)); }
+      if($("verticals-src")) $("verticals-src").innerHTML = liveChip("lambda/org");
     }catch(e){
-      setVerticals({}); $("v-org").textContent = "N/A"; $("v-org-chip").innerHTML = downChip("N/A");
-      $("verticals-src").innerHTML = downChip("UNAVAILABLE");
+      setVerticals({});
+      if($("v-org")) $("v-org").textContent = "N/A";
+      if($("v-org-chip")) $("v-org-chip").innerHTML = downChip("N/A");
+      if($("verticals-src")) $("verticals-src").innerHTML = downChip("UNAVAILABLE");
     }
   }
   async function loadChain(){
