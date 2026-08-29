@@ -509,7 +509,21 @@ class OROService:
         if isinstance(generation, bool) or not isinstance(generation, int) or generation < 0:
             raise OROContractError("generation must be a non-negative integer")
         parse_utc(raw["expires_at"])
-        rank_before = Rank.parse(body["rank"])
+        if plan["status"] in {"COMPLETE", "REFUSED"}:
+            raise OROStateError("plan is terminal and cannot execute another barrier")
+        durable_orbit = self.store.get_orbit(orbit_id)
+        if durable_orbit is None:
+            if generation != 0:
+                raise OROStateError("new orbit must begin at generation zero")
+            rank_before = Rank.parse(body["rank"])
+        else:
+            if durable_orbit["plan_id"] != plan_id:
+                raise OROStateError("orbit is bound to a different plan")
+            if durable_orbit["status"] != "RUNNING":
+                raise OROStateError("orbit is terminal and cannot execute another barrier")
+            if int(durable_orbit["generation"]) != generation:
+                raise OROStateError("execution generation does not match durable orbit generation")
+            rank_before = Rank.parse(durable_orbit["current_rank"])
         rank_after = Rank.parse(raw["rank_after"])
         if not isinstance(raw["objective_converged"], bool):
             raise OROContractError("objective_converged must be boolean")
@@ -536,23 +550,30 @@ class OROService:
                 raise OROContractError("each child must contain exactly child_id and rank")
             allocation_receipt = allocate_rank(rank_before, parsed_children)
 
-        self.store.create_orbit(orbit_id=orbit_id, plan_id=plan_id, generation=generation)
-        intent_body = {
-            "schema": "szl.oro-intent-certificate/v1",
-            "plan_id": plan_id,
-            "plan_digest": body["plan_digest"],
-            "orbit_id": orbit_id,
-            "generation": generation,
-            "source_revision": body["source_revision"],
-            "effectors": body["requested_effectors"],
-            "release_authority": "ABSENT",
-        }
-        self.store.create_certificate(
-            certificate_id=f"intent:{orbit_id}",
+        existing_orbit = durable_orbit
+        self.store.create_orbit(
             orbit_id=orbit_id,
-            kind="intent",
-            body=intent_body,
+            plan_id=plan_id,
+            generation=generation,
+            rank=rank_before,
         )
+        if existing_orbit is None:
+            intent_body = {
+                "schema": "szl.oro-intent-certificate/v1",
+                "plan_id": plan_id,
+                "plan_digest": body["plan_digest"],
+                "orbit_id": orbit_id,
+                "generation": generation,
+                "source_revision": body["source_revision"],
+                "effectors": body["requested_effectors"],
+                "release_authority": "ABSENT",
+            }
+            self.store.create_certificate(
+                certificate_id=f"intent:{orbit_id}",
+                orbit_id=orbit_id,
+                kind="intent",
+                body=intent_body,
+            )
 
         try:
             decision = self.engine.evaluate(

@@ -556,7 +556,6 @@ class BarrierEngine:
         merged_payload: Mapping[str, Any] = {
             "schema": BARRIER_SCHEMA,
             "orbit_id": orbit_id,
-            "generation": generation,
             "participants": [
                 {
                     "participant_id": arrival.participant_id,

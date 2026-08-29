@@ -23,6 +23,10 @@ class OROAuthorizerUnavailable(OROStateError):
     """The governed write-authorization boundary is unavailable."""
 
 
+class OROAuthorizationError(OROContractError):
+    """A governed write request did not present valid bearer authority."""
+
+
 class BearerTokenAuthorizer:
     def __init__(self, *, token_id: str, token: bytes, source: str) -> None:
         if not isinstance(token_id, str) or not token_id.strip():
@@ -76,17 +80,18 @@ class BearerTokenAuthorizer:
             "token_value_exposed": False,
         }
 
-    def authorize(self, request: Request) -> None:
+    def authorize(self, request: Request) -> str:
         header = request.headers.get("authorization", "")
         scheme, separator, supplied = header.partition(" ")
         if not separator or scheme.lower() != "bearer" or not supplied:
-            raise OROContractError("a Bearer authorization header is required")
+            raise OROAuthorizationError("a Bearer authorization header is required")
         try:
             supplied_bytes = supplied.encode("utf-8")
         except UnicodeEncodeError as exc:
-            raise OROContractError("authorization token is malformed") from exc
+            raise OROAuthorizationError("authorization token is malformed") from exc
         if not secrets.compare_digest(supplied_bytes, self._token):
-            raise OROContractError("authorization token is invalid")
+            raise OROAuthorizationError("authorization token is invalid")
+        return self._token_id
 
 
 def authorizer_from_environment(*, production: bool) -> BearerTokenAuthorizer | None:
@@ -98,6 +103,6 @@ def authorizer_from_environment(*, production: bool) -> BearerTokenAuthorizer | 
                 "SZL_ORO_API_TOKEN_PATH and SZL_ORO_API_TOKEN_ID must be set together"
             )
         return BearerTokenAuthorizer.from_file(token_id=token_id, path=path)
-    if not production and os.environ.get("SZL_ORO_ALLOW_UNAUTHENTICATED_WRITES") == "1":
+    if not production and os.environ.get("SZL_ORO_ALLOW_DEVELOPMENT_AUTH") == "1":
         return BearerTokenAuthorizer.development()
     return None

@@ -109,7 +109,8 @@ class OROStore:
                         orbit_id TEXT PRIMARY KEY,
                         plan_id TEXT NOT NULL REFERENCES plans(plan_id),
                         generation INTEGER NOT NULL CHECK(generation >= 0),
-                        status TEXT NOT NULL CHECK(status IN ('RUNNING','CONTINUE','COMPLETE','REFUSED')),
+                        current_rank_json TEXT NOT NULL,
+                        status TEXT NOT NULL CHECK(status IN ('RUNNING','COMPLETE','REFUSED')),
                         created_at TEXT NOT NULL,
                         updated_at TEXT NOT NULL
                     ) STRICT;
@@ -303,21 +304,36 @@ class OROStore:
             ).fetchall()
         return [self._decode(row, "body_json") or {} for row in rows]
 
-    def create_orbit(self, *, orbit_id: str, plan_id: str, generation: int) -> Mapping[str, Any]:
+    def create_orbit(
+        self,
+        *,
+        orbit_id: str,
+        plan_id: str,
+        generation: int,
+        rank: Rank,
+    ) -> Mapping[str, Any]:
         now = utc_now()
+        encoded_rank = canonical_json(rank.as_dict()).decode("utf-8")
         with self._lock:
             existing = self.connection.execute(
                 "SELECT * FROM orbit_runs WHERE orbit_id=?", (orbit_id,)
             ).fetchone()
             if existing is not None:
-                if existing["plan_id"] != plan_id or int(existing["generation"]) != generation:
-                    raise OROStateError("orbit ID already exists with different identity")
-                return dict(existing)
+                if (
+                    existing["plan_id"] != plan_id
+                    or int(existing["generation"]) != generation
+                    or existing["current_rank_json"] != encoded_rank
+                    or existing["status"] != "RUNNING"
+                ):
+                    raise OROStateError("orbit ID already exists with a different durable frontier")
+                return self._decode(existing, "current_rank_json") or {}
             try:
                 self.connection.execute("BEGIN IMMEDIATE")
                 self.connection.execute(
-                    "INSERT INTO orbit_runs VALUES (?, ?, ?, 'RUNNING', ?, ?)",
-                    (orbit_id, plan_id, generation, now, now),
+                    "INSERT INTO orbit_runs "
+                    "(orbit_id, plan_id, generation, current_rank_json, status, created_at, updated_at) "
+                    "VALUES (?, ?, ?, ?, 'RUNNING', ?, ?)",
+                    (orbit_id, plan_id, generation, encoded_rank, now, now),
                 )
                 self.connection.execute(
                     "UPDATE plans SET status='RUNNING', updated_at=? WHERE plan_id=?",
@@ -334,7 +350,7 @@ class OROStore:
             row = self.connection.execute(
                 "SELECT * FROM orbit_runs WHERE orbit_id=?", (orbit_id,)
             ).fetchone()
-        return dict(row) if row else None
+        return self._decode(row, "current_rank_json")
 
     def list_orbits(self, *, plan_id: str | None = None, limit: int = 100) -> list[Mapping[str, Any]]:
         limit = max(1, min(int(limit), 500))
@@ -348,7 +364,7 @@ class OROStore:
                 rows = self.connection.execute(
                     "SELECT * FROM orbit_runs ORDER BY created_at DESC LIMIT ?", (limit,)
                 ).fetchall()
-        return [dict(row) for row in rows]
+        return [self._decode(row, "current_rank_json") or {} for row in rows]
 
     def seen_semantic_hash(self, orbit_id: str, digest: str) -> bool:
         with self._lock:
@@ -372,7 +388,16 @@ class OROStore:
         encoded_signer = canonical_json(signer_identity).decode("utf-8")
         digest = str(decision.receipt["receipt_digest"])
         now = utc_now()
-        status = "REFUSED" if decision.decision == "REFUSE" else decision.decision
+        status_by_decision = {
+            "CONTINUE": "RUNNING",
+            "COMPLETE": "COMPLETE",
+            "REFUSE": "REFUSED",
+        }
+        status = status_by_decision[decision.decision]
+        next_generation = (
+            decision.generation + 1 if decision.decision == "CONTINUE" else decision.generation
+        )
+        encoded_rank_after = canonical_json(decision.rank_after.as_dict()).decode("utf-8")
         with self._lock:
             existing = self.connection.execute(
                 "SELECT receipt_digest FROM barriers WHERE barrier_id=?",
@@ -456,17 +481,28 @@ class OROStore:
                         ),
                     )
                 self.connection.execute(
-                    "INSERT INTO semantic_hashes VALUES (?, ?, ?, ?)",
+                    "INSERT OR IGNORE INTO semantic_hashes VALUES (?, ?, ?, ?)",
                     (decision.orbit_id, decision.semantic_digest, decision.generation, now),
                 )
                 self.connection.execute(
                     "INSERT INTO receipts VALUES (?, ?, ?, ?, ?, ?)",
                     (digest, decision.barrier_id, encoded_body, encoded_envelope, encoded_signer, now),
                 )
-                self.connection.execute(
-                    "UPDATE orbit_runs SET status=?, updated_at=? WHERE orbit_id=?",
-                    (status, now, decision.orbit_id),
+                cursor = self.connection.execute(
+                    "UPDATE orbit_runs "
+                    "SET generation=?, current_rank_json=?, status=?, updated_at=? "
+                    "WHERE orbit_id=? AND generation=? AND status='RUNNING'",
+                    (
+                        next_generation,
+                        encoded_rank_after,
+                        status,
+                        now,
+                        decision.orbit_id,
+                        decision.generation,
+                    ),
                 )
+                if cursor.rowcount != 1:
+                    raise OROStateError("barrier does not match the durable orbit frontier")
                 self.connection.execute(
                     "UPDATE plans SET status=?, updated_at=? WHERE plan_id=?",
                     (status, now, plan_id),

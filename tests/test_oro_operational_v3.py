@@ -28,6 +28,8 @@ PROVENANCE_DIGEST = "sha256:" + "e" * 64
 CREATED_AT = "2026-08-17T00:00:00.000Z"
 RECEIVED_AT = "2026-08-17T00:00:01.000Z"
 EXPIRES_AT = "2030-01-01T00:00:00.000Z"
+DEVELOPMENT_TOKEN = "oro-development-explicit-authorization-token"
+AUTH_HEADERS = {"Authorization": f"Bearer {DEVELOPMENT_TOKEN}"}
 
 
 def service_for(tmp_path: Path) -> OROService:
@@ -337,6 +339,7 @@ def test_http_surface_is_real_and_source_bound(monkeypatch: pytest.MonkeyPatch, 
     monkeypatch.setenv("SZL_ORO_ENV", "development")
     monkeypatch.setenv("SZL_ORO_DB_PATH", str(tmp_path / "api.sqlite"))
     monkeypatch.setenv("SZL_ORO_ALLOW_EPHEMERAL_SIGNER", "1")
+    monkeypatch.setenv("SZL_ORO_ALLOW_DEVELOPMENT_AUTH", "1")
     application = create_app()
     with TestClient(application) as client:
         ready = client.get("/api/a11oy/v1/oro/readyz")
@@ -346,11 +349,12 @@ def test_http_surface_is_real_and_source_bound(monkeypatch: pytest.MonkeyPatch, 
         assert contract["release_effector"] == "ABSENT"
         assert contract["machine_checked_termination"] == "NOT_PROVED"
         plan = plan_payload(application.state.oro_runtime.service, plan_id="http-plan")
-        created = client.post("/api/a11oy/v1/oro/plans", json=plan)
+        created = client.post("/api/a11oy/v1/oro/plans", json=plan, headers=AUTH_HEADERS)
         assert created.status_code == 201
         executed = client.post(
             "/api/a11oy/v1/oro/plans/http-plan/execute",
             json=execution_payload(orbit_id="http-orbit", barrier_id="http-barrier", objective_converged=True),
+            headers=AUTH_HEADERS,
         )
         assert executed.status_code == 200
         assert executed.json()["barrier"]["decision"] == "COMPLETE"
@@ -359,6 +363,62 @@ def test_http_surface_is_real_and_source_bound(monkeypatch: pytest.MonkeyPatch, 
         assert "Obligation-Ranked Orbits" in dashboard.text
         assert "cdn" not in dashboard.text.lower()
 
+
+
+def test_write_routes_require_valid_bearer_authority(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("SZL_ORO_ENV", "development")
+    monkeypatch.setenv("SZL_ORO_DB_PATH", str(tmp_path / "auth.sqlite"))
+    monkeypatch.setenv("SZL_ORO_ALLOW_EPHEMERAL_SIGNER", "1")
+    monkeypatch.setenv("SZL_ORO_ALLOW_DEVELOPMENT_AUTH", "1")
+    application = create_app()
+    with TestClient(application) as client:
+        plan = plan_payload(application.state.oro_runtime.service, plan_id="auth-plan")
+        missing = client.post("/api/a11oy/v1/oro/plans", json=plan)
+        assert missing.status_code == 401
+        assert missing.headers["www-authenticate"] == "Bearer"
+        invalid = client.post("/api/a11oy/v1/oro/plans", json=plan, headers={"Authorization": "Bearer invalid"})
+        assert invalid.status_code == 401
+        accepted = client.post("/api/a11oy/v1/oro/plans", json=plan, headers=AUTH_HEADERS)
+        assert accepted.status_code == 201
+
+
+def test_http_approval_identity_comes_from_bearer_token(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("SZL_ORO_ENV", "development")
+    monkeypatch.setenv("SZL_ORO_DB_PATH", str(tmp_path / "approval.sqlite"))
+    monkeypatch.setenv("SZL_ORO_ALLOW_EPHEMERAL_SIGNER", "1")
+    monkeypatch.setenv("SZL_ORO_ALLOW_DEVELOPMENT_AUTH", "1")
+    application = create_app()
+    with TestClient(application) as client:
+        plan = plan_payload(application.state.oro_runtime.service, plan_id="approval-plan")
+        assert client.post("/api/a11oy/v1/oro/plans", json=plan, headers=AUTH_HEADERS).status_code == 201
+        execution = client.post(
+            "/api/a11oy/v1/oro/plans/approval-plan/execute",
+            json=execution_payload(orbit_id="approval-orbit", barrier_id="approval-barrier", objective_converged=True),
+            headers=AUTH_HEADERS,
+        )
+        assert execution.status_code == 200
+        spoofed = client.post(
+            "/api/a11oy/v1/oro/barriers/approval-barrier/approvals",
+            json={"approver": "spoofed", "approval": {"decision": "approve"}},
+            headers=AUTH_HEADERS,
+        )
+        assert spoofed.status_code == 422
+        approved = client.post(
+            "/api/a11oy/v1/oro/barriers/approval-barrier/approvals",
+            json={"approval": {"decision": "approve"}},
+            headers=AUTH_HEADERS,
+        )
+        assert approved.status_code == 200
+        assert approved.json()["approval"]["approver"] == "oro-development"
+
+
+def test_terminal_orbit_cannot_execute_again(tmp_path: Path) -> None:
+    service = service_for(tmp_path)
+    service.create_plan(plan_payload(service))
+    service.execute_plan("plan-1", execution_payload(objective_converged=True))
+    with pytest.raises(Exception, match="terminal"):
+        service.execute_plan("plan-1", execution_payload(barrier_id="after-terminal", generation=0))
+    service.store.close()
 
 def test_production_fails_ready_when_managed_signer_is_absent(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -387,17 +447,18 @@ def test_duplicate_json_fields_and_non_json_are_rejected(
     monkeypatch.setenv("SZL_ORO_ENV", "development")
     monkeypatch.setenv("SZL_ORO_DB_PATH", str(tmp_path / "closed-json.sqlite"))
     monkeypatch.setenv("SZL_ORO_ALLOW_EPHEMERAL_SIGNER", "1")
+    monkeypatch.setenv("SZL_ORO_ALLOW_DEVELOPMENT_AUTH", "1")
     application = create_app()
     with TestClient(application) as client:
         duplicate = client.post(
             "/api/a11oy/v1/oro/plans",
             content='{"plan_id":"a","plan_id":"b"}',
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", **AUTH_HEADERS},
         )
         assert duplicate.status_code == 422
         non_json = client.post(
             "/api/a11oy/v1/oro/plans",
             content="plan=a",
-            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            headers={"Content-Type": "application/x-www-form-urlencoded", **AUTH_HEADERS},
         )
         assert non_json.status_code == 422
