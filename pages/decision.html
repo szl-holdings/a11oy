@@ -4,12 +4,12 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1"/>
 <title>Decision Assurance — a11oy</title>
-<meta name="description" content="Packet 8 Decision Integrity Kernel on a-11-oy.com. Terra, Aegis, Puriq Markets and Counsel at /terra /aegis /puriq-markets /counsel. Frozen demonstration cases. Formula authority NONE."/>
+<meta name="description" content="Packet 8 Decision Integrity Kernel on a-11-oy.com. Terra, Aegis, Puriq Markets, Counsel and Vessels at /terra /aegis /puriq-markets /counsel /vessels. Frozen demonstration cases. Formula authority NONE."/>
 <link rel="canonical" href="https://a-11-oy.com/decision"/>
 <!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
-     GET /decision /terra /aegis /puriq-markets /counsel are declared product surfaces.
+     GET /decision /terra /aegis /puriq-markets /counsel /vessels /demo /evaluations.
      Status ROADMAP. Formula authority NONE. Λ = Conjecture 1.
-     Not legal advice. Not a trading bot. Not a Palantir clone. Hub Spaces not required. -->
+     Licensed AIS CLOSED. Not legal advice. Not a trading bot. Not a Palantir clone. -->
 <style>
 :root {
   --ink:#09090b; --ink-2:#121214; --ink-3:#1c1c20; --paper:#f2efe8; --paper-dim:#c8c2b4;
@@ -32,15 +32,17 @@ nav a.on, nav a:hover { color:var(--paper); }
 main { max-width:72rem; margin:0 auto; padding:2rem 1.25rem 6rem; }
 .kicker { font-family:var(--font-mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
 h1 { font-family:var(--font-display); font-weight:500; font-size:clamp(2rem,5vw,3.1rem); letter-spacing:-.03em; margin:.4rem 0 .6rem; }
-.lede { max-width:40rem; color:var(--paper-dim); line-height:1.55; }
+.lede { max-width:42rem; color:var(--paper-dim); line-height:1.55; }
 .row { display:flex; flex-wrap:wrap; gap:.5rem; margin:1.25rem 0 1.5rem; }
 .chip { display:inline-flex; align-items:center; min-height:32px; padding:0 .75rem; border-radius:999px; font-family:var(--font-mono); font-size:11px; background:var(--paper); color:var(--ink); }
 .chip.mute { background:transparent; color:var(--muted); box-shadow:0 0 0 1px var(--line); }
 .tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:1.5rem 0 1rem; }
 button { cursor:pointer; font:inherit; color:var(--paper); background:var(--ink-2); border:1px solid var(--line); border-radius:999px; min-height:44px; padding:0 1rem; }
 button:hover, button:focus-visible, button.on { border-color:var(--cord); outline:none; }
+button.primary { background:var(--paper); color:var(--ink); border-color:var(--paper); }
+button:disabled { opacity:.45; cursor:not-allowed; }
 .grid { display:grid; gap:.75rem; }
-@media (min-width:860px) { .grid.two { grid-template-columns:1fr 1fr; } }
+@media (min-width:860px) { .grid.theatre { grid-template-columns:minmax(16rem,.72fr) minmax(0,1.28fr); } }
 .panel { background:var(--ink-2); border-radius:12px; padding:1.1rem 1.25rem; box-shadow:0 0 0 1px var(--line); }
 h2 { font-family:var(--font-display); font-weight:500; font-size:1.2rem; margin:0 0 .4rem; }
 p { color:var(--paper-dim); line-height:1.5; }
@@ -48,7 +50,14 @@ pre { background:var(--ink-3); border-radius:10px; padding:1rem; overflow:auto; 
 .DENIED { color:var(--deny); }
 .APPROVED { color:var(--ok); }
 .AWAITING_APPROVAL, .ABSTAINED, .ESCALATED { color:var(--wait); }
-.cases { display:flex; flex-wrap:wrap; gap:.4rem; margin:.8rem 0; }
+.cases { display:flex; flex-direction:column; gap:.4rem; margin:.8rem 0; }
+.cases button { width:100%; border-radius:10px; text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:.2rem; padding:.7rem 1rem; }
+.cases button small { color:var(--muted); font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+.rail { display:grid; grid-template-columns:repeat(3,1fr); gap:.4rem; margin:0 0 1rem; }
+.rail li { list-style:none; border-radius:10px; padding:.7rem .8rem; background:var(--ink-3); }
+.rail b { display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.rail.on { box-shadow:0 0 0 1px var(--cord); }
+.rail.done b { color:var(--ok); }
 footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
 </style>
 </head>
@@ -58,8 +67,9 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
     <a class="brand" href="/">a11oy</a>
     <nav>
       <a href="/decision" class="on">Decision</a>
-      <a href="/assurance">Assurance</a>
-      <a href="/company">Company</a>
+      <a href="/demo">Demo</a>
+      <a href="/evaluations">Evaluations</a>
+      <a href="/vessels">Vessels</a>
       <a href="/verify">Verify</a>
       <a href="/">Home</a>
     </nav>
@@ -68,26 +78,36 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
 <main>
   <div class="kicker">Packet 8 · Decision Integrity Kernel 8.0.0</div>
   <h1>Decision Assurance</h1>
-  <p class="lede">Turn a recommendation into an authorized, replayable outcome — or refuse it. Terra, Aegis, Puriq Markets and Counsel run here on a-11-oy.com at /terra /aegis /puriq-markets /counsel. Frozen demonstration cases. Fail-closed. Formulas do not grant authority. No Hugging Face Space is required.</p>
+  <p class="lede">Turn a recommendation into an authorized, replayable outcome — or refuse it. Terra, Aegis, Puriq Markets, Counsel and Vessels run here on a-11-oy.com. Frozen demonstration cases. Fail-closed. Formulas do not grant authority. Licensed AIS stays CLOSED without a live key. No Hugging Face Space is required.</p>
   <div class="row" id="meta"></div>
   <div class="tabs" id="verticals"></div>
-  <div class="grid two">
+  <div class="grid theatre">
     <section class="panel">
-      <h2 id="vtitle">Select a vertical</h2>
+      <h2>Queue</h2>
       <p id="vwedge"></p>
       <div class="cases" id="cases"></div>
       <div id="status"></div>
     </section>
     <section class="panel">
+      <h2 id="vtitle">Operator path</h2>
+      <ol class="rail" id="rail">
+        <li data-step="0"><b>01 Select</b> Frozen case. SAMPLE.</li>
+        <li data-step="1"><b>02 Evaluate</b> Kernel 8. Fail-closed.</li>
+        <li data-step="2"><b>03 Receipt</b> Replayable. Formula authority NONE.</li>
+      </ol>
+      <p>One primary action. Execute is not offered on this desk. The kernel evaluates and refuses. It does not stamp LIVE.</p>
+      <p><button class="primary" id="primary" type="button" disabled>Select a frozen case</button></p>
       <h2>Receipt</h2>
-      <pre id="out">Select a frozen case. The kernel is fail-closed. No Hugging Face Space is required for this desk.</pre>
+      <pre id="out">Select a frozen case. The kernel is fail-closed. Licensed AIS is CLOSED. No Hugging Face Space is required for this desk.</pre>
     </section>
   </div>
   <footer>
     Status ROADMAP. Data label SAMPLE. Formula authority NONE. Λ = Conjecture 1 / advisory.
+    Licensed AIS CLOSED. Production ready false.
     Not legal advice. Not investment advice. Not a trading bot. Not a Palantir clone.
     Canonical source: szl-holdings/a11oy/verticals.
     Proof: <a href="https://a11oy.net/decision/">a11oy.net/decision</a>.
+    Product: a-11-oy.com. Never a11oy.com.
   </footer>
 </main>
 <script>
@@ -96,55 +116,66 @@ const PATH_TO_VERTICAL = {
   "/aegis": "aegis",
   "/puriq-markets": "puriq-markets",
   "/puriq": "puriq-markets",
-  "/counsel": "counsel"
+  "/counsel": "counsel",
+  "/vessels": "vessels"
 };
 const meta = document.getElementById("meta");
 const tabs = document.getElementById("verticals");
 const casesEl = document.getElementById("cases");
-const out = document.getElementById("out");
 const status = document.getElementById("status");
+const out = document.getElementById("out");
 const vtitle = document.getElementById("vtitle");
 const vwedge = document.getElementById("vwedge");
-let current = "terra";
+const primary = document.getElementById("primary");
+const rail = document.getElementById("rail");
+let current = "aegis";
+let selected = null;
 
 function chip(text, cls) {
-  const s = document.createElement("span");
-  s.className = "chip" + (cls ? " " + cls : "");
-  s.textContent = text;
-  return s;
+  const el = document.createElement("span");
+  el.className = "chip" + (cls && cls !== text ? " " + cls : "");
+  if (cls === text) el.classList.add(cls);
+  el.textContent = text;
+  return el;
 }
-
-function pathOf(id) {
-  return "/" + id;
-}
-
 function verticalFromLocation() {
   const path = (location.pathname || "").replace(/\/+$/, "") || "/decision";
   if (PATH_TO_VERTICAL[path]) return PATH_TO_VERTICAL[path];
   const q = new URLSearchParams(location.search).get("v");
-  if (q === "terra" || q === "aegis" || q === "puriq-markets" || q === "counsel") return q;
-  return "terra";
+  return q || "aegis";
 }
-
 function syncPath(id) {
-  const want = pathOf(id);
-  const now = (location.pathname || "").replace(/\/+$/, "");
-  if (now === want) return;
-  history.pushState({vertical: id}, "", want);
+  const reverse = {
+    terra: "/terra",
+    aegis: "/aegis",
+    "puriq-markets": "/puriq-markets",
+    counsel: "/counsel",
+    vessels: "/vessels"
+  };
+  const next = reverse[id] || "/decision";
+  if (location.pathname.replace(/\/+$/, "") !== next) history.pushState({ v: id }, "", next);
+}
+function setRail(step) {
+  [...rail.children].forEach((el, i) => {
+    el.classList.toggle("on", i === step);
+    el.classList.toggle("done", i < step);
+  });
 }
 
 async function boot() {
   const cat = await fetch("/api/a11oy/v1/decision").then((r) => r.json());
-  meta.appendChild(chip("kernel " + (cat.kernel_version || "")));
-  meta.appendChild(chip("formula authority NONE"));
-  meta.appendChild(chip(cat.status || "ROADMAP", "mute"));
-  meta.appendChild(chip(cat.data_label || "SAMPLE", "mute"));
-  meta.appendChild(chip("Λ advisory", "mute"));
-  (cat.verticals || []).forEach((v) => {
+  meta.replaceChildren(
+    chip(cat.status || "ROADMAP"),
+    chip("formula authority NONE", "mute"),
+    chip("licensed AIS CLOSED", "mute"),
+    chip((cat.verticals || []).length + " desks", "mute")
+  );
+  tabs.replaceChildren();
+  (cat.verticals || []).forEach((item) => {
     const b = document.createElement("button");
-    b.textContent = v.display_name + " · " + v.case_count + " cases";
-    b.dataset.id = v.id;
-    b.addEventListener("click", () => show(v.id, b, true));
+    b.textContent = item.display_name || item.id;
+    b.dataset.id = item.id;
+    b.addEventListener("click", () => show(item.id, b, true));
     tabs.appendChild(b);
   });
   const want = verticalFromLocation();
@@ -154,6 +185,7 @@ async function boot() {
 
 async function show(id, btn, push) {
   current = id;
+  selected = null;
   tabs.querySelectorAll("button").forEach((el) => el.classList.toggle("on", el === btn));
   if (push) syncPath(id);
   const data = await fetch("/api/a11oy/v1/decision/" + encodeURIComponent(id)).then((r) => r.json());
@@ -162,34 +194,53 @@ async function show(id, btn, push) {
   casesEl.replaceChildren();
   (data.cases || []).forEach((item) => {
     const b = document.createElement("button");
-    b.textContent = (item.eval_id || item.case_id) + " · " + (item.expected_state || "");
-    b.addEventListener("click", () => run(item));
+    b.innerHTML = "<span>" + (item.eval_id || item.case_id) + "</span><small>" + (item.expected_state || "") + "</small>";
+    b.addEventListener("click", () => pick(item, b));
     casesEl.appendChild(b);
   });
   out.textContent = "Select a frozen case.";
   status.replaceChildren();
+  primary.disabled = true;
+  primary.textContent = "Select a frozen case";
+  setRail(0);
 }
 
-async function run(item) {
-  out.textContent = "Evaluating " + (item.eval_id || "") + "…";
+function pick(item, btn) {
+  selected = item;
+  casesEl.querySelectorAll("button").forEach((el) => el.classList.toggle("on", el === btn));
+  primary.disabled = false;
+  primary.textContent = "Evaluate " + (item.eval_id || "case");
+  setRail(0);
+  out.textContent = "Ready. Formula authority NONE. Execute is not offered.";
+}
+
+async function run() {
+  if (!selected) return;
+  primary.disabled = true;
+  primary.textContent = "Evaluating…";
+  setRail(1);
+  out.textContent = "Evaluating " + (selected.eval_id || "") + "…";
   const res = await fetch("/api/a11oy/v1/decision/" + encodeURIComponent(current) + "/evaluate", {
     method: "POST",
     headers: { "content-type": "application/json" },
-    body: JSON.stringify(item.payload || item),
+    body: JSON.stringify(selected.payload || selected),
   });
   const data = await res.json();
   const state = data.state || "UNKNOWN";
-  status.replaceChildren(chip(state, state), chip((data.reason_codes || []).join(", "), "mute"));
+  status.replaceChildren(chip(state, state), chip((data.reason_codes || []).join(", ") || "no reason", "mute"));
   if (data.receipt && data.receipt.digest) status.appendChild(chip("digest " + data.receipt.digest.slice(0, 12), "mute"));
   out.textContent = JSON.stringify(data, null, 2);
+  setRail(2);
+  primary.disabled = false;
+  primary.textContent = "Evaluate again";
 }
 
+primary.addEventListener("click", () => run().catch((err) => { out.textContent = String(err); primary.disabled = false; }));
 window.addEventListener("popstate", () => {
   const id = verticalFromLocation();
   const btn = tabs.querySelector('button[data-id="' + id + '"]');
   if (btn) show(id, btn, false);
 });
-
 boot().catch((err) => { out.textContent = String(err); });
 </script>
 </body>

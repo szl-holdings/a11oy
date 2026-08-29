@@ -13,14 +13,18 @@ import a11oy_decision_integrity as surface  # noqa: E402
 
 
 class DecisionIntegritySurfaceTests(unittest.TestCase):
-    def test_catalog_lists_four_verticals(self) -> None:
+    def test_catalog_lists_five_verticals(self) -> None:
         cat = surface.catalog()
         ids = [item["id"] for item in cat["verticals"]]
-        self.assertEqual(ids, ["terra", "aegis", "puriq-markets", "counsel"])
+        self.assertEqual(ids, ["terra", "aegis", "puriq-markets", "counsel", "vessels"])
         self.assertEqual(cat["status"], "ROADMAP")
         self.assertEqual(cat["formula_authority"], "NONE")
         self.assertFalse(cat["runtime_claimed"])
+        self.assertFalse(cat["production_ready"])
+        self.assertFalse(cat["licensed_ais_admitted"])
         self.assertEqual(cat["data_label"], "SAMPLE")
+        self.assertEqual(cat["desks"]["vessels"], "/vessels")
+        self.assertEqual(cat["desks"]["demo"], "/demo")
 
     def test_frozen_evals_match_expected_state(self) -> None:
         for vertical_id in surface.VERTICAL_IDS:
@@ -37,6 +41,13 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
                 for item in result["formulas"]:
                     self.assertEqual(item["authority"], "NONE")
 
+    def test_vessels_denies_licensed_ais(self) -> None:
+        packed = surface.load_vertical("vessels")
+        deny = next(item for item in packed["cases"] if item["eval_id"] == "VESSELS-E-DENY-AIS")
+        result = surface.evaluate_case("vessels", deny["payload"])
+        self.assertEqual(result["state"], "DENIED")
+        self.assertIn("PROHIBITED_ACTION", result.get("reason_codes") or [])
+
     def test_page_exists(self) -> None:
         page = surface.PAGES_DIR / "decision.html"
         self.assertTrue(page.is_file())
@@ -45,13 +56,25 @@ class DecisionIntegritySurfaceTests(unittest.TestCase):
         self.assertNotIn("cdn.", text)
         self.assertIn("Formula authority NONE", text)
         self.assertIn("PATH_TO_VERTICAL", text)
-        for path in ("/terra", "/aegis", "/puriq-markets", "/counsel"):
+        for path in ("/terra", "/aegis", "/puriq-markets", "/counsel", "/vessels"):
             self.assertIn(path, text)
 
-    def test_page_aliases_cover_the_four_desks(self) -> None:
-        for path in ("/decision", "/terra", "/aegis", "/puriq-markets", "/puriq", "/counsel"):
+    def test_page_aliases_cover_the_desks(self) -> None:
+        for path in (
+            "/decision",
+            "/terra",
+            "/aegis",
+            "/puriq-markets",
+            "/puriq",
+            "/counsel",
+            "/vessels",
+            "/demo",
+            "/evaluations",
+        ):
             self.assertIn(path, surface.PAGE_ALIASES)
         self.assertEqual(surface.PAGE_ALIASES[0], "/decision")
+        self.assertTrue((surface.PAGES_DIR / "demo.html").is_file())
+        self.assertTrue((surface.PAGES_DIR / "evaluations.html").is_file())
 
 
 if __name__ == "__main__":
