@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — artifacts/sentra/src/data/agent-mesh.ts
+// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — artifacts/sentra/src/data/agent-mesh.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 export type TrustState = 'trusted' | 'unverified' | 'quarantined';
 export type ExposureSeverity = 'critical' | 'high' | 'medium' | 'low';

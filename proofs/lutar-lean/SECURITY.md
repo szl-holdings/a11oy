@@ -1,65 +1,134 @@
-<!-- VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — SECURITY.md -->
+<!-- VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — SECURITY.md -->
 <!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # Security Policy
 
-## Supported Versions
+The rationale for every active secret-scanner suppression is generated at
+[security/ALLOWLIST-JUSTIFICATIONS.md](security/ALLOWLIST-JUSTIFICATIONS.md).
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 1.x     | :white_check_mark: |
-| < 1.0   | :x:                |
+## Supported versions
 
-## Reporting a Vulnerability
+Security fixes are developed against the current protected default branch and,
+when a release is published, the most recent maintained release line. Older
+releases may receive a backport when the risk, exploitability, and patch
+complexity justify it. A version is not supported merely because it remains
+available in Git history, a package registry, a container registry, or a mirror.
 
-**Do NOT open a public GitHub issue for security vulnerabilities.**
+## Report a vulnerability
 
-Please report security vulnerabilities via email to **security@szlholdings.ai** with:
+**Do not open a public issue, discussion, or pull request for a suspected
+vulnerability.**
 
-1. Description of the vulnerability
-2. Steps to reproduce
-3. Potential impact assessment
-4. Any suggested mitigations
+Use the repository's **Security → Report a vulnerability** form when it is
+available. That private GitHub advisory is the preferred channel because it
+keeps reproduction details, patches, and coordination inside the repository's
+confidential security workspace.
 
-### Response SLA
+When private reporting is unavailable, email **security@szlholdings.ai**. Include
+only the information needed to reproduce and assess the issue:
 
-| Severity | Initial Response | Resolution Target |
-|---|---|---|
-| Critical | 24 hours | 7 days |
-| High | 48 hours | 30 days |
-| Medium | 5 business days | 90 days |
-| Low | 10 business days | 180 days |
+1. affected component, version, commit, image, model, dataset, or endpoint;
+2. minimal reproduction steps or proof of concept;
+3. expected and observed behavior;
+4. impact and realistic attack preconditions;
+5. suggested mitigation, when known;
+6. a safe way to contact the reporter.
 
-We follow a **90-day responsible disclosure** policy. After 90 days from initial report, details may be published regardless of patch status (with appropriate notice to reporter).
+Do not include live credentials, customer data, private keys, access tokens, or
+regulated data. Replace them with synthetic values and describe how the
+maintainer can reproduce the condition safely.
 
-## Supply-Chain Security
+## Triage and disclosure targets
 
-- **SLSA Build Level 1** — build provenance generated per release (honest; not L2/L3)
-- **DCO required** — all commits carry `Signed-off-by:` trailers per [Linux Foundation DCO](https://developercertificate.org/)
-- **Cosign keyless signing** — containers signed via Sigstore OIDC keyless mode; verify with `cosign verify ghcr.io/szl-holdings/<repo>:<tag>`
-- **SBOM** — CycloneDX SBOM attached to each GitHub Release
+The following are **best-effort operating targets**, not contractual service
+levels. A one-maintainer project may need to contain an issue before a complete
+fix is available, and resolution time depends on exploitability, upstream
+coordination, release risk, and the ability to verify a safe rollback.
 
-## Section 889 Attestation
+| Severity | Acknowledgement target | Initial triage target |
+|---|---:|---:|
+| Critical | 1 business day | 2 business days |
+| High | 2 business days | 5 business days |
+| Medium | 5 business days | 10 business days |
+| Low | 10 business days | 20 business days |
 
-SZL Holdings attests that no covered telecommunications equipment or services from the following vendors are used in this software:
+The maintainer will coordinate disclosure timing with the reporter and affected
+upstreams. Ninety days is a coordination goal, not an automatic publication
+deadline. Earlier disclosure may be appropriate after a verified fix is
+available; additional time may be appropriate when publication would materially
+increase risk before users can update.
 
-1. Huawei Technologies Company
-2. ZTE Corporation
-3. Hytera Communications Corporation
-4. Hangzhou Hikvision Digital Technology Company
-5. Dahua Technology Company
+## Security-response lifecycle
 
-Per NDAA Section 889, 41 U.S.C. § 4713.
+1. Acknowledge the report and establish a confidential coordination channel.
+2. Reproduce the issue against an exact source or artifact revision.
+3. Classify severity, affected surfaces, exploit preconditions, and exposure.
+4. Contain the issue and prepare the smallest safe patch in a private advisory or
+   private fork when confidentiality is required.
+5. Run the applicable exact-head tests, static analysis, dependency, secret,
+   container, policy, provenance, and rollback gates.
+6. Publish the fixed release or protected merge and any appropriate advisory.
+7. Verify the deployed artifact or runtime against the fixed source revision.
+8. Close the advisory only after evidence identifies what was fixed, what remains
+   affected, and how to upgrade or roll back.
 
-## Doctrine
+## Solo-operator control model
 
-- Doctrine v11 LOCKED — kernel commit `c7c0ba17` (749 declarations / 14 axioms / 163 sorries)
-- Λ = Conjecture 1 (never a theorem)
-- No Iron Bank, FedRAMP, CMMC, or SWFT claims
+SZL Holdings currently operates this repository with one authorized maintainer.
+The process must remain executable by that maintainer and does not require an
+unavailable second human merely to unblock routine remediation or release work.
+Separation of duties is instead provided by independent, fail-closed controls:
+
+- protected branches and normal pull-request or merge-queue admission;
+- exact-head binding and current-base checks;
+- DCO trailers and protected-branch signature requirements;
+- CodeQL, dependency, secret, container, policy, and regression workflows;
+- immutable or digest-bound evidence where the corresponding workflow succeeds;
+- explicit rollback instructions and live post-release readback.
+
+The maintainer must not disable a gate, force-push protected history, use an
+administrator merge bypass, self-approve through a bot identity, expose secret
+values, or describe a merge as a deployment without deployment evidence.
+
+## Supply-chain evidence
+
+Supply-chain claims are revision- and workflow-specific:
+
+- DCO and signature status are established by the protected checks and final
+  protected commit, not by this document alone.
+- An SBOM is release evidence only when the protected SBOM workflow succeeds and
+  the resulting artifact is retained for the exact release revision.
+- Build provenance or an attestation is claimed only when its protected workflow
+  succeeds and the attestation can be resolved to the exact artifact digest.
+- Container or package signing is claimed only when signature publication and
+  verification succeed for the named digest or version.
+- A green source scan does not by itself prove that a registry artifact or live
+  runtime contains the same bytes; deployment and readback remain separate
+  evidence boundaries.
+
+## Section 889 statement
+
+The project is intended not to depend on covered telecommunications equipment or
+services from Huawei Technologies Company, ZTE Corporation, Hytera
+Communications Corporation, Hangzhou Hikvision Digital Technology Company, or
+Dahua Technology Company. This repository statement is not a substitute for a
+procurement-specific legal or supplier attestation.
+
+## Doctrine and claim boundaries
+
+Current doctrine and proof status are defined by the repository-tracked source,
+current protected checks, and generated evidence. Historical declaration,
+axiom, or placeholder counts are not frozen into this policy. Lambda uniqueness
+remains a conjecture unless a current, independently checkable proof artifact
+establishes otherwise. This project does not claim Iron Bank, FedRAMP, CMMC, or
+SWFT authorization without the corresponding external authority and evidence.
 
 ## Contact
 
-- **Security disclosures:** security@szlholdings.ai
+- **Private security reports:** use **Security → Report a vulnerability** in the
+  affected repository when available
+- **Fallback security email:** security@szlholdings.ai
 - **General:** hello@szlholdings.ai
 - **Website:** https://szlholdings.ai
 
-*This policy follows [OpenSSF Vulnerability Disclosure Guide](https://github.com/ossf/oss-vulnerability-guide).*
+This policy follows the principles of the
+[OpenSSF Vulnerability Disclosure Guide](https://github.com/ossf/oss-vulnerability-guide).

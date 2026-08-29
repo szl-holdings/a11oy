@@ -1,4 +1,4 @@
-<!-- VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — replit-sync/FORGE_BOX_ENERGY_v2.md -->
+<!-- VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — replit-sync/FORGE_BOX_ENERGY_v2.md -->
 <!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # FORGE_BOX_ENERGY.md — Sovereign GPU box order (Lane C: Sovereign Inference + Energy)
 
