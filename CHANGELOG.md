@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - live UI stale product names
+- Remaining flagship web/src copy no longer presents KORA, LUMINA, or
+  PARAGON as current products (Intelligence / Briefing / Defense).
+  Vendor datasets already landed in #1416 from platform@de08cf8e.
+  	ools/lexicon_gate.py bans stay. Organs/sentra remain a separate hole.
+  Lambda = Conjecture 1.
+
 ### Fixed - finance feed omits unofficial Yahoo misses
 - `/api/a11oy/v1/vert/finance/feed` no longer emits Yahoo v8 rows whose
   freshness is `unavailable` or missing `fetched_at`. Official Polygon

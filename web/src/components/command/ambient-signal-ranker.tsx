@@ -28,12 +28,12 @@ const DOMAIN_COLORS: Record<string, string> = {
 };
 
 const DOMAIN_LABELS: Record<string, string> = {
-  firestorm: "PARAGON",
-  aegis: "PARAGON",
+  firestorm: "Defense",
+  aegis: "Defense",
   vessels: "SEXTANT",
   terra: "DOMAINE",
   prism: "PRISM",
-  lyte: "KORA",
+  lyte: "Intelligence",
   "szl-holdings": "Holdings",
   carlota: "Carlota Jo",
 };
@@ -124,7 +124,7 @@ const STATIC_SIGNALS: AmbientSignal[] = [
     id: "sig-info-1",
     domain: "lyte",
     title: "Self-Healing: 94% Autonomous Resolve",
-    summary: "Highest self-healing rate on record. KORA autonomously resolved all P1 incidents without human intervention.",
+    summary: "Highest self-healing rate on record. Intelligence autonomously resolved all P1 incidents without human intervention.",
     severity: "info",
     score: 0.38,
     timestamp: Date.now() - 86400000,

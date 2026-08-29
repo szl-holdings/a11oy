@@ -30,7 +30,7 @@ export function MarketingNav() {
                   href="/marketing/apps/lyte"
                   className="block p-2 hover:bg-white/5 rounded text-white transition-colors"
                 >
-                  KORA
+                  Intelligence
                 </Link>
                 <Link
                   href="/sentra/"

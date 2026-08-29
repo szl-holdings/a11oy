@@ -78,7 +78,7 @@ const DOMAIN_CONFIG: Omit<
   },
   {
     domain: 'lyte',
-    label: "KORA — AIOps",
+    label: "Intelligence — AIOps",
     color: '#d4a054',
     appPath: `${BASE}/operations`,
     icon: Activity,
