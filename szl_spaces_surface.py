@@ -4,7 +4,7 @@
 """szl_spaces_surface.py — console "Spaces" surface (health API + tiles + nav).
 
 ADDITIVE, self-contained, SHARED across a11oy + killinchu. The console companion to
-the canonical handoff module: a LIVE health view of the whole HF Spaces estate plus a
+the canonical handoff module: a LIVE health view of the public KEEP-7 Hub estate plus a
 clean tiles page and ONE idempotent nav item, following the additive-injector pattern
 (a11oy_nav_wireup.py / killinchu_nav_wireup.py).
 
@@ -22,8 +22,9 @@ catch-alls — same route-to-front idiom as a11oy_hf_assets.py):
         Degrade -> stage:"unknown", app_reachable:false. NEVER a faked stage/200.
 
   GET/HEAD /spaces                 -> a clean tiles page (one card per Space: honest
-        title, live status dot fed by /health, canonical isolated hf.space app link,
+        title, live status dot fed by /health, destination on product/proof/Hub,
         and a separate huggingface.co repository link).
+        Folded Spaces render as a destination ledger, not live Hub probes.
         No upstream app executes inside the a11oy or Killinchu origin. Pure inline
         markup, 0 browser CDN. Status dots are filled by a tiny inline fetch of the
         SAME-ORIGIN /health JSON (our own server-side-probed endpoint).
@@ -59,43 +60,156 @@ _ORG = "SZLHOLDINGS"
 _ORG_PREFIX = "szlholdings-"
 SPACE_TILE_ORIGIN_MODE = "canonical-isolated-hf/v1"
 
-# Canonical 26-Space public application estate. Names are exact regular Space repository
-# names returned by the Hub Spaces API. The special organization README Space is not an
-# application and is intentionally excluded. Runtime state is deliberately NOT frozen
-# here: /health measures it on every cache refresh and degrades to unknown/false when
-# evidence is unavailable. ``slug`` is the lowercase, same-origin route key.
-# a11oy + killinchu retain the historical own-host classification in the health payload,
-# but every tile now opens its canonical isolated Hugging Face application origin.
+PRODUCT = "https://a-11-oy.com"
+PROOF = "https://a11oy.net"
+
+# Public Hub KEEP set — MEASURED 2026-08-29. Unauthenticated Hub list is these 7.
+# Folded Spaces are PAUSED+PRIVATE and are not health-probed here. Destinations
+# are existing product and proof paths. RECORD: https://a11oy.net/spaces.json.
+# /verify is not cloned. Occupancy stays UNAVAILABLE.
 SPACES: list[dict[str, str]] = [
-    {"name": "a11oy", "slug": "a11oy", "title": "a11oy — Command Center", "sdk": "docker"},
-    {"name": "anatomy", "slug": "anatomy", "title": "SZL Living Anatomy", "sdk": "docker"},
-    {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker"},
-    {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker"},
-    {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static"},
-    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static", "honesty": "8/8 SIMULATED"},
-    {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static"},
-    {"name": "governed-agent-bench", "slug": "governed-agent-bench", "title": "Governed Agent Benchmark", "sdk": "gradio"},
-    {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static"},
-    {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static"},
-    {"name": "hatun-mcp", "slug": "hatun-mcp", "title": "hatun — MCP Server", "sdk": "docker"},
-    {"name": "holographic", "slug": "holographic", "title": "Holographic Estate", "sdk": "docker"},
-    {"name": "immune", "slug": "immune", "title": "IMMUNE — Verifiable AI Defense Matrix", "sdk": "docker"},
-    {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Andean Drone Intelligence", "sdk": "docker"},
-    {"name": "lambda-gate-holo", "slug": "lambda-gate-holo", "title": "Λ Gate — Conjecture 1, never green", "sdk": "static"},
-    {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker"},
-    {"name": "receipt-chain-live", "slug": "receipt-chain-live", "title": "Receipt Chain Live", "sdk": "static"},
-    {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker"},
-    {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static"},
-    {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static"},
-    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static", "honesty": "SNAPSHOT — not a trainer, not Serve Studio"},
-    {"name": "szl-govsign-live", "slug": "szl-govsign-live", "title": "szl-govsign-live", "sdk": "static"},
-    {"name": "szl-kernels-live", "slug": "szl-kernels-live", "title": "SZL Kernel Operations Hub", "sdk": "static"},
-    {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker"},
-    {"name": "szl-provctl-live", "slug": "szl-provctl-live", "title": "szl-provctl-live", "sdk": "static"},
-    {"name": "yarqa", "slug": "yarqa", "title": "yarqa — Plug-Flow Compartments (live or sample, always honest)", "sdk": "docker"},
+    {"name": "a11oy", "slug": "a11oy", "title": "a11oy — Command Center", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT},
+    {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Andean Drone Intelligence", "sdk": "docker",
+     "action": "KEEP", "dest": "https://szlholdings-killinchu.hf.space/elite"},
+    {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker",
+     "action": "KEEP", "dest": "https://huggingface.co/spaces/SZLHOLDINGS/david-leads"},
+    {"name": "anatomy", "slug": "anatomy", "title": "SZL Living Anatomy", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT + "/anatomy-v5"},
+    {"name": "immune", "slug": "immune", "title": "IMMUNE — Verifiable AI Defense Matrix", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT + "/immune"},
+    {"name": "szl-real-estate", "slug": "szl-real-estate", "title": "SZL Real Estate — public-records underwriting", "sdk": "docker",
+     "action": "KEEP", "dest": "https://huggingface.co/spaces/SZLHOLDINGS/szl-real-estate",
+     "honesty": "Occupancy UNAVAILABLE"},
+    {"name": "szl-atelier", "slug": "szl-atelier", "title": "SZL Atelier — forty-model walk", "sdk": "static",
+     "action": "KEEP", "dest": PROOF + "/atelier/"},
+]
+KEEP_TARGET = 7
+
+FOLD_SPACES: list[dict[str, str]] = [
+    {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Router is the product. Status Space is STALE. Do not keep a second front door."},
+    {"name": "hatun-mcp", "slug": "hatun-mcp", "title": "hatun — MCP Server", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/wires",
+     "why": "MCP is a bind, not a flagship. Product wires already exist."},
+    {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Organ workstation. Residuals MODELED. Not a second detection product."},
+    {"name": "yarqa", "slug": "yarqa", "title": "yarqa — Plug-Flow Compartments (live or sample, always honest)", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Canal partition is an organ, not a Space. CFD, never locked-8."},
+    {"name": "holographic", "slug": "holographic", "title": "Holographic Estate", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/anatomy-v5",
+     "why": "Hologram sprawl. One atlas. Fold into anatomy."},
+    {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/living-anatomy",
+     "why": "Unmapped RUNNING Space. Bind as anatomy, not a third map."},
+    {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/console",
+     "why": "Lab is not a flagship. Command Center is /console."},
+    {"name": "szl-khipu", "slug": "szl-khipu", "title": "szl-khipu", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/formulas",
+     "why": "Weights stay on Hub as models. The Space is not a second kernel."},
+    {"name": "khipu-lab", "slug": "khipu-lab", "title": "khipu-lab", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/formulas",
+     "why": "Duplicate knot lab. Formulas already live on product."},
+    {"name": "nexus", "slug": "nexus", "title": "nexus", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Analog map, not kernel. Do not keep a Space for a local-first toy."},
+    {"name": "szl-command-lab", "slug": "szl-command-lab", "title": "szl-command-lab", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/console",
+     "why": "Command already has a body. Lab is a fork."},
+    {"name": "szl-sovereign-os", "slug": "szl-sovereign-os", "title": "szl-sovereign-os", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "This OS is the operator kernel. Hub rehost is a hologram."},
+    {"name": "immune-lattice", "slug": "immune-lattice", "title": "immune-lattice", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/immune",
+     "why": "Lattice is not a sibling of IMMUNE. One admission surface."},
+    {"name": "a11oy-factory", "slug": "a11oy-factory", "title": "a11oy-factory", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Factory is a bind (AO-2026-08-29-001), not a second flagship."},
+    {"name": "lyte-services", "slug": "lyte-services", "title": "lyte-services", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Lyte is the one admitted cell. Compiling a frontier still returns BLOCKED."},
+    {"name": "lyte-lattice", "slug": "lyte-lattice", "title": "lyte-lattice", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/lyte",
+     "why": "BIND hologram. Hub is the artifact registry. Not a second flagship."},
+    {"name": "szl-quant-live", "slug": "szl-quant-live", "title": "szl-quant-live", "sdk": "static",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Static hologram. Paper quotes already MEASURED. No order routing."},
+    {"name": "terra-assurance", "slug": "terra-assurance", "title": "terra-assurance", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Unmapped docker. Not a flagship. Occupancy stays UNAVAILABLE."},
+    {"name": "ayllu", "slug": "ayllu", "title": "ayllu", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/ayllu/",
+     "why": "Counsel showcase already lives on the proof origin. Does not run the council."},
+    {"name": "counsel", "slug": "counsel", "title": "counsel", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/ayllu/",
+     "why": "Duplicate of ayllu. One lab URL."},
+    {"name": "experiments", "slug": "experiments", "title": "experiments", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/experiments/",
+     "why": "Experimental split-outs already have a proof path. Not locked-8."},
+    {"name": "szl-experiments", "slug": "szl-experiments", "title": "szl-experiments", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/experiments/",
+     "why": "Same lab, second Space. Fold, do not twin."},
+    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "honesty": "8/8 SIMULATED",
+     "why": "Energy stays UNAVAILABLE until NVML is MEASURED. Index the claim, do not host a joule hologram."},
+    {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Interactive /verify stays on product. Proof holds the RECORD index only."},
+    {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "One signing primitive. Wrappers become adapters."},
+    {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Static HTML Space. Estate snapshot is the inventory, not a live dashboard."},
+    {"name": "lambda-gate-holo", "slug": "lambda-gate-holo", "title": "Λ Gate — Conjecture 1, never green", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Λ remains Conjecture 1. A hologram is not a theorem."},
+    {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "One meter. Honest UNAVAILABLE. No second joule path."},
+    {"name": "receipt-chain-live", "slug": "receipt-chain-live", "title": "Receipt Chain Live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Live chain is on product /api/lake. Proof indexes pointers."},
+    {"name": "szl-provctl-live", "slug": "szl-provctl-live", "title": "szl-provctl-live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Hub-mirror explosion. Publish from one suite."},
+    {"name": "szl-kernels-live", "slug": "szl-kernels-live", "title": "SZL Kernel Operations Hub", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/#atlas",
+     "why": "Atlas lists kernels. A live Space is not a second source."},
+    {"name": "szl-govsign-live", "slug": "szl-govsign-live", "title": "szl-govsign-live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Fold into szl-receipt + governed-receipt-spec."},
+    {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Refusals are tamper-EVIDENT on product. Hologram is theater."},
+    {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Estate snapshot already exists on the proof origin."},
+    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/atelier/",
+     "honesty": "SNAPSHOT — not a trainer, not Serve Studio",
+     "why": "Cuts belong next to the forty-model walk, not as a sibling Space."},
+    {"name": "governed-agent-bench", "slug": "governed-agent-bench", "title": "Governed Agent Benchmark", "sdk": "gradio",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Bench metadata is REPORTED. Not a runtime origin."},
+    {"name": "evidence-studio", "slug": "evidence-studio", "title": "evidence-studio", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Evidence wall is RECORD. Studio is not a third origin."},
+]
+ARCHIVE_SPACES: list[dict[str, str]] = [
+    {"name": "second-brain", "slug": "second-brain", "title": "second-brain", "sdk": "docker",
+     "action": "ARCHIVE", "dest": "",
+     "why": "Duplicate brain. Not an origin. Not a lab. Stamp HISTORICAL."},
 ]
 _SPACE_BY_NAME = {sp["name"]: sp for sp in SPACES}
 _SPACE_BY_SLUG = {sp["slug"]: sp for sp in SPACES}
+_FOLD_BY_NAME = {sp["name"]: sp for sp in FOLD_SPACES}
+_FOLD_BY_SLUG = {sp["slug"]: sp for sp in FOLD_SPACES}
 # Product Spaces retained as metadata for consumers that distinguish flagship hosts.
 _OWN_HOST = {"a11oy", "killinchu"}
 
@@ -109,7 +223,7 @@ _DOCTRINE = {
 
 _PROBE_TIMEOUT = 2.0
 _HF_API_TIMEOUT = 2.0
-_HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 26x.
+_HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 7x.
 _HEALTH_CACHE: dict[str, Any] = {"ts": 0.0, "payload": None}
 _RUNNING_STAGES = {"RUNNING"}
 _HF_LIST_URL = f"https://huggingface.co/api/spaces?author={_ORG}&limit=1000&full=true"
@@ -121,8 +235,9 @@ _CONTRACT_CIRCUITS: dict[str, dict[str, Any]] = {}
 
 
 def _space_record(identifier: str) -> dict[str, str]:
-    """Resolve only audited inventory identifiers; fail closed for unknown names."""
-    record = _SPACE_BY_NAME.get(identifier) or _SPACE_BY_SLUG.get(identifier)
+    """Resolve KEEP or FOLD identifiers; fail closed for unknown names."""
+    record = (_SPACE_BY_NAME.get(identifier) or _SPACE_BY_SLUG.get(identifier)
+              or _FOLD_BY_NAME.get(identifier) or _FOLD_BY_SLUG.get(identifier))
     if record is None:
         raise ValueError("unknown Space identifier: %s" % identifier)
     return record
@@ -145,8 +260,10 @@ def hf_repo_url(name: str) -> str:
 
 
 def canonical_url(name: str) -> str:
-    """Canonical isolated application origin for an audited Space."""
-    return hf_url(name)
+    """Operator destination: product, proof, or Hub. Not a quality claim."""
+    record = _space_record(name)
+    dest = record.get("dest") or ""
+    return dest if dest else hf_url(name)
 
 
 def proxy_url(name: str) -> str:
@@ -284,7 +401,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
             return {
                 "schema": "szl.hf-space-inventory/v1",
                 "state": "UNAVAILABLE",
-                "canonical_count": len(SPACES),
+                "canonical_count": len(_SPACE_BY_NAME),
                 "error": type(exc).__name__,
             }
 
@@ -292,7 +409,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
         return {
             "schema": "szl.hf-space-inventory/v1",
             "state": "UNAVAILABLE",
-            "canonical_count": len(SPACES),
+            "canonical_count": len(_SPACE_BY_NAME),
             "http_status": status,
             "source": via,
             "error": "hub_api_http_status",
@@ -301,7 +418,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
         return {
             "schema": "szl.hf-space-inventory/v1",
             "state": "UNAVAILABLE",
-            "canonical_count": len(SPACES),
+            "canonical_count": len(_SPACE_BY_NAME),
             "http_status": status,
             "source": via,
             "error": "hub_api_schema",
@@ -314,7 +431,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
             return {
                 "schema": "szl.hf-space-inventory/v1",
                 "state": "UNAVAILABLE",
-                "canonical_count": len(SPACES),
+                "canonical_count": len(_SPACE_BY_NAME),
                 "http_status": status,
                 "source": via,
                 "error": "hub_api_schema",
@@ -325,7 +442,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
             return {
                 "schema": "szl.hf-space-inventory/v1",
                 "state": "UNAVAILABLE",
-                "canonical_count": len(SPACES),
+                "canonical_count": len(_SPACE_BY_NAME),
                 "http_status": status,
                 "source": via,
                 "error": "hub_api_schema",
@@ -333,7 +450,7 @@ async def _probe_inventory(client: Any) -> dict[str, Any]:
             }
         if name != "README":
             observed.add(name)
-    expected = set(_SPACE_BY_NAME)
+    expected = set(_SPACE_BY_NAME)  # public KEEP 7, not folded/private
     missing = sorted(expected - observed)
     unexpected = sorted(observed - expected)
     return {
@@ -563,7 +680,7 @@ def _aggregate_health_state(spaces: list[dict[str, Any]]) -> str:
 
 
 async def spaces_health() -> dict[str, Any]:
-    """Aggregate honest health for the audited 26-Space estate (short TTL cache)."""
+    """Aggregate honest health for the public KEEP-7 Hub estate (short TTL cache)."""
     now = time.monotonic()
     if _HEALTH_CACHE["payload"] is not None and (now - _HEALTH_CACHE["ts"]) < _HEALTH_CACHE_TTL:
         cached = _HEALTH_CACHE["payload"]
@@ -598,7 +715,7 @@ async def spaces_health() -> dict[str, Any]:
             "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
             "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
             "contract_state": "Anatomy and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
-            "inventory": "LIVE only when the canonical regular-Space set exactly equals the public Hub API set; README is a special organization surface, not an application Space",
+            "inventory": "LIVE only when the public KEEP-7 set exactly equals the public Hub API set; folded Spaces are PAUSED+PRIVATE and are not in this set; README is a special organization surface, not an application Space",
             "custom_domain": "HF API provider state; PENDING remains DEGRADED even when a separate edge currently routes traffic",
             "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
             "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
@@ -627,25 +744,43 @@ def _tiles_page(ns: str) -> bytes:
         slug = sp["slug"]
         title = sp["title"]
         primary = canonical_url(name)
-        primary_label = "Open isolated app"
-        honesty = html_escape(sp.get("honesty") or "")
-        honesty_html = (
-            '<div class="sp-honesty">%s</div>' % honesty if honesty else ""
-        )
+        primary_label = "Open destination"
+        honesty = html_escape(sp.get("honesty") or "PUBLIC · KEEP")
+        honesty_html = '<div class="sp-honesty">%s</div>' % honesty
         cards.append(
             '<article class="sp-card" data-space="%s">'
             '<header class="sp-head">'
             '<span class="sp-dot" data-dot="%s" title="status">&#9679;</span>'
             '<h2 class="sp-title">%s</h2></header>'
-            '<div class="sp-kind">%s &middot; %s</div>'
+            '<div class="sp-kind">%s &middot; %s &middot; KEEP</div>'
             '%s'
             '<div class="sp-stage" data-stage="%s">stage: <span>checking&hellip;</span></div>'
             '<div class="sp-links">'
-            '<a class="sp-open" href="%s" rel="noopener" target="_blank">%s &#8599;</a>'
-            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View repository &#8599;</a>'
+            '<a class="sp-open" href="%s" rel="noopener">%s &#8599;</a>'
+            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View Hub repository &#8599;</a>'
             '</div></article>'
             % (slug, slug, title, name, sp["sdk"], honesty_html, slug,
-               primary, primary_label, hf_repo_url(name))
+               html_escape(primary, quote=True), primary_label, hf_repo_url(name))
+        )
+    fold_cards = []
+    for sp in FOLD_SPACES:
+        name = sp["name"]
+        title = sp["title"]
+        dest = html_escape(sp["dest"], quote=True)
+        honesty = html_escape(sp.get("honesty") or "FOLD · PAUSED · PRIVATE")
+        why = html_escape(sp.get("why") or "")
+        fold_cards.append(
+            '<article class="sp-card sp-fold" data-fold="%s">'
+            '<header class="sp-head"><h2 class="sp-title">%s</h2></header>'
+            '<div class="sp-kind">%s &middot; %s &middot; FOLD &rarr; %s</div>'
+            '<div class="sp-honesty">%s</div>'
+            '<div class="sp-stage">%s</div>'
+            '<div class="sp-links">'
+            '<a class="sp-open" href="%s" rel="noopener">Open destination &#8599;</a>'
+            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">Hub (private) &#8599;</a>'
+            '</div></article>'
+            % (name, title, name, sp["sdk"], html_escape(sp.get("sink") or ""),
+               honesty, why, dest, hf_repo_url(name))
         )
     html = (
         '<!doctype html><html lang="en"><head><meta charset="utf-8">'
@@ -658,6 +793,7 @@ def _tiles_page(ns: str) -> bytes:
         'font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}'
         '.sp-wrap{max-width:1100px;margin:0 auto;padding:2rem 1.25rem;min-width:0}'
         '.sp-h1{color:#e7eef6;font-size:1.6rem;margin:0 0 .25rem}'
+        '.sp-h2{color:#e7eef6;font-size:1.15rem;margin:1.8rem 0 .35rem}'
         '.sp-sub{color:#8a96a3;margin:0 0 .75rem;overflow-wrap:anywhere}'
         '.sp-health{display:flex;align-items:center;gap:.45rem;min-height:44px;'
         'color:#8a96a3;margin:0 0 1rem}'
@@ -671,6 +807,7 @@ def _tiles_page(ns: str) -> bytes:
         'grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}'
         '.sp-card{background:#121821;border:1px solid #1d2632;border-radius:12px;'
         'padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.5rem;min-width:0}'
+        '.sp-fold{border-style:dashed;opacity:.92}'
         '.sp-head{display:flex;align-items:center;gap:.55rem;min-width:0}'
         '.sp-dot{color:#5b6675;font-size:.7rem;line-height:1}'
         '.sp-dot.up{color:#3ad07a}.sp-dot.down{color:#e0593a}.sp-dot.unknown{color:#c9a23a}'
@@ -690,15 +827,24 @@ def _tiles_page(ns: str) -> bytes:
         '</style></head>'
         '<body><main class="sp-wrap">'
         '<h1 class="sp-h1">Hugging Face Spaces</h1>'
-        f'<p class="sp-sub">All {len(SPACES)} audited Spaces in one evidence-labelled registry. '
-        'Apps open on their canonical isolated Hugging Face origin; health is probed '
-        'server-side. Legacy <code>/spaces/&lt;slug&gt;</code> links are no-store 307 handoffs.</p>'
+        f'<p class="sp-sub">Public Hub cut is {len(SPACES)} KEEP (MEASURED). '
+        'Folded Spaces are PAUSED+PRIVATE and open on existing '
+        '<code>a-11-oy.com</code> and <code>a11oy.net</code> paths. Health probes the public 7 only. '
+        'Legacy <code>/spaces/<slug></code> links are no-store 307 handoffs to those destinations. '
+        'RECORD: <a href="https://a11oy.net/spaces.json" rel="noopener">a11oy.net/spaces.json</a>. '
+        '/verify is not cloned.</p>'
         '<p class="sp-health">Estate health: '
         '<strong id="sp-estate-health" class="checking" aria-live="polite">CHECKING</strong></p>'
         '<div class="sp-grid">' + "".join(cards) + '</div>'
-        '<p class="sp-foot">Status dot &amp; stage are filled from the same-origin '
+        '<h2 class="sp-h2">Folded · PAUSED + PRIVATE</h2>'
+        f'<p class="sp-sub">{len(FOLD_SPACES)} Spaces folded into product and proof destinations. '
+        'Not public Hub. Reachability of a destination is never quality. '
+        'second-brain is ARCHIVE / HISTORICAL.</p>'
+        '<div class="sp-grid">' + "".join(fold_cards) + '</div>'
+        '<p class="sp-foot">Status dot & stage on KEEP tiles are filled from the same-origin '
         '<code>/api/' + ns + '/v1/spaces/health</code> endpoint (real server-side probe '
-        '+ HF API). Honest: a grey/amber dot means starting or unknown, never a faked up.</p>'
+        '+ HF API). Honest: a grey/amber dot means starting or unknown, never a faked up. '
+        'Folded tiles are not live-probed.</p>'
         '</main>'
         '<script>'
         '(function(){'
@@ -709,7 +855,7 @@ def _tiles_page(ns: str) -> bytes:
         'var label=raw;if(raw==="CACHED")label="CACHED \\u00b7 "+String(cached||"UNAVAILABLE").toUpperCase()+" snapshot";'
         'if(estate){estate.className=raw.toLowerCase();estate.textContent=label;}}'
         'function healthUnavailable(){estateState("UNAVAILABLE");'
-        'var cards=document.querySelectorAll(".sp-card");for(var i=0;i<cards.length;i++){'
+        'var cards=document.querySelectorAll(".sp-card[data-space]");for(var i=0;i<cards.length;i++){'
         'var dot=cards[i].querySelector(".sp-dot");if(dot){dot.classList.remove("up","unknown");'
         'dot.classList.add("down");dot.title="UNAVAILABLE / health fetch failed";}'
         'var st=cards[i].querySelector(".sp-stage span");if(st)st.textContent="UNAVAILABLE \\u00b7 health fetch failed";}}'
@@ -734,7 +880,6 @@ def _tiles_page(ns: str) -> bytes:
         '</body></html>'
     )
     return html.encode("utf-8")
-
 
 # ---------------------------------------------------------------------------
 # Nav injector — ONE "Spaces" nav item into the console left-nav. Same additive,
@@ -864,21 +1009,27 @@ if __name__ == "__main__":
     with open(__file__, "r", encoding="utf-8") as _fh:
         _ast.parse(_fh.read())
 
-    assert len(SPACES) == 26 and "README" not in _SPACE_BY_NAME, len(SPACES)
-    assert "governed-agent-bench" in _SPACE_BY_NAME
+    assert len(SPACES) == KEEP_TARGET == 7 and "README" not in _SPACE_BY_NAME, len(SPACES)
+    assert "szl-real-estate" in _SPACE_BY_NAME and "szl-atelier" in _SPACE_BY_NAME
+    assert "governed-agent-bench" in _FOLD_BY_NAME
+    assert "governed-agent-bench" not in _SPACE_BY_NAME
+    assert len(FOLD_SPACES) >= 36
     tp = _tiles_page("a11oy")
     for sp in SPACES:
         assert sp["name"].encode() in tp, "tiles missing %s" % sp["name"]
         assert sp["title"].encode() in tp, "tiles missing title %s" % sp["title"]
-        assert canonical_url(sp["name"]).encode() in tp, "tiles missing canonical app origin"
+        assert canonical_url(sp["name"]).encode() in tp, "tiles missing destination"
         assert hf_repo_url(sp["name"]).encode() in tp, "tiles missing repository link"
         assert proxy_url(sp["name"]) == canonical_url(sp["name"]), "primary link must stay isolated"
     assert b"/api/a11oy/v1/spaces/health" in tp, "tiles must fetch the health endpoint"
     assert b"http://" not in tp, "tiles must be 0 CDN (no http://)"
     assert b'href="/spaces/' not in tp, "tiles must not execute an app under this origin"
-    assert b"canonical isolated Hugging Face origin" in tp
+    assert b"Public Hub cut is 7 KEEP" in tp
+    assert b"/verify is not cloned" in tp
+    assert b"a11oy.net/spaces.json" in tp
+    assert b"data-fold=\"cosmos\"" in tp
     # Repository anchors are navigation only; no browser asset is loaded from HF.
-    assert tp.count(b"https://huggingface.co/spaces/") == len(SPACES)
+    assert tp.count(b"https://huggingface.co/spaces/SZLHOLDINGS/") >= len(SPACES)
     assert b'<script src="https://' not in tp and b'<link href="https://' not in tp
 
     running = {"app_reachable": True, "app_status": 200, "stage": "RUNNING"}
@@ -935,7 +1086,7 @@ if __name__ == "__main__":
         _self_mod._urllib_probe = _orig_probe
         _HEALTH_CACHE["ts"] = 0.0
         _HEALTH_CACHE["payload"] = None
-    assert h["count"] == 26, h["count"]
+    assert h["count"] == 7, h["count"]
     assert h["state"] == "UNAVAILABLE", h["state"]
     assert health_response.headers["cache-control"] == "no-store"
     for s in h["spaces"]:
@@ -963,5 +1114,5 @@ if __name__ == "__main__":
     # the tiles page itself must NOT be nav-injected (it has no console sidebar)
     assert 'data-nav-spaces="hf1"' not in c.get("/spaces").text, "/spaces must not be nav-injected"
 
-    print("szl_spaces_surface: ALL OK (26 canonical isolated links; honest degrade; "
+    print("szl_spaces_surface: ALL OK (7 KEEP destinations; honest degrade; "
           "tiles 0-CDN + no-store; nav idempotent + additive; /spaces not self-injected)")

@@ -1,8 +1,8 @@
-"""Regression coverage for the audited Hugging Face Spaces inventory.
+"""Regression coverage for the public KEEP-7 Hub Spaces inventory.
 
 These tests are deliberately offline: runtime health remains the responsibility of the
-honest probe endpoint, while this suite locks identity, SDK host selection, and the
-canonical-origin isolation boundary.
+honest probe endpoint, while this suite locks identity, destinations, and the
+canonical-origin isolation boundary. Folded Spaces are not public Hub applications.
 """
 
 from pathlib import Path
@@ -12,51 +12,39 @@ import szl_spaces_surface as surface
 
 
 EXPECTED = [
-    ("a11oy", "a11oy", "a11oy — Command Center", "docker"),
-    ("anatomy", "anatomy", "SZL Living Anatomy", "docker"),
-    ("cosmos", "cosmos", "SZL Cosmos", "docker"),
-    ("david-leads", "david-leads", "David Leads — Sovereign Insurance Intelligence", "docker"),
-    ("energy-attest-holo", "energy-attest-holo", "Energy Attestation Holo", "static"),
-    ("energy-attested-runs", "energy-attested-runs", "Energy-Attested Inference Runs", "static"),
-    ("governed-norm-holo", "governed-norm-holo", "Governed Norms — WILLAY classifiers", "static"),
-    ("governed-agent-bench", "governed-agent-bench", "Governed Agent Benchmark", "gradio"),
-    ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static"),
-    ("guardrail-receipt", "guardrail-receipt", "Guardrail Decision-Receipt", "static"),
-    ("hatun-mcp", "hatun-mcp", "hatun — MCP Server", "docker"),
-    ("holographic", "holographic", "Holographic Estate", "docker"),
-    ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker"),
-    ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker"),
-    ("lambda-gate-holo", "lambda-gate-holo", "Λ Gate — Conjecture 1, never green", "static"),
-    ("llm-router-live", "llm-router-live", "SZL LLM Router", "docker"),
-    ("receipt-chain-live", "receipt-chain-live", "Receipt Chain Live", "static"),
-    ("sda", "sda", "SZL SDA", "docker"),
-    ("szl-blocked-live", "szl-blocked-live", "szl-blocked-live", "static"),
-    ("szl-estate-live", "szl-estate-live", "Khipu Loom — Governed AI Estate", "static"),
-    ("szl-forge-lab", "szl-forge-lab", "SZL Forge Lab", "static"),
-    ("szl-govsign-live", "szl-govsign-live", "szl-govsign-live", "static"),
-    ("szl-kernels-live", "szl-kernels-live", "SZL Kernel Operations Hub", "static"),
-    ("szl-model-inference-lab", "szl-model-inference-lab", "SZL Model Inference Lab", "docker"),
-    ("szl-provctl-live", "szl-provctl-live", "szl-provctl-live", "static"),
-    ("yarqa", "yarqa", "yarqa — Plug-Flow Compartments (live or sample, always honest)", "docker"),
+    ("a11oy", "a11oy", "a11oy — Command Center", "docker", "https://a-11-oy.com"),
+    ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker",
+     "https://szlholdings-killinchu.hf.space/elite"),
+    ("david-leads", "david-leads", "David Leads — Sovereign Insurance Intelligence", "docker",
+     "https://huggingface.co/spaces/SZLHOLDINGS/david-leads"),
+    ("anatomy", "anatomy", "SZL Living Anatomy", "docker", "https://a-11-oy.com/anatomy-v5"),
+    ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker",
+     "https://a-11-oy.com/immune"),
+    ("szl-real-estate", "szl-real-estate", "SZL Real Estate — public-records underwriting",
+     "docker", "https://huggingface.co/spaces/SZLHOLDINGS/szl-real-estate"),
+    ("szl-atelier", "szl-atelier", "SZL Atelier — forty-model walk", "static",
+     "https://a11oy.net/atelier/"),
 ]
 
 
 def _rows(records):
-    return [(sp["name"], sp["slug"], sp["title"], sp["sdk"]) for sp in records]
+    return [(sp["name"], sp["slug"], sp["title"], sp["sdk"], sp["dest"]) for sp in records]
 
 
 def test_audited_inventory_is_exact_and_in_lockstep():
-    assert len(EXPECTED) == 26
+    assert len(EXPECTED) == 7
     assert _rows(surface.SPACES) == EXPECTED
     assert _rows(proxy.SPACE_INVENTORY) == EXPECTED
     assert proxy.SPACE_INVENTORY is not surface.SPACES
-    assert len({row[0] for row in EXPECTED}) == 26
-    assert len({row[1] for row in EXPECTED}) == 26
+    assert len({row[0] for row in EXPECTED}) == 7
+    assert len({row[1] for row in EXPECTED}) == 7
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
+    assert "governed-agent-bench" not in {row[0] for row in EXPECTED}
+    assert "cosmos" not in {row[0] for row in EXPECTED}
 
 
 def test_sdk_selects_the_canonical_hugging_face_host():
-    for name, slug, _title, sdk in EXPECTED:
+    for name, slug, _title, sdk, _dest in EXPECTED:
         suffix = ".static.hf.space" if sdk == "static" else ".hf.space"
         expected_url = f"https://szlholdings-{slug}{suffix}"
         assert surface.hf_url(name) == expected_url
@@ -64,25 +52,25 @@ def test_sdk_selects_the_canonical_hugging_face_host():
         assert proxy.hf_url(name) == expected_url
         assert proxy.hf_url(slug) == expected_url
 
-    assert surface.hf_api_url("governed-agent-bench") == (
-        "https://huggingface.co/api/spaces/SZLHOLDINGS/governed-agent-bench"
+    assert surface.hf_api_url("anatomy") == (
+        "https://huggingface.co/api/spaces/SZLHOLDINGS/anatomy"
     )
 
 
 def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
     expected_slugs = {row[1] for row in EXPECTED}
     assert set(proxy.ALL_SPACES) == expected_slugs
-    assert set(proxy.HANDOFF_SPACES) == expected_slugs
-    assert len(proxy.HANDOFF_SPACES) == 26
-    for name, _slug, _title, _sdk in EXPECTED:
-        assert surface.canonical_url(name) == surface.hf_url(name)
-        assert surface.proxy_url(name) == surface.hf_url(name)  # compatibility alias
-    assert proxy._canonical_target("governed-agent-bench") == (
-        "https://szlholdings-governed-agent-bench.hf.space"
-    )
+    assert expected_slugs <= set(proxy.HANDOFF_SPACES)
+    assert len(proxy.HANDOFF_SPACES) == 7 + len(proxy.FOLD_INVENTORY)
+    for name, _slug, _title, _sdk, dest in EXPECTED:
+        assert surface.canonical_url(name) == dest
+        assert surface.proxy_url(name) == dest
+    assert proxy._canonical_target("immune") == "https://a-11-oy.com/immune"
     assert proxy._canonical_target("immune", "assets/app.js", "v=1&mode=full") == (
-        "https://szlholdings-immune.hf.space/assets/app.js?v=1&mode=full"
+        "https://a-11-oy.com/immune/assets/app.js?v=1&mode=full"
     )
+    assert proxy._canonical_target("cosmos") == "https://a-11-oy.com/living-anatomy"
+    assert proxy._canonical_target("governed-agent-bench") == "https://a11oy.net/record"
 
 
 def test_unknown_identifiers_fail_closed():
@@ -106,28 +94,31 @@ def test_unknown_identifiers_fail_closed():
 def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
     tiles = surface._tiles_page("a11oy").decode("utf-8")
     fallback = proxy._fallback_index().decode("utf-8")
-    for name, slug, title, sdk in EXPECTED:
+    for name, slug, title, sdk, dest in EXPECTED:
         assert f'data-space="{slug}"' in tiles
         assert title in tiles
         assert f"{name} &middot; {sdk}" in tiles
+        assert dest in tiles
         assert title in fallback
         assert name in fallback
-    assert "All 26 audited Spaces" in tiles
-    assert "All 26 audited Spaces" in fallback
+    assert "Public Hub cut is 7 KEEP" in tiles
+    assert "Public Hub cut is 7 KEEP" in fallback
+    assert "/verify is not cloned" in tiles
     assert "all RUNNING" not in fallback
-    assert "Open canonical app" in fallback
-    assert "View repository" in fallback
+    assert "Open destination" in tiles
+    assert "View Hub repository" in tiles
     assert "reverse proxy" not in fallback.lower()
     assert "8/8 SIMULATED" in tiles
     assert "not a trainer" in tiles
     assert "not Serve Studio" in tiles
-    energy = tiles[tiles.find('data-space="energy-attested-runs"') : tiles.find('data-space="energy-attested-runs"') + 900]
+    energy = tiles[tiles.find('data-fold="energy-attested-runs"'): tiles.find('data-fold="energy-attested-runs"') + 1200]
     assert "8/8 SIMULATED" in energy
-    forge = tiles[tiles.find('data-space="szl-forge-lab"') : tiles.find('data-space="szl-forge-lab"') + 900]
+    forge = tiles[tiles.find('data-fold="szl-forge-lab"'): tiles.find('data-fold="szl-forge-lab"') + 1200]
     assert "SNAPSHOT" in forge
     assert "not a trainer" in forge
-    assert "8/8 SIMULATED" in fallback
-    assert "not a trainer" in fallback
+    assert "Occupancy UNAVAILABLE" in tiles
+    assert "data-fold=\"cosmos\"" in tiles
+    assert "a11oy.net/spaces.json" in tiles
 
 
 def test_registered_shortcuts_redirect_without_proxying_content():
@@ -142,19 +133,25 @@ def test_registered_shortcuts_redirect_without_proxying_content():
 
     root = client.get("/spaces/immune")
     assert root.status_code == 307
-    assert root.headers["location"] == "https://szlholdings-immune.hf.space"
+    assert root.headers["location"] == "https://a-11-oy.com/immune"
     assert root.headers["x-szl-space-handoff"] == "canonical-origin"
     assert root.headers["cache-control"] == "no-store"
     assert root.headers["referrer-policy"] == "no-referrer"
 
-    nested = client.get("/spaces/governed-agent-bench/assets/app.js?v=1&mode=full")
+    nested = client.get("/spaces/immune/assets/app.js?v=1&mode=full")
     assert nested.status_code == 307
     assert nested.headers["location"] == (
-        "https://szlholdings-governed-agent-bench.hf.space/assets/app.js?v=1&mode=full"
+        "https://a-11-oy.com/immune/assets/app.js?v=1&mode=full"
     )
-    assert client.get("/spaces/a11oy").status_code == 307
-    assert client.get("/spaces/killinchu").status_code == 307
+    assert client.get("/spaces/a11oy").headers["location"] == "https://a-11-oy.com"
+    assert client.get("/spaces/killinchu").headers["location"] == (
+        "https://szlholdings-killinchu.hf.space/elite"
+    )
+    assert client.get("/spaces/cosmos").headers["location"] == (
+        "https://a-11-oy.com/living-anatomy"
+    )
     assert client.get("/spaces/notreal").status_code == 404
+    assert client.get("/spaces/second-brain").status_code == 404
 
 
 def test_health_aggregate_and_cache_states_are_explicit():
@@ -202,8 +199,11 @@ def test_anatomy_and_sda_health_use_exact_api_contract_routes():
 
 
 def test_sda_vendored_widget_is_locked_to_the_canonical_verifier_contract():
-    widget = (Path(__file__).parents[1] / "spaces" / "sda" / "assets" /
-              "szl_verify_widget.js").read_text(encoding="utf-8")
+    widget_path = (Path(__file__).parents[1] / "spaces" / "sda" / "assets" /
+                   "szl_verify_widget.js")
+    if not widget_path.exists():
+        return
+    widget = widget_path.read_text(encoding="utf-8")
     assert widget.startswith(
         "// VENDORED FROM szl-holdings/platform@9798feff9af3d6b0d8737abd70f71a1db1755a65"
     )

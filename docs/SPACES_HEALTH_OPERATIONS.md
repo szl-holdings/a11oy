@@ -8,19 +8,24 @@ DNS, or Cloudflare state.
 
 ## Inventory contract
 
-The application registry is defined once in `szl_spaces_surface.SPACES` and is
-consumed by both the health surface and redirect-only compatibility surface.
-Every fresh health cycle compares that canonical set with the public Hugging
+The public application registry is defined once in `szl_spaces_surface.SPACES`
+as the MEASURED Hub KEEP-7 set. Health probes that set only. Folded Spaces
+live in `FOLD_SPACES` and are PAUSED+PRIVATE; the redirect-only compatibility
+surface 307s their legacy `/spaces/<slug>` links to existing product
+(`a-11-oy.com`) and proof (`a11oy.net`) destinations. RECORD:
+https://a11oy.net/spaces.json. `/verify` is not cloned.
+
+Every fresh health cycle compares the KEEP-7 set with the public Hugging
 Face Spaces API set.
 
-- `inventory.state=LIVE`: the two regular-Space sets are exactly equal.
+- `inventory.state=LIVE`: the two public regular-Space sets are exactly equal.
 - `inventory.state=DEGRADED`: the API responded, but `missing` or `unexpected`
   entries exist.
 - `inventory.state=UNAVAILABLE`: current set equality could not be measured.
 
 The organization `README` Space is a special profile surface and is not counted
-as an application Space. `governed-agent-bench` is part of the canonical regular
-Space set.
+as an application Space. `governed-agent-bench` is FOLD (proof `/record/`), not
+part of the public KEEP set.
 
 ## Dependency probes
 
