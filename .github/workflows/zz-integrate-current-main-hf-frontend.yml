@@ -1,0 +1,43 @@
+name: Integrate current protected main into universal frontend
+
+on:
+  push:
+    branches:
+      - fix/hf-universal-frontend-review-20260820
+
+permissions:
+  contents: write
+
+concurrency:
+  group: integrate-current-main-hf-frontend-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  integrate:
+    if: github.repository == 'szl-holdings/a11oy' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact universal-frontend branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Forward-integrate protected main and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git merge --no-ff --no-commit origin/main
+          git rm .github/workflows/zz-integrate-current-main-hf-frontend.yml
+          git add -A
+          git diff --cached --check
+          git commit \
+            -m 'merge(hf): integrate current protected main' \
+            -m 'Forward-integrate the exact current protected main without rebasing or rewriting the reviewed universal-frontend history, and remove the bounded branch-local integrator from the final tree.' \
+            -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
