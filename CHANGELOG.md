@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed - N1–N25 post-merge runtime and evidence relock
+- The N1–N25 module is copied into the canonical runtime image, every
+  receipt and catalog row preserves its per-organ evidence class, and
+  public copy no longer describes simulated or modeled organs as a
+  blanket LIVE capability. Focused safety, denial, and integrity tests
+  are included. The router schema regression now matches the existing
+  truthful MODELED tier-display contract.
+
 ### Added - public Command Center BIND on /command
 - `/command` is a 0-CDN public SPA (receipt lake, proof lab, estate, investor,
   developer). Pathname routing under `/command/*`. Does not replace `/console`.
