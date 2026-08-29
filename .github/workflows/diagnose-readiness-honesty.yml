@@ -1,0 +1,58 @@
+name: Diagnose readiness honesty blockers
+
+on:
+  push:
+    branches:
+      - fix/readiness-honesty-relock-20260829
+    paths:
+      - .github/workflows/diagnose-readiness-honesty.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnose-readiness-honesty-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Fetch exact public blocker payloads
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://szlholdings-a11oy.hf.space'
+          for path in \
+            '/api/a11oy/v1/ledger' \
+            '/api/a11oy/v1/receipt/export' \
+            '/api/a11oy/v1/rag/status' \
+            '/api/a11oy/v1/sec/kevgate' \
+            '/api/a11oy/v1/router/stats'; do
+            printf '\n===== %s =====\n' "$path"
+            curl --fail --silent --show-error --max-time 20 \
+              -H 'accept: application/json' "$base$path" \
+              | python -m json.tool
+          done
+
+      - name: Show exact source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -n -A10 -B3 '"/api/a11oy/v1/ledger"' tools/readiness-harness/gen_tabs_matrix.py
+          grep -n -A10 -B3 '"/api/a11oy/v1/rag/status"' tools/readiness-harness/gen_tabs_matrix.py
+          grep -n -A12 -B4 '"/api/a11oy/v1/sec/kevgate"' tools/readiness-harness/gen_tabs_matrix.py
+          grep -n -A30 -B4 '"router_stats"' tools/readiness-harness/gen_tabs_matrix.py
+          grep -n -A55 -B8 'KEVGATE_PATHS' routers/frontier_reads.py
