@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - Hub Spaces public cut is 7 KEEP
+- `GET /spaces` is the operator desk for the MEASURED Hub cut: 7 public
+  keepers, not the historical 26-tile registry. Inventory health compares
+  that KEEP set to the public Hugging Face Spaces API (README excluded).
+- Folded Spaces are PAUSED+PRIVATE on Hub. Legacy `/spaces/<slug>` 307s to
+  existing product (`a-11-oy.com`) and proof (`a11oy.net`) destinations from
+  https://a11oy.net/spaces.json. `/verify` is not cloned. Killinchu-named
+  resources stay off the proof front door. Occupancy stays UNAVAILABLE.
+  Energy-attested-runs remains `8/8 SIMULATED`. Forge lab stays SNAPSHOT —
+  not a trainer, not Serve Studio. Λ = Conjecture 1.
+- This is not a second Command Center. `/console` stays the operator body.
+
 ### Changed - IMMUNE command-center lattice on /immune
 - `/immune` is now a 0-CDN cinematic command-center HUD: canvas lattice globe
   (drag to orbit), live kernel/field/organ chips, inspect-to-verdict, gates,

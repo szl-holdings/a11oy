@@ -32,7 +32,9 @@ import sys
 from typing import Any
 from urllib.parse import quote
 
+from szl_spaces_surface import FOLD_SPACES as _FOLD_SPACES
 from szl_spaces_surface import SPACES as _CANONICAL_SPACES
+from szl_spaces_surface import canonical_url as _destination_url
 
 _ORG_PREFIX = "szlholdings-"
 _ORG = "SZLHOLDINGS"
@@ -41,11 +43,13 @@ SPACE_HANDOFF_MODE = "canonical-redirect-only/v1"
 # Runtime state is deliberately absent here. Copy records so this compatibility
 # surface cannot mutate the canonical registry by accident.
 SPACE_INVENTORY: list[dict[str, str]] = [dict(record) for record in _CANONICAL_SPACES]
-_SPACE_BY_NAME = {sp["name"]: sp for sp in SPACE_INVENTORY}
-_SPACE_BY_SLUG = {sp["slug"]: sp for sp in SPACE_INVENTORY}
+FOLD_INVENTORY: list[dict[str, str]] = [dict(record) for record in _FOLD_SPACES]
+HANDOFF_INVENTORY: list[dict[str, str]] = SPACE_INVENTORY + FOLD_INVENTORY
+_SPACE_BY_NAME = {sp["name"]: sp for sp in HANDOFF_INVENTORY}
+_SPACE_BY_SLUG = {sp["slug"]: sp for sp in HANDOFF_INVENTORY}
 
 ALL_SPACES = [sp["slug"] for sp in SPACE_INVENTORY]
-HANDOFF_SPACES = list(ALL_SPACES)
+HANDOFF_SPACES = [sp["slug"] for sp in HANDOFF_INVENTORY]
 # Backwards-compatible public name retained for downstream inventory checks.
 PROXY_SPACES = HANDOFF_SPACES
 
@@ -84,11 +88,11 @@ def _fallback_index() -> bytes:
     """Render the dependency-free fallback registry with canonical links only."""
 
     rows = []
-    for record in SPACE_INVENTORY:
+    for record in HANDOFF_INVENTORY:
         title = html.escape(record["title"])
         name = html.escape(record["name"])
         sdk = html.escape(record["sdk"])
-        canonical = html.escape(hf_url(record["slug"]), quote=True)
+        canonical = html.escape(_destination_url(record["slug"]), quote=True)
         repository = html.escape(hf_repo_url(record["slug"]), quote=True)
         honesty_raw = record.get("honesty") or ""
         honesty = (
@@ -116,9 +120,10 @@ def _fallback_index() -> bytes:
         'font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:2rem">'
         '<main style="max-width:760px;margin:0 auto">'
         '<h1 style="color:#e7eef6">Hugging Face Spaces</h1>'
-        f'<p style="color:#8a96a3">All {len(SPACE_INVENTORY)} audited Spaces open on their canonical isolated '
-        'Hugging Face origins. Legacy <code>/spaces/&lt;slug&gt;</code> links are no-store '
-        '307 handoffs; no upstream response bytes or cookies cross this application.</p>'
+        f'<p style="color:#8a96a3">Public Hub cut is {len(SPACE_INVENTORY)} KEEP. '
+        'Folded Spaces open on existing product and proof destinations. Legacy '
+        '<code>/spaces/&lt;slug&gt;</code> links are no-store 307 handoffs; no upstream '
+        'response bytes or cookies cross this application. /verify is not cloned.</p>'
         '<ul style="list-style:none;padding:0">' + "".join(rows) + "</ul>"
         "</main></body></html>"
     ).encode("utf-8")
@@ -130,7 +135,12 @@ def _canonical_target(name: str, subpath: str = "", query: str = "") -> str:
     record = _SPACE_BY_SLUG.get(name)
     if record is None or name not in HANDOFF_SPACES:
         raise ValueError("unknown Space identifier: %s" % name)
-    target = hf_url(name)
+    target = _destination_url(name).rstrip("/") if name != "szl-kernels-live" else _destination_url(name)
+    if name == "szl-kernels-live":
+        # dest already carries a fragment; do not append a path onto #atlas
+        if query:
+            return target + ("&" if "?" in target else "?") + quote(query, safe="=&;%:+,/?@-._~")
+        return target
     if subpath:
         encoded_path = quote(subpath.lstrip("/"), safe="/:@!$&'()*+,;=-._~")
         target += "/" + encoded_path
@@ -243,9 +253,12 @@ if __name__ == "__main__":
     assert "client." + "request(" not in source
     assert "upstream." + "content" not in source
 
-    assert len(ALL_SPACES) == len(HANDOFF_SPACES) == 26
+    assert len(ALL_SPACES) == 7
+    assert len(HANDOFF_SPACES) == 7 + len(FOLD_INVENTORY)
     assert hf_url("governed-agent-bench") == "https://szlholdings-governed-agent-bench.hf.space"
     assert hf_url("immune") == "https://szlholdings-immune.hf.space"
+    assert _canonical_target("immune") == "https://a-11-oy.com/immune"
+    assert _canonical_target("cosmos") == "https://a-11-oy.com/living-anatomy"
     try:
         hf_url("notreal")
         raise AssertionError("unknown Space identifier must fail closed")
@@ -256,7 +269,7 @@ if __name__ == "__main__":
     for space in SPACE_INVENTORY:
         assert space["name"].encode() in fallback
         assert space["title"].encode() in fallback
-        assert hf_url(space["slug"]).encode() in fallback
+        assert _destination_url(space["slug"]).encode() in fallback
         assert hf_repo_url(space["slug"]).encode() in fallback
     assert b'href="/spaces/' not in fallback
     assert b"reverse proxy" not in fallback.lower()
@@ -277,7 +290,7 @@ if __name__ == "__main__":
         follow_redirects=False,
     )
     assert root.status_code == 307
-    assert root.headers["location"] == "https://szlholdings-immune.hf.space"
+    assert root.headers["location"] == "https://a-11-oy.com/immune"
     assert root.headers["cache-control"] == "no-store"
     assert root.headers["x-szl-space-handoff"] == "canonical-origin"
     assert "set-cookie" not in root.headers and root.content == b""
@@ -288,7 +301,7 @@ if __name__ == "__main__":
     )
     assert nested.status_code == 307
     assert nested.headers["location"] == (
-        "https://szlholdings-immune.hf.space/api/events?cursor=a%2Fb&cursor=two+words"
+        "https://a-11-oy.com/immune/api/events?cursor=a%2Fb&cursor=two+words"
     )
     head = client.head("/spaces/immune/assets/app.js?build=7", follow_redirects=False)
     assert head.status_code == 307 and head.content == b""
@@ -296,9 +309,12 @@ if __name__ == "__main__":
     assert client.get("/spaces/notreal", follow_redirects=False).status_code == 404
     own = client.get("/spaces/a11oy", follow_redirects=False)
     assert own.status_code == 307
-    assert own.headers["location"] == "https://szlholdings-a11oy.hf.space"
+    assert own.headers["location"] == "https://a-11-oy.com"
+    cosmos = client.get("/spaces/cosmos", follow_redirects=False)
+    assert cosmos.status_code == 307
+    assert cosmos.headers["location"] == "https://a-11-oy.com/living-anatomy"
 
     print(
-        "szl_spaces_proxy: ALL OK (26 audited redirect-only handoffs; "
+        "szl_spaces_proxy: ALL OK (7 KEEP + fold dest handoffs; "
         "path/query preserved; no-store; no upstream bytes/Set-Cookie)"
     )
