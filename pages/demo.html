@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Three-minute demo — a11oy</title>
+<meta name="description" content="Three-minute Decision Assurance demo on a-11-oy.com. Positive, negative, no authority leak. Formula authority NONE. Licensed AIS CLOSED."/>
+<link rel="canonical" href="https://a-11-oy.com/demo"/>
+<style>
+:root{--ink:#09090b;--ink-2:#121214;--ink-3:#1c1c20;--paper:#f2efe8;--paper-dim:#c8c2b4;--muted:#8a857a;--line:color-mix(in oklab,var(--paper) 12%,transparent);--cord:#9a5a48;--ok:#7d9a7a;--deny:#d46a4c}
+*{box-sizing:border-box}html,body{margin:0;background:var(--ink);color:var(--paper);font-family:ui-sans-serif,system-ui,sans-serif}
+a{color:var(--paper-dim)}header{border-bottom:1px solid var(--line)}
+.hdr{max-width:72rem;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 1.25rem;min-height:52px}
+.brand{font-family:ui-serif,Georgia,serif;color:var(--paper);text-decoration:none;font-size:1.1rem}
+nav a{min-height:44px;display:inline-flex;align-items:center;padding:0 .7rem;color:var(--muted);text-decoration:none}
+nav a.on,nav a:hover{color:var(--paper)}
+main{max-width:72rem;margin:0 auto;padding:2rem 1.25rem 6rem}
+.kicker{font:11px/1.4 ui-monospace,Menlo,monospace;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:ui-serif,Georgia,serif;font-weight:500;font-size:clamp(2rem,5vw,3.1rem);letter-spacing:-.03em;margin:.4rem 0 .6rem}
+.lede{max-width:42rem;color:var(--paper-dim);line-height:1.55}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;margin:1.25rem 0}
+.chip{display:inline-flex;align-items:center;min-height:32px;padding:0 .75rem;border-radius:999px;font:11px ui-monospace,monospace;background:var(--paper);color:var(--ink)}
+.chip.mute{background:transparent;color:var(--muted);box-shadow:0 0 0 1px var(--line)}
+.grid{display:grid;gap:.75rem}@media(min-width:860px){.grid{grid-template-columns:1.1fr .9fr}}
+.panel{background:var(--ink-2);border-radius:12px;padding:1.1rem 1.25rem;box-shadow:0 0 0 1px var(--line)}
+h2{font-family:ui-serif,Georgia,serif;font-weight:500;font-size:1.15rem;margin:0 0 .5rem}
+ol.script{margin:0;padding:0;list-style:none}ol.script li{display:grid;grid-template-columns:2.2rem 1fr;gap:.6rem;padding:.7rem 0;border-bottom:1px solid var(--line)}
+ol.script b{font:11px ui-monospace,monospace;letter-spacing:.12em;color:var(--muted)}
+button{cursor:pointer;font:inherit;color:var(--ink);background:var(--paper);border:0;border-radius:999px;min-height:44px;padding:0 1rem}
+button.ghost{background:transparent;color:var(--paper);box-shadow:0 0 0 1px var(--line)}
+pre{background:var(--ink-3);border-radius:10px;padding:1rem;overflow:auto;white-space:pre-wrap;font:12px ui-monospace,monospace}
+.actions{display:flex;flex-wrap:wrap;gap:.4rem;margin:1rem 0}
+footer{margin-top:3rem;font-size:.8rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr">
+    <a class="brand" href="/">a11oy</a>
+    <nav>
+      <a href="/decision">Decision</a>
+      <a href="/demo" class="on">Demo</a>
+      <a href="/evaluations">Evaluations</a>
+      <a href="/vessels">Vessels</a>
+      <a href="/">Home</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="kicker">Payload · three minutes</div>
+  <h1>Positive, negative, no authority leak.</h1>
+  <p class="lede">Walk the frozen kernel on a-11-oy.com. Aegis waits for a human. Vessels refuses licensed AIS. Outstanding evaluations stay outstanding. This is PUBLIC_OPEN_DATA_DEMO, not PILOT_READY.</p>
+  <div class="row">
+    <span class="chip">ROADMAP</span>
+    <span class="chip mute">formula authority NONE</span>
+    <span class="chip mute">licensed AIS CLOSED</span>
+  </div>
+  <div class="grid">
+    <section class="panel">
+      <h2>Script</h2>
+      <ol class="script">
+        <li><b>01</b><span>Open Aegis. Evaluate the await case. Human approval remains required.</span></li>
+        <li><b>02</b><span>Open Vessels. Evaluate licensed AIS. The kernel denies. No live key, no query.</span></li>
+        <li><b>03</b><span>Show fail-closed. Missing or stale sources abstain. Execute is not offered.</span></li>
+        <li><b>04</b><span>Open the evaluation matrix. Seed-policy rows replay. Outstanding rows stay outstanding.</span></li>
+        <li><b>05</b><span>Proof stays on a11oy.net. This origin does not become a receipt database.</span></li>
+        <li><b>06</b><span>Honest remainder: entity-resolution precision and licensed AIS TPR are not claimed.</span></li>
+      </ol>
+      <div class="actions">
+        <button type="button" id="aegis">Run Aegis await</button>
+        <button class="ghost" type="button" id="vessels">Run Vessels AIS deny</button>
+        <a href="/evaluations" style="min-height:44px;display:inline-flex;align-items:center">Open evaluations</a>
+      </div>
+    </section>
+    <section class="panel">
+      <h2>Kernel result</h2>
+      <pre id="out">No case run yet. Status ROADMAP. Does not stamp LIVE.</pre>
+    </section>
+  </div>
+  <footer>
+    Product: a-11-oy.com. Proof: a11oy.net. Never a11oy.com.
+    Canonical source: szl-holdings/a11oy/verticals. Λ = Conjecture 1.
+  </footer>
+</main>
+<script>
+async function run(vertical, evalId) {
+  const out = document.getElementById("out");
+  out.textContent = "Loading " + vertical + "…";
+  const pack = await fetch("/api/a11oy/v1/decision/" + vertical).then((r) => r.json());
+  const item = (pack.cases || []).find((c) => c.eval_id === evalId) || (pack.cases || [])[0];
+  if (!item) { out.textContent = "No frozen case."; return; }
+  const res = await fetch("/api/a11oy/v1/decision/" + vertical + "/evaluate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(item.payload || item),
+  });
+  const data = await res.json();
+  out.textContent = JSON.stringify({
+    vertical: vertical,
+    eval_id: item.eval_id,
+    state: data.state,
+    reason_codes: data.reason_codes,
+    formula_authority: "NONE",
+    licensed_ais_admitted: false,
+    runtime_claimed: false,
+    status: data.status || "ROADMAP"
+  }, null, 2);
+}
+document.getElementById("aegis").addEventListener("click", () => run("aegis", "AEGIS-E-AWAIT-01"));
+document.getElementById("vessels").addEventListener("click", () => run("vessels", "VESSELS-E-DENY-AIS"));
+</script>
+</body>
+</html>

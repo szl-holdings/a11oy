@@ -3,15 +3,16 @@
 """Packet 8 Decision Integrity on a-11-oy.com.
 
 Mounts GET /decision and vanity paths /terra /aegis /puriq-markets /puriq
-/counsel plus /api/a11oy/v1/decision/*. Evaluates frozen demonstration
-cases through verticals/_kernel/a11oy_kernel.py.
+/counsel /vessels plus /demo /evaluations and /api/a11oy/v1/decision/*.
+Evaluates frozen demonstration cases through verticals/_kernel/a11oy_kernel.py.
 
-Hub Space create is capped at 20/day. These desks are the same kernel on
-a-11-oy.com, not four Spaces.
+Vessels is a product vanity path on the same kernel. It is not a fifth
+flagship and not a new Hub Space. Hub Space create is capped at 20/day.
 
 Formula authority NONE. Models and market signals never authorize.
 Status stays ROADMAP. Does not stamp LIVE. Does not wait on Hub Spaces.
-Does not claim ATO. Λ = Conjecture 1 / ADVISORY_CONJECTURAL.
+Does not claim ATO. Licensed AIS without a live key stays CLOSED.
+Λ = Conjecture 1 / ADVISORY_CONJECTURAL.
 """
 from __future__ import annotations
 
@@ -25,16 +26,20 @@ VERTICALS_DIR = ROOT / "verticals"
 KERNEL_PATH = VERTICALS_DIR / "_kernel" / "a11oy_kernel.py"
 PAGES_DIR = ROOT / "pages"
 
-VERTICAL_IDS = ("terra", "aegis", "puriq-markets", "counsel")
-PAGE_ALIASES = (
-    "/decision",
-    "/a11oy/decision",
-    "/terra",
-    "/aegis",
-    "/puriq-markets",
-    "/puriq",
-    "/counsel",
-)
+VERTICAL_IDS = ("terra", "aegis", "puriq-markets", "counsel", "vessels")
+PAGE_FILES = {
+    "/decision": "decision.html",
+    "/a11oy/decision": "decision.html",
+    "/terra": "decision.html",
+    "/aegis": "decision.html",
+    "/puriq-markets": "decision.html",
+    "/puriq": "decision.html",
+    "/counsel": "decision.html",
+    "/vessels": "decision.html",
+    "/demo": "demo.html",
+    "/evaluations": "evaluations.html",
+}
+PAGE_ALIASES = tuple(PAGE_FILES)
 STATUS = "ROADMAP"
 DATA_LABEL = "SAMPLE"
 
@@ -98,9 +103,12 @@ def catalog() -> dict[str, Any]:
         "kernel_schema": getattr(kernel, "SCHEMA", "UNKNOWN"),
         "runtime_claimed": False,
         "hub_spaces_required": False,
+        "licensed_ais_admitted": False,
+        "production_ready": False,
         "note": (
             "Frozen demonstration cases on the canonical a11oy site. "
             "Does not prove production readiness. Does not stamp LIVE. "
+            "Licensed AIS stays CLOSED without a live key. "
             "Not legal advice, not a trading bot, not a Palantir clone."
         ),
         "verticals": [
@@ -113,6 +121,13 @@ def catalog() -> dict[str, Any]:
             }
             for item in verticals
         ],
+        "desks": {
+            "decision": "/decision",
+            "demo": "/demo",
+            "evaluations": "/evaluations",
+            "vessels": "/vessels",
+            "proof": "https://a11oy.net/decision/",
+        },
     }
 
 
@@ -163,6 +178,8 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
                     "kernel_version": getattr(kernel, "VERSION", "UNKNOWN"),
                     "verticals": present,
                     "runtime_claimed": False,
+                    "licensed_ais_admitted": False,
+                    "production_ready": False,
                 }
             )
         except Exception as exc:  # noqa: BLE001
@@ -226,14 +243,15 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
         receipt = payload if isinstance(payload, dict) else {}
         return _json(kernel.replay_receipt(receipt))
 
-    async def _page(_request):
+    async def _page(request):
+        path = (request.url.path or "").rstrip("/") or "/decision"
+        filename = PAGE_FILES.get(path, "decision.html")
         for base in (Path("/app/pages"), PAGES_DIR):
-            page = base / "decision.html"
+            page = base / filename
             if page.is_file():
                 return FileResponse(str(page), media_type="text/html")
         return _json({"error": "decision page missing", "status": STATUS}, 503)
 
-    # insert(0) last-wins. Literal healthz must be inserted after {vertical}.
     paths = [
         (f"/api/{ns}/v1/decision", _index, ["GET"]),
         (f"/api/{ns}/v1/decision/{{vertical}}", _vertical, ["GET"]),
