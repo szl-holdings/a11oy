@@ -3,7 +3,7 @@ name: Publish Packet 8 vertical Hugging Face Spaces
 # Thin Docker adapters for Terra, Aegis, Puriq Markets and Counsel.
 # Uses org HF_ORG_TOKEN || HF_TOKEN. Creates/updates private Spaces.
 # Does not wait for RUNNING. Does not stamp LIVE. Does not touch
-# the canonical SZLHOLDINGS/a11oy Space (see hf-sync.yml).
+# the canonical product Space (see hf-sync.yml).
 
 on:
   push:
