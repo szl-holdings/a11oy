@@ -103,9 +103,86 @@ code{font-family:var(--mono);color:var(--teal);}
   .kv .v,.digest{overflow-wrap:anywhere;word-break:break-word;}
 }
 @media(prefers-reduced-motion:reduce){.live-dot{animation:none;}}
+
+/* —— IMMUNE command-center HUD (0-CDN canvas lattice) —— */
+:root{
+  --void:#080c14; --proof:#3af4c8; --lattice:#5b8dee; --kanchay-gold:#d7b96b;
+}
+html,body{background:var(--void);overflow-x:hidden;}
+body{
+  background:
+    radial-gradient(1200px 800px at 72% -8%, #12203a 0%, transparent 58%),
+    radial-gradient(900px 700px at 8% 12%, #0c1a28 0%, transparent 52%),
+    var(--void);
+}
+#latticeGlobe{position:fixed;inset:0;width:100%;height:100%;z-index:0;display:block;pointer-events:auto;}
+.scanlines,.vignette,.hologrid{position:fixed;inset:0;pointer-events:none;z-index:1;}
+.scanlines{background:repeating-linear-gradient(180deg,transparent 0 2px,rgba(0,0,0,.12) 2px 3px);opacity:.35;}
+.vignette{background:radial-gradient(ellipse at center,transparent 40%,rgba(0,0,0,.55) 100%);}
+.hologrid{
+  background-image:
+    linear-gradient(rgba(91,141,238,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(91,141,238,.06) 1px,transparent 1px);
+  background-size:48px 48px;
+  opacity:.55;mask-image:radial-gradient(ellipse at 50% 42%,#000 20%,transparent 72%);
+}
+.topbar{background:rgba(8,12,20,.88);}
+.wrap{position:relative;z-index:2;}
+.card,.panel{
+  background:linear-gradient(180deg,rgba(10,20,40,.82),rgba(7,11,22,.76));
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-color:rgba(91,141,238,.28);
+  box-shadow:0 18px 50px -22px #000;
+}
+.card .big{color:var(--proof);}
+.hud-orbit{
+  position:relative;min-height:42vh;margin:0 0 1.2rem;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;
+  pointer-events:none;
+}
+.hud-orbit .hint{
+  pointer-events:none;font-family:var(--mono);font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--dim);
+  border:1px solid rgba(91,141,238,.28);background:rgba(8,12,20,.7);
+  padding:.45rem .7rem;border-radius:6px;
+}
+.hud-orbit .chips{display:flex;gap:.45rem;flex-wrap:wrap;pointer-events:auto;}
+.chip{
+  display:inline-flex;align-items:center;gap:.4rem;padding:.28rem .65rem;border-radius:999px;
+  font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;
+  border:1px solid var(--gold-line);color:var(--muted);background:rgba(8,12,20,.72);
+}
+.chip .dot{width:7px;height:7px;border-radius:50%;background:var(--warn);box-shadow:0 0 8px var(--warn);}
+.chip.ok{color:var(--proof);border-color:rgba(58,244,200,.4);}
+.chip.ok .dot{background:var(--proof);box-shadow:0 0 8px var(--proof);}
+.chip.bad{color:var(--red);border-color:rgba(255,106,90,.4);}
+.chip.bad .dot{background:var(--red);box-shadow:none;}
+.chip.wait .dot{background:var(--warn);}
+.cc-title{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;flex-wrap:wrap;}
+.cc-kicker{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;text-transform:uppercase;color:var(--proof);margin:0 0 .35rem;}
+.node-tip{
+  position:fixed;z-index:70;display:none;pointer-events:none;
+  font-family:var(--mono);font-size:11px;color:var(--cream);
+  background:rgba(8,12,20,.92);border:1px solid rgba(91,141,238,.4);
+  padding:.45rem .65rem;border-radius:6px;letter-spacing:.04em;
+}
+@media(prefers-reduced-motion:reduce){.scanlines{display:none;}}
+
+
+.wrap{pointer-events:none;}
+.wrap .card,.wrap .panel,.wrap .lede,.wrap h1,.wrap .cc-kicker,.wrap .kernel-actions,.wrap .footnote,.wrap .badge,.wrap .preset,.wrap textarea,.wrap input,.wrap button,.wrap a,.wrap .chips,.wrap .table-scroll,.wrap .verdict-box,.wrap .simnote,.wrap .kv{pointer-events:auto;}
+.hud-orbit{min-height:46vh;}
+.lede{font-size:.86rem;max-height:7.4em;overflow:auto;padding-right:.4rem;}
+
 </style>
 </head>
 <body>
+
+<canvas id="latticeGlobe" aria-hidden="true"></canvas>
+<div class="hologrid" aria-hidden="true"></div>
+<div class="scanlines" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div class="node-tip" id="nodeTip"></div>
 <div class="topbar">
   <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span>
   <span class="live"><span class="live-dot" id="liveDot"></span><span id="liveTag" aria-live="polite">IMMUNE · CONNECTING</span></span>
@@ -281,6 +358,7 @@ function connectionState(state,reachable){
   dot.className="live-dot"+(ready?" ready":reachable?"":" error");
   document.getElementById("liveTag").textContent="IMMUNE · "+(reachable?normalized:"UNAVAILABLE");
   document.getElementById("organBadge").textContent=ready?"deny-by-default · backend reported "+normalized.toLowerCase():"deny-by-default · evidence "+(reachable?normalized.toLowerCase():"unavailable");
+  if(window.__immuneBind) window.__immuneBind({organ:reachable?normalized:"UNAVAILABLE"});
   return {normalized,ready};
 }
 function requestFailure(result){
@@ -335,7 +413,8 @@ async function loadFeed(){
   const tb = document.querySelector("#feedTable tbody");
   if(!result.ok||!result.data||!Array.isArray(result.data.verdicts)){tb.innerHTML='<tr><td class="mono" colspan="5">'+esc(requestFailure(result))+'</td></tr>';return;}
   const f=result.data;
-  if(!f.verdicts.length){tb.innerHTML='<tr><td class="mono" colspan="5">IDLE — no verdicts buffered (resets on restart)</td></tr>';return;}
+  if(!f.verdicts.length){tb.innerHTML='<tr><td class="mono" colspan="5">IDLE — no verdicts buffered (resets on restart)</td></tr>';if(window.__immuneBind) window.__immuneBind({feed:[]});return;}
+  if(window.__immuneBind) window.__immuneBind({feed:f.verdicts});
   tb.innerHTML = f.verdicts.map(v=>
     '<tr><td>'+esc((v.timestamp||"").slice(11,19))+'</td>'+
     '<td class="'+esc(v.decision)+'">'+esc(v.decision)+'</td>'+
@@ -396,7 +475,7 @@ function kernelAuthorityLabel(s){
   return null;
 }
 
-async function loadKernel(){
+async function loadKernel(){ /* command-center bind after paint */
   const result = await requestJSON(BASE + "/kernel");
   const kv = document.getElementById("kernelKv");
   const s = result.data||{};
@@ -418,6 +497,7 @@ async function loadKernel(){
     row("ledger",s.ledger)+
     row("channel A",s.channel_a&&s.channel_a.space)+
     row("channel B",s.channel_b&&s.channel_b.space)+
+    (window.__immuneBind&&window.__immuneBind({kernelReach:reach}),'')+
     row("error",s.error||(!result.ok?requestFailure(result):null))+
     row("observed at",s.fetchedAt||s.observed_at)+
     '<div><span class="k">kernel</span><span class="pill '+(reach==="REACHABLE"?(writeReady?"green":"yellow"):"red")+'">'+esc(reach+(writeReady?" · WRITE-READY":""))+'</span></div>';
@@ -466,6 +546,7 @@ async function loadField(){
     row("rule",s.rule)+
     row("cells",typeof s.cell_count==="number"?String(s.cell_count):null)+
     row("channel",s.space)+
+    (window.__immuneBind&&window.__immuneBind({fieldReach:reach,cells:cells}),'')+
     row("error",s.error||(!result.ok?requestFailure(result):null))+
     row("observed at",s.fetchedAt||s.observed_at)+
     '<div><span class="k">field</span><span class="pill '+(reach==="REACHABLE"?"green":"red")+'">'+esc(reach)+'</span></div>';
@@ -482,11 +563,244 @@ document.getElementById("embedFieldBtn").addEventListener("click",function(){
   this.textContent="Lattice embedded";
 });
 
+/* —— 0-CDN canvas lattice globe (command center). Status is observed, never invented. —— */
+(function(){
+  const canvas = document.getElementById("latticeGlobe");
+  if(!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if(!ctx){ canvas.style.display="none"; return; }
+  const tip = document.getElementById("nodeTip");
+  const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let rot = 0.55, tilt = 0.32, auto = !reduce, dragging = false, lastX = 0, lastY = 0, raf = 0, last = performance.now();
+  const hits = [];
+  const state = {
+    kernel: "CONNECTING",
+    field: "CONNECTING",
+    organ: "CONNECTING",
+    cells: [],
+    feed: []
+  };
+
+  const ORGANS = [
+    {id:"sentra", label:"SENTRA", lat:18, lon:-40, kind:"organ"},
+    {id:"yawar", label:"YAWAR", lat:8, lon:20, kind:"organ"},
+    {id:"huklla", label:"HUKLLA", lat:-12, lon:70, kind:"organ"},
+    {id:"kernel", label:"CHANNEL A", lat:32, lon:-100, kind:"kernel"},
+    {id:"field", label:"CHANNEL B", lat:-28, lon:130, kind:"field"},
+    {id:"mesh", label:"MESH 3-of-4", lat:42, lon:50, kind:"mesh"},
+    {id:"exile", label:"RANGE.CLOUD.EXILE", lat:-36, lon:-20, kind:"cell"}
+  ];
+
+  function project(lat, lon, r){
+    const la = lat * Math.PI / 180;
+    const lo = lon * Math.PI / 180 + rot;
+    const x = Math.cos(la) * Math.sin(lo);
+    const y = Math.sin(la);
+    const z = Math.cos(la) * Math.cos(lo);
+    const yt = y * Math.cos(tilt) - z * Math.sin(tilt);
+    const zt = y * Math.sin(tilt) + z * Math.cos(tilt);
+    return {x: x * r, y: -yt * r, z: zt, visible: zt > -0.05};
+  }
+  function accent(){
+    if(state.kernel === "UNAVAILABLE" && state.field === "UNAVAILABLE") return "#ff6a5a";
+    if(state.kernel === "REACHABLE") return "#3af4c8";
+    return "#d7b96b";
+  }
+  function nodeColor(n){
+    if(n.kind === "kernel") return state.kernel === "REACHABLE" ? "#3af4c8" : state.kernel === "UNAVAILABLE" ? "#ff6a5a" : "#d7b96b";
+    if(n.kind === "field" || n.kind === "cell") return state.field === "REACHABLE" ? "#5b8dee" : state.field === "UNAVAILABLE" ? "#ff6a5a" : "#d7b96b";
+    if(n.kind === "pulse") return n.decision === "deny" ? "#ff6a5a" : n.decision === "allow" ? "#39d98a" : "#f5c451";
+    return "#c9b787";
+  }
+  function resize(){
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.clientWidth || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    canvas.width = Math.max(1, Math.floor(w * dpr));
+    canvas.height = Math.max(1, Math.floor(h * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function nodes(){
+    const extra = [];
+    (state.cells || []).slice(0, 8).forEach(function(c, i){
+      extra.push({
+        id: "cell-"+i,
+        label: String(c.name || c.id || "cell"),
+        lat: -40 + (i % 4) * 18,
+        lon: 100 + Math.floor(i / 4) * 40,
+        kind: "cell"
+      });
+    });
+    (state.feed || []).slice(0, 6).forEach(function(v, i){
+      extra.push({
+        id: "pulse-"+i,
+        label: String(v.decision || "UNKNOWN").toUpperCase(),
+        lat: 50 - i * 12,
+        lon: -140 + i * 28,
+        kind: "pulse",
+        decision: v.decision
+      });
+    });
+    return ORGANS.concat(extra);
+  }
+  function draw(now){
+    const dt = Math.min((now - last) / 1000, 0.1);
+    last = now;
+    if(auto && !dragging) rot += dt * 0.18;
+    const w = canvas.clientWidth || window.innerWidth;
+    const h = canvas.clientHeight || window.innerHeight;
+    const cx = w * 0.52;
+    const cy = h * 0.46;
+    const R = Math.min(w, h) * 0.34;
+    const col = accent();
+    ctx.clearRect(0, 0, w, h);
+
+    const grd = ctx.createRadialGradient(cx, cy, R * 0.15, cx, cy, R * 1.7);
+    grd.addColorStop(0, "rgba(58,244,200,0.10)");
+    grd.addColorStop(1, "rgba(8,12,20,0)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, R * 1.12, 0, Math.PI * 2);
+    ctx.strokeStyle = col + "33";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(8,12,20,0.72)";
+    ctx.fill();
+    ctx.strokeStyle = col;
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = col;
+    ctx.lineWidth = 0.7;
+    ctx.globalAlpha = 0.22;
+    for(let i = -2; i <= 2; i++){
+      ctx.beginPath();
+      let started = false;
+      for(let lon = -180; lon <= 180; lon += 6){
+        const p = project(i * 22, lon, R);
+        if(!p.visible){ started = false; continue; }
+        const x = cx + p.x, y = cy + p.y;
+        if(!started){ ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    for(let lon = -150; lon <= 180; lon += 30){
+      ctx.beginPath();
+      let started = false;
+      for(let lat = -80; lat <= 80; lat += 6){
+        const p = project(lat, lon, R);
+        if(!p.visible){ started = false; continue; }
+        const x = cx + p.x, y = cy + p.y;
+        if(!started){ ctx.moveTo(x, y); started = true; }
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+
+    hits.length = 0;
+    const list = nodes();
+    list.forEach(function(a, i){
+      list.slice(i + 1).forEach(function(b){
+        const pa = project(a.lat, a.lon, R);
+        const pb = project(b.lat, b.lon, R);
+        if(!pa.visible || !pb.visible) return;
+        ctx.beginPath();
+        ctx.moveTo(cx + pa.x, cy + pa.y);
+        ctx.lineTo(cx + pb.x, cy + pb.y);
+        ctx.strokeStyle = "rgba(91,141,238,0.16)";
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      });
+    });
+    list.forEach(function(n){
+      const p = project(n.lat, n.lon, R);
+      if(!p.visible) return;
+      const x = cx + p.x, y = cy + p.y;
+      const r = n.kind === "organ" ? 5.5 : 4;
+      const c = nodeColor(n);
+      ctx.beginPath();
+      ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+      ctx.fillStyle = c + "22";
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fillStyle = c;
+      ctx.fill();
+      ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace";
+      ctx.fillStyle = "rgba(245,245,245,0.85)";
+      ctx.fillText(n.label, x + 8, y + 3);
+      hits.push({id:n.id, label:n.label, x:x, y:y, r:14});
+    });
+    raf = requestAnimationFrame(draw);
+  }
+
+  function hitAt(x, y){
+    for(let i = hits.length - 1; i >= 0; i--){
+      const h = hits[i];
+      const dx = x - h.x, dy = y - h.y;
+      if(dx*dx + dy*dy <= h.r * h.r) return h;
+    }
+    return null;
+  }
+  canvas.addEventListener("pointerdown", function(e){
+    dragging = true; auto = false;
+    lastX = e.clientX; lastY = e.clientY;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener("pointermove", function(e){
+    if(dragging){
+      rot += (e.clientX - lastX) * 0.008;
+      tilt = Math.max(-0.9, Math.min(0.9, tilt + (e.clientY - lastY) * 0.006));
+      lastX = e.clientX; lastY = e.clientY;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const h = hitAt(e.clientX - rect.left, e.clientY - rect.top);
+    if(h && tip){
+      tip.style.display = "block";
+      tip.style.left = (e.clientX + 12) + "px";
+      tip.style.top = (e.clientY + 12) + "px";
+      tip.textContent = h.label;
+    }else if(tip){ tip.style.display = "none"; }
+  });
+  canvas.addEventListener("pointerup", function(){ dragging = false; });
+  canvas.addEventListener("pointerleave", function(){ dragging = false; if(tip) tip.style.display = "none"; });
+  canvas.addEventListener("dblclick", function(){ auto = !reduce; });
+
+  function setChip(id, label, reach){
+    const el = document.getElementById(id);
+    if(!el) return;
+    el.className = "chip " + (reach === "REACHABLE" ? "ok" : reach === "UNAVAILABLE" ? "bad" : "wait");
+    el.innerHTML = '<span class="dot"></span>' + label + " · " + String(reach || "CONNECTING").toLowerCase();
+  }
+  window.__immuneBind = function(payload){
+    if(!payload) return;
+    if(payload.kernelReach){ state.kernel = payload.kernelReach; setChip("chipKernel", "kernel", payload.kernelReach); }
+    if(payload.fieldReach){ state.field = payload.fieldReach; setChip("chipField", "field", payload.fieldReach); }
+    if(payload.organ){ state.organ = payload.organ; setChip("chipOrgan", "organ", payload.organ); }
+    if(payload.cells) state.cells = payload.cells;
+    if(payload.feed) state.feed = payload.feed;
+  };
+
+  window.addEventListener("resize", resize);
+  resize();
+  raf = requestAnimationFrame(draw);
+})();
+
+
 async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed(),loadKernel(),loadField()]); }
 loadAll();
 setInterval(loadStatus, 8000);
 setInterval(loadKernel, 8000);
 setInterval(loadField, 8000);
+
 </script>
 </body>
 </html>
