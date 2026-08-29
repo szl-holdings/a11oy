@@ -106,7 +106,7 @@ TABS = [
     {"route": "/audit", "name": "Audit", "purpose": "Khipu DAG visualizer across ALL flagships (the Greene trick)", "source": "this-pass", "status": "GREEN"},
     {"route": "/gap-report", "name": "Gap Report", "purpose": "Live gap-audit heatmap (partial-public)", "source": "completeness_audit", "status": "GREEN"},
     {"route": "/hub", "name": "Hub Index", "purpose": "One front door linking every tab", "source": "this-pass", "status": "GREEN"},
-    {"route": "/atelier", "name": "Atelier", "purpose": "Walk all 40 SZLHOLDINGS Hub models — unique cuts, receipted Python, fail-closed kernels", "source": "szl-atelier", "status": "GREEN"},
+    {"route": "/atelier", "name": "Atelier", "purpose": "Artifact walk of Hub cuts. Not 40 product SKUs. Not a fourth flagship.", "source": "szl-atelier", "status": "GREEN"},
 ]
 
 # DoD Group 1–5 reference (ADVERSARY_DRONE_CATALOG.md §1).

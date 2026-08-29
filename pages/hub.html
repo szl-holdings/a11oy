@@ -71,7 +71,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
   <span class="spacer"></span>
   <button class="kbtn" id="palBtn">Search everything <span class="kbd">⌘K</span></button>
 </header>
-<nav><a href="/hub" class="active">Hub</a><a href="/atelier">Atelier</a><a href="/console">Console</a><a href="/cockpit">Cockpit</a><a href="/console#organism">Organism</a><a href="/a11oy.code">a11oy.code</a><a href="/energy">Energy</a><a href="/audit">Audit</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/security">Security</a><a href="/compliance">Compliance</a></nav>
+<nav><a href="/hub" class="active">Hub</a><a href="/console">Console</a><a href="/cockpit">Cockpit</a><a href="/console#organism">Organism</a><a href="/a11oy.code">a11oy.code</a><a href="/energy">Energy</a><a href="/audit">Audit</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/security">Security</a><a href="/compliance">Compliance</a></nav>
 <main>
   <h1>Hub</h1>
   <p class="sub">One place to see the whole organism and jump anywhere. Every number below is a live read — no figure is shown unless the source answered.</p>
@@ -111,7 +111,7 @@ function setChip(id,cls,val,foot){const el=$(id);if(!el)return;el.className='chi
 
 // ---- curated primary surfaces (always present; local to this app) ----
 const SURFACES=[
- {name:'Atelier',route:'/atelier',ic:'⬡',desc:'Walk all 40 Hub models — unique cuts, receipted Python, fail-closed kernels'},
+ {name:'Atelier',route:'/atelier',ic:'⬡',desc:'Artifact walk — Hub cuts, not 40 product SKUs. Not a fourth flagship.'},
  {name:'Console',route:'/console',ic:'▤',desc:'Operator console — organism, anatomy map, controls'},
  {name:'Cockpit',route:'/cockpit',ic:'✦',desc:'Live command cockpit — spine, constellation, engine'},
  {name:'Organism',route:'/console#organism',ic:'❋',desc:'The mind + six organs, rendered'},
@@ -128,7 +128,7 @@ const SURFACES=[
  {name:'Observability',route:'/observability',ic:'◎',desc:'Observability'}
 ];
 // launcher = the six operator entries Rosa asked route to
-const LAUNCH=['Atelier','Console','Cockpit','Organism','a11oy.code','Energy'];
+const LAUNCH=['Console','Cockpit','Organism','a11oy.code','Energy','Audit'];
 
 let PAL_INDEX=[]; // {name,route,ic,desc,group,tag,ext}
 
