@@ -29,5 +29,5 @@ permissions:
 
 jobs:
   anatomy-map-drift:
-    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@f7231270c8a4f227301bfee544f848938b71f14d  # main
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@8253f15306315250dafe44f15d3321c43ce34d5b  # .github#517 squash-merge
     secrets: inherit
