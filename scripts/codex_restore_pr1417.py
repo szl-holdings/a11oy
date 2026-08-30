@@ -138,6 +138,28 @@ if(document.readyState==='loading'){
     path.write_text(text, encoding="utf-8")
 
 
+def repair_current_console(path: Path) -> None:
+    """Restore the no-argument estate API while retaining force-refresh callers.
+
+    The protected contract deliberately exposes `fetchHFEstate()` with no
+    required parameters. Later source added an options destructuring parameter.
+    Read that optional object through `arguments[0]` instead, preserving
+    `{force:true}` calls without changing the public signature.
+    """
+    text = path.read_text(encoding="utf-8")
+    old = "async function fetchHFEstate({ force = false } = {}) {"
+    new = (
+        "async function fetchHFEstate() {\n"
+        "  const { force = false } = "
+        "(arguments[0] && typeof arguments[0] === 'object') ? arguments[0] : {};"
+    )
+    if old in text:
+        text = text.replace(old, new, 1)
+    elif "async function fetchHFEstate()" not in text:
+        raise RuntimeError("estate fetch function is missing")
+    path.write_text(text, encoding="utf-8")
+
+
 def require(text: str, needle: str, path: str) -> None:
     if needle not in text:
         raise RuntimeError(f"restoration contract missing in {path}: {needle}")
@@ -147,6 +169,7 @@ def main() -> int:
     for path in FILES:
         merge_path(path)
     repair_current_landing(Path("a11oy_landing.html"))
+    repair_current_console(Path("pages/console.html"))
 
     console = Path("pages/console.html").read_text(encoding="utf-8")
     landing = Path("a11oy_landing.html").read_text(encoding="utf-8")
@@ -160,6 +183,8 @@ def main() -> int:
         "u.searchParams.set('view', view)",
         'Verify on a11oy.net',
         'function emptyUnknown(kind, detail)',
+        'async function fetchHFEstate()',
+        "typeof arguments[0] === 'object'",
         'locked_formula_count===8',
         'LOCKED-PROVEN (catalog)',
         '["Home"', '["Operate"', '["Build"', '["Observe"',
