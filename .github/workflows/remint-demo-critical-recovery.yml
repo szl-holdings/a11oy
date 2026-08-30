@@ -1,34 +1,277 @@
-name: One-shot demo-critical surface remint
+name: One-shot demo-critical surface signed remint
 
 on:
   push:
     branches:
       - fix/demo-critical-surface-recovery-20260830
     paths:
+      - .github/scripts/remint_demo_critical_recovery.py
       - .github/workflows/remint-demo-critical-recovery.yml
 
 permissions:
   contents: write
 
 concurrency:
-  group: remint-demo-critical-recovery-20260830
+  group: remint-demo-critical-recovery-20260830-v2
   cancel-in-progress: false
 
 jobs:
   remint:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      EXPECTED_MAIN: bb065e8c6669cf8afd51e3141f57ecf9f46b4c36
+      TARGET_BRANCH: fix/demo-critical-surface-recovery-signed-v3-20260830
     steps:
-      - name: Checkout exact branch
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact carrier branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-          persist-credentials: true
+          persist-credentials: false
 
-      - name: Remint reviewed surface recovery onto current main
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: .github/requirements/ci-core.txt
+
+      - name: Install exact test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Prepare current-main recovery bytes
+        run: python3 .github/scripts/remint_demo_critical_recovery.py
+
+      - name: Prove focused source and route contracts
+        run: >-
+          pytest -q
+          tests/test_demo_critical_routes.py
+          tests/test_series_a_estate.py
+          tests/test_holographic_command_bar.py
+          tests/test_khipu_chat_proxy.py
+          tests/test_khipu_console_panel.py
+          tests/test_landing_audit_fixes.py
+          tests/test_hf_frontend_live_canary_v1.py
+          tests/test_hf_space_frontends_v1.py
+
+      - name: Prove protected frontdoor source integrity
+        run: |
+          python3 scripts/test_frontdoor_source_integrity.py
+          python3 scripts/validate_frontdoor_source_integrity.py
+          git diff --check "$EXPECTED_MAIN" -- \
+            a11oy_landing.html \
+            a11oy_nav_wireup.py \
+            pages/console.html \
+            pages/landing.html \
+            serve.py \
+            scripts/hf_universal_frontend_control.py \
+            tools/readiness-harness/tabs.json
+
+      - name: Publish GitHub-signed current-main successor
+        id: publish
         shell: bash
         run: |
-          set -euo pipefail
-          sed -i 's|pull/1512/head:|refs/pull/1512/head:|' .github/scripts/remint_demo_critical_recovery.py
-          python3 .github/scripts/remint_demo_critical_recovery.py
+          set -Eeuo pipefail
+          umask 077
+          export GH_TOKEN REPOSITORY EXPECTED_MAIN TARGET_BRANCH
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+
+          token = os.environ['GH_TOKEN']
+          repository = os.environ['REPOSITORY']
+          base_sha = os.environ['EXPECTED_MAIN']
+          branch = os.environ['TARGET_BRANCH']
+          manifest_path = pathlib.Path('reports/demo-critical-recovery/candidate-manifest.json')
+          manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
+          if manifest.get('base_sha') != base_sha:
+              raise SystemExit('candidate manifest base mismatch')
+          paths = manifest.get('changed_paths')
+          if not isinstance(paths, list) or not paths:
+              raise SystemExit('candidate changed-path manifest is empty')
+          if len(paths) != len(set(paths)) or paths != sorted(paths):
+              raise SystemExit('candidate changed-path manifest is not unique/sorted')
+
+          def api(method, url, payload=None, *, allow_missing=False, raw=False):
+              data = None if payload is None else json.dumps(payload, separators=(',', ':')).encode()
+              request = urllib.request.Request(
+                  url,
+                  data=data,
+                  method=method,
+                  headers={
+                      'Authorization': f'Bearer {token}',
+                      'Accept': 'application/vnd.github.raw+json' if raw else 'application/vnd.github+json',
+                      'Content-Type': 'application/json',
+                      'User-Agent': 'szl-demo-critical-signed-remint',
+                      'X-GitHub-Api-Version': '2022-11-28',
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=90) as response:
+                      return response.read() if raw else json.load(response)
+              except urllib.error.HTTPError as exc:
+                  if allow_missing and exc.code == 404:
+                      return None
+                  body = exc.read(2048).decode('utf-8', 'replace')
+                  raise SystemExit(f'GitHub API HTTP {exc.code}: {body}') from exc
+
+          main_sha = str(((api('GET', f'https://api.github.com/repos/{repository}/git/ref/heads/main').get('object') or {}).get('sha') or ''))
+          if main_sha != base_sha:
+              raise SystemExit(f'protected main moved: {main_sha}')
+
+          ref_url = f'https://api.github.com/repos/{repository}/git/ref/heads/{branch}'
+          if api('GET', ref_url, allow_missing=True) is not None:
+              raise SystemExit('target branch already exists; refusing ambiguous replay')
+          api(
+              'POST',
+              f'https://api.github.com/repos/{repository}/git/refs',
+              {'ref': f'refs/heads/{branch}', 'sha': base_sha},
+          )
+
+          mutation = '''
+          mutation AddFile($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) { commit { oid url } }
+          }
+          '''
+          head = base_sha
+          commits = []
+          for index, rel in enumerate(paths, start=1):
+              file_path = pathlib.Path(rel)
+              content = file_path.read_bytes()
+              expected = manifest['files'][rel]
+              digest = hashlib.sha256(content).hexdigest()
+              if digest != expected.get('sha256') or len(content) != expected.get('size'):
+                  raise SystemExit(f'candidate byte drift before publication: {rel}')
+              variables = {
+                  'input': {
+                      'branch': {
+                          'repositoryNameWithOwner': repository,
+                          'branchName': branch,
+                      },
+                      'expectedHeadOid': head,
+                      'message': {
+                          'headline': f'fix(runtime): restore demo-critical surface {index}/{len(paths)}',
+                          'body': (
+                              f'Publish `{rel}` from the exact current-main recovery prepared from '
+                              'the reviewed PR 1512 delta plus bounded 44 px hit-target repairs. '
+                              'Source remains fail-closed; no deployment or provider mutation is '
+                              'performed by this commit.\n\n'
+                              f'Recovery-Base: {base_sha}\n'
+                              'Reviewed-Head: 934cc4c12827408c4c5be5c95e9f7cb07befcfea\n'
+                              'Signed-off-by: github-actions[bot] '
+                              '<41898282+github-actions[bot]@users.noreply.github.com>\n'
+                              'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+                          ),
+                      },
+                      'fileChanges': {
+                          'additions': [{
+                              'path': rel,
+                              'contents': base64.b64encode(content).decode('ascii'),
+                          }],
+                      },
+                  }
+              }
+              result = api(
+                  'POST',
+                  'https://api.github.com/graphql',
+                  {'query': mutation, 'variables': variables},
+              )
+              if result.get('errors'):
+                  raise SystemExit(f'createCommitOnBranch rejected {rel}: {result["errors"]}')
+              commit_sha = str(result['data']['createCommitOnBranch']['commit']['oid'])
+              commit = api('GET', f'https://api.github.com/repos/{repository}/commits/{commit_sha}')
+              verification = (commit.get('commit') or {}).get('verification') or {}
+              if verification.get('verified') is not True or verification.get('reason') != 'valid':
+                  raise SystemExit(f'GitHub signature is not valid for {rel}')
+              parents = commit.get('parents') or []
+              if len(parents) != 1 or parents[0].get('sha') != head:
+                  raise SystemExit(f'parent mismatch for {rel}')
+              changed = commit.get('files') or []
+              if len(changed) != 1 or changed[0].get('filename') != rel:
+                  raise SystemExit(f'changed-path mismatch for {rel}')
+              message = str((commit.get('commit') or {}).get('message') or '')
+              trailers = (
+                  'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>',
+                  'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>',
+              )
+              if any(trailer not in message for trailer in trailers):
+                  raise SystemExit(f'DCO trailer mismatch for {rel}')
+              encoded = urllib.parse.quote(rel, safe='/')
+              readback = api(
+                  'GET',
+                  f'https://api.github.com/repos/{repository}/contents/{encoded}?ref={commit_sha}',
+                  raw=True,
+              )
+              if readback != content:
+                  raise SystemExit(f'remote byte readback mismatch for {rel}')
+              ref = api('GET', ref_url)
+              if ((ref.get('object') or {}).get('sha')) != commit_sha:
+                  raise SystemExit(f'target branch readback mismatch after {rel}')
+              commits.append({'path': rel, 'sha': commit_sha, 'sha256': digest})
+              head = commit_sha
+
+          compare = api('GET', f'https://api.github.com/repos/{repository}/compare/{base_sha}...{head}')
+          remote_paths = sorted(row.get('filename') for row in (compare.get('files') or []))
+          if remote_paths != paths:
+              raise SystemExit(f'final remote path-set mismatch: {remote_paths}')
+          if int(compare.get('ahead_by') or 0) != len(commits):
+              raise SystemExit('final commit-chain length mismatch')
+
+          output = {
+              'schema': 'szl.demo-critical-signed-publication/v1',
+              'repository': repository,
+              'base_sha': base_sha,
+              'branch': branch,
+              'head_sha': head,
+              'changed_paths': paths,
+              'commits': commits,
+              'signature_verified': True,
+              'dco_verified': True,
+              'byte_readback_verified': True,
+              'secret_values_emitted': False,
+              'deployment_performed': False,
+          }
+          pathlib.Path('reports/demo-critical-recovery/published.json').write_text(
+              json.dumps(output, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+          with pathlib.Path(os.environ['GITHUB_OUTPUT']).open('a', encoding='utf-8') as handle:
+              handle.write(f'head_sha={head}\n')
+          PY
+
+      - name: Upload immutable recovery evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: demo-critical-signed-recovery
+          path: reports/demo-critical-recovery
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Report signed successor identity
+        run: |
+          {
+            echo '### GitHub-signed demo-critical recovery'
+            echo "- base: \`${EXPECTED_MAIN}\`"
+            echo "- branch: \`${TARGET_BRANCH}\`"
+            echo "- head: \`${{ steps.publish.outputs.head_sha }}\`"
+            echo '- focused tests: passed'
+            echo '- GitHub signatures: verified'
+            echo '- DCO: verified'
+            echo '- remote byte readback: verified'
+            echo '- secret values emitted: false'
+            echo '- deployment performed: false'
+          } >> "$GITHUB_STEP_SUMMARY"
