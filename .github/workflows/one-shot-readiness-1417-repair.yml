@@ -88,6 +88,51 @@ jobs:
           git diff --check
           git diff --stat -- serve.py
 
+      - name: Restore fail-closed KEV evidence labels in the console
+        shell: bash
+        run: |
+          set -euo pipefail
+          hardening=dffd0c03b9dfcc3af4f0a5f6576a854e3bc0f894
+          pre_hardening="$(git rev-parse "${hardening}^")"
+
+          git show HEAD:pages/console.html > /tmp/console.current.html
+          git show "${pre_hardening}:pages/console.html" > /tmp/console.pre.html
+          git show "${hardening}:pages/console.html" > /tmp/console.hardened.html
+
+          # Forward-port #1378's evidence-mode UI delta. Preserve any newer
+          # edits in overlapping regions and fail if the honesty contract is
+          # not present after the merge.
+          git merge-file --ours -p \
+            /tmp/console.current.html \
+            /tmp/console.pre.html \
+            /tmp/console.hardened.html > pages/console.html
+
+          python - <<'PY'
+          from pathlib import Path
+
+          text = Path("pages/console.html").read_text(encoding="utf-8")
+          block = text.split("/* ===== kevgate", 1)[1].split(
+              "/* ===== feedpulse", 1
+          )[0]
+          forbidden = ["LIVE CISA KEV", "loading live CISA KEV"]
+          present = [needle for needle in forbidden if needle in block]
+          required = [
+              'id="kg-prov"',
+              "d.enrichment_provenance",
+              "x.data_kind",
+              "x.evidence_detail",
+          ]
+          missing = [needle for needle in required if needle not in block]
+          if present or missing:
+              raise SystemExit(
+                  f"KEV evidence-label contract failed; forbidden={present}, missing={missing}"
+              )
+          PY
+
+          ! grep -nE '^(<<<<<<<|=======|>>>>>>>)' pages/console.html
+          git diff --check
+          git diff --stat -- pages/console.html
+
       - name: Install pinned regression dependencies
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
 
@@ -106,9 +151,9 @@ jobs:
           set -euo pipefail
           git config user.name "Stephen P. Lutar"
           git config user.email "stephen@szlholdings.com"
-          git add serve.py
+          git add serve.py pages/console.html
           git diff --cached --quiet && {
-            echo "No serve.py repair delta was produced" >&2
+            echo "No readiness repair delta was produced" >&2
             exit 1
           }
           git commit -s -m "fix(readiness): restore fail-closed server hardening [readiness-1417-repaired]"
