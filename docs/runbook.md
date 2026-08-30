@@ -161,9 +161,9 @@ This PR does **not** merge PR 1363 (HOLD). Chrome/nav IA belongs to PR 1391 (ÑA
 ## Required DCO on All Fix Commits
 
 ```
-Signed-off-by: Yachay <yachay@szlholdings.ai>
+Signed-off-by: Yachay <yachay@szlholdings.com>
 Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 ```
 
-**Signed-off-by: Yachay <yachay@szlholdings.ai>**  
+**Signed-off-by: Yachay <yachay@szlholdings.com>**  
 **Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>**
