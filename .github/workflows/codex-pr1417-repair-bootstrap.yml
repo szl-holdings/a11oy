@@ -44,18 +44,16 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('pages/console.html')
-          lines = path.read_text(encoding='utf-8').splitlines()
+          lines = Path('pages/console.html').read_text(encoding='utf-8').splitlines()
           needles = (
-              'V.estate', 'renderEstate', 'Latest HF', 'LAST KNOWN',
+              'V.estate', 'mountEstate', 'renderEstate', 'Latest HF', 'LAST KNOWN',
               '/api/a11oy/v1/hf/estate', 'const V', 'let V',
               'hfEstateUpdatedAt', 'estateUpdated', "case 'estate'",
               'case "estate"', "go('estate')", 'go("estate")',
               'fetchHFEstate', 'hfEstate', "V['estate']", 'V["estate"]',
           )
           indexes = sorted({
-              index
-              for index, line in enumerate(lines)
+              index for index, line in enumerate(lines)
               if any(needle in line for needle in needles)
           })
           emitted = set()
@@ -75,6 +73,68 @@ jobs:
                       raise SystemExit(0)
           if not indexes:
               print('NO_MATCHING_ESTATE_ANCHORS')
+          PY
+          echo '::endgroup::'
+
+          echo '::group::Newest remote revisions with exact live-estate contract'
+          python - <<'PY'
+          from __future__ import annotations
+
+          import subprocess
+
+          needle = 'async function fetchHFEstate()'
+          refs = subprocess.check_output(
+              ['git', 'for-each-ref', '--format=%(refname)', 'refs/remotes/origin'],
+              text=True,
+          ).splitlines()
+          command = ['git', 'grep', '-n', '-F', needle, *refs, '--', 'pages/console.html']
+          found = subprocess.run(command, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+          matching_refs = set()
+          for line in found.stdout.splitlines():
+              marker = ':pages/console.html:'
+              if marker in line:
+                  matching_refs.add(line.split(marker, 1)[0])
+          ranked = []
+          for ref in matching_refs:
+              timestamp = int(subprocess.check_output(
+                  ['git', 'log', '-1', '--format=%ct', ref], text=True
+              ).strip())
+              ranked.append((timestamp, ref))
+          ranked.sort(reverse=True)
+          print(f'MATCHING_REFS={len(ranked)}')
+          context_needles = (
+              'hfEstate: null', 'hfEstateUpdatedAt', needle,
+              "fetch('/api/a11oy/v1/hf/estate', { cache: 'no-store' })",
+              'HF estate unavailable — metrics are unknown.',
+              'Latest HF API inventory', 'LAST KNOWN FALLBACK',
+          )
+          for _, ref in ranked[:5]:
+              print(f'=== {ref} ===')
+              text = subprocess.check_output(
+                  ['git', 'show', f'{ref}:pages/console.html'], text=True
+              )
+              lines = text.splitlines()
+              indexes = sorted({
+                  index for index, line in enumerate(lines)
+                  if any(value in line for value in context_needles)
+              })
+              emitted = set()
+              shown = 0
+              for index in indexes:
+                  start = max(0, index - 10)
+                  end = min(len(lines), index + 18)
+                  key = (start, end)
+                  if key in emitted:
+                      continue
+                  emitted.add(key)
+                  print(f'--- {ref} lines {start + 1}-{end} ---')
+                  for line_number in range(start, end):
+                      print(f'{line_number + 1}: {lines[line_number]}')
+                      shown += 1
+                      if shown >= 220:
+                          break
+                  if shown >= 220:
+                      break
           PY
           echo '::endgroup::'
           exit 1
