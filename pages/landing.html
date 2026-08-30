@@ -362,11 +362,11 @@ img,svg,canvas,video{max-width:100%;height:auto;}
         <p class="ds-card__body">Policy, reasoning, operator and counter-UAS in one console. Live gates, signed receipts, and the halt button.</p>
         <span class="ds-btn ds-btn--primary" style="margin-top:8px;align-self:flex-start;">Enter the platform <span class="ds-btn__arrow">→</span></span>
       </a>
-      <a class="ds-card" href="https://szlholdings-killinchu.hf.space/" style="cursor:pointer;">
+      <a class="ds-card" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" style="cursor:pointer;">
         <span class="ds-card__id">// KILLINCHU</span>
         <h3 class="ds-card__title">Drones &amp; Vessels</h3>
         <div class="ds-card__rule"></div>
-        <p class="ds-card__body">The maritime &amp; airspace surface: track drones and vessels, run counter-UAS cued engagements through the same governed, signed loop.</p>
+        <p class="ds-card__body">Maritime and airspace surface. Hub inventory is reachable. Inference runtime is <b>UNAVAILABLE</b> (timed out). That origin is not the live product URL.</p>
         <span class="ds-btn" style="margin-top:8px;align-self:flex-start;">Open Drones &amp; Vessels <span class="ds-btn__arrow">→</span></span>
       </a>
       <a class="ds-card" href="/lyte" style="cursor:pointer;">
@@ -392,8 +392,8 @@ img,svg,canvas,video{max-width:100%;height:auto;}
       </div>
       <div class="ds-footer__cols">
         <div class="ds-footer__col"><h4>Platform</h4><a href="/console">Command Console</a><a href="/benchmark">Benchmark</a><a href="#what">What it is</a><a href="#diff">Receipts</a><a href="#proof">Proof</a></div>
-        <div class="ds-footer__col"><h4>Surfaces</h4><a href="/console">a11oy</a><a href="https://szlholdings-killinchu.hf.space/">killinchu</a><a href="/lyte">LYTE lattice</a></div>
-        <div class="ds-footer__col"><h4>Live</h4><a href="/api/a11oy/v1/observability/summary">Observability</a><a href="/api/a11oy/v1/lambda">Trust score</a><a href="/api/a11oy/v1/gates">Gates</a></div>
+        <div class="ds-footer__col"><h4>Surfaces</h4><a href="/console">a11oy</a><a href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu">killinchu (UNAVAILABLE)</a><a href="/lyte">LYTE lattice</a></div>
+        <div class="ds-footer__col"><h4>Checks</h4><a href="/api/a11oy/v1/observability/summary">Observability</a><a href="/api/a11oy/v1/lambda">Trust score</a><a href="/api/a11oy/v1/gates">Gates</a></div>
       </div>
     </div>
     <div class="ds-footer__bottom">
@@ -510,15 +510,25 @@ img,svg,canvas,video{max-width:100%;height:auto;}
     el.textContent="probe slow"; el.classList.remove("is-loading");
     el.style.color="var(--muted)"; el.style.fontSize="16px";
   }
+  function unavailable(id){
+    var el=document.getElementById(id); if(!el)return;
+    el.textContent="UNAVAILABLE"; el.classList.remove("is-loading","is-live");
+    el.style.color="var(--muted)"; el.style.fontSize="16px";
+  }
 
-  // services up + (lambda_status echoed in observability too)
+
+  // services: inventory / unobserved / IDLE becomes UNAVAILABLE. Never invent organ counts.
   fetchJSON("/api/a11oy/v1/observability/summary",8000).then(function(j){
+    var state=(j&&(j.observation_state||j.state))||"";
+    var inventory = !j || state==="inventory" || state==="UNAVAILABLE" || state==="IDLE" || j.observed===false;
     var m=(j&&j.melt&&j.melt.metrics)||{};
-    if(typeof m.organs_reachable==="number"&&typeof m.organs_total==="number"){
+    if(inventory || typeof m.organs_reachable!=="number" || typeof m.organs_total!=="number"){
+      unavailable("kpiServices");
+    } else {
       setKpi("kpiServices",m.organs_reachable+" / "+m.organs_total);
-    } else { unreachable("kpiServices"); }
+    }
     if(j&&j.honesty){var h=document.getElementById("liveHonesty"); if(h)h.textContent=j.honesty;}
-  }).catch(function(){unreachable("kpiServices");});
+  }).catch(function(){unavailable("kpiServices");});
 
   // trust score (lambda)
   fetchJSON("/api/a11oy/v1/lambda",8000).then(function(j){

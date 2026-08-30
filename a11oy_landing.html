@@ -412,7 +412,8 @@
       <a class="hide-sm" href="#products">Products</a>
       <a class="hide-sm" href="#catalog">Catalog</a>
       <a class="hide-sm" href="/lyte">LYTE</a>
-      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof</a>
+      <a href="/console">Command</a>
+      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof registry ↗</a>
       <a href="/trust">Evidence</a>
       <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
@@ -520,7 +521,7 @@
     <article class="card product-card" id="product-killinchu">
       <div class="ic">⚔</div>
       <h3>killinchu</h3>
-      <p>Counter-UAS and maritime vertical on the same receipt substrate. Public controls remain advisory. Effectors stay SIMULATED unless a real execution path is proved.</p>
+      <p>Hub page exists. The inference Space timed out (2026-08-28). This card is not a live runtime. a11oy's defense Lambda is a separate advisory score, not killinchu health.</p>
       <div class="status-row">
         <span class="chip software"><span class="dot"></span>SOFTWARE</span>
         <span class="chip simulated"><span class="dot"></span>SIMULATED effectors</span>
@@ -567,6 +568,13 @@
       <p>Factory organs execute on this origin with per-organ SIMULATED, MODELED, MEASURED, or UNAVAILABLE evidence classes. Public Hub admission false. GPU tune UNAVAILABLE. Not 25 public Spaces. Proof RECORD is a11oy.net/factory/.</p>
       <div class="golinks"><span class="go">Open /organs →</span></div>
     </a>
+    <a class="card surface-card" href="/five-space" id="bind-five-space">
+      <div class="ic">&#x25A6;</div>
+      <h3>Five-space operator</h3>
+      <p>BIND package, not a second flagship. Command &middot; Loop &middot; Queue &middot; Memory &middot; Ledger. Operational BIND hologram. STRUCTURAL-ONLY, SAMPLE loop, UNSIGNED-honest receipts. Does not replace /console. Lasting RECORD is a11oy.net.</p>
+      <div class="golinks"><span class="go">Open /five-space &rarr;</span></div>
+    </a>
+
   </div>
 </section>
 
@@ -642,6 +650,10 @@
         advisory, <b>never green</b>. Theorem U is the proven conditional alternative.</p>
     </div>
   </div>
+  <p class="genome-catalog" id="genome-catalog">Genome catalog (not the kernel):
+    LOCKED-PROVEN tag = <span class="n" id="pt-genome-locked">-</span>.
+    Never folded into the Lean-8 kernel chip. Never green.</p>
+
   <div class="cta-row" style="margin-top:34px">
     <a class="btn btn-primary" href="https://a11oy.net" rel="noopener">Open the proof registry →</a>
     <a class="btn btn-ghost" href="/trust">Read the trust center →</a>
@@ -750,6 +762,7 @@
         <a href="/killinchu">killinchu · vertical</a>
         <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Forge / own-metal</a>
         <a href="/lyte">LYTE lattice · BIND package</a>
+        <a href="/five-space">Five-space operator &middot; BIND package</a>
         <a href="/verify">Verify a receipt</a></div>
       <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
         <a href="https://a11oy.net" rel="noopener">Proof registry · a11oy.net</a>
@@ -910,20 +923,24 @@
   }
 
   function setTiers(t){
-    // Catalog tiers only. Kernel Lean-8 chip is loadLockedKernel() from /honest
+    // Catalog tiers only. Kernel Lean-8 chip is loadKernelLocked() from /honest
     // locked_formula_count. Never genome LOCKED-PROVEN. Never proof_tiers.locked.
     $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
     $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
   }
-  async function loadLockedKernel(){
+  async function loadKernelLocked(){
     try{
       const h = await getJSON("/api/a11oy/v1/honest");
       const n = num(h && h.locked_formula_count);
       $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
     }catch(e){ $("pt-locked").textContent = "N/A"; }
   }
+  const loadLockedKernel = loadKernelLocked;
   function setCatalogNote(n){
+    const value = num(n);
+    const counter = $("pt-genome-locked");
+    if(counter) counter.textContent = (value === null) ? "N/A" : String(value);
     let el = $("pt-catalog");
     if(!el){
       const grid = document.querySelector("#proof .grid");
@@ -936,11 +953,19 @@
     el.textContent = (num(n)===null) ? "" : ("Genome catalog LOCKED-PROVEN = "+n+" (catalog, not kernel). Lean-8 is the kernel; genome-144 is the catalog.");
   }
 
+  function markKillinchuUnavailable(){
+    // Hub inventory is reachable; the inference runtime timed out.
+    // Never paint a11oy's advisory defense Lambda as killinchu-live.
+    const val = $("v-defense"); if(val) val.textContent = "UNAVAILABLE";
+    const chip = $("v-defense-chip"); if(chip) chip.innerHTML = downChip("UNAVAILABLE");
+  }
+
   function setVerticals(v){
     // Flagships only: a11oy command (core) and killinchu (defense).
     // Insurance / finance / real-estate are not products on this page.
     [["core","v-core"],["defense","v-defense"]].forEach(([k,id])=>{
       const el = $(id);
+      if(k === "defense"){ markKillinchuUnavailable(); return; }
       if(!el) return;
       const val = fmtLam(v[k]);
       el.textContent = (val===null) ? "N/A" : val;
@@ -1115,8 +1140,9 @@
   (async function(){
     loadEstatePulse();
     loadOverclaimMetrics();
-    loadLockedKernel();
+    loadKernelLocked();
     const ov = await loadOverview();
+    markKillinchuUnavailable();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",
       verts: $("verticals-src").innerHTML.trim() !== "",
