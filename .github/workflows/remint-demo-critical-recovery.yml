@@ -1,0 +1,34 @@
+name: One-shot demo-critical surface remint
+
+on:
+  push:
+    branches:
+      - fix/demo-critical-surface-recovery-20260830
+    paths:
+      - .github/workflows/remint-demo-critical-recovery.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: remint-demo-critical-recovery-20260830
+  cancel-in-progress: false
+
+jobs:
+  remint:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Remint reviewed surface recovery onto current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed -i 's|pull/1512/head:|refs/pull/1512/head:|' .github/scripts/remint_demo_critical_recovery.py
+          python3 .github/scripts/remint_demo_critical_recovery.py
