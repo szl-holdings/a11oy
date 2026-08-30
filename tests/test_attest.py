@@ -526,14 +526,24 @@ def test_attest_surface_is_registered_last_in_all_three_places():
     assert "Conjecture 1" in text
 
 
+def _doctrine_scanner():
+    """Load the repo's canonical Doctrine v7 banned-token scanner as a module."""
+    import importlib.util
+
+    src = ROOT / "scripts" / "check_banned_tokens.py"
+    if not src.is_file():
+        pytest.skip("canonical banned-token scanner not present in this checkout")
+    spec = importlib.util.spec_from_file_location("_szl_doctrine_scan", src)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
 def test_new_files_carry_no_banned_superlative_and_no_bare_lambda_theorem():
-    # assembled from split fragments, kept on separate lines, so this guard does not
-    # trip over its own source (the repo-wide banned-token scan reads it too)
-    heads = ("revolution", "world", "seam", "industry",
-             "cutting", "game", "break", "unpreced")
-    tails = ("ary", "-class", "less", "-leading",
-             "-edge", "-changing", "through", "ented")
-    banned = tuple(h + t for h, t in zip(heads, tails))
+    # The ban-list is BORROWED from the repo's own Doctrine v7 scanner rather than
+    # re-typed here: a local copy would drift from the gate, and spelling the tokens
+    # out in this file would (correctly) trip the repo-wide scan over its own guard.
+    banned_re = _doctrine_scanner().BANNED_NO_LEADING
     targets = [
         ROOT / "szl_attest.py",
         REGO,
@@ -543,8 +553,8 @@ def test_new_files_carry_no_banned_superlative_and_no_bare_lambda_theorem():
     for path in targets:
         text = path.read_text(encoding="utf-8")
         low = text.lower()
-        for word in banned:
-            assert word not in low, f"{path.name}: banned superlative {word!r}"
+        hit = banned_re.search(text)
+        assert hit is None, f"{path.name}: banned token {hit.group(0)!r}"
         # "Λ ... theorem" is only ever allowed alongside "Conjecture"
         for m in re.finditer(r"Λ[^.\n]{0,120}theorem", text):
             assert "Conjecture" in text[max(0, m.start() - 200):m.end() + 200], \
