@@ -253,12 +253,15 @@ if __name__ == "__main__":
     assert "client." + "request(" not in source
     assert "upstream." + "content" not in source
 
-    assert len(ALL_SPACES) == 7
-    assert len(HANDOFF_SPACES) == 7 + len(FOLD_INVENTORY)
+    assert len(ALL_SPACES) == 6
+    assert len(HANDOFF_SPACES) == 6 + len(FOLD_INVENTORY)
     assert hf_url("governed-agent-bench") == "https://szlholdings-governed-agent-bench.hf.space"
     assert hf_url("immune") == "https://szlholdings-immune.hf.space"
     assert _canonical_target("immune") == "https://a-11-oy.com/immune"
     assert _canonical_target("cosmos") == "https://a-11-oy.com/living-anatomy"
+    assert _canonical_target("nexus") == "https://a-11-oy.com/nexus"
+    assert _canonical_target("szl-khipu") == "https://a-11-oy.com/khipu"
+    assert _canonical_target("governed-receipt-verifier") == "https://a11oy.net/record"
     try:
         hf_url("notreal")
         raise AssertionError("unknown Space identifier must fail closed")
@@ -315,6 +318,6 @@ if __name__ == "__main__":
     assert cosmos.headers["location"] == "https://a-11-oy.com/living-anatomy"
 
     print(
-        "szl_spaces_proxy: ALL OK (7 KEEP + fold dest handoffs; "
+        "szl_spaces_proxy: ALL OK (6 KEEP + fold dest handoffs; "
         "path/query preserved; no-store; no upstream bytes/Set-Cookie)"
     )
