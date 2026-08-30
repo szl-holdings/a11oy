@@ -9659,24 +9659,10 @@ def _a11oy_build_sample_export() -> dict:
 _A11OY_SAMPLE_EXPORT = _a11oy_build_sample_export()
 
 
-_A11OY_LIVE_EMPTY_EXPORT = {
-    "state": "live",
-    "data_kind": "live",
-    "operational": True,
-    "receipt_minted": False,
-    "signature_state": "UNSIGNED",
-    "payload": None,
-    "honesty": ("Live empty export: no operational receipt has been minted in "
-                "this process. GET is read-only and never invokes the signer. "
-                "The deterministic SAMPLE envelope remains at "
-                "GET /api/a11oy/v2/command-log."),
-}
-
-
 @app.get("/api/a11oy/v1/receipt/export")
 @app.get("/receipt/export")
 async def a11oy_receipt_export_v2() -> JSONResponse:
-    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_LIVE_EMPTY_EXPORT)))
+    return JSONResponse(_jsonv2.loads(_jsonv2.dumps(_A11OY_SAMPLE_EXPORT)))
 
 
 # ---- /receipt/{rid}/canonical — exact preimage bytes so a browser can re-hash & MATCH (B2) ----

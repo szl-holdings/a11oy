@@ -936,7 +936,6 @@
       $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
     }catch(e){ $("pt-locked").textContent = "N/A"; }
   }
-  const loadLockedKernel = loadKernelLocked;
   function setCatalogNote(n){
     const value = num(n);
     const counter = $("pt-genome-locked");
