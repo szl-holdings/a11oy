@@ -3062,9 +3062,6 @@ def _llm_registry_supports_router_stats(registry) -> bool:
     return True
 
 
-import szl_llm_registry as _vendored_llm_registry
-
-
 def _resolve_llm_registry_module():
     """Resolve one counter-capable registry module for this process.
 
@@ -3091,7 +3088,7 @@ def _resolve_llm_registry_module():
     if _llm_registry_supports_router_stats(preferred_registry):
         registry = preferred_registry
     else:
-        registry = _vendored_llm_registry
+        import szl_llm_registry as registry
         if not _llm_registry_supports_router_stats(registry):
             raise RuntimeError("vendored LLM registry lacks the router stats contract")
 
@@ -3101,9 +3098,11 @@ def _resolve_llm_registry_module():
 
 def _register_llm_registry(app_instance):
     """Register exactly the counter-capable module selected for this process."""
+    import szl_llm_registry as vendored_registry
+
     registry = _resolve_llm_registry_module()
-    if registry is _vendored_llm_registry:
-        info = _vendored_llm_registry.register(app_instance)
+    if registry is vendored_registry:
+        info = vendored_registry.register(app_instance)
     else:
         info = registry.register(app_instance)
     return registry, info
