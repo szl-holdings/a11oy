@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/predicate.schema.json",
+  "title": "szl.dev/GovernedAction/v1",
+  "description": "JSON Schema for the a11oy GovernedAction predicate. Code-level implementation: src/a11oy/schemas.py. This file mirrors it exactly (Zero-Bandaid Law: no drift between spec and code).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "predicate_type",
+    "action_id",
+    "actor",
+    "action_type",
+    "side_effect_class",
+    "evidence",
+    "completeness",
+    "redaction_commitments",
+    "rfc3161_token",
+    "ntp_synced"
+  ],
+  "properties": {
+    "predicate_type": {
+      "const": "szl.dev/GovernedAction/v1"
+    },
+    "action_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "actor_id",
+        "display_name",
+        "is_service_account"
+      ],
+      "properties": {
+        "actor_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "display_name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "is_service_account": {
+          "const": false
+        }
+      }
+    },
+    "action_type": {
+      "type": "string",
+      "minLength": 1
+    },
+    "side_effect_class": {
+      "enum": [
+        "READ_ONLY",
+        "REVERSIBLE",
+        "EXTERNAL_VISIBLE",
+        "IRREVERSIBLE"
+      ]
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "evidence_id",
+          "kind",
+          "sha256"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "uri": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "completeness": {
+      "enum": [
+        "COMPLETE",
+        "INCOMPLETE"
+      ]
+    },
+    "redaction_commitments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "commitment_id",
+          "field_path",
+          "salt_b64",
+          "sha256_b64"
+        ],
+        "properties": {
+          "commitment_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "field_path": {
+            "type": "string",
+            "minLength": 1
+          },
+          "salt_b64": {
+            "type": "string"
+          },
+          "sha256_b64": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "rfc3161_token": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ntp_synced": {
+      "type": "boolean"
+    }
+  },
+  "if": {
+    "properties": {
+      "evidence": {
+        "maxItems": 0
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "completeness": {
+        "const": "INCOMPLETE"
+      }
+    }
+  }
+}
