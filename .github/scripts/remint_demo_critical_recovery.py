@@ -109,12 +109,14 @@ def repair_console() -> None:
             text = text.replace(old, new)
         require(new in text, f"{label}: canonical token missing")
 
-    text = ensure_once(
-        text,
-        "@media(max-width:600px){\n  .rail{display:none}",
-        "@media(max-width:600px){\n  .content{padding-bottom:104px}\n  .rail{display:none}",
-        "mobile nav-dock clearance",
-    )
+    if "padding-bottom:104px" not in text:
+        text, count = re.subn(
+            r"(@media\s*\(\s*max-width\s*:\s*600px\s*\)\s*\{)",
+            r"\1\n  .content{padding-bottom:104px}",
+            text,
+            count=1,
+        )
+        require(count == 1, "mobile nav-dock clearance: no 600px media query anchor")
 
     required = (
         "--teal:#3af4c8",
