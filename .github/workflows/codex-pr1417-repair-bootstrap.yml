@@ -34,7 +34,16 @@ jobs:
           python-version: '3.11'
 
       - name: Three-way inverse merge the stale overwrite
-        run: python scripts/codex_restore_pr1417.py
+        shell: bash
+        run: |
+          set -uo pipefail
+          if python scripts/codex_restore_pr1417.py; then
+            exit 0
+          fi
+          echo '::group::Bounded estate-loader declaration context'
+          grep -n -C 4 -E 'fetchHFEstate|HFEstate|hfEstate' pages/console.html | head -n 160 || true
+          echo '::endgroup::'
+          exit 1
 
       - name: Compile repaired server
         run: python -m py_compile serve.py
