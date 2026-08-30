@@ -1,0 +1,101 @@
+name: One-shot readiness 1417 repair
+
+on:
+  push:
+    branches:
+      - fix/readiness-1417-serve-regression-20260830
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-shot-readiness-1417-repair
+  cancel-in-progress: false
+
+jobs:
+  reconstruct-and-verify:
+    if: ${{ !contains(github.event.head_commit.message, '[readiness-1417-repaired]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: fix/readiness-1417-serve-regression-20260830
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Reconstruct current serve.py without the stale 1417 rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          regression=37753ef139e79f595b54e4420796e24297501d6b
+          hardened_parent=f58d6cd2648ab2a7590674dc4678f85af95f4dc9
+
+          git cat-file -e "${regression}^{commit}"
+          git cat-file -e "${hardened_parent}^{commit}"
+          git show HEAD:serve.py > /tmp/serve.current.py
+          git show "${regression}:serve.py" > /tmp/serve.regressed.py
+          git show "${hardened_parent}:serve.py" > /tmp/serve.hardened.py
+
+          # Three-way file merge:
+          #   ours   = current main (keeps all later work)
+          #   base   = the regressed #1417 result
+          #   theirs = #1417 parent (restores only what #1417 rolled back)
+          git merge-file -p \
+            /tmp/serve.current.py \
+            /tmp/serve.regressed.py \
+            /tmp/serve.hardened.py > serve.py
+
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("serve.py")
+          text = path.read_text(encoding="utf-8")
+          anchor = "async def warhacker_page()"
+          start = text.index(anchor)
+          end = text.find("\nasync def ", start + len(anchor))
+          if end < 0:
+              end = len(text)
+          block = text[start:end]
+          desired = 'return _PTG_Redirect(url="/console#arena", status_code=307)'
+          old = 'return _PTG_Redirect(url="/console", status_code=307)'
+          if desired not in block:
+              if old not in block:
+                  raise SystemExit("warhacker route shape changed; refusing blind rewrite")
+              block = block.replace(old, desired, 1)
+              text = text[:start] + block + text[end:]
+              path.write_text(text, encoding="utf-8")
+          PY
+
+          ! grep -nE '^(<<<<<<<|=======|>>>>>>>)' serve.py
+          python -m py_compile serve.py
+          git diff --check
+
+      - name: Install pinned regression dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Verify affected readiness, router, route, and landing contracts
+        run: |
+          python -m pytest -q \
+            tests/test_readiness_blocker_repairs.py \
+            tests/test_readiness_honesty_relock_contract.py \
+            tests/test_functest_router_receipts.py \
+            tests/test_demo_critical_routes.py \
+            tests/test_landing_audit_fixes.py
+
+      - name: Commit exact verified repair to the branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen P. Lutar"
+          git config user.email "stephen@szlholdings.com"
+          git add serve.py
+          git diff --cached --quiet && {
+            echo "No serve.py repair delta was produced" >&2
+            exit 1
+          }
+          git commit -s -m "fix(readiness): restore fail-closed server hardening [readiness-1417-repaired]"
+          git push origin HEAD:fix/readiness-1417-serve-regression-20260830
