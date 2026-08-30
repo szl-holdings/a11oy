@@ -1970,6 +1970,33 @@ except Exception as _brainwatch_e:  # pragma: no cover
     print(f"[a11oy] Brain watch NOT registered: {_brainwatch_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
 
+# -- BRAIN LOCAL (feat/frontier-brainlocal) — an honest liveness+capability probe of the
+# LOCAL OpenAI-compatible inference endpoint the brain can be wired to (Ollama on
+# 127.0.0.1:11434, a llama.cpp llama-server, or either behind a cloudflared tunnel):
+# GET /api/a11oy/v1/brain/local/info (static describe + exactly which env vars it reads and
+# the UNAVAILABLE-when-unset behaviour), GET /api/a11oy/v1/brain/local (ONE bounded
+# stdlib-urllib GET of the endpoint's own model listing THIS request — LIVE + label MEASURED
+# with the served models echoed VERBATIM when a node answers; UNAVAILABLE with the note
+# "no local endpoint configured" when SZL_LOCAL_LLM_URL / A11OY_JPT_GPU_URLS are unset;
+# UNAVAILABLE on timeout/refused/error, never softened into a healthy reading; DEGRADED when
+# reachable but naming NO model, reported as DEGRADED and never as healthy),
+# GET /api/a11oy/v1/brain/brainlocal/manifest (wall-readable honesty manifest whose id
+# segment matches the surface id, so the Honesty Wall counts brainlocal NATIVE-OK; the
+# surface's OWN posture is MODELED and is never upgraded by one live reading), POST
+# /api/a11oy/v1/brain/local/receipt (unsigned SHA-256 content digest, RECEIPT-ON-WRITE).
+# A11OY_JPT_MODELS tags are operator DECLARATIONS (MODELED) and never enter the served list.
+# Performs NO inference, sends no prompt and stores nothing; pure stdlib (urllib, no new
+# dependency). Adds NOTHING to the locked-8; Λ stays Conjecture 1, never a theorem; makes no
+# claim about consciousness. Registered BEFORE the SPA /{full_path:path} catch-all.
+# Additive, try/except-guarded so an import error can never break boot.
+try:
+    import szl_brainlocal as _szl_brainlocal
+    _brainlocal_status = _szl_brainlocal.register(app, ns="a11oy")
+    print(f"[a11oy] Brain local registered: {_brainlocal_status}", file=__import__("sys").stderr)
+except Exception as _brainlocal_e:  # pragma: no cover
+    print(f"[a11oy] Brain local NOT registered: {_brainlocal_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
+
 # -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
 # grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
 # describe), GET /api/a11oy/v1/brain/consensus?q=&k= (MODELED corroboration measures + verdict —
