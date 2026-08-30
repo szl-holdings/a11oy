@@ -13019,6 +13019,11 @@ async def api_health() -> JSONResponse:
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
         "lambda_status": "Conjecture 1 (NOT a theorem)",
         "slsa": _A11OY_SLSA_TEXT,
+        "signer": {
+            "status": "ABSENT",
+            "signing_available": False,
+            "scheme": "UNAVAILABLE",
+        },
     })
 
 
@@ -13078,6 +13083,29 @@ async def warhacker_page() -> Response:
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # ---------------------------------------------------------------------------
+# HEAD 405 is the app, not Cloudflare. Own crawler documents explicitly so
+# their HEAD and GET requests select the same FileResponse handler instead of
+# relying on the later SPA path-converter catch-all.
+@app.api_route("/robots.txt", methods=["GET", "HEAD"])
+async def robots_txt() -> Response:
+    path = STATIC_DIR / "robots.txt"
+    if path.is_file():
+        return FileResponse(path, media_type="text/plain")
+    return Response("User-agent: *\nAllow: /\n", media_type="text/plain")
+
+
+@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])
+async def sitemap_xml() -> Response:
+    path = STATIC_DIR / "sitemap.xml"
+    if path.is_file():
+        return FileResponse(path, media_type="application/xml")
+    return Response(
+        '<?xml version="1.0" encoding="UTF-8"?>\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"></urlset>\n',
+        media_type="application/xml",
+    )
+
+
 @app.get("/{full_path:path}")
 async def spa_fallback(full_path: str) -> Response:
     # Never hijack API routes (handled above, but guard defensively).
