@@ -106,6 +106,30 @@ def _sha256_hex(data: bytes) -> str:
 # Brain-graph access — pull REAL nodes; never fabricate a node fact.
 # ---------------------------------------------------------------------------
 
+def _graph_provenance(ns: str = "a11oy") -> dict[str, Any]:
+    """Provenance for the graph read performed THIS request (Wave 32).
+
+    `real_graph` is True only when a11oy_brain_graph.build_brain_graph() actually returned
+    nodes in this request. On the demo fallback it is False and `reason` says why, so the
+    surface can stay honestly STRUCTURAL-ONLY instead of implying a harvested brain.
+    """
+    nodes, src = _load_graph(ns)
+    real = (src == "brain-graph")
+    return {
+        "real_graph": real,
+        "source": src,
+        "read_in_request": True,
+        "reader": "a11oy_brain_graph.build_brain_graph(ns=%r)" % ns,
+        "node_count": len(nodes),
+        "reason": (None if real else _LOAD_GRAPH_REASON.get("reason")
+                   or "a11oy_brain_graph returned no nodes; using the labelled demo graph"),
+        "coverage": 1.0,
+    }
+
+
+_LOAD_GRAPH_REASON: dict[str, Any] = {"reason": None}
+
+
 def _load_graph(ns: str = "a11oy") -> tuple[list, str]:
     """Return (nodes, source_label). Prefer the real graph the estate already builds; if the
     module is unavailable, return an honest STRUCTURAL demo graph clearly labeled as such."""
@@ -114,9 +138,12 @@ def _load_graph(ns: str = "a11oy") -> tuple[list, str]:
         g = _bg.build_brain_graph(ns=ns)
         nodes = g.get("nodes") or []
         if nodes:
+            _LOAD_GRAPH_REASON["reason"] = None
             return nodes, "brain-graph"
-    except Exception:
-        pass
+        _LOAD_GRAPH_REASON["reason"] = "a11oy_brain_graph built an empty node list"
+    except Exception as e:  # noqa: BLE001
+        _LOAD_GRAPH_REASON["reason"] = ("a11oy_brain_graph unavailable this request: %s"
+                                        % type(e).__name__)
     # Honest fallback — a tiny STRUCTURAL demo graph (NOT harvested, explicitly labeled).
     demo = [
         {"id": "demo:estate", "title": "estate root (demo)", "kind": "estate",
@@ -279,12 +306,23 @@ def _doctrine() -> dict[str, Any]:
 def build_info(ns: str = "a11oy") -> dict[str, Any]:
     """Status/info for the flowbrain surface. Pure read; signs nothing."""
     nodes, source_label = _load_graph(ns)
+    prov = _graph_provenance(ns)
+    # Wave 32: MODELED when the axis factorization and node census are computed from the
+    # REAL brain graph read in this request; honestly STRUCTURAL-ONLY on the demo fallback,
+    # because then nothing real backs the view. Never MEASURED: no instrument is read and
+    # a11oy claims no EEG capability.
+    label = MODELED if prov["real_graph"] else STRUCTURAL
     return {
         "ok": True,
         "endpoint": "frontier/flowbrain",
         "service": "a11oy.frontier.flowbrain",
         "title": "FlowBrain · Continuous Belief-Flow Lens on the Governed Brain",
-        "label": STRUCTURAL,
+        "label": label,
+        "provenance": prov,
+        "structural_only_reason": (None if prov["real_graph"] else prov["reason"]),
+        "measured_gap": ("MEASURED would require an instrument reading; this surface reads a "
+                         "graph and computes a deterministic flow, so no value is measured "
+                         "and no EEG or biosignal capability is claimed"),
         "claim": CONJECTURE,
         "not_verified": True,
         "what": ("a continuous-flow lens on the governed brain: belief-tier evolution "
@@ -302,6 +340,8 @@ def build_info(ns: str = "a11oy") -> dict[str, Any]:
         "doctrine": _doctrine(),
         "labels_legend": {
             STRUCTURAL: "definitional/structural reframe only — no measurement taken",
+            MODELED: ("computed in-request from the REAL brain graph (node census + axis "
+                      "factorization); the flow curve itself is a deterministic model"),
             CONJECTURE: "the SZL synthesis — a design thesis, explicitly NOT a theorem",
             MEASURED: "would require a real reading this request — none taken on this read path",
         },
@@ -313,6 +353,8 @@ def build_trajectory(ns: str = "a11oy", node_id: str | None = None) -> dict[str,
     """A continuous belief-flow trajectory for `node_id` (or a demo over the real graph).
     Pure read; emits a SHA-256 CONTENT digest (unsigned) of the deterministic trajectory."""
     nodes, source_label = _load_graph(ns)
+    prov = _graph_provenance(ns)
+    label = MODELED if prov["real_graph"] else STRUCTURAL
     node, found = _pick_node(nodes, node_id)
     traj = _flow_trajectory(node)
     receipt = _content_receipt(traj)
@@ -327,7 +369,9 @@ def build_trajectory(ns: str = "a11oy", node_id: str | None = None) -> dict[str,
         "endpoint": "frontier/flowbrain/trajectory",
         "service": "a11oy.frontier.flowbrain",
         "title": "FlowBrain · Continuous Belief-Flow Trajectory",
-        "label": STRUCTURAL,
+        "label": label,
+        "provenance": prov,
+        "structural_only_reason": (None if prov["real_graph"] else prov["reason"]),
         "claim": CONJECTURE,
         "not_verified": True,
         "graph_source": source_label,
@@ -407,18 +451,27 @@ if __name__ == "__main__":
     import sys as _sys
 
     print("=" * 72)
-    print("szl_flowbrain — self-test (STRUCTURAL-ONLY surface, CONJECTURE synthesis)")
+    print("szl_flowbrain — self-test (MODELED on the real graph / STRUCTURAL-ONLY on\n"
+          "                 the demo fallback; CONJECTURE synthesis)")
     print("=" * 72)
 
     info = build_info()
     traj = build_trajectory()
     blob = json.dumps({"info": info, "traj": traj})
 
-    # 1) top-level STRUCTURAL-ONLY, synthesis CONJECTURE, explicitly NOT VERIFIED.
-    assert info["label"] == STRUCTURAL and info["claim"] == CONJECTURE
-    assert traj["label"] == STRUCTURAL and traj["claim"] == CONJECTURE
+    # 1) Wave 32: label is MODELED when the REAL brain graph was read this request, and
+    #    honestly STRUCTURAL-ONLY on the demo fallback. Never MEASURED, never VERIFIED.
+    #    The synthesis stays CONJECTURE and not_verified stays True either way.
+    _honest = {STRUCTURAL, MODELED}
+    assert info["label"] in _honest and info["claim"] == CONJECTURE
+    assert traj["label"] in _honest and traj["claim"] == CONJECTURE
+    assert MEASURED not in {info["label"], traj["label"]}
+    _real = info["provenance"]["real_graph"]
+    assert info["label"] == (MODELED if _real else STRUCTURAL)
+    assert traj["label"] == (MODELED if _real else STRUCTURAL)
+    assert (info["structural_only_reason"] is None) is bool(_real)
     assert info["not_verified"] is True and traj["not_verified"] is True
-    print("[1] top-level STRUCTURAL-ONLY / synthesis CONJECTURE / not_verified  OK")
+    print(f"[1] label={info['label']} (real_graph={_real}) / CONJECTURE / not_verified  OK")
 
     # 2) doctrine: locked-8 exact, adds nothing, Λ/BFT conjectures, trust 0.97 (not 100%),
     #    no EEG capability claimed.

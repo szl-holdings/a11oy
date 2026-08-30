@@ -28,6 +28,7 @@
 //   Λ stays Conjecture 1, never a theorem; introduces no theorem. Degrades grey on 404/error.
 
 import { createShowcase } from "./_showcase.js";
+import { attachFidelityBadge } from "./_fidelity.js";
 
 const ID    = "brainmemory";
 const TITLE = "Brain Memory Freshness · honest episodic decay proxy (live, drift-proof)";
@@ -71,7 +72,12 @@ const S = {
 };
 
 // =============================================================================
+// Wave 32: server-authoritative fidelity chip (label shown VERBATIM;
+// STRUCTURAL-ONLY until the server answers, never upgraded client-side).
+let _fid32 = null;
+
 export function mount(ctx) {
+  try { _fid32 = attachFidelityBadge(ID, ctx); } catch (_) {}
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
   _group = new _THREE.Group();
   _stage.scene.add(_group);
@@ -388,6 +394,8 @@ function _paintOverlay() {
 
 // =============================================================================
 export function unmount() {
+  try { if (_fid32) _fid32.stop(); } catch (_) {}
+  _fid32 = null;
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
   try { if (_show) _show.destroy(); } catch (_) {}
   try {

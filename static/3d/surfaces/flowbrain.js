@@ -49,6 +49,7 @@
 //   404/error; label shown.
 
 import { createShowcase } from "./_showcase.js";
+import { attachFidelityBadge } from "./_fidelity.js";
 
 const ID    = "flowbrain";
 const TITLE = "FlowBrain · Continuous Belief-Flow Lens (live)";
@@ -102,7 +103,12 @@ const S = {
 // =============================================================================
 // mount(ctx)
 // =============================================================================
+// Wave 32: server-authoritative fidelity chip (label shown VERBATIM;
+// STRUCTURAL-ONLY until the server answers, never upgraded client-side).
+let _fid32 = null;
+
 export function mount(ctx) {
+  try { _fid32 = attachFidelityBadge(ID, ctx); } catch (_) {}
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
   _group = new _THREE.Group();
   _stage.scene.add(_group);
@@ -465,6 +471,8 @@ function _paintOverlay() {
 // unmount — dispose everything; must not affect other organs
 // =============================================================================
 export function unmount() {
+  try { if (_fid32) _fid32.stop(); } catch (_) {}
+  _fid32 = null;
   _polls.forEach((p) => { try { p.stop(); } catch (_) {} }); _polls = [];
   try { if (_show) _show.destroy(); } catch (_) {}
   try {

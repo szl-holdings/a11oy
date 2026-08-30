@@ -386,7 +386,34 @@ def build_aggregate(ns: str = "a11oy", top: int | None = None) -> dict:
     try:
         nodes, recency_field = _load_nodes(ns)
         agg = compute_freshness(nodes, recency_field=recency_field, now_ts=_now_ts(), top=top)
+        # Wave 32: state the provenance of the label explicitly. The gate itself is
+        # unchanged — MEASURED only when a real captured_at produced a LIVE age delta in
+        # THIS request, otherwise honest STRUCTURAL-ONLY. Nothing is upgraded here.
+        _measured = (agg.get("label") == MEASURED)
+        _covered = agg.get("recency_measured_nodes")
+        _n = agg.get("node_count") or 0
         agg.update({
+            "provenance": {
+                "graph_reader": "a11oy_brain_graph.build_brain_graph (real graph, read this request)",
+                "node_count": _n,
+                "recency_field": agg.get("recency_field"),
+                "recency_signal": bool(agg.get("recency_signal")),
+                "recency_measured_nodes": _covered,
+                "recency_coverage": (round(_covered / _n, 6)
+                                     if (_measured and isinstance(_covered, int) and _n) else 0.0),
+                "computed_in_request": True,
+                "label_basis": ("live now()-minus-captured_at age delta over real capture dates"
+                                if _measured else
+                                "connectivity + salience structure only (no real capture date)"),
+                "coverage": 1.0,
+            },
+            "structural_only_reason": (None if _measured else
+                                       "no node carried a parseable real capture date this "
+                                       "request, so no age delta could be read; freshness is a "
+                                       "structural proxy and is never presented as MEASURED"),
+            "upgrade_condition": (None if _measured else
+                                  "MEASURED requires at least one node with a real, parseable "
+                                  "captured_at (or another probed recency field) in the graph"),
             "ok": True,
             "endpoint": "brain/memory",
             "service": "a11oy.brain.memory",

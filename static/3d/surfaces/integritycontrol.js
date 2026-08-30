@@ -12,6 +12,7 @@
 // mechanism, model, signer, repository writer, or any other effector is live.
 
 import { createShowcase } from "./_showcase.js";
+import { attachFidelityBadge } from "./_fidelity.js";
 
 const ID = "integritycontrol";
 const TITLE = "Integrity Control Plane · proposal boundaries";
@@ -267,7 +268,12 @@ function _compileProse() {
     });
 }
 
+// Wave 32: server-authoritative fidelity chip (label shown VERBATIM;
+// STRUCTURAL-ONLY until the server answers, never upgraded client-side).
+let _fid32 = null;
+
 export function mount(ctx) {
+  try { _fid32 = attachFidelityBadge(ID, ctx); } catch (_) {}
   _ctx = ctx;
   _stage = ctx.stage;
   _THREE = ctx.THREE;
@@ -569,6 +575,8 @@ function _onFrame() {
 }
 
 export function unmount() {
+  try { if (_fid32) _fid32.stop(); } catch (_) {}
+  _fid32 = null;
   _compileSerial += 1;
   if (_compileController && _compileController.abort) {
     try { _compileController.abort(); } catch (_) {}

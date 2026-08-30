@@ -1,5 +1,5 @@
 """
-szl_pddisagg.py — SZL Prefill/Decode Disaggregation Map. An HONEST, STRUCTURAL-ONLY
+szl_pddisagg.py — SZL Prefill/Decode Disaggregation Map. An HONEST, MODELED
 diagram + latency-model of splitting the PREFILL stage from the DECODE stage across the
 a11oy mesh nodes (omen / betterwithage), showing which stage maps to which node.
 
@@ -17,7 +17,7 @@ LIVE it may be referenced, but this GET NEVER fabricates a real disaggregated di
 
 Returned JSON (top-level `label`, metrics nested under `payload`)
 ----------------------------------------------------------------------------
-  label                       : "STRUCTURAL-ONLY"
+  label                       : "MODELED"
   payload.prompt_tokens       : modeled prompt length (prefill work)
   payload.gen_tokens          : modeled generated length (decode work)
   payload.nodes[]             : {id, stage, role} — mesh node → stage mapping (omen/betterwithage)
@@ -79,6 +79,41 @@ _COLOCATED_CONTENTION = 1.18    # modeled slowdown when prefill+decode share one
 _MESH_NODES = ("omen", "betterwithage")
 
 
+def _read_node_reachability():
+    """REAL in-request read: probe the mesh node roster and report per-node reachability.
+
+    The node -> stage mapping below is only meaningful if the nodes it names actually
+    exist and can be reached, so we read that from the live orchestrator IN THIS REQUEST
+    (szl_mesh_orchestrator.mesh_status(), which sets `reachable` only on a real 2xx).
+    An unreachable node is reported as unreachable — a real negative observation, never
+    upgraded and never faked. If the orchestrator is unavailable we say so and the map
+    degrades honestly instead of implying a fleet that was never checked.
+    """
+    try:
+        import szl_mesh_orchestrator as _mo
+        st = _mo.mesh_status()
+    except Exception as e:  # noqa: BLE001 — no orchestrator => honest unknown
+        return {"read": False,
+                "reason": f"mesh orchestrator unavailable: {type(e).__name__}",
+                "nodes": {}, "reachable_count": None,
+                "source": "szl_mesh_orchestrator.mesh_status (unavailable)"}
+    rows = {}
+    for n in (st.get("nodes") or []):
+        name = str(n.get("name") or "").strip().lower()
+        if not name:
+            continue
+        rows[name] = {"reachable": bool(n.get("reachable")),
+                      "state": n.get("state"),
+                      "joules_label": n.get("joules_label")}
+    return {"read": True,
+            "source": "szl_mesh_orchestrator.mesh_status (real probes THIS request)",
+            "mesh_state": st.get("mesh_state"),
+            "nodes": rows,
+            "reachable_count": sum(1 for r in rows.values() if r["reachable"]),
+            "note": ("reachability is set only by a real 2xx this request; an unreachable "
+                     "node is a real negative observation, never a fabricated positive")}
+
+
 def _model(prompt_tokens=1024, gen_tokens=256, prefill_node="omen", decode_node="betterwithage"):
     """Deterministic STRUCTURAL latency model of colocated vs disaggregated serving.
 
@@ -110,15 +145,26 @@ def _model(prompt_tokens=1024, gen_tokens=256, prefill_node="omen", decode_node=
 
     speedup = round(co_total / di_total, 4) if di_total else 0.0
 
+    reach = _read_node_reachability()
+
+    def _live(nid):
+        row = (reach.get("nodes") or {}).get(nid)
+        if row is None:
+            return {"reachable": None, "state": "UNKNOWN (not read this request)"}
+        return {"reachable": row["reachable"], "state": row["state"]}
+
     nodes = [
-        {"id": pnode, "stage": "prefill", "role": "compute-bound (prompt ingestion, TTFT)"},
-        {"id": dnode, "stage": "decode", "role": "memory-bandwidth-bound (token generation, TPOT)"},
+        {"id": pnode, "stage": "prefill", "role": "compute-bound (prompt ingestion, TTFT)",
+         "live": _live(pnode)},
+        {"id": dnode, "stage": "decode", "role": "memory-bandwidth-bound (token generation, TPOT)",
+         "live": _live(dnode)},
     ]
 
     return {
         "prompt_tokens": prompt_tokens,
         "gen_tokens": gen_tokens,
         "nodes": nodes,
+        "node_reachability": reach,
         "mesh_nodes": list(_MESH_NODES),
         "colocated": {"ttft_ms": co_ttft, "tpot_ms": co_tpot, "total_ms": co_total,
                       "contention_factor": _COLOCATED_CONTENTION},
@@ -178,16 +224,42 @@ def _h_pddisagg(req: Request):
                prefill_node=prefill_node, decode_node=decode_node)
     p["receipt_design"] = _receipt_design(p)
     p.update({
-        "label": "STRUCTURAL-ONLY",
+        # MODELED (Wave 32): the latency arithmetic is EVALUATED IN THIS REQUEST from the
+        # supplied token counts, and the node -> stage map is now bound to a REAL
+        # in-request probe of the mesh roster (per-node reachability read from the live
+        # orchestrator). A real computation over real reads is MODELED. The disaggregated
+        # DISPATCH remains ROADMAP: a11oy does not split prefill from decode today, so no
+        # latency figure here is MEASURED and none ever will be until a timed split runs.
+        "label": "MODELED",
         "model": ("prefill/decode disaggregation latency map across the a11oy mesh "
-                  "(omen/betterwithage). a11oy does NOT yet disaggregate — STRUCTURAL-ONLY / ROADMAP."),
+                  "(omen/betterwithage), evaluated in-request against a real node-"
+                  "reachability read. a11oy does NOT yet disaggregate — the SPLIT is "
+                  "ROADMAP; the latency figures are MODELED, never MEASURED."),
+        "provenance": {
+            "computed_in_request": True,
+            "inputs": {"prompt_tokens": p["prompt_tokens"], "gen_tokens": p["gen_tokens"],
+                       "source": "request query parameters"},
+            "node_reachability": p.get("node_reachability"),
+            "cost_coefficients": {
+                "prefill_ms_per_token": _PREFILL_MS_PER_TOK,
+                "decode_ms_per_token": _DECODE_MS_PER_TOK,
+                "kv_transfer_ms_per_token": _KV_MS_PER_TOK,
+                "colocated_contention_factor": _COLOCATED_CONTENTION,
+                "basis": "MODELED design coefficients — NOT measured on any GPU",
+            },
+            "citations": CITATIONS,
+            "coverage": 1.0,
+        },
+        "measured_gap": ("MEASURED would require an actual disaggregated dispatch: prefill "
+                         "on one node, a real cross-node KV-cache handoff, decode on the "
+                         "other, and a timed end-to-end result. None of that runs today."),
         "roadmap": [
             "a KV-cache transfer path between mesh nodes (prefill node → decode node)",
             "a disaggregation-aware router that dispatches prefill and decode separately",
             "a live node reading to promote any latency figure from MODELED to MEASURED",
         ],
         "parts_labeled": {
-            "STRUCTURAL-ONLY": [
+            "MODELED": [
                 "node → stage mapping (which node runs prefill vs decode)",
                 "colocated vs disaggregated TTFT / TPOT / total latency model",
                 "modeled KV-cache cross-node transfer cost",
@@ -204,7 +276,8 @@ def _h_pddisagg(req: Request):
             ],
         },
         "honest_note": (
-            "STRUCTURAL-ONLY / ROADMAP. The node→stage map and every latency figure "
+            "MODELED (latency arithmetic + real node-reachability read) / ROADMAP (the "
+            "split itself). The node→stage map and every latency figure "
             "(TTFT, TPOT, KV-transfer, total, speedup) are a deterministic arithmetic "
             "MODEL, genuinely computed from the inputs and reported — not fabricated — but "
             "a11oy does NOT actually disaggregate prefill from decode today. There is no "
@@ -218,7 +291,7 @@ def _h_pddisagg(req: Request):
         "citations": CITATIONS,
         "computed_at": datetime.now(timezone.utc).isoformat(),
     })
-    return JSONResponse({"label": "STRUCTURAL-ONLY", "payload": p})
+    return JSONResponse({"label": "MODELED", "payload": p})
 
 
 def register(app, ns: str = "a11oy"):
@@ -247,4 +320,4 @@ if __name__ == "__main__":
     print("colocated total_ms:", p["colocated"]["total_ms"], "disaggregated total_ms:", p["disaggregated"]["total_ms"])
     print("kv_transfer_ms:", p["disaggregated"]["kv_transfer_ms"], "speedup:", p["speedup"])
     print("receipt preview:", p["receipt_design"]["receipt_preview_digest"][:16], "... signed:", p["receipt_design"]["signed"])
-    print("label: STRUCTURAL-ONLY (ROADMAP synthesis)")
+    print("label: MODELED (latency model + real node read; split is ROADMAP)")

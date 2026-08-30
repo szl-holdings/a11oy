@@ -93,15 +93,28 @@ def test_mesh_status_data_label_measured_only_when_live(monkeypatch):
     assert st["counts"]["live"] == len(m._NODES)
 
 
-def test_mesh_status_structural_when_no_meter(monkeypatch):
+def test_mesh_status_modeled_from_real_probes_when_no_meter(monkeypatch):
+    """No live meter => NOT MEASURED, but the probes themselves are real.
+
+    Wave 32: every node is genuinely probed over HTTP in the request and each recorded
+    status (including a blocked meter) is a real observation, so the aggregate state is
+    MODELED from real in-request readings. MEASURED still requires a live watt reading,
+    and no joule/watt is claimed here.
+    """
     _patch(monkeypatch,
            {"reachable": True, "models": ["m"], "http_status": 200,
             "api_style": "ollama", "offline": False},
            {"watts": None, "joules_label": "sample", "http_status": 403,
             "blocked": True, "reason": "blocked"})
     st = m.mesh_status()
-    assert st["data_label"] == "STRUCTURAL-ONLY"
+    assert st["data_label"] == "MODELED"
+    assert st["data_label"] != "MEASURED"
     assert st["mesh_state"] == "DEGRADED"
+    # the honest gap is stated, and the probe provenance is complete
+    assert "no live NVML watt reading" in st["measured_gap"]
+    assert st["provenance"]["measured_watt_reading_this_request"] is False
+    assert st["provenance"]["probes_attempted_this_request"] == len(m._NODES)
+    assert st["provenance"]["coverage"] == 1.0
 
 
 # ---- backend: routing policy is honest + advisory ---------------------------
@@ -155,7 +168,13 @@ def test_quorum_is_conjecture_2_never_proven(monkeypatch):
     q = m.mesh_quorum()
     assert q["conjecture"] == "Conjecture 2"
     assert q["quorum_proven"] is False
-    assert q["data_label"] == "STRUCTURAL-ONLY"
+    # Wave 32: witnesses_reachable is COUNTED from real in-request probes and
+    # quorum_would_form is derived from that count, so the view is MODELED. It is
+    # never MEASURED (no vote was signed) and never proven (BFT stays Conjecture 2).
+    assert q["data_label"] == "MODELED"
+    assert q["data_label"] != "MEASURED"
+    assert q["provenance"]["witness_probes_this_request"] == 4
+    assert "no witness signed" in q["measured_gap"]
     assert q["threshold"] == 3 and q["witnesses_total"] == 4
     gov = [w for w in q["witnesses"] if w["kind"] == "governance"][0]
     assert gov["reachable"] is False

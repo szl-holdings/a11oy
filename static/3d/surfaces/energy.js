@@ -59,6 +59,7 @@
 // CONTRACT: default-export { id, title, endpoints[], mount(ctx), unmount() }.
 
 import { createShowcase } from "./_showcase.js";
+import { attachFidelityBadge } from "./_fidelity.js";
 
 const ID = "energy";
 const TITLE = "Energy · Harvest";
@@ -935,7 +936,12 @@ function onLoop(json, meta) {
 // ----------------------------------------------------------------------------
 // contract: mount / unmount
 // ----------------------------------------------------------------------------
+// Wave 32: server-authoritative fidelity chip (label shown VERBATIM;
+// STRUCTURAL-ONLY until the server answers, never upgraded client-side).
+let _fid32 = null;
+
 function mount(ctx) {
+  try { _fid32 = attachFidelityBadge(ID, ctx); } catch (_) {}
   _ctx = ctx;
   _stage = ctx.stage;
   _THREE = ctx.THREE;
@@ -955,6 +961,8 @@ function mount(ctx) {
 }
 
 function unmount() {
+  try { if (_fid32) _fid32.stop(); } catch (_) {}
+  _fid32 = null;
   try { if (_hMesh) _hMesh.stop(); } catch (_) {}
   try { if (_hPosture) _hPosture.stop(); } catch (_) {}
   try { if (_hLoop) _hLoop.stop(); } catch (_) {}
