@@ -1555,6 +1555,32 @@ def _finance_public_series(series: dict[str, Any]) -> dict[str, Any]:
     return public
 
 
+def _finance_public_fintech_cve(observation: dict[str, Any]) -> dict[str, Any]:
+    """Expose an unavailable NVD observation as a cited non-live reference."""
+    if not isinstance(observation, dict):
+        return observation
+    freshness = dict(observation.get("freshness") or {})
+    status = str(freshness.get("status") or "")
+    if status == "stale" and observation.get("value") is not None:
+        freshness["status"] = "cached"
+        return {**observation, "freshness": freshness}
+    if status != "unavailable":
+        return observation
+    fetched_at = freshness.get("fetched_at")
+    if (
+        not isinstance(fetched_at, (int, float))
+        or isinstance(fetched_at, bool)
+        or fetched_at <= 0
+    ):
+        return observation
+    freshness["status"] = "reference"
+    return {
+        **observation,
+        "availability": "UNAVAILABLE",
+        "freshness": freshness,
+    }
+
+
 # ===========================================================================
 # REGISTER — additive routes BEFORE SPA catch-all.
 # ===========================================================================
@@ -1618,7 +1644,8 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
                                                "equities = Yahoo v8 (unofficial fallback); "
                                                "Yahoo misses are omitted, not stamped unavailable"),
                              "crypto": crypto,
-                             "fx": fx, "fintech_cve": cve,
+                             "fx": fx,
+                             "fintech_cve": _finance_public_fintech_cve(cve),
                              "sources_cited": cited_leaders("finance"), "doctrine": DOCTRINE})
 
     # ---- LEGAL ----

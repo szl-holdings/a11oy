@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-"""Post-deploy finance-feed honesty: omit unofficial Yahoo misses.
+"""Post-deploy finance-feed honesty for unavailable upstream observations.
 
 hf-sync run 33227751977 left exactly one doctrine lie:
 
@@ -9,6 +9,13 @@ hf-sync run 33227751977 left exactly one doctrine lie:
   evidence label not allowed: freshness.status="unavailable"
 
 Do not expand probe allowLabels. Official Polygon SPY stays required.
+
+hf-sync run 33274814407 then exposed the same contract gap for NVD:
+
+  evidence label not allowed: fintech_cve.freshness.status="unavailable"
+
+Preserve the unavailable fact and null value as a cited reference; never
+fabricate CVE rows or relabel the observation live.
 """
 
 from __future__ import annotations
@@ -35,7 +42,14 @@ def _live(symbol: str, official: bool = False) -> dict:
 
 
 def _unavailable(error: str = "TimeoutError: yahoo") -> dict:
-    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+    return {
+        "value": None,
+        "freshness": {
+            "status": "unavailable",
+            "fetched_at": 1786449600,
+            "error": error,
+        },
+    }
 
 
 def _stale_last_good(symbol: str) -> dict:
@@ -84,6 +98,21 @@ def test_finance_public_series_omits_unavailable_and_promotes_stale_cache() -> N
     assert public["MSFT"]["value"]["price"] == 2.0
 
 
+def test_fintech_cve_preserves_unavailability_as_a_reference() -> None:
+    unavailable = vertical._finance_public_fintech_cve(
+        _unavailable("ReadTimeout: NVD")
+    )
+    assert unavailable["value"] is None
+    assert unavailable["availability"] == "UNAVAILABLE"
+    assert unavailable["freshness"]["status"] == "reference"
+    assert unavailable["freshness"]["fetched_at"] == 1786449600
+    assert unavailable["freshness"]["error"] == "ReadTimeout: NVD"
+
+    cached = vertical._finance_public_fintech_cve(_stale_last_good("CVE"))
+    assert cached["freshness"]["status"] == "cached"
+    assert cached["value"]["symbol"] == "CVE"
+
+
 def test_finance_feed_omits_yahoo_misses_and_keeps_official_spy(monkeypatch) -> None:
     def fake_yahoo(symbol: str):
         if symbol in {"SPY", "AAPL", "^VIX"}:
@@ -96,7 +125,11 @@ def test_finance_feed_omits_yahoo_misses_and_keeps_official_spy(monkeypatch) -> 
     monkeypatch.setattr(vertical, "feed_yahoo", fake_yahoo)
     monkeypatch.setattr(vertical, "feed_polygon", fake_polygon)
     monkeypatch.setattr(vertical, "feed_coinbase", lambda pair: _live(pair, official=True))
-    monkeypatch.setattr(vertical, "feed_nvd", lambda *a, **k: _live("CVE"))
+    monkeypatch.setattr(
+        vertical,
+        "feed_nvd",
+        lambda *a, **k: _unavailable("ReadTimeout: NVD"),
+    )
     monkeypatch.setattr(vertical, "feed_fx", lambda *a, **k: _live("USD", official=True))
 
     app = FastAPI()
@@ -113,4 +146,8 @@ def test_finance_feed_omits_yahoo_misses_and_keeps_official_spy(monkeypatch) -> 
         assert row["freshness"]["fetched_at"]
     assert body["equities_official"]["SPY"]["freshness"]["status"] == "live"
     assert body["equities_official"]["SPY"]["freshness"]["fetched_at"]
+    assert body["fintech_cve"]["value"] is None
+    assert body["fintech_cve"]["availability"] == "UNAVAILABLE"
+    assert body["fintech_cve"]["freshness"]["status"] == "reference"
+    assert body["fintech_cve"]["freshness"]["fetched_at"] == 1786449600
     assert "omitted" in body["equities_note"]
