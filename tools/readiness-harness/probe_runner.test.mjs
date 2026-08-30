@@ -86,54 +86,26 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
   }).ok, false);
 });
 
-test("router-stats schema requires live observed process counters", () => {
-  const live = {
-    state: "LIVE",
-    mode: "live",
-    data_kind: "live",
+test("router-stats schema requires truthful modeled tier-display signals", () => {
+  const modeled = {
+    state: "MODELED",
+    mode: "modeled",
     catalog_state: "LIVE",
-    throughput_state: "OBSERVED",
-    routes: [{ tier: "T0", model: "alpha", routing_decisions: 0 }],
+    throughput_state: "MODELED",
+    routes: [{ tier: "T0", model: "alpha", modeled_load: 0 }],
     servedThisWindow: 0,
-    routingDecisionsSinceStart: 0,
     tiers: ["T0"],
-    counter_scope: "process_lifetime",
-    counter_started_at: "2026-08-26T12:00:00Z",
-    observed_at: "2026-08-26T12:00:01Z",
-    source: "szl_llm_registry.router_stats_snapshot",
-    honesty: "Exact trusted routing decisions; not QPS.",
+    source: "szl_brain.TIERS",
+    doctrine: "v11",
+    honesty: "Deterministic tier-display signals; not QPS or observed traffic.",
   };
-  assert.equal(validateSchema("router_stats", live).ok, true);
-
-  assert.equal(validateSchema("router_stats", {
-    ...live,
-    throughput_state: "MODELED",
-  }).ok, false);
-  assert.equal(validateSchema("router_stats", {
-    state: "LIVE",
-    mode: "live",
-    data_kind: "live",
-    throughput_state: "MODELED",
-    routes: [],
-  }).ok, false);
-  assert.equal(validateSchema("router_stats", {
-    ...live,
-    source: "wall-clock display signal",
-  }).ok, false);
-  assert.equal(validateSchema("router_stats", {
-    ...live,
-    routes: [],
-  }).ok, false);
-  assert.equal(validateSchema("router_stats", {
-    ...live,
-    servedThisWindow: -1,
-    routingDecisionsSinceStart: -1,
-  }).ok, false);
-  assert.equal(validateSchema("router_stats", {
-    ...live,
-    servedThisWindow: 0.5,
-    routingDecisionsSinceStart: 0.5,
-  }).ok, false);
+  assert.equal(validateSchema("router_stats", modeled).ok, true);
+  assert.equal(validateSchema("router_stats", { ...modeled, state: "LIVE" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...modeled, throughput_state: "OBSERVED" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...modeled, source: "szl_llm_registry.router_stats_snapshot" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...modeled, routes: [] }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...modeled, servedThisWindow: -1 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...modeled, servedThisWindow: 0.5 }).ok, false);
 });
 
 test("router counter evidence is inspected without weakening root labels", () => {
