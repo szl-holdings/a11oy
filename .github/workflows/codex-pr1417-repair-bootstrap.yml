@@ -1,0 +1,73 @@
+name: Codex PR1417 baseline repair bootstrap
+
+on:
+  push:
+    branches:
+      - codex/repair-main-contracts-20260830
+    paths:
+      - scripts/codex_restore_pr1417.py
+      - .github/workflows/codex-pr1417-repair-bootstrap.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: codex-pr1417-repair-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  restore-and-prove:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact repair branch with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: codex/repair-main-contracts-20260830
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+
+      - name: Three-way inverse merge the stale overwrite
+        run: python scripts/codex_restore_pr1417.py
+
+      - name: Compile repaired server
+        run: python -m py_compile serve.py
+
+      - name: Install exact test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Prove restored route, console, estate, identity and honesty contracts
+        run: >-
+          pytest
+          tests/test_demo_critical_routes.py
+          tests/test_khipu_chat_proxy.py
+          tests/test_khipu_console_panel.py
+          tests/test_holographic_command_bar.py
+          tests/test_series_a_estate.py
+          tests/test_identity_lock.py
+          test_canonical_domain.py
+          -q
+
+      - name: Commit the proven restoration to the non-protected branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'SZL Estate v10 Repair Bot'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add a11oy_landing.html pages/console.html pages/landing.html serve.py
+          if git diff --cached --quiet; then
+            echo 'No restoration delta produced' >&2
+            exit 1
+          fi
+          git commit -m 'fix(runtime): restore contracts removed by stale PR1417 merge [baseline-restored]
+
+          Three-way inverse merge against PR #1417 preserves later protected-main edits while restoring the reviewed command bar, investor/estate routes, Khipu proxy, exact HEAD support, local page fallback, signer honesty, router counters, and security hardening removed by the stale branch.
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:codex/repair-main-contracts-20260830
