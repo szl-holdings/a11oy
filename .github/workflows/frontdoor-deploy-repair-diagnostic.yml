@@ -1,0 +1,247 @@
+name: Frontdoor deployment repair diagnostic
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/frontdoor-deploy-repair-diagnostic.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: frontdoor-deploy-repair-diagnostic-20260830
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Diagnose exact-main source regressions
+    if: >-
+      github.event.pull_request.user.login == 'stephenlutar2-hash' &&
+      github.event.pull_request.head.repo.full_name == 'szl-holdings/a11oy' &&
+      github.event.pull_request.head.ref == 'chore/frontdoor-deploy-repair-diagnostic-20260830' &&
+      github.event.pull_request.draft == true
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected base with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Capture regression provenance
+        shell: bash
+        env:
+          EXPECTED_BASE: bb065e8c6669cf8afd51e3141f57ecf9f46b4c36
+          COMMAND_BAR_COMMIT: c038cc952b5adffeb6a7bc1a1328100464996745
+          ESTATE_COMMIT: 0cc669f8fbb304f75f7e074b4768616746d1cec4
+          HAMBURGER_COMMIT: 37753ef139e79f595b54e4420796e24297501d6b
+          HONESTY_COMMIT: c786b6ef99afcbb8e956535f21d4e4e33a7dadab
+        run: |
+          set -Eeuo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_BASE"
+          mkdir -p reports/frontdoor-deploy-repair
+          python - <<'PY'
+          import json
+          import os
+          import pathlib
+          import subprocess
+
+          root = pathlib.Path.cwd()
+          out = root / 'reports' / 'frontdoor-deploy-repair'
+          refs = {
+              'current': os.environ['EXPECTED_BASE'],
+              'command_bar': os.environ['COMMAND_BAR_COMMIT'],
+              'estate': os.environ['ESTATE_COMMIT'],
+              'hamburger': os.environ['HAMBURGER_COMMIT'],
+              'honesty': os.environ['HONESTY_COMMIT'],
+          }
+          files = [
+              'serve.py',
+              'pages/console.html',
+              'a11oy_landing.html',
+              'static/shared/szl_command_bar.js',
+              'static/shared/szl_command_bar.css',
+              'pages/estate.html',
+          ]
+          markers = {
+              'serve.py': [
+                  'a11oy_khipu_chat',
+                  'app.add_api_route("/investor"',
+                  '_investor_view_redirect',
+                  'url="/console?view=investor"',
+                  'pages/estate.html',
+                  '"/estate"',
+                  '"szl_command_bar.js": _VENDOR_JS_CT',
+                  '"szl_command_bar.css": _VENDOR_CSS_CT',
+                  'if p == "/" or p == "/landing":',
+              ],
+              'pages/console.html': [
+                  '--teal:#3af4c8',
+                  'data-szl-command-bar',
+                  '["Home"',
+                  '["Operate"',
+                  '["Build"',
+                  '["Observe"',
+                  '["Govern"',
+                  '["Research"',
+                  '["More"',
+                  '["investor"',
+                  "go('investor')",
+                  'V.investor=',
+                  '/console?view=investor',
+                  'function szlViewFromLocation()',
+                  'Verify on a11oy.net',
+                  'id="szl-series-a-cards"',
+                  'function emptyUnknown(kind, detail)',
+                  'locked_formula_count===8',
+                  "tier_counts['LOCKED-PROVEN']",
+              ],
+              'a11oy_landing.html': [
+                  '<a href="/console">Command</a>',
+                  'Proof registry ↗',
+                  'aria-label="Open the command center"',
+                  'class="nav-cta-short"',
+                  'loadLockedKernel',
+                  'h.locked_formula_count',
+                  'aria-expanded',
+              ],
+              'static/shared/szl_command_bar.js': [
+                  "text: 'Command'",
+                  'Proof registry ↗',
+                  '/console?view=investor',
+                  'locked_formula_count',
+                  'SZLEstate',
+              ],
+              'static/shared/szl_command_bar.css': [
+                  '--proof:#3af4c8',
+                  '.szl-holo-card',
+                  'html:not([data-operator="1"]) [data-view="labs"]',
+              ],
+              'pages/estate.html': [
+                  'szl-estate-full',
+                  'locked_formula_count===8',
+                  'Conjecture 1',
+              ],
+          }
+
+          def run(*args: str, check: bool = True) -> str:
+              cp = subprocess.run(args, text=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+              if check and cp.returncode:
+                  raise SystemExit(f"command failed {args}: {cp.stderr.strip()}")
+              return cp.stdout
+
+          def show(ref: str, path: str) -> str | None:
+              cp = subprocess.run(
+                  ['git', 'show', f'{ref}:{path}'],
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+              )
+              return cp.stdout if cp.returncode == 0 else None
+
+          def contexts(text: str | None, marker: str) -> list[dict]:
+              if text is None:
+                  return []
+              rows = text.splitlines()
+              found = []
+              for i, row in enumerate(rows):
+                  if marker in row:
+                      found.append({
+                          'line': i + 1,
+                          'context': '\n'.join(rows[max(0, i - 2): min(len(rows), i + 3)]),
+                      })
+                      if len(found) == 3:
+                          break
+              return found
+
+          report = {
+              'schema': 'szl.frontdoor-deploy-repair-diagnostic/v1',
+              'repository': 'szl-holdings/a11oy',
+              'protected_base': refs['current'],
+              'refs': refs,
+              'files': {},
+              'secret_values_emitted': False,
+              'mutations_performed': False,
+          }
+          for path in files:
+              ref_text = {name: show(ref, path) for name, ref in refs.items()}
+              row = {
+                  'sha256': {},
+                  'line_counts': {},
+                  'markers': {},
+                  'history': {},
+              }
+              import hashlib
+              for name, text in ref_text.items():
+                  row['sha256'][name] = hashlib.sha256(text.encode()).hexdigest() if text is not None else None
+                  row['line_counts'][name] = len(text.splitlines()) if text is not None else None
+              for marker in markers[path]:
+                  row['markers'][marker] = {
+                      name: {
+                          'present': bool(text is not None and marker in text),
+                          'contexts': contexts(text, marker),
+                      }
+                      for name, text in ref_text.items()
+                  }
+                  hist = run(
+                      'git', 'log', '--all', '-S', marker, '--format=%H%x09%s', '--', path,
+                      check=False,
+                  ).splitlines()
+                  row['history'][marker] = hist[:12]
+              report['files'][path] = row
+
+          (out / 'diagnostic.json').write_text(
+              json.dumps(report, indent=2, sort_keys=True) + '\n',
+              encoding='utf-8',
+          )
+
+          md = [
+              '# Frontdoor deployment regression diagnostic',
+              '',
+              f"Protected base: `{refs['current']}`",
+              '',
+          ]
+          for path, row in report['files'].items():
+              md += [f'## `{path}`', '']
+              for marker, states in row['markers'].items():
+                  present = [name for name, state in states.items() if state['present']]
+                  md.append(f"- `{marker}` — present in: {', '.join(present) if present else 'none'}")
+                  current = states['current']['contexts']
+                  if current:
+                      md.append(f"  - current line {current[0]['line']}")
+              md.append('')
+          (out / 'diagnostic.md').write_text('\n'.join(md) + '\n', encoding='utf-8')
+          PY
+
+      - name: Reproduce exact focused failures
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q \
+            tests/test_demo_critical_routes.py \
+            tests/test_series_a_estate.py \
+            tests/test_holographic_command_bar.py \
+            tests/test_khipu_chat_proxy.py \
+            tests/test_khipu_console_panel.py \
+            > reports/frontdoor-deploy-repair/focused-tests.log 2>&1
+          code=$?
+          set -e
+          printf '%s\n' "$code" > reports/frontdoor-deploy-repair/focused-tests.exit-code
+          cat reports/frontdoor-deploy-repair/focused-tests.log
+          exit 0
+
+      - name: Upload immutable diagnostic evidence
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: frontdoor-deploy-repair-diagnostic
+          path: reports/frontdoor-deploy-repair
+          if-no-files-found: error
+          retention-days: 30
