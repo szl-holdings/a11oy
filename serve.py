@@ -12235,6 +12235,24 @@ async def _command_center_alias() -> Response:
 app.add_api_route("/command-center", _command_center_alias, methods=["GET", "HEAD"], include_in_schema=False)
 
 
+# /estate — Series A holographic estate page (#1405). pages/estate.html has been
+# in the repo and in the image (wholesale `COPY pages/ ./pages/`) the whole time,
+# but the route was dropped by the stale-base merge in #1417, so GET /estate has
+# been a 404 — a shipped page with no way to reach it. Registered explicitly, with
+# HEAD, ahead of the SPA /{full_path:path} catch-all so it wins the ordered match
+# and never soft-200s the SPA shell in its place.
+async def _series_a_estate_page() -> Response:
+    f = PAGES_DIR / "estate.html"
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+app.add_api_route(
+    "/estate", _series_a_estate_page, methods=["GET", "HEAD"], include_in_schema=False
+)
+
+
 # /pinn — Physical-Bounds Certifier surface (distinct from /pinn-console).
 # Served from pages/pinn.html (COPYed wholesale by `COPY pages/ ./pages/`).
 @app.get("/pinn")
