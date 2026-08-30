@@ -7,6 +7,7 @@ preserving later edits in conflict regions. It never pushes or mutates remotes.
 """
 from __future__ import annotations
 
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -142,21 +143,26 @@ def repair_current_console(path: Path) -> None:
     """Restore the no-argument estate API while retaining force-refresh callers.
 
     The protected contract deliberately exposes `fetchHFEstate()` with no
-    required parameters. Later source added an options destructuring parameter.
-    Read that optional object through `arguments[0]` instead, preserving
-    `{force:true}` calls without changing the public signature.
+    required parameters. Later source added an options parameter. Read that
+    optional object through `arguments[0]` instead, preserving `{force:true}`
+    calls without changing the public signature.
     """
     text = path.read_text(encoding="utf-8")
-    old = "async function fetchHFEstate({ force = false } = {}) {"
-    new = (
+    pattern = re.compile(
+        r"async\s+function\s+fetchHFEstate\s*\([^)]*\)\s*\{",
+        flags=re.MULTILINE,
+    )
+    matches = list(pattern.finditer(text))
+    if len(matches) != 1:
+        raise RuntimeError(
+            f"expected exactly one estate fetch declaration, found {len(matches)}"
+        )
+    replacement = (
         "async function fetchHFEstate() {\n"
         "  const { force = false } = "
         "(arguments[0] && typeof arguments[0] === 'object') ? arguments[0] : {};"
     )
-    if old in text:
-        text = text.replace(old, new, 1)
-    elif "async function fetchHFEstate()" not in text:
-        raise RuntimeError("estate fetch function is missing")
+    text = pattern.sub(replacement, text, count=1)
     path.write_text(text, encoding="utf-8")
 
 
