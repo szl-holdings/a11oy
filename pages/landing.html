@@ -362,12 +362,15 @@ img,svg,canvas,video{max-width:100%;height:auto;}
         <p class="ds-card__body">Policy, reasoning, operator and counter-UAS in one console. Live gates, signed receipts, and the halt button.</p>
         <span class="ds-btn ds-btn--primary" style="margin-top:8px;align-self:flex-start;">Enter the platform <span class="ds-btn__arrow">→</span></span>
       </a>
-      <a class="ds-card" href="https://szlholdings-killinchu.hf.space/" style="cursor:pointer;">
+      <a class="ds-card" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" rel="noopener" style="cursor:pointer;">
         <span class="ds-card__id">// KILLINCHU</span>
         <h3 class="ds-card__title">Drones &amp; Vessels</h3>
         <div class="ds-card__rule"></div>
         <p class="ds-card__body">The maritime &amp; airspace surface: track drones and vessels, run counter-UAS cued engagements through the same governed, signed loop.</p>
-        <span class="ds-btn" style="margin-top:8px;align-self:flex-start;">Open Drones &amp; Vessels <span class="ds-btn__arrow">→</span></span>
+        <p class="ds-card__body"><b>Runtime: UNAVAILABLE.</b> This page holds no live reading of the
+          killinchu Space runtime, so it is not presented as live and the link goes to the Space
+          hub page rather than a runtime that has timed out.</p>
+        <span class="ds-btn" style="margin-top:8px;align-self:flex-start;">Open the killinchu Space hub <span class="ds-btn__arrow">→</span></span>
       </a>
       <a class="ds-card" href="/lyte" style="cursor:pointer;">
         <span class="ds-card__id">// LYTE · BIND</span>
@@ -392,8 +395,8 @@ img,svg,canvas,video{max-width:100%;height:auto;}
       </div>
       <div class="ds-footer__cols">
         <div class="ds-footer__col"><h4>Platform</h4><a href="/console">Command Console</a><a href="/benchmark">Benchmark</a><a href="#what">What it is</a><a href="#diff">Receipts</a><a href="#proof">Proof</a></div>
-        <div class="ds-footer__col"><h4>Surfaces</h4><a href="/console">a11oy</a><a href="https://szlholdings-killinchu.hf.space/">killinchu</a><a href="/lyte">LYTE lattice</a></div>
-        <div class="ds-footer__col"><h4>Live</h4><a href="/api/a11oy/v1/observability/summary">Observability</a><a href="/api/a11oy/v1/lambda">Trust score</a><a href="/api/a11oy/v1/gates">Gates</a></div>
+        <div class="ds-footer__col"><h4>Surfaces</h4><a href="/console">a11oy</a><a href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" rel="noopener">killinchu (runtime UNAVAILABLE)</a><a href="/lyte">LYTE lattice</a></div>
+        <div class="ds-footer__col"><h4>Endpoints</h4><a href="/api/a11oy/v1/observability/summary">Observability</a><a href="/api/a11oy/v1/lambda">Trust score</a><a href="/api/a11oy/v1/gates">Gates</a></div>
       </div>
     </div>
     <div class="ds-footer__bottom">
@@ -505,6 +508,14 @@ img,svg,canvas,video{max-width:100%;height:auto;}
     var el=document.getElementById(id); if(!el)return;
     el.textContent=val; el.classList.remove("is-loading");
   }
+  // Honest label for a read that produced no live value: name the state, never
+  // paint a fabricated number or a live-looking zero.
+  function unavailableKpi(id,state){
+    var el=document.getElementById(id); if(!el)return;
+    el.textContent=(String(state||"UNAVAILABLE").toUpperCase()==="OBSERVED")?"UNAVAILABLE":("UNAVAILABLE · "+String(state||"UNAVAILABLE"));
+    el.classList.remove("is-loading","is-live");
+    el.style.color="var(--muted)"; el.style.fontSize="16px";
+  }
   function unreachable(id){
     var el=document.getElementById(id); if(!el)return;
     el.textContent="probe slow"; el.classList.remove("is-loading");
@@ -514,11 +525,16 @@ img,svg,canvas,video{max-width:100%;height:auto;}
   // services up + (lambda_status echoed in observability too)
   fetchJSON("/api/a11oy/v1/observability/summary",8000).then(function(j){
     var m=(j&&j.melt&&j.melt.metrics)||{};
-    if(typeof m.organs_reachable==="number"&&typeof m.organs_total==="number"){
+    // organs_reachable is a live count ONLY when the summary's own
+    // observation_state says it was observed this read. An inventory/idle/
+    // UNAVAILABLE state is reported as UNAVAILABLE, never as a live zero.
+    var state=(j&&(j.observation_state||j.state))||"UNAVAILABLE";
+    var observed=String(state).toUpperCase()==="OBSERVED";
+    if(observed&&typeof m.organs_reachable==="number"&&typeof m.organs_total==="number"){
       setKpi("kpiServices",m.organs_reachable+" / "+m.organs_total);
-    } else { unreachable("kpiServices"); }
+    } else { unavailableKpi("kpiServices",state); }
     if(j&&j.honesty){var h=document.getElementById("liveHonesty"); if(h)h.textContent=j.honesty;}
-  }).catch(function(){unreachable("kpiServices");});
+  }).catch(function(){unavailableKpi("kpiServices","UNAVAILABLE");});
 
   // trust score (lambda)
   fetchJSON("/api/a11oy/v1/lambda",8000).then(function(j){

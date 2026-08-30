@@ -16313,8 +16313,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   }
 
   async function renderPublications(c){
-    var lockedTxt='8';
-    try{ var g=await window.getJSON(window.API+'/v1/genome'); var lp=(g&&g.tier_counts&&g.tier_counts['LOCKED-PROVEN']); if(typeof lp==='number'&&lp>0) lockedTxt=String(lp); }catch(e){}
+    // The locked-8 kernel count is bound to the honest kernel endpoint
+    // (locked_formula_count over {F1,F4,F7,F11,F12,F18,F19,F22}). It is NEVER
+    // bound to a genome catalog tier count — that catalog tag is a different
+    // number (25 of 144) and rendering it here would misstate the kernel.
+    var lockedTxt='N/A';
+    try{ var hk=await window.getJSON(window.API+'/v1/honest'); var kn=(hk&&hk.locked_formula_count); if(typeof kn==='number'&&kn>0) lockedTxt=String(kn); }catch(e){}
     var h='<div class="pz-wrap">';
     h+='<div class="pz-lead">The shoulders we stand on. SZL’s own program is DOI-pinned on Zenodo; the work it builds on is cited in full with a one-line note on exactly what we adapt. Honest tiers throughout: <b style="color:var(--teal)">'+esc(lockedTxt)+' locked-proven</b> {F1,F4,F7,F11,F12,F18,F19,F22}; Λ-uniqueness = <b style="color:#7e8aa3">Conjecture 1</b> (never green); Khipu BFT safety = Conjecture 2. Every formula’s proof tier is verifiable in <a href="#genome" onclick="go(\'genome\');return false;" style="color:var(--teal)">Genome</a> against <code>/api/a11oy/v1/genome</code>.</div>';
 

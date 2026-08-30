@@ -81,6 +81,36 @@ def gov_envelope(payload=None, status="REAL", citations=None, reason=None, **ext
 # console/ there.  Local verification must resolve the same source tree rather
 # than trying to return a container-only path (which turns an otherwise honest
 # 404 or history fallback into a 500).
+# SOURCE-ROOT RESOLUTION (identity-lock root cause). Document handlers used to
+# hardcode /app/<file>. In the HF Docker image /app IS this source tree, but on
+# any other host /app may be absent OR a symlink to a DIFFERENT (stale) checkout,
+# so the handlers silently fell back to the SPA shell and served a document that
+# did not match the repo — /trust lost its product canonical https://a-11-oy.com/trust
+# and "/" served a stale landing. Resolve documents against the running module's
+# own directory FIRST (which IS /app inside the image, so behaviour there is
+# unchanged), and only then against the image path. Honest: the bytes served are
+# always the bytes of the source that is running.
+_SZL_SRC_ROOT = Path(__file__).resolve().parent
+_SZL_IMAGE_ROOT = Path("/app")
+
+
+def _szl_doc(rel: str) -> Path:
+    """Return the readable path for a repo-relative document.
+
+    Prefers the running source tree; falls back to the image root. Returns the
+    source-relative candidate when neither exists so callers keep their honest
+    is_file() guard and their existing SPA/404 fallback.
+    """
+    rel = rel.lstrip("/")
+    local = _SZL_SRC_ROOT / rel
+    if local.is_file():
+        return local
+    image = _SZL_IMAGE_ROOT / rel
+    if image.is_file():
+        return image
+    return local
+
+
 _IMAGE_STATIC_DIR = Path("/app/static")
 _LOCAL_STATIC_DIR = Path(__file__).resolve().parent / "console"
 STATIC_DIR = _IMAGE_STATIC_DIR if (_IMAGE_STATIC_DIR / "index.html").is_file() else _LOCAL_STATIC_DIR
@@ -3926,7 +3956,10 @@ app.add_middleware(
     allow_origins=_CORS_ALLOWED_ORIGINS,
     allow_origin_regex=_CORS_ALLOWED_ORIGIN_REGEX,
     allow_credentials=False,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    # HEAD is declared explicitly: crawlers and uptime monitors HEAD the document
+    # routes, and every document route accepts HEAD, so the CORS preflight answer
+    # must say so instead of implying HEAD is unsupported.
+    allow_methods=["GET", "HEAD", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-Requested-With"],
 )
 
@@ -4025,7 +4058,7 @@ from fastapi.responses import RedirectResponse as _PTG_Redirect
 
 _PTG_IMAGE_WEB = Path("/app/web")
 _PTG_LOCAL_WEB = Path(__file__).resolve().parent / "web"
-_PTG_WEB = _PTG_IMAGE_WEB if _PTG_IMAGE_WEB.is_dir() else _PTG_LOCAL_WEB
+_PTG_WEB = _PTG_LOCAL_WEB if _PTG_LOCAL_WEB.is_dir() else _PTG_IMAGE_WEB
 
 def _ptg_serve(filename: str):
     async def _h() -> Response:
@@ -11894,7 +11927,7 @@ async def spa_root():
     # vendored Three.js r160, live receipt/mesh weave-ins + in-browser WebCrypto
     # verify), then the cathedral hero, then the console SPA, then the SPA index.
     # All fallbacks preserved so a missing file never white-screens "/".
-    for _cand in (Path("/app/a11oy_landing.html"), Path("/app/cathedral.html"),
+    for _cand in (_szl_doc("a11oy_landing.html"), _szl_doc("cathedral.html"),
                   PAGES_DIR / "console.html", INDEX_HTML):
         try:
             _cp = Path(_cand)
@@ -12005,7 +12038,7 @@ async def _energy3d_app_js() -> Response:
 
 
 # --- Doctrine v13 organ page routes (ADDITIVE; explicit, win over SPA catch-all) ---
-PAGES_DIR = Path("/app/pages")
+PAGES_DIR = _SZL_SRC_ROOT / "pages" if (_SZL_SRC_ROOT / "pages").is_dir() else Path("/app/pages")
 
 # === ADDITIVE (Yachay CTO + Perplexity Computer Agent, 2026-06-02): wire orphaned ===
 # === genius pages that were BUILT but never registered (fell to SPA shell = a lie). ===
@@ -12042,7 +12075,7 @@ except Exception as _br_e:  # noqa: BLE001
 # only the /api/a11oy/v4/predict* JSON routes. Explicit route wins over SPA catch-all.
 @app.get("/predict")
 async def predict_page() -> Response:
-    f = Path("/app/predict.html")
+    f = _szl_doc("predict.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12052,7 +12085,7 @@ async def predict_page() -> Response:
 # now COPYed to /app/web/canonical.html by the Dockerfile (added in this same commit).
 @app.get("/canonical")
 async def canonical_page() -> Response:
-    f = Path("/app/web/canonical.html")
+    f = _szl_doc("web/canonical.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12062,7 +12095,7 @@ async def canonical_page() -> Response:
 # /app/web/status.html by the Dockerfile already; just needs an explicit route.
 @app.get("/status")
 async def status_page() -> Response:
-    f = Path("/app/web/status.html")
+    f = _szl_doc("web/status.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12081,7 +12114,7 @@ async def status_page() -> Response:
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 @app.get("/proof")
 async def proof_replay_page() -> Response:
-    f = Path("/app/web/proof.html")
+    f = _szl_doc("web/proof.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12098,7 +12131,7 @@ async def proof_replay_page() -> Response:
 # Registered BEFORE the SPA /{full_path:path} catch-all so it wins the ordered match.
 @app.get("/trust")
 async def trust_page() -> Response:
-    f = Path("/app/web/trust.html")
+    f = _szl_doc("web/trust.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -12210,21 +12243,32 @@ async def _elite_redirect() -> Response:
 app.add_api_route("/elite", _elite_redirect, methods=["GET"], include_in_schema=False)
 
 
-# /killinchu — canonical path bridge. Without an explicit route this path falls
-# through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
-# bridge server-side so it works without JavaScript at every mobile viewport,
-# and preserve subpaths/query strings for direct links into the live product.
-_KILLINCHU_CANONICAL = "https://szlholdings-killinchu.hf.space"
+# /killinchu — path bridge, honestly labelled. Without an explicit route this path
+# falls through to the A11OY SPA shell and returns a misleading HTTP 200. Keep the
+# bridge server-side so it works without JavaScript at every mobile viewport, and
+# preserve subpaths/query strings.
+#
+# HONESTY (identity-lock): the killinchu Space RUNTIME is not up — a request to
+# szlholdings-killinchu.hf.space times out / errors, so redirecting a visitor there
+# implies a live product that is not serving. The bridge therefore targets the
+# Hugging Face HUB page for the Space (which is always readable and states the
+# runtime's own state), stamps X-SZL-Route-State: UNAVAILABLE_RUNTIME, and links
+# the hub as rel="alternate" — NEVER rel="canonical" (this app does not hand its
+# canonical to a third-party host; product canonical stays on a-11-oy.com).
+_KILLINCHU_HUB = "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
+_KILLINCHU_RUNTIME_STATE = "UNAVAILABLE_RUNTIME"
 
 
 async def _killinchu_redirect(request: Request, full_path: str = "") -> Response:
-    suffix = f"/{full_path}" if full_path else "/"
-    target = f"{_KILLINCHU_CANONICAL}{suffix}"
-    if request.url.query:
-        target = f"{target}?{request.url.query}"
-    response = _PTG_Redirect(url=target, status_code=307)
-    response.headers["X-SZL-Route-State"] = "CANONICAL_REDIRECT"
-    response.headers["Link"] = f'<{_KILLINCHU_CANONICAL}/>; rel="canonical"'
+    # Deep links cannot be honoured while the runtime is down (no runtime = no
+    # subpath), so every /killinchu/* request lands on the hub page and the
+    # requested subpath is echoed in a header instead of being faked upstream.
+    response = _PTG_Redirect(url=_KILLINCHU_HUB, status_code=307)
+    response.headers["X-SZL-Route-State"] = _KILLINCHU_RUNTIME_STATE
+    response.headers["X-SZL-Killinchu-Hub"] = _KILLINCHU_HUB
+    if full_path:
+        response.headers["X-SZL-Killinchu-Requested-Path"] = f"/{full_path}"
+    response.headers["Link"] = f'<{_KILLINCHU_HUB}>; rel="alternate"'
     return response
 
 
@@ -12248,7 +12292,7 @@ app.add_api_route(
 # baked (Dockerfile COPY) but lacked a route -> soft-404'd to the SPA shell.
 @app.get("/estate-hologram")
 async def estate_hologram_page() -> Response:
-    f = Path("/app/web/estate-hologram.html")
+    f = _szl_doc("web/estate-hologram.html")
     if f.is_file():
         return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
@@ -14422,10 +14466,24 @@ except Exception as _ftiers_e:
     _A11OY_FTIERS_DIAG = {"status": "FAILED", "error": repr(_ftiers_e)}
 
 # ============================================================================
-# Canonical host: a-11-oy.com. a11oy.net is SUNSET — app-level 301 redirect so the
-# public URL converges on a-11-oy.com. Read-path-safe (pure Location response, no
-# receipt, no signing). Registered before uvicorn.run so the middleware stack is
-# built with it; passes through the HF Space host + localhost untouched.
+# AYNI IDENTITY LOCK — canonical host: a-11-oy.com (product). a11oy.net is the
+# PROOF REGISTRY, not a sunset domain: this app emits NO .net 301 and exports no
+# SUNSET_DOMAIN. a11oy_canonical_domain.register() only adds the host-aware
+# product Link rel="canonical" header — https://a-11-oy.com/<path> — computed by
+# the app, not Cloudflare, and never huggingface.co/spaces.
+#
+# DNS facts this app records but does NOT change (no DNS is edited from here):
+#   * The apex stays proxied — orange-cloud. Do not grey-cloud the apex; the
+#     grey-cloud path drops the proxy that terminates TLS for the Space.
+#   * The Hugging Face runtime.domains entry for a-11-oy.com may report PENDING
+#     while Cloudflare still serves the apex. PENDING is KALLPA/Stephen DNS; it
+#     is never stamped "domain LIVE" and never rewrites HTML canonicals.
+#   * www.a-11-oy.com GET / is Cloudflare HTTP 404 today — UNAVAILABLE until a
+#     Cloudflare 301 www → apex exists. We do not fabricate a working www.
+#   * Do not add a second HF custom domain. Do not merge PR 1363.
+# Read-path-safe (pure header/Location response, no receipt, no signing).
+# Registered before uvicorn.run so the middleware stack is built with it; passes
+# through the HF Space host + localhost untouched.
 # ============================================================================
 try:
     import a11oy_canonical_domain as _canon_mod
