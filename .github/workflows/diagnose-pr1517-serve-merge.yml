@@ -1,0 +1,60 @@
+name: Diagnose PR1517 serve merge
+
+on:
+  push:
+    branches:
+      - ops/materialize-pr1517-runtime-recovery-20260830
+    paths:
+      - .github/workflows/diagnose-pr1517-serve-merge.yml
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact target
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: security/anatomy-product-origin-pin-20260830
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Print exact three-way conflict
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected=b8eb0bf7d606210f11fa7fb135a7dd4d9c86f352
+          base=0798d91a36306ae508d3a22cfce0171104a37025
+          final=934cc4c12827408c4c5be5c95e9f7cb07befcfea
+          source_branch=codex/runtime-route-registry-successor-20260830-v2
+          test "$(git rev-parse HEAD)" = "$expected"
+          git fetch --no-tags --depth=64 origin "+refs/heads/${source_branch}:refs/remotes/origin/${source_branch}"
+          test "$(git rev-parse refs/remotes/origin/${source_branch})" = "$final"
+          cp serve.py /tmp/current.py
+          git show "$base:serve.py" > /tmp/base.py
+          git show "$final:serve.py" > /tmp/final.py
+          cp /tmp/current.py /tmp/merged.py
+          git merge-file --diff3 -L CURRENT_TARGET -L SOURCE_BASE -L REVIEWED_RECOVERY /tmp/merged.py /tmp/base.py /tmp/final.py || true
+          python3 - <<'PY'
+          from pathlib import Path
+          lines = Path('/tmp/merged.py').read_text(encoding='utf-8').splitlines()
+          starts = [i for i, line in enumerate(lines) if line.startswith('<<<<<<< ')]
+          print(f'CONFLICT_COUNT={len(starts)}')
+          for index, start in enumerate(starts, 1):
+              end = next(i for i in range(start, len(lines)) if lines[i].startswith('>>>>>>> '))
+              lo = max(0, start - 25)
+              hi = min(len(lines), end + 26)
+              print(f'--- CONFLICT {index}: merged lines {start + 1}-{end + 1} ---')
+              for lineno in range(lo, hi):
+                  print(f'{lineno + 1:06d}: {lines[lineno]}')
+          if not starts:
+              raise SystemExit('No conflict markers were produced; diagnostic assumptions changed')
+          PY
