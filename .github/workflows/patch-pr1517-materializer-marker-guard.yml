@@ -1,0 +1,122 @@
+name: Patch PR1517 materializer marker guard
+
+on:
+  push:
+    branches:
+      - ops/materialize-pr1517-runtime-recovery-20260830
+    paths:
+      - .github/workflows/patch-pr1517-materializer-marker-guard.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: ops/materialize-pr1517-runtime-recovery-20260830
+      TARGET_FILE: .github/workflows/materialize-pr1517-runtime-recovery.yml
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact patch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Replace only the overbroad marker assertion
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/materialize-pr1517-runtime-recovery.yml')
+          text = path.read_text(encoding='utf-8')
+          old = 'if any(marker in text for marker in ("<<<<<<<", "|||||||", "=======", ">>>>>>>")):'
+          new = 'if any(marker in text for marker in ("<<<<<<< CURRENT_TARGET", "||||||| SOURCE_BASE", ">>>>>>> REVIEWED_RECOVERY")):'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one old marker guard, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+          test "$(git diff --name-only)" = "$TARGET_FILE"
+
+      - name: Create verified exact-head workflow repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import base64
+          import json
+          import os
+          import pathlib
+          import urllib.request
+
+          repository = os.environ['GITHUB_REPOSITORY']
+          branch = os.environ['TARGET_BRANCH']
+          path = os.environ['TARGET_FILE']
+          expected = os.environ['GITHUB_SHA']
+          token = os.environ['GH_TOKEN']
+          mutation = '''
+          mutation Patch($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) { commit { oid } }
+          }
+          '''
+          variables = {
+              'input': {
+                  'branch': {
+                      'repositoryNameWithOwner': repository,
+                      'branchName': branch,
+                  },
+                  'expectedHeadOid': expected,
+                  'message': {
+                      'headline': 'ci(ops): narrow PR1517 conflict-marker guard',
+                      'body': (
+                          'Match only the named three-way conflict labels; do not reject ordinary '
+                          'separator lines in serve.py.\n\n'
+                          'Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>'
+                      ),
+                  },
+                  'fileChanges': {
+                      'additions': [{
+                          'path': path,
+                          'contents': base64.b64encode(pathlib.Path(path).read_bytes()).decode('ascii'),
+                      }],
+                  },
+              },
+          }
+          request = urllib.request.Request(
+              'https://api.github.com/graphql',
+              data=json.dumps({'query': mutation, 'variables': variables}).encode(),
+              method='POST',
+              headers={
+                  'Authorization': f'Bearer {token}',
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json',
+                  'User-Agent': 'szl-pr1517-marker-guard-patcher',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              },
+          )
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.load(response)
+          if result.get('errors'):
+              raise SystemExit('; '.join(str(row.get('message')) for row in result['errors']))
+          pathlib.Path('/tmp/commit').write_text(
+              result['data']['createCommitOnBranch']['commit']['oid'],
+              encoding='utf-8',
+          )
+          PY
+          commit_sha="$(cat /tmp/commit)"
+          commit_json="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}")"
+          jq -e '.commit.verification.verified == true' <<<"$commit_json" >/dev/null
+          test "$(jq -r '.parents[0].sha' <<<"$commit_json")" = "$GITHUB_SHA"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$commit_sha"
