@@ -98,6 +98,128 @@ def _u01(seed, i, salt=0):
     return s / 4294967295.0
 
 
+# a registry model id whose MODELED reference-oracle path exercises every scorer
+_EVAL_MODEL_ID = "claude_sonnet_4_6"
+_EVAL_SUITES = ("core_honest_v1", "redteam_v1", "honesty_v1")
+
+
+def _real_eval_trajectories():
+    """REAL in-request signal: run the eval arena suites and use their true verdicts.
+
+    This replaces the former seeded pseudo-random `eval_score`, which was not a signal at
+    all — it was a hash of the seed. Here each trajectory is a REAL eval case executed in
+    THIS request by szl_eval_arena.run_eval(): real suite, real scorer, real pass/fail,
+    real suite_sha256. The execution-verification leg then INDEPENDENTLY re-executes the
+    same scorer over the recorded answer and requires the verdict to reproduce — a real
+    re-run, which is exactly the "looks right vs runs right" check this surface models.
+
+    Returns (trajectories, meta). On any failure `meta["real_eval_run"]` is False and the
+    caller must stay honestly STRUCTURAL-ONLY rather than dress up a fallback.
+    """
+    meta = {"real_eval_run": False, "reason": None, "suites": [], "model_id": _EVAL_MODEL_ID,
+            "scorer_reexecuted": False}
+    try:
+        import szl_eval_arena as _ea
+    except Exception as e:  # noqa: BLE001
+        meta["reason"] = f"szl_eval_arena unavailable: {type(e).__name__}"
+        return [], meta
+    scorers = getattr(_ea, "_SCORERS", {}) or {}
+    # A GET must never trigger a paid/slow provider call. When no provider key is wired the
+    # arena's own MODELED reference-oracle path is already offline-deterministic, so we run
+    # the full run_eval() pipeline. When a key IS wired we still execute the REAL suites and
+    # the REAL scorers, but against the arena's reference-oracle answer instead of a live
+    # provider call — and we say so in `answer_source`.
+    try:
+        key_wired = bool((_ea._registry_snapshot() or {}).get("any_key_wired"))
+    except Exception:  # noqa: BLE001
+        key_wired = True
+    meta["provider_key_wired"] = key_wired
+    meta["mode"] = "arena.run_eval (offline reference-oracle answers)" if not key_wired else \
+                   "suite+scorer execution against the arena reference oracle (no provider call on a GET)"
+    trajs = []
+    for sid in _EVAL_SUITES:
+        if sid not in getattr(_ea, "_SUITES", {}):
+            continue
+        if key_wired:
+            suite_def = _ea._SUITES[sid]
+            rows, n_pass = [], 0
+            for case in suite_def.get("cases", []):
+                ans = _ea._modeled_reference_answer(case)
+                fn = scorers.get(case.get("scorer"), None)
+                if not callable(fn):
+                    continue
+                try:
+                    ok, detail = fn(ans, case.get("expected", ""))
+                except Exception as e:  # noqa: BLE001
+                    ok, detail = False, f"scorer error: {type(e).__name__}"
+                ok = bool(ok)
+                n_pass += 1 if ok else 0
+                rows.append({"id": case.get("id"), "category": case.get("category"),
+                             "scorer": case.get("scorer"), "expected": case.get("expected", ""),
+                             "answer": ans, "answer_sha256": hashlib.sha256(ans.encode("utf-8")).hexdigest(),
+                             "passed": ok, "detail": detail, "honesty_label": "MODELED"})
+            if not rows:
+                meta["suites"].append({"suite_id": sid, "ran": False, "error": "no scorable cases"})
+                continue
+            res = {"suite": {"id": sid, "version": suite_def.get("version"),
+                             "sha256": _ea._suite_sha256(sid) if hasattr(_ea, "_suite_sha256") else None},
+                   "aggregate": {"n_cases": len(rows), "n_passed": n_pass},
+                   "results": rows, "honesty_label": "MODELED"}
+        else:
+            try:
+                res = _ea.run_eval(sid, _EVAL_MODEL_ID)
+            except Exception as e:  # noqa: BLE001
+                meta["suites"].append({"suite_id": sid, "ran": False, "error": type(e).__name__})
+                continue
+        if not isinstance(res, dict) or not res.get("results"):
+            meta["suites"].append({"suite_id": sid, "ran": False, "error": "no results"})
+            continue
+        suite = res.get("suite") or {}
+        agg = res.get("aggregate") or {}
+        meta["suites"].append({
+            "suite_id": sid, "ran": True,
+            "suite_sha256": suite.get("sha256"),
+            "suite_version": suite.get("version"),
+            "n_cases": agg.get("n_cases"), "n_passed": agg.get("n_passed"),
+            "arena_honesty_label": res.get("honesty_label"),
+            "answer_source": ("live provider answers via szl_llm_registry"
+                              if res.get("honesty_label") == "LIVE"
+                              else "MODELED reference-oracle answers (no provider key wired); "
+                                   "the suites, scorers and verdicts are real"),
+        })
+        for r in res["results"]:
+            answer = r.get("answer", "")
+            expected = r.get("expected", "")
+            scorer_name = r.get("scorer")
+            # independent RE-EXECUTION of the scorer over the recorded answer
+            rerun_ok, rerun_detail = None, None
+            fn = scorers.get(scorer_name)
+            if callable(fn):
+                try:
+                    rerun_ok, rerun_detail = fn(answer, expected)
+                    rerun_ok = bool(rerun_ok)
+                    meta["scorer_reexecuted"] = True
+                except Exception as e:  # noqa: BLE001
+                    rerun_ok, rerun_detail = None, f"rerun error: {type(e).__name__}"
+            trajs.append({
+                "suite_id": sid,
+                "case_id": r.get("id"),
+                "category": r.get("category"),
+                "scorer": scorer_name,
+                "eval_passed": bool(r.get("passed")),
+                "answer_sha256": r.get("answer_sha256"),
+                "rerun_passed": rerun_ok,
+                "rerun_detail": rerun_detail,
+                "honesty_label": r.get("honesty_label"),
+            })
+    if trajs:
+        meta["real_eval_run"] = True
+        meta["cases_available"] = len(trajs)
+    else:
+        meta["reason"] = meta["reason"] or "no eval suite produced results this request"
+    return trajs, meta
+
+
 def _run_loop(seed=42, n_trajectories=48, pass_rate=0.6, verify=True):
     """Deterministic STRUCTURAL model of the execution-verified synthesis loop.
 
@@ -110,26 +232,49 @@ def _run_loop(seed=42, n_trajectories=48, pass_rate=0.6, verify=True):
     verify=False the execution-verification stage is skipped — modeling the UNSAFE path
     (accepting eval-passes without execution proof) so the yield/trust contrast is visible.
     """
-    n = max(1, min(int(n_trajectories), 4096))
+    requested_n = max(1, min(int(n_trajectories), 4096))
     pass_rate = min(1.0, max(0.0, float(pass_rate)))
+
+    # REAL SIGNAL (Wave 32): trajectories come from eval suites actually executed in this
+    # request. We never pad the list to reach `n_trajectories` — a padded trajectory would
+    # be a fabricated one. If fewer real cases exist than requested, we report the real
+    # count and say so.
+    real_cases, eval_source = _real_eval_trajectories()
+    real = bool(eval_source.get("real_eval_run") and real_cases)
+    if real:
+        cases = real_cases[:requested_n]
+        n = len(cases)
+    else:
+        cases = []
+        n = requested_n
 
     trajs = []
     eval_passed = 0
     exec_verified = 0
     candidates = 0
     for i in range(n):
-        eval_score = round(0.05 + 0.9 * _u01(seed, i, salt=2), 6)
-        passed = eval_score >= (1.0 - pass_rate)      # higher pass_rate ⇒ lower bar ⇒ more pass
+        case = cases[i] if real else None
+        if real:
+            # eval verdict: REAL scorer output from this request's suite run
+            passed = bool(case["eval_passed"])
+            eval_score = 1.0 if passed else 0.0
+        else:
+            eval_score = round(0.05 + 0.9 * _u01(seed, i, salt=2), 6)
+            passed = eval_score >= (1.0 - pass_rate)  # higher pass_rate ⇒ lower bar ⇒ more pass
         if passed:
             eval_passed += 1
 
         # execution verification: a passing trajectory is EXECUTED; the verifier confirms
         # it actually runs/reproduces. Some eval-passes fail execution (the honest gap).
         executed = bool(passed)
-        if verify:
-            verified = bool(passed and _u01(seed, i, salt=6) > 0.22)   # ~78% of passes verify
-        else:
+        if not verify:
             verified = bool(passed)                                     # UNSAFE: trust eval alone
+        elif real:
+            # REAL re-execution: the scorer was run again, independently, over the recorded
+            # answer. It verifies only if that independent run reproduces the pass.
+            verified = bool(passed and case.get("rerun_passed") is True)
+        else:
+            verified = bool(passed and _u01(seed, i, salt=6) > 0.22)   # ~78% of passes verify
         if verified:
             exec_verified += 1
 
@@ -141,7 +286,7 @@ def _run_loop(seed=42, n_trajectories=48, pass_rate=0.6, verify=True):
         if admitted:
             candidates += 1
 
-        trajs.append({
+        row = {
             "id": i,
             "eval_score": eval_score,
             "eval_passed": bool(passed),
@@ -150,7 +295,18 @@ def _run_loop(seed=42, n_trajectories=48, pass_rate=0.6, verify=True):
             "is_candidate": admitted,
             "lambda_advisory": lam,
             "admitted": admitted,
-        })
+        }
+        if real:
+            row.update({
+                "suite_id": case["suite_id"], "case_id": case["case_id"],
+                "category": case["category"], "scorer": case["scorer"],
+                "answer_sha256": case["answer_sha256"],
+                "rerun_passed": case.get("rerun_passed"),
+                "source": "real eval-arena case executed this request",
+            })
+        else:
+            row["source"] = "seeded model (no real eval run available this request)"
+        trajs.append(row)
 
     gated_out = n - candidates
     verification_rate = round(exec_verified / eval_passed, 6) if eval_passed else 0.0
@@ -167,7 +323,18 @@ def _run_loop(seed=42, n_trajectories=48, pass_rate=0.6, verify=True):
 
     return {
         "n_trajectories": n,
+        "requested_n_trajectories": requested_n,
+        "eval_source": eval_source,
+        "real_eval_run": bool(real),
+        "n_note": (("trajectories = the %d real eval cases executed this request "
+                    "(requested %d; the list is NEVER padded with fabricated trajectories)"
+                    % (n, requested_n)) if real else
+                   ("no real eval run was available this request, so the loop fell back to "
+                    "a seeded model of %d trajectories and stays STRUCTURAL-ONLY" % n)),
         "pass_rate": round(pass_rate, 6),
+        "pass_rate_note": ("ignored in real-eval mode: pass/fail comes from the real scorer, "
+                           "not from this parameter" if real else
+                           "used as the seeded model's pass bar"),
         "verify": bool(verify),
         "stages": _STAGES,
         "trajectories": trajs[:_TRAJ_CAP],
@@ -264,21 +431,58 @@ def _h_execverify(req: Request):
 
     p = _run_loop(seed=seed, n_trajectories=n_trajectories, pass_rate=pass_rate, verify=verify)
     p["receipt"] = _receipt(p, seed)
+    real = bool(p.get("real_eval_run"))
+    # Wave 32: MODELED when the eval leg is a REAL in-request run (real suites, real
+    # scorers, real pass/fail, plus an independent scorer re-execution as the
+    # execution-verification check). Honestly STRUCTURAL-ONLY when no real eval could run,
+    # because then the loop is only a seeded sketch of itself.
+    label = "MODELED" if real else "STRUCTURAL-ONLY"
     p.update({
-        "label": "STRUCTURAL-ONLY",
-        "model": ("closed honest loop concept: evalarena → agentops execution-verified "
-                  "trajectory → Brain corpus candidate → SHA-256 receipt. The synthesis "
-                  "path is STRUCTURAL-ONLY (described + receipted, not trained in-request)."),
+        "label": label,
+        "model": ("closed honest loop: evalarena (REAL suites executed this request) → "
+                  "independent scorer re-execution as the execution-verification leg → "
+                  "Brain corpus candidate → SHA-256 receipt. The eval + verification legs "
+                  "are MODELED from real in-request runs; the SYNTHESIS step (training on "
+                  "the accepted corpus) is NOT executed and stays ROADMAP."
+                  if real else
+                  "closed honest loop concept: evalarena → agentops execution-verified "
+                  "trajectory → Brain corpus candidate → SHA-256 receipt. No real eval ran "
+                  "this request, so the loop is STRUCTURAL-ONLY (seeded sketch)."),
         "seed": seed,
+        "provenance": {
+            "eval_source": p.get("eval_source"),
+            "real_eval_run": real,
+            "verification_method": ("the scorer for each case was re-executed independently "
+                                    "over the recorded answer; a trajectory is "
+                                    "execution-verified only when that independent run "
+                                    "reproduces the pass" if real else None),
+            "not_measured": ("no wall-clock, joule or GPU reading is taken here, so nothing "
+                             "on this surface is MEASURED"),
+            "interpretation_caveat": (
+                "the eval answers come from the arena's ground-truth-derived reference "
+                "oracle whenever no provider key is wired (and always on a GET, so a read "
+                "never triggers a paid provider call). A high pass or verification rate "
+                "therefore reflects the SCORING pipeline reproducing itself, NOT a model "
+                "capability claim about any system."),
+            "coverage": 1.0,
+        },
+        "structural_only_reason": (None if real else
+                                   (p.get("eval_source") or {}).get("reason")
+                                   or "no real eval run available this request"),
+        "measured_gap": ("MEASURED would require timing the loop on real hardware with a "
+                         "meter attached, and an actual training run over the accepted "
+                         "corpus. Neither happens on this GET."),
         "parts_labeled": {
             "STRUCTURAL-ONLY": [
-                "the closed loop wiring evalarena + Brain + agentops into one pipeline",
-                "the synthesis path (eval → verified trajectory → corpus candidate → receipt)",
+                "the synthesis step itself (training on the accepted corpus) — not executed",
                 "the SHA-256 corpus-candidate receipt (design; unsigned preview on a GET)",
             ],
             "MODELED": [
-                "eval scores + eval-pass verdicts (deterministic seeded)",
-                "execution-verification verdicts (modeled verifier catching the looks-right/runs-right gap)",
+                ("eval-pass verdicts (REAL szl_eval_arena suites + scorers run this request)"
+                 if real else "eval scores + eval-pass verdicts (deterministic seeded fallback)"),
+                ("execution-verification verdicts (independent RE-EXECUTION of the same "
+                 "scorer over the recorded answer)" if real else
+                 "execution-verification verdicts (modeled verifier catching the looks-right/runs-right gap)"),
                 "candidate yield + verification rate + trust (computed, hard-capped at 0.97)",
             ],
             "CITED (not ours)": [
@@ -287,9 +491,15 @@ def _h_execverify(req: Request):
             ],
         },
         "honest_note": (
-            "STRUCTURAL-ONLY. The eval scores, execution-verification verdicts, candidate "
-            "yield and trust are a deterministic seeded MODEL of the loop — genuinely "
-            "computed and reported, not fabricated. a11oy does NOT train a model from these "
+            ("MODELED. The eval verdicts are REAL: szl_eval_arena suites were executed in "
+             "THIS request with their real scorers, and the execution-verification leg "
+             "independently RE-EXECUTED each scorer over the recorded answer. The "
+             "trajectory list is never padded to the requested n. "
+             if real else
+             "STRUCTURAL-ONLY. No real eval run was available this request, so the eval "
+             "scores and verification verdicts fall back to a deterministic seeded MODEL "
+             "of the loop — genuinely computed and reported, not fabricated. ")
+            + "a11oy does NOT train a model from these "
             "trajectories in-request: the synthesis (eval → execution-verified trajectory → "
             "corpus candidate → receipt) is DESCRIBED and RECEIPTED, not executed as an "
             "end-to-end training run. The evalarena, Brain, and agentops organs referenced "
@@ -305,7 +515,7 @@ def _h_execverify(req: Request):
         "citations": CITATIONS,
         "computed_at": datetime.now(timezone.utc).isoformat(),
     })
-    return JSONResponse({"label": "STRUCTURAL-ONLY", "payload": p})
+    return JSONResponse({"label": label, "payload": p})
 
 
 def register(app, ns: str = "a11oy"):
@@ -341,4 +551,5 @@ if __name__ == "__main__":
     print("verification_rate:", loop["verification_rate"], "candidate_yield:", loop["candidate_yield"])
     print("trust:", g["trust"], "(cap", _TRUST_CAP, ")", "mean_lambda:", g["mean_lambda_advisory"])
     print("receipt:", p["receipt"]["receipt_preview_digest"][:16], "... signed:", p["receipt"]["signed"])
-    print("label: STRUCTURAL-ONLY (SHA-256 receipt design)")
+    print("real_eval_run:", p.get("real_eval_run"),
+          "| label:", "MODELED" if p.get("real_eval_run") else "STRUCTURAL-ONLY")

@@ -15167,6 +15167,39 @@ except Exception as _szl_source_error:  # additive: never take down the SPA
 
 
 # ============================================================================
+# WAVE 32 (Dev C): SURFACE FIDELITY REGISTER — /api/a11oy/v1/surface/fidelity
+#   One honest, in-request answer to "is this surface MEASURED, MODELED, or
+#   STRUCTURAL-ONLY?" for the nine surfaces that were previously live-labelled
+#   STRUCTURAL-ONLY. Every label is recomputed per request from a REAL read (the
+#   organ's own compute, a node probe, an eval run, the brain graph, or the fleet
+#   joule meter) with provenance attached; a surface with no real signal STAYS
+#   STRUCTURAL-ONLY and says why. MEASURED for energy/ecosystem requires
+#   A11OY_JOULE_METER_URLS to be set AND a meter to answer live THIS request —
+#   never a fabricated joule. Λ stays Conjecture 1 (advisory, gray, never green).
+#   Additive + try/except-guarded; front-moved so the exact JSON routes beat the
+#   /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_surface_fidelity as _szl_surface_fidelity
+    _szl_fidelity_status = _szl_surface_fidelity.register(app, ns="a11oy")
+    for _szl_fid_path in (_szl_fidelity_status or []):
+        try:
+            _wn_frontmove(_szl_fid_path)
+        except Exception:  # pragma: no cover — front-move is best-effort
+            pass
+    print(f"[a11oy] WAVE 32 surface-fidelity register registered (front-moved): {_szl_fidelity_status}",
+          file=__import__("sys").stderr)
+except Exception as _szl_fid_e:  # additive: never take down the SPA
+    print(f"[a11oy] WAVE 32 surface-fidelity register NOT registered (non-fatal): {_szl_fid_e!r}; "
+          "SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE 32 SURFACE FIDELITY REGISTER
+# ============================================================================
+
+
+# ============================================================================
 # FORGE FAMILY WALL (2026-07-14): /api/forge/family — the public evidence wall
 # for the owner-forged model family (ReceiptAgent + Khipu). Server-side ed25519
 # re-verification on every request; receipts fetched from the public HF model

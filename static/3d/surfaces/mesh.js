@@ -20,6 +20,7 @@
 // 0 runtime CDN: three resolves through ctx.THREE (page importmap -> /static/3d/vendor/).
 
 import { createShowcase } from "./_showcase.js";
+import { attachFidelityBadge } from "./_fidelity.js";
 
 const ID = "mesh";
 const TITLE = "Sovereign Mesh · Cross-Node Orchestration";
@@ -68,7 +69,12 @@ const CENTER = [0, 0.6, 0];
 // =========================================================================================
 // mount
 // =========================================================================================
+// Wave 32: server-authoritative fidelity chip (label shown VERBATIM;
+// STRUCTURAL-ONLY until the server answers, never upgraded client-side).
+let _fid32 = null;
+
 function mount(ctx) {
+  try { _fid32 = attachFidelityBadge(ID, ctx); } catch (_) {}
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
   const THREE = _THREE;
   _group = new THREE.Group();
@@ -513,6 +519,8 @@ function _rawDump(json) {
 // unmount — stop every poll, free everything we added
 // =========================================================================================
 function unmount() {
+  try { if (_fid32) _fid32.stop(); } catch (_) {}
+  _fid32 = null;
   try { if (_hStatus) _hStatus.stop(); } catch (_) {}
   try { if (_hRoute) _hRoute.stop(); } catch (_) {}
   try { if (_hQuorum) _hQuorum.stop(); } catch (_) {}

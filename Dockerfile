@@ -311,7 +311,7 @@ COPY brain/harvest ./brain/harvest
 # … (full rationale: docs/DOCKERFILE_NOTES.md §35)
 COPY brain/harvest_vault.py ./brain/harvest_vault.py
 # --- buildkit max-depth fix: per-file COPYs grouped into one layer (no file dropped; every source token preserved). ---
-COPY szl_qhawaq.py szl_wallpa.py szl_pinn_nonlinear.py szl_sovereign_panel.py szl_lgmi.py szl_gnqs.py szl_casta.py szl_sparsemoe.py szl_pddisagg.py szl_execverify.py szl_brainbody.py szl_flowbrain.py szl_tee_attest.py szl_attested_inference.py szl_proof_carrying_infer.py szl_eu_energy.py a11oy_brain_graph.py szl_brain_api.py szl_brainprovenance.py szl_braincontradict.py szl_governed_infer.py szl_brain_energy.py szl_brain_command.py szl_brain_hub.py ./
+COPY szl_qhawaq.py szl_wallpa.py szl_pinn_nonlinear.py szl_sovereign_panel.py szl_lgmi.py szl_gnqs.py szl_casta.py szl_sparsemoe.py szl_pddisagg.py szl_execverify.py szl_brainbody.py szl_flowbrain.py szl_tee_attest.py szl_attested_inference.py szl_proof_carrying_infer.py szl_eu_energy.py a11oy_brain_graph.py szl_brain_api.py szl_brainprovenance.py szl_braincontradict.py szl_governed_infer.py szl_brain_energy.py szl_brain_command.py szl_brain_hub.py szl_surface_fidelity.py ./
 
 # DEV2: in-toto offline verifier recipe (Apache-2.0)
 RUN mkdir -p /app/szl-cookbook
