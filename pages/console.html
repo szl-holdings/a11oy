@@ -16748,7 +16748,7 @@ window.a11oyInvestor = (function(){
           +'<a class="btn" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Open diligence on a11oy.net ↗</a>'
           +'</div>';
         try{
-          var L = await (window.getJSON||window.gjFast||fetch)('/api/a11oy/v1/wow/ledger?limit=1');
+          var L = await (window.getJSON||window.gjFast||fetch)('/api/a11oy/v1/wow/ledger?limit=1&advance=0');
           if(L && L.then) L = await L;
           if(L && L.data) L = L.data;
           var rec=((L&&(L.receipts||L.items))||[])[0];
@@ -17213,9 +17213,9 @@ window.a11oyInvestor = (function(){
     V.command.__tryKhipuWrapped=true;
     var orig=V.command.render;
     V.command.render=async function(c){
-      var p=orig.call(this,c);
+      var result=await orig.call(this,c);
       inject(c);
-      return await p;
+      return result;
     };
     var body=document.getElementById('vbody');
     if(body && currentView()==='command' && !body.querySelector('#try-khipu-panel')) inject(body);
