@@ -41,7 +41,41 @@ jobs:
             exit 0
           fi
           echo '::group::Bounded restored estate-view context'
-          grep -n -C 8 -E 'V\.estate|renderEstate|Latest HF|LAST KNOWN|/api/a11oy/v1/hf/estate|const V|let V|hfEstateUpdatedAt|estateUpdated|case ["'"']estate|go\(["'"']estate|fetchHFEstate|hfEstate' pages/console.html | head -n 300 || true
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('pages/console.html')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          needles = (
+              'V.estate', 'renderEstate', 'Latest HF', 'LAST KNOWN',
+              '/api/a11oy/v1/hf/estate', 'const V', 'let V',
+              'hfEstateUpdatedAt', 'estateUpdated', "case 'estate'",
+              'case "estate"', "go('estate')", 'go("estate")',
+              'fetchHFEstate', 'hfEstate', "V['estate']", 'V["estate"]',
+          )
+          indexes = sorted({
+              index
+              for index, line in enumerate(lines)
+              if any(needle in line for needle in needles)
+          })
+          emitted = set()
+          shown = 0
+          for index in indexes:
+              start = max(0, index - 8)
+              end = min(len(lines), index + 9)
+              key = (start, end)
+              if key in emitted:
+                  continue
+              emitted.add(key)
+              print(f'--- lines {start + 1}-{end} ---')
+              for line_number in range(start, end):
+                  print(f'{line_number + 1}: {lines[line_number]}')
+                  shown += 1
+                  if shown >= 300:
+                      raise SystemExit(0)
+          if not indexes:
+              print('NO_MATCHING_ESTATE_ANCHORS')
+          PY
           echo '::endgroup::'
           exit 1
 
