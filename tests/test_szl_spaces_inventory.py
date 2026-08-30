@@ -1,8 +1,9 @@
-"""Regression coverage for the public KEEP-7 Hub Spaces inventory.
+"""Regression coverage for the public KEEP-6 Hub Spaces inventory.
 
 These tests are deliberately offline: runtime health remains the responsibility of the
 honest probe endpoint, while this suite locks identity, destinations, and the
 canonical-origin isolation boundary. Folded Spaces are not public Hub applications.
+Atlas keep-7 at 18:05Z is a prior snapshot and is not rewritten here.
 """
 
 from pathlib import Path
@@ -15,16 +16,16 @@ EXPECTED = [
     ("a11oy", "a11oy", "a11oy — Command Center", "docker", "https://a-11-oy.com"),
     ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker",
      "https://szlholdings-killinchu.hf.space/elite"),
-    ("david-leads", "david-leads", "David Leads — Sovereign Insurance Intelligence", "docker",
-     "https://huggingface.co/spaces/SZLHOLDINGS/david-leads"),
-    ("anatomy", "anatomy", "SZL Living Anatomy", "docker", "https://a-11-oy.com/anatomy-v5"),
     ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker",
      "https://a-11-oy.com/immune"),
-    ("szl-real-estate", "szl-real-estate", "SZL Real Estate — public-records underwriting",
-     "docker", "https://huggingface.co/spaces/SZLHOLDINGS/szl-real-estate"),
+    ("szl-khipu", "szl-khipu", "szl-khipu", "docker", "https://a-11-oy.com/khipu"),
     ("szl-atelier", "szl-atelier", "SZL Atelier — forty-model walk", "static",
      "https://a11oy.net/atelier/"),
+    ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static",
+     "https://a11oy.net/record/"),
 ]
+
+FOLDED_PII = ("david-leads", "anatomy", "szl-real-estate")
 
 
 def _rows(records):
@@ -32,15 +33,19 @@ def _rows(records):
 
 
 def test_audited_inventory_is_exact_and_in_lockstep():
-    assert len(EXPECTED) == 7
+    assert len(EXPECTED) == 6
+    assert surface.KEEP_TARGET == 6
     assert _rows(surface.SPACES) == EXPECTED
     assert _rows(proxy.SPACE_INVENTORY) == EXPECTED
     assert proxy.SPACE_INVENTORY is not surface.SPACES
-    assert len({row[0] for row in EXPECTED}) == 7
-    assert len({row[1] for row in EXPECTED}) == 7
+    assert len({row[0] for row in EXPECTED}) == 6
+    assert len({row[1] for row in EXPECTED}) == 6
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
     assert "governed-agent-bench" not in {row[0] for row in EXPECTED}
     assert "cosmos" not in {row[0] for row in EXPECTED}
+    for name in FOLDED_PII:
+        assert name not in {row[0] for row in EXPECTED}
+        assert name in {sp["name"] for sp in surface.FOLD_SPACES}
 
 
 def test_sdk_selects_the_canonical_hugging_face_host():
@@ -55,13 +60,16 @@ def test_sdk_selects_the_canonical_hugging_face_host():
     assert surface.hf_api_url("anatomy") == (
         "https://huggingface.co/api/spaces/SZLHOLDINGS/anatomy"
     )
+    assert surface.hf_api_url("szl-khipu") == (
+        "https://huggingface.co/api/spaces/SZLHOLDINGS/szl-khipu"
+    )
 
 
 def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
     expected_slugs = {row[1] for row in EXPECTED}
     assert set(proxy.ALL_SPACES) == expected_slugs
     assert expected_slugs <= set(proxy.HANDOFF_SPACES)
-    assert len(proxy.HANDOFF_SPACES) == 7 + len(proxy.FOLD_INVENTORY)
+    assert len(proxy.HANDOFF_SPACES) == 6 + len(proxy.FOLD_INVENTORY)
     for name, _slug, _title, _sdk, dest in EXPECTED:
         assert surface.canonical_url(name) == dest
         assert surface.proxy_url(name) == dest
@@ -70,7 +78,10 @@ def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
         "https://a-11-oy.com/immune/assets/app.js?v=1&mode=full"
     )
     assert proxy._canonical_target("cosmos") == "https://a-11-oy.com/living-anatomy"
+    assert proxy._canonical_target("nexus") == "https://a-11-oy.com/nexus"
+    assert proxy._canonical_target("szl-khipu") == "https://a-11-oy.com/khipu"
     assert proxy._canonical_target("governed-agent-bench") == "https://a11oy.net/record"
+    assert proxy._canonical_target("governed-receipt-verifier") == "https://a11oy.net/record"
 
 
 def test_unknown_identifiers_fail_closed():
@@ -101,8 +112,8 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
         assert dest in tiles
         assert title in fallback
         assert name in fallback
-    assert "Public Hub cut is 7 KEEP" in tiles
-    assert "Public Hub cut is 7 KEEP" in fallback
+    assert "Public Hub cut is 6 KEEP" in tiles
+    assert "Public Hub cut is 6 KEEP" in fallback
     assert "/verify is not cloned" in tiles
     assert "all RUNNING" not in fallback
     assert "Open destination" in tiles
@@ -117,8 +128,12 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
     assert "SNAPSHOT" in forge
     assert "not a trainer" in forge
     assert "Occupancy UNAVAILABLE" in tiles
-    assert "data-fold=\"cosmos\"" in tiles
+    assert 'data-fold="cosmos"' in tiles
+    assert 'data-fold="david-leads"' in tiles
+    assert 'data-fold="anatomy"' in tiles
+    assert 'data-fold="nexus"' in tiles
     assert "a11oy.net/spaces.json" in tiles
+    assert "https://a-11-oy.com/nexus" in tiles
 
 
 def test_registered_shortcuts_redirect_without_proxying_content():
@@ -147,8 +162,17 @@ def test_registered_shortcuts_redirect_without_proxying_content():
     assert client.get("/spaces/killinchu").headers["location"] == (
         "https://szlholdings-killinchu.hf.space/elite"
     )
+    assert client.get("/spaces/szl-khipu").headers["location"] == (
+        "https://a-11-oy.com/khipu"
+    )
+    assert client.get("/spaces/nexus").headers["location"] == (
+        "https://a-11-oy.com/nexus"
+    )
     assert client.get("/spaces/cosmos").headers["location"] == (
         "https://a-11-oy.com/living-anatomy"
+    )
+    assert client.get("/spaces/governed-receipt-verifier").headers["location"] == (
+        "https://a11oy.net/record"
     )
     assert client.get("/spaces/notreal").status_code == 404
     assert client.get("/spaces/second-brain").status_code == 404
