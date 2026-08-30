@@ -1,0 +1,43 @@
+name: Materialize PR1517 verified runtime recovery v3
+
+on:
+  push:
+    branches:
+      - ops/materialize-pr1517-runtime-recovery-20260830
+    paths:
+      - .github/workflows/materialize-pr1517-runtime-recovery-v3.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-pr1517-runtime-recovery-v3
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact ops head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Execute fail-closed recovery and regression gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          cp scripts/ops/materialize_pr1517_runtime_recovery.py /tmp/materialize_pr1517.py
+          python3 /tmp/materialize_pr1517.py
