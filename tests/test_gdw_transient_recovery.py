@@ -203,23 +203,13 @@ def _queue_receipt(
 ):
     request_digest = hashlib.sha256(request_id.encode()).hexdigest()
     governance = {
-        "allowed": False,
+        "allowed": True,
+        "policy": "test",
         "principal": {
             "namespace": workspace.namespace,
             "owner_id": workspace.owner_id,
         },
     }
-    receipt = {
-        "request_id": request_id,
-        "request_digest": request_digest,
-        "session_id": "session",
-        "namespace": workspace.namespace,
-        "owner_id": workspace.owner_id,
-        "database_generation_id": workspace.database_generation_id,
-        "step": 0,
-        "decision": "REJECT",
-    }
-    receipt["receipt_hash"] = _canonical_hash(receipt)
     response = {
         "request_id": request_id,
         "request_digest": request_digest,
@@ -227,10 +217,10 @@ def _queue_receipt(
         "step": 0,
         "state_before_hash": "b" * 64,
         "state_hash": "b" * 64,
-        "decision": "REJECT",
+        "decision": "ACCEPT",
         "scheduler_mode": "kda_local",
-        "receipt_hash": receipt["receipt_hash"],
-        "dry_run": True,
+        "receipt_hash": None,
+        "dry_run": False,
         "database_generation_id": workspace.database_generation_id,
         "principal": {
             "namespace": workspace.namespace,
@@ -251,6 +241,27 @@ def _queue_receipt(
             "governance_evidence_sha256": _canonical_hash(governance),
         }
     )
+    receipt = {
+        "schema": "szl.gdw.transaction-receipt/v1",
+        "status": "UNSIGNED_ATOMIC",
+        "proposal_id": response["proposal_id"],
+        "request_id": request_id,
+        "request_digest": request_digest,
+        "session_id": "session",
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "database_generation_id": workspace.database_generation_id,
+        "credential_key_id": "test-key",
+        "step": response["step"],
+        "state_before_hash": response["state_before_hash"],
+        "state_after_hash": response["state_hash"],
+        "scheduler_mode": response["scheduler_mode"],
+        "governance_evidence_sha256": _canonical_hash(governance),
+        "governance": governance,
+        "created_at": created_at.isoformat(),
+    }
+    receipt["receipt_hash"] = _canonical_hash(receipt)
+    response["receipt_hash"] = receipt["receipt_hash"]
     with workspace.transaction() as connection:
         workspace.save_request(
             connection,
@@ -281,7 +292,6 @@ def _queue_receipt(
             max_attempts=max_attempts,
         )
     return key
-
 
 def _effect_row(workspace, key):
     connection = sqlite3.connect(workspace.path)
