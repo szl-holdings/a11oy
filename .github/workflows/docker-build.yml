@@ -127,6 +127,17 @@ jobs:
             sleep 1
           done
           if [ "${ok}" != "1" ]; then echo "::error::a11oy image failed /api/a11oy/healthz smoke after 120s"; exit 1; fi
+          for path in \
+            "/opportunities" \
+            "/api/a11oy/v1/opportunities/healthz" \
+            "/api/a11oy/v1/opportunities/sources"; do
+            code="$(curl -sS -o /tmp/a11oy_opportunity_smoke.json -w '%{http_code}' "http://127.0.0.1:7860${path}" 2>/dev/null || true)"
+            if [ "${code}" != "200" ]; then
+              echo "::error::a11oy image failed deterministic Opportunity Graph smoke ${path} (HTTP ${code})"
+              exit 1
+            fi
+            echo "Opportunity Graph smoke ${path}: HTTP 200"
+          done
 
       # FIX (Yachay, empire-reliability 2026-06-01): the SBOM step previously always
       # referenced the pushed main tag `:sha-<sha7>`. On pull_request builds the image
