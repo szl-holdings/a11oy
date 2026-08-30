@@ -6,8 +6,6 @@ Runtime lives at https://a-11-oy.com/organs. Proof RECORD stays on a11oy.net/fac
 Not 25 public Spaces. GPU tune remains UNAVAILABLE. Formulas never grant authority.
 """
 
-from __future__ import annotations
-
 import ast
 import hashlib
 import json
