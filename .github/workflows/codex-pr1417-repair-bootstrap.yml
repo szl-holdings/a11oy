@@ -42,7 +42,7 @@ jobs:
       - name: Install exact test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
 
-      - name: Prove restored route, console, estate, identity and honesty contracts
+      - name: Prove restored route, console, estate, landing, identity and honesty contracts
         run: >-
           pytest
           tests/test_demo_critical_routes.py
@@ -50,6 +50,8 @@ jobs:
           tests/test_khipu_console_panel.py
           tests/test_holographic_command_bar.py
           tests/test_series_a_estate.py
+          tests/test_landing_flagship_catalog.py
+          tests/test_landing_audit_fixes.py
           tests/test_identity_lock.py
           test_canonical_domain.py
           -q
