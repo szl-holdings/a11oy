@@ -1214,7 +1214,7 @@ def register(app, ns: str = "a11oy") -> str:
         except Exception:
             return None
 
-    async def _roster(request: "Request") -> "JSONResponse":
+    async def _roster(request: "Request") -> JSONResponse:
         backend = _backend.backend_status()
         return JSONResponse({
             "count": len(ROSTER),
@@ -1231,11 +1231,11 @@ def register(app, ns: str = "a11oy") -> str:
             "version": __version__,
         })
 
-    async def _model_binding(request: "Request") -> "JSONResponse":
+    async def _model_binding(request: "Request") -> JSONResponse:
         return JSONResponse(family_binding(
             namespace=ns, backend_status=_backend.backend_status()))
 
-    async def _second_brain(request: "Request") -> "JSONResponse":
+    async def _second_brain(request: "Request") -> JSONResponse:
         try:
             import a11oy_org_rag as _org_rag
             rag = _org_rag.status()
@@ -1252,12 +1252,12 @@ def register(app, ns: str = "a11oy") -> str:
             signer_ready=callable(getattr(request.app.state, "szl_sign_receipt", None)),
         ))
 
-    async def _council_manifest(request: "Request") -> "JSONResponse":
+    async def _council_manifest(request: "Request") -> JSONResponse:
         storage = getattr(request.app.state, "ayllu_council_khipu_storage",
                           council_storage)
         return JSONResponse(council_manifest(ns, storage))
 
-    async def _ask(request: "Request") -> "JSONResponse":
+    async def _ask(request: "Request") -> JSONResponse:
         ok, retry = _ASK_BUCKET.check()
         if not ok:
             return JSONResponse(
@@ -1348,7 +1348,7 @@ def register(app, ns: str = "a11oy") -> str:
         }, sign_fn=_runtime_signer(request))
         return JSONResponse({"ask_id": ask_id, "turn": turn, "receipt": receipt})
 
-    async def _council(request: "Request") -> "JSONResponse":
+    async def _council(request: "Request") -> JSONResponse:
         ok, retry = _COUNCIL_BUCKET.check()
         if not ok:
             return JSONResponse(
@@ -1437,7 +1437,7 @@ def register(app, ns: str = "a11oy") -> str:
         return JSONResponse({"council_id": council_id, "result": result,
                              "contract": contract, "receipt": receipt})
 
-    async def _lounge_feed(request: "Request") -> "JSONResponse":
+    async def _lounge_feed(request: "Request") -> JSONResponse:
         return JSONResponse({"count": len(_LOUNGE.feed),
                              "recent": _LOUNGE.recent(50)})
 
@@ -1447,7 +1447,7 @@ def register(app, ns: str = "a11oy") -> str:
     async def _psyche_page(request: "Request") -> "HTMLResponse":
         return HTMLResponse(_psyche_html(ns))
 
-    async def _winay(request: "Request") -> "JSONResponse":
+    async def _winay(request: "Request") -> JSONResponse:
         return JSONResponse(winay_contract(ns))
 
     app.add_api_route(f"/api/{ns}/v1/ayllu/roster", _roster, methods=["GET"],

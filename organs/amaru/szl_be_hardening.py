@@ -320,7 +320,7 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     setattr(app.state, "be_khipu", store) if hasattr(app, "state") else None
 
     # ---- error envelope helper (item 6) -----------------------------------
-    def _envelope(code: str, message: str, trace_id: str, status: int) -> "JSONResponse":
+    def _envelope(code: str, message: str, trace_id: str, status: int) -> JSONResponse:
         return JSONResponse(
             status_code=status,
             content={"error": {"code": code, "message": message,

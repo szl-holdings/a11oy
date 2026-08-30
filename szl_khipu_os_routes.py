@@ -342,19 +342,19 @@ def register(app, ns: str = "a11oy") -> None:
     ec_sign, ec_keyid = _load_ec_signer(ec_key)
 
     @app.get(base + "/stats")
-    async def khipu_os_stats() -> "JSONResponse":
+    async def khipu_os_stats() -> JSONResponse:
         return JSONResponse(dag.stats())
 
     @app.get(base + "/verify")
-    async def khipu_os_verify(sample: int = 100) -> "JSONResponse":
+    async def khipu_os_verify(sample: int = 100) -> JSONResponse:
         return JSONResponse(dag.verify(sample_n=int(sample)))
 
     @app.post(base + "/checkpoint")
-    async def khipu_os_checkpoint() -> "JSONResponse":
+    async def khipu_os_checkpoint() -> JSONResponse:
         return JSONResponse(dag.checkpoint(ec_sign=ec_sign, ec_keyid=ec_keyid))
 
     @app.post(base + "/archive")
-    async def khipu_os_archive() -> "JSONResponse":
+    async def khipu_os_archive() -> JSONResponse:
         return JSONResponse(dag.archive())
 
     import sys

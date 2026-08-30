@@ -810,7 +810,7 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
     base = f"/api/{ns}/v1/eval"
 
     @app.get(base + "/suites")
-    async def eval_suites() -> "JSONResponse":
+    async def eval_suites() -> JSONResponse:
         """Roster of available eval suites (Inspect Task / lm-eval task-group style)."""
         return JSONResponse({
             "timestamp": _now(),
@@ -841,7 +841,7 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
         })
 
     @app.get(base + "/suites/{suite_id}")
-    async def eval_suite_detail(suite_id: str) -> "JSONResponse":
+    async def eval_suite_detail(suite_id: str) -> JSONResponse:
         s = _SUITES.get(suite_id)
         if not s:
             return JSONResponse({"error": f"unknown suite '{suite_id}'",
@@ -857,7 +857,7 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
         })
 
     @app.post(base + "/run")
-    async def eval_run(request: "Request") -> "JSONResponse":
+    async def eval_run(request: "Request") -> JSONResponse:
         """Run a governed eval suite over a routed model. Returns per-case + aggregate + signed receipt.
 
         Body: {"suite": "core_honest_v1", "model_id": "claude_sonnet_4_6",
@@ -890,7 +890,7 @@ def register(app: "FastAPI", ns: str = "a11oy") -> dict:
         return JSONResponse(out, status_code=code)
 
     @app.get(base + "/health")
-    async def eval_health() -> "JSONResponse":
+    async def eval_health() -> JSONResponse:
         try:
             import szl_dsse
             signing = bool(szl_dsse.signing_available())
