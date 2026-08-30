@@ -24,6 +24,7 @@ szl_khipu_os_routes         # wired via the edge-organs __import__(var).register
 szl_abacus_verify           # wired via a string-name dynamic register loop in serve.py (dynamic import)
 szl_budget_router           # wired via a string-name dynamic register loop in serve.py (dynamic import)
 szl_consensus_clusters      # wired via a string-name dynamic register loop in serve.py (dynamic import)
+szl_llm_registry            # register() IS invoked at serve.py:7541 via _resolve_llm_registry_module() — a function-returned module (prefers the szl_substrate copy when it satisfies the router-stats contract, vendored fallback) that the static AST check cannot attribute (dynamic)
 szl_decision_uncertainty    # wired via a string-name dynamic register loop in serve.py (dynamic import)
 szl_gor_audit               # wired via a string-name dynamic register loop in serve.py (dynamic import)
 szl_governance_gateway      # wired via a string-name dynamic register loop in serve.py (dynamic import)
