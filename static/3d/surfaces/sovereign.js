@@ -49,6 +49,7 @@ const S = {
   reachable:false, baseUrl:null, envPresent:null, apiStyle:null,
   modelTag:"llama3-szl-finetuned-q4", modelServed:null, modelsLive:[],
   via:null, dependency:null, reachNote:null,
+  reason:null, reasonText:null, baseSource:null,
   selftestLabel:"UNAVAILABLE", selftestAnswer:null, selftestPrompt:"State your doctrine in one line",
   activeStage:"UNKNOWN", stageNote:null,
   signMode:null, signed:null, signerFp:null,
@@ -94,6 +95,11 @@ function _onPanel(j){
   S.via=sov.via||null;
   S.dependency=sov.dependency||null;
   S.reachNote=sov.note||null;
+  // Honest, machine-readable reason for a non-live sovereign: an unset env var
+  // (environment gap) reads differently from a configured-but-silent node.
+  S.reason=(sov.unavailable_reason||j.unavailable_reason)||null;
+  S.reasonText=(sov.unavailable_reason_text||j.unavailable_reason_text)||null;
+  S.baseSource=sov.base_url_source||null;
   S.modelTag=j.model_tag||S.modelTag;
 
   const st=j.doctrine_selftest||{};
@@ -179,6 +185,8 @@ function _buildOverlay(ctx){
     '<div style="margin-top:2px;color:#8fb3bd;font-size:10.5px">Operator status of the founder\'s <b>LOCAL sovereign model</b> (Ollama on the Tower, Doctrine-v11 system prompt over base llama3.1:8b). The Tower is <b>not reachable from CI/cloud</b>, so off-Tower this reads <b>UNAVAILABLE</b> — never a fabricated live status or doctrine line.</div>'+
     _row("Reachable","sv-reach")+_row("Model tag","sv-tag")+
     _row("Served (live)","sv-served")+_row("Endpoint base","sv-base")+
+    _row("Why not live","sv-reason")+
+    '<div id="sv-reasontext" style="margin-top:3px;font-size:10.5px;color:#9fc;line-height:1.5"></div>'+
     '<hr style="border:0;border-top:1px solid #1b3a44;margin:8px 0">'+
     '<div style="font-size:10.5px;color:#8fb3bd;margin-bottom:3px">Doctrine self-test — “State your doctrine in one line”</div>'+
     _row("Result","sv-stlabel")+
@@ -218,14 +226,17 @@ function _paintOverlay(){
   const missing=(S.state==="missing"||S.state==="error");
   if(_show) _show.setChip("label",S.label||"UNAVAILABLE");
   if(missing){
-    ["sv-reach","sv-tag","sv-served","sv-base","sv-stlabel","sv-stage","sv-sign"].forEach((id)=>_set(id,"NO-LIVE-DATA"));
+    ["sv-reach","sv-tag","sv-served","sv-base","sv-reason","sv-stlabel","sv-stage","sv-sign"].forEach((id)=>_set(id,"NO-LIVE-DATA"));
+    _set2("sv-reasontext","panel endpoint did not answer this request \u2014 no status inferred.");
     _set2("sv-answer","backend offline — NO-LIVE-DATA (honest, never fabricated).");
     if(_plain)_applyPlain(); return;
   }
   _set("sv-reach",S.reachable?"YES · LIVE-SOVEREIGN":"NO · UNAVAILABLE");
   _set("sv-tag",S.modelTag||"—");
   _set("sv-served",(S.reachable&&S.modelServed)?S.modelServed:"— (node unreachable)");
-  _set("sv-base",S.baseUrl?String(S.baseUrl):(S.envPresent===false?"SZL_LOCAL_LLM_URL unset":"—"));
+  _set("sv-base",(S.baseUrl?String(S.baseUrl):"—")+(S.baseSource?" ( "+S.baseSource+" )":""));
+  _set("sv-reason",S.reachable?"— (node answered this request)":(S.reason||"UNKNOWN"));
+  _set2("sv-reasontext",S.reachable?"":(S.reasonText||""));
   _set("sv-stlabel",S.selftestLabel||"UNAVAILABLE");
   _set2("sv-answer", S.selftestAnswer
     ? S.selftestAnswer

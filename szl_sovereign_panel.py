@@ -70,6 +70,31 @@ DOCTRINE_SELFTEST_PROMPT = "State your doctrine in one line"
 # merged yet we fall back to the registry helper / a direct probe and say so).
 DEV1_HEALTH_ROUTE = "/api/a11oy/v1/llm/sovereign/health"
 
+# Machine-readable reasons for an UNAVAILABLE sovereign. These distinguish the two
+# honestly-different causes so an operator (and the surface HUD) can tell an
+# UNCONFIGURED estate apart from a CONFIGURED-but-down node. Neither is a code bug
+# and neither is ever upgraded to a live label.
+REASON_ENV_UNSET = "SZL_LOCAL_LLM_URL_UNSET"          # no Tower targeted at all
+REASON_NODE_UNREACHABLE = "NODE_UNREACHABLE_THIS_REQUEST"  # env set, node silent
+REASON_NONE = None                                     # reachable — no reason needed
+
+# How the probed base URL was chosen (env vs the localhost fallback default).
+BASE_FROM_ENV = "env:SZL_LOCAL_LLM_URL"
+BASE_FROM_DEFAULT = "default:localhost (SZL_LOCAL_LLM_URL unset)"
+
+
+def unavailable_reason(reachable: bool, env_present: bool) -> str | None:
+    """Honest, machine-readable reason code for a non-live sovereign.
+
+    reachable=True  -> None (nothing to explain; the node answered THIS request).
+    env unset       -> REASON_ENV_UNSET (env gap: the estate never named a Tower;
+                       the probe fell back to the localhost default and was refused).
+    env set, silent -> REASON_NODE_UNREACHABLE (Tower down / not routable from here).
+    """
+    if reachable:
+        return REASON_NONE
+    return REASON_ENV_UNSET if not env_present else REASON_NODE_UNREACHABLE
+
 
 def _now_iso() -> str:
     return datetime.datetime.now(datetime.timezone.utc).isoformat()
@@ -103,6 +128,8 @@ def _probe_reachability() -> dict[str, Any]:
         "via": None,
         "dependency": None,
         "note": "",
+        "base_url_source": None,
+        "unavailable_reason": REASON_ENV_UNSET,
     }
     # Preferred path: Dev-1's registry helper. It is the SAME code that backs the
     # routed GET /api/a11oy/v1/llm/sovereign/health, so this panel and that endpoint
@@ -118,6 +145,8 @@ def _probe_reachability() -> dict[str, Any]:
         out["via"] = "szl_llm_registry.sovereign_probe (backs %s)" % DEV1_HEALTH_ROUTE
         out["dependency"] = "resolved: szl_llm_registry present in this runtime"
         out["note"] = str(probe.get("note") or "")
+        out["base_url_source"] = BASE_FROM_ENV if out["env_present"] else BASE_FROM_DEFAULT
+        out["unavailable_reason"] = unavailable_reason(out["reachable"], out["env_present"])
         return out
     except Exception as exc:  # noqa: BLE001 — Dev-1 module absent → honest direct fallback
         out["dependency"] = (
@@ -135,6 +164,8 @@ def _probe_reachability() -> dict[str, Any]:
     out["base_url"] = base or None
     out["env_present"] = bool(base)
     out["via"] = "direct SZL_LOCAL_LLM_URL probe (Dev-1 helper absent)"
+    out["base_url_source"] = BASE_FROM_ENV if base else BASE_FROM_DEFAULT
+    out["unavailable_reason"] = unavailable_reason(False, bool(base))
     if not base:
         out["note"] = ("SZL_LOCAL_LLM_URL not set — sovereign node is an HONEST STUB; "
                        "reachability UNAVAILABLE (never fabricated).")
@@ -161,6 +192,7 @@ def _probe_reachability() -> dict[str, Any]:
             out["reachable"] = True
             out["models"] = names
             out["api_style"] = kind
+            out["unavailable_reason"] = REASON_NONE
             out["note"] = "node live (%s) — model list real THIS request (direct probe)." % kind
             return out
     out["note"] = ("SZL_LOCAL_LLM_URL set but node did not respond live this request "
@@ -349,6 +381,17 @@ def build_payload() -> dict[str, Any]:
     # A served-model label for the healthz rollup + the panel header (honest).
     live_models = reach.get("models") or []
     model_label = (live_models[0] if (reachable and live_models) else SOVEREIGN_MODEL_TAG)
+    reason = reach.get("unavailable_reason") if not reachable else REASON_NONE
+    reason_text = {
+        REASON_ENV_UNSET: ("SZL_LOCAL_LLM_URL is not set in this runtime, so no Tower was "
+                           "named; the probe fell back to the localhost default and was "
+                           "refused. This is an ENVIRONMENT GAP, not a failed node and not "
+                           "a code fault — set SZL_LOCAL_LLM_URL to a reachable sovereign "
+                           "node and this surface goes live on the next request."),
+        REASON_NODE_UNREACHABLE: ("SZL_LOCAL_LLM_URL is set but the node did not answer this "
+                                  "request (Tower down, or not routable from this runtime). "
+                                  "Honest UNAVAILABLE — no status or answer is fabricated."),
+    }.get(reason)
 
     snapshot: dict[str, Any] = {
         "ok": True,
@@ -370,11 +413,16 @@ def build_payload() -> dict[str, Any]:
             "base_url": reach.get("base_url"),
             "env_present": reach.get("env_present"),
             "api_style": reach.get("api_style"),
+            "base_url_source": reach.get("base_url_source"),
+            "unavailable_reason": reason,
+            "unavailable_reason_text": reason_text,
             "models_live": live_models,
             "via": reach.get("via"),
             "dependency": reach.get("dependency"),
             "note": reach.get("note"),
         },
+        "unavailable_reason": reason,
+        "unavailable_reason_text": reason_text,
         "doctrine_selftest": selftest,
         "stage": stage,
         "dev1_health_route": DEV1_HEALTH_ROUTE,
@@ -405,9 +453,12 @@ def rollup_signal() -> dict[str, Any]:
             "reachable": reachable,
             "model": (live_models[0] if (reachable and live_models) else SOVEREIGN_MODEL_TAG),
             "label": LIVE_SOVEREIGN if reachable else UNAVAILABLE,
+            "unavailable_reason": (reach.get("unavailable_reason")
+                                   if not reachable else REASON_NONE),
         }
     except Exception as exc:  # noqa: BLE001 — never crash the health path; honest UNAVAILABLE
         return {"reachable": False, "model": SOVEREIGN_MODEL_TAG, "label": UNAVAILABLE,
+                "unavailable_reason": REASON_NODE_UNREACHABLE,
                 "error": f"{type(exc).__name__}: {exc}"}
 
 
@@ -420,6 +471,7 @@ def handle() -> dict[str, Any]:
             "ok": False,
             "endpoint": "frontier/sovereign",
             "label": UNAVAILABLE,
+            "unavailable_reason": REASON_NODE_UNREACHABLE,
             "error": str(exc),
             "doctrine": "v11: sovereign surface unavailable; no fabricated status/answer emitted.",
             "timestamp_utc": _now_iso(),
