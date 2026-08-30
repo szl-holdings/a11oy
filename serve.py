@@ -3062,6 +3062,9 @@ def _llm_registry_supports_router_stats(registry) -> bool:
     return True
 
 
+import szl_llm_registry as _vendored_llm_registry
+
+
 def _resolve_llm_registry_module():
     """Resolve one counter-capable registry module for this process.
 
@@ -3088,12 +3091,22 @@ def _resolve_llm_registry_module():
     if _llm_registry_supports_router_stats(preferred_registry):
         registry = preferred_registry
     else:
-        import szl_llm_registry as registry
+        registry = _vendored_llm_registry
         if not _llm_registry_supports_router_stats(registry):
             raise RuntimeError("vendored LLM registry lacks the router stats contract")
 
     globals()["_llm_reg"] = registry
     return registry
+
+
+def _register_llm_registry(app_instance):
+    """Register exactly the counter-capable module selected for this process."""
+    registry = _resolve_llm_registry_module()
+    if registry is _vendored_llm_registry:
+        info = _vendored_llm_registry.register(app_instance)
+    else:
+        info = registry.register(app_instance)
+    return registry, info
 
 
 try:
@@ -7582,8 +7595,7 @@ except Exception as _parity_e:
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
 # ===========================================================================
 try:
-    _llm_reg = _resolve_llm_registry_module()
-    _llm_reg_info = _llm_reg.register(app)
+    _llm_reg, _llm_reg_info = _register_llm_registry(app)
     print(
         f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
         f"{len(_llm_reg_info.get('endpoints', []))} endpoints — Doctrine v11",

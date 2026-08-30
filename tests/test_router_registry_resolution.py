@@ -52,6 +52,25 @@ def _counter_capable_registry() -> ModuleType:
     return registry
 
 
+def test_production_register_helper_invokes_resolved_registry_once(monkeypatch):
+    calls: list[object] = []
+    resolved_info = {"endpoints": ["GET /api/a11oy/v1/llm/registry"]}
+
+    def _register(app):
+        calls.append(app)
+        return resolved_info
+
+    isolated_app = object()
+    monkeypatch.setattr(serve, "_resolve_llm_registry_module", lambda: vendored_registry)
+    monkeypatch.setattr(vendored_registry, "register", _register)
+
+    resolved, info = serve._register_llm_registry(isolated_app)
+
+    assert resolved is vendored_registry
+    assert info is resolved_info
+    assert calls == [isolated_app]
+
+
 def test_optional_substrate_writer_and_stats_reader_share_one_module(monkeypatch):
     optional_registry = _counter_capable_registry()
     package = _optional_package(optional_registry)
