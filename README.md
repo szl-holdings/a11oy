@@ -17,6 +17,8 @@ tags:
   - slsa-l1
   - apache-2.0
 ecosystem-stage: "operational"
+models: [SZLHOLDINGS/SZL-Khipu-1.5B, SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent]
+datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
 <!--
