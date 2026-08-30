@@ -527,11 +527,13 @@ def test_attest_surface_is_registered_last_in_all_three_places():
 
 
 def test_new_files_carry_no_banned_superlative_and_no_bare_lambda_theorem():
-    # assembled from fragments so this guard does not trip over its own source
-    banned = tuple(a + b for a, b in (
-        ("revolution", "ary"), ("world-", "class"), ("seam", "less"),
-        ("industry-", "leading"), ("cutting-", "edge"), ("game-", "changing"),
-        ("break", "through"), ("unpreced", "ented")))
+    # assembled from split fragments, kept on separate lines, so this guard does not
+    # trip over its own source (the repo-wide banned-token scan reads it too)
+    heads = ("revolution", "world", "seam", "industry",
+             "cutting", "game", "break", "unpreced")
+    tails = ("ary", "-class", "less", "-leading",
+             "-edge", "-changing", "through", "ented")
+    banned = tuple(h + t for h, t in zip(heads, tails))
     targets = [
         ROOT / "szl_attest.py",
         REGO,

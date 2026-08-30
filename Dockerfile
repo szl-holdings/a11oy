@@ -644,6 +644,15 @@ COPY szl_organ_integrity.py ./szl_organ_integrity.py
 # Packet 8 Decision Integrity desk on a-11-oy.com (GET /decision).
 # Frozen evals. Formula authority NONE. Status ROADMAP. Does not stamp LIVE.
 # Bound-path Command Center SPA on a-11-oy.com/command. Does not steal /console.
+# L6 CHAIN-OF-TITLE ATTESTATION (Wave 32): in-toto v1 Statement whose subject binds
+# the locked-8 kernel gitCommit, DSSE-signed via szl_dsse, with a guarded Rekor
+# submission that records UNREACHABLE/UNKNOWN rather than a fabricated entry.
+# Serves GET /api/a11oy/v1/attest/manifest and GET|POST /api/a11oy/v1/attest/verify
+# plus the `attest` holographic surface. Policy: ops/szl_chain_of_title.rego.
+COPY szl_attest.py ./szl_attest.py
+COPY ops/szl_chain_of_title.rego ./ops/szl_chain_of_title.rego
+COPY static/3d/surfaces/attest.js ./static/3d/surfaces/attest.js
+
 COPY verticals/_kernel/a11oy_kernel.py ./verticals/_kernel/a11oy_kernel.py
 COPY verticals/PACKET8.json ./verticals/PACKET8.json
 COPY verticals/terra ./verticals/terra
