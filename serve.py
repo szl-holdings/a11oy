@@ -3098,10 +3098,13 @@ def _resolve_llm_registry_module():
 
 def _register_llm_registry(app_instance):
     """Register exactly the counter-capable module selected for this process."""
-    import szl_llm_registry as vendored_registry
-
     registry = _resolve_llm_registry_module()
-    if registry is vendored_registry:
+    try:
+        import szl_llm_registry as vendored_registry
+    except Exception:
+        vendored_registry = None
+
+    if vendored_registry is not None and registry is vendored_registry:
         info = vendored_registry.register(app_instance)
     else:
         info = registry.register(app_instance)
