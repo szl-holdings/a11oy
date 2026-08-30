@@ -1,38 +1,41 @@
-as_of: "2026-08-29T18:05:00Z"
-state: LIVE
-action: pause_and_private_never_delete
+as_of: "2026-08-30T13:20:28Z"
+state: OBSERVED
+scope: public_only
+action: registry_reconcile_no_visibility_mutation
 product: https://a-11-oy.com
 proof: https://a11oy.net
 hub: https://huggingface.co/SZLHOLDINGS
-collection: https://huggingface.co/collections/SZLHOLDINGS/canonical-public-spaces-7-6a9315ac72207f841dff230d
+source_endpoint: https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true
 counts:
-  spaces_total: 45
-  spaces_public: 7
-  spaces_private: 38
-  models: 43
-  datasets: 36
+  spaces_public: 6
+  spaces_private: NOT_MEASURED
 keep:
   - id: SZLHOLDINGS/a11oy
     role: product
     dest: https://a-11-oy.com
   - id: SZLHOLDINGS/killinchu
     role: defense_vertical
-  - id: SZLHOLDINGS/david-leads
-    role: insurance_vertical
-  - id: SZLHOLDINGS/anatomy
-    role: living_map
+    dest: https://szlholdings-killinchu.hf.space/elite
   - id: SZLHOLDINGS/immune
     role: safety_kernel
-  - id: SZLHOLDINGS/szl-real-estate
-    role: public_records_underwriting
+    dest: https://a-11-oy.com/immune
+  - id: SZLHOLDINGS/szl-khipu
+    role: governed_receipt_kernel
+    dest: https://a-11-oy.com/khipu
+  - id: SZLHOLDINGS/governed-receipt-verifier
+    role: static_receipt_verifier
+    dest: https://a-11-oy.com/verify
   - id: SZLHOLDINGS/szl-atelier
     role: artifact_walk
-folded_private_recapture:
+    dest: https://a-11-oy.com/atelier
+removed_from_public_since_2026_08_29_capture:
+  - SZLHOLDINGS/david-leads
+  - SZLHOLDINGS/anatomy
+  - SZLHOLDINGS/szl-real-estate
+appeared_public_since_2026_08_29_capture:
   - SZLHOLDINGS/szl-khipu
   - SZLHOLDINGS/governed-receipt-verifier
 org_card: SZLHOLDINGS/README
-gpu:
-  id: SZLHOLDINGS/szl-command-lab
-  prior: t4-small
-  after: paused_cpu_basic_requested
-note: "Unauthenticated Hub author-list recapture 2026-08-29T18:05:00Z. README is the org card, not one of the seven. None deleted."
+private_inventory: OUT_OF_SCOPE_NOT_QUERIED
+history: docs/series-a/HF_SPACE_CONSOLIDATION.md
+note: "Unauthenticated public Hub author-list recapture. All six rows reported runtime.stage RUNNING. Runtime stage and HTTP reachability are not equivalent to end-to-end readiness. No Space was deleted or had visibility changed in this reconciliation."

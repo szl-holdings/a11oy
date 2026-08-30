@@ -1,5 +1,9 @@
 # Hub Space consolidation — 2026-08-29
 
+> Historical measurement. The current public-only recapture and six-Space
+> registry are recorded in `HF_SPACE_CONSOLIDATION_2026-08-30.md` and
+> `hf-space-keep-list.yaml`; this file preserves the 2026-08-29 action record.
+
 **State:** LIVE. Authenticated as org admin `betterwithage` on `SZLHOLDINGS`.
 **Action:** pause + private. **Never deleted.**
 **Product:** https://a-11-oy.com

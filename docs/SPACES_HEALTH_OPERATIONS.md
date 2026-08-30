@@ -9,14 +9,26 @@ DNS, or Cloudflare state.
 ## Inventory contract
 
 The public application registry is defined once in `szl_spaces_surface.SPACES`
-as the MEASURED Hub KEEP-7 set. Health probes that set only. Folded Spaces
-live in `FOLD_SPACES` and are PAUSED+PRIVATE; the redirect-only compatibility
+as the MEASURED Hub KEEP-6 set. Health probes that set only. Folded Spaces
+live in `FOLD_SPACES` and are outside the public application set; the redirect-only compatibility
 surface 307s their legacy `/spaces/<slug>` links to existing product
 (`a-11-oy.com`) and proof (`a11oy.net`) destinations. RECORD:
 https://a11oy.net/spaces.json. `/verify` is not cloned.
 
-Every fresh health cycle compares the KEEP-7 set with the public Hugging
+“Outside the public set” means only that the Space was not returned by the
+unauthenticated public author-list measurement. Private state was not queried
+and is not inferred. Folded dependency contract definitions remain available
+for direct diagnostics but do not run in the six-Space aggregate health cycle.
+
+Every fresh health cycle compares the KEEP-6 set with the public Hugging
 Face Spaces API set.
+
+The 2026-08-30 public set is `a11oy`, `killinchu`, `immune`, `szl-khipu`,
+`governed-receipt-verifier`, and `szl-atelier`. Their canonical product
+destinations are, respectively, `/`, the isolated Killinchu `/elite` app,
+`/immune`, `/khipu`, `/verify`, and `/atelier`. Static Spaces use the
+`.static.hf.space` application origin; treating their normal `.hf.space` 404 as
+an outage is a measurement error.
 
 - `inventory.state=LIVE`: the two public regular-Space sets are exactly equal.
 - `inventory.state=DEGRADED`: the API responded, but `missing` or `unexpected`
@@ -29,7 +41,8 @@ part of the public KEEP set.
 
 ## Dependency probes
 
-Exact API contracts use at most two attempts with a two-second per-attempt
+Every public Docker Space has exact health/readiness JSON contracts. Exact API
+contracts use at most two attempts with a two-second per-attempt
 deadline. A contract mismatch or non-retryable client response fails closed. Two
 consecutive failed health cycles open that dependency's in-process circuit for
 30 seconds. While open, the endpoint returns `probe_state=CIRCUIT_OPEN`,
