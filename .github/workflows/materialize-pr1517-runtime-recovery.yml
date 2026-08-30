@@ -59,17 +59,85 @@ jobs:
           git cat-file -e "${SOURCE_BASE}^{commit}"
           git cat-file -e "${SOURCE_FINAL}^{commit}"
 
-      - name: Apply only the four production recovery surfaces
+      - name: Apply reviewed frontend recovery
         shell: bash
         run: |
           set -euo pipefail
           git diff --binary "$SOURCE_BASE" "$SOURCE_FINAL" -- \
             a11oy_landing.html \
             pages/console.html \
-            pages/landing.html \
-            serve.py > /tmp/runtime-recovery.patch
-          test -s /tmp/runtime-recovery.patch
-          git apply --3way --whitespace=nowarn /tmp/runtime-recovery.patch
+            pages/landing.html > /tmp/frontend-recovery.patch
+          test -s /tmp/frontend-recovery.patch
+          git apply --3way --whitespace=nowarn /tmp/frontend-recovery.patch
+          git reset --quiet
+
+      - name: Merge server recovery and resolve the one audited overlap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git show "$SOURCE_BASE:serve.py" > /tmp/serve-base.py
+          git show "$SOURCE_FINAL:serve.py" > /tmp/serve-reviewed.py
+
+          set +e
+          git merge-file --diff3 \
+            -L CURRENT_TARGET \
+            -L SOURCE_BASE \
+            -L REVIEWED_RECOVERY \
+            serve.py /tmp/serve-base.py /tmp/serve-reviewed.py
+          merge_status=$?
+          set -e
+          test "$merge_status" -eq 1
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("serve.py")
+          text = path.read_text(encoding="utf-8")
+          pattern = re.compile(
+              r"<<<<<<< CURRENT_TARGET\n"
+              r"(?P<current>.*?)"
+              r"\|\|\|\|\|\|\| SOURCE_BASE\n"
+              r"(?P<base>.*?)"
+              r"=======\n"
+              r"(?P<reviewed>.*?)"
+              r">>>>>>> REVIEWED_RECOVERY\n",
+              flags=re.DOTALL,
+          )
+          matches = list(pattern.finditer(text))
+          if len(matches) != 1:
+              raise SystemExit(f"expected exactly one audited serve.py conflict, found {len(matches)}")
+
+          match = matches[0]
+          current = match.group("current")
+          base = match.group("base")
+          reviewed = match.group("reviewed")
+
+          current_get = '@app.get("/{full_path:path}")'
+          reviewed_head = '@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])'
+          crawler_needles = (
+              '@app.api_route("/robots.txt", methods=["GET", "HEAD"])',
+              '@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])',
+          )
+          for needle in crawler_needles:
+              if needle not in current:
+                  raise SystemExit(f"current crawler guard missing from audited conflict: {needle}")
+              if needle not in reviewed:
+                  raise SystemExit(f"reviewed crawler guard missing from audited conflict: {needle}")
+          if base.strip() != current_get:
+              raise SystemExit("source-base conflict shape changed")
+          if current.count(current_get) != 1:
+              raise SystemExit("current SPA fallback decorator count changed")
+          if reviewed.count(reviewed_head) != 1:
+              raise SystemExit("reviewed SPA HEAD decorator count changed")
+
+          resolved = current.replace(current_get, reviewed_head, 1)
+          text = text[: match.start()] + resolved + text[match.end() :]
+          if any(marker in text for marker in ("<<<<<<<", "|||||||", "=======", ">>>>>>>")):
+              raise SystemExit("unresolved merge marker remains")
+          path.write_text(text, encoding="utf-8")
+          PY
+
           git reset --quiet
 
       - name: Remove rejected Five-Space product-door expansion
@@ -178,6 +246,7 @@ jobs:
                   "a11oy_khipu_chat.register(app)",
                   '"/estate"',
                   '"/investor"',
+                  '@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])',
               ),
           }
           for name, needles in contracts.items():
@@ -217,7 +286,7 @@ jobs:
             serve.py | LC_ALL=C sort)"
           test "$actual" = "$expected"
 
-      - name: Run exact red suites and focused frontend guard
+      - name: Run exact red suites and focused regression guards
         shell: bash
         run: |
           set -euo pipefail
@@ -299,7 +368,7 @@ jobs:
                           "Apply the reviewed four-surface recovery at the exact security-PR head. "
                           "This restores the Khipu proxy, investor and estate routes, KANCHAY command "
                           "chrome, honest Lean-8 counter, Killinchu timeout labeling, and the dual-origin "
-                          "proof registry while retaining the later signer and alert-endpoint guards.\n\n"
+                          "proof registry while retaining the later signer, crawler, and alert-endpoint guards.\n\n"
                           "The rejected Five-Space product-door, footer, primary-nav, and console expansion "
                           "is explicitly absent. No protected-main write, force push, secret change, "
                           "deployment, DNS mutation, or evidence-class weakening is claimed.\n\n"
