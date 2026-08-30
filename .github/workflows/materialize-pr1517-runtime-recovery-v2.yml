@@ -1,0 +1,335 @@
+name: Materialize PR1517 verified runtime recovery v2
+
+on:
+  push:
+    branches:
+      - ops/materialize-pr1517-runtime-recovery-20260830
+    paths:
+      - .github/workflows/materialize-pr1517-runtime-recovery-v2.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-pr1517-runtime-recovery-v2
+  cancel-in-progress: false
+
+env:
+  TARGET_BRANCH: security/anatomy-product-origin-pin-20260830
+  EXPECTED_TARGET_HEAD: b8eb0bf7d606210f11fa7fb135a7dd4d9c86f352
+  SOURCE_BRANCH: codex/runtime-route-registry-successor-20260830-v2
+  SOURCE_BASE: 0798d91a36306ae508d3a22cfce0171104a37025
+  SOURCE_FINAL: 934cc4c12827408c4c5be5c95e9f7cb07befcfea
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TARGET_BRANCH }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Verify exact identities and fetch reviewed lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_TARGET_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_TARGET_HEAD"
+          git fetch --no-tags --depth=128 origin "+refs/heads/${SOURCE_BRANCH}:refs/remotes/origin/${SOURCE_BRANCH}"
+          test "$(git rev-parse "refs/remotes/origin/${SOURCE_BRANCH}")" = "$SOURCE_FINAL"
+          git cat-file -e "${SOURCE_BASE}^{commit}"
+          git cat-file -e "${SOURCE_FINAL}^{commit}"
+
+      - name: Build exact four-surface recovery
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --binary "$SOURCE_BASE" "$SOURCE_FINAL" -- \
+            a11oy_landing.html pages/console.html pages/landing.html \
+            > /tmp/frontend.patch
+          test -s /tmp/frontend.patch
+          git apply --3way --whitespace=nowarn /tmp/frontend.patch
+          git reset --quiet
+
+          git show "$SOURCE_BASE:serve.py" > /tmp/serve-base.py
+          git show "$SOURCE_FINAL:serve.py" > /tmp/serve-reviewed.py
+          set +e
+          git merge-file --diff3 \
+            -L CURRENT_TARGET -L SOURCE_BASE -L REVIEWED_RECOVERY \
+            serve.py /tmp/serve-base.py /tmp/serve-reviewed.py
+          merge_status=$?
+          set -e
+          test "$merge_status" -eq 1
+
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          server = Path("serve.py")
+          text = server.read_text(encoding="utf-8")
+          conflict = re.compile(
+              r"<<<<<<< CURRENT_TARGET\n"
+              r"(?P<current>.*?)"
+              r"\|\|\|\|\|\|\| SOURCE_BASE\n"
+              r"(?P<base>.*?)"
+              r"=======\n"
+              r"(?P<reviewed>.*?)"
+              r">>>>>>> REVIEWED_RECOVERY\n",
+              re.DOTALL,
+          )
+          matches = list(conflict.finditer(text))
+          if len(matches) != 1:
+              raise SystemExit(f"expected one audited serve.py overlap, found {len(matches)}")
+          match = matches[0]
+          current = match.group("current")
+          reviewed = match.group("reviewed")
+          if match.group("base").strip() != '@app.get("/{full_path:path}")':
+              raise SystemExit("audited source-base overlap changed")
+          for route in (
+              '@app.api_route("/robots.txt", methods=["GET", "HEAD"])',
+              '@app.api_route("/sitemap.xml", methods=["GET", "HEAD"])',
+          ):
+              if route not in current or route not in reviewed:
+                  raise SystemExit(f"crawler guard changed: {route}")
+          old = '@app.get("/{full_path:path}")'
+          new = '@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])'
+          if current.count(old) != 1 or reviewed.count(new) != 1:
+              raise SystemExit("SPA fallback overlap changed")
+          resolved = current.replace(old, new, 1)
+          text = text[:match.start()] + resolved + text[match.end():]
+          for marker in (
+              "<<<<<<< CURRENT_TARGET",
+              "||||||| SOURCE_BASE",
+              ">>>>>>> REVIEWED_RECOVERY",
+          ):
+              if marker in text:
+                  raise SystemExit(f"unresolved named marker: {marker}")
+          server.write_text(text, encoding="utf-8")
+          PY
+          git reset --quiet
+
+      - name: Subtract rejected expansion and retain reviewed repairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          front = Path("a11oy_landing.html")
+          body = front.read_text(encoding="utf-8")
+          body = re.sub(
+              r'\n[ \t]*<a class="card surface-card" href="/five-space" id="bind-five-space">.*?</a>\n',
+              "\n", body, flags=re.DOTALL,
+          )
+          body = re.sub(
+              r'\n[ \t]*<a href="/five-space">Five-space operator[^<]*</a>',
+              "", body,
+          )
+          front.write_text(body, encoding="utf-8")
+
+          landing = Path("pages/landing.html")
+          body = landing.read_text(encoding="utf-8")
+          body = re.sub(r'[ \t]*<a href="/five-space">Five-Space</a>[ \t]*\n?', "", body)
+          landing.write_text(body, encoding="utf-8")
+
+          server = Path("serve.py")
+          body = server.read_text(encoding="utf-8")
+          get_only = ('app.add_api_route("/investor", _investor_view_redirect, '
+                      'methods=["GET"], include_in_schema=False)')
+          get_head = ('app.add_api_route("/investor", _investor_view_redirect, '
+                      'methods=["GET", "HEAD"], include_in_schema=False)')
+          if get_only in body:
+              body = body.replace(get_only, get_head, 1)
+          elif get_head not in body:
+              raise SystemExit("unknown /investor route shape")
+          server.write_text(body, encoding="utf-8")
+
+          forbidden = {
+              front: ('id="bind-five-space"', 'href="/five-space"', "Five-space operator"),
+              landing: ('href="/five-space"', ">Five-Space<"),
+              Path("pages/console.html"): ('href="/five-space"', "Five-space operator", "Five-Space"),
+          }
+          for path, needles in forbidden.items():
+              body = path.read_text(encoding="utf-8")
+              for needle in needles:
+                  if needle in body:
+                      raise SystemExit(f"rejected expansion remains in {path}: {needle}")
+          PY
+
+      - name: Enforce recovery contracts and exact diff fence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          required = {
+              "a11oy_landing.html": (
+                  '<a href="/console">Command</a>', "loadKernelLocked",
+                  "timed out", "https://a11oy.net",
+              ),
+              "pages/landing.html": (
+                  "https://huggingface.co/spaces/SZLHOLDINGS/killinchu", "UNAVAILABLE",
+              ),
+              "pages/console.html": (
+                  'id="szl-series-a-cards"', "go('investor')",
+                  "u.searchParams.set('view', view)", "Verify on a11oy.net",
+                  "function emptyUnknown(kind, detail)", "locked_formula_count===8",
+                  'id="cnt-locked"', "from /honest locked_formula_count",
+                  "catalog:true", "LOCKED-PROVEN (catalog)",
+                  '["Home"', '["Operate"', '["Build"', '["Observe"',
+                  '["Govern"', '["Research"', '["More"',
+              ),
+              "serve.py": (
+                  '"szl_command_bar.js": _VENDOR_JS_CT',
+                  '"szl_command_bar.css": _VENDOR_CSS_CT',
+                  "NON_RECEIVING_ALERT_HOSTS", '"status": "ABSENT"',
+                  "orange-cloud", "a11oy_khipu_chat.register(app)",
+                  '"/estate"', '"/investor"',
+                  '@app.api_route("/{full_path:path}", methods=["GET", "HEAD"])',
+              ),
+          }
+          for name, needles in required.items():
+              body = Path(name).read_text(encoding="utf-8")
+              for needle in needles:
+                  if needle not in body:
+                      raise SystemExit(f"missing recovery contract in {name}: {needle}")
+          console = Path("pages/console.html").read_text(encoding="utf-8")
+          if "tier_counts['LOCKED-PROVEN']" in console:
+              raise SystemExit("kernel chip still reads catalog count")
+          landing = Path("pages/landing.html").read_text(encoding="utf-8")
+          if 'href="https://szlholdings-killinchu.hf.space/' in landing:
+              raise SystemExit("direct Killinchu product link remains")
+          server = Path("serve.py").read_text(encoding="utf-8")
+          route = ('app.add_api_route("/investor", _investor_view_redirect, '
+                   'methods=["GET", "HEAD"], include_in_schema=False)')
+          if route not in server:
+              raise SystemExit("/investor is not GET+HEAD")
+          PY
+
+          git diff --check
+          if grep -nE '^(<<<<<<<|>>>>>>>)( |$)' \
+            a11oy_landing.html pages/console.html pages/landing.html serve.py; then
+            exit 1
+          fi
+          actual="$(git diff --name-only HEAD | LC_ALL=C sort)"
+          expected="$(printf '%s\n' a11oy_landing.html pages/console.html pages/landing.html serve.py | LC_ALL=C sort)"
+          test "$actual" = "$expected"
+
+      - name: Run original red suites and readiness guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt >/dev/null
+          python -m py_compile serve.py
+          python -m pytest \
+            tests/test_demo_critical_routes.py \
+            tests/test_frontier_now_control_plane.py \
+            tests/test_holographic_static_route_runtime.py \
+            tests/test_khipu_gguf_voter.py \
+            tests/test_khipu_chat_proxy.py \
+            tests/test_khipu_console_panel.py \
+            tests/test_v4_agent_voters.py \
+            tests/test_identity_lock.py \
+            test_canonical_domain.py -q
+          python -m pytest \
+            tests/test_frontier_model_admission.py \
+            tests/test_model_intel_frontier_estate.py \
+            tests/test_demo_critical_routes.py \
+            tests/test_series_a_estate.py \
+            tests/test_holographic_command_bar.py -q
+          python model_release/frontier-qualification/frontier_admission_guard.py audit
+          python -m pytest tests/test_zero_cdn_guard.py -q
+          python -m pytest tests/test_readiness_blocker_repairs.py -q
+          python -m pytest tests/test_dockerfile_layer_budget.py -q
+
+      - name: Recheck target and create one verified DCO commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$EXPECTED_TARGET_HEAD"
+          python3 - <<'PY'
+          import base64, json, os, pathlib, urllib.request
+
+          repository = os.environ["GITHUB_REPOSITORY"]
+          branch = os.environ["TARGET_BRANCH"]
+          expected = os.environ["EXPECTED_TARGET_HEAD"]
+          token = os.environ["GH_TOKEN"]
+          paths = ["a11oy_landing.html", "pages/console.html", "pages/landing.html", "serve.py"]
+          additions = [
+              {"path": path, "contents": base64.b64encode(pathlib.Path(path).read_bytes()).decode("ascii")}
+              for path in paths
+          ]
+          query = '''
+          mutation Materialize($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) { commit { oid url } }
+          }
+          '''
+          variables = {"input": {
+              "branch": {"repositoryNameWithOwner": repository, "branchName": branch},
+              "expectedHeadOid": expected,
+              "message": {
+                  "headline": "fix(runtime): restore verified route and console contracts",
+                  "body": (
+                      "Restore the four reviewed runtime surfaces at the exact security-PR head. "
+                      "This recovers Khipu, investor and estate routes, KANCHAY command chrome, "
+                      "honest Lean-8 and Killinchu labeling, and dual-origin proof links while "
+                      "retaining later signer, crawler, alert-endpoint, and security-pin guards.\n\n"
+                      "The rejected Five-Space product-door expansion is explicitly absent. "
+                      "No protected-main write, force push, deployment, DNS mutation, secret change, "
+                      "or evidence-class weakening is claimed.\n\n"
+                      "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"
+                  ),
+              },
+              "fileChanges": {"additions": additions},
+          }}
+          request = urllib.request.Request(
+              "https://api.github.com/graphql",
+              data=json.dumps({"query": query, "variables": variables}).encode(),
+              method="POST",
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/vnd.github+json",
+                  "Content-Type": "application/json",
+                  "User-Agent": "szl-pr1517-runtime-recovery-v2",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          with urllib.request.urlopen(request, timeout=60) as response:
+              result = json.load(response)
+          if result.get("errors"):
+              raise SystemExit("; ".join(str(row.get("message")) for row in result["errors"]))
+          pathlib.Path("/tmp/commit.json").write_text(
+              json.dumps(result["data"]["createCommitOnBranch"]["commit"]), encoding="utf-8"
+          )
+          PY
+
+          commit_sha="$(jq -er '.oid' /tmp/commit.json)"
+          commit_json="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${commit_sha}")"
+          jq -e '.commit.verification.verified == true' <<<"$commit_json" >/dev/null
+          test "$(jq -er '.parents | length' <<<"$commit_json")" = 1
+          test "$(jq -er '.parents[0].sha' <<<"$commit_json")" = "$EXPECTED_TARGET_HEAD"
+          test "$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BRANCH}" --jq '.object.sha')" = "$commit_sha"
+          actual="$(jq -r '.files[].filename' <<<"$commit_json" | LC_ALL=C sort)"
+          expected="$(printf '%s\n' a11oy_landing.html pages/console.html pages/landing.html serve.py | LC_ALL=C sort)"
+          test "$actual" = "$expected"
+          {
+            echo "- target: \`$TARGET_BRANCH\`"
+            echo "- verified successor: \`$commit_sha\`"
+            echo "- exact parent: \`$EXPECTED_TARGET_HEAD\`"
+            echo "- changed production files: 4"
+            echo "- rejected Five-Space expansion: absent"
+          } >> "$GITHUB_STEP_SUMMARY"
