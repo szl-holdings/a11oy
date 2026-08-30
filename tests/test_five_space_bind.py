@@ -106,6 +106,13 @@ def test_zero_cdn_and_mobile() -> None:
     assert "fonts.googleapis.com" not in PAGE
     assert '<script src="http' not in PAGE
     assert "@media(max-width:760px)" in PAGE
+    mobile_css = PAGE.split("@media(max-width:760px){", 1)[1].split(
+        "@media(max-width:420px){", 1
+    )[0]
+    assert (
+        '[data-related-surfaces="qa10"]'
+        "{padding-bottom:calc(4.6rem + env(safe-area-inset-bottom))!important;}"
+    ) in mobile_css
     assert 'class="table-scroll" role="region"' in PAGE
     assert "repeat(auto-fit,minmax(min(100%,180px),1fr))" in PAGE
     assert "min-height:44px" in PAGE
