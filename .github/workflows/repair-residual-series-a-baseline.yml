@@ -38,7 +38,7 @@ jobs:
         run: python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
 
       - name: Apply fail-closed source repair
-        run: python scripts/repair_residual_series_a_baseline.py
+        run: python scripts/repair_residual_series_a_baseline_v2.py
 
       - name: Compile repaired Python source
         run: python -m compileall -q serve.py a11oy_khipu_chat.py
@@ -61,6 +61,7 @@ jobs:
             exit 1
           fi
           test ! -e scripts/repair_residual_series_a_baseline.py
+          test ! -e scripts/repair_residual_series_a_baseline_v2.py
           test ! -e .github/workflows/repair-residual-series-a-baseline.yml
 
       - name: Commit the repaired candidate tree to the isolated branch
