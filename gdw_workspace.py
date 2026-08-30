@@ -24,6 +24,8 @@ _IDENTIFIER = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 _TRUTHY = {"1", "true", "yes", "on"}
 _JOURNAL_MODES = {"DELETE", "WAL"}
 _SYNCHRONOUS_MODES = {"FULL", "NORMAL"}
+_EXPORTED_EFFECT_RETAINED = "EXPORTED_RETAINED"
+_EXPORTED_EFFECT_COMPACTED = "EXPORTED_COMPACTED"
 _V1_TABLES = (
     "session_state",
     "requests",
@@ -101,6 +103,127 @@ def _json_text(value: Any) -> str:
 def _byte_len(value: Optional[str]) -> int:
     return len(value.encode("utf-8")) if value is not None else 0
 
+
+def _exported_effect_state_sql(alias: str, state: str) -> str:
+    """Return the structural SQL predicate for one exported-effect state."""
+
+    if state not in {
+        _EXPORTED_EFFECT_RETAINED,
+        _EXPORTED_EFFECT_COMPACTED,
+    }:
+        raise ValueError("unsupported exported-effect lifecycle state")
+    prefix = f"{alias}." if alias else ""
+    clauses = [
+        f"{prefix}status = 'EXPORTED'",
+        f"{prefix}exported_at IS NOT NULL",
+        f"{prefix}created_at <= {prefix}exported_at",
+        f"{prefix}lease_owner IS NULL",
+        f"{prefix}lease_until IS NULL",
+        f"{prefix}last_error IS NULL",
+        f"{prefix}attempts >= 1",
+        f"{prefix}claim_generation >= 1",
+        f"{prefix}attempts <= {prefix}max_attempts",
+    ]
+    if state == _EXPORTED_EFFECT_RETAINED:
+        clauses.extend(
+            [
+                f"{prefix}payload_json IS NOT NULL",
+                f"{prefix}artifact_json IS NOT NULL",
+                f"{prefix}tombstoned_at IS NULL",
+            ]
+        )
+    else:
+        clauses.extend(
+            [
+                f"{prefix}payload_json IS NULL",
+                f"{prefix}artifact_json IS NULL",
+                f"{prefix}tombstoned_at IS NOT NULL",
+                f"{prefix}exported_at <= {prefix}tombstoned_at",
+            ]
+        )
+    return "(" + " AND ".join(clauses) + ")"
+
+
+def _canonical_timestamp(
+    value: Any,
+    field: str,
+) -> Tuple[Optional[datetime], list[str]]:
+    if not isinstance(value, str):
+        return None, [f"{field}_missing"]
+    try:
+        parsed = _normalise_time(value)
+    except (TypeError, ValueError, OverflowError):
+        return None, [f"{field}_invalid"]
+    if parsed.isoformat() != value:
+        return None, [f"{field}_noncanonical"]
+    return parsed, []
+
+
+def _exported_effect_lifecycle(
+    row: Dict[str, Any],
+    *,
+    expected_state: Optional[str] = None,
+) -> Tuple[Optional[str], list[str]]:
+    """Classify the only two supported exported-effect lifecycle states."""
+
+    errors = []
+    if row.get("status") != "EXPORTED":
+        errors.append("exported_effect_status_invalid")
+    created_at, timestamp_errors = _canonical_timestamp(
+        row.get("created_at"), "effect_created_at"
+    )
+    errors.extend(timestamp_errors)
+    exported_at, timestamp_errors = _canonical_timestamp(
+        row.get("exported_at"), "effect_exported_at"
+    )
+    errors.extend(timestamp_errors)
+    if (
+        created_at is not None
+        and exported_at is not None
+        and created_at > exported_at
+    ):
+        errors.append("effect_exported_before_creation")
+    if row.get("lease_owner") is not None or row.get("lease_until") is not None:
+        errors.append("exported_effect_lease_retained")
+    if row.get("last_error") is not None:
+        errors.append("exported_effect_error_retained")
+    attempts = row.get("attempts")
+    max_attempts = row.get("max_attempts")
+    claim_generation = row.get("claim_generation")
+    if type(attempts) is not int or attempts < 1:
+        errors.append("exported_effect_attempts_invalid")
+    if type(max_attempts) is not int or max_attempts < 1:
+        errors.append("exported_effect_max_attempts_invalid")
+    elif type(attempts) is int and attempts > max_attempts:
+        errors.append("exported_effect_attempts_exhausted")
+    if type(claim_generation) is not int or claim_generation < 1:
+        errors.append("exported_effect_claim_generation_invalid")
+
+    payload_present = row.get("payload_json") is not None
+    artifact_present = row.get("artifact_json") is not None
+    tombstone_present = row.get("tombstoned_at") is not None
+    if payload_present and artifact_present and not tombstone_present:
+        state = _EXPORTED_EFFECT_RETAINED
+    elif not payload_present and not artifact_present and tombstone_present:
+        state = _EXPORTED_EFFECT_COMPACTED
+    else:
+        state = None
+        errors.append("exported_effect_byte_state_invalid")
+
+    if tombstone_present:
+        tombstoned_at, timestamp_errors = _canonical_timestamp(
+            row.get("tombstoned_at"), "effect_tombstoned_at"
+        )
+        errors.extend(timestamp_errors)
+        if (
+            exported_at is not None
+            and tombstoned_at is not None
+            and exported_at > tombstoned_at
+        ):
+            errors.append("effect_tombstoned_before_export")
+    if expected_state is not None and state != expected_state:
+        errors.append("exported_effect_lifecycle_state_mismatch")
+    return state, sorted(set(errors))
 
 def _checked_identity(value: Optional[str], field: str) -> str:
     candidate = (value or "").strip()
@@ -1127,12 +1250,14 @@ class GDWWorkspace:
         expected_identity = {
             "request_id": row["request_id"],
             "request_digest": row["request_digest"],
-            "session_id": row["session_id"],
             "database_generation_id": self.database_generation_id,
         }
         if observed_hash != row["response_hash"] or any(
             response.get(field) != expected
             for field, expected in expected_identity.items()
+        ) or (
+            response.get("session_id") is not None
+            and response.get("session_id") != row["session_id"]
         ):
             raise GDWConfigurationError(
                 "idempotency response digest or identity is invalid"
@@ -1239,14 +1364,20 @@ class GDWWorkspace:
         state_text = _json_text(state)
         timestamp = _text_time(updated_at)
         expiry = (
-            expires_at
-            or (
-                _normalise_time(timestamp) + timedelta(seconds=self.retention_seconds)
+            _text_time(expires_at)
+            if expires_at is not None
+            else (
+                _normalise_time(timestamp)
+                + timedelta(seconds=self.retention_seconds)
             ).isoformat()
         )
+        if _normalise_time(expiry) < _normalise_time(timestamp):
+            raise GDWConfigurationError(
+                "session expiry cannot precede its update timestamp"
+            )
         existing = connection.execute(
             """
-            SELECT state_json, lifecycle FROM session_state
+            SELECT * FROM session_state
             WHERE namespace = ? AND owner_id = ? AND session_id = ?
             """,
             (ns, owner, session_id),
@@ -1312,6 +1443,13 @@ class GDWWorkspace:
             raise GDWConfigurationError(
                 "request response hash does not match canonical response"
             )
+        if (
+            response.get("session_id") is not None
+            and response.get("session_id") != session_id
+        ):
+            raise GDWConfigurationError(
+                "request response session does not match persisted session"
+            )
         timestamp = _text_time(created_at)
         expiry = (
             expires_at
@@ -1374,6 +1512,7 @@ class GDWWorkspace:
             raise GDWConfigurationError(
                 "receipt hash does not match canonical receipt"
             )
+        timestamp = _text_time(created_at)
         request_anchor = self._request_anchor(
             connection, ns, owner, request_id
         )
@@ -1398,6 +1537,16 @@ class GDWWorkspace:
             raise GDWConfigurationError(
                 "receipt hash does not match persisted response"
             )
+        binding_errors = self._request_receipt_binding_errors(
+            request_anchor,
+            receipt,
+            expected_created_at=timestamp,
+        )
+        if binding_errors:
+            raise GDWConfigurationError(
+                "receipt does not match persisted request: "
+                + ",".join(binding_errors)
+            )
         self._reserve_usage(connection, ns, owner, stored_bytes=_byte_len(receipt_text))
         connection.execute(
             """
@@ -1414,7 +1563,7 @@ class GDWWorkspace:
                 session_id,
                 step,
                 receipt_text,
-                _text_time(created_at),
+                timestamp,
             ),
         )
 
@@ -1551,6 +1700,313 @@ class GDWWorkspace:
             errors.append("artifact_digest_mismatch")
         return errors
 
+    def _request_receipt_binding_errors(
+        self,
+        request_anchor: Dict[str, Any],
+        receipt: Any,
+        *,
+        expected_created_at: Optional[str] = None,
+    ) -> list[str]:
+        """Bind a canonical transaction receipt to its persisted response."""
+
+        if not isinstance(receipt, dict):
+            return ["receipt_not_object"]
+        response = request_anchor.get("response")
+        if not isinstance(response, dict):
+            return ["receipt_request_response_unavailable"]
+        principal = response.get("principal")
+        audit = response.get("audit")
+        governance = audit.get("governance") if isinstance(audit, dict) else None
+        if not isinstance(principal, dict) or not isinstance(governance, dict):
+            return ["receipt_request_governance_unavailable"]
+        try:
+            expected_step = int(response["step"])
+        except (KeyError, TypeError, ValueError):
+            return ["receipt_request_step_unavailable"]
+        expected = {
+            "schema": "szl.gdw.transaction-receipt/v1",
+            "status": "UNSIGNED_ATOMIC",
+            "proposal_id": response.get("proposal_id"),
+            "request_id": response.get("request_id"),
+            "request_digest": request_anchor.get("request_digest"),
+            "session_id": request_anchor.get("session_id"),
+            "owner_id": principal.get("owner_id"),
+            "namespace": principal.get("namespace"),
+            "database_generation_id": self.database_generation_id,
+            "credential_key_id": principal.get("key_id"),
+            "step": expected_step,
+            "state_before_hash": response.get("state_before_hash"),
+            "state_after_hash": response.get("state_hash"),
+            "scheduler_mode": response.get("scheduler_mode"),
+            "governance_evidence_sha256": hashlib.sha256(
+                _json_text(governance).encode("utf-8")
+            ).hexdigest(),
+            "governance": governance,
+        }
+        errors = [
+            f"receipt_{field}_request_mismatch"
+            for field, value in expected.items()
+            if receipt.get(field) != value
+        ]
+        _, timestamp_errors = _canonical_timestamp(
+            receipt.get("created_at"), "receipt_created_at"
+        )
+        errors.extend(timestamp_errors)
+        if (
+            expected_created_at is not None
+            and receipt.get("created_at") != expected_created_at
+        ):
+            errors.append("receipt_created_at_row_mismatch")
+        if (
+            response.get("decision") != "ACCEPT"
+            or response.get("dry_run") is not False
+        ):
+            errors.append("receipt_request_is_not_mutating_accept")
+        if response.get("receipt_hash") != receipt.get("receipt_hash"):
+            errors.append("receipt_hash_request_mismatch")
+        return sorted(set(errors))
+
+    @staticmethod
+    def _session_lifecycle_errors(
+        row: Dict[str, Any],
+        *,
+        expected_lifecycle: str,
+    ) -> list[str]:
+        """Validate the byte and timestamp state for one session lifecycle."""
+
+        errors = []
+        lifecycle = row.get("lifecycle")
+        if lifecycle != expected_lifecycle:
+            errors.append("session_lifecycle_state_mismatch")
+        raw_state = row.get("state_json")
+        tombstoned_at_raw = row.get("tombstoned_at")
+        if expected_lifecycle == "ACTIVE":
+            if raw_state is None:
+                errors.append("active_session_state_missing")
+            if tombstoned_at_raw is not None:
+                errors.append("active_session_has_tombstone")
+        elif expected_lifecycle == "TOMBSTONED":
+            if raw_state is not None:
+                errors.append("tombstoned_session_retains_state")
+            if tombstoned_at_raw is None:
+                errors.append("tombstoned_session_marker_missing")
+        else:
+            errors.append("session_lifecycle_unsupported")
+
+        timestamps = {}
+        for field in (
+            "created_at",
+            "updated_at",
+            "last_accessed_at",
+            "expires_at",
+        ):
+            parsed, timestamp_errors = _canonical_timestamp(
+                row.get(field), f"session_{field}"
+            )
+            errors.extend(timestamp_errors)
+            timestamps[field] = parsed
+        tombstoned_at = None
+        if tombstoned_at_raw is not None:
+            tombstoned_at, timestamp_errors = _canonical_timestamp(
+                tombstoned_at_raw, "session_tombstoned_at"
+            )
+            errors.extend(timestamp_errors)
+
+        ordered_fields = (
+            "created_at",
+            "updated_at",
+            "last_accessed_at",
+            "expires_at",
+        )
+        for earlier_field, later_field in zip(
+            ordered_fields, ordered_fields[1:]
+        ):
+            earlier = timestamps[earlier_field]
+            later = timestamps[later_field]
+            if earlier is not None and later is not None and earlier > later:
+                errors.append(
+                    f"session_{later_field}_before_{earlier_field}"
+                )
+        expires_at = timestamps["expires_at"]
+        if (
+            expected_lifecycle == "TOMBSTONED"
+            and expires_at is not None
+            and tombstoned_at is not None
+            and expires_at > tombstoned_at
+        ):
+            errors.append("session_tombstoned_before_expiry")
+        return sorted(set(errors))
+
+    def _retained_session_errors(self, row: Dict[str, Any]) -> list[str]:
+        """Validate session bytes before any lifecycle information is erased."""
+
+        errors = self._session_lifecycle_errors(
+            row,
+            expected_lifecycle="ACTIVE",
+        )
+        raw_state = row.get("state_json")
+        if raw_state is None:
+            return sorted(set(errors))
+        try:
+            state = json.loads(raw_state)
+        except (TypeError, json.JSONDecodeError):
+            return sorted(set(errors + ["session_state_json_invalid"]))
+        if not isinstance(state, dict):
+            return sorted(set(errors + ["session_state_not_object"]))
+        observed_hash = hashlib.sha256(
+            _json_text(state).encode("utf-8")
+        ).hexdigest()
+        step = row.get("step")
+        if type(step) is not int or step < 0:
+            errors.append("session_step_invalid")
+        expected_identity = {
+            "namespace": row.get("namespace"),
+            "owner_id": row.get("owner_id"),
+            "session_id": row.get("session_id"),
+            "step": step,
+            "database_generation_id": self.database_generation_id,
+        }
+        if observed_hash != row.get("state_hash"):
+            errors.append("session_state_digest_mismatch")
+        errors.extend(
+            f"session_state_{field}_mismatch"
+            for field, value in expected_identity.items()
+            if state.get(field) != value
+        )
+        return sorted(set(errors))
+
+    @classmethod
+    def _compacted_session_errors(cls, row: Dict[str, Any]) -> list[str]:
+        """Validate the only session state eligible for physical deletion."""
+
+        return cls._session_lifecycle_errors(
+            row,
+            expected_lifecycle="TOMBSTONED",
+        )
+
+    def _legacy_proof_payload_errors(
+        self,
+        row: Dict[str, Any],
+        payload: Any,
+    ) -> list[str]:
+        """Bind a legacy proof payload to its tenant and database row."""
+
+        if not isinstance(payload, dict):
+            return ["proof_payload_not_object"]
+        errors = []
+        try:
+            observed_digest = self._effect_payload_digest(
+                "proof_export", payload
+            )
+        except GDWConfigurationError:
+            errors.append("proof_payload_digest_invalid")
+        else:
+            if observed_digest != row.get("payload_sha256"):
+                errors.append("proof_payload_digest_mismatch")
+        if payload.get("proposal_id") != row.get("proposal_id"):
+            errors.append("proof_proposal_id_mismatch")
+        for field in ("namespace", "owner_id"):
+            if field in payload and payload.get(field) != row.get(field):
+                errors.append(f"proof_{field}_mismatch")
+        if (
+            "database_generation_id" in payload
+            and payload.get("database_generation_id")
+            != self.database_generation_id
+        ):
+            errors.append("proof_database_generation_id_mismatch")
+        return sorted(set(errors))
+
+    def _retained_proof_errors(self, row: Dict[str, Any]) -> list[str]:
+        """Validate a legacy exported proof before compaction."""
+
+        errors = []
+        if row.get("status") != "EXPORTED":
+            errors.append("proof_status_not_exported")
+        if row.get("tombstoned_at") is not None:
+            errors.append("retained_proof_has_tombstone")
+        created_at, timestamp_errors = _canonical_timestamp(
+            row.get("created_at"), "proof_created_at"
+        )
+        errors.extend(timestamp_errors)
+        exported_at, timestamp_errors = _canonical_timestamp(
+            row.get("exported_at"), "proof_exported_at"
+        )
+        errors.extend(timestamp_errors)
+        if (
+            created_at is not None
+            and exported_at is not None
+            and created_at > exported_at
+        ):
+            errors.append("proof_exported_before_creation")
+        raw_payload = row.get("payload_json")
+        raw_artifact = row.get("artifact_json")
+        if raw_payload is None:
+            errors.append("retained_proof_payload_missing")
+        if raw_artifact is None:
+            errors.append("retained_proof_artifact_missing")
+        if errors and (raw_payload is None or raw_artifact is None):
+            return sorted(set(errors))
+        try:
+            payload = json.loads(raw_payload)
+        except (TypeError, json.JSONDecodeError):
+            errors.append("proof_payload_json_invalid")
+        else:
+            errors.extend(self._legacy_proof_payload_errors(row, payload))
+        try:
+            artifact = json.loads(raw_artifact)
+        except (TypeError, json.JSONDecodeError):
+            errors.append("proof_artifact_json_invalid")
+        else:
+            errors.extend(
+                self.artifact_binding_errors(
+                    {
+                        "intent_sha256": row.get("payload_sha256"),
+                        "owner_id": row.get("owner_id"),
+                        "kind": "proof_export",
+                    },
+                    artifact,
+                )
+            )
+        return sorted(set(errors))
+
+    @staticmethod
+    def _compacted_proof_errors(row: Dict[str, Any]) -> list[str]:
+        """Validate the only proof state eligible for physical deletion."""
+
+        errors = []
+        if row.get("status") != "EXPORTED":
+            errors.append("proof_status_not_exported")
+        if (
+            row.get("payload_json") is not None
+            or row.get("artifact_json") is not None
+        ):
+            errors.append("compacted_proof_retains_bytes")
+        created_at, timestamp_errors = _canonical_timestamp(
+            row.get("created_at"), "proof_created_at"
+        )
+        errors.extend(timestamp_errors)
+        exported_at, timestamp_errors = _canonical_timestamp(
+            row.get("exported_at"), "proof_exported_at"
+        )
+        errors.extend(timestamp_errors)
+        tombstoned_at, timestamp_errors = _canonical_timestamp(
+            row.get("tombstoned_at"), "proof_tombstoned_at"
+        )
+        errors.extend(timestamp_errors)
+        if (
+            created_at is not None
+            and exported_at is not None
+            and created_at > exported_at
+        ):
+            errors.append("proof_exported_before_creation")
+        if (
+            exported_at is not None
+            and tombstoned_at is not None
+            and exported_at > tombstoned_at
+        ):
+            errors.append("proof_tombstoned_before_export")
+        return sorted(set(errors))
+
     def _request_anchor(
         self,
         connection: sqlite3.Connection,
@@ -1584,10 +2040,25 @@ class GDWWorkspace:
             raise GDWConfigurationError(
                 "effect request digest identity is invalid"
             )
+        if (
+            response.get("session_id") is not None
+            and response.get("session_id") != row["session_id"]
+        ):
+            raise GDWConfigurationError(
+                "effect request session identity is invalid"
+            )
         if response.get("database_generation_id") != self.database_generation_id:
             raise GDWConfigurationError(
                 "effect request database generation is invalid"
             )
+        principal = response.get("principal")
+        if (
+            response.get("request_id") != request_id
+            or not isinstance(principal, dict)
+            or principal.get("namespace") != namespace
+            or principal.get("owner_id") != owner_id
+        ):
+            raise GDWConfigurationError("effect request identity is invalid")
         try:
             proposal_material = {
                 "schema": "szl.gdw.proposal-identity/v1",
@@ -1629,7 +2100,8 @@ class GDWWorkspace:
     ) -> Dict[str, Any]:
         row = connection.execute(
             """
-            SELECT receipt_hash, request_id, session_id, step, receipt_json
+            SELECT receipt_hash, request_id, session_id, step, receipt_json,
+                   created_at
             FROM receipts
             WHERE namespace = ? AND owner_id = ? AND request_id = ?
             """,
@@ -1643,6 +2115,10 @@ class GDWWorkspace:
             raise GDWConfigurationError(
                 "effect receipt anchor is not canonical JSON"
             ) from exc
+        if not isinstance(receipt, dict):
+            raise GDWConfigurationError(
+                "effect receipt anchor is not an object"
+            )
         claimed = str(receipt.get("receipt_hash") or "")
         unsigned = dict(receipt)
         unsigned.pop("receipt_hash", None)
@@ -1664,6 +2140,19 @@ class GDWWorkspace:
                 raise GDWConfigurationError(
                     f"effect receipt {field} identity is invalid"
                 )
+        request_anchor = self._request_anchor(
+            connection, namespace, owner_id, request_id
+        )
+        binding_errors = self._request_receipt_binding_errors(
+            request_anchor,
+            receipt,
+            expected_created_at=row["created_at"],
+        )
+        if binding_errors:
+            raise GDWConfigurationError(
+                "effect receipt request binding is invalid: "
+                + ",".join(binding_errors)
+            )
         return {"receipt_hash": row["receipt_hash"], "receipt": receipt}
 
     @staticmethod
@@ -1844,6 +2333,144 @@ class GDWWorkspace:
         )
         if row.get("intent_sha256") != expected_intent:
             errors.append("effect_intent_mismatch")
+        return sorted(set(errors))
+
+    def _connection_retained_effect_errors(
+        self,
+        connection: sqlite3.Connection,
+        row: Dict[str, Any],
+    ) -> Tuple[list[str], list[str]]:
+        _, binding_errors = _exported_effect_lifecycle(
+            row,
+            expected_state=_EXPORTED_EFFECT_RETAINED,
+        )
+        artifact_errors = []
+        try:
+            payload = json.loads(row.get("payload_json"))
+        except (TypeError, json.JSONDecodeError):
+            binding_errors.append("effect_payload_json_invalid")
+        else:
+            candidate = dict(row)
+            candidate["payload"] = payload
+            binding_errors.extend(
+                self._connection_effect_binding_errors(connection, candidate)
+            )
+            try:
+                artifact = json.loads(row.get("artifact_json"))
+            except (TypeError, json.JSONDecodeError):
+                artifact_errors.append("effect_artifact_json_invalid")
+            else:
+                artifact_errors.extend(
+                    self.artifact_binding_errors(candidate, artifact)
+                )
+        return sorted(set(binding_errors)), sorted(set(artifact_errors))
+
+    def _connection_compacted_effect_errors(
+        self,
+        connection: sqlite3.Connection,
+        row: Dict[str, Any],
+    ) -> list[str]:
+        _, errors = _exported_effect_lifecycle(
+            row,
+            expected_state=_EXPORTED_EFFECT_COMPACTED,
+        )
+        namespace = str(row.get("namespace") or "")
+        owner_id = str(row.get("owner_id") or "")
+        request_id = str(row.get("request_id") or "")
+        kind = str(row.get("kind") or "")
+        payload_sha256 = str(row.get("payload_sha256") or "")
+        if row.get("database_generation_id") != self.database_generation_id:
+            errors.append("database_generation_mismatch")
+        request_anchor = connection.execute(
+            """
+            SELECT request_digest, session_id, response_hash
+            FROM requests
+            WHERE namespace = ? AND owner_id = ? AND request_id = ?
+            """,
+            (namespace, owner_id, request_id),
+        ).fetchone()
+        if request_anchor is None:
+            errors.append("effect request identity anchor is unavailable")
+            return sorted(set(errors))
+        try:
+            expected_key = self.scoped_effect_key(
+                namespace,
+                owner_id,
+                request_id,
+                kind,
+                payload_sha256,
+            )
+        except GDWConfigurationError as exc:
+            errors.append(str(exc))
+        else:
+            if row.get("idempotency_key") != expected_key:
+                errors.append("idempotency_key_mismatch")
+
+        receipt_hash = row.get("receipt_hash")
+        receipt_anchor = connection.execute(
+            """
+            SELECT receipt_hash FROM receipts
+            WHERE namespace = ? AND owner_id = ? AND request_id = ?
+            """,
+            (namespace, owner_id, request_id),
+        ).fetchone()
+        if kind == "receipt_projection":
+            if receipt_anchor is None:
+                errors.append("effect receipt identity anchor is unavailable")
+            elif receipt_hash != receipt_anchor["receipt_hash"]:
+                errors.append("receipt_hash_anchor_mismatch")
+        elif kind == "proof_export":
+            if receipt_hash is not None and (
+                receipt_anchor is None
+                or receipt_hash != receipt_anchor["receipt_hash"]
+            ):
+                errors.append("receipt_hash_anchor_mismatch")
+        else:
+            errors.append("unsupported_effect_kind")
+        expected_intent = self._canonical_effect_intent(
+            dict(request_anchor),
+            namespace=namespace,
+            owner_id=owner_id,
+            request_id=request_id,
+            kind=kind,
+            payload_sha256=payload_sha256,
+            receipt_hash=receipt_hash,
+        )
+        if row.get("intent_sha256") != expected_intent:
+            errors.append("effect_intent_mismatch")
+        return sorted(set(errors))
+
+    def _connection_release_anchor_errors(
+        self,
+        connection: sqlite3.Connection,
+        namespace: str,
+        owner_id: str,
+        request_id: str,
+    ) -> list[str]:
+        """Validate full retained request/receipt bytes before erasing anchors."""
+
+        errors = []
+        try:
+            self._request_anchor(connection, namespace, owner_id, request_id)
+        except GDWConfigurationError as exc:
+            errors.append(str(exc))
+        receipt = connection.execute(
+            """
+            SELECT receipt_hash FROM receipts
+            WHERE namespace = ? AND owner_id = ? AND request_id = ?
+            """,
+            (namespace, owner_id, request_id),
+        ).fetchone()
+        if receipt is not None:
+            try:
+                anchor = self._receipt_anchor(
+                    connection, namespace, owner_id, request_id
+                )
+            except GDWConfigurationError as exc:
+                errors.append(str(exc))
+            else:
+                if anchor["receipt_hash"] != receipt["receipt_hash"]:
+                    errors.append("effect receipt anchor identity is invalid")
         return sorted(set(errors))
 
     def effect_binding_errors_for_row(self, row: Dict[str, Any]) -> list[str]:
@@ -3378,7 +4005,7 @@ class GDWWorkspace:
         try:
             rows = connection.execute(
                 """
-                SELECT proposal_id, payload_json, payload_sha256
+                SELECT *
                 FROM proof_outbox
                 WHERE namespace = ? AND owner_id = ? AND status = 'PENDING'
                 ORDER BY created_at, proposal_id
@@ -3413,7 +4040,39 @@ class GDWWorkspace:
         ns, owner = self._identity(namespace, owner_id)
         artifact_text = _json_text(artifact)
         expected_payload_text = _json_text(expected_payload)
+        exported_timestamp = _text_time(exported_at)
         with self.transaction() as connection:
+            row = connection.execute(
+                """
+                SELECT * FROM proof_outbox
+                WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
+                      AND status = 'PENDING' AND payload_json = ?
+                      AND payload_sha256 = ?
+                """,
+                (
+                    ns,
+                    owner,
+                    proposal_id,
+                    expected_payload_text,
+                    expected_payload_sha256,
+                ),
+            ).fetchone()
+            if row is None:
+                raise RuntimeError(
+                    "proof is absent, changed, exported, or owned elsewhere"
+                )
+            candidate = dict(row)
+            candidate.update(
+                status="EXPORTED",
+                artifact_json=artifact_text,
+                exported_at=exported_timestamp,
+            )
+            proof_errors = self._retained_proof_errors(candidate)
+            if proof_errors:
+                raise GDWConfigurationError(
+                    "proof export refused invalid lifecycle: "
+                    + ",".join(proof_errors)
+                )
             updated = connection.execute(
                 """
                 UPDATE proof_outbox
@@ -3424,7 +4083,7 @@ class GDWWorkspace:
                 """,
                 (
                     artifact_text,
-                    _text_time(exported_at),
+                    exported_timestamp,
                     ns,
                     owner,
                     proposal_id,
@@ -3443,7 +4102,6 @@ class GDWWorkspace:
                 pending_effects=-1,
                 stored_bytes=_byte_len(artifact_text),
             )
-
     def read_session(
         self,
         session_id: str,
@@ -3655,6 +4313,18 @@ class GDWWorkspace:
             current - timedelta(seconds=self.retention_seconds)
         ).isoformat()
         bounded = max(1, min(int(limit), 10_000))
+        retained_sql = _exported_effect_state_sql(
+            "e", _EXPORTED_EFFECT_RETAINED
+        )
+        retained_update_sql = _exported_effect_state_sql(
+            "", _EXPORTED_EFFECT_RETAINED
+        )
+        compacted_sql = _exported_effect_state_sql(
+            "e", _EXPORTED_EFFECT_COMPACTED
+        )
+        compacted_delete_sql = _exported_effect_state_sql(
+            "", _EXPORTED_EFFECT_COMPACTED
+        )
         result = {
             "sessions_tombstoned": 0,
             "requests_tombstoned": 0,
@@ -3665,7 +4335,7 @@ class GDWWorkspace:
         with self.transaction() as connection:
             session_rows = connection.execute(
                 """
-                SELECT session_id FROM session_state
+                SELECT * FROM session_state
                 WHERE namespace = ? AND owner_id = ? AND lifecycle = 'ACTIVE'
                       AND expires_at IS NOT NULL AND expires_at <= ?
                 ORDER BY expires_at, session_id LIMIT ?
@@ -3673,19 +4343,33 @@ class GDWWorkspace:
                 (ns, owner, now_text, bounded),
             ).fetchall()
             for row in session_rows:
-                connection.execute(
+                session_errors = self._retained_session_errors(dict(row))
+                if session_errors:
+                    raise GDWConfigurationError(
+                        "session compaction refused invalid lifecycle: "
+                        + ",".join(session_errors)
+                    )
+                updated = connection.execute(
                     """
                     UPDATE session_state
                     SET lifecycle = 'TOMBSTONED', state_json = NULL,
                         tombstoned_at = ?
                     WHERE namespace = ? AND owner_id = ? AND session_id = ?
+                          AND lifecycle = 'ACTIVE'
+                          AND state_json IS NOT NULL
+                          AND tombstoned_at IS NULL
+                          AND expires_at IS NOT NULL AND expires_at <= ?
                     """,
-                    (now_text, ns, owner, row["session_id"]),
+                    (now_text, ns, owner, row["session_id"], now_text),
                 )
-            result["sessions_tombstoned"] = len(session_rows)
+                if updated.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "session changed during canonical compaction"
+                    )
+                result["sessions_tombstoned"] += 1
 
             request_rows = connection.execute(
-                """
+                f"""
                 SELECT r.request_id
                 FROM requests r
                 WHERE r.namespace = ? AND r.owner_id = ?
@@ -3696,27 +4380,49 @@ class GDWWorkspace:
                           WHERE e.namespace = r.namespace
                             AND e.owner_id = r.owner_id
                             AND e.request_id = r.request_id
-                            AND (
-                                e.status != 'EXPORTED'
-                                OR e.tombstoned_at IS NULL
-                                OR e.payload_json IS NOT NULL
-                                OR e.artifact_json IS NOT NULL
-                            )
+                            AND NOT {compacted_sql}
                       )
                 ORDER BY r.expires_at, r.request_id LIMIT ?
                 """,
                 (ns, owner, now_text, bounded),
             ).fetchall()
             for row in request_rows:
-                connection.execute(
+                release_anchor_errors = self._connection_release_anchor_errors(
+                    connection,
+                    ns,
+                    owner,
+                    row["request_id"],
+                )
+                associated_effects = connection.execute(
+                    """
+                    SELECT * FROM effect_outbox
+                    WHERE namespace = ? AND owner_id = ? AND request_id = ?
+                    ORDER BY kind, idempotency_key
+                    """,
+                    (ns, owner, row["request_id"]),
+                ).fetchall()
+                compacted_effect_errors = [
+                    error
+                    for effect in associated_effects
+                    for error in self._connection_compacted_effect_errors(
+                        connection, dict(effect)
+                    )
+                ]
+                if release_anchor_errors or compacted_effect_errors:
+                    continue
+                updated = connection.execute(
                     """
                     UPDATE requests
                     SET lifecycle = 'TOMBSTONED', response_json = NULL,
                         tombstoned_at = ?
                     WHERE namespace = ? AND owner_id = ? AND request_id = ?
+                          AND lifecycle = 'ACTIVE'
+                          AND expires_at IS NOT NULL AND expires_at <= ?
                     """,
-                    (now_text, ns, owner, row["request_id"]),
+                    (now_text, ns, owner, row["request_id"], now_text),
                 )
+                if updated.rowcount != 1:
+                    continue
                 connection.execute(
                     """
                     UPDATE receipts SET receipt_json = NULL, tombstoned_at = ?
@@ -3724,71 +4430,177 @@ class GDWWorkspace:
                     """,
                     (now_text, ns, owner, row["request_id"]),
                 )
-            result["requests_tombstoned"] = len(request_rows)
+                result["requests_tombstoned"] += 1
 
             effects = connection.execute(
-                """
-                SELECT idempotency_key FROM effect_outbox
-                WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
-                      AND tombstoned_at IS NULL AND exported_at <= ?
-                      AND payload_json IS NOT NULL
-                      AND artifact_json IS NOT NULL
-                ORDER BY exported_at, idempotency_key LIMIT ?
+                f"""
+                SELECT e.* FROM effect_outbox e
+                WHERE e.namespace = ? AND e.owner_id = ?
+                      AND {retained_sql}
+                      AND e.exported_at <= ?
+                ORDER BY e.exported_at, e.idempotency_key LIMIT ?
                 """,
                 (ns, owner, exported_before, bounded),
             ).fetchall()
             for row in effects:
-                connection.execute(
-                    """
+                candidate = dict(row)
+                binding_errors, artifact_errors = (
+                    self._connection_retained_effect_errors(
+                        connection, candidate
+                    )
+                )
+                errors = sorted(set(binding_errors + artifact_errors))
+                if errors:
+                    raise GDWConfigurationError(
+                        "effect compaction refused invalid lifecycle: "
+                        + ",".join(errors)
+                    )
+                updated = connection.execute(
+                    f"""
                     UPDATE effect_outbox
                     SET payload_json = NULL, artifact_json = NULL,
                         tombstoned_at = ?
                     WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
-                          AND status = 'EXPORTED'
+                          AND {retained_update_sql}
+                          AND exported_at <= ?
                     """,
-                    (now_text, ns, owner, row["idempotency_key"]),
+                    (
+                        now_text,
+                        ns,
+                        owner,
+                        row["idempotency_key"],
+                        exported_before,
+                    ),
                 )
-            result["effects_compacted"] = len(effects)
+                if updated.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "effect changed during canonical compaction"
+                    )
+                result["effects_compacted"] += 1
 
             proofs = connection.execute(
                 """
-                SELECT proposal_id FROM proof_outbox
+                SELECT * FROM proof_outbox
                 WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
-                      AND tombstoned_at IS NULL AND exported_at <= ?
+                      AND payload_json IS NOT NULL
+                      AND artifact_json IS NOT NULL
+                      AND tombstoned_at IS NULL
+                      AND exported_at IS NOT NULL AND exported_at <= ?
                 ORDER BY exported_at, proposal_id LIMIT ?
                 """,
                 (ns, owner, exported_before, bounded),
             ).fetchall()
             for row in proofs:
-                connection.execute(
+                proof_errors = self._retained_proof_errors(dict(row))
+                if proof_errors:
+                    raise GDWConfigurationError(
+                        "proof compaction refused invalid lifecycle: "
+                        + ",".join(proof_errors)
+                    )
+                updated = connection.execute(
                     """
                     UPDATE proof_outbox
                     SET payload_json = NULL, artifact_json = NULL,
                         tombstoned_at = ?
                     WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
                           AND status = 'EXPORTED'
+                          AND payload_json IS NOT NULL
+                          AND artifact_json IS NOT NULL
+                          AND tombstoned_at IS NULL
+                          AND exported_at IS NOT NULL AND exported_at <= ?
                     """,
-                    (now_text, ns, owner, row["proposal_id"]),
+                    (
+                        now_text,
+                        ns,
+                        owner,
+                        row["proposal_id"],
+                        exported_before,
+                    ),
                 )
-            result["proofs_compacted"] = len(proofs)
+                if updated.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "proof changed during canonical compaction"
+                    )
+                result["proofs_compacted"] += 1
 
             purged = 0
-            purged += connection.execute(
+            proof_rows = connection.execute(
                 """
-                DELETE FROM proof_outbox
+                SELECT * FROM proof_outbox
                 WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
-                      AND tombstoned_at IS NOT NULL AND tombstoned_at <= ?
+                      AND payload_json IS NULL AND artifact_json IS NULL
+                      AND tombstoned_at IS NOT NULL AND exported_at IS NOT NULL
+                      AND exported_at <= tombstoned_at
+                      AND tombstoned_at <= ?
+                ORDER BY tombstoned_at, proposal_id LIMIT ?
                 """,
-                (ns, owner, purge_before),
-            ).rowcount
-            purged += connection.execute(
-                """
-                DELETE FROM effect_outbox
-                WHERE namespace = ? AND owner_id = ? AND status = 'EXPORTED'
-                      AND tombstoned_at IS NOT NULL AND tombstoned_at <= ?
+                (ns, owner, purge_before, bounded),
+            ).fetchall()
+            for row in proof_rows:
+                proof_errors = self._compacted_proof_errors(dict(row))
+                if proof_errors:
+                    raise GDWConfigurationError(
+                        "proof purge refused invalid lifecycle: "
+                        + ",".join(proof_errors)
+                    )
+                deleted = connection.execute(
+                    """
+                    DELETE FROM proof_outbox
+                    WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
+                          AND status = 'EXPORTED'
+                          AND payload_json IS NULL AND artifact_json IS NULL
+                          AND tombstoned_at IS NOT NULL
+                          AND exported_at IS NOT NULL
+                          AND exported_at <= tombstoned_at
+                          AND tombstoned_at <= ?
+                    """,
+                    (ns, owner, row["proposal_id"], purge_before),
+                )
+                if deleted.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "proof changed during canonical purge"
+                    )
+                purged += 1
+
+            effect_rows = connection.execute(
+                f"""
+                SELECT e.* FROM effect_outbox e
+                WHERE e.namespace = ? AND e.owner_id = ?
+                      AND {compacted_sql}
+                      AND e.tombstoned_at <= ?
+                ORDER BY e.tombstoned_at, e.idempotency_key LIMIT ?
                 """,
-                (ns, owner, purge_before),
-            ).rowcount
+                (ns, owner, purge_before, bounded),
+            ).fetchall()
+            for row in effect_rows:
+                errors = self._connection_compacted_effect_errors(
+                    connection, dict(row)
+                )
+                if errors:
+                    raise GDWConfigurationError(
+                        "effect purge refused invalid lifecycle: "
+                        + ",".join(errors)
+                    )
+                deleted = connection.execute(
+                    f"""
+                    DELETE FROM effect_outbox
+                    WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?
+                          AND {compacted_delete_sql}
+                          AND tombstoned_at <= ?
+                    """,
+                    (
+                        ns,
+                        owner,
+                        row["idempotency_key"],
+                        purge_before,
+                    ),
+                )
+                if deleted.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "effect changed during canonical purge"
+                    )
+                purged += 1
+
             request_ids = [
                 row["request_id"]
                 for row in connection.execute(
@@ -3796,6 +4608,8 @@ class GDWWorkspace:
                     SELECT request_id FROM requests
                     WHERE namespace = ? AND owner_id = ?
                           AND lifecycle = 'TOMBSTONED'
+                          AND response_json IS NULL
+                          AND tombstoned_at IS NOT NULL
                           AND tombstoned_at <= ?
                           AND NOT EXISTS (
                               SELECT 1 FROM effect_outbox e
@@ -3803,7 +4617,7 @@ class GDWWorkspace:
                                 AND e.owner_id = requests.owner_id
                                 AND e.request_id = requests.request_id
                           )
-                    LIMIT ?
+                    ORDER BY tombstoned_at, request_id LIMIT ?
                     """,
                     (ns, owner, purge_before, bounded),
                 ).fetchall()
@@ -3813,24 +4627,59 @@ class GDWWorkspace:
                     """
                     DELETE FROM receipts
                     WHERE namespace = ? AND owner_id = ? AND request_id = ?
+                          AND receipt_json IS NULL
+                          AND tombstoned_at IS NOT NULL
+                          AND tombstoned_at <= ?
                     """,
-                    (ns, owner, request_id),
+                    (ns, owner, request_id, purge_before),
                 )
                 purged += connection.execute(
                     """
                     DELETE FROM requests
                     WHERE namespace = ? AND owner_id = ? AND request_id = ?
+                          AND lifecycle = 'TOMBSTONED'
+                          AND response_json IS NULL
+                          AND tombstoned_at IS NOT NULL
+                          AND tombstoned_at <= ?
                     """,
-                    (ns, owner, request_id),
+                    (ns, owner, request_id, purge_before),
                 ).rowcount
-            purged += connection.execute(
+
+            expired_sessions = connection.execute(
                 """
-                DELETE FROM session_state
+                SELECT * FROM session_state
                 WHERE namespace = ? AND owner_id = ?
-                      AND lifecycle = 'TOMBSTONED' AND tombstoned_at <= ?
+                      AND lifecycle = 'TOMBSTONED'
+                      AND state_json IS NULL
+                      AND tombstoned_at IS NOT NULL
+                      AND tombstoned_at <= ?
+                ORDER BY tombstoned_at, session_id LIMIT ?
                 """,
-                (ns, owner, purge_before),
-            ).rowcount
+                (ns, owner, purge_before, bounded),
+            ).fetchall()
+            for row in expired_sessions:
+                session_errors = self._compacted_session_errors(dict(row))
+                if session_errors:
+                    raise GDWConfigurationError(
+                        "session purge refused invalid lifecycle: "
+                        + ",".join(session_errors)
+                    )
+                deleted = connection.execute(
+                    """
+                    DELETE FROM session_state
+                    WHERE namespace = ? AND owner_id = ? AND session_id = ?
+                          AND lifecycle = 'TOMBSTONED'
+                          AND state_json IS NULL
+                          AND tombstoned_at IS NOT NULL
+                          AND tombstoned_at <= ?
+                    """,
+                    (ns, owner, row["session_id"], purge_before),
+                )
+                if deleted.rowcount != 1:
+                    raise GDWConfigurationError(
+                        "session changed during canonical purge"
+                    )
+                purged += 1
             result["tombstones_purged"] = purged
             self._reconcile_identity_usage(connection, ns, owner)
         return result
@@ -3941,35 +4790,17 @@ class GDWWorkspace:
                 else " WHERE namespace = ? AND owner_id = ?"
             )
             for row in connection.execute(
-                "SELECT namespace, owner_id, session_id, step, state_json, "
-                "state_hash FROM session_state"
-                + scoped_suffix,
+                "SELECT * FROM session_state" + scoped_suffix,
                 params,
             ):
-                if row["state_json"] is None:
-                    continue
-                try:
-                    state = json.loads(row["state_json"])
-                    observed = hashlib.sha256(
-                        _json_text(state).encode("utf-8")
-                    ).hexdigest()
-                    expected_identity = {
-                        "namespace": row["namespace"],
-                        "owner_id": row["owner_id"],
-                        "session_id": row["session_id"],
-                        "step": int(row["step"]),
-                        "database_generation_id": self.database_generation_id,
-                    }
-                    if (
-                        not isinstance(state, dict)
-                        or observed != row["state_hash"]
-                        or any(
-                            state.get(field) != expected
-                            for field, expected in expected_identity.items()
-                        )
-                    ):
-                        raise ValueError("state digest mismatch")
-                except (TypeError, ValueError, json.JSONDecodeError):
+                candidate = dict(row)
+                if row["lifecycle"] == "ACTIVE":
+                    errors = self._retained_session_errors(candidate)
+                elif row["lifecycle"] == "TOMBSTONED":
+                    errors = self._compacted_session_errors(candidate)
+                else:
+                    errors = ["session_lifecycle_unsupported"]
+                if errors:
                     digest_violations["invalid_state_digests"] += 1
             for row in connection.execute(
                 "SELECT namespace, owner_id, request_id, request_digest, "
@@ -3992,7 +4823,6 @@ class GDWWorkspace:
                     expected_identity = {
                         "request_id": row["request_id"],
                         "request_digest": row["request_digest"],
-                        "session_id": row["session_id"],
                         "database_generation_id": self.database_generation_id,
                     }
                     if (
@@ -4001,6 +4831,10 @@ class GDWWorkspace:
                         or any(
                             response.get(field) != expected
                             for field, expected in expected_identity.items()
+                        )
+                        or (
+                            response.get("session_id") is not None
+                            and response.get("session_id") != row["session_id"]
                         )
                         or not isinstance(principal, dict)
                         or principal.get("namespace") != row["namespace"]
@@ -4018,54 +4852,50 @@ class GDWWorkspace:
                 if row["receipt_json"] is None:
                     continue
                 try:
-                    receipt = json.loads(row["receipt_json"])
-                    if not isinstance(receipt, dict):
-                        raise ValueError("receipt must be an object")
-                    claimed = str(receipt.pop("receipt_hash", ""))
-                    observed = hashlib.sha256(
-                        _json_text(receipt).encode("utf-8")
-                    ).hexdigest()
-                    expected_identity = {
-                        "namespace": row["namespace"],
-                        "owner_id": row["owner_id"],
-                        "request_id": row["request_id"],
-                        "session_id": row["session_id"],
-                        "step": int(row["step"]),
-                        "database_generation_id": self.database_generation_id,
-                    }
-                    if (
-                        claimed != row["receipt_hash"]
-                        or observed != row["receipt_hash"]
-                        or any(
-                            receipt.get(field) != expected
-                            for field, expected in expected_identity.items()
-                        )
-                    ):
-                        raise ValueError("receipt digest mismatch")
-                except (TypeError, ValueError, json.JSONDecodeError):
+                    self._receipt_anchor(
+                        connection,
+                        row["namespace"],
+                        row["owner_id"],
+                        row["request_id"],
+                    )
+                except GDWConfigurationError:
                     digest_violations["invalid_receipt_digests"] += 1
             for row in connection.execute(
-                "SELECT payload_json, payload_sha256 FROM proof_outbox"
-                + scoped_suffix,
+                "SELECT * FROM proof_outbox" + scoped_suffix,
                 params,
             ):
-                if row["payload_json"] is None:
-                    continue
-                try:
-                    payload = json.loads(row["payload_json"])
-                    if not isinstance(payload, dict):
-                        raise ValueError("proof payload must be an object")
-                    observed = self._effect_payload_digest(
-                        "proof_export", payload
+                candidate = dict(row)
+                if row["status"] == "EXPORTED":
+                    errors = (
+                        self._retained_proof_errors(candidate)
+                        if row["payload_json"] is not None
+                        else self._compacted_proof_errors(candidate)
                     )
-                    if observed != row["payload_sha256"]:
-                        raise ValueError("proof digest mismatch")
-                except (
-                    GDWConfigurationError,
-                    TypeError,
-                    ValueError,
-                    json.JSONDecodeError,
-                ):
+                else:
+                    errors = []
+                    if row["payload_json"] is None:
+                        errors.append("unexported_proof_payload_missing")
+                    else:
+                        try:
+                            payload = json.loads(row["payload_json"])
+                        except (
+                            TypeError,
+                            json.JSONDecodeError,
+                        ):
+                            errors.append("proof_payload_json_invalid")
+                        else:
+                            errors.extend(
+                                self._legacy_proof_payload_errors(
+                                    candidate, payload
+                                )
+                            )
+                    if (
+                        row["artifact_json"] is not None
+                        or row["exported_at"] is not None
+                        or row["tombstoned_at"] is not None
+                    ):
+                        errors.append("unexported_proof_lifecycle_invalid")
+                if errors:
                     digest_violations["invalid_proof_digests"] += 1
             digest_violations["invalid_recovery_audits"] += (
                 self._recovery_audit_chain_errors(
@@ -4075,62 +4905,94 @@ class GDWWorkspace:
                 )
             )
             effect_rows = connection.execute(
-                """
-                SELECT namespace, owner_id, idempotency_key,
-                       database_generation_id, request_id, kind, receipt_hash,
-                       payload_json, payload_sha256, intent_sha256,
-                       status, artifact_json, tombstoned_at
-                FROM effect_outbox
-                WHERE NOT (
-                    status = 'EXPORTED'
-                    AND payload_json IS NULL
-                    AND artifact_json IS NULL
-                    AND tombstoned_at IS NOT NULL
-                )
-                """
+                "SELECT * FROM effect_outbox"
                 + (
                     ""
                     if global_scope
-                    else " AND namespace = ? AND owner_id = ?"
+                    else " WHERE namespace = ? AND owner_id = ?"
                 ),
                 params,
             ).fetchall()
             invalid_effect_bindings = 0
             invalid_exported_artifacts = 0
             for row in effect_rows:
-                canonically_compacted = (
-                    row["status"] == "EXPORTED"
-                    and row["payload_json"] is None
-                    and row["artifact_json"] is None
-                    and row["tombstoned_at"] is not None
-                )
-                if canonically_compacted:
-                    continue
-                lifecycle_binding_invalid = (
-                    row["payload_json"] is None
-                    or row["tombstoned_at"] is not None
-                )
-                try:
-                    payload = json.loads(row["payload_json"])
-                except (TypeError, json.JSONDecodeError):
-                    invalid_effect_bindings += 1
-                    continue
                 candidate = dict(row)
-                candidate["payload"] = payload
-                binding_errors = self._connection_effect_binding_errors(
-                    connection, candidate
-                )
-                if lifecycle_binding_invalid or binding_errors:
-                    invalid_effect_bindings += 1
+                binding_errors = []
+                artifact_errors = []
                 if row["status"] == "EXPORTED":
-                    try:
-                        artifact = json.loads(row["artifact_json"])
-                    except (TypeError, json.JSONDecodeError):
-                        invalid_exported_artifacts += 1
+                    lifecycle_state, lifecycle_errors = (
+                        _exported_effect_lifecycle(candidate)
+                    )
+                    binding_errors.extend(lifecycle_errors)
+                    if lifecycle_state == _EXPORTED_EFFECT_RETAINED:
+                        retained_binding, retained_artifact = (
+                            self._connection_retained_effect_errors(
+                                connection, candidate
+                            )
+                        )
+                        binding_errors.extend(retained_binding)
+                        artifact_errors.extend(retained_artifact)
+                    elif lifecycle_state == _EXPORTED_EFFECT_COMPACTED:
+                        binding_errors.extend(
+                            self._connection_compacted_effect_errors(
+                                connection, candidate
+                            )
+                        )
                     else:
-                        if self.artifact_binding_errors(candidate, artifact):
-                            invalid_exported_artifacts += 1
-                elif row["artifact_json"] is not None:
+                        if row["payload_json"] is not None:
+                            try:
+                                candidate["payload"] = json.loads(
+                                    row["payload_json"]
+                                )
+                            except (TypeError, json.JSONDecodeError):
+                                binding_errors.append(
+                                    "effect_payload_json_invalid"
+                                )
+                            else:
+                                binding_errors.extend(
+                                    self._connection_effect_binding_errors(
+                                        connection, candidate
+                                    )
+                                )
+                        if row["artifact_json"] is not None:
+                            try:
+                                artifact = json.loads(row["artifact_json"])
+                            except (TypeError, json.JSONDecodeError):
+                                artifact_errors.append(
+                                    "effect_artifact_json_invalid"
+                                )
+                            else:
+                                artifact_errors.extend(
+                                    self.artifact_binding_errors(
+                                        candidate, artifact
+                                    )
+                                )
+                else:
+                    if (
+                        row["payload_json"] is None
+                        or row["tombstoned_at"] is not None
+                        or row["exported_at"] is not None
+                    ):
+                        binding_errors.append(
+                            "unexported_effect_lifecycle_invalid"
+                        )
+                    try:
+                        candidate["payload"] = json.loads(row["payload_json"])
+                    except (TypeError, json.JSONDecodeError):
+                        binding_errors.append("effect_payload_json_invalid")
+                    else:
+                        binding_errors.extend(
+                            self._connection_effect_binding_errors(
+                                connection, candidate
+                            )
+                        )
+                    if row["artifact_json"] is not None:
+                        artifact_errors.append(
+                            "unexported_effect_artifact_retained"
+                        )
+                if binding_errors:
+                    invalid_effect_bindings += 1
+                if artifact_errors:
                     invalid_exported_artifacts += 1
             result = {
                 "ok": (

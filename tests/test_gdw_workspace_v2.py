@@ -2,10 +2,15 @@ import hashlib
 import json
 import sqlite3
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import pytest
 
-from gdw_proofs import build_proof_payload, export_proof_payload
+from gdw_proofs import (
+    build_proof_payload,
+    export_proof_payload,
+    export_receipt_projection,
+)
 
 from gdw_workspace import (
     SCHEMA_VERSION,
@@ -135,21 +140,93 @@ def _receipt_payload(
     request_id,
     session_id="session",
     request_digest=None,
+    *,
+    step=0,
+    state_before_hash="b" * 64,
+    state_after_hash="c" * 64,
+    scheduler_mode="kda_local",
+    governance=None,
+    created_at="2026-07-28T00:00:00+00:00",
 ):
+    resolved_digest = request_digest or hashlib.sha256(
+        request_id.encode()
+    ).hexdigest()
+    resolved_governance = governance
+    if resolved_governance is None:
+        resolved_governance = {
+            "allowed": True,
+            "policy": "test",
+            "principal": {
+                "namespace": workspace.namespace,
+                "owner_id": workspace.owner_id,
+            },
+        }
+    proposal_id = _canonical_hash(
+        {
+            "schema": "szl.gdw.proposal-identity/v1",
+            "database_generation_id": workspace.database_generation_id,
+            "namespace": workspace.namespace,
+            "owner_id": workspace.owner_id,
+            "request_id": request_id,
+            "request_digest": resolved_digest,
+            "state_before_hash": state_before_hash,
+            "governance_evidence_sha256": _canonical_hash(
+                resolved_governance
+            ),
+        }
+    )
     receipt = {
+        "schema": "szl.gdw.transaction-receipt/v1",
+        "status": "UNSIGNED_ATOMIC",
+        "proposal_id": proposal_id,
         "request_id": request_id,
-        "request_digest": request_digest or hashlib.sha256(
-            request_id.encode()
-        ).hexdigest(),
+        "request_digest": resolved_digest,
         "session_id": session_id,
         "namespace": workspace.namespace,
         "owner_id": workspace.owner_id,
         "database_generation_id": workspace.database_generation_id,
-        "step": 0,
-        "decision": "REJECT",
+        "credential_key_id": "test-key",
+        "step": step,
+        "state_before_hash": state_before_hash,
+        "state_after_hash": state_after_hash,
+        "scheduler_mode": scheduler_mode,
+        "governance_evidence_sha256": _canonical_hash(
+            resolved_governance
+        ),
+        "governance": resolved_governance,
+        "created_at": created_at,
     }
     receipt["receipt_hash"] = _canonical_hash(receipt)
     return receipt
+
+
+def _accepted_response_and_receipt(
+    workspace,
+    request_id="request",
+    session_id="session",
+):
+    request_digest = hashlib.sha256(request_id.encode()).hexdigest()
+    receipt = _receipt_payload(
+        workspace,
+        request_id,
+        session_id=session_id,
+        request_digest=request_digest,
+    )
+    response = {
+        "request_id": request_id,
+        "session_id": session_id,
+        "step": 0,
+        "state_before_hash": "b" * 64,
+        "state_hash": "c" * 64,
+        "decision": "ACCEPT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": receipt["receipt_hash"],
+        "dry_run": False,
+        "audit": {"governance": receipt["governance"]},
+    }
+    _bind_response(workspace, response, request_digest)
+    assert response["proposal_id"] == receipt["proposal_id"]
+    return request_digest, response, receipt
 
 
 def _queue_proof(
@@ -211,6 +288,78 @@ def _queue_expired_exported_proof(workspace, request_id, start, worker_id):
     )
     return key
 
+
+def _queue_expired_exported_receipt(workspace, request_id, start, worker_id):
+    request_digest = hashlib.sha256(request_id.encode()).hexdigest()
+    receipt = _receipt_payload(
+        workspace,
+        request_id,
+        request_digest=request_digest,
+    )
+    response = {
+        "request_id": request_id,
+        "step": 0,
+        "state_before_hash": "b" * 64,
+        "state_hash": "c" * 64,
+        "decision": "ACCEPT",
+        "scheduler_mode": "kda_local",
+        "receipt_hash": receipt["receipt_hash"],
+        "dry_run": False,
+        "audit": {
+            "governance": {
+                "allowed": True,
+                "policy": "test",
+                "principal": {
+                    "namespace": workspace.namespace,
+                    "owner_id": workspace.owner_id,
+                },
+            }
+        },
+    }
+    _bind_response(workspace, response, request_digest)
+    with workspace.transaction() as connection:
+        workspace.save_request(
+            connection,
+            request_id,
+            request_digest,
+            "session",
+            response,
+            _canonical_hash(response),
+            start.isoformat(),
+            expires_at=(start + timedelta(seconds=1)).isoformat(),
+        )
+        workspace.save_receipt(
+            connection,
+            receipt["receipt_hash"],
+            request_id,
+            "session",
+            0,
+            receipt,
+            start.isoformat(),
+        )
+        key = workspace.save_effect_outbox(
+            connection,
+            request_id,
+            "receipt_projection",
+            receipt,
+            _canonical_hash(receipt),
+            None,
+            start.isoformat(),
+        )
+    claim = workspace.claim_effects(worker_id, limit=1)[0]
+    artifact = export_receipt_projection(
+        claim["payload"],
+        claim["intent_sha256"],
+        owner_id=claim["owner_id"],
+    )
+    workspace.mark_effect_exported(
+        key,
+        worker_id,
+        claim["claim_generation"],
+        artifact,
+        (start + timedelta(seconds=2)).isoformat(),
+    )
+    return key
 
 def test_v2_schema_scopes_same_ids_by_namespace_and_owner(tmp_path):
     path = tmp_path / "gdw.sqlite3"
@@ -274,6 +423,20 @@ def test_v2_schema_scopes_same_ids_by_namespace_and_owner(tmp_path):
     assert owner_a.integrity(global_scope=True)["counts"]["session_state"] == 3
     assert "path" not in owner_a.integrity()
     assert owner_a.integrity(global_scope=True)["schema_version"] == SCHEMA_VERSION
+
+
+def test_cached_request_and_integrity_accept_response_without_session_id(tmp_path):
+    workspace = _workspace(tmp_path / "request-without-response-session.sqlite3")
+    response = _save_request(workspace, "request", session_id="row-session")
+
+    assert "session_id" not in response
+    with workspace.transaction() as connection:
+        digest, cached = workspace.cached_request(connection, "request")
+
+    assert digest == hashlib.sha256(b"request").hexdigest()
+    assert cached == response
+    assert "session_id" not in cached
+    assert workspace.integrity()["ok"] is True
 
 
 def test_nonempty_legacy_database_requires_explicit_owner_mapping(
@@ -443,6 +606,8 @@ def test_pending_effect_quota_rolls_back_the_whole_transition(tmp_path):
         workspace,
         "request",
         request_digest=request_digest,
+        state_after_hash="b" * 64,
+        created_at=timestamp,
     )
     response = {
         "proposal_id": "a" * 64,
@@ -456,7 +621,7 @@ def test_pending_effect_quota_rolls_back_the_whole_transition(tmp_path):
         "dry_run": False,
         "audit": {
             "governance": {
-                "allowed": False,
+                "allowed": True,
                 "policy": "test",
                 "principal": {
                     "namespace": workspace.namespace,
@@ -696,16 +861,21 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
     }
     _bind_response(workspace, response, "digest")
     proof = _proof_payload(response)
+    state = {
+        "large": "state",
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "session_id": "session",
+        "step": 1,
+        "database_generation_id": workspace.database_generation_id,
+    }
     with workspace.transaction() as connection:
         workspace.save_state(
             connection,
             "session",
             1,
-            {
-                "large": "state",
-                "database_generation_id": workspace.database_generation_id,
-            },
-            "state-hash",
+            state,
+            _canonical_hash(state),
             start.isoformat(),
             expires_at=(start + timedelta(seconds=1)).isoformat(),
         )
@@ -808,7 +978,11 @@ def test_gc_tombstones_expired_objects_but_never_unexported_effects(
 
 @pytest.mark.parametrize(
     "contradictory_state",
-    ("artifact_only", "tombstoned_with_retained_bytes"),
+    (
+        "artifact_only",
+        "payload_only",
+        "tombstoned_with_retained_bytes",
+    ),
 )
 def test_gc_fails_closed_for_schema_valid_noncanonical_effect_state(
     tmp_path,
@@ -833,6 +1007,12 @@ def test_gc_fails_closed_for_schema_valid_noncanonical_effect_state(
                 "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
                 (workspace.namespace, workspace.owner_id, key),
             )
+        elif contradictory_state == "payload_only":
+            connection.execute(
+                "UPDATE effect_outbox SET artifact_json = NULL "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            )
         else:
             connection.execute(
                 "UPDATE effect_outbox SET tombstoned_at = ? "
@@ -845,12 +1025,31 @@ def test_gc_fails_closed_for_schema_valid_noncanonical_effect_state(
                 ),
             )
 
+    with workspace.transaction() as connection:
+        original_request = connection.execute(
+            "SELECT lifecycle, response_json FROM requests "
+            "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+            (workspace.namespace, workspace.owner_id, "retained-request"),
+        ).fetchone()
+        original_effect = connection.execute(
+            "SELECT payload_json, artifact_json, tombstoned_at "
+            "FROM effect_outbox "
+            "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+            (workspace.namespace, workspace.owner_id, key),
+        ).fetchone()
+
     integrity = workspace.integrity()
     assert integrity["ok"] is False
     assert integrity["invalid_effect_bindings"] == 1
-    collected = workspace.collect_garbage(now=start + timedelta(seconds=5))
-    assert collected["requests_tombstoned"] == 0
-    assert collected["effects_compacted"] == 0
+    for offset in (5, 50, 60):
+        collected = workspace.collect_garbage(
+            now=start + timedelta(seconds=offset)
+        )
+        assert collected["requests_tombstoned"] == 0
+        assert collected["effects_compacted"] == 0
+        integrity = workspace.integrity()
+        assert integrity["ok"] is False
+        assert integrity["invalid_effect_bindings"] == 1
     with workspace.transaction() as connection:
         request = connection.execute(
             "SELECT lifecycle, response_json FROM requests "
@@ -867,16 +1066,585 @@ def test_gc_fails_closed_for_schema_valid_noncanonical_effect_state(
             "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
             (workspace.namespace, workspace.owner_id, key),
         ).fetchone()
+    assert dict(request) == dict(original_request)
+    assert dict(effect) == dict(original_effect)
     assert request["lifecycle"] == "ACTIVE"
     assert request["response_json"] is not None
-    assert effect["artifact_json"] is not None
     if contradictory_state == "artifact_only":
         assert effect["payload_json"] is None
+        assert effect["artifact_json"] is not None
+        assert effect["tombstoned_at"] is None
+    elif contradictory_state == "payload_only":
+        assert effect["payload_json"] is not None
+        assert effect["artifact_json"] is None
         assert effect["tombstoned_at"] is None
     else:
         assert effect["payload_json"] is not None
+        assert effect["artifact_json"] is not None
         assert effect["tombstoned_at"] is not None
 
+
+@pytest.mark.parametrize("tamper", ("payload", "artifact"))
+def test_gc_never_normalizes_aged_tampered_retained_effect(
+    tmp_path,
+    monkeypatch,
+    tamper,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / f"tampered-{tamper}.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    key = _queue_expired_exported_proof(
+        workspace,
+        "tampered-request",
+        start,
+        "tampered-worker",
+    )
+    if tamper == "payload":
+        with workspace.transaction() as connection:
+            connection.execute(
+                "UPDATE effect_outbox SET payload_json = ? "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (
+                    json.dumps(
+                        {"tampered": True},
+                        sort_keys=True,
+                        separators=(",", ":"),
+                    ),
+                    workspace.namespace,
+                    workspace.owner_id,
+                    key,
+                ),
+            )
+    else:
+        with workspace.transaction() as connection:
+            artifact = json.loads(
+                connection.execute(
+                    "SELECT artifact_json FROM effect_outbox "
+                    "WHERE namespace = ? AND owner_id = ? "
+                    "AND idempotency_key = ?",
+                    (workspace.namespace, workspace.owner_id, key),
+                ).fetchone()["artifact_json"]
+            )
+        Path(artifact["path"]).write_text(
+            '{"tampered":true}\n',
+            encoding="utf-8",
+        )
+
+    with workspace.transaction() as connection:
+        original_effect = dict(
+            connection.execute(
+                "SELECT * FROM effect_outbox "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            ).fetchone()
+        )
+        original_request = dict(
+            connection.execute(
+                "SELECT * FROM requests "
+                "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    "tampered-request",
+                ),
+            ).fetchone()
+        )
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    if tamper == "payload":
+        assert integrity["invalid_effect_bindings"] == 1
+    else:
+        assert integrity["invalid_exported_artifacts"] == 1
+
+    for offset in (50, 60):
+        with pytest.raises(
+            GDWConfigurationError,
+            match="effect compaction refused invalid lifecycle",
+        ):
+            workspace.collect_garbage(
+                now=start + timedelta(seconds=offset)
+            )
+        with workspace.transaction() as connection:
+            effect = dict(
+                connection.execute(
+                    "SELECT * FROM effect_outbox "
+                    "WHERE namespace = ? AND owner_id = ? "
+                    "AND idempotency_key = ?",
+                    (workspace.namespace, workspace.owner_id, key),
+                ).fetchone()
+            )
+            request = dict(
+                connection.execute(
+                    "SELECT * FROM requests "
+                    "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+                    (
+                        workspace.namespace,
+                        workspace.owner_id,
+                        "tampered-request",
+                    ),
+                ).fetchone()
+            )
+        assert effect == original_effect
+        assert request == original_request
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    (
+        "missing_exported_at",
+        "retained_lease",
+        "retained_error",
+        "tombstone_before_export",
+    ),
+)
+def test_gc_never_releases_impossible_compacted_effect_metadata(
+    tmp_path,
+    monkeypatch,
+    mutation,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / f"impossible-{mutation}.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    key = _queue_expired_exported_proof(
+        workspace,
+        "impossible-request",
+        start,
+        "impossible-worker",
+    )
+    compacted = workspace.collect_garbage(
+        now=start + timedelta(seconds=50)
+    )
+    assert compacted["effects_compacted"] == 1
+    with workspace.transaction() as connection:
+        if mutation == "missing_exported_at":
+            connection.execute(
+                "UPDATE effect_outbox SET exported_at = NULL "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            )
+        elif mutation == "retained_lease":
+            connection.execute(
+                "UPDATE effect_outbox SET lease_owner = ?, lease_until = ? "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (
+                    "stale-worker",
+                    (start + timedelta(seconds=70)).isoformat(),
+                    workspace.namespace,
+                    workspace.owner_id,
+                    key,
+                ),
+            )
+        elif mutation == "retained_error":
+            connection.execute(
+                "UPDATE effect_outbox SET last_error = ? "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                ("stale-error", workspace.namespace, workspace.owner_id, key),
+            )
+        else:
+            connection.execute(
+                "UPDATE effect_outbox SET tombstoned_at = ? "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (
+                    (start + timedelta(seconds=1)).isoformat(),
+                    workspace.namespace,
+                    workspace.owner_id,
+                    key,
+                ),
+            )
+        original_effect = dict(
+            connection.execute(
+                "SELECT * FROM effect_outbox "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            ).fetchone()
+        )
+
+    assert workspace.integrity()["invalid_effect_bindings"] == 1
+    for offset in (50, 100):
+        collected = workspace.collect_garbage(
+            now=start + timedelta(seconds=offset)
+        )
+        assert collected["requests_tombstoned"] == 0
+        with workspace.transaction() as connection:
+            effect = dict(
+                connection.execute(
+                    "SELECT * FROM effect_outbox "
+                    "WHERE namespace = ? AND owner_id = ? "
+                    "AND idempotency_key = ?",
+                    (workspace.namespace, workspace.owner_id, key),
+                ).fetchone()
+            )
+            request = connection.execute(
+                "SELECT lifecycle, response_json FROM requests "
+                "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    "impossible-request",
+                ),
+            ).fetchone()
+        assert effect == original_effect
+        assert request["lifecycle"] == "ACTIVE"
+        assert request["response_json"] is not None
+        assert workspace.integrity()["invalid_effect_bindings"] == 1
+
+
+def test_gc_refuses_noncanonical_compacted_timestamp_before_purge(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / "noncanonical-time.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    key = _queue_expired_exported_proof(
+        workspace,
+        "noncanonical-request",
+        start,
+        "noncanonical-worker",
+    )
+    assert workspace.collect_garbage(
+        now=start + timedelta(seconds=50)
+    )["effects_compacted"] == 1
+    with workspace.transaction() as connection:
+        connection.execute(
+            "UPDATE effect_outbox SET exported_at = ? "
+            "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+            (
+                "2026-07-28T00:00:02Z",
+                workspace.namespace,
+                workspace.owner_id,
+                key,
+            ),
+        )
+        original = dict(
+            connection.execute(
+                "SELECT * FROM effect_outbox "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            ).fetchone()
+        )
+    assert workspace.integrity()["invalid_effect_bindings"] == 1
+    first = workspace.collect_garbage(
+        now=start + timedelta(seconds=50)
+    )
+    assert first["requests_tombstoned"] == 0
+    with pytest.raises(
+        GDWConfigurationError,
+        match="effect purge refused invalid lifecycle",
+    ):
+        workspace.collect_garbage(now=start + timedelta(seconds=100))
+    with workspace.transaction() as connection:
+        retained = dict(
+            connection.execute(
+                "SELECT * FROM effect_outbox "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            ).fetchone()
+        )
+    assert retained == original
+
+
+@pytest.mark.parametrize("corrupt_anchor", ("request", "receipt"))
+def test_gc_never_erases_corrupt_request_or_receipt_anchor(
+    tmp_path,
+    monkeypatch,
+    corrupt_anchor,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    monkeypatch.setenv(
+        "GDW_RECEIPT_PROJECTION_DIR", str(tmp_path / "receipt-projections")
+    )
+    workspace = _workspace(tmp_path / f"corrupt-{corrupt_anchor}.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    if corrupt_anchor == "receipt":
+        _queue_expired_exported_receipt(
+            workspace,
+            "corrupt-anchor-request",
+            start,
+            "corrupt-anchor-worker",
+        )
+    else:
+        _queue_expired_exported_proof(
+            workspace,
+            "corrupt-anchor-request",
+            start,
+            "corrupt-anchor-worker",
+        )
+
+    compacted = workspace.collect_garbage(
+        now=start + timedelta(seconds=50)
+    )
+    assert compacted["effects_compacted"] == 1
+    assert compacted["requests_tombstoned"] == 0
+    with workspace.transaction() as connection:
+        if corrupt_anchor == "request":
+            connection.execute(
+                "UPDATE requests SET response_json = ? "
+                "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+                (
+                    '{"corrupt":true}',
+                    workspace.namespace,
+                    workspace.owner_id,
+                    "corrupt-anchor-request",
+                ),
+            )
+        else:
+            connection.execute(
+                "UPDATE receipts SET receipt_json = ? "
+                "WHERE namespace = ? AND owner_id = ? AND request_id = ?",
+                (
+                    '{"corrupt":true}',
+                    workspace.namespace,
+                    workspace.owner_id,
+                    "corrupt-anchor-request",
+                ),
+            )
+        original_request = dict(
+            connection.execute(
+                "SELECT * FROM requests WHERE namespace = ? AND owner_id = ? "
+                "AND request_id = ?",
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    "corrupt-anchor-request",
+                ),
+            ).fetchone()
+        )
+        receipt_row = connection.execute(
+            "SELECT * FROM receipts WHERE namespace = ? AND owner_id = ? "
+            "AND request_id = ?",
+            (
+                workspace.namespace,
+                workspace.owner_id,
+                "corrupt-anchor-request",
+            ),
+        ).fetchone()
+        original_receipt = dict(receipt_row) if receipt_row is not None else None
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    if corrupt_anchor == "request":
+        assert integrity["invalid_request_digests"] == 1
+    else:
+        assert integrity["invalid_receipt_digests"] == 1
+    for offset in (50, 100, 110):
+        collected = workspace.collect_garbage(
+            now=start + timedelta(seconds=offset)
+        )
+        assert collected["requests_tombstoned"] == 0
+        with workspace.transaction() as connection:
+            request = dict(
+                connection.execute(
+                    "SELECT * FROM requests WHERE namespace = ? "
+                    "AND owner_id = ? AND request_id = ?",
+                    (
+                        workspace.namespace,
+                        workspace.owner_id,
+                        "corrupt-anchor-request",
+                    ),
+                ).fetchone()
+            )
+            receipt_row = connection.execute(
+                "SELECT * FROM receipts WHERE namespace = ? AND owner_id = ? "
+                "AND request_id = ?",
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    "corrupt-anchor-request",
+                ),
+            ).fetchone()
+            observed_receipt = (
+                dict(receipt_row) if receipt_row is not None else None
+            )
+        assert request == original_request
+        assert observed_receipt == original_receipt
+        assert workspace.integrity()["ok"] is False
+
+
+@pytest.mark.parametrize(
+    "counter_state",
+    ("attempts_zero", "claim_generation_zero", "attempts_exceed_max"),
+)
+def test_gc_preserves_unreachable_export_counter_state(
+    tmp_path,
+    monkeypatch,
+    counter_state,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / f"counter-{counter_state}.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    key = _queue_expired_exported_proof(
+        workspace,
+        "counter-request",
+        start,
+        "counter-worker",
+    )
+    with workspace.transaction() as connection:
+        if counter_state == "attempts_zero":
+            connection.execute(
+                "UPDATE effect_outbox SET attempts = 0 "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            )
+        elif counter_state == "claim_generation_zero":
+            connection.execute(
+                "UPDATE effect_outbox SET claim_generation = 0 "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            )
+        else:
+            connection.execute(
+                "UPDATE effect_outbox SET attempts = max_attempts + 1 "
+                "WHERE namespace = ? AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            )
+        original_effect = dict(
+            connection.execute(
+                "SELECT * FROM effect_outbox WHERE namespace = ? "
+                "AND owner_id = ? AND idempotency_key = ?",
+                (workspace.namespace, workspace.owner_id, key),
+            ).fetchone()
+        )
+        original_request = dict(
+            connection.execute(
+                "SELECT * FROM requests WHERE namespace = ? AND owner_id = ? "
+                "AND request_id = ?",
+                (workspace.namespace, workspace.owner_id, "counter-request"),
+            ).fetchone()
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_effect_bindings"] == 1
+    for offset in (50, 100):
+        collected = workspace.collect_garbage(
+            now=start + timedelta(seconds=offset)
+        )
+        assert collected["effects_compacted"] == 0
+        assert collected["requests_tombstoned"] == 0
+        with workspace.transaction() as connection:
+            effect = dict(
+                connection.execute(
+                    "SELECT * FROM effect_outbox WHERE namespace = ? "
+                    "AND owner_id = ? AND idempotency_key = ?",
+                    (workspace.namespace, workspace.owner_id, key),
+                ).fetchone()
+            )
+            request = dict(
+                connection.execute(
+                    "SELECT * FROM requests WHERE namespace = ? "
+                    "AND owner_id = ? AND request_id = ?",
+                    (
+                        workspace.namespace,
+                        workspace.owner_id,
+                        "counter-request",
+                    ),
+                ).fetchone()
+            )
+        assert effect == original_effect
+        assert request == original_request
+        assert workspace.integrity()["invalid_effect_bindings"] == 1
+
+def test_gc_purge_deletes_at_most_limit_per_category(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / "bounded-purge.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    for index in range(3):
+        _queue_expired_exported_proof(
+            workspace,
+            f"purge-request-{index}",
+            start,
+            f"purge-worker-{index}",
+        )
+    assert workspace.collect_garbage(
+        now=start + timedelta(seconds=50),
+        limit=10,
+    )["effects_compacted"] == 3
+    assert workspace.collect_garbage(
+        now=start + timedelta(seconds=50),
+        limit=10,
+    )["requests_tombstoned"] == 3
+
+    with workspace.transaction() as connection:
+        for index in range(3):
+            proposal_id = f"legacy-proof-{index}"
+            connection.execute(
+                """
+                INSERT INTO proof_outbox(
+                    namespace, owner_id, proposal_id, payload_json,
+                    payload_sha256, status, artifact_json, created_at,
+                    exported_at, tombstoned_at
+                ) VALUES (?, ?, ?, NULL, ?, 'EXPORTED', NULL, ?, ?, ?)
+                """,
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    proposal_id,
+                    hashlib.sha256(proposal_id.encode()).hexdigest(),
+                    start.isoformat(),
+                    (start + timedelta(seconds=1)).isoformat(),
+                    (start + timedelta(seconds=2)).isoformat(),
+                ),
+            )
+            session_id = f"purge-session-{index}"
+            connection.execute(
+                """
+                INSERT INTO session_state(
+                    namespace, owner_id, session_id, step, state_json,
+                    state_hash, lifecycle, created_at, updated_at,
+                    last_accessed_at, expires_at, tombstoned_at
+                ) VALUES (?, ?, ?, 1, NULL, ?, 'TOMBSTONED', ?, ?, ?, ?, ?)
+                """,
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    session_id,
+                    hashlib.sha256(session_id.encode()).hexdigest(),
+                    start.isoformat(),
+                    start.isoformat(),
+                    start.isoformat(),
+                    (start + timedelta(seconds=1)).isoformat(),
+                    (start + timedelta(seconds=2)).isoformat(),
+                ),
+            )
+
+    for expected_remaining in (2, 1, 0):
+        workspace.collect_garbage(
+            now=start + timedelta(seconds=100),
+            limit=1,
+        )
+        with workspace.transaction() as connection:
+            counts = {
+                "effects": connection.execute(
+                    "SELECT COUNT(*) FROM effect_outbox"
+                ).fetchone()[0],
+                "proofs": connection.execute(
+                    "SELECT COUNT(*) FROM proof_outbox"
+                ).fetchone()[0],
+                "sessions": connection.execute(
+                    "SELECT COUNT(*) FROM session_state"
+                ).fetchone()[0],
+            }
+        assert counts == {
+            "effects": expected_remaining,
+            "proofs": expected_remaining,
+            "sessions": expected_remaining,
+        }
 
 def test_gc_bounded_batches_preserve_each_uncompacted_anchor(
     tmp_path,
@@ -1349,6 +2117,7 @@ def test_receipt_identity_fields_are_bound_before_persistence(tmp_path):
         "audit": {
             "governance": {
                 "allowed": True,
+                "policy": "test",
                 "principal": {
                     "namespace": workspace.namespace,
                     "owner_id": workspace.owner_id,
@@ -1387,6 +2156,7 @@ def test_mutating_proof_requires_its_persisted_receipt_anchor(tmp_path):
         workspace,
         "request",
         request_digest=request_digest,
+        step=1,
     )
     response = {
         "proposal_id": "a" * 64,
@@ -1401,6 +2171,7 @@ def test_mutating_proof_requires_its_persisted_receipt_anchor(tmp_path):
         "audit": {
             "governance": {
                 "allowed": True,
+                "policy": "test",
                 "principal": {
                     "namespace": workspace.namespace,
                     "owner_id": workspace.owner_id,
@@ -1425,7 +2196,7 @@ def test_mutating_proof_requires_its_persisted_receipt_anchor(tmp_path):
             receipt["receipt_hash"],
             "request",
             "session",
-            0,
+            1,
             receipt,
             "2026-07-28T00:00:00+00:00",
         )
@@ -1602,3 +2373,667 @@ def test_integrity_reports_non_object_receipt_and_proof_json(tmp_path):
     assert integrity["ok"] is False
     assert integrity["invalid_receipt_digests"] == 1
     assert integrity["invalid_proof_digests"] == 1
+
+
+
+def test_request_response_session_is_optional_but_never_contradictory(tmp_path):
+    workspace = _workspace(tmp_path / "request-session-binding.sqlite3")
+    response = _save_request(
+        workspace,
+        "request",
+        session_id="correct-session",
+    )
+    response["session_id"] = "wrong-session"
+    with workspace.transaction() as connection:
+        connection.execute(
+            """
+            UPDATE requests SET response_json = ?, response_hash = ?
+            WHERE namespace = ? AND owner_id = ? AND request_id = 'request'
+            """,
+            (
+                json.dumps(response, sort_keys=True, separators=(",", ":")),
+                _canonical_hash(response),
+                workspace.namespace,
+                workspace.owner_id,
+            ),
+        )
+
+    with workspace.transaction() as connection:
+        with pytest.raises(GDWConfigurationError, match="identity"):
+            workspace.cached_request(connection, "request")
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_request_digests"] == 1
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("request_digest", "f" * 64),
+        ("proposal_id", "e" * 64),
+        ("state_before_hash", "d" * 64),
+        ("state_after_hash", "d" * 64),
+        ("scheduler_mode", "attacker_mode"),
+        ("governance_evidence_sha256", "c" * 64),
+        ("credential_key_id", "attacker-key"),
+    ),
+)
+def test_receipt_cross_record_fields_are_bound_before_persistence(
+    tmp_path,
+    field,
+    replacement,
+):
+    workspace = _workspace(tmp_path / f"receipt-binding-{field}.sqlite3")
+    request_digest, response, receipt = _accepted_response_and_receipt(workspace)
+    changed = json.loads(json.dumps(receipt))
+    changed[field] = replacement
+    changed.pop("receipt_hash")
+    changed["receipt_hash"] = _canonical_hash(changed)
+    response["receipt_hash"] = changed["receipt_hash"]
+
+    with pytest.raises(GDWConfigurationError, match="receipt"):
+        with workspace.transaction() as connection:
+            workspace.save_request(
+                connection,
+                "request",
+                request_digest,
+                "session",
+                response,
+                _canonical_hash(response),
+                "2026-07-28T00:00:00+00:00",
+            )
+            workspace.save_receipt(
+                connection,
+                changed["receipt_hash"],
+                "request",
+                "session",
+                0,
+                changed,
+                "2026-07-28T00:00:00+00:00",
+            )
+    assert workspace.integrity()["counts"]["requests"] == 0
+
+
+def test_repeated_gc_never_hides_cross_record_receipt_contradiction(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    workspace = _workspace(tmp_path / "receipt-gc-binding.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    request_digest, response, receipt = _accepted_response_and_receipt(workspace)
+    contradictory = dict(receipt)
+    contradictory["request_digest"] = "f" * 64
+    contradictory.pop("receipt_hash")
+    contradictory["receipt_hash"] = _canonical_hash(contradictory)
+    response["receipt_hash"] = contradictory["receipt_hash"]
+    receipt_text = json.dumps(
+        contradictory,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with workspace.transaction() as connection:
+        workspace.save_request(
+            connection,
+            "request",
+            request_digest,
+            "session",
+            response,
+            _canonical_hash(response),
+            start.isoformat(),
+            expires_at=(start + timedelta(seconds=1)).isoformat(),
+        )
+        connection.execute(
+            """
+            INSERT INTO receipts(
+                namespace, owner_id, receipt_hash, request_id, session_id,
+                step, receipt_json, created_at
+            ) VALUES (?, ?, ?, 'request', 'session', 0, ?, ?)
+            """,
+            (
+                workspace.namespace,
+                workspace.owner_id,
+                contradictory["receipt_hash"],
+                receipt_text,
+                start.isoformat(),
+            ),
+        )
+
+    for seconds in (30, 60):
+        integrity = workspace.integrity()
+        assert integrity["ok"] is False
+        assert integrity["invalid_receipt_digests"] == 1
+        result = workspace.collect_garbage(
+            now=start + timedelta(seconds=seconds)
+        )
+        assert result["requests_tombstoned"] == 0
+        connection = workspace._connect()
+        try:
+            row = connection.execute(
+                """
+                SELECT q.lifecycle, q.response_json, r.receipt_json
+                FROM requests q JOIN receipts r
+                  ON r.namespace = q.namespace AND r.owner_id = q.owner_id
+                 AND r.request_id = q.request_id
+                WHERE q.namespace = ? AND q.owner_id = ?
+                  AND q.request_id = 'request'
+                """,
+                (workspace.namespace, workspace.owner_id),
+            ).fetchone()
+        finally:
+            connection.close()
+        assert row["lifecycle"] == "ACTIVE"
+        assert row["response_json"] is not None
+        assert row["receipt_json"] == receipt_text
+
+
+def test_repeated_gc_never_hides_corrupt_session_state(tmp_path, monkeypatch):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    workspace = _workspace(tmp_path / "session-gc-integrity.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    state = {
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "session_id": "session",
+        "database_generation_id": workspace.database_generation_id,
+        "step": 1,
+    }
+    state_text = json.dumps(state, sort_keys=True, separators=(",", ":"))
+    with workspace.transaction() as connection:
+        workspace.save_state(
+            connection,
+            "session",
+            1,
+            state,
+            _canonical_hash(state),
+            start.isoformat(),
+            expires_at=(start + timedelta(seconds=1)).isoformat(),
+        )
+        connection.execute(
+            """
+            UPDATE session_state SET state_hash = ?
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            ("0" * 64, workspace.namespace, workspace.owner_id),
+        )
+
+    for seconds in (30, 60):
+        integrity = workspace.integrity()
+        assert integrity["ok"] is False
+        assert integrity["invalid_state_digests"] == 1
+        with pytest.raises(
+            GDWConfigurationError,
+            match="session compaction refused invalid lifecycle",
+        ):
+            workspace.collect_garbage(
+                now=start + timedelta(seconds=seconds)
+            )
+        connection = workspace._connect()
+        try:
+            row = connection.execute(
+                """
+                SELECT lifecycle, state_json, tombstoned_at
+                FROM session_state
+                WHERE namespace = ? AND owner_id = ?
+                  AND session_id = 'session'
+                """,
+                (workspace.namespace, workspace.owner_id),
+            ).fetchone()
+        finally:
+            connection.close()
+        assert row["lifecycle"] == "ACTIVE"
+        assert row["state_json"] == state_text
+        assert row["tombstoned_at"] is None
+
+
+def test_repeated_gc_never_hides_corrupt_legacy_proof(tmp_path, monkeypatch):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / "proof-gc-integrity.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "a" * 64,
+        "request_id": "legacy-request",
+        "owner_id": workspace.owner_id,
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = _canonical_hash(payload)
+    with workspace.transaction() as connection:
+        workspace.save_proof_outbox(
+            connection,
+            payload["proposal_id"],
+            payload,
+            payload["payload_sha256"],
+            start.isoformat(),
+        )
+    artifact = export_proof_payload(
+        payload,
+        artifact_id=payload["payload_sha256"],
+        owner_id=workspace.owner_id,
+    )
+    workspace.mark_proof_exported(
+        payload["proposal_id"],
+        artifact,
+        (start + timedelta(seconds=1)).isoformat(),
+        expected_payload=payload,
+        expected_payload_sha256=payload["payload_sha256"],
+    )
+    tampered = dict(payload)
+    tampered["formal_status"] = "TAMPERED"
+    tampered_text = json.dumps(
+        tampered,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with workspace.transaction() as connection:
+        connection.execute(
+            """
+            UPDATE proof_outbox SET payload_json = ?
+            WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
+            """,
+            (
+                tampered_text,
+                workspace.namespace,
+                workspace.owner_id,
+                payload["proposal_id"],
+            ),
+        )
+
+    for seconds in (20, 50):
+        integrity = workspace.integrity()
+        assert integrity["ok"] is False
+        assert integrity["invalid_proof_digests"] == 1
+        with pytest.raises(
+            GDWConfigurationError,
+            match="proof compaction refused invalid lifecycle",
+        ):
+            workspace.collect_garbage(
+                now=start + timedelta(seconds=seconds)
+            )
+        connection = workspace._connect()
+        try:
+            row = connection.execute(
+                """
+                SELECT status, payload_json, artifact_json, tombstoned_at
+                FROM proof_outbox
+                WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
+                """,
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    payload["proposal_id"],
+                ),
+            ).fetchone()
+        finally:
+            connection.close()
+        assert row["status"] == "EXPORTED"
+        assert row["payload_json"] == tampered_text
+        assert row["artifact_json"] is not None
+        assert row["tombstoned_at"] is None
+
+
+def test_receipt_created_at_is_canonical_and_bound_to_its_row(tmp_path):
+    workspace = _workspace(tmp_path / "receipt-created-at.sqlite3")
+    timestamp = "2026-07-28T00:00:00+00:00"
+    later = "2026-07-28T00:00:01+00:00"
+    request_digest, response, receipt = _accepted_response_and_receipt(workspace)
+    with workspace.transaction() as connection:
+        workspace.save_request(
+            connection,
+            "request",
+            request_digest,
+            "session",
+            response,
+            _canonical_hash(response),
+            timestamp,
+        )
+
+    with pytest.raises(GDWConfigurationError, match="created_at"):
+        with workspace.transaction() as connection:
+            workspace.save_receipt(
+                connection,
+                receipt["receipt_hash"],
+                "request",
+                "session",
+                0,
+                receipt,
+                later,
+            )
+
+    with workspace.transaction() as connection:
+        workspace.save_receipt(
+            connection,
+            receipt["receipt_hash"],
+            "request",
+            "session",
+            0,
+            receipt,
+            timestamp,
+        )
+        connection.execute(
+            """
+            UPDATE receipts SET created_at = ?
+            WHERE namespace = ? AND owner_id = ? AND request_id = 'request'
+            """,
+            (later, workspace.namespace, workspace.owner_id),
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_receipt_digests"] == 1
+
+
+def test_gc_never_erases_valid_state_with_impossible_expiry(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    workspace = _workspace(tmp_path / "session-expiry-integrity.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    state = {
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "session_id": "session",
+        "database_generation_id": workspace.database_generation_id,
+        "step": 1,
+    }
+    state_text = json.dumps(state, sort_keys=True, separators=(",", ":"))
+    with workspace.transaction() as connection:
+        workspace.save_state(
+            connection,
+            "session",
+            1,
+            state,
+            _canonical_hash(state),
+            start.isoformat(),
+            expires_at=(start + timedelta(seconds=1)).isoformat(),
+        )
+        connection.execute(
+            """
+            UPDATE session_state SET expires_at = ?
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (
+                (start - timedelta(seconds=1)).isoformat(),
+                workspace.namespace,
+                workspace.owner_id,
+            ),
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_state_digests"] == 1
+    with pytest.raises(
+        GDWConfigurationError,
+        match="session compaction refused invalid lifecycle",
+    ):
+        workspace.collect_garbage(now=start + timedelta(seconds=30))
+    with workspace.transaction() as connection:
+        row = connection.execute(
+            """
+            SELECT lifecycle, state_json, tombstoned_at FROM session_state
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        ).fetchone()
+    assert row["lifecycle"] == "ACTIVE"
+    assert row["state_json"] == state_text
+    assert row["tombstoned_at"] is None
+
+
+def test_integrity_rejects_active_session_with_missing_state(tmp_path):
+    workspace = _workspace(tmp_path / "active-session-missing-state.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    state = {
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "session_id": "session",
+        "database_generation_id": workspace.database_generation_id,
+        "step": 1,
+    }
+    with workspace.transaction() as connection:
+        workspace.save_state(
+            connection,
+            "session",
+            1,
+            state,
+            _canonical_hash(state),
+            start.isoformat(),
+        )
+        connection.execute(
+            """
+            UPDATE session_state SET state_json = NULL
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_state_digests"] == 1
+
+
+def test_gc_never_purges_session_tombstoned_before_expiry(
+    tmp_path,
+    monkeypatch,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    workspace = _workspace(tmp_path / "session-tombstone-order.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    state = {
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "session_id": "session",
+        "database_generation_id": workspace.database_generation_id,
+        "step": 1,
+    }
+    with workspace.transaction() as connection:
+        workspace.save_state(
+            connection,
+            "session",
+            1,
+            state,
+            _canonical_hash(state),
+            start.isoformat(),
+            expires_at=(start + timedelta(seconds=10)).isoformat(),
+        )
+        connection.execute(
+            """
+            UPDATE session_state
+            SET lifecycle = 'TOMBSTONED', state_json = NULL, tombstoned_at = ?
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (
+                (start + timedelta(seconds=5)).isoformat(),
+                workspace.namespace,
+                workspace.owner_id,
+            ),
+        )
+
+    integrity = workspace.integrity()
+    assert integrity["ok"] is False
+    assert integrity["invalid_state_digests"] == 1
+    with pytest.raises(
+        GDWConfigurationError,
+        match="session purge refused invalid lifecycle",
+    ):
+        workspace.collect_garbage(now=start + timedelta(seconds=40))
+    with workspace.transaction() as connection:
+        count = connection.execute(
+            """
+            SELECT COUNT(*) FROM session_state
+            WHERE namespace = ? AND owner_id = ? AND session_id = 'session'
+            """,
+            (workspace.namespace, workspace.owner_id),
+        ).fetchone()[0]
+    assert count == 1
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    (
+        ("namespace", "attacker-namespace"),
+        ("owner_id", "attacker-owner"),
+        ("database_generation_id", "f" * 32),
+    ),
+)
+def test_repeated_gc_never_hides_consistently_rebound_legacy_proof(
+    tmp_path,
+    monkeypatch,
+    field,
+    replacement,
+):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv("GDW_PROOF_DIR", str(tmp_path / "proofs"))
+    workspace = _workspace(tmp_path / f"proof-rebind-{field}.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    payload = {
+        "schema": "szl.gdw.proof-input/v1",
+        "proposal_id": "a" * 64,
+        "request_id": "legacy-request",
+        "namespace": workspace.namespace,
+        "owner_id": workspace.owner_id,
+        "database_generation_id": workspace.database_generation_id,
+        "formal_status": "NOT_RUN",
+    }
+    payload["payload_sha256"] = _canonical_hash(payload)
+    with workspace.transaction() as connection:
+        workspace.save_proof_outbox(
+            connection,
+            payload["proposal_id"],
+            payload,
+            payload["payload_sha256"],
+            start.isoformat(),
+        )
+    artifact = export_proof_payload(
+        payload,
+        artifact_id=payload["payload_sha256"],
+        owner_id=workspace.owner_id,
+    )
+    workspace.mark_proof_exported(
+        payload["proposal_id"],
+        artifact,
+        (start + timedelta(seconds=1)).isoformat(),
+        expected_payload=payload,
+        expected_payload_sha256=payload["payload_sha256"],
+    )
+
+    rebound = dict(payload)
+    rebound[field] = replacement
+    rebound.pop("payload_sha256")
+    rebound["payload_sha256"] = _canonical_hash(rebound)
+    rebound_artifact = export_proof_payload(
+        rebound,
+        artifact_id=rebound["payload_sha256"],
+        owner_id=workspace.owner_id,
+    )
+    rebound_text = json.dumps(
+        rebound,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    rebound_artifact_text = json.dumps(
+        rebound_artifact,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    with workspace.transaction() as connection:
+        connection.execute(
+            """
+            UPDATE proof_outbox
+            SET payload_json = ?, payload_sha256 = ?, artifact_json = ?
+            WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
+            """,
+            (
+                rebound_text,
+                rebound["payload_sha256"],
+                rebound_artifact_text,
+                workspace.namespace,
+                workspace.owner_id,
+                payload["proposal_id"],
+            ),
+        )
+
+    for seconds in (20, 50):
+        integrity = workspace.integrity()
+        assert integrity["ok"] is False
+        assert integrity["invalid_proof_digests"] == 1
+        with pytest.raises(
+            GDWConfigurationError,
+            match="proof compaction refused invalid lifecycle",
+        ):
+            workspace.collect_garbage(
+                now=start + timedelta(seconds=seconds)
+            )
+        with workspace.transaction() as connection:
+            row = connection.execute(
+                """
+                SELECT payload_json, payload_sha256, artifact_json, tombstoned_at
+                FROM proof_outbox
+                WHERE namespace = ? AND owner_id = ? AND proposal_id = ?
+                """,
+                (
+                    workspace.namespace,
+                    workspace.owner_id,
+                    payload["proposal_id"],
+                ),
+            ).fetchone()
+        assert row["payload_json"] == rebound_text
+        assert row["payload_sha256"] == rebound["payload_sha256"]
+        assert row["artifact_json"] == rebound_artifact_text
+        assert row["tombstoned_at"] is None
+
+
+def test_gc_request_and_receipt_purge_respects_limit(tmp_path, monkeypatch):
+    monkeypatch.setenv("GDW_RETENTION_SECONDS", "10")
+    monkeypatch.setenv("GDW_TOMBSTONE_SECONDS", "20")
+    monkeypatch.setenv(
+        "GDW_RECEIPT_PROJECTION_DIR",
+        str(tmp_path / "receipts"),
+    )
+    workspace = _workspace(tmp_path / "bounded-receipt-purge.sqlite3")
+    start = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    for index in range(3):
+        _queue_expired_exported_receipt(
+            workspace,
+            f"receipt-request-{index}",
+            start,
+            f"receipt-worker-{index}",
+        )
+    assert workspace.collect_garbage(
+        now=start + timedelta(seconds=50),
+        limit=10,
+    )["effects_compacted"] == 3
+    assert workspace.collect_garbage(
+        now=start + timedelta(seconds=50),
+        limit=10,
+    )["requests_tombstoned"] == 3
+
+    for expected_remaining in (2, 1, 0):
+        workspace.collect_garbage(
+            now=start + timedelta(seconds=100),
+            limit=1,
+        )
+        with workspace.transaction() as connection:
+            counts = {
+                "effects": connection.execute(
+                    "SELECT COUNT(*) FROM effect_outbox"
+                ).fetchone()[0],
+                "requests": connection.execute(
+                    "SELECT COUNT(*) FROM requests"
+                ).fetchone()[0],
+                "receipts": connection.execute(
+                    "SELECT COUNT(*) FROM receipts"
+                ).fetchone()[0],
+            }
+        assert counts == {
+            "effects": expected_remaining,
+            "requests": expected_remaining,
+            "receipts": expected_remaining,
+        }
