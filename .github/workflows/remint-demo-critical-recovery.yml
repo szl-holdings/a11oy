@@ -47,6 +47,38 @@ jobs:
       - name: Install exact test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
 
+      - name: Normalize recovery builder for current console CSS
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/scripts/remint_demo_critical_recovery.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    if "padding-bottom:104px" not in text:
+                  text, count = re.subn(
+                      r"(@media\\s*\\(\\s*max-width\\s*:\\s*600px\\s*\\)\\s*\\{)",
+                      r"\\1\\n  .content{padding-bottom:104px}",
+                      text,
+                      count=1,
+                  )
+                  require(count == 1, "mobile nav-dock clearance: no 600px media query anchor")
+          '''
+          new = '''    if "padding-bottom:104px" not in text:
+                  marker = "</style>"
+                  require(marker in text, "mobile nav-dock clearance: missing style terminator")
+                  text = text.replace(
+                      marker,
+                      "@media(max-width:820px){.content{padding-bottom:104px}}\\n</style>",
+                      1,
+                  )
+          '''
+          if text.count(old) != 1:
+              raise SystemExit('current console-CSS normalization block is not exact')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Prepare current-main recovery bytes
         run: python3 .github/scripts/remint_demo_critical_recovery.py
 
