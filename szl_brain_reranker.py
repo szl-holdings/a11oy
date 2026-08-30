@@ -45,6 +45,8 @@ READY = "READY"
 BLOCKED = "BLOCKED"
 DEGRADED = "DEGRADED"
 UNAVAILABLE = "UNAVAILABLE"
+MEASURED = "MEASURED"
+MODELED = "MODELED"
 UNKNOWN = "UNKNOWN"
 UNVERIFIED = "UNVERIFIED"
 
@@ -822,13 +824,54 @@ def service_status(ns: str = "a11oy", repo_root: pathlib.Path | str | None = Non
         dataset["evaluation_readiness"]["status"],
     )
     operational = all(state == READY for state in readiness)
+    # ------------------------------------------------------------------
+    # Honest surface label (Doctrine v11).  The previous rule collapsed the
+    # surface label to UNAVAILABLE unless ALL THREE readiness dimensions were
+    # READY, so an estate that really does compute a live evidence inventory
+    # every request (real graph read + an admission/quarantine decision per raw
+    # node) advertised itself as having nothing at all, purely because no trained
+    # reranker model manifest exists yet.  That understates what is served and is
+    # as dishonest as overstating it.  The ladder below reports exactly what is
+    # true THIS request and nothing more:
+    #   MEASURED    - dataset + model + evaluation all READY (a real trained and
+    #                 evaluated reranker; a performance claim is then defensible).
+    #   MODELED     - the inventory was read live THIS request (real graph bytes,
+    #                 real decisions) but the model/evaluation pipeline is BLOCKED,
+    #                 so structure and admission decisions are served with NO model
+    #                 performance claim.
+    #   UNAVAILABLE - the graph itself could not be read; nothing real to show.
+    # `status` stays BLOCKED until the pipeline is genuinely operational, so no
+    # reader can mistake MODELED for an operational model.
+    inventory_measured = inventory["label"] == MEASURED
+    blocking_reasons = sorted({
+        *(dataset["dataset_readiness"]["reasons"] or []),
+        *[f"MODEL:{r}" for r in (dataset["model_readiness"].get("reasons") or [])],
+        *[f"EVALUATION:{r}" for r in (dataset["evaluation_readiness"].get("reasons") or [])],
+    })
+    if operational:
+        label = MEASURED
+        label_basis = ("dataset, model and evaluation readiness are all READY — measured "
+                       "from the verified manifests read THIS request.")
+    elif inventory_measured:
+        label = MODELED
+        label_basis = ("evidence inventory read live THIS request (graph bytes hashed, one "
+                       "admission/quarantine decision per raw node), but the reranker "
+                       "model/evaluation pipeline is BLOCKED, so NO model-performance "
+                       "claim is made. Blocking: " + (", ".join(blocking_reasons) or "none"))
+    else:
+        label = UNAVAILABLE
+        label_basis = ("the Brain graph could not be read THIS request — nothing measured "
+                       "and nothing modeled; no state fabricated.")
     return {
         "ok": True, "schema_version": SERVICE_SCHEMA,
         # The inventory can be measured while the train/eval/model pipeline is still
         # unavailable.  Keep those truths separate so the estate rollup cannot turn
         # a measured node count into an operational model claim.
         "status": READY if operational else BLOCKED,
-        "label": "MEASURED" if operational else UNAVAILABLE,
+        "label": label,
+        "label_basis": label_basis,
+        "blocking_reasons": blocking_reasons,
+        "operational": operational,
         "inventory_label": inventory["label"],
         "inventory": inventory["inventory"],
         "inventory_sha256": inventory["inventory_sha256"],
