@@ -47,7 +47,7 @@ jobs:
       - name: Install exact test dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
 
-      - name: Normalize recovery builder for current console CSS
+      - name: Normalize recovery builder for current source layout
         shell: bash
         run: |
           set -Eeuo pipefail
@@ -56,7 +56,8 @@ jobs:
 
           path = Path('.github/scripts/remint_demo_critical_recovery.py')
           text = path.read_text(encoding='utf-8')
-          old = '''    if "padding-bottom:104px" not in text:
+
+          old_mobile = '''    if "padding-bottom:104px" not in text:
                   text, count = re.subn(
                       r"(@media\\s*\\(\\s*max-width\\s*:\\s*600px\\s*\\)\\s*\\{)",
                       r"\\1\\n  .content{padding-bottom:104px}",
@@ -65,7 +66,7 @@ jobs:
                   )
                   require(count == 1, "mobile nav-dock clearance: no 600px media query anchor")
           '''
-          new = '''    if "padding-bottom:104px" not in text:
+          new_mobile = '''    if "padding-bottom:104px" not in text:
                   marker = "</style>"
                   require(marker in text, "mobile nav-dock clearance: missing style terminator")
                   text = text.replace(
@@ -74,9 +75,37 @@ jobs:
                       1,
                   )
           '''
-          if text.count(old) != 1:
+          if text.count(old_mobile) != 1:
               raise SystemExit('current console-CSS normalization block is not exact')
-          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          text = text.replace(old_mobile, new_mobile, 1)
+
+          old_shared = '''    if '_IMAGE_SHARED_DIR = Path("/app/static/shared")' not in text:
+                  text = regex_once(
+                      text,
+                      r'^_SHARED_DIR = Path\\("/app/static/shared"\\)$',
+                      '_IMAGE_SHARED_DIR = Path("/app/static/shared")\\n_LOCAL_SHARED_DIR = Path(__file__).resolve().parent / "static" / "shared"\\n_SHARED_DIR = _IMAGE_SHARED_DIR if _IMAGE_SHARED_DIR.is_dir() else _LOCAL_SHARED_DIR',
+                      "runtime/local shared-asset selection",
+                  )
+          '''
+          new_shared = '''    if '_LOCAL_SHARED_DIR = Path(__file__).resolve().parent / "static" / "shared"' not in text:
+                  anchor = '    _SHARED_DIR = Path("/app/static/shared")'
+                  replacement = (
+                      anchor
+                      + '\\n    if not _SHARED_DIR.is_dir():'
+                      + '\\n        _SHARED_DIR = Path(__file__).resolve().parent / "static" / "shared"'
+                  )
+                  text = replace_once(
+                      text,
+                      anchor,
+                      replacement,
+                      "runtime/local shared-asset selection",
+                  )
+          '''
+          if text.count(old_shared) != 1:
+              raise SystemExit('current shared-asset normalization block is not exact')
+          text = text.replace(old_shared, new_shared, 1)
+
+          path.write_text(text, encoding='utf-8')
           PY
 
       - name: Prepare current-main recovery bytes
