@@ -262,8 +262,15 @@ def test_routes_are_json_and_precede_catchalls():
     with TestClient(serve.app) as client:
         info = client.get(paths[0]); assert info.status_code == 200
         surface = client.get(paths[2]); assert surface.status_code == 200
+        # Pipeline readiness stays BLOCKED (no trained model manifest in-image), but
+        # the SURFACE label reports what is really served this request: the evidence
+        # inventory is read live, so the honest tier is MODELED — not UNAVAILABLE.
         assert surface.json()["status"] == rr.BLOCKED
-        assert surface.json()["label"] == rr.UNAVAILABLE
+        assert surface.json()["operational"] is False
+        assert surface.json()["label"] == rr.MODELED
+        assert surface.json()["inventory_label"] == rr.MEASURED
+        assert surface.json()["blocking_reasons"]
+        assert "NO model-performance" in surface.json()["label_basis"]
         inventory = client.get(paths[3], params={"limit": 3}); assert inventory.status_code == 200
         assert inventory.headers["content-type"].startswith("application/json")
         assert inventory.json()["limit"] == 3

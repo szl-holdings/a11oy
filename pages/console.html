@@ -16313,8 +16313,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   }
 
   async function renderPublications(c){
-    var lockedTxt='8';
-    try{ var g=await window.getJSON(window.API+'/v1/genome'); var lp=(g&&g.tier_counts&&g.tier_counts['LOCKED-PROVEN']); if(typeof lp==='number'&&lp>0) lockedTxt=String(lp); }catch(e){}
+    // The locked-8 kernel count is bound to the honest kernel endpoint
+    // (locked_formula_count over {F1,F4,F7,F11,F12,F18,F19,F22}). It is NEVER
+    // bound to a genome catalog tier count — that catalog tag is a different
+    // number (25 of 144) and rendering it here would misstate the kernel.
+    var lockedTxt='N/A';
+    try{ var hk=await window.getJSON(window.API+'/v1/honest'); var kn=(hk&&hk.locked_formula_count); if(typeof kn==='number'&&kn>0) lockedTxt=String(kn); }catch(e){}
     var h='<div class="pz-wrap">';
     h+='<div class="pz-lead">The shoulders we stand on. SZL’s own program is DOI-pinned on Zenodo; the work it builds on is cited in full with a one-line note on exactly what we adapt. Honest tiers throughout: <b style="color:var(--teal)">'+esc(lockedTxt)+' locked-proven</b> {F1,F4,F7,F11,F12,F18,F19,F22}; Λ-uniqueness = <b style="color:#7e8aa3">Conjecture 1</b> (never green); Khipu BFT safety = Conjecture 2. Every formula’s proof tier is verifiable in <a href="#genome" onclick="go(\'genome\');return false;" style="color:var(--teal)">Genome</a> against <code>/api/a11oy/v1/genome</code>.</div>';
 
@@ -16887,6 +16891,228 @@ window.a11oyInvestor = (function(){
     window.VIEWS=V;
   });
 })();
+</script>
+
+<script>
+/* try-khipu-panel — additive, Command-Center-ONLY "Try Khipu" panel.
+   Doctrine v11. Adds NO nav entry (tabs.json 139-tab gate is untouched) and no
+   new view key: it wraps V.command.render and appends itself to the Command
+   Center body only. Deep links (?view=) are honored so it never mounts on a
+   non-command surface (e.g. Investor View).
+
+   Wire: GET /api/a11oy/v1/khipu/status  (pin + honesty, never signs)
+         POST /api/a11oy/v1/khipu/chat   (same-origin CPU-lab proxy)
+   Honesty rules enforced here:
+     - lab_status is shown verbatim: READY / FAILED / UNAVAILABLE (probe did not
+       resolve THIS request). Never a fabricated READY.
+     - elapsed_ms is MEASURED (server-side wall clock). Token counts are shown
+       only as the lab's own REPORTED usage. No throughput marketing number is
+       computed or displayed anywhere in this panel.
+     - signature is UNSIGNED unless the lab returns a real signature; the
+       receipt hash is shown as record_sha256, UNKNOWN when absent.
+     - the pinned GGUF digest is a SNAPSHOT (pin), GPU inference is ROADMAP,
+       energy attestation is 8/8 SIMULATED (never MEASURED without a live meter).
+     - the inference lab is a CPU inference lab: not a trainer, not Serve Studio,
+       and Ask & Act is not a live control plane.
+     - the proxy authenticates to the lab with the dummy Bearer not-a-secret;
+       no user or repo token is ever put in the browser.
+     - Λ = Conjecture 1 (advisory, gray) — never a theorem, never green.
+*/
+(function(){
+  'use strict';
+  var STATUS_URL='/api/a11oy/v1/khipu/status';
+  var CHAT_URL='/api/a11oy/v1/khipu/chat';
+  var LOCKED_LAB_V1='https://szlholdings-szl-model-inference-lab.hf.space/v1';
+  var HOST_ID='tk-panel-host';
+
+  function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g,function(ch){
+    return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[ch]; }); }
+  function E(id){ return document.getElementById(id); }
+  function H(id,html){ var n=E(id); if(n) n.innerHTML=html; }
+
+  /* 1396 owns ?view= deep links (Investor View). Read the query param FIRST,
+     then the hash, so this panel mounts on the Command Center only. */
+  function currentView(){
+    var q='';
+    try{ q=new URLSearchParams(window.location.search||'').get('view')||''; }catch(e){ q=''; }
+    if(q) return String(q).split('/')[0];
+    var h=String(window.location.hash||'').replace(/^#/,'');
+    if(h) return h.split('/')[0];
+    return 'command';
+  }
+
+  function tone(state){
+    if(state==='READY') return 'tk-ok';
+    if(state==='FAILED'||state==='UNAVAILABLE'||state==='UNKNOWN') return 'tk-warn';
+    return 'tk-dim';
+  }
+  function chip(text,state,title){
+    return '<span class="tk-chip '+tone(state||text)+'"'+(title?' title="'+esc(title)+'"':'')+'>'+esc(text)+'</span>';
+  }
+
+  function shell(){
+    return ''
+      +'<style>'
+      +'#'+HOST_ID+'{margin-top:1.1rem;border:1px solid rgba(201,183,135,.34);border-radius:10px;'
+      +'background:rgba(12,16,18,.45);padding:.95rem 1rem 1.05rem}'
+      +'#'+HOST_ID+' h2{margin:0 0 .15rem;font-size:15px;letter-spacing:.02em;color:var(--cream,#e8e2d4)}'
+      +'#'+HOST_ID+' .tk-sub{margin:.1rem 0 .75rem;font-size:11.5px;line-height:1.65;color:var(--paragraph,#a8a294)}'
+      +'#'+HOST_ID+' .tk-chip{display:inline-block;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;'
+      +'font-size:10px;letter-spacing:.06em;padding:.1rem .38rem;border-radius:4px;margin:0 .25rem .25rem 0;'
+      +'border:1px solid rgba(201,183,135,.4);color:#c9b787}'
+      +'#'+HOST_ID+' .tk-ok{border-color:rgba(95,179,163,.55);color:#5fb3a3}'
+      +'#'+HOST_ID+' .tk-warn{border-color:rgba(201,183,135,.65);color:#c9b787}'
+      +'#'+HOST_ID+' .tk-dim{border-color:rgba(160,160,160,.35);color:#9a958a}'
+      +'#'+HOST_ID+' .tk-grid{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));margin:.5rem 0}'
+      +'#'+HOST_ID+' .tk-cell{border:1px solid rgba(255,255,255,.07);border-radius:7px;padding:.45rem .55rem}'
+      +'#'+HOST_ID+' .tk-k{font-family:ui-monospace,Menlo,monospace;font-size:9.5px;letter-spacing:.09em;color:#8f8a7e}'
+      +'#'+HOST_ID+' .tk-v{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#e8e2d4;word-break:break-all}'
+      +'#'+HOST_ID+' textarea{width:100%;box-sizing:border-box;min-height:62px;background:rgba(0,0,0,.35);'
+      +'color:#e8e2d4;border:1px solid rgba(255,255,255,.13);border-radius:7px;padding:.45rem .55rem;font-size:12.5px}'
+      +'#'+HOST_ID+' button{margin-top:.45rem;background:rgba(95,179,163,.16);color:#cfe9e2;'
+      +'border:1px solid rgba(95,179,163,.5);border-radius:7px;padding:.35rem .8rem;font-size:12px;cursor:pointer}'
+      +'#'+HOST_ID+' button[disabled]{opacity:.55;cursor:progress}'
+      +'#'+HOST_ID+' .tk-note{font-family:ui-monospace,Menlo,monospace;font-size:10px;line-height:1.7;color:#8f8a7e;margin-top:.55rem}'
+      +'#'+HOST_ID+' pre{white-space:pre-wrap;font-size:12px;line-height:1.6;color:#e8e2d4;margin:.4rem 0 0}'
+      +'</style>'
+      +'<h2>Try Khipu <span id="tk-state">'+chip('PROBING','PROBING')+'</span></h2>'
+      +'<p class="tk-sub">A same-origin proxy to the pinned CPU inference lab '
+      +'(<code>'+esc(LOCKED_LAB_V1)+'</code>). This is an inference lab: '
+      +'<b>not a trainer</b>, <b>not Serve Studio</b>, and Ask &amp; Act on this console is '
+      +'<b>not a live control plane</b>. Prompts go to '
+      +'<code>'+esc(CHAT_URL)+'</code>; posture comes from <code>'+esc(STATUS_URL)+'</code>. '
+      +'Throughput is not reported — we publish only what the lab measures.</p>'
+      +'<div class="tk-grid" id="tk-pin"></div>'
+      +'<label class="tk-k" for="tk-prompt">PROMPT · CLAMPED SERVER-SIDE (max_tokens 32 · temperature 0)</label>'
+      +'<textarea id="tk-prompt" placeholder="What is a khipu receipt?"></textarea>'
+      +'<div><button type="button" id="tk-run">&#9654; Ask the lab</button></div>'
+      +'<div id="tk-out"></div>'
+      +'<p class="tk-note" id="tk-honesty"></p>';
+  }
+
+  function renderPin(d){
+    var pin=(d&&d.pin)||{}, hon=(d&&d.honesty)||{}, doc=(d&&d.doctrine)||{};
+    var st=(d&&d.lab_status)||'UNAVAILABLE';
+    H('tk-state',chip(st,st,'lab posture read from '+STATUS_URL+' this request'));
+    var cells=[
+      ['LAB POSTURE',chip(st,st)+' '+chip(st==='READY'?'probe resolved':'no live probe','')],
+      ['PINNED GGUF sha256','<span class="tk-v">'+esc(pin.gguf_sha256||'UNKNOWN')+'</span> '+chip('SNAPSHOT','SNAPSHOT')],
+      ['GPU INFERENCE ENDPOINT',chip(pin.gpu_inference_endpoint||'ROADMAP','ROADMAP')+' '+chip('CPU lab only today','')],
+      ['ENERGY ATTESTED RUNS','<span class="tk-v">'+esc(hon.energy_attested_runs||pin.energy_attested_runs||'8/8 SIMULATED')+'</span> '+chip('SIMULATED','SIMULATED')+chip('not MEASURED — no live meter','')],
+      ['LOCKED LAB v1','<span class="tk-v">'+esc(pin.locked_lab_v1||LOCKED_LAB_V1)+'</span>'],
+      ['DOCTRINE','<span class="tk-v">locked-'+esc(doc.locked_formulas!=null?doc.locked_formulas:8)+' &middot; \u039b='+esc(doc.lambda||'Conjecture 1')+'</span> '+chip('Conjecture 1','')]
+    ];
+    H('tk-pin',cells.map(function(c){
+      return '<div class="tk-cell"><div class="tk-k">'+esc(c[0])+'</div><div>'+c[1]+'</div></div>';
+    }).join(''));
+    H('tk-honesty','Lab role: '+esc(hon.forge_lab||pin.forge_lab_role||'CPU inference lab \u2014 not a trainer, not Serve Studio')
+      +'<br>Ask &amp; Act: '+esc(hon.ask_and_act||'not a live control plane')
+      +'<br>Auth: the proxy calls the lab with the dummy header <code>Bearer not-a-secret</code>; no repo or user token reaches the browser.'
+      +'<br>Throughput: not reported \u2014 token counts below are the lab\u2019s own REPORTED usage, elapsed time is MEASURED server-side.');
+  }
+
+  function renderUnavailable(msg){
+    H('tk-state',chip('UNAVAILABLE','UNAVAILABLE','status probe did not resolve this request'));
+    H('tk-pin','<div class="tk-cell"><div class="tk-k">LAB POSTURE</div><div>'
+      +chip('UNAVAILABLE','UNAVAILABLE')+'<div class="tk-v">'+esc(msg||'status probe did not resolve')
+      +'</div></div></div>'
+      +'<div class="tk-cell"><div class="tk-k">LOCKED LAB v1</div><div class="tk-v">'+esc(LOCKED_LAB_V1)+'</div></div>'
+      +'<div class="tk-cell"><div class="tk-k">PINNED GGUF sha256</div><div>'+chip('SNAPSHOT','SNAPSHOT')
+      +' '+chip('UNKNOWN','UNKNOWN')+'</div></div>'
+      +'<div class="tk-cell"><div class="tk-k">GPU INFERENCE ENDPOINT</div><div>'+chip('ROADMAP','ROADMAP')+'</div></div>'
+      +'<div class="tk-cell"><div class="tk-k">ENERGY ATTESTED RUNS</div><div class="tk-v">8/8 SIMULATED</div></div>');
+    H('tk-honesty','Lab role: CPU inference lab \u2014 not a trainer, not Serve Studio.'
+      +'<br>Ask &amp; Act: not a live control plane.'
+      +'<br>Auth: dummy header <code>Bearer not-a-secret</code> is used server-side only.'
+      +'<br>Throughput: not reported. \u039b = Conjecture 1 (advisory, never a theorem).');
+  }
+
+  async function loadStatus(){
+    try{
+      var r=await fetch(STATUS_URL,{headers:{accept:'application/json'}});
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      renderPin(await r.json());
+    }catch(e){ renderUnavailable(String(e&&e.message||e)); }
+  }
+
+  async function ask(){
+    var btn=E('tk-run'); var ta=E('tk-prompt');
+    var prompt=((ta&&ta.value)||'').trim();
+    if(!prompt){ H('tk-out','<p class="tk-note">Enter a prompt \u2014 the proxy rejects an empty body (422), it does not invent one.</p>'); return; }
+    if(btn){ btn.disabled=true; btn.textContent='asking the lab\u2026'; }
+    H('tk-out','<p class="tk-note">POST '+esc(CHAT_URL)+' \u2014 waiting on the CPU lab\u2026</p>');
+    try{
+      var r=await fetch(CHAT_URL,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},
+        body:JSON.stringify({prompt:prompt,max_tokens:32,temperature:0})});
+      var d={}; try{ d=await r.json(); }catch(e){ d={}; }
+      var st=d.lab_status||(r.ok?'READY':'FAILED');
+      var sig=d.signature||'UNSIGNED';
+      var rec=d.record_sha256||'UNKNOWN';
+      var usage=d.usage||{};
+      var el=(d.elapsed_ms!=null?d.elapsed_ms+' ms':'UNKNOWN');
+      var body=(d.ok&&d.text)?('<pre>'+esc(d.text)+'</pre>')
+        :('<p class="tk-note">No completion returned \u2014 shown honestly as '+esc(st)+', nothing fabricated.'
+          +(d.error?(' Lab detail: '+esc(String(d.error).slice(0,200))):'')+'</p>');
+      H('tk-out',body
+        +'<div class="tk-grid">'
+        +'<div class="tk-cell"><div class="tk-k">LAB RESULT</div><div>'+chip(st,st)+' '+chip(d.ok?'ok':'no completion','')+'</div></div>'
+        +'<div class="tk-cell"><div class="tk-k">SIGNATURE</div><div>'+chip(sig,sig==='UNSIGNED'?'UNAVAILABLE':sig)
+        +'<div class="tk-v">'+(sig==='UNSIGNED'?'no in-image signing key in this runtime \u2014 honest UNSIGNED':'as returned by the lab')+'</div></div></div>'
+        +'<div class="tk-cell"><div class="tk-k">record_sha256</div><div class="tk-v">'+esc(rec)+'</div></div>'
+        +'<div class="tk-cell"><div class="tk-k">ELAPSED</div><div class="tk-v">'+esc(el)+'</div>'
+        +'<div>'+chip(d.elapsed_ms_label||'MEASURED','MEASURED','server-side wall clock for this request')+'</div></div>'
+        +'<div class="tk-cell"><div class="tk-k">USAGE (LAB-REPORTED)</div><div class="tk-v">prompt '
+        +esc(usage.prompt_tokens!=null?usage.prompt_tokens:'\u2014')+' &middot; completion '
+        +esc(usage.completion_tokens!=null?usage.completion_tokens:'\u2014')+' &middot; total '
+        +esc(usage.total_tokens!=null?usage.total_tokens:'\u2014')+'</div><div>'
+        +chip(d.usage_label||'REPORTED','')+chip('no throughput number derived','')+'</div></div>'
+        +'<div class="tk-cell"><div class="tk-k">\u039b</div><div>'+chip((d.honesty&&d.honesty.lambda)||'Conjecture 1','')
+        +'<div class="tk-v">advisory \u2014 gray, never green, never a theorem</div></div></div>'
+        +'</div>');
+    }catch(e){
+      H('tk-out','<p class="tk-note">'+chip('UNAVAILABLE','UNAVAILABLE')+' request did not resolve: '
+        +esc(String(e&&e.message||e))+' \u2014 no answer, no signature, no record_sha256 fabricated.</p>');
+    }
+    if(btn){ btn.disabled=false; btn.innerHTML='&#9654; Ask the lab'; }
+    loadStatus();
+  }
+
+  /* Mount into the Command Center body only. */
+  function mount(host){
+    if(!host) return;
+    if(currentView()!=='command') return;
+    if(host.querySelector('#'+HOST_ID)) return;
+    var sec=document.createElement('section');
+    sec.id=HOST_ID;
+    sec.setAttribute('aria-label','Try Khipu');
+    sec.innerHTML=shell();
+    host.appendChild(sec);
+    var btn=E('tk-run'); if(btn) btn.addEventListener('click',ask);
+    loadStatus();
+  }
+
+  function wrap(){
+    var V=window.VIEWS;
+    if(!V||!V.command||typeof V.command.render!=='function') return false;
+    if(V.command.__tryKhipuWrapped) return true;
+    var prev=V.command.render;
+    V.command.render=async function(c){
+      try{ await prev.call(this,c); }catch(e){ /* upstream render owns its own honesty */ }
+      try{ mount(c); }catch(e){}
+      return undefined;
+    };
+    V.command.__tryKhipuWrapped=true;
+    /* Command Center may already be painted (first load) — mount once now. */
+    try{ if(currentView()==='command') mount(document.getElementById('vbody')); }catch(e){}
+    return true;
+  }
+
+  var tries=0;
+  var iv=setInterval(function(){ tries++; if(wrap()||tries>200) clearInterval(iv); },100);
+  if(document.readyState!=='loading'){ wrap(); }
+  else { document.addEventListener('DOMContentLoaded',function(){ wrap(); }); }
+})();
+/* end try-khipu-panel */
 </script>
 
 </body>
