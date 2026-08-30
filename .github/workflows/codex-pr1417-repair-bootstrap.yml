@@ -40,8 +40,8 @@ jobs:
           if python scripts/codex_restore_pr1417.py; then
             exit 0
           fi
-          echo '::group::Bounded estate-loader declaration context'
-          grep -n -C 4 -E 'fetchHFEstate|HFEstate|hfEstate' pages/console.html | head -n 160 || true
+          echo '::group::Bounded restored estate-view context'
+          grep -n -C 8 -E 'V\.estate|renderEstate|Latest HF|LAST KNOWN|/api/a11oy/v1/hf/estate|const V|let V|hfEstateUpdatedAt|estateUpdated|case ["'"']estate|go\(["'"']estate|fetchHFEstate|hfEstate' pages/console.html | head -n 300 || true
           echo '::endgroup::'
           exit 1
 
