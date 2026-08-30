@@ -40,11 +40,10 @@ jobs:
           git show "${regression}:serve.py" > /tmp/serve.regressed.py
           git show "${hardened_parent}:serve.py" > /tmp/serve.hardened.py
 
-          # Three-way file merge:
-          #   ours   = current main (keeps all later work)
-          #   base   = the regressed #1417 result
-          #   theirs = #1417 parent (restores only what #1417 rolled back)
-          git merge-file -p \
+          # Apply the inverse of #1417's serve.py delta to current main. When a
+          # later repair changed the same lines, keep current (ours) rather than
+          # rolling newer work back. Non-overlapping hardening is restored.
+          git merge-file --ours -p \
             /tmp/serve.current.py \
             /tmp/serve.regressed.py \
             /tmp/serve.hardened.py > serve.py
@@ -68,11 +67,26 @@ jobs:
               block = block.replace(old, desired, 1)
               text = text[:start] + block + text[end:]
               path.write_text(text, encoding="utf-8")
+
+          required = {
+              "bounded EPSS scheduler": "_KL_EPSS_FAIR_STATE",
+              "bounded EPSS body": "_KL_EPSS_RESPONSE_MAX_BYTES",
+              "validated NVD cache": "_kl_cvss_record_is_fresh",
+              "observed router counters": "routingDecisionsSinceStart",
+              "HEAD route repair": "ensure_html_documents_accept_head(app)",
+              "newer Khipu repair": "_a11oy_khipu_chat.register(app)",
+              "newer investor repair": 'app.add_api_route("/investor"',
+              "arena fragment": "/console#arena",
+          }
+          missing = [name for name, needle in required.items() if needle not in text]
+          if missing:
+              raise SystemExit("semantic repair missing: " + ", ".join(missing))
           PY
 
           ! grep -nE '^(<<<<<<<|=======|>>>>>>>)' serve.py
           python -m py_compile serve.py
           git diff --check
+          git diff --stat -- serve.py
 
       - name: Install pinned regression dependencies
         run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
