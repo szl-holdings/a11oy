@@ -13908,6 +13908,30 @@ except Exception as _dev2_e:
 # ============================================================================
 
 # ============================================================================
+# BEGIN: governed Opportunity Graph (public read-only)
+# Official property and organization records become source-linked research
+# queues for real estate, counsel, and finance. The public projection contains
+# no contact fields and cannot advance permission or perform outreach.
+# ============================================================================
+try:
+    import szl_opportunity_graph as _szl_opportunity_graph
+    import sys as _opportunity_sys
+    _opportunity_status = _szl_opportunity_graph.register(app, ns="a11oy")
+    print(
+        f"[a11oy] opportunity graph registered: {_opportunity_status}",
+        file=_opportunity_sys.stderr,
+    )
+except Exception as _opportunity_error:
+    import sys as _opportunity_sys
+    print(
+        f"[a11oy] opportunity graph NOT mounted ({_opportunity_error!r}); existing routes unaffected",
+        file=_opportunity_sys.stderr,
+    )
+# ============================================================================
+# END: governed Opportunity Graph
+# ============================================================================
+
+# ============================================================================
 # BEGIN: a11oy MODEL INTEL layer (additive, honest-degrade) — feat/a11oy-models
 # Live external model intelligence for the `llm` / `arena` tabs: LMArena human-
 # preference Elo (HF datasets-server), Hugging Face Hub downloads, and a quality

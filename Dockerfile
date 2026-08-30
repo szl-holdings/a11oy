@@ -683,6 +683,10 @@ COPY verticals/terra ./verticals/terra
 COPY verticals/aegis ./verticals/aegis
 COPY verticals/puriq-markets ./verticals/puriq-markets
 COPY verticals/counsel ./verticals/counsel
+# Public read-only Opportunity Graph. All three files are required: route,
+# no-CDN workspace, and machine-readable source admission policy.
+COPY szl_opportunity_graph.py opportunities.html ./
+COPY verticals/opportunity-graph/source_admission.json ./verticals/opportunity-graph/source_admission.json
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # … (full rationale: docs/DOCKERFILE_NOTES.md §96)

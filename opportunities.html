@@ -1,0 +1,773 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#07111f">
+  <title>Opportunity Graph · A11oy</title>
+  <meta name="description" content="Source-linked, read-only opportunity research across commercial real estate, counsel, and finance.">
+  <style>
+    :root {
+      --canvas: #06101d;
+      --canvas-2: #0a1625;
+      --panel: rgba(13, 27, 44, .94);
+      --panel-2: rgba(17, 35, 55, .86);
+      --line: rgba(155, 183, 211, .18);
+      --line-strong: rgba(155, 183, 211, .34);
+      --text: #f5f8fc;
+      --muted: #a9b9c9;
+      --quiet: #7890a7;
+      --aqua: #5eead4;
+      --aqua-deep: #0f766e;
+      --gold: #f4c46d;
+      --red: #fb7185;
+      --blue: #7dd3fc;
+      --shadow: 0 24px 70px rgba(0, 0, 0, .34);
+      --radius-xl: 24px;
+      --radius-lg: 18px;
+      --radius-md: 13px;
+      --focus: 0 0 0 3px rgba(94, 234, 212, .35);
+      --max: 1560px;
+    }
+
+    * { box-sizing: border-box; }
+    html { background: var(--canvas); scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 300px;
+      min-height: 100vh;
+      color: var(--text);
+      background:
+        radial-gradient(circle at 12% -5%, rgba(27, 111, 122, .22), transparent 34rem),
+        radial-gradient(circle at 88% 2%, rgba(40, 77, 128, .20), transparent 32rem),
+        linear-gradient(180deg, var(--canvas) 0%, #081421 50%, #050c15 100%);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    button, input, select { font: inherit; }
+    button, select { cursor: pointer; }
+    a { color: var(--blue); }
+    :focus-visible { outline: none; box-shadow: var(--focus); }
+    [hidden] { display: none !important; }
+
+    .skip {
+      position: fixed;
+      z-index: 200;
+      top: 10px;
+      left: 10px;
+      transform: translateY(-150%);
+      padding: 12px 16px;
+      border-radius: 10px;
+      color: #031313;
+      background: var(--aqua);
+      font-weight: 800;
+      transition: transform .16s ease;
+    }
+    .skip:focus { transform: translateY(0); }
+
+    .shell { width: min(100%, var(--max)); margin: 0 auto; padding: 18px 24px 54px; }
+    .topbar {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) auto;
+      gap: 20px;
+      align-items: center;
+      margin-bottom: 18px;
+    }
+    .identity { display: flex; align-items: center; gap: 14px; min-width: 0; }
+    .mark {
+      display: grid;
+      place-items: center;
+      width: 46px;
+      height: 46px;
+      flex: 0 0 46px;
+      border: 1px solid rgba(94, 234, 212, .34);
+      border-radius: 15px;
+      color: var(--aqua);
+      background: linear-gradient(145deg, rgba(94, 234, 212, .15), rgba(8, 23, 38, .88));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .08);
+      font-family: Georgia, serif;
+      font-size: 21px;
+      font-weight: 700;
+    }
+    .eyebrow {
+      margin: 0 0 2px;
+      color: var(--aqua);
+      font-size: 12px;
+      font-weight: 800;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+    h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(24px, 3vw, 36px); line-height: 1.08; }
+    .subhead { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .top-status { display: flex; align-items: center; justify-content: flex-end; gap: 9px; flex-wrap: wrap; }
+    .badge {
+      display: inline-flex;
+      min-height: 34px;
+      align-items: center;
+      gap: 7px;
+      padding: 7px 11px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(12, 26, 42, .75);
+      font-size: 12px;
+      font-weight: 750;
+      white-space: nowrap;
+    }
+    .badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--quiet); }
+    .badge.live::before { background: var(--aqua); box-shadow: 0 0 0 4px rgba(94, 234, 212, .10); }
+    .badge.partial::before { background: var(--gold); }
+    .badge.unavailable::before { background: var(--red); }
+    .badge.public::before { width: 8px; height: 8px; border: 2px solid var(--blue); background: transparent; }
+
+    .command {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 16px;
+      align-items: center;
+      padding: 14px;
+      margin-bottom: 16px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: linear-gradient(135deg, rgba(15, 33, 52, .94), rgba(9, 22, 37, .94));
+      box-shadow: var(--shadow);
+    }
+    .verticals { display: flex; gap: 8px; min-width: 0; }
+    .vertical-button, .view-button, .mobile-view {
+      min-height: 44px;
+      border: 1px solid transparent;
+      border-radius: 13px;
+      padding: 9px 14px;
+      color: var(--muted);
+      background: transparent;
+      font-weight: 760;
+      transition: background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
+    }
+    .vertical-button:hover, .view-button:hover, .mobile-view:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+    .vertical-button[aria-selected="true"], .view-button[aria-selected="true"], .mobile-view[aria-selected="true"] {
+      color: #eafffb;
+      border-color: rgba(94, 234, 212, .34);
+      background: linear-gradient(180deg, rgba(32, 122, 119, .25), rgba(15, 70, 72, .20));
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06);
+    }
+    .vertical-button:active, .view-button:active { transform: translateY(1px); }
+    .command-actions { display: flex; align-items: center; gap: 9px; }
+    .field-label { color: var(--quiet); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+    select, input[type="search"] {
+      min-height: 44px;
+      border: 1px solid var(--line-strong);
+      border-radius: 12px;
+      color: var(--text);
+      background: #0b1b2c;
+    }
+    select { min-width: 190px; padding: 0 38px 0 13px; }
+    input[type="search"] { width: 100%; padding: 0 13px; }
+    .refresh {
+      min-width: 110px;
+      min-height: 44px;
+      border: 1px solid rgba(94, 234, 212, .38);
+      border-radius: 12px;
+      padding: 0 16px;
+      color: #031a18;
+      background: var(--aqua);
+      font-weight: 850;
+    }
+    .refresh:disabled { cursor: wait; opacity: .62; }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 16px;
+      align-items: start;
+    }
+    .rail, .board {
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+    }
+    .rail { position: sticky; top: 14px; padding: 18px; }
+    .rail-section + .rail-section { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .rail h2, .rail h3 { margin: 0; font-size: 13px; letter-spacing: .04em; }
+    .rail-copy { margin: 7px 0 0; color: var(--muted); font-size: 13px; }
+    .search-wrap { margin-top: 13px; }
+    .search-wrap label { display: block; margin-bottom: 6px; }
+    .source-stack { display: grid; gap: 9px; margin-top: 12px; }
+    .source-mini {
+      padding: 11px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: rgba(255, 255, 255, .025);
+    }
+    .source-mini-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .source-mini strong { font-size: 12px; line-height: 1.3; }
+    .source-mini p { margin: 5px 0 0; color: var(--quiet); font-size: 12px; }
+    .state-label { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 850; letter-spacing: .07em; }
+    .state-label::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--quiet); }
+    .state-label.live { color: var(--aqua); }
+    .state-label.live::before { background: var(--aqua); }
+    .state-label.stale, .state-label.partial { color: var(--gold); }
+    .state-label.stale::before, .state-label.partial::before { background: var(--gold); }
+    .state-label.unavailable { color: var(--red); }
+    .state-label.unavailable::before { background: var(--red); }
+    .policy-list { display: grid; gap: 8px; margin: 12px 0 0; padding: 0; list-style: none; }
+    .policy-list li { display: grid; grid-template-columns: 18px 1fr; gap: 7px; color: var(--muted); font-size: 12px; }
+    .policy-list li::before { content: "✓"; color: var(--aqua); font-weight: 900; }
+
+    .board { min-width: 0; overflow: hidden; }
+    .board-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 19px 20px 17px;
+      border-bottom: 1px solid var(--line);
+    }
+    .board-header h2 { margin: 0; font-family: Georgia, serif; font-size: 21px; }
+    .board-header p { margin: 4px 0 0; color: var(--muted); font-size: 13px; }
+    .views { display: flex; gap: 5px; padding: 4px; border: 1px solid var(--line); border-radius: 15px; background: rgba(3, 12, 22, .5); }
+    .view-button { min-height: 44px; padding: 7px 12px; font-size: 12px; }
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      border-bottom: 1px solid var(--line);
+      background: rgba(7, 19, 32, .55);
+    }
+    .metric { min-width: 0; padding: 14px 18px; border-right: 1px solid var(--line); }
+    .metric:last-child { border-right: 0; }
+    .metric span { display: block; color: var(--quiet); font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    .metric strong { display: block; margin-top: 3px; font-family: Georgia, serif; font-size: 23px; line-height: 1.15; }
+    .metric small { display: block; margin-top: 2px; overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+    .notice {
+      margin: 16px 20px 0;
+      padding: 12px 14px;
+      border: 1px solid rgba(244, 196, 109, .25);
+      border-radius: 13px;
+      color: #efdba9;
+      background: rgba(109, 73, 22, .16);
+      font-size: 13px;
+    }
+    .notice.error { border-color: rgba(251, 113, 133, .28); color: #fecdd3; background: rgba(103, 31, 48, .18); }
+    .queue { display: grid; gap: 11px; padding: 16px 20px 22px; }
+    .opportunity {
+      width: 100%;
+      display: grid;
+      grid-template-columns: 58px minmax(0, 1fr) auto;
+      gap: 14px;
+      align-items: center;
+      min-height: 116px;
+      padding: 15px;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      color: inherit;
+      text-align: left;
+      background: linear-gradient(135deg, rgba(19, 39, 60, .78), rgba(11, 27, 44, .90));
+      transition: transform .16s ease, border-color .16s ease, background .16s ease;
+    }
+    .opportunity:hover { transform: translateY(-1px); border-color: rgba(94, 234, 212, .34); background: linear-gradient(135deg, rgba(21, 47, 67, .88), rgba(12, 31, 49, .96)); }
+    .priority {
+      display: grid;
+      place-items: center;
+      width: 54px;
+      height: 62px;
+      border: 1px solid rgba(125, 211, 252, .22);
+      border-radius: 14px;
+      background: rgba(3, 13, 23, .55);
+    }
+    .priority strong { font-family: Georgia, serif; font-size: 22px; line-height: 1; }
+    .priority span { color: var(--quiet); font-size: 12px; font-weight: 850; letter-spacing: .08em; text-transform: uppercase; }
+    .opportunity-main { min-width: 0; }
+    .opportunity-top { display: flex; align-items: center; gap: 7px; min-width: 0; }
+    .opportunity-top strong { overflow: hidden; font-size: 14px; text-overflow: ellipsis; white-space: nowrap; }
+    .kind { flex: 0 0 auto; padding: 3px 7px; border: 1px solid var(--line); border-radius: 999px; color: var(--quiet); font-size: 12px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+    .opportunity h3 { margin: 7px 0 3px; font-size: 15px; line-height: 1.34; }
+    .opportunity p { margin: 0; color: var(--muted); font-size: 12px; }
+    .opportunity-meta { display: flex; gap: 8px; margin-top: 9px; flex-wrap: wrap; }
+    .meta-chip { color: var(--quiet); font-size: 12px; }
+    .open-detail { color: var(--aqua); font-size: 12px; font-weight: 800; white-space: nowrap; }
+    .empty {
+      display: grid;
+      place-items: center;
+      min-height: 320px;
+      padding: 36px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .empty strong { display: block; margin-bottom: 5px; color: var(--text); font-family: Georgia, serif; font-size: 20px; }
+    .spinner { width: 26px; height: 26px; margin: 0 auto 14px; border: 2px solid var(--line-strong); border-top-color: var(--aqua); border-radius: 50%; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .proof { padding: 20px; }
+    .proof-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .proof-card { min-width: 0; padding: 17px; border: 1px solid var(--line); border-radius: var(--radius-lg); background: var(--panel-2); }
+    .proof-card.wide { grid-column: 1 / -1; }
+    .proof-card h3 { margin: 0 0 8px; font-size: 14px; }
+    .proof-card p { margin: 0; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+    .proof-card dl { display: grid; grid-template-columns: minmax(120px, .45fr) 1fr; gap: 8px 14px; margin: 12px 0 0; font-size: 12px; }
+    .proof-card dt { color: var(--quiet); }
+    .proof-card dd { margin: 0; overflow-wrap: anywhere; }
+    .source-proof { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+    .source-proof:first-of-type { border-top: 0; }
+
+    dialog {
+      width: min(720px, calc(100vw - 32px));
+      max-height: min(900px, calc(100vh - 32px));
+      padding: 0;
+      border: 1px solid var(--line-strong);
+      border-radius: 24px;
+      color: var(--text);
+      background: #0b1928;
+      box-shadow: 0 38px 100px rgba(0, 0, 0, .7);
+    }
+    dialog::backdrop { background: rgba(0, 6, 12, .78); backdrop-filter: blur(7px); }
+    .drawer-head { position: sticky; z-index: 2; top: 0; display: flex; justify-content: space-between; gap: 18px; padding: 20px; border-bottom: 1px solid var(--line); background: rgba(11, 25, 40, .97); }
+    .drawer-head h2 { margin: 0; font-family: Georgia, serif; font-size: 22px; line-height: 1.2; }
+    .drawer-head p { margin: 5px 0 0; color: var(--muted); font-size: 12px; }
+    .close {
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      color: var(--text);
+      background: rgba(255, 255, 255, .04);
+      font-size: 20px;
+    }
+    .drawer-body { padding: 20px; }
+    .detail-section + .detail-section { margin-top: 22px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .detail-section h3 { margin: 0 0 10px; font-size: 13px; letter-spacing: .04em; }
+    .detail-section p { color: var(--muted); }
+    .detail-section ul { margin: 0; padding-left: 20px; color: var(--muted); }
+    .detail-section li + li { margin-top: 6px; }
+    .measurement-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+    .measurement { padding: 12px; border: 1px solid var(--line); border-radius: 13px; background: rgba(255, 255, 255, .025); }
+    .measurement span { display: block; color: var(--quiet); font-size: 12px; }
+    .measurement strong { display: block; margin-top: 3px; overflow-wrap: anywhere; }
+    .measurement small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .source-link { display: flex; justify-content: space-between; gap: 12px; padding: 12px; border: 1px solid var(--line); border-radius: 13px; color: var(--text); text-decoration: none; background: rgba(125, 211, 252, .04); }
+    .source-link:hover { border-color: rgba(125, 211, 252, .4); }
+    .source-link small { display: block; color: var(--quiet); }
+    .permission-box { padding: 14px; border: 1px solid rgba(244, 196, 109, .25); border-radius: 14px; background: rgba(92, 60, 17, .16); }
+    .permission-box strong { color: var(--gold); }
+    .next-step { padding: 14px; border-left: 3px solid var(--aqua); border-radius: 0 13px 13px 0; background: rgba(94, 234, 212, .06); }
+    .mobile-nav { display: none; }
+
+    @media (max-width: 1020px) {
+      .command { grid-template-columns: 1fr; }
+      .command-actions { justify-content: flex-start; }
+      .workspace { grid-template-columns: 240px minmax(0, 1fr); }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric:nth-child(2) { border-right: 0; }
+      .metric:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+    }
+
+    @media (max-width: 760px) {
+      body { padding-bottom: calc(74px + env(safe-area-inset-bottom)); }
+      .shell { padding: 14px 12px 28px; }
+      .topbar { grid-template-columns: 1fr; gap: 12px; }
+      .top-status { justify-content: flex-start; }
+      .subhead { max-width: 34rem; }
+      .command { padding: 11px; border-radius: 19px; }
+      .verticals { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+      .vertical-button { padding: 7px 5px; font-size: 12px; }
+      .command-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; width: 100%; }
+      .command-actions .field-label { grid-column: 1 / -1; }
+      select { min-width: 0; width: 100%; }
+      .refresh { min-width: 92px; }
+      .workspace { display: block; }
+      .rail { position: static; margin-bottom: 12px; padding: 14px; }
+      .rail-section:first-child { display: grid; grid-template-columns: 1fr; }
+      .rail-section + .rail-section { display: none; }
+      .board { border-radius: 20px; }
+      .board-header { align-items: flex-start; padding: 16px; }
+      .views { display: none; }
+      .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .metric { padding: 12px; }
+      .metric strong { font-size: 20px; }
+      .notice { margin: 12px 12px 0; }
+      .queue { padding: 12px; }
+      .opportunity { grid-template-columns: 48px minmax(0, 1fr); min-height: 130px; gap: 11px; padding: 13px; }
+      .priority { width: 46px; height: 58px; }
+      .open-detail { grid-column: 2; }
+      .proof { padding: 12px; }
+      .proof-grid { grid-template-columns: 1fr; }
+      .proof-card.wide { grid-column: auto; }
+      .mobile-nav {
+        position: fixed;
+        z-index: 80;
+        right: 10px;
+        bottom: calc(9px + env(safe-area-inset-bottom));
+        left: 10px;
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 5px;
+        padding: 5px;
+        border: 1px solid var(--line-strong);
+        border-radius: 17px;
+        background: rgba(8, 20, 33, .96);
+        box-shadow: 0 16px 55px rgba(0, 0, 0, .48);
+        backdrop-filter: blur(16px);
+      }
+      .mobile-view { min-height: 48px; }
+      dialog { width: 100vw; max-width: none; height: 100dvh; max-height: none; margin: 0; border-width: 0; border-radius: 0; }
+      .drawer-head { padding-top: max(16px, env(safe-area-inset-top)); }
+      .measurement-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 390px) {
+      .mark { width: 42px; height: 42px; flex-basis: 42px; }
+      h1 { font-size: 25px; }
+      .vertical-button { font-size: 12px; }
+      .badge { min-height: 32px; padding: 6px 9px; font-size: 12px; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+      .metric small { white-space: normal; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#results">Skip to opportunities</a>
+  <div class="shell">
+    <header class="topbar">
+      <div class="identity">
+        <div class="mark" aria-hidden="true">Λ</div>
+        <div>
+          <p class="eyebrow">A11oy · governed research</p>
+          <h1>Opportunity Graph</h1>
+          <p class="subhead">Official records → source-linked research → human clearance. No contact data in this public view.</p>
+        </div>
+      </div>
+      <div class="top-status" role="status" aria-live="polite" aria-label="Workspace status">
+        <span id="data-badge" class="badge">Checking sources</span>
+        <span class="badge public">Public read-only</span>
+        <span class="badge">Call-ready: 0</span>
+      </div>
+    </header>
+
+    <section class="command" aria-label="Opportunity scope">
+      <div class="verticals" role="tablist" aria-label="Choose a vertical">
+        <button class="vertical-button" type="button" role="tab" aria-selected="true" data-vertical="realestate">Real estate</button>
+        <button class="vertical-button" type="button" role="tab" aria-selected="false" data-vertical="counsel">Counsel</button>
+        <button class="vertical-button" type="button" role="tab" aria-selected="false" data-vertical="finance">Finance</button>
+      </div>
+      <div class="command-actions">
+        <label class="field-label" for="state-select">Eastern U.S. territory</label>
+        <select id="state-select" aria-label="Eastern U.S. state">
+          <option value="CT">Connecticut</option><option value="DC">District of Columbia</option>
+          <option value="DE">Delaware</option><option value="FL">Florida</option>
+          <option value="GA">Georgia</option><option value="KY">Kentucky</option>
+          <option value="MA">Massachusetts</option><option value="MD">Maryland</option>
+          <option value="ME">Maine</option><option value="NC">North Carolina</option>
+          <option value="NH">New Hampshire</option><option value="NJ">New Jersey</option>
+          <option value="NY" selected>New York</option><option value="OH">Ohio</option>
+          <option value="PA">Pennsylvania</option><option value="RI">Rhode Island</option>
+          <option value="SC">South Carolina</option><option value="TN">Tennessee</option>
+          <option value="VA">Virginia</option><option value="VT">Vermont</option>
+          <option value="WV">West Virginia</option>
+        </select>
+        <button id="refresh" class="refresh" type="button">Refresh data</button>
+      </div>
+    </section>
+
+    <main class="workspace">
+      <aside class="rail" aria-label="Research controls and source health">
+        <section class="rail-section">
+          <h2 id="workspace-title">Commercial real estate</h2>
+          <p id="workspace-copy" class="rail-copy">Federal lease timing, property facts, and exact source records.</p>
+          <div class="search-wrap">
+            <label class="field-label" for="search">Filter current results</label>
+            <input id="search" type="search" autocomplete="off" placeholder="Entity, city, event…">
+          </div>
+        </section>
+        <section class="rail-section">
+          <h3>Source health</h3>
+          <div id="source-stack" class="source-stack"><p class="rail-copy">Waiting for the first source response.</p></div>
+        </section>
+        <section class="rail-section">
+          <h3>Public-view guardrails</h3>
+          <ul class="policy-list">
+            <li>Organization and property research only</li>
+            <li>No person-level contact fields</li>
+            <li>No automated calls, texts, or email</li>
+            <li>Human clearance required before outreach</li>
+          </ul>
+        </section>
+      </aside>
+
+      <section class="board" id="results" tabindex="-1">
+        <div class="board-header">
+          <div>
+            <h2 id="board-title">Today in New York</h2>
+            <p id="board-subtitle">Loading official source records…</p>
+          </div>
+          <div class="views" role="tablist" aria-label="Workspace view">
+            <button class="view-button" type="button" role="tab" aria-selected="true" data-view="today">Today</button>
+            <button class="view-button" type="button" role="tab" aria-selected="false" data-view="proof">Proof</button>
+          </div>
+        </div>
+        <div class="metrics" role="region" aria-label="Opportunity summary">
+          <div class="metric"><span>Observed</span><strong id="metric-observed">—</strong><small>source-linked records</small></div>
+          <div class="metric"><span>Research only</span><strong id="metric-research">—</strong><small>human verification needed</small></div>
+          <div class="metric"><span>Sources live</span><strong id="metric-live">—</strong><small id="metric-live-copy">waiting</small></div>
+          <div class="metric"><span>Call-ready</span><strong>0</strong><small>locked in public view</small></div>
+        </div>
+        <div id="notice" class="notice" hidden></div>
+        <div id="today-panel">
+          <div id="queue" class="queue" aria-live="polite" aria-busy="true">
+            <div class="empty"><div><div class="spinner" aria-hidden="true"></div><strong>Querying official sources</strong><span>No generated records will replace an unavailable source.</span></div></div>
+          </div>
+        </div>
+        <div id="proof-panel" class="proof" hidden></div>
+      </section>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" role="tablist" aria-label="Mobile workspace view">
+    <button class="mobile-view" type="button" role="tab" aria-selected="true" data-view="today">Today</button>
+    <button class="mobile-view" type="button" role="tab" aria-selected="false" data-view="proof">Proof</button>
+  </nav>
+
+  <dialog id="detail" aria-labelledby="detail-title">
+    <div class="drawer-head">
+      <div><p class="eyebrow">Evidence review</p><h2 id="detail-title" tabindex="-1">Opportunity</h2><p id="detail-entity"></p></div>
+      <button id="close-detail" class="close" type="button" aria-label="Close opportunity details">×</button>
+    </div>
+    <div id="detail-body" class="drawer-body"></div>
+  </dialog>
+
+  <script>
+    const API = '/api/a11oy/v1/opportunities';
+    const verticalMeta = {
+      realestate: { title: 'Commercial real estate', copy: 'Federal lease timing, property facts, and exact source records.' },
+      counsel: { title: 'Counsel and legal', copy: 'Regulatory events and organization-level procurement signals with a conflicts-first next step.' },
+      finance: { title: 'Finance and private markets', copy: 'Current filings and official loan records, separated from advice and suitability.' }
+    };
+    const appState = { vertical: 'realestate', state: 'NY', board: null, view: 'today', query: '', controller: null };
+    const elements = {
+      badge: document.getElementById('data-badge'), state: document.getElementById('state-select'),
+      refresh: document.getElementById('refresh'), search: document.getElementById('search'),
+      sourceStack: document.getElementById('source-stack'), queue: document.getElementById('queue'),
+      notice: document.getElementById('notice'), title: document.getElementById('workspace-title'),
+      copy: document.getElementById('workspace-copy'), boardTitle: document.getElementById('board-title'),
+      boardSubtitle: document.getElementById('board-subtitle'), today: document.getElementById('today-panel'),
+      proof: document.getElementById('proof-panel'), detail: document.getElementById('detail'),
+      detailTitle: document.getElementById('detail-title'), detailEntity: document.getElementById('detail-entity'),
+      detailBody: document.getElementById('detail-body')
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[character]));
+    }
+    function safeUrl(value) {
+      try {
+        const url = new URL(String(value || ''), window.location.origin);
+        if (url.protocol === 'https:' || url.origin === window.location.origin) return url.href;
+      } catch (_) {}
+      return '#';
+    }
+    function prettyToken(value) { return String(value || '—').replaceAll('_', ' ').toLowerCase().replace(/^./, letter => letter.toUpperCase()); }
+    function formatValue(measurement) {
+      const value = measurement?.value;
+      if (value === null || value === undefined || value === '') return '—';
+      if (measurement.unit === 'USD' || measurement.unit === 'USD/year') {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(Number(value));
+      }
+      if (typeof value === 'number') return new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 }).format(value);
+      return String(value);
+    }
+    function stateClass(value) { return String(value || 'unavailable').toLowerCase(); }
+    function setBadge(state) {
+      const normalized = String(state || 'UNAVAILABLE').toUpperCase();
+      elements.badge.className = 'badge ' + stateClass(normalized);
+      elements.badge.textContent = normalized === 'LIVE' ? 'Sources live' : normalized === 'PARTIAL' ? 'Partial source coverage' : 'Sources unavailable';
+    }
+    function setNotice(message, isError = false) {
+      elements.notice.hidden = !message;
+      elements.notice.className = 'notice' + (isError ? ' error' : '');
+      elements.notice.textContent = message || '';
+    }
+    function setBusy(busy) {
+      elements.refresh.disabled = busy;
+      elements.refresh.textContent = busy ? 'Refreshing…' : 'Refresh data';
+      elements.queue.setAttribute('aria-busy', String(busy));
+    }
+    function updateUrl(opportunityId = null) {
+      const url = new URL(window.location.href);
+      url.searchParams.set('vertical', appState.vertical);
+      url.searchParams.set('state', appState.state);
+      if (opportunityId) url.searchParams.set('opportunity', opportunityId);
+      else url.searchParams.delete('opportunity');
+      history.replaceState({}, '', url);
+    }
+    function locationText(location) {
+      if (!location || location.scope === 'NATIONAL') return 'United States · national record';
+      return [location.city, location.county, location.state].filter(Boolean).join(' · ') || appState.state;
+    }
+
+    function renderSources(sources) {
+      if (!sources?.length) {
+        elements.sourceStack.innerHTML = '<p class="rail-copy">No source envelope was returned.</p>';
+        return;
+      }
+      elements.sourceStack.innerHTML = sources.map(source => {
+        const count = source.state === 'UNAVAILABLE' ? '—' : escapeHtml(source.record_count);
+        const age = source.cache_status === 'HIT' ? ` · cached ${escapeHtml(source.cache_age_s)}s` : '';
+        return `<div class="source-mini"><div class="source-mini-top"><strong>${escapeHtml(source.label)}</strong><span class="state-label ${stateClass(source.state)}">${escapeHtml(source.state)}</span></div><p>${count} records${age}</p></div>`;
+      }).join('');
+    }
+
+    function filteredOpportunities() {
+      const items = appState.board?.opportunities || [];
+      const query = appState.query.trim().toLowerCase();
+      if (!query) return items;
+      return items.filter(item => [item.entity?.name, item.signal?.title, item.signal?.summary, locationText(item.entity?.location)]
+        .some(value => String(value || '').toLowerCase().includes(query)));
+    }
+
+    function renderQueue() {
+      const items = filteredOpportunities();
+      if (!items.length) {
+        const unavailable = appState.board?.data_state === 'UNAVAILABLE';
+        const searching = appState.query.trim();
+        elements.queue.innerHTML = `<div class="empty"><div><strong>${unavailable ? 'Official sources are unavailable' : searching ? 'No current result matches that filter' : 'Completed query returned no records'}</strong><span>${unavailable ? 'Nothing has been substituted. Use Refresh data to retry.' : searching ? 'Clear the result filter or choose another territory.' : 'This zero reflects a completed source query for the selected scope.'}</span></div></div>`;
+        return;
+      }
+      elements.queue.innerHTML = items.map(item => {
+        const citations = item.evidence?.citations?.length || 0;
+        return `<button class="opportunity" type="button" data-opportunity="${escapeHtml(item.id)}" aria-label="Review ${escapeHtml(item.signal?.title)}">
+          <span class="priority"><strong>${escapeHtml(item.ranking?.research_priority)}</strong><span>Research</span></span>
+          <span class="opportunity-main">
+            <span class="opportunity-top"><strong>${escapeHtml(item.entity?.name)}</strong><span class="kind">${escapeHtml(prettyToken(item.signal?.kind))}</span></span>
+            <h3>${escapeHtml(item.signal?.title)}</h3>
+            <p>${escapeHtml(locationText(item.entity?.location))}</p>
+            <span class="opportunity-meta"><span class="meta-chip">${citations} source link${citations === 1 ? '' : 's'}</span><span class="meta-chip">${escapeHtml(item.permission?.state)}</span></span>
+          </span>
+          <span class="open-detail">Review evidence →</span>
+        </button>`;
+      }).join('');
+      elements.queue.querySelectorAll('[data-opportunity]').forEach(button => button.addEventListener('click', () => openDetail(button.dataset.opportunity)));
+    }
+
+    function renderProof() {
+      const board = appState.board;
+      if (!board) { elements.proof.innerHTML = ''; return; }
+      const sourceMarkup = (board.sources || []).map(source => `<div class="source-proof">
+        <div class="source-mini-top"><strong>${escapeHtml(source.label)}</strong><span class="state-label ${stateClass(source.state)}">${escapeHtml(source.state)}</span></div>
+        <p>${escapeHtml(source.coverage || 'Coverage unavailable')}</p>
+        <dl><dt>Records</dt><dd>${source.state === 'UNAVAILABLE' ? '—' : escapeHtml(source.record_count)}</dd><dt>Observed</dt><dd>${escapeHtml(source.observed_at || '—')}</dd><dt>Permission</dt><dd>${escapeHtml(source.permitted_use || '—')}</dd><dt>Contact data</dt><dd>${source.contact_data ? 'Present' : 'Not collected'}</dd></dl>
+        <p style="margin-top:10px"><a href="${safeUrl(source.citation)}" target="_blank" rel="noopener noreferrer">Open source documentation ↗</a></p>
+      </div>`).join('');
+      elements.proof.innerHTML = `<div class="proof-grid">
+        <section class="proof-card"><h3>Query evidence</h3><p>The hash binds the current response shape. It is not a digital signature or deployment attestation.</p><dl><dt>Structural hash</dt><dd>${escapeHtml(board.proof?.structural_hash || '—')}</dd><dt>Replayable records</dt><dd>${escapeHtml(board.proof?.replayable_packets ?? '—')}</dd><dt>Generated</dt><dd>${escapeHtml(board.generated_at)}</dd></dl></section>
+        <section class="proof-card"><h3>Release evidence</h3><p>Missing runtime identifiers stay unavailable. A successful data query does not establish GitHub-to-runtime parity.</p><dl><dt>Release state</dt><dd>${escapeHtml(board.proof?.release_state || 'UNAVAILABLE')}</dd><dt>GitHub revision</dt><dd>${escapeHtml(board.proof?.github_sha || '—')}</dd><dt>Runtime revision</dt><dd>${escapeHtml(board.proof?.hf_space_commit || '—')}</dd><dt>Attestation</dt><dd>${board.proof?.attestation_url ? `<a href="${safeUrl(board.proof.attestation_url)}" target="_blank" rel="noopener noreferrer">Open attestation ↗</a>` : '—'}</dd></dl></section>
+        <section class="proof-card wide"><h3>Source admission and health</h3><p>Only admitted official sources are queried. Profile scraping and public-to-contact shortcuts are blocked by policy.</p>${sourceMarkup}<p style="margin-top:14px"><a href="${API}/sources" target="_blank" rel="noopener noreferrer">Open the machine-readable source policy ↗</a></p></section>
+      </div>`;
+    }
+
+    function renderBoard() {
+      const board = appState.board;
+      const meta = verticalMeta[appState.vertical];
+      elements.title.textContent = meta.title;
+      elements.copy.textContent = meta.copy;
+      elements.boardTitle.textContent = `${appState.view === 'proof' ? 'Proof' : 'Today'} in ${board?.scope?.state_name || appState.state}`;
+      elements.boardSubtitle.textContent = board ? `${board.workspace?.label} · ${board.generated_at}` : 'Waiting for source data';
+      document.getElementById('metric-observed').textContent = board ? board.summary.observed_opportunities : '—';
+      document.getElementById('metric-research').textContent = board ? board.summary.public_research_only : '—';
+      const live = board?.summary?.source_counts?.LIVE;
+      const total = board?.sources?.length;
+      document.getElementById('metric-live').textContent = board ? `${live}/${total}` : '—';
+      document.getElementById('metric-live-copy').textContent = board?.data_state ? board.data_state.toLowerCase() + ' coverage' : 'waiting';
+      setBadge(board?.data_state);
+      renderSources(board?.sources || []);
+      renderQueue();
+      renderProof();
+      if (board?.data_state === 'PARTIAL') setNotice('Some official sources are stale or unavailable. Usable records remain visible with their exact source state.');
+      else if (board?.data_state === 'UNAVAILABLE') setNotice('All official sources are unavailable. No records or zero values were manufactured.', true);
+      else setNotice('');
+    }
+
+    function setView(view) {
+      appState.view = view === 'proof' ? 'proof' : 'today';
+      elements.today.hidden = appState.view !== 'today';
+      elements.proof.hidden = appState.view !== 'proof';
+      document.querySelectorAll('[data-view]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.view === appState.view)));
+      if (appState.board) {
+        elements.boardTitle.textContent = `${appState.view === 'proof' ? 'Proof' : 'Today'} in ${appState.board.scope.state_name}`;
+      }
+      document.getElementById('results').scrollIntoView({ block: 'start', behavior: 'smooth' });
+    }
+
+    function openDetail(id) {
+      const item = appState.board?.opportunities?.find(candidate => candidate.id === id);
+      if (!item) return;
+      elements.detailTitle.textContent = item.signal?.title || 'Opportunity';
+      elements.detailEntity.textContent = `${item.entity?.name || 'Entity unavailable'} · ${locationText(item.entity?.location)}`;
+      const measurements = (item.signal?.measurements || []).map(measurement => `<div class="measurement"><span>${escapeHtml(measurement.label)}</span><strong>${escapeHtml(formatValue(measurement))}${measurement.unit && !String(measurement.unit).startsWith('USD') ? ` ${escapeHtml(measurement.unit)}` : ''}</strong><small>${escapeHtml(measurement.method)}</small></div>`).join('') || '<p>—</p>';
+      const reasons = (item.ranking?.reasons || []).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
+      const citations = (item.evidence?.citations || []).map(citation => `<a class="source-link" href="${safeUrl(citation.url)}" target="_blank" rel="noopener noreferrer"><span><strong>${escapeHtml(citation.label)}</strong><small>Record ${escapeHtml(citation.record_id || '—')}</small></span><span aria-hidden="true">↗</span></a>`).join('') || '<p>—</p>';
+      const permission = (item.permission?.reasons || []).map(reason => `<li>${escapeHtml(reason)}</li>`).join('');
+      elements.detailBody.innerHTML = `
+        <section class="detail-section"><h3>Why this is in the queue</h3><p>${escapeHtml(item.signal?.summary || '—')}</p><ul>${reasons}</ul></section>
+        <section class="detail-section"><h3>Reported and derived facts</h3><div class="measurement-grid">${measurements}</div></section>
+        <section class="detail-section"><h3>Exact evidence</h3>${citations}</section>
+        <section class="detail-section"><h3>Permission</h3><div class="permission-box"><strong>${escapeHtml(item.permission?.state || 'PUBLIC_RESEARCH_ONLY')}</strong><ul>${permission}</ul></div></section>
+        <section class="detail-section"><h3>Human-owned next step</h3><div class="next-step">${escapeHtml(item.workflow?.next_action || 'Verify the source record.')}</div></section>`;
+      elements.detail.showModal();
+      requestAnimationFrame(() => elements.detailTitle.focus());
+      updateUrl(id);
+    }
+
+    async function loadBoard() {
+      if (appState.controller) appState.controller.abort();
+      appState.controller = new AbortController();
+      setBusy(true);
+      setNotice('');
+      elements.queue.innerHTML = '<div class="empty"><div><div class="spinner" aria-hidden="true"></div><strong>Querying official sources</strong><span>No generated records will replace an unavailable source.</span></div></div>';
+      try {
+        const query = new URLSearchParams({ vertical: appState.vertical, state: appState.state, limit: '30' });
+        const response = await fetch(`${API}/board?${query}`, { headers: { Accept: 'application/json' }, cache: 'no-store', signal: appState.controller.signal });
+        const payload = await response.json();
+        if (!payload || payload.schema !== 'szl.opportunity-board/v1') throw new Error(payload?.detail || `Unexpected response (${response.status})`);
+        appState.board = payload;
+        renderBoard();
+        updateUrl();
+        const requested = new URL(window.location.href).searchParams.get('opportunity');
+        if (requested) openDetail(requested);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        appState.board = null;
+        setBadge('UNAVAILABLE');
+        setNotice(`Opportunity service unavailable: ${error.message}. No records were substituted.`, true);
+        elements.queue.innerHTML = '<div class="empty"><div><strong>Opportunity service unavailable</strong><span>Use Refresh data to retry. An unavailable service is not shown as zero.</span></div></div>';
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    document.querySelectorAll('[data-vertical]').forEach(button => button.addEventListener('click', () => {
+      appState.vertical = button.dataset.vertical;
+      document.querySelectorAll('[data-vertical]').forEach(item => item.setAttribute('aria-selected', String(item === button)));
+      loadBoard();
+    }));
+    document.querySelectorAll('[data-view]').forEach(button => button.addEventListener('click', () => setView(button.dataset.view)));
+    elements.state.addEventListener('change', () => { appState.state = elements.state.value; loadBoard(); });
+    elements.refresh.addEventListener('click', loadBoard);
+    elements.search.addEventListener('input', () => { appState.query = elements.search.value; renderQueue(); });
+    document.getElementById('close-detail').addEventListener('click', () => elements.detail.close());
+    elements.detail.addEventListener('close', () => updateUrl());
+
+    const params = new URL(window.location.href).searchParams;
+    if (verticalMeta[params.get('vertical')]) appState.vertical = params.get('vertical');
+    if ([...elements.state.options].some(option => option.value === params.get('state'))) appState.state = params.get('state');
+    elements.state.value = appState.state;
+    document.querySelectorAll('[data-vertical]').forEach(button => button.setAttribute('aria-selected', String(button.dataset.vertical === appState.vertical)));
+    loadBoard();
+  </script>
+</body>
+</html>

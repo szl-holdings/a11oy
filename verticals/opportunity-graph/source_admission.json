@@ -1,0 +1,97 @@
+{
+  "schema": "szl.opportunity-source-admission/v1",
+  "purpose": "Organization and property research from official public records. Public access never implies permission to contact a person.",
+  "public_projection": {
+    "contact_fields": "PROHIBITED",
+    "default_permission": "PUBLIC_RESEARCH_ONLY",
+    "automatic_outreach": "PROHIBITED",
+    "consumer_scoring": "PROHIBITED",
+    "legal_advice": "PROHIBITED",
+    "investment_advice": "PROHIBITED"
+  },
+  "admitted": [
+    {
+      "id": "gsa_lease_inventory",
+      "label": "GSA external lease inventory",
+      "owner": "U.S. General Services Administration",
+      "hosts": ["www.gsa.gov"],
+      "access": "PUBLIC_NO_KEY",
+      "permitted_use": "PROPERTY_AND_ORGANIZATION_RESEARCH",
+      "contact_data": false,
+      "refresh": "MONTHLY",
+      "terms_url": "https://www.gsa.gov/real-estate/realty-and-lease-acquisition",
+      "notes": "GSA describes the inventory as market-research data for future leasing opportunities. Sensitive details are redacted by GSA."
+    },
+    {
+      "id": "usaspending_awards",
+      "label": "USAspending awards",
+      "owner": "U.S. Department of the Treasury",
+      "hosts": ["api.usaspending.gov", "www.usaspending.gov"],
+      "access": "PUBLIC_NO_KEY",
+      "permitted_use": "ORGANIZATION_AWARD_RESEARCH",
+      "contact_data": false,
+      "refresh": "SOURCE_DEFINED",
+      "terms_url": "https://api.usaspending.gov/docs/intro-tutorial",
+      "notes": "Only organization, award, and place-of-performance fields are projected."
+    },
+    {
+      "id": "sec_recent_filings",
+      "label": "SEC EDGAR recent filings",
+      "owner": "U.S. Securities and Exchange Commission",
+      "hosts": ["www.sec.gov", "data.sec.gov"],
+      "access": "PUBLIC_NO_KEY_IDENTIFIED_USER",
+      "permitted_use": "ORGANIZATION_FILING_RESEARCH",
+      "contact_data": false,
+      "refresh": "REAL_TIME_SOURCE",
+      "terms_url": "https://www.sec.gov/search-filings/edgar-application-programming-interfaces",
+      "notes": "Requests use an identified User-Agent and remain well below the SEC fair-access ceiling."
+    },
+    {
+      "id": "federal_register_documents",
+      "label": "Federal Register documents",
+      "owner": "Office of the Federal Register",
+      "hosts": ["www.federalregister.gov"],
+      "access": "PUBLIC_NO_KEY",
+      "permitted_use": "REGULATORY_EVENT_RESEARCH",
+      "contact_data": false,
+      "refresh": "SOURCE_DEFINED",
+      "terms_url": "https://www.federalregister.gov/developers/documentation/api/v1",
+      "notes": "Federal regulatory events are national; a selected state does not narrow these records."
+    }
+  ],
+  "blocked": [
+    {
+      "id": "linkedin_profiles",
+      "reason": "Profile scraping is not admitted. Use authorized first-party or licensed relationship data only."
+    },
+    {
+      "id": "x_website_automation",
+      "reason": "Non-API collection and automated unsolicited messaging are not admitted."
+    },
+    {
+      "id": "finra_brokercheck_marketing",
+      "reason": "BrokerCheck information is not admitted for unsolicited marketing."
+    },
+    {
+      "id": "hud_usps_vacancy_commercial_prospecting",
+      "reason": "The restricted HUD sublicense is not admitted for this commercial purpose."
+    },
+    {
+      "id": "national_address_database_mailing_list",
+      "reason": "The National Address Database is not admitted as a mailing or prospect list."
+    },
+    {
+      "id": "sam_gov_page_scraping",
+      "reason": "Web-page or authenticated-session scraping is not admitted. A documented public API requires a separate source review."
+    }
+  ],
+  "call_ready_gate": [
+    "human_confirmed_business_identity",
+    "human_confirmed_business_purpose",
+    "approved_contact_source",
+    "jurisdiction_review",
+    "suppression_and_opt_out_check",
+    "channel_permission",
+    "time_limited_clearance"
+  ]
+}
