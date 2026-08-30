@@ -1,0 +1,66 @@
+name: Diagnose stale #1417 semantic revert
+
+on:
+  push:
+    branches:
+      - repair/semantic-revert-stale-1417-20260830
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnose-stale-1417-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Compute inverse patch without mutation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact branch head with history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Compute semantic revert candidate
+        id: revert
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/stale-1417-diagnosis
+          printf '%s\n' "${GITHUB_SHA}" > /tmp/stale-1417-diagnosis/branch-head.txt
+          printf '%s\n' '37753ef139e79f595b54e4420796e24297501d6b' > /tmp/stale-1417-diagnosis/reverted-commit.txt
+
+          set +e
+          git revert --no-commit 37753ef139e79f595b54e4420796e24297501d6b \
+            > /tmp/stale-1417-diagnosis/revert.stdout 2> /tmp/stale-1417-diagnosis/revert.stderr
+          code=$?
+          set -e
+
+          printf '%s\n' "$code" > /tmp/stale-1417-diagnosis/revert-exit-code.txt
+          git status --porcelain=v1 > /tmp/stale-1417-diagnosis/status.txt
+          git diff --name-only --diff-filter=U > /tmp/stale-1417-diagnosis/conflicts.txt
+          git diff --stat > /tmp/stale-1417-diagnosis/revert.stat
+          git diff --binary > /tmp/stale-1417-diagnosis/revert.patch
+
+          if [[ "$code" -eq 0 ]]; then
+            printf '%s\n' CLEAN > /tmp/stale-1417-diagnosis/result.txt
+          else
+            printf '%s\n' CONFLICTED > /tmp/stale-1417-diagnosis/result.txt
+          fi
+
+          git revert --abort >/dev/null 2>&1 || git reset --hard HEAD >/dev/null
+          exit 0
+
+      - name: Upload immutable diagnosis
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: stale-1417-semantic-revert-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/stale-1417-diagnosis
+          if-no-files-found: error
+          retention-days: 7
