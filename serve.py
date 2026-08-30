@@ -1162,6 +1162,18 @@ try:
 except Exception as _szl_khipu_e:  # pragma: no cover
     print(f"[a11oy] KHIPU organ NOT registered: {_szl_khipu_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# Khipu chat/status lab proxy (a11oy_khipu_chat) — GET /api/a11oy/v1/khipu/status
+# (lab healthz + pin, no signing) and POST /api/a11oy/v1/khipu/chat (bounded chat
+# completions). Handler module is in-image; its registration was dropped from serve.py
+# in a refactor (demo-critical route-table regression guard). Re-wired additive,
+# try/except-guarded, BEFORE the SPA catch-all — same as the sibling szl_* surfaces.
+try:
+    import a11oy_khipu_chat as _a11oy_khipu_chat
+    _a11oy_khipu_chat.register(app)
+    print("[a11oy] KHIPU chat proxy registered: GET /api/a11oy/v1/khipu/status + POST /api/a11oy/v1/khipu/chat (bounded, honest UNAVAILABLE when lab down)", file=__import__("sys").stderr)
+except Exception as _a11oy_khipu_chat_e:  # pragma: no cover
+    print(f"[a11oy] KHIPU chat proxy NOT registered: {_a11oy_khipu_chat_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- Five-space operator BIND hologram — Command/Loop/Queue/Memory/Ledger.
 # Additive, try/except-guarded, registered BEFORE the SPA catch-all.
 # Not a Vite dump. Not a second flagship. Does not replace /console.
@@ -12259,6 +12271,17 @@ async def _ungoverned_deeplink() -> Response:
 
 for _wow_path in ("/ungoverned", "/ungoverned-vs-a11oy", "/vs", "/compare"):
     app.add_api_route(_wow_path, _ungoverned_deeplink, methods=["GET"], include_in_schema=False)
+
+
+# Investor View alias — GET /investor 307s onto the SAME console chrome at
+# /console?view=investor (not a stub, not an SPA soft-200). ADDITIVE ONLY,
+# registered BEFORE the SPA catch-all so it wins the ordered match. Demo-critical
+# route-table regression guard requires this alias.
+async def _investor_alias() -> Response:
+    return _PTG_Redirect(url="/console?view=investor", status_code=307)
+
+
+app.add_api_route("/investor", _investor_alias, methods=["GET", "HEAD"], include_in_schema=False)
 
 
 @app.get("/landing")
