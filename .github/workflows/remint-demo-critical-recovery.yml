@@ -113,6 +113,23 @@ jobs:
               raise SystemExit('current SPA fallback normalization block is not exact')
           text = text.replace(old_catchall, new_catchall, 1)
 
+          old_essential = '''ESSENTIAL_PATHS = {
+              "a11oy_landing.html",
+              "pages/console.html",
+              "serve.py",
+              "scripts/hf_universal_frontend_control.py",
+          }
+          '''
+          new_essential = '''ESSENTIAL_PATHS = {
+              "a11oy_landing.html",
+              "pages/console.html",
+              "serve.py",
+          }
+          '''
+          if text.count(old_essential) != 1:
+              raise SystemExit('current essential-path block is not exact')
+          text = text.replace(old_essential, new_essential, 1)
+
           path.write_text(text, encoding='utf-8')
           PY
 
