@@ -101,7 +101,7 @@ def test_registry_is_strict_draft_2020_12_valid() -> None:
 def test_brain_and_flagship_truth_are_explicit() -> None:
     registry = _load(REGISTRY_PATH)
     brain = registry["brain_model_truth"]
-    assert brain["raw_nodes_observed"] == 9465
+    assert brain["raw_nodes_observed"] == 9466
     assert brain["raw_nodes_admitted_to_gradients"] == 0
     assert brain["current_weight_model"] == "SZLHOLDINGS/SZL-Khipu-1.5B"
     assert brain["current_weight_model_relation"] == (
