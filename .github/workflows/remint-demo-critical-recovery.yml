@@ -105,6 +105,14 @@ jobs:
               raise SystemExit('current shared-asset normalization block is not exact')
           text = text.replace(old_shared, new_shared, 1)
 
+          old_catchall = '''    catchall = '@app.get("/{full_path:path}")\\nasync def spa_fallback(full_path: str):'
+          '''
+          new_catchall = '''    catchall = '@app.get("/{full_path:path}")\\nasync def spa_fallback(full_path: str) -> Response:'
+          '''
+          if text.count(old_catchall) != 1:
+              raise SystemExit('current SPA fallback normalization block is not exact')
+          text = text.replace(old_catchall, new_catchall, 1)
+
           path.write_text(text, encoding='utf-8')
           PY
 
