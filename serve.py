@@ -1708,6 +1708,28 @@ try:
 except Exception as _szl_attest_e:  # pragma: no cover
     print(f"[a11oy] Attestation surface NOT registered: {_szl_attest_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# ── WAVE-32 DEV E: L6 CHAIN-OF-TITLE ATTESTATION (the allodial claim, made third-party
+# verifiable). GET /api/a11oy/v1/attest/manifest → an in-toto v1 Statement (subject binds the
+# locked-8 kernel gitCommit c7c0ba17, plus a sovereign-weights sha256 ONLY when a real weights
+# artifact is readable this request; honest null otherwise), predicateType
+# "https://szl.dev/chain-of-title/v1", predicate = doctrine v11 + provenance (corpus_sha, training
+# cfg read from the committed trainer, kernel_verified re-checked against the digest-verified
+# formula registry, kernel_pin) + energy_measured[] (HONESTLY EMPTY with no live joule meter) +
+# honesty_invariants + the tier-PROPOSED SEAL formula; DSSE-signed via szl_dsse (UNSIGNED and
+# labelled so when no runtime cosign secret exists) and structured for cosign keyless / Rekor.
+# GET+POST /api/a11oy/v1/attest/verify → PASSED / FAILED honestly, UNKNOWN when a required Rekor
+# inclusion proof is unreachable. NEVER a fabricated PASSED, MEASURED, or Rekor entry. Policy is
+# authoritative in ops/szl_chain_of_title.rego and mirrored in-process rule for rule. Registered
+# AFTER szl_attest_stack so the STATIC /attest/manifest + /attest/verify routes front-insert ahead
+# of the parametrized /attest/{receipt_hash} route, and BEFORE the SPA catch-all. Additive,
+# try/except-guarded. Adds NOTHING to the locked-8; Λ stays Conjecture 1.
+try:
+    import szl_attest as _szl_attest
+    _szl_attest_status = _szl_attest.register(app, ns="a11oy")
+    print(f"[a11oy] L6 chain-of-title attestation registered: {_szl_attest_status}", file=__import__("sys").stderr)
+except Exception as _szl_attest_l6_e:  # pragma: no cover
+    print(f"[a11oy] L6 chain-of-title attestation NOT registered: {_szl_attest_l6_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # ── WAVE-H TEAM 3: ATTESTED INFERENCE (deepening of Wave-A cc-attest). Endpoint
 # GET /api/a11oy/v1/attest/infer?seed&model → deterministic MODELED flow: device attestation
 # (reuses szl_tee_attest measured-boot chain) → Λ-gate (weighted geomean, Conjecture 1) →
