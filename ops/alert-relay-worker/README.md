@@ -21,7 +21,7 @@ Safety properties:
 Deploy only from a reviewed, merged commit:
 
 ```shell
-npx wrangler deploy --config infra/alert-relay-worker/wrangler.jsonc
+npx wrangler deploy --config ops/alert-relay-worker/wrangler.jsonc
 ```
 
 After the custom domain is active, run one protected `Alert Channel Watch`

@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - '.github/workflows/alert-relay-worker.yml'
-      - 'infra/alert-relay-worker/**'
+      - 'ops/alert-relay-worker/**'
       - 'scripts/alert_channel_canary.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
@@ -12,7 +12,7 @@ on:
     branches: [main]
     paths:
       - '.github/workflows/alert-relay-worker.yml'
-      - 'infra/alert-relay-worker/**'
+      - 'ops/alert-relay-worker/**'
       - 'scripts/alert_channel_canary.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
@@ -34,4 +34,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Exercise relay contract
-        run: node --test infra/alert-relay-worker/test/index.test.mjs
+        run: node --test ops/alert-relay-worker/test/index.test.mjs
