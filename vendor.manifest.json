@@ -19,6 +19,10 @@
       "source": ".github/CODEOWNERS",
       "header": false
     },
+    ".github/workflows/pin-check.yml": {
+      "source": ".github/workflows/pin-check.yml",
+      "header": true
+    },
     "SECURITY.md": {
       "source": "SECURITY.md",
       "header": true
