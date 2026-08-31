@@ -1,0 +1,116 @@
+name: Bootstrap HF ecosystem manifest convergence
+
+on:
+  push:
+    branches:
+      - fix/hf-ecosystem-manifest-refresh-20260831
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-hf-ecosystem-manifest-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Prove collector contracts
+        run: |
+          set -euo pipefail
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/build_ecosystem_stage_matrix.py
+
+      - name: Regenerate exact public evidence and deterministic derivative
+        run: |
+          set -euo pipefail
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/build_ecosystem_stage_matrix.py \
+            --output docs/ecosystem-stage-matrix.json
+          python3 scripts/build_ecosystem_stage_matrix.py \
+            --check \
+            --output docs/ecosystem-stage-matrix.json
+
+      - name: Prove source and generated matrix equality
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          manifest_path = Path('docs/huggingface-ecosystem-manifest.json')
+          matrix_path = Path('docs/ecosystem-stage-matrix.json')
+          receipt_path = Path('docs/receipts/ecosystem-stage-matrix-refresh-2026-08-31.md')
+
+          manifest_text = manifest_path.read_text(encoding='utf-8')
+          matrix_text = matrix_path.read_text(encoding='utf-8')
+          manifest = json.loads(manifest_text)
+          matrix = json.loads(matrix_text)
+
+          expected_rows = sum(len(items) for items in manifest['inventory'].values())
+          actual_rows = len(matrix['huggingFace'])
+          assert matrix['observedAt'] == manifest['observedAt']
+          assert matrix['machineGeneratedCounts']['huggingFacePublic'] == manifest['counts']
+          assert matrix['machineGeneratedCounts']['huggingFaceScope'] == manifest['inventoryScope']
+          assert actual_rows == expected_rows
+
+          counts = json.dumps(manifest['counts'], sort_keys=True, separators=(',', ':'))
+          manifest_sha = hashlib.sha256(manifest_text.encode('utf-8')).hexdigest()
+          matrix_sha = hashlib.sha256(matrix_text.encode('utf-8')).hexdigest()
+          receipt = (
+              '# Ecosystem stage-matrix refresh receipt\n\n'
+              f"- Workflow run: `{os.environ['GITHUB_RUN_ID']}`\n"
+              f"- Bootstrap source revision: `{os.environ['GITHUB_SHA']}`\n"
+              f"- Source manifest observation: `{manifest['observedAt']}`\n"
+              f"- Source public counts: `{counts}`\n"
+              f"- Source manifest SHA-256: `{manifest_sha}`\n"
+              f"- Generated matrix SHA-256: `{matrix_sha}`\n"
+              f"- Hugging Face rows proven equal to manifest inventory: `{actual_rows}`\n"
+              '- Builder: `scripts/build_ecosystem_stage_matrix.py`\n'
+              '- External assets mutated: `none`\n'
+              '- Branch protection weakened: `no`\n'
+          )
+          receipt_path.write_text(receipt, encoding='utf-8')
+          print(receipt)
+          PY
+
+      - name: Commit converged evidence and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/_bootstrap-refresh-hf-ecosystem-manifest-20260831.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            echo 'No evidence drift remained to commit.'
+            exit 0
+          fi
+          git commit \
+            -m 'fix(ops): refresh HF ecosystem evidence' \
+            -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
