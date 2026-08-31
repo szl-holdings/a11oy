@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 from pathlib import Path
 from types import ModuleType
 
@@ -21,6 +22,7 @@ SECURITY_CONTROLLER_PATH = (
     SCRIPT_DIR / "verify_hf_security_candidate_admission.py"
 )
 SECURITY_PATH = ".well-known/security.txt"
+REPORT_SCHEMA = 1
 
 
 class SelectionError(RuntimeError):
@@ -66,16 +68,34 @@ def protected_delta(
     )
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--tools-script", type=Path, required=True)
-    parser.add_argument("--github-repo", required=True)
-    parser.add_argument("--base-ref", required=True)
-    parser.add_argument("--github-ref", required=True)
-    parser.add_argument("--hf-repo", required=True)
-    parser.add_argument("--report-out", type=Path, required=True)
-    args = parser.parse_args(argv)
+def _write_failure_report(
+    report_out: Path,
+    *,
+    base_ref: str,
+    github_ref: str,
+    error: Exception,
+) -> None:
+    report_out.parent.mkdir(parents=True, exist_ok=True)
+    report_out.write_text(
+        json.dumps(
+            {
+                "schema": REPORT_SCHEMA,
+                "status": "rejected",
+                "proof_status": "failed-closed",
+                "base_ref": base_ref,
+                "github_ref": github_ref,
+                "error_type": type(error).__name__,
+                "error": str(error),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
+
+def _execute(args: argparse.Namespace) -> int:
     base_controller, security_controller = load_controllers()
     verifier = base_controller.load_verifier()
     changed = protected_delta(
@@ -109,6 +129,29 @@ def main(argv: list[str] | None = None) -> int:
         f"(protected_delta={changed!r})"
     )
     return base_controller.main(delegated)
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--tools-script", type=Path, required=True)
+    parser.add_argument("--github-repo", required=True)
+    parser.add_argument("--base-ref", required=True)
+    parser.add_argument("--github-ref", required=True)
+    parser.add_argument("--hf-repo", required=True)
+    parser.add_argument("--report-out", type=Path, required=True)
+    args = parser.parse_args(argv)
+
+    args.report_out.unlink(missing_ok=True)
+    try:
+        return _execute(args)
+    except Exception as exc:
+        _write_failure_report(
+            args.report_out,
+            base_ref=args.base_ref,
+            github_ref=args.github_ref,
+            error=exc,
+        )
+        raise
 
 
 if __name__ == "__main__":
