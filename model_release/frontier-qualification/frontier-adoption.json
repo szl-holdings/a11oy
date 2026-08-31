@@ -12,8 +12,8 @@
     "zero_download_policy": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"
   },
   "brain_model_truth": {
-    "raw_nodes_observed": 9469,
-    "raw_nodes_available_to_retrieval_and_evaluation": 9469,
+    "raw_nodes_observed": 9470,
+    "raw_nodes_available_to_retrieval_and_evaluation": 9470,
     "raw_nodes_admitted_to_gradients": 0,
     "current_weight_model": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "current_weight_model_relation": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT",
@@ -50,7 +50,11 @@
     "public_readback_as_of": "2026-07-16",
     "public_readback_source": "https://github.com/orgs/szl-holdings/repositories",
     "reconciliation_state": "SOURCE_REPORT_54_PUBLIC_READBACK_50_ATTACHMENT_TRUNCATED_REVIEW_REQUIRED",
-    "reported_not_publicly_readback": ["szl-org-health", "szl-substrate", "pitch-collateral"],
+    "reported_not_publicly_readback": [
+      "szl-org-health",
+      "szl-substrate",
+      "pitch-collateral"
+    ],
     "publicly_observed_outside_attachment": [
       "immune",
       "anatomy",
@@ -67,68 +71,110 @@
     "layers": [
       {
         "layer": "company-governance-and-brand",
-        "canonical_repositories": [".github", "szl-brand", "szl-doctrine", "docs-site"],
+        "canonical_repositories": [
+          ".github",
+          "szl-brand",
+          "szl-doctrine",
+          "docs-site"
+        ],
         "responsibility": "Organization policy, community health, brand assets, documentation, and measured estate health.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "control-plane",
-        "canonical_repositories": ["a11oy", "platform"],
+        "canonical_repositories": [
+          "a11oy",
+          "platform"
+        ],
         "responsibility": "Governed user and API control plane plus product integration; shared-substrate ownership remains a reconciliation item.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "tool-and-inference-routing",
-        "canonical_repositories": ["hatun-mcp", "szl-router", "szl-mesh", "khipu-consensus"],
+        "canonical_repositories": [
+          "hatun-mcp",
+          "szl-router",
+          "szl-mesh",
+          "khipu-consensus"
+        ],
         "responsibility": "Typed tool exposure, canonical model routing, distributed coordination, and witnessed agreement.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "qualified-weight-program",
-        "canonical_repositories": ["szl-forge"],
+        "canonical_repositories": [
+          "szl-forge"
+        ],
         "responsibility": "Training and qualification recipes for Khipu and ReceiptAgent profiles; no other repository becomes weights by association.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "evidence-and-observability",
-        "canonical_repositories": ["szl-lake", "szl-receipt", "vsp-otel", "szl-telemetry", "szl-energy-attest"],
+        "canonical_repositories": [
+          "szl-lake",
+          "szl-receipt",
+          "vsp-otel",
+          "szl-telemetry",
+          "szl-energy-attest"
+        ],
         "responsibility": "Append-only evidence, DSSE receipts, telemetry, tracing, resource evidence, and public counters.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "proof-and-formula-tiers",
-        "canonical_repositories": ["lutar-lean", "lean-kernel", "szl-formula-ledger", "szl-lambda-gate"],
+        "canonical_repositories": [
+          "lutar-lean",
+          "lean-kernel",
+          "szl-formula-ledger",
+          "szl-lambda-gate"
+        ],
         "responsibility": "Separate theorem-source, executable-kernel, formula-status, and advisory-aggregation tiers; extracted formulas are not automatically proven.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "bounded-computation",
-        "canonical_repositories": ["szl-quant", "yarqa"],
+        "canonical_repositories": [
+          "szl-quant",
+          "yarqa"
+        ],
         "responsibility": "Typed quantitative and scientific computation behind Yupaq with real external-engine receipts and explicit domain limits.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK_PLUS_LOCAL_ARTIFACT_READBACK",
-        "in_repository_artifacts": ["szl_yupaq_compute.py", "model_release/szl-compute-plane.json"]
+        "in_repository_artifacts": [
+          "szl_yupaq_compute.py",
+          "model_release/szl-compute-plane.json"
+        ]
       },
       {
         "layer": "governed-loops-and-build",
-        "canonical_repositories": ["ouroboros", "szl-build-env", "warhacker-demo"],
+        "canonical_repositories": [
+          "ouroboros",
+          "szl-build-env",
+          "warhacker-demo"
+        ],
         "responsibility": "Bounded recursion, reproducible local build fabric, and defensive dry-run verification.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "publications-and-commercial-evidence",
-        "canonical_repositories": ["szl-papers"],
+        "canonical_repositories": [
+          "szl-papers"
+        ],
         "responsibility": "Preprints, thesis lineage, release evidence, and claims constrained to independently verifiable artifacts.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       },
       {
         "layer": "presentation-and-anatomy",
-        "canonical_repositories": ["anatomy"],
+        "canonical_repositories": [
+          "anatomy"
+        ],
         "responsibility": "Generated evidence visualization and estate anatomy; it consumes canonical manifests and does not create proof or readiness.",
         "assertion_basis": "PUBLIC_GITHUB_READBACK_OUTSIDE_TRUNCATED_ATTACHMENT"
       },
       {
         "layer": "vertical-applications",
-        "canonical_repositories": ["killinchu"],
+        "canonical_repositories": [
+          "killinchu"
+        ],
         "responsibility": "Human-governed defensive application surfaces consuming the common control, routing, evidence, and compute layers.",
         "assertion_basis": "ATTACHMENT_AND_PUBLIC_GITHUB_READBACK"
       }
@@ -172,11 +218,35 @@
         "custom_code_policy": "PIN_HASH_REVIEW_AND_RUN_OFFLINE"
       },
       "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
-      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "DOWNLOAD_PINNED",
+        "EVALUATE_SANDBOXED"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
-        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "custom_code_review_sha256", "network_isolation_receipt_sha256", "rights_cleared_audio_manifest_sha256", "resource_preflight_receipt_sha256", "heldout_split_sha256"]
+        "DOWNLOAD_PINNED": [
+          "exact_revision",
+          "artifact_sha256",
+          "license_review_sha256",
+          "disk_preflight_receipt_sha256"
+        ],
+        "EVALUATE_SANDBOXED": [
+          "runtime_revision",
+          "runtime_binary_sha256",
+          "custom_code_review_sha256",
+          "network_isolation_receipt_sha256",
+          "rights_cleared_audio_manifest_sha256",
+          "resource_preflight_receipt_sha256",
+          "heldout_split_sha256"
+        ]
       },
       "adoption_plan": [
         "Qualify as the Lake and Brain audio-evidence ingress specialist: timestamped speaker segments become content-addressed evidence candidates, never automatically trusted facts.",
@@ -224,11 +294,35 @@
         "custom_code_policy": "PIN_RUNTIME_FORK_AND_RUN_OFFLINE"
       },
       "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
-      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "DOWNLOAD_PINNED",
+        "EVALUATE_SANDBOXED"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
-        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "build_flags_sha256", "network_isolation_receipt_sha256", "resource_preflight_receipt_sha256", "heldout_split_sha256", "restart_receipt_sha256"]
+        "DOWNLOAD_PINNED": [
+          "exact_revision",
+          "artifact_sha256",
+          "license_review_sha256",
+          "disk_preflight_receipt_sha256"
+        ],
+        "EVALUATE_SANDBOXED": [
+          "runtime_revision",
+          "runtime_binary_sha256",
+          "build_flags_sha256",
+          "network_isolation_receipt_sha256",
+          "resource_preflight_receipt_sha256",
+          "heldout_split_sha256",
+          "restart_receipt_sha256"
+        ]
       },
       "adoption_plan": [
         "Run the first independent 1-bit local inference qualification at a fixed 4096-token context without drafter or multimodal projector artifacts.",
@@ -276,11 +370,35 @@
         "custom_code_policy": "PIN_RUNTIME_FORK_AND_RUN_OFFLINE"
       },
       "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
-      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "DOWNLOAD_PINNED",
+        "EVALUATE_SANDBOXED"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
-        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "group_format_compatibility_receipt_sha256", "network_isolation_receipt_sha256", "resource_preflight_receipt_sha256", "restart_receipt_sha256", "heldout_split_sha256"]
+        "DOWNLOAD_PINNED": [
+          "exact_revision",
+          "artifact_sha256",
+          "license_review_sha256",
+          "disk_preflight_receipt_sha256"
+        ],
+        "EVALUATE_SANDBOXED": [
+          "runtime_revision",
+          "runtime_binary_sha256",
+          "group_format_compatibility_receipt_sha256",
+          "network_isolation_receipt_sha256",
+          "resource_preflight_receipt_sha256",
+          "restart_receipt_sha256",
+          "heldout_split_sha256"
+        ]
       },
       "adoption_plan": [
         "Use only as a ternary compression comparison arm against 1-bit Bonsai and conventional Q4; record full-GPU OOM as FAIL and label CPU or hybrid offload as a separate execution class.",
@@ -320,18 +438,43 @@
         "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
       },
       "local_state": "REMOTE_NOT_LOCAL_CANDIDATE",
-      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "ADOPT_METHOD"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "ADOPT_METHOD": ["method_source_revision", "independent_ablation_plan_sha256", "rights_review_sha256", "local_evaluation_protocol_sha256"]
+        "ADOPT_METHOD": [
+          "method_source_revision",
+          "independent_ablation_plan_sha256",
+          "rights_review_sha256",
+          "local_evaluation_protocol_sha256"
+        ]
       },
       "adoption_plan": [
         "Implement controllable reasoning budgets in Ayllu and the router, then measure answer quality, thinking tokens, latency, energy, and abstention as a Pareto surface.",
         "Use tool-schema randomization and multimodal evaluation ideas in first-party curricula; never ingest unavailable training traces or copy branding."
       ],
-      "hard_blockers": ["The model is far beyond the local hardware envelope.", "No local measurement or provider authorization exists."],
-      "non_claims": ["A method reference is not an SZL model qualification.", "The registry does not download or route private data to the upstream model."],
-      "sources": ["https://huggingface.co/thinkingmachines/Inkling", "https://thinkingmachines.ai/news/introducing-inkling/", "https://github.com/thinking-machines-lab/tinker-cookbook"]
+      "hard_blockers": [
+        "The model is far beyond the local hardware envelope.",
+        "No local measurement or provider authorization exists."
+      ],
+      "non_claims": [
+        "A method reference is not an SZL model qualification.",
+        "The registry does not download or route private data to the upstream model."
+      ],
+      "sources": [
+        "https://huggingface.co/thinkingmachines/Inkling",
+        "https://thinkingmachines.ai/news/introducing-inkling/",
+        "https://github.com/thinking-machines-lab/tinker-cookbook"
+      ]
     },
     {
       "id": "glm52-methods",
@@ -353,18 +496,43 @@
         "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
       },
       "local_state": "REMOTE_NOT_LOCAL_CANDIDATE",
-      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "ADOPT_METHOD"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "ADOPT_METHOD": ["method_source_revision", "independent_sparse_index_ablation_sha256", "local_acceptance_metric_protocol_sha256"]
+        "ADOPT_METHOD": [
+          "method_source_revision",
+          "independent_sparse_index_ablation_sha256",
+          "local_acceptance_metric_protocol_sha256"
+        ]
       },
       "adoption_plan": [
         "Prototype shared sparse-attention indexing and index-cache reuse on compact SZL models, with retrieval fidelity and memory receipts.",
         "Measure speculative-decoding acceptance, long-horizon completion, and reasoning-budget tradeoffs independently of upstream benchmark claims."
       ],
-      "hard_blockers": ["The model is not a local hardware candidate.", "No remote provider qualification, price, privacy, or latency receipt exists."],
-      "non_claims": ["Architecture study does not make GLM weights part of SZL.", "No upstream benchmark is relabeled as local evidence."],
-      "sources": ["https://huggingface.co/zai-org/GLM-5.2", "https://github.com/zai-org/GLM-5", "https://arxiv.org/abs/2602.15763", "https://arxiv.org/abs/2603.12201"]
+      "hard_blockers": [
+        "The model is not a local hardware candidate.",
+        "No remote provider qualification, price, privacy, or latency receipt exists."
+      ],
+      "non_claims": [
+        "Architecture study does not make GLM weights part of SZL.",
+        "No upstream benchmark is relabeled as local evidence."
+      ],
+      "sources": [
+        "https://huggingface.co/zai-org/GLM-5.2",
+        "https://github.com/zai-org/GLM-5",
+        "https://arxiv.org/abs/2602.15763",
+        "https://arxiv.org/abs/2603.12201"
+      ]
     },
     {
       "id": "tencent-hy3-methods",
@@ -386,18 +554,42 @@
         "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
       },
       "local_state": "REMOTE_NOT_LOCAL_CANDIDATE",
-      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "ADOPT_METHOD"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "ADOPT_METHOD": ["method_source_revision", "product_feedback_rights_manifest_sha256", "tool_recovery_eval_protocol_sha256", "reasoning_effort_ablation_sha256"]
+        "ADOPT_METHOD": [
+          "method_source_revision",
+          "product_feedback_rights_manifest_sha256",
+          "tool_recovery_eval_protocol_sha256",
+          "reasoning_effort_ablation_sha256"
+        ]
       },
       "adoption_plan": [
         "Add explicit low, medium, and high reasoning-effort levels to governed routing with fixed spend, latency, energy, and quality ceilings.",
         "Adopt tool-call recovery tests, scaffold-variance tests, and product-feedback admission controls in the Forge evaluation program."
       ],
-      "hard_blockers": ["The model requires infrastructure far beyond the laptop.", "No local or remote execution receipt exists."],
-      "non_claims": ["Product-feedback methodology does not authorize reuse of Tencent data.", "No Hy3 weights are merged into an SZL artifact."],
-      "sources": ["https://huggingface.co/tencent/Hy3", "https://github.com/Tencent-Hunyuan/Hy3"]
+      "hard_blockers": [
+        "The model requires infrastructure far beyond the laptop.",
+        "No local or remote execution receipt exists."
+      ],
+      "non_claims": [
+        "Product-feedback methodology does not authorize reuse of Tencent data.",
+        "No Hy3 weights are merged into an SZL artifact."
+      ],
+      "sources": [
+        "https://huggingface.co/tencent/Hy3",
+        "https://github.com/Tencent-Hunyuan/Hy3"
+      ]
     },
     {
       "id": "thinkingcap-evaluation-methods",
@@ -419,18 +611,41 @@
         "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
       },
       "local_state": "METHOD_REFERENCE_NOT_WEIGHT_CANDIDATE",
-      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "ADOPT_METHOD"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "ADOPT_METHOD": ["method_source_revision", "five_seed_protocol_sha256", "paired_base_candidate_protocol_sha256", "safety_retention_protocol_sha256"]
+        "ADOPT_METHOD": [
+          "method_source_revision",
+          "five_seed_protocol_sha256",
+          "paired_base_candidate_protocol_sha256",
+          "safety_retention_protocol_sha256"
+        ]
       },
       "adoption_plan": [
         "Add five-seed confidence intervals and paired base-versus-candidate comparisons to SZL-Nemo and Khipu qualification.",
         "Measure answer quality per thinking token, loop rate, truncation rate, safety retention, latency, and energy rather than reporting one cherry-picked score."
       ],
-      "hard_blockers": ["The 27B weights do not fit the laptop comfortably.", "The curated training data is not sufficiently documented for reuse."],
-      "non_claims": ["Evaluation methodology is adopted only after an SZL ablation.", "No ThinkingCap weight or training row becomes an SZL asset."],
-      "sources": ["https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.6-27B"]
+      "hard_blockers": [
+        "The 27B weights do not fit the laptop comfortably.",
+        "The curated training data is not sufficiently documented for reuse."
+      ],
+      "non_claims": [
+        "Evaluation methodology is adopted only after an SZL ablation.",
+        "No ThinkingCap weight or training row becomes an SZL asset."
+      ],
+      "sources": [
+        "https://huggingface.co/bottlecapai/ThinkingCap-Qwen3.6-27B"
+      ]
     },
     {
       "id": "qwen35-2b-governed-bakeoff",
@@ -463,11 +678,36 @@
         "custom_code_policy": "PIN_HASH_REVIEW_AND_RUN_OFFLINE"
       },
       "local_state": "PLANNED_NOT_DOWNLOADED_NOT_MEASURED",
-      "allowed_operations": ["READ_METADATA", "DOWNLOAD_PINNED", "EVALUATE_SANDBOXED"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "DOWNLOAD_PINNED",
+        "EVALUATE_SANDBOXED"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "DOWNLOAD_PINNED": ["exact_revision", "artifact_sha256", "license_review_sha256", "disk_preflight_receipt_sha256"],
-        "EVALUATE_SANDBOXED": ["runtime_revision", "runtime_binary_sha256", "dependency_lock_sha256", "artifact_manifest_sha256", "network_isolation_receipt_sha256", "resource_preflight_receipt_sha256", "heldout_split_sha256", "loop_termination_protocol_sha256"]
+        "DOWNLOAD_PINNED": [
+          "exact_revision",
+          "artifact_sha256",
+          "license_review_sha256",
+          "disk_preflight_receipt_sha256"
+        ],
+        "EVALUATE_SANDBOXED": [
+          "runtime_revision",
+          "runtime_binary_sha256",
+          "dependency_lock_sha256",
+          "artifact_manifest_sha256",
+          "network_isolation_receipt_sha256",
+          "resource_preflight_receipt_sha256",
+          "heldout_split_sha256",
+          "loop_termination_protocol_sha256"
+        ]
       },
       "adoption_plan": [
         "Run a bounded text-only and multimodal bakeoff against the existing Qwen2.5-derived ReceiptAgent base and the current Khipu family, with per-case receipts for correctness, abstention, citation, tool use, loop termination, latency, memory, thermals, and energy.",
@@ -510,10 +750,26 @@
         "custom_code_policy": "NO_LOCAL_RUNTIME_ADOPT_METHODS_ONLY"
       },
       "local_state": "METHOD_REFERENCE_NOT_WEIGHT_CANDIDATE",
-      "allowed_operations": ["READ_METADATA", "ADOPT_METHOD"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA",
+        "ADOPT_METHOD"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {
-        "ADOPT_METHOD": ["method_source_revision", "modified_license_review_sha256", "forced_thinking_ablation_sha256", "multimodal_tool_eval_protocol_sha256", "privacy_and_data_egress_review_sha256"]
+        "ADOPT_METHOD": [
+          "method_source_revision",
+          "modified_license_review_sha256",
+          "forced_thinking_ablation_sha256",
+          "multimodal_tool_eval_protocol_sha256",
+          "privacy_and_data_egress_review_sha256"
+        ]
       },
       "adoption_plan": [
         "Study forced-thinking state handling, preserve-thinking continuity, multimodal coding workflows, and long-horizon tool recovery as independently implemented SZL router and evaluation methods.",
@@ -561,8 +817,17 @@
         "custom_code_policy": "NO_EXECUTION_QUARANTINED"
       },
       "local_state": "QUARANTINED_NO_EXECUTION",
-      "allowed_operations": ["READ_METADATA"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {},
       "adoption_plan": [
         "Study only the general evaluation patterns for tool-grounded self-correction, assistant-only loss, repetition-loop detection, and exact-identifier retrieval.",
@@ -573,8 +838,13 @@
         "An Apache label on the weight repository does not establish rights to every training trace or derivative use.",
         "The model is described as uncensored and lacks the evidence required for governed production serving."
       ],
-      "non_claims": ["Metadata review is not license clearance.", "No trace, weight, or output is authorized for SZL training."],
-      "sources": ["https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M"]
+      "non_claims": [
+        "Metadata review is not license clearance.",
+        "No trace, weight, or output is authorized for SZL training."
+      ],
+      "sources": [
+        "https://huggingface.co/empero-ai/Qwythos-9B-Claude-Mythos-5-1M"
+      ]
     },
     {
       "id": "krea2-identity-edit-quarantine",
@@ -602,8 +872,17 @@
         "custom_code_policy": "NO_EXECUTION_QUARANTINED"
       },
       "local_state": "QUARANTINED_NO_EXECUTION",
-      "allowed_operations": ["READ_METADATA"],
-      "prohibited_operations": ["TRAIN", "SERVE_PRODUCTION", "PROMOTE", "MERGE_WEIGHTS", "INGEST_UPSTREAM_TRAINING_TRACES", "IDENTITY_EDIT_REAL_PERSON"],
+      "allowed_operations": [
+        "READ_METADATA"
+      ],
+      "prohibited_operations": [
+        "TRAIN",
+        "SERVE_PRODUCTION",
+        "PROMOTE",
+        "MERGE_WEIGHTS",
+        "INGEST_UPSTREAM_TRAINING_TRACES",
+        "IDENTITY_EDIT_REAL_PERSON"
+      ],
       "required_evidence_by_operation": {},
       "adoption_plan": [
         "Study dual visual conditioning, edit-locality metrics, rank-reduced adapters, and model-card regression disclosure only.",
@@ -614,7 +893,10 @@
         "The adapter does not establish the resource envelope or license of its external base.",
         "Real-person identity editing requires consent, impersonation, biometric, abuse, and disclosure controls that do not exist in this contract."
       ],
-      "non_claims": ["A small adapter file does not prove that the full base fits locally.", "No identity-editing capability is authorized for production."],
+      "non_claims": [
+        "A small adapter file does not prove that the full base fits locally.",
+        "No identity-editing capability is authorized for production."
+      ],
       "sources": [
         "https://huggingface.co/conradlocke/krea2-identity-edit",
         "https://huggingface.co/conradlocke/krea2-identity-edit/blob/main/LICENSE.pdf"
@@ -626,21 +908,158 @@
     "metadata_state": "PINNED_CLASSIFICATION_LIVE_COUNTS_FETCHED_AT_RUNTIME",
     "live_counts_embedded": false,
     "repositories": [
-      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B", "observed_revision": "cb414ab3b7dd05b5c6622c1a9c4e50089c7c0b76", "artifact_class": "ADAPTER_PLUS_MERGED", "weight_bearing": true, "strategy": "KEEP_FLAGSHIP_REPRO_TRUST_REVIEW_REQUIRED", "canonical_family": "SZL-Khipu", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF", "observed_revision": "8c54ca23ccf34ace87b29b474629e01b65d9602b", "artifact_class": "GGUF_DERIVATIVE", "weight_bearing": true, "strategy": "KEEP_DISTRIBUTION_FORMAT", "canonical_family": "SZL-Khipu", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent", "observed_revision": "fa73dc1bd8eeece727d0b5c1db52448ec0703e8b", "artifact_class": "ADAPTER_PLUS_MERGED", "weight_bearing": true, "strategy": "KEEP_SPECIALIST_REPRO_BUNDLE_REQUIRED", "canonical_family": "SZL-Khipu", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-nemo", "observed_revision": "c69af93e3cae6938346679704444bfc08eff0bff", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_RECIPE_ONLY", "canonical_family": "SZL-Nemo", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-kernels", "observed_revision": "7842caa5c040116447227d5e64859b1efcc7ed0d", "artifact_class": "CODE_ONLY", "weight_bearing": false, "strategy": "KEEP_CODE_PACKAGE", "canonical_family": "SZL-Kernels", "identity_state": "CODE_ONLY", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-governed-norm", "observed_revision": "ae108bc2da0dfff955b2c1bab8a5f26627a74c0a", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_DEPRECATED_WITH_SUCCESSOR", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-lambda-gate", "observed_revision": "e5522a60789d2a7329fa0b2054224cdb88ed475e", "artifact_class": "CUSTOM_WEIGHT", "weight_bearing": true, "strategy": "KEEP_CUSTOM_RUNTIME_MODEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-invariants", "observed_revision": "8fae710fc95b5cb674311e88e78456b96fa65b07", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "HOLD_DUPLICATE_IDENTITY_RECONCILIATION", "canonical_family": "SZL-Kernels", "identity_state": "DUPLICATE_BYTES_CONFLICT", "content_equivalent_to": "SZLHOLDINGS/szl-govsign", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-formulas", "observed_revision": "e3bfdd72367cab65df4a368dc24e121d45c53fb4", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-ouroboros", "observed_revision": "5fa147685d6b7cc4f5ba73e4414436251944997c", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-provctl", "observed_revision": "94ec3a385f47529990eb15cedb1e12a21516a918", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Kernels", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-govsign", "observed_revision": "e47487793add3d0d8c1b6b35821d0c15dbcee614", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "HOLD_DUPLICATE_IDENTITY_RECONCILIATION", "canonical_family": "SZL-Kernels", "identity_state": "DUPLICATE_BYTES_CONFLICT", "content_equivalent_to": "SZLHOLDINGS/szl-invariants", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/governed-inference-meter", "observed_revision": "65bd0fb190c01ffb3cb131ecd5252894c69d19f6", "artifact_class": "CODE_ONLY", "weight_bearing": false, "strategy": "KEEP_CODE_PACKAGE", "canonical_family": "SZL-Kernels", "identity_state": "CODE_ONLY", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/a11oy-v19-substrate", "observed_revision": "0dac59f07e27d93afdefad4b249831682b4d7293", "artifact_class": "CUSTOM_WEIGHT", "weight_bearing": true, "strategy": "KEEP_CUSTOM_RUNTIME_MODEL", "canonical_family": "A11oy-Substrate", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false},
-      {"repository_id": "SZLHOLDINGS/szl-blocked", "observed_revision": "a9112d41961866762d219622e87baf084c4b854d", "artifact_class": "SKLEARN_SURROGATE", "weight_bearing": true, "strategy": "KEEP_SURROGATE_KERNEL", "canonical_family": "SZL-Governance-Evidence", "identity_state": "UNIQUE_BY_AUDIT", "delete_authorized": false}
+      {
+        "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+        "observed_revision": "cb414ab3b7dd05b5c6622c1a9c4e50089c7c0b76",
+        "artifact_class": "ADAPTER_PLUS_MERGED",
+        "weight_bearing": true,
+        "strategy": "KEEP_FLAGSHIP_REPRO_TRUST_REVIEW_REQUIRED",
+        "canonical_family": "SZL-Khipu",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+        "observed_revision": "8c54ca23ccf34ace87b29b474629e01b65d9602b",
+        "artifact_class": "GGUF_DERIVATIVE",
+        "weight_bearing": true,
+        "strategy": "KEEP_DISTRIBUTION_FORMAT",
+        "canonical_family": "SZL-Khipu",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+        "observed_revision": "fa73dc1bd8eeece727d0b5c1db52448ec0703e8b",
+        "artifact_class": "ADAPTER_PLUS_MERGED",
+        "weight_bearing": true,
+        "strategy": "KEEP_SPECIALIST_REPRO_BUNDLE_REQUIRED",
+        "canonical_family": "SZL-Khipu",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-nemo",
+        "observed_revision": "c69af93e3cae6938346679704444bfc08eff0bff",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "KEEP_RECIPE_ONLY",
+        "canonical_family": "SZL-Nemo",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-kernels",
+        "observed_revision": "7842caa5c040116447227d5e64859b1efcc7ed0d",
+        "artifact_class": "CODE_ONLY",
+        "weight_bearing": false,
+        "strategy": "KEEP_CODE_PACKAGE",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "CODE_ONLY",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-governed-norm",
+        "observed_revision": "ae108bc2da0dfff955b2c1bab8a5f26627a74c0a",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "KEEP_DEPRECATED_WITH_SUCCESSOR",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-lambda-gate",
+        "observed_revision": "e5522a60789d2a7329fa0b2054224cdb88ed475e",
+        "artifact_class": "CUSTOM_WEIGHT",
+        "weight_bearing": true,
+        "strategy": "KEEP_CUSTOM_RUNTIME_MODEL",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-invariants",
+        "observed_revision": "8fae710fc95b5cb674311e88e78456b96fa65b07",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "HOLD_DUPLICATE_IDENTITY_RECONCILIATION",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "DUPLICATE_BYTES_CONFLICT",
+        "content_equivalent_to": "SZLHOLDINGS/szl-govsign",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-formulas",
+        "observed_revision": "e3bfdd72367cab65df4a368dc24e121d45c53fb4",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "KEEP_SURROGATE_KERNEL",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-ouroboros",
+        "observed_revision": "5fa147685d6b7cc4f5ba73e4414436251944997c",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "KEEP_SURROGATE_KERNEL",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-provctl",
+        "observed_revision": "94ec3a385f47529990eb15cedb1e12a21516a918",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "KEEP_SURROGATE_KERNEL",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-govsign",
+        "observed_revision": "e47487793add3d0d8c1b6b35821d0c15dbcee614",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "HOLD_DUPLICATE_IDENTITY_RECONCILIATION",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "DUPLICATE_BYTES_CONFLICT",
+        "content_equivalent_to": "SZLHOLDINGS/szl-invariants",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/governed-inference-meter",
+        "observed_revision": "65bd0fb190c01ffb3cb131ecd5252894c69d19f6",
+        "artifact_class": "CODE_ONLY",
+        "weight_bearing": false,
+        "strategy": "KEEP_CODE_PACKAGE",
+        "canonical_family": "SZL-Kernels",
+        "identity_state": "CODE_ONLY",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/a11oy-v19-substrate",
+        "observed_revision": "0dac59f07e27d93afdefad4b249831682b4d7293",
+        "artifact_class": "CUSTOM_WEIGHT",
+        "weight_bearing": true,
+        "strategy": "KEEP_CUSTOM_RUNTIME_MODEL",
+        "canonical_family": "A11oy-Substrate",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      },
+      {
+        "repository_id": "SZLHOLDINGS/szl-blocked",
+        "observed_revision": "a9112d41961866762d219622e87baf084c4b854d",
+        "artifact_class": "SKLEARN_SURROGATE",
+        "weight_bearing": true,
+        "strategy": "KEEP_SURROGATE_KERNEL",
+        "canonical_family": "SZL-Governance-Evidence",
+        "identity_state": "UNIQUE_BY_AUDIT",
+        "delete_authorized": false
+      }
     ],
     "archive_predicate": [
       "Archive only after proving the repository contains no unique weights, adapters, kernels, receipts, citations, DOI references, discussions, or inbound links.",
