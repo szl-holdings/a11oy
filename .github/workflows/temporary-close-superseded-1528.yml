@@ -1,0 +1,50 @@
+name: temporary-close-superseded-1528
+
+on:
+  push:
+    branches:
+      - fix/p0-1-dead-security-contact
+    paths:
+      - .github/workflows/temporary-close-superseded-1528.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  close-when-superseded:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/p0-1-dead-security-contact
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Wait for current-main successor merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 80); do
+            merged_at="$(gh api repos/szl-holdings/a11oy/pulls/1548 --jq '.merged_at // empty' 2>/dev/null || true)"
+            if [ -n "$merged_at" ]; then
+              gh pr close 1528 --repo szl-holdings/a11oy --comment "Superseded by protected merge #1548, which proves and applies only the reviewed 17-path disclosure delta on repaired main."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::Successor #1548 has not merged within the bounded wait; original PR remains open."
+          exit 1
+      - name: Remove watcher from branch
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          rm .github/workflows/temporary-close-superseded-1528.yml
+          git add -A
+          git commit -m "chore(ci): remove superseded-PR watcher" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/p0-1-dead-security-contact
