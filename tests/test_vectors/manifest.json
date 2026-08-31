@@ -1,0 +1,39 @@
+{
+  "bundle_type": "szl.dev/VerifierTestVectorManifest/v1",
+  "generator": "a11oy_verify self-test/1.0.0",
+  "note": "Verdicts below assume the cryptography package is importable. On a bare python3 the signature check reports SIGNATURE_UNVERIFIED_NO_CRYPTO and signed-bundle verdicts degrade from PASS to INCOMPLETE \u2014 never to a wrong PASS.",
+  "vectors": [
+    {
+      "expected_verdict": "PASS",
+      "file": "valid.json"
+    },
+    {
+      "expected_verdict": "FAIL",
+      "file": "tampered_byte_flip.json"
+    },
+    {
+      "expected_verdict": "INCOMPLETE",
+      "file": "tampered_evidence_removal.json"
+    },
+    {
+      "expected_verdict": "FAIL",
+      "file": "tampered_service_account.json"
+    },
+    {
+      "expected_verdict": "FAIL",
+      "file": "tampered_sequence_gap.json"
+    },
+    {
+      "expected_verdict": "FAIL",
+      "file": "tampered_redaction_cheat.json"
+    },
+    {
+      "expected_verdict": "INCOMPLETE",
+      "file": "tampered_weak_time.json"
+    },
+    {
+      "expected_verdict": "PASS",
+      "file": "valid_chain.json"
+    }
+  ]
+}
