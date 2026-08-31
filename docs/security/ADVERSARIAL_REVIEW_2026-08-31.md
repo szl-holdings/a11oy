@@ -19,7 +19,7 @@ harness defect found and fixed (demo step 9).**
 | 8 | keyid substitution against a different registered key | **HELD** — INVALID |
 | 9 | Append a second attacker signature | **HELD** — rejected (demo envelope carries exactly one) |
 
-### Finding S2.6-6 (MEDIUM, residual): partial-evidence-strip with issuer re-sign
+### Finding S2.6-6 (MEDIUM) — **FIXED 2026-08-31, regression-tested**: partial-evidence-strip with issuer re-sign
 If the party holding the signing key strips **some** evidence items (keeping the list
 non-empty), re-signs with `completeness: COMPLETE`, and the verifier is invoked
 **without** the policy-declared `required_obligations`, the bundle verifies as VALID
@@ -30,17 +30,19 @@ part of the policy decision recorded on the receipt; when the verifier is given 
 obligations (`required_obligations=("test_log","review_thread")`), the same bundle
 returns INCOMPLETE with `missing evidence obligations: review_thread`.
 
-**Mitigations to close it fully (ranked):**
-1. **Verifier SHOULD read obligations from the receipt itself** when the caller passes
-   none, and treat a non-empty `decision.evidence_obligations` with missing items as
-   INCOMPLETE. Today the verifier only checks caller-supplied obligations; the
-   receipt-carried `evidence_obligations` field is not cross-checked against
-   `predicate.evidence` kinds. (One-line class of fix; kept out of this review's scope
-   to avoid changing verifier semantics in an audit PR.)
+**Fix shipped (same day):** mitigation 1 implemented in `verifier.py` — when the
+caller supplies no `required_obligations`, the verifier now falls back to the
+receipt-carried `decision.evidence_obligations` (signed, so an external tamperer
+cannot shrink it). Regression test: `tests/adversarial/test_s26_pass_on_tampered.py::
+test_attack_6_sign_then_strip_issuer_side` asserts the partial-strip bundle now
+verifies INCOMPLETE with `missing evidence obligations`. 23/23 suite green.
+
+**Remaining hardening (not blocking, honestly scoped):**
 2. **Anchor signed receipt digests out-of-band** — append each receipt's envelope digest
    to the flight recorder at issuance; an auditor re-walks the chain and detects any
-   later re-issued variant for the same `action_id`. The recorder already exists for
-   exactly this.
+   later re-issued variant for the same `action_id`. This closes the residual
+   *malicious key-holder* case (an issuer who also rewrites the obligations list and
+   re-signs), which no receipt-local check can fully close.
 3. Long-term: transparency-log witnessing (Sigstore-style) so re-issuance is globally
    visible. Explicitly out of v1 scope per the exclusion table.
 
