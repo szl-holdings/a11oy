@@ -1,0 +1,56 @@
+name: temporary-platform-contact-propagation
+
+on:
+  push:
+    branches:
+      - fix/platform-contact-propagation-20260830
+    paths:
+      - .github/workflows/temporary-platform-contact-propagation.yml
+
+permissions:
+  contents: write
+
+jobs:
+  propagate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/platform-contact-propagation-20260830
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Sync canonical policy and shared connector contact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+
+          bash scripts/sync_from_monorepo.sh pin 1f333543c3fb98b4636b9aa9e6f5ffe0e47b47e7
+          bash scripts/sync_from_monorepo.sh sync
+
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("szl_connectors/base.py")
+          text = path.read_text(encoding="utf-8")
+          old = "contact@szlholdings.ai"
+          new = "contact@szlholdings.com"
+          if text.count(old) != 1:
+              raise SystemExit(f"expected exactly one legacy connector contact, found {text.count(old)}")
+          path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+          PY
+
+          bash scripts/sync_from_monorepo.sh check --strict-headers
+          python3 -m py_compile szl_connectors/base.py
+          python3 scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+
+          rm .github/workflows/temporary-platform-contact-propagation.yml
+          git add -A
+          git diff --cached --check
+          git commit \
+            -m "fix(security): propagate canonical disclosure contacts" \
+            -m "Advance the platform source pin, regenerate every vendored attribution deterministically, inherit the canonical SECURITY and SUPPORT policies, and align the shared connector operator contact." \
+            -m "Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/platform-contact-propagation-20260830
