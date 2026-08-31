@@ -1,0 +1,1 @@
+Protected exact-head recheck marker after removing the unused kernel-loader alias. Removed in the next commit; no product diff.
