@@ -1,0 +1,41 @@
+name: temporary-regenerate-stage-matrix-1543
+
+on:
+  push:
+    branches:
+      - fix/hf-space-source-map-refresh-20260830
+    paths:
+      - .github/workflows/temporary-regenerate-stage-matrix-1543.yml
+
+permissions:
+  contents: write
+
+jobs:
+  regenerate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-space-source-map-refresh-20260830
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Regenerate and verify canonical stage matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          python3 scripts/build_ecosystem_stage_matrix.py
+          python3 scripts/build_ecosystem_stage_matrix.py --check
+          git add docs/ecosystem-stage-matrix.json
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "stage matrix already canonical"
+            exit 0
+          fi
+          git commit \
+            -m "fix(hf): regenerate ecosystem stage matrix" \
+            -m "Regenerate the tracked matrix from the canonical builder after the public Space source-map refresh." \
+            -m "Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/hf-space-source-map-refresh-20260830
