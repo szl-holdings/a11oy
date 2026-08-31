@@ -385,3 +385,7 @@ training/build_orpo.py
 training/szl_orpo.jsonl
 training/szl_orpo_eval.jsonl
 training/build_seed.py
+
+# Founder-authorized 2026-08-30: docs_lexicon_gate.py legitimately enumerates
+# the banned-token list it enforces (pattern table); the strings are data, not claims.
+tools/docs_lexicon_gate.py
