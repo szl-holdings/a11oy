@@ -3096,6 +3096,21 @@ def _resolve_llm_registry_module():
     return registry
 
 
+def _register_llm_registry(app_instance):
+    """Register exactly the counter-capable module selected for this process."""
+    registry = _resolve_llm_registry_module()
+    try:
+        import szl_llm_registry as vendored_registry
+    except Exception:
+        vendored_registry = None
+
+    if vendored_registry is not None and registry is vendored_registry:
+        info = vendored_registry.register(app_instance)
+    else:
+        info = registry.register(app_instance)
+    return registry, info
+
+
 try:
     import szl_model_harness as _szl_model_harness
     _szl_model_harness._bind_registry(_resolve_llm_registry_module())
@@ -7582,8 +7597,7 @@ except Exception as _parity_e:
 # Doctrine v11 LOCKED 749/14/163 · Λ = Conjecture 1 (NEVER a theorem).
 # ===========================================================================
 try:
-    _llm_reg = _resolve_llm_registry_module()
-    _llm_reg_info = _llm_reg.register(app)
+    _llm_reg, _llm_reg_info = _register_llm_registry(app)
     print(
         f"[a11oy] LLM Hub Registry mounted: {len(_llm_reg.MODEL_REGISTRY)} models, "
         f"{len(_llm_reg_info.get('endpoints', []))} endpoints — Doctrine v11",
