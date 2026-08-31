@@ -1,6 +1,7 @@
 # Hugging Face ecosystem manifest refresh receipt
 
 - Workflow run: `33446529035`
+- Generated branch revision: `750c58e95eebb85a7fb5a03e02f997903e2cad80`
 - Previous observation: `2026-08-31T04:37:56Z`
 - Current observation: `2026-08-31T22:31:00Z`
 - Previous counts: `{"datasets": 30, "models": 44, "spaces": 46}`
