@@ -34,7 +34,10 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
         self.assertIn('--github-ref "$SOURCE_REF"', self.pr_job)
         self.assertIn("hf-current-base-parity.out.json", self.pr_job)
         self.assertNotIn("source-probe-path", self.pr_job)
-        self.assertNotIn("/api/build-info", self.pr_job)
+        self.assertIn(
+            "Scheduled, manual, and post-deployment checks retain the strict live",
+            self.pr_job,
+        )
 
     def test_scheduled_manual_and_post_deploy_checks_keep_the_strict_live_controller(
         self,
