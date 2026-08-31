@@ -32,12 +32,14 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Bind base, branch, and upstream source
+      - name: Bind base, ref, and upstream source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          test "$(git branch --show-current)" = "ops/vendor-sync-platform-880fda4-20260831"
+          test "$GITHUB_REF" = "refs/heads/ops/vendor-sync-platform-880fda4-20260831"
+          live_branch="$(git ls-remote origin refs/heads/ops/vendor-sync-platform-880fda4-20260831 | awk '{print $1}')"
+          test "$live_branch" = "$GITHUB_SHA"
           live_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
           test "$live_main" = "$EXPECTED_BASE_SHA"
           live_platform="$(git ls-remote https://github.com/szl-holdings/platform.git refs/heads/main | awk '{print $1}')"
