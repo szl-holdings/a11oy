@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-08-31T22:31:00Z",
+  "observedAt": "2026-08-31T23:50:02Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -1139,11 +1139,12 @@
         "disabled": false,
         "sdk": null,
         "license": "apache-2.0",
-        "sha": "70be0f9022fa54a0f716172a9a8e1cdb8092f730",
-        "lastModified": "2026-08-31T03:42:14.000Z",
+        "sha": "f547189e59e331465976bd80d40afe6a5116adcb",
+        "lastModified": "2026-08-31T23:12:55.000Z",
         "cardSemanticSha256": "b63349d86000dbd0b39b9a396c9dee59f5dd1fd30abcf1dce8126020c8a55bc5",
         "createdAt": "2026-07-11T08:24:18.000Z",
         "tags": [
+          "joblib",
           "surrogate",
           "recipe-conformance",
           "szl-holdings",
@@ -1713,8 +1714,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "f972ba2bcd9a3beb1c9fbb545ac509b26f03f45a",
-        "lastModified": "2026-08-31T22:30:48.000Z",
+        "sha": "f3876fc60341486988a0af1bbce57c56c4f5e02e",
+        "lastModified": "2026-08-31T23:45:17.000Z",
         "cardSemanticSha256": "7b09277401ed789f6ac2885e5307b621780e0d6b4a6369f7e00e0cdc7e9d68b1",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2487,8 +2488,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "32a782c410b56ab3be1386b9c0c79f709e988575",
-        "lastModified": "2026-08-31T22:15:33.000Z",
+        "sha": "a2a56897a835ea6e153ade0a30f670ddf1d687b3",
+        "lastModified": "2026-08-31T23:44:08.000Z",
         "cardSemanticSha256": "dbd608b0fb0894f9dd24cedbaecc05998a7080c0ac38dab228aef76d0d3dde25",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
@@ -2937,8 +2938,8 @@
         "disabled": false,
         "sdk": "static",
         "license": "apache-2.0",
-        "sha": "018bf585fd4248c615f3163e9ee4b5cc125ce17e",
-        "lastModified": "2026-08-31T18:43:54.000Z",
+        "sha": "be73d421dc372f508a19859d2be48db59d3a2323",
+        "lastModified": "2026-08-31T23:32:41.000Z",
         "cardSemanticSha256": "f1df549a8e5809dd6456f8d16abda80446c4d94273a5ad834009d0617542a3df",
         "createdAt": "2026-08-30T23:31:02.000Z",
         "tags": [
