@@ -50,7 +50,7 @@ REQUIRED_WORKFLOW_TOKENS = (
     "  hf-runtime-live:",
     "  hf-repository-parity:",
     "verify_hf_repository_parity.py",
-    "verify_hf_candidate_admission.py",
+    "select_hf_candidate_admission.py",
     "reusable-hf-module-drift-check.yml@",
     "--tools-script tools/.github/scripts/hf_module_drift_check.py",
 )
@@ -87,7 +87,7 @@ BASELINE_INVOCATION = (
     f"{PYTHON_EXECUTABLE} baseline/.github/scripts/verify_hf_repository_parity.py"
 )
 CANDIDATE_INVOCATION = (
-    f"{PYTHON_EXECUTABLE} baseline/.github/scripts/verify_hf_candidate_admission.py"
+    f"{PYTHON_EXECUTABLE} baseline/.github/scripts/select_hf_candidate_admission.py"
 )
 TOOLS_ARGUMENT = "--tools-script tools/.github/scripts/hf_module_drift_check.py"
 FAILURE_SUPPRESSORS = ("continue-on-error", "--warn-only", "|| true")
@@ -673,7 +673,7 @@ def _expected_command(*, candidate: bool) -> list[str]:
     checkout = "baseline"
     report = "hf-repository-parity.out.json" if candidate else "hf-current-base-parity.out.json"
     script = (
-        "verify_hf_candidate_admission.py"
+        "select_hf_candidate_admission.py"
         if candidate
         else "verify_hf_repository_parity.py"
     )
