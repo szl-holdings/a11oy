@@ -1,0 +1,17 @@
+"# MANUAL_INVENTORY header: enumerated 2026-08-31 via Hub API (library=kernels OR tag:kernels), cross-checked against Hub search endpoint; Hub-UI visual pass not performed (no browser session in audit environment). Count is API-derived, not memory-derived."
+kernel_repo,visibility,last_modified,downloads,linked_base_models,doi
+SZLHOLDINGS/YARQA-ATTN,public,2026-08-29,0,none-declared,none
+SZLHOLDINGS/governed-inference-meter,public,2026-08-31,0,none-declared,none
+SZLHOLDINGS/szl-block-kv,public,2026-08-29,46,none-declared,none
+SZLHOLDINGS/szl-blocked,public,2026-08-31,0,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-formulas,public,2026-08-31,0,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-governed-norm,public,2026-08-31,214,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-govsign,public,2026-08-31,0,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-invariants,public,2026-08-31,0,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-kernels,public,2026-08-31,145,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-khipu-kernels,public,2026-08-29,0,none-declared,none
+SZLHOLDINGS/szl-lambda-gate,public,2026-08-31,106,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-maskmod,public,2026-08-29,30,none-declared,none
+SZLHOLDINGS/szl-ouroboros,public,2026-08-31,0,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-provctl,public,2026-08-31,0,none-declared,10.5281/zenodo.19944926
+SZLHOLDINGS/szl-receipt-attn,public,2026-08-29,23,none-declared,none

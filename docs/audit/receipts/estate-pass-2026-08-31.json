@@ -60,7 +60,11 @@
         },
         {
           "id": "kernels_manually_inventoried",
-          "satisfied": false
+          "satisfied": true,
+          "artifact_digests": [
+            "8b010638c1516564593d5cf53c6f7392184e0d5a970ece683486e688936df411"
+          ],
+          "method": "API enumeration (library=kernels OR tag:kernels), 15 repos, cross-checked vs Hub search; recorded in docs/audit/HUGGINGFACE_KERNELS_MATRIX.csv"
         },
         {
           "id": "mobile_viewports_checked",
@@ -85,10 +89,10 @@
       "This receipt is UNSIGNED \u2014 the org signing key is not available to the auditor; verdict class UNSIGNED-LOCAL.",
       "HF space/dataset privacy split derived by authenticated-total minus public-API count (48-34=14 private spaces; 38-30=8 private datasets).",
       "Runtime stage was not probed per-Space; RUNNING is not evidence of deployed revision anywhere in this pass.",
-      "Kernels remain NOT_ENUMERABLE_VIA_API \u2014 manual Hub UI pass still owed.",
       "No PR was merged by this pass; two PRs opened for human review (governed-receipt-spec#10, a11oy audit PR).",
       "Mobile viewport rendering NOT_INSPECTED.",
-      "HF org card correction BLOCKED by token scope (read-repos/contribute-repos only; 403 on org Space write and PR). Proposed card committed at docs/audit/HF_ORG_CARD_PROPOSED.md for manual apply."
+      "HF org card correction BLOCKED by token scope (read-repos/contribute-repos only; 403 on org Space write and PR). Proposed card committed at docs/audit/HF_ORG_CARD_PROPOSED.md for manual apply.",
+      "Kernels inventory is API-derived with recorded method; a Hub-UI visual pass was not performed (no browser session). Any future published kernel count must cite this matrix and its date."
     ]
   }
 }
