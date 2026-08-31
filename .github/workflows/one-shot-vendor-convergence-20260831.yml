@@ -1,0 +1,110 @@
+name: One-shot A11oy vendor source convergence
+
+on:
+  push:
+    branches:
+      - ops/vendor-sync-platform-880fda4-20260831
+
+permissions:
+  contents: write
+
+concurrency:
+  group: a11oy-vendor-convergence-20260831
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.ref == 'refs/heads/ops/vendor-sync-platform-880fda4-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_BASE_SHA: d9922a0dc7e6ec6162ec5be3c159579979d74a3e
+      EXPECTED_OLD_PLATFORM_SHA: de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b
+      EXPECTED_PLATFORM_SHA: 880fda4f67fd2bbdc3507dce6d81fb782ca64c4c
+      WORKFLOW_PATH: .github/workflows/one-shot-vendor-convergence-20260831.yml
+    steps:
+      - name: Checkout exact branch revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Bind base, branch, and upstream source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git branch --show-current)" = "ops/vendor-sync-platform-880fda4-20260831"
+          live_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
+          test "$live_main" = "$EXPECTED_BASE_SHA"
+          live_platform="$(git ls-remote https://github.com/szl-holdings/platform.git refs/heads/main | awk '{print $1}')"
+          test "$live_platform" = "$EXPECTED_PLATFORM_SHA"
+
+      - name: Rotate manifest authority without restoring retired DCO
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('vendor.manifest.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          old = 'de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b'
+          new = '880fda4f67fd2bbdc3507dce6d81fb782ca64c4c'
+          if data.get('monorepo') != 'szl-holdings/platform':
+              raise SystemExit('unexpected monorepo authority')
+          if data.get('pin') != old:
+              raise SystemExit(f"unexpected prior pin: {data.get('pin')!r}")
+          dco = data.get('files', {}).get('.github/workflows/dco.yml')
+          if dco != {'source': '.github/workflows/dco.yml', 'header': True}:
+              raise SystemExit(f'unexpected DCO manifest entry: {dco!r}')
+          del data['files']['.github/workflows/dco.yml']
+          data['pin'] = new
+          path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
+          PY
+
+      - name: Refresh every remaining vendored file from the exact Platform source
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash scripts/sync_from_monorepo.sh sync
+          bash scripts/sync_from_monorepo.sh check --strict-headers
+
+      - name: Prove the mutation is bounded and remove this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -- "$WORKFLOW_PATH"
+          git add -A
+          python3 - <<'PY'
+          import json
+          import subprocess
+
+          manifest = json.load(open('vendor.manifest.json', encoding='utf-8'))
+          allowed = set(manifest['files']) | {'vendor.manifest.json', '.github/workflows/one-shot-vendor-convergence-20260831.yml'}
+          changed = set(subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines())
+          unexpected = sorted(changed - allowed)
+          if unexpected:
+              raise SystemExit(f'unexpected changed paths: {unexpected}')
+          if 'vendor.manifest.json' not in changed:
+              raise SystemExit('manifest did not change')
+          if '.github/workflows/dco.yml' in changed:
+              raise SystemExit('refusing to restore or modify retired DCO workflow')
+          if '.github/workflows/one-shot-vendor-convergence-20260831.yml' not in changed:
+              raise SystemExit('one-shot controller was not removed')
+          print(f'bounded changed paths: {len(changed)}')
+          PY
+          git diff --cached --check
+
+      - name: Commit exact-source convergence to the feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'chore(vendor): converge on current protected Platform source'
+          git push origin "HEAD:ops/vendor-sync-platform-880fda4-20260831"
