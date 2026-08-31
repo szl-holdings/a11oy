@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — packages/codex-kernel/src/validators.ts
+// VENDORED FROM szl-holdings/platform@1f333543c3fb98b4636b9aa9e6f5ffe0e47b47e7 — packages/codex-kernel/src/validators.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /**
  * Built-in validators for the Codex-Kernel.

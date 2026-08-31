@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — replit-sync/hf_spaces/cathedral_live_src/vendor/OrbitControls.js
+// VENDORED FROM szl-holdings/platform@1f333543c3fb98b4636b9aa9e6f5ffe0e47b47e7 — replit-sync/hf_spaces/cathedral_live_src/vendor/OrbitControls.js
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import {
 	EventDispatcher,

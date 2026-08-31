@@ -1,7 +1,7 @@
 {
   "_doctrine": "The monorepo szl-holdings/platform is the explicit source of truth for every file listed here. Edit there, never here. scripts/sync_from_monorepo.sh check verifies byte-fidelity against the pin; sync refreshes and applies attribution headers. STATUS.md open action.",
   "monorepo": "szl-holdings/platform",
-  "pin": "de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b",
+  "pin": "1f333543c3fb98b4636b9aa9e6f5ffe0e47b47e7",
   "files": {
     ".devcontainer/devcontainer.json": {
       "source": ".devcontainer/devcontainer.json",

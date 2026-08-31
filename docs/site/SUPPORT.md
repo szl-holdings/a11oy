@@ -1,4 +1,4 @@
-<!-- VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — SUPPORT.md -->
+<!-- VENDORED FROM szl-holdings/platform@1f333543c3fb98b4636b9aa9e6f5ffe0e47b47e7 — SUPPORT.md -->
 <!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # Support
 
@@ -7,8 +7,8 @@
 | Channel | Purpose | Response SLA |
 |---|---|---|
 | [GitHub Issues](../../issues) | Bug reports, feature requests | 5 business days |
-| security@szlholdings.ai | Security vulnerabilities | See [SECURITY.md](SECURITY.md) |
-| hello@szlholdings.ai | General inquiries | 10 business days |
+| security@szlholdings.com | Security vulnerabilities | See [SECURITY.md](SECURITY.md) |
+| hello@szlholdings.com | General inquiries | 10 business days |
 
 ## Filing an Issue
 
@@ -26,7 +26,7 @@ Please use GitHub Issues for:
 ## Out of Scope
 
 The following are **not** supported on this channel:
-- Classified or controlled unclassified information (CUI) — contact security@szlholdings.ai directly
+- Classified or controlled unclassified information (CUI) — contact security@szlholdings.com directly
 - Requests requiring payment or billing
 - HuggingFace hardware tier requests — contact SZL directly
 
@@ -38,8 +38,8 @@ The following are **not** supported on this channel:
 
 ## Resources
 
-- [SZL Holdings website](https://szlholdings.ai)
-- [Doctrine v11](https://szlholdings.ai/doctrine)
+- [SZL Holdings website](https://a-11-oy.com)
+- [Doctrine v11](https://a11oy.net)
 - [SECURITY.md](SECURITY.md) — vulnerability disclosure policy
 - [CHANGELOG.md](CHANGELOG.md) — version history
 

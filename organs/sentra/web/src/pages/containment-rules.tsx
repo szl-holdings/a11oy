@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — artifacts/sentra/src/pages/containment-rules.tsx
+// VENDORED FROM szl-holdings/platform@1f333543c3fb98b4636b9aa9e6f5ffe0e47b47e7 — artifacts/sentra/src/pages/containment-rules.tsx
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { cn } from '@szl-holdings/shared-ui/utils';
 import {

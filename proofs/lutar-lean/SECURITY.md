@@ -1,4 +1,4 @@
-<!-- VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — SECURITY.md -->
+<!-- VENDORED FROM szl-holdings/platform@1f333543c3fb98b4636b9aa9e6f5ffe0e47b47e7 — SECURITY.md -->
 <!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 # Security Policy
 
@@ -23,7 +23,7 @@ available. That private GitHub advisory is the preferred channel because it
 keeps reproduction details, patches, and coordination inside the repository's
 confidential security workspace.
 
-When private reporting is unavailable, email **security@szlholdings.ai**. Include
+When private reporting is unavailable, email **security@szlholdings.com**. Include
 only the information needed to reproduce and assess the issue:
 
 1. affected component, version, commit, image, model, dataset, or endpoint;
@@ -126,9 +126,9 @@ SWFT authorization without the corresponding external authority and evidence.
 
 - **Private security reports:** use **Security → Report a vulnerability** in the
   affected repository when available
-- **Fallback security email:** security@szlholdings.ai
-- **General:** hello@szlholdings.ai
-- **Website:** https://szlholdings.ai
+- **Fallback security email:** security@szlholdings.com
+- **General:** hello@szlholdings.com
+- **Website:** https://a-11-oy.com
 
 This policy follows the principles of the
 [OpenSSF Vulnerability Disclosure Guide](https://github.com/ossf/oss-vulnerability-guide).
