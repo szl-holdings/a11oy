@@ -15,14 +15,34 @@
 #
 # Justification: synthetic fixtures only; exempting these fingerprints does
 # not weaken detection of real credentials (fingerprint-scoped, not rule-scoped).
+#
+# Per-fingerprint annotation + CI re-verification (2026-08-31, branch
+# chore/gitleaks-fixture-allowlist): every entry below is a synthetic test
+# fixture added in #1608, first allowlisted in #1608, NOT a real credential.
+# Re-verified against the current tree — each rfc3161_token occurrence still
+# sits at the exact allowlisted line, and the latest failed CI run logs
+# (33396161119/job 99501068636: the 10 fixture findings; 33396666915/job
+# 99502700792: a self-scan trip on this file's own comment, since fixed)
+# match this list exactly. Keep comments free of key-shaped literals:
+# gitleaks scans this file too.
 
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/tampered_byte_flip.json:generic-api-key:74
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/tampered_evidence_removal.json:generic-api-key:62
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/tampered_redaction_cheat.json:generic-api-key:74
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/tampered_sequence_gap.json:generic-api-key:74
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/tampered_sequence_gap.json:generic-api-key:156
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/tampered_service_account.json:generic-api-key:74
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/valid.json:generic-api-key:74
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/valid_chain.json:generic-api-key:74
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/valid_chain.json:generic-api-key:156
+# synthetic test fixture, added in #1608, allowlisted in #1608, annotated + CI-verified in this PR — NOT a real credential
 tests/test_vectors/valid_chain.json:generic-api-key:238
