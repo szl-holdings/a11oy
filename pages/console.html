@@ -737,7 +737,7 @@ details.raw[open] summary{color:var(--muted);}
     <!-- ── 3 · BUILD ────────────────────────────────────────────────────── -->
     <div class="nav-group mod-build">Build</div>
     <button type="button" class="nav-item" data-view="llm" onclick="go('llm')"><span class="ico">⚇</span>Model Router</button>
-    <button type="button" class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Alloy</button>
+    <button type="button" class="nav-item" data-view="alloy" onclick="go('alloy')"><span class="ico">⚗</span>Open-Weight Mesh</button>
     <button type="button" class="nav-item" data-view="mcp" onclick="go('mcp')"><span class="ico">⚙</span>Agent Tools</button>
     <button type="button" class="nav-item" data-view="knowledge" onclick="go('knowledge')"><span class="ico">⬡</span>Knowledge Ontology</button>
     <button type="button" class="nav-item" data-view="genome" onclick="go('genome')"><span class="ico">⬢</span>Genome</button>
@@ -1503,7 +1503,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       try{const d=await getJSON(API+'/v1/llm/tiers').catch(()=>orgGet('core','/api/a11oy/v1/reason/tiers'));setOut('l-out',d);const tiers=d.tiers||[];setHTML('l-host','');tiers.forEach(t=>addHTML('l-host',`<div class="row"><span class="badge b-teal">T${esc(t.rank??'')}</span><span>${esc(t.id||t.model||'')}</span><span class="spacer mono dim">${esc(t.use||'')}</span></div>`));}catch(e){setHTML('l-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
       try{const r=await getJSON(API+'/v1/router/stats');const routes=r.routes||[];barH('l-bars',routes.map(x=>x.organ+' \u00b7 '+(x.tier||'')),routes.map(x=>x.throughput||0),routes.map(x=>x.license==='GREEN'?TEAL:GOLD));}catch(e){}}},
 
-  alloy:{title:'Open-Weight Alloy',badge:'OPEN MODELS \u00b7 GOVERNED',sub:'a11oy Code\u2019s brains are the strongest OPEN-WEIGHT coding models (DeepSeek-Coder-V2, Qwen2.5-Coder, Llama-3.3), forged together and bound by our proven formulas. The router picks one (provably order-stable, C20) inside a PAC-Bayes min\u2264avg\u2264max envelope (W7-5), wraps it in a calibrated confidence band that never reports 100% (W5-3/W7-4), can take an N-model Byzantine agreement vote (C10-C12), and seals the choice in a signed receipt. Open weights only \u2014 every license is honored; nothing closed is ever claimed; model output is never faked.',
+  alloy:{title:'Open-Weight Mesh',badge:'OPEN MODELS \u00b7 GOVERNED',sub:'a11oy Code\u2019s brains are the strongest OPEN-WEIGHT coding models (DeepSeek-Coder-V2, Qwen2.5-Coder, Llama-3.3), forged together and bound by our proven formulas. The router picks one (provably order-stable, C20) inside a PAC-Bayes min\u2264avg\u2264max envelope (W7-5), wraps it in a calibrated confidence band that never reports 100% (W5-3/W7-4), can take an N-model Byzantine agreement vote (C10-C12), and seals the choice in a signed receipt. Open weights only \u2014 every license is honored; nothing closed is ever claimed; model output is never faked.',
     render:async(c)=>{c.innerHTML=`<div class="card"><div class="card-h"><span class="card-t">Ask the alloy</span><span class="card-ep">governed</span></div>
       <div class="row"><input id="al-task" class="inp" aria-label="task / objective" placeholder="e.g. write a Python function to reverse a string" style="flex:1" value="write a Python function to reverse a string"></div>
       <div class="btns"><button class="btn teal" onclick="alloy_ask()">Route &amp; suggest</button></div>
@@ -5956,7 +5956,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* =============== alloy — Chart.js horizontal bar (model capability) =============== */
-    V.alloy={title:'Open-Weight Alloy',badge:'CHART.JS H-BAR \u00b7 OPEN-MODEL CAPABILITY',sub:'a11oy Code\u2019s open-weight model alloy as a Chart.js horizontal bar: each model ranked by a sovereignty-weighted capability score (open-weight = runnable on local GPU). The router picks one inside a min\u2264avg\u2264max envelope (W7-5); open weights only, every license honored, output never faked. Distinct from the sankey/parallel-coords views.',
+    V.alloy={title:'Open-Weight Mesh',badge:'CHART.JS H-BAR \u00b7 OPEN-MODEL CAPABILITY',sub:'a11oy Code\u2019s open-weight model alloy as a Chart.js horizontal bar: each model ranked by a sovereignty-weighted capability score (open-weight = runnable on local GPU). The router picks one inside a min\u2264avg\u2264max envelope (W7-5); open weights only, every license honored, output never faked. Distinct from the sankey/parallel-coords views.',
       render:async function(c){ c.innerHTML='<div class="kpis">'
         +'<div class="kpi"><div class="k">Models</div><div class="v" id="al-n">\u2014</div></div>'
         +'<div class="kpi"><div class="k">Open-weight</div><div class="v teal" id="al-ow">\u2014</div><div class="d">sovereign-capable</div></div>'
@@ -15957,7 +15957,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     ]],
     ["Build", [
       ["llm","\u2687","Model Router"],
-      ["alloy","\u2697","Open-Weight Alloy"],
+      ["alloy","\u2697","Open-Weight Mesh"],
       ["mcp","\u2699","Agent Tools"],
       ["knowledge","\u2b21","Knowledge Ontology"],
       ["genome","\u2b22","Genome"],
@@ -16551,7 +16551,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     </div>
 
     <section class="inv-hero">
-      <p class="inv-eyebrow">Governed inference</p>
+      <p class="inv-eyebrow">Governed agent change management</p>
       <h1>AI that signs its work<br><span class="accent">and refuses to lie.</span></h1>
       <p>Every AI decision arrives with a signed receipt you can verify yourself. The trust math is a
         machine-checked theorem. When the model is not sure, it refuses rather than guesses. It runs
