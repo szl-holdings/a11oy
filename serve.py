@@ -1996,6 +1996,19 @@ try:
 except Exception as _brainlocal_e:  # pragma: no cover
     print(f"[a11oy] Brain local NOT registered: {_brainlocal_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN CITE (feat/frontier-braincite) — verifiable claim->source citations for brain
+# answers. Runs the SAME honest brain retrieval and binds each candidate claim term to the
+# source node(s) whose title actually contains it: CITED with a real backing node, UNCITED
+# with none (never a fabricated citation). Wall-readable honesty manifest at
+# GET /api/a11oy/v1/brain/braincite/manifest (id segment == surface id => NATIVE-OK);
+# unsigned SHA-256 receipt-on-write, GET mints nothing. Guarded: SPA + API unaffected if absent.
+try:
+    import szl_braincite as _szl_braincite
+    _braincite_status = _szl_braincite.register(app, ns="a11oy")
+    print(f"[a11oy] Brain cite registered: {_braincite_status}", file=__import__("sys").stderr)
+except Exception as _braincite_e:  # pragma: no cover
+    print(f"[a11oy] Brain cite NOT registered: {_braincite_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
 # grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
