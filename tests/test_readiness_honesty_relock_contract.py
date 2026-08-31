@@ -55,23 +55,37 @@ class ReadinessHonestyRelockTests(unittest.TestCase):
   "degraded",
   endpoints["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"],
         )
-        self.assertIn(
+        # router/stats is a live receipt-backed counter surface: it must NOT
+        # admit "modeled" (that would hide a return to synthetic display traffic).
+        self.assertNotIn(
   "modeled",
   endpoints["/api/a11oy/v1/router/stats"]["degradedRules"]["allowLabels"],
         )
 
-    def test_router_schema_matches_the_truthful_modeled_payload(self) -> None:
+    def test_router_schema_matches_the_live_counter_payload(self) -> None:
+        # serve.py:_a11oy_router_stats_payload reads exact process-lifetime
+        # routing-decision counters from szl_llm_registry.router_stats_snapshot
+        # (incremented only with trusted routing-receipt writes). The contract
+        # must require that live implementation, not the retired wall-clock
+        # MODELED display from szl_brain.TIERS.
         schema = MATRIX.SCHEMAS["router_stats"]
-        self.assertEqual(schema["properties"]["state"], {"const": "MODELED"})
-        self.assertEqual(schema["properties"]["mode"], {"const": "modeled"})
+        self.assertEqual(schema["properties"]["state"], {"const": "LIVE"})
+        self.assertEqual(schema["properties"]["mode"], {"const": "live"})
         self.assertEqual(
   schema["properties"]["throughput_state"],
-  {"const": "MODELED"},
+  {"const": "OBSERVED"},
         )
-        self.assertEqual(schema["properties"]["source"], {"const": "szl_brain.TIERS"})
-        self.assertNotIn("routingDecisionsSinceStart", schema["required"])
-        self.assertNotIn("counter_scope", schema["required"])
-        self.assertNotIn("counter_started_at", schema["required"])
+        self.assertEqual(
+  schema["properties"]["counter_scope"],
+  {"const": "process_lifetime"},
+        )
+        self.assertEqual(
+  schema["properties"]["source"],
+  {"const": "szl_llm_registry.router_stats_snapshot"},
+        )
+        self.assertIn("routingDecisionsSinceStart", schema["required"])
+        self.assertIn("counter_scope", schema["required"])
+        self.assertIn("counter_started_at", schema["required"])
 
 
 if __name__ == "__main__":
