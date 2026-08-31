@@ -136,23 +136,11 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
 });
 
 test("router-stats schema requires truthful live process-lifetime counters", () => {
-  const observed = {
-    state: "LIVE",
-    mode: "live",
-    data_kind: "live",
-    catalog_state: "LIVE",
-    throughput_state: "OBSERVED",
-    routes: [{ tier: "T0", model: "alpha", routing_decisions: 0 }],
-    servedThisWindow: 0,
-    routingDecisionsSinceStart: 0,
-    tiers: ["T0"],
-    counter_scope: "process_lifetime",
-    counter_started_at: "2026-08-31T00:00:00Z",
-    observed_at: "2026-08-31T00:00:01Z",
-    source: "szl_llm_registry.router_stats_snapshot",
-    doctrine: "v11",
-    honesty: "Observed process-lifetime routing-decision counters; not QPS, tokens, or inference completions.",
-  };
+  // Base object tracks the current doctrine-v11 contract: full protected
+  // catalog coverage, fresh observation, and the exact honesty const from the
+  // checked-in matrix. A hand-rolled minimal object goes stale silently (see
+  // the pre-#1620 honesty drift) and must not be reintroduced here.
+  const observed = liveRouterStats();
   assert.equal(validateSchema("router_stats", observed).ok, true);
   assert.equal(validateSchema("router_stats", { ...observed, state: "MODELED" }).ok, false);
   assert.equal(validateSchema("router_stats", { ...observed, data_kind: "modeled" }).ok, false);
@@ -162,6 +150,7 @@ test("router-stats schema requires truthful live process-lifetime counters", () 
   assert.equal(validateSchema("router_stats", { ...observed, routes: [] }).ok, false);
   assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: -1 }).ok, false);
   assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: 0.5 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: 2 }).ok, false);
   assert.equal(validateSchema("router_stats", { ...observed, routingDecisionsSinceStart: -1 }).ok, false);
 });
 
