@@ -179,7 +179,12 @@ def validate_candidate_report(
     head_tree: dict[str, str],
     expected_files_compared: int,
 ) -> list[str]:
-    """Bind every candidate drift row to an exact reviewed tree modification."""
+    """Require every comparator-visible source to remain exactly at base parity.
+
+    The pinned comparator retains a guarded compatibility warning for the
+    dot-prefixed security source.  Its bytes are therefore proved separately
+    with ``verify_leading_dot_copy`` before this report is admitted.
+    """
 
     if not isinstance(report, dict):
         raise AdmissionError("candidate comparator report must be an object")
@@ -228,54 +233,27 @@ def validate_candidate_report(
         raise AdmissionError("candidate comparator counters do not match findings")
     if len(findings) != len(warnings) + len(errors):
         raise AdmissionError("candidate comparator contains an untyped finding")
-    if report.get("status") != "drift" or not errors:
+    if errors:
         raise AdmissionError(
-            "security successor comparator must report exact review-bound drift"
+            "security successor comparator reported drift outside the explicit "
+            "dot-prefixed security proof"
         )
-
-    reviewed_paths = {
-        path
-        for path in set(base_tree) | set(head_tree)
-        if base_tree.get(path) != head_tree.get(path)
-    }
-    admitted: list[str] = []
-    for finding in errors:
-        path = finding.get("path")
-        ahead = finding.get("ahead")
-        if (
-            finding.get("kind") != "drift"
-            or not isinstance(path, str)
-            or not isinstance(ahead, str)
-            or ahead not in verifier.CANDIDATE_AHEAD_VALUES
-            or finding.get("lineage_conflict") is not False
-        ):
-            raise AdmissionError(
-                f"unexplained candidate comparator finding: {finding!r}"
-            )
-        if (
-            path not in reviewed_paths
-            or path not in base_tree
-            or path not in head_tree
-        ):
-            raise AdmissionError(
-                f"candidate drift is not an exact reviewed byte modification: {path!r}"
-            )
-        if (
-            finding.get("github_sha") != head_tree[path]
-            or finding.get("hf_oid") != base_tree[path]
-        ):
-            raise AdmissionError(
-                f"candidate drift hashes are not bound to reviewed trees: {path!r}"
-            )
-        admitted.append(path)
-
-    if admitted.count(SECURITY_PATH) != 1:
+    if report.get("status") != "ok":
         raise AdmissionError(
-            "candidate comparator did not bind exactly one security.txt drift row"
+            "security successor comparator must remain clean outside the explicit "
+            "dot-prefixed security proof"
         )
-    if len(admitted) != len(set(admitted)):
-        raise AdmissionError("candidate comparator repeated a drift path")
-    return sorted(admitted)
+    base_security = base_tree.get(SECURITY_PATH)
+    head_security = head_tree.get(SECURITY_PATH)
+    if (
+        not isinstance(base_security, str)
+        or not isinstance(head_security, str)
+        or base_security == head_security
+    ):
+        raise AdmissionError(
+            "security successor trees do not bind one changed dot-prefixed source"
+        )
+    return []
 
 
 def prove_security_successor(
@@ -330,6 +308,12 @@ def prove_security_successor(
     transition = validate_exact_security_transition(base_source, head_source)
 
     hf_ref = verifier.resolve_stable_revision(hf_repo)
+    base_dot_sha256 = verifier.verify_leading_dot_copy(
+        github_repo=github_repo,
+        github_ref=base_ref,
+        hf_repo=hf_repo,
+        hf_ref=hf_ref,
+    )
     with tempfile.TemporaryDirectory() as temporary:
         root = Path(temporary)
         base_report = base_controller.run_strict_comparator(
@@ -361,7 +345,7 @@ def prove_security_successor(
             raise AdmissionError(
                 f"candidate comparator report is unreadable: {exc}"
             ) from exc
-        admitted = validate_candidate_report(
+        comparator_drift_paths = validate_candidate_report(
             candidate_report,
             verifier=verifier,
             github_repo=github_repo,
@@ -373,10 +357,10 @@ def prove_security_successor(
             head_tree=head_tree,
             expected_files_compared=base_report["files_compared"],
         )
-    if candidate_run.returncode != 1:
+    if candidate_run.returncode != 0:
         raise AdmissionError(
             "security successor comparator exit/report mismatch: "
-            f"expected=1 actual={candidate_run.returncode}"
+            f"expected=0 actual={candidate_run.returncode}"
         )
 
     return {
@@ -390,8 +374,14 @@ def prove_security_successor(
         "hf_repo": hf_repo,
         "hf_ref": hf_ref,
         "files_compared": base_report["files_compared"],
+        "base_leading_dot_copy": {
+            "path": SECURITY_PATH,
+            "sha256": base_dot_sha256,
+            "status": "exact",
+        },
         "security_transition": transition,
-        "review_bound_drift_paths": admitted,
+        "comparator_drift_paths": comparator_drift_paths,
+        "review_bound_drift_paths": [SECURITY_PATH],
     }
 
 

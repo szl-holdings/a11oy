@@ -190,17 +190,22 @@ def test_router_stats_gate_still_requires_live_or_cached_evidence() -> None:
     # admitted here; adding it would hide a return to synthetic display traffic.
     assert contract["degradedRules"]["allowLabels"] == ["live", "cached"]
     assert "MODELED" not in contract["degradedRules"]["allowLabels"]
-    assert contract["freshnessSLA"] is None
+    assert contract["freshnessSLA"] == 5 * 60
     assert "routing-decision counters" in contract["note"]
     assert "not QPS" in contract["note"]
     assert schema["properties"]["state"] == {"const": "LIVE"}
     assert schema["properties"]["throughput_state"] == {"const": "OBSERVED"}
+    assert schema["properties"]["counter_state"] == {"const": "OBSERVED"}
     assert schema["properties"]["counter_scope"] == {"const": "process_lifetime"}
     assert schema["properties"]["source"] == {
         "const": "szl_llm_registry.router_stats_snapshot"
     }
     assert schema["requiredPathTypes"]["routes"] == "nonempty_array"
     assert schema["requiredPathTypes"]["servedThisWindow"] == "nonnegative_integer"
+    assert schema["requiredPathTypes"]["routingDecisionsSinceStart"] == "nonnegative_integer"
+    assert schema["requiredPathTypes"]["counter_started_at"] == "process_epoch_timestamp"
+    assert schema["requiredPathTypes"]["observed_at"] == "timestamp"
+    assert schema["semanticContract"]["observationMaxAgeSeconds"] == 5 * 60
 
 
 def test_freshness_sla_fails_closed_for_missing_stale_and_future_clocks() -> None:

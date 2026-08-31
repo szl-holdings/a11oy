@@ -81,6 +81,44 @@ DAY = 86400
 HOUR = 3600
 MIN = 60
 
+# Protected router evidence contract.  This intentionally duplicates only the
+# public route identity (tier + model id), not the mutable provider metadata in
+# szl_llm_registry.MODEL_REGISTRY.  A catalog change therefore requires an
+# explicit, reviewable update to both the runtime registry and this independent
+# readiness boundary; a candidate cannot make an invented route pass merely by
+# echoing it in its response.
+ROUTER_STATS_CATALOG = [
+    {"tier": "T0", "model": "claude_sonnet_4_6"},
+    {"tier": "T1", "model": "gemini_3_1_pro"},
+    {"tier": "T2", "model": "gpt_5_4"},
+    {"tier": "T3", "model": "claude_opus_4_8"},
+    {"tier": "T4", "model": "gpt_5_5"},
+    {"tier": "T5", "model": "sovereign_local"},
+    {"tier": "T5", "model": "szl-sovereign-local"},
+    {"tier": "T1", "model": "perplexity_sonar_pro"},
+    {"tier": "T2", "model": "openrouter_auto"},
+    {"tier": "T2", "model": "mistral_large_2"},
+    {"tier": "T2", "model": "deepseek_v3"},
+    # The assembled server idempotently unifies the open-weight Alloy roster
+    # into the canonical registry before this endpoint is served.
+    {"tier": "T90", "model": "deepseek_coder_v2_instruct"},
+    {"tier": "T90", "model": "deepseek_v2_5"},
+    {"tier": "T90", "model": "qwen2_5_coder_32b_instruct"},
+    {"tier": "T90", "model": "llama_3_3_70b_instruct"},
+    {"tier": "T90", "model": "qwen2_5_coder_14b_instruct"},
+    {"tier": "T90", "model": "qwen2_5_coder_7b_instruct"},
+    {"tier": "T90", "model": "deepseek_coder_6_7b_instruct"},
+    {"tier": "T90", "model": "codestral_22b"},
+    {"tier": "T90", "model": "qwen2_5_coder_1_5b_instruct_gguf"},
+    {"tier": "T90", "model": "qwen2_5_coder_0_5b_instruct_gguf"},
+]
+ROUTER_STATS_HONESTY = (
+    "Live runtime catalog with exact trusted routing-decision counts since "
+    "counter_started_at; process restart resets the counters. Legacy throughput "
+    "and servedThisWindow fields carry those counts, not QPS, tokens, inference "
+    "completions, or traffic outside this process. Zero is a valid observed count."
+)
+
 ENDPOINTS = {
     # ── Core honesty / governance spine ──
     "/api/a11oy/v1/lambda": ep(schema="lambda", sla=None,
@@ -301,16 +339,17 @@ ENDPOINTS = {
             "The canonical label describes source freshness; field-level detail remains explicit."
         ),
     ),
-    # router/stats: the current endpoint is a deterministic modeled display of
-    #   the real tier catalog. It is not production traffic, QPS, tokens,
-    #   completed inference, or an observed routing-decision counter.
+    # router/stats: exact process-lifetime counters updated only by trusted
+    #   routing-receipt writes.  observed_at is a fresh response observation;
+    #   counter_started_at is a durable process epoch and may legitimately be
+    #   older than the response freshness window.
     "/api/a11oy/v1/router/stats": ep(
         schema="router_stats",
-        sla=None,
-        allow_labels=("live", "cached", "modeled"),
+        sla=5 * MIN,
         note=(
-            "Deterministic MODELED tier-display signals from szl_brain.TIERS; "
-            "not production traffic, QPS, tokens, or completed inference."
+            "LIVE runtime catalog plus exact trusted routing-decision counters "
+            "since a declared process epoch; not QPS, tokens, inference "
+            "completions, or external traffic."
         ),
     ),
 
@@ -713,22 +752,43 @@ SCHEMAS = {
     "router_stats": {
         "type": "object",
         "required": [
-            "state", "mode", "catalog_state", "throughput_state",
-            "routes", "servedThisWindow", "tiers", "source", "doctrine", "honesty",
+            "state", "mode", "data_kind", "catalog_state", "throughput_state",
+            "counter_state", "routes", "servedThisWindow",
+            "routingDecisionsSinceStart", "tiers", "counter_scope",
+            "counter_started_at", "observed_at", "source", "catalog_source",
+            "doctrine", "honesty",
         ],
         "properties": {
-            "state": {"const": "MODELED"},
-            "mode": {"const": "modeled"},
+            "state": {"const": "LIVE"},
+            "mode": {"const": "live"},
+            "data_kind": {"const": "live"},
             "catalog_state": {"const": "LIVE"},
-            "throughput_state": {"const": "MODELED"},
-            "source": {"const": "szl_brain.TIERS"},
+            "throughput_state": {"const": "OBSERVED"},
+            "counter_state": {"const": "OBSERVED"},
+            "counter_scope": {"const": "process_lifetime"},
+            "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+            "catalog_source": {"const": "szl_llm_registry.MODEL_REGISTRY"},
             "doctrine": {"const": "v11"},
+            "honesty": {"const": ROUTER_STATS_HONESTY},
         },
         "requiredPathTypes": {
             "routes": "nonempty_array",
             "servedThisWindow": "nonnegative_integer",
+            "routingDecisionsSinceStart": "nonnegative_integer",
             "tiers": "nonempty_array",
+            # This timestamp is an explicitly durable process epoch, not a
+            # freshness clock.  The semantic validator still requires it to be
+            # valid and ordered at or before observed_at.
+            "counter_started_at": "process_epoch_timestamp",
+            "observed_at": "timestamp",
             "honesty": "string",
+        },
+        "semanticContract": {
+            "kind": "router_stats_v1",
+            "catalog": ROUTER_STATS_CATALOG,
+            "honesty": ROUTER_STATS_HONESTY,
+            "observationMaxAgeSeconds": 5 * MIN,
+            "maxFutureSkewSeconds": 5 * MIN,
         },
     },
     "mosaic_governed": {"type": "object",
