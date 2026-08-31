@@ -44,7 +44,6 @@ jobs:
 
             python3 - <<'PY'
           from pathlib import Path
-          import re
 
           path = Path("serve.py")
           text = path.read_text(encoding="utf-8")
@@ -58,10 +57,7 @@ jobs:
           '''
           if text.count(conflict) != 1:
               raise SystemExit("reviewed comment-only conflict was not present exactly once")
-          text = text.replace(conflict, replacement, 1)
-          if re.search(r"(?m)^(?:<<<<<<<(?: .*)?|=======|>>>>>>>(?: .*)?)$", text):
-              raise SystemExit("a line-start Git conflict marker remains in serve.py")
-          path.write_text(text, encoding="utf-8")
+          path.write_text(text.replace(conflict, replacement, 1), encoding="utf-8")
           PY
             git add serve.py
           fi
@@ -71,7 +67,7 @@ jobs:
             git diff --name-status --diff-filter=U
             exit 1
           fi
-          git diff --check
+          git diff --cached --check
 
       - name: Run targeted integration regressions
         shell: bash
