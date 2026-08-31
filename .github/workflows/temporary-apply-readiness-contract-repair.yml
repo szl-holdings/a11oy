@@ -8,6 +8,7 @@ on:
       - .github/workflows/temporary-apply-readiness-contract-repair.yml
       - .github/scripts/temporary_apply_readiness_contract_repair.py
       - .github/scripts/temporary_run_readiness_repair.py
+      - tests/test_readiness_honesty_relock_contract.py
 
 permissions:
   contents: write
