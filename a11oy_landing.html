@@ -943,8 +943,6 @@
       $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
     }catch(e){ $("pt-locked").textContent = "N/A"; }
   }
-  // Compatibility alias: identity-lock surfaces wired to the earlier name.
-  const loadKernelLocked = loadLockedKernel;
   // Genome catalog tag count, rendered in its own slot so it can never be read
   // as the kernel chip.
   function setCatalogNote(n){
