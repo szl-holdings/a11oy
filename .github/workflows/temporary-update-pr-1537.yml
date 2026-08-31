@@ -1,0 +1,43 @@
+name: temporary-update-pr-1537
+
+on:
+  push:
+    branches:
+      - agent/llm-registry-entrypoint-wire-20260830
+    paths:
+      - .github/workflows/temporary-update-pr-1537.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/llm-registry-entrypoint-wire-20260830
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Integrate protected main without guessing conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main
+          set +e
+          git merge --no-ff --no-commit origin/main
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::error::PR 1537 conflicts with protected main; automatic resolution refused"
+            git diff --name-status --diff-filter=U
+            exit 1
+          fi
+          rm .github/workflows/temporary-update-pr-1537.yml
+          git add -A
+          git diff --cached --check
+          git commit -m "chore(runtime): integrate protected main into PR 1537" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:agent/llm-registry-entrypoint-wire-20260830
