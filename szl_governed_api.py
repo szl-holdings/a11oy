@@ -622,7 +622,7 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
         glm = _glm_engine()
         prov = _provider_config()
         return JSONResponse({
-            "product": "a11oy Governed Inference",
+            "product": "a11oy Governed Agent Change Management",
             "governance": _avf is not None and hasattr(_avf, "governed_turn"),
             "mesh": engines,
             "engines_live": sum(1 for e in engines if e["live"]),
@@ -659,14 +659,14 @@ def register(app, ns: str = "a11oy", *, public_pem: str | None = None):  # pragm
         async def _landing(request=None):
             if _os.path.exists(_PAGE):
                 return FileResponse(_PAGE, media_type="text/html")
-            return HTMLResponse("<h1>a11oy Governed Inference</h1><p>showcase asset missing</p>")
+            return HTMLResponse("<h1>a11oy Governed Agent Change Management</h1><p>showcase asset missing</p>")
         async def _front_door(request=None):
             # Investor front door first; fall back to the govern showcase, then a stub.
             if _os.path.exists(_FRONT):
                 return FileResponse(_FRONT, media_type="text/html")
             if _os.path.exists(_PAGE):
                 return FileResponse(_PAGE, media_type="text/html")
-            return HTMLResponse("<h1>a11oy Governed Inference</h1><p>front-door asset missing</p>")
+            return HTMLResponse("<h1>a11oy Governed Agent Change Management</h1><p>front-door asset missing</p>")
     except Exception:
         _landing = None
 
@@ -750,5 +750,5 @@ def mount(app):  # pragma: no cover
 
 if __name__ == "__main__":
     import sys
-    p = " ".join(sys.argv[1:]) or "Summarize the doctrine of governed inference in two sentences."
+    p = " ".join(sys.argv[1:]) or "Summarize the doctrine of governed agent change management in two sentences."
     print(json.dumps(govern_infer(p), indent=2, default=str))
