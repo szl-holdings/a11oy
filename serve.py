@@ -2020,6 +2020,18 @@ try:
 except Exception as _braineval_e:  # pragma: no cover
     print(f"[a11oy] Brain eval NOT registered: {_braineval_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN SERVE (feat/wire-served-model) — governed bridge to the estate's own served
+# SZL-Khipu brain model via the committed inference Space. MEASURED only when the model
+# answers THIS request, else UNAVAILABLE; propagates unsigned/receipt caveats verbatim.
+# Trains nothing. Wall-readable manifest at GET /api/a11oy/v1/brain/brainserve/manifest;
+# unsigned SHA-256 receipt-on-write. Guarded.
+try:
+    import szl_brainserve as _szl_brainserve
+    _brainserve_status = _szl_brainserve.register(app, ns="a11oy")
+    print(f"[a11oy] Brain serve registered: {_brainserve_status}", file=__import__("sys").stderr)
+except Exception as _brainserve_e:  # pragma: no cover
+    print(f"[a11oy] Brain serve NOT registered: {_brainserve_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
 # grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
