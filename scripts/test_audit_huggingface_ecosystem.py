@@ -247,6 +247,51 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             fixtures["models"].append(item("SZLHOLDINGS/new-model"))
             self.assertEqual(self.run_check(output)[0], 1)
 
+    def test_check_rejects_deleted_historical_revision(self) -> None:
+        fixtures = {
+            "models": [],
+            "datasets": [],
+            "spaces": [item("SZLHOLDINGS/recreated-space")],
+        }
+        audit.api_items = lambda kind: fixtures[kind]
+        manifest = audit.build_manifest(
+            observed_at="2026-07-26T00:00:00Z"
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "manifest.json"
+            output.write_text(
+                json.dumps(manifest, indent=2) + "\n",
+                encoding="utf-8",
+            )
+            fixtures["spaces"][0]["sha"] = "b" * 40
+            fixtures["spaces"][0][
+                "lastModified"
+            ] = "2026-07-26T00:30:00Z"
+
+            def missing_revision(
+                item_id: str,
+                repo_type: str,
+                revision: str,
+            ) -> dict:
+                raise audit.urllib.error.HTTPError(
+                    (
+                        f"https://huggingface.co/api/{repo_type}s/"
+                        f"{item_id}/revision/{revision}"
+                    ),
+                    404,
+                    "Not Found",
+                    {},
+                    None,
+                )
+
+            audit.fetch_revision = missing_revision
+            result, message = self.run_check(output)
+            self.assertEqual(result, 1)
+            self.assertIn("historical revision", message)
+            self.assertIn("is not verifiable", message)
+            self.assertIn("HTTP Error 404", message)
+
     def test_check_rejects_card_only_semantic_drift(self) -> None:
         fixtures = {
             "models": [item("SZLHOLDINGS/model")],
