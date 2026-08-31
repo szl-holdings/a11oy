@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-08-31T04:37:56Z",
+  "observedAt": "2026-08-31T22:31:00Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -28,7 +28,7 @@
     "huggingFacePublic": {
       "models": 44,
       "datasets": 30,
-      "spaces": 46
+      "spaces": 34
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1526,9 +1526,7 @@
       "repoType": "space",
       "stage": "inventory",
       "private": false,
-      "unsafeFlags": [
-        "stale-product-name-review"
-      ],
+      "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/a11oy-factory"
       ]
@@ -1564,16 +1562,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/counsel",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/counsel"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/david-leads",
       "repoType": "space",
       "stage": "inventory",
@@ -1584,16 +1572,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/energy-attest-holo",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/energy-attest-holo"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/energy-attested-runs",
       "repoType": "space",
       "stage": "inventory",
@@ -1601,16 +1579,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/evidence-studio",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/evidence-studio"
       ]
     },
     {
@@ -1674,16 +1642,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/holographic",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/holographic"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/immune",
       "repoType": "space",
       "stage": "inventory",
@@ -1691,26 +1649,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/immune"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/immune-lattice",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/immune-lattice"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/khipu-lab",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/khipu-lab"
       ]
     },
     {
@@ -1744,28 +1682,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/lyte-services",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [
-        "stale-product-name-review"
-      ],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/lyte-services"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/nexus",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/nexus"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/prove-it",
       "repoType": "space",
       "stage": "inventory",
@@ -1773,16 +1689,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/prove-it"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/receipt-chain-live",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/receipt-chain-live"
       ]
     },
     {
@@ -1813,16 +1719,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-blocked-live",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-blocked-live"
       ]
     },
     {
@@ -1916,16 +1812,6 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/szl-provctl-live",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-provctl-live"
-      ]
-    },
-    {
       "id": "SZLHOLDINGS/szl-quant-live",
       "repoType": "space",
       "stage": "inventory",
@@ -1933,16 +1819,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-quant-live"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/szl-real-estate",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/szl-real-estate"
       ]
     },
     {
