@@ -1,7 +1,7 @@
 {
   "_doctrine": "The monorepo szl-holdings/platform is the explicit source of truth for every file listed here. Edit there, never here. scripts/sync_from_monorepo.sh check verifies byte-fidelity against the pin; sync refreshes and applies attribution headers. STATUS.md open action.",
   "monorepo": "szl-holdings/platform",
-  "pin": "de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b",
+  "pin": "880fda4f67fd2bbdc3507dce6d81fb782ca64c4c",
   "files": {
     ".devcontainer/devcontainer.json": {
       "source": ".devcontainer/devcontainer.json",
@@ -18,10 +18,6 @@
     ".github/CODEOWNERS": {
       "source": ".github/CODEOWNERS",
       "header": false
-    },
-    ".github/workflows/pin-check.yml": {
-      "source": ".github/workflows/pin-check.yml",
-      "header": true
     },
     "SECURITY.md": {
       "source": "SECURITY.md",
@@ -525,10 +521,6 @@
     },
     "runtime/ouroboros/src/types.ts": {
       "source": "packages/unified-kernel/src/loop/vendor_ouroboros/types.ts",
-      "header": true
-    },
-    "scripts/qa/check-dco-workflow.py": {
-      "source": "scripts/qa/check-dco-workflow.py",
       "header": true
     },
     "spaces/immune/.gitattributes": {

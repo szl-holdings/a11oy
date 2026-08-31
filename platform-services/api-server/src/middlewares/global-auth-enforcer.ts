@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — artifacts/api-server/src/middlewares/global-auth-enforcer.ts
+// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — artifacts/api-server/src/middlewares/global-auth-enforcer.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /**
  * Global Auth Enforcer (Deny-by-default)

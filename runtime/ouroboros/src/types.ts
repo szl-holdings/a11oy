@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — packages/unified-kernel/src/loop/vendor_ouroboros/types.ts
+// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — packages/unified-kernel/src/loop/vendor_ouroboros/types.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /**
  * Ouroboros — bounded loops with measurable convergence.
