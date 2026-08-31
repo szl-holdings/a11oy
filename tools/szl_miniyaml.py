@@ -14,7 +14,7 @@ Subset rules (emitter guarantees, parser requires):
   - Strings are emitted bare only when unambiguous (alphanumeric start, no
     ": " or " #" sequences, not a reserved word, not numeric-looking);
     otherwise they are JSON double-quoted on one line.
-  - Full-line comments (leading `#`) and blank lines are ignored by the
+  - Full-line comments (those starting with `#`) and blank lines are ignored by the
     parser; the emitter never produces them.
 
 This module is deterministic: dumping the same object yields the same text,

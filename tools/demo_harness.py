@@ -248,10 +248,10 @@ def run_demo(
         run_demo.log_path = Path(tmpdir) / "flight.a11yfr"
         recorder = SegmentedFlightRecorder(run_demo.log_path)
         ack_rcpt = recorder.append(
-            {"receipt": full_receipt.receipt_id}, idempotency_key="idem-rcpt-0042"
+            {"receipt": full_receipt.receipt_id}, idempotency_key="idem-rcpt-0042"  # gitleaks:allow — demo idempotency token, not a credential
         )
         ack_patch = recorder.append(
-            {"patch": "applied-by-bot"}, idempotency_key="idem-patch-0042"
+            {"patch": "applied-by-bot"}, idempotency_key="idem-patch-0042"  # gitleaks:allow — demo idempotency token, not a credential
         )
         assert ack_rcpt.durability == "LOCAL" and ack_rcpt.sync_state == "PENDING_SYNC"
         assert ack_patch.seq == ack_rcpt.seq + 1
