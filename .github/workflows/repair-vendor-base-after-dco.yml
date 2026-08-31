@@ -59,13 +59,25 @@ jobs:
           path.write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
           PY
 
-      - name: Refresh vendored files at immutable platform pin
+      - name: Refresh only the proven vendored data drift
         env:
           GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
           bash scripts/sync_from_monorepo.sh sync --strict-headers
+
+          # These files were already byte-correct and carried valid canonical
+          # attribution headers with abbreviated immutable pins. The sync command
+          # rewrites those accepted headers to the full pin, which is unrelated to
+          # this repair. Restore them so the PR remains exactly bounded.
+          git checkout -- \
+            static/vendor3d/OrbitControls.js \
+            static/vendor3d/THREE_LICENSE.txt \
+            szl_chain_of_title.py \
+            szl_khipu_lmdb.py \
+            szl_unified_formulas.py
+
           bash scripts/sync_from_monorepo.sh check --strict-headers
           git diff --check
 
