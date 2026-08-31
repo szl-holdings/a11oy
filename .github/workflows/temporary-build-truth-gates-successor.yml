@@ -1,0 +1,127 @@
+name: temporary-build-truth-gates-successor
+
+on:
+  push:
+    branches:
+      - fix/truth-gates-current-main-20260830-v2
+    paths:
+      - .github/workflows/temporary-build-truth-gates-successor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/truth-gates-current-main-20260830-v2
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Prove additive path contract and transplant onto current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main feat/truth-gates-round10
+          merge_base="$(git merge-base origin/main origin/feat/truth-gates-round10)"
+          git diff --name-status "${merge_base}..origin/feat/truth-gates-round10" > /tmp/truth-paths.tsv
+          git diff --unified=0 "${merge_base}..origin/feat/truth-gates-round10" -- README.md > /tmp/truth-readme.patch
+          python - <<'PY'
+          from __future__ import annotations
+          import pathlib
+
+          allowed_exact = {
+              '.github/workflows/truth-gates.yml',
+              'COMMERCIAL_LEDGER.yaml',
+              'claims-ledger.yaml',
+              'predicate.schema.json',
+              'docs/RUNBOOK_WEEK1.md',
+              'docs/positioning/AUTO_REVIEW_DELTA.md',
+              'evidence/conformance/eu-ai-act-article-12.v1.yaml',
+              'tests/test_slice.py',
+          }
+          allowed_prefixes = ('tools/', 'src/a11oy/')
+          entries = []
+          for raw in pathlib.Path('/tmp/truth-paths.tsv').read_text(encoding='utf-8').splitlines():
+              if not raw.strip():
+                  continue
+              status, path = raw.split('\t', 1)
+              if path.startswith('.github/workflows/temporary-') or path.startswith('.ci-'):
+                  continue
+              entries.append((status, path))
+          if not entries:
+              raise SystemExit('truth-gates source diff is empty')
+          seen = {path for _, path in entries}
+          if 'README.md' not in seen:
+              raise SystemExit('reviewed README truth-gates append is missing')
+          for status, path in entries:
+              if path == 'README.md':
+                  if status != 'M':
+                      raise SystemExit(f'README must be modified, observed {status}')
+                  continue
+              if status != 'A':
+                  raise SystemExit(f'non-README truth-gate path is not additive: {status} {path}')
+              if path not in allowed_exact and not path.startswith(allowed_prefixes):
+                  raise SystemExit(f'unreviewed truth-gate path: {path}')
+          pathlib.Path('/tmp/truth-added-paths').write_text(
+              '\n'.join(path for status, path in entries if path != 'README.md') + '\n',
+              encoding='utf-8',
+          )
+          print(f'validated {len(entries)} reviewed truth-gate paths')
+          PY
+          git reset --hard origin/main
+          mapfile -t added_paths < /tmp/truth-added-paths
+          git checkout origin/feat/truth-gates-round10 -- "${added_paths[@]}"
+          python - <<'PY'
+          from __future__ import annotations
+          import pathlib
+
+          patch = pathlib.Path('/tmp/truth-readme.patch').read_text(encoding='utf-8').splitlines()
+          additions = []
+          deletions = []
+          for line in patch:
+              if line.startswith('+++') or line.startswith('---') or line.startswith('@@'):
+                  continue
+              if line.startswith('+'):
+                  additions.append(line[1:])
+              elif line.startswith('-'):
+                  deletions.append(line[1:])
+          if deletions:
+              raise SystemExit('reviewed README delta contains deletions; refusing transplant')
+          section = '\n'.join(additions).strip('\n')
+          if section.count('## Truth gates') != 1:
+              raise SystemExit('README delta must contain exactly one Truth gates heading')
+          readme_path = pathlib.Path('README.md')
+          current = readme_path.read_text(encoding='utf-8')
+          if '## Truth gates' in current:
+              raise SystemExit('current main already contains a Truth gates section')
+          readme_path.write_text(current.rstrip() + '\n\n' + section + '\n', encoding='utf-8')
+          PY
+          test ! -e .github/workflows/temporary-build-truth-gates-successor.yml
+          git add -A
+          git diff --cached --check
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m py_compile tools/*.py
+          find src/a11oy -name '*.py' -print0 | xargs -0 python -m py_compile
+          python tools/demo_harness.py --root . --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
+          python -m unittest tests.test_slice -v
+          python scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+          python - <<'PY'
+          import pathlib
+          import yaml
+          for path in (
+              'COMMERCIAL_LEDGER.yaml',
+              'claims-ledger.yaml',
+              'evidence/conformance/eu-ai-act-article-12.v1.yaml',
+              '.github/workflows/truth-gates.yml',
+          ):
+              data = yaml.safe_load(pathlib.Path(path).read_text(encoding='utf-8'))
+              if data is None:
+                  raise SystemExit(f'{path} parsed to an empty document')
+          PY
+          git commit -m "feat(governance): add round-10 truth gates and governed slice" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push --force-with-lease origin HEAD:fix/truth-gates-current-main-20260830-v2
