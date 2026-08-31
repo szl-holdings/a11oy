@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — .github/workflows/pin-check.yml
+# VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — .github/workflows/pin-check.yml
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 name: Pin Check
 
@@ -19,4 +19,4 @@ permissions:
 
 jobs:
   pin-check:
-    uses: szl-holdings/.github/.github/workflows/pin-check-reusable.yml@1bbd857634a87d3a824be86ec7a79aaa8e4937e8
+    uses: szl-holdings/.github/.github/workflows/pin-check-reusable.yml@932817603e46212f4226347c95aeb0cc55ec58cb

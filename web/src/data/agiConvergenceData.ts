@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — artifacts/a11oy/src/data/agiConvergenceData.ts
+// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — artifacts/a11oy/src/data/agiConvergenceData.ts
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 export interface AbsorbedCapability {
   source: string;
@@ -195,8 +195,8 @@ export const ECOSYSTEM_ORGS: EcosystemOrg[] = [
       'OpenAI-compatible API — drop-in serving',
       'Multi-GPU distributed serving',
     ],
-    a11oyAbsorption: 'vLLM Recipes → A11oy Governed Inference Recipes (model + task + domain + Covenant policy + Proof Chain — composable governance-first configurations)',
-    a11oyPrimitive: 'Governed Inference Recipes',
+    a11oyAbsorption: 'vLLM Recipes → A11oy Governed Agent Change Management (model + task + domain + Covenant policy + Proof Chain — composable governance-first configurations)',
+    a11oyPrimitive: 'Governed Agent Change Management',
     status: 'surpassed',
   },
 ];
@@ -311,7 +311,7 @@ export const COMPETITORS: CompetitorProfile[] = [
     repos: 8,
     keyStrength: 'PagedAttention + continuous batching + OpenAI-compatible serving + recipes',
     absorbed: [
-      'vLLM recipes — model config templates → a11oy Governed Inference Recipes (with Covenant + Proof Chain)',
+      'vLLM recipes — model config templates → a11oy Governed Agent Change Management (with Covenant + Proof Chain)',
       'PagedAttention — GPU memory efficiency → a11oy Model Router (efficiency-aware routing)',
       'Continuous batching — throughput → a11oy Inference Layer (governed throughput)',
       'OpenAI-compatible API — drop-in serving → a11oy governed serving layer',
@@ -351,7 +351,7 @@ export const ABSORBED_REPOS: AbsorbedCapability[] = [
   { source: 'Meta', repo: 'meta-llama/llama-stack', stars: '14k', capability: 'Agentic application platform', a11oyEquivalent: 'a11oy supports Llama via Model Router — governed', governed: true, status: 'absorbed' },
   { source: 'Meta', repo: 'meta-llama/llama-agentic-system', stars: '8k', capability: 'E2E agent framework', a11oyEquivalent: 'a11oy Agent Mesh — governed superset', governed: true, status: 'surpassed' },
   { source: 'Meta', repo: 'meta-llama/llama', stars: '73k', capability: 'Open model weights', a11oyEquivalent: 'a11oy Model Router — routes to Llama + 5 other providers', governed: true, status: 'absorbed' },
-  { source: 'vLLM', repo: 'vllm-project/vllm', stars: '42k', capability: 'High-throughput LLM serving + recipes', a11oyEquivalent: 'a11oy Governed Inference Recipes — model + task + domain + Covenant + Proof Chain', governed: true, status: 'surpassed' },
+  { source: 'vLLM', repo: 'vllm-project/vllm', stars: '42k', capability: 'High-throughput LLM serving + recipes', a11oyEquivalent: 'a11oy Governed Agent Change Management — model + task + domain + Covenant + Proof Chain', governed: true, status: 'surpassed' },
 ];
 
 export const A11OY_UNIQUE = [

@@ -1,4 +1,4 @@
-<!-- VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — .agents/skills/pre-flight-thinking/SKILL.md -->
+<!-- VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — .agents/skills/pre-flight-thinking/SKILL.md -->
 <!-- DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync. -->
 ---
 name: pre-flight-thinking

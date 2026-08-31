@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@c11291e09702c86f3f8995fffcae6167155c7240 — replit-sync/szl_chain_of_title.py
+# VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — replit-sync/szl_chain_of_title.py
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 """szl_chain_of_title.py — SZL "L6" unified chain-of-title receipt assembler.
 

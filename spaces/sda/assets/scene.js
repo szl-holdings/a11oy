@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — replit-sync/hf_spaces/hf_sda_space/assets/scene.js
+// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — replit-sync/hf_spaces/hf_sda_space/assets/scene.js
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 /* ============================================================================
  * SZL SDA — scene.js  (ES module, three.js MIT vendored locally)

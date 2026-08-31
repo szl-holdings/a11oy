@@ -1,4 +1,4 @@
-# VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — replit-sync/hf_energy_space/assets/THREE_LICENSE.txt
+# VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — replit-sync/hf_energy_space/assets/THREE_LICENSE.txt
 # DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 The MIT License
 

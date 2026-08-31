@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — artifacts/sentra/src/pages/digital-twin.tsx
+// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — artifacts/sentra/src/pages/digital-twin.tsx
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { useStandardMutation, useStandardQuery } from '@szl-holdings/api-client-react';
 import { toast } from '@szl-holdings/shared-ui/ui/sonner';

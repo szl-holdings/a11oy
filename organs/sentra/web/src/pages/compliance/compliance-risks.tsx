@@ -1,4 +1,4 @@
-// VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — artifacts/sentra/src/pages/compliance/compliance-risks.tsx
+// VENDORED FROM szl-holdings/platform@880fda4f67fd2bbdc3507dce6d81fb782ca64c4c — artifacts/sentra/src/pages/compliance/compliance-risks.tsx
 // DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
 import { motion } from 'framer-motion';
 import { AlertTriangle, CheckCircle2, Info, ShieldAlert } from 'lucide-react';
