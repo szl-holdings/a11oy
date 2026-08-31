@@ -1,0 +1,308 @@
+name: temporary-build-brainlocal-successor
+
+on:
+  push:
+    branches:
+      - fix/brainlocal-current-main-20260830-v2
+    paths:
+      - .github/workflows/temporary-build-brainlocal-successor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/brainlocal-current-main-20260830-v2
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Wait for Brain Retro current-main successor
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 75); do
+            merged_at="$(gh api repos/szl-holdings/a11oy/pulls/1543 --jq '.merged_at // empty' 2>/dev/null || true)"
+            if [ -n "$merged_at" ]; then
+              echo "Brain Retro successor merged at $merged_at"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::Brain Retro successor #1543 did not merge within the bounded wait."
+          exit 1
+      - name: Rebuild Brain Local on current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main feat/frontier-brainlocal
+          merge_base="$(git merge-base origin/main origin/feat/frontier-brainlocal)"
+          mapfile -t candidates < <(git rev-list --reverse --no-merges "${merge_base}..origin/feat/frontier-brainlocal")
+          selected=()
+          for commit in "${candidates[@]}"; do
+            if git diff-tree --no-commit-id --name-only -r "$commit" | grep -Eq '^(szl_brainlocal\.py|tests/test_brainlocal\.py|static/3d/surfaces/brainlocal\.js)$'; then
+              selected+=("$commit")
+            fi
+          done
+          if [ "${#selected[@]}" -lt 1 ]; then
+            echo "::error::No Brain Local feature commits were identified; refusing to guess."
+            exit 1
+          fi
+          printf 'Selected Brain Local commits:\n%s\n' "${selected[*]}"
+          git reset --hard origin/main
+
+          cat > /tmp/resolve_brain_feature.py <<'PY'
+          from __future__ import annotations
+          import pathlib
+          import re
+          import shlex
+          import subprocess
+          import sys
+          import tempfile
+
+          module = sys.argv[1]
+          conflicts = sys.argv[2:]
+          union_allowed = {
+              'serve.py',
+              'szl3d_holographic.py',
+              'static/3d/holographic.html',
+          }
+          ours_allowed = {'tests/test_dockerfile_layer_budget.py'}
+          allowed = union_allowed | ours_allowed | {'Dockerfile'}
+          unexpected = sorted(set(conflicts) - allowed)
+          if unexpected:
+              raise SystemExit(f'unexpected conflict(s), refusing automatic resolution: {unexpected}')
+
+          def stage(number: int, path: str) -> str:
+              return subprocess.check_output(['git', 'show', f':{number}:{path}'], text=True)
+
+          def write_union(path: str) -> None:
+              with tempfile.TemporaryDirectory() as td:
+                  root = pathlib.Path(td)
+                  ours = root / 'ours'
+                  base = root / 'base'
+                  theirs = root / 'theirs'
+                  ours.write_text(stage(2, path), encoding='utf-8')
+                  base.write_text(stage(1, path), encoding='utf-8')
+                  theirs.write_text(stage(3, path), encoding='utf-8')
+                  result = subprocess.run(
+                      ['git', 'merge-file', '--union', '-p', str(ours), str(base), str(theirs)],
+                      check=True,
+                      capture_output=True,
+                      text=True,
+                  ).stdout
+              pathlib.Path(path).write_text(result, encoding='utf-8')
+
+          def logical_instructions(text: str):
+              lines = text.splitlines(keepends=True)
+              out = []
+              offset = 0
+              start = 0
+              buf = ''
+              for line in lines:
+                  if not buf:
+                      start = offset
+                  buf += line
+                  offset += len(line)
+                  if line.rstrip().endswith('\\'):
+                      continue
+                  out.append((start, offset, buf))
+                  buf = ''
+              if buf:
+                  out.append((start, offset, buf))
+              return out
+
+          def copy_parts(instruction: str):
+              clean = re.sub(r'\\\s*\n', ' ', instruction)
+              try:
+                  tokens = shlex.split(clean, comments=False, posix=True)
+              except ValueError:
+                  return None
+              if not tokens or tokens[0].upper() != 'COPY':
+                  return None
+              index = 1
+              while index < len(tokens) and tokens[index].startswith('--'):
+                  index += 1
+              if len(tokens) - index < 2:
+                  return None
+              return tokens[index:-1], tokens[-1]
+
+          def resolve_dockerfile() -> None:
+              base = stage(1, 'Dockerfile')
+              ours = stage(2, 'Dockerfile')
+              theirs = stage(3, 'Dockerfile')
+              target = None
+              for item in logical_instructions(theirs):
+                  parts = copy_parts(item[2])
+                  if parts and module in parts[0]:
+                      target = (item, parts)
+                      break
+              if target is None:
+                  raise SystemExit(f'{module} was not added by the conflicting Dockerfile change')
+              _, (their_sources, destination) = target
+              base_candidates = []
+              for item in logical_instructions(base):
+                  parts = copy_parts(item[2])
+                  if parts and parts[1] == destination:
+                      overlap = len(set(parts[0]) & set(their_sources))
+                      base_candidates.append((overlap, item, parts))
+              if not base_candidates:
+                  raise SystemExit('no matching base COPY instruction')
+              ours_candidates = []
+              for item in logical_instructions(ours):
+                  parts = copy_parts(item[2])
+                  if parts and parts[1] == destination:
+                      overlap = len(set(parts[0]) & set(their_sources))
+                      ours_candidates.append((overlap, item, parts))
+              if not ours_candidates:
+                  raise SystemExit('no matching current-main COPY instruction')
+              _, (start, end, instruction), (ours_sources, _) = max(ours_candidates, key=lambda row: row[0])
+              if module in ours_sources:
+                  pathlib.Path('Dockerfile').write_text(ours, encoding='utf-8')
+                  return
+              position = instruction.rfind(destination)
+              if position < 0:
+                  raise SystemExit('COPY destination text not found')
+              updated_instruction = instruction[:position] + module + ' ' + instruction[position:]
+              pathlib.Path('Dockerfile').write_text(
+                  ours[:start] + updated_instruction + ours[end:], encoding='utf-8'
+              )
+
+          for path in conflicts:
+              if path in union_allowed:
+                  write_union(path)
+              elif path in ours_allowed:
+                  pathlib.Path(path).write_text(stage(2, path), encoding='utf-8')
+              elif path == 'Dockerfile':
+                  resolve_dockerfile()
+          PY
+
+          for commit in "${selected[@]}"; do
+            set +e
+            git cherry-pick -x "$commit"
+            rc=$?
+            set -e
+            if [ "$rc" -ne 0 ]; then
+              mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+              if [ "${#conflicts[@]}" -eq 0 ]; then
+                echo "::error::Cherry-pick $commit failed without a resolvable conflict set."
+                exit 1
+              fi
+              python /tmp/resolve_brain_feature.py szl_brainlocal.py "${conflicts[@]}"
+              git add "${conflicts[@]}"
+              git diff --cached --check
+              git cherry-pick --continue
+            fi
+          done
+
+          cat > /tmp/relock_copy_guard.py <<'PY'
+          from __future__ import annotations
+          import ast
+          import copy
+          import importlib.util
+          import pathlib
+          import re
+
+          path = pathlib.Path('tests/test_dockerfile_layer_budget.py')
+          source = path.read_text(encoding='utf-8')
+          tree = ast.parse(source, filename=str(path))
+
+          class Captured(AssertionError):
+              pass
+
+          class Rewrite(ast.NodeTransformer):
+              def visit_Assert(self, node: ast.Assert):
+                  self.generic_visit(node)
+                  test = node.test
+                  constant = None
+                  actual = None
+                  expected = None
+                  if isinstance(test, ast.Compare) and len(test.ops) == 1 and isinstance(test.ops[0], ast.Eq) and len(test.comparators) == 1:
+                      left, right = test.left, test.comparators[0]
+                      if isinstance(right, ast.Name) and right.id in {'COPY_SOURCE_ALLOWLIST_COUNT', 'COPY_SOURCE_ALLOWLIST_SHA256'}:
+                          constant, actual, expected = right.id, left, right
+                      elif isinstance(left, ast.Name) and left.id in {'COPY_SOURCE_ALLOWLIST_COUNT', 'COPY_SOURCE_ALLOWLIST_SHA256'}:
+                          constant, actual, expected = left.id, right, left
+                  if constant is None:
+                      return node
+                  replacement = ast.If(
+                      test=ast.UnaryOp(op=ast.Not(), operand=copy.deepcopy(test)),
+                      body=[ast.Raise(
+                          exc=ast.Call(
+                              func=ast.Name(id='_Captured', ctx=ast.Load()),
+                              args=[ast.Constant(constant), copy.deepcopy(actual), copy.deepcopy(expected)],
+                              keywords=[],
+                          ),
+                          cause=None,
+                      )],
+                      orelse=[],
+                  )
+                  return ast.copy_location(replacement, node)
+
+          transformed = Rewrite().visit(tree)
+          ast.fix_missing_locations(transformed)
+          namespace = {'_Captured': Captured}
+          exec(compile(transformed, str(path), 'exec'), namespace)
+          test = namespace['test_layer_batching_keeps_the_explicit_source_allowlist']
+          observed = {}
+          for _ in range(4):
+              try:
+                  test()
+                  break
+              except Captured as exc:
+                  name, actual, _expected = exc.args
+                  observed[name] = actual
+                  namespace[name] = actual
+          else:
+              raise SystemExit('copy allowlist guard did not converge')
+          if set(observed) != {'COPY_SOURCE_ALLOWLIST_COUNT', 'COPY_SOURCE_ALLOWLIST_SHA256'}:
+              raise SystemExit(f'did not observe both copy guard pins: {observed}')
+          count = observed['COPY_SOURCE_ALLOWLIST_COUNT']
+          digest = observed['COPY_SOURCE_ALLOWLIST_SHA256']
+          if not isinstance(count, int) or count < 1:
+              raise SystemExit(f'invalid observed COPY source count: {count!r}')
+          if not isinstance(digest, str) or not re.fullmatch(r'[0-9a-f]{64}', digest):
+              raise SystemExit(f'invalid observed COPY source digest: {digest!r}')
+          source, n_count = re.subn(
+              r'(?m)^(COPY_SOURCE_ALLOWLIST_COUNT(?:\s*:\s*[^=]+)?\s*=\s*)\d+\s*$',
+              rf'\g<1>{count}', source, count=1,
+          )
+          source, n_digest = re.subn(
+              r'(?m)^(COPY_SOURCE_ALLOWLIST_SHA256(?:\s*:\s*[^=]+)?\s*=\s*)["\'][0-9a-f]{64}["\']\s*$',
+              rf'\g<1>"{digest}"', source, count=1,
+          )
+          if n_count != 1 or n_digest != 1:
+              raise SystemExit('copy guard constants were not replaced exactly once')
+          path.write_text(source, encoding='utf-8')
+          spec = importlib.util.spec_from_file_location('copy_guard_verify', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(module)
+          module.test_layer_batching_keeps_the_explicit_source_allowlist()
+          print(f'relocked COPY allowlist: count={count} sha256={digest}')
+          PY
+          python /tmp/relock_copy_guard.py
+          git add -A
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m "test(container): relock COPY source allowlist for Brain Local" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          fi
+          test ! -e .github/workflows/temporary-build-brainlocal-successor.yml
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest -q \
+            tests/test_brainlocal.py \
+            tests/test_dockerfile_layer_budget.py \
+            tests/test_copy_completeness_transitive.py \
+            tests/test_identity_lock.py \
+            tests/test_demo_critical_routes.py
+          python scripts/check_manifest_coverage.py
+          python scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+          python -m py_compile serve.py szl3d_holographic.py szl_brainlocal.py
+          git push --force-with-lease origin HEAD:fix/brainlocal-current-main-20260830-v2
