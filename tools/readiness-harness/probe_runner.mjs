@@ -414,6 +414,115 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
   };
 }
 
+const STRICT_UTC_TIMESTAMP =
+  /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,6}))?Z$/;
+
+function parseStrictUtcTimestamp(value) {
+  if (typeof value !== "string") return null;
+  const match = STRICT_UTC_TIMESTAMP.exec(value);
+  if (!match) return null;
+  const [, year, month, day, hour, minute, second, fraction = ""] = match;
+  const milliseconds = Number((fraction + "000").slice(0, 3));
+  const date = new Date(Date.UTC(
+    Number(year), Number(month) - 1, Number(day), Number(hour), Number(minute),
+    Number(second), milliseconds,
+  ));
+  if (
+    Number.isNaN(date.getTime())
+    || date.getUTCFullYear() !== Number(year)
+    || date.getUTCMonth() !== Number(month) - 1
+    || date.getUTCDate() !== Number(day)
+    || date.getUTCHours() !== Number(hour)
+    || date.getUTCMinutes() !== Number(minute)
+    || date.getUTCSeconds() !== Number(second)
+  ) return null;
+  return date;
+}
+
+function validateRouterStatsSemantic(body, contract, nowMs = Date.now()) {
+  const fail = (why) => ({ ok: false, why });
+  if (contract?.kind !== "router_stats_v1") {
+    return fail("router semantic contract is missing or unknown");
+  }
+  const expected = contract.catalog;
+  if (!Array.isArray(expected) || expected.length === 0) {
+    return fail("protected router catalog is empty");
+  }
+  if (!Array.isArray(body?.routes) || body.routes.length !== expected.length) {
+    return fail("runtime routes do not exactly cover the protected catalog");
+  }
+  if (body.honesty !== contract.honesty) {
+    return fail("router honesty statement is not bound to the protected contract");
+  }
+
+  const organForTier = new Map([
+    [0, "Reasoning"], [1, "Reasoning"], [2, "a11oy"], [3, "Operator"],
+    [4, "Policy / Safety"], [5, "Knowledge"], [6, "a11oy"],
+  ]);
+  let routeTotal = 0;
+  for (let index = 0; index < expected.length; index += 1) {
+    const identity = expected[index];
+    const route = body.routes[index];
+    if (
+      route === null || typeof route !== "object" || Array.isArray(route)
+      || route.tier !== identity.tier || route.model !== identity.model
+    ) return fail(`route ${index} does not match protected catalog identity`);
+    const tierMatch = /^T(\d+)$/.exec(route.tier);
+    if (!tierMatch) return fail(`route ${index} has an invalid tier identity`);
+    const tier = Number(tierMatch[1]);
+    const expectedOrgan = organForTier.get(tier) ?? "a11oy";
+    const expectedLicense = tier >= 2 ? "AMBER" : "GREEN";
+    if (
+      route.catalog_member !== true
+      || route.organ !== expectedOrgan
+      || route.license !== expectedLicense
+      || route.throughput_unit !== "routing_decisions_since_process_start"
+      || !Number.isSafeInteger(route.throughput) || route.throughput < 0
+      || !Number.isSafeInteger(route.routing_decisions)
+      || route.routing_decisions < 0
+      || route.routing_decisions !== route.throughput
+    ) return fail(`route ${index} violates router counter semantics`);
+    routeTotal += route.routing_decisions;
+    if (!Number.isSafeInteger(routeTotal)) {
+      return fail("router counter total exceeds the safe integer range");
+    }
+  }
+
+  if (
+    body.servedThisWindow !== routeTotal
+    || body.routingDecisionsSinceStart !== routeTotal
+  ) return fail("root router total does not equal the route sum");
+  const expectedTiers = [...new Set(expected.map((route) => route.tier))].sort();
+  if (
+    !Array.isArray(body.tiers)
+    || body.tiers.length !== expectedTiers.length
+    || body.tiers.some((tier, index) => tier !== expectedTiers[index])
+  ) return fail("root tier identity does not match the protected catalog");
+
+  const startedAt = parseStrictUtcTimestamp(body.counter_started_at);
+  const observedAt = parseStrictUtcTimestamp(body.observed_at);
+  if (!startedAt || !observedAt) {
+    return fail("router timestamps must be valid canonical UTC timestamps");
+  }
+  if (startedAt.getTime() > observedAt.getTime()) {
+    return fail("counter_started_at is later than observed_at");
+  }
+  const maxFutureSkewSeconds = Number(contract.maxFutureSkewSeconds);
+  const maxObservationAgeSeconds = Number(contract.observationMaxAgeSeconds);
+  if (
+    !Number.isFinite(maxFutureSkewSeconds) || maxFutureSkewSeconds < 0
+    || !Number.isFinite(maxObservationAgeSeconds) || maxObservationAgeSeconds <= 0
+  ) return fail("router observation bounds are invalid");
+  const observationAgeSeconds = (Number(nowMs) - observedAt.getTime()) / 1000;
+  if (observationAgeSeconds < -maxFutureSkewSeconds) {
+    return fail("router observation exceeds the allowed future clock skew");
+  }
+  if (observationAgeSeconds > maxObservationAgeSeconds) {
+    return fail("router observation is stale");
+  }
+  return { ok: true, why: "router_stats_v1" };
+}
+
 function validateSchema(schemaName, body) {
   const s = SCHEMAS[schemaName];
   if (!s) return { ok: true, why: "no-schema" };
@@ -452,6 +561,9 @@ function validateSchema(schemaName, body) {
         }
         if (type === "boolean") return typeof cursor === "boolean";
         if (type === "timestamp") return toDate(cursor) !== null;
+        if (type === "process_epoch_timestamp") {
+          return parseStrictUtcTimestamp(cursor) !== null;
+        }
         return false;
       })) return false;
       if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
@@ -462,7 +574,11 @@ function validateSchema(schemaName, body) {
   if (s.anyOf) {
     return { ok: s.anyOf.some(checkOne), why: "anyOf" };
   }
-  return { ok: checkOne(s), why: s.type };
+  if (!checkOne(s)) return { ok: false, why: s.type };
+  if (s.semanticContract?.kind === "router_stats_v1") {
+    return validateRouterStatsSemantic(body, s.semanticContract);
+  }
+  return { ok: true, why: s.type };
 }
 
 async function probeOnce(path, method) {
@@ -686,6 +802,10 @@ async function main() {
     sourceRevision,
     sourceRevisionStatus,
     sourceRevisionError,
+    sourceRevisionBefore: sourceBefore.revision,
+    sourceRevisionBeforeStatus: sourceBefore.status,
+    sourceRevisionAfter: sourceAfter.revision,
+    sourceRevisionAfterStatus: sourceAfter.status,
     summary: {
       endpoints: results.length,
       ok: results.filter((r) => !r.skipped && !r.lie && !r.unreachable && !r.throttled).length,
@@ -730,5 +850,6 @@ export {
   pool,
   releaseExitCode,
   summarizeReleaseGate,
+  validateRouterStatsSemantic,
   validateSchema,
 };
