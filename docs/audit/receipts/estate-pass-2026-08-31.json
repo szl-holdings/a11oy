@@ -87,7 +87,8 @@
       "Runtime stage was not probed per-Space; RUNNING is not evidence of deployed revision anywhere in this pass.",
       "Kernels remain NOT_ENUMERABLE_VIA_API \u2014 manual Hub UI pass still owed.",
       "No PR was merged by this pass; two PRs opened for human review (governed-receipt-spec#10, a11oy audit PR).",
-      "Mobile viewport rendering NOT_INSPECTED."
+      "Mobile viewport rendering NOT_INSPECTED.",
+      "HF org card correction BLOCKED by token scope (read-repos/contribute-repos only; 403 on org Space write and PR). Proposed card committed at docs/audit/HF_ORG_CARD_PROPOSED.md for manual apply."
     ]
   }
 }
