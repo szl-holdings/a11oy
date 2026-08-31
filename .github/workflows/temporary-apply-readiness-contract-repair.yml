@@ -24,7 +24,7 @@ jobs:
 
       - name: Apply exact-match constructor and regenerate contracts
         run: |
-          python3 .github/scripts/temporary_apply_readiness_contract_repair.py
+          python3 .github/scripts/temporary_run_readiness_repair.py
           python3 tools/readiness-harness/gen_tabs_matrix.py
           python3 tools/readiness-harness/gen_tabs_matrix.py --check
 
@@ -47,6 +47,7 @@ jobs:
           rm .github/workflows/temporary-readiness-contract-diagnostic.yml
           rm .github/workflows/temporary-apply-readiness-contract-repair.yml
           rm .github/scripts/temporary_apply_readiness_contract_repair.py
+          rm .github/scripts/temporary_run_readiness_repair.py
           git add -A
           git commit \
             -m "fix(readiness): align verdict contracts with observed runtime" \
