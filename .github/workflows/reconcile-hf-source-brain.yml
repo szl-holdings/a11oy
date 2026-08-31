@@ -5,6 +5,7 @@ on:
     branches:
       - fix/hf-source-brain-parity-20260831
     paths:
+      - .github/scripts/reconcile_hf_source_brain.py
       - .github/workflows/reconcile-hf-source-brain.yml
   workflow_dispatch: {}
 
@@ -17,7 +18,7 @@ concurrency:
 
 jobs:
   reconcile:
-    name: Import exact Space source and refresh derived graph truth
+    name: Prove exact Space source and refresh derived graph truth
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -41,7 +42,7 @@ jobs:
       - name: Install exact core verification dependencies
         run: pip install --require-hashes -r .github/requirements/ci-core.txt
 
-      - name: Import immutable Space source and refresh Brain registry
+      - name: Prove immutable Space source and refresh Brain registry
         run: python3 .github/scripts/reconcile_hf_source_brain.py
 
       - name: Remove bounded migration controls before verification
@@ -49,7 +50,7 @@ jobs:
           rm -f .github/scripts/reconcile_hf_source_brain.py
           rm -f .github/workflows/reconcile-hf-source-brain.yml
 
-      - name: Validate imported source syntax
+      - name: Validate source syntax
         run: |
           set -euo pipefail
           python3 -m py_compile serve.py szl3d_holographic.py
@@ -75,14 +76,20 @@ jobs:
             tests/test_hf_one_shots_retired.py \
             -q
 
-      - name: Stage and assert the exact permanent reconciliation delta
+      - name: Stage and assert the exact measured reconciliation delta
         shell: bash
         run: |
           set -euo pipefail
           git add -A
           python3 - <<'PY'
+          import json
           import subprocess
+          from pathlib import Path
 
+          proof = json.loads(
+              Path("docs/proofs/hf-source-brain-reconciliation-2026-08-31.json")
+              .read_text(encoding="utf-8")
+          )
           observed = set(
               subprocess.check_output(
                   ["git", "diff", "--cached", "--name-only"],
@@ -94,17 +101,17 @@ jobs:
               ".github/workflows/reconcile-hf-source-brain.yml",
               "docs/proofs/hf-source-brain-reconciliation-2026-08-31.json",
               "model_release/frontier-qualification/frontier-adoption.json",
-              "pages/pricing.html",
-              "serve.py",
-              "static/3d/holographic.html",
-              "static/3d/surfaces/braincite.js",
-              "szl3d_holographic.py",
+              *proof["changed_source_paths"],
           }
           if observed != expected:
               raise SystemExit(
                   f"unexpected reconciliation delta: observed={sorted(observed)!r} "
                   f"expected={sorted(expected)!r}"
               )
+          if proof["source_state"] not in {"ALREADY_MATCHED", "IMPORTED"}:
+              raise SystemExit(f"unexpected source state: {proof['source_state']!r}")
+          if proof["brain_registry"]["current_raw_nodes"] != proof["brain_registry"]["graph_node_count"]:
+              raise SystemExit("Brain registry count does not equal the measured graph")
           PY
           git diff --cached --check
 
@@ -118,8 +125,8 @@ jobs:
           git config user.name "SZL Reconciliation Bot"
           git config user.email "noreply@szlholdings.ai"
           git commit \
-            -m "fix(hf): reconcile immutable Space source and Brain registry" \
-            -m "Import five allowlisted UTF-8 files from Space revision 8bd83a12d69a24050bce9601b772eefb547e2927, refresh the exact derived Brain node count, retain a machine-readable proof, and remove the bounded migration controls before commit."
+            -m "fix(hf): prove Space parity and refresh Brain registry" \
+            -m "Verify five allowlisted UTF-8 files against immutable Space revision 8bd83a12d69a24050bce9601b772eefb547e2927, import only mismatches, refresh the exact derived Brain node count, retain a machine-readable proof, and remove the bounded migration controls before commit."
           git push \
             "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
             "HEAD:refs/heads/${TARGET_BRANCH}"
