@@ -32,10 +32,23 @@ claims:
     last_audited: 2026-08-30
   - id: clm-conformance-profile
     claim: the Article 12 logging conformance profile is mapped and machine-checked
-    state: UNKNOWN
+    state: VERIFIED
     evidence:
-      - kind: gap
-        ref: evidence/conformance/eu-ai-act-article-12.yaml
-        note: mapping exists and demo step 9 checks it, but no third-party review or recorded demo run is attached yet
-        status: partial
-    last_audited: 2026-08-30
+      - kind: demonstration
+        ref: tools/demo_harness.py step 9 against evidence/conformance/eu-ai-act-article-12.v1.yaml
+        note: recorded run 2026-08-31, 12/12 steps passing after DEFAULT_CONFORMANCE fix (step 9 previously read the legacy non-canonical profile and failed KeyError entries)
+        status: supports
+      - kind: review
+        ref: docs/security/ADVERSARIAL_REVIEW_2026-08-31.md
+        note: first-party-orchestrated AI adversarial review; external independent review (Daybreak Blue S2) remains recommended before claiming the receipt survives adversarial cryptographers
+        status: supports
+    last_audited: 2026-08-31
+  - id: clm-adversarial-review
+    claim: the governed-slice verifier, policy engine, and flight recorder have survived an executable adversarial review
+    state: VERIFIED
+    evidence:
+      - kind: test
+        ref: tests/adversarial/ (23 attacks, all held; 1 residual finding S2.6-6 documented)
+        note: executed 2026-08-31 by Perplexity Computer against post-#1534 main; residual finding = partial-evidence-strip with issuer re-sign passes only when caller supplies no obligations; mitigations ranked in the review doc
+        status: supports
+    last_audited: 2026-08-31
