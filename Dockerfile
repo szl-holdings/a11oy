@@ -668,6 +668,14 @@ ENV SZL_GIT_SHA=${SZL_GIT_SHA} \
     SZL_BUILD_TIME=${SZL_BUILD_TIME} \
     A11OY_ORG_RAG_DB=/app/data/a11oy_org_rag.db
 
+# Post-deploy readiness feed warming: keep the default legal evidence views
+# (CourtListener/Federal Register/SEC EDGAR) warm from boot so the hf-sync
+# readiness probe never reads a cold-start upstream transient as endpoint
+# evidence. Real data only; last-good values are honestly labeled cached with
+# their real observation timestamp; genuine outages still fail closed.
+# ENV (not RUN/COPY/ADD) so the Dockerfile layer budget is unaffected.
+ENV A11OY_FEED_WARM_ENABLED=1
+
 # The Second Brain's SQLite index is rebuildable, but a mounted /app/data keeps
 # … (full rationale: docs/DOCKERFILE_NOTES.md §97)
 VOLUME ["/app/data"]

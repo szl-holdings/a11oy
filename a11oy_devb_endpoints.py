@@ -745,10 +745,15 @@ def exposure_graph(seed_term: str = "securities", limit: int = 18) -> dict[str, 
         nodes.append(n)
 
     panel_fresh = "live"
+    panel_unobserved = False
     for cik, label in _EXPOSURE_PANEL:
         r = feed_sec(cik)
         v = r.get("value") or {}
-        if (r.get("freshness", {}).get("status")) != "live":
+        if r.get("value") is None:
+            # SEC never observed this entity: hollow node data would fabricate
+            # an exposure reading, so the panel label fails closed.
+            panel_unobserved = True
+        elif (r.get("freshness", {}).get("status")) != "live":
             panel_fresh = "cached"
         nid = f"ent:{cik}"
         add_node(nid, v.get("name") or label, "entity", 12,
@@ -782,8 +787,17 @@ def exposure_graph(seed_term: str = "securities", limit: int = 18) -> dict[str, 
         links.append({"source": case_id, "target": "sic:industry"[:28] if "sic:industry" in seen else (nodes[0]["id"] if nodes else court_id),
                       "kind": "exposure(sampled-link)"})
 
+    if panel_unobserved:
+        panel_fresh = "unavailable"
+    # Readiness contract (devb_legal_exposure): litigation freshness must be
+    # live/cached with a real observation timestamp; a never-observed source
+    # stays UNAVAILABLE and the probe fails closed.
+    cl_public = _readiness_public_source(
+        {"value": cl.get("value"), "freshness": cl.get("freshness")})
+    litigation_freshness = (cl_public.get("freshness")
+                            if isinstance(cl_public, dict) else None)
     return {"nodes": nodes, "links": links,
-            "freshness": {"status": panel_fresh, "litigation": cl.get("freshness")},
+            "freshness": {"status": panel_fresh, "litigation": litigation_freshness},
             "note": "Entities + filings from live SEC EDGAR; courts + cases from live CourtListener. "
                     "case->sector edges are labeled exposure(sampled-link) heuristics, not asserted legal relationships.",
             "doctrine": DOCTRINE}
@@ -1047,7 +1061,12 @@ def register(app: FastAPI) -> dict[str, Any]:
         limit: Annotated[int, Query(ge=1, le=100)] = 18,
     ):
         op = await _run_blocking(feed_courtlistener, term, limit, kind="o")
-        return JSONResponse({"surface": "matter", "term": term, "opinions": op,
+        # Readiness contract (devb_legal_matter): HTTP 200 admits live/cached
+        # evidence only; last-good values ride as cached with their real
+        # observation timestamp; never-observed stays UNAVAILABLE (fails
+        # closed). Payload keys unchanged.
+        return JSONResponse({"surface": "matter", "term": term,
+                             "opinions": _readiness_public_source(op),
                              "doctrine": DOCTRINE})
 
     @app.get(base + "/legal/regulatory", include_in_schema=False)
@@ -1059,8 +1078,11 @@ def register(app: FastAPI) -> dict[str, Any]:
             (feed_fedregister, (limit, term), {}),
             (feed_fr_agencies, (14,), {}),
         ])
-        return JSONResponse({"surface": "regulatory", "federal_register": fr,
-                             "agencies": ag, "doctrine": DOCTRINE})
+        # Same readiness contract as legal/matter (devb_legal_regulatory).
+        return JSONResponse({"surface": "regulatory",
+                             "federal_register": _readiness_public_source(fr),
+                             "agencies": _readiness_public_source(ag),
+                             "doctrine": DOCTRINE})
 
     @app.get(base + "/legal/exposure", include_in_schema=False)
     async def _legal_exposure(
@@ -1178,4 +1200,12 @@ def register(app: FastAPI) -> dict[str, Any]:
         import sys as _s
         print(f"[a11oy] devb route reorder failed (non-fatal): {_e!r}", file=_s.stderr)
 
+    # Post-deploy readiness warming (env-gated; no-op in tests/local runs):
+    # keep the default legal views warm so the hf-sync probe never reads a
+    # cold-start transient as endpoint evidence.
+    try:
+        start_readiness_warmer()
+    except Exception as _warm_e:  # never break the Space
+        print(f"[a11oy] devb readiness feed warmer start failed (non-fatal): "
+              f"{_warm_e!r}", file=sys.stderr)
     return {"mounted": base, "has_vertical_feeds": _HAS_VF, "moved": moved}
