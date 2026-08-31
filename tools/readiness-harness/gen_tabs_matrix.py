@@ -227,8 +227,13 @@ ENDPOINTS = {
         note="Canonical Defense / Gov renderer feed: CISA KEV + NVD with cited leaders."),
     "/api/a11oy/v1/vert/finance/feed": ep(
         schema="vert_finance_feed", sla=HOUR, citations=True,
-        allow_labels=("live", "cached", "reference", "unofficial-fallback"),
-        note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
+        allow_labels=("live", "cached", "stale", "reference", "unofficial-fallback"),
+        note=(
+            "Live Yahoo/macro finance feed. Official-equity observations may "
+            "honestly declare freshness.status=stale outside an active market "
+            "session; the observation clock must still satisfy the one-hour SLA. "
+            "The stale label is never upgraded to live."
+        )),
     "/api/a11oy/v1/vert/legal/feed": ep(
         schema="vert_legal_feed", sla=HOUR, citations=True,
         allow_labels=("live", "cached", "reference"),
@@ -301,16 +306,19 @@ ENDPOINTS = {
             "The canonical label describes source freshness; field-level detail remains explicit."
         ),
     ),
-    # router/stats: the current endpoint is a deterministic modeled display of
-    #   the real tier catalog. It is not production traffic, QPS, tokens,
-    #   completed inference, or an observed routing-decision counter.
+    # router/stats: exact process-lifetime routing-decision counters. The
+    # counters increment only on trusted routing-receipt writes and reset on
+    # process rebuild. They are not QPS, tokens, inference completions, or
+    # traffic outside this process. Zero is a valid observed count.
     "/api/a11oy/v1/router/stats": ep(
         schema="router_stats",
         sla=None,
-        allow_labels=("live", "cached", "modeled"),
+        allow_labels=("live", "cached", "degraded", "unavailable"),
         note=(
-            "Deterministic MODELED tier-display signals from szl_brain.TIERS; "
-            "not production traffic, QPS, tokens, or completed inference."
+            "LIVE/OBSERVED process-lifetime routing-decision counts from "
+            "szl_llm_registry.router_stats_snapshot. Legacy throughput and "
+            "servedThisWindow fields carry that count, never QPS or tokens. "
+            "Registry failure is honestly UNAVAILABLE; catalog drift is DEGRADED."
         ),
     ),
 
@@ -711,25 +719,92 @@ SCHEMAS = {
     "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
     "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
     "router_stats": {
-        "type": "object",
-        "required": [
-            "state", "mode", "catalog_state", "throughput_state",
-            "routes", "servedThisWindow", "tiers", "source", "doctrine", "honesty",
+        "anyOf": [
+            {
+                "type": "object",
+                "required": [
+                    "state", "mode", "data_kind", "catalog_state",
+                    "throughput_state", "routes", "servedThisWindow",
+                    "routingDecisionsSinceStart", "tiers", "counter_scope",
+                    "counter_started_at", "observed_at", "source", "doctrine",
+                    "honesty",
+                ],
+                "requiredPathTypes": {
+                    "routes": "nonempty_array",
+                    "servedThisWindow": "nonnegative_integer",
+                    "routingDecisionsSinceStart": "nonnegative_integer",
+                    "tiers": "nonempty_array",
+                    "counter_scope": "string",
+                    "counter_started_at": "timestamp",
+                    "observed_at": "timestamp",
+                    "honesty": "string",
+                },
+                "properties": {
+                    "state": {"const": "LIVE"},
+                    "mode": {"const": "live"},
+                    "data_kind": {"const": "live"},
+                    "catalog_state": {"const": "LIVE"},
+                    "throughput_state": {"const": "OBSERVED"},
+                    "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+                    "doctrine": {"const": "v11"},
+                },
+            },
+            {
+                "type": "object",
+                "required": [
+                    "state", "mode", "data_kind", "catalog_state",
+                    "throughput_state", "routes", "servedThisWindow",
+                    "routingDecisionsSinceStart", "tiers", "counter_scope",
+                    "counter_started_at", "observed_at", "source", "doctrine",
+                    "honesty",
+                ],
+                "requiredPathTypes": {
+                    "routes": "nonempty_array",
+                    "servedThisWindow": "nonnegative_integer",
+                    "routingDecisionsSinceStart": "nonnegative_integer",
+                    "tiers": "nonempty_array",
+                    "counter_scope": "string",
+                    "counter_started_at": "timestamp",
+                    "observed_at": "timestamp",
+                    "honesty": "string",
+                },
+                "properties": {
+                    "state": {"const": "DEGRADED"},
+                    "mode": {"const": "degraded"},
+                    "data_kind": {"const": "live"},
+                    "catalog_state": {"const": "DRIFT"},
+                    "throughput_state": {"const": "OBSERVED"},
+                    "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+                    "doctrine": {"const": "v11"},
+                },
+            },
+            {
+                "type": "object",
+                "required": [
+                    "state", "mode", "data_kind", "catalog_state",
+                    "throughput_state", "routes", "servedThisWindow",
+                    "routingDecisionsSinceStart", "tiers", "counter_scope",
+                    "counter_started_at", "observed_at", "source", "doctrine",
+                    "honesty",
+                ],
+                "requiredPathTypes": {
+                    "routes": "array",
+                    "tiers": "array",
+                    "counter_scope": "string",
+                    "observed_at": "timestamp",
+                    "honesty": "string",
+                },
+                "properties": {
+                    "state": {"const": "UNAVAILABLE"},
+                    "mode": {"const": "unavailable"},
+                    "data_kind": {"const": "unavailable"},
+                    "catalog_state": {"const": "UNAVAILABLE"},
+                    "throughput_state": {"const": "UNAVAILABLE"},
+                    "source": {"const": "unavailable"},
+                    "doctrine": {"const": "v11"},
+                },
+            },
         ],
-        "properties": {
-            "state": {"const": "MODELED"},
-            "mode": {"const": "modeled"},
-            "catalog_state": {"const": "LIVE"},
-            "throughput_state": {"const": "MODELED"},
-            "source": {"const": "szl_brain.TIERS"},
-            "doctrine": {"const": "v11"},
-        },
-        "requiredPathTypes": {
-            "routes": "nonempty_array",
-            "servedThisWindow": "nonnegative_integer",
-            "tiers": "nonempty_array",
-            "honesty": "string",
-        },
     },
     "mosaic_governed": {"type": "object",
                         "anyKey": ["cop", "receipts", "lambda_axes", "thresholds",

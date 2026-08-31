@@ -86,26 +86,52 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
   }).ok, false);
 });
 
-test("router-stats schema requires truthful modeled tier-display signals", () => {
-  const modeled = {
-    state: "MODELED",
-    mode: "modeled",
+test("router-stats schema requires observed process-lifetime counters", () => {
+  const observed = {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
     catalog_state: "LIVE",
-    throughput_state: "MODELED",
-    routes: [{ tier: "T0", model: "alpha", modeled_load: 0 }],
+    throughput_state: "OBSERVED",
+    routes: [{ tier: "T0", model: "alpha", decisions_since_start: 0 }],
     servedThisWindow: 0,
+    routingDecisionsSinceStart: 0,
     tiers: ["T0"],
-    source: "szl_brain.TIERS",
+    counter_scope: "process-lifetime",
+    counter_started_at: "2026-08-31T00:00:00Z",
+    observed_at: "2026-08-31T00:01:00Z",
+    source: "szl_llm_registry.router_stats_snapshot",
     doctrine: "v11",
-    honesty: "Deterministic tier-display signals; not QPS or observed traffic.",
+    honesty: "Observed routing-decision counters; not QPS, tokens, or inference completions.",
   };
-  assert.equal(validateSchema("router_stats", modeled).ok, true);
-  assert.equal(validateSchema("router_stats", { ...modeled, state: "LIVE" }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...modeled, throughput_state: "OBSERVED" }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...modeled, source: "szl_llm_registry.router_stats_snapshot" }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...modeled, routes: [] }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...modeled, servedThisWindow: -1 }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...modeled, servedThisWindow: 0.5 }).ok, false);
+  assert.equal(validateSchema("router_stats", observed).ok, true);
+  assert.equal(validateSchema("router_stats", { ...observed, state: "MODELED" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, throughput_state: "MODELED" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, source: "szl_brain.TIERS" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, routes: [] }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: -1 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: 0.5 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, routingDecisionsSinceStart: -1 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, counter_started_at: "not-a-time" }).ok, false);
+
+  const unavailable = {
+    state: "UNAVAILABLE",
+    mode: "unavailable",
+    data_kind: "unavailable",
+    catalog_state: "UNAVAILABLE",
+    throughput_state: "UNAVAILABLE",
+    routes: [],
+    servedThisWindow: null,
+    routingDecisionsSinceStart: null,
+    tiers: [],
+    counter_scope: "process-lifetime",
+    counter_started_at: null,
+    observed_at: "2026-08-31T00:01:00Z",
+    source: "unavailable",
+    doctrine: "v11",
+    honesty: "Registry unavailable; no replacement counter is fabricated.",
+  };
+  assert.equal(validateSchema("router_stats", unavailable).ok, true);
 });
 
 test("router counter evidence is inspected without weakening root labels", () => {
