@@ -20,7 +20,10 @@ Proves two consumer/investor-facing fixes are REAL and operational:
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+import json
 import os
+from pathlib import Path
 import sys
 
 import pytest
@@ -33,6 +36,7 @@ if REPO_ROOT not in sys.path:
 import serve  # noqa: E402
 
 client = TestClient(serve.app)
+READINESS_MATRIX = Path(REPO_ROOT) / "tools" / "readiness-harness" / "tabs.json"
 
 
 # ---------------------------------------------------------------------------
@@ -47,12 +51,13 @@ def test_router_stats_is_available_and_honestly_observed(path):
     assert j["state"] == "LIVE"
     assert j["mode"] == j["data_kind"] == "live"
     assert j["throughput_state"] == "OBSERVED"
+    assert j["counter_state"] == "OBSERVED"
     assert j["catalog_state"] == "LIVE"
     assert j["counter_scope"] == "process_lifetime"
     assert j["counter_started_at"] and j["observed_at"]
     assert j["source"] == "szl_llm_registry.router_stats_snapshot"
     assert isinstance(j["routes"], list) and len(j["routes"]) >= 5
-    assert "MODELED" not in j["honesty"]
+    assert j["honesty"] == serve._A11OY_ROUTER_STATS_HONESTY
 
 
 @pytest.mark.parametrize("path", ["/v1/router/stats", "/api/a11oy/v1/router/stats"])
@@ -87,7 +92,26 @@ def test_router_stats_derives_from_runtime_router_catalog():
     assert j["catalog_state"] == "LIVE"
     served_models = {route["model"] for route in j["routes"]}
     assert served_models == real_ids
+    assert [
+        (route["tier"], route["model"]) for route in j["routes"]
+    ] == [
+        (f"T{model['tier']}", model["model_id"])
+        for model in registry.MODEL_REGISTRY
+    ]
     assert all(route["catalog_member"] is True for route in j["routes"])
+
+
+def test_router_stats_payload_matches_protected_semantic_contract():
+    semantic = json.loads(READINESS_MATRIX.read_text(encoding="utf-8"))[
+        "schemas"
+    ]["router_stats"]["semanticContract"]
+    payload = client.get("/v1/router/stats").json()
+
+    assert payload["honesty"] == semantic["honesty"]
+    assert [
+        {"tier": route["tier"], "model": route["model"]}
+        for route in payload["routes"]
+    ] == semantic["catalog"]
 
 
 def test_router_stats_covers_every_runtime_tier():
@@ -234,7 +258,7 @@ def test_router_stats_catalog_drift_is_degraded_not_live(monkeypatch):
             "counter_state": "OBSERVED",
             "counter_scope": "process_lifetime",
             "counter_started_at": "2026-08-26T12:00:00Z",
-            "observed_at": "2026-08-26T12:00:01Z",
+            "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "routing_decisions_total": 1,
             "routes": [
                 {"tier": 9, "model_id": "removed-model", "routing_decisions": 1}
@@ -250,6 +274,51 @@ def test_router_stats_catalog_drift_is_degraded_not_live(monkeypatch):
     drifted = next(route for route in j["routes"] if route["model"] == "removed-model")
     assert drifted["catalog_member"] is False
     assert j["servedThisWindow"] == 1
+
+
+@pytest.mark.parametrize(
+    ("clock_case", "reason"),
+    [
+        ("stale", "stale"),
+        ("future", "future clock skew"),
+        ("reversed", "later than observed_at"),
+        ("malformed", "not canonical UTC"),
+    ],
+)
+def test_router_stats_invalid_observation_clocks_fail_closed(
+    monkeypatch, clock_case, reason
+):
+    registry = serve._llm_reg
+    now = datetime.now(timezone.utc)
+    started_at = "2026-01-01T00:00:00Z"
+    observed_at = (now - timedelta(seconds=1)).isoformat().replace("+00:00", "Z")
+    if clock_case == "stale":
+        observed_at = (now - timedelta(seconds=600)).isoformat().replace("+00:00", "Z")
+    elif clock_case == "future":
+        observed_at = (now + timedelta(seconds=600)).isoformat().replace("+00:00", "Z")
+    elif clock_case == "reversed":
+        started_at = now.isoformat().replace("+00:00", "Z")
+    elif clock_case == "malformed":
+        observed_at = "not-a-timestamp"
+
+    monkeypatch.setattr(
+        registry,
+        "router_stats_snapshot",
+        lambda: {
+            "state": "LIVE",
+            "counter_state": "OBSERVED",
+            "counter_scope": "process_lifetime",
+            "counter_started_at": started_at,
+            "observed_at": observed_at,
+            "routing_decisions_total": 0,
+            "routes": [],
+        },
+    )
+
+    payload = client.get("/v1/router/stats").json()
+
+    assert payload["state"] == "UNAVAILABLE"
+    assert reason in payload["honesty"]
 
 
 # ---------------------------------------------------------------------------
