@@ -1,0 +1,37 @@
+name: Alert relay worker
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/alert-relay-worker.yml'
+      - 'infra/alert-relay-worker/**'
+      - 'scripts/alert_channel_canary.py'
+      - 'tests/test_alert_channel_canary.py'
+      - 'tests/test_alert_channel_static_registry_contract.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/alert-relay-worker.yml'
+      - 'infra/alert-relay-worker/**'
+      - 'scripts/alert_channel_canary.py'
+      - 'tests/test_alert_channel_canary.py'
+      - 'tests/test_alert_channel_static_registry_contract.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alert-relay-worker-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test fail-closed relay contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Exercise relay contract
+        run: node --test infra/alert-relay-worker/test/index.test.mjs
