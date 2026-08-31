@@ -89,16 +89,21 @@ def main() -> int:
     print("SZL MASTER BOOTSTRAP — round 10, full estate spin-up")
     print("=" * 76)
 
-    # 1-4: run the stack
-    steps: list[dict] = []
-    print("\n[1/7] proof-surface demo")
-    steps.append({"name": "demo", "argv": ["demo/proof_surface_demo.py"]})
-    print("\n[2/7] lexicon gate")
-    steps.append({"name": "lexicon_gate", "argv": ["tools/lexicon_gate.py", str(ROOT)]})
-    print("\n[3/7] release gate")
-    steps.append({"name": "release_gate", "argv": ["tools/release_gate.py", str(ROOT)]})
-    print("\n[4/7] raise gate")
-    steps.append({"name": "raise_gate", "argv": ["tools/raise_gate.py", str(ROOT)]})
+    # run the full stack — every tool, in order
+    steps: list[dict] = [
+        {"name": "contract_tests", "argv": ["tests/contract_tests.py"]},
+        {"name": "demo", "argv": ["demo/proof_surface_demo.py"]},
+        {"name": "lexicon_gate", "argv": ["tools/lexicon_gate.py", str(ROOT)]},
+        {"name": "release_gate", "argv": ["tools/release_gate.py", str(ROOT)]},
+        {"name": "raise_gate", "argv": ["tools/raise_gate.py", str(ROOT)]},
+        {"name": "github_pr_gate", "argv": ["tools/github_pr_gate.py"]},
+        {"name": "spaces_audit", "argv": ["tools/spaces_audit.py", "--report"]},
+        {"name": "spaces_gate", "argv": ["tools/spaces_gate.py"]},
+        {"name": "domain_parity_audit", "argv": ["tools/domain_parity_audit.py", "--report"]},
+        {"name": "domain_lexicon_gate", "argv": ["tools/domain_lexicon_gate.py"]},
+        {"name": "receipt_chain", "argv": ["payloads/receipt_chain.py"]},
+    ]
+    print(f"running {len(steps)} steps: " + ", ".join(s["name"] for s in steps))
 
     results: list[dict] = []
     for s in steps:
@@ -107,8 +112,8 @@ def main() -> int:
         print(f"      {r['name']:<16} exit={r['exit_code']} ({state})  {r['tail']}")
         results.append(r)
 
-    # 5: sub-receipts
-    print("\n[5/7] emitting sub-receipts for each step")
+    # sub-receipts
+    print("\n[10] emitting sub-receipts for each step")
     signer = Signer(KEYSTORE)
     engine = TypedPolicyEngine()
     verifier = OfflineVerifier(signer)
@@ -122,8 +127,8 @@ def main() -> int:
     print(f"      flight recorder: {fr_integrity['records']} records, "
           f"chain_ok={fr_integrity['chain_ok']}, pending={len(fr_integrity['pending_sync'])}")
 
-    # 6: pass receipt
-    print("\n[6/7] emitting pass-level receipt")
+    # pass receipt
+    print("\n[11] emitting pass-level receipt")
     crashed = [r["name"] for r in results if r["crashed"]]
     completeness = "INCOMPLETE" if crashed else "COMPLETE"
     pass_pred = build_predicate(
@@ -154,8 +159,8 @@ def main() -> int:
               idempotency_key="pass-receipt-2026-08-30")
     print(f"      pass receipt: {pass_path.name}  verify={v.status}  completeness={completeness}")
 
-    # 7: run log
-    print("\n[7/7] writing run log")
+    # run log
+    print("\n[12] writing run log")
     log = {
         "generated_at": now,
         "payload_version": "round-10",

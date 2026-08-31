@@ -21,11 +21,12 @@ DECISIONS = ("ALLOW", "DENY", "REQUIRE_APPROVAL")
 
 
 def most_restrictive(*classes: str) -> str:
-    known = [c for c in classes if c in _RESTRICTIVENESS]
-    if not known:
-        # An unrecognized side-effect class is treated as worst case.
+    """Most-restrictive side-effect class wins. An unrecognized class is
+    treated as worst case (IRREVERSIBLE) — an unknown effect is never
+    silently downgraded to READ_ONLY."""
+    if any(c not in _RESTRICTIVENESS for c in classes):
         return "IRREVERSIBLE"
-    return max(known, key=lambda c: _RESTRICTIVENESS[c])
+    return max(classes, key=lambda c: _RESTRICTIVENESS[c])
 
 
 @dataclass(frozen=True)

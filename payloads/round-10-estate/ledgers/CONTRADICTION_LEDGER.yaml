@@ -64,3 +64,23 @@ entries:
     contradicts: "Design-partner exit criterion: 80%+ paid conversion AND three zero-config use cases"
     severity: HIGH
     resolution: "Converge on governed agent change management as the single zero-config workflow first"
+  - id: B-13
+    claim: "a-11-oy.com /console still shows retired brand 'Open-Weight Alloy' and legacy 'Governed inference'"
+    contradicts: "Canonical lexicon: 'Alloy' and 'Governed Inference' are retired 2026-08-30; a11oy.net is clean"
+    severity: HIGH
+    resolution: "Reconcile /console copy to the canonical lexicon; domain_lexicon_gate hard-fails until done"
+  - id: B-14
+    claim: "Domain drift: a-11-oy.com exposes ~65 routes (incl. /console + /api/a11oy/v1/* API surface) absent from a11oy.net"
+    contradicts: "Parity doctrine: one public face; a11oy.net is the lean registry"
+    severity: MEDIUM
+    resolution: "Decide the split deliberately — thin marketing on .com, registry on .net — then hold it with the parity gate"
+  - id: B-15
+    claim: "Org card five-flagship list still includes SZLHOLDINGS/holographic, whose own README declares it SUPERSEDED 2026-08-30"
+    contradicts: "Zero-Bandaid: a public flagship pointer must not steer traffic to a retired surface still serving an app shell"
+    severity: HIGH
+    resolution: "Org-card Space is org-write-protected (403); an org owner edits holographic -> szl-estate-live in the Hub UI (~90s)"
+  - id: B-16
+    claim: "3 open PRs BLOCKED_CI (a11oy#1546, a11oy#1530, a11oy-net#83) and 5 touch governed/security paths (HUMAN_REQUIRED)"
+    contradicts: "A green merge queue is the visible operational health a diligence click-through checks"
+    severity: MEDIUM
+    resolution: "Clear the 3 CI-blocked PRs; human-review the 5 governed-path PRs incl. #1534 (Codex round-10 gates) and #1547"

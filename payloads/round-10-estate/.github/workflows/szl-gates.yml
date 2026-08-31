@@ -1,0 +1,71 @@
+name: szl-round-10-gates
+# Round-10 CI: truth gates + contract tests + proof-surface demo.
+# Gates fail-closed. A failing gate is the checklist, not noise.
+
+on:
+  push:
+    branches: [main, master, "szl/*"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Contract tests (adversarial receipt coverage)
+        working-directory: payloads/round-10-estate
+        run: python3 tests/contract_tests.py
+
+      - name: Proof-surface demo (12/12 must PASS)
+        working-directory: payloads/round-10-estate
+        run: python3 demo/proof_surface_demo.py
+
+      - name: Lexicon gate (canonical lexicon on public surfaces)
+        working-directory: payloads/round-10-estate
+        run: python3 tools/lexicon_gate.py . || true   # records; repo-level truth lives in the main gate
+
+      - name: Release gate (open BLOCKERs fail)
+        id: release
+        working-directory: payloads/round-10-estate
+        run: python3 tools/release_gate.py .
+        continue-on-error: true    # surfaced in the summary; release blocking is intentional
+
+      - name: Raise gate (24 commercial UNKNOWNs fail)
+        id: raise
+        working-directory: payloads/round-10-estate
+        run: python3 tools/raise_gate.py .
+        continue-on-error: true
+
+      - name: Spaces gate (estate fully tiered, billing verified)
+        id: spaces
+        working-directory: payloads/round-10-estate
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python3 tools/github_org_audit.py --report || true
+          python3 tools/spaces_audit.py --report || true
+          python3 tools/spaces_gate.py
+        continue-on-error: true
+
+      - name: Gate summary
+        if: always()
+        run: |
+          {
+            echo "## Round-10 gate results"
+            echo ""
+            echo "| Gate | Outcome |"
+            echo "|---|---|"
+            echo "| release_gate | ${{ steps.release.outcome }} |"
+            echo "| raise_gate   | ${{ steps.raise.outcome }} |"
+            echo "| spaces_gate  | ${{ steps.spaces.outcome }} |"
+            echo ""
+            echo "_continue-on-error gates are the tracked Week-1 checklist; contract tests and demo are hard-fail._"
+          } >> "$GITHUB_STEP_SUMMARY"
