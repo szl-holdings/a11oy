@@ -389,3 +389,10 @@ training/build_seed.py
 # Founder-authorized 2026-08-30: docs_lexicon_gate.py legitimately enumerates
 # the banned-token list it enforces (pattern table); the strings are data, not claims.
 tools/docs_lexicon_gate.py
+
+# 2026-08-31: archived doctrine-compliance notes that enumerate the banned-token
+# list as data (v6 ban-list tables), not hype claims. Archive provenance preserved;
+# rewriting archived papers would falsify history.
+docs/cookbook/recipes/knot-calculus-v1/README.md
+docs/papers/ouroboros-archive/docs/v15/ch10_knot_calculus.md
+docs/papers/ouroboros-archive/docs/sdk-innovation.md

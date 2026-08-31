@@ -122,6 +122,18 @@ def test_attack_6_sign_then_strip_issuer_side(signed_envelope):
     # What saves the claim layer: the honest re-sign must DOWNGRADE, and it
     # does (INCOMPLETE, never PASS). Documented invariant:
     assert r_strip.verdict == "INCOMPLETE"
+
+    # S2.6-6 regression (fixed 2026-08-31): a PARTIAL strip (evidence list
+    # stays non-empty) re-signed as COMPLETE previously verified VALID when
+    # the caller passed no obligations. The verifier now falls back to the
+    # receipt-carried obligations, so the stripped bundle can no longer pass.
+    partial = copy.deepcopy(receipt)
+    partial["predicate"]["evidence"] = partial["predicate"]["evidence"][:1]
+    r_partial = verifier.verify_envelope(b.sign(partial))  # no obligations passed
+    assert r_partial.verdict == "INCOMPLETE", (
+        "S2.6-6 REGRESSED: partial strip with issuer re-sign passed again"
+    )
+    assert any("missing evidence obligations" in p for p in r_partial.problems)
     # RESIDUAL GAP (recorded in docs/security/ADVERSARIAL_REVIEW...): if the
     # issuer re-signs a stripped copy AND keeps completeness=COMPLETE, the
     # schema validator (Law 4 model validator) still rejects it at verify

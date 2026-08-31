@@ -73,7 +73,9 @@ def build_valid_receipt() -> tuple[dict, str]:
             reason="allowed by first matching rule deploy-allow",
             first_match_rule="deploy-allow",
             matched_rules=["deploy-allow"],
-            evidence_obligations=["test_log"],
+            # Policy accumulates obligations across all matched rules; for a
+            # reviewed deploy that is both the test log and the review thread.
+            evidence_obligations=["test_log", "review_thread"],
             effective_side_effect_class=SideEffectClass.REVERSIBLE,
             requires_human_approval=False,
         ),

@@ -93,8 +93,16 @@ class OfflineVerifier:
         predicate = receipt.predicate
 
         # Evidence obligations (accumulated by the policy engine) must be met.
+        # S2.6-6 fix: when the caller supplies no obligations, fall back to the
+        # obligations recorded on the receipt itself. Otherwise an issuer who
+        # strips some evidence and re-signs could pass a caller who simply
+        # trusted the artifact. The receipt-carried list is signed, so a
+        # tamperer cannot shrink it without breaking the signature.
+        effective_obligations: tuple[str, ...] = required_obligations or tuple(
+            receipt.decision.evidence_obligations
+        )
         present_kinds = {item.kind for item in predicate.evidence}
-        missing = [o for o in required_obligations if o not in present_kinds]
+        missing = [o for o in effective_obligations if o not in present_kinds]
         if missing:
             problems.append(f"missing evidence obligations: {', '.join(missing)}")
 
