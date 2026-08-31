@@ -13083,10 +13083,9 @@ app.add_api_route("/investor", _investor_view_redirect, methods=["GET"], include
 # image (has console.html, so PAGES_DIR pins there) and will not yet contain
 # a newly added estate.html until the next image bake.
 async def _series_a_estate_page() -> Response:
-    for folder in (_LOCAL_PAGES_DIR, PAGES_DIR, _IMAGE_PAGES_DIR):
-        f = folder / "estate.html"
-        if f.is_file():
-            return FileResponse(f, media_type="text/html")
+    f = _szl_doc("pages/estate.html")
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
