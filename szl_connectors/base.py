@@ -45,7 +45,7 @@ from typing import Any, Literal
 # ── auth kinds the framework understands ──────────────────────────────────
 AuthKind = Literal["none", "api_key", "oauth2", "basic", "aws_sigv4", "token"]
 
-_UA = "SZL-Connectors/1.0 (sovereign enterprise mesh; contact@szlholdings.ai)"
+_UA = "SZL-Connectors/1.0 (sovereign enterprise mesh; contact@szlholdings.com)"
 _TIMEOUT = 8.0
 
 

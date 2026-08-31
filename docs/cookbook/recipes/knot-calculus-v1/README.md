@@ -53,5 +53,7 @@
 
 ## Doctrine v6
 
-Recipe is doctrine-v6 clean (no banned hype tokens; the v6 ban-list applies in full). See
+Recipe is doctrine-v6 clean: it contains none of the doctrine v6 banned
+tokens (canonical list enforced by tools/docs_lexicon_gate.py, referenced
+here by pointer per house style). See
 [doctrine v6 DOI](https://doi.org/10.5281/zenodo.20174600).
