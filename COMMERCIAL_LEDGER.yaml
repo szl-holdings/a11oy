@@ -1,0 +1,222 @@
+yaml_subset: SZL-YAML-1
+ledger: COMMERCIAL_LEDGER
+schema_version: 1
+generated_by: tools/szl_master_bootstrap.py
+zero_bandaid: No claim without evidence. Every row starts UNKNOWN because no audited evidence exists yet. UNKNOWN is an audited state; an empty field is an oversight. No model may invent these values (CANON section 8).
+rows:
+  - id: arr
+    category: financials
+    question: What is the current annual recurring revenue from signed contracts
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no billing system or signed contracts exist to compute it from
+    last_audited: 2026-08-30
+  - id: mrr
+    category: financials
+    question: What is the current monthly recurring revenue
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no billing system exists to measure it
+    last_audited: 2026-08-30
+  - id: contracted_vs_recognized_revenue
+    category: financials
+    question: How much revenue is contracted versus recognized under our revenue recognition policy
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no contracts and no revenue recognition policy exist
+    last_audited: 2026-08-30
+  - id: paying_customers
+    category: customers
+    question: How many distinct paying customers are there today
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no payment has ever been received for a11oy
+    last_audited: 2026-08-30
+  - id: gross_margin
+    category: unit_economics
+    question: What is the gross margin on the product
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no price and no unit cost model exist; also blocked by contradiction B-04
+    last_audited: 2026-08-30
+  - id: nrr
+    category: unit_economics
+    question: What is net revenue retention
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no cohort of paying customers exists to measure; also blocked by contradiction B-04
+    last_audited: 2026-08-30
+  - id: cac_payback
+    category: unit_economics
+    question: What is customer acquisition cost payback in months
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no acquisition spend and no paying customers exist; also blocked by contradiction B-04
+    last_audited: 2026-08-30
+  - id: cash_on_hand
+    category: financials
+    question: How much cash does the company hold
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no audited bank statement has been attached to this ledger
+    last_audited: 2026-08-30
+  - id: monthly_burn
+    category: financials
+    question: What is the average monthly net burn
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no bookkeeping export exists to compute it
+    last_audited: 2026-08-30
+  - id: runway_months
+    category: financials
+    question: How many months of runway remain at current burn
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: requires cash on hand and monthly burn, both UNKNOWN
+    last_audited: 2026-08-30
+  - id: burn_multiple
+    category: unit_economics
+    question: What is the burn multiple
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: requires net burn and net new ARR, both UNKNOWN; also blocked by contradiction B-04
+    last_audited: 2026-08-30
+  - id: published_price
+    category: pricing
+    question: What is the published price of the product
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no pricing page or price list has been published
+    last_audited: 2026-08-30
+  - id: buyer_persona
+    category: gtm
+    question: Who is the named buyer persona with budget authority
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: hypotheses exist in strategy notes but no interviewed buyer has confirmed one
+    last_audited: 2026-08-30
+  - id: pricing_model
+    category: pricing
+    question: What pricing model does the product use
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no model has been chosen among per-seat, per-action, or platform fee
+    last_audited: 2026-08-30
+  - id: design_partner_count
+    category: customers
+    question: How many signed design partners are actively testing the product
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no signed design partner agreement exists
+    last_audited: 2026-08-30
+  - id: conversion_rate
+    category: gtm
+    question: What is the pilot to paid conversion rate
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no pilots have completed; no funnel exists to measure
+    last_audited: 2026-08-30
+  - id: zero_config_use_cases
+    category: product
+    question: How many zero-config use cases work end to end against the target of 3
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: the wedge is being bootstrapped; no use case has passed a buyer-run test
+    last_audited: 2026-08-30
+  - id: cofounder_advisor_name
+    category: team
+    question: Who is the committed co-founder or named advisor
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: Stephen Lutar is solo; no co-founder or advisor has signed (see contradiction B-05)
+    last_audited: 2026-08-30
+  - id: cap_table_cleanliness
+    category: legal
+    question: Is the cap table clean and fully documented
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no counsel-verified cap table export has been attached
+    last_audited: 2026-08-30
+  - id: contributor_ip_assignments
+    category: legal
+    question: Do all contributors have signed IP assignment agreements
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no signed IP assignment paperwork has been attached
+    last_audited: 2026-08-30
+  - id: model_bom_status
+    category: ai_governance
+    question: Does a complete model bill of materials exist for every model in the estate
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: "no Model BOM register has been created for the ~15 Hugging Face models"
+    last_audited: 2026-08-30
+  - id: dataset_license_register
+    category: ai_governance
+    question: Does a license register exist covering all datasets
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: "no license register has been created for the ~30 Hugging Face datasets"
+    last_audited: 2026-08-30
+  - id: soc2_status
+    category: security_readiness
+    question: What is the SOC 2 attestation status
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: SOC 2 work has not been started; no auditor engaged
+    last_audited: 2026-08-30
+  - id: eu_design_partner
+    category: customers
+    question: Is there at least one EU-based design partner for the Article 12 profile
+    state: UNKNOWN
+    value: null
+    blocks_raise: true
+    evidence: null
+    why_unknown: no EU design partner conversation has reached a signed agreement
+    last_audited: 2026-08-30

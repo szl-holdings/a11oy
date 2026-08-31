@@ -1,0 +1,76 @@
+yaml_subset: SZL-YAML-1
+profile: eu-ai-act-article-12-logging
+schema_version: 1
+regulation: Regulation (EU) 2024/1689
+scope_note: Article 12 logging conformance profile. This is NOT a claim of EU AI Act compliance. Applicability, classification, and deployer obligations are customer-specific.
+retention_minimum_days: 180
+out_of_scope:
+  - "Art. 12(3)(b): reference database checks apply to Annex III 1(a) biometric systems only"
+  - "Art. 12(3)(c): matched input data applies to Annex III 1(a) biometric systems only"
+entries:
+  - provision: Art. 12(1)
+    requirement: automatic recording of events (logs) over the lifetime of the system
+    jsonpath: "$.receipt_id"
+    validator: nonempty_string
+    status: MAPPED
+    note: one receipt per governed action, recorded at execution time, not assembled later
+  - provision: Art. 12(2)(a)
+    requirement: recording of events relevant to identifying risk situations and substantial modifications
+    jsonpath: "$.decision.effective_side_effect_class"
+    validator: enum_side_effect_class
+    status: MAPPED
+    note: blast radius is priced per action in four never-collapsed classes
+  - provision: Art. 12(2)(b)
+    requirement: facilitating post-market monitoring (Art. 72)
+    jsonpath: "$.retention_days"
+    validator: gte_180
+    status: MAPPED
+    note: records persist at or above the retention floor so monitoring can consult them
+  - provision: Art. 12(2)(c)
+    requirement: monitoring the operation of the system (Art. 26(5))
+    jsonpath: "$.decision.decision"
+    validator: enum_allow_deny
+    status: MAPPED
+    note: every action records its allow or deny decision
+  - provision: Art. 12(3)(a) start
+    requirement: recording of the period of each use, start date and time
+    jsonpath: "$.observation_window.start"
+    validator: rfc3339_timestamp
+    status: MAPPED
+    note: governed period opens at a recorded timestamp
+  - provision: Art. 12(3)(a) end
+    requirement: recording of the period of each use, end date and time
+    jsonpath: "$.observation_window.end"
+    validator: rfc3339_timestamp
+    status: MAPPED
+    note: governed period closes at a recorded timestamp
+  - provision: Art. 12(3)(d)
+    requirement: identification of the natural persons involved in verification of results (Art. 14(5))
+    jsonpath: "$.predicate.actor.actor_id"
+    validator: nonempty_string
+    status: MAPPED
+    note: every receipt names the responsible natural person
+  - provision: Art. 12(3)(d) constraint
+    requirement: service accounts cannot stand in for natural persons
+    jsonpath: "$.predicate.actor.is_service_account"
+    validator: const_false
+    status: MAPPED
+    note: "structurally unviolatable: the schema pins is_service_account to false"
+  - provision: Art. 12(1) authenticity support
+    requirement: recorded events must resist backdating
+    jsonpath: "$.predicate.rfc3161_token"
+    validator: nonempty_string
+    status: MAPPED
+    note: RFC 3161 trusted timestamp token, or the literal UNAVAILABLE when the TSA was unreachable
+  - provision: Art. 12(1) clock support
+    requirement: clock state at record time is disclosed
+    jsonpath: "$.predicate.ntp_synced"
+    validator: boolean
+    status: MAPPED
+    note: true only when the host clock was NTP-synced when the receipt was issued
+  - provision: Art. 19(1) and Art. 26(6) retention floor
+    requirement: Art. 12(1) logs kept at least six months by provider and deployer
+    jsonpath: "$.retention_days"
+    validator: gte_180
+    status: MAPPED
+    note: the schema enforces retention_days >= 180 (six months, per CANON Law 10)

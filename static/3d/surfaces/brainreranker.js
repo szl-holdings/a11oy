@@ -89,7 +89,8 @@ function paint() {
   if (!overlay) return;
   const s = state.status || {}, inv = s.inventory || {}, ds = s.dataset || {};
   const feed = s.feed || {}, model = s.model || {}, evaluation = s.evaluation || {};
-  overlay.querySelector("[data-v=status]").textContent = value(s.status || state.mode);
+  overlay.querySelector("[data-v=status]").textContent =
+    value(s.label || "UNAVAILABLE") + " · pipeline " + value(s.status || state.mode);
   overlay.querySelector("[data-v=raw]").textContent = value(inv.raw_node_count);
   overlay.querySelector("[data-v=rendered]").textContent = value(
     state.inventory && state.inventory.decisions ? state.inventory.decisions.length : 0
@@ -103,10 +104,16 @@ function paint() {
   overlay.querySelector("[data-v=loop]").textContent = value(feed.status) + " · " + value(feed.checkpoint);
   overlay.querySelector("[data-v=receipt]").textContent = value(feed.last_successful_receipt);
   overlay.querySelector("[data-v=next]").textContent = value(feed.next_refresh_utc);
+  // The honest label ladder comes from the service: MEASURED only when the whole
+  // pipeline is READY, MODELED when the inventory was read live this request but the
+  // model/evaluation pipeline is BLOCKED, UNAVAILABLE when the graph is unreadable.
   overlay.querySelector("[data-v=note]").textContent = state.error ||
-    ((ds.reasons || []).join(" | ") || "No readiness claim exceeds the receipts shown here.");
+    s.label_basis || ((ds.reasons || []).join(" | ") ||
+    "No readiness claim exceeds the receipts shown here.");
   if (show) {
-    show.setChip("state", s.status || "UNAVAILABLE", { text: "dataset" });
+    show.setChip("state", s.label || "UNAVAILABLE", {
+      text: "pipeline " + value(s.status || state.mode)
+    });
     show.setChip("nodes", s.inventory_label || "UNAVAILABLE", {
       text: "raw nodes " + (inv.raw_node_count == null ? "UNKNOWN" : String(inv.raw_node_count))
     });

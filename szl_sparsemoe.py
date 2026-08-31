@@ -1,5 +1,5 @@
 """
-szl_sparsemoe.py — SZL Extreme-Sparsity MoE Analyzer. An HONEST, STRUCTURAL-ONLY
+szl_sparsemoe.py — SZL Extreme-Sparsity MoE Analyzer. An HONEST, MODELED
 visualizer/estimator of the activation-ratio ↔ inference-cost tradeoff for
 Mixture-of-Experts configurations.
 
@@ -7,18 +7,18 @@ Frontier context (cited, NEVER claimed as SZL's own): the July-2026 state of ope
 source is defined by extreme-sparsity MoE — e.g. GLM-5.2 ships ≈744B TOTAL parameters
 with ≈40B ACTIVE per token (≈5.4% activation) under an MIT license (see llmcheck.net
 state-of-open-source, July 2026, and the Anthony Maio "Checkpoint" survey). a11oy does
-NOT run, host, or reproduce a 744B model. This surface is a deterministic STRUCTURAL
+NOT run, host, or reproduce a 744B model. This surface is a deterministic MODELED
 estimator: given a user-supplied (total, active, quant) it computes the activation
 ratio, a frozen-weight VRAM footprint estimate, an active-slice footprint, and a
 relative cost-per-token curve versus a dense model of the same total size. Every number
-is MODELED / STRUCTURAL-ONLY (an arithmetic model of the config), never MEASURED — there
-is no live GPU/node reading behind it.
+is MODELED (a real arithmetic computation over the request inputs, evaluated in-request),
+never MEASURED — there is no live GPU/node reading behind it.
 
   GET  /api/<ns>/v1/frontier/sparsemoe?total=&active=&quant=&dense_baseline=
 
 Returned JSON (top-level `label`, metrics nested under `payload`)
 ----------------------------------------------------------------------------
-  label                       : "STRUCTURAL-ONLY"
+  label                       : "MODELED"
   payload.total_params_b      : total parameter count (billions)
   payload.active_params_b     : active parameter count per token (billions)
   payload.quant               : weight quant format key (fp16/bf16/fp8/int4/int8/ternary)
@@ -29,13 +29,15 @@ Returned JSON (top-level `label`, metrics nested under `payload`)
   payload.relative_cost_per_token : active-FLOP cost relative to a dense model of `total`
   payload.curve[]             : sampled (active_ratio, relative_cost) points for the UI curve
   payload.reference_configs[] : cited frontier points (GLM-5.2 etc.) plotted for scale
-  payload.parts_labeled       : which parts are STRUCTURAL-ONLY vs MODELED
+  payload.parts_labeled       : which parts are MODELED vs explicitly NOT MEASURED
+  payload.provenance          : inputs + formulas behind every modeled figure (coverage 1.0)
+  payload.measured_gap        : exactly what would be needed to reach MEASURED
   payload.honest_note         : plain-language honesty disclaimer
   payload.citations           : dict of citable sources (verbatim, never claimed as ours)
   payload.computed_at         : ISO-8601 UTC timestamp
 
 HONEST STATUS
-  STRUCTURAL-ONLY / MODELED — the activation ratio, VRAM footprints, and cost curve are
+  MODELED — the activation ratio, VRAM footprints, and cost curve are
     a closed-form arithmetic MODEL of a MoE config. They are genuinely COMPUTED from the
     (total, active, quant) inputs and reported, not fabricated; but nothing here loads or
     runs a real model, so no value is ever MEASURED. The GLM-5.2 / frontier reference
@@ -170,7 +172,7 @@ def _receipt_design(payload, seed_str):
         f"relative_cost={payload['relative_cost_per_token']}",
     ])
     return {
-        "kind": "sparse-moe-analysis-receipt (STRUCTURAL-ONLY design — no model run)",
+        "kind": "sparse-moe-analysis-receipt (MODELED design — no model run, no device read)",
         "binds": [
             "config (total, active, quant) supplied by the caller",
             "computed activation_ratio + VRAM footprints + relative cost",
@@ -205,20 +207,48 @@ def _h_sparsemoe(req: Request):
     seed_str = f"{p['total_params_b']}/{p['active_params_b']}/{p['quant']}"
     p["receipt_design"] = _receipt_design(p, seed_str)
     p.update({
-        "label": "STRUCTURAL-ONLY",
+        # MODELED (Wave 32): every figure below is produced by a closed-form arithmetic
+        # model EVALUATED IN THIS REQUEST from the supplied (total, active, quant). That
+        # is a real computation over real inputs, which is what MODELED means; calling it
+        # STRUCTURAL-ONLY understated it, because a genuine computation does happen.
+        # It is NOT and can never become MEASURED here: no model is loaded, no device is
+        # read, no meter is attached — so no joule, byte or millisecond is measured.
+        "label": "MODELED",
         "model": ("closed-form MoE activation-ratio ↔ inference-cost estimator "
-                  "(frozen-weight VRAM + active-slice VRAM + relative cost-per-token). "
-                  "No model is loaded or run — STRUCTURAL-ONLY."),
+                  "(frozen-weight VRAM + active-slice VRAM + relative cost-per-token), "
+                  "evaluated in-request. No model is loaded or run — MODELED, never MEASURED."),
+        "provenance": {
+            "computed_in_request": True,
+            "inputs": {"total_params_b": p.get("total_params_b"),
+                       "active_params_b": p.get("active_params_b"),
+                       "quant": p.get("quant"),
+                       "bytes_per_param": p.get("bytes_per_param"),
+                       "dense_baseline_b": p.get("dense_baseline_b"),
+                       "source": "request query parameters"},
+            "formulas": [
+                "activation_ratio = active_params / total_params",
+                "frozen_weight_vram = total_params * bytes_per_param (all experts resident)",
+                "active_slice_vram = active_params * bytes_per_param (weights touched per token)",
+                "relative_cost_per_token = active_params / dense_baseline_params",
+            ],
+            "citations": CITATIONS,
+            "device_reading": None,
+            "coverage": 1.0,
+        },
+        "measured_gap": ("MEASURED would require serving this exact MoE config on real "
+                         "hardware with a power/VRAM meter attached; nothing here reads a "
+                         "device, so no number is a measurement"),
         "parts_labeled": {
-            "STRUCTURAL-ONLY": [
+            "MODELED": [
                 "activation ratio (active/total)",
                 "frozen-weight VRAM footprint (all experts resident)",
                 "active-slice VRAM footprint (weights touched per token)",
                 "relative cost-per-token vs dense-of-same-total",
                 "the sampled cost curve",
-            ],
-            "MODELED": [
                 "bytes-per-param by quant format (approximate; excludes KV-cache/activations/overhead)",
+            ],
+            "NOT MEASURED (no device reading exists here)": [
+                "actual VRAM occupancy, actual latency, actual joules per token",
             ],
             "CITED (not ours)": [
                 "GLM-5.2 744B-total / ~40B-active MIT (llmcheck.net July 2026)",
@@ -227,7 +257,7 @@ def _h_sparsemoe(req: Request):
             ],
         },
         "honest_note": (
-            "STRUCTURAL-ONLY. Every number is a closed-form arithmetic MODEL of a MoE "
+            "MODELED. Every number is a closed-form arithmetic MODEL of a MoE "
             "config, genuinely computed from the supplied (total, active, quant) and "
             "reported — not fabricated — but a11oy loads or runs NO model here, so nothing "
             "is MEASURED. The frozen-weight VRAM estimate assumes all experts resident and "
@@ -241,7 +271,7 @@ def _h_sparsemoe(req: Request):
         "citations": CITATIONS,
         "computed_at": datetime.now(timezone.utc).isoformat(),
     })
-    return JSONResponse({"label": "STRUCTURAL-ONLY", "payload": p})
+    return JSONResponse({"label": "MODELED", "payload": p})
 
 
 def register(app, ns: str = "a11oy"):
@@ -270,4 +300,4 @@ if __name__ == "__main__":
     print("frozen_weight_vram_gb:", p["frozen_weight_vram_gb"], "active_slice_vram_gb:", p["active_slice_vram_gb"])
     print("relative_cost_per_token:", p["relative_cost_per_token"])
     print("receipt preview:", p["receipt_design"]["receipt_preview_digest"][:16], "... signed:", p["receipt_design"]["signed"])
-    print("label: STRUCTURAL-ONLY")
+    print("label: MODELED (no model run, no device read)")

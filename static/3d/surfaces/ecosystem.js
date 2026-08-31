@@ -35,6 +35,8 @@
 //
 // 0 runtime CDN: three resolves through the page importmap to /static/3d/vendor/.
 
+import { attachFidelityBadge } from "./_fidelity.js";
+
 const ID = "ecosystem";
 const TITLE = "Harness · Ecosystem Status";
 
@@ -73,7 +75,12 @@ const S = {
 // =========================================================================================
 // mount
 // =========================================================================================
+// Wave 32: server-authoritative fidelity chip (label shown VERBATIM;
+// STRUCTURAL-ONLY until the server answers, never upgraded client-side).
+let _fid32 = null;
+
 function mount(ctx) {
+  try { _fid32 = attachFidelityBadge(ID, ctx); } catch (_) {}
   _ctx = ctx; _stage = ctx.stage; _THREE = ctx.THREE;
   const THREE = _THREE;
   _group = new THREE.Group();
@@ -481,6 +488,8 @@ function C_hex(n) { return "#" + (n & 0xffffff).toString(16).padStart(6, "0"); }
 // unmount — release everything (polls, DOM, GPU resources)
 // =========================================================================================
 function unmount() {
+  try { if (_fid32) _fid32.stop(); } catch (_) {}
+  _fid32 = null;
   [_pollReg, _pollMesh, _pollAllo, _pollSeal].forEach((p) => { try { if (p) p.stop(); } catch (_) {} });
   try { if (_overlay && _overlay.parentNode) _overlay.parentNode.removeChild(_overlay); } catch (_) {}
   try {

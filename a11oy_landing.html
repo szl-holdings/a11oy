@@ -19,27 +19,27 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>a11oy — Governed Inference · AI that proves its receipt state and refuses to lie</title>
-<meta name="description" content="Governed Inference: AI that exposes receipt integrity, signer state, evidence, and refusal behavior. State-changing actions produce hash-chained receipts; DSSE signing is claimed only when persistent signer evidence is active and independently verified." />
+<title>a11oy — AI that proves its receipt state and refuses to lie</title>
+<meta name="description" content="Governed agent change management: AI that exposes receipt integrity, signer state, evidence, and refusal behavior. State-changing actions produce hash-chained receipts; DSSE signing is claimed only when persistent signer evidence is active and independently verified." />
 <link rel="canonical" href="https://a-11-oy.com/" />
 <meta property="og:type" content="website" />
 <meta property="og:url" content="https://a-11-oy.com/" />
-<meta property="og:title" content="a11oy — Governed Inference" />
+<meta property="og:title" content="a11oy — Governed Agent Change Management" />
 <meta property="og:description" content="AI that exposes receipt integrity and signer state, shows its evidence, and refuses when it cannot support an answer." />
 <meta property="og:image" content="https://a-11-oy.com/social-preview-v5.png" />
 <meta property="og:image:type" content="image/png" />
 <meta property="og:image:width" content="1280" />
 <meta property="og:image:height" content="640" />
-<meta property="og:image:alt" content="a11oy Governed Inference — evidence-labelled ecosystem and Anatomy v5" />
+<meta property="og:image:alt" content="a11oy — evidence-labelled ecosystem and Anatomy v5" />
 <meta name="twitter:card" content="summary_large_image" />
 <meta name="twitter:image" content="https://a-11-oy.com/social-preview-v5.png" />
-<meta name="twitter:image:alt" content="a11oy Governed Inference — evidence-labelled ecosystem and Anatomy v5" />
+<meta name="twitter:image:alt" content="a11oy — evidence-labelled ecosystem and Anatomy v5" />
 <link rel="icon" type="image/svg+xml" href="/social-preview-v5.svg" />
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "a11oy Governed Inference",
+  "name": "a11oy",
   "url": "https://a-11-oy.com/",
   "applicationCategory": "DeveloperApplication",
   "operatingSystem": "Web",
@@ -356,6 +356,12 @@
   .chip.simulated .dot{background:var(--gray)}
   .chip.unavailable{color:var(--down);border-color:rgba(232,116,110,0.35);background:rgba(232,116,110,0.07)}
   .chip.unavailable .dot{background:var(--down)}
+  /* Genome catalog tag slot: visually subordinate to the kernel chip so the
+     catalog count can never be mistaken for the Lean-8 kernel count. */
+  .tier .genome-note{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+    font-size:.82rem;color:var(--ghost)}
+  .tier .genome-note .n{font-family:var(--mono);color:var(--sub)}
+  .product-card .kc-note{margin-top:10px;font-size:.84rem;color:var(--ghost)}
   .product-card .lam{margin-top:auto;padding-top:14px}
   .honesty .lambda-line{margin:24px 0 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
   .honesty .lambda-line .muted{max-width:640px}
@@ -405,14 +411,15 @@
         <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
         <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
       </svg>
-      <span>a11oy<span class="sub" style="margin-left:9px">Governed Inference</span></span>
+      <span>a11oy<span class="sub" style="margin-left:9px">Governed Agent Change Management</span></span>
     </a>
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">☰</button>
     <nav class="nav-links" id="site-nav">
       <a class="hide-sm" href="#products">Products</a>
       <a class="hide-sm" href="#catalog">Catalog</a>
       <a class="hide-sm" href="/lyte">LYTE</a>
-      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof</a>
+      <a href="/console">Command</a>
+      <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
       <a href="/trust">Evidence</a>
       <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
@@ -427,7 +434,7 @@
   <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
     <div class="hero-inner">
-      <span class="eyebrow"><span class="dot"></span> Governed Inference · verifiable by anyone, offline</span>
+      <span class="eyebrow"><span class="dot"></span> Governed agent change management · verifiable by anyone, offline</span>
       <h1 class="title">AI that <span class="grad">proves its receipt state</span><br>and refuses to lie.</h1>
       <p class="lede">Every governed state change produces a hash-chained receipt you can inspect
         <b>offline, in your own browser</b>. The interface says <b>SIGNED</b> only when persistent
@@ -524,11 +531,17 @@
       <div class="status-row">
         <span class="chip software"><span class="dot"></span>SOFTWARE</span>
         <span class="chip simulated"><span class="dot"></span>SIMULATED effectors</span>
+        <span class="chip down" id="kc-runtime"><span class="dot"></span>RUNTIME UNAVAILABLE</span>
       </div>
+      <p class="kc-note" id="kc-runtime-note">This document carries no live reading of the
+        killinchu Space runtime, so the runtime is labelled <b>UNAVAILABLE</b>. The in-page
+        probe below only reports REACHABLE on an actual HTTP 200 this visit; if the request
+        is refused or has timed out, the label stays UNAVAILABLE. The Hugging Face Space hub
+        page is the honest entry point while the runtime is down — it is not a live product
+        surface.</p>
       <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
       <div class="golinks">
-        <a class="go" href="/killinchu">Open killinchu →</a>
-        <a class="go" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" rel="noopener">Space →</a>
+        <a class="go" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" rel="noopener">killinchu Space hub →</a>
       </div>
     </article>
     <article class="card product-card" id="product-forge">
@@ -624,10 +637,14 @@
   <div class="grid g4">
     <div class="tier locked">
       <div class="tnum" id="pt-locked">—</div>
-      <div class="tname">LOCKED-PROVEN</div>
+      <div class="tname">LOCKED-PROVEN · KERNEL</div>
       <p>Lean-8 kernel count from <code>/honest</code> <code>locked_formula_count</code>
         (show 8 or N/A). Not genome catalog LOCKED-PROVEN. F18 is Reed-Solomon
         parity (erasure tolerance), not "DSSE seal".</p>
+      <p class="genome-note">Genome catalog tag LOCKED-PROVEN (a different count, from
+        <code>/api/a11oy/v1/genome</code> <code>tier_counts</code>):
+        <span class="n" id="pt-genome-locked">—</span> of 144 catalog entries. Catalog tag,
+        not the kernel chip above.</p>
     </div>
     <div class="tier semantic">
       <div class="tnum" id="pt-semantic">—</div>
@@ -745,7 +762,7 @@
             <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
             <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
           <span>a11oy<span class="sub" style="margin-left:9px">Alloy by SZL Holdings</span></span></a>
-        <p class="muted" style="margin:6px 0 0">Governed Inference — AI that exposes receipt
+        <p class="muted" style="margin:6px 0 0">Governed agent change management — AI that exposes receipt
           integrity, signer state, evidence, and refusal behavior. The sha3_256 receipt ledger is
           independently inspectable; DSSE signing is claimed only when verification proves it.</p>
         <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
@@ -917,30 +934,61 @@
   }
 
   function setTiers(t){
-    // Catalog tiers only. Kernel Lean-8 chip is loadLockedKernel() from /honest
+    // Catalog tiers only. Kernel Lean-8 chip is loadKernelLocked() from /honest
     // locked_formula_count. Never genome LOCKED-PROVEN. Never proof_tiers.locked.
     $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
     $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
   }
-  async function loadLockedKernel(){
+  // Kernel locked-proven chip (#pt-locked) is bound ONLY to the honest kernel
+  // count. It is never bound to a genome catalog tier (tier_counts['LOCKED-PROVEN']
+  // is 25 of 144 — a catalog tag, not the Lean-8 kernel).
+  async function loadKernelLocked(){
     try{
       const h = await getJSON("/api/a11oy/v1/honest");
       const n = num(h && h.locked_formula_count);
       $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
     }catch(e){ $("pt-locked").textContent = "N/A"; }
   }
+  // Genome catalog tag count, rendered in its own slot so it can never be read
+  // as the kernel chip.
   function setCatalogNote(n){
-    let el = $("pt-catalog");
-    if(!el){
-      const grid = document.querySelector("#proof .grid");
-      if(!grid) return;
-      el = document.createElement("p");
-      el.id = "pt-catalog";
-      el.className = "intro";
-      grid.insertAdjacentElement("afterend", el);
+    const el = $("pt-genome-locked");
+    if(!el) return;
+    el.textContent = (num(n)===null) ? "N/A" : String(n);
+  }
+
+  // ---- killinchu runtime honesty ------------------------------------------
+  // The killinchu Space runtime is labelled UNAVAILABLE unless THIS visit gets a
+  // real HTTP 200 from its health endpoint. A refused or timed-out probe is
+  // never read as "live"; nothing about the runtime is asserted from markup.
+  const KC_RUNTIME_PROBE = "https://szlholdings-killinchu.hf.space/api/health";
+  function markKillinchuUnavailable(reason){
+    const chip = $("kc-runtime");
+    if(chip){
+      chip.className = "chip down";
+      chip.innerHTML = '<span class="dot"></span>RUNTIME UNAVAILABLE' + (reason ? (" \u00b7 " + esc(reason)) : "");
     }
-    el.textContent = (num(n)===null) ? "" : ("Genome catalog LOCKED-PROVEN = "+n+" (catalog, not kernel). Lean-8 is the kernel; genome-144 is the catalog.");
+  }
+  function markKillinchuReachable(){
+    const chip = $("kc-runtime");
+    if(chip){
+      chip.className = "chip live";
+      chip.innerHTML = '<span class="dot"></span>RUNTIME REACHABLE \u00b7 live read this visit';
+    }
+  }
+  async function probeKillinchuRuntime(){
+    const ctl = ("AbortController" in window) ? new AbortController() : null;
+    const timer = ctl ? setTimeout(function(){ ctl.abort(); }, 4000) : null;
+    try{
+      const r = await fetch(KC_RUNTIME_PROBE, { signal: ctl ? ctl.signal : undefined, cache: "no-store" });
+      if(timer) clearTimeout(timer);
+      if(r && r.ok){ markKillinchuReachable(); return; }
+      markKillinchuUnavailable("HTTP " + (r ? r.status : "no response"));
+    }catch(e){
+      if(timer) clearTimeout(timer);
+      markKillinchuUnavailable((e && e.name === "AbortError") ? "probe timed out" : "runtime unreachable");
+    }
   }
 
   function setVerticals(v){
@@ -1122,7 +1170,9 @@
   (async function(){
     loadEstatePulse();
     loadOverclaimMetrics();
-    loadLockedKernel();
+    loadKernelLocked();
+    markKillinchuUnavailable();
+    probeKillinchuRuntime();
     const ov = await loadOverview();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",

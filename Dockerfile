@@ -138,7 +138,6 @@ COPY knowledge.json ./static/knowledge.json
 
 # Ayllu — a11oy-native agent community. a11oy_ayllu.py is imported (guarded) by
 # … (full rationale: docs/DOCKERFILE_NOTES.md §5)
-COPY a11oy_ayllu.py ./
 COPY ayllu/ ./ayllu/
 # Canonical model-family/control-plane evidence ships with the runtime image so
 # deployed status surfaces can be audited against the same release contracts.
@@ -151,17 +150,13 @@ COPY model_release/receipt-agent/ ./model_release/receipt-agent/
 COPY szl_brain_training_admission.py ./
 # Waqay Security Loop wave 15: pure read-only proposal contract.  The module
 # exposes zero external effectors; serve.py registers only its manifest GET.
-COPY szl_waqay_security_loop.py ./
 # Claim-integrity Rupture Gate / EvidenceOS Claim Compiler: external signals
 # only, unsigned deterministic receipts, zero effectors.  The exact request
 # schemas ship beside the module so served OpenAPI cannot drift from the
 # reviewed source contracts.
-COPY szl_claim_rupture_gate.py ./
 COPY schemas/evidenceos/ ./schemas/evidenceos/
 # Wave 38 evidence surfaces: involution probe + runtime contracts + committed quant
 # benchmark receipt (read-only, validated+signature-checked at serve time).
-COPY szl_involution_probe.py ./
-COPY szl_runtime_contracts.py ./
 COPY benchmarks/quant_live/receipts/latest.json ./benchmarks/quant_live/receipts/latest.json
 # Quantum Utility Gate wave 16: pure-stdlib proposal analysis only.  No provider
 # SDK, QPU call, credential path, external effector, or finance-engine coupling.
@@ -191,12 +186,13 @@ COPY model_release/m1/ ./model_release/m1/
 # Canonical release identity and public Zenodo readback receipt. The readback
 # file ships in a PENDING state until a separately verified archive PR replaces
 # it; the runtime never invents a DOI from the version number.
-COPY szl_release_identity.py ./
-COPY zenodo-readback.json ./
 # Shared fail-closed provider transport. Registry adapters opt in to private
 # destinations explicitly; this module performs pinned DNS validation, bounded
 # redirect handling, response-size limits, and secret-safe deterministic errors.
-COPY szl_provider_http.py ./
+# Keep root-level sources explicit while batching them into one filesystem layer.
+# PR builds load the image into the Docker daemon for smoke testing; an
+# instruction-per-file layout exceeded the daemon's maximum layer depth.
+COPY a11oy_ayllu.py szl_waqay_security_loop.py szl_claim_rupture_gate.py szl_involution_probe.py szl_runtime_contracts.py szl_release_identity.py zenodo-readback.json szl_provider_http.py ./
 # Primary official project registry (51 records across 10 fields).  Runtime
 # serves the deterministic, unranked registry; optional live metadata remains a
 # bounded adapter and is not executed on anonymous public requests.
@@ -213,25 +209,19 @@ COPY data/genome.json ./data/genome.json
 
 # Copy serve orchestrator and gates manifest
 # … (full rationale: docs/DOCKERFILE_NOTES.md §10)
-COPY static/a11oy_cathedral.js ./static/a11oy_cathedral.js
 # Operator organ (Dev3) — ingested 3D infra-viz, vendored-three (0 CDN)
-COPY static/a11oy_operator_organ.js ./static/a11oy_operator_organ.js
 # (pages/operator_organ.html is copied below via `COPY pages/ ./pages/`)
 COPY static/vendor3d/three.module.min.js static/vendor3d/OrbitControls.js static/vendor3d/THREE_LICENSE.txt ./static/vendor3d/
 # ADDITIVE (Dev0, 2026-06-14): SHARED szl3d 3D toolkit + holographic shell. The
 # … (full rationale: docs/DOCKERFILE_NOTES.md §11)
-COPY szl3d_holographic.py ./szl3d_holographic.py
 # ADDITIVE (Wave-P Dev2): live cross-node mesh orchestrator backing the /holographic
 # … (full rationale: docs/DOCKERFILE_NOTES.md §12)
-COPY szl_mesh_orchestrator.py ./szl_mesh_orchestrator.py
 # ADDITIVE (cathedral unification, GitHub-aligned): the ONE canonical genius
 # … (full rationale: docs/DOCKERFILE_NOTES.md §13)
-COPY cathedral_genius.html ./cathedral_genius.html
-COPY static/cathedral_app.js ./static/cathedral_app.js
 # ADDITIVE (holographic front-door landing, Dev1): the governed-inference-field
 # … (full rationale: docs/DOCKERFILE_NOTES.md §14)
-COPY a11oy_landing.html ./a11oy_landing.html
-COPY static/a11oy_landing.js ./static/a11oy_landing.js
+COPY szl3d_holographic.py szl_mesh_orchestrator.py cathedral_genius.html a11oy_landing.html ./
+COPY static/a11oy_cathedral.js static/a11oy_operator_organ.js static/cathedral_app.js static/a11oy_landing.js static/energy_3d.js ./static/
 # ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
 # … (full rationale: docs/DOCKERFILE_NOTES.md §15)
 COPY corpus/ ./corpus/
@@ -286,19 +276,15 @@ COPY static-vendor/three.min.js static-vendor/chart.umd.min.js static-vendor/3d-
 COPY benchmarks/restraint/run_bench.py ./benchmarks/restraint/run_bench.py
 # ADDITIVE (nonlinear-PINN frontier, 2026-07-02): szl_pinn_nonlinear.py is imported by
 # … (full rationale: docs/DOCKERFILE_NOTES.md §26)
-COPY benchmarks/pinn/results.json ./benchmarks/pinn/results.json
-COPY benchmarks/pinn/run_bench.py ./benchmarks/pinn/run_bench.py
+COPY benchmarks/pinn/results.json benchmarks/pinn/run_bench.py ./benchmarks/pinn/
 # ADDITIVE (Lane F1, 2026-06-14): the 3D/holographic SUBSTRATE demo page, served at
 # … (full rationale: docs/DOCKERFILE_NOTES.md §27)
-COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html web/m1-model.html ./web/
-COPY web/signature-is-not-proof.html ./web/signature-is-not-proof.html
-COPY web/defense-readiness.html ./web/defense-readiness.html
+COPY web/formulas.html web/v4_fleet_panel.html web/operator.html web/fleet-c2.html web/living-anatomy.html web/nemo.html web/restraint.html web/restraint-bench.html web/holo.html web/constitution.html web/quant.html web/estate-hologram.html web/hologram.html web/determinacy.html web/verify-receipt.html web/sda.html web/dns.html web/m1-model.html web/signature-is-not-proof.html web/defense-readiness.html ./web/
 # ADDITIVE (Lane A AGENTIC CORE, Dev A, 2026-06-14; QA9 restore 2026-06): the
 # … (full rationale: docs/DOCKERFILE_NOTES.md §28)
 # Quant-claim provenance gate: strict schemas plus a bounded, digest-addressed,
 # read-only DSSE receipt loader. It performs no benchmark, signing, GPU, or network work.
-COPY szl_quant_claims.py ./
-COPY szl_formula_registry.py ./
+COPY szl_quant_claims.py szl_formula_registry.py ./
 COPY content_credentials.py ./
 COPY schemas/quant-claims/ ./schemas/quant-claims/
 COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py szl_governed_api.py szl_demo_tier1.py szl_assurance.py govern_showcase.html a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py szl_spaces_proxy.py szl_spaces_surface.py szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_intoto.py szl_intoto_routes.py szl_scitt.py szl_dsse.py szl_content_address.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formula_registry_guard.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py szl_ltc_dynamics.py szl_sgh_scheduler.py szl_formula_wiring.py szl_formula_surfaces.py a11oy_code_engine.py a11oy_code_runloop.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_neuromorphic.py szl_kan.py szl_titans.py szl_mor.py szl_ternary.py szl_agentmem.py szl_edgefusion.py szl_hybridssm.py szl_aigov.py szl_chain_of_title.py szl_sovereign_compute.py szl_a11oy_interpretability.py a11oy_active_flux_router.py szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py szl_energy_measured.py joule_billing.py szl_durable_ledger.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py szl_energy_live.py szl_orbital_topology.py szl_orbital_projection.py a11oy_orbital_page.py a11oy_frontier_page.py szl_frontier_manifest.py szl_frontier_zkinfer.py szl_frontier_fmverif.py szl_frontier_supplychain.py a11oy_code_as_action.py a11oy_governed_kernel.py szl_lambda_tripwire.py szl_provenance_receipt.py szl_khipu_verify.py szl_public_verify.py szl_attest_stack.py szl_demo_sign.py szl_sda.py szl_fabric_surface.py szl_nemo_agents.py szl_kverify.py szl_specdec.py szl_immune.py szl_quant_qbio_holo.py szl_materials.py szl_materials_predict.py a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py szl_mbse_cosim.py szl_mbse_nav.py szl_mbse.py szl_factory.py szl_willay_gateway.py a11oy_willay_nav.py szl_waqay.py a11oy_waqay_nav.py szl_yupay.py a11oy_yupay_nav.py a11oy_uds_portability_nav.py szl_pinn_bounds.py szl_pinn_residual.py physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json szl_pinn_inverse.py szl_governed_ipinn.py szl_calphad_inverse.py szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py szl_counter_uas_proxy.py szl_gpu_quant.py szl_joules_truth.py revenue_model.py szl_prod_hardening.py szl_resilience.py szl_observability.py szl_corpus_publish.py szl_lake_store.py szl_lake_ingest.py szl_e8.py szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py a11oy_nemo_core.py szl_restraint.py szl_sapa.py szl_sapa_patch.py szl_restraint_energy.py a11oy_react_core.py szl_org_lambda.py a11oy_canonical_domain.py a11oy_formula_tiers.py szl_physical_bounds.py szl_kc_loop_forge.py szl_kc_loop_forge_metrics.py szl_kc_atlas.py szl_eval_arena.py szl_vqc.py szl_kc_jpt.py ./
@@ -325,7 +311,7 @@ COPY brain/harvest ./brain/harvest
 # … (full rationale: docs/DOCKERFILE_NOTES.md §35)
 COPY brain/harvest_vault.py ./brain/harvest_vault.py
 # --- buildkit max-depth fix: per-file COPYs grouped into one layer (no file dropped; every source token preserved). ---
-COPY szl_qhawaq.py szl_wallpa.py szl_pinn_nonlinear.py szl_sovereign_panel.py szl_lgmi.py szl_gnqs.py szl_casta.py szl_sparsemoe.py szl_pddisagg.py szl_execverify.py szl_brainbody.py szl_flowbrain.py szl_tee_attest.py szl_attested_inference.py szl_proof_carrying_infer.py szl_eu_energy.py a11oy_brain_graph.py szl_brain_api.py szl_brainprovenance.py szl_braincontradict.py szl_governed_infer.py szl_brain_energy.py szl_brain_command.py szl_brain_hub.py ./
+COPY szl_qhawaq.py szl_wallpa.py szl_pinn_nonlinear.py szl_sovereign_panel.py szl_lgmi.py szl_gnqs.py szl_casta.py szl_sparsemoe.py szl_pddisagg.py szl_execverify.py szl_brainbody.py szl_flowbrain.py szl_tee_attest.py szl_attested_inference.py szl_proof_carrying_infer.py szl_eu_energy.py a11oy_brain_graph.py szl_brain_api.py szl_brainprovenance.py szl_braincontradict.py szl_governed_infer.py szl_brain_energy.py szl_brain_command.py szl_brain_hub.py szl_surface_fidelity.py ./
 
 # DEV2: in-toto offline verifier recipe (Apache-2.0)
 RUN mkdir -p /app/szl-cookbook
@@ -543,25 +529,21 @@ COPY a11oy_threat_intel.py a11oy_live_feeds.py a11oy_signing_key.py a11oy_dev1_e
 COPY static/3d/ ./static/3d/
 # Standalone a11oy holographic energy page (/energy-holographic) + the upgraded HF energy
 # … (full rationale: docs/DOCKERFILE_NOTES.md §72)
-COPY static/energy_3d.js ./static/energy_3d.js
+# static/energy_3d.js is included in the bounded static-source bundle above.
 # Grid Energy Harvest honest dashboard (/energy-harvest); served via _ptg_serve from /app/web/.
 # … (full rationale: docs/DOCKERFILE_NOTES.md §73)
-COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html ./web/
+COPY web/agentic-gpu.html web/governance.html web/autoreview.html web/energy-holographic.html web/energy.html web/energy-3d.html web/energy-harvest.html web/immune.html web/materials.html web/proof.html web/trust.html web/code.html web/lyte.html web/khipu.html web/five-space.html web/nexus.html ./web/
 # LYTE lattice BIND hologram page + status module (AO-2026-08-29-001).
 # Cite GitHub. Not a second flagship. Not a product certificate.
-COPY web/lyte.html ./web/lyte.html
-COPY szl_lyte_lattice.py ./
 # KHIPU product organ. GET /khipu HTML is exact. API is /api/a11oy/v1/khipu-organ/*.
 # Does not shadow the receipt DAG. CUDA UNAVAILABLE. Conjecture 1 OPEN.
-COPY web/khipu.html ./web/khipu.html
-COPY szl_khipu_organ.py ./
 # Five-space operator BIND hologram (AO-2026-08-29-002).
 # Command/Loop/Queue/Memory/Ledger. Not a Vite dump. Not a second flagship.
-COPY web/five-space.html ./web/five-space.html
-COPY szl_five_space.py ./
 # NEXUS analog vanity path (AO-2026-08-29-003). Same class as /five-space.
 # Not a flagship. Not a landing door. Hub Space private.
-COPY web/nexus.html ./web/nexus.html
+COPY szl_lyte_lattice.py ./
+COPY szl_khipu_organ.py ./
+COPY szl_five_space.py ./
 COPY szl_nexus.py ./
 # a11oy /code GOVERNED RUN-LOOP view (2026-07-06): standalone sovereign page (0 CDN)
 # … (full rationale: docs/DOCKERFILE_NOTES.md §74)
@@ -602,24 +584,19 @@ COPY harness_profiles/ ./harness_profiles/
 
 # BRAIN CONSENSUS (feat/frontier-brainconsensus) — per-file COPY (this Dockerfile has NO
 # … (full rationale: docs/DOCKERFILE_NOTES.md §86)
-COPY szl_brainconsensus.py ./szl_brainconsensus.py
 # BRAIN QUERY AUDIT (feat/frontier-brainqueryaudit) — append-only, hash-linked ledger
 # … (full rationale: docs/DOCKERFILE_NOTES.md §87)
-COPY szl_brainqueryaudit.py ./szl_brainqueryaudit.py
 # Wave 22: content-addressed corpus admission + fail-closed Brain reranker/feed.
 # No model weights, trainer, or network harvester are included.
 COPY szl_braincorpus.py szl_brain_reranker.py ./
 COPY szl_brain_capabilities.py szl_brain_memory_schema.py szl_brain_quantum_evidence.py ./
 # BRAIN LINEAGE (feat/frontier-brainlineage) — NODE-ORIGIN lineage over the SAME
 # … (full rationale: docs/DOCKERFILE_NOTES.md §88)
-COPY szl_brainlineage.py ./szl_brainlineage.py
 # BRAIN EXPLAIN (feat/frontier-brainexplain) — per-file COPY (this Dockerfile has NO
 # … (full rationale: docs/DOCKERFILE_NOTES.md §89)
-COPY szl_brainexplain.py ./szl_brainexplain.py
 # BRAIN GAPS (feat/frontier-braingaps) — per-file COPY (this Dockerfile has NO
 # … (full rationale: docs/DOCKERFILE_NOTES.md §90)
-COPY szl_braingaps.py ./szl_braingaps.py
-COPY szl_spend_cap.py ./szl_spend_cap.py
+COPY szl_brainconsensus.py szl_brainqueryaudit.py szl_brainlineage.py szl_brainexplain.py szl_braingaps.py szl_spend_cap.py ./
 
 
 
@@ -627,32 +604,25 @@ COPY szl_spend_cap.py ./szl_spend_cap.py
 
 # WAVE R Dev 1 — boot-resilience env/secret preflight. Per-file COPY (this
 # … (full rationale: docs/DOCKERFILE_NOTES.md §91)
-COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py szl_source_attestation.py szl_compute_pool_contract.py szl_estateconstitution.py ./
+COPY a11oy_model_intel.py a11oy_experimental_tier.py a11oy_markets.py szl_agent_tts.py szl_gated_delta.py szl_blocksparse.py szl_retrieval_attn.py szl_model_harness.py szl_agent_loop_governed.py szl_crypto_pipeline.py szl_confattest.py szl_agent_operate.py szl_agentloop_brain.py szl_governed_rag.py szl_sovereign_flywheel.py szl_brain_corpus.py szl_verify_transcript.py szl_frontier_index.py szl_whatsnew.py szl_honestywall.py szl_brainmemory.py szl_agentos.py szl_brainground.py szl_brainuncertainty.py szl_brainhealth.py szl_brainwatch.py szl_boot_preflight.py szl_guarded_surface.py szl_status_aggregate.py szl_brainconstitution.py szl_brainagent.py szl_surface_manifests.py szl_source_attestation.py szl_compute_pool_contract.py szl_estateconstitution.py szl_brainretro.py ./
 COPY gdw_attention.py gdw_auth.py gdw_workspace.py gdw_telemetry.py gdw_proofs.py gdw_runtime.py gdw_drain.py ./
 COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3d/surfaces/retrievalattn.js static/3d/surfaces/governedagent.js static/3d/surfaces/cryptopipeline.js static/3d/surfaces/confattest.js static/3d/surfaces/agentops.js static/3d/surfaces/frontierindex.js static/3d/surfaces/whatsnew.js static/3d/surfaces/opsdash.js ./static/3d/surfaces/
 
 # FORGE-FAMILY WALL (2026-07-14): /api/forge/family — server-side ed25519
 # … (full rationale: docs/DOCKERFILE_NOTES.md §92)
-COPY a11oy_forge_family.py ./a11oy_forge_family.py
-
 # KHIPU DEMO TAB (2026-07-16): /api/khipu/demo — three RECORDED Khipu navigator
 # … (full rationale: docs/DOCKERFILE_NOTES.md §93)
-COPY a11oy_khipu_demo.py ./a11oy_khipu_demo.py
-COPY a11oy_khipu_demo_traces.json ./a11oy_khipu_demo_traces.json
 
 # KHIPU DEMO PAGE (2026-07-16): a11oy_khipu_demo_nav.py attaches the idempotent
 # … (full rationale: docs/DOCKERFILE_NOTES.md §94)
-COPY a11oy_khipu_demo_nav.py ./a11oy_khipu_demo_nav.py
 
 # KHIPU LIVE CPU LAB (2026-08-28): same-origin /api/a11oy/v1/khipu/{status,chat}
 # proxy + first-class GGUF voter package. Dummy Bearer not-a-secret. Λ=Conjecture 1.
 COPY packages/inference/ ./packages/inference/
-COPY a11oy_khipu_chat.py ./a11oy_khipu_chat.py
 
 # QUANT SIGNALS WALL (2026-07-16): /api/quant/signals + /signals — the quant
 # … (full rationale: docs/DOCKERFILE_NOTES.md §95)
-COPY a11oy_quant_signals.py ./a11oy_quant_signals.py
-COPY a11oy_quant_signals_nav.py ./a11oy_quant_signals_nav.py
+COPY a11oy_forge_family.py a11oy_khipu_demo.py a11oy_khipu_demo_traces.json a11oy_khipu_demo_nav.py a11oy_khipu_chat.py a11oy_quant_signals.py a11oy_quant_signals_nav.py a11oy_ayllu_wall.py a11oy_decision_integrity.py a11oy_command_center.py ./
 
 # ECOSYSTEM ATLAS + ANATOMY V5 (2026-07-16): versioned public inventory API,
 # real deep-link pages, and the read-only live digital twin. pages/ is copied
@@ -670,13 +640,19 @@ COPY szl_organ_integrity.py ./szl_organ_integrity.py
 # AYLLU COUNCIL WALL (2026-07-21): /api/ayllu/wall + /ayllu/wall — server-side
 # per-request DSSE re-verification of committed council decision receipts,
 # fetched from the public GitHub repo. Fail-closed; key honesty in-band.
-COPY a11oy_ayllu_wall.py ./a11oy_ayllu_wall.py
 
 # Packet 8 Decision Integrity desk on a-11-oy.com (GET /decision).
 # Frozen evals. Formula authority NONE. Status ROADMAP. Does not stamp LIVE.
-COPY a11oy_decision_integrity.py ./
 # Bound-path Command Center SPA on a-11-oy.com/command. Does not steal /console.
-COPY a11oy_command_center.py ./a11oy_command_center.py
+# L6 CHAIN-OF-TITLE ATTESTATION (Wave 32): in-toto v1 Statement whose subject binds
+# the locked-8 kernel gitCommit, DSSE-signed via szl_dsse, with a guarded Rekor
+# submission that records UNREACHABLE/UNKNOWN rather than a fabricated entry.
+# Serves GET /api/a11oy/v1/attest/manifest and GET|POST /api/a11oy/v1/attest/verify
+# plus the `attest` holographic surface. Policy: ops/szl_chain_of_title.rego.
+COPY szl_attest.py ./szl_attest.py
+COPY ops/szl_chain_of_title.rego ./ops/szl_chain_of_title.rego
+COPY static/3d/surfaces/attest.js ./static/3d/surfaces/attest.js
+
 COPY verticals/_kernel/a11oy_kernel.py ./verticals/_kernel/a11oy_kernel.py
 COPY verticals/PACKET8.json ./verticals/PACKET8.json
 COPY verticals/terra ./verticals/terra

@@ -84,7 +84,8 @@ def test_presence_only_cannot_claim_delivery_health() -> None:
 def test_protocol_auto_detection() -> None:
     assert infer_mode("https://hooks.slack.com/services/a/b/c") == "slack"
     assert infer_mode("https://ntfy.sh/a11oy-uptime") == "ntfy"
-    assert infer_mode("https://a11oy.net/alerts") == "ntfy"
+    assert infer_mode("https://ntfy.a11oy.net/private-topic") == "ntfy"
+    assert infer_mode("https://a11oy.net/alerts") == "generic-json"
     assert infer_mode("https://alerts.invalid/hook") == "generic-json"
 
 

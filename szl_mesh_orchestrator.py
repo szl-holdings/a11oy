@@ -31,7 +31,8 @@ Three ADDITIVE, honest GET endpoints (registered BEFORE the SPA catch-all):
   GET /api/a11oy/v1/mesh/quorum
       A 3-of-4 witness-quorum VIEW over the mesh as CONJECTURE 2 (khipu-consensus BFT safety is
       proof-deferred per doctrine). Counts witnesses reachable THIS request; NEVER claims a
-      proven/attested consensus — the honest label is STRUCTURAL-ONLY / CONJECTURE-2.
+      proven/attested consensus. The honest label is MODELED (the reachable count is a real
+      in-request probe outcome) / CONJECTURE-2 — never MEASURED, never proven.
 
 HONESTY SPINE (Doctrine v11 — NON-NEGOTIABLE):
   * MEASURED watts only from a live meter reading THIS request; else the node's energy is a
@@ -240,10 +241,41 @@ def mesh_status() -> Dict[str, Any]:
         mesh_state = "DEGRADED"
     else:
         mesh_state = "OFFLINE"
+    # Label (Wave 32): every node above was genuinely probed over HTTP in THIS request,
+    # and each recorded status — including an unreachable one — is a real observation.
+    # So the aggregate mesh_state is DERIVED from real in-request readings, which is
+    # MODELED, not STRUCTURAL-ONLY. It becomes MEASURED only when a live NVML watt
+    # reading actually landed. STRUCTURAL-ONLY is reserved for the case where no probe
+    # could be attempted at all, because then nothing real backs the view.
+    probe_provenance = {
+        "probes_attempted_this_request": len(nodes),
+        "probe_targets": [{"name": n.get("name"),
+                           "models_http_status": (n.get("probes") or {}).get("models", {}).get("http_status"),
+                           "meter_http_status": (n.get("probes") or {}).get("meter", {}).get("http_status"),
+                           "reachable": bool(n.get("reachable")),
+                           "joules_label": n.get("joules_label")} for n in nodes],
+        "measured_watt_reading_this_request": bool(measured_any),
+        "note": ("reachability comes from a real 2xx this request; an unreachable probe is "
+                 "a real negative observation, never a fabricated positive"),
+        "coverage": 1.0,
+    }
+    if measured_any:
+        data_label = "MEASURED"
+    elif nodes:
+        data_label = "MODELED"
+    else:
+        data_label = "STRUCTURAL-ONLY"
     return {
         "ok": True,
         "mesh_state": mesh_state,
-        "data_label": "MEASURED" if measured_any else "STRUCTURAL-ONLY",
+        "data_label": data_label,
+        "provenance": probe_provenance,
+        "measured_gap": (None if measured_any else
+                         "no live NVML watt reading landed this request, so no joule or watt "
+                         "is claimed; the mesh state is derived from probe outcomes only"),
+        "structural_only_reason": (None if nodes else
+                                   "no node could be probed this request, so nothing real "
+                                   "backs this view"),
         "nodes": nodes,
         "counts": {
             "total": len(nodes), "live": len(live),
@@ -360,7 +392,21 @@ def mesh_quorum() -> Dict[str, Any]:
     return {
         "ok": True,
         "consensus_model": "BFT 3-of-4 witness quorum (khipu-consensus)",
-        "data_label": "STRUCTURAL-ONLY",
+        # MODELED: witnesses_reachable is COUNTED from real probes taken this request and
+        # quorum_would_form is derived from that real count. It is never MEASURED (no vote
+        # was signed) and quorum_proven stays False — BFT safety remains Conjecture 2.
+        "data_label": "MODELED",
+        "provenance": {
+            "witness_probes_this_request": total,
+            "witnesses": [{"witness": w.get("witness"), "kind": w.get("kind"),
+                           "reachable": bool(w.get("reachable"))} for w in node_witnesses],
+            "note": ("reachability per witness is a real in-request probe outcome; the "
+                     "governance witness has no live signing endpoint and is counted "
+                     "structurally as reachable=False so the live count is never inflated"),
+            "coverage": 1.0,
+        },
+        "measured_gap": ("no witness signed an `allow` vote, so no quorum is measured or "
+                         "proven; only reachability was read"),
         "conjecture": BFT_STATUS,
         "threshold": threshold,
         "witnesses_total": total,
@@ -527,7 +573,12 @@ def _selftest() -> Dict[str, Any]:
     with _mock.patch.object(_sys_mod, "mesh_status", return_value=fake_status):
         q = mesh_quorum()
     assert q["conjecture"] == BFT_STATUS and q["quorum_proven"] is False, q
-    assert q["data_label"] == "STRUCTURAL-ONLY", q
+    # Wave 32: MODELED — witnesses_reachable is counted from real in-request probes and
+    # quorum_would_form is derived from that count. Never MEASURED (no vote was signed),
+    # never proven (BFT stays Conjecture 2).
+    assert q["data_label"] == "MODELED", q
+    assert q["data_label"] != "MEASURED", q
+    assert q["provenance"]["witness_probes_this_request"] == 4, q
     gov = [w for w in q["witnesses"] if w["kind"] == "governance"][0]
     assert gov["reachable"] is False, gov
     out["quorum_conjecture"] = q["conjecture"]

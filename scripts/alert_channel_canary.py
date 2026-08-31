@@ -22,7 +22,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 VALID_MODES = {"auto", "slack", "ntfy", "generic-json"}
-NTFY_RELAY_HOSTS = {"ntfy.sh", "a11oy.net"}
+NTFY_RELAY_HOSTS = {"ntfy.sh", "ntfy.a11oy.net"}
+NON_RECEIVING_ALERT_HOSTS = {
+    "a11oy.net": "a11oy.net is a static proof registry and cannot receive alert-channel POST requests",
+}
 FAILURE_STATES = {
     "MISSING",
     "INVALID_CONFIGURATION",
@@ -97,6 +100,9 @@ def validate_endpoint(
         raise EndpointContractError("alert endpoint must use HTTP(S)")
     if not parsed.hostname:
         raise EndpointContractError("alert endpoint has no hostname")
+    hostname = parsed.hostname.lower()
+    if hostname in NON_RECEIVING_ALERT_HOSTS:
+        raise EndpointContractError(NON_RECEIVING_ALERT_HOSTS[hostname])
     if parsed.username or parsed.password:
         raise EndpointContractError("embedded URL credentials are forbidden")
     if parsed.fragment:

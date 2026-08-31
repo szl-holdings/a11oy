@@ -17,6 +17,8 @@ tags:
   - slsa-l1
   - apache-2.0
 ecosystem-stage: "operational"
+models: [SZLHOLDINGS/SZL-Khipu-1.5B, SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent]
+datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
 <!--
@@ -151,6 +153,35 @@ and `GET /api/a11oy/v1/series-a/status`.
 | SLSA supply chain | **L1 honest · L2 build-attested · L3 roadmap** |
 | FedRAMP / ATO | **ROADMAP** |
 | EXECUTION guard | **ROADMAP** |
+
+---
+
+## Truth gates
+
+Round-10 payload wiring: three stdlib-first gates plus the 12-step acceptance
+demo, run by the `truth-gates` workflow on every PR and push.
+
+```bash
+python3 tools/docs_lexicon_gate.py       # docs language gate: banned phrases, empty truth states
+python3 tools/commercial_release_gate.py # commercial truth gate: COMMERCIAL_LEDGER + claims-ledger
+python3 tools/demo_harness.py --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
+```
+
+Expected first-run exit codes: `docs_lexicon_gate.py` **1** and
+`commercial_release_gate.py` **1** — those failures are intended. The lexicon
+output is the Week 1 documentation fix list; the release-gate output is the 24
+raise-blocking COMMERCIAL_LEDGER rows still `UNKNOWN` (the real work, per the
+funding discipline). `demo_harness.py` must stay **0** (12/12 steps) on every
+PR. The two observe-mode gates run `continue-on-error` until their finding
+lists reach zero; flip procedure: `docs/RUNBOOK_WEEK1.md`.
+
+Naming note (no file was overwritten): `tools/lexicon_gate.py` and
+`tools/release_gate.py` already exist here as the round-5 gates, so the
+round-10 gates are wired under the names above; both generations run. The
+v1 Article 12 logging conformance profile lives at
+`evidence/conformance/eu-ai-act-article-12.v1.yaml` because the CANON path is
+occupied by an older, structurally different artifact. Fresh scaffolds are
+created non-destructively with `python3 tools/szl_master_bootstrap.py --run`.
 
 ---
 

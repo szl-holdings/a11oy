@@ -494,10 +494,50 @@ def build_mesh() -> dict:
                    else (snap.get("total_watts") if reachable else None))
     total_joules = (round(sum(node_joules), 6) if node_joules
                     else (snap.get("total_joules") if reachable else None))
-    label = LABEL_MEASURED if any_reading else LABEL_UNAVAILABLE
+
+    # ── HONEST METER GATE (Wave 32) ────────────────────────────────────────
+    # The surface label is MEASURED only when the fleet joule meter env
+    # (A11OY_JOULE_METER_URLS) is SET and one of those meters answered THIS
+    # request with a live=true numeric GPU reading. Without that gate an unset
+    # deployment could drift into a MEASURED claim off a default meter URL the
+    # operator never configured. When the gate is closed the surface is honestly
+    # STRUCTURAL-ONLY and every joule/watt total is null — never fabricated,
+    # never carried over from an earlier request.
+    gate = None
+    try:
+        import szl_surface_fidelity as _fid
+        gate = _fid.meter_gate()
+    except Exception as e:  # noqa: BLE001 — no gate module => closed gate, honest
+        gate = {"label": "STRUCTURAL-ONLY", "env_set": False, "live_this_request": False,
+                "joules_total": None, "watts_total": None, "engines": [], "reads": [],
+                "structural_only_reason": ("the meter gate module is unavailable (%s), so "
+                                           "no live reading can be proven this request"
+                                           % type(e).__name__),
+                "upgrade_condition": "restore szl_surface_fidelity and set "
+                                     "A11OY_JOULE_METER_URLS"}
+    gated_measured = (gate.get("label") == LABEL_MEASURED)
+    label = LABEL_MEASURED if gated_measured else "STRUCTURAL-ONLY"
+    # Totals survive ONLY when real per-node numbers were actually read this request.
+    # Anything else (a cached snapshot, a default meter the operator never configured)
+    # is dropped to null rather than presented as a fleet total.
+    real_node_numbers = bool(node_watts) or bool(node_joules)
+    if not (gated_measured or real_node_numbers):
+        total_watts = None
+        total_joules = None
     return {
         "ts": _now_iso(),
         "label": label,
+        "meter_gate": gate,
+        "nvml_snapshot_reachable": bool(reachable),
+        "any_node_reading_this_request": bool(any_reading),
+        "totals_from_node_readings": bool(real_node_numbers),
+        "honest_note": (
+            "joules are MEASURED only from a live meter reading taken THIS request, "
+            "gated on A11OY_JOULE_METER_URLS; otherwise this surface is honestly "
+            "STRUCTURAL-ONLY with null totals. A joule is never fabricated."
+            if not gated_measured else
+            "joules MEASURED from a live meter reading taken THIS request "
+            "(A11OY_JOULE_METER_URLS answered with a live=true GPU reading)."),
         "nodes": nodes,
         "node_count": len(nodes),
         "live_count": posture.get("live_count", 0),

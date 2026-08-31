@@ -76,8 +76,8 @@
         "next_release_predicate"
       ],
       "properties": {
-        "raw_nodes_observed": {"const": 9465},
-        "raw_nodes_available_to_retrieval_and_evaluation": {"const": 9465},
+        "raw_nodes_observed": {"const": 9467},
+        "raw_nodes_available_to_retrieval_and_evaluation": {"const": 9467},
         "raw_nodes_admitted_to_gradients": {"const": 0},
         "current_weight_model": {"const": "SZLHOLDINGS/SZL-Khipu-1.5B"},
         "current_weight_model_relation": {
