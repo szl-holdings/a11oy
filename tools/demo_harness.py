@@ -71,7 +71,7 @@ def _jsonpath(data: dict, path: str):
     return node
 
 
-DEFAULT_CONFORMANCE = Path("evidence/conformance/eu-ai-act-article-12.yaml")
+DEFAULT_CONFORMANCE = Path("evidence/conformance/eu-ai-act-article-12.v1.yaml")
 
 
 def run_demo(
