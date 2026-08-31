@@ -1,0 +1,45 @@
+id,pipeline_tag,library,license,downloads,last_modified,card_note
+SZLHOLDINGS/A11OY-MINI,text-generation,llama.cpp,apache-2.0,27,2026-08-29T04:27:19.000Z,
+SZLHOLDINGS/KHIPU-R2,text-generation,peft,apache-2.0,60,2026-08-29T04:27:26.000Z,
+SZLHOLDINGS/KILLINCHU-EYE,absent,other,apache-2.0,0,2026-08-29T18:10:36.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/MiniEmbed-Nano,absent,numpy,apache-2.0,0,2026-08-31T03:10:16.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/Moons-Nano,absent,numpy,apache-2.0,0,2026-08-31T03:10:16.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/ReceiptAgent-Nano,absent,numpy,apache-2.0,0,2026-08-30T23:30:16.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent,text-generation,transformers,apache-2.0,985,2026-08-31T03:42:11.000Z,
+SZLHOLDINGS/SZL-Khipu-1.5B,text-generation,transformers,apache-2.0,1107,2026-08-31T03:42:13.000Z,
+SZLHOLDINGS/SZL-Khipu-1.5B-GGUF,text-generation,llama.cpp,apache-2.0,498,2026-08-31T03:42:13.000Z,
+SZLHOLDINGS/SZL-Khipu-1.5B-abstain,absent,UNKNOWN,apache-2.0,0,2026-08-30T23:26:02.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/SZLHOLDINGS,absent,UNKNOWN,apache-2.0,0,2026-08-30T15:15:42.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/TinyKhipu-Nano,absent,numpy,apache-2.0,0,2026-08-30T23:30:16.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/WILLAY,text-generation,peft,apache-2.0,49,2026-08-31T03:10:18.000Z,
+SZLHOLDINGS/YARQA-ATTN,absent,kernels,apache-2.0,0,2026-08-29T16:05:33.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/a11oy-v19-substrate,absent,UNKNOWN,apache-2.0,0,2026-08-29T04:27:22.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/brain-navigator-r2,text-generation,peft,apache-2.0,37,2026-08-31T03:10:15.000Z,
+SZLHOLDINGS/chakana,absent,other,apache-2.0,0,2026-08-31T03:10:15.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/chaski,text-generation,transformers,apache-2.0,2304,2026-08-30T23:29:48.000Z,
+SZLHOLDINGS/chaski-5050,text-generation,peft,apache-2.0,52,2026-08-29T18:43:09.000Z,
+SZLHOLDINGS/chaski-r2,text-generation,peft,apache-2.0,77,2026-08-31T03:10:15.000Z,
+SZLHOLDINGS/governed-inference-meter,absent,kernels,apache-2.0,0,2026-08-31T03:42:11.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/khipu-r3,text-generation,peft,apache-2.0,30,2026-08-31T03:10:15.000Z,
+SZLHOLDINGS/qantu,absent,other,apache-2.0,0,2026-08-31T03:10:16.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-block-kv,absent,kernels,apache-2.0,46,2026-08-29T16:59:56.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-blocked,absent,kernels,apache-2.0,0,2026-08-31T03:42:11.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-energy-attest,absent,UNKNOWN,apache-2.0,0,2026-08-31T01:29:26.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-formulas,absent,kernels,apache-2.0,0,2026-08-31T03:42:12.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-governed-norm,absent,kernels,apache-2.0,214,2026-08-31T03:42:12.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-govsign,absent,kernels,apache-2.0,0,2026-08-31T03:42:13.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-invariants,absent,kernels,apache-2.0,0,2026-08-31T03:42:13.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-kernels,absent,kernels,apache-2.0,145,2026-08-31T03:42:13.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-khipu,absent,numpy,apache-2.0,0,2026-08-29T16:17:34.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-khipu-kernels,absent,kernels,apache-2.0,0,2026-08-29T18:07:32.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-lambda-gate,absent,kernels,apache-2.0,106,2026-08-31T03:42:14.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-maskmod,absent,kernels,apache-2.0,30,2026-08-29T16:05:33.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-nemo,absent,UNKNOWN,apache-2.0,5,2026-08-31T03:42:14.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-ouroboros,absent,kernels,apache-2.0,0,2026-08-31T03:42:14.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-provctl,absent,kernels,apache-2.0,0,2026-08-31T03:42:15.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-receipt-attn,absent,kernels,apache-2.0,23,2026-08-29T16:05:34.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2,text-generation,peft,apache-2.0,77,2026-08-31T03:42:15.000Z,
+SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v3,text-generation,peft,apache-2.0,45,2026-08-31T03:10:16.000Z,
+SZLHOLDINGS/szl-training-scripts,absent,other,apache-2.0,0,2026-08-31T03:10:17.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/tinku,absent,other,apache-2.0,0,2026-08-31T03:10:17.000Z,absent-acceptable: non-transformers artifact
+SZLHOLDINGS/waman,absent,other,apache-2.0,0,2026-08-31T03:10:17.000Z,absent-acceptable: non-transformers artifact

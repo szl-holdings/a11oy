@@ -1,0 +1,94 @@
+{
+  "_type": "https://in-toto.io/Statement/v1",
+  "predicateType": "https://szl.dev/GovernedAction/v1",
+  "subject": [
+    {
+      "name": "szl-estate-pass-2026-08-31",
+      "digest": {
+        "sha256": "424ecbd72412c092d51d758e3e3df4b417d8674177f60b2a1e5d7bcdb6be8146"
+      }
+    }
+  ],
+  "predicate": {
+    "action": {
+      "type": "estate.audit.full_pass",
+      "description": "Full-estate audit pass: GitHub org inventory + PR sweep, Hugging Face org inventory, domain parity, adversarial spec hardening",
+      "idempotency_key": "estate-pass-2026-08-31-computer"
+    },
+    "principal": {
+      "type": "human",
+      "id": "stephen.lutar",
+      "is_service_account": false,
+      "auth_method": "oidc_interactive"
+    },
+    "authority": {
+      "outcome": "ALLOW",
+      "evaluated_before_execution": true,
+      "policy_ref": "szl-doctrine:v11+payload-rounds-1-10"
+    },
+    "side_effect_class": "READ_ONLY",
+    "evidence": {
+      "obligations": [
+        {
+          "id": "github_org_enumerated",
+          "satisfied": true,
+          "artifact_digests": [
+            "804baaf0bf192c928e923d013384d5dc300f065cf33749764e029fdb60fec060"
+          ]
+        },
+        {
+          "id": "open_prs_classified",
+          "satisfied": true
+        },
+        {
+          "id": "hf_models_enumerated",
+          "satisfied": true,
+          "artifact_digests": [
+            "45022904e5e3d7c64521f2ca77cfda414078a6f9c784d665324027180eb9fcc7"
+          ]
+        },
+        {
+          "id": "hf_spaces_enumerated",
+          "satisfied": true,
+          "artifact_digests": [
+            "5853d3ee3ea07659d3fb34c1637363be59ed8e2e41323b5f62b183afa71f3276"
+          ]
+        },
+        {
+          "id": "domains_probed_live",
+          "satisfied": true
+        },
+        {
+          "id": "kernels_manually_inventoried",
+          "satisfied": false
+        },
+        {
+          "id": "mobile_viewports_checked",
+          "satisfied": false
+        },
+        {
+          "id": "receipt_signed_with_org_key",
+          "satisfied": false
+        }
+      ],
+      "completeness": "INCOMPLETE"
+    },
+    "timestamp": {
+      "utc": "2026-08-31T21:11:10.083636+00:00",
+      "ntp_synced": null
+    },
+    "context": {
+      "source_revision": "audit/estate-pass-2026-08-31",
+      "deployment_revision": "a11oy.net live sha256==repo sha256 (front door)"
+    },
+    "limitations": [
+      "This receipt is UNSIGNED \u2014 the org signing key is not available to the auditor; verdict class UNSIGNED-LOCAL.",
+      "HF space/dataset privacy split derived by authenticated-total minus public-API count (48-34=14 private spaces; 38-30=8 private datasets).",
+      "Runtime stage was not probed per-Space; RUNNING is not evidence of deployed revision anywhere in this pass.",
+      "Kernels remain NOT_ENUMERABLE_VIA_API \u2014 manual Hub UI pass still owed.",
+      "No PR was merged by this pass; two PRs opened for human review (governed-receipt-spec#10, a11oy audit PR).",
+      "Mobile viewport rendering NOT_INSPECTED.",
+      "HF org card correction BLOCKED by token scope (read-repos/contribute-repos only; 403 on org Space write and PR). Proposed card committed at docs/audit/HF_ORG_CARD_PROPOSED.md for manual apply."
+    ]
+  }
+}

@@ -1,32 +1,32 @@
-# Codex auto-review vs a11oy — the delta, committed
+# Auto-Review Delta — committed comparison
 
-Truth state of this document: VERIFIED as of 2026-08-30 for the configuration
-facts (OpenAI shipped auto-review; dates as found in-thread); UNKNOWN for any
-vendor capability not publicly documented. Competitive-copy discipline per
-CANON section 6: we say "not its stated purpose"; we never say "has no logs".
+Date: 2026-08-31 · Status: committed positioning, not ad copy.
 
-Locked positioning line (CANON section 6, verbatim):
+**Line:** Codex auto-review decides. a11oy proves. The decision does not
+survive the vendor, the outage, or the auditor.
 
-> Codex auto-review decides. a11oy proves. The decision does not survive the
-> vendor, the outage, or the auditor.
+| # | Capability | Codex auto-review (shipped) | a11oy GovernedAction/v1 |
+|---|---|---|---|
+| 1 | Pre-execution evaluation of elevated-permission actions | YES — approval subagent at sandbox boundary | YES — policy evaluation before execution, `evaluated_before_execution` const true |
+| 2 | Side-effect classification | sandbox escalation / network / permission prompts / app+MCP calls | four explicit classes, never collapsed: READ_ONLY / REVERSIBLE / IRREVERSIBLE / EXTERNALLY_VISIBLE |
+| 3 | Signed tamper-evident receipt per decision | not its stated purpose | YES — ECDSA P-256 over DSSE PAE, hash-chained |
+| 4 | Offline verification by a third party | not its stated purpose | YES — stdlib validator + pinned-deps verifier, no network |
+| 5 | Evidence obligations with derived completeness | not its stated purpose | YES — missing evidence ⇒ INCOMPLETE, never PASS |
+| 6 | Human-principal binding (Art. 12(3)(d) posture) | not its stated purpose | YES — is_service_account const false; api_key auth on a human claim rejected as spoof |
+| 7 | Vendor-portable record format | not its stated purpose | YES — in-toto Statement envelope, predicate proposed upstream (ITE-9 draft) |
+| 8 | Anti-backdating time anchor | not its stated purpose | YES — ntp_synced + RFC 3161 token required for PASS |
+| 9 | Redaction accountability | not its stated purpose | YES — salted-hash redaction commitments |
+| 10 | Article 12 logging conformance profile | not its stated purpose | YES — machine-readable, honestly INCOMPLETE at 12(2)(c) |
+| 11 | Decision latency / in-line UX | YES — optimized, defaults on for its tier | not our stated purpose — we are the record, not the interlock |
+| 12 | Price to the buyer | bundled | control-plane product (pricing: see COMMERCIAL_LEDGER — UNKNOWN, blocks_raise) |
 
-Codex auto-review real config: `[auto_review]` with `enabled`,
-`reviewer_model`, `block_on_severity`; a pre-execution reviewer agent
-evaluates elevated-permission actions (sandbox escalations, network requests,
-permission prompts, side-effecting app/MCP calls). Defaults: no network,
-workspace-write only.
+## Discipline
+We do NOT claim auto-review "has no logs" or that its decisions "vanish".
+We claim record portability and third-party verifiability are not its
+stated purpose. Overclaiming against a shipped OpenAI feature is the
+fastest way to lose a technical buyer.
 
-| # | Dimension | Codex auto-review (as shipped) | a11oy | Why it matters |
-|---|-----------|-------------------------------|-------|----------------|
-| 1 | Stated purpose | Pre-execution review of elevated-permission actions (sandbox escalations, network requests, permission prompts, side-effecting app/MCP calls) | Durable signed evidence of what an agent was authorized to do, what it did, and whether the required evidence exists | Different jobs: a reviewer decides, a recorder proves |
-| 2 | Configuration surface | `[auto_review]` with `enabled`, `reviewer_model`, `block_on_severity` | Typed policy rules with evidence obligations and a retention profile | A decision threshold is not an evidence policy |
-| 3 | Output artifact | An allow/deny decision at execution time | A signed in-toto ITE-6 attestation carrying the `szl.dev/GovernedAction/v1` predicate | A decision is not a record |
-| 4 | Offline verification | Not its stated purpose | Reference verifier runs fully offline; no vendor contact | An auditor must not need the vendor online |
-| 5 | Evidence obligations | Not its stated purpose | Obligations accumulate across all matched rules; missing evidence means INCOMPLETE, never PASS | Completeness is enforced in code, not in prose |
-| 6 | Retention | Not its stated purpose | Retention architecture with an Article 12 logging conformance profile; 180-day floor | Evidence must outlive the incident |
-| 7 | Time integrity | Not its stated purpose | RFC 3161 token field and NTP-sync state recorded on every receipt | Anti-backdating is a receipt field, not a promise |
-| 8 | Redaction safety | Not its stated purpose | Salted-hash redaction commitments on every redacted field | Redaction must not destroy exculpatory evidence |
-| 9 | Actor model | Reviews agent and tool calls | Receipts name natural persons; `is_service_account` is structurally false | Art. 12(3)(d) posture, enforced by the schema |
-| 10 | Side-effect taxonomy | Elevated-permission categories | Four never-collapsed classes; most restrictive wins; IRREVERSIBLE always requires human approval | Blast radius is priced per action |
-| 11 | Portability | Vendor-scoped | CNCF-governed envelope; predicate and reference verifier are open | Receipts must verify after the vendor is gone |
-| 12 | Failure semantics | `block_on_severity` thresholds | Default DENY; signature is not truth; replay is non-mutating | Failure modes are specified, not implied |
+## Validation
+OpenAI shipping pre-execution review for elevated-permission agent actions
+is third-party validation that this control point matters. The gap above
+(rows 3–10) is the product.
