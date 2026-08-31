@@ -1,0 +1,50 @@
+name: temporary-close-superseded-1537
+
+on:
+  push:
+    branches:
+      - agent/llm-registry-entrypoint-wire-20260830
+    paths:
+      - .github/workflows/temporary-close-superseded-1537.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  close-when-superseded:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: agent/llm-registry-entrypoint-wire-20260830
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Wait for narrow successor merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 40); do
+            merged_at="$(gh api repos/szl-holdings/a11oy/pulls/1541 --jq '.merged_at // empty' 2>/dev/null || true)"
+            if [ -n "$merged_at" ]; then
+              gh pr close 1537 --repo szl-holdings/a11oy --comment "Superseded by protected merge #1541. The successor contains only the unique canonical LLM-registry commits on repaired main and excludes the recovery already merged through #1538."
+              exit 0
+            fi
+            sleep 20
+          done
+          echo "::error::Successor #1541 has not merged within the bounded wait; original PR remains open."
+          exit 1
+      - name: Remove watcher from branch
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          rm .github/workflows/temporary-close-superseded-1537.yml
+          git add -A
+          git commit -m "chore(ci): remove superseded-PR watcher" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:agent/llm-registry-entrypoint-wire-20260830
