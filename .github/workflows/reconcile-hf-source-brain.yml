@@ -8,6 +8,7 @@ on:
       - .github/scripts/reconcile_hf_source_brain.py
       - .github/scripts/refresh_brain_count_contracts.py
       - .github/workflows/reconcile-hf-source-brain.yml
+      - tests/test_hf_source_bound_drift_contract.py
   workflow_dispatch: {}
 
 permissions:
@@ -32,7 +33,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: fix/hf-source-brain-parity-20260831
-          fetch-depth: 4
+          fetch-depth: 5
           persist-credentials: false
 
       - name: Set up Python
