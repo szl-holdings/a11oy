@@ -1,4 +1,4 @@
-name: One-shot A11oy vendor source convergence
+name: One-shot A11oy non-workflow vendor convergence
 
 on:
   push:
@@ -23,7 +23,6 @@ jobs:
       EXPECTED_BASE_SHA: d9922a0dc7e6ec6162ec5be3c159579979d74a3e
       EXPECTED_OLD_PLATFORM_SHA: de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b
       EXPECTED_PLATFORM_SHA: 880fda4f67fd2bbdc3507dce6d81fb782ca64c4c
-      WORKFLOW_PATH: .github/workflows/one-shot-vendor-convergence-20260831.yml
     steps:
       - name: Checkout exact branch revision
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -32,20 +31,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Bind base, ref, and upstream source
+      - name: Bind exact branch, base, and Platform source
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test "$GITHUB_REF" = "refs/heads/ops/vendor-sync-platform-880fda4-20260831"
-          live_branch="$(git ls-remote origin refs/heads/ops/vendor-sync-platform-880fda4-20260831 | awk '{print $1}')"
-          test "$live_branch" = "$GITHUB_SHA"
-          live_main="$(git ls-remote origin refs/heads/main | awk '{print $1}')"
-          test "$live_main" = "$EXPECTED_BASE_SHA"
-          live_platform="$(git ls-remote https://github.com/szl-holdings/platform.git refs/heads/main | awk '{print $1}')"
-          test "$live_platform" = "$EXPECTED_PLATFORM_SHA"
+          test "$(git ls-remote origin "$GITHUB_REF" | awk '{print $1}')" = "$GITHUB_SHA"
+          test "$(git ls-remote origin refs/heads/main | awk '{print $1}')" = "$EXPECTED_BASE_SHA"
+          test "$(git ls-remote https://github.com/szl-holdings/platform.git refs/heads/main | awk '{print $1}')" = "$EXPECTED_PLATFORM_SHA"
 
-      - name: Rotate manifest authority without restoring retired DCO
+      - name: Rotate non-workflow vendor authority
         shell: bash
         run: |
           set -euo pipefail
@@ -61,26 +57,21 @@ jobs:
               raise SystemExit('unexpected monorepo authority')
           if data.get('pin') != old:
               raise SystemExit(f"unexpected prior pin: {data.get('pin')!r}")
-          expected_retired = {
-              '.github/workflows/dco.yml': {
-                  'source': '.github/workflows/dco.yml',
-                  'header': True,
-              },
-              'scripts/qa/check-dco-workflow.py': {
-                  'source': 'scripts/qa/check-dco-workflow.py',
-                  'header': True,
-              },
+          expected = {
+              '.github/workflows/dco.yml': {'source': '.github/workflows/dco.yml', 'header': True},
+              'scripts/qa/check-dco-workflow.py': {'source': 'scripts/qa/check-dco-workflow.py', 'header': True},
+              '.github/workflows/pin-check.yml': {'source': '.github/workflows/pin-check.yml', 'header': True},
           }
-          for rel, expected in expected_retired.items():
+          for rel, contract in expected.items():
               actual = data.get('files', {}).get(rel)
-              if actual != expected:
-                  raise SystemExit(f'unexpected retired manifest entry {rel}: {actual!r}')
+              if actual != contract:
+                  raise SystemExit(f'unexpected manifest entry {rel}: {actual!r}')
               del data['files'][rel]
           data['pin'] = new
           path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
           PY
 
-      - name: Refresh every remaining vendored file from the exact Platform source
+      - name: Refresh and verify every non-workflow vendored file
         shell: bash
         run: |
           set -euo pipefail
@@ -90,24 +81,19 @@ jobs:
           rm -- scripts/qa/check-dco-workflow.py
           bash scripts/sync_from_monorepo.sh check --strict-headers
 
-      - name: Prove the mutation is bounded and remove this controller
+      - name: Prove bounded non-workflow mutation
         shell: bash
         run: |
           set -euo pipefail
-          rm -- "$WORKFLOW_PATH"
-          git add -A
+          git add -A -- ':!.github/workflows/one-shot-vendor-convergence-20260831.yml'
           python3 - <<'PY'
           import json
           import subprocess
 
           manifest = json.load(open('vendor.manifest.json', encoding='utf-8'))
-          retired = {
-              '.github/workflows/dco.yml',
-              'scripts/qa/check-dco-workflow.py',
-          }
-          allowed = set(manifest['files']) | retired | {
+          allowed = set(manifest['files']) | {
               'vendor.manifest.json',
-              '.github/workflows/one-shot-vendor-convergence-20260831.yml',
+              'scripts/qa/check-dco-workflow.py',
           }
           changed = set(subprocess.check_output(
               ['git', 'diff', '--cached', '--name-only'], text=True
@@ -115,31 +101,30 @@ jobs:
           unexpected = sorted(changed - allowed)
           if unexpected:
               raise SystemExit(f'unexpected changed paths: {unexpected}')
-          required = {
-              'vendor.manifest.json',
-              'scripts/qa/check-dco-workflow.py',
-              '.github/workflows/one-shot-vendor-convergence-20260831.yml',
-          }
+          if any(path.startswith('.github/workflows/') for path in changed):
+              raise SystemExit('runner commit must not modify workflow files')
+          required = {'vendor.manifest.json', 'scripts/qa/check-dco-workflow.py'}
           missing = sorted(required - changed)
           if missing:
               raise SystemExit(f'required convergence changes missing: {missing}')
-          if '.github/workflows/dco.yml' in changed:
-              raise SystemExit('refusing to restore or modify retired DCO workflow')
-          if '.github/workflows/dco.yml' in manifest['files']:
-              raise SystemExit('retired DCO workflow remains in manifest')
-          if 'scripts/qa/check-dco-workflow.py' in manifest['files']:
-              raise SystemExit('retired DCO QA script remains in manifest')
           if manifest.get('pin') != '880fda4f67fd2bbdc3507dce6d81fb782ca64c4c':
               raise SystemExit('manifest did not bind exact current Platform source')
-          print(f'bounded changed paths: {len(changed)}')
+          for retired in (
+              '.github/workflows/dco.yml',
+              'scripts/qa/check-dco-workflow.py',
+              '.github/workflows/pin-check.yml',
+          ):
+              if retired in manifest['files']:
+                  raise SystemExit(f'temporary manifest removal failed: {retired}')
+          print(f'bounded non-workflow changed paths: {len(changed)}')
           PY
           git diff --cached --check
 
-      - name: Commit exact-source convergence to the feature branch
+      - name: Commit non-workflow convergence to feature branch
         shell: bash
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'chore(vendor): converge on current protected Platform source'
+          git commit -m 'chore(vendor): converge non-workflow Platform source'
           git push origin "HEAD:ops/vendor-sync-platform-880fda4-20260831"
