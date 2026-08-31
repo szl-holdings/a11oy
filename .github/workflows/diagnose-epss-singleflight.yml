@@ -54,18 +54,15 @@ jobs:
           before, sep, tail = text.partition(marker)
           if not sep:
               raise SystemExit('stalled EPSS regression marker missing')
-          old = '''    def stalled_fetch(*_args, **_kwargs):
-              network_calls.append(True)
-              return StalledResponse()
-          '''.replace('          ', '')
-          new = '''    def stalled_fetch(*_args, **_kwargs):
-              request = _args[0] if _args else None
-              url = getattr(request, "full_url", str(request))
-              network_calls.append((threading.current_thread().name, url))
-              return StalledResponse()
-          '''.replace('          ', '')
+          old = "        network_calls.append(True)\n        return StalledResponse()"
+          new = (
+              "        request = _args[0] if _args else None\n"
+              "        url = getattr(request, 'full_url', str(request))\n"
+              "        network_calls.append((threading.current_thread().name, url))\n"
+              "        return StalledResponse()"
+          )
           if tail.count(old) != 1:
-              raise SystemExit(f'expected one stalled_fetch target, found {tail.count(old)}')
+              raise SystemExit(f'expected one stalled_fetch body, found {tail.count(old)}')
           path.write_text(before + sep + tail.replace(old, new, 1), encoding='utf-8')
           PY
           git diff --check
