@@ -84,7 +84,11 @@ jobs:
           current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           [[ "$current_main" =~ ^[0-9a-f]{40}$ ]]
           if [ "$EVENT_NAME" = workflow_run ]; then
-            test "$SYNC_CONCLUSION" = success
+            if ! test "$SYNC_CONCLUSION" = success; then
+              echo "stale=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::Triggering sync concluded '$SYNC_CONCLUSION' (cancelled under merge-storm concurrency, or failed); skipping this canary. The newest successful sync triggers its own audit of current main."
+              exit 0
+            fi
             test "$SYNC_HEAD_BRANCH" = main
             [[ "$SYNC_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
             if ! test "$SYNC_HEAD_SHA" = "$current_main"; then
