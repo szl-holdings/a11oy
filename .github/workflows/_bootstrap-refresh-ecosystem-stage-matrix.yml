@@ -1,0 +1,108 @@
+name: One-time ecosystem stage-matrix refresh
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/_bootstrap-refresh-ecosystem-stage-matrix.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-ecosystem-stage-matrix-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.head_ref == 'fix/refresh-ecosystem-stage-matrix-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout the PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate, verify, receipt, and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix="docs/ecosystem-stage-matrix.json"
+          manifest="docs/huggingface-ecosystem-manifest.json"
+
+          python3 -m py_compile scripts/build_ecosystem_stage_matrix.py
+          python3 scripts/build_ecosystem_stage_matrix.py --output "$matrix"
+          python3 scripts/build_ecosystem_stage_matrix.py --check --output "$matrix"
+          python3 -m json.tool "$matrix" >/dev/null
+
+          RUN_ID="$GITHUB_RUN_ID" python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          manifest_path = Path("docs/huggingface-ecosystem-manifest.json")
+          matrix_path = Path("docs/ecosystem-stage-matrix.json")
+          manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+          matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+
+          assert matrix["schemaVersion"] == 1
+          assert matrix["generatedBy"] == "scripts/build_ecosystem_stage_matrix.py"
+          assert matrix["observedAt"] == manifest["observedAt"]
+          assert matrix["machineGeneratedCounts"]["huggingFacePublic"] == manifest["counts"]
+          assert matrix["machineGeneratedCounts"]["huggingFaceScope"] == manifest["inventoryScope"]
+
+          expected = sum(manifest["counts"].values())
+          assert len(matrix["huggingFace"]) == expected
+          manifest_ids = {
+              item["id"]
+              for kind in ("models", "datasets", "spaces")
+              for item in manifest["inventory"][kind]
+          }
+          matrix_ids = {item["id"] for item in matrix["huggingFace"]}
+          assert matrix_ids == manifest_ids
+          assert "SZLHOLDINGS/counsel" not in matrix_ids
+
+          manifest_digest = hashlib.sha256(manifest_path.read_bytes()).hexdigest()
+          matrix_digest = hashlib.sha256(matrix_path.read_bytes()).hexdigest()
+          receipt = Path("docs/receipts/ecosystem-stage-matrix-refresh-2026-08-31.md")
+          receipt.parent.mkdir(parents=True, exist_ok=True)
+          receipt.write_text(
+              "# Ecosystem stage-matrix refresh receipt\n\n"
+              f"- Workflow run: `{os.environ['RUN_ID']}`\n"
+              f"- Source manifest observation: `{manifest['observedAt']}`\n"
+              f"- Source public counts: `{json.dumps(manifest['counts'], sort_keys=True)}`\n"
+              f"- Source manifest SHA-256: `{manifest_digest}`\n"
+              f"- Generated matrix SHA-256: `{matrix_digest}`\n"
+              f"- Hugging Face rows proven equal to manifest inventory: `{expected}`\n"
+              "- Builder: `scripts/build_ecosystem_stage_matrix.py`\n"
+              "- External assets mutated: `none`\n"
+              "- Branch protection weakened: `no`\n",
+              encoding="utf-8",
+          )
+          PY
+
+          rm -f .github/workflows/_bootstrap-refresh-ecosystem-stage-matrix.yml
+
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 3
+          git commit -s -m "fix(ops): refresh ecosystem stage matrix"
+          git push origin "HEAD:refs/heads/${GITHUB_HEAD_REF}"
