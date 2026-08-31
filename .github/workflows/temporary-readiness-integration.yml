@@ -20,28 +20,55 @@ jobs:
           ref: fix/console-command-bar-restore-20260830
           fetch-depth: 0
 
-      - name: Fetch readiness repair and attempt deterministic merge
+      - name: Fetch readiness repair and resolve the reviewed comment-only conflict
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
           git fetch origin fix/readiness-1417-serve-regression-20260830
+
           set +e
           git merge --no-commit --no-ff origin/fix/readiness-1417-serve-regression-20260830
           rc=$?
           set -e
+
           if [ "$rc" -ne 0 ]; then
-            echo "::group::Unmerged paths"
+            mapfile -t unresolved < <(git diff --name-only --diff-filter=U)
+            printf 'unresolved files: %s\n' "${unresolved[*]:-none}"
+            if [ "${#unresolved[@]}" -ne 1 ] || [ "${unresolved[0]}" != "serve.py" ]; then
+              echo "::error::unexpected merge conflict set; refusing automatic resolution"
+              git diff --name-status --diff-filter=U
+              exit 1
+            fi
+
+            python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("serve.py")
+          text = path.read_text(encoding="utf-8")
+          conflict = '''<<<<<<< HEAD
+                      # Public product front door (landing) never gets the operator widget baked in.
+          =======
+                      # Public front door: do not bake the operator widget into landing.
+          >>>>>>> origin/fix/readiness-1417-serve-regression-20260830
+          '''
+          replacement = '''            # Public product front door (landing) never gets the operator widget baked in.
+          '''
+          if text.count(conflict) != 1:
+              raise SystemExit("reviewed comment-only conflict was not present exactly once")
+          text = text.replace(conflict, replacement, 1)
+          if any(marker in text for marker in ("<<<<<<<", "=======", ">>>>>>>")):
+              raise SystemExit("unexpected conflict marker remains in serve.py")
+          path.write_text(text, encoding="utf-8")
+          PY
+            git add serve.py
+          fi
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "::error::unresolved paths remain after the reviewed resolution"
             git diff --name-status --diff-filter=U
-            echo "::endgroup::"
-            echo "::group::Conflict markers"
-            for path in $(git diff --name-only --diff-filter=U); do
-              echo "===== $path ====="
-              grep -n -B 8 -A 24 -E '^(<<<<<<<|=======|>>>>>>>)' "$path" || true
-            done
-            echo "::endgroup::"
-            exit "$rc"
+            exit 1
           fi
 
       - name: Run targeted integration regressions
