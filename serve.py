@@ -2097,6 +2097,27 @@ try:
 except Exception as _brainagent_e:  # pragma: no cover
     print(f"[a11oy] Brain agent NOT registered: {_brainagent_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN ANSWER (feat/frontier-brainanswer) — the governed honest-answer synthesizer that ties the
+# brain-honesty surfaces into ONE endpoint: GET /api/a11oy/v1/brain/answer/info (what is composed,
+# honest labels, downgrade rules), GET /api/a11oy/v1/brain/answer?q=&k= (ONE governed answer object
+# = answer-or-None + honesty dossier {grounding, provenance, uncertainty, contradiction,
+# constitution} + governed verdict ANSWERED-GOVERNED / ANSWERED-WITH-CAVEATS / ABSTAINED /
+# INSUFFICIENT-SIGNAL; mints nothing), GET /api/a11oy/v1/brain/brainanswer/manifest (wall-readable
+# honesty manifest so the surface is NATIVE-OK to the Honesty Wall), POST
+# /api/a11oy/v1/brain/answer/receipt (unsigned SHA-256 receipt-on-write). Every sibling facet is
+# read through a guarded import — an absent sibling is UNAVAILABLE, NEVER fabricated — the ANSWER
+# comes only from brainagent's grounded traversal, and the verdict only ever DOWNGRADES: never
+# ANSWERED-GOVERNED while the constitution is IN-VIOLATION, brainagent abstained, or a
+# contradiction is CONFLICT-FLAGGED. Label MODELED; makes no sentience claim. Pure reads on GET
+# (0 sign-on-GET). Registered BEFORE the SPA /{full_path:path} catch-all. Additive,
+# try/except-guarded.
+try:
+    import szl_brainanswer as _szl_brainanswer
+    _brainanswer_status = _szl_brainanswer.register(app, ns="a11oy")
+    print(f"[a11oy] Brain answer registered: {_brainanswer_status}", file=__import__("sys").stderr)
+except Exception as _brainanswer_e:  # pragma: no cover
+    print(f"[a11oy] Brain answer NOT registered: {_brainanswer_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- ESTATE CONSTITUTION (feat/frontier-estateconstitution) — the per-query brain-constitution
 # pattern lifted to the WHOLE ESTATE, graded continuously: GET
 # /api/a11oy/v1/govern/estateconstitution/info (the Articles + grading contract), GET
