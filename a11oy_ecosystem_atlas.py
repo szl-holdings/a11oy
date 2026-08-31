@@ -2,10 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 """Public SZL ecosystem atlas for a-11-oy.com.
 
-The atlas reads the versioned public inventory published by
-``SZLHOLDINGS/szl-estate-live`` instead of repeatedly walking the Hugging Face
-listing APIs.  That keeps the browser same-origin, removes the live 429 failure
-mode, and makes every count explicitly LIVE, CACHED, SNAPSHOT, or UNAVAILABLE.
+The atlas reads the versioned public inventory (schema
+``szl.public-hf-inventory/v3``) from a single snapshot URL instead of
+repeatedly walking the Hugging Face listing APIs.  That keeps the browser
+same-origin, removes the live 429 failure mode, and makes every count
+explicitly LIVE, CACHED, SNAPSHOT, or UNAVAILABLE.
+
+The canonical mirror is served from the proof origin (a11oy.net) because it is
+refreshable through the normal GitHub flow; the sibling copy on the
+``SZLHOLDINGS/szl-estate-live`` Space went stale (2026-08-30) because that
+Space is only writable by an interactive Hub token.
 
 This module never copies model weights or datasets into the application.  It
 publishes immutable Hub links, repository revisions, and bounded producer
@@ -22,10 +28,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-INVENTORY_URL = (
-    "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live/"
-    "resolve/main/public-inventory.json"
-)
+INVENTORY_URL = "https://a11oy.net/public-inventory.json"
 # Offline fallback only. Public unauthenticated author-list measured
 # 2026-08-31: 44 models, 30 datasets, 47 Spaces (+ README profile card = 48),
 # 21 collections, 1 bucket. The live path is INVENTORY_URL; when it serves a
