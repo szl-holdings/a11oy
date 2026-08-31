@@ -61,10 +61,21 @@ jobs:
               raise SystemExit('unexpected monorepo authority')
           if data.get('pin') != old:
               raise SystemExit(f"unexpected prior pin: {data.get('pin')!r}")
-          dco = data.get('files', {}).get('.github/workflows/dco.yml')
-          if dco != {'source': '.github/workflows/dco.yml', 'header': True}:
-              raise SystemExit(f'unexpected DCO manifest entry: {dco!r}')
-          del data['files']['.github/workflows/dco.yml']
+          expected_retired = {
+              '.github/workflows/dco.yml': {
+                  'source': '.github/workflows/dco.yml',
+                  'header': True,
+              },
+              'scripts/qa/check-dco-workflow.py': {
+                  'source': 'scripts/qa/check-dco-workflow.py',
+                  'header': True,
+              },
+          }
+          for rel, expected in expected_retired.items():
+              actual = data.get('files', {}).get(rel)
+              if actual != expected:
+                  raise SystemExit(f'unexpected retired manifest entry {rel}: {actual!r}')
+              del data['files'][rel]
           data['pin'] = new
           path.write_text(json.dumps(data, indent=2) + '\n', encoding='utf-8')
           PY
@@ -74,6 +85,9 @@ jobs:
         run: |
           set -euo pipefail
           bash scripts/sync_from_monorepo.sh sync
+          test ! -e .github/workflows/dco.yml
+          test -f scripts/qa/check-dco-workflow.py
+          rm -- scripts/qa/check-dco-workflow.py
           bash scripts/sync_from_monorepo.sh check --strict-headers
 
       - name: Prove the mutation is bounded and remove this controller
@@ -87,17 +101,36 @@ jobs:
           import subprocess
 
           manifest = json.load(open('vendor.manifest.json', encoding='utf-8'))
-          allowed = set(manifest['files']) | {'vendor.manifest.json', '.github/workflows/one-shot-vendor-convergence-20260831.yml'}
-          changed = set(subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines())
+          retired = {
+              '.github/workflows/dco.yml',
+              'scripts/qa/check-dco-workflow.py',
+          }
+          allowed = set(manifest['files']) | retired | {
+              'vendor.manifest.json',
+              '.github/workflows/one-shot-vendor-convergence-20260831.yml',
+          }
+          changed = set(subprocess.check_output(
+              ['git', 'diff', '--cached', '--name-only'], text=True
+          ).splitlines())
           unexpected = sorted(changed - allowed)
           if unexpected:
               raise SystemExit(f'unexpected changed paths: {unexpected}')
-          if 'vendor.manifest.json' not in changed:
-              raise SystemExit('manifest did not change')
+          required = {
+              'vendor.manifest.json',
+              'scripts/qa/check-dco-workflow.py',
+              '.github/workflows/one-shot-vendor-convergence-20260831.yml',
+          }
+          missing = sorted(required - changed)
+          if missing:
+              raise SystemExit(f'required convergence changes missing: {missing}')
           if '.github/workflows/dco.yml' in changed:
               raise SystemExit('refusing to restore or modify retired DCO workflow')
-          if '.github/workflows/one-shot-vendor-convergence-20260831.yml' not in changed:
-              raise SystemExit('one-shot controller was not removed')
+          if '.github/workflows/dco.yml' in manifest['files']:
+              raise SystemExit('retired DCO workflow remains in manifest')
+          if 'scripts/qa/check-dco-workflow.py' in manifest['files']:
+              raise SystemExit('retired DCO QA script remains in manifest')
+          if manifest.get('pin') != '880fda4f67fd2bbdc3507dce6d81fb782ca64c4c':
+              raise SystemExit('manifest did not bind exact current Platform source')
           print(f'bounded changed paths: {len(changed)}')
           PY
           git diff --cached --check
