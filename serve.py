@@ -2117,6 +2117,29 @@ try:
 except Exception as _estateconstitution_e:  # pragma: no cover
     print(f"[a11oy] Estate constitution NOT registered: {_estateconstitution_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN RETRO (feat/frontier-brainretro) — the RETROSPECTIVE CALIBRATION surface: the brain
+# holding itself accountable for what it already answered. GET
+# /api/a11oy/v1/brain/retro/info (method + honest labels + the EPHEMERAL-ledger caveat), GET
+# /api/a11oy/v1/brain/retro?sample=&k= (calibration rates + per-entry
+# CONFIRMED/DRIFTED/STALE-UNKNOWN + overall WELL-CALIBRATED/DRIFT-DETECTED/INSUFFICIENT-HISTORY;
+# mints nothing), POST /api/a11oy/v1/brain/retro/receipt (unsigned SHA-256 receipt-on-write).
+# Reads the append-only query-audit ledger (szl_brainqueryaudit) and RE-RUNS the CURRENT grounding
+# (szl_brainground) for a sample of those same past queries, both through GUARDED imports — an
+# absent sibling is UNAVAILABLE, NEVER a fabricated ledger and NEVER a fabricated grounding. A
+# past answer is NEVER counted correct without recomputed evidence (uncomparable => STALE-UNKNOWN,
+# excluded from every rate); DRIFT-DETECTED is never softened to WELL-CALIBRATED. The query-audit
+# ledger is EPHEMERAL (in-memory, resets on restart), so on a fresh Space this surface honestly
+# reports INSUFFICIENT-HISTORY rather than implying a persistent answer history. Calibration
+# accounting only: NOT model training, NOT a reward signal, no writeback, no sentience claim.
+# Pure reads on GET (0 sign-on-GET). Registered BEFORE the SPA /{full_path:path} catch-all.
+# Additive, try/except-guarded.
+try:
+    import szl_brainretro as _szl_brainretro
+    _brainretro_status = _szl_brainretro.register(app, ns="a11oy")
+    print(f"[a11oy] Brain retro registered: {_brainretro_status}", file=__import__("sys").stderr)
+except Exception as _brainretro_e:  # pragma: no cover
+    print(f"[a11oy] Brain retro NOT registered: {_brainretro_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
