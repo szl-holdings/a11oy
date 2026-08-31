@@ -521,9 +521,17 @@ img,svg,canvas,video{max-width:100%;height:auto;}
     el.textContent="probe slow"; el.classList.remove("is-loading");
     el.style.color="var(--muted)"; el.style.fontSize="16px";
   }
+  function unavailable(id){
+    var el=document.getElementById(id); if(!el)return;
+    el.textContent="UNAVAILABLE"; el.classList.remove("is-loading","is-live");
+    el.style.color="var(--muted)"; el.style.fontSize="16px";
+  }
 
-  // services up + (lambda_status echoed in observability too)
+
+  // services: inventory / unobserved / IDLE becomes UNAVAILABLE. Never invent organ counts.
   fetchJSON("/api/a11oy/v1/observability/summary",8000).then(function(j){
+    var state=(j&&(j.observation_state||j.state))||"";
+    var inventory = !j || state==="inventory" || state==="UNAVAILABLE" || state==="IDLE" || j.observed===false;
     var m=(j&&j.melt&&j.melt.metrics)||{};
     // organs_reachable is a live count ONLY when the summary's own
     // observation_state says it was observed this read. An inventory/idle/

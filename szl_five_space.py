@@ -6,7 +6,7 @@ szl_five_space.py — BIND_AS_A11OY_PACKAGE status surface.
 
 Five named spaces: Command · Loop · Queue · Memory · Ledger.
 This module is the in-tree bind, not a second flagship and not a dump of a
-Vite hologram onto serve.py. The tab at /operator is a 0-CDN hologram.
+Vite hologram onto serve.py. The tab at /five-space is a 0-CDN hologram.
 Receipts sealed here are UNSIGNED-honest and browser-local SAMPLE.
 They are not the lasting RECORD. RECORD lives on a11oy.net/five-space/.
 
