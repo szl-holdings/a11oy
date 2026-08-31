@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -29,7 +28,7 @@ SELECTOR = load(
     SCRIPTS / "select_hf_candidate_admission.py",
 )
 
-BASE_SECURITY = b"""Contact: mailto:security@szlholdings.ai
+BASE_SECURITY = """Contact: mailto:security@szlholdings.ai
 Expires: 2027-06-01T00:00:00.000Z
 Preferred-Languages: en
 Canonical: https://a-11-oy.com/.well-known/security.txt
@@ -37,11 +36,11 @@ Policy: https://github.com/szl-holdings/a11oy/blob/main/SECURITY.md
 Acknowledgments: https://github.com/szl-holdings/a11oy/blob/main/SECURITY.md#acknowledgments
 Hiring: https://szlholdings.ai/careers
 
-# SZL Holdings â# SZL Holdings \xe2# SZL Holdings \xe2\x80# SZL Holdings \xe2\x80\x94 Doctrine v11 LOCKED | SLSA L1 honest | Section 889: 5 vendors
+# SZL Holdings — Doctrine v11 LOCKED | SLSA L1 honest | Section 889: 5 vendors
 # Signed-off-by: Yachay <yachay@szlholdings.ai>
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
-"""
-HEAD_SECURITY = b"""Contact: https://github.com/szl-holdings/a11oy/security/advisories/new
+""".encode("utf-8")
+HEAD_SECURITY = """Contact: https://github.com/szl-holdings/a11oy/security/advisories/new
 Contact: mailto:security@szlholdings.com
 Expires: 2027-06-01T00:00:00.000Z
 Preferred-Languages: en
@@ -49,14 +48,14 @@ Canonical: https://a-11-oy.com/.well-known/security.txt
 Policy: https://github.com/szl-holdings/a11oy/blob/main/SECURITY.md
 Acknowledgments: https://github.com/szl-holdings/a11oy/blob/main/SECURITY.md#acknowledgments
 
-# SZL Holdings â# SZL Holdings \xe2# SZL Holdings \xe2\x80# SZL Holdings \xe2\x80\x94 Doctrine v11 LOCKED | SLSA L1 honest | Section 889: 5 vendors
+# SZL Holdings — Doctrine v11 LOCKED | SLSA L1 honest | Section 889: 5 vendors
 # RFC 9116 https://www.rfc-editor.org/rfc/rfc9116
 # Contact fields are listed in order of preference. Both channels are verified
 # reachable: GitHub private vulnerability reporting (HTTP 200) and the
 # szlholdings.com mailbox (MX -> smtp.google.com).
 # Honest UNKNOWN over fabricated green: no Encryption field is advertised
 # because no published PGP key exists.
-"""
+""".encode("utf-8")
 COMPAT_WARNING = {
     "kind": "missing-both",
     "path": "well-known/security.txt",
