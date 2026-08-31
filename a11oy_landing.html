@@ -418,7 +418,8 @@
       <a class="hide-sm" href="#products">Products</a>
       <a class="hide-sm" href="#catalog">Catalog</a>
       <a class="hide-sm" href="/lyte">LYTE</a>
-      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof</a>
+      <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
+      <a href="/console">Command</a>
       <a href="/trust">Evidence</a>
       <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
@@ -935,7 +936,7 @@
   // Kernel locked-proven chip (#pt-locked) is bound ONLY to the honest kernel
   // count. It is never bound to a genome catalog tier (tier_counts['LOCKED-PROVEN']
   // is 25 of 144 — a catalog tag, not the Lean-8 kernel).
-  async function loadKernelLocked(){
+  async function loadLockedKernel(){
     try{
       const h = await getJSON("/api/a11oy/v1/honest");
       const n = num(h && h.locked_formula_count);
@@ -1162,7 +1163,7 @@
   (async function(){
     loadEstatePulse();
     loadOverclaimMetrics();
-    loadKernelLocked();
+    loadLockedKernel();
     markKillinchuUnavailable();
     probeKillinchuRuntime();
     const ov = await loadOverview();
