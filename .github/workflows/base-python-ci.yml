@@ -1,0 +1,44 @@
+# Standard Python gate for the szl-holdings estate: ruff + pytest on the two
+# supported interpreters. Installed by the szl-alignment engine (only into
+# repos where Python is detected); keep in sync with
+# alignment/templates/workflows/base-python-ci.yml.
+name: base-python-ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install toolchain
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ruff pytest
+
+      - name: Install the package
+        run: |
+          if [ -f pyproject.toml ]; then pip install -e .; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+
+      - name: Ruff (lint, blocking)
+        run: ruff check .
+
+      - name: Pytest (blocking)
+        run: pytest -q

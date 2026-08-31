@@ -1,0 +1,39 @@
+# Release-blocking CRITICAL gate for the szl-holdings estate.
+#
+# Rule (validated on the live org): a line matching
+#     (?<!-)a11oy\.com
+# is a violation UNLESS the same line is a prohibition/guard context, i.e. it
+# also matches /(never|forbidden|not in|assertNotIn|does not appear|is not a
+# surface|blocklist)/i — guard assertions, blocklists, and doctrine notes are
+# legitimate. Canonical surfaces are a-11-oy.com (product) and a11oy.net
+# (proof).
+#
+# Installed by the szl-alignment engine; keep in sync with
+# alignment/templates/workflows/forbidden-domain.yml.
+name: forbidden-domain
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Scan for forbidden domain references
+        shell: bash
+        run: |
+          set -euo pipefail
+          hits="$(rg -n --no-heading --hidden -P '(?<!-)a11oy\.com' --glob '!.git' . || true)"
+          violations="$(printf '%s' "$hits" | rg -v -i 'never|forbidden|not in|assertNotIn|does not appear|is not a surface|blocklist' || true)"
+          if [ -n "$violations" ]; then
+            echo "::error::Forbidden domain references found (release-blocking CRITICAL)."
+            echo "::error::Replace with a-11-oy.com or remove; guard contexts must say so on the same line."
+            printf '%s\n' "$violations"
+            exit 1
+          fi
+          echo "OK: no forbidden domain references outside guard contexts."
