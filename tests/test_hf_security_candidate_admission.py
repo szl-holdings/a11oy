@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -232,6 +233,35 @@ class SelectorTests(unittest.TestCase):
             PROTECTED_CANDIDATE_INPUTS=tuple(base),
             verify_ancestry=mock.Mock(),
             github_blob_tree=mock.Mock(side_effect=[base, head]),
+        )
+
+    def test_selector_setup_failure_writes_canonical_rejection_report(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            report_path = root / "report.json"
+            report_path.write_text("stale\n", encoding="utf-8")
+            with mock.patch.object(
+                SELECTOR,
+                "load_controllers",
+                side_effect=SELECTOR.SelectionError("controller setup failed"),
+            ), self.assertRaisesRegex(
+                SELECTOR.SelectionError,
+                "controller setup failed",
+            ):
+                SELECTOR.main(self.args(root))
+
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            report,
+            {
+                "schema": 1,
+                "status": "rejected",
+                "proof_status": "failed-closed",
+                "base_ref": "a" * 40,
+                "github_ref": "b" * 40,
+                "error_type": "SelectionError",
+                "error": "controller setup failed",
+            },
         )
 
     def test_exact_security_protected_delta_routes_to_security_controller(self) -> None:
