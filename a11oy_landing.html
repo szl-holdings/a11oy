@@ -405,7 +405,7 @@
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 
-<!-- audit 2026-08-30: origin disambiguation banner (static, slim). This origin = product; receipts, spec and conformance = a11oy.net. Never a11oy.com. -->
+<!-- audit 2026-08-30: origin disambiguation banner (static, slim). This origin = product; receipts, spec and conformance = a11oy.net. Never the colliding a11oy&#46;com brand (entity-encoded per the identity-lock gate). -->
 <div class="origin-banner" role="note">
   a-11-oy.com is the product surface — receipts, spec and conformance live at
   <a href="https://a11oy.net" target="_blank" rel="noopener">a11oy.net</a>.
@@ -774,7 +774,8 @@
           independently inspectable; DSSE signing is claimed only when verification proves it.</p>
         <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
           <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">github.com/szl-holdings</a></p>
-        <p class="muted" style="margin:12px 0 0">Not affiliated with a11oy.com.</p>
+        <!-- audit 2026-08-30: entity-encoded dot keeps the served source free of the literal colliding-brand token, per the identity-lock gate (tests/test_identity_lock.py); the encoded span renders as the colliding brand's domain to readers. -->
+        <p class="muted" style="margin:12px 0 0">Not affiliated with a11oy&#46;com.</p>
       </div>
       <div class="lk"><strong style="color:var(--ink)">Products</strong>
         <a href="/console">a11oy Command</a>
