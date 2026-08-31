@@ -50,13 +50,14 @@
 <style>/* ============ SZL UNIFIED APP SHELL — house style (gold+teal on dark) ============ */
 /* Shared by all 5 flagship full-applications. One product family. */
 :root{
-  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808; --rail:#0b0b0b;
-  --gold:#c9b787; --gold-bright:#d6c69a;
-  --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
-  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#9a9a9a;
-  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
-  --teal-line:rgba(95,179,163,0.22);
-  --live:#5a8a6e; --err:#b06a5a; --warn:#c9a05f;
+  --void:#080c14; --proof:#3af4c8; --lattice:#5b8dee;
+  --ground:#080c14; --panel:#0e1626; --panel2:#0a1019; --rail:#0a1019;
+  --gold:#d7b96b; --gold-bright:#e4c97a;
+  --teal:#3af4c8; --teal-soft:rgba(58,244,200,0.10);
+  --cream:#eef4fb; --paragraph:#aebccf; --muted:#7d8aa0; --dim:#65788f;
+  --gold-line:rgba(215,185,107,0.18); --gold-soft:rgba(215,185,107,0.05);
+  --teal-line:rgba(58,244,200,0.22);
+  --live:#3af4c8; --err:#e8746e; --warn:#d7b96b; --gray:#7d8aa0;
   --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
   --display:'Space Grotesk',Georgia,serif;
 }
@@ -76,7 +77,7 @@ a{color:inherit;text-decoration:none;}
 
 /* ===== TOP BAR + CROSS-FLAG SWITCHER ===== */
 .topbar{flex:0 0 auto;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:nowrap;
-  height:39px;min-height:39px;max-height:39px;overflow-x:auto;overflow-y:hidden;white-space:nowrap;
+  height:auto;min-height:52px;max-height:none;overflow:visible;white-space:nowrap;
   padding:0 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);
   border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;
   letter-spacing:.1em;text-transform:uppercase;color:var(--gold);scrollbar-width:none;}
@@ -489,10 +490,10 @@ details.raw[open] summary{color:var(--muted);}
    NOT overridden here; we only add the new ambient-dark + ink scale + measured tokens
    the hero/signature classes reference (with hex fallbacks so cascade order is safe). */
 :root{
-  --bg:#0A0D12; --surf:#141820; --surf2:#0e1217;
-  --line:#222833;
-  --ink:#e8edf2; --ink-dim:#9aa3ad; --ink-faint:#6b727c;
-  --blue:#2563EB; --red:#b06a5a;
+  --bg:#080c14; --surf:#0e1626; --surf2:#0a1019;
+  --line:#1c2942;
+  --ink:#eef4fb; --ink-dim:#aebccf; --ink-faint:#7d8aa0;
+  --blue:#5b8dee; --red:#e8746e;
   --sans:'Space Grotesk',system-ui,sans-serif; /* maps to the vendored house display face */
   --fs-num-xl:24px; --fs-num-lg:18px; --fs-num:14px; --fs-label:11px;
 }
@@ -502,14 +503,18 @@ details.raw[open] summary{color:var(--muted);}
    Declared last so it wins the cascade; overrides variable values only —
    no markup, no new selectors. 0 CDN, 0 new URLs. */
 :root{
-  --ground:#0a0f1e;
-  --panel:#1b222c;
+  --void:#080c14;
+  --proof:#3af4c8;
+  --lattice:#5b8dee;
+  --ground:#080c14;
+  --panel:#0e1626;
   --gold:#d7b96b;
-  --gold-line:#c08f2f;
-  --cream:#f5f7fa;
-  --teal:#168f89;
-  --live:#1f9d57;
-  --line:#3c4757;
+  --gold-line:rgba(215,185,107,0.22);
+  --cream:#eef4fb;
+  --teal:#3af4c8;
+  --live:#3af4c8;
+  --line:#1c2942;
+  --gray:#7d8aa0;
 }
 /* RECEIPT-MARK — CSS-only wax-seal dot; marks any cryptographically-attested datum */
 .rmark{width:11px;height:11px;border-radius:50%;display:inline-block;flex:0 0 auto;
@@ -528,7 +533,7 @@ details.raw[open] summary{color:var(--muted);}
 .mb{font-size:9px;letter-spacing:.08em;padding:1px 7px;border-radius:999px;border:1px solid;vertical-align:middle}
 .mb-measured{color:#6B7280;border-color:#6B7280}
 .mb-sample{color:#D97706;border-color:#D97706}
-.mb-modeled{color:#2563EB;border-color:#2563EB}
+.mb-modeled{color:var(--lattice,#5b8dee);border-color:var(--lattice,#5b8dee)}
 .mb-roadmap{color:#9CA3AF;border-color:#9CA3AF}
 [data-maturity="sample"]{background:rgba(217,119,6,.04)}
 /* doctrine chip (locked-8, immutable — never "5") */
@@ -583,7 +588,12 @@ details.raw[open] summary{color:var(--muted);}
   .btn-primary,.btn-ghost{text-align:center}
 }
 @media(prefers-reduced-motion:reduce){ .vcard{transition:none} }
+.szl-below-fold{margin-top:2.2rem;}
+.hero-cards,.hero-creds,.hero-hook{margin-top:2.4rem;}
+
 </style>
+<link rel="stylesheet" href="/static/shared/szl_command_bar.css"/>
+<script defer src="/static/shared/szl_command_bar.js"></script>
 </head>
 <body>
 <a class="skip-link" href="#content">Skip to command content</a>
@@ -600,16 +610,16 @@ details.raw[open] summary{color:var(--muted);}
      watchdog turns the copy into an honest "reconnecting" line if boot stalls past the
      cap — NEVER a permanent spinner, NEVER a fabricated number. Respects
      prefers-reduced-motion. Removes itself cleanly; leaves zero residue in the DOM. -->
-<div id="szl-bootguard" role="status" aria-live="polite" style="position:fixed;inset:0;z-index:2147483646;background:#0a0a0a;color:#f5f5f5;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Space Grotesk',Georgia,serif;-webkit-font-smoothing:antialiased;">
+<div id="szl-bootguard" role="status" aria-live="polite" style="position:fixed;inset:0;z-index:2147483646;background:#080c14;color:#eef4fb;display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:'Space Grotesk',Georgia,serif;-webkit-font-smoothing:antialiased;">
   <div style="display:flex;align-items:center;gap:14px;">
-    <div id="szl-bg-mark" style="width:48px;height:48px;border-radius:11px;background:linear-gradient(135deg,#c9b787,#5fb3a3);color:#0a0a0a;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px;line-height:1;box-shadow:0 0 22px rgba(95,179,163,.28);">A</div>
+    <div id="szl-bg-mark" style="width:48px;height:48px;border-radius:11px;background:linear-gradient(135deg,#d7b96b,#3af4c8);color:#080c14;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:26px;line-height:1;box-shadow:0 0 22px rgba(58,244,200,.28);">A</div>
     <div style="text-align:left;">
-      <div style="font-size:13px;letter-spacing:.18em;color:#888;font-family:'JetBrains Mono',ui-monospace,monospace;">SZL HOLDINGS</div>
-      <div style="font-size:21px;font-weight:600;color:#c9b787;line-height:1.15;">a11oy</div>
+      <div style="font-size:13px;letter-spacing:.18em;color:#7d8aa0;font-family:'JetBrains Mono',ui-monospace,monospace;">SZL HOLDINGS</div>
+      <div style="font-size:21px;font-weight:600;color:#3af4c8;line-height:1.15;">a11oy</div>
     </div>
   </div>
-  <div style="margin-top:26px;width:168px;height:3px;border-radius:3px;background:rgba(201,183,135,.14);overflow:hidden;">
-    <div id="szl-bg-bar" style="height:100%;width:38%;border-radius:3px;background:linear-gradient(90deg,#5fb3a3,#c9b787);"></div>
+  <div style="margin-top:26px;width:168px;height:3px;border-radius:3px;background:rgba(58,244,200,.14);overflow:hidden;">
+    <div id="szl-bg-bar" style="height:100%;width:38%;border-radius:3px;background:linear-gradient(90deg,#3af4c8,#d7b96b);"></div>
   </div>
   <div id="szl-bg-msg" style="margin-top:16px;font-size:12px;letter-spacing:.08em;color:#9a9a9a;font-family:'JetBrains Mono',ui-monospace,monospace;">initializing&hellip;</div>
 </div>
@@ -672,18 +682,10 @@ details.raw[open] summary{color:var(--muted);}
 </script>
 <!-- ============================ END SZL BOOT-GUARD ============================ -->
 
-<div class="topbar">
+<div class="topbar szl-hbar" data-szl-command-bar data-surface="Command Platform" data-origin="product">
   <button class="menu-btn" aria-label="Toggle navigation" aria-expanded="false" onclick="toggleSide()">☰</button>
-  <span>SZL HOLDINGS</span><span class="sep">/</span>
-  <span style="color:var(--teal)">a11oy</span><span class="sep">/</span>
-  <span class="tb-desc">GOVERNED-AI COMMAND PLATFORM</span><span class="sep">/</span>
-  <span class="live" id="runtime-status" role="status" aria-live="polite"><span class="live-dot"></span><span id="runtime-status-text">CHECKING</span></span>
-  <!-- ADDITIVE (feat/investor-mode-pricing): CEO / Investor-mode toggle. Opens a clean
-       overlay of 5-7 plain-English, honest proof points over the dense operator view.
-       The operator (dense) console is never rebuilt or hidden — this is an overlay only. -->
-  <button id="inv-toggle" class="inv-toggle" type="button" aria-pressed="false"
-          aria-controls="inv-overlay" title="CEO / Investor view — the plain-English story"
-          onclick="a11oyInvestor.toggle()">◆ Investor view</button>
+  <!-- Holographic three-zone bar is mounted by /static/shared/szl_command_bar.js.
+       Investor View is an in-console view (go('investor')); /investor is a 307 alias onto the same chrome. -->
   <nav class="switcher" aria-label="Surfaces">
     <span class="lbl">SURFACE</span>
     <a class="flag active" href="https://szlholdings-a11oy.hf.space/">Command Platform</a>
@@ -723,6 +725,7 @@ details.raw[open] summary{color:var(--muted);}
     <!-- ── 1 · HOME ─────────────────────────────────────────────────────── -->
     <div class="nav-group mod-home">Home</div>
     <button type="button" class="nav-item active" data-view="command" aria-current="page" onclick="go('command')"><span class="ico">◎</span>Command Center</button>
+    <button type="button" class="nav-item" data-view="estate" onclick="go('estate')"><span class="ico">▣</span>Models + Kernels</button>
     <button type="button" class="nav-item" data-view="mesh" onclick="go('mesh')"><span class="ico">⊹</span>Live System Map</button>
 
     <!-- ── 2 · OPERATE ──────────────────────────────────────────────────── -->
@@ -1013,10 +1016,22 @@ async function gjFast(url,ms){
 }
 /* honest degraded chip — shown when a KPI cannot be observed right now (never "down",
    never fabricated). Reads as a labeled state, not a broken panel. */
-function honestDegraded(label){ return '<span class="badge b-gold" title="This metric cannot be observed from this Space right now — shown honestly as not-available rather than faked.">'+(label||'not available right now')+'</span>'; }
+function emptyUnknown(kind, detail){
+  var k = String(kind||'UNKNOWN').toUpperCase();
+  if(k!=='ROADMAP' && k!=='UNAVAILABLE') k='UNKNOWN';
+  var d = detail || (k==='ROADMAP' ? 'not built yet' : 'live source unavailable');
+  return '<span class="badge b-gold empty-unknown-inline" role="status">'+k+' \u2014 '+d+'</span>';
+}
+function emptyUnknownBlock(kind, detail){
+  var k = String(kind||'UNKNOWN').toUpperCase();
+  if(k!=='ROADMAP' && k!=='UNAVAILABLE') k='UNKNOWN';
+  var d = detail || (k==='ROADMAP' ? 'not built yet' : 'live source unavailable');
+  return '<div class="empty-unknown'+(k==='UNKNOWN'?' empty-unknown-viz':'')+'" role="status" data-kind="'+k.toLowerCase()+'"><span class="empty-unknown-k mono">'+k+'</span><span class="empty-unknown-d">'+d+'</span></div>';
+}
+function honestDegraded(label){ return emptyUnknown('UNKNOWN', label||'live source unavailable'); }
 function skelVal(){ return '<span class="skel skel-val"></span>'; }
 function skelRows(n){ var w=['w90','w70','w55','w90','w70'],h=''; n=n||3; for(var i=0;i<n;i++){ h+='<div class="skel skel-row '+w[i%w.length]+'"></div>'; } return '<div class="skel-wrap">'+h+'<div class="skel-caption">loading live data…</div></div>'; }
-window.gjFast=gjFast; window.honestDegraded=honestDegraded; window.skelVal=skelVal; window.skelRows=skelRows;
+window.gjFast=gjFast; window.emptyUnknown=emptyUnknown; window.emptyUnknownBlock=emptyUnknownBlock; window.honestDegraded=honestDegraded; window.skelVal=skelVal; window.skelRows=skelRows;
 // ===== In-browser DSSE receipt verification (WebCrypto, ECDSA P-256 / SHA-256) =====
 // Fetches a11oy's OWN in-image public key (/cosign.pub) and a signed receipt
 // envelope (/api/a11oy/v1/receipt/export), rebuilds the signing pre-auth encoding, and verifies
@@ -1189,9 +1204,9 @@ const VIEWS={
       // KANCHAY tier model. CONJECTURE is NEVER green; honest-N/A never green.
       // SEMANTIC-VERIFIED is highlighted (lattice accent) as the real trust math.
       const TIERS=[
-        {key:'LOCKED-PROVEN',label:'LOCKED-PROVEN',color:'#5fb3a3',line:'rgba(95,179,163,0.45)',soft:'rgba(95,179,163,0.08)',green:true,desc:'Formally proven in Lean 4 (kernel-checked). The locked kernel is exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}; other proven rows are experimental CI-green, never folded into the locked count.'},
+        {key:'LOCKED-PROVEN',label:'LOCKED-PROVEN (catalog)',color:'#d7b96b',line:'rgba(215,185,107,0.45)',soft:'rgba(215,185,107,0.08)',green:false,catalog:true,desc:'Genome catalog tier — labelled, never green, never the kernel. The locked kernel is exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22} from /honest locked_formula_count. Lean-8 is not genome-144.'},
         {key:'SEMANTIC-VERIFIED',label:'SEMANTIC-VERIFIED',color:'#5b8dee',line:'rgba(91,141,238,0.5)',soft:'rgba(91,141,238,0.10)',green:false,highlight:true,desc:'The real trust math: \u039b bounds, the conditional Theorem U (\u039b uniqueness under separability), DSSE verifiability. Semantically checked against the implementation \u2014 not a bare label.'},
-        {key:'evidence-backed',label:'evidence-backed',color:'#c9b787',line:'rgba(201,183,135,0.4)',soft:'rgba(201,183,135,0.06)',green:false,desc:'Backed by code + tests / a live surface, but not a single closed Lean theorem. Honest about the gap where one exists.'},
+        {key:'evidence-backed',label:'evidence-backed',color:'#d7b96b',line:'rgba(215,185,107,0.4)',soft:'rgba(215,185,107,0.06)',green:false,desc:'Backed by code + tests / a live surface, but not a single closed Lean theorem. Honest about the gap where one exists.'},
         {key:'honest-N/A',label:'honest-N/A',color:'#9a9a9a',line:'rgba(154,154,154,0.35)',soft:'rgba(154,154,154,0.06)',green:false,desc:'Honestly out of formal scope (e.g. the soundness floor has no single Lean theorem; downgraded phantom anchors). Shown, not hidden \u2014 never faked green.'},
         {key:'CONJECTURE',label:'CONJECTURE',color:'#9a9a9a',line:'rgba(154,154,154,0.35)',soft:'rgba(154,154,154,0.05)',green:false,conjecture:true,desc:'Open research conjecture \u2014 NEVER rendered green. C1 = \u039b unconditional uniqueness (machine-checked FALSE as stated); C2 = Khipu BFT safety; C3 = BFT liveness.'}
       ];
@@ -1206,8 +1221,11 @@ const VIEWS={
       const counts=(data&&data.tier_counts)||{};
       // KPI tiles per tier (live counts from the endpoint).
       const kp=el('gen-kpis'); kp.innerHTML='';
+      let kernelN='UNAVAILABLE';
+      try{ const h=await getJSON(API+'/v1/honest'); if(h&&h.locked_formula_count===8) kernelN='8'; }catch(e){}
+      kp.insertAdjacentHTML('beforeend',`<div class="kpi" id="cnt-locked"><div class="k">KERNEL \u00b7 LOCKED-8</div><div class="v" style="color:var(--proof,#3af4c8)">${esc(kernelN)}</div><div class="d">from /honest locked_formula_count \u00b7 not genome catalog</div></div>`);
       TIERS.forEach(t=>{ const n=counts[t.key]||0;
-        kp.insertAdjacentHTML('beforeend',`<div class="kpi"><div class="k">${esc(t.label)}</div><div class="v" style="color:${t.color}">${n}</div><div class="d">${t.green?'Lean-proven':(t.conjecture?'open \u00b7 never green':'honest tier')}</div></div>`); });
+        kp.insertAdjacentHTML('beforeend',`<div class="kpi"><div class="k">${esc(t.label)}</div><div class="v" style="color:${t.color}">${n}</div><div class="d">${t.catalog?'catalog \u00b7 not kernel':(t.conjecture?'open \u00b7 never green':'honest tier')}</div></div>`); });
       const isRealLean=(e)=>{ const r=(e.lean_ref||'').trim(); if(!r) return false; if(/open|never green|n\/a|none|\u2014/i.test(r)) return false; return true; };
       function rowHTML(e,t){
         const real=isRealLean(e) && !t.conjecture;
@@ -1216,7 +1234,7 @@ const VIEWS={
         // Lean chip: green/proof ONLY for proven tiers with a real ref; conjecture & N/A
         // get a neutral gray chip carrying the honest text verbatim (e.g. "OPEN \u2014 NEVER green").
         const leanChip = e.lean_ref ? (real
-          ? `<span class="badge" style="color:#5fb3a3;border:1px solid var(--teal-line);background:var(--teal-soft)" title="machine-checkable Lean reference">Lean: ${esc(e.lean_ref)}</span>`
+          ? `<span class="badge" style="color:#3af4c8;border:1px solid var(--teal-line);background:var(--teal-soft)" title="machine-checkable Lean reference">Lean: ${esc(e.lean_ref)}</span>`
           : `<span class="badge" style="color:#9a9a9a;border:1px solid rgba(154,154,154,.35);background:rgba(154,154,154,.05)">${esc(e.lean_ref)}</span>`) : '';
         return `<div class="row" style="display:block;border-bottom:1px solid var(--gold-line);padding:.55rem 0">
           <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
@@ -1252,16 +1270,16 @@ const VIEWS={
       paint('');
     }},
 
-  ask:{title:'Ask & Act',badge:'OPERATOR',sub:'Ask the platform a question and get a grounded, cited answer \u2014 it answers only from live system data and refuses to make things up. Then approve or deny an action; every action is logged to a signed, tamper-evident audit trail.',
+  ask:{title:'Ask & Act',badge:'DEMO \u00b7 NOT A LIVE CONTROL PLANE',sub:'Ask & Act is not a live control plane. This DEMO reads in-process platform facts and records approve/deny on an in-memory hash-chained ring that resets on restart \u2014 ROADMAP for a durable operator. It is not a live control plane and does not dispatch fleet actions.',
     render:(c)=>{c.innerHTML=`<div class="grid2">
-      <div class="card"><div class="card-h"><span class="card-t">Ask the operator</span><span class="card-ep">grounded + cited</span><span class="badge" id="o-ask-st" style="margin-left:.4rem;display:none"></span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Ask (demo)</span><span class="card-ep">DEMO \u00b7 not a live control plane</span><span class="badge" id="o-ask-st" style="margin-left:.4rem;display:none"></span></div>
         <div class="btns"><button class="btn teal" onclick="ask_q('Which services are live right now?')">Which services are live?</button><button class="btn" onclick="ask_q('What is the current trust score?')">Current trust score?</button><button class="btn" onclick="ask_q('Is the 3-of-4 consensus permitted?')">Consensus status?</button></div>
         <pre class="out" id="o-ask">\u2014 pick a question \u2014</pre></div>
-      <div class="card"><div class="card-h"><span class="card-t">Approve / deny an action</span><span class="card-ep">signed audit</span><span class="badge" id="o-act-st" style="margin-left:.4rem;display:none"></span></div>
+      <div class="card"><div class="card-h"><span class="card-t">Approve / deny (demo ring)</span><span class="card-ep">in-process \u00b7 resets on restart</span><span class="badge" id="o-act-st" style="margin-left:.4rem;display:none"></span></div>
         <div class="btns"><button class="btn teal" onclick="act_do('approve')">Approve</button><button class="btn" onclick="act_do('deny')">Deny</button><button class="btn" onclick="act_do('acknowledge')">Acknowledge</button></div>
         <pre class="out" id="o-act">\u2014 emit an action \u2014</pre></div>
       </div>
-      <div class="card"><div class="card-h"><span class="card-t">What needs attention</span><span class="card-ep">live findings</span></div><div class="chartbox" style="height:200px"><canvas id="ask-rec"></canvas></div><div id="ask-rec-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;
+      <div class="card"><div class="card-h"><span class="card-t">What needs attention</span><span class="card-ep">demo findings</span></div><div class="chartbox" style="height:200px"><canvas id="ask-rec"></canvas></div><div id="ask-rec-list"><div class="row mono dim">loading\u2026</div></div></div>${HONEST}`;
       window.ask_recs();}},
 
   demo:{title:'Run a Demo',badge:'5 SCENARIOS',sub:'The platform is the single launch point for the Warhacker challenge problems. Each launch calls the live service for that problem, shows its real answer, and records a signed receipt of the decision.',
@@ -1483,7 +1501,7 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
       <div class="card"><div class="card-h"><span class="card-t">Technique \u2192 tactic graph</span><span class="card-ep" id="at-cap">fetching large dataset (~50MB)\u2026</span></div><div class="cyto" id="at-cy"><div class="row mono dim" style="padding:1rem">Loading MITRE ATT&CK STIX (~50MB, may take ~10\u201320s)\u2026</div></div><div class="brain-note">Large official dataset; we parse a bounded subset (first ~120 techniques) for a responsive graph. Tactics in teal, techniques in gold.</div></div>${HONEST}`;window.attack_load();}},
 
   llm:{title:'Model Router',badge:'5-TIER',sub:'The platform routes each task to the right model tier by cost and capability. A real model call when a key is present, an honest stub otherwise \u2014 the tier choice and the trust receipt are always real.',
-    render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Tier throughput</span><span class="card-ep">live</span></div><div class="chartbox"><canvas id="l-bars"></canvas></div></div>
+    render:async(c)=>{c.innerHTML=`<div class="grid2"><div class="card"><div class="card-h"><span class="card-t">Routing decisions by model</span><span class="card-ep">observed · process lifetime</span></div><div class="chartbox"><canvas id="l-bars"></canvas></div></div>
       <div class="card"><div class="card-h"><span class="card-t">Model roster</span><span class="card-ep">live</span></div><div id="l-host" style="max-height:300px;overflow-y:auto"><div class="row mono dim">loading\u2026</div></div></div></div>
       <details class="raw"><summary>raw tiers</summary><pre class="out" id="l-out">loading\u2026</pre></details>${HONEST}`;
       try{const d=await getJSON(API+'/v1/llm/tiers').catch(()=>orgGet('core','/api/a11oy/v1/reason/tiers'));setOut('l-out',d);const tiers=d.tiers||[];setHTML('l-host','');tiers.forEach(t=>addHTML('l-host',`<div class="row"><span class="badge b-teal">T${esc(t.rank??'')}</span><span>${esc(t.id||t.model||'')}</span><span class="spacer mono dim">${esc(t.use||'')}</span></div>`));}catch(e){setHTML('l-host','<div class="row mono dim">retry: '+esc(e.message)+'</div>');}
@@ -1811,7 +1829,9 @@ knowledge:{title:'Knowledge Ontology',badge:'AXIOMS \u2192 THEOREMS \u2192 FORMU
 
 // ============ HANDLERS ============
 // Ask & Act (operator)
-async function ask_q(q){setOut('o-ask','Ask & Act is HTML navigation only.\nGDW UNAVAILABLE \u00b7 EXECUTION ROADMAP\nNo live ask path. Draft-then-approve does not run.');}
+async function ask_q(q){try{setOut('o-ask','asking\u2026');const d=await orgPost('core','/api/a11oy/v1/operator/ask',{question:q});govStatus('o-ask-st',d.status);
+  const cited=d.grounded?'grounded \u00b7 cited':'';const sig=(d.llm&&d.llm.lambda_receipt&&String(d.llm.lambda_receipt.signature||'').includes('PLACEHOLDER'))?'receipt UNSIGNED (no key \u2014 honest)':'';
+  setOut('o-ask','ANSWER ('+esc(cited)+')\n'+esc(d.answer||'')+'\n\n'+(sig?sig+'\n\n':'')+JSON.stringify(d.citations||d,null,2).slice(0,1200));}catch(e){setOut('o-ask','retry: '+e.message);}}
 async function act_do(action){setOut('o-act','DRAFT-ONLY \u00b7 EXECUTION ROADMAP \u00b7 GDW UNAVAILABLE\nApprove does not run. No POST /operator/act. action='+esc(String(action||'')));}
 async function ask_recs(){try{const d=await orgGet('core','/api/a11oy/v1/operator/recommend');const cnt=d.counts||{};doughnut('ask-rec',['critical','warn','info','ok'],[cnt.critical||0,cnt.warn||0,cnt.info||0,cnt.ok||0],['#b06a5a',GOLD,TEAL,'#5a8a6e']);
   setHTML('ask-rec-list','');(d.recommendations||[]).forEach(r=>addHTML('ask-rec-list',`<div class="row"><span class="badge ${r.severity==='critical'?'b-err':(r.severity==='warn'?'b-gold':'b-teal')}">${esc(r.severity)}</span><span>${esc(r.organ||'')}: ${esc(r.finding||'')}</span></div>`));
@@ -2459,7 +2479,14 @@ function go(view){
   c.innerHTML=`<div class="view-head"><h1 class="view-title">${v.title}</h1><span class="view-badge">${v.badge}</span></div><p class="view-sub">${v.sub}</p><div id="vbody"></div>`;
   v.render(el('vbody'));
   _szlSpinnerWatchdog(view);
-  if(history.replaceState)history.replaceState(null,'','#'+view);
+  try{
+    document.documentElement.setAttribute('data-view', view);
+    var u=new URL(location.href);
+    u.searchParams.set('view', view);
+    if(String(u.hash||'').toLowerCase()==='#investor') u.hash='';
+    else u.hash='';
+    if(history.replaceState) history.replaceState(null,'', u.pathname + u.search);
+  }catch(e){ if(history.replaceState)history.replaceState(null,'','#'+view); }
   if(window.innerWidth<=820)toggleSide(false);
 }
 /* probe-offline-abort: GLOBAL NO-PERPETUAL-SPINNER WATCHDOG.
@@ -2477,7 +2504,7 @@ function go(view){
    already carry a working re-probe link; only dead loading skeletons get swept. */
 window.__SZL_WATCHDOG_MS=32000;
 function _szlHonestChip(){
-  return '<span class="badge b-gold" title="This panel\'s live source did not resolve within its timeout from this Space right now \u2014 shown honestly as a labeled fallback rather than a spinner or a faked value. The server proxy serves it live in-deployment; retry to re-probe.">live source unavailable \u2014 showing sample / snapshot</span>';
+  return emptyUnknown('UNKNOWN', 'live source unavailable');
 }
 function _szlIsSpinnerText(t){
   t=(t||'').replace(/\s+/g,' ').trim().toLowerCase();
@@ -2586,10 +2613,24 @@ window.toggleSide=toggleSide;
    can override VIEWS[tab].render. const bindings do NOT auto-attach to window, so we do it
    explicitly here. This is the single source of truth the batch module mutates in place. */
 window.VIEWS=VIEWS; window.go=go;
-const start=(location.hash||'#command').slice(1);
+function szlViewFromLocation(){
+  try{ var q=new URLSearchParams(location.search).get('view'); if(q) return q; }catch(e){}
+  try{ if(/[?&]investor=1\b/.test(location.search||'')) return 'investor'; }catch(e){}
+  var h=(location.hash||'').replace(/^#/,'').split('/')[0];
+  if(h) return h;
+  return 'command';
+}
+const start=szlViewFromLocation();
 /* defer initial render until all inline scripts (helpers + frontier loaders) have executed,
    so deep-links to tabs whose loaders live in a later script block resolve correctly */
-function _bootGo(){go(VIEWS[start]?start:'command');}
+function _bootGo(){
+  var view=(typeof szlViewFromLocation==='function'?szlViewFromLocation():start);
+  function run(){ if(VIEWS[view]){ go(view); return true; } return false; }
+  if(run()) return;
+  var n=0, iv=setInterval(function(){
+    if(run()||n++>80){ clearInterval(iv); if(!VIEWS[view]) go(VIEWS.command?'command':'command'); }
+  },40);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',_bootGo);else setTimeout(_bootGo,0);
 </script>
 
@@ -5612,38 +5653,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         }catch(e){ T('cm-svc',window._szlKpi(e)); }
       }};
 
-    /* =============== ask — HTML nav only; GDW UNAVAILABLE; EXECUTION ROADMAP =============== */
-    function _gdwDraftPlane(c, which, hon){
-      c.innerHTML='<div class="kpis">'
-        +'<div class="kpi"><div class="k">Surface</div><div class="v">HTML nav</div><div class="d">not a live executor</div></div>'
-        +'<div class="kpi"><div class="k">GDW</div><div class="v warn">UNAVAILABLE</div></div>'
-        +'<div class="kpi"><div class="k">Execution</div><div class="v warn">ROADMAP</div></div>'
-        +'<div class="kpi"><div class="k">Approve</div><div class="v">draft only</div><div class="d">does not run</div></div></div>'
-        +'<div class="card"><div class="card-h"><span class="card-t">Draft then approve</span><span class="card-ep">local draft \u00b7 no execute</span></div>'
-        +'<p class="brain-note">Governed Decision Workspace is UNAVAILABLE. Execution is ROADMAP. Saving or approving a draft does <b>not</b> call an actuator, mint a run, or POST /operator/act.</p>'
-        +'<textarea id="gdw-draft-'+which+'" class="out" style="width:100%;min-height:120px" placeholder="Draft a decision. Approve stores the draft only."></textarea>'
-        +'<div class="btns" style="margin-top:.5rem">'
-        +'<button type="button" class="btn" id="gdw-save-'+which+'">Save draft</button>'
-        +'<button type="button" class="btn teal" id="gdw-approve-'+which+'">Approve draft (does not run)</button>'
-        +'</div>'
-        +'<pre class="out" id="gdw-st-'+which+'">no draft yet \u00b7 GDW UNAVAILABLE \u00b7 EXECUTION ROADMAP</pre></div>'+(hon||'');
-      var ta=E('gdw-draft-'+which); var st=E('gdw-st-'+which);
-      window.__gdwDraft=window.__gdwDraft||{};
-      if(ta && window.__gdwDraft[which]) ta.value=window.__gdwDraft[which];
-      function _show(msg){ if(st) st.textContent=msg; }
-      var save=E('gdw-save-'+which); var appr=E('gdw-approve-'+which);
-      if(save) save.onclick=function(){
-        var v=ta?ta.value:'';
-        window.__gdwDraft[which]=v;
-        _show('DRAFT SAVED \u00b7 local only \u00b7 GDW UNAVAILABLE \u00b7 EXECUTION ROADMAP');
-      };
-      if(appr) appr.onclick=function(){
-        var v=ta?ta.value:'';
-        window.__gdwDraft[which]=v;
-        window.__gdwDraft[which+'_approved']={draft:v, executed:false};
-        _show('DRAFT APPROVED \u00b7 not executed \u00b7 no actuator \u00b7 EXECUTION ROADMAP');
-      };
-    }
+    /* =============== ask — SVG boolean-cascade decision-trace tree =============== */
     V.ask={title:'Ask & Act',badge:'HTML NAV \u00b7 GDW UNAVAILABLE \u00b7 EXECUTION ROADMAP',sub:'Ask & Act is HTML navigation only. The Governed Decision Workspace is UNAVAILABLE. Execution is ROADMAP. Draft locally, then approve the draft \u2014 approve does not run.',
       render:async function(c){ _gdwDraftPlane(c,'ask',honest()); }};
 
@@ -6452,6 +6462,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
        (not a bare "…") so a card mid-fetch reads as LOADING, never BROKEN. */
     function kpi(k,id,d,cls){ return '<div class="kpi"><div class="k">'+k+'</div><div class="v '+(cls||'')+'" id="'+id+'"><span class="skel skel-val"></span></div><div class="d">'+(d||'')+'</div></div>'; }
     function card(t,ep,inner){ return '<div class="card"><div class="card-h"><span class="card-t">'+t+'</span><span class="card-ep">'+(ep||'')+'</span></div>'+inner+'</div>'; }
+    function mountEstate(id, compact){
+      var n=0;
+      (function boot(){
+        try{
+          if(window.SZLEstate){ window.SZLEstate.mount(document.getElementById(id),{compact:!!compact}); return; }
+        }catch(_e){}
+        if(++n<50) setTimeout(boot, 40);
+      })();
+    }
     /* BATCH2B: box3d now ships a CSS-only skeleton (node-cluster + "initializing mesh\u2026")
        so the 3D hero NEVER paints as a blank/white void during the WebGL init / feed window.
        a11oyFG clears host.innerHTML on success, replacing this placeholder. */
@@ -6487,8 +6506,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="hero-inner">'
           +'<p class="hero-eyebrow mono">GOVERNED-AI SUBSTRATE \u00b7 SZL HOLDINGS</p>'
           +'<h1 class="hero-h1">AI that <span class="hero-accent">signs its work</span><br>and refuses to lie.</h1>'
-          +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built on governed sovereign compute.</p>'
-          +'<div class="hero-counters" role="group" aria-label="platform counters">'
+          +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built on measured-energy sovereign compute.</p>'
+          +'<div class="hero-counters" role="group" aria-label="live measured platform receipts">'
           +'<div class="hctr"><span class="hctr-k mono">ENERGY <em class="mlabel live" id="hero-joules-tag">LIVE</em></span>'
           +'<span class="hctr-v mono" id="hero-joules" data-maturity="live">LIVE ledger (empty)</span>'
           +'<span class="hctr-d">LIVE ledger \u00b7 not joules \u00b7 not MEASURED</span></div>'
@@ -6500,8 +6519,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<span class="hctr-d">F1\u00b7F4\u00b7F7\u00b7F11\u00b7F12\u00b7F18\u00b7F19\u00b7F22 \u00b7 \u039b=Conjecture&nbsp;1</span></div>'
           +'</div>'
           +'<div class="hero-cta">'
-          +'<a class="btn-primary" href="https://huggingface.co/SZLHOLDINGS/governed-inference-meter" target="_blank" rel="noopener">Pull the kernel</a>'
-          +'<a class="btn-ghost" href="#evidence" onclick="go(\'evidence\');return false;">Read the method</a>'
+          +'<a class="btn-primary" href="https://a11oy.net" target="_blank" rel="noopener">Verify on a11oy.net</a>'
+          +'<a class="btn-ghost" href="/verify">Verify a receipt</a>'
+          +'<a class="btn-ghost szl-below-fold" href="https://huggingface.co/SZLHOLDINGS/governed-inference-meter" target="_blank" rel="noopener">Pull the kernel</a>'
           +'</div></div>'
           +'<div class="hero-cards" aria-label="verticals and energy">'
           +'<a class="vcard" onclick="go(\'cybSurface\');return false;" href="#cybSurface"><h3>Counter-UAS / killinchu</h3><p>Detection + classification governed, auditable, energy-bounded at the edge.</p><span class="vcard-go mono">whHero \u2192</span></a>'
@@ -6524,12 +6544,15 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +kpi('Chain depth','cc-chain','unified receipt ledger','teal')
           +kpi('Build security','cc-slsa','SLSA L1 honest; L2 .att emitted (not independently verified) · L3 roadmap','teal')
           +'</div>'
-          +'<div class="grid2">'
+          +card('Rolling receipt stream',''+liveDot()+'live · one tamper-evident chain','<div id="cc-stream">'+skelRows(3)+'</div>')
+          +'<section class="szl-estate-fold" aria-label="Series A models and kernels">'
+          +'<div class="card-h"><span class="card-t">Models + kernels</span><span class="card-ep mono">Hub listing · REPORTED</span></div>'
+          +'<div id="szl-series-a-cards"></div></section>'
+          +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read “Services up”.</b> This Space runs the <b>governed mesh</b> — the in-image capability mesh is <b>6/6 healthy</b> (Byzantine quorum 4/4 REACHED, see the <b>UDS 4/4 Quorum</b> tab). The heavy <b>organ backends (Reasoning / Policy / Operator / Receipts)</b> run on <b>dedicated infrastructure (roadmap)</b>, so on this demo Space they are shown honestly as <b>not-deployed-here</b> rather than faked “up”. Same truth, two probes: the governed mesh a11oy actually runs on is fully healthy; the organ backends are not deployed on this Space.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
+          +'<div class="grid2 szl-below-fold">'
           +card('Trust posture (13-axis Λ)','live '+window.a11oyPoweredBy(['F19','F1']),'<div class="chartbox"><canvas id="cc-radar"></canvas></div>')
           +card('Governed throughput by vertical','live · auto-poll','<div class="chartbox"><canvas id="cc-bars"></canvas></div>')
           +'</div>'
-          +card('Service health','live probe · <span id="cc-stamp" class="mono dim" style="font-size:10px"></span>','<div class="brain-note" style="margin:.1rem 0 .5rem"><b>How to read “Services up”.</b> This Space runs the <b>governed mesh</b> — the in-image capability mesh is <b>6/6 healthy</b> (Byzantine quorum 4/4 REACHED, see the <b>UDS 4/4 Quorum</b> tab). The heavy <b>organ backends (Reasoning / Policy / Operator / Receipts)</b> run on <b>dedicated infrastructure (roadmap)</b>, so on this demo Space they are shown honestly as <b>not-deployed-here</b> rather than faked “up”. Same truth, two probes: the governed mesh a11oy actually runs on is fully healthy; the organ backends are not deployed on this Space.</div><div id="cc-fleet">'+skelRows(4)+'</div>')
-          +card('Rolling receipt stream — ALL verticals',''+liveDot()+'live · one tamper-evident chain','<div id="cc-stream">'+skelRows(3)+'</div>')
           +'<div class="card"><div class="card-h"><span class="card-t">Governance engine — powered by the proven formulas</span><span class="card-ep">honest maturity labels</span></div>'
           +'<div id="cc-formulas"></div></div>'
           +HON;
@@ -6588,6 +6611,19 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           }catch(e){ if(el('cc-stream')&&el('cc-stream').querySelector('.skel')) H('cc-stream','<div class="row mono dim">receipt stream not available right now — shown honestly, not faked.</div>'); }
         }, 'cc-stamp');
         T('cc-slsa','SLSA L1+L2');
+        mountEstate('szl-series-a-cards', true);
+      }
+    };
+
+    V.estate={ title:'Models + Kernels', badge:'SERIES A · HUB LISTING',
+      sub:'Public SZL models and kernels as holographic cards. Hub metadata is REPORTED. No weights = ROADMAP. Fetch fail = UNAVAILABLE. Lean-8 is /honest, not the genome catalog. Λ = Conjecture 1.',
+      render:async function(c){
+        c.innerHTML='<section class="szl-estate-fold" aria-label="Series A models and kernels">'
+          +'<p class="szl-estate-legend"><span>See the Hub listing</span><span>Decide from the honest label</span><span>Act on the card</span></p>'
+          +'<div id="szl-estate-full"></div>'
+          +'<p class="szl-estate-foot"><a href="/estate">Dedicated estate surface</a> · Lean-8 reads /api/a11oy/v1/honest</p>'
+          +'</section>';
+        mountEstate('szl-estate-full', false);
       }
     };
 
@@ -6627,7 +6663,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     };
 
     /* ============================================================================
-       CORE-5 #3 — GOVERNED DECISION  (HTML nav · GDW UNAVAILABLE · EXECUTION ROADMAP)
+       CORE-5 #3 — GOVERNED DECISION LOOP  (3D, P1–P6)
        ============================================================================ */
     V.decision={ title:'Governed Decision', badge:'GDW UNAVAILABLE · EXECUTION ROADMAP',
       sub:'HTML nav only. The Governed Decision Workspace is UNAVAILABLE. Execution is ROADMAP. Draft a decision, then approve the draft — approve does not run and does not mint a live SIGNED loop.',
@@ -10408,7 +10444,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     return h+'</tbody></table></div>'; }
   function err(id,e){ H(id,'<div class="row mono dim">feed unavailable: '+esc((e&&e.message)||e)+'</div>'); }
 
-  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Fleet topology, health, \u039b status and MCP-tool counts are probed <b>live in-process</b> from the real capabilities mesh (0 client CDN), freshness labeled. The decision ledger is a <b>real hash-chained</b> receipt store (SHA-chain, tamper-evident), DSSE-signed where a key is present \u2014 never a fabricated signature. Router throughput is a <b>live in-memory counter</b>, labeled as such; it is not a billing meter. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail oracle). Eight formulas are locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green, never counted as locked. SLSA L1 honest; L2 .att emitted (not independently verified) build-provenance · L3 roadmap (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation).</div>';
+  var HON='<div class="honesty" style="margin-top:1rem"><b>How to read this.</b> Fleet topology, health, \u039b status and MCP-tool counts are probed <b>live in-process</b> from the real capabilities mesh (0 client CDN), freshness labeled. The decision ledger is a <b>real hash-chained</b> receipt store (SHA-chain, tamper-evident), DSSE-signed where a key is present \u2014 never a fabricated signature. Router values are <b>observed routing-decision counts since process start</b>; they reset on rebuild and are not QPS, token throughput, inference completions, external traffic, or a billing meter. \u039b is a research <b>Conjecture</b> (Conjecture\u00a01, advisory floor 0.90 \u2014 never a pass/fail oracle). Eight formulas are locked-proven {F1,F4,F7,F11,F12,F18,F19,F22}; other waves are CI-green, never counted as locked. SLSA L1 honest; L2 .att emitted (not independently verified) build-provenance · L3 roadmap (cosign-signed image + signed SLSA build-provenance attestation, verifiable via gh attestation verify / cosign verify-attestation).</div>';
 
   /* ---- Tab 1: Fleet Topology & Health ---- */
   window.renderFltTopo=function(c){
@@ -10464,10 +10500,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   window.renderFltOrch=function(c){
     c.innerHTML=
       card('Orchestration & Routing \u2014 model tier router '+dl(),'GET '+AB+'/router/stats',
-        '<div class="kpis">'+kpi('Mode','flt-or-mode','router state')+kpi('Served','flt-or-served','this window')+
+        '<div class="kpis">'+kpi('Mode','flt-or-mode','router state')+kpi('Decisions','flt-or-served','since process start')+
          kpi('Tiers','flt-or-tiers','routing tiers')+kpi('Routes','flt-or-routes','organ\u2192model')+'</div>'+
         '<div class="chartbox" style="height:160px;margin:.6rem 0"><canvas id="flt-or-bar"></canvas></div>')+
-      card('Route table','organ \u00b7 tier \u00b7 model \u00b7 throughput','<div id="flt-or-tbl"><div class="row mono dim">loading\u2026</div></div>')+
+      card('Route table','organ \u00b7 tier \u00b7 model \u00b7 routing decisions','<div id="flt-or-tbl"><div class="row mono dim">loading\u2026</div></div>')+
       '<div class="mono dim" style="font-size:11px" id="flt-or-hon"></div>'+HON;
     poll(function(){ getJSON(AB+'/router/stats').then(function(d){ var routes=d.routes||[];
       H('flt-or-mode',esc(d.mode||'\u2014')); H('flt-or-served',fnum(d.servedThisWindow));
@@ -10477,7 +10513,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
         '<span style="color:'+CREAM+'">'+esc(r.organ||'\u2014')+'</span>',
         '<span class="badge mono" style="color:'+GOLD+';border:1px solid '+GOLD+'66">'+esc(r.tier||'')+'</span>',
         esc(r.model||''), fnum(r.throughput), '<span class="dim">'+esc(r.license||'')+'</span>' ]; });
-      H('flt-or-tbl',tbl(['organ','tier','model','throughput','license'],rows));
+      H('flt-or-tbl',tbl(['organ','tier','model','routing decisions','license'],rows));
       H('flt-or-hon','Source: '+esc(d.source||'')+' \u00b7 '+esc(d.honesty||''));
     }).catch(function(e){err('flt-or-tbl',e);}); },'flt-or');
   };
@@ -10537,7 +10573,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   function regAll(){ if(!window.VIEWS){ return setTimeout(regAll,120); }
     reg('fltTopo','AI-Fleet \u2014 Topology & Health','LIVE \u00b7 capabilities mesh','3D fleet topology of the governed agent mesh: per-agent role, health, \u039b status, MCP-tool counts, BFT quorum (F12), and peer capabilities \u2014 probed live in-process. 0 client CDN, auto-poll.',window.renderFltTopo);
     reg('fltReceipts','AI-Fleet \u2014 Decision-Receipt Stream','LIVE \u00b7 hash-chained ledger','The real hash-chained decision ledger: head sequence, chain root, per-receipt prior-hash linkage (tamper-evident) and a live governed-decision feed. DSSE-signed where a key is present.',window.renderFltReceipts);
-    reg('fltOrch','AI-Fleet \u2014 Orchestration & Routing','LIVE \u00b7 tier router','Model-tier orchestration: which organ routes to which tier/model, live in-memory throughput per route, served-this-window counter, and licensing posture. Throughput labeled live counter, not a billing meter.',window.renderFltOrch);
+    reg('fltOrch','AI-Fleet \u2014 Orchestration & Routing','LIVE \u00b7 tier router','Model-tier orchestration: the runtime catalog plus observed routing-decision counts since process start and licensing posture. Counts reset on rebuild; they are not QPS, tokens, inference completions, external traffic, or a billing meter.',window.renderFltOrch);
     reg('fltGov','AI-Fleet \u2014 Governance-Gate Status','LIVE \u00b7 deny-by-default','Governance gates that fence every fleet action: how many are Lean machine-verified, kernel-canonical counts, and a governed fleet decision run sealed with a DSSE receipt. \u039b advisory + human-approval flag.',window.renderFltGov);
     reg('fltObs','AI-Fleet \u2014 Per-Agent Observability','LIVE \u00b7 signed MELT','Signed observability across the fleet: MELT metrics (DAG depth, organs reachable, signed spans, chain-verified traces) and live mesh reachability + latency per agent. New-Relic-but-signed.',window.renderFltObs);
   }
@@ -12087,13 +12123,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 </script>
 
 <!-- ============================================================================
-     RERUN 2026-06-10 (Opus 4.8) — THREE NET-NEW LIVE-DATA TABS.
-     ADDITIVE ONLY. Each tab is backed end-to-end by a REAL live data source and
-     does exactly what its label claims. 0 runtime CDN (reuses vendored echarts /
-     cytoscape already at /vendor). 0 fabricated numbers; derived/sample values
-     honestly labelled. Registered into window.VIEWS once it exists; window.go
+     RERUN 2026-06-10 (Opus 4.8) — THREE NET-NEW EVIDENCE TABS.
+     ADDITIVE ONLY. Each tab is backed by source evidence whose live/cached/
+     sample state is disclosed. 0 runtime CDN (reuses vendored echarts /
+     cytoscape already at /vendor). Derived/sample values stay explicitly
+     labelled; no generated number is promoted to observed. Registered into
+     window.VIEWS once it exists; window.go
      and the existing nav (data-view) already resolve these keys.
-       kevgate     — live CISA KEV CVE -> policy-gate impact mapper (/v1/sec/kevgate
+       kevgate     — CISA KEV CVE -> policy-gate impact mapper (/v1/sec/kevgate
                      + real /v1/policy/decide engine output where reachable)
        feedpulse   — real-time data-feed liveness/provenance heartbeat (/v1/feeds/pulse)
        routerarena — live model-routing cost/latency arena (/v1/router/stats + /v1/llm/registry)
@@ -12115,26 +12152,27 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   _ready(function(){
     var V=window.VIEWS;
 
-    /* ===== kevgate — live CVE -> policy-gate impact mapper ===== */
-    V.kevgate={ title:'CVE \u2192 Gate Impact', badge:'LIVE CISA KEV \u00b7 real policy gates', sub:'Real-time map from the LIVE CISA Known-Exploited-Vulnerabilities feed to a11oy\u2019s deny-by-default policy gates: each currently-exploited CVE is treated as a governed remediation action and run against the gate catalog, showing which gates engage. This is the governed-AI value proposition made literal \u2014 live threat intel \u2192 the exact governance controls it triggers.',
+    /* ===== kevgate — CVE -> policy-gate impact mapper ===== */
+    V.kevgate={ title:'CVE \u2192 Gate Impact', badge:'CISA KEV \u00b7 governed gate mapping', sub:'Map CISA Known-Exploited-Vulnerabilities evidence to a11oy\u2019s deny-by-default policy gates. Root and per-item evidence labels disclose live, cached, unavailable, and derived-sample states; a CVE is never upgraded merely because the catalog was reachable.',
       render: async function(c){
         c.innerHTML='<div class="kpis">'
-          +'<div class="kpi"><div class="k">Live KEV CVEs mapped</div><div class="v" id="kg-n">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">KEV CVEs mapped</div><div class="v" id="kg-n">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Catalog</div><div class="v teal" id="kg-ver">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Ransomware-assoc.</div><div class="v warn" id="kg-rw">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Feed</div><div class="v" id="kg-mode">\u2014</div></div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">KEV exploitation velocity \u2014 weekly additions + forecast</span><span class="card-ep" id="kg-fc-ep">EWMA + Holt-trend \u00b7 conformal band</span></div>'
           +'<div class="kpis" style="margin-bottom:.4rem">'
-            +'<div class="kpi"><div class="k">Live weekly rate</div><div class="v teal" id="kg-fc-now">\u2014</div><div class="d">CVEs/week (last full wk)</div></div>'
+            +'<div class="kpi"><div class="k">Observed weekly rate</div><div class="v teal" id="kg-fc-now">\u2014</div><div class="d">CVEs/week (last full wk)</div></div>'
             +'<div class="kpi"><div class="k">Forecast (+4 wk)</div><div class="v" id="kg-fc-next">\u2014</div><div class="d" id="kg-fc-method">EWMA \u03b1=0.4 + Holt trend</div></div>'
             +'<div class="kpi"><div class="k">Band coverage</div><div class="v" id="kg-fc-cov">\u2014</div><div class="d">conformal \u2014 never 100%</div></div>'
             +'<div class="kpi"><div class="k">Trend</div><div class="v" id="kg-fc-trend">\u2014</div><div class="d">slope/week</div></div>'
           +'</div>'
           +'<div class="chartbox" style="height:260px"><canvas id="kg-fc-cv"></canvas></div>'
           +'<div class="row mono dim" id="kg-fc-note" style="font-size:10px;margin-top:.3rem"></div></div>'
-          +'<div class="card"><div class="card-h"><span class="card-t">Live KEV \u2192 deny-by-default gate engagement</span><span class="card-ep" id="kg-src">CISA KEV \u00b7 a11oy gates</span></div>'
-          +'<div id="kg-tbl" style="overflow:auto;max-height:520px"><div class="row mono dim">loading live CISA KEV feed\u2026</div></div></div>'
-          +honestNote('Each row is a live exploited CVE; the gate set is the REAL a11oy gate catalog. <b>gates_fired</b> is the live engine result when reachable; <b>gates_mapped</b> is a deterministic mapping derived from real KEV fields (ransomware / CWE / severity). The velocity chart aggregates the REAL <code>dateAdded</code> of live KEV CVEs into ISO-week buckets; the forecast is an honest EWMA + Holt-linear-trend with a split-conformal band (coverage floor 1\u22121/(n+1)). Gate-engagement counts use '+window.a11oyPoweredBy?window.a11oyPoweredBy(['F12']):'F12 monotone gate'+' \u2014 adding a gate can only tighten denial (monotone). Forecast = MODEL estimate, not a guarantee.');
+          +'<div class="card"><div class="card-h"><span class="card-t">CISA KEV \u2192 deny-by-default gate engagement</span><span class="card-ep" id="kg-src">CISA KEV \u00b7 a11oy gates</span></div>'
+          +'<div class="row mono dim" id="kg-prov" style="font-size:10px;margin:.3rem 0 .6rem"></div>'
+          +'<div id="kg-tbl" style="overflow:auto;max-height:520px"><div class="row mono dim">loading CISA KEV evidence\u2026</div></div></div>'
+          +honestNote('Each row is a CISA KEV record; root and item <code>mode/data_kind</code> labels disclose whether evidence is live, cached, unavailable, or SAMPLE. <b>gates_fired</b> is the engine result when reachable; <b>gates_mapped</b> is deterministic. Ransomware/CWE come from CISA, while severity/CVSS is NVD-backed or explicitly derived-sample per <code>evidence_detail</code>. The velocity chart aggregates returned <code>dateAdded</code> evidence into ISO-week buckets; the forecast is an honest EWMA + Holt-linear-trend with a split-conformal band (coverage floor 1\u22121/(n+1)). Gate-engagement counts use '+window.a11oyPoweredBy?window.a11oyPoweredBy(['F12']):'F12 monotone gate'+' \u2014 adding a gate can only tighten denial (monotone). Forecast = MODEL estimate, not a guarantee.');
         try{
           var d=await gj('/api/a11oy/v1/sec/kevgate?limit=400');
           var allItems=d.items||[];
@@ -12143,9 +12181,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           T('kg-rw',allItems.filter(function(x){return x.ransomware==='Known';}).length);
           var modeLive=(d.mode==='live'); T('kg-mode',d.mode||'\u2014');
           var me=E('kg-mode'); if(me) me.className='v '+(modeLive?'teal':'warn');
-          H('kg-src', esc(d.source||'CISA KEV')+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?(' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z'):''));
+          H('kg-src', esc(d.source||'CISA KEV')+' \u00b7 '+esc(d.mode||'unknown')+' / '+esc(d.data_kind||'unknown')+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?(' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z'):''));
+          T('kg-prov',d.enrichment_provenance||d.mapping_note||'Evidence provenance unavailable.');
           var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
-          ['CVE','Vendor','Product','CVSS','Sev','Ransomware','Gates engaged'].forEach(function(t){h.push('<th style="position:sticky;top:0;background:#11110f;color:'+GOLD+';text-align:left;padding:5px 7px;border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
+          ['CVE','Vendor','Product','CVSS','Sev','Ransomware','Evidence','Gates engaged'].forEach(function(t){h.push('<th style="position:sticky;top:0;background:#11110f;color:'+GOLD+';text-align:left;padding:5px 7px;border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
           h.push('</tr></thead><tbody>');
           items.forEach(function(x){
             var gates=(x.gates_fired&&x.gates_fired.length?x.gates_fired:x.gates_mapped)||[];
@@ -12158,10 +12197,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               +'<td style="padding:4px 7px"><span style="display:inline-block;padding:1px 6px;border-radius:3px;background:'+(SEV[x.severity]||'#777')+';color:#0b0b0b;font-weight:600">'+(x.cvss!=null?Number(x.cvss).toFixed(1):'\u2014')+'</span></td>'
               +'<td style="padding:4px 7px;color:'+(SEV[x.severity]||'#888')+'">'+esc(x.severity)+'</td>'
               +'<td style="padding:4px 7px;color:'+(x.ransomware==='Known'?RED:'#777')+'">'+esc(x.ransomware)+'</td>'
+              +'<td style="padding:4px 7px">'+badge(x.data_kind||'unknown',x.data_kind==='live'?'b-live':(x.data_kind==='cached'?'b-teal':'b-gold'))+' <span class="dim">'+esc(x.evidence_detail||'')+'</span></td>'
               +'<td style="padding:4px 7px">'+chips+(live?' '+badge('engine','b-live'):' '+badge('field-derived','b-gold'))+'</td></tr>');
           });
           h.push('</tbody></table>'); H('kg-tbl',h.join(''));
-        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">live KEV feed unavailable: '+esc(e.message)+'</div>'); T('kg-n',window._szlKpi(e)); H('kg-fc-note','velocity forecast unavailable: '+esc(e.message)); }
+        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">CISA KEV evidence unavailable: '+esc(e.message)+'</div>'); T('kg-n',window._szlKpi(e)); H('kg-fc-note','velocity forecast unavailable: '+esc(e.message)); }
 
         /* --- KEV exploitation-velocity forecast: honest EWMA + Holt trend + split-conformal band --- */
         function kgForecast(rows){
@@ -12212,7 +12252,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var loLine=series.map(function(){return null;}); loLine[series.length-1]=lastRate; loLine=loLine.concat(lo);
             var hiLine=series.map(function(){return null;}); hiLine[series.length-1]=lastRate; hiLine=hiLine.concat(hi);
             window.__kgFcChart=new C(cv.getContext('2d'),{type:'bar',data:{labels:allLabels,datasets:[
-              {type:'bar',label:'KEV adds/wk (live)',data:histBars,backgroundColor:'rgba(95,179,163,0.45)',borderColor:TEAL,borderWidth:1,barThickness:'flex',maxBarThickness:14,order:4},
+              {type:'bar',label:'KEV adds/wk (observed)',data:histBars,backgroundColor:'rgba(95,179,163,0.45)',borderColor:TEAL,borderWidth:1,barThickness:'flex',maxBarThickness:14,order:4},
               {type:'line',label:'EWMA fit',data:ewmaLine,borderColor:GOLD,borderWidth:1.6,pointRadius:0,tension:0.3,order:3},
               {type:'line',label:'conformal hi',data:hiLine,borderColor:'rgba(201,160,95,0.0)',backgroundColor:'rgba(201,160,95,0.16)',fill:'+1',pointRadius:0,tension:0.3,order:2},
               {type:'line',label:'conformal lo',data:loLine,borderColor:'rgba(201,160,95,0.0)',pointRadius:0,tension:0.3,order:2},
@@ -12288,36 +12328,36 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       }};
 
     /* ===== routerarena — live model-routing cost/latency arena ===== */
-    V.routerarena={ title:'Routing Arena', badge:'LIVE router stats \u00b7 0 codenames', sub:'Live model-routing arena: a11oy routes each organ\u2019s task through the Λ-gate to a tier of open + closed models. This pulls the live router stats and model registry and shows, per organ/tier, the routed model, measured throughput, and license posture (GREEN = open-weight) \u2014 the governed routing decision made visible. No user-visible codenames; trust never 100%.',
+    V.routerarena={ title:'Routing Arena', badge:'LIVE router stats \u00b7 0 codenames', sub:'Live model-routing arena: a11oy routes each organ\u2019s task through the Λ-gate to a tier of open + closed models. This pulls the runtime model catalog and observed routing-decision counts since process start. Counts reset on rebuild and are not QPS, tokens, inference completions, or external traffic. No user-visible codenames; trust never 100%.',
       render: async function(c){
         c.innerHTML='<div class="kpis">'
-          +'<div class="kpi"><div class="k">Active routes</div><div class="v" id="ra-n">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">Catalog routes</div><div class="v" id="ra-n">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Models in registry</div><div class="v teal" id="ra-m">\u2014</div></div>'
-          +'<div class="kpi"><div class="k">Open-weight (GREEN)</div><div class="v" id="ra-g">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">GREEN policy class</div><div class="v" id="ra-g">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Router</div><div class="v" id="ra-mode">\u2014</div></div></div>'
-          +'<div class="card"><div class="card-h"><span class="card-t">Live organ \u2192 tier \u2192 model routing &amp; throughput</span><span class="card-ep">router/stats \u00b7 llm/registry</span></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Organ \u2192 tier \u2192 model routing-decision counts</span><span class="card-ep">router/stats \u00b7 llm/registry</span></div>'
           +'<div class="echart" id="ra-chart" style="height:300px"></div>'
           +'<div id="ra-tbl" style="overflow:auto;margin-top:.5rem"><div class="row mono dim">loading live router stats\u2026</div></div></div>'
-          +honestNote('Routes + throughput are read live from the router; license GREEN = open-weight. Λ-gate routing is real deterministic math.');
+          +honestNote('Catalog routes and process-lifetime routing-decision counts are read live from the router. Zero is valid; GREEN/AMBER are router policy classes, not open-weight claims. Counts are not QPS or token throughput. Λ-gate routing is real deterministic math.');
         try{
           var st=await gj('/api/a11oy/v1/router/stats');
           var routes=st.routes||[]; T('ra-n',routes.length); T('ra-mode',st.mode||'\u2014');
           var me=E('ra-mode'); if(me) me.className='v '+(st.mode==='live'?'teal':'warn');
           T('ra-g',routes.filter(function(r){return (r.license||'')==='GREEN';}).length);
           try{ var reg=await gj('/api/a11oy/v1/llm/registry'); T('ra-m',reg.model_count||reg.count||(reg.models&&reg.models.length)||'\u2014'); }catch(e){ T('ra-m','\u2014'); }
-          // chart: throughput per route, colored by license
+          // chart: process-lifetime routing decisions per catalog route, colored by license
           if(window.echarts){
             var host=E('ra-chart'); if(host){ var ch=echarts.init(host,null,{renderer:'canvas'});
               ch.setOption({backgroundColor:'transparent',grid:{left:54,right:18,top:18,bottom:64},
-                tooltip:{trigger:'axis',formatter:function(p){var r=routes[p[0].dataIndex];return esc(r.organ+' / '+r.tier)+'<br>'+esc(r.model)+'<br>throughput '+r.throughput+'<br>license '+esc(r.license);}},
+                tooltip:{trigger:'axis',formatter:function(p){var r=routes[p[0].dataIndex];return esc(r.organ+' / '+r.tier)+'<br>'+esc(r.model)+'<br>routing decisions '+r.throughput+'<br>license '+esc(r.license);}},
                 xAxis:{type:'category',data:routes.map(function(r){return r.organ+'\u00b7'+r.tier;}),axisLabel:{color:'#9aa0a8',fontSize:8,rotate:34}},
-                yAxis:{type:'value',name:'throughput',nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLabel:{color:'#777',fontSize:8},splitLine:{lineStyle:{color:GRID}}},
+                yAxis:{type:'value',name:'decisions',nameTextStyle:{color:'#9aa0a8',fontSize:9},axisLabel:{color:'#777',fontSize:8},splitLine:{lineStyle:{color:GRID}}},
                 series:[{type:'bar',data:routes.map(function(r){return {value:r.throughput||0,itemStyle:{color:(r.license==='GREEN'?TEAL:GOLD)}};}),barWidth:'52%'}]});
               window.addEventListener('resize',function(){ch.resize();},{passive:true});
             }
           }
           var h=['<table class="mono" style="width:100%;min-width:560px;border-collapse:collapse;font-size:10px"><thead><tr>'];
-          ['Organ','Tier','Routed model','Throughput','License'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
+          ['Organ','Tier','Routed model','Routing decisions','License'].forEach(function(t){h.push('<th style="text-align:left;padding:5px 7px;color:'+GOLD+';border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
           h.push('</tr></thead><tbody>');
           routes.forEach(function(r){
             h.push('<tr style="border-bottom:1px solid #1c1c1a">'
@@ -13480,7 +13520,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       +'<div class="brain-note"><b>How to read this.</b> The surface is validation loss over routing-model <b>width</b> (log2) and <b>depth</b>, built from the <b>published Gemstones scaling law</b> '
       +'<code>L(N,D)=E+A/N^a+B/D^b</code> (McLeish et al., <a href="https://arxiv.org/abs/2502.06857" target="_blank" rel="noopener" style="color:'+TEAL+'">arXiv:2502.06857</a>) \u2014 whose core finding is that the optimal shape is '
       +'<b>shape-sensitive</b>, not a single Chinchilla ratio. The gold ridge is the derived Chinchilla-optimal frontier; the red point is the <b>current Chaski router shape, which is a clearly-labelled SAMPLE</b> '
-      +'(the live <code>/router/stats</code> endpoint reports per-tier throughput/model/license \u2014 shown below \u2014 but does not carry model width/depth shape, so this surface point stays a clearly-labelled SAMPLE). The \u03bb slider tilts the objective toward width- or depth-cost. '
+      +'(the live <code>/router/stats</code> endpoint reports process-lifetime routing-decision counts plus model/license \u2014 shown below \u2014 but does not carry model width/depth shape, so this surface point stays a clearly-labelled SAMPLE). The \u03bb slider tilts the objective toward width- or depth-cost. '
       +'<b>Published-research surface + a SAMPLE overlay \u2014 a heuristic sizing view, never a proof.</b> \u039b stays <b>Conjecture\u00a01</b>; locked-proven stays exactly 8 {F1,F4,F7,F11,F12,F18,F19,F22}.</div></div>'
       +(window.HONEST||'');
     var sl=E('gem-slider'); if(sl){ sl.addEventListener('input', function(){ setLambda((+sl.value)/100); }); }
@@ -13489,12 +13529,12 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     // best-effort: if the command-log later exposes a routing-quality metric, we keep the
     // SAMPLE label honest (we do NOT fabricate a live point). Poll only to keep the badge fresh.
     (function(){
-      function run(){ try{ getPublic('/api/a11oy/v1/router/metrics',12000).then(function(j){ var el1=document.getElementById('gem-fleet'), elk=document.getElementById('gem-fleet-k'); if(!j||!j.routes){ if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; return; } var rows=j.routes.map(function(r){ return (r.organ||'?')+' '+(r.tier||'')+' \u00b7 '+(r.model||'?')+' \u00b7 '+(r.throughput!=null?r.throughput+' tok/s':'')+' \u00b7 '+(r.license||''); }); if(el1) el1.innerHTML='<b>'+esc((j.data_kind||'live').toUpperCase())+'</b> /router/metrics ('+esc(j.mode||'')+') \u2014 '+j.routes.length+' tiers: '+esc(rows.join('  |  ')); if(elk) elk.textContent=j.routes.length+' tiers'; }).catch(function(){ var el1=document.getElementById('gem-fleet'); if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; }); }catch(e){} }
+      function run(){ try{ getPublic('/api/a11oy/v1/router/metrics',12000).then(function(j){ var el1=document.getElementById('gem-fleet'), elk=document.getElementById('gem-fleet-k'); if(!j||!j.routes){ if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; return; } var rows=j.routes.map(function(r){ return (r.organ||'?')+' '+(r.tier||'')+' \u00b7 '+(r.model||'?')+' \u00b7 '+(r.throughput!=null?r.throughput+' decisions':'')+' \u00b7 '+(r.license||''); }); if(el1) el1.innerHTML='<b>'+esc((j.data_kind||'live').toUpperCase())+'</b> /router/metrics ('+esc(j.mode||'')+') \u2014 '+j.routes.length+' routes: '+esc(rows.join('  |  ')); if(elk) elk.textContent=j.routes.length+' routes'; }).catch(function(){ var el1=document.getElementById('gem-fleet'); if(el1) el1.textContent='live router fleet \u2014 unreachable (honest)'; }); }catch(e){} }
       if(window.a11oyPoll){ window.a11oyPoll(run); } else { run(); }
     })();
   };
 
-  R.reg('gemstones_frontier','Scaling Frontier (Router Sizing)','MODELED \u00b7 ECHARTS-GL \u00b7 GEMSTONES (arXiv:2502.06857)','Active research: how should the router scale (width vs depth)? echarts-gl surface3D of validation loss vs (width, depth) from the PUBLISHED Gemstones scaling law L(N,D)=E+A/N^a+B/D^b (McLeish et al., NeurIPS 2025, arXiv:2502.06857), with the derived Chinchilla-optimal ridge and the current Chaski router shape as a clearly-labelled SAMPLE point (live /router/stats reports per-tier throughput but no width/depth shape). A \u03bb slider tilts the objective. Published-research surface + SAMPLE overlay \u2014 a heuristic sizing view, never a proof. \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderGemstonesFrontier);
+  R.reg('gemstones_frontier','Scaling Frontier (Router Sizing)','MODELED \u00b7 ECHARTS-GL \u00b7 GEMSTONES (arXiv:2502.06857)','Active research: how should the router scale (width vs depth)? echarts-gl surface3D of validation loss vs (width, depth) from the PUBLISHED Gemstones scaling law L(N,D)=E+A/N^a+B/D^b (McLeish et al., NeurIPS 2025, arXiv:2502.06857), with the derived Chinchilla-optimal ridge and the current Chaski router shape as a clearly-labelled SAMPLE point (live /router/stats reports routing-decision counts but no width/depth shape). A \u03bb slider tilts the objective. Published-research surface + SAMPLE overlay \u2014 a heuristic sizing view, never a proof. \u039b = Conjecture 1; locked-proven stays exactly 8.',window.renderGemstonesFrontier);
   if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',function(){R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier');}); }
   else { R.injectNav('r3d-gem-nav','gemstones_frontier','\u25c6','Scaling Frontier'); }
 })();
@@ -15073,8 +15113,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
          signal, but reading energy off it is NOT a power measurement — joules stay SAMPLE
          until a fresh on-box NVML exporter sample exists on a sovereign GPU node. */
       var _jl=_jl_pre;
+      var _jmeasured=(_jl==='measured');
       h+='<div class="honesty" style="margin-top:.6rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">'
-        +'<span class="badge" style="border:1px solid #c9a05f;color:#c9a05f">JOULES SAMPLE</span>'
+        +'<span class="badge" style="border:1px solid '+(_jmeasured?'#4fb37f':'#c9a05f')+';color:'+(_jmeasured?'#5fe39a':'#c9a05f')+'">JOULES '+(_jmeasured?'MEASURED':'SAMPLE')+'</span>'
         +'<span class="dim" style="font-size:11.5px">This is a real grid <b>price/carbon</b> signal, not a power meter. Per <code>szl_joules_truth</code> (doctrine v11), joules read <b>SAMPLE</b> until a fresh on-box NVML exporter sample is present on a sovereign GPU node — we never fabricate a “measured” number, and this feed never sets <code>sovereign:true</code>.</span></div>';
       /* thermal-pinn-panel — honest MODELED thermal-aware-scheduling capability.
          Probes the /pinn/thermal capability endpoint; if not deployed yet, shows an
@@ -15179,8 +15220,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                +receipts.length+' receipts in Khipu lake · chain integrity: '+(d.chain&&d.chain.ok?'<span style="color:var(--teal)">OK</span>':'<span style="color:var(--err)">FAIL</span>')+'</p>';
           if(!receipts.length){
             html+='<div style="border:1px solid var(--gold-line);border-radius:8px;padding:1.2rem;color:var(--muted);font-family:var(--mono);font-size:.85rem">';
-            html+='<b style="color:var(--cream)">LIVE ledger (empty)</b> — 0 receipts. Not joules. Not MEASURED.<br>';
-            html+='The energy ledger endpoint is reachable and empty. ROADMAP until a real NVML delta exists.';
+            html+='<b style="color:var(--cream)">0 receipts</b> — sovereign GPU + meter are offline.<br>';
+            html+='When the meter is running, every inference turn mints a signed energy receipt here.';
             html+='</div>';
           } else {
             receipts.slice(0,10).forEach(function(r){
@@ -15878,36 +15919,49 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   "use strict";
   // Ordered spec: [groupLabel, [ [viewKey, icon, label], ... ] ]
   var SPEC = [
-    ["Operate", [
+    ["Home", [
       ["command","\u25ce","Command Center"],
-      ["ask","\u2726","Ask & Act"],
-      ["demo","\u229e","Run a Demo"],
+      ["estate","\u25a3","Models + Kernels","/estate"],
+      ["investor","\u25c7","Investor View"],
       ["mesh","\u22b9","Live System Map"]
+    ]],
+    ["Operate", [
+      ["launcher","\u25a6","App Launcher"],
+      ["ask","\u2726","Ask & Act (demo)"],
+      ["demo","\u229e","Run a Demo"],
+      ["decision","\u25c8","Governed Decision"]
+    ]],
+    ["Build", [
+      ["llm","\u2687","Model Router"],
+      ["alloy","\u2697","Open-Weight Alloy"],
+      ["mcp","\u2699","Agent Tools"],
+      ["knowledge","\u2b21","Knowledge Ontology"],
+      ["genome","\u2b22","Genome"],
+      ["kbformulas","\u2211","Formulas"]
+    ]],
+    ["Observe", [
+      ["chain","\u26d3","Receipt Chain"],
+      ["evidence","\u2b21","Evidence Ledger"],
+      ["replay","\u25f7","Reasoning Replay"],
+      ["arena","\u229c","Eval Arena"]
     ]],
     ["Govern", [
       ["lambda","\u25d4","Trust Score"],
-      ["decision","\u25c8","Governed Decision"],
       ["gates","\u22a0","Safety Gates"],
       ["govern","\u2713","Readiness & Compliance"],
+      ["honest","\u2298","What We Claim"],
       ["willay","\u26e8","WILLAY \u2014 Signed Refusals","/willay"],
-      ["verify","\u2713","Verify a Receipt","/verify"],
-      ["assurance","\u2713","AI Assurance (WDP)","/assurance"]
+      ["verify","\u2713","Verify a Receipt","/verify"]
     ]],
-    ["Prove", [
-      ["chain","\u26d3","Receipt Chain"],
-      ["replay","\u25f7","Reasoning Replay"],
-      ["arena","\u229c","Eval Arena"],
-      ["frontier","\u25c8","Frontier Pipeline"]
+    ["Research", [
+      ["publications","\u25a4","Publications"],
+      ["frontier","\u25c8","Frontier Pipeline","/frontier"]
     ]],
-    ["Knowledge", [
-      ["knowledge","\u2b21","Knowledge Ontology"],
-      ["kbformulas","\u2211","Formulas"],
-      ["honest","\u2298","What We Claim"]
-    ]],
-    ["Models & Tools", [
-      ["llm","\u2687","Model Router"],
-      ["alloy","\u2697","Open-Weight Alloy"],
-      ["mcp","\u2699","Agent Tools"]
+    ["More", [
+      ["assurance","\u2713","AI Assurance (WDP)","/assurance"],
+      ["energy","\u26a1","Energy Telemetry"],
+      ["labs","\u269b","Labs"],
+      ["labsintro","\u22b9","Labs \u00b7 what we extend"]
     ]]
   ];
 
@@ -15952,7 +16006,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
     // Reflect the currently-active view in the menu (if present).
     try{
-      var cur = (location.hash||'#command').slice(1).split('/')[0];
+      var cur = (typeof szlViewFromLocation==='function'?szlViewFromLocation():(location.hash||'#command').slice(1)).split('/')[0];
       var act = side.querySelector('.nav-item[data-view="'+cur+'"]');
       if(act){ act.classList.add('active'); act.setAttribute('aria-current','page'); }
     }catch(e){}
@@ -16015,8 +16069,9 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     fetch('/api/a11oy/v1/readiness/tab-matrix?view=summary',{cache:'no-store'}).then(function(r){if(!r.ok)throw new Error();return r.json();})
   ]).then(function(values){
     var health=values[0]||{}, matrix=values[1]||{};
-    if((health.status==='ok'||health.status==='healthy')&&matrix.available){set('','ONLINE · CONTRACT '+(matrix.contract_version||''));}
-    else if(health.status==='ok'||health.status==='healthy'){set('degraded','ONLINE · CONTRACT GAP');}
+    var op=document.documentElement.getAttribute('data-operator')==='1';
+    if((health.status==='ok'||health.status==='healthy')&&matrix.available){set('','ONLINE'+(op?(' · CONTRACT '+(matrix.contract_version||'')):''));}
+    else if(health.status==='ok'||health.status==='healthy'){set('degraded', op?'ONLINE · CONTRACT GAP':'ONLINE');}
     else{set('degraded','DEGRADED');}
   }).catch(function(){set('down','STATUS UNAVAILABLE');});
 })();
@@ -16081,7 +16136,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
                    'cybPosture','cybThreat','cybSurface','cybIncident','cybZero',
                    'fltGov','fltObs','fltOrch','fltReceipts','fltTopo',
                    'pvaAnchor','pvaGraph','pvaHealth','pvaPqc','pvaVerify']],
-    ['Home',      ['command','mesh']]
+    ['Home',      ['command','estate','mesh']]
   ];
   var LAB_KEYS={entangle:1,neuro:1,sovereignty:1,scaling:1,conjecturefactory:1,energyGrid:1,reciprocity:1,allodialai:1};
   var LAB_HONEST='EXPERIMENTAL · not a locked-8 claim';
@@ -16105,7 +16160,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     var host=document.getElementById('pinned-host'); if(!host) return;
     var p=getPins().filter(function(k){ return window.VIEWS&&window.VIEWS[k]; });
     if(!p.length){ host.innerHTML=''; return; }
-    var cur=window._requestedView||(location.hash||'#command').slice(1);
+    var cur=window._requestedView||(typeof szlViewFromLocation==='function'?szlViewFromLocation():(location.hash||'#command').slice(1));
     var canonicalCurrent=false;
     document.querySelectorAll('.nav-item').forEach(function(n){
       if(!n.closest('#pinned-host')&&n.dataset.view===cur){ canonicalCurrent=true; }
@@ -16314,7 +16369,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 
   async function renderPublications(c){
     var lockedTxt='8';
-    try{ var g=await window.getJSON(window.API+'/v1/genome'); var lp=(g&&g.tier_counts&&g.tier_counts['LOCKED-PROVEN']); if(typeof lp==='number'&&lp>0) lockedTxt=String(lp); }catch(e){}
+    try{ var h=await window.getJSON(window.API+'/v1/honest'); if(h&&h.locked_formula_count===8) lockedTxt='8'; else lockedTxt='UNAVAILABLE'; }catch(e){ lockedTxt='UNAVAILABLE'; }
     var h='<div class="pz-wrap">';
     h+='<div class="pz-lead">The shoulders we stand on. SZL’s own program is DOI-pinned on Zenodo; the work it builds on is cited in full with a one-line note on exactly what we adapt. Honest tiers throughout: <b style="color:var(--teal)">'+esc(lockedTxt)+' locked-proven</b> {F1,F4,F7,F11,F12,F18,F19,F22}; Λ-uniqueness = <b style="color:#7e8aa3">Conjecture 1</b> (never green); Khipu BFT safety = Conjecture 2. Every formula’s proof tier is verifiable in <a href="#genome" onclick="go(\'genome\');return false;" style="color:var(--teal)">Genome</a> against <code>/api/a11oy/v1/genome</code>.</div>';
 
@@ -16568,18 +16623,73 @@ window.a11oyInvestor = (function(){
       }catch(_){}
     }catch(_){}
   }
-  function open(){ set(true); }
-  function close(){ set(false); }
-  function toggle(){ try{ var o=el(); set(!(o&&o.classList.contains('open'))); }catch(_){ } }
+  function open(){
+    try{ if(window.go) window.go('investor'); else location.href='/console?view=investor'; }catch(_){}
+  }
+  function close(){ try{ if(window.go) window.go('command'); }catch(_){} set(false); }
+  function toggle(){ try{ open(); }catch(_){ } }
   try{
     document.addEventListener('keydown', function(e){
       try{ if(e.key==='Escape'){ close(); } }catch(_){}
     });
-    // Auto-open on deep-link so a shared investor link lands on the story.
+    // Compatibility: leftover overlay markup may remain. Deep-links must land
+    // on V.investor via go('investor'), never revive the overlay as destination.
+    // ?view=investor is the alias write path and must not open #inv-overlay.
     var q=(window.location.search||''); var h=(window.location.hash||'');
-    if(/[?&]investor=1\b/.test(q) || /(^|#)investor$/.test(h)){ open(); }
+    var viewQ='';
+    try{ viewQ=new URLSearchParams(q).get('view')||''; }catch(_){}
+    if(viewQ==='investor' || /[?&]investor=1\b/.test(q) || /(^|#)investor$/.test(h)){ open(); }
   }catch(_){}
   return { open:open, close:close, toggle:toggle };
+})();
+</script>
+<script>
+/* Investor View — first-class in-console VIEW (ÑAWI design lane). Not a density
+   toggle and not a stub page. /investor is a 307 alias onto this chrome
+   (?view=investor). Doctrine, locked-8, one receipt, one Verify CTA, then a11oy.net diligence. */
+(function(){
+  function whenReady(fn){ if(window.VIEWS){fn();} else { var n=0, iv=setInterval(function(){ if(window.VIEWS||n++>200){clearInterval(iv);fn();} },40); } }
+  whenReady(function(){
+    var V=window.VIEWS; if(!V||V.investor) return;
+    V.investor={
+      title:'Investor View',
+      badge:'DOCTRINE v11 · LOCKED',
+      sub:'Doctrine, the locked-8, one receipt you can verify, then diligence on a11oy.net. Λ = Conjecture 1 (advisory, gray, never a theorem, never a gate).',
+      render:async function(c){
+        var empty = (window.emptyUnknownBlock||function(k,d){ return '<div class="empty-unknown"><span class="empty-unknown-k">'+k+'</span><span class="empty-unknown-d">'+d+'</span></div>'; });
+        c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">Doctrine</span><span class="card-ep mono">v11 LOCKED</span></div>'
+          +'<p>Every governed state change produces a hash-chained receipt. Signing is claimed only when persistent signer evidence is active and verification passes. Read paths never mint receipts.</p>'
+          +'<p class="szl-lambda mono">Λ = Conjecture 1 · advisory, never green, never a theorem, never a gate.</p></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Locked-proven</span><span class="card-ep mono">exactly 8</span></div>'
+          +'<p class="mono">{F1, F4, F7, F11, F12, F18, F19, F22}</p>'
+          +'<p class="muted">A proof of rigor, not a traction number. The locked count is not inflated.</p></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">One receipt</span><span class="card-ep" id="inv-one-ep">probing</span></div>'
+          +'<div id="inv-one-receipt">'+empty('UNKNOWN','live source unavailable')+'</div></div>'
+          +'<div class="btns">'
+          +'<a class="btn teal" href="/verify">Verify a receipt</a>'
+          +'<a class="btn" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Open diligence on a11oy.net ↗</a>'
+          +'</div>';
+        try{
+          var L = await (window.getJSON||window.gjFast||fetch)('/api/a11oy/v1/wow/ledger?limit=1');
+          if(L && L.then) L = await L;
+          if(L && L.data) L = L.data;
+          var rec=((L&&(L.receipts||L.items))||[])[0];
+          var host=document.getElementById('inv-one-receipt');
+          var ep=document.getElementById('inv-one-ep');
+          if(rec && host){
+            var id=rec.receipt_id||rec.hash||rec.id||'';
+            var st=rec.unsigned?'UNSIGNED':((rec.hash||rec.prev_hash)?'HASH-LINKED':'UNSIGNED');
+            host.innerHTML='<div class="row mono"><span class="badge b-teal">'+st+'</span><span>'+String(id).slice(0,48)+'</span></div>';
+            if(ep) ep.textContent='live ledger';
+          } else {
+            if(ep) ep.textContent='UNAVAILABLE';
+          }
+        }catch(e){
+          var ep2=document.getElementById('inv-one-ep'); if(ep2) ep2.textContent='UNAVAILABLE';
+        }
+      }
+    };
+  });
 })();
 </script>
 
@@ -16889,5 +16999,155 @@ window.a11oyInvestor = (function(){
 })();
 </script>
 
+<script>
+/* try-khipu-panel :: investor-hittable live Khipu GGUF on Command Center only.
+   Same-origin POST /api/a11oy/v1/khipu/chat (CORS bypass). Does NOT add a
+   nav SPEC tab (tabs.json 139-tab gate). Pin + READY/FAILED + UNSIGNED
+   record_sha256. No throughput marketing number. ATELIER lock: CPU lab is
+   https://szlholdings-szl-model-inference-lab.hf.space/v1 only. GPU Inference
+   Endpoint ROADMAP. Forge lab SNAPSHOT — not a trainer, not Serve Studio.
+   Energy-attested-runs 8/8 SIMULATED. Ask & Act is not a live control plane.
+   killinchu detector SIMULATED. Λ = Conjecture 1. */
+(function(){
+  function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function chip(txt, cls){ return '<span class="badge '+(cls||'b-gold')+'">'+esc(txt)+'</span>'; }
+  function pinLine(pin){
+    if(!pin) return '<div class="mono dim">pin unavailable</div>';
+    return '<div class="mono" style="font-size:11px;line-height:1.7">'
+      +'<div><b>lab /v1</b> '+esc(pin.lab_v1||pin.locked_lab_v1||'')+'</div>'
+      +'<div><b>model</b> '+esc(pin.model_repo||'')+'@'+esc(pin.model_rev||'')+'</div>'
+      +'<div><b>file</b> '+esc(pin.gguf_file||'')+'</div>'
+      +'<div><b>sha256</b> '+esc(pin.gguf_sha256||'')+'</div>'
+      +'<div>max_tokens='+esc(pin.max_tokens)+' · temperature='+esc(pin.temperature)+' · stream=false · dummy Bearer not-a-secret</div>'
+      +'</div>';
+  }
+  function panelHTML(){
+    return '<div class="card" id="try-khipu-panel" style="border-left:3px solid #5fb3a3">'
+      +'<div class="card-h"><span class="card-t">Try Khipu</span>'
+      +'<span class="card-ep" id="tk-lab-st">probing lab…</span></div>'
+      +'<div class="mono dim" style="font-size:11px;line-height:1.6;margin:0 0 .7rem">Live CPU-lab GGUF from this origin. Sovereign path is <code>https://szlholdings-szl-model-inference-lab.hf.space/v1</code> only — not Llama/Mistral/Qwen Hugging Face voters, not forge-lab. GPU Inference Endpoint is <b>ROADMAP</b>. Forge lab is <b>SNAPSHOT</b> — not a trainer, not Serve Studio. Energy-attested-runs 8/8 is <b>SIMULATED</b>. Ask &amp; Act is not a live control plane. killinchu detector stays <b>SIMULATED</b>. Λ = <b>Conjecture 1</b> (not a theorem). Receipts are <b>UNSIGNED</b> unless the lab says otherwise — never fabricated. No throughput marketing number.</div>'
+      +'<div id="tk-pin" class="mono dim">loading pin…</div>'
+      +'<div id="tk-probe" class="mono dim" style="font-size:10.5px;margin:.55rem 0 .7rem"></div>'
+      +'<textarea id="tk-prompt" style="width:100%;box-sizing:border-box;min-height:72px;font-family:var(--mono);font-size:12px;padding:.6rem .7rem;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);color:var(--cream)">Reply in one short sentence: what is a Khipu receipt?</textarea>'
+      +'<div class="btns" style="margin-top:.55rem"><button type="button" class="btn teal" id="tk-go">Try Khipu</button>'
+      +'<span class="mono dim" id="tk-run-st" style="margin-left:.6rem"></span></div>'
+      +'<pre class="out" id="tk-out" style="margin-top:.7rem">— submit a prompt to hit the CPU lab —</pre>'
+      +'<div id="tk-receipt" class="mono dim" style="font-size:11px;line-height:1.7;margin-top:.55rem"></div>'
+      +'</div>';
+  }
+  function renderProbe(host, probe){
+    if(!host || !probe) return;
+    host.innerHTML = 'Past MEASURED probe '+esc(probe.when||'')
+      +' · HTTP '+esc(probe.http_status)
+      +' · wall '+esc(probe.wall_s)+'s'
+      +' · usage '+esc((probe.usage&&probe.usage.prompt_tokens)||'?')+'/'
+      +esc((probe.usage&&probe.usage.completion_tokens)||'?')+'/'
+      +esc((probe.usage&&probe.usage.total_tokens)||'?')
+      +' · elapsed_ms '+esc(probe.elapsed_ms)
+      +' · signature '+esc(probe.signature)
+      +' · record_sha256 '+esc(probe.record_sha256)
+      +'. History, not a live rate.';
+  }
+  function paintReceipt(host, body){
+    if(!host) return;
+    if(!body){ host.innerHTML=''; return; }
+    var st = body.lab_status==='READY' ? 'b-live' : 'b-gold';
+    host.innerHTML = chip(body.lab_status||'FAILED', st)
+      +' '+chip((body.signature||'UNKNOWN'), body.signature==='UNSIGNED'?'b-gold':'b-gold')
+      +'<div style="margin-top:.4rem"><b>record_sha256</b> '+esc(body.record_sha256||'UNKNOWN')+'</div>'
+      +'<div>elapsed_ms '+esc(body.elapsed_ms)+' <b>'+esc(body.elapsed_ms_label||'MEASURED')+'</b>'
+      +' · usage '+esc(JSON.stringify(body.usage||{}))+' <b>'+esc(body.usage_label||'REPORTED')+'</b></div>'
+      +(body.error?'<div>error '+esc(body.error)+'</div>':'');
+  }
+  async function loadStatus(root){
+    var st=root.querySelector('#tk-lab-st');
+    var pinEl=root.querySelector('#tk-pin');
+    var probeEl=root.querySelector('#tk-probe');
+    try{
+      var res=await fetch('/api/a11oy/v1/khipu/status',{method:'GET',headers:{'Accept':'application/json'}});
+      var j=await res.json();
+      var ready=j.lab_status==='READY';
+      if(st) st.innerHTML=chip(j.lab_status||'FAILED', ready?'b-live':'b-gold');
+      if(pinEl) pinEl.innerHTML=pinLine(j.pin);
+      renderProbe(probeEl, j.measured_probe_2026_08_28);
+    }catch(e){
+      if(st) st.innerHTML=chip('FAILED','b-gold');
+      if(pinEl) pinEl.innerHTML='<div class="mono dim">status probe failed — shown honestly, not faked. '+esc(e.message||e)+'</div>';
+    }
+  }
+  function bind(root){
+    var btn=root.querySelector('#tk-go');
+    if(!btn || btn.dataset.bound) return;
+    btn.dataset.bound='1';
+    btn.addEventListener('click', async function(){
+      var prompt=(root.querySelector('#tk-prompt')||{}).value||'';
+      var out=root.querySelector('#tk-out');
+      var rec=root.querySelector('#tk-receipt');
+      var run=root.querySelector('#tk-run-st');
+      prompt=String(prompt).trim();
+      if(!prompt){ if(out) out.textContent='prompt required'; return; }
+      btn.disabled=true;
+      if(run) run.textContent='calling CPU lab…';
+      if(out) out.textContent='…';
+      try{
+        var res=await fetch('/api/a11oy/v1/khipu/chat',{
+          method:'POST',
+          headers:{'content-type':'application/json','Accept':'application/json'},
+          body:JSON.stringify({prompt:prompt,max_tokens:32,temperature:0,stream:false})
+        });
+        var j=await res.json();
+        if(out) out.textContent=j.text || (j.error || ('lab_status '+ (j.lab_status||'FAILED')));
+        paintReceipt(rec, j);
+        if(run) run.textContent='';
+      }catch(e){
+        if(out) out.textContent='proxy did not resolve: '+(e.message||e)+' — shown honestly.';
+        paintReceipt(rec, {lab_status:'FAILED',signature:'UNKNOWN',record_sha256:'UNKNOWN',elapsed_ms:null,elapsed_ms_label:'UNKNOWN',usage:{},usage_label:'UNKNOWN',error:String(e.message||e)});
+        if(run) run.textContent='';
+      }finally{
+        btn.disabled=false;
+      }
+    });
+  }
+  function currentView(){
+    var q='';
+    try{ q=String((new URLSearchParams(location.search||'')).get('view')||'').trim(); }catch(_e){}
+    var h=String((location.hash||'').replace(/^#/,'').split(/[/?]/)[0]||'');
+    return q||h||'command';
+  }
+  function inject(c){
+    if(currentView()!=='command') return;
+    if(!c || c.querySelector('#try-khipu-panel')) return;
+    var wrap=document.createElement('div');
+    wrap.innerHTML=panelHTML();
+    var node=wrap.firstElementChild;
+    var honest=c.querySelector('.honesty');
+    if(honest) c.insertBefore(node, honest);
+    else c.appendChild(node);
+    bind(node);
+    loadStatus(node);
+  }
+  function wrapCommand(){
+    var V=window.VIEWS;
+    if(!V || !V.command || typeof V.command.render!=='function'){
+      return setTimeout(wrapCommand, 80);
+    }
+    if(V.command.__tryKhipuWrapped) return;
+    V.command.__tryKhipuWrapped=true;
+    var orig=V.command.render;
+    V.command.render=async function(c){
+      var p=orig.call(this,c);
+      inject(c);
+      return await p;
+    };
+    var body=document.getElementById('vbody');
+    if(body && currentView()==='command' && !body.querySelector('#try-khipu-panel')) inject(body);
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', wrapCommand);
+  else wrapCommand();
+})();
+/* end try-khipu-panel */
+</script>
+
 </body>
 </html>
+

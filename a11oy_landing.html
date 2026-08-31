@@ -123,12 +123,9 @@
     .nav .brand svg{width:25px;height:25px;flex:0 0 25px}
     .nav .brand > span{min-width:0;line-height:1.05}
     .nav .brand .sub{display:block;margin-left:0!important;margin-top:4px;font-size:9px;letter-spacing:1.25px;white-space:nowrap}
-    .menu-toggle{display:inline-flex}
     .nav nav{margin-left:0;flex:0 0 auto;flex-wrap:nowrap;gap:0}
     .nav nav a.hide-sm,.nav nav a:not(.btn){display:none}
-    .nav nav .btn{padding:9px 12px;font-size:12px;max-width:154px;min-height:44px}
-    header.nav.nav-open nav{position:absolute;left:0;right:0;top:64px;display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px 14px 14px;background:rgba(8,12,20,0.96);border-bottom:1px solid var(--border);z-index:50}
-    header.nav.nav-open nav a.hide-sm,header.nav.nav-open nav a:not(.btn),header.nav.nav-open nav a.btn{display:flex;align-items:center;min-height:44px;padding:12px 14px;max-width:none}
+    .nav nav .btn{padding:9px 12px;font-size:12px;max-width:154px}
     .nav-cta-full{display:none}
     .nav-cta-short{display:inline}
   }
@@ -249,6 +246,9 @@
   .tier.evidence{border-color:rgba(215,185,107,0.4)} .tier.evidence .tnum,.tier.evidence .tname{color:var(--gold)}
   /* CONJECTURE: gray, NEVER green */
   .tier.conjecture{border-color:rgba(125,138,160,0.4)} .tier.conjecture .tnum,.tier.conjecture .tname{color:var(--gray)}
+  /* Genome catalog tag LOCKED-PROVEN is not the kernel chip and is never green. */
+  .genome-catalog{margin:16px 0 0;color:var(--gray);font-size:.92rem;line-height:1.55}
+  .genome-catalog .n{font-family:var(--mono)}
 
   /* vertical cards */
   .vcard{padding:24px;border-radius:var(--r);border:1px solid var(--border);
@@ -412,7 +412,8 @@
       <a class="hide-sm" href="#products">Products</a>
       <a class="hide-sm" href="#catalog">Catalog</a>
       <a class="hide-sm" href="/lyte">LYTE</a>
-      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof</a>
+      <a href="/console">Command</a>
+      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof registry ↗</a>
       <a href="/trust">Evidence</a>
       <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
@@ -442,7 +443,7 @@
       <div class="hero-stats">
         <div class="stat">
           <div class="k proof" id="hs-receipts">—</div>
-          <div class="l">Receipts in the chain <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth — a mechanism check, not customer traction <span id="hs-receipts-hist"></span></span></div>
+          <div class="l">Receipts in the chain <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth — a mechanism check, not customer traction</span></div>
         </div>
         <div class="stat">
           <div class="k gray" id="hs-lambda">Conjecture 1</div>
@@ -520,7 +521,7 @@
     <article class="card product-card" id="product-killinchu">
       <div class="ic">⚔</div>
       <h3>killinchu</h3>
-      <p>Counter-UAS and maritime vertical on the same receipt substrate. Public controls remain advisory. Effectors stay SIMULATED unless a real execution path is proved.</p>
+      <p>Counter-UAS and maritime vertical on the same receipt substrate. Hub inventory is reachable; the inference runtime timed out and remains UNAVAILABLE. Public controls remain advisory. Effectors stay SIMULATED unless a real execution path is proved.</p>
       <div class="status-row">
         <span class="chip software"><span class="dot"></span>SOFTWARE</span>
         <span class="chip simulated"><span class="dot"></span>SIMULATED effectors</span>
@@ -615,7 +616,7 @@
 
 <!-- ====================== (3) THE PROOF — 4 honest tiers (live) ====================== -->
 <section class="band wrap" id="proof">
-  <p class="kick">The proof · four honest tiers <span id="proof-src"></span></p>
+  <p class="kick">The proof · kernel locked-proven + genome catalog <span id="proof-src"></span></p>
   <h2>Every claim carries exactly one honesty tier.</h2>
   <p class="intro">The first figure is the locked Lean-8 kernel from
     <code>GET /api/a11oy/v1/honest</code> <code>locked_formula_count</code> (8 or N/A) —
@@ -648,6 +649,10 @@
         advisory, <b>never green</b>. Theorem U is the proven conditional alternative.</p>
     </div>
   </div>
+  <p class="genome-catalog" id="genome-catalog">Genome catalog (not the kernel):
+    LOCKED-PROVEN tag = <span class="n" id="pt-genome-locked">—</span>
+    of <span class="n" id="pt-genome-total">—</span> entries.
+    Never folded into the kernel chip. Never green.</p>
   <div class="cta-row" style="margin-top:34px">
     <a class="btn btn-primary" href="https://a11oy.net" rel="noopener">Open the proof registry →</a>
     <a class="btn btn-ghost" href="/trust">Read the trust center →</a>
@@ -818,22 +823,6 @@
 <!-- ===================== LIVE DATA (honest; one consolidated read + fallbacks) ===================== -->
 <script>
 (function(){
-  var btn=document.getElementById("menu-toggle");
-  var header=document.querySelector("header.nav");
-  var nav=document.getElementById("site-nav");
-  if(!btn||!header||!nav) return;
-  function setOpen(open){
-    header.classList.toggle("nav-open", open);
-    btn.setAttribute("aria-expanded", String(open));
-    btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
-  }
-  btn.addEventListener("click", function(){ setOpen(!header.classList.contains("nav-open")); });
-  nav.querySelectorAll("a").forEach(function(a){ a.addEventListener("click", function(){ setOpen(false); }); });
-  document.addEventListener("keydown", function(e){ if(e.key==="Escape") setOpen(false); });
-})();
-</script>
-<script>
-(function(){
   "use strict";
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -922,6 +911,49 @@
     $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
     $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
     $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
+    const gLocked = num(t.genome_locked_proven);
+    const gEl = $("pt-genome-locked");
+    if(gEl) gEl.textContent = (gLocked === null) ? "N/A" : gLocked;
+    const gTot = num(t.genome_count);
+    const totEl = $("pt-genome-total");
+    if(totEl && gTot !== null) totEl.textContent = gTot;
+  }
+
+  async function loadKernelLocked(){
+    try{
+      const h = await getJSON("/api/a11oy/v1/honest");
+      const lock = h.doctrine_lock || {};
+      const n = num(h.locked_formula_count != null ? h.locked_formula_count : lock.locked_formula_count);
+      $("pt-locked").textContent = (n === null) ? "N/A" : n;
+    }catch(e){
+      $("pt-locked").textContent = "N/A";
+    }
+  }
+
+  function markKillinchuUnavailable(){
+    // Hub 200; szlholdings-killinchu.hf.space timed out (KALLPA 2026-08-28).
+    // Do not paint a11oy's defense Λ as killinchu-live.
+    const val = $("v-defense"); if(val) val.textContent = "UNAVAILABLE";
+    const chip = $("v-defense-chip"); if(chip) chip.innerHTML = downChip("UNAVAILABLE");
+  }
+  async function loadLockedKernel(){
+    try{
+      const h = await getJSON("/api/a11oy/v1/honest");
+      const n = num(h && h.locked_formula_count);
+      $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
+    }catch(e){ $("pt-locked").textContent = "N/A"; }
+  }
+  function setCatalogNote(n){
+    let el = $("pt-catalog");
+    if(!el){
+      const grid = document.querySelector("#proof .grid");
+      if(!grid) return;
+      el = document.createElement("p");
+      el.id = "pt-catalog";
+      el.className = "intro";
+      grid.insertAdjacentElement("afterend", el);
+    }
+    el.textContent = (num(n)===null) ? "" : ("Genome catalog LOCKED-PROVEN = "+n+" (catalog, not kernel). Lean-8 ≠ genome-144.");
   }
   async function loadLockedKernel(){
     try{
@@ -955,32 +987,10 @@
     });
   }
 
-  function setHeroReceiptsFromLedger(d){
-    // Same source as the runtime pulse card: GET /api/a11oy/v1/ledger (SAMPLE chain).
-    // Do not invent a third number. Lake/overview totals, if different, are SAMPLE/historical.
-    const n = (d && typeof d.count === "number") ? d.count : num(d && d.count);
-    const state = String((d && (d.state || d.data_kind)) || "SAMPLE").toUpperCase();
-    $("hs-receipts").textContent = (n===null) ? "—" : n.toLocaleString();
-    $("hs-receipts").dataset.liveCount = (n===null) ? "" : String(n);
-    $("hs-receipts-chip").innerHTML = (n===null) ? downChip("offline") : grayChip(state + " · ledger");
-    if(window.__lakeReceiptTotal != null) noteHistoricalReceipts(window.__lakeReceiptTotal, "lake");
-  }
-  function noteHistoricalReceipts(other, source){
-    const live = num($("hs-receipts").dataset && $("hs-receipts").dataset.liveCount);
-    const hist = num(other);
-    const el = $("hs-receipts-hist");
-    if(!el) return;
-    if(live!==null && hist!==null && live!==hist){
-      el.textContent = " · SAMPLE/historical " + source + " " + hist.toLocaleString();
-    }
-  }
   function setChain(receipts, alg, depth, head){
-    window.__lakeReceiptTotal = num(receipts);
     $("chain-receipts").textContent = (num(receipts)===null) ? "UNAVAILABLE" : receipts.toLocaleString();
-    // Hero figure is owned by the ledger read (same source as the runtime card).
-    if($("hs-receipts").dataset.liveCount){
-      noteHistoricalReceipts(receipts, "lake");
-    }
+    $("hs-receipts").textContent    = (num(receipts)===null) ? "—"           : receipts.toLocaleString();
+    $("hs-receipts-chip").innerHTML = (num(receipts)===null) ? downChip("offline") : grayChip((alg || "sha3_256") + " · CHAIN");
     if(alg) $("chain-alg").textContent = alg;
     $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
     // Normalize head to the receipt id STRING. Some feeds (e.g. org/overview)
@@ -1081,10 +1091,8 @@
         const checked = Boolean(d.probe_verdict_available);
         pulseState("contract", checked ? "REACHABLE" : "SNAPSHOT", (s.tabs || "Published")+" tabs · "+(s.endpoints || "declared")+" endpoint contracts · "+(checked ? "deployment probe attached." : "static contract; deployment probe pending."));
       }).catch(() => pulseState("contract", "UNAVAILABLE", "Tab contract is not bundled with this deployment.")),
-      pulseJSON("/api/a11oy/v1/ledger").then(d => {
-        setHeroReceiptsFromLedger(d);
-        pulseState("ledger", "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+" receipts returned by the read; verify timestamp and chain state in the source.");
-      }).catch(() => pulseState("ledger", "UNAVAILABLE", "Receipt ledger did not answer this session.")),
+      pulseJSON("/api/a11oy/v1/ledger").then(d => pulseState("ledger", "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+" receipts returned by the read; verify timestamp and chain state in the source."))
+        .catch(() => pulseState("ledger", "UNAVAILABLE", "Receipt ledger did not answer this session.")),
       pulseJSON("/api/a11oy/v1/mesh/state").then(d => {
         const nodes = Array.isArray(d.nodes) ? d.nodes.length : (Array.isArray(d.peers) ? d.peers.length : null);
         pulseState("mesh", "REACHABLE", nodes === null ? "Mesh state answered; open the source for node posture." : nodes+" nodes reported by the current mesh read.");
@@ -1120,6 +1128,7 @@
 
   // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
   (async function(){
+    markKillinchuUnavailable();
     loadEstatePulse();
     loadOverclaimMetrics();
     loadLockedKernel();
