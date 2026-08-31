@@ -1,0 +1,75 @@
+name: temporary-build-dependency-audit-successor-v2
+
+on:
+  push:
+    branches:
+      - fix/dependency-audit-current-main-20260830-v2
+    paths:
+      - .github/workflows/temporary-build-dependency-audit-successor-v2.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/dependency-audit-current-main-20260830-v2
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Transplant only the reviewed additive dependency-audit files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main chore/p0-4-dependency-audit
+          merge_base="$(git merge-base origin/main origin/chore/p0-4-dependency-audit)"
+          mapfile -t paths < <(
+            git diff --name-only "${merge_base}..origin/chore/p0-4-dependency-audit" -- \
+              . ':(exclude).github/workflows/temporary-*' ':(exclude).ci-*'
+          )
+          expected=(
+            .github/workflows/dependency-audit.yml
+            docs/DEPENDENCY_RISK_REGISTER.md
+            requirements-audit.txt
+          )
+          printf '%s\n' "${paths[@]}" | sort -u > /tmp/observed-paths
+          printf '%s\n' "${expected[@]}" | sort -u > /tmp/expected-paths
+          if ! diff -u /tmp/expected-paths /tmp/observed-paths; then
+            echo "::error::Dependency-audit source branch contains unreviewed path drift."
+            exit 1
+          fi
+          git reset --hard origin/main
+          git checkout origin/chore/p0-4-dependency-audit -- "${expected[@]}"
+          rm -f \
+            .github/workflows/temporary-build-dependency-audit-successor.yml \
+            .github/workflows/temporary-build-dependency-audit-successor-v2.yml
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python - <<'PY'
+          import pathlib
+          import re
+          import yaml
+
+          workflow = pathlib.Path('.github/workflows/dependency-audit.yml')
+          workflow_text = workflow.read_text(encoding='utf-8')
+          data = yaml.safe_load(workflow_text)
+          if not isinstance(data, dict) or 'jobs' not in data:
+              raise SystemExit('dependency-audit workflow is not a valid workflow mapping')
+          risk = pathlib.Path('docs/DEPENDENCY_RISK_REGISTER.md').read_text(encoding='utf-8')
+          requirements = pathlib.Path('requirements-audit.txt').read_text(encoding='utf-8')
+          for token in ('PYSEC-2026-2447', 'CVE-2025-69872', 'review_by: 2026-11-30'):
+              if token not in risk:
+                  raise SystemExit(f'missing reviewed risk-register token: {token}')
+          if not re.search(r'(?m)^diskcache==5\.6\.3\s*$', requirements):
+              raise SystemExit('audit closure does not pin diskcache 5.6.3')
+          if 'pip install -r requirements-audit.txt' in workflow_text:
+              raise SystemExit('audit-only closure must never be installed as runtime dependencies')
+          PY
+          git add -A
+          git diff --cached --check
+          git commit -m "chore(security): add dependency closure audit and scoped CVE register" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push --force-with-lease origin HEAD:fix/dependency-audit-current-main-20260830-v2
