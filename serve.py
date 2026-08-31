@@ -2009,6 +2009,17 @@ try:
 except Exception as _braincite_e:  # pragma: no cover
     print(f"[a11oy] Brain cite NOT registered: {_braincite_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN EVAL (feat/frontier-braineval) — honest refusal-to-fabricate gate for a served
+# model. Reuses the brainlocal endpoint contract; MEASURED only when a live model answers,
+# else UNAVAILABLE (never a fabricated score). Trains nothing. Wall-readable manifest at
+# GET /api/a11oy/v1/brain/braineval/manifest; unsigned SHA-256 receipt-on-write. Guarded.
+try:
+    import szl_braineval as _szl_braineval
+    _braineval_status = _szl_braineval.register(app, ns="a11oy")
+    print(f"[a11oy] Brain eval registered: {_braineval_status}", file=__import__("sys").stderr)
+except Exception as _braineval_e:  # pragma: no cover
+    print(f"[a11oy] Brain eval NOT registered: {_braineval_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
 # grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
