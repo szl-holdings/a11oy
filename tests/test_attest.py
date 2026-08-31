@@ -504,16 +504,18 @@ def test_verify_endpoint_rejects_junk_without_a_500(client):
 # --------------------------------------------------------------------------- #
 # 3-place surface registry + doctrine lexicon
 # --------------------------------------------------------------------------- #
-def test_attest_surface_is_registered_last_in_all_three_places():
+def test_attest_surface_is_registered_and_consistent_in_all_three_places():
     import szl3d_holographic
 
     ids = [s["id"] for s in szl3d_holographic.SURFACES]
-    assert ids[-1] == "attest", ids[-3:]
+    # attest is present exactly once; later surface waves may append after it, so the
+    # durable invariant is presence + cross-registry consistency, not last-position.
+    assert "attest" in ids, ids[-3:]
     assert ids.count("attest") == 1
 
     html = (ROOT / "static" / "3d" / "holographic.html").read_text(encoding="utf-8")
     html_ids = re.findall(r'\{\s*id:\s*"([A-Za-z0-9_-]+)"', html)
-    assert html_ids[-1] == "attest"
+    assert "attest" in html_ids
     assert html_ids == ids
 
     js = ROOT / "static" / "3d" / "surfaces" / "attest.js"
