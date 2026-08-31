@@ -115,6 +115,8 @@ curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock.lambda
 | Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) |
 | WILLAY classifiers | [a-11-oy.com/api/a11oy/v1/willay/classifiers](https://a-11-oy.com/api/a11oy/v1/willay/classifiers) |
 
+> The live energy ledger is in **genesis state** (chain length 0) — live and queryable, honestly empty.
+
 ### Persistent receipt storage (HF Space)
 
 The protected deployment workflow attaches the existing
@@ -147,7 +149,7 @@ and `GET /api/a11oy/v1/series-a/status`.
 
 | Claim | Status |
 |---|---|
-| Signed receipts on every governed action | **LIVE** |
+| Signed receipts on every governed action | **LIVE** — receipts are UNSIGNED-honest unless persistent signing is enabled (`A11OY_REQUIRE_PERSISTENT_SIGNING=1`); an unsigned receipt says so and never fabricates a signature |
 | 8 formulas locked-proven (Lean 4) | **LOCKED · kernel c7c0ba17** |
 | Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
 | SLSA supply chain | **L1 honest · L2 build-attested · L3 roadmap** |
