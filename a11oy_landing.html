@@ -138,6 +138,11 @@
     .nav nav .btn{padding-inline:10px}
   }
 
+  /* ---- origin disambiguation banner (audit 2026-08-30: slim, static) ---- */
+  .origin-banner{background:var(--deep);border-bottom:1px solid var(--border);color:var(--sub);
+    font-family:var(--mono);font-size:12px;line-height:1.5;padding:8px 24px;text-align:center}
+  .origin-banner a{color:var(--proof);text-decoration:underline;text-underline-offset:.2em}
+
   /* ---- buttons ---- */
   #fw-hash-btn{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:10px 14px;touch-action:manipulation}
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 21px;border-radius:9px;
@@ -400,6 +405,12 @@
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 
+<!-- audit 2026-08-30: origin disambiguation banner (static, slim). This origin = product; receipts, spec and conformance = a11oy.net. Never a11oy.com. -->
+<div class="origin-banner" role="note">
+  a-11-oy.com is the product surface — receipts, spec and conformance live at
+  <a href="https://a11oy.net" target="_blank" rel="noopener">a11oy.net</a>.
+</div>
+
 <!-- ============================ NAV ============================ -->
 <header class="nav">
   <div class="wrap">
@@ -435,16 +446,18 @@
   <div class="wrap">
     <div class="hero-inner">
       <span class="eyebrow"><span class="dot"></span> Governed agent change management · verifiable by anyone, offline</span>
-      <h1 class="title">AI that <span class="grad">proves its receipt state</span><br>and refuses to lie.</h1>
-      <p class="lede">Every governed state change produces a hash-chained receipt you can inspect
+      <!-- audit 2026-08-30: single buyer sentence as the hero (estate audit first-fold fix) -->
+      <h1 class="title">Every AI action your agents take, <span class="grad">policy-gated and signed into a receipt</span> you can verify offline.</h1>
+      <p class="lede">a11oy proves its receipt state — every governed state change produces a hash-chained receipt you can inspect
         <b>offline, in your own browser</b>. The interface says <b>SIGNED</b> only when persistent
         signer evidence is active and verification passes; otherwise it reports HASH-LINKED,
         UNSIGNED, DISABLED, or UNAVAILABLE. When the model is not sure, it returns an honest
         <b>BLOCKED</b> instead of a confident guess.</p>
+      <!-- audit 2026-08-30: exactly three buyer CTAs. The mailto reuses the existing contact address already published in pages/pricing.html. -->
       <div class="cta-row">
-        <a class="btn btn-primary" href="/console">Open the command center →</a>
-        <a class="btn btn-lattice" href="https://a11oy.net" rel="noopener">Open the proof registry</a>
-        <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
+        <a class="btn btn-primary" href="https://huggingface.co/spaces/SZLHOLDINGS/prove-it" target="_blank" rel="noopener">Verify a receipt</a>
+        <a class="btn btn-lattice" href="https://github.com/szl-holdings/governed-receipt-spec" target="_blank" rel="noopener">Read the spec</a>
+        <a class="btn btn-ghost" href="mailto:hello@a-11-oy.com?subject=Evidence%20pilot">Book an evidence pilot</a>
       </div>
       <div class="hero-stats">
         <div class="stat">
@@ -761,6 +774,7 @@
           independently inspectable; DSSE signing is claimed only when verification proves it.</p>
         <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
           <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">github.com/szl-holdings</a></p>
+        <p class="muted" style="margin:12px 0 0">Not affiliated with a11oy.com.</p>
       </div>
       <div class="lk"><strong style="color:var(--ink)">Products</strong>
         <a href="/console">a11oy Command</a>
