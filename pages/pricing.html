@@ -1,15 +1,18 @@
 <!DOCTYPE html>
 <!-- SPDX-License-Identifier: Apache-2.0
      (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-     feat/investor-mode-pricing: honest commercial tiers. On-brand KANCHAY, one nav,
-     mobile-friendly. No prices are invented — undecided prices say "Contact us".
-     No internal leaks (no build/mirror/IP internals). Doctrine v11 LOCKED. -->
+     audit/pricing-2026-08-31: founder-set launch pricing, four honest tiers
+     (Community / Team / Governed Evidence Pilot / Enterprise). On-brand KANCHAY,
+     one nav, mobile-friendly, 0 runtime CDN. Prices marked launch pricing; no
+     customer, revenue, or market-validation claims (COMMERCIAL_LEDGER: all
+     UNKNOWN). Demand signals are labelled as downloads, never as customers.
+     Doctrine v11 LOCKED. -->
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>a11oy — Pricing</title>
-<meta name="description" content="a11oy pricing: three honest tiers — Developer, Team, and Enterprise (air-gapped). Evidence-first AI that signs its work and refuses to lie. Talk to us for a quote."/>
+<meta name="description" content="a11oy pricing: four honest tiers — Community (free), Team ($2,500/mo), the 30-day Governed Evidence Pilot ($15,000 flat), and Enterprise (custom, air-gapped). Founder-set launch pricing. Verifiable evidence for agentic AI."/>
 <link rel="canonical" href="https://a-11-oy.com/pricing"/>
 <style>
 /* KANCHAY palette — one palette org-wide. 0 runtime CDN: named font families
@@ -20,7 +23,7 @@
   --muted:#8a93a0; --text:#e7e9ec; --text-soft:#b9bfc8; --ghost:#6b727c;
   --display:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
   --mono:"JetBrains Mono","Fira Code",ui-monospace,SFMono-Regular,monospace;
-  --maxw:1120px; --radius:14px; --radius-sm:9px;
+  --maxw:1180px; --radius:14px; --radius-sm:9px;
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
@@ -62,8 +65,9 @@ h1{font-family:var(--display);font-weight:600;font-size:clamp(30px,5vw,46px);lin
   border:1px solid rgba(95,179,163,.35);background:rgba(95,179,163,.08);border-radius:8px;padding:8px 14px}
 
 /* ── tier cards ───────────────────────────────────────────────────── */
-.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:18px;margin:40px 0 12px}
-@media (max-width:900px){.tiers{grid-template-columns:1fr}}
+.tiers{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin:40px 0 12px}
+@media (max-width:1100px){.tiers{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:640px){.tiers{grid-template-columns:1fr}}
 .tier{background:var(--panel);border:1px solid var(--hairline);border-radius:var(--radius);
   padding:26px 24px;display:flex;flex-direction:column;gap:16px;position:relative}
 .tier.feature{border-color:rgba(201,183,135,.5);box-shadow:0 24px 60px -30px rgba(201,183,135,.35)}
@@ -85,7 +89,8 @@ h1{font-family:var(--display);font-weight:600;font-size:clamp(30px,5vw,46px);lin
 .compare h2{font-family:var(--display);font-weight:600;font-size:22px;letter-spacing:-.01em;margin-bottom:6px}
 .compare .sub{color:var(--muted);font-size:13.5px;margin-bottom:18px}
 .tablecard{background:var(--panel);border:1px solid var(--hairline);border-radius:var(--radius);overflow:hidden}
-table{width:100%;border-collapse:collapse;font-size:14px}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px;min-width:760px}
 th,td{text-align:left;padding:14px 16px;border-bottom:1px solid var(--hairline);vertical-align:top}
 thead th{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;background:var(--panel-2)}
 tbody th{font-weight:600;color:var(--text);font-family:var(--display)}
@@ -93,6 +98,8 @@ td{color:var(--text-soft)}
 .yes{color:var(--teal);font-weight:600} .no{color:var(--ghost)} .partial{color:var(--gold-dim)}
 /* Phone: turn the wide table into stacked, labelled rows — never overflows. */
 @media (max-width:720px){
+  .tablewrap{overflow-x:visible}
+  table{min-width:0}
   table,thead,tbody,th,td,tr{display:block}
   thead{position:absolute;left:-9999px}
   tbody th{background:var(--panel-2);border-top:1px solid var(--hairline);font-size:15px;padding:12px 16px 10px}
@@ -141,148 +148,197 @@ footer a{color:var(--muted)} footer a:hover{color:var(--text)}
 <main>
   <section class="hero wrap">
     <p class="eyebrow">Pricing</p>
-    <h1>Evidence-first AI,<br>priced honestly.</h1>
-    <p>a11oy is AI that signs its work and refuses to lie — every decision ships a signed receipt you
-      can verify yourself. Three tiers below. Where we have not fixed a public price yet, we say
-      "Contact us" instead of inventing one.</p>
-    <span class="tag">AI that signs its work and refuses to lie.</span>
+    <h1>Verifiable evidence for agentic AI,<br>priced honestly.</h1>
+    <p>a11oy puts a policy gate in front of every AI agent action and seals each decision into a
+      signed, hash-chained receipt anyone can verify offline. Four tiers below. Prices are
+      <b>founder-set launch pricing</b> — early, simple, and subject to change as we learn.</p>
+    <span class="tag">Founder-set launch pricing — every receipt verifiable, every claim checkable.</span>
   </section>
 
   <!-- Tier cards (naturally responsive; stack on phones) -->
   <section class="tiers wrap">
     <div class="tier">
-      <div class="name">Developer</div>
+      <div class="name">Community</div>
       <div class="for">Individuals &amp; evaluation</div>
-      <div class="price">Free<small>Self-serve · open-weight models</small></div>
+      <div class="price">Free<small>Open artifacts · self-serve</small></div>
       <ul>
-        <li>Signed receipts on every decision, verifiable in your browser</li>
-        <li>Evidence-first AI API + the operator console</li>
-        <li>Deny-by-default policy gate</li>
+        <li><a href="https://github.com/szl-holdings/governed-receipt-spec">governed-receipt-spec</a> — the open receipt format</li>
+        <li><a href="https://huggingface.co/spaces/SZLHOLDINGS/prove-it">prove-it</a> verifier — check any receipt in your browser</li>
+        <li>Conformance vectors — PASS/FAIL-labeled fixtures for your own verifier</li>
         <li>Community support</li>
-        <li>For evaluation and non-production use</li>
       </ul>
-      <div class="cta"><a class="btn" href="/docs">Read the docs</a></div>
-    </div>
-
-    <div class="tier feature">
-      <div class="flag">Most teams start here</div>
-      <div class="name">Team</div>
-      <div class="for">Companies in production</div>
-      <div class="price">Contact us<small>Usage-based · billed by agreement</small></div>
-      <ul>
-        <li>Everything in Developer</li>
-        <li>Higher throughput &amp; priority routing</li>
-        <li>Energy-metered receipts (joules per token)</li>
-        <li>SSO &amp; team roles</li>
-        <li>Audit export &amp; retained receipt trail</li>
-        <li>Business-hours support</li>
-      </ul>
-      <div class="cta"><a class="btn primary" href="mailto:hello@a-11-oy.com?subject=a11oy%20Team%20plan">Get a quote</a></div>
+      <div class="cta"><a class="btn" href="https://github.com/szl-holdings/governed-receipt-spec">Read the spec</a></div>
     </div>
 
     <div class="tier">
-      <div class="name">Enterprise — air-gapped</div>
+      <div class="name">Team</div>
+      <div class="for">Companies deploying internal agents</div>
+      <div class="price">$2,500<small>per month · launch pricing</small></div>
+      <ul>
+        <li>Everything in Community</li>
+        <li>Evidence-plane sidecar for your agent stack</li>
+        <li>Hash-chained receipt ledger — append-only, tamper-evident</li>
+        <li>10 controls mapped to ISO/IEC 42001, EU AI Act &amp; NIST AI RMF</li>
+        <li>Auditor export bundle</li>
+      </ul>
+      <div class="cta"><a class="btn" href="mailto:hello@a-11-oy.com?subject=a11oy%20Team%20plan">Start a conversation</a></div>
+    </div>
+
+    <div class="tier feature">
+      <div class="flag">Start here — 30 days</div>
+      <div class="name">Governed Evidence Pilot</div>
+      <div class="for">One workflow · fixed scope</div>
+      <div class="price">$15,000<small>flat · 30 days · launch pricing</small></div>
+      <ul>
+        <li>One integrated agent workflow, end to end</li>
+        <li>Signed receipts on every governed action</li>
+        <li>External adversarial review of the receipt claim</li>
+        <li>Measurable acceptance: chain verifies offline, zero unlogged decisions</li>
+        <li>Fixed price, fixed scope, fixed calendar</li>
+      </ul>
+      <div class="cta"><a class="btn primary" href="mailto:hello@a-11-oy.com?subject=Governed%20Evidence%20Pilot">Book the pilot</a></div>
+    </div>
+
+    <div class="tier">
+      <div class="name">Enterprise</div>
       <div class="for">Regulated, defense &amp; on-prem</div>
-      <div class="price">Contact us<small>Annual contract · deployed on your hardware</small></div>
+      <div class="price">Custom<small>Annual contract · your hardware</small></div>
       <ul>
         <li>Everything in Team</li>
-        <li>Air-gapped / on-prem deployment, zero outside dependency</li>
-        <li>Your keys, your signing root</li>
-        <li>Compliance &amp; procurement support</li>
+        <li>Own-metal mesh deployment</li>
+        <li>Hardware-key signing — your keys, your signing root</li>
+        <li>Air-gap / UDS deployment, zero outside dependency</li>
         <li>Named engineer &amp; response SLA</li>
       </ul>
-      <div class="cta"><a class="btn" href="mailto:hello@a-11-oy.com?subject=a11oy%20Enterprise%20air-gapped">Talk to sales</a></div>
+      <div class="cta"><a class="btn" href="mailto:hello@a-11-oy.com?subject=a11oy%20Enterprise">Talk to the founder</a></div>
     </div>
   </section>
 
   <!-- Comparison — responsive table (stacks on phones, never overflows) -->
   <section class="compare wrap">
     <h2>What's in each tier</h2>
-    <p class="sub">Same governed core across all three. Higher tiers add scale, control and support.</p>
+    <p class="sub">Same governed core across all four. Higher tiers add deployment control, assurance depth, and support.</p>
     <div class="tablecard">
+      <div class="tablewrap">
       <table>
         <thead>
-          <tr><th scope="col">Capability</th><th scope="col">Developer</th><th scope="col">Team</th><th scope="col">Enterprise (air-gapped)</th></tr>
+          <tr><th scope="col">Capability</th><th scope="col">Community</th><th scope="col">Team</th><th scope="col">Pilot</th><th scope="col">Enterprise</th></tr>
         </thead>
         <tbody>
           <tr>
-            <th scope="row">Signed, verifiable receipts</th>
-            <td data-label="Developer" class="yes">Yes</td>
+            <th scope="row">Open receipt spec + browser verifier</th>
+            <td data-label="Community" class="yes">Yes</td>
             <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Pilot" class="yes">Yes</td>
             <td data-label="Enterprise" class="yes">Yes</td>
           </tr>
           <tr>
-            <th scope="row">Deny-by-default policy gate</th>
-            <td data-label="Developer" class="yes">Yes</td>
+            <th scope="row">Conformance vectors</th>
+            <td data-label="Community" class="yes">Yes</td>
             <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Pilot" class="yes">Yes</td>
             <td data-label="Enterprise" class="yes">Yes</td>
           </tr>
           <tr>
-            <th scope="row">Energy-metered receipts</th>
-            <td data-label="Developer" class="partial">When metered</td>
+            <th scope="row">Evidence-plane sidecar</th>
+            <td data-label="Community" class="no">—</td>
             <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Pilot" class="yes">Yes</td>
             <td data-label="Enterprise" class="yes">Yes</td>
           </tr>
           <tr>
-            <th scope="row">SSO &amp; team roles</th>
-            <td data-label="Developer" class="no">—</td>
+            <th scope="row">Hash-chained receipt ledger</th>
+            <td data-label="Community" class="no">—</td>
             <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Pilot" class="yes">Yes</td>
             <td data-label="Enterprise" class="yes">Yes</td>
           </tr>
           <tr>
-            <th scope="row">Audit export</th>
-            <td data-label="Developer" class="no">—</td>
+            <th scope="row">Mapped controls (ISO/IEC 42001 · EU AI Act · NIST AI RMF)</th>
+            <td data-label="Community" class="no">—</td>
+            <td data-label="Team" class="yes">10</td>
+            <td data-label="Pilot" class="yes">10, with evidence links</td>
+            <td data-label="Enterprise" class="partial">Custom scope</td>
+          </tr>
+          <tr>
+            <th scope="row">Auditor export bundle</th>
+            <td data-label="Community" class="no">—</td>
             <td data-label="Team" class="yes">Yes</td>
+            <td data-label="Pilot" class="yes">Yes</td>
             <td data-label="Enterprise" class="yes">Yes</td>
           </tr>
           <tr>
-            <th scope="row">Air-gapped / on-prem</th>
-            <td data-label="Developer" class="no">—</td>
-            <td data-label="Team" class="partial">On request</td>
+            <th scope="row">External adversarial review of the receipt claim</th>
+            <td data-label="Community" class="no">—</td>
+            <td data-label="Team" class="no">—</td>
+            <td data-label="Pilot" class="yes">Yes</td>
+            <td data-label="Enterprise" class="partial">On request</td>
+          </tr>
+          <tr>
+            <th scope="row">Own-metal mesh deployment</th>
+            <td data-label="Community" class="no">—</td>
+            <td data-label="Team" class="no">—</td>
+            <td data-label="Pilot" class="no">—</td>
             <td data-label="Enterprise" class="yes">Yes</td>
           </tr>
           <tr>
-            <th scope="row">Your own signing keys</th>
-            <td data-label="Developer" class="no">—</td>
-            <td data-label="Team" class="partial">On request</td>
+            <th scope="row">Hardware-key signing (your signing root)</th>
+            <td data-label="Community" class="no">—</td>
+            <td data-label="Team" class="no">—</td>
+            <td data-label="Pilot" class="no">—</td>
+            <td data-label="Enterprise" class="yes">Yes</td>
+          </tr>
+          <tr>
+            <th scope="row">Air-gap / UDS deployment</th>
+            <td data-label="Community" class="no">—</td>
+            <td data-label="Team" class="no">—</td>
+            <td data-label="Pilot" class="no">—</td>
             <td data-label="Enterprise" class="yes">Yes</td>
           </tr>
           <tr>
             <th scope="row">Support</th>
-            <td data-label="Developer">Community</td>
+            <td data-label="Community">Community</td>
             <td data-label="Team">Business hours</td>
+            <td data-label="Pilot">Direct to founder</td>
             <td data-label="Enterprise">Named engineer + SLA</td>
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div class="note">
-      <b>Honest note on billing.</b> Quotas are metered against the same signed receipts you can verify —
-      we count out loud rather than enforcing a hidden mid-request paywall. Public per-seat and usage
-      prices for Team and Enterprise are not finalized, so those tiers say "Contact us" — we will not
-      invent a number. Developer is free for evaluation and non-production use.
+      <b>Honest note on launch pricing.</b> These prices are founder-set launch pricing — early and
+      deliberately simple. We have no paying customers yet and we say so; our demand signals today are
+      open-source downloads, not contracts. The pilot is a fixed-fee 30-day engagement with measurable
+      acceptance criteria, because the first commercial evidence this company produces should itself be
+      verifiable. Usage we meter is counted against the same signed receipts you can verify — we count
+      out loud, never behind a hidden paywall.
     </div>
   </section>
 
   <!-- FAQ -->
   <section class="faq wrap">
     <div class="q"><h3>Do I have to trust your numbers?</h3><p>No. Every decision ships a signed receipt
-      you can re-verify yourself, in your own browser, at <a href="/verify">/verify</a>.</p></div>
+      you can re-verify yourself, in your own browser, at <a href="/verify">/verify</a> — including
+      anything we meter for billing.</p></div>
+    <div class="q"><h3>What happens in the 30-day pilot?</h3><p>We integrate one agent workflow with the
+      evidence plane: policy gates on every action, signed hash-chained receipts, 10 mapped controls with
+      evidence links, an auditor export, and an external adversarial review that tries to break the
+      receipt claim. Acceptance is measurable, in writing, up front.</p></div>
     <div class="q"><h3>Can it run fully offline?</h3><p>Yes — the Enterprise tier deploys air-gapped on
-      your own hardware with no runtime dependency on outside services. Open-weight models only.</p></div>
+      your own hardware (own-metal mesh, UDS) with your signing keys and no runtime dependency on
+      outside services.</p></div>
     <div class="q"><h3>What is "proven"?</h3><p>Eight core formulas (the locked-8) are proven in Lean 4
       and re-checked on every build. The Λ trust score is <b>Conjecture 1</b> — advisory, never a gate,
-      never shown as "green".</p></div>
-    <div class="q"><h3>What if the model isn't sure?</h3><p>It refuses rather than guesses. Trust is
-      capped and never claimed at 100%; below the confidence bar the system abstains and says why.</p></div>
+      never shown as "green". Trust is capped at 0.97, never 100%.</p></div>
   </section>
 
   <div class="wrap">
     <div class="close">
       <div>
         <div class="t">Not sure which tier fits?</div>
-        <div class="s">Tell us your workload and deployment constraints — we'll size it with you.</div>
+        <div class="s">Tell us your agent workflow and deployment constraints — we'll size it with you.</div>
       </div>
       <a class="btn primary" href="mailto:hello@a-11-oy.com?subject=a11oy%20pricing%20question">Talk to us →</a>
     </div>
