@@ -18,7 +18,7 @@ def load_target():
 
 
 class AstEntryPattern:
-    def subn(self, text: str, replacement: str, count: int = 1):
+    def subn(self, replacement: str, text: str, count: int = 1):
         if count != 1:
             raise SystemExit("router schema replacement must remain single-shot")
         tree = ast.parse(text)
