@@ -12,6 +12,8 @@ ROOT = Path(__file__).resolve().parents[1]
 PAGE = (ROOT / "web" / "five-space.html").read_text(encoding="utf-8")
 SERVE = (ROOT / "serve.py").read_text(encoding="utf-8")
 DOCKER = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+LANDING = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+NAV = (ROOT / "a11oy_nav_wireup.py").read_text(encoding="utf-8")
 
 
 def test_first_paint_is_connecting_never_live_or_running() -> None:
@@ -90,11 +92,27 @@ def test_page_cites_two_origins_and_not_console() -> None:
     assert "not a second flagship" in PAGE.lower()
 
 
+def test_landing_and_nav_cite_the_package() -> None:
+    assert 'id="bind-five-space"' in LANDING
+    assert 'href="/five-space"' in LANDING
+    assert "Five-space operator" in LANDING
+    assert "Honesty LIVE" not in LANDING
+    assert '("/five-space"' in NAV
+    assert '"/five-space": "Sovereign & Agentic Core"' in NAV
+
+
 def test_zero_cdn_and_mobile() -> None:
     assert "cdn.jsdelivr.net" not in PAGE
     assert "fonts.googleapis.com" not in PAGE
     assert '<script src="http' not in PAGE
     assert "@media(max-width:760px)" in PAGE
+    mobile_css = PAGE.split("@media(max-width:760px){", 1)[1].split(
+        "@media(max-width:420px){", 1
+    )[0]
+    assert (
+        '[data-related-surfaces="qa10"]'
+        "{padding-bottom:calc(4.6rem + env(safe-area-inset-bottom))!important;}"
+    ) in mobile_css
     assert 'class="table-scroll" role="region"' in PAGE
     assert "repeat(auto-fit,minmax(min(100%,180px),1fr))" in PAGE
     assert "min-height:44px" in PAGE

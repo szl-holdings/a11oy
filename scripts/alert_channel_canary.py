@@ -22,10 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 VALID_MODES = {"auto", "slack", "ntfy", "generic-json"}
-NTFY_RELAY_HOSTS = {"ntfy.sh"}
+NTFY_RELAY_HOSTS = {"ntfy.sh", "ntfy.a11oy.net"}
 NON_RECEIVING_ALERT_HOSTS = {
     "a11oy.net": "a11oy.net is a static proof registry and cannot receive alert-channel POST requests",
-    "ntfy.a11oy.net": "ntfy.a11oy.net is not a POST-capable alert receiver",
 }
 FAILURE_STATES = {
     "MISSING",
