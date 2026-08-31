@@ -1,0 +1,311 @@
+name: temporary-apply-readiness-contract-repair
+
+on:
+  push:
+    branches:
+      - fix/readiness-verdict-contracts-20260830
+    paths:
+      - .github/workflows/temporary-apply-readiness-contract-repair.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/readiness-verdict-contracts-20260830
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Patch the two measured contract mismatches
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path("tools/readiness-harness/gen_tabs_matrix.py")
+          text = path.read_text(encoding="utf-8")
+
+          old_finance = '''    "/api/a11oy/v1/vert/finance/feed": ep(
+              schema="vert_finance_feed", sla=HOUR, citations=True,
+              allow_labels=("live", "cached", "reference", "unofficial-fallback"),
+              note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
+          '''
+          new_finance = '''    "/api/a11oy/v1/vert/finance/feed": ep(
+              schema="vert_finance_feed", sla=HOUR, citations=True,
+              allow_labels=("live", "cached", "stale", "reference", "unofficial-fallback"),
+              note=(
+                  "Live Yahoo/macro finance feed. Official-equity observations may "
+                  "honestly declare freshness.status=stale outside an active market "
+                  "session; the observation clock must still satisfy the one-hour SLA. "
+                  "The stale label is never upgraded to live."
+              )),
+          '''
+          if text.count(old_finance) != 1:
+              raise SystemExit("finance endpoint contract predecessor not found exactly once")
+          text = text.replace(old_finance, new_finance, 1)
+
+          old_router = '''    # router/stats: the current endpoint is a deterministic modeled display of
+              #   the real tier catalog. It is not production traffic, QPS, tokens,
+              #   completed inference, or an observed routing-decision counter.
+              "/api/a11oy/v1/router/stats": ep(
+                  schema="router_stats",
+                  sla=None,
+                  allow_labels=("live", "cached", "modeled"),
+                  note=(
+                      "Deterministic MODELED tier-display signals from szl_brain.TIERS; "
+                      "not production traffic, QPS, tokens, or completed inference."
+                  ),
+              ),
+          '''
+          new_router = '''    # router/stats: exact process-lifetime routing-decision counters. The
+              # counters increment only on trusted routing-receipt writes and reset on
+              # process rebuild. They are not QPS, tokens, inference completions, or
+              # traffic outside this process. Zero is a valid observed count.
+              "/api/a11oy/v1/router/stats": ep(
+                  schema="router_stats",
+                  sla=None,
+                  allow_labels=("live", "cached", "degraded", "unavailable"),
+                  note=(
+                      "LIVE/OBSERVED process-lifetime routing-decision counts from "
+                      "szl_llm_registry.router_stats_snapshot. Legacy throughput and "
+                      "servedThisWindow fields carry that count, never QPS or tokens. "
+                      "Registry failure is honestly UNAVAILABLE; catalog drift is DEGRADED."
+                  ),
+              ),
+          '''
+          if text.count(old_router) != 1:
+              raise SystemExit("router endpoint contract predecessor not found exactly once")
+          text = text.replace(old_router, new_router, 1)
+
+          router_schema = '''    "router_stats": {
+              "anyOf": [
+                  {
+                      "type": "object",
+                      "required": [
+                          "state", "mode", "data_kind", "catalog_state",
+                          "throughput_state", "routes", "servedThisWindow",
+                          "routingDecisionsSinceStart", "tiers", "counter_scope",
+                          "counter_started_at", "observed_at", "source", "doctrine",
+                          "honesty",
+                      ],
+                      "requiredPathTypes": {
+                          "routes": "nonempty_array",
+                          "servedThisWindow": "nonnegative_integer",
+                          "routingDecisionsSinceStart": "nonnegative_integer",
+                          "tiers": "nonempty_array",
+                          "counter_scope": "string",
+                          "counter_started_at": "timestamp",
+                          "observed_at": "timestamp",
+                          "honesty": "string",
+                      },
+                      "properties": {
+                          "state": {"const": "LIVE"},
+                          "mode": {"const": "live"},
+                          "data_kind": {"const": "live"},
+                          "catalog_state": {"const": "LIVE"},
+                          "throughput_state": {"const": "OBSERVED"},
+                          "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+                          "doctrine": {"const": "v11"},
+                      },
+                  },
+                  {
+                      "type": "object",
+                      "required": [
+                          "state", "mode", "data_kind", "catalog_state",
+                          "throughput_state", "routes", "servedThisWindow",
+                          "routingDecisionsSinceStart", "tiers", "counter_scope",
+                          "counter_started_at", "observed_at", "source", "doctrine",
+                          "honesty",
+                      ],
+                      "requiredPathTypes": {
+                          "routes": "nonempty_array",
+                          "servedThisWindow": "nonnegative_integer",
+                          "routingDecisionsSinceStart": "nonnegative_integer",
+                          "tiers": "nonempty_array",
+                          "counter_scope": "string",
+                          "counter_started_at": "timestamp",
+                          "observed_at": "timestamp",
+                          "honesty": "string",
+                      },
+                      "properties": {
+                          "state": {"const": "DEGRADED"},
+                          "mode": {"const": "degraded"},
+                          "data_kind": {"const": "live"},
+                          "catalog_state": {"const": "DRIFT"},
+                          "throughput_state": {"const": "OBSERVED"},
+                          "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+                          "doctrine": {"const": "v11"},
+                      },
+                  },
+                  {
+                      "type": "object",
+                      "required": [
+                          "state", "mode", "data_kind", "catalog_state",
+                          "throughput_state", "routes", "servedThisWindow",
+                          "routingDecisionsSinceStart", "tiers", "counter_scope",
+                          "counter_started_at", "observed_at", "source", "doctrine",
+                          "honesty",
+                      ],
+                      "requiredPathTypes": {
+                          "routes": "array",
+                          "tiers": "array",
+                          "counter_scope": "string",
+                          "observed_at": "timestamp",
+                          "honesty": "string",
+                      },
+                      "properties": {
+                          "state": {"const": "UNAVAILABLE"},
+                          "mode": {"const": "unavailable"},
+                          "data_kind": {"const": "unavailable"},
+                          "catalog_state": {"const": "UNAVAILABLE"},
+                          "throughput_state": {"const": "UNAVAILABLE"},
+                          "source": {"const": "unavailable"},
+                          "doctrine": {"const": "v11"},
+                      },
+                  },
+              ],
+          },
+          '''
+          pattern = re.compile(
+              r'^    "router_stats": \{.*?^    \},\n(?=    "feeds_pulse":)',
+              re.MULTILINE | re.DOTALL,
+          )
+          text, count = pattern.subn(router_schema, text, count=1)
+          if count != 1:
+              raise SystemExit("router schema predecessor not found exactly once")
+          path.write_text(text, encoding="utf-8", newline="\n")
+
+          test_path = Path("tests/test_readiness_runtime_contract_alignment.py")
+          test_path.write_text('''# SPDX-License-Identifier: Apache-2.0
+          from __future__ import annotations
+
+          from datetime import datetime
+          import importlib.util
+          from pathlib import Path
+
+          from fastapi.testclient import TestClient
+          import serve
+
+          ROOT = Path(__file__).resolve().parents[1]
+
+
+          def _matrix():
+              path = ROOT / "tools" / "readiness-harness" / "gen_tabs_matrix.py"
+              spec = importlib.util.spec_from_file_location("readiness_matrix_alignment", path)
+              assert spec and spec.loader
+              module = importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(module)
+              return module.build()
+
+
+          def _timestamp(value):
+              if not isinstance(value, str):
+                  return False
+              try:
+                  datetime.fromisoformat(value.replace("Z", "+00:00"))
+              except ValueError:
+                  return False
+              return True
+
+
+          def _matches(rule, payload):
+              if rule.get("type") != "object" or not isinstance(payload, dict):
+                  return False
+              if any(key not in payload for key in rule.get("required", [])):
+                  return False
+              for key, item in rule.get("properties", {}).items():
+                  if "const" in item and payload.get(key) != item["const"]:
+                      return False
+              for key, kind in rule.get("requiredPathTypes", {}).items():
+                  value = payload.get(key)
+                  if kind == "array" and not isinstance(value, list):
+                      return False
+                  if kind == "nonempty_array" and not (isinstance(value, list) and value):
+                      return False
+                  if kind == "string" and not isinstance(value, str):
+                      return False
+                  if kind == "nonnegative_integer" and not (
+                      isinstance(value, int) and not isinstance(value, bool) and value >= 0
+                  ):
+                      return False
+                  if kind == "timestamp" and not _timestamp(value):
+                      return False
+              return True
+
+
+          def _schema_matches(schema, payload):
+              return any(_matches(rule, payload) for rule in schema["anyOf"])
+
+
+          def test_finance_contract_admits_only_explicitly_labeled_stale_observations():
+              contract = _matrix()["endpoints"]["/api/a11oy/v1/vert/finance/feed"]
+              allowed = set(contract["degradedRules"]["allowLabels"])
+              assert "stale" in allowed
+              assert not {"mock", "fabricated", "placeholder"} & allowed
+              assert "observation clock" in contract["note"]
+              assert "never upgraded to live" in contract["note"]
+
+
+          def test_live_router_payload_matches_observed_counter_schema():
+              matrix = _matrix()
+              contract = matrix["endpoints"]["/api/a11oy/v1/router/stats"]
+              response = TestClient(serve.app).get("/api/a11oy/v1/router/stats")
+              assert response.status_code == 200
+              payload = response.json()
+              assert _schema_matches(matrix["schemas"]["router_stats"], payload)
+              assert payload["throughput_state"] == "OBSERVED"
+              assert payload["source"] == "szl_llm_registry.router_stats_snapshot"
+              assert "modeled" not in contract["degradedRules"]["allowLabels"]
+
+
+          def test_unavailable_router_payload_matches_fail_closed_schema(monkeypatch):
+              matrix = _matrix()
+              monkeypatch.setattr(serve, "_llm_reg_info", None)
+              response = TestClient(serve.app).get("/api/a11oy/v1/router/stats")
+              assert response.status_code == 200
+              payload = response.json()
+              assert payload["state"] == "UNAVAILABLE"
+              assert payload["servedThisWindow"] is None
+              assert payload["routes"] == []
+              assert _schema_matches(matrix["schemas"]["router_stats"], payload)
+          ''').replace("\n          ", "\n").lstrip()
+          test_path.write_text(test_path.read_text(encoding="utf-8"), encoding="utf-8", newline="\n")
+          PY
+
+      - name: Regenerate the committed readiness contracts
+        run: |
+          python3 tools/readiness-harness/gen_tabs_matrix.py
+          python3 tools/readiness-harness/gen_tabs_matrix.py --check
+
+      - name: Verify runtime, schema, label, and probe regressions
+        run: |
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest -q \
+            tests/test_readiness_runtime_contract_alignment.py \
+            tests/test_functest_router_receipts.py \
+            tests/test_readiness_honesty_relock_contract.py
+          node tools/readiness-harness/probe_runner.test.mjs
+          git diff --check
+
+      - name: Commit only the passing repair and remove diagnostic workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          rm .github/workflows/temporary-readiness-contract-diagnostic.yml
+          rm .github/workflows/temporary-apply-readiness-contract-repair.yml
+          git add -A
+          git commit \
+            -m "fix(readiness): align verdict contracts with observed runtime" \
+            -m "Admit explicitly labeled stale official-equity observations while retaining the one-hour observation SLA, and replace the obsolete modeled router schema with the live/degraded/unavailable process-lifetime routing-decision contract." \
+            -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:refs/heads/fix/readiness-verdict-contracts-20260830
