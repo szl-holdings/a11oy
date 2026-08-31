@@ -12148,13 +12148,14 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
 </script>
 
 <!-- ============================================================================
-     RERUN 2026-06-10 (Opus 4.8) — THREE NET-NEW LIVE-DATA TABS.
-     ADDITIVE ONLY. Each tab is backed end-to-end by a REAL live data source and
-     does exactly what its label claims. 0 runtime CDN (reuses vendored echarts /
-     cytoscape already at /vendor). 0 fabricated numbers; derived/sample values
-     honestly labelled. Registered into window.VIEWS once it exists; window.go
+     RERUN 2026-06-10 (Opus 4.8) — THREE NET-NEW EVIDENCE TABS.
+     ADDITIVE ONLY. Each tab is backed by source evidence whose live/cached/
+     sample state is disclosed. 0 runtime CDN (reuses vendored echarts /
+     cytoscape already at /vendor). Derived/sample values stay explicitly
+     labelled; no generated number is promoted to observed. Registered into
+     window.VIEWS once it exists; window.go
      and the existing nav (data-view) already resolve these keys.
-       kevgate     — live CISA KEV CVE -> policy-gate impact mapper (/v1/sec/kevgate
+       kevgate     — CISA KEV CVE -> policy-gate impact mapper (/v1/sec/kevgate
                      + real /v1/policy/decide engine output where reachable)
        feedpulse   — real-time data-feed liveness/provenance heartbeat (/v1/feeds/pulse)
        routerarena — live model-routing cost/latency arena (/v1/router/stats + /v1/llm/registry)
@@ -12176,26 +12177,27 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
   _ready(function(){
     var V=window.VIEWS;
 
-    /* ===== kevgate — live CVE -> policy-gate impact mapper ===== */
-    V.kevgate={ title:'CVE \u2192 Gate Impact', badge:'LIVE CISA KEV \u00b7 real policy gates', sub:'Real-time map from the LIVE CISA Known-Exploited-Vulnerabilities feed to a11oy\u2019s deny-by-default policy gates: each currently-exploited CVE is treated as a governed remediation action and run against the gate catalog, showing which gates engage. This is the governed-AI value proposition made literal \u2014 live threat intel \u2192 the exact governance controls it triggers.',
+    /* ===== kevgate — CVE -> policy-gate impact mapper ===== */
+    V.kevgate={ title:'CVE \u2192 Gate Impact', badge:'CISA KEV \u00b7 governed gate mapping', sub:'Map CISA Known-Exploited-Vulnerabilities evidence to a11oy\u2019s deny-by-default policy gates. Root and per-item evidence labels disclose live, cached, unavailable, and derived-sample states; a CVE is never upgraded merely because the catalog was reachable.',
       render: async function(c){
         c.innerHTML='<div class="kpis">'
-          +'<div class="kpi"><div class="k">Live KEV CVEs mapped</div><div class="v" id="kg-n">\u2014</div></div>'
+          +'<div class="kpi"><div class="k">KEV CVEs mapped</div><div class="v" id="kg-n">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Catalog</div><div class="v teal" id="kg-ver">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Ransomware-assoc.</div><div class="v warn" id="kg-rw">\u2014</div></div>'
           +'<div class="kpi"><div class="k">Feed</div><div class="v" id="kg-mode">\u2014</div></div></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">KEV exploitation velocity \u2014 weekly additions + forecast</span><span class="card-ep" id="kg-fc-ep">EWMA + Holt-trend \u00b7 conformal band</span></div>'
           +'<div class="kpis" style="margin-bottom:.4rem">'
-            +'<div class="kpi"><div class="k">Live weekly rate</div><div class="v teal" id="kg-fc-now">\u2014</div><div class="d">CVEs/week (last full wk)</div></div>'
+            +'<div class="kpi"><div class="k">Observed weekly rate</div><div class="v teal" id="kg-fc-now">\u2014</div><div class="d">CVEs/week (last full wk)</div></div>'
             +'<div class="kpi"><div class="k">Forecast (+4 wk)</div><div class="v" id="kg-fc-next">\u2014</div><div class="d" id="kg-fc-method">EWMA \u03b1=0.4 + Holt trend</div></div>'
             +'<div class="kpi"><div class="k">Band coverage</div><div class="v" id="kg-fc-cov">\u2014</div><div class="d">conformal \u2014 never 100%</div></div>'
             +'<div class="kpi"><div class="k">Trend</div><div class="v" id="kg-fc-trend">\u2014</div><div class="d">slope/week</div></div>'
           +'</div>'
           +'<div class="chartbox" style="height:260px"><canvas id="kg-fc-cv"></canvas></div>'
           +'<div class="row mono dim" id="kg-fc-note" style="font-size:10px;margin-top:.3rem"></div></div>'
-          +'<div class="card"><div class="card-h"><span class="card-t">Live KEV \u2192 deny-by-default gate engagement</span><span class="card-ep" id="kg-src">CISA KEV \u00b7 a11oy gates</span></div>'
-          +'<div id="kg-tbl" style="overflow:auto;max-height:520px"><div class="row mono dim">loading live CISA KEV feed\u2026</div></div></div>'
-          +honestNote('Each row is a live exploited CVE; the gate set is the REAL a11oy gate catalog. <b>gates_fired</b> is the live engine result when reachable; <b>gates_mapped</b> is a deterministic mapping derived from real KEV fields (ransomware / CWE / severity). The velocity chart aggregates the REAL <code>dateAdded</code> of live KEV CVEs into ISO-week buckets; the forecast is an honest EWMA + Holt-linear-trend with a split-conformal band (coverage floor 1\u22121/(n+1)). Gate-engagement counts use '+window.a11oyPoweredBy?window.a11oyPoweredBy(['F12']):'F12 monotone gate'+' \u2014 adding a gate can only tighten denial (monotone). Forecast = MODEL estimate, not a guarantee.');
+          +'<div class="card"><div class="card-h"><span class="card-t">CISA KEV \u2192 deny-by-default gate engagement</span><span class="card-ep" id="kg-src">CISA KEV \u00b7 a11oy gates</span></div>'
+          +'<div class="row mono dim" id="kg-prov" style="font-size:10px;margin:.3rem 0 .6rem"></div>'
+          +'<div id="kg-tbl" style="overflow:auto;max-height:520px"><div class="row mono dim">loading CISA KEV evidence\u2026</div></div></div>'
+          +honestNote('Each row is a CISA KEV record; root and item <code>mode/data_kind</code> labels disclose whether evidence is live, cached, unavailable, or SAMPLE. <b>gates_fired</b> is the engine result when reachable; <b>gates_mapped</b> is deterministic. Ransomware/CWE come from CISA, while severity/CVSS is NVD-backed or explicitly derived-sample per <code>evidence_detail</code>. The velocity chart aggregates returned <code>dateAdded</code> evidence into ISO-week buckets; the forecast is an honest EWMA + Holt-linear-trend with a split-conformal band (coverage floor 1\u22121/(n+1)). Gate-engagement counts use '+window.a11oyPoweredBy?window.a11oyPoweredBy(['F12']):'F12 monotone gate'+' \u2014 adding a gate can only tighten denial (monotone). Forecast = MODEL estimate, not a guarantee.');
         try{
           var d=await gj('/api/a11oy/v1/sec/kevgate?limit=400');
           var allItems=d.items||[];
@@ -12204,9 +12206,10 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           T('kg-rw',allItems.filter(function(x){return x.ransomware==='Known';}).length);
           var modeLive=(d.mode==='live'); T('kg-mode',d.mode||'\u2014');
           var me=E('kg-mode'); if(me) me.className='v '+(modeLive?'teal':'warn');
-          H('kg-src', esc(d.source||'CISA KEV')+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?(' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z'):''));
+          H('kg-src', esc(d.source||'CISA KEV')+' \u00b7 '+esc(d.mode||'unknown')+' / '+esc(d.data_kind||'unknown')+(d.fetched_at&&d.fetched_at!=='bundled-snapshot'?(' \u00b7 '+esc(String(d.fetched_at).slice(11,19))+'Z'):''));
+          T('kg-prov',d.enrichment_provenance||d.mapping_note||'Evidence provenance unavailable.');
           var h=['<table class="mono" style="width:100%;border-collapse:collapse;font-size:10px"><thead><tr>'];
-          ['CVE','Vendor','Product','CVSS','Sev','Ransomware','Gates engaged'].forEach(function(t){h.push('<th style="position:sticky;top:0;background:#11110f;color:'+GOLD+';text-align:left;padding:5px 7px;border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
+          ['CVE','Vendor','Product','CVSS','Sev','Ransomware','Evidence','Gates engaged'].forEach(function(t){h.push('<th style="position:sticky;top:0;background:#11110f;color:'+GOLD+';text-align:left;padding:5px 7px;border-bottom:1px solid #2a2a26">'+esc(t)+'</th>');});
           h.push('</tr></thead><tbody>');
           items.forEach(function(x){
             var gates=(x.gates_fired&&x.gates_fired.length?x.gates_fired:x.gates_mapped)||[];
@@ -12219,10 +12222,11 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
               +'<td style="padding:4px 7px"><span style="display:inline-block;padding:1px 6px;border-radius:3px;background:'+(SEV[x.severity]||'#777')+';color:#0b0b0b;font-weight:600">'+(x.cvss!=null?Number(x.cvss).toFixed(1):'\u2014')+'</span></td>'
               +'<td style="padding:4px 7px;color:'+(SEV[x.severity]||'#888')+'">'+esc(x.severity)+'</td>'
               +'<td style="padding:4px 7px;color:'+(x.ransomware==='Known'?RED:'#777')+'">'+esc(x.ransomware)+'</td>'
+              +'<td style="padding:4px 7px">'+badge(x.data_kind||'unknown',x.data_kind==='live'?'b-live':(x.data_kind==='cached'?'b-teal':'b-gold'))+' <span class="dim">'+esc(x.evidence_detail||'')+'</span></td>'
               +'<td style="padding:4px 7px">'+chips+(live?' '+badge('engine','b-live'):' '+badge('field-derived','b-gold'))+'</td></tr>');
           });
           h.push('</tbody></table>'); H('kg-tbl',h.join(''));
-        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">live KEV feed unavailable: '+esc(e.message)+'</div>'); T('kg-n',window._szlKpi(e)); H('kg-fc-note','velocity forecast unavailable: '+esc(e.message)); }
+        }catch(e){ H('kg-tbl','<div class="row mono dim" style="padding:1rem">CISA KEV evidence unavailable: '+esc(e.message)+'</div>'); T('kg-n',window._szlKpi(e)); H('kg-fc-note','velocity forecast unavailable: '+esc(e.message)); }
 
         /* --- KEV exploitation-velocity forecast: honest EWMA + Holt trend + split-conformal band --- */
         function kgForecast(rows){
@@ -12273,7 +12277,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
             var loLine=series.map(function(){return null;}); loLine[series.length-1]=lastRate; loLine=loLine.concat(lo);
             var hiLine=series.map(function(){return null;}); hiLine[series.length-1]=lastRate; hiLine=hiLine.concat(hi);
             window.__kgFcChart=new C(cv.getContext('2d'),{type:'bar',data:{labels:allLabels,datasets:[
-              {type:'bar',label:'KEV adds/wk (live)',data:histBars,backgroundColor:'rgba(95,179,163,0.45)',borderColor:TEAL,borderWidth:1,barThickness:'flex',maxBarThickness:14,order:4},
+              {type:'bar',label:'KEV adds/wk (observed)',data:histBars,backgroundColor:'rgba(95,179,163,0.45)',borderColor:TEAL,borderWidth:1,barThickness:'flex',maxBarThickness:14,order:4},
               {type:'line',label:'EWMA fit',data:ewmaLine,borderColor:GOLD,borderWidth:1.6,pointRadius:0,tension:0.3,order:3},
               {type:'line',label:'conformal hi',data:hiLine,borderColor:'rgba(201,160,95,0.0)',backgroundColor:'rgba(201,160,95,0.16)',fill:'+1',pointRadius:0,tension:0.3,order:2},
               {type:'line',label:'conformal lo',data:loLine,borderColor:'rgba(201,160,95,0.0)',pointRadius:0,tension:0.3,order:2},
