@@ -1,0 +1,72 @@
+# truth-gates.yml — round-10 payload truth gates, wired as observe-mode CI.
+#
+#   1. py_compile of tools/*.py and src/          hard gate (syntax)
+#   2. docs lexicon gate                          continue-on-error (initially):
+#      existing docs carry banned-phrase findings; the printed list is the
+#      Week 1 fix checklist. The failure is intended, per CANON.
+#   3. commercial release gate                    continue-on-error (initially):
+#      all 24 COMMERCIAL_LEDGER rows are UNKNOWN and blocks_raise — that is
+#      the real work (CANON section 8), not a CI bug.
+#   4. demo harness                               hard gate: the 12-step
+#      acceptance demo must stay 12/12 on every PR.
+#
+# The two continue-on-error gates flip to hard gates once their finding
+# lists are worked to zero; flip procedure: docs/RUNBOOK_WEEK1.md.
+
+name: truth-gates
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  truth-gates:
+    runs-on: ubuntu-latest
+    steps:
+      # Org policy: all actions pinned to full-length commit SHAs (same pins
+      # as the existing workflows in this repo).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install demo-slice runtime deps (pydantic, cryptography)
+        run: python3 -m pip install --quiet "pydantic>=2" "cryptography>=42"
+
+      - name: Compile check (tools/*.py and src/)
+        run: |
+          python3 -m py_compile tools/*.py
+          find src -name '*.py' -print0 | xargs -0 python3 -m py_compile
+
+      - name: Docs lexicon gate (observe mode — continue-on-error initially)
+        continue-on-error: true
+        run: |
+          set +e
+          python3 tools/docs_lexicon_gate.py --root .
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::notice title=docs lexicon gate (observe mode)::exit $rc — banned-phrase / empty-truth-state findings are the Week 1 fix list; intended to fail until the docs are cleaned (CANON section 11)"
+          fi
+          exit "$rc"
+
+      - name: Commercial release gate (observe mode — continue-on-error initially)
+        continue-on-error: true
+        run: |
+          set +e
+          python3 tools/commercial_release_gate.py --root .
+          rc=$?
+          set -e
+          if [ "$rc" -ne 0 ]; then
+            echo "::notice title=commercial release gate (observe mode)::exit $rc — expected while raise-blocking COMMERCIAL_LEDGER rows are UNKNOWN; the 24 open commercial rows are the real work (CANON section 8)"
+          fi
+          exit "$rc"
+
+      - name: Acceptance demo (12 steps — hard gate)
+        run: >-
+          python3 tools/demo_harness.py --root .
+          --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
