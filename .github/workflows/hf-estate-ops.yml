@@ -1,0 +1,148 @@
+name: HF estate ops (manual)
+
+# Dispatch-only operator workflow for the SZLHOLDINGS Hugging Face estate.
+# Executes the archive waves from docs/HF_SPACES_CONSOLIDATION.md (szl-holdings/.github)
+# using the repo/org HF tokens. Tokens are never printed; only HTTP status and
+# non-sensitive fields are logged. Modes:
+#   probe    - report each token's auth type/role and org membership (read-only)
+#   dry-run  - report what would be archived for the selected group (read-only)
+#   execute  - archive the selected group's Spaces, verifying state after each
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: probe token capability, dry-run the group, or execute archives
+        type: choice
+        options:
+          - probe
+          - dry-run
+          - execute
+        default: probe
+      group:
+        description: consolidation group from the Spaces consolidation plan
+        type: choice
+        options:
+          - D
+          - F
+          - G
+          - H
+          - I
+          - K
+        default: D
+
+permissions: {}
+
+jobs:
+  hf-estate-ops:
+    name: HF estate ops
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Run estate op
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          MODE: ${{ inputs.mode }}
+          GROUP: ${{ inputs.group }}
+        run: |
+          python3 <<'PYEOF'
+          import json, os, urllib.request, urllib.error
+
+          ORG = "SZLHOLDINGS"
+          GROUPS = {
+              "D": ["immune-lattice"],
+              "F": ["khipu-lab"],
+              "G": ["lyte-services"],
+              "H": ["counsel"],
+              "I": ["szl-real-estate"],
+              "K": ["holographic", "nexus"],
+          }
+
+          def call(token, method, path, payload=None):
+              req = urllib.request.Request(
+                  f"https://huggingface.co{path}",
+                  method=method,
+                  headers={"Authorization": f"Bearer {token}",
+                           "Content-Type": "application/json"},
+                  data=json.dumps(payload).encode() if payload is not None else None,
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=30) as resp:
+                      return resp.status, resp.read().decode()
+              except urllib.error.HTTPError as e:
+                  return e.code, e.read().decode()[:400]
+
+          mode = os.environ["MODE"]
+          group = os.environ["GROUP"]
+          tokens = {k: v for k, v in {
+              "HF_TOKEN": os.environ.get("HF_TOKEN") or "",
+              "HF_ORG_TOKEN": os.environ.get("HF_ORG_TOKEN") or "",
+          }.items() if v}
+          print(f"mode={mode} group={group} tokens_present={sorted(tokens)}")
+
+          if mode == "probe":
+              for name, tok in tokens.items():
+                  status, body = call(tok, "GET", "/api/whoami-v2")
+                  if status != 200:
+                      print(f"{name}: whoami HTTP {status}")
+                      continue
+                  data = json.loads(body)
+                  auth = data.get("auth", {}) or {}
+                  acc = auth.get("accessToken", {}) or {}
+                  orgs = [f"{o.get('name')}:{o.get('roleInOrg', '?')}"
+                          for o in data.get("orgs", [])]
+                  print(f"{name}: type={data.get('type')} auth_type={auth.get('type')} "
+                        f"role={acc.get('role')} orgs={orgs}")
+              raise SystemExit(0)
+
+          chosen = None
+          for name, tok in tokens.items():
+              status, _ = call(tok, "GET", "/api/whoami-v2")
+              if status == 200:
+                  chosen = (name, tok)
+                  break
+          if not chosen:
+              print("no working token")
+              raise SystemExit(1)
+          tname, token = chosen
+          print(f"acting with {tname}")
+
+          exit_code = 0
+          for space in GROUPS[group]:
+              repo_id = f"{ORG}/{space}"
+              status, body = call(token, "GET", f"/api/spaces/{repo_id}")
+              if status != 200:
+                  print(f"{space}: GET HTTP {status} -> skip")
+                  exit_code = 1
+                  continue
+              info = json.loads(body)
+              archived = info.get("archived")
+              print(f"{space}: sdk={info.get('sdk')} private={info.get('private')} "
+                    f"lastModified={info.get('lastModified')} archived={archived}")
+              if mode == "dry-run":
+                  print(f"{space}: DRY-RUN would archive")
+                  continue
+              if archived:
+                  print(f"{space}: already archived")
+                  continue
+              s1, b1 = call(token, "POST", f"/api/spaces/{repo_id}/archive")
+              if s1 in (200, 201, 204):
+                  print(f"{space}: archive POST -> {s1}")
+              else:
+                  s2, b2 = call(token, "PUT", f"/api/spaces/{repo_id}/settings",
+                                {"archived": True})
+                  print(f"{space}: archive POST {s1}; settings PUT -> {s2} {b2[:160]}")
+                  if s2 not in (200, 201, 204):
+                      exit_code = 1
+                      continue
+              s3, b3 = call(token, "GET", f"/api/spaces/{repo_id}")
+              if s3 == 200:
+                  print(f"{space}: verify archived={json.loads(b3).get('archived')}")
+          raise SystemExit(exit_code)
+          PYEOF
