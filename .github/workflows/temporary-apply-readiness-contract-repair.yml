@@ -6,6 +6,8 @@ on:
       - fix/readiness-verdict-contracts-20260830
     paths:
       - .github/workflows/temporary-apply-readiness-contract-repair.yml
+      - .github/scripts/temporary_apply_readiness_contract_repair.py
+      - .github/scripts/temporary_run_readiness_repair.py
 
 permissions:
   contents: write
