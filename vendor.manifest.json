@@ -19,10 +19,6 @@
       "source": ".github/CODEOWNERS",
       "header": false
     },
-    ".github/workflows/dco.yml": {
-      "source": ".github/workflows/dco.yml",
-      "header": true
-    },
     ".github/workflows/pin-check.yml": {
       "source": ".github/workflows/pin-check.yml",
       "header": true
