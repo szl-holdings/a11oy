@@ -24,6 +24,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
           git fetch origin fix/readiness-1417-serve-regression-20260830
           set +e
           git merge --no-commit --no-ff origin/fix/readiness-1417-serve-regression-20260830
@@ -58,8 +60,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "Lutar, Stephen P."
-          git config user.email "stephenlutar2@gmail.com"
           git add -A
           git commit \
             -m "fix(readiness): integrate KEV/EPSS hardening [readiness-integrated]" \
