@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed - five-space operator cited as a Bound package
+- `/five-space` is cited in Bound packages (`#bound`) and the footer, same class
+  as `/lyte`. Console surface strip lists the bind. Primary nav unchanged. Not a
+  fifth flagship. Does not replace `/console`. N1–N25 landing copy no longer
+  says blanket Honesty LIVE.
+
 ### Fixed - N1–N25 post-merge runtime and evidence relock
 - The N1–N25 module is copied into the canonical runtime image, every
   receipt and catalog row preserves its per-organ evidence class, and

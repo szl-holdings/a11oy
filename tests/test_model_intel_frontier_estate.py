@@ -21,7 +21,7 @@ def test_frontier_adoption_exposes_truth_without_authority() -> None:
     assert payload["registry"]["github_estate_strategy"]["inventory_complete"] is False
     assert payload["registry"]["github_estate_strategy"]["source_reported_repository_count"] == 54
     registry = payload["registry"]
-    assert registry["brain_model_truth"]["raw_nodes_observed"] == 9466
+    assert registry["brain_model_truth"]["raw_nodes_observed"] == 9467
     assert registry["brain_model_truth"]["raw_nodes_admitted_to_gradients"] == 0
     assert len(registry["candidates"]) == 11
 

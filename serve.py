@@ -2117,6 +2117,29 @@ try:
 except Exception as _estateconstitution_e:  # pragma: no cover
     print(f"[a11oy] Estate constitution NOT registered: {_estateconstitution_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN RETRO (feat/frontier-brainretro) — the RETROSPECTIVE CALIBRATION surface: the brain
+# holding itself accountable for what it already answered. GET
+# /api/a11oy/v1/brain/retro/info (method + honest labels + the EPHEMERAL-ledger caveat), GET
+# /api/a11oy/v1/brain/retro?sample=&k= (calibration rates + per-entry
+# CONFIRMED/DRIFTED/STALE-UNKNOWN + overall WELL-CALIBRATED/DRIFT-DETECTED/INSUFFICIENT-HISTORY;
+# mints nothing), POST /api/a11oy/v1/brain/retro/receipt (unsigned SHA-256 receipt-on-write).
+# Reads the append-only query-audit ledger (szl_brainqueryaudit) and RE-RUNS the CURRENT grounding
+# (szl_brainground) for a sample of those same past queries, both through GUARDED imports — an
+# absent sibling is UNAVAILABLE, NEVER a fabricated ledger and NEVER a fabricated grounding. A
+# past answer is NEVER counted correct without recomputed evidence (uncomparable => STALE-UNKNOWN,
+# excluded from every rate); DRIFT-DETECTED is never softened to WELL-CALIBRATED. The query-audit
+# ledger is EPHEMERAL (in-memory, resets on restart), so on a fresh Space this surface honestly
+# reports INSUFFICIENT-HISTORY rather than implying a persistent answer history. Calibration
+# accounting only: NOT model training, NOT a reward signal, no writeback, no sentience claim.
+# Pure reads on GET (0 sign-on-GET). Registered BEFORE the SPA /{full_path:path} catch-all.
+# Additive, try/except-guarded.
+try:
+    import szl_brainretro as _szl_brainretro
+    _brainretro_status = _szl_brainretro.register(app, ns="a11oy")
+    print(f"[a11oy] Brain retro registered: {_brainretro_status}", file=__import__("sys").stderr)
+except Exception as _brainretro_e:  # pragma: no cover
+    print(f"[a11oy] Brain retro NOT registered: {_brainretro_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN COMMAND view (Wave O / Dev 5) — the founder's "Brain powering the
 # ecosystem" dashboard. Read-only command rollup over the Brain nervous-system hub:
@@ -7206,6 +7229,54 @@ print("[a11oy] PARITY BLOCK v2 registered BEFORE proxy: /api/a11oy/v1/{lambda,ho
 # (NOT claimed); never FedRAMP/Iron Bank/CMMC/ATO without roadmap — unchanged.
 # ===========================================================================
 
+_A11OY_ROUTER_OBSERVATION_MAX_AGE_SECONDS = 5 * 60
+_A11OY_ROUTER_MAX_FUTURE_SKEW_SECONDS = 5 * 60
+_A11OY_ROUTER_STATS_HONESTY = (
+    "Live runtime catalog with exact trusted routing-decision counts since "
+    "counter_started_at; process restart resets the counters. Legacy throughput "
+    "and servedThisWindow fields carry those counts, not QPS, tokens, inference "
+    "completions, or traffic outside this process. Zero is a valid observed count."
+)
+
+
+def _a11oy_router_timestamp(value: object):
+    """Parse the counter contract's canonical UTC timestamp, or fail closed."""
+    import re as _router_re
+
+    if type(value) is not str or _router_re.fullmatch(
+        r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z", value
+    ) is None:
+        return None
+    try:
+        import datetime as _router_datetime
+
+        parsed = _router_datetime.datetime.fromisoformat(value[:-1] + "+00:00")
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(_router_datetime.timezone.utc)
+
+
+def _a11oy_router_timestamp_error(started_value: object, observed_value: object):
+    """Validate a durable process epoch plus a bounded live observation clock."""
+    import datetime as _router_datetime
+
+    started_at = _a11oy_router_timestamp(started_value)
+    observed_at = _a11oy_router_timestamp(observed_value)
+    if started_at is None or observed_at is None:
+        return "counter timestamps are not canonical UTC"
+    if started_at > observed_at:
+        return "counter_started_at is later than observed_at"
+    now = _router_datetime.datetime.now(_router_datetime.timezone.utc)
+    observation_age = (now - observed_at).total_seconds()
+    if observation_age < -_A11OY_ROUTER_MAX_FUTURE_SKEW_SECONDS:
+        return "counter observation exceeds allowed future clock skew"
+    if observation_age > _A11OY_ROUTER_OBSERVATION_MAX_AGE_SECONDS:
+        return "counter observation is stale"
+    return None
+
+
 def _a11oy_router_stats_unavailable(reason: str) -> dict:
     return {
         "state": "UNAVAILABLE",
@@ -7213,6 +7284,7 @@ def _a11oy_router_stats_unavailable(reason: str) -> dict:
         "data_kind": "unavailable",
         "catalog_state": "UNAVAILABLE",
         "throughput_state": "UNAVAILABLE",
+        "counter_state": "UNAVAILABLE",
         "routes": [],
         "servedThisWindow": None,
         "routingDecisionsSinceStart": None,
@@ -7221,6 +7293,7 @@ def _a11oy_router_stats_unavailable(reason: str) -> dict:
         "counter_started_at": None,
         "observed_at": _gov_now_iso(),
         "source": "unavailable",
+        "catalog_source": "unavailable",
         "doctrine": "v11",
         "honesty": (
             f"Router counter unavailable: {reason}. No routing count, QPS, token "
@@ -7256,6 +7329,11 @@ def _a11oy_router_stats_payload() -> dict:
         or not snapshot.get("observed_at")
     ):
         return _a11oy_router_stats_unavailable("counter observation metadata is invalid")
+    timestamp_error = _a11oy_router_timestamp_error(
+        snapshot["counter_started_at"], snapshot["observed_at"]
+    )
+    if timestamp_error:
+        return _a11oy_router_stats_unavailable(timestamp_error)
 
     counts = {}
     try:
@@ -7342,6 +7420,7 @@ def _a11oy_router_stats_payload() -> dict:
         "data_kind": "live",
         "catalog_state": "DRIFT" if drift_keys else "LIVE",
         "throughput_state": "OBSERVED",
+        "counter_state": "OBSERVED",
         "routes": routes,
         "servedThisWindow": served,
         "routingDecisionsSinceStart": served,
@@ -7352,12 +7431,7 @@ def _a11oy_router_stats_payload() -> dict:
         "source": "szl_llm_registry.router_stats_snapshot",
         "catalog_source": "szl_llm_registry.MODEL_REGISTRY",
         "doctrine": "v11",
-        "honesty": (
-            "Exact trusted routing-decision counts since counter_started_at; resets "
-            "on rebuild. Legacy fields throughput and servedThisWindow carry that "
-            "count, not QPS, tokens, inference completions, or traffic outside this "
-            "process. Zero is a valid observed count."
-        ),
+        "honesty": _A11OY_ROUTER_STATS_HONESTY,
     }
 
 @app.get("/api/a11oy/v1/router/stats")
