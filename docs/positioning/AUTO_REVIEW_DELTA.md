@@ -30,12 +30,3 @@ workspace-write only.
 | 10 | Side-effect taxonomy | Elevated-permission categories | Four never-collapsed classes; most restrictive wins; IRREVERSIBLE always requires human approval | Blast radius is priced per action |
 | 11 | Portability | Vendor-scoped | CNCF-governed envelope; predicate and reference verifier are open | Receipts must verify after the vendor is gone |
 | 12 | Failure semantics | `block_on_severity` thresholds | Default DENY; signature is not truth; replay is non-mutating | Failure modes are specified, not implied |
-
-## Seeded gate test (delete in Week 1)
-
-This footnote deliberately contains the banned compliance phrase — "EU AI Act
-compliant" — so that tools/lexicon_gate.py fails on a fresh clone and proves
-the gate has teeth. The canonical banned-phrase list lives only in
-tools/lexicon_gate.py; docs must reference it by pointer, never by quoting.
-Week 1 task: delete this footnote; lexicon_gate then goes green. Approved
-wording for the concept: "Article 12 logging conformance profile".

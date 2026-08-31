@@ -41,7 +41,7 @@ No competing SDK in the field (OpenAI Node SDK, Anthropic SDK, Stripe SDK, Plaid
 
 ---
 
-## 3. Gap scan vs. best-in-class SDKs (no hallucinations — only behaviors I verified in our source)
+## 3. Gap scan vs. field-standard SDKs (no hallucinations — only behaviors I verified in our source)
 
 These are real gaps in `szl-sdk` and `aef-sdk` measured against patterns that Stripe, Anthropic, OpenAI, Pinecone, and Plaid ship. Each gap maps to an SZL innovation we already own:
 

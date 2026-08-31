@@ -1,0 +1,28 @@
+# .gitleaksignore — fingerprint exemptions for SYNTHETIC verifier test fixtures.
+#
+# Added in PR #1608 (docs: Week 1 lexicon clearance + demo step-09 fix +
+# GovernedAction v1 spec docs). The eight bundles under tests/test_vectors/
+# are fabricated by `a11oy_verify.py --self-test` and committed as offline
+# verifier fixtures. The `generic-api-key` heuristic flags the rfc3161_token
+# field value, which is the base64 encoding of the ASCII string
+# "self-test-tsa-token" — a self-describing, non-functional placeholder
+# TSA token (the literal is deliberately not quoted here: this file is itself
+# scanned, and quoting the value would trip the same heuristic). No real key material exists in these files (Ed25519 keys are
+# ephemeral self-test keypairs; the signed fixtures' private halves are never
+# committed). Fingerprints taken verbatim from the failed CI runs
+# (gitleaks detect --no-git, v8.21.2): run 33396092588/job 99500843921 and
+# run 33396161119/job 99501068636 (identical sets).
+#
+# Justification: synthetic fixtures only; exempting these fingerprints does
+# not weaken detection of real credentials (fingerprint-scoped, not rule-scoped).
+
+tests/test_vectors/tampered_byte_flip.json:generic-api-key:74
+tests/test_vectors/tampered_evidence_removal.json:generic-api-key:62
+tests/test_vectors/tampered_redaction_cheat.json:generic-api-key:74
+tests/test_vectors/tampered_sequence_gap.json:generic-api-key:74
+tests/test_vectors/tampered_sequence_gap.json:generic-api-key:156
+tests/test_vectors/tampered_service_account.json:generic-api-key:74
+tests/test_vectors/valid.json:generic-api-key:74
+tests/test_vectors/valid_chain.json:generic-api-key:74
+tests/test_vectors/valid_chain.json:generic-api-key:156
+tests/test_vectors/valid_chain.json:generic-api-key:238

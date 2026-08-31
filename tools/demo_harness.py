@@ -23,12 +23,13 @@ harness error. Expected runtime: seconds; the 90-second budget in CANON
 section 4 is for the recorded human walkthrough of this same sequence.
 
 --conformance selects the Article 12 logging conformance profile used by
-step 9, relative to --root (default: evidence/conformance/eu-ai-act-article-12.yaml,
-the CANON section 11 path installed by the bootstrap on a fresh scaffold).
-In the wired szl-holdings/a11oy repo the default path is occupied by an
-older, structurally different artifact, so CI passes
-evidence/conformance/eu-ai-act-article-12.v1.yaml instead. That is the only
-adaptation from the round-10 master payload version of this file.
+step 9, relative to --root (default:
+evidence/conformance/eu-ai-act-article-12.v1.yaml, the round-10 payload
+profile carried by the merged szl-holdings/a11oy tree). The unversioned
+evidence/conformance/eu-ai-act-article-12.yaml is an older, structurally
+different artifact (no entries list) with its own consumers
+(release_gate.py, the bootstraps, the claims ledger); it is preserved
+untouched and is not a valid step-9 profile.
 """
 
 from __future__ import annotations
@@ -356,7 +357,7 @@ def main(argv: list[str] | None = None) -> int:
         "--conformance",
         default=None,
         help="Article 12 profile path, relative to --root "
-        "(default: evidence/conformance/eu-ai-act-article-12.yaml)",
+        "(default: evidence/conformance/eu-ai-act-article-12.v1.yaml)",
     )
     args = parser.parse_args(argv)
     root = Path(args.root).resolve()

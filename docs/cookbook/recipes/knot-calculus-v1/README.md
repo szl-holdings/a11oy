@@ -53,7 +53,7 @@
 
 ## Doctrine v6
 
-Recipe is doctrine-v6 clean (no banned tokens: "revolutionary", "groundbreaking",
-"magical", "world-class", "best-in-class", "game-changing", "first-ever",
-"unprecedented", "frontier-defining"). See
+Recipe is doctrine-v6 clean: it contains none of the doctrine v6 banned
+tokens (canonical list enforced by tools/docs_lexicon_gate.py, referenced
+here by pointer per house style). See
 [doctrine v6 DOI](https://doi.org/10.5281/zenodo.20174600).
