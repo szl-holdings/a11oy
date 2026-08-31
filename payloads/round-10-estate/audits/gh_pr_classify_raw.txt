@@ -1,0 +1,14 @@
+a11oy#1540   HUMAN_REQUIRED_NO_APPROVAL ci=success    appr=False risky=False files=1  docs(ops): add laptop-only local model wiring runb
+a11oy#1537   BLOCKED_CONFLICT         ci=success    appr=False risky=False files=11  fix(runtime): recover tested console surfaces and 
+a11oy#1535   BLOCKED_CONFLICT         ci=failure    appr=False risky=False files=8  feat(frontier): brainanswer — governed honest-answ
+a11oy#1534   HUMAN_REQUIRED           ci=failure    appr=False risky=True files=25  feat(governance): add round-10 truth gates and gov
+a11oy#1532   BLOCKED_CI               ci=failure    appr=False risky=False files=3  chore(security): audit real dependency closure; re
+a11oy#1530   BLOCKED_CONFLICT         ci=failure    appr=False risky=False files=8  feat(frontier): add brainlocal local-endpoint live
+a11oy#1529   BLOCKED_CI               ci=failure    appr=False risky=False files=1  lexicon: 'Governed Inference' → governed agent cha
+a11oy#1528   HUMAN_REQUIRED           ci=pending    appr=False risky=True files=5  fix(security): replace non-resolving szlholdings.a
+a11oy#1521   BLOCKED_CI               ci=failure    appr=False risky=False files=8  feat(frontier): add brainretro retrospective calib
+killinchu#348    HUMAN_REQUIRED           ci=failure    appr=False risky=True files=8  fix(security): retire non-resolving szlholdings.ai
+governance-as-code#1      BLOCKED_CI               ci=failure    appr=False risky=False files=4  chore(legal): add Apache-2.0 LICENSE + NOTICE — re
+szl-gov#1      BLOCKED_CONFLICT         ci=failure    appr=False risky=False files=4  chore(legal): add Apache-2.0 LICENSE + NOTICE — re
+
+TOTAL=12  AUTO=[]
