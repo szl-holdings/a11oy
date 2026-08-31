@@ -14,7 +14,7 @@ import urllib.parse as up
 import xml.etree.ElementTree as ET
 from typing import Any
 
-from ..base import Connector, Records, State, http_json, http_text, _now
+from ..base import Connector, Records, State, http_json, http_text
 from ..registry import register
 
 _CACHE: dict[str, tuple[float, Any]] = {}

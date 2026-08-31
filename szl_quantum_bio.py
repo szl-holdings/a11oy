@@ -25,9 +25,7 @@ closed-form fallback if numpy is absent). Citations carried inline.
 Load-bearing math: Mitchell (chemiosmotic pmf, Nobel), Lane, Wallace, Schulten,
 Hore — all peer-reviewed. See SOURCES.
 """
-import json
 import math
-import os
 from datetime import datetime, timezone
 
 from starlette.routing import Route

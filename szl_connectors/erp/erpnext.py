@@ -18,7 +18,6 @@ from __future__ import annotations
 import json
 import os
 import urllib.parse as up
-from typing import Any
 
 from ..base import Connector, Records, State, WriteResult, http_json, cred_fingerprint
 from ..registry import register

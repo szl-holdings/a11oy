@@ -101,7 +101,6 @@ HTML + API routes live at the bottom of this module (register()).
 from __future__ import annotations
 
 import hashlib
-import json
 import time
 from typing import Any, Dict, List, Optional, Sequence
 

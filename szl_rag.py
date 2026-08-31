@@ -35,7 +35,6 @@ import hashlib
 import json
 import os
 import threading
-import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -463,7 +462,6 @@ def search(query: str, space: str, top_k: int = 5,
     # rerank="none" (default) takes the ORIGINAL code path unchanged: k==top_k.
     search_k = min(top_k * RERANK_CANDIDATE_POOL, len(ids)) if use_rrf else top_k
 
-    import numpy as np
     qe = _state["model"].encode([BGE_QUERY_PREFIX + query],
                                 normalize_embeddings=True,
                                 convert_to_numpy=True).astype("float32")

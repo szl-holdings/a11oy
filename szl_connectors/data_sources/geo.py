@@ -11,7 +11,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from ..base import Connector, Records, State, http_json, http_text, _now
+from ..base import Connector, Records, State, http_json
 from ..registry import register
 
 _CACHE: dict[str, tuple[float, Any]] = {}

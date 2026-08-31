@@ -40,7 +40,7 @@ from __future__ import annotations
 import json
 import time
 import urllib.request
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 try:  # present in a FastAPI Space
     from fastapi import Request

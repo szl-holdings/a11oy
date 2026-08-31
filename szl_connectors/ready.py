@@ -15,7 +15,7 @@ DOCTRINE: env-only creds; never a fabricated record; honest READY/CONNECTED/ERRO
 from __future__ import annotations
 
 import os
-from typing import Any, Callable
+from typing import Any
 
 from .base import Connector, Records, State, WriteResult, http_json, cred_fingerprint
 from .governance import gate_write

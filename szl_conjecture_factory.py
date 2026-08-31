@@ -32,7 +32,7 @@ import re
 import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 # --- status labels (shared honest convention) -------------------------------
 STATUS_LIVE = "live"

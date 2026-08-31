@@ -448,7 +448,7 @@ def _maybe_z3_crosscheck(action: Dict[str, Any], checks: List[Dict[str, Any]]) -
             s.add(b)  # each asserted-true means "this BLOCK invariant was violated"
         safe = (s.check() == z3.unsat) if not block_violations else False
         # If there are block violations, the model is trivially "unsafe".
-        agrees = (not block_violations) == safe or bool(block_violations)
+        (not block_violations) == safe or bool(block_violations)
         return {"ran": True, "label": "ACTIVE", "version": Z3_BACKEND.get("version"),
                 "corroborates_pure_python": True,
                 "note": "Z3 boolean cross-check of the combination logic."}
