@@ -1,5 +1,6 @@
 name: temporary-remove-unused-kernel-alias-1538
 
+# One-shot branch repair; this file deletes itself after the exact edit.
 on:
   push:
     branches:
