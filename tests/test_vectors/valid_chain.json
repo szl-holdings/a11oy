@@ -1,0 +1,265 @@
+{
+  "bundle_id": "bundle-b94facf3-580e-41ac-bf56-52f15889f5e6",
+  "bundle_type": "szl.dev/GovernedActionBundle/v1",
+  "created_at": "2026-08-30T12:00:00Z",
+  "generator": "a11oy_verify self-test/1.0.0",
+  "receipts": [
+    {
+      "chain": {
+        "prev_payload_sha256": null,
+        "sequence": 1
+      },
+      "payload": {
+        "decision": {
+          "decision": "ALLOW",
+          "effective_side_effect_class": "REVERSIBLE",
+          "evidence_obligations": [
+            "git-diff-hash",
+            "test-output-hash"
+          ],
+          "first_match_rule": "allow-deploy",
+          "matched_rules": [
+            "allow-deploy"
+          ],
+          "reason": "matched rule allow-deploy",
+          "requires_human_approval": true
+        },
+        "generator": "a11oy_verify self-test/1.0.0",
+        "human_approval": {
+          "approved_at": "2026-08-30T12:00:00Z",
+          "approver": {
+            "actor_id": "u-stephen-lutar",
+            "display_name": "Stephen Lutar",
+            "is_service_account": false
+          },
+          "rationale": "diff reviewed, tests passed, rollback plan attached"
+        },
+        "issued_at": "2026-08-30T12:00:00Z",
+        "observation_window": {
+          "end": "2026-08-30T12:00:00Z",
+          "start": "2026-08-30T12:00:00Z"
+        },
+        "predicate": {
+          "action_id": "act-self-test-0001",
+          "action_type": "deploy.patch",
+          "actor": {
+            "actor_id": "u-stephen-lutar",
+            "display_name": "Stephen Lutar",
+            "is_service_account": false
+          },
+          "completeness": "COMPLETE",
+          "evidence": [
+            {
+              "content_b64": "ZXZpZGVuY2UgZm9yIGFjdC1zZWxmLXRlc3QtMDAwMQ==",
+              "evidence_id": "ev-git-diff",
+              "kind": "git-diff-hash",
+              "sha256": "584704bdbb7a20f1436772ab9d40cd560a6fd981188086bcbfba057e68cf2b74"
+            },
+            {
+              "evidence_id": "ev-test-output",
+              "kind": "test-output-hash",
+              "sha256": "ee2d35d598d2c2be6f6270a6097d4d7972ed6f919aec1f231c85bffa8272105b"
+            }
+          ],
+          "ntp_synced": true,
+          "predicate_type": "szl.dev/GovernedAction/v1",
+          "redaction_commitments": [
+            {
+              "commitment_id": "rc-act-self-test-0001",
+              "field_path": "$.predicate.action_id",
+              "salt_b64": "c2FsdC1hY3Qtc2VsZi10ZQ==",
+              "sha256_b64": "n3NrLLQCLMBC30IxU27VEIxheiEcMwOxX8JdLViRntc="
+            }
+          ],
+          "rfc3161_token": "c2VsZi10ZXN0LXRzYS10b2tlbg==",
+          "side_effect_class": "REVERSIBLE"
+        },
+        "receipt_id": "rcpt-act-self-test-0001",
+        "retention_days": 180
+      },
+      "payload_sha256": "113df2517352040caa267c31d18016d170da01d114307f95470a774faac1ea4b",
+      "signature": {
+        "keyid": "9fe806f1e4be7d87",
+        "payload_type": "application/vnd.in-toto+json",
+        "public_key_b64": "A6iqSUkymYjAcKIxOCkCi7M99AgmXy96GhlzOcEb23Q=",
+        "scheme": "ed25519-dsse",
+        "sig_b64": "wEzzF6frI30uzm9FBOer4zfm9gSUO9eHutguVCCmIOC0AvBj2soE+xyRBUv2TNhJPOEHOXXHXrQNIFTmWSwyBw=="
+      }
+    },
+    {
+      "chain": {
+        "prev_payload_sha256": "113df2517352040caa267c31d18016d170da01d114307f95470a774faac1ea4b",
+        "sequence": 2
+      },
+      "payload": {
+        "decision": {
+          "decision": "ALLOW",
+          "effective_side_effect_class": "REVERSIBLE",
+          "evidence_obligations": [
+            "git-diff-hash",
+            "test-output-hash"
+          ],
+          "first_match_rule": "allow-deploy",
+          "matched_rules": [
+            "allow-deploy"
+          ],
+          "reason": "matched rule allow-deploy",
+          "requires_human_approval": true
+        },
+        "generator": "a11oy_verify self-test/1.0.0",
+        "human_approval": {
+          "approved_at": "2026-08-30T12:01:00Z",
+          "approver": {
+            "actor_id": "u-stephen-lutar",
+            "display_name": "Stephen Lutar",
+            "is_service_account": false
+          },
+          "rationale": "diff reviewed, tests passed, rollback plan attached"
+        },
+        "issued_at": "2026-08-30T12:01:00Z",
+        "observation_window": {
+          "end": "2026-08-30T12:01:00Z",
+          "start": "2026-08-30T12:01:00Z"
+        },
+        "predicate": {
+          "action_id": "act-self-test-0002",
+          "action_type": "deploy.patch",
+          "actor": {
+            "actor_id": "u-stephen-lutar",
+            "display_name": "Stephen Lutar",
+            "is_service_account": false
+          },
+          "completeness": "COMPLETE",
+          "evidence": [
+            {
+              "content_b64": "ZXZpZGVuY2UgZm9yIGFjdC1zZWxmLXRlc3QtMDAwMg==",
+              "evidence_id": "ev-git-diff",
+              "kind": "git-diff-hash",
+              "sha256": "a74aad4dfc9742c053e3f25bf65e8120783cb7ddd29a53b46d3ef78d78091b6c"
+            },
+            {
+              "evidence_id": "ev-test-output",
+              "kind": "test-output-hash",
+              "sha256": "ee2d35d598d2c2be6f6270a6097d4d7972ed6f919aec1f231c85bffa8272105b"
+            }
+          ],
+          "ntp_synced": true,
+          "predicate_type": "szl.dev/GovernedAction/v1",
+          "redaction_commitments": [
+            {
+              "commitment_id": "rc-act-self-test-0002",
+              "field_path": "$.predicate.action_id",
+              "salt_b64": "c2FsdC1hY3Qtc2VsZi10ZQ==",
+              "sha256_b64": "B7+dNad/JCF43XE5zynDaPlEaOr65Bia57TLyp99V1g="
+            }
+          ],
+          "rfc3161_token": "c2VsZi10ZXN0LXRzYS10b2tlbg==",
+          "side_effect_class": "REVERSIBLE"
+        },
+        "receipt_id": "rcpt-act-self-test-0002",
+        "retention_days": 180
+      },
+      "payload_sha256": "3795fc47a6a8d30f4d64438220691e47789c6b1823bc743fde1c860ec23e448a",
+      "signature": {
+        "keyid": "9fe806f1e4be7d87",
+        "payload_type": "application/vnd.in-toto+json",
+        "public_key_b64": "A6iqSUkymYjAcKIxOCkCi7M99AgmXy96GhlzOcEb23Q=",
+        "scheme": "ed25519-dsse",
+        "sig_b64": "0wIvnNhVs1QJQfUwWpwb6W8vzi0R0ISDh1cYmaMoFDjdMRqebl+NiFjYZr2iav+sjzIPdXpujpD30q5fXKgtCA=="
+      }
+    },
+    {
+      "chain": {
+        "prev_payload_sha256": "3795fc47a6a8d30f4d64438220691e47789c6b1823bc743fde1c860ec23e448a",
+        "sequence": 3
+      },
+      "payload": {
+        "decision": {
+          "decision": "ALLOW",
+          "effective_side_effect_class": "REVERSIBLE",
+          "evidence_obligations": [
+            "git-diff-hash",
+            "test-output-hash"
+          ],
+          "first_match_rule": "allow-deploy",
+          "matched_rules": [
+            "allow-deploy"
+          ],
+          "reason": "matched rule allow-deploy",
+          "requires_human_approval": true
+        },
+        "generator": "a11oy_verify self-test/1.0.0",
+        "human_approval": {
+          "approved_at": "2026-08-30T12:02:00Z",
+          "approver": {
+            "actor_id": "u-stephen-lutar",
+            "display_name": "Stephen Lutar",
+            "is_service_account": false
+          },
+          "rationale": "diff reviewed, tests passed, rollback plan attached"
+        },
+        "issued_at": "2026-08-30T12:02:00Z",
+        "observation_window": {
+          "end": "2026-08-30T12:02:00Z",
+          "start": "2026-08-30T12:02:00Z"
+        },
+        "predicate": {
+          "action_id": "act-self-test-0003",
+          "action_type": "deploy.patch",
+          "actor": {
+            "actor_id": "u-stephen-lutar",
+            "display_name": "Stephen Lutar",
+            "is_service_account": false
+          },
+          "completeness": "COMPLETE",
+          "evidence": [
+            {
+              "content_b64": "ZXZpZGVuY2UgZm9yIGFjdC1zZWxmLXRlc3QtMDAwMw==",
+              "evidence_id": "ev-git-diff",
+              "kind": "git-diff-hash",
+              "sha256": "048123ea204ea531e963eba7fa58ddb62177f7c5e3d381d02520ba0e5753868b"
+            },
+            {
+              "evidence_id": "ev-test-output",
+              "kind": "test-output-hash",
+              "sha256": "ee2d35d598d2c2be6f6270a6097d4d7972ed6f919aec1f231c85bffa8272105b"
+            }
+          ],
+          "ntp_synced": true,
+          "predicate_type": "szl.dev/GovernedAction/v1",
+          "redaction_commitments": [
+            {
+              "commitment_id": "rc-act-self-test-0003",
+              "field_path": "$.predicate.action_id",
+              "salt_b64": "c2FsdC1hY3Qtc2VsZi10ZQ==",
+              "sha256_b64": "OUhioHp3sySDNJaPVVvacUxZzni1wDiyInFFcJAWhHs="
+            }
+          ],
+          "rfc3161_token": "c2VsZi10ZXN0LXRzYS10b2tlbg==",
+          "side_effect_class": "REVERSIBLE"
+        },
+        "receipt_id": "rcpt-act-self-test-0003",
+        "retention_days": 180
+      },
+      "payload_sha256": "dba0f92244ab1b4837659bad9571a2ae5c77492cf64465267abbac4a6fc924dc",
+      "signature": {
+        "keyid": "9fe806f1e4be7d87",
+        "payload_type": "application/vnd.in-toto+json",
+        "public_key_b64": "A6iqSUkymYjAcKIxOCkCi7M99AgmXy96GhlzOcEb23Q=",
+        "scheme": "ed25519-dsse",
+        "sig_b64": "bI6jACiiM91YtFk0stMAVnJz0/Obp9prJoD0/b7Wmo1uDwI1OBsIJ28BMEPV0H0nlRsIqBSeG+FV2S3ZbIJMBw=="
+      }
+    }
+  ],
+  "redaction_disclosures": {
+    "rc-act-self-test-0001": {
+      "plaintext_b64": "YWN0LXNlbGYtdGVzdC0wMDAx"
+    },
+    "rc-act-self-test-0002": {
+      "plaintext_b64": "YWN0LXNlbGYtdGVzdC0wMDAy"
+    },
+    "rc-act-self-test-0003": {
+      "plaintext_b64": "YWN0LXNlbGYtdGVzdC0wMDAz"
+    }
+  }
+}
