@@ -4,3 +4,11 @@ payloads/round-10-estate/demo/keys/
 *private*.key
 __pycache__/
 *.flightrecorder
+
+# Generated artifacts are runtime outputs of the tools, not source.
+# Committing them trips Gitleaks (base64 sigs + harvested PR JSON) and the
+# banned-token scan. Tools regenerate them via --report.
+payloads/round-10-estate/audits/*.json
+payloads/round-10-estate/audits/*_raw.txt
+payloads/round-10-estate/demo/receipts/
+payloads/round-10-estate/receipts/
