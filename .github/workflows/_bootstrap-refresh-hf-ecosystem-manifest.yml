@@ -1,0 +1,138 @@
+name: One-time Hugging Face ecosystem manifest refresh
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/_bootstrap-refresh-hf-ecosystem-manifest.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-hf-ecosystem-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.head_ref == 'fix/refresh-hf-ecosystem-manifest-20260831'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout the PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prove the collector contracts offline
+        run: |
+          set -euo pipefail
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py
+
+      - name: Regenerate, validate, receipt, and commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          manifest="docs/huggingface-ecosystem-manifest.json"
+          cp "$manifest" /tmp/huggingface-ecosystem-manifest.previous.json
+
+          generated=false
+          for attempt in 1 2 3; do
+            echo "Manifest generation attempt ${attempt}/3"
+            if python3 scripts/audit_huggingface_ecosystem.py --output "$manifest"; then
+              generated=true
+              break
+            fi
+            sleep $((attempt * 5))
+          done
+          test "$generated" = true
+          python3 -m json.tool "$manifest" >/dev/null
+          python3 scripts/audit_huggingface_ecosystem.py --check --output "$manifest"
+
+          RUN_ID="$GITHUB_RUN_ID" python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          previous_path = Path("/tmp/huggingface-ecosystem-manifest.previous.json")
+          current_path = Path("docs/huggingface-ecosystem-manifest.json")
+          previous = json.loads(previous_path.read_text(encoding="utf-8"))
+          current = json.loads(current_path.read_text(encoding="utf-8"))
+
+          assert current["schemaVersion"] == previous["schemaVersion"] == 1
+          assert current["org"] == previous["org"] == "SZLHOLDINGS"
+          assert current["canonicalGitHubRepo"] == previous["canonicalGitHubRepo"]
+          assert current["inventoryScope"]["visibility"] == "public-only"
+          assert current["inventoryScope"]["authenticated"] is False
+          assert current["inventoryScope"]["privateAssetsIncluded"] is False
+
+          for kind in ("models", "datasets", "spaces"):
+              items = current["inventory"][kind]
+              assert current["counts"][kind] == len(items)
+              assert all(item.get("private") is False for item in items)
+
+          assert current["counts"]["models"] >= 35
+          assert current["counts"]["datasets"] >= 20
+          assert current["counts"]["spaces"] >= 20
+
+          def ids(document: dict) -> set[str]:
+              return {
+                  item["id"]
+                  for kind in ("models", "datasets", "spaces")
+                  for item in document["inventory"][kind]
+              }
+
+          before_ids = ids(previous)
+          after_ids = ids(current)
+          removed = sorted(before_ids - after_ids)
+          added = sorted(after_ids - before_ids)
+          assert len(removed) + len(added) <= 25, (
+              "unexpectedly large public inventory delta: "
+              f"removed={len(removed)} added={len(added)}"
+          )
+
+          digest = hashlib.sha256(current_path.read_bytes()).hexdigest()
+          receipt = Path("docs/receipts/hf-ecosystem-manifest-refresh-2026-08-31.md")
+          receipt.parent.mkdir(parents=True, exist_ok=True)
+          receipt.write_text(
+              "# Hugging Face ecosystem manifest refresh receipt\n\n"
+              f"- Workflow run: `{os.environ['RUN_ID']}`\n"
+              f"- Previous observation: `{previous['observedAt']}`\n"
+              f"- Current observation: `{current['observedAt']}`\n"
+              f"- Previous counts: `{json.dumps(previous['counts'], sort_keys=True)}`\n"
+              f"- Current counts: `{json.dumps(current['counts'], sort_keys=True)}`\n"
+              f"- Removed public IDs ({len(removed)}): `{json.dumps(removed)}`\n"
+              f"- Added public IDs ({len(added)}): `{json.dumps(added)}`\n"
+              f"- Manifest SHA-256: `{digest}`\n"
+              "- Public-only, unauthenticated inventory: `true`\n"
+              "- Hugging Face assets mutated by this change: `none`\n"
+              "- Branch protection weakened: `no`\n",
+              encoding="utf-8",
+          )
+          PY
+
+          rm -f .github/workflows/_bootstrap-refresh-hf-ecosystem-manifest.yml
+
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 3
+          git commit -s -m "fix(hf): refresh public ecosystem manifest"
+          git push origin "HEAD:refs/heads/${GITHUB_HEAD_REF}"
