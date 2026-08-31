@@ -2032,6 +2032,18 @@ try:
 except Exception as _brainserve_e:  # pragma: no cover
     print(f"[a11oy] Brain serve NOT registered: {_brainserve_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN RECEIPT (feat/frontier-brainreceipt) — signed inference receipts binding
+# request+sources+output under the estate ECDSA-P256 key. A valid signature proves
+# integrity + key continuity ONLY, never output correctness. key_source reported honestly;
+# ephemeral key labeled UNSIGNED-LOCAL; no key -> UNAVAILABLE digest-only. Wall-readable
+# manifest at GET /api/a11oy/v1/brain/brainreceipt/manifest; receipt-on-write (POST). Guarded.
+try:
+    import szl_brainreceipt as _szl_brainreceipt
+    _brainreceipt_status = _szl_brainreceipt.register(app, ns="a11oy")
+    print(f"[a11oy] Brain receipt registered: {_brainreceipt_status}", file=__import__("sys").stderr)
+except Exception as _brainreceipt_e:  # pragma: no cover
+    print(f"[a11oy] Brain receipt NOT registered: {_brainreceipt_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
 # grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
