@@ -38,6 +38,7 @@ import json
 import math
 import os
 import re
+import sys
 import threading
 import time
 from datetime import datetime, timezone
@@ -336,25 +337,33 @@ def _finish_local_refresh(key: str, flight: _RefreshFlight,
 
 def _local_flight_wait_failure(rec: Optional[dict[str, Any]]) -> dict[str, Any]:
     error = f"single-flight wait exceeded {_source_http_timeout_s():g}s source budget"
+    observed_at = time.time()
     if rec:
         return {"value": rec["value"], "freshness": {
             "status": "stale",
-            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "age_s": round(max(0.0, observed_at - rec["fetched_at"]), 1),
+            "fetched_at": rec["fetched_at"],
             "error": error,
         }}
-    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+    return {"value": None, "freshness": {
+        "status": "unavailable", "fetched_at": observed_at, "error": error,
+    }}
 
 
 def _local_refresh_failure(rec: Optional[dict[str, Any]],
                            exc: BaseException) -> dict[str, Any]:
     error = f"{type(exc).__name__}: {str(exc)[:160]}"
+    observed_at = time.time()
     if rec:
         return {"value": rec["value"], "freshness": {
             "status": "stale",
-            "age_s": round(max(0.0, time.time() - rec["fetched_at"]), 1),
+            "age_s": round(max(0.0, observed_at - rec["fetched_at"]), 1),
+            "fetched_at": rec["fetched_at"],
             "error": error,
         }}
-    return {"value": None, "freshness": {"status": "unavailable", "error": error}}
+    return {"value": None, "freshness": {
+        "status": "unavailable", "fetched_at": observed_at, "error": error,
+    }}
 
 
 def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = None) -> dict[str, Any]:
@@ -399,11 +408,14 @@ def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = 
             r.raise_for_status()
             data = r.json()
         value = parser(data) if parser else data
+        fetched_at = time.time()
         with _LOCAL_CACHE_LOCK:
-            _LOCAL_CACHE[key] = {"value": value, "fetched_at": time.time(),
+            _LOCAL_CACHE[key] = {"value": value, "fetched_at": fetched_at,
                                  "ttl": ttl, "status": "live"}
             _evict_local_cache_locked(key)
-        result = {"value": value, "freshness": {"status": "live", "age_s": 0}}
+        result = {"value": value, "freshness": {
+            "status": "live", "age_s": 0, "fetched_at": fetched_at,
+        }}
     except BaseException as exc:
         if rec:
             with _LOCAL_CACHE_LOCK:
@@ -425,7 +437,137 @@ def _cached(key: str, url: str, ttl: float, parser=None, headers: dict | None = 
 
 
 def _fresh(rec: dict) -> dict:
-    return {"status": rec.get("status", "live"), "age_s": round(time.time() - rec["fetched_at"], 1)}
+    return {
+        "status": rec.get("status", "live"),
+        "age_s": round(time.time() - rec["fetched_at"], 1),
+        "fetched_at": rec["fetched_at"],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Readiness-probe payload honesty. The deep-tab probe schemas (hf-sync gate)
+# admit only live/cached evidence on HTTP 200 — tabs.json stateVocabulary
+# defines CACHED as "Previously fetched source data served with its original
+# observation timestamp". A last-good value therefore rides with its REAL
+# fetched_at and the label cached; a never-observed source stays UNAVAILABLE
+# so the schema fails closed. No fabricated items, no invented timestamps.
+# Prefer the vertical-feeds implementation when present so both surfaces
+# follow one rule; keep a local copy so this module stands alone.
+_READINESS_PUBLIC_FRESHNESS = frozenset({"live", "cached"})
+
+
+def _readiness_public_source_local(entry: Any) -> Any:
+    if not isinstance(entry, dict):
+        return entry
+    freshness = entry.get("freshness")
+    if not isinstance(freshness, dict):
+        return entry
+    status = str(freshness.get("status") or "").strip().lower()
+    if status in _READINESS_PUBLIC_FRESHNESS and freshness.get("fetched_at") is not None:
+        return entry
+    if status not in _READINESS_PUBLIC_FRESHNESS and entry.get("value") is None:
+        return entry
+    out = dict(entry)
+    fresh = dict(freshness)
+    if fresh.get("fetched_at") is None:
+        age_s = fresh.get("age_s")
+        if isinstance(age_s, (int, float)) and not isinstance(age_s, bool):
+            # Reconstruct the real observation instant from its measured age.
+            fresh["fetched_at"] = time.time() - max(0.0, float(age_s))
+    if status not in _READINESS_PUBLIC_FRESHNESS:
+        # Last-good value present: served from cache with its original clock.
+        fresh["status"] = "cached"
+    out["freshness"] = fresh
+    return out
+
+
+def _readiness_public_source(entry: Any) -> Any:
+    if _HAS_VF and hasattr(_vf, "_readiness_public_source"):
+        try:
+            return _vf._readiness_public_source(entry)
+        except Exception:
+            pass
+    return _readiness_public_source_local(entry)
+
+
+# Post-deploy readiness warming. The hf-sync gate probes the canonical space
+# seconds after a cold restart; a single bounded upstream attempt inside one
+# request cannot absorb cold-egress transients, so an env-enabled daemon keeps
+# the default (probe-shaped) legal views warm. Off by default: tests and
+# local runs perform no background network. Enable with A11OY_FEED_WARM_ENABLED=1.
+_READINESS_WARM_ENABLED_ENV = "A11OY_FEED_WARM_ENABLED"
+_READINESS_WARM_INTERVAL_ENV = "A11OY_FEED_WARM_INTERVAL_S"
+_READINESS_WARM_INTERVAL_DEFAULT_S = 60.0
+_READINESS_WARM_LOCK = threading.Lock()
+_READINESS_WARM_STARTED = False
+
+
+def _env_flag(name: str) -> bool:
+    return os.environ.get(name, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _readiness_warm_interval_s() -> float:
+    raw = os.environ.get(
+        _READINESS_WARM_INTERVAL_ENV, str(_READINESS_WARM_INTERVAL_DEFAULT_S))
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = _READINESS_WARM_INTERVAL_DEFAULT_S
+    if not math.isfinite(value):
+        value = _READINESS_WARM_INTERVAL_DEFAULT_S
+    return max(15.0, min(900.0, value))
+
+
+def _readiness_warm_targets() -> list:
+    """Default legal views the post-deploy probe (and console) reads."""
+    targets = [
+        (feed_courtlistener, ("securities", 1), {}),
+        (feed_courtlistener, ("defense", 1), {}),
+        (feed_courtlistener, ("insurance", 1), {}),
+        (feed_courtlistener, ("securities", 18), {}),  # exposure graph default seed
+        (feed_fedregister, (1, None), {}),
+        (feed_fr_agencies, (14, None), {}),
+    ]
+    targets.extend((feed_sec, (cik,), {}) for cik in _EXPOSURE_PANEL)
+    return targets
+
+
+def _readiness_warm_loop() -> None:
+    while True:
+        for func, args, kwargs in _readiness_warm_targets():
+            try:
+                # _cached serves warm cache without upstream I/O, so a sweep
+                # only hits the network when a view is cold or expired.
+                func(*args, **kwargs)
+            except Exception as warm_error:
+                print(f"[a11oy] devb readiness feed warm sweep failed honestly: "
+                      f"{warm_error!r}", file=sys.stderr)
+        time.sleep(_readiness_warm_interval_s())
+
+
+def start_readiness_warmer() -> bool:
+    """Start the env-gated readiness warm loop once per process."""
+    global _READINESS_WARM_STARTED
+    if not _env_flag(_READINESS_WARM_ENABLED_ENV):
+        return False
+    with _READINESS_WARM_LOCK:
+        if _READINESS_WARM_STARTED:
+            return True
+        try:
+            threading.Thread(
+                target=_readiness_warm_loop,
+                name="a11oy-devb-readiness-feed-warm",
+                daemon=True,
+            ).start()
+        except Exception as start_error:
+            print(f"[a11oy] devb readiness feed warmer failed to start honestly: "
+                  f"{start_error!r}", file=sys.stderr)
+            return False
+        _READINESS_WARM_STARTED = True
+    print("[a11oy] devb readiness feed warmer started "
+          f"(interval={_readiness_warm_interval_s():g}s, surfaces=legal)",
+          file=sys.stderr)
+    return True
 
 
 # ---------------------------------------------------------------------------
