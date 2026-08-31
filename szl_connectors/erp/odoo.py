@@ -17,11 +17,9 @@ Open-source + free demo DBs / Odoo Online trial exist, so free_tier=True.
 from __future__ import annotations
 
 import os
-import urllib.request as _ur
 from typing import Any
-from xml.sax.saxutils import escape as _xe
 
-from ..base import Connector, Records, State, WriteResult, cred_fingerprint, _now
+from ..base import Connector, Records, State, WriteResult, cred_fingerprint
 from ..registry import register
 from ..governance import gate_write
 

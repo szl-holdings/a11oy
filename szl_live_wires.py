@@ -24,7 +24,7 @@ brain-jack receipts. Empty buffer ⇒ idle wire (no pulse). NO mocks, NO fabrica
 Signatures are honestly labelled PLACEHOLDER until Sigstore CI is wired.
 """
 from __future__ import annotations
-import json, time, hashlib, os, asyncio
+import json, time, hashlib, asyncio
 from collections import deque
 from datetime import datetime, timezone
 from pathlib import Path
@@ -270,7 +270,7 @@ def _boe_pdf_bytes(boe: Dict[str, Any]) -> bytes:
         "Signed: Yachay  |  Perplexity Computer Agent",
     ]
     text = "\\n".join(l.replace("(", "\\(").replace(")", "\\)") for l in lines)
-    stream = f"BT /F1 9 Tf 40 760 Td 12 TL ({text.splitlines()[0] if False else ''}) Tj".encode()
+    f"BT /F1 9 Tf 40 760 Td 12 TL ({text.splitlines()[0] if False else ''}) Tj".encode()
     # build a simple multiline PDF
     body_ops = "BT /F1 9 Tf 40 770 Td 12 TL "
     for l in lines:

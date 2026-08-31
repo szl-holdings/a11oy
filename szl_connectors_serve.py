@@ -23,7 +23,6 @@ receipt with credential FINGERPRINT hashes (never the key); 0 runtime CDN.
 """
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 

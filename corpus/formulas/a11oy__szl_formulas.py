@@ -952,7 +952,7 @@ ADDITIVE · pure (deterministic given inputs) · zero bandaid.
 Author: Yachay subagent for SZL Holdings. ORCID 0009-0001-0110-4173.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict
 
 
 GENESIS = "0" * 64  # genesis prev-hash for the first receipt

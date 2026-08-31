@@ -20,10 +20,9 @@ from __future__ import annotations
 
 import os
 
-from ..base import State, Records, WriteResult, http_json, cred_fingerprint
+from ..base import State, Records, http_json
 from ..ready import ReadyConnector, WritableReadyConnector
 from ..registry import register
-from ..governance import gate_write
 
 
 # ── Salesforce (oauth2; free Developer Edition) ──────────────────────────────

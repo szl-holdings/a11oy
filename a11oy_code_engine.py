@@ -81,7 +81,6 @@ import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Optional
 
 try:  # POSIX-only; Windows must import the engine but refuse code execution.
     import resource

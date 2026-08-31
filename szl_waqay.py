@@ -78,9 +78,7 @@ HTML + API routes live at the bottom of this module (register()).
 """
 from __future__ import annotations
 
-import base64
 import hashlib
-import json
 import math
 import struct
 import time

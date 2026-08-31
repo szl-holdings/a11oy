@@ -16,7 +16,7 @@ import os
 import time
 from typing import Any
 
-from ..base import Connector, Records, State, http_json, _now
+from ..base import Connector, Records, State, http_json
 from ..registry import register
 
 _CACHE: dict[str, tuple[float, Any]] = {}

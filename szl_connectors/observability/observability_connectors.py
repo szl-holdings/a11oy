@@ -12,7 +12,6 @@ API refs (publicly documented shapes):
 """
 from __future__ import annotations
 
-import base64
 import os
 
 from ..base import State, Records, http_json

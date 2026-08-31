@@ -43,7 +43,7 @@ from __future__ import annotations
 import os
 import threading
 from collections import deque
-from typing import Any, Optional, Sequence
+from typing import Optional, Sequence
 
 DEFAULT_ECE_GATE = 0.05      # ECE strictly below this required for auto-response
 MIN_SAMPLES = 20             # below this, calibration is "not_measured"

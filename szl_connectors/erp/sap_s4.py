@@ -14,7 +14,6 @@ SZL_SAP_S4_API_KEY is set. Writes stay READY until a customer tenant + OAuth.
 from __future__ import annotations
 
 import os
-from typing import Any
 
 from ..base import Connector, Records, State, http_json
 from ..registry import register

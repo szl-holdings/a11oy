@@ -775,7 +775,6 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         # existing /agent/run call), NO field is added and the chain seed stays the
         # per-run "GENESIS" constant, so the receipt bytes are IDENTICAL to before.
         tr = _Trace("governed_agent_run")
-        hops = []
         # PER-RUN GENESIS (FIX 2026-06-06): seed each run's seq-0 receipt with the
         # SAME genesis constant the verifier (_verify_chain) seeds with. Previously
         # this seeded from the prior run's final_hash (a rolling global chain), so
@@ -1034,7 +1033,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                             "honesty": "UNSIGNED — signer raised: %s" % (type(e).__name__),
                             "payloadType": "application/vnd.szl.receipt+json"}
             sp.set(receipt_signed=bool(envelope.get("signed")))
-        sealed = _chain_receipt("emit", {"decision": decision,
+        _chain_receipt("emit", {"decision": decision,
                                          "emitted": effect["emitted"],
                                          "signed": bool(envelope.get("signed"))})
         receipt_has_signature = bool(envelope.get("signed") and envelope.get("signatures"))

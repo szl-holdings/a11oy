@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import hashlib
 import math
-from typing import Iterable, Sequence
+from typing import Sequence
 
 # ============================================================================
 # REASONING capability — trust aggregation, calibration, similarity, routing

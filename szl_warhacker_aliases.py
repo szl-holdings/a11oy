@@ -35,7 +35,6 @@ from __future__ import annotations
 
 import base64
 import hashlib
-import json
 import sys
 from datetime import datetime, timezone
 from typing import Any

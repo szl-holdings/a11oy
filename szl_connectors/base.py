@@ -35,7 +35,6 @@ import json
 import os
 import time
 import urllib.error as _ue
-import urllib.parse as _up
 import urllib.request as _ur
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone

@@ -20,7 +20,6 @@ import datetime as _dt
 import hashlib
 import hmac
 import os
-import urllib.parse as _up
 
 from ..base import State, Records, http_json, http_text
 from ..ready import ReadyConnector
@@ -160,7 +159,7 @@ class AzureBlobConnector(ReadyConnector):
             return self._ready_records(
                 "provide credentials to activate — set SZL_AZURE_BLOB_ACCOUNT, "
                 "SZL_AZURE_BLOB_CONTAINER, SZL_AZURE_BLOB_SAS. Lists blobs (restype=container&comp=list).")
-        sep = "&" if sas.startswith("?") else "?"
+        "&" if sas.startswith("?") else "?"
         sas2 = sas.lstrip("?")
         url = f"https://{acct}.blob.core.windows.net/{cont}?restype=container&comp=list&maxresults=10&{sas2}"
         st, body = http_text(url)

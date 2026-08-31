@@ -64,9 +64,7 @@ Pure stdlib. Defensive: a compute failure NEVER raises out of a handler.
 """
 from __future__ import annotations
 
-import json as _json
-import os as _os
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Tuple
 
 MODELED_LABEL = "MODELED"
 DOCTRINE_VERSION = "v11"
