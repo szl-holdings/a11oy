@@ -283,10 +283,10 @@ Kontsevich 1993.
 ## 10.4 Doctrine guarantee (v6 + reframing)
 
 - **Ban-list compliance.** Every file added in v15 was scanned against
-  doctrine v6 banned tokens before commit. No occurrences of
-  "revolutionary", "groundbreaking", "magical", "world-class",
-  "best-in-class", "game-changing", "first-ever", "unprecedented",
-  "frontier-defining" outside the carlota-jo guard. No occurrences of
+  doctrine v6 banned tokens before commit. No occurrences of any
+  doctrine v6 banned token (canonical list enforced by
+  tools/docs_lexicon_gate.py, referenced here by pointer per house
+  style) outside the carlota-jo guard. No occurrences of
   "AlloyScape", "Glass Wing", "Glasswing", "Mythos", "Stephen Paul",
   "Perplexity Computer" anywhere.
 - **No silent change of Λ.** Λ remains the weighted geometric mean from
