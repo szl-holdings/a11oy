@@ -419,7 +419,7 @@
       <a class="hide-sm" href="#catalog">Catalog</a>
       <a class="hide-sm" href="/lyte">LYTE</a>
       <a href="/console">Command</a>
-      <a class="hide-sm" href="https://a11oy.net" rel="noopener">Proof registry ↗</a>
+      <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
       <a href="/trust">Evidence</a>
       <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
@@ -527,7 +527,7 @@
     <article class="card product-card" id="product-killinchu">
       <div class="ic">⚔</div>
       <h3>killinchu</h3>
-      <p>Hub page exists. The inference Space timed out (2026-08-28). This card is not a live runtime. a11oy's defense Lambda is a separate advisory score, not killinchu health.</p>
+      <p>Counter-UAS and maritime vertical on the same receipt substrate. Public controls remain advisory. Effectors stay SIMULATED unless a real execution path is proved.</p>
       <div class="status-row">
         <span class="chip software"><span class="dot"></span>SOFTWARE</span>
         <span class="chip simulated"><span class="dot"></span>SIMULATED effectors</span>
@@ -666,7 +666,7 @@
         advisory, <b>never green</b>. Theorem U is the proven conditional alternative.</p>
     </div>
   </div>
-  <p class="genome-catalog" id="genome-catalog">Genome catalog (not the kernel):
+    <p class="genome-catalog" id="genome-catalog">Genome catalog (not the kernel):
     LOCKED-PROVEN tag = <span class="n" id="pt-genome-locked">-</span>.
     Never folded into the Lean-8 kernel chip. Never green.</p>
 
@@ -955,7 +955,6 @@
       $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
     }catch(e){ $("pt-locked").textContent = "N/A"; }
   }
-  const loadLockedKernel = loadKernelLocked;
   // Genome catalog tag count, rendered in its own slot so it can never be read
   // as the kernel chip.
   function setCatalogNote(n){
@@ -997,19 +996,11 @@
     }
   }
 
-  function markKillinchuUnavailable(){
-    // Hub inventory is reachable; the inference runtime timed out.
-    // Never paint a11oy's advisory defense Lambda as killinchu-live.
-    const val = $("v-defense"); if(val) val.textContent = "UNAVAILABLE";
-    const chip = $("v-defense-chip"); if(chip) chip.innerHTML = downChip("UNAVAILABLE");
-  }
-
   function setVerticals(v){
     // Flagships only: a11oy command (core) and killinchu (defense).
     // Insurance / finance / real-estate are not products on this page.
     [["core","v-core"],["defense","v-defense"]].forEach(([k,id])=>{
       const el = $(id);
-      if(k === "defense"){ markKillinchuUnavailable(); return; }
       if(!el) return;
       const val = fmtLam(v[k]);
       el.textContent = (val===null) ? "N/A" : val;
@@ -1188,7 +1179,6 @@
     markKillinchuUnavailable();
     probeKillinchuRuntime();
     const ov = await loadOverview();
-    markKillinchuUnavailable();
     const filled = {
       tiers: $("proof-src").innerHTML.trim() !== "",
       verts: $("verticals-src").innerHTML.trim() !== "",

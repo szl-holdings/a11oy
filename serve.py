@@ -12792,7 +12792,7 @@ async def spa_root():
             if not _cp.is_file():
                 continue
             _data = _cp.read_bytes()
-            # Public front door: do not bake the operator widget into landing.
+            # Public product front door (landing) never gets the operator widget baked in.
             _is_public_front = _cp.name in {"a11oy_landing.html", "landing.html"}
             if (not _is_public_front) and b'a11oy-operator-widget.js' not in _data:
                 if b'</body>' in _data:
@@ -13101,10 +13101,9 @@ app.add_api_route("/investor", _investor_view_redirect, methods=["GET"], include
 # image (has console.html, so PAGES_DIR pins there) and will not yet contain
 # a newly added estate.html until the next image bake.
 async def _series_a_estate_page() -> Response:
-    for folder in (_LOCAL_PAGES_DIR, PAGES_DIR, _IMAGE_PAGES_DIR):
-        f = folder / "estate.html"
-        if f.is_file():
-            return FileResponse(f, media_type="text/html")
+    f = _szl_doc("pages/estate.html")
+    if f.is_file():
+        return FileResponse(f, media_type="text/html")
     return FileResponse(INDEX_HTML, media_type="text/html")
 
 
@@ -13223,11 +13222,29 @@ for _wow_path in ("/ungoverned", "/ungoverned-vs-a11oy", "/vs", "/compare"):
 # /console?view=investor (not a stub, not an SPA soft-200). ADDITIVE ONLY,
 # registered BEFORE the SPA catch-all so it wins the ordered match. Demo-critical
 # route-table regression guard requires this alias.
-async def _investor_alias() -> Response:
+async def _investor_view_redirect() -> Response:
     return _PTG_Redirect(url="/console?view=investor", status_code=307)
 
 
-app.add_api_route("/investor", _investor_alias, methods=["GET", "HEAD"], include_in_schema=False)
+app.add_api_route("/investor", _investor_view_redirect, methods=["GET"], include_in_schema=False)
+
+
+# /estate — Series A holographic models+kernels surface.
+# Served from pages/estate.html (wholesale COPY pages/). Not a stub, not a 307
+# onto an empty overlay. Killinchu-named Hub IDs stay outside the inventory.
+# /models stays the 1392 ecosystem-atlas deep-link (serves ecosystem.html);
+# this handler does not steal that path.
+async def _series_a_estate_page() -> Response:
+    for folder in (PAGES_DIR, Path("/app/pages")):
+        f = folder / "estate.html"
+        if f.is_file():
+            return FileResponse(f, media_type="text/html")
+    return FileResponse(INDEX_HTML, media_type="text/html")
+
+
+app.add_api_route(
+    "/estate", _series_a_estate_page, methods=["GET", "HEAD"], include_in_schema=False
+)
 
 
 @app.get("/landing")
@@ -14043,7 +14060,7 @@ async def api_a11oy_v4_fleet() -> JSONResponse:
 @app.get("/warhacker")
 async def warhacker_page() -> Response:
     # RETIRED 2026-06-27: archived per founder (BRIEF.md: "warhacker is ARCHIVED").
-    return _PTG_Redirect(url="/console", status_code=307)
+    return _PTG_Redirect(url="/console#arena", status_code=307)
 
 
 # ---------------------------------------------------------------------------
@@ -16037,6 +16054,39 @@ except Exception as _szl_source_error:  # additive: never take down the SPA
         f"[a11oy] deployment-source attestation NOT registered (non-fatal): {_szl_source_error!r}",
         file=sys.stderr,
     )
+
+
+# ============================================================================
+# WAVE 32 (Dev C): SURFACE FIDELITY REGISTER — /api/a11oy/v1/surface/fidelity
+#   One honest, in-request answer to "is this surface MEASURED, MODELED, or
+#   STRUCTURAL-ONLY?" for the nine surfaces that were previously live-labelled
+#   STRUCTURAL-ONLY. Every label is recomputed per request from a REAL read (the
+#   organ's own compute, a node probe, an eval run, the brain graph, or the fleet
+#   joule meter) with provenance attached; a surface with no real signal STAYS
+#   STRUCTURAL-ONLY and says why. MEASURED for energy/ecosystem requires
+#   A11OY_JOULE_METER_URLS to be set AND a meter to answer live THIS request —
+#   never a fabricated joule. Λ stays Conjecture 1 (advisory, gray, never green).
+#   Additive + try/except-guarded; front-moved so the exact JSON routes beat the
+#   /api/a11oy/{path:path} Node proxy + /{full_path:path} SPA catch-all.
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+# Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+# ============================================================================
+try:
+    import szl_surface_fidelity as _szl_surface_fidelity
+    _szl_fidelity_status = _szl_surface_fidelity.register(app, ns="a11oy")
+    for _szl_fid_path in (_szl_fidelity_status or []):
+        try:
+            _wn_frontmove(_szl_fid_path)
+        except Exception:  # pragma: no cover — front-move is best-effort
+            pass
+    print(f"[a11oy] WAVE 32 surface-fidelity register registered (front-moved): {_szl_fidelity_status}",
+          file=__import__("sys").stderr)
+except Exception as _szl_fid_e:  # additive: never take down the SPA
+    print(f"[a11oy] WAVE 32 surface-fidelity register NOT registered (non-fatal): {_szl_fid_e!r}; "
+          "SPA + API unaffected", file=__import__("sys").stderr)
+# ============================================================================
+# END: WAVE 32 SURFACE FIDELITY REGISTER
+# ============================================================================
 
 
 # ============================================================================

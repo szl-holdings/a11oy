@@ -163,7 +163,9 @@ def test_kernel_chip_reads_honest_locked_formula_count_not_genome_25() -> None:
     assert "tier_counts['LOCKED-PROVEN']" not in CONSOLE
     assert "$('cnt-locked').firstChild.nodeValue=(kernel==null?'N/A':kernel)" in TRUST
     assert "tc['LOCKED-PROVEN']??'N/A')" not in TRUST.split("cnt-locked")[1][:400]
-    assert "loadLockedKernel" in LANDING
+    # Identity lock owns the canonical name; no dead compatibility alias remains.
+    assert "loadKernelLocked" in LANDING
+    assert "loadLockedKernel" not in LANDING
     assert 'h.locked_formula_count' in LANDING
     assert 'setTiers({ locked: tc["LOCKED-PROVEN"]' not in LANDING
     assert "setCatalogNote" in LANDING

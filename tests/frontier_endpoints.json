@@ -392,5 +392,55 @@
     "path": "/api/a11oy/v1/frontier/casta",
     "query": "seed=42&n_steps=48&drift=0.015&contamination=0.12&adapt=1",
     "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/integritycontrol",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/energy",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/ecosystem",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/mesh",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/sparsemoe",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/pddisagg",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/execverify",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/flowbrain",
+    "query": "",
+    "method": "GET"
+  },
+  {
+    "path": "/api/a11oy/v1/surface/fidelity/brainmemory",
+    "query": "",
+    "method": "GET"
   }
 ]
