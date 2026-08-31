@@ -187,19 +187,25 @@ rows:
   - id: model_bom_status
     category: ai_governance
     question: Does a complete model bill of materials exist for every model in the estate
-    state: UNKNOWN
-    value: null
+    state: VERIFIED
+    value: "MODEL_BOM.csv covers all 43 public models: license, base model, library, 30d downloads, unsafe-file scan, gating"
     blocks_raise: true
-    evidence: null
+    evidence:
+      - status: supports
+        uri: https://huggingface.co/datasets/SZLHOLDINGS/model-bom/blob/main/MODEL_BOM.csv
+        note: machine-readable BOM snapshotted 2026-08-30 from the live HF API; provenance.json + status.json in same repo
     why_unknown: "no Model BOM register has been created for the ~15 Hugging Face models"
     last_audited: 2026-08-30
   - id: dataset_license_register
     category: ai_governance
     question: Does a license register exist covering all datasets
-    state: UNKNOWN
-    value: null
+    state: VERIFIED
+    value: "DATASET_LICENSE_REGISTER.csv covers 28 public datasets: license, training-eligibility ruling, upstream sources; TRAINING_BLOCKLIST.txt is CI-consumable"
     blocks_raise: true
-    evidence: null
+    evidence:
+      - status: supports
+        uri: https://huggingface.co/datasets/SZLHOLDINGS/model-bom/blob/main/DATASET_LICENSE_REGISTER.csv
+        note: training-eligibility rulings with blocklist enforcement; snapshotted 2026-08-30
     why_unknown: "no license register has been created for the ~30 Hugging Face datasets"
     last_audited: 2026-08-30
   - id: soc2_status

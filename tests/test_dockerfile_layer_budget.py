@@ -11,9 +11,9 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = ROOT / "Dockerfile"
 BUILD_WORKFLOW = ROOT / ".github" / "workflows" / "docker-build.yml"
 RUNTIME_LAYER_BUDGET = 110
-COPY_SOURCE_ALLOWLIST_COUNT = 549
+COPY_SOURCE_ALLOWLIST_COUNT = 550
 COPY_SOURCE_ALLOWLIST_SHA256 = (
-    "d691427be72f2c4ce983c4b4e0f5c8eeafbd9f97c8f2b14819030e74bfc3e4bd"
+    "1aa2f1eacb990dcab973343d2460ed755b63e4762d543df0174839881695cd28"
 )
 
 

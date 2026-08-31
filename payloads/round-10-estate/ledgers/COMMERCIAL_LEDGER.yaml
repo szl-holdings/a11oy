@@ -1,0 +1,30 @@
+# SZL COMMERCIAL LEDGER — the round-10 structural innovation.
+# Eight prior payloads enforced technical truth while commercial truth
+# floated free in prose. Here, commercial facts sit under the SAME gate:
+# every row UNKNOWN blocks a Series A claim. No model may invent any row.
+# refreshed: 2026-08-30 (round 10)
+rows:
+  - { id: C-01, fact: "ARR", value: null, blocks_raise: true }
+  - { id: C-02, fact: "MRR", value: null, blocks_raise: true }
+  - { id: C-03, fact: "Contracted vs recognized revenue split", value: null, blocks_raise: true }
+  - { id: C-04, fact: "Paying customers (count)", value: null, blocks_raise: true }
+  - { id: C-05, fact: "Named design partners (paid)", value: null, blocks_raise: true }
+  - { id: C-06, fact: "Gross margin", value: null, blocks_raise: true }
+  - { id: C-07, fact: "Net revenue retention", value: null, blocks_raise: true }
+  - { id: C-08, fact: "CAC payback (months)", value: null, blocks_raise: true }
+  - { id: C-09, fact: "Cash on hand", value: null, blocks_raise: true }
+  - { id: C-10, fact: "Net burn (monthly)", value: null, blocks_raise: true }
+  - { id: C-11, fact: "Runway (months)", value: null, blocks_raise: true }
+  - { id: C-12, fact: "Burn multiple", value: null, blocks_raise: true }
+  - { id: C-13, fact: "Published price (any SKU)", value: null, blocks_raise: true }
+  - { id: C-14, fact: "Buyer persona (singular, named)", value: null, blocks_raise: true }
+  - { id: C-15, fact: "ICP definition", value: null, blocks_raise: true }
+  - { id: C-16, fact: "Co-founder / named security-credentialed advisor", value: null, blocks_raise: true }
+  - { id: C-17, fact: "Cap table cleanliness", value: null, blocks_raise: true }
+  - { id: C-18, fact: "Contributor IP assignments executed", value: null, blocks_raise: true }
+  - { id: C-19, fact: "Delaware C-Corp confirmed", value: null, blocks_raise: true }
+  - { id: C-20, fact: "Model Bill of Materials", value: null, blocks_raise: true }
+  - { id: C-21, fact: "Dataset license register", value: null, blocks_raise: true }
+  - { id: C-22, fact: "SOC 2 readiness state", value: null, blocks_raise: true }
+  - { id: C-23, fact: "Series A target round shape (revenue door vs team+thesis door)", value: null, blocks_raise: true }
+  - { id: C-24, fact: "EU Annex III design partner (named)", value: null, blocks_raise: true }

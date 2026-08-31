@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-08-29T00:00:00Z",
+  "generatedAt": "2026-08-31T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -1452,7 +1452,7 @@
     "/api/a11oy/v1/router/stats": {
       "method": "GET",
       "schema": "router_stats",
-      "freshnessSLA": null,
+      "freshnessSLA": 300,
       "citationsRequired": false,
       "degradedRules": {
         "allowStatuses": [
@@ -1460,8 +1460,7 @@
         ],
         "allowLabels": [
           "live",
-          "cached",
-          "modeled"
+          "cached"
         ],
         "liesIf": [
           "mock",
@@ -1469,7 +1468,7 @@
           "placeholder"
         ]
       },
-      "note": "Deterministic MODELED tier-display signals from szl_brain.TIERS; not production traffic, QPS, tokens, or completed inference."
+      "note": "Live process-lifetime routing-decision counters from trusted szl_llm_registry receipt writes; not QPS, tokens, or inference completions."
     },
     "/api/a11oy/v1/scaling/summary": {
       "method": "GET",
@@ -2788,40 +2787,151 @@
       "required": [
         "state",
         "mode",
+        "data_kind",
         "catalog_state",
         "throughput_state",
+        "counter_state",
         "routes",
         "servedThisWindow",
+        "routingDecisionsSinceStart",
         "tiers",
+        "counter_scope",
+        "counter_started_at",
+        "observed_at",
         "source",
+        "catalog_source",
         "doctrine",
         "honesty"
       ],
       "properties": {
         "state": {
-          "const": "MODELED"
+          "const": "LIVE"
         },
         "mode": {
-          "const": "modeled"
+          "const": "live"
+        },
+        "data_kind": {
+          "const": "live"
         },
         "catalog_state": {
           "const": "LIVE"
         },
         "throughput_state": {
-          "const": "MODELED"
+          "const": "OBSERVED"
+        },
+        "counter_scope": {
+          "const": "process_lifetime"
         },
         "source": {
-          "const": "szl_brain.TIERS"
+          "const": "szl_llm_registry.router_stats_snapshot"
         },
         "doctrine": {
           "const": "v11"
+        },
+        "honesty": {
+          "const": "Live runtime catalog with exact trusted routing-decision counts since counter_started_at; process restart resets the counters. Legacy throughput and servedThisWindow fields carry those counts, not QPS, tokens, inference completions, or traffic outside this process. Zero is a valid observed count."
         }
       },
       "requiredPathTypes": {
         "routes": "nonempty_array",
         "servedThisWindow": "nonnegative_integer",
+        "routingDecisionsSinceStart": "nonnegative_integer",
         "tiers": "nonempty_array",
+        "counter_started_at": "timestamp",
+        "observed_at": "timestamp",
         "honesty": "string"
+      },
+      "semanticContract": {
+        "kind": "router_stats_v1",
+        "catalog": [
+          {
+            "tier": "T0",
+            "model": "claude_sonnet_4_6"
+          },
+          {
+            "tier": "T1",
+            "model": "gemini_3_1_pro"
+          },
+          {
+            "tier": "T2",
+            "model": "gpt_5_4"
+          },
+          {
+            "tier": "T3",
+            "model": "claude_opus_4_8"
+          },
+          {
+            "tier": "T4",
+            "model": "gpt_5_5"
+          },
+          {
+            "tier": "T5",
+            "model": "sovereign_local"
+          },
+          {
+            "tier": "T5",
+            "model": "szl-sovereign-local"
+          },
+          {
+            "tier": "T1",
+            "model": "perplexity_sonar_pro"
+          },
+          {
+            "tier": "T2",
+            "model": "openrouter_auto"
+          },
+          {
+            "tier": "T2",
+            "model": "mistral_large_2"
+          },
+          {
+            "tier": "T2",
+            "model": "deepseek_v3"
+          },
+          {
+            "tier": "T90",
+            "model": "deepseek_coder_v2_instruct"
+          },
+          {
+            "tier": "T90",
+            "model": "deepseek_v2_5"
+          },
+          {
+            "tier": "T90",
+            "model": "qwen2_5_coder_32b_instruct"
+          },
+          {
+            "tier": "T90",
+            "model": "llama_3_3_70b_instruct"
+          },
+          {
+            "tier": "T90",
+            "model": "qwen2_5_coder_14b_instruct"
+          },
+          {
+            "tier": "T90",
+            "model": "qwen2_5_coder_7b_instruct"
+          },
+          {
+            "tier": "T90",
+            "model": "deepseek_coder_6_7b_instruct"
+          },
+          {
+            "tier": "T90",
+            "model": "codestral_22b"
+          },
+          {
+            "tier": "T90",
+            "model": "qwen2_5_coder_1_5b_instruct_gguf"
+          },
+          {
+            "tier": "T90",
+            "model": "qwen2_5_coder_0_5b_instruct_gguf"
+          }
+        ],
+        "honesty": "Live runtime catalog with exact trusted routing-decision counts since counter_started_at; process restart resets the counters. Legacy throughput and servedThisWindow fields carry those counts, not QPS, tokens, inference completions, or traffic outside this process. Zero is a valid observed count.",
+        "observationMaxAgeSeconds": 300,
+        "maxFutureSkewSeconds": 300
       }
     },
     "mosaic_governed": {
