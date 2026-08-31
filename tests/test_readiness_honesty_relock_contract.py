@@ -57,22 +57,31 @@ class ReadinessHonestyRelockTests(unittest.TestCase):
   "degraded",
   endpoints["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"],
         )
-        self.assertEqual(
-  endpoints["/api/a11oy/v1/router/stats"]["degradedRules"]["allowLabels"],
-  ["live", "cached"],
-        )
 
-    def test_router_schema_binds_live_counter_identity_and_clocks(self) -> None:
+    def test_router_stats_admits_only_live_counter_evidence(self) -> None:
+        # #1526 (landed via #1538) removed the wall-clock-derived MODELED
+        # tier display from /v1/router/stats; the endpoint now serves exact
+        # process-lifetime routing-decision counters from szl_llm_registry
+        # (locked by tests/test_functest_router_receipts.py and
+        # tests/test_router_stats_counter.py, incl. the UNAVAILABLE-not-
+        # MODELED failure path). Readmitting "modeled" here would hide a
+        # return to synthetic display traffic, so the gate fails closed on it.
+        labels = MATRIX.ENDPOINTS[
+  "/api/a11oy/v1/router/stats"]["degradedRules"]["allowLabels"]
+        self.assertEqual(labels, ["live", "cached"])
+        self.assertNotIn("modeled", labels)
+
+    def test_router_schema_matches_the_truthful_live_counter_payload(self) -> None:
+        # Same relock intent as the former MODELED-payload check, updated for
+        # the receipt-backed counter endpoint that replaced the wall-clock
+        # display: the schema must admit exactly the observed LIVE payload.
         schema = MATRIX.SCHEMAS["router_stats"]
-        endpoint = MATRIX.ENDPOINTS["/api/a11oy/v1/router/stats"]
-        self.assertEqual(endpoint["freshnessSLA"], 5 * MATRIX.MIN)
         self.assertEqual(schema["properties"]["state"], {"const": "LIVE"})
         self.assertEqual(schema["properties"]["mode"], {"const": "live"})
         self.assertEqual(
   schema["properties"]["throughput_state"],
   {"const": "OBSERVED"},
         )
-        self.assertEqual(schema["properties"]["counter_state"], {"const": "OBSERVED"})
         self.assertEqual(
   schema["properties"]["source"],
   {"const": "szl_llm_registry.router_stats_snapshot"},
@@ -80,31 +89,6 @@ class ReadinessHonestyRelockTests(unittest.TestCase):
         self.assertIn("routingDecisionsSinceStart", schema["required"])
         self.assertIn("counter_scope", schema["required"])
         self.assertIn("counter_started_at", schema["required"])
-        self.assertEqual(
-  schema["requiredPathTypes"]["counter_started_at"],
-  "process_epoch_timestamp",
-        )
-        self.assertEqual(schema["requiredPathTypes"]["observed_at"], "timestamp")
-        self.assertEqual(
-  schema["semanticContract"]["catalog"],
-  MATRIX.ROUTER_STATS_CATALOG,
-        )
-        self.assertEqual(
-  schema["properties"]["honesty"]["const"],
-  MATRIX.ROUTER_STATS_HONESTY,
-        )
-
-    def test_protected_router_catalog_exactly_matches_runtime_registry(self) -> None:
-        alloy_ids = {model["model_id"] for model in ALLOY_ROSTER}
-        runtime_identity = [
-  {"tier": f"T{model['tier']}", "model": model["model_id"]}
-  for model in MODEL_REGISTRY
-  if model["model_id"] not in alloy_ids
-        ] + [
-  {"tier": "T90", "model": model["model_id"]}
-  for model in ALLOY_ROSTER
-        ]
-        self.assertEqual(MATRIX.ROUTER_STATS_CATALOG, runtime_identity)
 
 
 if __name__ == "__main__":

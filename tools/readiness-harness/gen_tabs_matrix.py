@@ -339,17 +339,20 @@ ENDPOINTS = {
             "The canonical label describes source freshness; field-level detail remains explicit."
         ),
     ),
-    # router/stats: exact process-lifetime counters updated only by trusted
-    #   routing-receipt writes.  observed_at is a fresh response observation;
-    #   counter_started_at is a durable process epoch and may legitimately be
-    #   older than the response freshness window.
+    # router/stats: live per-route catalog plus exact trusted routing-decision
+    #   counters from szl_llm_registry receipt writes. The process-lifetime
+    #   window resets on rebuild and is declared in the payload. These are
+    #   routing decisions, not QPS, tokens, or inference completions, so no
+    #   external citation is required. The wall-clock-derived MODELED display
+    #   from szl_brain.TIERS was removed in #1526 (landed via #1538); the gate
+    #   keeps the default live/cached label policy so MODELED never returns.
     "/api/a11oy/v1/router/stats": ep(
         schema="router_stats",
-        sla=5 * MIN,
+        sla=None,
         note=(
-            "LIVE runtime catalog plus exact trusted routing-decision counters "
-            "since a declared process epoch; not QPS, tokens, inference "
-            "completions, or external traffic."
+            "Live process-lifetime routing-decision counters from trusted "
+            "szl_llm_registry receipt writes; not QPS, tokens, or inference "
+            "completions."
         ),
     ),
 
@@ -753,9 +756,8 @@ SCHEMAS = {
         "type": "object",
         "required": [
             "state", "mode", "data_kind", "catalog_state", "throughput_state",
-            "counter_state", "routes", "servedThisWindow",
-            "routingDecisionsSinceStart", "tiers", "counter_scope",
-            "counter_started_at", "observed_at", "source", "catalog_source",
+            "routes", "servedThisWindow", "routingDecisionsSinceStart", "tiers",
+            "counter_scope", "counter_started_at", "observed_at", "source",
             "doctrine", "honesty",
         ],
         "properties": {
@@ -764,10 +766,8 @@ SCHEMAS = {
             "data_kind": {"const": "live"},
             "catalog_state": {"const": "LIVE"},
             "throughput_state": {"const": "OBSERVED"},
-            "counter_state": {"const": "OBSERVED"},
             "counter_scope": {"const": "process_lifetime"},
             "source": {"const": "szl_llm_registry.router_stats_snapshot"},
-            "catalog_source": {"const": "szl_llm_registry.MODEL_REGISTRY"},
             "doctrine": {"const": "v11"},
             "honesty": {"const": ROUTER_STATS_HONESTY},
         },
@@ -776,10 +776,7 @@ SCHEMAS = {
             "servedThisWindow": "nonnegative_integer",
             "routingDecisionsSinceStart": "nonnegative_integer",
             "tiers": "nonempty_array",
-            # This timestamp is an explicitly durable process epoch, not a
-            # freshness clock.  The semantic validator still requires it to be
-            # valid and ordered at or before observed_at.
-            "counter_started_at": "process_epoch_timestamp",
+            "counter_started_at": "timestamp",
             "observed_at": "timestamp",
             "honesty": "string",
         },

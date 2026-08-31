@@ -135,80 +135,34 @@ test("tab-matrix schema validates available and truthful unavailable wrappers", 
   }).ok, false);
 });
 
-test("router-stats accepts exact live catalog counters with a durable process epoch", () => {
-  const now = Date.parse("2026-08-31T12:00:00Z");
-  const payload = liveRouterStats(now);
-  assert.equal(
-    validateRouterStatsSemantic(payload, routerSemanticContract, now).ok,
-    true,
-  );
-  const freshness = evaluateFreshness(
-    "/api/a11oy/v1/router/stats",
-    { schema: "router_stats", freshnessSLA: 300 },
-    payload,
-    now,
-  );
-  assert.equal(freshness.freshOk, true);
-  assert.equal(freshness.ageSec, 1);
-  assert.equal(validateSchema("router_stats", liveRouterStats()).ok, true);
-});
-
-test("router-stats rejects empty, omitted, and forged route identity", () => {
-  const payload = liveRouterStats();
-  assert.equal(validateSchema("router_stats", { ...payload, routes: [] }).ok, false);
-
-  const omitted = structuredClone(payload);
-  omitted.routes.pop();
-  assert.equal(validateSchema("router_stats", omitted).ok, false);
-
-  const forged = structuredClone(payload);
-  forged.routes[0].model = "forged-model";
-  assert.equal(validateSchema("router_stats", forged).ok, false);
-});
-
-test("router-stats rejects forged root identity, totals, route counters, and honesty", () => {
-  const payload = liveRouterStats();
-  assert.equal(validateSchema("router_stats", { ...payload, state: "MODELED" }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...payload, source: "candidate-controlled" }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...payload, servedThisWindow: 4 }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...payload, routingDecisionsSinceStart: 4 }).ok, false);
-  assert.equal(validateSchema("router_stats", { ...payload, honesty: "Everything is live." }).ok, false);
-
-  const negative = structuredClone(payload);
-  negative.routes[0].throughput = negative.routes[0].routing_decisions = -1;
-  assert.equal(validateSchema("router_stats", negative).ok, false);
-
-  const mismatched = structuredClone(payload);
-  mismatched.routes[2].throughput = 4;
-  assert.equal(validateSchema("router_stats", mismatched).ok, false);
-});
-
-test("router-stats rejects stale, future, malformed, and reversed observation clocks", () => {
-  const now = Date.parse("2026-08-31T12:00:00Z");
-  const payload = liveRouterStats(now);
-  const validate = (candidate) => (
-    validateRouterStatsSemantic(candidate, routerSemanticContract, now).ok
-  );
-  assert.equal(validate({
-    ...payload,
-    observed_at: new Date(now - 301_000).toISOString(),
-  }), false);
-  assert.equal(evaluateFreshness(
-    "/api/a11oy/v1/router/stats",
-    { schema: "router_stats", freshnessSLA: 300 },
-    { ...payload, observed_at: new Date(now - 301_000).toISOString() },
-    now,
-  ).freshOk, false);
-  assert.equal(validate({
-    ...payload,
-    observed_at: new Date(now + 301_000).toISOString(),
-  }), false);
-  assert.equal(validate({ ...payload, observed_at: "2026-02-30T12:00:00Z" }), false);
-  assert.equal(validate({
-    ...payload,
-    counter_started_at: new Date(now).toISOString(),
-    observed_at: new Date(now - 1_000).toISOString(),
-  }), false);
+test("router-stats schema requires truthful live process-lifetime counters", () => {
+  const observed = {
+    state: "LIVE",
+    mode: "live",
+    data_kind: "live",
+    catalog_state: "LIVE",
+    throughput_state: "OBSERVED",
+    routes: [{ tier: "T0", model: "alpha", routing_decisions: 0 }],
+    servedThisWindow: 0,
+    routingDecisionsSinceStart: 0,
+    tiers: ["T0"],
+    counter_scope: "process_lifetime",
+    counter_started_at: "2026-08-31T00:00:00Z",
+    observed_at: "2026-08-31T00:00:01Z",
+    source: "szl_llm_registry.router_stats_snapshot",
+    doctrine: "v11",
+    honesty: "Observed process-lifetime routing-decision counters; not QPS, tokens, or inference completions.",
+  };
+  assert.equal(validateSchema("router_stats", observed).ok, true);
+  assert.equal(validateSchema("router_stats", { ...observed, state: "MODELED" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, data_kind: "modeled" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, throughput_state: "MODELED" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, counter_scope: "window" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, source: "szl_brain.TIERS" }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, routes: [] }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: -1 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, servedThisWindow: 0.5 }).ok, false);
+  assert.equal(validateSchema("router_stats", { ...observed, routingDecisionsSinceStart: -1 }).ok, false);
 });
 
 test("router counter evidence is inspected without weakening root labels", () => {

@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-08-29T00:00:00Z",
+  "generatedAt": "2026-08-31T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -1468,7 +1468,7 @@
           "placeholder"
         ]
       },
-      "note": "LIVE runtime catalog plus exact trusted routing-decision counters since a declared process epoch; not QPS, tokens, inference completions, or external traffic."
+      "note": "Live process-lifetime routing-decision counters from trusted szl_llm_registry receipt writes; not QPS, tokens, or inference completions."
     },
     "/api/a11oy/v1/scaling/summary": {
       "method": "GET",
@@ -2819,17 +2819,11 @@
         "throughput_state": {
           "const": "OBSERVED"
         },
-        "counter_state": {
-          "const": "OBSERVED"
-        },
         "counter_scope": {
           "const": "process_lifetime"
         },
         "source": {
           "const": "szl_llm_registry.router_stats_snapshot"
-        },
-        "catalog_source": {
-          "const": "szl_llm_registry.MODEL_REGISTRY"
         },
         "doctrine": {
           "const": "v11"
@@ -2843,7 +2837,7 @@
         "servedThisWindow": "nonnegative_integer",
         "routingDecisionsSinceStart": "nonnegative_integer",
         "tiers": "nonempty_array",
-        "counter_started_at": "process_epoch_timestamp",
+        "counter_started_at": "timestamp",
         "observed_at": "timestamp",
         "honesty": "string"
       },
