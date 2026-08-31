@@ -3,7 +3,7 @@ name: HF central exact-source provider closure
 on:
   push:
     branches:
-      - ops/hf-central-provider-closure-20260831
+      - main
     paths:
       - .github/workflows/hf-central-provider-closure.yml
   workflow_dispatch:
