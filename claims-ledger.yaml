@@ -1,0 +1,41 @@
+yaml_subset: SZL-YAML-1
+ledger: claims-ledger
+schema_version: 1
+zero_bandaid: A public claim lacking evidence auto-demotes to UNKNOWN. This file is enforced by tools/release_gate.py.
+claims:
+  - id: clm-product-claim
+    claim: a11oy issues signed, offline-verifiable receipts proving what an AI agent was authorized to do, what it actually did, and whether the required evidence exists
+    state: VERIFIED
+    evidence:
+      - kind: demonstration
+        ref: tools/demo_harness.py
+        note: the 12-step acceptance demo exercises sign, verify, tamper, incompleteness, replay, and redaction checks
+        status: supports
+    last_audited: 2026-08-30
+  - id: clm-solo-founder
+    claim: SZL Holdings is a solo-founder company led by Stephen Lutar, Poughkeepsie NY, Python-first
+    state: VERIFIED
+    evidence:
+      - kind: canon
+        ref: payload CANON section 1
+        note: estate facts audited across ten review rounds in the source thread
+        status: supports
+    last_audited: 2026-08-30
+  - id: clm-competitor-funding
+    claim: Zenity, Obsidian, and Hush announced rounds on or around 4 August 2026
+    state: VERIFIED
+    evidence:
+      - kind: press
+        ref: payload CANON section 5
+        note: searched in-thread; dates as found
+        status: supports
+    last_audited: 2026-08-30
+  - id: clm-conformance-profile
+    claim: the Article 12 logging conformance profile is mapped and machine-checked
+    state: UNKNOWN
+    evidence:
+      - kind: gap
+        ref: evidence/conformance/eu-ai-act-article-12.yaml
+        note: mapping exists and demo step 9 checks it, but no third-party review or recorded demo run is attached yet
+        status: partial
+    last_audited: 2026-08-30
