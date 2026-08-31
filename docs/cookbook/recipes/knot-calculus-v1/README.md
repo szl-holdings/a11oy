@@ -53,7 +53,5 @@
 
 ## Doctrine v6
 
-Recipe is doctrine-v6 clean (no banned tokens: "revolutionary", "groundbreaking",
-"magical", "world-class", "best-in-class", "game-changing", "first-ever",
-"unprecedented", "frontier-defining"). See
+Recipe is doctrine-v6 clean (no banned hype tokens; the v6 ban-list applies in full). See
 [doctrine v6 DOI](https://doi.org/10.5281/zenodo.20174600).
