@@ -1,0 +1,103 @@
+name: temporary-build-security-contact-successor
+
+on:
+  push:
+    branches:
+      - fix/security-contact-current-main-20260830-v2
+    paths:
+      - .github/workflows/temporary-build-security-contact-successor.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/security-contact-current-main-20260830-v2
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Prove and apply the reviewed disclosure delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main fix/p0-1-dead-security-contact
+          merge_base="$(git merge-base origin/main origin/fix/p0-1-dead-security-contact)"
+          expected=(
+            .well-known/security.txt
+            SECURITY.md
+            SUPPORT.md
+            docs/runbook.md
+            docs/site/.well-known/security.txt
+            docs/site/SECURITY.md
+            docs/site/SUPPORT.md
+            organs/amaru/.well-known/security.txt
+            organs/amaru/SECURITY.md
+            organs/amaru/SUPPORT.md
+            organs/sentra/.well-known/security.txt
+            organs/sentra/SECURITY.md
+            organs/sentra/SUPPORT.md
+            proofs/lutar-lean/SECURITY.md
+            proofs/lutar-lean/SUPPORT.md
+            szl_connectors/base.py
+            tests/test_discovery_files.py
+          )
+          git diff --name-only "${merge_base}..origin/fix/p0-1-dead-security-contact" -- \
+            . ':(exclude).github/workflows/temporary-*' ':(exclude).ci-*' | sort -u > /tmp/observed-paths
+          printf '%s\n' "${expected[@]}" | sort -u > /tmp/expected-paths
+          if ! diff -u /tmp/expected-paths /tmp/observed-paths; then
+            echo "::error::Security-contact source branch contains unreviewed path drift."
+            exit 1
+          fi
+          git diff --binary "${merge_base}..origin/fix/p0-1-dead-security-contact" -- "${expected[@]}" > /tmp/security-contact.patch
+          git reset --hard origin/main
+          git apply --3way --index /tmp/security-contact.patch
+          test ! -e .github/workflows/temporary-build-security-contact-successor.yml
+          git diff --cached --check
+          python - <<'PY'
+          from __future__ import annotations
+          import pathlib
+
+          security_files = (
+              pathlib.Path('.well-known/security.txt'),
+              pathlib.Path('docs/site/.well-known/security.txt'),
+              pathlib.Path('organs/amaru/.well-known/security.txt'),
+              pathlib.Path('organs/sentra/.well-known/security.txt'),
+          )
+          expected_paths = [
+              pathlib.Path(line.strip())
+              for line in pathlib.Path('/tmp/expected-paths').read_text(encoding='utf-8').splitlines()
+              if line.strip()
+          ]
+          for path in expected_paths:
+              text = path.read_text(encoding='utf-8')
+              if 'szlholdings.ai' in text:
+                  raise SystemExit(f'dead disclosure domain remains in {path}')
+          for path in security_files:
+              text = path.read_text(encoding='utf-8')
+              for required in (
+                  'Contact: https://github.com/szl-holdings/a11oy/security/advisories/new',
+                  'Contact: mailto:security@szlholdings.com',
+              ):
+                  if required not in text:
+                      raise SystemExit(f'{path} missing {required}')
+              if 'Encryption:' in text:
+                  raise SystemExit(f'{path} advertises a nonexistent encryption key')
+          connector = pathlib.Path('szl_connectors/base.py').read_text(encoding='utf-8')
+          if 'contact@szlholdings.com' not in connector:
+              raise SystemExit('connector User-Agent does not carry the reachable operator contact')
+          PY
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest -q \
+            tests/test_discovery_files.py::test_security_txt_is_canonical_and_copied_into_runtime_static_tree \
+            tests/test_identity_lock.py \
+            tests/test_demo_critical_routes.py
+          python -m py_compile szl_connectors/base.py serve.py
+          python scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+          git commit -m "fix(security): replace dead disclosure contacts across trust surfaces" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push --force-with-lease origin HEAD:fix/security-contact-current-main-20260830-v2
