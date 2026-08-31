@@ -144,6 +144,33 @@ jobs:
             exit 2
           }
 
+      - name: Ensure approved Docker Space exists
+        if: steps.select.outputs.enabled == 'true'
+        shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+          HF_REPO: ${{ matrix.hf_repo }}
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/hf-publisher-venv/bin/python" -I -P - <<'PY'
+          import os
+          from huggingface_hub import create_repo
+
+          repo_id = os.environ["HF_REPO"]
+          allowed = {"SZLHOLDINGS/nexus", "SZLHOLDINGS/lyte-lattice"}
+          if repo_id not in allowed:
+              raise SystemExit(f"refusing unapproved Space target: {repo_id}")
+          create_repo(
+              repo_id=repo_id,
+              repo_type="space",
+              space_sdk="docker",
+              private=False,
+              exist_ok=True,
+              token=os.environ["HF_TOKEN"],
+          )
+          print(f"ensured approved public Docker Space: {repo_id}")
+          PY
+
       - name: Publish exact Dockerfile-derived source
         if: steps.select.outputs.enabled == 'true'
         shell: bash
