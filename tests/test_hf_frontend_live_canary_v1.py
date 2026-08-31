@@ -450,3 +450,21 @@ def test_summary_is_fail_closed() -> None:
     assert summary["status"] == "BLOCKED"
     assert summary["page_failures"] == 1
     assert summary["identity_failures"] == 1
+
+
+def test_landing_mobile_controls_reserve_a_full_live_canary_hit_area() -> None:
+    source = LANDING.read_text(encoding="utf-8")
+    menu = re.search(r"\.menu-toggle\{[^}]+\}", source)
+    assert menu is not None
+    contract = menu.group(0)
+    for token in (
+        "width:48px",
+        "height:48px",
+        "min-width:48px",
+        "min-height:48px",
+        "border-radius:6px",
+    ):
+        assert token in contract
+    assert "width:44px" not in contract
+    assert "height:44px" not in contract
+    assert ".hero .wrap{padding-top:32px;padding-bottom:44px}" in source
