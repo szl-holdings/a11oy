@@ -26,14 +26,18 @@ INVENTORY_URL = (
     "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live/"
     "resolve/main/public-inventory.json"
 )
-SNAPSHOT_OBSERVED_AT = "2026-07-16T15:27:32Z"
+# Offline fallback only. Public unauthenticated author-list measured
+# 2026-08-31: 44 models, 30 datasets, 47 Spaces (+ README profile card = 48),
+# 21 collections, 1 bucket. The live path is INVENTORY_URL; when it serves a
+# fresh snapshot this constant is not shown.
+SNAPSHOT_OBSERVED_AT = "2026-08-31T18:59:11Z"
 SNAPSHOT_COUNTS = {
-    "models": 15,
-    "datasets": 24,
-    "spaces": 26,
-    "collections": 22,
+    "models": 44,
+    "datasets": 30,
+    "spaces": 48,
+    "collections": 21,
     "buckets": 1,
-    "public_resources_total": 88,
+    "public_resources_total": 144,
 }
 
 # Kernels are Hub model repositories with a governed-kernel contract, not
