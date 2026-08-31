@@ -1,0 +1,18 @@
+{
+  "https://a-11-oy.com": {
+    "status": "LIVE",
+    "title": "a11oy \u2014 Governed Inference",
+    "content_len": 8248,
+    "banned_lexicon_hits": [],
+    "excerpt": "### Platform health\nREACHABLE\na11oy runtime answered ok; inspect its evidence state in the source.\n\nSource /healthz \u2192\nEvery governed state change produces a hash-chained receipt you can inspect\n**offline, in your own browser**. The interface says **SIGNED** only when persistent signer evidence is active and verification passes; otherwise it reports HASH-LINKED, UNSIGNED, DISABLED, or UNAVAILABLE. When the model is not sure, it returns an honest **BLOCKED** instead of a confident guess.\n\nThe honesty doctrine \u00b7 v11 LOCKED\n\nWe grade what we say. If a claim isn't MEASURED live this session, we tel",
+    "resolved_in_s": 10.56
+  },
+  "https://a11oy.net": {
+    "status": "LIVE",
+    "title": "a11oy Proof Registry",
+    "content_len": 12688,
+    "banned_lexicon_hits": [],
+    "excerpt": "**Honest by default** MEASURED \u00b7 REPORTED \u00b7 MODELED \u00b7 HEURISTIC \u00b7 UNKNOWNUNAVAILABLE \u00b7 IDLE\n\n**Source could not be inspected.** Empty panels stay empty. No metric is invented to fill them.\n\nOverflow from this origin. Not a fifth flagship and not a new homepage. Atelier, Ayllu, experiments, chat, code, notes, and estate stay live URLs. They are not primary nav and they are not the first fold.\n\nScan this table first. A figure without method, date, and N is omitted. Product-runtime state is not implied by this origin being up.\n\n|Claim|Class|Method / date / N|Bound|\n|--|--|--|--|\n|This origin is a",
+    "resolved_in_s": 13.72
+  }
+}

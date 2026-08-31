@@ -1,0 +1,81 @@
+# SZL CLAIMS LEDGER — technical truth state of the estate.
+# Law: a public claim without an evidence_file auto-demotes to UNKNOWN.
+# Zero-Bandaid: no entry may claim COMPLETE while its evidence file is absent.
+# refreshed: 2026-08-30 (round 10 — full estate spin-up)
+entries:
+  - id: T-01
+    claim: "a11oy GovernedAction/v1 predicate defined as in-toto ITE-6 statement"
+    state: COMPLETE
+    evidence_file: a11oy/receipts.py
+  - id: T-02
+    claim: "TypedPolicyEngine: default DENY, first-match-wins, obligations accumulate, most-restrictive side-effect wins"
+    state: COMPLETE
+    evidence_file: a11oy/policy_engine.py
+  - id: T-03
+    claim: "SegmentedFlightRecorder: flock+fsync local durability, hash chain, PENDING_SYNC visible, verify_integrity()"
+    state: COMPLETE
+    evidence_file: a11oy/flight_recorder.py
+  - id: T-04
+    claim: "OfflineVerifier: signature check, INCOMPLETE-never-PASS, service-account rejection"
+    state: COMPLETE
+    evidence_file: a11oy/verifier.py
+  - id: T-05
+    claim: "Ed25519 signing of receipts with explicitly-labelled HMAC demo fallback"
+    state: COMPLETE
+    evidence_file: a11oy/receipts.py
+  - id: T-06
+    claim: "is_service_account=false structurally enforced for approvals (Article 12(3)(d))"
+    state: COMPLETE
+    evidence_file: a11oy/receipts.py
+  - id: T-07
+    claim: "Lexicon gate scans public surfaces for banned canonical-lexicon terms and exits nonzero"
+    state: COMPLETE
+    evidence_file: tools/lexicon_gate.py
+  - id: T-08
+    claim: "Release gate scans contradictions ledger for open BLOCKERs and exits nonzero"
+    state: COMPLETE
+    evidence_file: tools/release_gate.py
+  - id: T-09
+    claim: "Raise gate seats 24 commercial facts under the same law; UNKNOWN blocks a Series A claim"
+    state: COMPLETE
+    evidence_file: tools/raise_gate.py
+  - id: T-10
+    claim: "Proof Surface demo: 12-step deny/approve/tamper/INCOMPLETE/PENDING_SYNC/replay/Article-12 sequence emits one signed receipt chain"
+    state: COMPLETE
+    evidence_file: demo/proof_surface_demo.py
+  - id: T-11
+    claim: "GitHub org szlholdings audited live: repos enumerated, PRs classified, receipts emitted"
+    state: COMPLETE
+    evidence_file: audits/github_org_audit.md
+  - id: T-12
+    claim: "Hugging Face org audited live: models, datasets, spaces, backlink eligibility"
+    state: COMPLETE
+    evidence_file: audits/hf_estate_audit.md
+  - id: T-13
+    claim: "a-11-oy.com and a11oy.net fetched, diffed for parity, lexicon-scanned"
+    state: COMPLETE
+    evidence_file: audits/domain_audit.json
+  - id: T-14
+    claim: "Pass-level top receipt signed and published for this run, referencing sub-audit receipts as materials"
+    state: COMPLETE
+    evidence_file: receipts/pass-receipt.json
+  - id: T-15
+    claim: "Receipt claim adversarially attacked by an external cryptographer (S2.6, S2.7, S2.8)"
+    state: UNKNOWN
+    evidence_file: null
+    note: "No adversarial cryptographer has attacked the receipt-cannot-lie claim. Blocks the core company claim. Routed to Daybreak Blue S2."
+  - id: T-16
+    claim: "Production signing bound to maintained in-toto-attestation PyPI bindings with KMS/HSM identity"
+    state: UNKNOWN
+    evidence_file: null
+    note: "Demo signer works today; production binding is a distinct, dated deliverable."
+  - id: T-17
+    claim: "One external organization emitted a conformant GovernedAction/v1 receipt from the spec alone"
+    state: UNKNOWN
+    evidence_file: null
+    note: "This is the lightning-strike test. If a stranger cannot conform from docs alone, it is not a standard yet."
+  - id: T-18
+    claim: "RFC-3161 trusted timestamping binding (ntp_synced + rfc3161_token) wired into receipts"
+    state: UNKNOWN
+    evidence_file: null
+    note: "Predicates carry the field set; external TSA binding not yet executed."

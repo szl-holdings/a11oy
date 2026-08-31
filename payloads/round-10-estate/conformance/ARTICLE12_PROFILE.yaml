@@ -1,0 +1,37 @@
+# Article 12 Logging Conformance Profile (a11oy GovernedAction/v1)
+# Machine-readable. One row per statutory requirement, one resolver per row.
+# Say "Article 12 logging conformance profile" — never "EU AI Act compliant".
+profile: szl-article12-logging-conformance
+version: 1
+predicate: "https://szl.dev/GovernedAction/v1"
+generated: "2026-08-30"
+retention_minimum_days: 180          # 6-month statutory floor
+fields:
+  - id: A12-01
+    requirement: "Record-keeping of events relevant for identifying situations of risk or substantial modification"
+    resolver: "$.predicate.action.type + $.predicate.authority.evaluated_before_execution"
+    enforced_in_code: "a11oy/policy_engine.py — PolicyDecision.evaluated_before_execution always true"
+  - id: A12-02
+    requirement: "Logs enable the tracing of events throughout the system lifetime"
+    resolver: "$.predicate.timestamp.utc"
+    enforced_in_code: "a11oy/receipts.py — build_predicate stamps UTC on every receipt"
+  - id: A12-03
+    requirement: "Logs are protected against tampering"
+    resolver: "$.signatures[0].sig over PAE"
+    enforced_in_code: "a11oy/receipts.py + a11oy/verifier.py — one flipped byte kills the signature"
+  - id: A12-04
+    requirement: "Identification of the natural persons involved in the verification of results"
+    resolver: "$.predicate.approval.principal.is_service_account == false"
+    enforced_in_code: "a11oy/receipts.py raises HonestyViolation if true; verifier enforces FAIL_POLICY"
+  - id: A12-05
+    requirement: "Logs retained for the appropriate period (6-month floor)"
+    resolver: "profile.retention_minimum_days >= 180"
+    enforced_in_code: "this profile; Flight Recorder is append-only"
+  - id: A12-06
+    requirement: "Logs accessible to authorities on request"
+    resolver: "offline verification path in a11oy/verifier.py (no network)"
+    enforced_in_code: "OfflineVerifier verifies envelopes without vendor, outage, or network"
+limits:
+  - "This profile covers the LOGGING surface of Article 12 only."
+  - "It does not assert conformity with Annex III classification, risk management, data governance, or transparency obligations."
+  - "Customer-specific applicability is not established by this file."

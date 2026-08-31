@@ -1,0 +1,66 @@
+# SZL CONTRADICTION LEDGER
+# Law: severity=BLOCKER auto-sets blocks_release=true (enforced in code).
+# Every open BLOCKER fails release_gate.py. Failing on first run is correct —
+# the exit codes are the Week 1 checklist.
+# refreshed: 2026-08-30 (round 10)
+entries:
+  - id: B-01
+    claim: "Zenity $125M Series C (2026-08-04) + Obsidian $85M Series D at $1.1B (2026-08-04) capitalize the monitor/control/police lane ~10x beyond current reach"
+    contradicts: "Any plan to compete head-on on agent monitoring, control, or policing"
+    severity: HIGH
+    resolution: "Moat inversion: give away GovernedAction/v1 format, sell the control plane above it"
+  - id: B-02
+    claim: "JetStream Security $34M seed (2026-03) on team+thesis, pre-product; WitnessAI $58M strategic (2026-01) shipping agentic governance console"
+    contradicts: "Prior competitive framing of empty category / platform incumbents only"
+    severity: HIGH
+    resolution: "Cite them; position as the receipt format they must emit, not their feature competitor"
+  - id: B-03
+    claim: "OpenAI Codex auto-review ships pre-execution approval of elevated-permission actions ([auto_review] config)"
+    contradicts: "The unexamined claim that no incumbent gates agent actions pre-execution"
+    severity: HIGH
+    resolution: "Codex auto-review decides; a11oy proves. Decision does not survive vendor, outage, or auditor. Cite it as validation; sell the receipt gap."
+  - id: B-04
+    claim: "No pricing page, no pricing model, no SKU structure published anywhere in the estate"
+    contradicts: "Any gross margin, NRR, CAC payback, or burn multiple figure in a fundraise narrative"
+    severity: BLOCKER
+    resolution: "Price Control + Assurance even badly. A wrong defensible price beats no price."
+  - id: B-05
+    claim: "Solo founder executes all roles: deployment engineer, QA lead, PM, security officer, model researcher, marketing"
+    contradicts: "Series A gatekeeping statistics: solo founders graduate at ~12.9% vs ~23.7% (2 founders), ~29.3% (3)"
+    severity: BLOCKER
+    resolution: "One named co-founder or security-credentialed advisor with real title in the deck. Fix the denominator."
+  - id: B-06
+    claim: "Docker-tier HF Spaces on free cpu-basic require PRO subscription (reported 2026-07); killinchu is a custom-Docker Space"
+    contradicts: "The assumption the 26-Space estate is fully recreatable at current billing state"
+    severity: BLOCKER
+    resolution: "Confirm org PRO/billing status against Docker count; demote LAB-tier Docker to static or archive with dated frozen banner"
+  - id: B-07
+    claim: "HF links Spaces to models only via literal model IDs statically parsed from repo files"
+    contradicts: "The assumption that YAML-config-only or dynamic model references backlink automatically"
+    severity: HIGH
+    resolution: "Add models: front-matter + literal-ID file to every Space; one commit per Space"
+  - id: B-08
+    claim: "OpenAI hardware-security-key enforcement on individual Daybreak accounts begins 2026-09-01"
+    contradicts: "Replit-era credentials never rotated treated as safe"
+    severity: HIGH
+    resolution: "Enroll hardware keys; treat Replit-era credentials as compromised until rotated"
+  - id: B-09
+    claim: "Receipt-cannot-lie claim has never been adversarially attacked by an external party"
+    contradicts: "The company thesis that a signed receipt is trusted by an auditor"
+    severity: BLOCKER
+    resolution: "Daybreak Blue S2.6-S2.8 adversarial review: verifier PASS-forgery, redaction-vs-integrity, service-account spoof"
+  - id: B-10
+    claim: "ChatGPT share transcripts (14 references in prior rounds) remain UNAVAILABLE to the audit corpus"
+    contradicts: "Any claim that the full decision history is machine-auditable"
+    severity: MEDIUM
+    resolution: "Paste raw transcripts to docs/context/chatgpt-shares/ and promote from UNAVAILABLE"
+  - id: B-11
+    claim: "Bricklayer patent adjacency (Round 4) unresolved by counsel"
+    contradicts: "Independently reimplementing runtime-interception code is automatically safe"
+    severity: HIGH
+    resolution: "Counsel review before any runtime-interception code is written (IP-001)"
+  - id: B-12
+    claim: "Seven flagship surfaces are surfaces, not three use cases that work with zero custom configuration"
+    contradicts: "Design-partner exit criterion: 80%+ paid conversion AND three zero-config use cases"
+    severity: HIGH
+    resolution: "Converge on governed agent change management as the single zero-config workflow first"
