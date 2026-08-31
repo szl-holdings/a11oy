@@ -1,0 +1,105 @@
+name: One-time shared-source sync for killinchu 363
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+    paths:
+      - ".github/workflows/_bootstrap-sync-shared-killinchu-363.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bootstrap-shared-killinchu-363-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.head_ref == 'fix/sync-shared-ruff-killinchu-363'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the a11oy PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 1
+
+      - name: Checkout the exact killinchu source commit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/killinchu
+          ref: 437eed3e98d70ebda73ad0552f6e7b647e951e77
+          path: _killinchu_peer
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Copy the exact shared lint-cleaned sources
+        shell: bash
+        env:
+          SOURCE_SHA: 437eed3e98d70ebda73ad0552f6e7b647e951e77
+        run: |
+          set -euo pipefail
+          test "$(git -C _killinchu_peer rev-parse HEAD)" = "$SOURCE_SHA"
+
+          files=(
+            "a11oy_code_engine.py"
+            "a11oy_mcp_client.py"
+            "corpus/formulas/a11oy__szl_formula_wiring.py"
+            "corpus/formulas/a11oy__szl_formulas.py"
+            "szl_agentic_loop.py"
+            "szl_alloy_models.py"
+            "szl_calibration.py"
+            "szl_conjecture_factory.py"
+            "szl_connectors/base.py"
+            "szl_connectors/crm/crm_connectors.py"
+            "szl_connectors/data_sources/geo.py"
+            "szl_connectors/data_sources/macro.py"
+            "szl_connectors/data_sources/maritime_air.py"
+            "szl_connectors/data_sources/research.py"
+            "szl_connectors/data_sources/security.py"
+            "szl_connectors/erp/erpnext.py"
+            "szl_connectors/erp/odoo.py"
+            "szl_connectors/erp/sap_s4.py"
+            "szl_connectors/oauth.py"
+            "szl_connectors/observability/observability_connectors.py"
+            "szl_connectors/ready.py"
+            "szl_connectors/storage/storage_connectors.py"
+            "szl_connectors_serve.py"
+            "szl_ecosystem_routes.py"
+            "szl_energy_sovereign.py"
+            "szl_formula_wiring.py"
+            "szl_formulas.py"
+            "szl_kc_loop_forge.py"
+            "szl_kc_loop_forge_metrics.py"
+            "szl_live_wires.py"
+            "szl_qhawaq.py"
+            "szl_quantum_bio.py"
+            "szl_rag.py"
+            "szl_rosie_companion.py"
+            "szl_sapa.py"
+            "szl_unay_routes.py"
+            "szl_v4_fleet.py"
+            "szl_waqay.py"
+            "szl_warhacker_aliases.py"
+            "szl_yupay.py"
+          )
+
+          for path in "${files[@]}"; do
+            test -f "_killinchu_peer/$path"
+            install -D -m 0644 "_killinchu_peer/$path" "$path"
+            cmp -s "_killinchu_peer/$path" "$path"
+          done
+
+          rm -rf _killinchu_peer
+          rm -f .github/workflows/_bootstrap-sync-shared-killinchu-363.yml
+
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          test "$(git diff --cached --name-only | wc -l | tr -d ' ')" -eq 41
+          git commit -s -m "fix(shared): mirror killinchu 363 lint cleanup"
+          git push origin "HEAD:refs/heads/${GITHUB_HEAD_REF}"
