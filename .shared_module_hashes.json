@@ -3,7 +3,7 @@
   "algorithm": "sha256",
   "modules": {
     "a11oy_agent_loop.py": "94c4031a53cf6c677a0667694a5749997586d895ad7340ddc32e654e31a31ce4",
-    "a11oy_mcp_client.py": "f1002948e9f081b88f8424119d541aeb2bdb48e84b681f317913a5131dfb99d5",
+    "a11oy_mcp_client.py": "5ba52fefbe8ce78bb598d046a94022f933a498a2d101bb415b3daa07d02266ca",
     "operator_shell_v4.py": "df333df963cdef5fd3279e9e474cbf2305a822fd2bbaf798f0c09cae08292372"
   }
 }
