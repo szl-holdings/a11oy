@@ -1,0 +1,66 @@
+name: temporary-forward-port-hf-security-dot-parity
+
+on:
+  push:
+    branches:
+      - fix/hf-security-dot-parity-current-main-20260831
+    paths:
+      - .github/workflows/temporary-forward-port-hf-security-dot-parity.yml
+
+permissions:
+  contents: write
+
+jobs:
+  forward-port:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact current-main successor
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-security-dot-parity-current-main-20260831
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install hash-locked focused test closure
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Apply and qualify only reviewed dot-parity files
+        shell: bash
+        env:
+          REVIEWED_HEAD: e3b6ee09ef1a24f71c5a6908453a126a10988890
+          EXPECTED_BASE: d7d46fff7b03035cf29ee0aec46613715ac52a45
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$EXPECTED_BASE"
+          git cat-file -e "$REVIEWED_HEAD^{commit}"
+          git checkout "$REVIEWED_HEAD" -- \
+            .github/scripts/verify_hf_security_candidate_admission.py \
+            tests/test_hf_security_candidate_admission.py
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' .github/scripts/verify_hf_security_candidate_admission.py tests/test_hf_security_candidate_admission.py | sort)"
+          test "$changed" = "$expected"
+          python -m pytest -q \
+            tests/test_hf_security_candidate_admission.py \
+            tests/test_verify_hf_candidate_admission.py \
+            tests/test_hf_candidate_selector_wiring.py
+          python -m py_compile \
+            .github/scripts/verify_hf_security_candidate_admission.py \
+            tests/test_hf_security_candidate_admission.py
+          git diff --cached --check
+
+      - name: Commit exact qualified files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git commit \
+            -m "fix(ci): bind dot-prefixed HF security parity" \
+            -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:refs/heads/fix/hf-security-dot-parity-current-main-20260831
