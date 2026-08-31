@@ -87,11 +87,17 @@ jobs:
             test "$SYNC_CONCLUSION" = success
             test "$SYNC_HEAD_BRANCH" = main
             [[ "$SYNC_HEAD_SHA" =~ ^[0-9a-f]{40}$ ]]
-            test "$SYNC_HEAD_SHA" = "$current_main"
+            if ! test "$SYNC_HEAD_SHA" = "$current_main"; then
+              echo "stale=true" >> "$GITHUB_OUTPUT"
+              echo "::notice::Sync head $SYNC_HEAD_SHA was superseded by main $current_main before this canary started; skipping the stale run. The successor sync triggers its own canary."
+              exit 0
+            fi
           fi
+          echo "stale=false" >> "$GITHUB_OUTPUT"
           echo "source_sha=$current_main" >> "$GITHUB_OUTPUT"
 
       - name: Checkout literal protected main
+        if: ${{ steps.resolve-source.outputs.stale != 'true' }}
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: refs/heads/main
@@ -99,6 +105,7 @@ jobs:
 
       - name: Verify protected main did not move across checkout
         id: verify-source
+        if: ${{ steps.resolve-source.outputs.stale != 'true' }}
         env:
           GH_TOKEN: ${{ github.token }}
           PRECHECK_SOURCE_SHA: ${{ steps.resolve-source.outputs.source_sha }}
@@ -107,25 +114,30 @@ jobs:
           set -euo pipefail
           checked_out="$(git rev-parse HEAD)"
           current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
-          test "$checked_out" = "$PRECHECK_SOURCE_SHA"
-          test "$current_main" = "$PRECHECK_SOURCE_SHA"
+          if ! test "$checked_out" = "$PRECHECK_SOURCE_SHA" || ! test "$current_main" = "$PRECHECK_SOURCE_SHA"; then
+            echo "::notice::Main moved across checkout (precheck $PRECHECK_SOURCE_SHA, now $current_main); skipping the stale canary run."
+            exit 0
+          fi
           echo "source_sha=$checked_out" >> "$GITHUB_OUTPUT"
 
       - name: Set up Python
+        if: ${{ steps.resolve-source.outputs.stale != 'true' }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
       - name: Install pinned focused-test dependencies
+        if: ${{ steps.resolve-source.outputs.stale != 'true' }}
         run: python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
 
       - name: Verify trusted live-canary logic offline
+        if: ${{ steps.resolve-source.outputs.stale != 'true' }}
         run: |
           python3 -m py_compile scripts/audit_hf_frontend_live_canary_v1.py
           python3 -m pytest -q tests/test_hf_frontend_live_canary_v1.py
 
   live-canary:
-    if: ${{ github.event_name != 'pull_request' && needs.trusted-contract.result == 'success' }}
+    if: ${{ github.event_name != 'pull_request' && needs.trusted-contract.result == 'success' && needs.trusted-contract.outputs.source_sha != '' }}
     needs: trusted-contract
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -150,6 +162,7 @@ jobs:
           persist-credentials: false
 
       - name: Require exact current protected main
+        id: preflight
         shell: bash
         run: |
           set -euo pipefail
@@ -157,19 +170,23 @@ jobs:
           current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           test "$checked_out" = "$EXPECTED_SOURCE_SHA"
           if [ "$current_main" != "$EXPECTED_SOURCE_SHA" ]; then
-            echo "::error::Canary source ${EXPECTED_SOURCE_SHA} is not current main ${current_main}."
-            exit 1
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Canary source ${EXPECTED_SOURCE_SHA} was superseded by main ${current_main}; skipping instead of auditing a stale checkout."
+            exit 0
           fi
 
       - name: Set up Python
+        if: ${{ steps.preflight.outputs.stale != 'true' }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
 
       - name: Install exact browser controller
+        if: ${{ steps.preflight.outputs.stale != 'true' }}
         run: python3 -m pip install --disable-pip-version-check 'playwright==1.55.0'
 
       - name: Resolve system Chromium
+        if: ${{ steps.preflight.outputs.stale != 'true' }}
         id: chrome
         shell: bash
         run: |
@@ -180,6 +197,7 @@ jobs:
           "$chrome" --version
 
       - name: Audit all live viewport classes and source identities
+        if: ${{ steps.preflight.outputs.stale != 'true' }}
         id: audit
         shell: bash
         env:
@@ -196,7 +214,7 @@ jobs:
 
       - name: Upload immutable browser evidence
         id: evidence
-        if: always()
+        if: ${{ always() && steps.preflight.outputs.stale != 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: hf-frontend-live-canary-${{ github.run_id }}-${{ github.run_attempt }}
@@ -205,6 +223,7 @@ jobs:
           retention-days: 90
 
       - name: Synchronize deterministic drift issue
+        id: issue-sync
         if: ${{ always() && steps.evidence.outcome == 'success' }}
         shell: bash
         env:
@@ -268,8 +287,9 @@ jobs:
           PY
           current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
           if [ "$current_main" != "$EXPECTED_SOURCE_SHA" ]; then
-            echo "::error::Main advanced to ${current_main}; refusing stale issue mutation for ${EXPECTED_SOURCE_SHA}."
-            exit 1
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Main advanced to ${current_main}; skipping issue mutation for superseded source ${EXPECTED_SOURCE_SHA}. The successor canary files or closes the issue."
+            exit 0
           fi
           if [ "${EXIT_CODE:-1}" = '0' ]; then
             if [ -n "$number" ] && [ "$issue_state" = "OPEN" ]; then
@@ -291,7 +311,7 @@ jobs:
           fi
 
       - name: Enforce the live contract
-        if: always()
+        if: ${{ always() && steps.preflight.outputs.stale != 'true' && steps.issue-sync.outputs.stale != 'true' }}
         env:
           EXIT_CODE: ${{ steps.audit.outputs.exit_code }}
         run: |
