@@ -1,0 +1,81 @@
+name: Diagnose EPSS singleflight transport
+
+on:
+  push:
+    branches:
+      - fix/readiness-manifest-postmerge-20260831
+    paths:
+      - .github/workflows/diagnose-epss-singleflight.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: diagnose-epss-singleflight
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Identify every urllib caller during the stalled EPSS contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact diagnostic revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact readiness dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Instrument the isolated regression without changing the branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/test_readiness_blocker_repairs.py')
+          text = path.read_text(encoding='utf-8')
+          marker = 'def test_epss_stalled_read_has_hard_caller_budget_and_no_thread_buildup('
+          before, sep, tail = text.partition(marker)
+          if not sep:
+              raise SystemExit('stalled EPSS regression marker missing')
+          old = '''    def stalled_fetch(*_args, **_kwargs):
+              network_calls.append(True)
+              return StalledResponse()
+          '''.replace('          ', '')
+          new = '''    def stalled_fetch(*_args, **_kwargs):
+              request = _args[0] if _args else None
+              url = getattr(request, "full_url", str(request))
+              network_calls.append((threading.current_thread().name, url))
+              return StalledResponse()
+          '''.replace('          ', '')
+          if tail.count(old) != 1:
+              raise SystemExit(f'expected one stalled_fetch target, found {tail.count(old)}')
+          path.write_text(before + sep + tail.replace(old, new, 1), encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Emit exact duplicate caller evidence
+        shell: bash
+        run: |
+          set +e
+          python -m pytest -q -s \
+            tests/test_readiness_blocker_repairs.py::test_epss_stalled_read_has_hard_caller_budget_and_no_thread_buildup
+          code=$?
+          echo "diagnostic_exit_code=${code}"
+          test "$code" -ne 0
