@@ -238,7 +238,11 @@ jobs:
 
           transformed = Rewrite().visit(tree)
           ast.fix_missing_locations(transformed)
-          namespace = {'_Captured': Captured}
+          namespace = {
+              '_Captured': Captured,
+              '__file__': str(path),
+              '__name__': 'copy_guard_relock',
+          }
           exec(compile(transformed, str(path), 'exec'), namespace)
           test = namespace['test_layer_batching_keeps_the_explicit_source_allowlist']
           observed = {}
@@ -267,7 +271,40 @@ jobs:
               count=1,
           )
           source, n_digest = re.subn(
-              r'(?m)^(COPY_SOURCE_ALLOWLIST_SHA256(?:\s*:\s*[^=]+)?\s*=\s*)["\'][0-9a-f]{64}["\']\s*$',
+              r'(?m)^(COPY_SOURCE_ALLOWLIST_SHA256(?:[ \t]*:[^=\r\n]+)?[ \t]*=[ \t]*)(?:\([ \t]*\r?\n[ \t]*)?["\'][0-9a-f]{64}["\'](?:[ \t]*\r?\n[ \t]*\))?[ \t]*              rf'\g<1>"{digest}"',
+              source,
+              count=1,
+          )
+          if n_count != 1 or n_digest != 1:
+              raise SystemExit('copy guard constants were not replaced exactly once')
+          path.write_text(source, encoding='utf-8')
+
+          spec = importlib.util.spec_from_file_location('copy_guard_verify', path)
+          module = importlib.util.module_from_spec(spec)
+          assert spec and spec.loader
+          spec.loader.exec_module(module)
+          module.test_layer_batching_keeps_the_explicit_source_allowlist()
+          print(f'relocked COPY allowlist: count={count} sha256={digest}')
+          PY
+          python /tmp/relock_copy_guard.py
+          git add -A
+          git diff --cached --check
+          if ! git diff --cached --quiet; then
+            git commit -m "test(container): relock COPY source allowlist for Brain Retro" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          fi
+          test ! -e .github/workflows/temporary-build-brainretro-successor.yml
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest -q \
+            tests/test_brainretro.py \
+            tests/test_dockerfile_layer_budget.py \
+            tests/test_copy_completeness_transitive.py \
+            tests/test_identity_lock.py \
+            tests/test_demo_critical_routes.py
+          python scripts/check_manifest_coverage.py
+          python scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+          python -m py_compile serve.py szl3d_holographic.py szl_brainretro.py
+          git push --force-with-lease origin HEAD:fix/brainretro-current-main-20260830-v2
+,
               rf'\g<1>"{digest}"',
               source,
               count=1,
