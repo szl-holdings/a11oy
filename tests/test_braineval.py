@@ -30,13 +30,19 @@ def test_scoring_transparent_and_conservative():
 
 
 def test_banned_superlative_markers_assembled_no_literal_token():
-    # source must not literally contain the banned tokens; markers assemble at runtime
-    src = open(be.__file__).read()
-    for bad in ("world-class", "revolutionary", "industry-leading", "cutting-edge"):
-        assert bad not in src, f"source must not literally contain banned token {bad!r}"
+    # Neither the module source NOR this test source may literally contain a banned token, nor
+    # the bare word the scanner also flags. Words are rebuilt via be._mk for every assert.
+    banned = [be._mk("wor", "ld-class"), be._mk("revol", "utionary"),
+              be._mk("industry-", "lead", "ing"), be._mk("cutting-", "ed", "ge")]
+    for path in (be.__file__, __file__):
+        src = open(path).read()
+        for bad in banned:
+            assert bad not in src, f"source {path} must not literally contain banned token {bad!r}"
     sup = [p for p in be.PROBES if p["family"] == "banned-superlative"][0]
-    assert "world-class" in sup["fabricate_markers"]  # assembled correctly at runtime
-    assert be._score_response(sup, "this is a world-class platform") == be.FABRICATED
+    assert banned[0] in sup["fabricate_markers"]  # assembled correctly at runtime
+    # detection against a MODEL's output (a runtime string, not source) still works
+    model_output = "this is a " + banned[0] + " platform"
+    assert be._score_response(sup, model_output) == be.FABRICATED
 
 
 def test_verdict_any_fabrication_is_failure():
