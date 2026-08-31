@@ -7,6 +7,9 @@ from pathlib import Path
 
 SPEC_PATH = Path(__file__).resolve().parents[1] / "config" / "a11oy-frontdoor" / "PATCH_SPEC.json"
 
+MENU_TOGGLE_PREVIOUS = "  .menu-toggle{display:none;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;margin-left:auto;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.04);color:var(--ink);cursor:pointer;font-size:20px;line-height:1}"
+MENU_TOGGLE_FINAL = "  .menu-toggle{display:none;align-items:center;justify-content:center;width:48px;height:48px;min-width:48px;min-height:48px;padding:0;margin-left:auto;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--ink);cursor:pointer;font-size:20px;line-height:1}"
+
 MEASURED_INTERMEDIATE = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, separately reported signer state, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip.</p></div>'
 MEASURED_FINAL = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present.</p></div>'
 MEASURED_NVIDIA = '<div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present. Never used for GPU joules without a live exporter delta.</p></div>'
@@ -24,7 +27,7 @@ MOBILE_FINAL_BLOCK = '''  @media(max-width:560px){
     .wrap{padding-inline:16px}
     section.band{padding-block:64px}
     .hero{min-height:auto}
-    .hero .wrap{padding-top:44px;padding-bottom:44px}
+    .hero .wrap{padding-top:32px;padding-bottom:44px}
     .cta-row{display:grid;grid-template-columns:1fr;width:100%}
     .cta-row .btn{width:100%;white-space:normal;text-align:center}
     .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
@@ -34,10 +37,18 @@ MOBILE_FINAL = (
     "  /* Mobile overrides intentionally follow all equal-specificity base rules. */\n"
     + MOBILE_FINAL_BLOCK
 )
+MOBILE_PREVIOUS_BLOCK = MOBILE_FINAL_BLOCK.replace(
+    "padding-top:32px", "padding-top:44px"
+)
+MOBILE_PREVIOUS = (
+    "  /* Mobile overrides intentionally follow all equal-specificity base rules. */\n"
+    + MOBILE_PREVIOUS_BLOCK
+)
 
 REVIEWED_SUCCESSORS = {
     "measured_legend": MEASURED_NVIDIA,
     "mobile_layout_hardening": MOBILE_FINAL,
+    "mobile_menu_hit_area": MENU_TOGGLE_FINAL,
 }
 
 
@@ -57,6 +68,14 @@ def _converge_reviewed_successors(text: str) -> str:
             text = text.replace(MEASURED_INTERMEDIATE, MEASURED_NVIDIA, 1)
         else:
             raise PatchError("measured_legend: reviewed successor anchor is absent or ambiguous")
+
+    previous_mobile_count = text.count(MOBILE_PREVIOUS)
+    if MOBILE_FINAL not in text and previous_mobile_count == 1:
+        text = text.replace(MOBILE_PREVIOUS, MOBILE_FINAL, 1)
+    elif MOBILE_FINAL not in text and previous_mobile_count > 1:
+        raise PatchError(
+            "mobile_layout_hardening: previous successor is duplicated"
+        )
 
     if MOBILE_FINAL not in text:
         late_intermediate = (
@@ -84,11 +103,27 @@ def apply_text(text: str, spec: dict) -> tuple[str, list[dict]]:
         old, new, name = item["old"], item["new"], item["name"]
         successor = REVIEWED_SUCCESSORS.get(name)
         successor_count = text.count(successor) if successor else 0
+        previous_successor = (
+            MOBILE_PREVIOUS if name == "mobile_layout_hardening" else None
+        )
+        previous_successor_count = (
+            text.count(previous_successor) if previous_successor else 0
+        )
         if successor_count == 1:
             results.append({"name": name, "state": "REVIEWED_SUCCESSOR"})
             continue
         if successor_count > 1:
             raise PatchError(f"{name}: reviewed successor is duplicated ({successor_count})")
+        if previous_successor_count == 1:
+            results.append(
+                {"name": name, "state": "REVIEWED_PREVIOUS_SUCCESSOR"}
+            )
+            continue
+        if previous_successor_count > 1:
+            raise PatchError(
+                f"{name}: previous reviewed successor is duplicated "
+                f"({previous_successor_count})"
+            )
 
         old_count = text.count(old)
         new_count = text.count(new)
@@ -123,6 +158,8 @@ def validate_truth(text: str) -> list[str]:
         '<div class="estate-cell"><b>22</b><span>Collections</span></div>',
         MEASURED_INTERMEDIATE,
         MOBILE_INTERMEDIATE_BLOCK,
+        MOBILE_PREVIOUS,
+        MENU_TOGGLE_PREVIOUS,
     ]
     for token in banned:
         if token in text:
