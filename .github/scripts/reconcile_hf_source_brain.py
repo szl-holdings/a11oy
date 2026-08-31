@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Reconcile exact public HF source bytes and the derived Brain registry.
+"""Prove exact public HF source parity and refresh the derived Brain registry.
 
 This bounded migration is executed once from an unprotected recovery branch.
-It imports only an explicit allowlist from one immutable Hugging Face Space
-revision, refreshes the registry from the repository's actual graph, and emits
-a permanent machine-readable proof. The launcher removes this script before
-committing the reconciled tree.
+It verifies an explicit allowlist against one immutable Hugging Face Space
+revision, imports only bytes that differ, refreshes the registry from the
+repository's actual graph, and emits a permanent machine-readable proof. The
+launcher removes this script before committing the reconciled tree.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ import hashlib
 import importlib
 import json
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -151,25 +150,27 @@ def _copy_source(hf_root: Path, relative: str) -> dict[str, Any]:
     if ROOT.resolve() not in {resolved_parent, *resolved_parent.parents}:
         raise ReconciliationError(f"destination escapes repository root: {relative}")
     old_data = destination.read_bytes() if destination.is_file() else None
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(
-        dir=destination.parent,
-        prefix=f".{destination.name}.",
-        suffix=".partial",
-        delete=False,
-    ) as handle:
-        handle.write(data)
-        handle.flush()
-        os.fsync(handle.fileno())
-        temporary = Path(handle.name)
-    os.replace(temporary, destination)
+    changed = old_data != data
+    if changed:
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        with tempfile.NamedTemporaryFile(
+            dir=destination.parent,
+            prefix=f".{destination.name}.",
+            suffix=".partial",
+            delete=False,
+        ) as handle:
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+            temporary = Path(handle.name)
+        os.replace(temporary, destination)
     return {
         "path": relative,
         "mode": mode,
         "bytes": len(data),
         "source_sha256": _sha256(data),
         "previous_sha256": _sha256(old_data) if old_data is not None else None,
-        "changed": old_data != data,
+        "changed": changed,
     }
 
 
@@ -202,6 +203,7 @@ def _refresh_brain_registry() -> dict[str, Any]:
         "previous_raw_nodes_available": previous_available,
         "current_raw_nodes": node_count,
         "graph_node_count": node_count,
+        "changed": previous_observed != node_count or previous_available != node_count,
     }
 
 
@@ -213,9 +215,12 @@ def main() -> int:
         _clone_exact_revision(hf_root)
         files = [_copy_source(hf_root, relative) for relative in SOURCE_PATHS]
 
-    if not any(item["changed"] for item in files):
-        raise ReconciliationError("immutable HF revision produced no source changes")
     brain = _refresh_brain_registry()
+    changed_sources = [item["path"] for item in files if item["changed"]]
+    source_state = "IMPORTED" if changed_sources else "ALREADY_MATCHED"
+    if not brain["changed"] and not changed_sources:
+        raise ReconciliationError("source and Brain registry already match; no repair is required")
+
     proof: dict[str, Any] = {
         "schema": "a11oy.hf-source-brain-reconciliation/v1",
         "status": "RECONCILED",
@@ -225,6 +230,8 @@ def main() -> int:
         "huggingface_repository": "SZLHOLDINGS/a11oy",
         "huggingface_remote": HF_REMOTE,
         "huggingface_revision": HF_REVISION,
+        "source_state": source_state,
+        "changed_source_paths": changed_sources,
         "source_policy": {
             "exact_allowlist": list(SOURCE_PATHS),
             "regular_files_only": True,
@@ -240,8 +247,9 @@ def main() -> int:
             "model_weights_changed": False,
         },
         "honesty": (
-            "This proof imports exact text bytes from one immutable public Space revision and "
-            "refreshes a derived node count. It does not certify runtime behavior or authorize weights."
+            "This proof verifies exact text-byte parity with one immutable public Space revision, "
+            "imports only mismatched allowlisted bytes, and refreshes a derived node count. It does "
+            "not certify runtime behavior or authorize model weights."
         ),
     }
     proof["proof_sha256"] = _canonical_digest(proof)
