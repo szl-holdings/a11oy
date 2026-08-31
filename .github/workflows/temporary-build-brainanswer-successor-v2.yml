@@ -1,0 +1,102 @@
+name: temporary-build-brainanswer-successor-v2
+
+on:
+  push:
+    branches:
+      - fix/brainanswer-current-main-20260830-v2
+    paths:
+      - .github/workflows/temporary-build-brainanswer-successor-v2.yml
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  repair-or-clean:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/brainanswer-current-main-20260830-v2
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Serialize behind the original builder and protected Brain Local merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          old=.github/workflows/temporary-build-brainanswer-successor.yml
+          self=.github/workflows/temporary-build-brainanswer-successor-v2.yml
+
+          if [ ! -f "$old" ]; then
+            echo "Original builder already published a final tree; removing repair runner only."
+            git rm "$self"
+            git commit -m "chore(ci): remove completed Brain Answer repair runner" -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+            git push origin HEAD:fix/brainanswer-current-main-20260830-v2
+            exit 0
+          fi
+
+          for attempt in $(seq 1 210); do
+            active="$(gh run list --repo "$GITHUB_REPOSITORY" --limit 100 \
+              --json databaseId,status,name,headBranch \
+              --jq '[.[] | select(.name == "temporary-build-brainanswer-successor") | select(.headBranch == "fix/brainanswer-current-main-20260830-v2") | select(.status == "queued" or .status == "in_progress")] | length' \
+              2>/dev/null || echo 0)"
+            if [ "$active" = 0 ]; then
+              break
+            fi
+            if [ "$attempt" -eq 210 ]; then
+              echo "::error::Original Brain Answer builder never left the active state."
+              exit 1
+            fi
+            sleep 20
+          done
+
+          for attempt in $(seq 1 210); do
+            git fetch -q origin main
+            if git cat-file -e origin/main:szl_brainlocal.py 2>/dev/null \
+              && git cat-file -e origin/main:tests/test_brainlocal.py 2>/dev/null; then
+              echo "Protected main contains Brain Local."
+              break
+            fi
+            if [ "$attempt" -eq 210 ]; then
+              echo "::error::Brain Local never appeared on protected main."
+              exit 1
+            fi
+            sleep 20
+          done
+
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          path = Path('.github/workflows/temporary-build-brainanswer-successor.yml')
+          lines = path.read_text(encoding='utf-8').splitlines()
+          marker = '      - name: Rebuild Brain Answer on current protected main'
+          try:
+              start = lines.index(marker)
+          except ValueError as exc:
+              raise SystemExit('reviewed Brain Answer build step is missing') from exc
+          run_index = None
+          for idx in range(start + 1, len(lines)):
+              if lines[idx].strip() == 'run: |':
+                  run_index = idx
+                  break
+              if lines[idx].startswith('      - name:'):
+                  break
+          if run_index is None:
+              raise SystemExit('reviewed Brain Answer build script is missing')
+          block = []
+          for line in lines[run_index + 1:]:
+              if line.startswith('      - name:'):
+                  break
+              block.append(line)
+          script = textwrap.dedent('\n'.join(block)).strip() + '\n'
+          if 'szl_brainanswer.py' not in script or 'git push --force-with-lease' not in script:
+              raise SystemExit('extracted build step does not match the reviewed Brain Answer contract')
+          Path('/tmp/rebuild-brainanswer.sh').write_text(script, encoding='utf-8')
+          PY
+          bash /tmp/rebuild-brainanswer.sh
