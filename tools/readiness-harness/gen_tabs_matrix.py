@@ -301,16 +301,18 @@ ENDPOINTS = {
             "The canonical label describes source freshness; field-level detail remains explicit."
         ),
     ),
-    # router/stats: the current endpoint is a deterministic modeled display of
-    #   the real tier catalog. It is not production traffic, QPS, tokens,
-    #   completed inference, or an observed routing-decision counter.
+    # router/stats: live process-lifetime routing-decision counters incremented
+    #   only by trusted routing-receipt writes. The compatibility display fields
+    #   carry exact counts, not production traffic, QPS, tokens, or completed
+    #   inference. A missing counter fails closed at the endpoint.
     "/api/a11oy/v1/router/stats": ep(
         schema="router_stats",
         sla=None,
-        allow_labels=("live", "cached", "modeled"),
+        allow_labels=("live", "cached"),
         note=(
-            "Deterministic MODELED tier-display signals from szl_brain.TIERS; "
-            "not production traffic, QPS, tokens, or completed inference."
+            "Live process-lifetime routing-decision counters from trusted registry "
+            "receipt writes; not QPS, tokens, inference completions, or traffic "
+            "outside this process. Zero is a valid observed count."
         ),
     ),
 
@@ -713,21 +715,29 @@ SCHEMAS = {
     "router_stats": {
         "type": "object",
         "required": [
-            "state", "mode", "catalog_state", "throughput_state",
-            "routes", "servedThisWindow", "tiers", "source", "doctrine", "honesty",
+            "state", "mode", "data_kind", "catalog_state", "throughput_state",
+            "routes", "servedThisWindow", "routingDecisionsSinceStart", "tiers",
+            "counter_scope", "counter_started_at", "observed_at", "source",
+            "catalog_source", "doctrine", "honesty",
         ],
         "properties": {
-            "state": {"const": "MODELED"},
-            "mode": {"const": "modeled"},
+            "state": {"const": "LIVE"},
+            "mode": {"const": "live"},
+            "data_kind": {"const": "live"},
             "catalog_state": {"const": "LIVE"},
-            "throughput_state": {"const": "MODELED"},
-            "source": {"const": "szl_brain.TIERS"},
+            "throughput_state": {"const": "OBSERVED"},
+            "counter_scope": {"const": "process_lifetime"},
+            "source": {"const": "szl_llm_registry.router_stats_snapshot"},
+            "catalog_source": {"const": "szl_llm_registry.MODEL_REGISTRY"},
             "doctrine": {"const": "v11"},
         },
         "requiredPathTypes": {
-            "routes": "nonempty_array",
+            "routes": "array",
             "servedThisWindow": "nonnegative_integer",
+            "routingDecisionsSinceStart": "nonnegative_integer",
             "tiers": "nonempty_array",
+            "counter_started_at": "timestamp",
+            "observed_at": "timestamp",
             "honesty": "string",
         },
     },

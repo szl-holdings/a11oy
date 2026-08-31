@@ -199,7 +199,9 @@ def test_router_stats_gate_still_requires_live_or_cached_evidence() -> None:
     assert schema["properties"]["source"] == {
         "const": "szl_llm_registry.router_stats_snapshot"
     }
-    assert schema["requiredPathTypes"]["routes"] == "nonempty_array"
+    # A freshly restarted process has no routing receipts yet, so an empty
+    # array is valid evidence when the exact process-lifetime total is zero.
+    assert schema["requiredPathTypes"]["routes"] == "array"
     assert schema["requiredPathTypes"]["servedThisWindow"] == "nonnegative_integer"
 
 

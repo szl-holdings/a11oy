@@ -55,23 +55,27 @@ class ReadinessHonestyRelockTests(unittest.TestCase):
   "degraded",
   endpoints["/api/a11oy/v1/rag/status"]["degradedRules"]["allowLabels"],
         )
-        self.assertIn(
+        self.assertNotIn(
   "modeled",
   endpoints["/api/a11oy/v1/router/stats"]["degradedRules"]["allowLabels"],
         )
 
-    def test_router_schema_matches_the_truthful_modeled_payload(self) -> None:
+    def test_router_schema_matches_the_live_observed_counter_payload(self) -> None:
         schema = MATRIX.SCHEMAS["router_stats"]
-        self.assertEqual(schema["properties"]["state"], {"const": "MODELED"})
-        self.assertEqual(schema["properties"]["mode"], {"const": "modeled"})
+        self.assertEqual(schema["properties"]["state"], {"const": "LIVE"})
+        self.assertEqual(schema["properties"]["mode"], {"const": "live"})
         self.assertEqual(
   schema["properties"]["throughput_state"],
-  {"const": "MODELED"},
+  {"const": "OBSERVED"},
         )
-        self.assertEqual(schema["properties"]["source"], {"const": "szl_brain.TIERS"})
-        self.assertNotIn("routingDecisionsSinceStart", schema["required"])
-        self.assertNotIn("counter_scope", schema["required"])
-        self.assertNotIn("counter_started_at", schema["required"])
+        self.assertEqual(
+  schema["properties"]["source"],
+  {"const": "szl_llm_registry.router_stats_snapshot"},
+        )
+        self.assertIn("routingDecisionsSinceStart", schema["required"])
+        self.assertIn("counter_scope", schema["required"])
+        self.assertIn("counter_started_at", schema["required"])
+        self.assertIn("observed_at", schema["required"])
 
 
 if __name__ == "__main__":
