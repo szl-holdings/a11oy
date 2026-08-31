@@ -332,6 +332,30 @@ def select_source_mapping(
             "candidates": verified_explicit,
             "missing_candidates": [],
         }
+
+    # A Space card may cite related repositories, dependencies, and sibling
+    # projects in addition to its own source. When the README yields several
+    # valid organization repositories, accept a tie-break only if exactly one
+    # explicit link is also a normalized name candidate for this Space.
+    # Genuine two-name matches and every unresolved URL remain blocked.
+    if len(verified_explicit) > 1 and not missing_explicit:
+        inferred_names = {
+            candidate.lower() for candidate in inferred_repo_candidates(space_id)
+        }
+        normalized_matches = [
+            repository
+            for repository in verified_explicit
+            if isinstance(repository.get("full_name"), str)
+            and repository["full_name"].lower() in inferred_names
+        ]
+        if len(normalized_matches) == 1:
+            return {
+                "state": "INFERRED",
+                "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
+                "canonical": normalized_matches[0],
+                "candidates": verified_explicit,
+                "missing_candidates": [],
+            }
     if verified_explicit or missing_explicit:
         return {
             "state": "DIVERGENT" if len(verified_explicit) != 1 or missing_explicit else "EXACT",

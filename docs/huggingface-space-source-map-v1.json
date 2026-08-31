@@ -6,14 +6,14 @@
   "spaces": [
     {
       "explicit_github_repositories": [
-        "szl-holdings/.github",
         "szl-holdings/a11oy",
+        "szl-holdings/a11oy-factory",
         "szl-holdings/developers",
         "szl-holdings/killinchu",
         "szl-holdings/lutar-lean",
         "szl-holdings/szl-cookbook"
       ],
-      "hf_repository_sha": "e2a8312405ddf8d6875d69de7886feff17ffd991",
+      "hf_repository_sha": "05d77ca8f9c750ea2073298b2985f2006497f8d5",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -21,9 +21,11 @@
           "app_port",
           "colorfrom",
           "colorto",
+          "datasets",
           "ecosystem-stage",
           "emoji",
           "license",
+          "models",
           "pinned",
           "sdk",
           "short_description",
@@ -32,47 +34,195 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "e2a8312405ddf8d6875d69de7886feff17ffd991",
-        "sha256": "28237f18c0f0021678a9666b2be4e46f783612895a03f9c55b5fb53c00e21622",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/a11oy/raw/e2a8312405ddf8d6875d69de7886feff17ffd991/README.md"
+        "revision": "05d77ca8f9c750ea2073298b2985f2006497f8d5",
+        "sha256": "3d0061431815074d4a5d598f24f7c0183055297e87323703a0cc901e5effb4e5",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/a11oy/raw/05d77ca8f9c750ea2073298b2985f2006497f8d5/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github"
-          },
-          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "67915b86cb7048f9476fd9eab87f6e60c8a7c869",
+            "disabled": false,
             "full_name": "szl-holdings/a11oy",
-            "html_url": "https://github.com/szl-holdings/a11oy"
+            "html_url": "https://github.com/szl-holdings/a11oy",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "c1467596c9c5d9f13be8a31215af3c29b68a898e",
+            "disabled": false,
+            "full_name": "szl-holdings/a11oy-factory",
+            "html_url": "https://github.com/szl-holdings/a11oy-factory",
+            "visibility": "public"
+          },
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "dde99af0564c965edc6a253d4004734157460810",
+            "disabled": false,
             "full_name": "szl-holdings/developers",
-            "html_url": "https://github.com/szl-holdings/developers"
+            "html_url": "https://github.com/szl-holdings/developers",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "07ca980c68a9364ea117f64a39124e4c1fbc48de",
+            "disabled": false,
             "full_name": "szl-holdings/killinchu",
-            "html_url": "https://github.com/szl-holdings/killinchu"
+            "html_url": "https://github.com/szl-holdings/killinchu",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "034ef1cab37c77efec57775e97e99f196def37c8",
+            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean"
+            "html_url": "https://github.com/szl-holdings/lutar-lean",
+            "visibility": "public"
           },
           {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "298cc2b367efea36f552c4dad982c4f7f4e89fbd",
+            "disabled": false,
             "full_name": "szl-holdings/szl-cookbook",
-            "html_url": "https://github.com/szl-holdings/szl-cookbook"
+            "html_url": "https://github.com/szl-holdings/szl-cookbook",
+            "visibility": "public"
           }
         ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "67915b86cb7048f9476fd9eab87f6e60c8a7c869",
+          "disabled": false,
+          "full_name": "szl-holdings/a11oy",
+          "html_url": "https://github.com/szl-holdings/a11oy",
+          "visibility": "public"
+        },
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
         "missing_candidates": [],
-        "state": "DIVERGENT"
+        "state": "INFERRED"
       },
       "space_id": "SZLHOLDINGS/a11oy",
       "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
+        "candidate_count": 24,
+        "github_ref": "67915b86cb7048f9476fd9eab87f6e60c8a7c869",
+        "paths": [
+          ".github/workflows/atelier-hub-publish.yml",
+          ".github/workflows/hf-backup-restore.yml",
+          ".github/workflows/hf-bucket-selftest.yml",
+          ".github/workflows/hf-candidate-admission-tests.yml",
+          ".github/workflows/hf-corpus-card-honesty.yml",
+          ".github/workflows/hf-corpus-freshness.yml",
+          ".github/workflows/hf-corpus-guards-selftest.yml",
+          ".github/workflows/hf-corpus-repair.yml",
+          ".github/workflows/hf-corpus-reverify.yml",
+          ".github/workflows/hf-drift-check.yml",
+          ".github/workflows/hf-ecosystem-drift.yml",
+          ".github/workflows/hf-frontend-live-canary-v1.yml",
+          ".github/workflows/hf-module-drift.yml",
+          ".github/workflows/hf-one-shot-retirement.yml",
+          ".github/workflows/hf-packet8-vertical-spaces.yml",
+          ".github/workflows/hf-space-frontend-census-v1.yml",
+          ".github/workflows/hf-space-source-map-v1.yml",
+          ".github/workflows/hf-sync.yml",
+          ".github/workflows/hf-universal-frontend-estate.yml",
+          ".github/workflows/hf-universal-frontend-rollout.yml",
+          ".github/workflows/huggingface.yml",
+          ".github/workflows/namespace-leak-check.yml",
+          ".github/workflows/no-hf-mirror-guard.yml",
+          ".github/workflows/publish-packages.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/a11oy-factory",
+        "szl-holdings/evidence-studio",
+        "szl-holdings/lyte-services"
+      ],
+      "hf_repository_sha": "52c86c0d00ee511dabba280bf8e10480f5a93651",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "suggested_hardware",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "52c86c0d00ee511dabba280bf8e10480f5a93651",
+        "sha256": "4b5232fbd5bec6f14f4f98550069dcc88560cff9490c666ff8a5cea430944fd1",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/a11oy-factory/raw/52c86c0d00ee511dabba280bf8e10480f5a93651/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "c1467596c9c5d9f13be8a31215af3c29b68a898e",
+            "disabled": false,
+            "full_name": "szl-holdings/a11oy-factory",
+            "html_url": "https://github.com/szl-holdings/a11oy-factory",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "6098d598ee1e21170393abdc446691d8340100cc",
+            "disabled": false,
+            "full_name": "szl-holdings/evidence-studio",
+            "html_url": "https://github.com/szl-holdings/evidence-studio",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "1e8b9163276a5c69b0a204faf42f066de60308f7",
+            "disabled": false,
+            "full_name": "szl-holdings/lyte-services",
+            "html_url": "https://github.com/szl-holdings/lyte-services",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "c1467596c9c5d9f13be8a31215af3c29b68a898e",
+          "disabled": false,
+          "full_name": "szl-holdings/a11oy-factory",
+          "html_url": "https://github.com/szl-holdings/a11oy-factory",
+          "visibility": "public"
+        },
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
+        "missing_candidates": [],
+        "state": "INFERRED"
+      },
+      "space_id": "SZLHOLDINGS/a11oy-factory",
+      "workflow_candidates": {
+        "candidate_count": 1,
+        "github_ref": "c1467596c9c5d9f13be8a31215af3c29b68a898e",
+        "paths": [
+          ".github/workflows/hf-sync.yml"
+        ],
+        "single_writer_candidate": true,
+        "state": "OBSERVED"
       }
     },
     {
@@ -85,10 +235,12 @@
         "szl-holdings/khipu-consensus",
         "szl-holdings/killinchu",
         "szl-holdings/lutar-lean",
+        "szl-holdings/szl-khipu",
         "szl-holdings/szl-mesh",
+        "szl-holdings/szl-organ-integrity",
         "szl-holdings/szl-papers"
       ],
-      "hf_repository_sha": "d66357340a13958adffb188ea63ab823f42820b7",
+      "hf_repository_sha": "fc9c78878e438db343f8d8c764b4ff7a1d8c683c",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -106,70 +258,151 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "d66357340a13958adffb188ea63ab823f42820b7",
-        "sha256": "5b6460220a8bdf7db4191e0eb9ecb272a493e2a68f9dae7797be608043cf8998",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/anatomy/raw/d66357340a13958adffb188ea63ab823f42820b7/README.md"
+        "revision": "fc9c78878e438db343f8d8c764b4ff7a1d8c683c",
+        "sha256": "cc691253621fd87f781d6efe183551adc5e915d5a5eaa3331d7814513ab0c13f",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/anatomy/raw/fc9c78878e438db343f8d8c764b4ff7a1d8c683c/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github"
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "67915b86cb7048f9476fd9eab87f6e60c8a7c869",
+            "disabled": false,
             "full_name": "szl-holdings/a11oy",
-            "html_url": "https://github.com/szl-holdings/a11oy"
+            "html_url": "https://github.com/szl-holdings/a11oy",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "015c0aeae6cddd081ef6883bbcab00e4a3ff5712",
+            "disabled": false,
             "full_name": "szl-holdings/anatomy",
-            "html_url": "https://github.com/szl-holdings/anatomy"
+            "html_url": "https://github.com/szl-holdings/anatomy",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "88c15fa91b282a78654794cfe90effe92e76fe8a",
+            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "41e692931d1495c233aa3cef7e79fe06a7adae14",
+            "disabled": false,
             "full_name": "szl-holdings/hatun-mcp",
-            "html_url": "https://github.com/szl-holdings/hatun-mcp"
+            "html_url": "https://github.com/szl-holdings/hatun-mcp",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "51f76771f8d719701f18992a3132fa6afdb01b72",
+            "disabled": false,
             "full_name": "szl-holdings/khipu-consensus",
-            "html_url": "https://github.com/szl-holdings/khipu-consensus"
+            "html_url": "https://github.com/szl-holdings/khipu-consensus",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "07ca980c68a9364ea117f64a39124e4c1fbc48de",
+            "disabled": false,
             "full_name": "szl-holdings/killinchu",
-            "html_url": "https://github.com/szl-holdings/killinchu"
+            "html_url": "https://github.com/szl-holdings/killinchu",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "034ef1cab37c77efec57775e97e99f196def37c8",
+            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean"
+            "html_url": "https://github.com/szl-holdings/lutar-lean",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "41dca6489423dddca878e74885b9af9fe522fda6",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-khipu",
+            "html_url": "https://github.com/szl-holdings/szl-khipu",
+            "visibility": "public"
+          },
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "59975b4d76f6f5ede31c67564e67cba93ae232d3",
+            "disabled": false,
             "full_name": "szl-holdings/szl-mesh",
-            "html_url": "https://github.com/szl-holdings/szl-mesh"
+            "html_url": "https://github.com/szl-holdings/szl-mesh",
+            "visibility": "public"
           },
           {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "029403510ae69048df3b35571ace836b7d2c6ada",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-organ-integrity",
+            "html_url": "https://github.com/szl-holdings/szl-organ-integrity",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "9f9e6d0615f58ce483a86b152f835b6f855e48ba",
+            "disabled": false,
             "full_name": "szl-holdings/szl-papers",
-            "html_url": "https://github.com/szl-holdings/szl-papers"
+            "html_url": "https://github.com/szl-holdings/szl-papers",
+            "visibility": "public"
           }
         ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "015c0aeae6cddd081ef6883bbcab00e4a3ff5712",
+          "disabled": false,
+          "full_name": "szl-holdings/anatomy",
+          "html_url": "https://github.com/szl-holdings/anatomy",
+          "visibility": "public"
+        },
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
         "missing_candidates": [],
-        "state": "DIVERGENT"
+        "state": "INFERRED"
       },
       "space_id": "SZLHOLDINGS/anatomy",
       "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
+        "candidate_count": 1,
+        "github_ref": "015c0aeae6cddd081ef6883bbcab00e4a3ff5712",
+        "paths": [
+          ".github/workflows/hf-sync.yml"
+        ],
+        "single_writer_candidate": true,
+        "state": "OBSERVED"
       }
     },
     {
       "explicit_github_repositories": [
-        "szl-holdings/.github"
+        "szl-holdings/ayllu"
       ],
-      "hf_repository_sha": "a3862909c43e03c1259ac85ccb89fa2989a346ac",
+      "hf_repository_sha": "f212c448e05d7d652f5d0daf091ac7289d9b2e71",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -186,9 +419,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "a3862909c43e03c1259ac85ccb89fa2989a346ac",
-        "sha256": "a4507eb7b679ca9fa634620d8ac614e34e69d5c610b2246feb4df75c2ef2cc4e",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/cosmos/raw/a3862909c43e03c1259ac85ccb89fa2989a346ac/README.md"
+        "revision": "f212c448e05d7d652f5d0daf091ac7289d9b2e71",
+        "sha256": "052836e5864d34625b66a0142e095ef1409ac7ef1610a86c0adbddff258dc4cb",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/ayllu/raw/f212c448e05d7d652f5d0daf091ac7289d9b2e71/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -196,7 +429,69 @@
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+            "default_branch_sha": "62aa1f950b334d5ca07c117e805a0d4018bf0372",
+            "disabled": false,
+            "full_name": "szl-holdings/ayllu",
+            "html_url": "https://github.com/szl-holdings/ayllu",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "62aa1f950b334d5ca07c117e805a0d4018bf0372",
+          "disabled": false,
+          "full_name": "szl-holdings/ayllu",
+          "html_url": "https://github.com/szl-holdings/ayllu",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/ayllu",
+      "workflow_candidates": {
+        "candidate_count": 1,
+        "github_ref": "62aa1f950b334d5ca07c117e805a0d4018bf0372",
+        "paths": [
+          ".github/workflows/hf-space.yml"
+        ],
+        "single_writer_candidate": true,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "bbcae474d5df20367c3951795cb4d46fd886efca",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "bbcae474d5df20367c3951795cb4d46fd886efca",
+        "sha256": "412b8e1ad97b008272c786bff5bb09677badc881d6687bfc0b714e996668cc63",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/cosmos/raw/bbcae474d5df20367c3951795cb4d46fd886efca/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -206,7 +501,7 @@
         "canonical": {
           "archived": false,
           "default_branch": "main",
-          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
@@ -218,10 +513,10 @@
       },
       "space_id": "SZLHOLDINGS/cosmos",
       "workflow_candidates": {
-        "candidate_count": 22,
-        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
         "paths": [
-          ".github/workflows/anatomy-map-hf-drift.yml",
+          ".github/workflows/bind-a11oy-factory-space.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
           ".github/workflows/hf-daily-activity.yml",
           ".github/workflows/hf-dataset-badge-refresh.yml",
@@ -234,10 +529,98 @@
           ".github/workflows/hf-official-estate-inventory.yml",
           ".github/workflows/hf-org-card-deploy.yml",
           ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
           ".github/workflows/hf-release-finalization-pr.yml",
           ".github/workflows/hf-release-finalization.yml",
           ".github/workflows/hf-release-readiness-terminal-pr.yml",
           ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "813846923d88439013e8216bf7233dda231409b0",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "813846923d88439013e8216bf7233dda231409b0",
+        "sha256": "c6091975163b687b39a5d01ab574e9f25b2979783bf6d5f7f07bd185835cc097",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/counsel/raw/813846923d88439013e8216bf7233dda231409b0/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/counsel",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
           ".github/workflows/redeploy-a11oy-protected-main.yml",
           ".github/workflows/reusable-hf-candidate-plan.yml",
           ".github/workflows/reusable-hf-deploy-source-witness.yml",
@@ -252,7 +635,7 @@
       "explicit_github_repositories": [
         "szl-holdings/david-leads"
       ],
-      "hf_repository_sha": "fc4ad0d4a39c9944cdf237be2a66bfea711662b7",
+      "hf_repository_sha": "e91da9d9cffea78b71e6b084cc5d2aa62646d419",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -270,17 +653,17 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "fc4ad0d4a39c9944cdf237be2a66bfea711662b7",
-        "sha256": "7c89a9fa4c5067c88134686544bf77f22a60c54c4c81aa475758c18e6c771e18",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/david-leads/raw/fc4ad0d4a39c9944cdf237be2a66bfea711662b7/README.md"
+        "revision": "e91da9d9cffea78b71e6b084cc5d2aa62646d419",
+        "sha256": "cd6f008f3c72ce10addf68f6210c4eb26af86d6c4cabd53fae490c9bd62081ca",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/david-leads/raw/e91da9d9cffea78b71e6b084cc5d2aa62646d419/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
-            "archived": false,
+            "archived": true,
             "default_branch": "main",
-            "default_branch_sha": "6886b16b7b2d215310fb9f1cb698cddbf1e231ab",
+            "default_branch_sha": "fd40812540841d7b546422191d563b309e51492e",
             "disabled": false,
             "full_name": "szl-holdings/david-leads",
             "html_url": "https://github.com/szl-holdings/david-leads",
@@ -288,9 +671,9 @@
           }
         ],
         "canonical": {
-          "archived": false,
+          "archived": true,
           "default_branch": "main",
-          "default_branch_sha": "6886b16b7b2d215310fb9f1cb698cddbf1e231ab",
+          "default_branch_sha": "fd40812540841d7b546422191d563b309e51492e",
           "disabled": false,
           "full_name": "szl-holdings/david-leads",
           "html_url": "https://github.com/szl-holdings/david-leads",
@@ -303,7 +686,7 @@
       "space_id": "SZLHOLDINGS/david-leads",
       "workflow_candidates": {
         "candidate_count": 3,
-        "github_ref": "6886b16b7b2d215310fb9f1cb698cddbf1e231ab",
+        "github_ref": "fd40812540841d7b546422191d563b309e51492e",
         "paths": [
           ".github/workflows/hf-deploy.yml",
           ".github/workflows/hf-drift-check.yml",
@@ -315,10 +698,9 @@
     },
     {
       "explicit_github_repositories": [
-        "szl-holdings/energy-attest-holo",
-        "szl-holdings/szl-energy-attest"
+        "szl-holdings/.github"
       ],
-      "hf_repository_sha": "6a738416eaeff8911bb39e9fa164c8472406feaf",
+      "hf_repository_sha": "93c82243938c9e021b0e6fb2c346d2b6c5c781aa",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -334,39 +716,76 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "6a738416eaeff8911bb39e9fa164c8472406feaf",
-        "sha256": "91812f740e14dbd769a2bd85425b8c4c0a734cb69fce53c2997e1b41e1a5a1a4",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attest-holo/raw/6a738416eaeff8911bb39e9fa164c8472406feaf/README.md"
+        "revision": "93c82243938c9e021b0e6fb2c346d2b6c5c781aa",
+        "sha256": "8de10c4c5e99472982e7ca28c45346a7f2362205ad7b914c51b1f7be4f8f4047",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attest-holo/raw/93c82243938c9e021b0e6fb2c346d2b6c5c781aa/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
-            "full_name": "szl-holdings/energy-attest-holo",
-            "html_url": "https://github.com/szl-holdings/energy-attest-holo"
-          },
-          {
-            "full_name": "szl-holdings/szl-energy-attest",
-            "html_url": "https://github.com/szl-holdings/szl-energy-attest"
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
           }
         ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
         "missing_candidates": [],
-        "state": "DIVERGENT"
+        "state": "EXACT"
       },
       "space_id": "SZLHOLDINGS/energy-attest-holo",
       "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
       }
     },
     {
       "explicit_github_repositories": [
-        "szl-holdings/.github",
-        "szl-holdings/governed-receipt-spec"
+        "szl-holdings/.github"
       ],
-      "hf_repository_sha": "110f2fffcf173e18d319f5e04c6aff2c5f0a183c",
+      "hf_repository_sha": "3470cd1b9ee2f5e0a07d60b9ebcfa14f21287288",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -383,36 +802,246 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "110f2fffcf173e18d319f5e04c6aff2c5f0a183c",
-        "sha256": "342904643c0bbdfe8ea93b79384b605f20cd7b07c1eb16ffb9d382e1c66f5c5f",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs/raw/110f2fffcf173e18d319f5e04c6aff2c5f0a183c/README.md"
+        "revision": "3470cd1b9ee2f5e0a07d60b9ebcfa14f21287288",
+        "sha256": "9e60adcdf5d22397ff06c11d19bc3d9bb0d437faa640b36fe9e29f358858054e",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs/raw/3470cd1b9ee2f5e0a07d60b9ebcfa14f21287288/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github"
-          },
-          {
-            "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
           }
         ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
         "missing_candidates": [],
-        "state": "DIVERGENT"
+        "state": "EXACT"
       },
       "space_id": "SZLHOLDINGS/energy-attested-runs",
       "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "96e05bca36d68364a1265a167f14d1ae4d6d9574",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "suggested_hardware",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "96e05bca36d68364a1265a167f14d1ae4d6d9574",
+        "sha256": "de2567844ac9ecf3e584e7dc49528f4b4e6e84bb91d06cff6820d8c37d9ba584",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/evidence-studio/raw/96e05bca36d68364a1265a167f14d1ae4d6d9574/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/evidence-studio",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "af4c3639c7092b6c60526ee9d413ac6d2775c0c6",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "af4c3639c7092b6c60526ee9d413ac6d2775c0c6",
+        "sha256": "4a43b3320101f0a5af72997a7137f85048df7e9586914c6cdab09aaf192dfe16",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/experiments/raw/af4c3639c7092b6c60526ee9d413ac6d2775c0c6/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/experiments",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
       }
     },
     {
       "explicit_github_repositories": [],
-      "hf_repository_sha": "832eaad8447cec83a1be335e2187fd302e89ff60",
+      "hf_repository_sha": "1a08e9d54c2cf81749008781a578dc97c1f63ef4",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -428,9 +1057,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "832eaad8447cec83a1be335e2187fd302e89ff60",
+        "revision": "1a08e9d54c2cf81749008781a578dc97c1f63ef4",
         "sha256": "012abc5d560cdfa08c846071869101c021d4101a39cf6fc3de06db55a990886c",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench/raw/832eaad8447cec83a1be335e2187fd302e89ff60/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench/raw/1a08e9d54c2cf81749008781a578dc97c1f63ef4/README.md"
       },
       "sdk": "gradio",
       "source_mapping": {
@@ -450,7 +1079,7 @@
       "explicit_github_repositories": [
         "szl-holdings/.github"
       ],
-      "hf_repository_sha": "b21c6a1fa8d62d87d5bae30dd62090f77b4fc773",
+      "hf_repository_sha": "f8d42ef4ae5a3def3856937382b1ce0880a6ee4e",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -467,9 +1096,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "b21c6a1fa8d62d87d5bae30dd62090f77b4fc773",
-        "sha256": "d9c6429dca8c396e7a679ed97caf048fbb678d9df8c2239dff766bbe2b572d1d",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-norm-holo/raw/b21c6a1fa8d62d87d5bae30dd62090f77b4fc773/README.md"
+        "revision": "f8d42ef4ae5a3def3856937382b1ce0880a6ee4e",
+        "sha256": "4774c24df8d375c56e3ee308fbba951d08e646b79a7e948a51b9f05b411b77af",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-norm-holo/raw/f8d42ef4ae5a3def3856937382b1ce0880a6ee4e/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -477,7 +1106,7 @@
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -487,7 +1116,7 @@
         "canonical": {
           "archived": false,
           "default_branch": "main",
-          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
@@ -499,10 +1128,10 @@
       },
       "space_id": "SZLHOLDINGS/governed-norm-holo",
       "workflow_candidates": {
-        "candidate_count": 22,
-        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
         "paths": [
-          ".github/workflows/anatomy-map-hf-drift.yml",
+          ".github/workflows/bind-a11oy-factory-space.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
           ".github/workflows/hf-daily-activity.yml",
           ".github/workflows/hf-dataset-badge-refresh.yml",
@@ -515,10 +1144,13 @@
           ".github/workflows/hf-official-estate-inventory.yml",
           ".github/workflows/hf-org-card-deploy.yml",
           ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
           ".github/workflows/hf-release-finalization-pr.yml",
           ".github/workflows/hf-release-finalization.yml",
           ".github/workflows/hf-release-readiness-terminal-pr.yml",
           ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
           ".github/workflows/redeploy-a11oy-protected-main.yml",
           ".github/workflows/reusable-hf-candidate-plan.yml",
           ".github/workflows/reusable-hf-deploy-source-witness.yml",
@@ -534,13 +1166,14 @@
         "szl-holdings/.github",
         "szl-holdings/governed-receipt-spec"
       ],
-      "hf_repository_sha": "be8c33be5d44a177d99136f8e3d08ef86b1d8cf8",
+      "hf_repository_sha": "546b2e463ac54e9286cfbcc27df0367224420b56",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
         "front_matter_keys": [
           "colorfrom",
           "colorto",
+          "datasets",
           "emoji",
           "license",
           "pinned",
@@ -550,9 +1183,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "be8c33be5d44a177d99136f8e3d08ef86b1d8cf8",
-        "sha256": "9c463414faad5abb8bcde89c0b96c513031a45e221690ecf7d7f8046e845b5c0",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier/raw/be8c33be5d44a177d99136f8e3d08ef86b1d8cf8/README.md"
+        "revision": "546b2e463ac54e9286cfbcc27df0367224420b56",
+        "sha256": "8a9356cdafae617ca5eec34f07e607b6b5240b54f1b4d56e918a50c9404529d1",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier/raw/546b2e463ac54e9286cfbcc27df0367224420b56/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -579,11 +1212,9 @@
     },
     {
       "explicit_github_repositories": [
-        "szl-holdings/.github",
-        "szl-holdings/governed-receipt-spec",
-        "szl-holdings/szl-guardrail-receipt"
+        "szl-holdings/.github"
       ],
-      "hf_repository_sha": "25584d5fba590069a1f41a1b28e77894fa89faea",
+      "hf_repository_sha": "49160d88f56832a1d7c0c5006c071eff0bc784fa",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -600,35 +1231,69 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "25584d5fba590069a1f41a1b28e77894fa89faea",
-        "sha256": "08c4956b5d38dc79238c495565ae98806d6630b75314ad4bdc4eca295e060884",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/guardrail-receipt/raw/25584d5fba590069a1f41a1b28e77894fa89faea/README.md"
+        "revision": "49160d88f56832a1d7c0c5006c071eff0bc784fa",
+        "sha256": "78123080e4bd78a9109f9976b8d7aff5ff83ad9fd9eeb103e6e049e61ea037f9",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/guardrail-receipt/raw/49160d88f56832a1d7c0c5006c071eff0bc784fa/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
             "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github"
-          },
-          {
-            "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
-          },
-          {
-            "full_name": "szl-holdings/szl-guardrail-receipt",
-            "html_url": "https://github.com/szl-holdings/szl-guardrail-receipt"
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
           }
         ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
         "missing_candidates": [],
-        "state": "DIVERGENT"
+        "state": "EXACT"
       },
       "space_id": "SZLHOLDINGS/guardrail-receipt",
       "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
       }
     },
     {
@@ -639,7 +1304,7 @@
         "szl-holdings/platform",
         "szl-holdings/szl-router"
       ],
-      "hf_repository_sha": "1b356761076e34a4eda669f6495722ab28d786a1",
+      "hf_repository_sha": "acc7be3278feaaa744c6bb01d635c621c8a5533a",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -655,50 +1320,90 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "1b356761076e34a4eda669f6495722ab28d786a1",
+        "revision": "acc7be3278feaaa744c6bb01d635c621c8a5533a",
         "sha256": "43739475659068a41ed4093e83d9015916da6a38cb0f2b2996ac762fae63fa64",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/hatun-mcp/raw/1b356761076e34a4eda669f6495722ab28d786a1/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/hatun-mcp/raw/acc7be3278feaaa744c6bb01d635c621c8a5533a/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "41e692931d1495c233aa3cef7e79fe06a7adae14",
+            "disabled": false,
             "full_name": "szl-holdings/hatun-mcp",
-            "html_url": "https://github.com/szl-holdings/hatun-mcp"
+            "html_url": "https://github.com/szl-holdings/hatun-mcp",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "034ef1cab37c77efec57775e97e99f196def37c8",
+            "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean"
+            "html_url": "https://github.com/szl-holdings/lutar-lean",
+            "visibility": "public"
           },
           {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "0f030741f567bdf397d33c4d607790af6ed39688",
+            "disabled": false,
             "full_name": "szl-holdings/ouroboros",
-            "html_url": "https://github.com/szl-holdings/ouroboros"
+            "html_url": "https://github.com/szl-holdings/ouroboros",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "2e10ce743977a6e63d1b5c3c94f7210c95eef18a",
+            "disabled": false,
             "full_name": "szl-holdings/platform",
-            "html_url": "https://github.com/szl-holdings/platform"
+            "html_url": "https://github.com/szl-holdings/platform",
+            "visibility": "public"
           },
           {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "dbf200afa32e46231f98a516d43c7bbf4bd47f2d",
+            "disabled": false,
             "full_name": "szl-holdings/szl-router",
-            "html_url": "https://github.com/szl-holdings/szl-router"
+            "html_url": "https://github.com/szl-holdings/szl-router",
+            "visibility": "public"
           }
         ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "41e692931d1495c233aa3cef7e79fe06a7adae14",
+          "disabled": false,
+          "full_name": "szl-holdings/hatun-mcp",
+          "html_url": "https://github.com/szl-holdings/hatun-mcp",
+          "visibility": "public"
+        },
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
         "missing_candidates": [],
-        "state": "DIVERGENT"
+        "state": "INFERRED"
       },
       "space_id": "SZLHOLDINGS/hatun-mcp",
       "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
+        "candidate_count": 3,
+        "github_ref": "41e692931d1495c233aa3cef7e79fe06a7adae14",
+        "paths": [
+          ".github/workflows/hf-deploy-contract.yml",
+          ".github/workflows/hf-deploy.yml",
+          ".github/workflows/hf-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
       }
     },
     {
       "explicit_github_repositories": [
         "szl-holdings/.github"
       ],
-      "hf_repository_sha": "8167bade8d9e6c2d0430241555be2b3a7b6307a0",
+      "hf_repository_sha": "fc914e2e377bf0e1958c1e7d4b75ebef2f87fb37",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -715,9 +1420,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "8167bade8d9e6c2d0430241555be2b3a7b6307a0",
-        "sha256": "ed439bbdb6344d02dad1ae0eddf9a8b9effd8c9d7b016dd01697d98fee184b73",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/holographic/raw/8167bade8d9e6c2d0430241555be2b3a7b6307a0/README.md"
+        "revision": "fc914e2e377bf0e1958c1e7d4b75ebef2f87fb37",
+        "sha256": "0d77bddf1d532671a24fcf5f09723431764fd7f9df53850c6e278ad1cd2546c8",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/holographic/raw/fc914e2e377bf0e1958c1e7d4b75ebef2f87fb37/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -725,7 +1430,7 @@
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -735,7 +1440,7 @@
         "canonical": {
           "archived": false,
           "default_branch": "main",
-          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
@@ -747,10 +1452,10 @@
       },
       "space_id": "SZLHOLDINGS/holographic",
       "workflow_candidates": {
-        "candidate_count": 22,
-        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
         "paths": [
-          ".github/workflows/anatomy-map-hf-drift.yml",
+          ".github/workflows/bind-a11oy-factory-space.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
           ".github/workflows/hf-daily-activity.yml",
           ".github/workflows/hf-dataset-badge-refresh.yml",
@@ -763,10 +1468,13 @@
           ".github/workflows/hf-official-estate-inventory.yml",
           ".github/workflows/hf-org-card-deploy.yml",
           ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
           ".github/workflows/hf-release-finalization-pr.yml",
           ".github/workflows/hf-release-finalization.yml",
           ".github/workflows/hf-release-readiness-terminal-pr.yml",
           ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
           ".github/workflows/redeploy-a11oy-protected-main.yml",
           ".github/workflows/reusable-hf-candidate-plan.yml",
           ".github/workflows/reusable-hf-deploy-source-witness.yml",
@@ -782,7 +1490,7 @@
         "szl-holdings/governed-receipt-spec",
         "szl-holdings/immune"
       ],
-      "hf_repository_sha": "668d42a2124b80c68c920513ffe2cc2ebe88a5bd",
+      "hf_repository_sha": "63bfc890f7ddc661ea17760defc26f292a6e04cb",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -798,31 +1506,223 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "668d42a2124b80c68c920513ffe2cc2ebe88a5bd",
+        "revision": "63bfc890f7ddc661ea17760defc26f292a6e04cb",
         "sha256": "9259a927d5c3e6d7d299742d02d1fbecb735ca1ffb6ba12f0feef5a53356c44c",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/immune/raw/668d42a2124b80c68c920513ffe2cc2ebe88a5bd/README.md"
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/immune/raw/63bfc890f7ddc661ea17760defc26f292a6e04cb/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
         "candidates": [
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "88c15fa91b282a78654794cfe90effe92e76fe8a",
+            "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
+            "visibility": "public"
           },
           {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "1b96f557b1293b536749b5a4d02d505bdd36da1d",
+            "disabled": false,
             "full_name": "szl-holdings/immune",
-            "html_url": "https://github.com/szl-holdings/immune"
+            "html_url": "https://github.com/szl-holdings/immune",
+            "visibility": "public"
           }
         ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "1b96f557b1293b536749b5a4d02d505bdd36da1d",
+          "disabled": false,
+          "full_name": "szl-holdings/immune",
+          "html_url": "https://github.com/szl-holdings/immune",
+          "visibility": "public"
+        },
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
         "missing_candidates": [],
-        "state": "DIVERGENT"
+        "state": "INFERRED"
       },
       "space_id": "SZLHOLDINGS/immune",
       "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
+        "candidate_count": 1,
+        "github_ref": "1b96f557b1293b536749b5a4d02d505bdd36da1d",
+        "paths": [
+          ".github/workflows/deploy-hf-space.yml"
+        ],
+        "single_writer_candidate": true,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "328543f4ac590949dae288ae1ae2f9d0ee388409",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "328543f4ac590949dae288ae1ae2f9d0ee388409",
+        "sha256": "a71b29c3961f69509953059049893e2016bcc958b1bb86d8e83d8443be69ee76",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/immune-lattice/raw/328543f4ac590949dae288ae1ae2f9d0ee388409/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/immune-lattice",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "7158443a98962b1dee78b59383421b4807551ebd",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "7158443a98962b1dee78b59383421b4807551ebd",
+        "sha256": "229ec6459377485697f0f26b897b3b8c8357c755370dfc78b04df172e7db1f62",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/khipu-lab/raw/7158443a98962b1dee78b59383421b4807551ebd/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/khipu-lab",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
       }
     },
     {
@@ -838,7 +1738,7 @@
         "szl-holdings/szl-cookbook",
         "szl-holdings/szl-formula-ledger"
       ],
-      "hf_repository_sha": "bac9a43594412e7bd455a7c60f4fe2bad95b890c",
+      "hf_repository_sha": "f5c903a88f5da70e2befe076ab438f26dd6ec0fd",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -846,9 +1746,13 @@
           "app_port",
           "colorfrom",
           "colorto",
+          "datasets",
           "ecosystem-stage",
           "emoji",
+          "fullwidth",
+          "header",
           "license",
+          "models",
           "pinned",
           "sdk",
           "short_description",
@@ -857,137 +1761,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "bac9a43594412e7bd455a7c60f4fe2bad95b890c",
-        "sha256": "b7aa15147272a23563c39bacf9888a5bcaf744f64ec3e115ec02ce2174941fb0",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/killinchu/raw/bac9a43594412e7bd455a7c60f4fe2bad95b890c/README.md"
-      },
-      "sdk": "docker",
-      "source_mapping": {
-        "candidates": [
-          {
-            "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github"
-          },
-          {
-            "full_name": "szl-holdings/developers",
-            "html_url": "https://github.com/szl-holdings/developers"
-          },
-          {
-            "full_name": "szl-holdings/governed-receipt-spec",
-            "html_url": "https://github.com/szl-holdings/governed-receipt-spec"
-          },
-          {
-            "full_name": "szl-holdings/khipu-consensus",
-            "html_url": "https://github.com/szl-holdings/khipu-consensus"
-          },
-          {
-            "full_name": "szl-holdings/killinchu",
-            "html_url": "https://github.com/szl-holdings/killinchu"
-          },
-          {
-            "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean"
-          },
-          {
-            "full_name": "szl-holdings/ouroboros",
-            "html_url": "https://github.com/szl-holdings/ouroboros"
-          },
-          {
-            "full_name": "szl-holdings/platform",
-            "html_url": "https://github.com/szl-holdings/platform"
-          },
-          {
-            "full_name": "szl-holdings/szl-cookbook",
-            "html_url": "https://github.com/szl-holdings/szl-cookbook"
-          },
-          {
-            "full_name": "szl-holdings/szl-formula-ledger",
-            "html_url": "https://github.com/szl-holdings/szl-formula-ledger"
-          }
-        ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
-        "missing_candidates": [],
-        "state": "DIVERGENT"
-      },
-      "space_id": "SZLHOLDINGS/killinchu",
-      "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
-      }
-    },
-    {
-      "explicit_github_repositories": [
-        "szl-holdings/lutar-lean",
-        "szl-holdings/szl-formula-ledger"
-      ],
-      "hf_repository_sha": "c028bd8b4740913740ec4b09887b5a8e7885e1c3",
-      "hf_runtime_sha": null,
-      "hf_runtime_stage": "UNAVAILABLE",
-      "readme": {
-        "front_matter_keys": [
-          "app_file",
-          "colorfrom",
-          "colorto",
-          "emoji",
-          "license",
-          "pinned",
-          "sdk",
-          "short_description",
-          "tags",
-          "title"
-        ],
-        "http_status": 200,
-        "revision": "c028bd8b4740913740ec4b09887b5a8e7885e1c3",
-        "sha256": "2fed0278f4d63462fb9676c38124c6845df8e7448e533e7aa243bf08e3c48e3e",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/lambda-gate-holo/raw/c028bd8b4740913740ec4b09887b5a8e7885e1c3/README.md"
-      },
-      "sdk": "static",
-      "source_mapping": {
-        "candidates": [
-          {
-            "full_name": "szl-holdings/lutar-lean",
-            "html_url": "https://github.com/szl-holdings/lutar-lean"
-          },
-          {
-            "full_name": "szl-holdings/szl-formula-ledger",
-            "html_url": "https://github.com/szl-holdings/szl-formula-ledger"
-          }
-        ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
-        "missing_candidates": [],
-        "state": "DIVERGENT"
-      },
-      "space_id": "SZLHOLDINGS/lambda-gate-holo",
-      "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
-      }
-    },
-    {
-      "explicit_github_repositories": [
-        "szl-holdings/governed-receipt-spec"
-      ],
-      "hf_repository_sha": "b71e76a8461c4a9a1ccf2d9610dd8905694a3488",
-      "hf_runtime_sha": null,
-      "hf_runtime_stage": "UNAVAILABLE",
-      "readme": {
-        "front_matter_keys": [
-          "app_port",
-          "colorfrom",
-          "colorto",
-          "emoji",
-          "license",
-          "pinned",
-          "sdk",
-          "short_description",
-          "title"
-        ],
-        "http_status": 200,
-        "revision": "b71e76a8461c4a9a1ccf2d9610dd8905694a3488",
-        "sha256": "98fa778473f0010b37c963461046cc7da7fc915f9440f2127f3ae3dcb9fc275d",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live/raw/b71e76a8461c4a9a1ccf2d9610dd8905694a3488/README.md"
+        "revision": "f5c903a88f5da70e2befe076ab438f26dd6ec0fd",
+        "sha256": "dd5ea13595bdbc987c856542c649c8ac0af537dac2218c25439310349b8cbeb8",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/killinchu/raw/f5c903a88f5da70e2befe076ab438f26dd6ec0fd/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -995,232 +1771,121 @@
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          },
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "dde99af0564c965edc6a253d4004734157460810",
+            "disabled": false,
+            "full_name": "szl-holdings/developers",
+            "html_url": "https://github.com/szl-holdings/developers",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "88c15fa91b282a78654794cfe90effe92e76fe8a",
             "disabled": false,
             "full_name": "szl-holdings/governed-receipt-spec",
             "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
             "visibility": "public"
-          }
-        ],
-        "canonical": {
-          "archived": false,
-          "default_branch": "main",
-          "default_branch_sha": "007106bcb0212138345e19eb5efba8bb69327d57",
-          "disabled": false,
-          "full_name": "szl-holdings/governed-receipt-spec",
-          "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
-          "visibility": "public"
-        },
-        "evidence": "README_OR_CARD_EXPLICIT_URL",
-        "missing_candidates": [],
-        "state": "EXACT"
-      },
-      "space_id": "SZLHOLDINGS/llm-router-live",
-      "workflow_candidates": {
-        "candidate_count": 0,
-        "github_ref": "007106bcb0212138345e19eb5efba8bb69327d57",
-        "paths": [],
-        "single_writer_candidate": false,
-        "state": "OBSERVED"
-      }
-    },
-    {
-      "explicit_github_repositories": [
-        "szl-holdings/.github",
-        "szl-holdings/a11oy",
-        "szl-holdings/receipt-chain-live",
-        "szl-holdings/szl-lake"
-      ],
-      "hf_repository_sha": "3b6992b5dcad5ebcae64676768aa182f20dc87cf",
-      "hf_runtime_sha": null,
-      "hf_runtime_stage": "UNAVAILABLE",
-      "readme": {
-        "front_matter_keys": [
-          "app_file",
-          "colorfrom",
-          "colorto",
-          "emoji",
-          "license",
-          "pinned",
-          "sdk",
-          "short_description",
-          "title"
-        ],
-        "http_status": 200,
-        "revision": "3b6992b5dcad5ebcae64676768aa182f20dc87cf",
-        "sha256": "4f3aff9fef76535672484f75856c7ed16305396d04a7b518263e28e7d9e5f253",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/receipt-chain-live/raw/3b6992b5dcad5ebcae64676768aa182f20dc87cf/README.md"
-      },
-      "sdk": "static",
-      "source_mapping": {
-        "candidates": [
-          {
-            "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github"
           },
-          {
-            "full_name": "szl-holdings/a11oy",
-            "html_url": "https://github.com/szl-holdings/a11oy"
-          },
-          {
-            "full_name": "szl-holdings/receipt-chain-live",
-            "html_url": "https://github.com/szl-holdings/receipt-chain-live"
-          },
-          {
-            "full_name": "szl-holdings/szl-lake",
-            "html_url": "https://github.com/szl-holdings/szl-lake"
-          }
-        ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
-        "missing_candidates": [],
-        "state": "DIVERGENT"
-      },
-      "space_id": "SZLHOLDINGS/receipt-chain-live",
-      "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
-      }
-    },
-    {
-      "explicit_github_repositories": [
-        "szl-holdings/.github",
-        "szl-holdings/sda"
-      ],
-      "hf_repository_sha": "3485c33dd907ee040178e06dcf917b2ec5615135",
-      "hf_runtime_sha": null,
-      "hf_runtime_stage": "UNAVAILABLE",
-      "readme": {
-        "front_matter_keys": [
-          "app_port",
-          "colorfrom",
-          "colorto",
-          "emoji",
-          "license",
-          "pinned",
-          "sdk",
-          "short_description",
-          "tags",
-          "title"
-        ],
-        "http_status": 200,
-        "revision": "3485c33dd907ee040178e06dcf917b2ec5615135",
-        "sha256": "1f28671d5d95b624c3c8cfd4b71733292b3f5f88998409b4154b948ad1fef18e",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/sda/raw/3485c33dd907ee040178e06dcf917b2ec5615135/README.md"
-      },
-      "sdk": "docker",
-      "source_mapping": {
-        "candidates": [
-          {
-            "full_name": "szl-holdings/.github",
-            "html_url": "https://github.com/szl-holdings/.github"
-          },
-          {
-            "full_name": "szl-holdings/sda",
-            "html_url": "https://github.com/szl-holdings/sda"
-          }
-        ],
-        "canonical": null,
-        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
-        "missing_candidates": [],
-        "state": "DIVERGENT"
-      },
-      "space_id": "SZLHOLDINGS/sda",
-      "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
-      }
-    },
-    {
-      "explicit_github_repositories": [],
-      "hf_repository_sha": "4a927e81a126b0253c3e242d10c64d9e323879fb",
-      "hf_runtime_sha": null,
-      "hf_runtime_stage": "UNAVAILABLE",
-      "readme": {
-        "front_matter_keys": [
-          "colorfrom",
-          "colorto",
-          "emoji",
-          "license",
-          "pinned",
-          "sdk",
-          "short_description",
-          "title"
-        ],
-        "http_status": 200,
-        "revision": "4a927e81a126b0253c3e242d10c64d9e323879fb",
-        "sha256": "6994332627ee4ca52a9607e47a560c2e2c46ecb9848b7d7fcc8b8efbc6ededb2",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-blocked-live/raw/4a927e81a126b0253c3e242d10c64d9e323879fb/README.md"
-      },
-      "sdk": "static",
-      "source_mapping": {
-        "candidates": [],
-        "canonical": null,
-        "evidence": "NO_EXPLICIT_OR_NORMALIZED_SOURCE_REPOSITORY",
-        "missing_candidates": [],
-        "state": "UNAVAILABLE"
-      },
-      "space_id": "SZLHOLDINGS/szl-blocked-live",
-      "workflow_candidates": {
-        "paths": [],
-        "state": "BLOCKED_SOURCE_MAPPING"
-      }
-    },
-    {
-      "explicit_github_repositories": [
-        "szl-holdings/lutar-lean"
-      ],
-      "hf_repository_sha": "12029395a2a838f707e92e23ca9c12945daa64e3",
-      "hf_runtime_sha": null,
-      "hf_runtime_stage": "UNAVAILABLE",
-      "readme": {
-        "front_matter_keys": [
-          "colorfrom",
-          "colorto",
-          "emoji",
-          "license",
-          "pinned",
-          "sdk",
-          "short_description",
-          "thumbnail",
-          "title"
-        ],
-        "http_status": 200,
-        "revision": "12029395a2a838f707e92e23ca9c12945daa64e3",
-        "sha256": "f72e95396bdd21469b04a341e3515cbdedcf9e91e258dfe82df6fb7817ddcb13",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live/raw/12029395a2a838f707e92e23ca9c12945daa64e3/README.md"
-      },
-      "sdk": "static",
-      "source_mapping": {
-        "candidates": [
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
+            "default_branch_sha": "51f76771f8d719701f18992a3132fa6afdb01b72",
+            "disabled": false,
+            "full_name": "szl-holdings/khipu-consensus",
+            "html_url": "https://github.com/szl-holdings/khipu-consensus",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "07ca980c68a9364ea117f64a39124e4c1fbc48de",
+            "disabled": false,
+            "full_name": "szl-holdings/killinchu",
+            "html_url": "https://github.com/szl-holdings/killinchu",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "034ef1cab37c77efec57775e97e99f196def37c8",
             "disabled": false,
             "full_name": "szl-holdings/lutar-lean",
             "html_url": "https://github.com/szl-holdings/lutar-lean",
+            "visibility": "public"
+          },
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "0f030741f567bdf397d33c4d607790af6ed39688",
+            "disabled": false,
+            "full_name": "szl-holdings/ouroboros",
+            "html_url": "https://github.com/szl-holdings/ouroboros",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "2e10ce743977a6e63d1b5c3c94f7210c95eef18a",
+            "disabled": false,
+            "full_name": "szl-holdings/platform",
+            "html_url": "https://github.com/szl-holdings/platform",
+            "visibility": "public"
+          },
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "298cc2b367efea36f552c4dad982c4f7f4e89fbd",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-cookbook",
+            "html_url": "https://github.com/szl-holdings/szl-cookbook",
+            "visibility": "public"
+          },
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "ceaef540eba6c5acf85091faf4a20cd9aef480f9",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-formula-ledger",
+            "html_url": "https://github.com/szl-holdings/szl-formula-ledger",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
-          "default_branch_sha": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
+          "default_branch_sha": "07ca980c68a9364ea117f64a39124e4c1fbc48de",
           "disabled": false,
-          "full_name": "szl-holdings/lutar-lean",
-          "html_url": "https://github.com/szl-holdings/lutar-lean",
+          "full_name": "szl-holdings/killinchu",
+          "html_url": "https://github.com/szl-holdings/killinchu",
           "visibility": "public"
         },
-        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
         "missing_candidates": [],
-        "state": "EXACT"
+        "state": "INFERRED"
       },
-      "space_id": "SZLHOLDINGS/szl-estate-live",
+      "space_id": "SZLHOLDINGS/killinchu",
       "workflow_candidates": {
-        "candidate_count": 0,
-        "github_ref": "edefcffe1ae95f8cd9850876d3ba82c2555951e5",
-        "paths": [],
+        "candidate_count": 8,
+        "github_ref": "07ca980c68a9364ea117f64a39124e4c1fbc48de",
+        "paths": [
+          ".github/workflows/hf-bucket-selftest.yml",
+          ".github/workflows/hf-cpu-basic-capacity-transfer.yml",
+          ".github/workflows/hf-drift-check.yml",
+          ".github/workflows/hf-module-drift.yml",
+          ".github/workflows/hf-sync.yml",
+          ".github/workflows/hf-token-preflight.yml",
+          ".github/workflows/hf-universal-frontend-v1.yml",
+          ".github/workflows/publish-intel-archive-card.yml"
+        ],
         "single_writer_candidate": false,
         "state": "OBSERVED"
       }
@@ -1229,7 +1894,7 @@
       "explicit_github_repositories": [
         "szl-holdings/.github"
       ],
-      "hf_repository_sha": "4107ff178260228b585bf28ad3d90e36c0929372",
+      "hf_repository_sha": "6d0791f71647e9b6f86cbea67608ae9d6c8cdd92",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -1242,12 +1907,13 @@
           "pinned",
           "sdk",
           "short_description",
+          "tags",
           "title"
         ],
         "http_status": 200,
-        "revision": "4107ff178260228b585bf28ad3d90e36c0929372",
-        "sha256": "fad975c59094f0a05a7f97dccec0f48193af4547685b43f0819afb8d84d2e403",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-forge-lab/raw/4107ff178260228b585bf28ad3d90e36c0929372/README.md"
+        "revision": "6d0791f71647e9b6f86cbea67608ae9d6c8cdd92",
+        "sha256": "954b566625c1b469eaa3460f1c67c4a27791ade2c6e0bdc2eaaf51cfd10f34f9",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/lambda-gate-holo/raw/6d0791f71647e9b6f86cbea67608ae9d6c8cdd92/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1255,7 +1921,7 @@
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -1265,7 +1931,7 @@
         "canonical": {
           "archived": false,
           "default_branch": "main",
-          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
@@ -1275,12 +1941,12 @@
         "missing_candidates": [],
         "state": "EXACT"
       },
-      "space_id": "SZLHOLDINGS/szl-forge-lab",
+      "space_id": "SZLHOLDINGS/lambda-gate-holo",
       "workflow_candidates": {
-        "candidate_count": 22,
-        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
         "paths": [
-          ".github/workflows/anatomy-map-hf-drift.yml",
+          ".github/workflows/bind-a11oy-factory-space.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
           ".github/workflows/hf-daily-activity.yml",
           ".github/workflows/hf-dataset-badge-refresh.yml",
@@ -1293,10 +1959,245 @@
           ".github/workflows/hf-official-estate-inventory.yml",
           ".github/workflows/hf-org-card-deploy.yml",
           ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
           ".github/workflows/hf-release-finalization-pr.yml",
           ".github/workflows/hf-release-finalization.yml",
           ".github/workflows/hf-release-readiness-terminal-pr.yml",
           ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/governed-receipt-spec"
+      ],
+      "hf_repository_sha": "eaeb98afa17acfcf6f4fe90644f4041e26dee173",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "eaeb98afa17acfcf6f4fe90644f4041e26dee173",
+        "sha256": "98fa778473f0010b37c963461046cc7da7fc915f9440f2127f3ae3dcb9fc275d",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live/raw/eaeb98afa17acfcf6f4fe90644f4041e26dee173/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "88c15fa91b282a78654794cfe90effe92e76fe8a",
+            "disabled": false,
+            "full_name": "szl-holdings/governed-receipt-spec",
+            "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "88c15fa91b282a78654794cfe90effe92e76fe8a",
+          "disabled": false,
+          "full_name": "szl-holdings/governed-receipt-spec",
+          "html_url": "https://github.com/szl-holdings/governed-receipt-spec",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/llm-router-live",
+      "workflow_candidates": {
+        "candidate_count": 0,
+        "github_ref": "88c15fa91b282a78654794cfe90effe92e76fe8a",
+        "paths": [],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "f96d1bdb6149b4f03e314cc533d623531522946c",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "suggested_hardware",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "f96d1bdb6149b4f03e314cc533d623531522946c",
+        "sha256": "c6581c6f3d411664eba68c886bfc8d1b315701087e26281165eea3d0d4b050de",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/lyte-services/raw/f96d1bdb6149b4f03e314cc533d623531522946c/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/lyte-services",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "307c854a64fbf7fde1c4cf62d7a18c3fbc5d1508",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "307c854a64fbf7fde1c4cf62d7a18c3fbc5d1508",
+        "sha256": "27daaccee034093b8f39773dbced0cbcac128effec371e09b5b9981024ba05bc",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/nexus/raw/307c854a64fbf7fde1c4cf62d7a18c3fbc5d1508/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/nexus",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
           ".github/workflows/redeploy-a11oy-protected-main.yml",
           ".github/workflows/reusable-hf-candidate-plan.yml",
           ".github/workflows/reusable-hf-deploy-source-witness.yml",
@@ -1309,24 +2210,24 @@
     },
     {
       "explicit_github_repositories": [],
-      "hf_repository_sha": "f11d6dbede9ba277409c5da3728efc0e15e975b4",
+      "hf_repository_sha": "a05cd66402b1a8debaa88a1629187a9b8a25f047",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
         "front_matter_keys": [
+          "app_file",
           "colorfrom",
           "colorto",
           "emoji",
           "license",
           "pinned",
           "sdk",
-          "short_description",
           "title"
         ],
         "http_status": 200,
-        "revision": "f11d6dbede9ba277409c5da3728efc0e15e975b4",
-        "sha256": "277ac5486658814381a05d0fbf3c6a15d9e375a49d4ad67317c261d6bceb03be",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-govsign-live/raw/f11d6dbede9ba277409c5da3728efc0e15e975b4/README.md"
+        "revision": "a05cd66402b1a8debaa88a1629187a9b8a25f047",
+        "sha256": "a33f149c53452b7033fdbf0a21f0c880009a3008dafdb81d4dddb9c6f89e94fe",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/prove-it/raw/a05cd66402b1a8debaa88a1629187a9b8a25f047/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1336,7 +2237,7 @@
         "missing_candidates": [],
         "state": "UNAVAILABLE"
       },
-      "space_id": "SZLHOLDINGS/szl-govsign-live",
+      "space_id": "SZLHOLDINGS/prove-it",
       "workflow_candidates": {
         "paths": [],
         "state": "BLOCKED_SOURCE_MAPPING"
@@ -1344,9 +2245,9 @@
     },
     {
       "explicit_github_repositories": [
-        "szl-holdings/szl-kernels-live"
+        "szl-holdings/.github"
       ],
-      "hf_repository_sha": "c9917d43167ef7e2430c52ce67af54c9bfacafcc",
+      "hf_repository_sha": "620cc12a74f1316b74fa72b133903690a6059fc3",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -1359,19 +2260,784 @@
           "pinned",
           "sdk",
           "short_description",
-          "tags",
           "title"
         ],
         "http_status": 200,
-        "revision": "c9917d43167ef7e2430c52ce67af54c9bfacafcc",
-        "sha256": "d4d7b1eb10f9c7eacd359af8f65df810ad0d95899782a4ffdc88646bd4c40372",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-kernels-live/raw/c9917d43167ef7e2430c52ce67af54c9bfacafcc/README.md"
+        "revision": "620cc12a74f1316b74fa72b133903690a6059fc3",
+        "sha256": "36f68d2a584b5d72162de4c0237ec0bd13837dbd415586170942b773ea4f74de",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/receipt-chain-live/raw/620cc12a74f1316b74fa72b133903690a6059fc3/README.md"
       },
       "sdk": "static",
       "source_mapping": {
         "candidates": [
           {
             "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/receipt-chain-live",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github",
+        "szl-holdings/sda"
+      ],
+      "hf_repository_sha": "e48d646ac79dd926bb4a3d9269537d5eec15ef9d",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "e48d646ac79dd926bb4a3d9269537d5eec15ef9d",
+        "sha256": "1f28671d5d95b624c3c8cfd4b71733292b3f5f88998409b4154b948ad1fef18e",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/sda/raw/e48d646ac79dd926bb4a3d9269537d5eec15ef9d/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "06da4ee4ed6c8836847ee8b7b51feef9ee6a0e16",
+            "disabled": false,
+            "full_name": "szl-holdings/sda",
+            "html_url": "https://github.com/szl-holdings/sda",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "06da4ee4ed6c8836847ee8b7b51feef9ee6a0e16",
+          "disabled": false,
+          "full_name": "szl-holdings/sda",
+          "html_url": "https://github.com/szl-holdings/sda",
+          "visibility": "public"
+        },
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
+        "missing_candidates": [],
+        "state": "INFERRED"
+      },
+      "space_id": "SZLHOLDINGS/sda",
+      "workflow_candidates": {
+        "candidate_count": 1,
+        "github_ref": "06da4ee4ed6c8836847ee8b7b51feef9ee6a0e16",
+        "paths": [
+          ".github/workflows/hf-space-deploy.yml"
+        ],
+        "single_writer_candidate": true,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/szl-second-brain"
+      ],
+      "hf_repository_sha": "1aab6e88e57da6ae769ea184d4b6c7c47c6545c8",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "1aab6e88e57da6ae769ea184d4b6c7c47c6545c8",
+        "sha256": "b48526e48c5c30d9a967518eb444d140f11dbf58ad3c7540570b81f4980aa658",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/second-brain/raw/1aab6e88e57da6ae769ea184d4b6c7c47c6545c8/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "47933d11ac22429fdcae5c1c9a4c1e206ffa4b45",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-second-brain",
+            "html_url": "https://github.com/szl-holdings/szl-second-brain",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "47933d11ac22429fdcae5c1c9a4c1e206ffa4b45",
+          "disabled": false,
+          "full_name": "szl-holdings/szl-second-brain",
+          "html_url": "https://github.com/szl-holdings/szl-second-brain",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/second-brain",
+      "workflow_candidates": {
+        "candidate_count": 0,
+        "github_ref": "47933d11ac22429fdcae5c1c9a4c1e206ffa4b45",
+        "paths": [],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/szl-atelier"
+      ],
+      "hf_repository_sha": "9c4841f36c98e0ccbb3313d4f2c9123c6616c78c",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_file",
+          "colorfrom",
+          "colorto",
+          "datasets",
+          "emoji",
+          "license",
+          "models",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "9c4841f36c98e0ccbb3313d4f2c9123c6616c78c",
+        "sha256": "821ef8d15bd84e35ae48861ee5c7aa9b37a3140e7ffa66e00ecb9d54060a7694",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier/raw/9c4841f36c98e0ccbb3313d4f2c9123c6616c78c/README.md"
+      },
+      "sdk": "static",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "b33f213e49356f15acd602f8fbce288bac9a7e00",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-atelier",
+            "html_url": "https://github.com/szl-holdings/szl-atelier",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": true,
+          "default_branch": "main",
+          "default_branch_sha": "b33f213e49356f15acd602f8fbce288bac9a7e00",
+          "disabled": false,
+          "full_name": "szl-holdings/szl-atelier",
+          "html_url": "https://github.com/szl-holdings/szl-atelier",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-atelier",
+      "workflow_candidates": {
+        "candidate_count": 1,
+        "github_ref": "b33f213e49356f15acd602f8fbce288bac9a7e00",
+        "paths": [
+          ".github/workflows/hf-space.yml"
+        ],
+        "single_writer_candidate": true,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "f40107438c06b2d70c5e4534564c6227cb3315b3",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "f40107438c06b2d70c5e4534564c6227cb3315b3",
+        "sha256": "165f837826336105341e036dac8808e362ed6a3ae230e93d2e334be10c270edc",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-blocked-live/raw/f40107438c06b2d70c5e4534564c6227cb3315b3/README.md"
+      },
+      "sdk": "static",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-blocked-live",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github",
+        "szl-holdings/szl-command-lab",
+        "szl-holdings/szl-khipu"
+      ],
+      "hf_repository_sha": "c548618e594438590a327078945a6a04929a7b80",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "c548618e594438590a327078945a6a04929a7b80",
+        "sha256": "8c97b9fd3aac1faf07c439d3724659903d18812ea5c9f6fd75a7f4c8070e37d2",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab/raw/c548618e594438590a327078945a6a04929a7b80/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "05daa187b145b8947952af440ecf0ba79581a197",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-command-lab",
+            "html_url": "https://github.com/szl-holdings/szl-command-lab",
+            "visibility": "public"
+          },
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "41dca6489423dddca878e74885b9af9fe522fda6",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-khipu",
+            "html_url": "https://github.com/szl-holdings/szl-khipu",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "05daa187b145b8947952af440ecf0ba79581a197",
+          "disabled": false,
+          "full_name": "szl-holdings/szl-command-lab",
+          "html_url": "https://github.com/szl-holdings/szl-command-lab",
+          "visibility": "public"
+        },
+        "evidence": "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS",
+        "missing_candidates": [],
+        "state": "INFERRED"
+      },
+      "space_id": "SZLHOLDINGS/szl-command-lab",
+      "workflow_candidates": {
+        "candidate_count": 1,
+        "github_ref": "05daa187b145b8947952af440ecf0ba79581a197",
+        "paths": [
+          ".github/workflows/hf-deploy.yml"
+        ],
+        "single_writer_candidate": true,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "fc8a17d539424ca675eaf206dd3bb6d86412e18f",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "thumbnail",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "fc8a17d539424ca675eaf206dd3bb6d86412e18f",
+        "sha256": "ff46e1ffcc5ce38747f726a6d03d653c9af222a25e6bf036918cfab38770d32b",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live/raw/fc8a17d539424ca675eaf206dd3bb6d86412e18f/README.md"
+      },
+      "sdk": "static",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-estate-live",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/szl-experiments"
+      ],
+      "hf_repository_sha": "2e4a0acbf46a68e85450fc80bb9bf8e7f5a68bb8",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "2e4a0acbf46a68e85450fc80bb9bf8e7f5a68bb8",
+        "sha256": "dfebb28beb7cb8a220c558bb951961c1a1b1291d4773aaf6f2716901e9ccf04c",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-experiments/raw/2e4a0acbf46a68e85450fc80bb9bf8e7f5a68bb8/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": true,
+            "default_branch": "main",
+            "default_branch_sha": "2d2980ce7f0063b5692fe2b46163dee6df2831e1",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-experiments",
+            "html_url": "https://github.com/szl-holdings/szl-experiments",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": true,
+          "default_branch": "main",
+          "default_branch_sha": "2d2980ce7f0063b5692fe2b46163dee6df2831e1",
+          "disabled": false,
+          "full_name": "szl-holdings/szl-experiments",
+          "html_url": "https://github.com/szl-holdings/szl-experiments",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-experiments",
+      "workflow_candidates": {
+        "candidate_count": 2,
+        "github_ref": "2d2980ce7f0063b5692fe2b46163dee6df2831e1",
+        "paths": [
+          ".github/workflows/hf-space.yml",
+          ".github/workflows/publish-sibling-spaces.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "3d222c7fec706c9ca7b18a714974acfcfe110051",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_file",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "3d222c7fec706c9ca7b18a714974acfcfe110051",
+        "sha256": "e982aa1f14a90dfa752bd229db7f56ab4cb45aca73b1c0ba126513582c23b99e",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-forge-lab/raw/3d222c7fec706c9ca7b18a714974acfcfe110051/README.md"
+      },
+      "sdk": "static",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-forge-lab",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "b1640a15d4ea72912afed76c7a3bbd27e79a09dc",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "b1640a15d4ea72912afed76c7a3bbd27e79a09dc",
+        "sha256": "e94a2f3ec24f8843f53f48aa442b52fe1e459aa8f05a3ba7d9d4b6835247e41e",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-govsign-live/raw/b1640a15d4ea72912afed76c7a3bbd27e79a09dc/README.md"
+      },
+      "sdk": "static",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-govsign-live",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/szl-kernels-live"
+      ],
+      "hf_repository_sha": "355145e80296dd74e734d93a01969e7e99f3d87f",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_file",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "models",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "355145e80296dd74e734d93a01969e7e99f3d87f",
+        "sha256": "0afb618136f81685cf0189ce5815d782f9c1c79dbaa1ed319486fedf04de44e1",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-kernels-live/raw/355145e80296dd74e734d93a01969e7e99f3d87f/README.md"
+      },
+      "sdk": "static",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": true,
             "default_branch": "main",
             "default_branch_sha": "6c48224a8e8a4ddd05b8e1e46b4948a61634ee66",
             "disabled": false,
@@ -1381,7 +3047,7 @@
           }
         ],
         "canonical": {
-          "archived": false,
+          "archived": true,
           "default_branch": "main",
           "default_branch_sha": "6c48224a8e8a4ddd05b8e1e46b4948a61634ee66",
           "disabled": false,
@@ -1406,10 +3072,74 @@
     },
     {
       "explicit_github_repositories": [
+        "szl-holdings/szl-khipu"
+      ],
+      "hf_repository_sha": "d040b168a1629d8a914122962e5e104644a8d9a4",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "datasets",
+          "emoji",
+          "license",
+          "models",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "d040b168a1629d8a914122962e5e104644a8d9a4",
+        "sha256": "b4aac83d51e130c986db7dd36f670a1b848dc85092f0b3ea307bcbe420e63e74",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu/raw/d040b168a1629d8a914122962e5e104644a8d9a4/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "41dca6489423dddca878e74885b9af9fe522fda6",
+            "disabled": false,
+            "full_name": "szl-holdings/szl-khipu",
+            "html_url": "https://github.com/szl-holdings/szl-khipu",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "41dca6489423dddca878e74885b9af9fe522fda6",
+          "disabled": false,
+          "full_name": "szl-holdings/szl-khipu",
+          "html_url": "https://github.com/szl-holdings/szl-khipu",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-khipu",
+      "workflow_candidates": {
+        "candidate_count": 2,
+        "github_ref": "41dca6489423dddca878e74885b9af9fe522fda6",
+        "paths": [
+          ".github/workflows/publish-atelier-space.yml",
+          ".github/workflows/publish-hf.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
         "szl-holdings/.github",
         "szl-holdings/szl-forge"
       ],
-      "hf_repository_sha": "968a954fff0726ff9d137175a1c86c491b09fad3",
+      "hf_repository_sha": "39dc297a83283e40248245fb83d139d9926f5bde",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -1428,9 +3158,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "968a954fff0726ff9d137175a1c86c491b09fad3",
-        "sha256": "d15b5fff3a5ac9c282c034f04600ad128e692f55854ddce0f89cf63b1981343a",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab/raw/968a954fff0726ff9d137175a1c86c491b09fad3/README.md"
+        "revision": "39dc297a83283e40248245fb83d139d9926f5bde",
+        "sha256": "e5e951011044a0663bc41b25cb3b732b9e1a918e2bfe787a50c491bc93b5d319",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab/raw/39dc297a83283e40248245fb83d139d9926f5bde/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -1457,9 +3187,9 @@
     },
     {
       "explicit_github_repositories": [
-        "szl-holdings/szl-provctl-live"
+        "szl-holdings/.github"
       ],
-      "hf_repository_sha": "dbfc7a8e0e67c6fc77c5436fe37d970748361d32",
+      "hf_repository_sha": "c70ece10793f304e7948bc4849a982c4dd3d80b9",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -1475,9 +3205,9 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "dbfc7a8e0e67c6fc77c5436fe37d970748361d32",
-        "sha256": "a2eb5426aa30bc84124bb0e7fbc7634493c52632c27e765de03568ec8fd6dd7c",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-provctl-live/raw/dbfc7a8e0e67c6fc77c5436fe37d970748361d32/README.md"
+        "revision": "c70ece10793f304e7948bc4849a982c4dd3d80b9",
+        "sha256": "2ea2ea9222c279c808bdf5c3f98f44437c62b0fe448f971506bb9e545a47bab9",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-provctl-live/raw/c70ece10793f304e7948bc4849a982c4dd3d80b9/README.md"
       },
       "sdk": "static",
       "source_mapping": {
@@ -1485,20 +3215,20 @@
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "bf0903cdad0a78d06542fd5457db8d1daf82ea43",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
             "disabled": false,
-            "full_name": "szl-holdings/szl-provctl-live",
-            "html_url": "https://github.com/szl-holdings/szl-provctl-live",
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
             "visibility": "public"
           }
         ],
         "canonical": {
           "archived": false,
           "default_branch": "main",
-          "default_branch_sha": "bf0903cdad0a78d06542fd5457db8d1daf82ea43",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
           "disabled": false,
-          "full_name": "szl-holdings/szl-provctl-live",
-          "html_url": "https://github.com/szl-holdings/szl-provctl-live",
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
           "visibility": "public"
         },
         "evidence": "README_OR_CARD_EXPLICIT_URL",
@@ -1507,12 +3237,36 @@
       },
       "space_id": "SZLHOLDINGS/szl-provctl-live",
       "workflow_candidates": {
-        "candidate_count": 1,
-        "github_ref": "bf0903cdad0a78d06542fd5457db8d1daf82ea43",
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
         "paths": [
-          ".github/workflows/hf-static-space.yml"
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
         ],
-        "single_writer_candidate": true,
+        "single_writer_candidate": false,
         "state": "OBSERVED"
       }
     },
@@ -1520,7 +3274,180 @@
       "explicit_github_repositories": [
         "szl-holdings/.github"
       ],
-      "hf_repository_sha": "f09581519c14da556530515596298e15f676a1a8",
+      "hf_repository_sha": "d0430f47967c2c2fae44f46517fb04abddea42ff",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "d0430f47967c2c2fae44f46517fb04abddea42ff",
+        "sha256": "37211ee726d552107840e7598d57cbd80504882401b73d44969158da2cc84275",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-quant-live/raw/d0430f47967c2c2fae44f46517fb04abddea42ff/README.md"
+      },
+      "sdk": "static",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-quant-live",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "0798e1dc4553b1b44420f1325c05391c9c16ea82",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "0798e1dc4553b1b44420f1325c05391c9c16ea82",
+        "sha256": "b2ac8cc7fb6b9c777a30063a83c2239b9ec342753b53189282bd5c200ce4bb23",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-real-estate/raw/0798e1dc4553b1b44420f1325c05391c9c16ea82/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+            "disabled": false,
+            "full_name": "szl-holdings/.github",
+            "html_url": "https://github.com/szl-holdings/.github",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+          "disabled": false,
+          "full_name": "szl-holdings/.github",
+          "html_url": "https://github.com/szl-holdings/.github",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/szl-real-estate",
+      "workflow_candidates": {
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
+        "paths": [
+          ".github/workflows/bind-a11oy-factory-space.yml",
+          ".github/workflows/hf-collection-truth-reconcile.yml",
+          ".github/workflows/hf-daily-activity.yml",
+          ".github/workflows/hf-dataset-badge-refresh.yml",
+          ".github/workflows/hf-dataset-server-diagnostics.yml",
+          ".github/workflows/hf-estate-upgrade.yml",
+          ".github/workflows/hf-kernel-card-publish-v2.yml",
+          ".github/workflows/hf-license-consistency.yml",
+          ".github/workflows/hf-module-drift-check.yml",
+          ".github/workflows/hf-module-drift-prune.yml",
+          ".github/workflows/hf-official-estate-inventory.yml",
+          ".github/workflows/hf-org-card-deploy.yml",
+          ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
+          ".github/workflows/hf-release-finalization-pr.yml",
+          ".github/workflows/hf-release-finalization.yml",
+          ".github/workflows/hf-release-readiness-terminal-pr.yml",
+          ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
+          ".github/workflows/redeploy-a11oy-protected-main.yml",
+          ".github/workflows/reusable-hf-candidate-plan.yml",
+          ".github/workflows/reusable-hf-deploy-source-witness.yml",
+          ".github/workflows/reusable-hf-deploy.yml",
+          ".github/workflows/reusable-hf-module-drift-check.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/a11oy",
+        "szl-holdings/david-leads",
+        "szl-holdings/killinchu",
+        "szl-holdings/szl-quant",
+        "szl-holdings/szl-real-estate"
+      ],
+      "hf_repository_sha": "97b847b3a25bc74d23823d13c9443914a829ebb7",
       "hf_runtime_sha": null,
       "hf_runtime_stage": "UNAVAILABLE",
       "readme": {
@@ -1537,9 +3464,68 @@
           "title"
         ],
         "http_status": 200,
-        "revision": "f09581519c14da556530515596298e15f676a1a8",
-        "sha256": "63a57d7662e3fbc30ca4034b0f86e6907bcd1b37af1312c8a46ea567f6fcbbee",
-        "url": "https://huggingface.co/spaces/SZLHOLDINGS/yarqa/raw/f09581519c14da556530515596298e15f676a1a8/README.md"
+        "revision": "97b847b3a25bc74d23823d13c9443914a829ebb7",
+        "sha256": "86db34444f2cf2b129c1c486a4339b6aee9546fd72c1257144c610008bdbc4bb",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/szl-sovereign-os/raw/97b847b3a25bc74d23823d13c9443914a829ebb7/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "full_name": "szl-holdings/a11oy",
+            "html_url": "https://github.com/szl-holdings/a11oy"
+          },
+          {
+            "full_name": "szl-holdings/david-leads",
+            "html_url": "https://github.com/szl-holdings/david-leads"
+          },
+          {
+            "full_name": "szl-holdings/killinchu",
+            "html_url": "https://github.com/szl-holdings/killinchu"
+          },
+          {
+            "full_name": "szl-holdings/szl-quant",
+            "html_url": "https://github.com/szl-holdings/szl-quant"
+          },
+          {
+            "full_name": "szl-holdings/szl-real-estate",
+            "html_url": "https://github.com/szl-holdings/szl-real-estate"
+          }
+        ],
+        "canonical": null,
+        "evidence": "MULTIPLE_OR_UNRESOLVED_EXPLICIT_URLS",
+        "missing_candidates": [],
+        "state": "DIVERGENT"
+      },
+      "space_id": "SZLHOLDINGS/szl-sovereign-os",
+      "workflow_candidates": {
+        "paths": [],
+        "state": "BLOCKED_SOURCE_MAPPING"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/a11oy"
+      ],
+      "hf_repository_sha": "14569b824cb1c4c5afc240c888cf0f4dc61b3909",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "14569b824cb1c4c5afc240c888cf0f4dc61b3909",
+        "sha256": "7efe81707d64481a54748f8dd274d554799d2b153bf6c56e9fb1ebe3e8b5240b",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/terra-assurance/raw/14569b824cb1c4c5afc240c888cf0f4dc61b3909/README.md"
       },
       "sdk": "docker",
       "source_mapping": {
@@ -1547,7 +3533,93 @@
           {
             "archived": false,
             "default_branch": "main",
-            "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+            "default_branch_sha": "67915b86cb7048f9476fd9eab87f6e60c8a7c869",
+            "disabled": false,
+            "full_name": "szl-holdings/a11oy",
+            "html_url": "https://github.com/szl-holdings/a11oy",
+            "visibility": "public"
+          }
+        ],
+        "canonical": {
+          "archived": false,
+          "default_branch": "main",
+          "default_branch_sha": "67915b86cb7048f9476fd9eab87f6e60c8a7c869",
+          "disabled": false,
+          "full_name": "szl-holdings/a11oy",
+          "html_url": "https://github.com/szl-holdings/a11oy",
+          "visibility": "public"
+        },
+        "evidence": "README_OR_CARD_EXPLICIT_URL",
+        "missing_candidates": [],
+        "state": "EXACT"
+      },
+      "space_id": "SZLHOLDINGS/terra-assurance",
+      "workflow_candidates": {
+        "candidate_count": 24,
+        "github_ref": "67915b86cb7048f9476fd9eab87f6e60c8a7c869",
+        "paths": [
+          ".github/workflows/atelier-hub-publish.yml",
+          ".github/workflows/hf-backup-restore.yml",
+          ".github/workflows/hf-bucket-selftest.yml",
+          ".github/workflows/hf-candidate-admission-tests.yml",
+          ".github/workflows/hf-corpus-card-honesty.yml",
+          ".github/workflows/hf-corpus-freshness.yml",
+          ".github/workflows/hf-corpus-guards-selftest.yml",
+          ".github/workflows/hf-corpus-repair.yml",
+          ".github/workflows/hf-corpus-reverify.yml",
+          ".github/workflows/hf-drift-check.yml",
+          ".github/workflows/hf-ecosystem-drift.yml",
+          ".github/workflows/hf-frontend-live-canary-v1.yml",
+          ".github/workflows/hf-module-drift.yml",
+          ".github/workflows/hf-one-shot-retirement.yml",
+          ".github/workflows/hf-packet8-vertical-spaces.yml",
+          ".github/workflows/hf-space-frontend-census-v1.yml",
+          ".github/workflows/hf-space-source-map-v1.yml",
+          ".github/workflows/hf-sync.yml",
+          ".github/workflows/hf-universal-frontend-estate.yml",
+          ".github/workflows/hf-universal-frontend-rollout.yml",
+          ".github/workflows/huggingface.yml",
+          ".github/workflows/namespace-leak-check.yml",
+          ".github/workflows/no-hf-mirror-guard.yml",
+          ".github/workflows/publish-packages.yml"
+        ],
+        "single_writer_candidate": false,
+        "state": "OBSERVED"
+      }
+    },
+    {
+      "explicit_github_repositories": [
+        "szl-holdings/.github"
+      ],
+      "hf_repository_sha": "b7419d44e07825a5749167abf41da478727e60dd",
+      "hf_runtime_sha": null,
+      "hf_runtime_stage": "UNAVAILABLE",
+      "readme": {
+        "front_matter_keys": [
+          "app_port",
+          "colorfrom",
+          "colorto",
+          "datasets",
+          "emoji",
+          "license",
+          "pinned",
+          "sdk",
+          "short_description",
+          "tags",
+          "title"
+        ],
+        "http_status": 200,
+        "revision": "b7419d44e07825a5749167abf41da478727e60dd",
+        "sha256": "0f766f02e4ce618b91c735a43f787956da928dc56587e3d17f12de72a4951f44",
+        "url": "https://huggingface.co/spaces/SZLHOLDINGS/yarqa/raw/b7419d44e07825a5749167abf41da478727e60dd/README.md"
+      },
+      "sdk": "docker",
+      "source_mapping": {
+        "candidates": [
+          {
+            "archived": false,
+            "default_branch": "main",
+            "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
             "disabled": false,
             "full_name": "szl-holdings/.github",
             "html_url": "https://github.com/szl-holdings/.github",
@@ -1557,7 +3629,7 @@
         "canonical": {
           "archived": false,
           "default_branch": "main",
-          "default_branch_sha": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+          "default_branch_sha": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
           "disabled": false,
           "full_name": "szl-holdings/.github",
           "html_url": "https://github.com/szl-holdings/.github",
@@ -1569,10 +3641,10 @@
       },
       "space_id": "SZLHOLDINGS/yarqa",
       "workflow_candidates": {
-        "candidate_count": 22,
-        "github_ref": "efbd45ffa094f4e702ce3fbc470dd4a36705eb3e",
+        "candidate_count": 25,
+        "github_ref": "0a8876aae82c597703c7cd4eb4cfb61fdeae10cc",
         "paths": [
-          ".github/workflows/anatomy-map-hf-drift.yml",
+          ".github/workflows/bind-a11oy-factory-space.yml",
           ".github/workflows/hf-collection-truth-reconcile.yml",
           ".github/workflows/hf-daily-activity.yml",
           ".github/workflows/hf-dataset-badge-refresh.yml",
@@ -1585,10 +3657,13 @@
           ".github/workflows/hf-official-estate-inventory.yml",
           ".github/workflows/hf-org-card-deploy.yml",
           ".github/workflows/hf-org-card-embed-check.yml",
+          ".github/workflows/hf-pinset.yml",
           ".github/workflows/hf-release-finalization-pr.yml",
           ".github/workflows/hf-release-finalization.yml",
           ".github/workflows/hf-release-readiness-terminal-pr.yml",
           ".github/workflows/hf-release-readiness-terminal.yml",
+          ".github/workflows/hf-universal-frontend-action-v1.yml",
+          ".github/workflows/publish-operator-spaces.yml",
           ".github/workflows/redeploy-a11oy-protected-main.yml",
           ".github/workflows/reusable-hf-candidate-plan.yml",
           ".github/workflows/reusable-hf-deploy-source-witness.yml",
@@ -1601,22 +3676,23 @@
     }
   ],
   "summary": {
-    "blocked_source_mappings": 16,
-    "exact_or_inferred_sources": 10,
+    "blocked_source_mappings": 5,
+    "exact_or_inferred_sources": 40,
     "mapping_states": {
-      "DIVERGENT": 13,
-      "EXACT": 10,
-      "UNAVAILABLE": 3
+      "DIVERGENT": 3,
+      "EXACT": 32,
+      "INFERRED": 8,
+      "UNAVAILABLE": 2
     },
     "sdk_counts": {
-      "docker": 12,
+      "docker": 28,
       "gradio": 1,
-      "static": 13
+      "static": 16
     },
-    "spaces_observed": 26,
+    "spaces_observed": 45,
     "workflow_states": {
-      "BLOCKED_SOURCE_MAPPING": 16,
-      "OBSERVED": 10
+      "BLOCKED_SOURCE_MAPPING": 5,
+      "OBSERVED": 40
     }
   }
 }

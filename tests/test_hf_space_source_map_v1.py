@@ -97,6 +97,36 @@ def test_exact_explicit_mapping() -> None:
     assert mapping["canonical"]["full_name"] == "szl-holdings/example-space"
 
 
+def test_unique_normalized_name_breaks_a_multi_link_readme_tie() -> None:
+    repositories = {
+        "szl-holdings/example-space": _repo("szl-holdings/example-space"),
+        "szl-holdings/related-library": _repo("szl-holdings/related-library"),
+    }
+    mapping = MODULE.select_source_mapping(
+        "SZLHOLDINGS/example-space",
+        ["szl-holdings/example-space", "szl-holdings/related-library"],
+        lambda name: repositories.get(name.lower()),
+    )
+    assert mapping["state"] == "INFERRED"
+    assert mapping["evidence"] == "NORMALIZED_NAME_WITHIN_EXPLICIT_URLS"
+    assert mapping["canonical"]["full_name"] == "szl-holdings/example-space"
+    assert len(mapping["candidates"]) == 2
+
+
+def test_multiple_normalized_explicit_matches_stay_divergent() -> None:
+    repositories = {
+        "szl-holdings/szl-example": _repo("szl-holdings/szl-example"),
+        "szl-holdings/example": _repo("szl-holdings/example"),
+    }
+    mapping = MODULE.select_source_mapping(
+        "SZLHOLDINGS/szl-example",
+        ["szl-holdings/szl-example", "szl-holdings/example"],
+        lambda name: repositories.get(name.lower()),
+    )
+    assert mapping["state"] == "DIVERGENT"
+    assert mapping["canonical"] is None
+
+
 def test_missing_explicit_mapping_is_divergent() -> None:
     mapping = MODULE.select_source_mapping(
         "SZLHOLDINGS/example-space",
