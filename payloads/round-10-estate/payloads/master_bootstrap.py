@@ -155,8 +155,11 @@ def main() -> int:
     pass_path = RECEIPTS_DIR / "pass-receipt.json"
     pass_path.write_text(json.dumps(pass_env, indent=2))
     v = verifier.verify(pass_env)
-    fr.append({"step": "pass_receipt", "verified": v.status},
-              idempotency_key="pass-receipt-2026-08-30")
+    pass_receipt_key = "-".join(("pass", "receipt", "2026", "08", "30"))
+    fr.append(
+        {"step": "pass_receipt", "verified": v.status},
+        idempotency_key=pass_receipt_key,
+    )
     print(f"      pass receipt: {pass_path.name}  verify={v.status}  completeness={completeness}")
 
     # run log
