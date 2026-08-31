@@ -71,5 +71,5 @@ def test_workflow_pins_compatible_snapshot_progress_runtime() -> None:
         / "hf-backup-restore.yml"
     ).read_text(encoding="utf-8")
 
-    assert '"huggingface_hub==1.19.0"' in workflow
+    assert '"huggingface_hub==1.29.0"' in workflow
     assert '"tqdm==4.69.0"' in workflow
