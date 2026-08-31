@@ -1,0 +1,125 @@
+name: Reconcile immutable HF source and Brain registry
+
+on:
+  push:
+    branches:
+      - fix/hf-source-brain-parity-20260831
+    paths:
+      - .github/workflows/reconcile-hf-source-brain.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reconcile-hf-source-brain-parity
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    name: Import exact Space source and refresh derived graph truth
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact recovery branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-source-brain-parity-20260831
+          fetch-depth: 3
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact core verification dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Import immutable Space source and refresh Brain registry
+        run: python3 .github/scripts/reconcile_hf_source_brain.py
+
+      - name: Remove bounded migration controls before verification
+        run: |
+          rm -f .github/scripts/reconcile_hf_source_brain.py
+          rm -f .github/workflows/reconcile-hf-source-brain.yml
+
+      - name: Validate imported source syntax
+        run: |
+          set -euo pipefail
+          python3 -m py_compile serve.py szl3d_holographic.py
+          node --check static/3d/surfaces/braincite.js
+
+      - name: Re-run the exact previously failing frontier and estate suite
+        run: |
+          set -euo pipefail
+          pytest \
+            tests/test_frontier_model_admission.py \
+            tests/test_model_intel_frontier_estate.py \
+            tests/test_demo_critical_routes.py \
+            tests/test_series_a_estate.py \
+            tests/test_holographic_command_bar.py \
+            -q
+          python3 model_release/frontier-qualification/frontier_admission_guard.py audit
+
+      - name: Validate source-bound and retired-one-shot contracts
+        run: |
+          set -euo pipefail
+          pytest \
+            tests/test_hf_source_bound_drift_contract.py \
+            tests/test_hf_one_shots_retired.py \
+            -q
+
+      - name: Stage and assert the exact permanent reconciliation delta
+        shell: bash
+        run: |
+          set -euo pipefail
+          git add -A
+          python3 - <<'PY'
+          import subprocess
+
+          observed = set(
+              subprocess.check_output(
+                  ["git", "diff", "--cached", "--name-only"],
+                  text=True,
+              ).splitlines()
+          )
+          expected = {
+              ".github/scripts/reconcile_hf_source_brain.py",
+              ".github/workflows/reconcile-hf-source-brain.yml",
+              "docs/proofs/hf-source-brain-reconciliation-2026-08-31.json",
+              "model_release/frontier-qualification/frontier-adoption.json",
+              "pages/pricing.html",
+              "serve.py",
+              "static/3d/holographic.html",
+              "static/3d/surfaces/braincite.js",
+              "szl3d_holographic.py",
+          }
+          if observed != expected:
+              raise SystemExit(
+                  f"unexpected reconciliation delta: observed={sorted(observed)!r} "
+                  f"expected={sorted(expected)!r}"
+              )
+          PY
+          git diff --cached --check
+
+      - name: Commit and push the verified permanent tree
+        shell: bash
+        env:
+          TARGET_BRANCH: fix/hf-source-brain-parity-20260831
+          PUSH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git config user.name "SZL Reconciliation Bot"
+          git config user.email "noreply@szlholdings.ai"
+          git commit \
+            -m "fix(hf): reconcile immutable Space source and Brain registry" \
+            -m "Import five allowlisted UTF-8 files from Space revision 8bd83a12d69a24050bce9601b772eefb547e2927, refresh the exact derived Brain node count, retain a machine-readable proof, and remove the bounded migration controls before commit."
+          git push \
+            "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            "HEAD:refs/heads/${TARGET_BRANCH}"
