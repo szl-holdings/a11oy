@@ -45,11 +45,8 @@ jobs:
           python3 scripts/audit_huggingface_ecosystem.py \
             --check \
             --output docs/huggingface-ecosystem-manifest.json
-          python3 scripts/build_ecosystem_stage_matrix.py \
-            --output docs/ecosystem-stage-matrix.json
-          python3 scripts/build_ecosystem_stage_matrix.py \
-            --check \
-            --output docs/ecosystem-stage-matrix.json
+          python3 scripts/build_ecosystem_stage_matrix.py
+          python3 scripts/build_ecosystem_stage_matrix.py --check
 
       - name: Prove source and generated matrix equality
         shell: bash
