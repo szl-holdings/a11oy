@@ -43,7 +43,7 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends build-essential cmake ninja-build git; \
     CMAKE_ARGS="-DGGML_NATIVE=OFF" pip wheel --no-cache-dir --no-binary llama-cpp-python \
-        --wheel-dir=/wheels "llama-cpp-python==0.3.19"
+        --wheel-dir=/wheels "llama-cpp-python==0.3.35"
 RUN python3 <<'GLIBCCHK'
 import glob, sys, zipfile
 whls = glob.glob("/wheels/llama_cpp_python-*.whl")
@@ -103,18 +103,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Install Python dependencies
 # … (full rationale: docs/DOCKERFILE_NOTES.md §2)
 RUN pip install --no-cache-dir \
-    "fastapi==0.137.1" \
-    "uvicorn[standard]==0.49.0" \
+    "fastapi==0.141.1" \
+    "uvicorn[standard]==0.52.4" \
     "httpx==0.28.1" \
-    "starlette==1.3.1" \
-    "huggingface_hub==1.19.0" \
+    "starlette==1.6.0" \
+    "huggingface_hub==1.29.0" \
     "openai==2.43.0" \
     "python-multipart==0.0.32" \
-    "cryptography==50.0.0" \
-    "lmdb==2.2.1" \
+    "cryptography==50.0.1" \
+    "lmdb==2.3.0" \
     "slowapi==0.1.10" \
     "defusedxml==0.7.1" \
-    "numpy==2.1.3"
+    "numpy==2.5.2"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback

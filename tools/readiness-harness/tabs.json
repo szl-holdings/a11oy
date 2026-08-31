@@ -1452,7 +1452,7 @@
     "/api/a11oy/v1/router/stats": {
       "method": "GET",
       "schema": "router_stats",
-      "freshnessSLA": 300,
+      "freshnessSLA": null,
       "citationsRequired": false,
       "degradedRules": {
         "allowStatuses": [
@@ -2790,7 +2790,6 @@
         "data_kind",
         "catalog_state",
         "throughput_state",
-        "counter_state",
         "routes",
         "servedThisWindow",
         "routingDecisionsSinceStart",
@@ -2799,7 +2798,6 @@
         "counter_started_at",
         "observed_at",
         "source",
-        "catalog_source",
         "doctrine",
         "honesty"
       ],

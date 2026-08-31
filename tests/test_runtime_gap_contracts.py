@@ -36,7 +36,7 @@ def test_optional_runtime_audit_includes_formula_ops_without_claiming_it_live():
 
 
 def test_requirements_crypto_pin_matches_explicit_image_pin():
-    requirement = "cryptography==50.0.0"
+    requirement = "cryptography==50.0.1"
     assert requirement in (ROOT / "requirements.txt").read_text(encoding="utf-8")
     assert f'"{requirement}"' in (ROOT / "Dockerfile").read_text(encoding="utf-8")
 

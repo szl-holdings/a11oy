@@ -40,7 +40,7 @@ jobs:
         run: >-
           python -m pip install --disable-pip-version-check
           "pytest==9.0.2"
-          "huggingface_hub==1.19.0"
+          "huggingface_hub==1.29.0"
           "tqdm==4.69.0"
       - name: Prove archive, restore, empty-Space, and workflow contracts
         run: |
@@ -71,7 +71,7 @@ jobs:
       - name: Install exact Hugging Face client and progress runtime
         run: >-
           python -m pip install --disable-pip-version-check
-          "huggingface_hub==1.19.0"
+          "huggingface_hub==1.29.0"
           "tqdm==4.69.0"
       - name: Require the managed Hugging Face identity
         run: test -n "${HF_TOKEN:-}"
