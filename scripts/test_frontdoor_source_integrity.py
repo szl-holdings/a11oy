@@ -123,7 +123,7 @@ jobs:
           python-version: "3.12"
       - name: Prove the candidate introduces no unmanaged deployed-byte drift
         run: |
-          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_candidate_admission.py \
+          "$pythonLocation/bin/python3" baseline/.github/scripts/select_hf_candidate_admission.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
             --github-repo "$GITHUB_REPOSITORY" \
             --base-ref "$BASE_REF" \
@@ -209,7 +209,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             workflow = VALID_WORKFLOW.replace(
-                "baseline/.github/scripts/verify_hf_candidate_admission.py",
+                "baseline/.github/scripts/select_hf_candidate_admission.py",
                 "baseline/.github/scripts/verify_hf_repository_parity.py",
                 1,
             )
@@ -227,7 +227,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         with temp:
             workflow = VALID_WORKFLOW.replace(
                 "baseline/.github/scripts/verify_hf_repository_parity.py",
-                "baseline/.github/scripts/verify_hf_candidate_admission.py",
+                "baseline/.github/scripts/select_hf_candidate_admission.py",
                 1,
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
@@ -243,8 +243,8 @@ class IntegrityGuardSelfTest(unittest.TestCase):
         temp, root = self.make_fixture()
         with temp:
             workflow = VALID_WORKFLOW.replace(
-                "baseline/.github/scripts/verify_hf_candidate_admission.py",
-                "candidate/.github/scripts/verify_hf_candidate_admission.py",
+                "baseline/.github/scripts/select_hf_candidate_admission.py",
+                "candidate/.github/scripts/select_hf_candidate_admission.py",
                 1,
             )
             (root / validator.WORKFLOW_PATH).write_text(workflow, encoding="utf-8")
