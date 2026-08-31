@@ -1,0 +1,79 @@
+name: SLSA L1 Build Provenance (signed)
+
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+# Doctrine v11 LOCKED 749/14/163 · sovereign-default
+#
+# SLSA L1 honest: generate signed build provenance on a hosted GitHub
+# Actions builder for every release tag, using the official
+# slsa-framework/slsa-github-generator reusable workflow. The provenance
+# attestation is signed via Sigstore (Fulcio keyless + Rekor) and attached to
+# the release. SZL claims SLSA L1 (honest); L2 requires isolated builder not yet configured.
+# Concepts only — no third-party logos or trademarks.
+
+on:
+  push:
+    tags: ["v*", "*.*.*"]
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  # 1. Build the release artifact and record its digest (hosted runner).
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      digest: ${{ steps.hash.outputs.digest }}
+      artifact: ${{ steps.pack.outputs.artifact }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Pack source release artifact
+        id: pack
+        run: |
+          NAME="${GITHUB_REPOSITORY##*/}-${GITHUB_REF_NAME}.tar.gz"
+          git archive --format=tar.gz -o "$NAME" HEAD
+          echo "artifact=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Compute artifact digest (base64 sha256 set)
+        id: hash
+        run: |
+          echo "digest=$(sha256sum '${{ steps.pack.outputs.artifact }}' | base64 -w0)" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact for release
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-artifact
+          path: ${{ steps.pack.outputs.artifact }}
+          if-no-files-found: error
+
+  # 2. Generate signed SLSA provenance (reusable hosted-builder workflow).
+  provenance:
+    needs: [build]
+    permissions:
+      actions: read       # read the workflow run for provenance
+      id-token: write     # Sigstore keyless signing (Fulcio/OIDC)
+      contents: write     # attach provenance to the release
+    uses: slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@f7dd8c54c2067bafc12ca7a55595d5ee9b75204a # v2.1.0
+    with:
+      base64-subjects: "${{ needs.build.outputs.digest }}"
+      provenance-name: "${{ needs.build.outputs.artifact }}.intoto.jsonl"
+      # Only attach the signed provenance to a GitHub Release when this run IS a
+      # published-release event. On a bare tag push (no Release object) the
+      # generator's upload-to-release step has no target and fails the run's
+      # "Final outcome" — even though provenance was still generated AND
+      # Sigstore-signed (Fulcio keyless + Rekor). Gating the OPTIONAL upload on
+      # the release event makes a tag-only run honest-green without weakening
+      # any signing: provenance is signed + Rekor-logged regardless; only the
+      # release-asset attachment is conditional. (parity with killinchu #113.)
+      upload-assets: ${{ github.event_name == 'release' }}

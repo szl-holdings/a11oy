@@ -1,0 +1,144 @@
+{
+  "schema": "szl.oro-operational-workstream/v1",
+  "coordination_only": true,
+  "close_without_merge": true,
+  "repositories": {
+    "runtime": "szl-holdings/a11oy",
+    "formal_evidence": "szl-holdings/lutar-lean",
+    "control_plane": "szl-holdings/.github"
+  },
+  "laws": {
+    "rank": {
+      "required": true,
+      "fanout_conservation": true,
+      "objective_convergence_separate": true,
+      "recursion_limit_is_backstop_only": true
+    },
+    "codex": {
+      "required": true,
+      "barrier_only_global_evaluation": true,
+      "signed_data_manifest": true,
+      "remote_executable_invariants_forbidden": true
+    },
+    "disposition": {
+      "required": true,
+      "kernel_mutation_forbidden": true,
+      "rank_mutation_forbidden": true,
+      "codex_mutation_forbidden": true,
+      "evaluator_mutation_forbidden": true,
+      "self_approval_forbidden": true,
+      "self_merge_forbidden": true
+    }
+  },
+  "runtime_pr": {
+    "required": true,
+    "suggested_branch": "feat/oro-operational-control-plane-v1",
+    "required_surfaces": [
+      "rank",
+      "codex",
+      "barrier",
+      "semantic_cycle",
+      "forced_closing_turn",
+      "six_cell_roles",
+      "strict_sqlite_migrations",
+      "signed_receipts",
+      "intent_completion_refusal_certificates",
+      "fastapi_routes",
+      "zero_cdn_dashboard",
+      "docker_copy_coverage",
+      "real_uvicorn_smoke",
+      "narrow_no_write_demo"
+    ],
+    "required_gates": [
+      "orbit.rank_monotone",
+      "orbit.rank_function_immutable",
+      "orbit.fanout_budgeted",
+      "orbit.barrier_codex_evaluated",
+      "orbit.semantic_cycle_detected",
+      "orbit.forced_closing_turn",
+      "orbit.recursion_limit_never_fired",
+      "orbit.gateway_budget_enforced",
+      "orbit.reducers_declared",
+      "codex.kernel_separation",
+      "codex.evaluator_immutable",
+      "codex.no_self_certification",
+      "codex.protected_paths_unchanged",
+      "codex.canonical_commit",
+      "evolution.branch_isolated",
+      "evolution.baseline_reproducible",
+      "evolution.counterfactual_replay",
+      "evolution.independent_jury",
+      "evolution.rollback_verified",
+      "evolution.negative_result_recorded",
+      "provenance.complete_orbit_lineage",
+      "provenance.barrier_receipts_signed"
+    ],
+    "protected_merge_required": true,
+    "live_readback_required": true,
+    "status": "NOT_STARTED"
+  },
+  "lean_pr": {
+    "required": true,
+    "suggested_branch": "feat/oro-formal-witnesses-v1",
+    "commands": [
+      "lake exe cache get",
+      "lake build FrontierShowcase",
+      "lake env lean --no-sorries Showcase/Frontier/ORORankWitness.lean",
+      "lake env lean --no-sorries Showcase/Frontier/ORONegativeSpaceWitness.lean"
+    ],
+    "required_theorems": [
+      "Showcase.Frontier.ORORankWitness.orbitRank_wellFounded",
+      "Showcase.Frontier.ORONegativeSpaceWitness.attenuates_trans",
+      "Showcase.Frontier.ORONegativeSpaceWitness.no_lower_authority_admissible"
+    ],
+    "protected_merge_required": true,
+    "status": "NOT_STARTED"
+  },
+  "proof_binding_pr": {
+    "required": true,
+    "suggested_branch": "chore/oro-proof-binding-v1",
+    "must_follow_lean_merge": true,
+    "data_only": true,
+    "required_fields": [
+      "lean_repository",
+      "lean_commit",
+      "workflow_run_id",
+      "artifact_digest",
+      "lean_version",
+      "theorem_names",
+      "rank_definition_digest",
+      "verified_at"
+    ],
+    "status": "BLOCKED_ON_LEAN_PR"
+  },
+  "production": {
+    "durable_storage_required": true,
+    "governed_signer_required": true,
+    "ephemeral_database_forbidden": true,
+    "ephemeral_signer_forbidden": true,
+    "secret_value_readback_forbidden": true,
+    "exact_source_revision_readback_required": true,
+    "organization_control_sweep_required": true,
+    "status": "NOT_VERIFIED"
+  },
+  "claim_boundary": {
+    "runtime_enforced": "NOT_MEASURED_UNTIL_PROTECTED_LIVE_READBACK",
+    "well_founded_termination": "MODELED",
+    "machine_checked_termination": "NOT_PROVED",
+    "global_action_optimality": "NOT_CLAIMED",
+    "general_causal_identification": "NOT_CLAIMED"
+  },
+  "forbidden_delivery": [
+    "direct_main_push",
+    "force_update",
+    "history_rewrite",
+    "administrator_merge",
+    "required_check_removal",
+    "ruleset_weakening",
+    "fabricated_status",
+    "self_review",
+    "self_approval",
+    "self_merge",
+    "secret_value_readback"
+  ]
+}

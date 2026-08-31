@@ -1,0 +1,69 @@
+# Shared-file drift allow-list  (a11oy <-> killinchu)
+# -----------------------------------------------------------------------------
+# Read by .github/shared-file-drift-check.py. One path per line; text after a
+# `#` is ignored, so each path may carry an inline reason. KEEP THIS FILE
+# IDENTICAL IN BOTH REPOS.
+#
+# A path here is a file that BOTH repos ship and that the guard would otherwise
+# require to be byte-identical, but which is *currently* allowed to differ. The
+# guard is a ratchet:
+#   * Files NOT listed here must stay byte-identical across the two repos, or the
+#     build FAILS (this blocks NEW drift).
+#   * Files listed here are reported but do not fail the build.
+#   * When a listed file becomes identical again, the guard WARNS so this entry
+#     can be removed — tightening the ratchet over time.
+#
+# To accept a deliberate divergence: add the path with a short reason.
+# To reconcile a divergence: sync the file in both repos, then delete its line.
+#
+# Seeded 2026-06-08 with the drift that existed when the guard was added.
+# 2026-06-09 reconciliation pass: szl_rag.py and szl_khipu_lmdb.py were synced to
+# a single canonical copy in BOTH repos and removed from this list.
+# 2026-06-14 reconciliation pass (frontier shared-drift fix): a11oy_code_engine.py
+#   and szl_provenance.py synced to a single byte-identical copy in BOTH repos.
+# 2026-06-30 reconciliation pass (CI sweep Dev C): removed 7 stale-allow entries
+#   now byte-identical: szl_alloy_models.py, szl_llm_registry.py, operator_shell_v4.py,
+#   live_wires_3d.js, szl_khipu_consensus.py, szl_energy_sovereign.py, szl_live_wires.py,
+#   live_wires.html.
+#
+# 2026-07-07 reconciliation pass (Wave-K substrate-finish): the two repos' allow-lists
+#   had drifted apart (a11oy carried 8 entries killinchu lacked). Verified those 8
+#   files are once again byte-identical a11oy<->killinchu at HEAD and removed the now-
+#   STALE entries to tighten the ratchet and restore this file to being IDENTICAL in
+#   both repos:
+#     a11oy_agent_loop.py, a11oy_code_engine.py, static-vendor/a11oy-operator-widget.js,
+#     szl_agentic_loop.py, szl_joules_truth.py, szl_llm_registry.py, szl_rag.py,
+#     szl_v4_fleet.py  (all confirmed `cmp`-identical). The three GENUINE app-specific
+#   divergences below are kept on purpose.
+
+# --- App-specific feature sets: each demo ships features the other does not.
+szl_evidence_research.py   # killinchu-only finance/real-estate/risk vertical CLAIMS (PR #115) absent from a11oy's organ console
+
+# --- Vendored binary-asset blob bundle: each demo vendors a different set of
+#     fonts / 3D / chart assets as base64 blobs, so this file legitimately
+#     differs (a11oy ~1.52MB vs killinchu ~1.30MB). NOT a shared logic module.
+_vendor_blobs.py           # per-app vendored asset blob bundle (different asset sets)
+
+# --- killinchu QA5 demo-floor rate-limit fix. killinchu exempts its own page/static
+#     routes (/elite, /maritime, /globe, /jackin, ...) from the per-IP limiter so the
+#     showcase always renders; a11oy serves different routes, so this hardening module
+#     is intentionally app-specific. Reconcile only if both demos adopt one limiter.
+szl_be_hardening.py        # killinchu QA5 page/static rate-limit exemptions (app-specific routes)
+
+# --- Wave M (DEV 1) a11oy-only LLM-hub feature: first-class sovereign backend.
+#     szl_llm_registry.py now registers the `szl-sovereign-local` own-metal backend
+#     (model tag llama3-szl-finetuned-q4, Ollama, Doctrine-v11 system prompt) that
+#     targets SZL_LOCAL_LLM_URL, routes own-metal-first when reachable, and degrades
+#     to an honest UNAVAILABLE otherwise. a11oy IS the LLM hub for the ecosystem
+#     (killinchu mirrors model-access via /llm/ecosystem-mirror rather than shipping
+#     the hub roster itself), so this backend registration is intentionally a11oy-
+#     specific. Reconcile if/when killinchu adopts the same sovereign backend entry.
+szl_llm_registry.py        # Wave M DEV-1 a11oy-only sovereign backend (szl-sovereign-local); killinchu mirrors via /llm/ecosystem-mirror
+
+# --- TEMPORARY coordinated security rollout (a11oy #928 + killinchu #231).
+# Remove these three entries as soon as both PRs are on main. The PR branches
+# carry byte-identical hardened copies; the exception only breaks the circular
+# cross-repo CI dependency while the first half lands.
+szl_connectors/governance.py  # TEMP: coordinated nested-secret scrub rollout
+szl_connectors/oauth.py       # TEMP: coordinated public OAuth-scope separation
+szl_dsse.py                   # TEMP: coordinated content-address separation

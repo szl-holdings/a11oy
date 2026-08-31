@@ -1,0 +1,10 @@
+{
+  "phases": [
+    "historical scoring baseline",
+    "live read-only monitoring",
+    "risk brief",
+    "committee decision",
+    "resolution/outcome"
+  ],
+  "scope": "one risk or strategy team, read-only public event sources, one internal scenario/exposure dataset"
+}

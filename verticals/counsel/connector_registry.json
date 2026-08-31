@@ -1,0 +1,94 @@
+{
+  "private_connectors": [
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "document-management system",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "matter-management system",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "calendar/deadline system",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "billing/time system",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "firm knowledge base and licensed legal research",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    }
+  ],
+  "public_connectors": [
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "CourtListener and RECAP where permitted",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "Federal Register",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "official court and agency sources",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "eyecite citation parsing",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "public-domain or licensed evaluation corpora",
+      "rights_review_required": true,
+      "source_revision_required": true
+    }
+  ],
+  "schema": "szl.connector-registry/v8",
+  "secrets": "managed server-side secret store only; never client code, logs, traces, screenshots, errors or receipts",
+  "vertical_id": "counsel"
+}

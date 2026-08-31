@@ -1,0 +1,15 @@
+{
+  "_comment": "ROADMAP config for the SZL Hatun-MCP JSON-RPC server. NOTE: the /mcp/ Streamable-HTTP transport is NOT live yet (POST returns HTTP 405) — this bridge will not connect until it ships. The LIVE MCP surface today is REST: GET https://szlholdings-a11oy.hf.space/api/a11oy/v1/mcp/tools (4 tools). Doctrine v11 · Apache-2.0.",
+  "mcpServers": {
+    "szl-hatun": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://szlholdings-a11oy.hf.space/mcp/",
+        "--header",
+        "Accept: application/json, text/event-stream"
+      ]
+    }
+  }
+}

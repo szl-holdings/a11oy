@@ -1,0 +1,245 @@
+# SPDX-License-Identifier: Apache-2.0
+# Publish the SZL Atelier walk + MEASURED nano checkpoints to Hub.
+# Does not retrain 1.5B. Does not invent MMLU/joules. ROADMAP stays ROADMAP.
+# Lambda = Conjecture 1 OPEN. Energy UNAVAILABLE.
+#
+# Uses HF_ORG_TOKEN already bound on this repo. szl-atelier's own hf-space.yml
+# cannot publish until that repo has the org token.
+#
+# Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>
+
+name: Publish SZL Atelier Hub surfaces
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/atelier-hub-publish.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atelier-hub-publish
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish Space + nano checkpoints
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out szl-atelier source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/szl-atelier
+          path: atelier
+          persist-credentials: false
+
+      - name: Check out a11oy overlay kit
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: a11oy-src
+          persist-credentials: false
+
+      - name: Overlay receipted Unsloth v2 kit
+        run: |
+          set -euo pipefail
+          mkdir -p atelier/kit atelier/cards
+          if [ -f a11oy-src/.github/atelier-kit/receipted_unsloth.py ]; then
+            cp a11oy-src/.github/atelier-kit/receipted_unsloth.py atelier/kit/receipted_unsloth.py
+          fi
+          if [ -f a11oy-src/.github/atelier-kit/unsloth-recipes.json ]; then
+            cp a11oy-src/.github/atelier-kit/unsloth-recipes.json atelier/unsloth-recipes.json
+          fi
+          if [ -f a11oy-src/.github/atelier-kit/kit-README.md ]; then
+            cp a11oy-src/.github/atelier-kit/kit-README.md atelier/kit/README.md
+          fi
+          if [ -f a11oy-src/.github/atelier-kit/models.json ]; then
+            cp a11oy-src/.github/atelier-kit/models.json atelier/models.json
+          fi
+          if [ -d a11oy-src/.github/atelier-kit/cards ]; then
+            cp a11oy-src/.github/atelier-kit/cards/*.md atelier/cards/ || true
+          fi
+          echo "overlay catalog $(wc -c < atelier/models.json) bytes"
+          ls atelier/cards/WILLAY.md atelier/unsloth-recipes.json atelier/kit/receipted_unsloth.py
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install Hub client
+        run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0" "numpy==2.2.6"
+
+      - name: Publish Space and MEASURED nano files
+        env:
+          HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${HF_TOKEN:-}" ]; then
+            echo "HF_ORG_TOKEN missing — cannot publish."
+            exit 1
+          fi
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import json
+          import numpy as np
+          from huggingface_hub import HfApi
+
+          token = os.environ["HF_TOKEN"]
+          api = HfApi(token=token)
+          root = Path("atelier")
+
+          def ensure_model(repo_id: str) -> None:
+              try:
+                  api.create_repo(repo_id=repo_id, repo_type="model", exist_ok=True, private=False)
+              except Exception as e:
+                  print("ensure_model skip", repo_id, type(e).__name__)
+
+          # Space already exists. create_repo counts against the 20/day
+          # space-creation cap even with exist_ok=True — never call it here.
+          api.upload_folder(
+              folder_path=str(root),
+              repo_id="SZLHOLDINGS/szl-atelier",
+              repo_type="space",
+              allow_patterns=[
+                  "*.md", "*.html", "*.css", "*.js", "*.json", "*.py",
+                  "LICENSE", "kit/*", "kit/**", "kit/kernels/*", "kit/kernels/**",
+                  "cards/*", "weights/*",
+              ],
+              ignore_patterns=[".git*", ".github/*"],
+              commit_message="publish(atelier): walk + MEASURED nano weights from szl-holdings/szl-atelier",
+          )
+          print("published space SZLHOLDINGS/szl-atelier")
+
+          # Explicit catalog/recipes so allow_patterns cannot miss the overlay.
+          for rel, msg in (
+              ("models.json", "catalog(atelier): Unsloth unique-cut benches RECIPE/KERNEL — not a GPU retrain"),
+              ("unsloth-recipes.json", "recipe(atelier): Unsloth profiles RECIPE not MEASURED — energy UNAVAILABLE"),
+          ):
+              pth = root / rel
+              if pth.exists():
+                  api.upload_file(path_or_fileobj=str(pth), path_in_repo=rel, repo_id="SZLHOLDINGS/szl-atelier", repo_type="space", commit_message=msg)
+                  print("published space", rel)
+
+          src = json.loads((root / "nano-weights.json").read_text())
+          wdir = root / "weights"
+          wdir.mkdir(exist_ok=True)
+
+          def arr(x):
+              return np.asarray(x, dtype=np.float64)
+
+          seed = np.int64(src["seed"])
+          m = src["miniEmbed"]
+          np.savez_compressed(wdir / "mini_embed.npz", table=arr(m["table"]), V=np.int64(m["V"]), d=np.int64(m["d"]), seed=np.int64(m["seed"]), retrievalHitAt2=np.float64(m["retrievalHitAt2"]))
+          mo = src["moons"]
+          np.savez_compressed(wdir / "moons.npz", w1=arr(mo["w1"]), b1=arr(mo["b1"]), w2=arr(mo["w2"]), b2=arr(mo["b2"]), holdoutAcc=np.float64(mo["holdoutAcc"]), silhouette=np.float64(mo["silhouette"]), seed=seed)
+          k = src["tinyKhipu"]
+          np.savez_compressed(wdir / "tiny_khipu.npz", w1=arr(k["w1"]), b1=arr(k["b1"]), w2=arr(k["w2"]), b2=arr(k["b2"]), holdoutAcc=np.float64(k["holdoutAcc"]), abstainRecall=np.float64(k["abstainRecall"]), navigateRecall=np.float64(k["navigateRecall"]), seed=seed)
+          r = src["receiptAgent"]
+          np.savez_compressed(wdir / "receipt_agent.npz", w1=arr(r["w1"]), b1=arr(r["b1"]), w2=arr(r["w2"]), b2=arr(r["b2"]), holdoutAcc=np.float64(r["holdoutAcc"]), seed=seed)
+          g = src["lambdaGate"]
+          np.savez_compressed(wdir / "lambda_gate.npz", w=np.float64(g["w"]), b=np.float64(g["b"]), lambdaStar=np.float64(g["lambdaStar"]), holdoutAcc=np.float64(g["holdoutAcc"]), falseOpenRate=np.float64(g["falseOpenRate"]), seed=seed)
+
+          # MEASURED / SYNTHETIC nanos — write card + npz. Never touch 1.5B safetensors.
+          nanos = [
+              ("SZLHOLDINGS/MiniEmbed-Nano", "cards/MiniEmbed-Nano.md", "mini_embed.npz"),
+              ("SZLHOLDINGS/Moons-Nano", "cards/Moons-Nano.md", "moons.npz"),
+              ("SZLHOLDINGS/TinyKhipu-Nano", "cards/TinyKhipu-Nano.md", "tiny_khipu.npz"),
+              ("SZLHOLDINGS/ReceiptAgent-Nano", "cards/ReceiptAgent-Nano.md", "receipt_agent.npz"),
+          ]
+          for repo, card, npz in nanos:
+              ensure_model(repo)
+              api.upload_file(path_or_fileobj=str(root / card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): MEASURED nano silhouette — not a 1.5B retrain")
+              api.upload_file(path_or_fileobj=str(wdir / npz), path_in_repo=npz, repo_id=repo, repo_type="model", commit_message="weights(atelier): CPU NumPy checkpoint seed=20260721")
+              print("published", repo, npz)
+
+          # lambda silhouette rides the existing szl-khipu model id (do not clobber README)
+          api.upload_file(path_or_fileobj=str(wdir / "lambda_gate.npz"), path_in_repo="lambda_gate.npz", repo_id="SZLHOLDINGS/szl-khipu", repo_type="model", commit_message="weights(atelier): 1-D lambda-gate silhouette — Conjecture 1 OPEN")
+          print("published SZLHOLDINGS/szl-khipu lambda_gate.npz")
+
+          # Doctrine/courier CPU silhouettes. Do not clobber 0.5B/0.8B adapters.
+          def write_mlp(key, fname):
+              pck = src[key]
+              np.savez_compressed(wdir / fname, w1=arr(pck["w1"]), b1=arr(pck["b1"]), w2=arr(pck["w2"]), b2=arr(pck["b2"]), holdoutAcc=np.float64(pck["holdoutAcc"]), seed=seed)
+
+          cohort = [
+              ("willay", "willay.npz", "SZLHOLDINGS/WILLAY"),
+              ("chaski", "chaski.npz", "SZLHOLDINGS/chaski"),
+              ("chaski5050", "chaski_5050.npz", "SZLHOLDINGS/chaski-5050"),
+              ("chaskiR2", "chaski_r2.npz", "SZLHOLDINGS/chaski-r2"),
+          ]
+          for key, fname, repo in cohort:
+              if key in src:
+                  write_mlp(key, fname)
+                  api.upload_file(path_or_fileobj=str(wdir / fname), path_in_repo=fname, repo_id=repo, repo_type="model", commit_message="weights(atelier): CPU NumPy silhouette seed=20260721 — not a GPU retrain")
+                  print("published", repo, fname)
+
+          # ROADMAP organs — honest empty-seat cards. No fake weights.
+          for name in ("qantu", "waman", "chakana", "tinku"):
+              repo = f"SZLHOLDINGS/{name}"
+              card = root / "cards" / f"{name}.md"
+              ensure_model(repo)
+              api.upload_file(path_or_fileobj=str(card), path_in_repo="README.md", repo_id=repo, repo_type="model", commit_message="card(atelier): ROADMAP organ — not a checkpoint")
+              print("published ROADMAP card", repo)
+
+          # Kernel pack — SOFTWARE, not SGD. Never clobber 1.5B safetensors/GGUF.
+          # Do not rewrite GitHub-canonical torch-ext READMEs (szl-formulas, szl-blocked).
+          kdir = root / "kit" / "kernels"
+          if kdir.is_dir():
+              ensure_model("SZLHOLDINGS/szl-khipu-kernels")
+              kcard = root / "cards" / "szl-khipu-kernels.md"
+              if kcard.exists():
+                  api.upload_file(path_or_fileobj=str(kcard), path_in_repo="README.md", repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", commit_message="card(atelier): kernel suite — SOFTWARE not SGD")
+              for pth in sorted(list(kdir.glob("*.py")) + list(kdir.glob("README.md"))):
+                  api.upload_file(path_or_fileobj=str(pth), path_in_repo=f"kernels/{pth.name}", repo_id="SZLHOLDINGS/szl-khipu-kernels", repo_type="model", commit_message=f"code(atelier): {pth.name} fail-closed organ")
+              print("published SZLHOLDINGS/szl-khipu-kernels pack")
+
+              per = [
+                  ("SZLHOLDINGS/YARQA-ATTN", "yarqa.py"),
+                  ("SZLHOLDINGS/szl-maskmod", "maskmod.py"),
+                  ("SZLHOLDINGS/szl-receipt-attn", "receipt_attn.py"),
+                  ("SZLHOLDINGS/szl-ouroboros", "ouroboros.py"),
+                  ("SZLHOLDINGS/szl-block-kv", "block_kv.py"),
+                  ("SZLHOLDINGS/szl-lambda-gate", "lambda_gate.py"),
+                  ("SZLHOLDINGS/szl-governed-norm", "governed_norm.py"),
+              ]
+              for repo, name in per:
+                  srcp = kdir / name
+                  if srcp.exists():
+                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} from szl-khipu — not a 1.5B retrain")
+                      print("published", repo, name)
+
+              # One-hop deps so per-organ imports resolve. Do not rewrite GitHub-canonical READMEs.
+              for repo, name in (
+                  ("SZLHOLDINGS/szl-block-kv", "chain.py"),
+                  ("SZLHOLDINGS/szl-governed-norm", "chain.py"),
+                  ("SZLHOLDINGS/szl-lambda-gate", "doctrine.py"),
+              ):
+                  srcp = kdir / name
+                  if srcp.exists():
+                      api.upload_file(path_or_fileobj=str(srcp), path_in_repo=name, repo_id=repo, repo_type="model", commit_message=f"code(atelier): {name} one-hop dep so the organ imports")
+                      print("published", repo, name, "(dep)")
+
+              api.upload_file(path_or_fileobj=str(kdir / "nemo_rules.py"), path_in_repo="szl_nemo/rules.py", repo_id="SZLHOLDINGS/szl-nemo", repo_type="model", commit_message="code(atelier): rule_check R1-R5 — joblib stays quarantined")
+              print("published SZLHOLDINGS/szl-nemo szl_nemo/rules.py")
+
+          tc = root / "kit" / "train_cohort.py"
+          if tc.exists():
+              api.upload_file(path_or_fileobj=str(tc), path_in_repo="train_cohort.py", repo_id="SZLHOLDINGS/szl-training-scripts", repo_type="model", commit_message="code(atelier): CPU silhouette trainer — not a 1.5B retrain")
+              print("published SZLHOLDINGS/szl-training-scripts train_cohort.py")
+
+          ru = root / "kit" / "receipted_unsloth.py"
+          if ru.exists():
+              api.upload_file(path_or_fileobj=str(ru), path_in_repo="receipted_unsloth.py", repo_id="SZLHOLDINGS/szl-training-scripts", repo_type="model", commit_message="code(atelier): receipted Unsloth v2 profiles — not a GPU retrain")
+              print("published SZLHOLDINGS/szl-training-scripts receipted_unsloth.py")
+          recipes = root / "unsloth-recipes.json"
+          if recipes.exists():
+              api.upload_file(path_or_fileobj=str(recipes), path_in_repo="unsloth-recipes.json", repo_id="SZLHOLDINGS/szl-training-scripts", repo_type="model", commit_message="recipe(atelier): Unsloth profiles RECIPE not MEASURED — energy UNAVAILABLE")
+              print("published SZLHOLDINGS/szl-training-scripts unsloth-recipes.json")
+
+          print("done. Did not retrain 1.5B. Energy UNAVAILABLE.")
+          PY

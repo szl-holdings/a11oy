@@ -1,0 +1,236 @@
+name: Docs toolchain security review
+
+# Recurring review of the docs/site toolchain pin.
+#
+# docs/site runs VitePress 1.6.x, which natively depends on Vite 5 / esbuild <=0.24.2
+# (GHSA-67mh-4wv8-2f99, no fix available through that chain). We keep it clean by forcing
+# vite ^6.4.2 + esbuild ^0.25.0 via the `overrides` block in docs/site/package.json.
+# The proper "supported toolchain" upgrade (VitePress 2.x, which ships Vite 7) is not
+# viable yet: 2.x is alpha-only and vitepress-plugin-mermaid does not support it.
+#
+# This job re-checks both halves every month so the pin never silently rots:
+#   1. `npm audit` on docs/site must stay clean (catches NEW advisories the override misses).
+#   2. Report whether the VitePress 2.x exit criteria are met (stable 2.x + mermaid support),
+#      i.e. whether we can finally drop the override.
+#
+# Instead of only printing a job-summary line that a human has to read, the scheduled run
+# turns each signal into a tracked GitHub issue (deduplicated, auto-closing):
+#   * "VitePress 2.x is ready — drop the docs/site override" opens when BOTH exit criteria
+#     are met, and auto-closes if they stop being met.
+#   * "docs/site npm audit found new vulnerabilities" opens when `npm audit` is dirty, and
+#     auto-closes when it goes clean again.
+# See docs/site/README.md -> "Toolchain pin & security review".
+
+on:
+  schedule:
+    - cron: '0 7 1 * *'  # 07:00 UTC on the 1st of every month
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'docs/site/package.json'
+      - 'docs/site/package-lock.json'
+      - '.github/workflows/docs-toolchain-review.yml'
+
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: docs/site npm audit + VitePress 2.x readiness
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: docs/site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+
+      - name: Install (uses package.json overrides)
+        run: npm install --no-audit --no-fund
+
+      - name: npm audit (must stay clean)
+        id: audit
+        run: |
+          echo "## docs/site npm audit" >> "$GITHUB_STEP_SUMMARY"
+          if npm audit > "$RUNNER_TEMP/audit.txt" 2>&1; then
+            echo "audit_clean=true" >> "$GITHUB_OUTPUT"
+            echo "audit clean" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "audit_clean=false" >> "$GITHUB_OUTPUT"
+            echo "::error::npm audit found vulnerabilities in docs/site — the override may need bumping."
+          fi
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          cat "$RUNNER_TEMP/audit.txt" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: VitePress 2.x exit-criteria check
+        id: criteria
+        if: always()
+        run: |
+          echo "## VitePress 2.x upgrade readiness" >> "$GITHUB_STEP_SUMMARY"
+          LATEST="$(npm view vitepress version 2>/dev/null || echo unknown)"  # latest = dist-tag 'latest'
+          MERMAID_PEER="$(npm view vitepress-plugin-mermaid peerDependencies.vitepress 2>/dev/null || echo unknown)"
+          echo "- vitepress dist-tag \`latest\`: \`$LATEST\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- vitepress-plugin-mermaid peer \`vitepress\`: \`$MERMAID_PEER\`" >> "$GITHUB_STEP_SUMMARY"
+
+          STABLE2=false
+          case "$LATEST" in
+            2.*) case "$LATEST" in *-*) STABLE2=false ;; *) STABLE2=true ;; esac ;;
+          esac
+          MERMAID_OK=false
+          case "$MERMAID_PEER" in *2.*|*"^2"*) MERMAID_OK=true ;; esac
+
+          READY=false
+          if [ "$STABLE2" = true ] && [ "$MERMAID_OK" = true ]; then
+            READY=true
+            echo "::warning::VitePress 2.x is now stable AND vitepress-plugin-mermaid supports it — time to upgrade docs/site and drop the overrides block."
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**ACTION:** Both exit criteria met. Upgrade vitepress + mermaid plugin and remove the \`overrides\` block in docs/site/package.json." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "Exit criteria not yet met — keep the \`overrides\` pin. (stable 2.x: $STABLE2, mermaid supports 2.x: $MERMAID_OK)" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          {
+            echo "latest=$LATEST"
+            echo "mermaid_peer=$MERMAID_PEER"
+            echo "stable2=$STABLE2"
+            echo "mermaid_ok=$MERMAID_OK"
+            echo "ready=$READY"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Open/close tracking issues
+        if: ${{ always() && github.event_name != 'pull_request' }}
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          AUDIT_CLEAN: ${{ steps.audit.outputs.audit_clean }}
+          VP_LATEST: ${{ steps.criteria.outputs.latest }}
+          VP_MERMAID_PEER: ${{ steps.criteria.outputs.mermaid_peer }}
+          VP_STABLE2: ${{ steps.criteria.outputs.stable2 }}
+          VP_MERMAID_OK: ${{ steps.criteria.outputs.mermaid_ok }}
+          VP_READY: ${{ steps.criteria.outputs.ready }}
+        with:
+          script: |
+            const fs = require('fs');
+            const { owner, repo } = context.repo;
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`;
+
+            // Find the single open automated issue carrying a given marker label.
+            async function findOpen(label) {
+              const issues = await github.paginate(github.rest.issues.listForRepo, {
+                owner, repo, state: 'open', labels: label, per_page: 100,
+              });
+              // Exclude PRs (listForRepo can return PRs).
+              return issues.find((i) => !i.pull_request) || null;
+            }
+
+            // Ensure exactly one open issue with `label` exists, carrying `title`/`body`.
+            async function ensureOpen(label, title, body, extraLabels) {
+              const labels = ['automated', 'docs-toolchain', label, ...(extraLabels || [])];
+              const existing = await findOpen(label);
+              if (existing) {
+                await github.rest.issues.update({
+                  owner, repo, issue_number: existing.number, title, body, state: 'open',
+                });
+                core.info(`Updated existing issue #${existing.number} (${label}).`);
+              } else {
+                const created = await github.rest.issues.create({ owner, repo, title, body, labels });
+                core.info(`Opened issue #${created.data.number} (${label}).`);
+              }
+            }
+
+            // Close any open issue with `label`, leaving a resolution comment.
+            async function ensureClosed(label, comment) {
+              const existing = await findOpen(label);
+              if (!existing) return;
+              await github.rest.issues.createComment({
+                owner, repo, issue_number: existing.number, body: comment,
+              });
+              await github.rest.issues.update({
+                owner, repo, issue_number: existing.number, state: 'closed', state_reason: 'completed',
+              });
+              core.info(`Closed issue #${existing.number} (${label}).`);
+            }
+
+            // --- 1. VitePress 2.x readiness ---
+            const ready = process.env.VP_READY === 'true';
+            const latest = process.env.VP_LATEST || 'unknown';
+            const mermaidPeer = process.env.VP_MERMAID_PEER || 'unknown';
+            const READY_LABEL = 'vitepress-2x-ready';
+            if (ready) {
+              const body = [
+                'Both VitePress 2.x exit criteria are now met, so the docs/site security pin can be dropped.',
+                '',
+                `- vitepress dist-tag \`latest\`: \`${latest}\` (stable 2.x)`,
+                `- vitepress-plugin-mermaid peer \`vitepress\`: \`${mermaidPeer}\` (allows 2.x)`,
+                '',
+                '**Action:** upgrade `vitepress` (and `vitepress-plugin-mermaid`) in `docs/site/package.json`,',
+                'then delete the `overrides` block — VitePress 2.x ships a non-vulnerable Vite 7 / esbuild 0.25+ chain.',
+                'See `docs/site/README.md` → "Toolchain pin & security review".',
+                '',
+                'This issue is opened/updated automatically by the monthly Docs toolchain security review',
+                'and will auto-close if the criteria stop being met.',
+                '',
+                `_Last reviewed by [run ${context.runId}](${runUrl})._`,
+              ].join('\n');
+              await ensureOpen(READY_LABEL, 'VitePress 2.x is ready — drop the docs/site security override', body);
+            } else {
+              await ensureClosed(
+                READY_LABEL,
+                `Closing automatically: the VitePress 2.x exit criteria are no longer both met ` +
+                `(latest \`${latest}\`, mermaid peer \`${mermaidPeer}\`). The override pin still stands. ` +
+                `Re-checked by [run ${context.runId}](${runUrl}).`,
+              );
+            }
+
+            // --- 2. npm audit findings ---
+            const auditClean = process.env.AUDIT_CLEAN === 'true';
+            const AUDIT_LABEL = 'docs-audit';
+            if (!auditClean) {
+              let auditText = '(audit output unavailable)';
+              try {
+                auditText = fs.readFileSync(`${process.env.RUNNER_TEMP}/audit.txt`, 'utf8').trim();
+              } catch (e) {
+                core.warning(`Could not read audit output: ${e}`);
+              }
+              const MAX = 55000;
+              if (auditText.length > MAX) auditText = auditText.slice(0, MAX) + '\n…(truncated)…';
+              const body = [
+                '`npm audit` reported vulnerabilities in `docs/site` beyond the known/overridden chain.',
+                'The forced `vite`/`esbuild` override may need bumping, or a new advisory has appeared.',
+                '',
+                '```',
+                auditText,
+                '```',
+                '',
+                'This issue is opened/updated automatically by the monthly Docs toolchain security review',
+                'and will auto-close once `npm audit` is clean again.',
+                '',
+                `_Last reviewed by [run ${context.runId}](${runUrl})._`,
+              ].join('\n');
+              await ensureOpen(AUDIT_LABEL, 'docs/site npm audit found new vulnerabilities', body, ['security']);
+            } else {
+              await ensureClosed(
+                AUDIT_LABEL,
+                `Closing automatically: \`npm audit\` on docs/site is clean again. ` +
+                `Re-checked by [run ${context.runId}](${runUrl}).`,
+              );
+            }
+
+      - name: Fail the run if npm audit is dirty
+        if: ${{ always() && steps.audit.outputs.audit_clean != 'true' }}
+        run: |
+          echo "::error::docs/site npm audit is not clean — see the audit step output and the tracking issue."
+          exit 1
+    permissions:
+      contents: read
+      issues: write

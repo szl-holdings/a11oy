@@ -1,0 +1,1218 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<!--
+  a11oy — front door (scroll narrative). Served at the Space root "/" by serve.py.
+  SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.
+  Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.
+  HONESTY DOCTRINE v11 LOCKED — every figure is fetched live and labelled honestly
+  (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. Λ = Conjecture 1 (advisory, NOT a theorem,
+  never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
+  The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
+  Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.
+  DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
+  preserved verbatim below. KANCHAY palette. No purple. a-11-oy.com remains the
+  canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
+  © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>a11oy — Governed Inference · AI that proves its receipt state and refuses to lie</title>
+<meta name="description" content="Governed Inference: AI that exposes receipt integrity, signer state, evidence, and refusal behavior. State-changing actions produce hash-chained receipts; DSSE signing is claimed only when persistent signer evidence is active and independently verified." />
+<link rel="canonical" href="https://a-11-oy.com/" />
+<meta property="og:type" content="website" />
+<meta property="og:url" content="https://a-11-oy.com/" />
+<meta property="og:title" content="a11oy — Governed Inference" />
+<meta property="og:description" content="AI that exposes receipt integrity and signer state, shows its evidence, and refuses when it cannot support an answer." />
+<meta property="og:image" content="https://a-11-oy.com/social-preview-v5.png" />
+<meta property="og:image:type" content="image/png" />
+<meta property="og:image:width" content="1280" />
+<meta property="og:image:height" content="640" />
+<meta property="og:image:alt" content="a11oy Governed Inference — evidence-labelled ecosystem and Anatomy v5" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:image" content="https://a-11-oy.com/social-preview-v5.png" />
+<meta name="twitter:image:alt" content="a11oy Governed Inference — evidence-labelled ecosystem and Anatomy v5" />
+<link rel="icon" type="image/svg+xml" href="/social-preview-v5.svg" />
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "a11oy Governed Inference",
+  "url": "https://a-11-oy.com/",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Web",
+  "creator": {
+    "@type": "Organization",
+    "name": "SZL Holdings",
+    "sameAs": [
+      "https://github.com/szl-holdings",
+      "https://huggingface.co/SZLHOLDINGS"
+    ]
+  }
+}
+</script>
+<style>
+  /* ---- vendored fonts (0 CDN; served from /vendor/fonts/*.woff2 by serve.py) ---- */
+  @font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;
+    font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2')}
+  @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 600;
+    font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2')}
+
+  :root{
+    /* KANCHAY palette (canonical, org-wide — RECONCILE.md). Purple is BANNED. */
+    --void:#080c14;            /* deep near-black ground */
+    --deep:#0a1019;            /* raised ground */
+    --surface:#0e1626;         /* card surface */
+    --border:#1c2942;          /* hairline */
+    --proof:#3af4c8;           /* proof teal — the one bright accent */
+    --proof-soft:rgba(58,244,200,0.12);
+    --proof-dim:rgba(58,244,200,0.06);
+    --lattice:#5b8dee;         /* lattice blue — secondary (NOT purple) */
+    --lattice-soft:rgba(91,141,238,0.12);
+    --gold:#d7b96b;            /* warm accent / conjecture-adjacent */
+    --ink:#eef4fb;             /* near-white heading */
+    --sub:#aebccf;             /* body copy — WCAG AA on --void */
+    --ghost:#65788f;           /* muted labels */
+    --gray:#7d8aa0;            /* CONJECTURE / advisory — never green */
+    --ok:#3af4c8; --warn:#d7b96b; --down:#e8746e;
+    --r:16px; --maxw:1180px;
+    --head:'Space Grotesk',-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    --sans:'Inter',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+  body{
+    background:
+      radial-gradient(ellipse 900px 520px at 76% -6%, #0d1730 0%, transparent 55%),
+      radial-gradient(ellipse 720px 420px at 4% 12%,  #0a1322 0%, transparent 50%),
+      var(--void);
+    color:var(--ink); font-family:var(--sans); line-height:1.58;
+    -webkit-font-smoothing:antialiased; overflow-x:hidden;
+  }
+  a{color:inherit;text-decoration:none}
+  a:focus-visible,button:focus-visible{outline:3px solid var(--proof);outline-offset:3px}
+  .skip-link{position:fixed;left:16px;top:10px;z-index:1000;padding:9px 13px;border-radius:8px;
+    background:var(--ink);color:var(--void);font-weight:700;transform:translateY(-150%)}
+  .skip-link:focus{transform:translateY(0)}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  .mono{font-family:var(--mono);overflow-wrap:anywhere;word-break:break-word}
+  h1,h2,h3,.brand{font-family:var(--head)}
+
+  /* ---- nav ---- */
+  header.nav{position:sticky;top:0;z-index:40;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    background:linear-gradient(180deg,rgba(8,12,20,0.94),rgba(8,12,20,0.74));
+    border-bottom:1px solid var(--border)}
+  .nav .wrap{display:flex;align-items:center;flex-wrap:wrap;gap:18px;min-height:64px;height:auto}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
+  .brand svg{display:block}
+  .brand .sub{color:var(--ghost);font-weight:500;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-family:var(--sans)}
+  .nav nav{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .nav nav a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;height:auto;padding:10px 14px;border-radius:10px;color:var(--sub);font-size:14px;font-weight:500;transition:.15s;position:relative;z-index:1;pointer-events:auto;touch-action:manipulation}
+  .nav nav a:hover{color:var(--ink);background:rgba(255,255,255,0.06)}
+  .menu-toggle{display:none;align-items:center;justify-content:center;width:44px;height:44px;min-width:44px;min-height:44px;padding:0;margin-left:auto;border:1px solid var(--border);border-radius:10px;background:rgba(255,255,255,0.04);color:var(--ink);cursor:pointer;font-size:20px;line-height:1}
+  @media(max-width:1100px){
+    .nav .wrap{position:relative;height:64px;padding-inline:14px;gap:10px}
+    .nav .wrap{min-height:64px;height:auto}
+    .nav .brand{min-width:0;flex:1;gap:8px}
+    .nav .brand svg{width:25px;height:25px;flex:0 0 25px}
+    .nav .brand > span{min-width:0;line-height:1.05}
+    .nav .brand .sub{display:block;margin-left:0!important;margin-top:4px;font-size:9px;letter-spacing:1.25px;white-space:nowrap}
+    .menu-toggle{display:inline-flex}
+    .nav nav{margin-left:0;flex:0 0 auto;flex-wrap:nowrap;gap:0}
+    .nav nav a.hide-sm,.nav nav a:not(.btn){display:none}
+    .nav nav .btn{padding:9px 12px;font-size:12px;max-width:154px;min-height:44px}
+    header.nav.nav-open nav{position:absolute;left:0;right:0;top:64px;display:flex;flex-direction:column;align-items:stretch;gap:4px;padding:8px 14px 14px;background:rgba(8,12,20,0.96);border-bottom:1px solid var(--border);z-index:50}
+    header.nav.nav-open nav a.hide-sm,header.nav.nav-open nav a:not(.btn),header.nav.nav-open nav a.btn{display:flex;align-items:center;min-height:44px;padding:12px 14px;max-width:none}
+    .nav-cta-full{display:none}
+    .nav-cta-short{display:inline}
+  }
+  @media(min-width:1101px){.nav-cta-short{display:none}}
+  @media(max-width:350px){
+    .nav .brand .sub{display:none}
+    .nav nav .btn{padding-inline:10px}
+  }
+
+  /* ---- buttons ---- */
+  #fw-hash-btn{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;padding:10px 14px;touch-action:manipulation}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 21px;border-radius:9px;
+    min-height:44px;max-width:100%;font-weight:600;font-size:14px;border:1px solid transparent;cursor:pointer;
+    transition:all .18s cubic-bezier(0.16,1,0.3,1);white-space:nowrap;letter-spacing:.01em}
+  /* restrained "holographic glass" buttons — luminous hairline + soft fill, never a neon block */
+  .btn-primary{background:linear-gradient(180deg,rgba(58,244,200,0.13),rgba(58,244,200,0.04));
+    color:var(--proof);border-color:rgba(58,244,200,0.42);
+    box-shadow:inset 0 1px 0 rgba(58,244,200,0.10),0 1px 14px -8px rgba(58,244,200,0.45)}
+  .btn-primary:hover{background:linear-gradient(180deg,rgba(58,244,200,0.2),rgba(58,244,200,0.07));
+    border-color:rgba(58,244,200,0.6);color:#c8fff0;
+    box-shadow:0 6px 24px -12px rgba(58,244,200,0.35);transform:translateY(-1px)}
+  .btn-ghost{border-color:var(--border);color:var(--sub);background:rgba(255,255,255,0.04)}
+  .btn-ghost:hover{border-color:rgba(58,244,200,0.45);color:var(--proof);background:var(--proof-dim)}
+  .btn-lattice{background:linear-gradient(180deg,rgba(91,141,238,0.15),rgba(91,141,238,0.05));
+    color:#a9c5ff;border-color:rgba(91,141,238,0.42);
+    box-shadow:inset 0 1px 0 rgba(91,141,238,0.10),0 1px 14px -8px rgba(91,141,238,0.4)}
+  .btn-lattice:hover{background:linear-gradient(180deg,rgba(91,141,238,0.23),rgba(91,141,238,0.08));
+    border-color:rgba(91,141,238,0.6);color:#c5d8ff;
+    box-shadow:0 6px 24px -12px rgba(91,141,238,0.32);transform:translateY(-1px)}
+
+  /* ---- hero (canvas owned by Dev 2 — markup preserved) ---- */
+  .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
+  #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
+  .hero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:
+      radial-gradient(ellipse 65% 70% at 68% 50%, transparent 0%, rgba(8,12,20,0.55) 55%, rgba(8,12,20,0.9) 100%),
+      linear-gradient(to right, rgba(8,12,20,0.84) 0%, rgba(8,12,20,0.5) 45%, rgba(8,12,20,0.14) 100%)}
+  .hero-fallback{position:absolute;inset:0;z-index:0;display:none;
+    background:radial-gradient(600px 600px at 65% 45%, rgba(58,244,200,0.07), transparent 70%)}
+  .hero .wrap{position:relative;z-index:2;padding-top:54px;padding-bottom:54px}
+  .hero-inner{max-width:740px}
+  .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 14px;border-radius:999px;
+    border:1px solid rgba(58,244,200,0.24);background:rgba(58,244,200,0.06);color:var(--proof);
+    font-size:12.5px;font-weight:600;letter-spacing:.4px;margin-bottom:22px}
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--proof);animation:pulse 2.4s infinite}
+  @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(58,244,200,0.3)}70%{box-shadow:0 0 0 8px rgba(58,244,200,0)}100%{box-shadow:0 0 0 0 rgba(58,244,200,0)}}
+  @media(prefers-reduced-motion:reduce){.eyebrow .dot{animation:none}}
+  h1.title{font-size:clamp(2.4rem,5.8vw,4.3rem);line-height:1.03;margin:0 0 18px;
+    font-weight:700;letter-spacing:-1.6px;color:var(--ink);
+    text-shadow:0 2px 22px rgba(8,12,20,0.8),0 1px 4px rgba(8,12,20,0.6)}
+  h1.title .grad{background:linear-gradient(110deg, var(--proof) 0%, var(--lattice) 100%);
+    -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 1px 8px rgba(8,12,20,0.7))}
+  .lede{font-size:clamp(1.06rem,2vw,1.26rem);color:var(--sub);max-width:610px;margin:0 0 28px;
+    text-shadow:0 1px 8px rgba(8,12,20,0.5)}
+  .lede b{color:var(--ink);font-weight:600}
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
+  .hero-stats{display:flex;gap:14px;flex-wrap:wrap}
+  .stat{padding:13px 17px;border-radius:13px;border:1px solid var(--border);
+    background:rgba(255,255,255,0.04);min-width:152px;
+    backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+  .stat .k{font-size:1.55rem;font-weight:600;font-family:var(--mono);line-height:1.1;color:var(--ink)}
+  .stat .l{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
+  .stat .l .stat-note{display:block;text-transform:none;letter-spacing:0;font-size:10px;color:var(--ghost);opacity:.8;margin-top:2px;font-weight:400}
+  .stat .stat-note a{color:var(--proof);text-decoration:none}
+  .stat .stat-note a:hover{text-decoration:underline}
+  .stat .k.proof{color:var(--proof)}
+  .stat .k.gray{color:var(--gray)}
+
+  /* ---- generic section ---- */
+  section.band{padding:88px 0;position:relative}
+  .band h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:700;letter-spacing:-.7px;margin:0 0 14px;line-height:1.1}
+  .band .kick{color:var(--proof);font-weight:600;font-size:13px;letter-spacing:1.7px;text-transform:uppercase;margin:0 0 12px;font-family:var(--mono)}
+  .band p.intro{color:var(--sub);max-width:720px;font-size:1.08rem;margin:0 0 40px}
+  .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
+
+  .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  .g4{grid-template-columns:repeat(4,1fr)}
+  @media(max-width:980px){.g4{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:900px){.g3{grid-template-columns:1fr}.g2{grid-template-columns:1fr}}
+  @media(max-width:560px){.g4{grid-template-columns:1fr}}
+
+  .card{padding:26px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.016));
+    position:relative;overflow:hidden;display:flex;flex-direction:column}
+  .card::before{content:"";position:absolute;inset:0;border-radius:var(--r);padding:1px;
+    background:linear-gradient(135deg,rgba(58,244,200,0.18),transparent 42%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;mask-composite:exclude;opacity:.5;pointer-events:none}
+  .card h3{margin:0 0 8px;font-size:1.16rem;font-weight:600}
+  .card p{margin:0;color:var(--sub);font-size:.97rem}
+  .card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
+    background:rgba(58,244,200,0.07);border:1px solid rgba(58,244,200,0.18);
+    color:var(--proof);margin-bottom:15px;font-size:19px}
+  .card .golinks{margin-top:auto;display:flex;gap:14px;flex-wrap:wrap;padding-top:16px}
+  .card a.go{color:var(--proof);font-family:var(--mono);font-size:12.5px;min-height:44px;display:inline-flex;align-items:center}
+  .card a.go:hover{text-decoration:underline}
+  .card .num{position:absolute;top:18px;right:22px;font-family:var(--mono);font-size:13px;color:var(--ghost)}
+
+  /* thesis pillars */
+  .pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:8px}
+  @media(max-width:840px){.pillars{grid-template-columns:1fr}}
+  .pillar{padding:22px 0;border-top:1px solid var(--border)}
+  .pillar .pk{font-family:var(--mono);font-size:12px;color:var(--proof);letter-spacing:1px;margin-bottom:10px}
+  .pillar h3{margin:0 0 8px;font-size:1.12rem;font-weight:600}
+  .pillar p{margin:0;color:var(--sub);font-size:.96rem}
+
+  /* proof tier cards */
+  .tier{padding:24px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015));position:relative;overflow:hidden}
+  .tier .tnum{font-family:var(--mono);font-size:2.6rem;font-weight:600;line-height:1;color:var(--ink)}
+  .tier .tname{font-family:var(--mono);font-size:12px;letter-spacing:.6px;margin:10px 0 8px;font-weight:600}
+  .tier p{margin:0;color:var(--sub);font-size:.92rem}
+  .tier.locked{border-color:rgba(58,244,200,0.4)}   .tier.locked .tnum,.tier.locked .tname{color:var(--proof)}
+  .tier.semantic{border-color:rgba(91,141,238,0.45)} .tier.semantic .tnum,.tier.semantic .tname{color:var(--lattice)}
+  .tier.evidence{border-color:rgba(215,185,107,0.4)} .tier.evidence .tnum,.tier.evidence .tname{color:var(--gold)}
+  /* CONJECTURE: gray, NEVER green */
+  .tier.conjecture{border-color:rgba(125,138,160,0.4)} .tier.conjecture .tnum,.tier.conjecture .tname{color:var(--gray)}
+
+  /* vertical cards */
+  .vcard{padding:24px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015));
+    display:flex;flex-direction:column;gap:6px;position:relative;overflow:hidden}
+  .vcard .pmark{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;
+    font-family:var(--mono);font-weight:600;font-size:13px;
+    background:rgba(91,141,238,0.10);border:1px solid rgba(91,141,238,0.28);color:var(--lattice);margin-bottom:10px}
+  .vcard h3{margin:0;font-size:1.18rem;font-weight:600}
+  .vcard .tag{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
+  .vcard p{margin:0;color:var(--sub);font-size:.92rem}
+  .vcard .lam{display:flex;align-items:baseline;gap:9px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
+  .vcard .lam .val{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--ink)}
+  .vcard .lam .cap{font-size:11px;color:var(--ghost);text-transform:uppercase;letter-spacing:1px}
+
+  /* living body */
+  .body-embed{position:relative;border-radius:var(--r);overflow:hidden;border:1px solid var(--border);
+    background:radial-gradient(ellipse 70% 80% at 50% 30%, rgba(91,141,238,0.12), transparent 70%), var(--deep);
+    min-height:380px;display:grid;place-items:center;text-align:center}
+  .body-embed .poster{padding:40px 24px;max-width:560px}
+  .body-embed .poster h3{font-size:1.5rem;font-weight:600;margin:0 0 10px}
+  .body-embed .poster p{color:var(--sub);margin:0 0 22px}
+  .body-embed iframe{width:100%;height:560px;border:0;display:block}
+  .body-embed .pulse-ring{width:90px;height:90px;border-radius:50%;margin:0 auto 22px;
+    border:2px solid rgba(58,244,200,0.32);position:relative}
+  .body-embed .pulse-ring::after{content:"";position:absolute;inset:18px;border-radius:50%;
+    background:var(--proof);opacity:.55;animation:bpulse 2.6s ease-out infinite}
+  @keyframes bpulse{0%{transform:scale(.7);opacity:.85}70%{transform:scale(1.25);opacity:0}100%{opacity:0}}
+  @media(prefers-reduced-motion:reduce){.body-embed .pulse-ring::after{animation:none}}
+
+  /* one chain */
+  .chainrow{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+  @media(max-width:860px){.chainrow{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.chainrow{grid-template-columns:1fr}}
+  .cstat{padding:22px;border-radius:var(--r);border:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))}
+  .cstat .ck{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--proof);word-break:break-all;line-height:1.15}
+  .cstat .cl{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:6px}
+  .cstat .ck.ink{color:var(--ink);font-size:1.05rem}
+
+  /* trust CTA */
+  .trustcta{padding:48px 40px;border-radius:20px;border:1px solid rgba(58,244,200,0.2);
+    background:radial-gradient(ellipse 80% 120% at 0% 0%, rgba(58,244,200,0.05), transparent 60%),
+      linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.02));
+    display:flex;align-items:center;justify-content:space-between;gap:30px;flex-wrap:wrap}
+  .trustcta h2{margin:0 0 8px}
+  .trustcta p{margin:0;color:var(--sub);max-width:560px}
+  .trustcta .tcbtns{display:flex;gap:12px;flex-wrap:wrap}
+
+  /* chips */
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px;border-radius:999px;
+    font-size:12px;font-weight:600;font-family:var(--mono);border:1px solid var(--border)}
+  .chip .dot{width:8px;height:8px;border-radius:50%}
+  .chip.live{color:var(--ok);border-color:rgba(58,244,200,0.35);background:rgba(58,244,200,0.06)}
+  .chip.live .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+  .chip.down{color:var(--down);border-color:rgba(232,116,110,0.35);background:rgba(232,116,110,0.06)}
+  .chip.down .dot{background:var(--down)}
+  .chip.gray{color:var(--gray);border-color:rgba(125,138,160,0.35);background:rgba(125,138,160,0.06)}
+  .chip.gray .dot{background:var(--gray)}
+  .pass-chip{font-family:var(--mono);font-size:11px;font-weight:600;padding:3px 9px;border-radius:999px}
+
+  /* footer */
+  footer{border-top:1px solid var(--border);padding:48px 0 64px;color:var(--ghost);font-size:13.5px}
+  footer .cols{display:flex;gap:40px;flex-wrap:wrap;justify-content:space-between}
+  footer a{color:var(--sub)}footer a:hover{color:var(--proof)}
+  footer .lk{display:flex;flex-direction:column;gap:8px}
+  .disc{margin-top:32px;padding-top:22px;border-top:1px solid var(--border);max-width:860px;line-height:1.65}
+  .muted{color:var(--ghost)}
+  .skel{color:var(--ghost);font-family:var(--mono)}
+
+  /* ecosystem atlas — public estate snapshot, never implied live until API reads */
+  .estate-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:24px 0}
+  .estate-cell{border:1px solid var(--border);border-radius:13px;padding:15px;min-height:44px;
+    background:linear-gradient(155deg,rgba(17,30,50,.72),rgba(8,16,29,.88))}
+  .estate-cell b{display:block;color:var(--proof);font:600 1.45rem var(--mono);margin-bottom:4px}
+  .estate-cell span{color:var(--ghost);font:10px var(--mono);letter-spacing:.08em;text-transform:uppercase}
+  a.estate-cell{transition:border-color .16s,transform .16s,background .16s}
+  a.estate-cell:hover{border-color:rgba(58,244,200,.45);transform:translateY(-1px);background:linear-gradient(155deg,rgba(17,40,55,.82),rgba(8,16,29,.92))}
+  .estate-links{display:flex;gap:9px;flex-wrap:wrap;margin-top:18px}
+  @media(max-width:900px){.estate-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:520px){.estate-grid{grid-template-columns:repeat(2,1fr)}}
+
+  /* ---- honesty strip (MEASURED/REPORTED/UNKNOWN/CONJECTURE) ---- */
+  .honesty{border-top:1px solid var(--border);border-bottom:1px solid var(--border);
+    background:linear-gradient(180deg,rgba(10,16,30,0.6),rgba(10,16,30,0.22))}
+  .honesty .wrap{padding:48px 24px}
+  .legend{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:22px 0 0}
+  @media(max-width:860px){.legend{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:480px){.legend{grid-template-columns:1fr}}
+  .leg{padding:16px 17px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.03)}
+  .leg .lt{font-family:var(--mono);font-size:12.5px;font-weight:600;letter-spacing:.6px;margin-bottom:7px}
+  .leg p{margin:0;color:var(--sub);font-size:.9rem;line-height:1.5}
+  .leg.measured .lt{color:var(--proof)}     .leg.measured{border-color:rgba(58,244,200,0.35)}
+  .leg.reported .lt{color:var(--lattice)}   .leg.reported{border-color:rgba(91,141,238,0.35)}
+  .leg.roadmap .lt{color:var(--gold)}       .leg.roadmap{border-color:rgba(215,185,107,0.35)}
+  .leg.software .lt{color:var(--lattice)}   .leg.software{border-color:rgba(91,141,238,0.28)}
+  .leg.unavailable .lt{color:var(--down)}   .leg.unavailable{border-color:rgba(232,116,110,0.38)}
+  .leg.simulated .lt{color:var(--gray)}     .leg.simulated{border-color:rgba(125,138,160,0.4)}
+  .status-row{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 0}
+  .chip.software{color:var(--lattice);border-color:rgba(91,141,238,0.35);background:rgba(91,141,238,0.08)}
+  .chip.software .dot{background:var(--lattice)}
+  .chip.roadmap{color:var(--gold);border-color:rgba(215,185,107,0.4);background:rgba(215,185,107,0.08)}
+  .chip.roadmap .dot{background:var(--gold)}
+  .chip.simulated{color:var(--gray);border-color:rgba(125,138,160,0.4);background:rgba(125,138,160,0.08)}
+  .chip.simulated .dot{background:var(--gray)}
+  .chip.unavailable{color:var(--down);border-color:rgba(232,116,110,0.35);background:rgba(232,116,110,0.07)}
+  .chip.unavailable .dot{background:var(--down)}
+  /* Genome catalog tag slot: visually subordinate to the kernel chip so the
+     catalog count can never be mistaken for the Lean-8 kernel count. */
+  .tier .genome-note{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);
+    font-size:.82rem;color:var(--ghost)}
+  .tier .genome-note .n{font-family:var(--mono);color:var(--sub)}
+  .product-card .kc-note{margin-top:10px;font-size:.84rem;color:var(--ghost)}
+  .product-card .lam{margin-top:auto;padding-top:14px}
+  .honesty .lambda-line{margin:24px 0 0;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+  .honesty .lambda-line .muted{max-width:640px}
+  .honesty .free-energy{margin:14px 0 0;color:var(--ghost);font-size:.92rem;max-width:840px;line-height:1.6}
+
+  /* ---- surfaces grid (cards are links) ---- */
+  .surface-card{cursor:pointer;transition:border-color .18s,transform .18s}
+  .surface-card:hover{border-color:rgba(58,244,200,0.42);transform:translateY(-2px)}
+  .surface-card .go{color:var(--proof);font-family:var(--mono);font-size:12.5px}
+  .pulse-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-top:28px}
+  .pulse-card{min-width:0;padding:19px;border:1px solid var(--border);border-radius:13px;background:var(--deep)}
+  .pulse-card .pulse-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+  .pulse-card h3{font-size:1rem;margin:0}
+  .pulse-card p{font-size:.86rem;color:var(--sub);margin:0;min-height:2.8em}
+  .pulse-card a{display:inline-block;margin-top:12px;color:var(--proof);font:11px var(--mono)}
+  .data-state{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;border:1px solid var(--border);
+    color:var(--ghost);font:10px var(--mono);letter-spacing:.06em;white-space:nowrap}
+  .data-state.live{color:var(--proof);border-color:rgba(58,244,200,.35);background:var(--proof-dim)}
+  .data-state.amber{color:var(--gold);border-color:rgba(215,185,107,.4);background:rgba(215,185,107,.08)}
+  .data-state.down{color:var(--down);border-color:rgba(232,116,110,.38);background:rgba(232,116,110,.07)}
+  .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
+  @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:560px){.pulse-grid{grid-template-columns:1fr}}
+  /* Mobile overrides intentionally follow all equal-specificity base rules. */
+  @media(max-width:560px){
+    .wrap{padding-inline:16px}
+    section.band{padding-block:64px}
+    .hero{min-height:auto}
+    .hero .wrap{padding-top:44px;padding-bottom:44px}
+    .cta-row{display:grid;grid-template-columns:1fr;width:100%}
+    .cta-row .btn{width:100%;white-space:normal;text-align:center}
+    .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
+  }
+</style>
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to main content</a>
+
+<!-- ============================ NAV ============================ -->
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="/" aria-label="a11oy home">
+      <svg width="30" height="30" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#3af4c8"/><stop offset="1" stop-color="#5b8dee"/></linearGradient></defs>
+        <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
+        <circle cx="16" cy="16" r="5" fill="url(#lg)"/>
+        <path d="M16 3v8M16 21v8M3 16h8M21 16h8" stroke="url(#lg)" stroke-width="1.6" opacity=".7"/>
+      </svg>
+      <span>a11oy<span class="sub" style="margin-left:9px">Governed Inference</span></span>
+    </a>
+    <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">☰</button>
+    <nav class="nav-links" id="site-nav">
+      <a class="hide-sm" href="#products">Products</a>
+      <a class="hide-sm" href="#catalog">Catalog</a>
+      <a class="hide-sm" href="/lyte">LYTE</a>
+      <a href="/console">Command</a>
+      <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
+      <a href="/trust">Evidence</a>
+      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
+    </nav>
+  </div>
+</header>
+<main id="main">
+
+<!-- ====================== (1) HERO — canvas + boot owned by Dev 2 ====================== -->
+<section class="hero">
+  <canvas id="hero-canvas"></canvas>
+  <div class="hero-scrim" aria-hidden="true"></div>
+  <div class="hero-fallback" id="hero-fallback"></div>
+  <div class="wrap">
+    <div class="hero-inner">
+      <span class="eyebrow"><span class="dot"></span> Governed Inference · verifiable by anyone, offline</span>
+      <h1 class="title">AI that <span class="grad">proves its receipt state</span><br>and refuses to lie.</h1>
+      <p class="lede">Every governed state change produces a hash-chained receipt you can inspect
+        <b>offline, in your own browser</b>. The interface says <b>SIGNED</b> only when persistent
+        signer evidence is active and verification passes; otherwise it reports HASH-LINKED,
+        UNSIGNED, DISABLED, or UNAVAILABLE. When the model is not sure, it returns an honest
+        <b>BLOCKED</b> instead of a confident guess.</p>
+      <div class="cta-row">
+        <a class="btn btn-primary" href="/console">Open the command center →</a>
+        <a class="btn btn-lattice" href="https://a11oy.net" rel="noopener">Open the proof registry</a>
+        <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="k proof" id="hs-receipts">—</div>
+          <div class="l">Receipts in the chain <span id="hs-receipts-chip"></span><br><span class="stat-note">ledger depth — a mechanism check, not customer traction <span id="hs-receipts-hist"></span></span></div>
+        </div>
+        <div class="stat">
+          <div class="k gray" id="hs-lambda">Conjecture 1</div>
+          <div class="l">Λ trust gate · advisory bound</div>
+        </div>
+        <div class="stat">
+          <div class="k" id="hs-proven">8</div>
+          <div class="l">Locked Lean-proven theorems<br><span class="stat-note">a proof of rigor, not a traction number</span></div>
+        </div>
+        <div class="stat" id="overclaim-counter">
+          <div class="k gray" id="hs-overclaims">—</div>
+          <div class="l">Overclaims caught by CI <span id="hs-overclaims-chip"><span class="chip gray" style="margin-left:6px"><span class="dot"></span>SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE</span></span><br><span class="stat-note">Observed correction time (<span id="hs-overclaim-sample">source unavailable</span>): <span id="hs-overclaim-time">—</span> · <a href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== (1b) HONESTY STRIP ====================== -->
+<section class="honesty" id="honesty">
+  <div class="wrap">
+    <p class="kick">The honesty doctrine · v11 LOCKED</p>
+    <h2 style="font-size:clamp(1.5rem,3vw,2.1rem);margin:0 0 10px">Every figure on this page is labelled — or it isn't shown.</h2>
+    <p class="intro" style="margin:0">We grade what we say. If a claim isn't MEASURED live this session, we tell you exactly what it is instead of dressing it up as proof.</p>
+    <div class="legend">
+      <div class="leg measured"><div class="lt">MEASURED</div><p>Read live from a running endpoint this session — receipt count, advisory Λ posture, and chain depth. Shown with a live chip; a dead probe degrades to an honest offline chip. Signer state is disclosed separately only where an actual signer-status read is present. Never used for GPU joules without a live exporter delta.</p></div>
+      <div class="leg reported"><div class="lt">REPORTED</div><p>Stated by a source we name — the locked-8 Lean kernel {F1,F4,F7,F11,F12,F18,F19,F22}, the 144-entry genome registry — cited here, not independently re-derived on this page.</p></div>
+      <div class="leg roadmap"><div class="lt">ROADMAP</div><p>Future work or an empty Hub card. Not trained, not a product SKU, and not admitted as data. The ROADMAP collection exists so those cards are not sold as models.</p></div>
+      <div class="leg software"><div class="lt">SOFTWARE</div><p>Shipped code — kernels, consoles, gates. Not LoRA-trained weights. Hub mirrors GitHub; a SOFTWARE card is not a model SKU.</p></div>
+      <div class="leg unavailable"><div class="lt">UNAVAILABLE</div><p>We don't have it right now. Rendered as N/A · UNAVAILABLE · BLOCKED — never a confident guess and never a fabricated number.</p></div>
+      <div class="leg simulated"><div class="lt">SIMULATED</div><p>A rehearsal path. killinchu effectors stay SIMULATED unless a real execution path is proved. Never painted LIVE or MEASURED.</p></div>
+    </div>
+    <div class="lambda-line">
+      <span class="chip gray"><span class="dot"></span>Λ = Conjecture 1</span>
+      <span class="muted">an advisory trust bound — never proven, never 1.0, and never rendered green. Theorem&nbsp;U is the proven <i>conditional</i> alternative; the unconditional claim is machine-checked false as stated.</span>
+    </div>
+    <p class="free-energy"><b style="color:var(--ink)">No free energy.</b> Joules are MEASURED only from a live exporter delta; with no live meter we label the reading SAMPLE or UNAVAILABLE and fabricate nothing. a11oy never claims over-unity, perpetual output, or free-energy efficiency — only what a real meter reports.</p>
+  </div>
+</section>
+
+<!-- ====================== (1c) LIVE ESTATE PULSE ====================== -->
+<section class="band wrap" id="estate-pulse" aria-labelledby="estate-pulse-title">
+  <p class="kick">Runtime evidence</p>
+  <h2 id="estate-pulse-title">What is actually reachable right now.</h2>
+  <p class="intro">Four read-only checks connect the product story to the running system. REACHABLE means the source answered this browser session; evidence mode (LIVE, SNAPSHOT, MODELED, or UNAVAILABLE) remains separate and never certifies model truth.</p>
+  <div class="pulse-grid" aria-live="polite">
+    <article class="pulse-card"><div class="pulse-head"><h3>Platform health</h3><span class="data-state" id="pulse-health-state">CHECKING</span></div><p id="pulse-health-detail">Checking the deployed runtime.</p><a href="/healthz">Source /healthz →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Tab contract</h3><span class="data-state" id="pulse-contract-state">CHECKING</span></div><p id="pulse-contract-detail">Checking the published tab inventory.</p><a href="/api/a11oy/v1/readiness/tab-matrix">Source tab matrix →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Receipt ledger</h3><span class="data-state" id="pulse-ledger-state">CHECKING</span></div><p id="pulse-ledger-detail">Checking the append-only evidence read.</p><a href="/api/a11oy/v1/ledger">Source receipt ledger →</a></article>
+    <article class="pulse-card"><div class="pulse-head"><h3>Sovereign mesh</h3><span class="data-state" id="pulse-mesh-state">CHECKING</span></div><p id="pulse-mesh-detail">Checking the current mesh posture.</p><a href="/api/a11oy/v1/mesh/state">Source mesh state →</a></article>
+  </div>
+  <p class="pulse-time" id="pulse-checked">Checks have not completed.</p>
+</section>
+
+<!-- ====================== FLAGSHIPS — three products max ====================== -->
+<section class="band wrap" id="products">
+  <p class="kick">Products · three flagships <span id="verticals-src"></span></p>
+  <h2>Three products. One evidence contract.</h2>
+  <p class="intro">The public product line is three flagships — not nine surfaces, not five verticals, and not forty Hub SKUs. Insurance, finance, and real-estate cards are not products. Λ uniqueness is <b>Conjecture&nbsp;1</b> — advisory, never a theorem, never green.</p>
+  <div class="grid g3">
+    <article class="card product-card" id="product-a11oy">
+      <div class="ic">⌘</div>
+      <h3>a11oy Command</h3>
+      <p>Governed-AI command center: deny-by-default gates, receipt integrity, separately disclosed signer state, and an honest BLOCKED when the model is not sure.</p>
+      <div class="status-row">
+        <span class="chip software"><span class="dot"></span>SOFTWARE</span>
+        <span class="chip gray"><span class="dot"></span>Λ = Conjecture 1</span>
+      </div>
+      <div class="lam"><span class="val" id="v-core">—</span><span class="cap">advisory Λ</span><span id="v-core-chip"></span></div>
+      <div class="golinks">
+        <a class="go" href="/console">Open /console →</a>
+        <a class="go" href="https://huggingface.co/spaces/SZLHOLDINGS/a11oy" rel="noopener">Space →</a>
+      </div>
+    </article>
+    <article class="card product-card" id="product-killinchu">
+      <div class="ic">⚔</div>
+      <h3>killinchu</h3>
+      <p>Counter-UAS and maritime vertical on the same receipt substrate. Public controls remain advisory. Effectors stay SIMULATED unless a real execution path is proved.</p>
+      <div class="status-row">
+        <span class="chip software"><span class="dot"></span>SOFTWARE</span>
+        <span class="chip simulated"><span class="dot"></span>SIMULATED effectors</span>
+        <span class="chip down" id="kc-runtime"><span class="dot"></span>RUNTIME UNAVAILABLE</span>
+      </div>
+      <p class="kc-note" id="kc-runtime-note">This document carries no live reading of the
+        killinchu Space runtime, so the runtime is labelled <b>UNAVAILABLE</b>. The in-page
+        probe below only reports REACHABLE on an actual HTTP 200 this visit; if the request
+        is refused or has timed out, the label stays UNAVAILABLE. The Hugging Face Space hub
+        page is the honest entry point while the runtime is down — it is not a live product
+        surface.</p>
+      <div class="lam"><span class="val" id="v-defense">—</span><span class="cap">advisory Λ</span><span id="v-defense-chip"></span></div>
+      <div class="golinks">
+        <a class="go" href="https://huggingface.co/spaces/SZLHOLDINGS/killinchu" rel="noopener">killinchu Space hub →</a>
+      </div>
+    </article>
+    <article class="card product-card" id="product-forge">
+      <div class="ic">⚙</div>
+      <h3>Forge / own-metal</h3>
+      <p>Owner-forged weights and kernels trained on metal you own. This is a training and evidence path — not a live GPU joule meter, and not forty fake model SKUs.</p>
+      <div class="status-row">
+        <span class="chip software"><span class="dot"></span>SOFTWARE</span>
+        <span class="chip roadmap"><span class="dot"></span>ROADMAP cards ≠ trained</span>
+      </div>
+      <div class="golinks">
+        <a class="go" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Flagship models →</a>
+        <a class="go" href="/api/forge/family">Forge family JSON →</a>
+      </div>
+    </article>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- ====================== BOUND PACKAGES — not flagships ====================== -->
+<section class="band wrap" id="bound">
+  <p class="kick">Bound packages · not flagships</p>
+  <h2>Cited in. Not a fourth product.</h2>
+  <p class="intro">These tabs bind onto a-11-oy.com as packages. They are not flagships and they do not certify the product. Hugging Face stays the artifact registry, not the front door.</p>
+  <div class="grid g3">
+    <a class="card surface-card" href="/lyte" id="bind-lyte">
+      <div class="ic">⚖</div>
+      <h3>LYTE lattice</h3>
+      <p>BIND package. Named frontiers N1–N25 cited from GitHub. STRUCTURAL-ONLY hub. UNSIGNED-honest receipts. Joule UNAVAILABLE unless RAPL <span class="mono">energy_uj</span> is actually read. Occupancy UNAVAILABLE. Not a production certificate.</p>
+      <div class="golinks"><span class="go">Open /lyte →</span></div>
+    </a>
+    <a class="card surface-card" href="/organs" id="bind-organs">
+      <div class="ic">⬡</div>
+      <h3>N1–N25 organs</h3>
+      <p>Factory organs execute on this origin with per-organ SIMULATED, MODELED, MEASURED, or UNAVAILABLE evidence classes. Public Hub admission false. GPU tune UNAVAILABLE. Not 25 public Spaces. Proof RECORD is a11oy.net/factory/.</p>
+      <div class="golinks"><span class="go">Open /organs →</span></div>
+    </a>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- ====================== (2) THE THESIS ====================== -->
+<section class="band wrap" id="thesis">
+  <p class="kick">The thesis</p>
+  <h2>Governed AI you can prove — not AI you're asked to trust.</h2>
+  <p class="intro">Most AI asks for trust. a11oy earns it the way auditable systems do: every
+    governed state change is recorded in a hash-chained receipt, while signer state and signature
+    verification are disclosed separately and never inferred; a trust gate can only tighten an
+    answer, never wave it through; and the kernel rests on machine-checked theorems you can read.
+    The honest part is the product — when a claim isn't proven, we label it, and you can open the
+    check yourself.</p>
+  <div class="pillars">
+    <div class="pillar">
+      <div class="pk">01 · RECEIPTS</div>
+      <h3>It proves receipt integrity and signer state</h3>
+      <p>Every governed state change enters a SHA3-256 hash chain. DSSE / ECDSA-P256 is a separate
+        cryptographic state and is labeled SIGNED only when persistent signer evidence is active
+        and independent verification passes. Verify the disclosed state in your own browser.</p>
+    </div>
+    <div class="pillar">
+      <div class="pk">02 · REFUSES</div>
+      <h3>It refuses when unsure</h3>
+      <p>A self-doubt gate measures uncertainty against a bound and returns a truthful
+        <b>BLOCKED</b> rather than a confident wrong answer. A refusal beats a fabrication.</p>
+    </div>
+    <div class="pillar">
+      <div class="pk">03 · PROVES</div>
+      <h3>It is formally backed</h3>
+      <p>8 locked, axiom-free Lean&nbsp;4 theorems back the kernel. The Λ trust gate is
+        <b>Conjecture&nbsp;1</b> — an advisory bound, never dressed up as a theorem.</p>
+    </div>
+  </div>
+</section>
+
+<div class="wrap"><div class="divider"></div></div>
+
+<!-- ====================== (3) THE PROOF — 4 honest tiers (live) ====================== -->
+<section class="band wrap" id="proof">
+  <p class="kick">The proof · four honest tiers <span id="proof-src"></span></p>
+  <h2>Every claim carries exactly one honesty tier.</h2>
+  <p class="intro">The first figure is the locked Lean-8 kernel from
+    <code>GET /api/a11oy/v1/honest</code> <code>locked_formula_count</code> (8 or N/A) —
+    never the genome LOCKED-PROVEN catalog. The other three figures are catalog tiers
+    from the genome registry. A conjecture is shown in gray and is <b>never</b> rendered as proven.</p>
+  <div class="grid g4">
+    <div class="tier locked">
+      <div class="tnum" id="pt-locked">—</div>
+      <div class="tname">LOCKED-PROVEN · KERNEL</div>
+      <p>Lean-8 kernel count from <code>/honest</code> <code>locked_formula_count</code>
+        (show 8 or N/A). Not genome catalog LOCKED-PROVEN. F18 is Reed-Solomon
+        parity (erasure tolerance), not "DSSE seal".</p>
+      <p class="genome-note">Genome catalog tag LOCKED-PROVEN (a different count, from
+        <code>/api/a11oy/v1/genome</code> <code>tier_counts</code>):
+        <span class="n" id="pt-genome-locked">—</span> of 144 catalog entries. Catalog tag,
+        not the kernel chip above.</p>
+    </div>
+    <div class="tier semantic">
+      <div class="tnum" id="pt-semantic">—</div>
+      <div class="tname">SEMANTIC-VERIFIED</div>
+      <p>Sorry-free real theorems outside the frozen locked-8: the Λ min≤Λ≤max bounds, Theorem U
+        (conditional uniqueness), DSSE verifiability. Where the real trust math lives.</p>
+    </div>
+    <div class="tier evidence">
+      <div class="tnum" id="pt-evidence">—</div>
+      <div class="tname">EVIDENCE-BACKED</div>
+      <p>Runtime / algorithmic rules backed by real code and live endpoints, with no proof claim
+        attached. Honest operational tier — not dressed up as proven.</p>
+    </div>
+    <div class="tier conjecture">
+      <div class="tnum" id="pt-conjecture">—</div>
+      <div class="tname">CONJECTURE · ADVISORY</div>
+      <p>Λ unconditional uniqueness = Conjecture&nbsp;1 (machine-checked false as stated). Gray,
+        advisory, <b>never green</b>. Theorem U is the proven conditional alternative.</p>
+    </div>
+  </div>
+  <div class="cta-row" style="margin-top:34px">
+    <a class="btn btn-primary" href="https://a11oy.net" rel="noopener">Open the proof registry →</a>
+    <a class="btn btn-ghost" href="/trust">Read the trust center →</a>
+    <a class="btn btn-ghost" href="/console#genome">Browse the genome →</a>
+  </div>
+  <p class="intro" style="margin-top:16px;opacity:.85">Proof lives at <a href="https://a11oy.net" rel="noopener">a11oy.net</a> — RECORD, diligence, atlas. It is not a product host. Λ uniqueness is Conjecture&nbsp;1, never a theorem.</p>
+</section>
+
+<!-- ====================== HUB CATALOG — collections, not a zoo ====================== -->
+<section class="band" id="ecosystem">
+  <div class="wrap" id="catalog">
+    <p class="kick">Hub catalog · four collections</p>
+    <h2>Collections are the catalog — not forty product SKUs.</h2>
+    <p class="intro">Open a collection for its current inventory. A reachable URL is reachability only — not source/runtime alignment, not model quality, and not a claim that every Hub card is trained. ROADMAP cards are empty on purpose.</p>
+    <div class="grid g4" aria-label="Canonical Hugging Face collections">
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip software"><span class="dot"></span>TRAINED WEIGHTS</span></div>
+        <h3>Flagship models</h3>
+        <p>Trained weights only. Kernels and empty ROADMAP cards live elsewhere. Λ uniqueness remains Conjecture&nbsp;1.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip software"><span class="dot"></span>SOFTWARE</span></div>
+        <h3>Kernels</h3>
+        <p>Software kernels. Not LoRA-trained models. Source on GitHub; Hub is the mirror.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip roadmap"><span class="dot"></span>ROADMAP</span></div>
+        <h3>Roadmap</h3>
+        <p>Honest empty cards. Not trained. Do not treat as product SKUs or admitted data.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
+      <a class="card surface-card" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener">
+        <div class="status-row" style="margin:0 0 12px"><span class="chip software"><span class="dot"></span>SOFTWARE</span></div>
+        <h3>Flagship Spaces</h3>
+        <p>Running product surfaces. Extra holograms are paused, not deleted. Proof stays at a11oy.net.</p>
+        <div class="golinks"><span class="go">Open collection →</span></div>
+      </a>
+    </div>
+    <div class="estate-grid" aria-label="Canonical public catalog sources" style="margin-top:22px">
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener"><b>OPEN</b><span>Models</span></a>
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener"><b>OPEN</b><span>Kernels</span></a>
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener"><b>OPEN</b><span>Roadmap</span></a>
+      <a class="estate-cell" href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener"><b>OPEN</b><span>Spaces</span></a>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== (6) ONE CHAIN — live receipts/ledger ====================== -->
+<section class="band" id="chain" style="background:linear-gradient(180deg,rgba(10,16,30,0),rgba(10,16,30,0.55))">
+  <div class="wrap">
+    <p class="kick">One chain · live ledger <span id="chain-src"></span></p>
+    <h2>One ledger. Every decision. Replayable to the byte.</h2>
+    <p class="intro">Every vertical emits into a single SHA3-256 hash-chain — append-only,
+      fsync-durable, replayable to a byte-identical root instead of trusting a dashboard.</p>
+    <div class="chainrow">
+      <div class="cstat"><div class="ck" id="chain-receipts">—</div><div class="cl">Receipt records · signer state separate</div></div>
+      <div class="cstat"><div class="ck ink mono" id="chain-alg">sha3_256</div><div class="cl">Chain algorithm</div></div>
+      <div class="cstat"><div class="ck" id="chain-depth">—</div><div class="cl">Chain depth (a11oy)</div></div>
+      <div class="cstat"><div class="ck ink mono" id="chain-head" style="font-size:.86rem">—</div><div class="cl">Last receipt id</div></div>
+    </div>
+    <div class="cta-row" style="margin-top:32px">
+      <a class="btn btn-primary" href="/api/a11oy/v1/ledger">Open the receipt ledger →</a>
+      <a class="btn btn-ghost" href="/verify">Verify a receipt offline</a>
+    </div>
+  </div>
+</section>
+
+<!-- ====================== (7) TRUST CENTER CTA ====================== -->
+<section class="band wrap">
+  <div class="trustcta">
+    <div>
+      <p class="kick">Verify it yourself</p>
+      <h2>The trust center.</h2>
+      <p>The versioned honesty posture, the locked-8 with truthful Lean refs, Theorem U vs
+        Conjecture&nbsp;1 explained honestly, SLSA posture, and the offline receipt-verify flow.
+        Every claim links to its check.</p>
+    </div>
+    <div class="tcbtns">
+      <a class="btn btn-primary" href="/trust">Open the trust center →</a>
+      <a class="btn btn-ghost" href="/api/a11oy/v1/honest">Honest status (JSON)</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ (8) FOOTER ============================ -->
+</main>
+<footer>
+  <div class="wrap">
+    <div class="cols">
+      <div style="max-width:360px">
+        <a class="brand" href="/" style="margin-bottom:12px">
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+            <circle cx="16" cy="16" r="13" stroke="url(#lg)" stroke-width="2"/>
+            <circle cx="16" cy="16" r="5" fill="url(#lg)"/></svg>
+          <span>a11oy<span class="sub" style="margin-left:9px">Alloy by SZL Holdings</span></span></a>
+        <p class="muted" style="margin:6px 0 0">Governed Inference — AI that exposes receipt
+          integrity, signer state, evidence, and refusal behavior. The sha3_256 receipt ledger is
+          independently inspectable; DSSE signing is claimed only when verification proves it.</p>
+        <p class="muted" style="margin:12px 0 0">Part of the SZL Holdings estate ·
+          <a href="https://github.com/szl-holdings" target="_blank" rel="noopener">github.com/szl-holdings</a></p>
+      </div>
+      <div class="lk"><strong style="color:var(--ink)">Products</strong>
+        <a href="/console">a11oy Command</a>
+        <a href="/killinchu">killinchu · vertical</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Forge / own-metal</a>
+        <a href="/lyte">LYTE lattice · BIND package</a>
+        <a href="/verify">Verify a receipt</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Evidence</strong>
+        <a href="https://a11oy.net" rel="noopener">Proof registry · a11oy.net</a>
+        <a href="/trust">Trust center</a>
+        <a href="/api/a11oy/v1/ledger">Receipt ledger</a>
+        <a href="/api/a11oy/v1/honest">Honest status (JSON)</a>
+        <a href="https://github.com/szl-holdings/lutar-lean">lutar-lean proofs</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Catalog</strong>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-models-6a9315c1c853da528726dd8d" rel="noopener">Flagship models</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-kernels-software-6a9315c19d509bb9214d3e64" rel="noopener">Kernels · SOFTWARE</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-roadmap-no-admitted-data-6a9315c19fb3920077cefe50" rel="noopener">ROADMAP · no admitted data</a>
+        <a href="https://huggingface.co/collections/SZLHOLDINGS/szl-flagship-spaces-6a9315c15be8186d77796e62" rel="noopener">Flagship Spaces</a></div>
+      <div class="lk"><strong style="color:var(--ink)">Honesty</strong>
+        <a href="/static/viz/router/">LLM Router · STALE NOT_MEASURED · snapshot 2026-07-11</a>
+        <a href="https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live" rel="noopener">Status Space (STALE NOT_MEASURED · snapshot 2026-07-11)</a>
+        <a href="https://github.com/szl-holdings" rel="noopener">SZL Holdings · GitHub org</a>
+        <a href="#honesty">Honesty doctrine</a></div>
+    </div>
+    <p class="disc">Honesty doctrine v11 LOCKED. The locked-proven Lean kernel is exactly <b>8</b>
+      theorems {F1,F4,F7,F11,F12,F18,F19,F22}; the 144-entry genome registry is a separate, larger
+      set graded across four honesty tiers. The Λ trust gate is <b>Conjecture&nbsp;1</b> — an
+      advisory bound, never a theorem and never 1.0. Receipt-chain integrity and DSSE signing are
+      distinct states; signing is claimed only when persistent signer evidence is active and verification
+      passes. Read-only routes never mint receipts. Energy is MEASURED only with a live exporter delta,
+      otherwise honest SAMPLE — this page does not invent live GPU joules.
+      Hub collections are a catalog, not a zoo; ROADMAP cards are not trained SKUs. Supply
+      chain is SLSA L1 honest (L2 build-attested); FedRAMP / IL5 / ATO accreditation is ROADMAP.
+      <b style="color:var(--sub)">Alloy by SZL Holdings.</b>
+      © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0.</p>
+  </div>
+</footer>
+
+<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) — Dev 2 ===================== -->
+<script type="importmap">
+{ "imports": {
+  "three": "/hero/vendor3d/three.module.min.js",
+  "three/addons/": "/hero/vendor3d/"
+} }
+</script>
+
+<!-- ===================== HERO BOOT (Three.js holographic field) — Dev 2 ===================== -->
+<script type="module">
+  import { mountHero } from "/landing/app.js";
+  const canvas = document.getElementById("hero-canvas");
+  try {
+    const h = mountHero(canvas);
+    if (!h || !h.ok) {
+      canvas.style.display = "none";
+      document.getElementById("hero-fallback").style.display = "block";
+    } else {
+      window.__a11oyHero = h;
+    }
+  } catch (e) {
+    canvas.style.display = "none";
+    document.getElementById("hero-fallback").style.display = "block";
+  }
+</script>
+
+<!-- ===================== LIVE DATA (honest; one consolidated read + fallbacks) ===================== -->
+<script>
+(function(){
+  var btn=document.getElementById("menu-toggle");
+  var header=document.querySelector("header.nav");
+  var nav=document.getElementById("site-nav");
+  if(!btn||!header||!nav) return;
+  function setOpen(open){
+    header.classList.toggle("nav-open", open);
+    btn.setAttribute("aria-expanded", String(open));
+    btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+  }
+  btn.addEventListener("click", function(){ setOpen(!header.classList.contains("nav-open")); });
+  nav.querySelectorAll("a").forEach(function(a){ a.addEventListener("click", function(){ setOpen(false); }); });
+  document.addEventListener("keydown", function(e){ if(e.key==="Escape") setOpen(false); });
+})();
+</script>
+<script>
+(function(){
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const liveChip  = (t) => '<span class="chip live" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
+  const downChip  = (t) => '<span class="chip down" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
+  const grayChip  = (t) => '<span class="chip gray" style="margin-left:6px"><span class="dot"></span>'+esc(t)+'</span>';
+
+  async function getJSON(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error(url+" "+r.status);
+    return r.json();
+  }
+  async function getText(url){
+    const r = await fetch(url, {cache:"no-store"});
+    if(!r.ok) throw new Error(url+" "+r.status);
+    return r.text();
+  }
+  async function sha256Hex(text){
+    if(!globalThis.crypto || !globalThis.crypto.subtle) throw new Error("Web Crypto unavailable");
+    const digest = await globalThis.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+    return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2,"0")).join("");
+  }
+  const num = (v) => (typeof v === "number" && isFinite(v)) ? v : null;
+  const fmtLam = (v) => (num(v) === null) ? null : Number(v).toFixed(3);
+
+  function showUnavailableOverclaimMetrics(){
+    const count = $("hs-overclaims");
+    count.textContent = "—";
+    count.classList.remove("proof");
+    count.classList.add("gray");
+    $("hs-overclaim-time").textContent = "—";
+    $("hs-overclaim-sample").textContent = "source unavailable";
+    $("hs-overclaims-chip").innerHTML = grayChip("SAMPLE · SNAPSHOT 2026-07-25 · SOURCE UNAVAILABLE");
+  }
+
+  async function loadOverclaimMetrics(){
+    const ledgerSource = "https://raw.githubusercontent.com/szl-holdings/platform/main/docs/overclaim-ledger.json";
+    const manifestSource = "https://raw.githubusercontent.com/szl-holdings/platform/main/docs/overclaim-ledger.evidence.json";
+    try {
+      const [ledgerText, manifest] = await Promise.all([getText(ledgerSource), getJSON(manifestSource)]);
+      const digest = await sha256Hex(ledgerText);
+      const d = JSON.parse(ledgerText);
+      const count = num(d && d.metrics && d.metrics.ci_detected_incidents);
+      const correctionTime = d && d.metrics && d.metrics.observed_correction_time_display;
+      const sampleSize = num(d && d.metrics && d.metrics.correction_time_sample_size);
+      const observed = d && d.snapshot && typeof d.snapshot.observed_at === "string"
+        ? d.snapshot.observed_at.slice(0, 10) : "";
+      const pinnedDigest = manifest && manifest.ledger && manifest.ledger.sha256;
+      const mislabeledMean = d && d.metrics && Object.keys(d.metrics)
+        .some(key => key.toLowerCase().includes("mean"));
+      if(
+        manifest.maturity !== "MEASURED" ||
+        !manifest.snapshot || manifest.snapshot.state !== "SNAPSHOT" ||
+        manifest.snapshot.remote_refresh_required_for_current_state !== true ||
+        typeof pinnedDigest !== "string" || !/^[0-9a-f]{64}$/.test(pinnedDigest) ||
+        digest !== pinnedDigest ||
+        d.maturity !== "MEASURED" ||
+        !d.snapshot || d.snapshot.state !== "SNAPSHOT" || d.snapshot.exhaustive !== false ||
+        count === null || sampleSize !== 1 ||
+        d.metrics.aggregation !== "single_observation" ||
+        typeof correctionTime !== "string" || !correctionTime || !observed || mislabeledMean
+      ) throw new Error("invalid or unpinned overclaim ledger");
+      const countElement = $("hs-overclaims");
+      countElement.textContent = count.toLocaleString();
+      countElement.classList.remove("gray");
+      countElement.classList.add("proof");
+      $("hs-overclaim-time").textContent = correctionTime;
+      $("hs-overclaim-sample").textContent = "n="+sampleSize;
+      $("hs-overclaims-chip").innerHTML = grayChip("MEASURED · SNAPSHOT "+observed+" · DIGEST OK");
+    } catch (_) {
+      showUnavailableOverclaimMetrics();
+    }
+  }
+
+  // Advisory Λ is Conjecture 1: report its relation to the floor, never render pass/fail or green.
+  function lamChip(elId, v){
+    const el = $(elId); if(!el) return;
+    if(num(v) === null){ el.innerHTML = downChip("N/A"); return; }
+    const relation = v >= 0.90 ? "≥ advisory floor" : "below advisory floor";
+    el.innerHTML = grayChip(relation + " · CONJECTURE");
+  }
+
+  function setTiers(t){
+    // Catalog tiers only. Kernel Lean-8 chip is loadKernelLocked() from /honest
+    // locked_formula_count. Never genome LOCKED-PROVEN. Never proof_tiers.locked.
+    $("pt-semantic").textContent   = (num(t.semantic)   === null) ? "N/A" : t.semantic;
+    $("pt-evidence").textContent   = (num(t.evidence)   === null) ? "N/A" : t.evidence;
+    $("pt-conjecture").textContent = (num(t.conjecture) === null) ? "N/A" : t.conjecture;
+  }
+  // Kernel locked-proven chip (#pt-locked) is bound ONLY to the honest kernel
+  // count. It is never bound to a genome catalog tier (tier_counts['LOCKED-PROVEN']
+  // is 25 of 144 — a catalog tag, not the Lean-8 kernel).
+  async function loadKernelLocked(){
+    try{
+      const h = await getJSON("/api/a11oy/v1/honest");
+      const n = num(h && h.locked_formula_count);
+      $("pt-locked").textContent = (n === 8) ? "8" : "N/A";
+    }catch(e){ $("pt-locked").textContent = "N/A"; }
+  }
+  // Genome catalog tag count, rendered in its own slot so it can never be read
+  // as the kernel chip.
+  function setCatalogNote(n){
+    const el = $("pt-genome-locked");
+    if(!el) return;
+    el.textContent = (num(n)===null) ? "N/A" : String(n);
+  }
+
+  // ---- killinchu runtime honesty ------------------------------------------
+  // The killinchu Space runtime is labelled UNAVAILABLE unless THIS visit gets a
+  // real HTTP 200 from its health endpoint. A refused or timed-out probe is
+  // never read as "live"; nothing about the runtime is asserted from markup.
+  const KC_RUNTIME_PROBE = "https://szlholdings-killinchu.hf.space/api/health";
+  function markKillinchuUnavailable(reason){
+    const chip = $("kc-runtime");
+    if(chip){
+      chip.className = "chip down";
+      chip.innerHTML = '<span class="dot"></span>RUNTIME UNAVAILABLE' + (reason ? (" \u00b7 " + esc(reason)) : "");
+    }
+  }
+  function markKillinchuReachable(){
+    const chip = $("kc-runtime");
+    if(chip){
+      chip.className = "chip live";
+      chip.innerHTML = '<span class="dot"></span>RUNTIME REACHABLE \u00b7 live read this visit';
+    }
+  }
+  async function probeKillinchuRuntime(){
+    const ctl = ("AbortController" in window) ? new AbortController() : null;
+    const timer = ctl ? setTimeout(function(){ ctl.abort(); }, 4000) : null;
+    try{
+      const r = await fetch(KC_RUNTIME_PROBE, { signal: ctl ? ctl.signal : undefined, cache: "no-store" });
+      if(timer) clearTimeout(timer);
+      if(r && r.ok){ markKillinchuReachable(); return; }
+      markKillinchuUnavailable("HTTP " + (r ? r.status : "no response"));
+    }catch(e){
+      if(timer) clearTimeout(timer);
+      markKillinchuUnavailable((e && e.name === "AbortError") ? "probe timed out" : "runtime unreachable");
+    }
+  }
+
+  function setVerticals(v){
+    // Flagships only: a11oy command (core) and killinchu (defense).
+    // Insurance / finance / real-estate are not products on this page.
+    [["core","v-core"],["defense","v-defense"]].forEach(([k,id])=>{
+      const el = $(id);
+      if(!el) return;
+      const val = fmtLam(v[k]);
+      el.textContent = (val===null) ? "N/A" : val;
+      lamChip(id+"-chip", num(v[k]));
+    });
+  }
+
+  function setHeroReceiptsFromLedger(d){
+    // Same source as the runtime pulse card: GET /api/a11oy/v1/ledger (SAMPLE chain).
+    // Do not invent a third number. Lake/overview totals, if different, are SAMPLE/historical.
+    const n = (d && typeof d.count === "number") ? d.count : num(d && d.count);
+    const state = String((d && (d.state || d.data_kind)) || "SAMPLE").toUpperCase();
+    $("hs-receipts").textContent = (n===null) ? "—" : n.toLocaleString();
+    $("hs-receipts").dataset.liveCount = (n===null) ? "" : String(n);
+    $("hs-receipts-chip").innerHTML = (n===null) ? downChip("offline") : grayChip(state + " · ledger");
+    if(window.__lakeReceiptTotal != null) noteHistoricalReceipts(window.__lakeReceiptTotal, "lake");
+  }
+  function noteHistoricalReceipts(other, source){
+    const live = num($("hs-receipts").dataset && $("hs-receipts").dataset.liveCount);
+    const hist = num(other);
+    const el = $("hs-receipts-hist");
+    if(!el) return;
+    if(live!==null && hist!==null && live!==hist){
+      el.textContent = " · SAMPLE/historical " + source + " " + hist.toLocaleString();
+    }
+  }
+  function setChain(receipts, alg, depth, head){
+    window.__lakeReceiptTotal = num(receipts);
+    $("chain-receipts").textContent = (num(receipts)===null) ? "UNAVAILABLE" : receipts.toLocaleString();
+    // Hero figure is owned by the ledger read (same source as the runtime card).
+    if($("hs-receipts").dataset.liveCount){
+      noteHistoricalReceipts(receipts, "lake");
+    }
+    if(alg) $("chain-alg").textContent = alg;
+    $("chain-depth").textContent = (num(depth)===null) ? "N/A" : depth.toLocaleString();
+    // Normalize head to the receipt id STRING. Some feeds (e.g. org/overview)
+    // return last_receipt as an object ({receipt_id, ...}); passing that straight
+    // to String() rendered a literal "[object Object]" in the LAST RECEIPT ID slot.
+    const headId = (head && typeof head === "object")
+      ? (head.receipt_id || head.id || head.digest || "")
+      : head;
+    if(headId){ const h = String(headId); $("chain-head").textContent = h.length>14 ? (h.slice(0,10)+"…"+h.slice(-4)) : h; }
+    else { $("chain-head").textContent = "N/A"; }
+  }
+
+  // ---- (A) try the ONE consolidated read (Dev 5) ----
+  async function loadOverview(){
+    try{
+      const o = await getJSON("/api/a11oy/v1/org/overview");
+      if(!o || o.status === "UNAVAILABLE") return false;
+      let any = false;
+      if(o.proof_tiers){ setTiers({ semantic:o.proof_tiers.semantic, evidence:o.proof_tiers.evidence, conjecture:o.proof_tiers.conjecture }); setCatalogNote((o.thesis_stats&&o.thesis_stats.locked_proven_count) || o.proof_tiers.locked); $("proof-src").innerHTML = liveChip("overview"); any = true; }
+      if(Array.isArray(o.verticals)){
+        const vm = {};
+        o.verticals.forEach(x => { if(x && x.name) vm[x.name] = num(x.lambda); });
+        setVerticals(vm); $("verticals-src").innerHTML = liveChip("overview"); any = true;
+      }
+      const ts = o.thesis_stats || {};
+      const ch = o.chain || {};
+      if(ts.signed_receipts !== undefined || ch.depth !== undefined){
+        setChain(num(ts.signed_receipts), ts.chain_alg || "sha3_256", num(ch.depth), ch.last_receipt);
+        $("chain-src").innerHTML = liveChip("overview"); any = true;
+      }
+      if(o.org_lambda !== undefined && $("v-org")){ const v=fmtLam(o.org_lambda); $("v-org").textContent = v||"N/A"; lamChip("v-org-chip", num(o.org_lambda)); }
+      return any;
+    }catch(e){ return false; }
+  }
+
+  // ---- (B) fallbacks — each source degrades to honest N/A independently ----
+  async function loadGenomeTiers(){
+    try{
+      const g = await getJSON("/api/a11oy/v1/genome");
+      if(g && g.status === "UNAVAILABLE") throw new Error("genome unavailable");
+      const tc = g.tier_counts || {};
+      setTiers({ semantic: tc["SEMANTIC-VERIFIED"],
+                 evidence: tc["evidence-backed"], conjecture: tc["CONJECTURE"] });
+      setCatalogNote(tc["LOCKED-PROVEN"]);
+      $("proof-src").innerHTML = liveChip("genome");
+    }catch(e){
+      setTiers({}); $("proof-src").innerHTML = downChip("UNAVAILABLE");
+    }
+  }
+  async function loadLambdaOrg(){
+    try{
+      const d = await getJSON("/api/a11oy/v1/lambda/org");
+      const v = d.verticals || {};
+      setVerticals({ core:v.core, defense:v.defense });
+      if($("v-org")){ const ov = fmtLam(d.lambda_org); $("v-org").textContent = ov || "N/A"; lamChip("v-org-chip", num(d.lambda_org)); }
+      if($("verticals-src")) $("verticals-src").innerHTML = liveChip("lambda/org");
+    }catch(e){
+      setVerticals({});
+      if($("v-org")) $("v-org").textContent = "N/A";
+      if($("v-org-chip")) $("v-org-chip").innerHTML = downChip("N/A");
+      if($("verticals-src")) $("verticals-src").innerHTML = downChip("UNAVAILABLE");
+    }
+  }
+  async function loadChain(){
+    let receipts=null, alg="sha3_256", depth=null, head=null, ok=false;
+    try{ const h = await getJSON("/api/lake/v1/health"); receipts = num(h.total_receipts); alg = h.chain_alg || alg; ok = true; }catch(e){}
+    try{ const l = await getJSON("/api/a11oy/v1/ledger"); depth = num(l.count);
+         if(Array.isArray(l.receipts) && l.receipts.length){ head = l.receipts[l.receipts.length-1].receipt_id; }
+         if(receipts === null) receipts = depth; ok = true; }catch(e){}
+    setChain(receipts, alg, depth, head);
+    $("chain-src").innerHTML = ok ? grayChip((alg || "sha3_256") + " · CHAIN") : downChip("UNAVAILABLE");
+  }
+
+  // ---- live estate pulse: reachability is reported separately from correctness ----
+  function pulseState(key, state, detail){
+    const chip = $("pulse-"+key+"-state");
+    const body = $("pulse-"+key+"-detail");
+    const amberStates = new Set(["CACHED","STALE_CACHE","SNAPSHOT","MODELED","OBSERVED","AVAILABLE","DEGRADED"]);
+    if(chip){ chip.textContent = state; chip.className = "data-state "+((state === "LIVE" || state === "REACHABLE") ? "live" : (amberStates.has(state) ? "amber" : "down")); }
+    if(body) body.textContent = detail;
+  }
+  async function pulseJSON(url){
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6500);
+    try{
+      const r = await fetch(url, {cache:"no-store", signal:ctl.signal});
+      if(!r.ok) throw new Error("HTTP "+r.status);
+      return await r.json();
+    } finally { clearTimeout(timer); }
+  }
+  async function loadEstatePulse(){
+    const checks = [
+      pulseJSON("/healthz").then(d => pulseState("health", "REACHABLE", (d.organ || "a11oy")+" runtime answered "+(d.status || "reachable")+"; inspect its evidence state in the source."))
+        .catch(() => pulseState("health", "UNAVAILABLE", "Runtime health did not answer this session.")),
+      pulseJSON("/api/a11oy/v1/readiness/tab-matrix?view=summary").then(d => {
+        const s = d.summary && d.summary.summary || {};
+        if(!d.matrix_available) throw new Error("matrix unavailable");
+        const checked = Boolean(d.probe_verdict_available);
+        pulseState("contract", checked ? "REACHABLE" : "SNAPSHOT", (s.tabs || "Published")+" tabs · "+(s.endpoints || "declared")+" endpoint contracts · "+(checked ? "deployment probe attached." : "static contract; deployment probe pending."));
+      }).catch(() => pulseState("contract", "UNAVAILABLE", "Tab contract is not bundled with this deployment.")),
+      pulseJSON("/api/a11oy/v1/ledger").then(d => {
+        setHeroReceiptsFromLedger(d);
+        pulseState("ledger", "REACHABLE", (typeof d.count === "number" ? d.count : "Current")+" receipts returned by the read; verify timestamp and chain state in the source.");
+      }).catch(() => pulseState("ledger", "UNAVAILABLE", "Receipt ledger did not answer this session.")),
+      pulseJSON("/api/a11oy/v1/mesh/state").then(d => {
+        const nodes = Array.isArray(d.nodes) ? d.nodes.length : (Array.isArray(d.peers) ? d.peers.length : null);
+        pulseState("mesh", "REACHABLE", nodes === null ? "Mesh state answered; open the source for node posture." : nodes+" nodes reported by the current mesh read.");
+      }).catch(() => pulseState("mesh", "UNAVAILABLE", "Mesh state did not answer this session."))
+    ];
+    await Promise.allSettled(checks);
+    if($("pulse-checked")) $("pulse-checked").textContent = "Checked "+new Date().toLocaleString()+" · read-only · cache disabled";
+  }
+
+  // ---- (C) living body: load the anatomy Space in-frame only on click (perf + reduced-motion) ----
+  const bl = $("body-load");
+  if(bl){ bl.addEventListener("click", function(){
+    const wrap = $("body-embed");
+    const f = document.createElement("iframe");
+    f.src = "https://szlholdings-anatomy.hf.space#estate";
+    f.title = "a11oy living body — 3D governed organism (V10 · Estate + Ayllu wirings)";
+    f.loading = "lazy"; f.referrerPolicy = "no-referrer";
+    f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");
+    wrap.innerHTML = ""; wrap.appendChild(f);
+  }); }
+
+  // ---- (C2) the moldable brain: same-origin 3D surface, loads in-frame on click ----
+  const brl = $("brain-load");
+  if(brl){ brl.addEventListener("click", function(){
+    const wrap = $("body-embed");
+    const f = document.createElement("iframe");
+    f.src = "/static/3d/brain.html";
+    f.title = "The a11oy Brain — moldable 3D cortex, eight lobes wired to live public reads";
+    f.loading = "lazy"; f.referrerPolicy = "no-referrer";
+    f.allow = "fullscreen"; f.setAttribute("allowfullscreen", "");
+    wrap.innerHTML = ""; wrap.appendChild(f);
+  }); }
+
+  // ---- orchestrate: overview first, fall back per-block for anything it didn't fill ----
+  (async function(){
+    loadEstatePulse();
+    loadOverclaimMetrics();
+    loadKernelLocked();
+    markKillinchuUnavailable();
+    probeKillinchuRuntime();
+    const ov = await loadOverview();
+    const filled = {
+      tiers: $("proof-src").innerHTML.trim() !== "",
+      verts: $("verticals-src").innerHTML.trim() !== "",
+      chain: $("chain-src").innerHTML.trim() !== "",
+    };
+    const jobs = [];
+    if(!filled.tiers) jobs.push(loadGenomeTiers());
+    if(!filled.verts) jobs.push(loadLambdaOrg());
+    if(!filled.chain) jobs.push(loadChain());
+    await Promise.allSettled(jobs);
+  })();
+})();
+</script>
+
+<!-- SZL-FOURTH-WALL:v1:START — the page proves itself to the visitor. Claims-free: integrity & origin only. -->
+<section id="fourth-wall" style="background:#060D1F;border-top:1px solid #C9B787;padding:18px 24px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;color:#8FA3BF;line-height:1.7">
+  <div style="max-width:980px;margin:0 auto">
+    <span style="color:#C9B787;letter-spacing:2px">⟨ 4TH WALL ⟩</span>
+    <span> You are reading rendered bytes. Don&rsquo;t trust them — hash them:</span>
+    <button id="fw-hash-btn" style="margin-left:8px;background:transparent;border:1px solid #3AF4C8;color:#3AF4C8;min-width:44px;min-height:44px;padding:10px 14px;border-radius:3px;font:inherit;cursor:pointer;touch-action:manipulation">hash this page in your browser</button>
+    <span id="fw-hash-out" style="color:#3AF4C8;word-break:break-all"></span>
+    <div style="margin-top:6px">canonical source: <a href="https://github.com/szl-holdings/a11oy/blob/main/a11oy_landing.html" style="color:#C9B787">szl-holdings/a11oy@main</a><span id="fw-main-sha"></span> · verify from outside:
+      <code style="color:#E8D9AE;background:#0B1F3A;padding:1px 6px;border-radius:3px">curl -s https://raw.githubusercontent.com/szl-holdings/a11oy/main/a11oy_landing.html | sha256sum</code>
+    </div>
+    <div style="margin-top:4px;color:#5c6f8a">This proves integrity &amp; origin of this page only — never the accuracy of anything written on it. Doctrine v11. Expect the two hashes to differ by exactly the declared deltas: the server injects the operator-widget <code>&lt;script&gt;</code> tag in-memory, and the deployer may rewrite asset paths. In-browser hash = bytes as served; curl hash = canonical source; the attested sync + drift guards bind the two.</div>
+  </div>
+</section>
+<script>
+(function () {
+  var btn = document.getElementById("fw-hash-btn"), out = document.getElementById("fw-hash-out");
+  if (btn) btn.addEventListener("click", function () {
+    out.textContent = " hashing\u2026";
+    fetch(window.location.href, { cache: "reload" }).then(function (r) { return r.arrayBuffer(); })
+      .then(function (buf) { return crypto.subtle.digest("SHA-256", buf); })
+      .then(function (d) {
+        var h = Array.prototype.map.call(new Uint8Array(d), function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+        out.textContent = " sha256:" + h;
+      }).catch(function () { out.textContent = " hash failed \u2014 use the curl line instead"; });
+  });
+  fetch("https://api.github.com/repos/szl-holdings/a11oy/commits/main", { headers: { Accept: "application/vnd.github+json" } })
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (j) { if (j && j.sha) document.getElementById("fw-main-sha").textContent = " (live main = " + j.sha.slice(0, 12) + ")"; })
+    .catch(function () {});
+})();
+</script>
+<!-- SZL-FOURTH-WALL:v1:END -->
+
+</body>
+</html>

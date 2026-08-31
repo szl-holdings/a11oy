@@ -1,0 +1,84 @@
+{
+  "manifestVersion": 1,
+  "payloadRoot": "deploy",
+  "generator": "scripts/payload_manifest.py",
+  "fileCount": 15,
+  "aggregateSha256": "bdf572e698e9bbe831dea1a421216da15264c13feef9482db2b0718f115c2adf",
+  "files": [
+    {
+      "path": "attestations.jsonl",
+      "size": 232,
+      "sha256": "88f3acf147de2d1da2c47d90d2c6abdaee9ea727863339966f0176afbbbd0dca"
+    },
+    {
+      "path": "manifests/a11oy-deployment.yaml",
+      "size": 3164,
+      "sha256": "165c0a690f2ac1525b8ff0c7b5dd2cb8fda0e3d37d2ce0220698e7197b3e12ec"
+    },
+    {
+      "path": "manifests/a11oy-namespace.yaml",
+      "size": 133,
+      "sha256": "641f72c4d7d72ecafc1674816c4a4e8a7445c6d7b4d9b8a4c7e6296417fa91e0"
+    },
+    {
+      "path": "manifests/a11oy-service.yaml",
+      "size": 310,
+      "sha256": "a99b1877a51195720a8f249bccd59b836d4f85461b6418428115b4beb6a41a47"
+    },
+    {
+      "path": "manifests/a11oy-sovereign-env.patch.yaml",
+      "size": 1696,
+      "sha256": "0813370e6a2a100d835e6483dd836db50311d4cecda3ef8f3304211307e772b9"
+    },
+    {
+      "path": "manifests/proof-ledger-pvc.yaml",
+      "size": 270,
+      "sha256": "3804fdcf3a0b6ea767c3aaf3a373f8d82976d1824c9249b27cd515c91d567244"
+    },
+    {
+      "path": "oro/Dockerfile",
+      "size": 1694,
+      "sha256": "0c2119fa9dbf04fd04d7344f922b56cb348eb14f2b1973d2ceef2a0b3e827aed"
+    },
+    {
+      "path": "oro/compose.yaml",
+      "size": 1898,
+      "sha256": "8edcf5f5f31b67c0fbcfc3a6725d4bd6716eb3507ca0fbc57cd803a6e5427102"
+    },
+    {
+      "path": "peat-node.yaml",
+      "size": 2339,
+      "sha256": "9cf761c4e21a7f728bdd4c7ceaf6d2bf883a7e574de9eba899eaabaddab906ef"
+    },
+    {
+      "path": "staging/sigstore/README.md",
+      "size": 722,
+      "sha256": "f9e48de4cd2539b64c6765df7449b2faf15b5fe4782ebe133ca7b9dbba413351"
+    },
+    {
+      "path": "staging/sigstore/cluster-image-policy.warn.yaml",
+      "size": 1002,
+      "sha256": "342e77186a200d83e8dd15cfe1cbff8c65e1305d599bb90433707edf62e8419c"
+    },
+    {
+      "path": "staging/sigstore/policy-controller-values.yaml",
+      "size": 302,
+      "sha256": "40f9add28277101330a4bfb801fe5ef5fb70d9355caf685e78cf8c47ac2f925c"
+    },
+    {
+      "path": "staging/sigstore/unsigned-pod.negative.yaml",
+      "size": 530,
+      "sha256": "57f6881fb8848f074b6fa7a1d63449bc110c0873a081e41d594fafd8a711797e"
+    },
+    {
+      "path": "uds-package.yaml",
+      "size": 2177,
+      "sha256": "77d3ac99c4670dea9143e95809684f2d0e3f2fa68e064718f21e878e91e30b48"
+    },
+    {
+      "path": "zarf.yaml",
+      "size": 1792,
+      "sha256": "561215d366afd3c9d29a095845c97c6beee089e64b27849c2ce4e9d5df101bde"
+    }
+  ]
+}

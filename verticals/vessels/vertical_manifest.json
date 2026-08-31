@@ -1,0 +1,95 @@
+{
+  "allowed_actions": [
+    "read and normalize",
+    "create case",
+    "draft sanctions case",
+    "rank counterparty match",
+    "draft ticket or change record",
+    "verify postcondition"
+  ],
+  "buyer": "Maritime operators, trade-compliance officers, and sanctions desks who need a fail-closed case, not a live AIS feed they do not hold a license for.",
+  "canonical_source": {
+    "core": "szl-holdings/a11oy/verticals/vessels",
+    "data_contracts": "szl-holdings/szl-lake/verticals/vessels",
+    "modules": [
+      "szl-holdings/a11oy"
+    ]
+  },
+  "decision_chain": [
+    "vessel and owner identity",
+    "public sanctions list",
+    "AIS license gate",
+    "match and blast radius",
+    "human approval",
+    "bounded draft action",
+    "receipt"
+  ],
+  "display_name": "Vessels Assurance",
+  "evaluations": [
+    "IMO/vessel/owner/counterparty entity resolution",
+    "sanctions match precision and analyst disposition",
+    "AIS gap/spoofing false positive and false negative rate",
+    "licensed AIS true-positive rate",
+    "stale/missing/contradictory source behavior",
+    "approval bypass and idempotency"
+  ],
+  "formula_bindings": [
+    "F1",
+    "F4",
+    "F7",
+    "F11",
+    "F18",
+    "F19",
+    "LAMBDA"
+  ],
+  "leaders": [
+    {
+      "name": "OFAC SDN",
+      "pattern": "named sanctions list, not a quality score",
+      "url": "https://ofac.treasury.gov/specially-designated-nationals-and-blocked-persons-list-sdn-human-readable-lists"
+    }
+  ],
+  "pilot": {
+    "phases": [
+      "read-only public lists",
+      "case prioritization",
+      "draft sanctions case",
+      "approval"
+    ],
+    "scope": "public OFAC SDN plus frozen demonstration vessels. Licensed AIS remains CLOSED without a live key."
+  },
+  "portfolio_role": "PARALLEL_ENTERPRISE_PROOF",
+  "position": 5,
+  "private_connectors": [
+    "licensed AIS",
+    "owner registry",
+    "internal trade book"
+  ],
+  "prohibited_actions": [
+    "licensed AIS query",
+    "autonomous intercept",
+    "credential collection or disclosure",
+    "cross-tenant access",
+    "model-selected privilege",
+    "silent risk acceptance"
+  ],
+  "public_connectors": [
+    "OFAC SDN",
+    "public vessel identity samples"
+  ],
+  "schema": "szl.focus-vertical/v8",
+  "space": {
+    "id": "none",
+    "initial_mode": "public/synthetic maritime demonstration. Hub Space not required.",
+    "source_visible": false,
+    "visibility": "product-vanity"
+  },
+  "success_metrics": [
+    "time from public list hit to evidence-complete case",
+    "licensed AIS remain CLOSED without a key",
+    "false priority rate",
+    "approval latency"
+  ],
+  "vertical_id": "vessels",
+  "wedge": "Sanctions-to-Case Decision Assurance. Licensed AIS stays CLOSED."
+}

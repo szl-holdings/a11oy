@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use these brand assets, please cite as follows."
+title: "szl-brand — Brand assets, logos, social-preview templates and visual doctrine for SZL Holdings"
+version: "0.1.0"
+date-released: "2026-05-29"
+abstract: >-
+  Brand assets, logos, social-preview templates, and visual doctrine for
+  SZL Holdings. Includes canonical open-graph images and identity guidelines.
+type: software
+authors:
+  - family-names: Lutar
+    given-names: "Stephen P."
+    name-suffix: "Jr."
+    affiliation: "SZL Holdings, Inc."
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+license: CC-BY-4.0
+url: "https://github.com/szl-holdings/szl-brand"
+repository-code: "https://github.com/szl-holdings/szl-brand"
+keywords:
+  - szl-holdings
+  - brand-assets
+  - visual-identity
+  - design
+identifiers:
+  - description: "ORCID iD of the principal author"
+    type: other
+    value: "https://orcid.org/0009-0001-0110-4173"

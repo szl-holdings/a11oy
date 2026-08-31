@@ -1,0 +1,187 @@
+{
+  "$id": "https://schemas.a11oy.net/v8/terra/decision-graph.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "authority": {
+      "type": "object"
+    },
+    "decision_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "decision_state": {
+      "enum": [
+        "PROPOSED",
+        "DENIED",
+        "ABSTAINED",
+        "ESCALATED",
+        "AWAITING_APPROVAL",
+        "APPROVED",
+        "EXECUTED",
+        "VERIFIED",
+        "FAILED",
+        "ROLLED_BACK",
+        "CORRECTED",
+        "REVOKED"
+      ]
+    },
+    "entities": {
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "class": {
+            "enum": [
+              "MEASURED",
+              "REPORTED",
+              "SIMULATED",
+              "MODELED",
+              "PROVED",
+              "CONJECTURE",
+              "UNAVAILABLE"
+            ]
+          },
+          "digest": {
+            "type": "string"
+          },
+          "evidence_id": {
+            "type": "string"
+          },
+          "limitations": {
+            "type": "array"
+          }
+        },
+        "required": [
+          "evidence_id",
+          "class",
+          "digest",
+          "limitations"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "formula_results": {
+      "items": {
+        "properties": {
+          "authority": {
+            "const": "NONE"
+          },
+          "formula_id": {
+            "enum": [
+              "F1",
+              "F11",
+              "F12",
+              "F18",
+              "F19",
+              "F22",
+              "F4",
+              "F7",
+              "LAMBDA"
+            ]
+          },
+          "limit": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "formula_id",
+          "authority",
+          "limit"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "outcome": {
+      "type": "object"
+    },
+    "policy": {
+      "type": "object"
+    },
+    "proposal": {
+      "type": "object"
+    },
+    "receipt": {
+      "type": "object"
+    },
+    "relationships": {
+      "type": "array"
+    },
+    "schema": {
+      "const": "szl.decision-integrity-graph/v1"
+    },
+    "source_observations": {
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "freshness": {
+            "enum": [
+              "LIVE",
+              "CACHED",
+              "STALE",
+              "UNAVAILABLE"
+            ]
+          },
+          "observed_at": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "revision": {
+            "type": "string"
+          },
+          "rights_state": {
+            "enum": [
+              "ADMITTED",
+              "RESTRICTED",
+              "EXPIRED",
+              "PROHIBITED",
+              "UNKNOWN"
+            ]
+          },
+          "source_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_id",
+          "revision",
+          "observed_at",
+          "rights_state",
+          "freshness"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "tenant_id": {
+      "minLength": 1,
+      "type": "string"
+    },
+    "vertical_id": {
+      "const": "terra"
+    }
+  },
+  "required": [
+    "schema",
+    "vertical_id",
+    "tenant_id",
+    "decision_id",
+    "source_observations",
+    "entities",
+    "relationships",
+    "evidence",
+    "proposal",
+    "formula_results",
+    "policy",
+    "authority",
+    "decision_state",
+    "receipt",
+    "outcome"
+  ],
+  "title": "Terra Assurance Decision Graph",
+  "type": "object"
+}

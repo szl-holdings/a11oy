@@ -1,0 +1,204 @@
+{
+  "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "cases": [
+    {
+      "name": "matching",
+      "expected_label": "CORROBORATED",
+      "expected_integrity_valid": true,
+      "openai": {
+        "provider": "openai",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "response_id": "resp_matching",
+        "model": "fixture-openai",
+        "http_status": 200,
+        "latency_ms": 120,
+        "usage": {
+          "input_tokens": 10,
+          "output_tokens": 4,
+          "total_tokens": 14,
+          "search_queries": 1
+        },
+        "sources": [
+          {
+            "url": "https://Example.com/research/report/?utm_source=fixture&token=must-not-escape#section",
+            "title": "A shared source title",
+            "published_at": "2026-07-01T00:00:00Z"
+          }
+        ],
+        "query": "raw query must not be receipted",
+        "api_key": "must-not-escape"
+      },
+      "perplexity": {
+        "provider": "perplexity",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "response_id": "search_matching",
+        "http_status": 200,
+        "latency_ms": 95,
+        "results": [
+          {
+            "url": "https://example.com/research/report",
+            "title": "A shared source title",
+            "date": "2026-07-01T00:00:00Z",
+            "snippet": "raw snippet must not be receipted"
+          }
+        ]
+      }
+    },
+    {
+      "name": "disjoint",
+      "expected_label": "DIVERGENT",
+      "expected_integrity_valid": true,
+      "openai": {
+        "provider": "openai",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "sources": [
+          {
+            "url": "https://alpha.example/research-a",
+            "title": "Alpha source"
+          }
+        ]
+      },
+      "perplexity": {
+        "provider": "perplexity",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "results": [
+          {
+            "url": "https://beta.example/research-b",
+            "title": "Beta source"
+          }
+        ]
+      }
+    },
+    {
+      "name": "one_provider_down",
+      "expected_label": "SINGLE_PROVIDER",
+      "expected_integrity_valid": true,
+      "openai": {
+        "provider": "openai",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "sources": [
+          {
+            "url": "https://available.example/evidence",
+            "title": "Available evidence"
+          }
+        ]
+      },
+      "perplexity": {
+        "provider": "perplexity",
+        "status": "UNAVAILABLE",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "http_status": 503,
+        "results": []
+      }
+    },
+    {
+      "name": "empty",
+      "expected_label": "INSUFFICIENT",
+      "expected_integrity_valid": true,
+      "openai": {
+        "provider": "openai",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "sources": []
+      },
+      "perplexity": {
+        "provider": "perplexity",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "results": []
+      }
+    },
+    {
+      "name": "query_policy_digest_mismatch",
+      "expected_label": "INSUFFICIENT",
+      "expected_integrity_valid": false,
+      "openai": {
+        "provider": "openai",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "sources": [
+          {
+            "url": "https://digest.example/evidence"
+          }
+        ]
+      },
+      "perplexity": {
+        "provider": "perplexity",
+        "status": "SUCCESS",
+        "query_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+        "policy_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "results": [
+          {
+            "url": "https://digest.example/evidence"
+          }
+        ]
+      }
+    },
+    {
+      "name": "tampered_source_list",
+      "expected_label": "INSUFFICIENT",
+      "expected_integrity_valid": false,
+      "tamper_source_list": true,
+      "openai": {
+        "provider": "openai",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "sources": [
+          {
+            "url": "https://tamper.example/original",
+            "title": "Original source"
+          }
+        ]
+      },
+      "perplexity": {
+        "provider": "perplexity",
+        "status": "SUCCESS",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "results": [
+          {
+            "url": "https://tamper.example/original",
+            "title": "Original source"
+          }
+        ]
+      }
+    },
+    {
+      "name": "both_unavailable",
+      "expected_label": "UNAVAILABLE",
+      "expected_integrity_valid": true,
+      "openai": {
+        "provider": "openai",
+        "status": "UNAVAILABLE",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "http_status": 503,
+        "sources": []
+      },
+      "perplexity": {
+        "provider": "perplexity",
+        "status": "ERROR",
+        "query_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "policy_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "http_status": 500,
+        "results": []
+      }
+    }
+  ]
+}

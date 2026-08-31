@@ -1,0 +1,37 @@
+{
+  "customer_data": {
+    "excluded_from_training_by_default": true,
+    "export_and_deletion_supported": true,
+    "logs_and_receipts_minimized": true,
+    "tenant_scoped": true
+  },
+  "default_training_use": "PROHIBITED",
+  "private_sources": [
+    "document-management system",
+    "matter-management system",
+    "calendar/deadline system",
+    "billing/time system",
+    "firm knowledge base and licensed legal research"
+  ],
+  "public_sources": [
+    "CourtListener and RECAP where permitted",
+    "Federal Register",
+    "official court and agency sources",
+    "eyecite citation parsing",
+    "public-domain or licensed evaluation corpora"
+  ],
+  "schema": "szl.data-rights-contract/v8",
+  "source_requirements": [
+    "owner and authoritative URL",
+    "license or contract",
+    "permitted purpose",
+    "territory and user scope",
+    "collection method and rate limits",
+    "display and redistribution",
+    "retention and deletion",
+    "correction and revocation",
+    "training/evaluation permission",
+    "source revision and freshness"
+  ],
+  "vertical_id": "counsel"
+}

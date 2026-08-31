@@ -1,0 +1,234 @@
+name: Frontier v16.7 exact source builder
+
+# Trusted default-branch workflow for a one-owner repository. It reacts only to
+# an owner-created, exact-contract issue, reads candidate source as inert bytes,
+# applies the protected deterministic repair oracle, and creates one
+# GitHub-native signed+DCO commit on an exact-base feature branch. It never
+# checks out or executes candidate code and cannot target main.
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: frontier-v16-7-builder-${{ github.event.issue.number }}
+  cancel-in-progress: false
+
+jobs:
+  build-exact-source:
+    name: build-exact-frontier-source
+    if: >-
+      github.event.issue.user.login == 'stephenlutar2-hash' &&
+      github.event.issue.title == 'Frontier v16.7 exact source build'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPOSITORY: ${{ github.repository }}
+      ISSUE_NUMBER: ${{ github.event.issue.number }}
+      OWNER_LOGIN: stephenlutar2-hash
+      CONTRACT_SHA256: bb8c1a3f10ab92219df04f991d32f651db31f27650a0a4d602016c65b88a21ae
+$1003b709612d1d59fe0ce3b6316cd4a33273c5bd35237530c50e1f329f4ef0e59
+      SOURCE_TEST_SHA256: 4b8572c9381d0fedd0113f800c8f1bdfecbf84503bc565cbe053a982d4073b1f
+    steps:
+      - name: Create one exact GitHub-signed Frontier source commit
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          umask 077
+
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+
+          body="$(jq -r '.issue.body // ""' "$GITHUB_EVENT_PATH")"
+          extract_exact() {
+            local label="$1" pattern="$2" value count
+            count="$(grep -Ec "^${label}: \\`${pattern}\\`$" <<<"$body" || true)"
+            test "$count" = "1"
+            value="$(sed -nE "s/^${label}: \\`(${pattern})\\`$/\\1/p" <<<"$body")"
+            test -n "$value"
+            printf '%s' "$value"
+          }
+
+          base_sha="$(extract_exact 'Base-SHA' '[0-9a-f]{40}')"
+          branch="$(extract_exact 'Branch' 'frontier/v16-7-solo-[A-Za-z0-9._-]+')"
+          contract="$(extract_exact 'Solo-Contract-SHA256' '[0-9a-f]{64}')"
+          test "$contract" = "$CONTRACT_SHA256"
+          test "$branch" != "main"
+
+          current_main="$(gh api "repos/${REPOSITORY}/git/ref/heads/main" --jq '.object.sha')"
+          test "$current_main" = "$base_sha"
+          branch_head="$(gh api "repos/${REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')"
+          test "$branch_head" = "$base_sha"
+
+          open_pr_count="$(gh api --paginate "repos/${REPOSITORY}/pulls?state=open&head=${REPOSITORY%%/*}:${branch}&per_page=100" --jq 'length' | awk '{s+=$1} END {print s+0}')"
+          test "$open_pr_count" = "0"
+
+          fetch_file() {
+            local ref="$1" rel="$2" output="$3"
+            mkdir -p "$(dirname "$output")"
+            gh api -H 'Accept: application/vnd.github.raw+json' \
+              "repos/${REPOSITORY}/contents/${rel}?ref=${ref}" >"$output"
+          }
+
+          repair_script="$work/apply_current_main_repairs.py"
+          source_test="$work/test_frontier_v16_7_terminal_truth.py"
+          fetch_file "$base_sha" "ops/frontier/v16_7/apply_current_main_repairs.py" "$repair_script"
+          fetch_file "$base_sha" "ops/frontier/v16_7/test_frontier_v16_7_terminal_truth.py" "$source_test"
+          test "$(sha256sum "$repair_script" | awk '{print $1}')" = "$REPAIR_SCRIPT_SHA256"
+          test "$(sha256sum "$source_test" | awk '{print $1}')" = "$SOURCE_TEST_SHA256"
+          chmod 0500 "$repair_script"
+
+          cat >"$work/repair-paths" <<'EOF'
+          README.md
+          console/index.html
+          pages/console.html
+          routers/frontier_reads.py
+          routers/series_a_control_plane.py
+          routers/series_a_web/app.js
+          routers/series_a_web/index.html
+          EOF
+          sed -i 's/^          //' "$work/repair-paths"
+
+          while IFS= read -r rel; do
+            fetch_file "$base_sha" "$rel" "$work/repo/$rel"
+          done <"$work/repair-paths"
+
+          python3 "$repair_script" \
+            --repo "$work/repo" \
+            --apply \
+            --report "$work/repair-report.json" >/dev/null
+          jq -e '.status == "APPLIED" or .status == "ALREADY_COMPLIANT"' "$work/repair-report.json" >/dev/null
+          mkdir -p "$work/repo/tests"
+          cp "$source_test" "$work/repo/tests/test_frontier_v16_7_terminal_truth.py"
+
+          export FRONTIER_WORK="$work/repo"
+          export FRONTIER_BASE_SHA="$base_sha"
+          export FRONTIER_BRANCH="$branch"
+          export FRONTIER_TOKEN="$GH_TOKEN"
+          export FRONTIER_REPOSITORY="$REPOSITORY"
+
+          result="$work/result.json"
+          python3 - "$result" <<'PY'
+          import base64
+          import json
+          import os
+          import pathlib
+          import sys
+          import urllib.error
+          import urllib.request
+
+          output = pathlib.Path(sys.argv[1])
+          root = pathlib.Path(os.environ["FRONTIER_WORK"])
+          repository = os.environ["FRONTIER_REPOSITORY"]
+          branch = os.environ["FRONTIER_BRANCH"]
+          base_sha = os.environ["FRONTIER_BASE_SHA"]
+          token = os.environ["FRONTIER_TOKEN"]
+          paths = [
+              "README.md",
+              "console/index.html",
+              "pages/console.html",
+              "routers/frontier_reads.py",
+              "routers/series_a_control_plane.py",
+              "routers/series_a_web/app.js",
+              "routers/series_a_web/index.html",
+              "tests/test_frontier_v16_7_terminal_truth.py",
+          ]
+          additions = []
+          for rel in paths:
+              data = (root / rel).read_bytes()
+              additions.append({
+                  "path": rel,
+                  "contents": base64.b64encode(data).decode("ascii"),
+              })
+
+          mutation = """
+          mutation BuildFrontier($input: CreateCommitOnBranchInput!) {
+            createCommitOnBranch(input: $input) {
+              commit { oid url }
+            }
+          }
+          """
+          variables = {
+              "input": {
+                  "branch": {
+                      "repositoryNameWithOwner": repository,
+                      "branchName": branch,
+                  },
+                  "expectedHeadOid": base_sha,
+                  "message": {
+                      "headline": "fix(frontier): terminalize v16.7 operational truth",
+                      "body": (
+                          "Apply the protected deterministic Frontier v16.7 repair oracle "
+                          "to the exact current main source and add its terminal-truth regression.\n\n"
+                          "No direct main write, force push, candidate-code execution, secret read, "
+                          "review submission, or merge mutation.\n\n"
+                          "Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>"
+                      ),
+                  },
+                  "fileChanges": {"additions": additions},
+              }
+          }
+          payload = json.dumps({"query": mutation, "variables": variables}).encode("utf-8")
+          request = urllib.request.Request(
+              "https://api.github.com/graphql",
+              data=payload,
+              method="POST",
+              headers={
+                  "Authorization": f"Bearer {token}",
+                  "Accept": "application/vnd.github+json",
+                  "Content-Type": "application/json",
+                  "User-Agent": "szl-frontier-v16-7-builder",
+                  "X-GitHub-Api-Version": "2022-11-28",
+              },
+          )
+          try:
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  result = json.load(response)
+          except urllib.error.HTTPError as exc:
+              raise SystemExit(f"GitHub GraphQL HTTP {exc.code}") from exc
+          if result.get("errors"):
+              messages = [str(row.get("message", "GraphQL error")) for row in result["errors"]]
+              raise SystemExit("; ".join(messages)[:1000])
+          commit = (((result.get("data") or {}).get("createCommitOnBranch") or {}).get("commit") or {})
+          oid = str(commit.get("oid") or "")
+          if len(oid) != 40 or any(ch not in "0123456789abcdef" for ch in oid):
+              raise SystemExit("GitHub did not return a valid commit OID")
+          output.write_text(json.dumps({"commit_oid": oid, "url": commit.get("url")}, sort_keys=True) + "\n")
+          PY
+
+          commit_sha="$(jq -er '.commit_oid' "$result")"
+          commit_json="$(gh api "repos/${REPOSITORY}/commits/${commit_sha}")"
+          jq -e '.commit.verification.verified == true' <<<"$commit_json" >/dev/null
+          test "$(jq -er '.parents | length' <<<"$commit_json")" = "1"
+          test "$(jq -er '.parents[0].sha' <<<"$commit_json")" = "$base_sha"
+          grep -Eq '^Signed-off-by: .+ <[^>]+>$' <<<"$(jq -r '.commit.message' <<<"$commit_json")"
+          test "$(gh api "repos/${REPOSITORY}/git/ref/heads/${branch}" --jq '.object.sha')" = "$commit_sha"
+
+          comment="$(cat <<EOF
+          Frontier v16.7 exact source commit created.
+
+          - Base: \`${base_sha}\`
+          - Branch: \`${branch}\`
+          - Head: \`${commit_sha}\`
+          - GitHub signature: verified
+          - Parent count: 1
+          - Candidate-code checkout/import/execution: none
+          - Secret values read or printed: false
+          EOF
+          )"
+          gh api "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}/comments" -f body="$comment" >/dev/null
+          gh api --method PATCH "repos/${REPOSITORY}/issues/${ISSUE_NUMBER}" -f state=closed -f state_reason=completed >/dev/null
+
+          {
+            echo "### Frontier v16.7 exact source build"
+            echo "- base: \`${base_sha}\`"
+            echo "- branch: \`${branch}\`"
+            echo "- commit: \`${commit_sha}\`"
+            echo "- GitHub signature: verified"
+            echo "- deterministic repair: applied from protected main"
+            echo "- candidate-code checkout/import/execution: none"
+          } >>"$GITHUB_STEP_SUMMARY"

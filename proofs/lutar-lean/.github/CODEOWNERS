@@ -1,0 +1,31 @@
+# CODEOWNERS — SZL Holdings
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Default: founder + Yachay own everything
+* @szl-holdings/core-team
+
+# CI/CD and security-critical workflows — devops team
+.github/workflows/ @szl-holdings/devops @szl-holdings/core-team
+
+# Doctrine and lean kernel — core-team only
+*.lean @szl-holdings/core-team
+lean/ @szl-holdings/core-team
+
+# Security policy — core-team only
+SECURITY.md @szl-holdings/core-team
+.github/SECURITY.md @szl-holdings/core-team
+
+# Dockerfile — per-file COPY enforced, devops reviews
+Dockerfile @szl-holdings/devops @szl-holdings/core-team
+Dockerfile.* @szl-holdings/devops @szl-holdings/core-team
+
+# Python source — dev-team
+*.py @szl-holdings/dev-team @szl-holdings/core-team
+
+# Zarf bundles — devops
+zarf.yaml @szl-holdings/devops @szl-holdings/core-team
+uds-bundle.yaml @szl-holdings/devops @szl-holdings/core-team
+
+# Docs
+docs/ @szl-holdings/core-team
+*.md @szl-holdings/core-team

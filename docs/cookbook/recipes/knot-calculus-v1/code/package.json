@@ -1,0 +1,15 @@
+{
+  "name": "knot-calculus-v1-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-contained demo of the v15 knot-calculus recipe — khipu receipts + PAC-Bayes bound + knot tag.",
+  "scripts": {
+    "demo": "tsx tests/demo.ts"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tsx": "^4.16.0",
+    "typescript": "^5.4.0"
+  }
+}

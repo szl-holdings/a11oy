@@ -1,0 +1,26 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
+apiVersion: policy.sigstore.dev/v1beta1
+kind: ClusterImagePolicy
+metadata:
+  name: a11oy-keyless-warning
+  annotations:
+    operation-verified-throughput/status: PREPARED-IN-A-PR
+spec:
+  mode: warn
+  images:
+    - glob: ghcr.io/szl-holdings/a11oy@sha256:*
+  authorities:
+    - keyless:
+        url: https://fulcio.sigstore.dev
+        identities:
+          - issuer: https://token.actions.githubusercontent.com
+            subjectRegExp: ^https://github\.com/szl-holdings/a11oy/\.github/workflows/reusable-build\.yml@refs/(heads|tags)/.*
+      attestations:
+        - name: slsa-provenance
+          predicateType: https://slsa.dev/provenance/v1
+          policy:
+            type: cue
+            data: |
+              predicateType: "https://slsa.dev/provenance/v1"
+              predicate: buildDefinition: externalParameters: workflow: repository: "https://github.com/szl-holdings/a11oy"

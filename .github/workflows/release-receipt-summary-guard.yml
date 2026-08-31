@@ -1,0 +1,219 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# release-receipt-summary-guard.yml — catch it in CI if release-receipt-verify.yml
+# stops PUBLISHING its summary artifact.
+#
+# Why this exists
+# ---------------
+# The public status board's release-receipt provenance row reads its counts from
+# the `release-receipt-verify-summary` artifact (`.release-verify-summary.json`)
+# produced by release-receipt-verify.yml. That summary is a DOT-PREFIXED (hidden)
+# file, and actions/upload-artifact@v4 excludes hidden files by default — so the
+# upload once silently produced an artifact with total_count 0 on an otherwise
+# green run, starving the status row of counts. It was fixed with
+# `include-hidden-files: true`, but nothing stopped that from regressing (an action
+# bump, a path rename, or someone dropping the flag).
+#
+# This guard audits the ACTUAL artifact a completed release-receipt-verify run
+# published. It downloads `release-receipt-verify-summary` — which FAILS if the run
+# produced no such artifact (total_count 0) — and asserts the summary parses with
+# the expected checked/passed/failed/unverifiable keys. It is independent of
+# whether the release currently carries receipt assets: the verifier writes a
+# soft-pass summary (checked=0) either way, so the artifact must always be present.
+#
+# A self-test job proves the validator still FAILS on missing / empty / malformed
+# fixtures before the audit job trusts it against the real run (org guard pattern;
+# cf. status-page-guard.yml). Org policy: github-owned actions only, SHAs pinned.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Release Receipt Summary Guard
+
+on:
+  workflow_run:
+    workflows: ["Release Receipt Verify"]
+    types: [completed]
+  pull_request:
+    paths:
+      - ".github/workflows/release-receipt-summary-guard.yml"
+      - "scripts/check_release_receipt_summary.py"
+      - "scripts/check_summary_alert_gating.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/release-receipt-summary-guard.yml"
+      - "scripts/check_release_receipt_summary.py"
+      - "scripts/check_summary_alert_gating.py"
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: 'release-receipt-verify run id to audit (default: latest completed run)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-receipt-summary-guard-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  # Prove the validator still rejects missing / empty / malformed summaries (i.e.
+  # is not silently passing) before the audit job trusts it. Runs on PR/push that
+  # touch the guard or its validator, and on manual dispatch.
+  self-test:
+    name: Self-test the summary validator (fixtures)
+    if: github.event_name == 'pull_request' || github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Prove the validator rejects missing/empty/malformed summaries
+        run: python scripts/check_release_receipt_summary.py --selftest
+
+      # Prove the failure-only alert step never pages on a healthy run. The
+      # negative fixtures reject a gate weakened to always(), bare failure(),
+      # success(), a widened event guard or a missing `if:`; the audit then holds
+      # the LIVE alert `if:` in this very workflow to that same contract — so a
+      # future edit that would page on every green run goes RED here instead.
+      - name: Prove the alert step only pages on real failures (gating fixtures)
+        run: python scripts/check_summary_alert_gating.py --selftest
+
+      - name: Audit the live alert gating against the never-page-on-healthy-run contract
+        run: python scripts/check_summary_alert_gating.py --workflow .github/workflows/release-receipt-summary-guard.yml
+
+  # Audit the artifact an actual release-receipt-verify run published. Runs when
+  # that workflow completes (success or failure both reach the upload step), and
+  # on manual dispatch (optionally against a specific run id).
+  audit:
+    name: Audit the published release-receipt summary artifact
+    if: >-
+      (github.event_name == 'workflow_run' &&
+        (github.event.workflow_run.conclusion == 'success' ||
+         github.event.workflow_run.conclusion == 'failure')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Self-test the validator before trusting it
+        run: python scripts/check_release_receipt_summary.py --selftest
+
+      - name: Resolve the release-receipt-verify run to audit
+        id: target
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DISPATCH_RUN_ID: ${{ github.event.inputs.run_id }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+        run: |
+          set -euo pipefail
+          RID="${DISPATCH_RUN_ID:-}"
+          if [ -z "${RID}" ]; then RID="${WORKFLOW_RUN_ID:-}"; fi
+          if [ -z "${RID}" ]; then
+            echo "No run id supplied — resolving the latest completed release-receipt-verify run."
+            RID="$(gh run list --repo "${GITHUB_REPOSITORY}" \
+                     --workflow release-receipt-verify.yml \
+                     --status completed --limit 1 \
+                     --json databaseId -q '.[0].databaseId' 2>/dev/null || true)"
+          fi
+          if [ -z "${RID}" ] || [ "${RID}" = "null" ]; then
+            echo "::error::Could not resolve a release-receipt-verify run to audit."
+            exit 1
+          fi
+          echo "Auditing release-receipt-verify run ${RID}."
+          echo "run_id=${RID}" >> "$GITHUB_OUTPUT"
+
+      - name: Download the release-receipt-verify-summary artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RID: ${{ steps.target.outputs.run_id }}
+        run: |
+          set -euo pipefail
+          mkdir -p summary-artifact
+          if ! gh run download "${RID}" \
+                --repo "${GITHUB_REPOSITORY}" \
+                --name release-receipt-verify-summary \
+                --dir summary-artifact; then
+            echo "::error::release-receipt-verify run ${RID} did NOT publish a 'release-receipt-verify-summary' artifact (total_count 0). The status page's release-receipt row would be starved. Most likely cause: the summary upload lost 'include-hidden-files: true', the artifact name/path changed, or upload-artifact was bumped to a version that re-excludes hidden files."
+            exit 1
+          fi
+          echo "Downloaded artifact contents:"
+          find summary-artifact -type f -printf '  %p (%s bytes)\n'
+
+      - name: Assert the summary is non-empty and well-formed
+        run: python scripts/check_release_receipt_summary.py --dir summary-artifact
+
+      - name: Release-receipt summary artifact is intact
+        run: echo "release-receipt-verify published a non-empty, well-formed summary artifact."
+
+      # Direct push notification so a regressed/absent summary artifact is noticed
+      # immediately, not just buried in a red run on the Actions tab. Fires ONLY
+      # when an earlier audit step failed (failure()) — the normal soft-pass
+      # (checked=0) path and self-test-only PR/push runs never reach this job, so
+      # they cannot page. Posts to a Slack-compatible incoming webhook via curl
+      # (no third-party action, staying within the org's github-owned-actions-only
+      # policy); ntfy renders the {text} payload.
+      #
+      # FAIL-LOUD (issue #541): this step only runs on a real audit failure, so a
+      # dead alert channel here is a SILENT ALARM. If the webhook is unset/empty,
+      # unreachable (curl timeout / transport error), or returns non-2xx (e.g.
+      # HTTP 502), this step exits NON-ZERO with an ::error:: — the alert-DELIVERY
+      # step must never read green when a genuine failure could not be paged.
+      # Doctrine: never let a dead alarm read as green.
+      - name: Alert the team on summary-guard failure
+        if: ${{ failure() && (github.event_name == 'workflow_run' || github.event_name == 'workflow_dispatch') }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          TARGET_RID: ${{ steps.target.outputs.run_id }}
+          SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::error::receipt-alert channel UNAVAILABLE — SLACK_WEBHOOK_URL is unset/empty while the release-receipt summary guard is FAILING. The failure will NOT page. Failing this step loudly (a dead alarm must never read green); the red run still stands. Re-set the SLACK_WEBHOOK_URL secret to the a11oy-uptime ntfy webhook."
+            exit 1
+          fi
+
+          if [ -n "${TARGET_RID}" ] && [ "${TARGET_RID}" != "null" ]; then
+            verify_line="Audited release-receipt-verify run: ${TARGET_RID} (${SERVER_URL}/${REPO}/actions/runs/${TARGET_RID})"
+          else
+            verify_line="Audited release-receipt-verify run: (could not be resolved this run)"
+          fi
+
+          # Compose the message (real newlines), then JSON-encode it safely with
+          # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. ntfy renders the Slack-style {text} field.
+          text=":rotating_light: *Release-receipt summary guard FAILED* in ${REPO}.
+          A release-receipt-verify run published no / an empty / a malformed summary artifact, so the status board's release-receipt provenance row would be starved of counts.
+          ${verify_line}
+          *Failing guard run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting summary-guard failure alert to webhook..."
+          curl_rc=0
+          code=$(curl -sS -o /tmp/alert_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}") || curl_rc=$?
+          if [ "${curl_rc}" -ne 0 ]; then
+            echo "::error::receipt-alert channel UNREACHABLE — curl transport error (exit ${curl_rc}, e.g. timeout/DNS/connection refused) while paging a summary-guard failure. The failure did NOT page; failing loudly. Re-check/rotate the SLACK_WEBHOOK_URL webhook."
+            exit 1
+          fi
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::receipt-alert channel UNAVAILABLE — webhook POST did not return 2xx (HTTP ${code}): $(cat /tmp/alert_resp.txt). A summary-guard failure did NOT page; failing loudly (dead alarm must not read green). Rotate the SLACK_WEBHOOK_URL webhook."
+            exit 1
+          fi
+          echo "Direct alert delivered."

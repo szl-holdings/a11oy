@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 - Doctrine v11
+#
+# prometheus.yml - scrape dcgm-exporter (GPU/power telemetry) on BOTH GPU boxes
+# over the private tailnet. Mounted read-only into the prometheus container
+# (see docker-compose.yml). The key power metric is DCGM_FI_DEV_POWER_USAGE
+# (instantaneous board watts) - integrate over time for Wh/kWh in Grafana.
+#
+# HONESTY (Doctrine v11): a target that is DOWN shows up as `up == 0` in
+# Prometheus - it is NOT a fabricated reading. Fill in the real Tailscale IPs
+# (`tailscale ip -4` on each box) or use MagicDNS names.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'dcgm-exporter'
+    static_configs:
+      - targets:
+          - 'omen:9400'            # RTX 4060 Ti tower (MagicDNS) - or 100.x.x.1:9400
+          - 'betterwithage:9400'   # RTX 5050 laptop (MagicDNS)   - or 100.x.x.2:9400
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: 'omen:.*'
+        target_label: node
+        replacement: 'omen'
+      - source_labels: [__address__]
+        regex: 'betterwithage:.*'
+        target_label: node
+        replacement: 'betterwithage'
+
+  # OPTIONAL: scrape the JSON omen-joule-exporter is NOT Prometheus-format
+  # (it serves JSON on :9471). Use the meter2 Prometheus exporter
+  # (szl_meter2_exporter.py, szl-holdings/szl-energy-attest) if you want :9471
+  # power/energy in Prometheus too:
+  # - job_name: 'szl-meter2'
+  #   metrics_path: /metrics
+  #   static_configs:
+  #     - targets: ['omen:9471', 'betterwithage:9471']

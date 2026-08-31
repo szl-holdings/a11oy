@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>A11oy Holographic Operations</title>
+  <style>
+    :root{--bg:#05080d;--panel:#0b131d;--panel2:#101c27;--line:#243442;--text:#edf5f7;--muted:#98acb8;--proof:#3af4c8;--gold:#e7bf72;--bad:#ff7b7b;--unknown:#b9a8ff}
+    *{box-sizing:border-box}html{background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}body{margin:0;min-height:100vh;background:radial-gradient(circle at 50% -20%,#133042 0,#071019 42%,var(--bg) 72%)}
+    a{color:var(--proof)}button,a.button{font:inherit}.skip{position:absolute;left:-9999px;top:0}.skip:focus{left:12px;top:12px;z-index:100;background:#fff;color:#000;padding:8px;border-radius:6px}
+    header{position:sticky;top:0;z-index:10;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px clamp(14px,3vw,32px);border-bottom:1px solid var(--line);background:rgba(5,8,13,.92);backdrop-filter:blur(12px)}
+    .mark{font:700 14px/1 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.08em;color:var(--proof)}h1{font-size:clamp(18px,3vw,28px);margin:0;flex:1}.toplinks{display:flex;gap:8px;flex-wrap:wrap}.button{display:inline-flex;align-items:center;min-height:38px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--text);text-decoration:none;cursor:pointer}.button:hover,.button:focus-visible{border-color:var(--proof);outline:none;box-shadow:0 0 0 2px rgba(58,244,200,.2)}
+    main{width:min(1180px,100%);margin:auto;padding:clamp(18px,4vw,42px)}.hero{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(260px,.8fr);gap:18px;align-items:stretch}.hero-copy,.identity{border:1px solid var(--line);border-radius:18px;background:linear-gradient(145deg,rgba(16,28,39,.95),rgba(7,15,23,.95));padding:clamp(20px,4vw,38px)}
+    .eyebrow{font:11px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--gold);letter-spacing:.16em;text-transform:uppercase}.hero h2{font-size:clamp(30px,7vw,64px);line-height:1.02;margin:12px 0}.hero p{max-width:70ch;color:var(--muted);font-size:clamp(15px,2vw,18px)}
+    .identity{display:flex;flex-direction:column;gap:12px}.identity h2{font-size:16px;margin:0}.kv{display:grid;grid-template-columns:110px minmax(0,1fr);gap:8px;padding:8px 0;border-bottom:1px solid rgba(36,52,66,.65)}.kv span:first-child{color:var(--muted);font:11px ui-monospace,monospace;text-transform:uppercase}.kv code{overflow-wrap:anywhere;color:var(--proof)}
+    .statusline{display:flex;align-items:center;gap:9px}.dot{width:11px;height:11px;border-radius:50%;background:var(--unknown);box-shadow:0 0 14px currentColor}.statusline[data-state="pass"] .dot{background:var(--proof)}.statusline[data-state="fail"] .dot{background:var(--bad)}.statusline[data-state="unknown"] .dot{background:var(--unknown)}
+    .section-head{display:flex;align-items:end;justify-content:space-between;gap:12px;margin:32px 0 14px}.section-head h2{margin:0;font-size:clamp(20px,3vw,30px)}.section-head p{margin:0;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.card{min-height:190px;border:1px solid var(--line);border-radius:15px;background:rgba(11,19,29,.92);padding:18px;display:flex;flex-direction:column;gap:10px}.card header{position:static;padding:0;background:none;border:0;backdrop-filter:none}.card h3{margin:0;font-size:16px;flex:1}.pill{font:10px ui-monospace,monospace;padding:4px 7px;border:1px solid var(--line);border-radius:999px;color:var(--unknown)}.pill[data-state="pass"]{color:var(--proof);border-color:#28544a}.pill[data-state="fail"]{color:var(--bad);border-color:#5c3131}.card p{margin:0;color:var(--muted)}.detail{margin-top:auto;background:#071019;border:1px solid #1a2a36;border-radius:9px;padding:10px;font:11px/1.55 ui-monospace,monospace;overflow:auto;max-height:180px;white-space:pre-wrap;overflow-wrap:anywhere}
+    .boundary{margin-top:28px;border-left:3px solid var(--gold);padding:12px 16px;background:rgba(231,191,114,.08);color:var(--muted)}footer{padding:24px;text-align:center;color:var(--muted);font-size:12px}
+    @media(max-width:760px){.hero,.grid{grid-template-columns:1fr}.toplinks{width:100%}.toplinks .button{flex:1;justify-content:center}.kv{grid-template-columns:90px minmax(0,1fr)}}
+    @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+  </style>
+</head>
+<body>
+<a class="skip" href="#operations">Skip to operational evidence</a>
+<header>
+  <div class="mark">◇ A11OY</div>
+  <h1>Holographic Operations</h1>
+  <nav class="toplinks" aria-label="Primary">
+    <a class="button" href="/">Product</a>
+    <a class="button" href="/verify">Verify receipt</a>
+    <button class="button" id="refresh" type="button">Refresh evidence</button>
+  </nav>
+</header>
+<main id="operations">
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-copy">
+      <div class="eyebrow">Public · read-only · source-bound</div>
+      <h2 id="hero-title">The estate, observed—not assumed.</h2>
+      <p>This surface reads the deployed liveness, build identity, Brain capability ledger, and readiness matrix directly from the same A11oy runtime. A green card means the endpoint returned an accepted contract in this browser session; it is not a claim of sentience, AGI, model training, or independent certification.</p>
+      <div class="statusline" id="overall" data-state="unknown" aria-live="polite"><span class="dot" aria-hidden="true"></span><strong>Collecting live evidence…</strong></div>
+    </div>
+    <aside class="identity" aria-labelledby="identity-title">
+      <h2 id="identity-title">Deployment identity</h2>
+      <div class="kv"><span>State</span><code id="identity-state">NOT_EVALUATED</code></div>
+      <div class="kv"><span>Revision</span><code id="identity-revision">UNKNOWN</code></div>
+      <div class="kv"><span>Built</span><code id="identity-date">UNKNOWN</code></div>
+      <div class="kv"><span>Observed</span><code id="identity-observed">—</code></div>
+    </aside>
+  </section>
+
+  <div class="section-head">
+    <div><div class="eyebrow">Live contracts</div><h2>Operational evidence plane</h2></div>
+    <p>GET-only; no receipt minting or state change.</p>
+  </div>
+  <section class="grid" id="cards" aria-label="Operational evidence cards"></section>
+
+  <p class="boundary"><strong>Honesty boundary:</strong> this page visualizes current public contracts. It does not train a model, execute a GPU job, sign an artifact, promote weights, mutate a deployment, or convert missing evidence into success.</p>
+</main>
+<footer>Doctrine v11 · locked formulas {F1,F4,F7,F11,F12,F18,F19,F22} · Λ = Conjecture 1 · trust &lt; 100%</footer>
+<script>
+(() => {
+  "use strict";
+  const contracts = [
+    {id:"livez",title:"Runtime liveness",url:"/api/livez",accept:p=>p && p.status==="LIVE",summary:p=>`status=${p.status ?? "UNKNOWN"}`},
+    {id:"build",title:"Build identity",url:"/api/build-info",accept:p=>p && p.status==="OBSERVED" && p.build && p.build.state==="OBSERVED",summary:p=>`state=${p.build?.state ?? "UNKNOWN"}\nrevision=${p.build?.revision ?? "UNKNOWN"}`},
+    {id:"brain",title:"Brain capabilities",url:"/api/a11oy/v1/brain/capabilities",accept:p=>p && p.schema==="szl.brain-capabilities.v1",summary:p=>`overall=${p.overall_status ?? "UNKNOWN"}\ncapabilities=${p.summary?.capabilities_total ?? "UNKNOWN"}\ntraining_claims=${p.summary?.ready_for_training_claims ?? false}`},
+    {id:"readiness",title:"Readiness matrix",url:"/api/a11oy/v1/readiness/tab-matrix?view=summary",accept:p=>p && (p.view==="summary" || p.matrix_summary || p.available===true),summary:p=>`available=${p.available ?? "UNKNOWN"}\nview=${p.view ?? "UNKNOWN"}\nsummary=${JSON.stringify(p.matrix_summary ?? {},null,2)}`}
+  ];
+  const cards=document.getElementById("cards");
+  const overall=document.getElementById("overall");
+  function card(def){
+    const article=document.createElement("article"); article.className="card"; article.id=`card-${def.id}`;
+    article.innerHTML=`<header><h3></h3><span class="pill" data-state="unknown">NOT_EVALUATED</span></header><p></p><pre class="detail">Waiting for public response…</pre>`;
+    article.querySelector("h3").textContent=def.title;
+    article.querySelector("p").textContent=def.url;
+    cards.appendChild(article); return article;
+  }
+  contracts.forEach(d=>d.element=card(d));
+  async function probe(def){
+    const pill=def.element.querySelector(".pill"),detail=def.element.querySelector(".detail");
+    pill.dataset.state="unknown"; pill.textContent="CHECKING"; detail.textContent="Requesting live contract…";
+    try{
+      const response=await fetch(def.url,{headers:{Accept:"application/json","Cache-Control":"no-cache"},cache:"no-store"});
+      if(!response.ok) throw new Error(`HTTP ${response.status}`);
+      const payload=await response.json(); const ok=Boolean(def.accept(payload));
+      pill.dataset.state=ok?"pass":"fail"; pill.textContent=ok?"OBSERVED":"CONTRACT_MISMATCH";
+      detail.textContent=def.summary(payload);
+      return {ok,payload};
+    }catch(error){pill.dataset.state="fail";pill.textContent="UNAVAILABLE";detail.textContent=String(error);return {ok:false,payload:null};}
+  }
+  async function refresh(){
+    const results=await Promise.all(contracts.map(probe));
+    const passed=results.filter(r=>r.ok).length; const all=passed===contracts.length;
+    overall.dataset.state=all?"pass":"fail";
+    overall.querySelector("strong").textContent=all?`All ${passed} public contracts observed`:`${passed}/${contracts.length} public contracts observed`;
+    const build=results[1]?.payload?.build||{};
+    document.getElementById("identity-state").textContent=build.state||"UNKNOWN";
+    document.getElementById("identity-revision").textContent=build.revision||"UNKNOWN";
+    document.getElementById("identity-date").textContent=build.build_date||"UNKNOWN";
+    document.getElementById("identity-observed").textContent=new Date().toISOString();
+  }
+  document.getElementById("refresh").addEventListener("click",refresh);
+  refresh();
+})();
+</script>
+</body>
+</html>

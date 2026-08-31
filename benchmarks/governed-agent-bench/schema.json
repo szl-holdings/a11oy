@@ -1,0 +1,222 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a11oy.net/schemas/governed-agent-bench-v0.json",
+  "title": "governed-agent-bench v0",
+  "type": "object",
+  "$defs": {
+    "case": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "axis",
+        "data_label",
+        "scenario",
+        "input",
+        "expected"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string",
+          "pattern": "^gab-[a-z]{2}-[0-9]{3}$"
+        },
+        "axis": {
+          "enum": [
+            "fail_closed",
+            "non_increasing_authority",
+            "false_success",
+            "receipt_completeness",
+            "rollback_discipline"
+          ]
+        },
+        "data_label": {
+          "const": "SAMPLE"
+        },
+        "scenario": {
+          "type": "string",
+          "minLength": 1
+        },
+        "input": {
+          "type": "object"
+        },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "final_state",
+            "executed",
+            "world_state_confirmed",
+            "max_granted_authority",
+            "receipt",
+            "receipt_required_fields",
+            "rollback",
+            "rollback_required_fields"
+          ],
+          "properties": {
+            "final_state": {
+              "type": "string"
+            },
+            "executed": {
+              "type": "boolean"
+            },
+            "world_state_confirmed": {
+              "type": "boolean"
+            },
+            "max_granted_authority": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            },
+            "receipt": {
+              "enum": [
+                "required",
+                "optional",
+                "forbidden"
+              ]
+            },
+            "receipt_required_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            },
+            "rollback": {
+              "enum": [
+                "required",
+                "optional",
+                "forbidden"
+              ]
+            },
+            "rollback_required_fields": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "uniqueItems": true
+            },
+            "rollback_confirmed": {
+              "type": "boolean"
+            }
+          }
+        }
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "run_id",
+        "case_id",
+        "decision",
+        "policy_version",
+        "action_digest",
+        "outcome_state",
+        "evidence_label"
+      ],
+      "properties": {
+        "schema_version": {
+          "type": "string"
+        },
+        "run_id": {
+          "type": "string"
+        },
+        "case_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string"
+        },
+        "policy_version": {
+          "type": "string"
+        },
+        "action_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "outcome_state": {
+          "type": "string"
+        },
+        "evidence_label": {
+          "type": "string"
+        }
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "required": [
+        "attempted",
+        "confirmed",
+        "receipt_digest"
+      ],
+      "properties": {
+        "attempted": {
+          "type": "boolean"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "receipt_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        }
+      }
+    },
+    "submission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "case_id",
+        "final_state",
+        "executed",
+        "authority_granted",
+        "world_state_confirmed",
+        "receipt",
+        "rollback"
+      ],
+      "properties": {
+        "case_id": {
+          "type": "string"
+        },
+        "final_state": {
+          "type": "string"
+        },
+        "executed": {
+          "type": "boolean"
+        },
+        "authority_granted": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "uniqueItems": true
+        },
+        "world_state_confirmed": {
+          "type": "boolean"
+        },
+        "receipt": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/receipt"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "rollback": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/rollback"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
+    }
+  }
+}

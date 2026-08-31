@@ -1,0 +1,11 @@
+{
+  "claim_id": "claim-demo-001",
+  "model": "gpt-5.6",
+  "policy": "consequence-classified-execution",
+  "evidence_schema": "governance-evidence-plane/schemas/claim.v1.json",
+  "test_obligation": "verify offline claim lint and receipt verification",
+  "retention_days": 90,
+  "expires_at_utc": "2027-12-31T23:59:59Z",
+  "counterexample_artifact": "governance-evidence-plane/samples/sample_receipt_fail.json",
+  "patent_trademark_review": false
+}

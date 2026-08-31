@@ -1,0 +1,46 @@
+{
+  "schema": "szl.numerics.dataset-preregistration/v1",
+  "protocol_id": "szl-numerics-cross-engine-v1",
+  "protocol_version": "1.0.0",
+  "state": "FROZEN_INPUT_DESIGN_NO_ENGINE_RESULTS",
+  "frozen_before_execution": true,
+  "results_present": false,
+  "matrix_dimensions": [2, 4, 8, 16, 32, 64],
+  "deterministic_seeds": [1729, 57721, 271828, 314159, 1618033],
+  "condition_number_strata": [
+    {"id": "K0", "target": 1.0, "admissible_min_inclusive": 1.0, "admissible_max_exclusive": 100.0},
+    {"id": "K4", "target": 10000.0, "admissible_min_inclusive": 1000.0, "admissible_max_exclusive": 100000.0},
+    {"id": "K8", "target": 100000000.0, "admissible_min_inclusive": 10000000.0, "admissible_max_exclusive": 1000000000.0},
+    {"id": "K12", "target": 1000000000000.0, "admissible_min_inclusive": 100000000000.0, "admissible_max_exclusive": 10000000000000.0}
+  ],
+  "confirmatory_matrix_families": [
+    {"id": "DIAGONAL_GEOMETRIC", "symmetric": true, "operations": ["MATRIX_SOLVE", "VALIDATE_REFERENCE_VECTOR", "SYMMETRIC_EIGENVALUES"]},
+    {"id": "SPD_GIVENS", "symmetric": true, "operations": ["MATRIX_SOLVE", "VALIDATE_REFERENCE_VECTOR", "SYMMETRIC_EIGENVALUES"]},
+    {"id": "SYMMETRIC_INDEFINITE_GIVENS", "symmetric": true, "operations": ["MATRIX_SOLVE", "VALIDATE_REFERENCE_VECTOR", "SYMMETRIC_EIGENVALUES"]},
+    {"id": "GENERAL_SVD_GIVENS", "symmetric": false, "operations": ["MATRIX_SOLVE", "VALIDATE_REFERENCE_VECTOR"]}
+  ],
+  "exploratory_matrix_families": [
+    {"id": "HILBERT_SENTINEL", "symmetric": true, "dimensions": [2, 4, 8, 12], "seeds": [0], "condition_stratum": "OBSERVED_NOT_ASSIGNED", "operations": ["MATRIX_SOLVE", "VALIDATE_REFERENCE_VECTOR"], "excluded_from_confirmatory_denominators": true}
+  ],
+  "fixture_generation": {
+    "integer_prng": "SplitMix64 with unsigned 64-bit wraparound",
+    "uniform_conversion": "top 53 output bits divided by 2^53",
+    "orthogonal_factor": "identity updated by lexicographically ordered plane rotations; theta=2*pi*u",
+    "known_solution": "x_star[i]=(-1)^i*(i+1)/n using zero-based i; b=A*x_star from the serialized matrix",
+    "serialization": "canonical UTF-8 JSON with sorted keys, compact separators, finite numbers only"
+  },
+  "tolerance": {"absolute": 1e-10, "relative": 1e-8},
+  "machine_epsilon_binary64": 2.220446049250313e-16,
+  "execution_order_seed": "szl-numerics-wave18-preregistered-order-v1",
+  "engines": ["octave", "matlab"],
+  "expected_case_counts": {"confirmatory": 1320, "exploratory": 8, "total": 1328},
+  "evidence_boundary": {
+    "primary_reference": "SOURCE_UNAVAILABLE_UNTIL_PINNED_100DP_REFERENCE_EVIDENCE_IS_INGESTED",
+    "local_engine_execution": "DEPENDENT_ON_RUNTIME_PREFLIGHT",
+    "missing_engine_is_not_a_conflict": true,
+    "cross_engine_match_is_not_a_proof": true,
+    "proof_uplift": 0,
+    "trust_uplift": 0,
+    "substrate_evidence": "UNKNOWN"
+  }
+}

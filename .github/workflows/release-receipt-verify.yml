@@ -1,0 +1,389 @@
+# release-receipt-verify.yml — Re-verify PUBLISHED release-asset receipts.
+#
+# Issue #241. The deploy/release pipelines (release.yml, slsa.yml,
+# zarf-build-and-sign.yml) upload the signed governance + Khipu-ingest DSSE
+# envelopes as ASSETS on the GitHub release. Downstream consumers fetch those
+# assets, so they need ongoing assurance that the PUBLISHED envelopes still
+# verify against the public Sigstore trust root + Rekor transparency log long
+# after the run — with no org secret.
+#
+# rekor-recheck.yml (issue #195) covers the receipts persisted on the
+# governance-receipts ledger branch. This monitor is its release-asset
+# counterpart: it downloads the receipt attestations (*.dsse.json assets) from
+# ALL recent releases that carry them — not just the latest (issue #403) — and
+# re-runs the SAME independent verification (Fulcio cert chain + Rekor inclusion
+# + DSSE signature) via scripts/verify_release_receipts.py, which pins the signer
+# identity PER PRODUCING WORKFLOW by reading the SAN from each embedded Fulcio
+# certificate. Older releases' published envelopes are what downstream consumers
+# may still be fetching, so re-checking only the latest would let an older
+# release's receipt rot silently while the status row still read green. If any
+# published envelope on any checked release no longer verifies it fails LOUDLY
+# and raises a rolling incident issue.
+#
+# HONESTY: this re-checks SIGNATURES only; the SLSA claim is unchanged (L1).
+# A PLACEHOLDER asset is reported as UNVERIFIABLE and FAILS — never a soft pass.
+#
+# Org policy: only github-owned / verified actions are allowed, and Sigstore is
+# driven by `pip install sigstore` + the repo's own scripts (no third-party
+# verification action). Action SHAs are pinned.
+# Signed-off-by: Yachay <yachay@szlholdings.ai>
+
+name: Release Receipt Verify
+
+on:
+  schedule:
+    - cron: '47 6 * * *'  # daily at 06:47 UTC (offset from rekor-recheck 06:17)
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Single release tag to verify (default: scan recent releases)'
+        required: false
+        default: ''
+      max_releases:
+        description: 'How many most-recent releases to re-verify (0 = all). Ignored when a single tag is given.'
+        required: false
+        default: '10'
+      test_alert:
+        description: 'Send a [TEST-ignore] alert through the webhook to prove delivery end to end, then exit (no real re-verify, no incident issue).'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+concurrency:
+  group: release-receipt-verify
+  cancel-in-progress: false
+
+jobs:
+  # Manual delivery test (workflow_dispatch with test_alert=true). Posts a
+  # clearly-labelled [TEST-ignore] message through the SAME Slack-compatible
+  # webhook the real failure alert uses, so the team can prove the alert path
+  # works end to end after wiring SLACK_WEBHOOK_URL — without waiting for a
+  # genuine release-receipt failure. It does NOT download/verify any release
+  # assets, does NOT touch the rolling release-receipt-verify incident issue,
+  # and does NOT mark any receipt as failing. Soft-skips with a ::warning::
+  # (identical to the real alert path) when no webhook secret is configured.
+  test-alert:
+    name: Send a test receipt-failure alert (no real re-verify)
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.test_alert == true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Post a [TEST-ignore] alert through the same webhook
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — cannot send the test alert. Wire the secret, then re-run this manual test."
+            exit 0
+          fi
+
+          # Same compose -> jq-encode -> curl delivery the real alert uses, but
+          # the payload is unmistakably a test and names no failing receipt.
+          text=":test_tube: *[TEST-ignore] Release receipt verify — alert delivery test* for ${REPO}.
+          This is a MANUAL test of the release-receipt-failure alert path, triggered by ${ACTOR}.
+          No published release receipt is failing and no incident issue was opened. If you can read this, the webhook is wired correctly.
+          *Test run:* ${RUN_URL}"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting [TEST-ignore] alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Test alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Test alert delivered — the release-receipt-failure alert path works end to end."
+
+    permissions:
+      contents: read
+      issues: write
+  verify:
+    name: Re-verify published release-asset receipts
+    # The manual delivery test (test_alert=true) must not run the real re-verify
+    # or touch the rolling incident issue; it only exercises webhook delivery.
+    if: ${{ inputs.test_alert != true }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install sigstore SDK
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "sigstore>=2.0.0"
+
+      # Resolve which releases to verify, then download each one's receipt assets
+      # (*.dsse.json) into a per-release subdirectory release-receipts/<tag>/.
+      # Re-verifies ALL recent releases that carry receipts (issue #403), not just
+      # the latest, so an older release's published envelope can't rot unnoticed.
+      # Tolerant of "no releases yet" and "release carries no receipt assets yet"
+      # — both mean nothing to re-check there (honest soft pass).
+      - name: Download published receipt assets across recent releases
+        id: download
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          INPUT_MAX: ${{ github.event.inputs.max_releases }}
+        run: |
+          set +e
+          mkdir -p release-receipts
+
+          # Build the ordered list of release tags to re-verify. An explicit tag
+          # input pins a single release; otherwise scan the N most-recent
+          # releases (MAX<=0 means all).
+          MAX="${INPUT_MAX:-10}"
+          if [ -n "${INPUT_TAG}" ]; then
+            TAGS="${INPUT_TAG}"
+          elif [ "${MAX}" -le 0 ] 2>/dev/null; then
+            TAGS="$(gh release list --repo "${GITHUB_REPOSITORY}" --limit 1000 --json tagName -q '.[].tagName' 2>/dev/null)"
+          else
+            TAGS="$(gh release list --repo "${GITHUB_REPOSITORY}" --limit "${MAX}" --json tagName -q '.[].tagName' 2>/dev/null)"
+          fi
+
+          if [ -z "${TAGS}" ]; then
+            echo "No releases found — nothing published to re-check."
+            echo "tags=" >> "$GITHUB_OUTPUT"
+            echo "releases_with_assets=0" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          checked_tags=""
+          asset_releases=0
+          while IFS= read -r TAG; do
+            [ -z "${TAG}" ] && continue
+            dest="release-receipts/${TAG}"
+            mkdir -p "${dest}"
+            gh release download "${TAG}" \
+              --repo "${GITHUB_REPOSITORY}" \
+              --pattern '*.dsse.json' \
+              --dir "${dest}" >/dev/null 2>&1
+            n=$(ls -1 "${dest}"/*.dsse.json 2>/dev/null | wc -l | tr -d ' ')
+            if [ "${n}" -gt 0 ]; then
+              echo "Release ${TAG}: ${n} receipt asset(s)."
+              asset_releases=$((asset_releases + 1))
+              checked_tags="${checked_tags}${TAG} "
+            else
+              echo "Release ${TAG}: no *.dsse.json assets — skipping."
+              rmdir "${dest}" 2>/dev/null
+            fi
+          done <<< "${TAGS}"
+
+          checked_tags="$(echo ${checked_tags})"  # trim
+          echo "tags=${checked_tags}" >> "$GITHUB_OUTPUT"
+          echo "releases_with_assets=${asset_releases}" >> "$GITHUB_OUTPUT"
+          echo "Releases carrying receipt assets: ${asset_releases} (${checked_tags:-none})"
+
+      - name: Re-verify all published release receipts
+        id: verify
+        run: |
+          set +e
+          python scripts/verify_release_receipts.py \
+            --dir release-receipts \
+            --summary-out release-receipts/.release-verify-summary.json \
+            | tee verify.out
+          status=${PIPESTATUS[0]}
+          echo "exit_code=${status}" >> "$GITHUB_OUTPUT"
+
+          checked=0; passed=0; failed=0; unverifiable=0
+          if [ -f release-receipts/.release-verify-summary.json ]; then
+            for k in checked passed failed unverifiable; do
+              v=$(python -c "import json;print(json.load(open('release-receipts/.release-verify-summary.json'))['${k}'])")
+              printf -v "${k}" '%s' "${v}"
+            done
+          fi
+          for k in checked passed failed unverifiable; do
+            echo "${k}=${!k}" >> "$GITHUB_OUTPUT"
+          done
+
+          # Names (+release +reason) of every published asset that no longer
+          # verifies (FAIL or UNVERIFIABLE), so the direct alert can name the
+          # failing receipt(s) AND the release they belong to. Multi-line output
+          # via the heredoc delimiter form.
+          {
+            echo "failed_files<<__RELVERIFY_EOF__"
+            if [ -f release-receipts/.release-verify-summary.json ]; then
+              python -c "import json; s=json.load(open('release-receipts/.release-verify-summary.json')); [print('- '+(r.get('release','?')+'/' if r.get('release') else '')+r['file']+(' ('+r['reason']+')' if r.get('reason') else '')) for r in s.get('results',[]) if r.get('status') in ('FAIL','UNVERIFIABLE')]"
+            fi
+            echo "__RELVERIFY_EOF__"
+          } >> "$GITHUB_OUTPUT"
+
+          {
+            echo "## Release receipt verification"
+            echo ""
+            echo "Releases re-checked: **${{ steps.download.outputs.releases_with_assets }}** (\`${{ steps.download.outputs.tags }}\`)"
+            echo ""
+            echo "| Metric | Count |"
+            echo "|--------|-------|"
+            echo "| Releases with receipts | ${{ steps.download.outputs.releases_with_assets }} |"
+            echo "| Checked | ${checked} |"
+            echo "| Verified | ${passed} |"
+            echo "| **Failed** | ${failed} |"
+            echo "| **Unverifiable** | ${unverifiable} |"
+            echo ""
+            echo '```'
+            cat verify.out
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0  # never abort here; the explicit gate below owns pass/fail
+
+      - name: Upload verification summary
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-receipt-verify-summary
+          path: release-receipts/.release-verify-summary.json
+          # The summary is a dot-prefixed file; upload-artifact@v4 excludes
+          # hidden files by default, which would silently drop it (total_count 0)
+          # and starve the status page's release-receipt provenance row.
+          include-hidden-files: true
+          if-no-files-found: ignore
+
+      - name: Reconcile rolling verification incident issue
+        id: incident
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          EXIT_CODE: ${{ steps.verify.outputs.exit_code }}
+          CHECKED: ${{ steps.verify.outputs.checked }}
+          PASSED: ${{ steps.verify.outputs.passed }}
+          FAILED: ${{ steps.verify.outputs.failed }}
+          UNVERIFIABLE: ${{ steps.verify.outputs.unverifiable }}
+          REL_INFO: ${{ steps.download.outputs.releases_with_assets }} release(s) [${{ steps.download.outputs.tags }}]
+        with:
+          script: |
+            const failed = Number(process.env.FAILED || '0') > 0 ||
+                           Number(process.env.UNVERIFIABLE || '0') > 0 ||
+                           Number(process.env.EXIT_CODE || '0') === 1;
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const marker = '<!-- release-receipt-verify-incident -->';
+
+            const q = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:release-receipt-verify`;
+            const res = await github.rest.search.issuesAndPullRequests({ q, sort: 'created', order: 'desc', per_page: 5 });
+            const existing = res.data.items.find(i => !i.pull_request) || null;
+
+            const stats = `releases=${process.env.REL_INFO} checked=${process.env.CHECKED} verified=${process.env.PASSED} failed=${process.env.FAILED} unverifiable=${process.env.UNVERIFIABLE}`;
+            const now = new Date().toISOString();
+
+            if (failed) {
+              const body = `## Release Receipt Verification Incident\n\n${marker}\n` +
+                `**State:** FAILING\n**Detected:** ${now}\n**Run:** ${runUrl}\n\n` +
+                `One or more PUBLISHED release-asset receipts no longer verify against ` +
+                `the public Sigstore/Rekor trust root (or a published asset is a ` +
+                `placeholder / unexpected signer).\n\n\`${stats}\`\n\n` +
+                `See the run summary for the per-asset breakdown. This is a single ` +
+                `rolling incident; it updates in place and auto-closes on recovery.`;
+              let incident = existing;
+              if (existing) {
+                if (existing.state === 'closed') {
+                  await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open' });
+                }
+                await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                  body: `Still FAILING as of ${now}.\n\n\`${stats}\`\nRun: ${runUrl}` });
+              } else {
+                const created = await github.rest.issues.create({ owner: context.repo.owner, repo: context.repo.repo,
+                  title: '[RELEASE] Published release receipt(s) no longer verify', body, labels: ['release-receipt-verify', 'incident'] });
+                incident = created.data;
+              }
+              // Surface the incident issue so the direct-alert step can link it.
+              if (incident) {
+                core.setOutput('issue_number', String(incident.number));
+                core.setOutput('issue_url', incident.html_url);
+              }
+            } else if (existing && existing.state === 'open') {
+              await github.rest.issues.createComment({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number,
+                body: `Recovered: all published release receipts verify again as of ${now}.\n\n\`${stats}\`\nAuto-closing this rolling incident.\nRun: ${runUrl}` });
+              await github.rest.issues.update({ owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed' });
+            }
+
+      # Direct push notification so a silently-broken PUBLISHED release-asset
+      # receipt is noticed immediately, not just buried in a red run / rolling
+      # issue. Fires ONLY when a published asset no longer verifies (same
+      # condition the incident issue uses); the all-pass path sends nothing.
+      # Posts to a Slack-compatible incoming webhook via curl (no third-party
+      # action, so it stays within the org's github-owned/verified-actions-only
+      # policy). If no webhook secret is configured it logs a notice and
+      # soft-skips — the red run + incident issue still stand.
+      - name: Alert the team directly on release-receipt verification failure
+        if: ${{ always() && (steps.verify.outputs.failed != '0' || steps.verify.outputs.unverifiable != '0' || steps.verify.outputs.exit_code == '1') }}
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
+          ISSUE_NUMBER: ${{ steps.incident.outputs.issue_number }}
+          REPO: ${{ github.repository }}
+          REL_INFO: ${{ steps.download.outputs.releases_with_assets }} release(s) [${{ steps.download.outputs.tags }}]
+          CHECKED: ${{ steps.verify.outputs.checked }}
+          PASSED: ${{ steps.verify.outputs.passed }}
+          FAILED: ${{ steps.verify.outputs.failed }}
+          UNVERIFIABLE: ${{ steps.verify.outputs.unverifiable }}
+          FAILED_FILES: ${{ steps.verify.outputs.failed_files }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SLACK_WEBHOOK_URL}" ]; then
+            echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the rolling release-receipt-verify incident issue still stand."
+            exit 0
+          fi
+
+          if [ -n "${ISSUE_URL}" ]; then
+            issue_line="Incident issue: #${ISSUE_NUMBER} ${ISSUE_URL}"
+          else
+            issue_line="Incident issue: (could not be resolved this run)"
+          fi
+
+          files="${FAILED_FILES}"
+          if [ -z "${files}" ]; then
+            files="(verifier errored before a per-asset breakdown was produced)"
+          fi
+
+          # Compose the message (real newlines), then JSON-encode it safely with
+          # jq (preinstalled on ubuntu-latest) so quotes/newlines can't break the
+          # payload. Slack renders \n and *bold* in the `text` field.
+          text=":rotating_light: *Release receipt verification FAILED* — published release-asset receipt(s) no longer verify in ${REPO}.
+          *Releases checked:* ${REL_INFO}
+          *Counts:* checked=${CHECKED} verified=${PASSED} failed=${FAILED} unverifiable=${UNVERIFIABLE}
+          *Failing receipt(s):*
+          ${files}
+          *Failing run:* ${RUN_URL}
+          *${issue_line}*"
+
+          payload=$(jq -n --arg text "$text" '{text: $text}')
+
+          echo "Posting release-receipt-failure alert to Slack webhook..."
+          code=$(curl -sS -o /tmp/slack_resp.txt -w '%{http_code}' \
+                   -X POST -H 'Content-Type: application/json' \
+                   --max-time 20 --data "${payload}" "${SLACK_WEBHOOK_URL}")
+          echo "Webhook responded HTTP ${code}."
+          if [ "${code}" -lt 200 ] || [ "${code}" -ge 300 ]; then
+            echo "::error::Direct alert webhook POST failed (HTTP ${code}): $(cat /tmp/slack_resp.txt)"
+            exit 1
+          fi
+          echo "Direct alert delivered."
+
+      - name: Fail the run if any published release receipt no longer verifies
+        if: always()
+        run: |
+          code="${{ steps.verify.outputs.exit_code }}"
+          if [ "${code}" = "1" ]; then
+            echo "::error::One or more published release-asset receipts no longer verify."
+            exit 1
+          fi
+          if [ "${code}" != "0" ]; then
+            echo "::error::Release receipt verifier errored (exit ${code})."
+            exit 1
+          fi
+          echo "All published release receipts still verify (or none published yet)."
+    permissions:
+      contents: read
+      issues: write

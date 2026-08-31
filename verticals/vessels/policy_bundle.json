@@ -1,0 +1,47 @@
+{
+  "allowed_actions": [
+    "read and normalize",
+    "create case",
+    "draft sanctions case",
+    "rank counterparty match",
+    "draft ticket or change record",
+    "verify postcondition"
+  ],
+  "candidate_policy_mode": "LOG_ONLY",
+  "default_effect": "DENY",
+  "formula_grants_authority": false,
+  "market_signal_grants_authority": false,
+  "model_grants_authority": false,
+  "licensed_ais_admitted": false,
+  "prohibited_actions": [
+    "licensed AIS query",
+    "autonomous intercept",
+    "credential collection or disclosure",
+    "cross-tenant access",
+    "model-selected privilege",
+    "silent risk acceptance"
+  ],
+  "promotion": [
+    "shadow evaluation",
+    "counterfactual replay",
+    "false-allow and false-deny review",
+    "approved exact policy revision",
+    "protected source promotion",
+    "runtime readback"
+  ],
+  "required_context": [
+    "authenticated principal and workload identity",
+    "tenant and resource authorization",
+    "purpose and action class",
+    "source, rights and freshness",
+    "exact vertical, policy, data and model revisions",
+    "short-lived capability and expiry",
+    "idempotency key",
+    "required human approval",
+    "postcondition",
+    "compensation or rollback",
+    "decision receipt"
+  ],
+  "schema": "szl.vertical-policy-bundle/v8",
+  "vertical_id": "vessels"
+}

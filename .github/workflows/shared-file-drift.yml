@@ -1,0 +1,123 @@
+name: Shared-source drift guard
+
+# Shared sources remain fail-closed. Coordinated PRs can use either the legacy
+# exact peer-head pin or a reciprocal PR identity plus a content-addressed
+# manifest. The latter resolves an exact peer SHA at run time and validates the
+# manifest and every listed file before the broader shared-file comparison, so
+# unrelated commits do not create circular pin churn.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited]
+  schedule:
+    - cron: '23 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  shared-drift:
+    name: Shared source files in sync with killinchu
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout a11oy (this repo)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: self
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Self-test shared peer resolver
+        run: python3 self/.github/test-resolve-shared-peer-ref.py
+      - name: Self-test shared payload validator
+        run: python3 self/.github/test-validate-shared-payload.py
+      - name: Resolve optional sibling evidence
+        id: peer
+        run: >-
+          python3 self/.github/resolve-shared-peer-ref.py
+          --expected-repository=szl-holdings/killinchu
+      - name: Verify legacy exact-head peer
+        if: steps.peer.outputs.source == 'legacy-pinned-peer-pr'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PEER_REPOSITORY: ${{ steps.peer.outputs.repository }}
+          PEER_PULL_REQUEST: ${{ steps.peer.outputs.pull_request }}
+          PEER_REF: ${{ steps.peer.outputs.ref }}
+        run: |
+          actual="$(gh api "repos/${PEER_REPOSITORY}/pulls/${PEER_PULL_REQUEST}" --jq '[.state, .base.ref, .head.repo.full_name, .head.sha] | join(" ")')"
+          expected="open main ${PEER_REPOSITORY} ${PEER_REF}"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Legacy peer pin must remain the exact same-repository head of an open PR targeting main."
+            printf 'expected: %s\nactual:   %s\n' "$expected" "$actual"
+            exit 1
+          fi
+      - name: Resolve content-bound peer
+        id: content_peer
+        if: steps.peer.outputs.source == 'content-bound-peer-pr'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PEER_REPOSITORY: ${{ steps.peer.outputs.repository }}
+          PEER_PULL_REQUEST: ${{ steps.peer.outputs.pull_request }}
+          PAYLOAD_SHA256: ${{ steps.peer.outputs.payload_sha256 }}
+          CURRENT_REPOSITORY: ${{ github.repository }}
+          CURRENT_PULL_REQUEST: ${{ github.event.pull_request.number }}
+        run: |
+          peer_payload="${RUNNER_TEMP}/shared-peer-pr.json"
+          gh api "repos/${PEER_REPOSITORY}/pulls/${PEER_PULL_REQUEST}" > "$peer_payload"
+          peer_main_ref="$(gh api "repos/${PEER_REPOSITORY}/commits/main" --jq .sha)"
+          python3 self/.github/resolve-shared-peer-ref.py \
+            --peer-pr-path="$peer_payload" \
+            --peer-main-ref="$peer_main_ref" \
+            --current-repository="$CURRENT_REPOSITORY" \
+            --current-pull-request="$CURRENT_PULL_REQUEST" \
+            --expected-payload-sha256="$PAYLOAD_SHA256" \
+            --expected-repository="$PEER_REPOSITORY"
+      - name: Summarize verified peer evidence
+        if: steps.peer.outputs.source != 'sibling-main'
+        env:
+          LEGACY_REF: ${{ steps.peer.outputs.ref }}
+          CONTENT_REF: ${{ steps.content_peer.outputs.ref }}
+          SOURCE: ${{ steps.content_peer.outputs.source || steps.peer.outputs.source }}
+          PEER_REPOSITORY: ${{ steps.peer.outputs.repository }}
+          PEER_PULL_REQUEST: ${{ steps.peer.outputs.pull_request }}
+          PAYLOAD_SHA256: ${{ steps.peer.outputs.payload_sha256 }}
+        run: |
+          resolved_ref="${CONTENT_REF:-$LEGACY_REF}"
+          {
+            echo "### Shared-source peer evidence"
+            echo
+            echo "- repository: \`${PEER_REPOSITORY}\`"
+            echo "- pull request: \`#${PEER_PULL_REQUEST}\`"
+            echo "- resolved source: \`${SOURCE}\`"
+            echo "- exact ref: \`${resolved_ref}\`"
+            if [ -n "$PAYLOAD_SHA256" ]; then
+              echo "- manifest SHA-256: \`${PAYLOAD_SHA256}\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Checkout killinchu (verified sibling)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ steps.peer.outputs.repository }}
+          ref: ${{ steps.content_peer.outputs.ref || steps.peer.outputs.ref }}
+          path: sibling
+          persist-credentials: false
+      - name: Validate content-addressed shared payload
+        if: steps.peer.outputs.source == 'content-bound-peer-pr'
+        env:
+          PAYLOAD_SHA256: ${{ steps.peer.outputs.payload_sha256 }}
+        run: >-
+          python3 self/.github/validate-shared-payload.py self sibling
+          --expected-manifest-sha256="$PAYLOAD_SHA256"
+      - name: Compare shared source files
+        run: >-
+          python3 self/.github/shared-file-drift-check.py self sibling
+          --self-name=a11oy --sibling-name=killinchu

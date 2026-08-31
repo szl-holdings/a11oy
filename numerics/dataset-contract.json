@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/numerics-dataset-ingest-v1.json",
+  "title": "A11oy append-only numerical run ingestion",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "run_id", "case_id", "engine", "outcome", "engine_evidence", "containment", "resources", "reference", "observed_at_utc"],
+  "properties": {
+    "schema": {"const": "szl.numerics.dataset-ingest/v1"},
+    "run_id": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,95}$"},
+    "case_id": {"type": "string", "pattern": "^case-[a-z0-9-]{8,120}$"},
+    "engine": {"enum": ["octave", "matlab"]},
+    "outcome": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["state", "values"], "properties": {"state": {"const": "RESULT"}, "values": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "number"}}}},
+        {"type": "object", "additionalProperties": false, "required": ["state", "reason"], "properties": {"state": {"const": "UNAVAILABLE"}, "reason": {"type": "string", "minLength": 1, "maxLength": 160}}}
+      ]
+    },
+    "engine_evidence": {
+      "type": "object", "additionalProperties": false,
+      "required": ["version", "version_evidence_sha256", "executable_sha256", "license_state", "offline_license_state"],
+      "properties": {
+        "version": {"type": ["string", "null"], "maxLength": 120},
+        "version_evidence_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "executable_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"},
+        "license_state": {"enum": ["OPERATOR_REVIEWED", "REVIEW_REQUIRED", "UNKNOWN"]},
+        "offline_license_state": {"enum": ["CONFIGURED", "UNAVAILABLE", "NOT_APPLICABLE", "UNKNOWN"]}
+      }
+    },
+    "containment": {
+      "type": "object", "additionalProperties": false,
+      "required": ["network_state", "evidence_sha256"],
+      "properties": {
+        "network_state": {"enum": ["DENIED", "UNAVAILABLE", "UNKNOWN"]},
+        "evidence_sha256": {"type": ["string", "null"], "pattern": "^[0-9a-f]{64}$"}
+      }
+    },
+    "resources": {
+      "type": "object", "additionalProperties": false,
+      "required": ["wall_time_ns", "child_user_cpu_ns", "child_system_cpu_ns", "peak_resident_bytes", "request_bytes", "response_bytes", "log_bytes"],
+      "properties": {
+        "wall_time_ns": {"type": ["integer", "null"], "minimum": 0},
+        "child_user_cpu_ns": {"type": ["integer", "null"], "minimum": 0},
+        "child_system_cpu_ns": {"type": ["integer", "null"], "minimum": 0},
+        "peak_resident_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "request_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "response_bytes": {"type": ["integer", "null"], "minimum": 0},
+        "log_bytes": {"type": ["integer", "null"], "minimum": 0}
+      }
+    },
+    "reference": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["state"], "properties": {"state": {"const": "SOURCE_UNAVAILABLE"}}},
+        {"type": "object", "additionalProperties": false, "required": ["state", "implementation", "values", "evidence_sha256"], "properties": {"state": {"const": "MEASURED"}, "implementation": {"const": "PYTHON_MPMATH_100DP"}, "values": {"type": "array", "minItems": 1, "maxItems": 64, "items": {"type": "number"}}, "evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}
+      ]
+    },
+    "observed_at_utc": {"type": "string", "format": "date-time"}
+  }
+}

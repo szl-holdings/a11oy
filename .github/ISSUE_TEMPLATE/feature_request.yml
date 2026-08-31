@@ -1,0 +1,54 @@
+name: Feature request
+description: Suggest a new capability for A11oy.
+title: "[feat] "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem are you trying to solve?
+      description: Describe the situation, not the solution. ("When I deploy A11oy into an air-gapped UDS cluster I have to ..." is much better than "Please add an X command".)
+    validations: { required: true }
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What you would build, what the API / CLI / config surface looks like, and where it would live.
+    validations: { required: true }
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      placeholder: "Why is this better than doing X downstream / in user code / in a separate tool?"
+
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Surface this would land in
+      options:
+        - "UDS / Zarf payload"
+        - "Doctrine core"
+        - "Connection layer"
+        - "Doctrine demo"
+        - "Tooling / CLI"
+        - "Documentation"
+        - "Other"
+    validations: { required: true }
+
+  - type: checkboxes
+    id: willing
+    attributes:
+      label: Are you willing to implement this?
+      options:
+        - label: Yes, I plan to open a PR
+        - label: I could implement with maintainer guidance
+        - label: I'm just suggesting it
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      options:
+        - label: I searched existing issues and this is not a duplicate
+          required: true

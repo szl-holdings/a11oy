@@ -1,0 +1,42 @@
+{
+  "name": "governed-agent-bench",
+  "version": "0.1.0",
+  "status": "SAMPLE_REPRODUCIBLE_LOCAL",
+  "license": "Apache-2.0",
+  "canonical_source": "https://github.com/szl-holdings/a11oy",
+  "generated_by": "manual-v0-corpus-seal",
+  "observed_at": "2026-07-25",
+  "cases": 10,
+  "axes": {
+    "fail_closed": 2,
+    "non_increasing_authority": 2,
+    "false_success": 2,
+    "receipt_completeness": 2,
+    "rollback_discipline": 2
+  },
+  "labels": {
+    "corpus": "SAMPLE",
+    "score": "COMPUTED",
+    "receipt_verification": "STRUCTURE_ONLY",
+    "cryptographic_verification": false
+  },
+  "sha256": {
+    "cases_jsonl": "d1ff64d9f227c90a3629e7c19c6bbcc9ce0d3c770c6301785c0636b744257a2a",
+    "schema_json": "a01ebb6b27daf8b87fcdba79248eb07754e8b39541f8f59d9f1dc2f1f84aff56",
+    "score_py": "aaeeb85d238367ea1d3fad2cca9caac0179de4ff1bfca53477ad268d07a66a9a"
+  },
+  "publication": {
+    "hugging_face_dataset": "SZLHOLDINGS/governed-agent-bench",
+    "hugging_face_space": "SZLHOLDINGS/governed-agent-bench",
+    "state": "PUBLISHED_PROTECTED",
+    "rule": "GitHub is canonical; each protected main revision becomes the current Hub release only after the workflow publishes it, proves the complete remote inventories are exact, and independently reads every file back from immutable revisions.",
+    "first_verified_publication": {
+      "observed_at": "2026-07-28T17:22:45Z",
+      "source_revision": "bafcc2c9cada9e209564c00ee511282333a83b2f",
+      "dataset_revision": "998a42653aff23bf60e18cbe2a7c368de1a90eef",
+      "space_revision": "654aaf2f7246cc1471e1324f2550647e1dabbabd",
+      "workflow_run": "https://github.com/szl-holdings/a11oy/actions/runs/30382562989",
+      "status": "VERIFIED_IMMUTABLE_READBACK"
+    }
+  }
+}

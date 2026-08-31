@@ -1,0 +1,176 @@
+name: Container build + GHCR push
+
+# Builds the root Dockerfile, generates an image SBOM, and pushes to GHCR:
+#   * Pull-request:    build + smoke-test only (no push, no registry login).
+#   * Push to main:    build + push SHA-tagged image to ghcr.io/szl-holdings/a11oy.
+#   * Release published: push semver + latest tags, sign with cosign keyless.
+#
+# L1 fix (2026-05-31): REVISION build-arg is now passed as github.sha so that
+# the runtime ENV A11OY_GIT_SHA is populated in the container and /healthz
+# returns the real deployed SHA. Reference: red-team finding L1.
+#
+# Cosign keyless verification (no stored key; GitHub OIDC + Fulcio + Rekor):
+#   cosign verify \
+#     --certificate-identity-regexp \
+#       "https://github.com/szl-holdings/a11oy/.github/workflows/docker-build.yml.*" \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     ghcr.io/szl-holdings/a11oy:<tag>
+#
+# References:
+#   docker/build-push-action: https://github.com/docker/build-push-action
+#   anchore/sbom-action:       https://github.com/anchore/sbom-action
+#   cosign keyless:            https://docs.sigstore.dev/cosign/signing/overview/
+#
+# Authored for SZL Holdings. Signed-off per repository DCO.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/szl-holdings/a11oy
+
+jobs:
+  build:
+    name: Build image + SBOM (push on main + release)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write       # push to GHCR on main and release
+      id-token: write        # cosign keyless OIDC token
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Derive image version and tags
+        id: ver
+        run: |
+          SHA7="${GITHUB_SHA::7}"
+          BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            TAGS="${{ env.IMAGE }}:${VERSION}
+          ${{ env.IMAGE }}:latest
+          ${{ env.IMAGE }}:sha-${SHA7}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="0.0.0-dev-${SHA7}"
+            TAGS="${{ env.IMAGE }}:sha-${SHA7}"
+          else
+            VERSION="0.0.0-pr-${SHA7}"
+            TAGS="${{ env.IMAGE }}:pr-${SHA7}"
+          fi
+          echo "version=${VERSION}"      >> "$GITHUB_OUTPUT"
+          echo "sha7=${SHA7}"            >> "$GITHUB_OUTPUT"
+          echo "build_date=${BUILD_DATE}" >> "$GITHUB_OUTPUT"
+          # Multi-line value — use heredoc to avoid quoting issues.
+          {
+            echo "tags<<EOF"
+            echo "${TAGS}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      # Log in on push-to-main and on release; skip for PRs.
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image (push on main + release; load on PR)
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          build-args: |
+            VERSION=${{ steps.ver.outputs.version }}
+            REVISION=${{ github.sha }}
+            BUILD_DATE=${{ steps.ver.outputs.build_date }}
+          push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
+          tags: ${{ steps.ver.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          # FIX (Yachay, empire-reliability 2026-06-01): docker/build-push-action@v6
+          # defaults to provenance:true, which exports an OCI attestation manifest.
+          # Pushing that referrers index to ghcr.io/szl-holdings/* returns 403 Forbidden
+          # on the attestation blob HEAD (org GHCR rejects the auto-created attestation
+          # index). Image SBOM is already produced by the dedicated anchore/syft step,
+          # so disabling buildx attestations is the root-cause fix, not a workaround.
+          provenance: false
+          sbom: false
+
+      - name: Smoke test image (PR builds — loaded into local daemon)
+        if: github.event_name == 'pull_request'
+        run: |
+          TAG="${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}"
+          echo "=== boot container + probe /api/a11oy/healthz ==="
+          CID="$(docker run -d -e PORT=7860 -p 7860:7860 "${TAG}")"
+          cleanup() { echo "--- container logs (tail) ---"; docker logs "${CID}" 2>&1 | tail -60 || true; docker rm -f "${CID}" >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          ok=0
+          for i in $(seq 1 120); do
+            code="$(curl -sS -o /tmp/a11oy_healthz.json -w '%{http_code}' "http://127.0.0.1:7860/api/a11oy/healthz" 2>/dev/null || true)"
+            if [ "${code}" = "200" ]; then ok=1; echo "healthz 200 after ${i}s:"; cat /tmp/a11oy_healthz.json; echo; break; fi
+            sleep 1
+          done
+          if [ "${ok}" != "1" ]; then echo "::error::a11oy image failed /api/a11oy/healthz smoke after 120s"; exit 1; fi
+
+      # FIX (Yachay, empire-reliability 2026-06-01): the SBOM step previously always
+      # referenced the pushed main tag `:sha-<sha7>`. On pull_request builds the image
+      # is NOT pushed to GHCR (push:false) — it is `load`ed into the local Docker daemon
+      # under tag `:pr-<sha7>`. Syft therefore tried to pull `ghcr.io/.../a11oy:sha-<sha7>`
+      # which does not exist for PRs and returned `unauthorized` (registry has no such
+      # manifest + no PR login), failing every PR run. Root-cause fix: scan the
+      # locally-loaded PR image on PRs and the pushed SHA tag on push-to-main.
+      - name: Generate image SBOM (CycloneDX) via Syft — push to main
+        if: github.event_name == 'push'
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.IMAGE }}:sha-${{ steps.ver.outputs.sha7 }}
+          format: cyclonedx-json
+          output-file: a11oy-image-sbom.cyclonedx.json
+          upload-artifact: true
+
+      - name: Generate image SBOM (CycloneDX) via Syft — PR (local image)
+        if: github.event_name == 'pull_request'
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.IMAGE }}:pr-${{ steps.ver.outputs.sha7 }}
+          format: cyclonedx-json
+          output-file: a11oy-image-sbom.cyclonedx.json
+          upload-artifact: true
+
+      - name: Install cosign (release only)
+        if: github.event_name == 'release'
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign image with cosign keyless (release only)
+        if: github.event_name == 'release'
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          DIGEST="${{ steps.build.outputs.digest }}"
+          cosign sign --yes "${{ env.IMAGE }}@${DIGEST}"
+          echo "Signed ${{ env.IMAGE }}@${DIGEST} (keyless OIDC)."
+
+      - name: Generate + attach image SBOM on release (signed)
+        if: github.event_name == 'release'
+        uses: anchore/sbom-action@e22c389904149dbc22b58101806040fa8d37a610 # v0.24.0
+        with:
+          image: ${{ env.IMAGE }}:${{ steps.ver.outputs.version }}
+          format: cyclonedx-json
+          output-file: a11oy-image-sbom.cyclonedx.json
+          upload-artifact: true

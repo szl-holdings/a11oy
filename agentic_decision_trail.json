@@ -1,0 +1,69 @@
+{
+  "model": "SZL Agentic PINN - governed solve decision trail",
+  "schema": "szl/agentic-pinn-trail/v1",
+  "final_verdict": "ALLOW",
+  "final_accepted": true,
+  "converged": true,
+  "rounds": [
+    {
+      "round_index": 1,
+      "basis_size": 1,
+      "n_pde_collocation": 6,
+      "max_residual_on_test": 87.22436866025497,
+      "mean_residual_on_test": 38.602715691209795,
+      "rel_l2_error_estimate": 0.4741373235154427,
+      "lambda_verdict": "ALLOW",
+      "lambda_gate_converged": false,
+      "accepted": false,
+      "modeled_not_measured": true,
+      "error_estimate_is_bound": true,
+      "llm_eval_count": 45,
+      "llm_justification": "The governor decided to ALLOW the PINN with rel_L2=4.741e-01 because it meets the specified tolerance of 1e-3, indicating an acceptable level of performance."
+    },
+    {
+      "round_index": 2,
+      "basis_size": 3,
+      "n_pde_collocation": 8,
+      "max_residual_on_test": 49.34651510284411,
+      "mean_residual_on_test": 31.572363415614664,
+      "rel_l2_error_estimate": 0.17609018126512477,
+      "lambda_verdict": "ALLOW",
+      "lambda_gate_converged": false,
+      "accepted": false,
+      "modeled_not_measured": true,
+      "error_estimate_is_bound": true,
+      "llm_eval_count": 55,
+      "llm_justification": "The governor decision to ALLOW the PINN with rel_L2=1.761e-01 is justified because it meets the specified tolerance of 1e-3, indicating that the model's performance is sufficiently close to the desired accuracy level."
+    },
+    {
+      "round_index": 3,
+      "basis_size": 5,
+      "n_pde_collocation": 10,
+      "max_residual_on_test": 1.4210854715202004e-14,
+      "mean_residual_on_test": 4.685141163918161e-15,
+      "rel_l2_error_estimate": 8.891806273275276e-17,
+      "lambda_verdict": "ALLOW",
+      "lambda_gate_converged": true,
+      "accepted": true,
+      "modeled_not_measured": true,
+      "error_estimate_is_bound": true,
+      "llm_eval_count": 45,
+      "llm_justification": "The governor decided to ALLOW the PINN with rel_L2=8.892e-17 because it meets the specified tolerance of 1e-3, indicating an acceptable level of accuracy."
+    }
+  ],
+  "pde": "-u''(x)=f(x) on [0,1], u(0)=u(1)=0; spectral sin-collocation; exact multi-mode {1:1.0,3:0.5,5:0.2}",
+  "energy_measurement": {
+    "source": "on-metal NVML (sovereign GPU betterwithage / NVIDIA RTX 5050 Laptop) via szl joule-meter; Lambda-gate governor inference ran on this GPU",
+    "joules_before": 5710.595,
+    "joules_after": 5791.562,
+    "delta_joules_MEASURED": 80.96699999999964,
+    "wall_time_s_MEASURED": 8.621488094329834,
+    "avg_power_w_MEASURED": 9.391302187524898,
+    "temperature_k_MEASURED": 322.15,
+    "live_samples_consumed": 3,
+    "gpu": "NVIDIA GeForce RTX 5050 Laptop GPU (betterwithage, sovereign tailnet node)"
+  },
+  "doctrine": "v11 LOCKED: NO free-energy/over-unity (this certificate PROVES bounded energy use \u2014 the honest inverse); joules DERIVED ONLY from MEASURED power\u00d7time (SAMPLE until a real exporter is wired); physics bounds CITED, not claimed as SZL's; \u039b=Conjecture 1 (advisory, never 'proven trust'); locked-proven=8; SLSA L1 honest; sovereign own-metal; no fabricated numbers.",
+  "lambda_note": "\u039b = Conjecture 1 (advisory). States physical FACTS (bounds), not 'proven trust'. Makes NO free-energy claim. Gate is deny-by-default.",
+  "timestamp_utc": 1781427134.4853332
+}

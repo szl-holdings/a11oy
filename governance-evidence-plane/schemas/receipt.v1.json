@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:szl:governance:receipt:v1",
+  "title": "SZL Receipt v1",
+  "type": "object",
+  "required": [
+    "receipt_id",
+    "agent_id",
+    "policy_id",
+    "tool_id",
+    "data_scope",
+    "human_approval_id",
+    "output_digest",
+    "timestamp_utc",
+    "signature"
+  ],
+  "properties": {
+    "receipt_id": {"type": "string"},
+    "agent_id": {"type": "string"},
+    "policy_id": {"type": "string"},
+    "tool_id": {"type": "string"},
+    "data_scope": {"type": "string"},
+    "human_approval_id": {"type": "string"},
+    "model_digest": {"type": "string"},
+    "output_digest": {"type": "string"},
+    "telemetry": {"type": "object"},
+    "timestamp_utc": {"type": "string"},
+    "signature": {"type": "string"},
+    "evidence_chain": {"type": "array", "items": {"type": "string"}},
+    "replay_hint": {"type": "string"}
+  },
+  "additionalProperties": false
+}

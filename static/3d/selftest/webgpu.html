@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>WebGPU compute selftest — a11oy holographic estate</title>
+<!-- 0 runtime CDN: three/webgpu resolves same-origin via this importmap. -->
+<script type="importmap">
+{ "imports": {
+  "three": "/static/3d/vendor/three/three.module.min.js",
+  "three/webgpu": "/static/3d/vendor/three/three.webgpu.min.js",
+  "three/addons/": "/static/3d/vendor/three/addons/"
+} }
+</script>
+<style>body{background:#05070d;color:#cde;font:13px ui-monospace,monospace;padding:20px}</style>
+</head>
+<body>
+<h1>WebGPU compute selftest</h1>
+<pre id="out">running…</pre>
+<script type="module">
+import "/static/3d/selftest/webgpu_compute.mjs";
+const el = document.getElementById("out");
+const t = setInterval(() => {
+  const r = window.__WEBGPU_SELFTEST__;
+  if (r && r.status !== "INIT") { el.textContent = JSON.stringify(r, null, 2); clearInterval(t); }
+}, 200);
+</script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "canonical_input": {
+    "signals": {
+      "agency": 0.9,
+      "friction": 0.1,
+      "intent": 0.8
+    }
+  },
+  "canonical_output": {
+    "chakra": "solar",
+    "inputs": {
+      "agency": 0.9,
+      "friction": 0.1,
+      "intent": 0.8
+    },
+    "verdict": "act",
+    "will": 0.6200000000000001
+  },
+  "proof_id": "amaru.solar.v1",
+  "stubbed": false
+}

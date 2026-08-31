@@ -1,0 +1,8 @@
+{
+  "schema": "szl.colang-enforcement-contract/v1",
+  "evaluator_region_sha256": "f0ced8c0aaed4850f65bfa9d14e43c5a283e457de26b2ef1e3999383d653fc42",
+  "policy_files": {
+    "killinchu_threat.co": "3c47dfd730d738f1ce0b722b5ccc21fb12dda70ccb288043ffe10b78479df9c2",
+    "roe_core.co": "77598deb89c4bebeb3682b30a0a01fcebc73a089183fa0a9a2877ad1fd732984"
+  }
+}

@@ -1,0 +1,3 @@
+# Loopback-only ASGI server for the ORO contract job.
+# ci-core.txt ships FastAPI/httpx/cryptography but not uvicorn.
+uvicorn==0.49.0

@@ -1,0 +1,18 @@
+{
+  "name": "@szl-holdings/design-system",
+  "version": "0.0.0-stub",
+  "private": true,
+  "type": "module",
+  "main": "./index.mjs",
+  "exports": {
+    ".": {
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    },
+    "./tokens/css": "./tokens/css.css",
+    "./*": {
+      "import": "./index.mjs",
+      "default": "./index.mjs"
+    }
+  }
+}

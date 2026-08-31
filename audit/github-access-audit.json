@@ -1,0 +1,175 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-11T20:50:41.653810+00:00",
+  "checklistPath": "docs\\github-enterprise-access-checklist.json",
+  "viewer": {
+    "login": "stephenlutar2-hash",
+    "source": "gh api user -q .login",
+    "error": null
+  },
+  "auth": {
+    "ghAuthStatusExitCode": 0,
+    "authenticated": true,
+    "stdout": "github.com\n  \u00e2\u0153\u201c Logged in to github.com account stephenlutar2-hash (keyring)\n  - Active account: true\n  - Git operations protocol: https\n  - Token: gho_************************************\n  - Token scopes: 'admin:org', 'gist', 'repo', 'workflow'",
+    "error": null
+  },
+  "repos": [
+    {
+      "repo": "szl-holdings/.github",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "org profile, reusable workflows, coordination issues/PR templates",
+      "currentFallback": "mirror coordination status and proxy instructions in a11oy",
+      "ghCommand": "gh repo view szl-holdings/.github --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/a11oy",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "frontdoor, command surface, and product-level release work",
+      "currentFallback": "a11oy proxy patch queue with build logs",
+      "ghCommand": "gh repo view szl-holdings/a11oy --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/platform",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "product integration monorepo changes when in scope",
+      "currentFallback": "standalone a11oy package and payload validation",
+      "ghCommand": "gh repo view szl-holdings/platform --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/lutar-lean",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "direct Lean proof patching and CI repair",
+      "currentFallback": "a11oy proxy patch queue with build logs",
+      "ghCommand": "gh repo view szl-holdings/lutar-lean --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/khipu-sda-core",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "receipt DAG / SDA pipeline updates",
+      "currentFallback": "a11oy action-contract and controls evidence map",
+      "ghCommand": "gh repo view szl-holdings/khipu-sda-core --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/killinchu",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "active demo wedge implementation",
+      "currentFallback": "a11oy investor demo and ecosystem readiness report",
+      "ghCommand": "gh repo view szl-holdings/killinchu --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/uds-mesh",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "mesh pointer and UDS topology updates",
+      "currentFallback": "a11oy UDS frontier docs and proxy status",
+      "ghCommand": "gh repo view szl-holdings/uds-mesh --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/docs-site",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "governed docs and doctrine publication changes",
+      "currentFallback": "a11oy docs front-door and publishing queue",
+      "ghCommand": "gh repo view szl-holdings/docs-site --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/szl-substrate",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "substrate package and workflow updates",
+      "currentFallback": "shared-audit and substrate implementation references",
+      "ghCommand": "gh repo view szl-holdings/szl-substrate --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/szl-kernels",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "kernel suite and index updates",
+      "currentFallback": "kernel package registry and generated artifact checks",
+      "ghCommand": "gh repo view szl-holdings/szl-kernels --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    },
+    {
+      "repo": "szl-holdings/a11oy-net",
+      "minimumPermission": "write",
+      "viewerPermission": "ADMIN",
+      "meetsMinimumPermission": true,
+      "phaseUnlocked": "domain mirror and static frontdoor alignment",
+      "currentFallback": "a11oy-net redirect and DNS validation queue",
+      "ghCommand": "gh repo view szl-holdings/a11oy-net --json viewerPermission,nameWithOwner,isPrivate,defaultBranchRef",
+      "status": "write-ready",
+      "error": null,
+      "isPrivate": false,
+      "defaultBranch": "main"
+    }
+  ],
+  "summary": {
+    "total": 11,
+    "writeReady": 11,
+    "readOnly": 0,
+    "unavailable": 0,
+    "errors": 0
+  },
+  "failureBoundaries": [
+    "Do not claim sibling repo operational completion until repo-native tests and CI pass.",
+    "Do not claim all Lean green without current proof report.",
+    "Do not claim Defense Unicorns endorsement or UDS catalog acceptance.",
+    "Do not commit tokens or secrets.",
+    "Do not merge to protected branches without explicit approval."
+  ]
+}

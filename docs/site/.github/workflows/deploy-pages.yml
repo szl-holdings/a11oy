@@ -1,0 +1,61 @@
+name: deploy-docs-pages
+
+# Build the VitePress docs site and deploy to GitHub Pages.
+# Fixed: use npm ci (lock-file-exact install) instead of npm install.
+# Resolves ERESOLVE peer-dep conflict with markdown-it-mathjax3 v5 vs v4.
+#
+# Founder one-time action: repo Settings -> Pages -> Source = "GitHub Actions".
+# Then (optional) set a custom domain docs.szlholdings.com (see DNS plan).
+#
+# Doctrine v11 LOCKED 749/14/163 locked_at c7c0ba17. Author: Yachay.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci --no-audit --no-fund
+      - name: Build docs
+        run: |
+          node node_modules/vitepress/bin/vitepress.js build docs
+          node fix-relative-paths.mjs
+      - name: Add .nojekyll and CNAME
+        run: |
+          touch docs/.vitepress/dist/.nojekyll
+          # Custom domain (enable once DNS CNAME docs.szlholdings.com is set):
+          # echo "docs.szlholdings.com" > docs/.vitepress/dist/CNAME
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs/.vitepress/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

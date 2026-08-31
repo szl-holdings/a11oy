@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="theme-color" content="#0a0e14" />
+<title>Khipu Constellation — SZL Holdings</title>
+<meta name="description" content="3D star field: every Khipu receipt across SZL flagships is a star. Chained receipts are arcs. Polls real /v1/ledger endpoints every 5s." />
+<link rel="stylesheet" href="style.css" />
+<!-- Three.js r171 + R3F via esm.sh. WebGPU baseline, WebGL2 fallback. -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://esm.sh/three@0.171.0",
+    "three/webgpu": "https://esm.sh/three@0.171.0/build/three.webgpu.js",
+    "three/tsl": "https://esm.sh/three@0.171.0/build/three.tsl.js",
+    "three/addons/": "https://esm.sh/three@0.171.0/examples/jsm/",
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom": "https://esm.sh/react-dom@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "react/jsx-runtime": "https://esm.sh/react@18.3.1/jsx-runtime",
+    "@react-three/fiber": "https://esm.sh/@react-three/fiber@8.17.10?external=react,react-dom,three",
+    "@react-three/drei": "https://esm.sh/@react-three/drei@9.114.0?external=react,react-dom,three,@react-three/fiber"
+  }
+}
+</script>
+</head>
+<body>
+<div id="root"></div>
+<div id="hud">
+  <header>
+    <span class="brand">KHIPU&nbsp;CONSTELLATION</span>
+    <span id="livePill" class="pill demo">DEMO MODE</span>
+    <span id="renderPill" class="pill">init…</span>
+  </header>
+  <div class="panel">
+    <div class="row"><b id="starCount">0</b><small>receipts (stars)</small></div>
+    <div class="row"><b id="arcCount">0</b><small>chain arcs</small></div>
+    <div class="row"><b id="liveCount">0</b><small>live flagships</small></div>
+  </div>
+  <div class="panel filters">
+    <div class="ftitle">FLAGSHIPS</div>
+    <div id="flagToggles" class="toggles"></div>
+    <div class="ftitle">YUYAY FLOOR <span id="yuyayVal">0.00</span></div>
+    <input id="yuyay" type="range" min="0" max="1" step="0.01" value="0" />
+    <div class="ftitle">TIME WINDOW <span id="winVal">all</span></div>
+    <input id="win" type="range" min="0" max="6" step="1" value="6" />
+  </div>
+  <footer>
+    <span>hash(receipt)→xyz · arcs = prev→cur chain · poll 5s</span>
+    <span id="lastPoll">—</span>
+  </footer>
+</div>
+<div id="tip" class="tip" hidden></div>
+<script type="module" src="app.js"></script>
+</body>
+</html>

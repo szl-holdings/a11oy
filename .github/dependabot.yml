@@ -1,0 +1,87 @@
+version: 2
+updates:
+  # GitHub Actions dependencies
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+      - "security"
+    open-pull-requests-limit: 5
+    groups:
+      # Group only the low-risk patch/minor bumps so they can auto-merge.
+      # Major bumps are excluded here and arrive as separate, individually
+      # reviewable PRs.
+      actions:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Python pip dependencies
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+    open-pull-requests-limit: 5
+    groups:
+      python-deps:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # Docker dependencies
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+      - "security"
+    open-pull-requests-limit: 3
+
+  # npm / Node dependencies.
+  # Security updates (Dependabot alerts -> auto-fix PRs) apply to every manifest
+  # below. Version updates are grouped and run weekly. Directories listed are the
+  # standalone Node manifests NOT covered by the root pnpm workspace lockfile:
+  #   "/"                    -> root pnpm workspace (incl. packages/a11oy-knowledge)
+  #   "/web/console"         -> standalone Vite console app
+  #   "/docs/site"           -> standalone VitePress docs site
+  #   "/runtime/ouroboros"   -> standalone ouroboros runtime package
+  - package-ecosystem: "npm"
+    directories:
+      - "/"
+      - "/web/console"
+      - "/docs/site"
+      - "/runtime/ouroboros"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+      timezone: "America/New_York"
+    labels:
+      - "dependencies"
+      - "security"
+    open-pull-requests-limit: 10
+    groups:
+      npm-deps:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"

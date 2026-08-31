@@ -1,0 +1,147 @@
+name: Solo Estate Read-Only Inventory
+
+# This workflow has no repository, issue, review, security-alert, or Hugging
+# Face mutation authority. It records current provider readback as an artifact
+# and fails closed when a required observation is absent.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/solo-estate-readonly-policy.json'
+      - '.github/scripts/solo_estate_readonly_inventory.py'
+      - '.github/workflows/solo-estate-readonly-inventory.yml'
+      - 'docs/operations/SOLO_ESTATE_READONLY_INVENTORY.md'
+      - 'tests/test_solo_estate_readonly_inventory.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/solo-estate-readonly-policy.json'
+      - '.github/scripts/solo_estate_readonly_inventory.py'
+      - '.github/workflows/solo-estate-readonly-inventory.yml'
+      - 'docs/operations/SOLO_ESTATE_READONLY_INVENTORY.md'
+      - 'tests/test_solo_estate_readonly_inventory.py'
+  schedule:
+    - cron: '17 8 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: read
+  security-events: read
+
+concurrency:
+  group: solo-estate-readonly-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Prove read-only inventory contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Validate policy, import safety, and read-only invariants
+        run: |
+          set -euo pipefail
+          python -m json.tool .github/solo-estate-readonly-policy.json >/dev/null
+          python -m py_compile .github/scripts/solo_estate_readonly_inventory.py
+          python .github/scripts/solo_estate_readonly_inventory.py --self-test
+          python -m unittest tests.test_solo_estate_readonly_inventory -v
+
+  inventory:
+    name: Inventory current protected estate
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      REPORT_DIR: reports/solo-estate-readonly
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact event source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install exact Hugging Face read client
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'huggingface_hub==1.23.0'
+
+      - name: Run read-only provider inventory
+        id: estate
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HF_INVENTORY_READ_TOKEN: ${{ secrets.HF_INVENTORY_READ_TOKEN }}
+        run: |
+          set +e
+          python .github/scripts/solo_estate_readonly_inventory.py \
+            --policy .github/solo-estate-readonly-policy.json \
+            --repo "$GITHUB_REPOSITORY" \
+            --hf-org SZLHOLDINGS \
+            --output-dir "$REPORT_DIR"
+          code=$?
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable readback artifact
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: solo-estate-readonly-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_DIR }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish run summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$REPORT_DIR/estate-summary.md" ]; then
+            echo '::error::Read-only estate summary was not produced.'
+            exit 1
+          fi
+          cat "$REPORT_DIR/estate-summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Enforce fail-closed inventory state
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.estate.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          code="${EXIT_CODE:-2}"
+          if [ "$code" -ne 0 ]; then
+            echo '::error::Solo estate inventory remains blocked; inspect the immutable artifact.'
+            exit "$code"
+          fi
+          echo 'Solo estate read-only inventory passed.'

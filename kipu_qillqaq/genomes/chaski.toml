@@ -1,0 +1,29 @@
+# genome.toml -- QILLQAQ declarative organ DNA (config; parsed by stdlib tomllib)
+# HONEST NAMING: "DNA"/"genome" = config + module loading. No biology, no magic.
+# Doctrine v11 LOCKED numbers preserved verbatim elsewhere (749/14/163, 13-axis yuyay_v3,
+# replay bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5). ADDITIVE only.
+
+[organ]
+name = "CHASKI"
+quechua = "chaski = relay messenger (reception)"
+function = "Reception / welcome / onboarding first-touch with backpressure gating."
+
+[role]
+loop = "receive inbound request -> gate exp(-kappa*backpressure)*routable -> emit reception receipts"
+
+[reads]
+kinds = ["span", "lambda_verdict"]
+
+[writes]
+kinds = ["reception", "intake"]
+
+[boot]
+handler = "kipu_qillqaq.handlers:echo"
+enabled = true
+
+[meta]
+slug = "chaski"
+substrate = "KIPU"
+engine = "QILLQAQ"
+author = "Yachay"
+agent = "Perplexity Computer Agent"

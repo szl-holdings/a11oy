@@ -1,0 +1,30 @@
+name: Anatomy-map drift guard
+
+# szl-holdings/a11oy ships the honest SZL Anatomy map in the /console surface
+# (pages/console.html -> the marker-delimited `anatomy-map-tab-patch` block).
+# The active independent sources are the killinchu marker block, the canonical
+# GitHub source deck, and the a-11-oy.com product-origin rendering. The folded
+# SZLHOLDINGS/anatomy Space is intentionally private and is not an active source.
+#
+# Pin both the reusable workflow and its checker/registry checkout to the same
+# immutable, reviewed .github#519 squash commit. No provider credentials or
+# inherited secrets are passed across the reusable-workflow boundary.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "pages/console.html"
+      - ".github/workflows/anatomy-map-drift.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  anatomy-map-drift:
+    uses: szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml@9248bfca65e19e27fcd8444923962de41676436d  # .github#519 squash-merge
+    with:
+      checker-ref: 9248bfca65e19e27fcd8444923962de41676436d

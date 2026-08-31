@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-receipt-agent-evaluation-manifest-v1.json",
+  "title": "SZL ReceiptAgent evaluation manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "program_id",
+    "evaluation_state",
+    "promotion_decision",
+    "comparators",
+    "prior_observations",
+    "suites",
+    "catastrophic_error_budget"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "szl.receipt-agent-evaluation-manifest.v1"
+    },
+    "program_id": {
+      "const": "szl-forge-1.5b-receipt-agent"
+    },
+    "evaluation_state": {
+      "const": "INCOMPLETE"
+    },
+    "promotion_decision": {
+      "const": "NOT_PROMOTED"
+    },
+    "comparators": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "existing_sft",
+        "proposed_receipt_agent"
+      ],
+      "properties": {
+        "base": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "state"
+          ],
+          "properties": {
+            "id": {
+              "const": "unsloth/Qwen2.5-1.5B-Instruct-bnb-4bit@d2f2dd02b071701d5100a04a7a49d6fb0bd305b7"
+            },
+            "state": {
+              "const": "PINNED_REFERENCE"
+            }
+          }
+        },
+        "existing_sft": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "adapter_sha256",
+            "state"
+          ],
+          "properties": {
+            "id": {
+              "const": "a11oy-evidence-1.5b-sft-lora"
+            },
+            "adapter_sha256": {
+              "const": "682e2f0ea480d47c284b9de12c2e3d2d5170934c065e82fc375e3f069b4730ac"
+            },
+            "state": {
+              "const": "NOT_PROMOTED"
+            }
+          }
+        },
+        "proposed_receipt_agent": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "id",
+            "state"
+          ],
+          "properties": {
+            "id": {
+              "const": "SZL-Forge-1.5B-ReceiptAgent-v1"
+            },
+            "state": {
+              "const": "NO_WEIGHT_ARTIFACT_TRAINING_NOT_RUN"
+            }
+          }
+        }
+      }
+    },
+    "prior_observations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "observation_id",
+          "state",
+          "interpretation",
+          "source"
+        ],
+        "properties": {
+          "observation_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "state": {
+            "enum": [
+              "MEASURED_DIRECTIONAL_ONLY",
+              "BLOCKED",
+              "QUARANTINED"
+            ]
+          },
+          "interpretation": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "suites": {
+      "type": "array",
+      "minItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "suite_id",
+          "metric",
+          "threshold",
+          "dataset_state",
+          "results"
+        ],
+        "properties": {
+          "suite_id": {
+            "type": "string",
+            "pattern": "^RA-E[0-9]{2}$"
+          },
+          "metric": {
+            "type": "string",
+            "minLength": 1
+          },
+          "threshold": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "operator",
+              "value",
+              "unit"
+            ],
+            "properties": {
+              "operator": {
+                "enum": [
+                  "EQ",
+                  "GTE",
+                  "LTE"
+                ]
+              },
+              "value": {
+                "type": "number"
+              },
+              "unit": {
+                "enum": [
+                  "RATE",
+                  "COUNT",
+                  "MILLISECONDS"
+                ]
+              }
+            }
+          },
+          "dataset_state": {
+            "const": "NOT_PREREGISTERED"
+          },
+          "results": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "base",
+              "existing_sft",
+              "proposed_receipt_agent"
+            ],
+            "properties": {
+              "base": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "state",
+                  "value",
+                  "receipt"
+                ],
+                "properties": {
+                  "state": {
+                    "const": "NOT_RUN"
+                  },
+                  "value": {
+                    "type": "null"
+                  },
+                  "receipt": {
+                    "type": "null"
+                  }
+                }
+              },
+              "existing_sft": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "state",
+                  "value",
+                  "receipt"
+                ],
+                "properties": {
+                  "state": {
+                    "const": "NOT_RUN"
+                  },
+                  "value": {
+                    "type": "null"
+                  },
+                  "receipt": {
+                    "type": "null"
+                  }
+                }
+              },
+              "proposed_receipt_agent": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "state",
+                  "value",
+                  "receipt"
+                ],
+                "properties": {
+                  "state": {
+                    "const": "NOT_RUN"
+                  },
+                  "value": {
+                    "type": "null"
+                  },
+                  "receipt": {
+                    "type": "null"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "catastrophic_error_budget": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "allowed",
+        "observed",
+        "state",
+        "events"
+      ],
+      "properties": {
+        "allowed": {
+          "const": 0
+        },
+        "observed": {
+          "type": "null"
+        },
+        "state": {
+          "const": "NOT_EVALUATED"
+        },
+        "events": {
+          "type": "array",
+          "minItems": 4,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

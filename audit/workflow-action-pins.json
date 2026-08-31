@@ -1,0 +1,1769 @@
+{
+  "entries": [
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/a11oy-api-health.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/a11oy-api-health.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/alert-channel-watch.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-anatomy-map-drift.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "f7231270c8a4f227301bfee544f848938b71f14d",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "f7231270c8a4f227301bfee544f848938b71f14d",
+      "workflow": ".github/workflows/anatomy-map-drift.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/boot-preflight-selftest.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/boot-preflight-selftest.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/bounties-drift.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/brain-honesty-check.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/brain-honesty-check.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/brain-honesty-check.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/brain-honesty-check.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-bundle-ref-check.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "79cb06b79d6a3156a5796948295617ff6b207683",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "79cb06b79d6a3156a5796948295617ff6b207683",
+      "workflow": ".github/workflows/bundle-ref-check.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-docs-ci.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb",
+      "workflow": ".github/workflows/ci.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-secret-scan.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb",
+      "workflow": ".github/workflows/ci.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/claim-compiler.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/claim-compiler.yml"
+    },
+    {
+      "action": "step-security/harden-runner",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "workflow": ".github/workflows/codeql.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/codeql.yml"
+    },
+    {
+      "action": "github/codeql-action/init",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "7188fc363630916deb702c7fdcf4e481b751f97a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "7188fc363630916deb702c7fdcf4e481b751f97a",
+      "workflow": ".github/workflows/codeql.yml"
+    },
+    {
+      "action": "github/codeql-action/analyze",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "7188fc363630916deb702c7fdcf4e481b751f97a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "7188fc363630916deb702c7fdcf4e481b751f97a",
+      "workflow": ".github/workflows/codeql.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/copy-completeness-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/copy-completeness-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/copy-sync-lockstep-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/copy-sync-lockstep-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/cosign.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/cosign.yml"
+    },
+    {
+      "action": "docker/login-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+      "workflow": ".github/workflows/cosign.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/demo-freeze-hotfix-validate.yml"
+    },
+    {
+      "action": "dependabot/fetch-metadata",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "25dd0e34f4fe68f24cc83900b1fe3fe149efef98",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "25dd0e34f4fe68f24cc83900b1fe3fe149efef98",
+      "workflow": ".github/workflows/dependabot-auto-merge.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5b0d38fadadc073812bfc6175a1e823cd529939f",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5b0d38fadadc073812bfc6175a1e823cd529939f",
+      "workflow": ".github/workflows/deploy-verify-brain-now.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/deploy-verify-brain-now.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5b0d38fadadc073812bfc6175a1e823cd529939f",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5b0d38fadadc073812bfc6175a1e823cd529939f",
+      "workflow": ".github/workflows/deploy-verify-canonical-a11oy-now.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/deploy-verify-canonical-a11oy-now.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "docker/setup-buildx-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "docker/login-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "docker/build-push-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/docker-build.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+    },
+    {
+      "action": "docker/setup-buildx-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+      "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+    },
+    {
+      "action": "docker/build-push-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+      "workflow": ".github/workflows/dockerfile-copy-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/docs-toolchain-review.yml"
+    },
+    {
+      "action": "actions/setup-node",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "820762786026740c76f36085b0efc47a31fe5020",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "workflow": ".github/workflows/docs-toolchain-review.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/docs-toolchain-review.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/doctrine-grep.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/doctrine-grep.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/doctrine-check.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "2b6d13ae00ab73e0075aa2b8dc765cab62825d84",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "2b6d13ae00ab73e0075aa2b8dc765cab62825d84",
+      "workflow": ".github/workflows/doctrine.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/dsse-receipts.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/dsse-receipts.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/dsse-receipts.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/dsse-receipts.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/ghcr-build-push.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/gitleaks.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/gitleaks.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/governed-agent-bench.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/governed-agent-bench.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/hf-bucket-selftest.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/hf-bucket-selftest.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/hf-corpus-card-honesty.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/hf-corpus-card-honesty.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/hf-corpus-freshness.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/hf-corpus-freshness.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/hf-corpus-repair.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/hf-corpus-reverify.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/hf-corpus-reverify.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "96573c9049c0c705072cf51024d5ef12ccbee98c",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "96573c9049c0c705072cf51024d5ef12ccbee98c",
+      "workflow": ".github/workflows/hf-module-drift.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e3ec47ad2e99a535839afe0f30fefbd8973d52da",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/setup-node",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "820762786026740c76f36085b0efc47a31fe5020",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/hf-sync.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/huggingface.yml"
+    },
+    {
+      "action": "pnpm/action-setup",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0ebf47130e4866e96fce0953f49152a61190b271",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0ebf47130e4866e96fce0953f49152a61190b271",
+      "workflow": ".github/workflows/huggingface.yml"
+    },
+    {
+      "action": "actions/setup-node",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "820762786026740c76f36085b0efc47a31fe5020",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "workflow": ".github/workflows/huggingface.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/huggingface.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/infra-pointer-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/infra-pointer-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/infra-vendoring-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/infra-vendoring-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/kev-feed-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/kev-feed-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/lean-citation-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/lean-citation-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/local-image-refs-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/local-image-refs-guard.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-lockfile-registry-check.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "79cb06b79d6a3156a5796948295617ff6b207683",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "79cb06b79d6a3156a5796948295617ff6b207683",
+      "workflow": ".github/workflows/lockfile-registry.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/namespace-leak-check.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/one-lathe-receipt.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/one-lathe-receipt.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/one-lathe-receipt.yml"
+    },
+    {
+      "action": "step-security/harden-runner",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "workflow": ".github/workflows/operational.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/operational.yml"
+    },
+    {
+      "action": "pnpm/action-setup",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0ebf47130e4866e96fce0953f49152a61190b271",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0ebf47130e4866e96fce0953f49152a61190b271",
+      "workflow": ".github/workflows/operational.yml"
+    },
+    {
+      "action": "actions/setup-node",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "820762786026740c76f36085b0efc47a31fe5020",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "workflow": ".github/workflows/operational.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/reusable-overclaim-guard.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "79cb06b79d6a3156a5796948295617ff6b207683",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "79cb06b79d6a3156a5796948295617ff6b207683",
+      "workflow": ".github/workflows/overclaim-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/package-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/package-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/package-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/package-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/pages-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/pages-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/pages-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/pages-knowledge-sync.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/phantom-required-check-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/phantom-required-check-guard.yml"
+    },
+    {
+      "action": "szl-holdings/.github/.github/workflows/pin-check-reusable.yml",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "1bbd857634a87d3a824be86ec7a79aaa8e4937e8",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "1bbd857634a87d3a824be86ec7a79aaa8e4937e8",
+      "workflow": ".github/workflows/pin-check.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/private-ip-leak-check.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/public-claim-integrity.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/publish-packages.yml"
+    },
+    {
+      "action": "actions/setup-node",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "820762786026740c76f36085b0efc47a31fe5020",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "workflow": ".github/workflows/publish-packages.yml"
+    },
+    {
+      "action": "pnpm/action-setup",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0ebf47130e4866e96fce0953f49152a61190b271",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0ebf47130e4866e96fce0953f49152a61190b271",
+      "workflow": ".github/workflows/publish-packages.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/putnam-drift-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/putnam-drift-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/putnam-drift-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/putnam-drift-guard.yml"
+    },
+    {
+      "action": "actions/cache/restore",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+      "workflow": ".github/workflows/putnam-drift-guard.yml"
+    },
+    {
+      "action": "actions/cache/save",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "27d5ce7f107fe9357f9df03efb73ab90386fccae",
+      "workflow": ".github/workflows/putnam-drift-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/register-invocation-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/register-invocation-guard.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/rekor-recheck.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/rekor-recheck.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/release-receipt-verify.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/release-receipt-verify.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "actions/attest-sbom",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "c604332985a26aa8cf1bdc465b92731239ec6b9e",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "c604332985a26aa8cf1bdc465b92731239ec6b9e",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "softprops/action-gh-release",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d0d9888cb7fd7b750713d6e236d1fcb99157228",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d0d9888cb7fd7b750713d6e236d1fcb99157228",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/release.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/sbom-syft.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/sbom.yml"
+    },
+    {
+      "action": "anchore/sbom-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e22c389904149dbc22b58101806040fa8d37a610",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e22c389904149dbc22b58101806040fa8d37a610",
+      "workflow": ".github/workflows/sbom.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/sbom.yml"
+    },
+    {
+      "action": "step-security/harden-runner",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "workflow": ".github/workflows/scap-scan.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/scap-scan.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/scap-scan.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/scap-scan.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/scap-scan.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/scorecard.yml"
+    },
+    {
+      "action": "ossf/scorecard-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "4eaacf0543bb3f2c246792bd56e8cdeffafb205a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "4eaacf0543bb3f2c246792bd56e8cdeffafb205a",
+      "workflow": ".github/workflows/scorecard.yml"
+    },
+    {
+      "action": "github/codeql-action/upload-sarif",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "cf463419fdde78c727231e445622a9ac37966f84",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "cf463419fdde78c727231e445622a9ac37966f84",
+      "workflow": ".github/workflows/scorecard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/service-status-link-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/service-status-link-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/shared-file-drift.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/shared-file-drift.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/shared-file-drift.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/shared-module-hash-lock.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/shared-module-hash-lock.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/signing-key-image-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/signing-key-image-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/signing-key-image-guard.yml"
+    },
+    {
+      "action": "step-security/harden-runner",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "bf7454d06d71f1098171f2acdf0cd4708d7b5920",
+      "workflow": ".github/workflows/slsa-build.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/slsa-build.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/slsa-build.yml"
+    },
+    {
+      "action": "slsa-framework/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml",
+      "pin_compliant": false,
+      "pin_policy": "exact_semver_tag",
+      "ref": "f7dd8c54c2067bafc12ca7a55595d5ee9b75204a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "f7dd8c54c2067bafc12ca7a55595d5ee9b75204a",
+      "workflow": ".github/workflows/slsa-build.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/slsa-provenance.yml"
+    },
+    {
+      "action": "actions/setup-node",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "820762786026740c76f36085b0efc47a31fe5020",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "820762786026740c76f36085b0efc47a31fe5020",
+      "workflow": ".github/workflows/slsa-provenance.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/slsa-provenance.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/slsa-provenance.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/slsa.yml"
+    },
+    {
+      "action": "actions/attest-build-provenance",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "0f67c3f4856b2e3261c31976d6725780e5e4c373",
+      "workflow": ".github/workflows/slsa.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/slsa.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/slsa.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/sovereign-node-drop.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/sovereign-node-drop.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/status-page-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/status-page-guard.yml"
+    },
+    {
+      "action": "actions/github-script",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3a2844b7e9c422d3c10d287c895573f7108da1b3",
+      "workflow": ".github/workflows/status-page.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/surface-registry-sync-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/surface-registry-sync-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/trivy.yml"
+    },
+    {
+      "action": "aquasecurity/trivy-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "ed142fd0673e97e23eac54620cfb913e5ce36c25",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "ed142fd0673e97e23eac54620cfb913e5ce36c25",
+      "workflow": ".github/workflows/trivy.yml"
+    },
+    {
+      "action": "github/codeql-action/upload-sarif",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "cf463419fdde78c727231e445622a9ac37966f84",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "cf463419fdde78c727231e445622a9ac37966f84",
+      "workflow": ".github/workflows/trivy.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/trivy.yml"
+    },
+    {
+      "action": "anchore/scan-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "e1165082ffb1fe366ebaf02d8526e7c4989ea9d2",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "e1165082ffb1fe366ebaf02d8526e7c4989ea9d2",
+      "workflow": ".github/workflows/trivy.yml"
+    },
+    {
+      "action": "github/codeql-action/upload-sarif",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "cf463419fdde78c727231e445622a9ac37966f84",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "cf463419fdde78c727231e445622a9ac37966f84",
+      "workflow": ".github/workflows/trivy.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/uds-sign-release.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/uds-sign-release.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/url-secret-leak-guard.yml"
+    },
+    {
+      "action": "actions/setup-python",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "5fda3b95a4ea91299a34e894583c3862153e4b97",
+      "workflow": ".github/workflows/url-secret-leak-guard.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    },
+    {
+      "action": "docker/setup-buildx-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "bb05f3f5519dd87d3ba754cc423b652a5edd6d2c",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    },
+    {
+      "action": "docker/login-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "af1e73f918a031802d376d3c8bbc3fe56130a9b0",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    },
+    {
+      "action": "docker/build-push-action",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "53b7df96c91f9c12dcc8a07bcb9ccacbed38856a",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    },
+    {
+      "action": "sigstore/cosign-installer",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "6f9f17788090df1f26f669e9d70d6ae9567deba6",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    },
+    {
+      "action": "actions/checkout",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    },
+    {
+      "action": "actions/upload-artifact",
+      "pin_compliant": true,
+      "pin_policy": "full_commit_sha",
+      "ref": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "resolution": "literal_full_sha",
+      "resolved_sha": "043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+      "workflow": ".github/workflows/zarf-build-and-sign.yml"
+    }
+  ],
+  "generated_at": "2026-07-26T08:52:38+00:00",
+  "label": "MEASURED",
+  "scope": "canonical a11oy tracked workflows",
+  "source_commit": "d1e63459b3e5fa36456f3a84cb243e1d430c6e67",
+  "summary": {
+    "compliant": 194,
+    "noncompliant": 1,
+    "references": 195,
+    "unresolved": 0
+  }
+}

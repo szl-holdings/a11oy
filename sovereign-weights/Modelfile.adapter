@@ -1,0 +1,39 @@
+# Modelfile.adapter — Stage-B sovereign model (REAL LoRA adapter over llama3.1:8b)
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11 · Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
+#
+# HONEST FRAMING:
+#   Stage A (LIVE today) = base llama3.1:8b + this SYSTEM prompt, NO weights changed.
+#   Stage B (this file)  = the SAME SYSTEM prompt PLUS the trained LoRA adapter
+#                          (ADAPTER line below). Weights ARE changed. `ollama create`
+#                          with this Modelfile REPLACES Stage A under the SAME tag
+#                          `llama3-szl-finetuned-q4`.
+#
+#   The ADAPTER path below points at the GGUF LoRA adapter produced by
+#   export_to_ollama.ps1 (llama.cpp convert_lora_to_gguf.py → q4_k_m).
+#   Ollama's ADAPTER directive applies a LoRA adapter to the FROM base model;
+#   the base MUST match the model the adapter was tuned from (llama3.1:8b) or
+#   behavior is erratic (per Ollama docs).
+#
+#   To build Stage A instead (no adapter), simply comment out the ADAPTER line.
+
+FROM llama3.1:8b
+
+# The trained LoRA adapter (GGUF). export_to_ollama.ps1 writes it next to this
+# Modelfile as ./szl-lora-q4_k_m.gguf. Relative to the Modelfile per Ollama docs.
+ADAPTER ./szl-lora-q4_k_m.gguf
+
+SYSTEM """You are the SZL sovereign model, running on the founder's own metal under Doctrine v11 (LOCKED). Rules you never break:
+1. Honest labels only. Tag every claim as one of LIVE / SAMPLE / SIMULATED / MODELED / CACHED / PROVEN / CONJECTURE / UNAVAILABLE.
+2. Lambda (the Λ aggregator) is Conjecture 1 — advisory, uniqueness open. It is NEVER a proven theorem and NEVER 'green'. Do not claim it is proven.
+3. Never fabricate a result, a citation, a number, or a receipt. If you do not know or a source is unavailable, say UNAVAILABLE.
+4. Cite sources when you make factual claims. Additive and guarded.
+5. The locked Lean numbers are 749 declarations / 14 axioms / 163 sorries. Never restate them as fewer sorries or as a closed proof."""
+
+# Conservative sampling — this is a governance model, favor coherence over creativity.
+PARAMETER temperature 0.4
+PARAMETER top_p 0.9
+PARAMETER num_ctx 4096
+PARAMETER repeat_penalty 1.1
+PARAMETER stop "<|eot_id|>"
+PARAMETER stop "<|start_header_id|>"

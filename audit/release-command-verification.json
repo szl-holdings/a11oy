@@ -1,0 +1,251 @@
+{
+  "broader_web_build": "FAILED",
+  "claim_label": "IMPLEMENTED NOT DEPLOYED",
+  "commands": [
+    {
+      "command": [
+        "pnpm.CMD",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "name": "clean-checkout-install",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/release-command-logs/clean-checkout-install.stderr.txt",
+      "stderr_sha256": "sha256:02370b4c9f5116503d6e3d2d377f06cbbfd1462259326775cffef820ed4d0615",
+      "stdout": "audit/release-command-logs/clean-checkout-install.stdout.txt",
+      "stdout_sha256": "sha256:c6bd655246b4e6f7cd2add7811897b4291cfb63f8b80d9b0373b22dac86c5f3a"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "test:doctrine"
+      ],
+      "name": "doctrine",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/release-command-logs/doctrine.stderr.txt",
+      "stderr_sha256": "sha256:76f934455e11142740f3ea3cb2dfa2f763c0d85357944d10126efd663f28de2c",
+      "stdout": "audit/release-command-logs/doctrine.stdout.txt",
+      "stdout_sha256": "sha256:3c51c09715864083b6c3de33bbe6e5326bfb90ac23efc37b7c3f596903706a28"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "typecheck:doctrine"
+      ],
+      "name": "doctrine-typecheck",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/release-command-logs/doctrine-typecheck.stderr.txt",
+      "stderr_sha256": "sha256:e1667abb8302aeda5c6251f31edc4403d5cc79f604557f07bfe0ea339299bb1c",
+      "stdout": "audit/release-command-logs/doctrine-typecheck.stdout.txt",
+      "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "build:doctrine"
+      ],
+      "name": "doctrine-build",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/release-command-logs/doctrine-build.stderr.txt",
+      "stderr_sha256": "sha256:73ea33b01c41d1348dd075c6c69d965123624a563ecc62b8a556d16cef8eb3e4",
+      "stdout": "audit/release-command-logs/doctrine-build.stdout.txt",
+      "stdout_sha256": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "payload:huggingface"
+      ],
+      "name": "payload-first",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/release-command-logs/payload-first.stderr.txt",
+      "stderr_sha256": "sha256:830e77134693490e62e0e17b63731363e2074347a30c67d7f577b6b5513c7621",
+      "stdout": "audit/release-command-logs/payload-first.stdout.txt",
+      "stdout_sha256": "sha256:8a61a3cb229405fd5c9e5bb09c53c94c75eb24833016e03eb721041b617f3321"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "run",
+        "payload:huggingface"
+      ],
+      "name": "payload-second",
+      "returncode": 0,
+      "status": "PASS",
+      "stderr": "audit/release-command-logs/payload-second.stderr.txt",
+      "stderr_sha256": "sha256:830e77134693490e62e0e17b63731363e2074347a30c67d7f577b6b5513c7621",
+      "stdout": "audit/release-command-logs/payload-second.stdout.txt",
+      "stdout_sha256": "sha256:8a61a3cb229405fd5c9e5bb09c53c94c75eb24833016e03eb721041b617f3321"
+    },
+    {
+      "command": [
+        "pnpm.CMD",
+        "--dir",
+        "web",
+        "run",
+        "build"
+      ],
+      "name": "web-build",
+      "returncode": 1,
+      "status": "FAILED",
+      "stderr": "audit/release-command-logs/web-build.stderr.txt",
+      "stderr_sha256": "sha256:d5e89f97d16f32389941ef3f849522e76e4f97df2fb4494f5d7afc1039dcf508",
+      "stdout": "audit/release-command-logs/web-build.stdout.txt",
+      "stdout_sha256": "sha256:2ee9f83cbad373163ffdf951b6f6ecbb64c464ef146a8391c97a550082c94d2b"
+    }
+  ],
+  "declared_delivery_path": "PASS",
+  "execution_context": "detached clean Git worktree at source_commit",
+  "generated_at": "2026-07-26T08:57:49+00:00",
+  "payload_determinism": {
+    "first": {
+      "bytes": 433266,
+      "digest": "sha256:81e41890d43d84b7a473cbf5c32d61d90848ec407fcc254d8667d049503acfb8",
+      "files": 44
+    },
+    "second": {
+      "bytes": 433266,
+      "digest": "sha256:81e41890d43d84b7a473cbf5c32d61d90848ec407fcc254d8667d049503acfb8",
+      "files": 44
+    },
+    "status": "PASS"
+  },
+  "source_commit": "d1e63459b3e5fa36456f3a84cb243e1d430c6e67",
+  "status": "FAILED",
+  "tracked_clean_after": true,
+  "tracked_clean_before": true,
+  "web_workspace_gap": {
+    "conclusion": "The broader web package cannot be installed from this repository alone.",
+    "generated_at": "2026-07-26T08:40:24+00:00",
+    "label": "FAILED",
+    "missing": 12,
+    "missing_packages": {
+      "@szl-holdings/billing-client": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@szl-holdings/domain-profiles": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@szl-holdings/flexcache": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@szl-holdings/frontier-mythos": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@szl-holdings/shared-contracts": {
+        "reason": "no tracked package manifest",
+        "section": "devDependencies"
+      },
+      "@szl-holdings/speech-specialist": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@szl-holdings/telemetry-standards": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@szl/a11oy-runtime": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@szl/substrate-client": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@workspace/a11oy-fabric": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@workspace/codex-kernel": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      },
+      "@workspace/sovereign-substrate": {
+        "reason": "no tracked package manifest",
+        "section": "dependencies"
+      }
+    },
+    "requested": 28,
+    "resolved": 16,
+    "resolved_packages": {
+      "@szl-holdings/api-client-react": {
+        "manifest": "organs/sentra/stubs/szl-holdings-api-client-react/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/brand-registry": {
+        "manifest": "organs/sentra/stubs/szl-holdings-brand-registry/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/design-system": {
+        "manifest": "organs/sentra/stubs/szl-holdings-design-system/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/formulas": {
+        "manifest": "organs/sentra/stubs/szl-holdings-formulas/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/omnia-shell": {
+        "manifest": "organs/sentra/stubs/szl-holdings-omnia-shell/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/payload": {
+        "manifest": "organs/sentra/stubs/szl-holdings-payload/package.json",
+        "section": "devDependencies"
+      },
+      "@szl-holdings/platform-registry": {
+        "manifest": "organs/sentra/stubs/szl-holdings-platform-registry/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/replit-auth-web": {
+        "manifest": "organs/sentra/stubs/szl-holdings-replit-auth-web/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/security-headers": {
+        "manifest": "organs/sentra/stubs/szl-holdings-security-headers/package.json",
+        "section": "devDependencies"
+      },
+      "@szl-holdings/shared-proxy": {
+        "manifest": "organs/sentra/stubs/szl-holdings-shared-proxy/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/shared-ui": {
+        "manifest": "organs/sentra/stubs/szl-holdings-shared-ui/package.json",
+        "section": "dependencies"
+      },
+      "@szl-holdings/szl-doctrine": {
+        "manifest": "organs/sentra/stubs/szl-holdings-szl-doctrine/package.json",
+        "section": "devDependencies"
+      },
+      "@szl/alloy": {
+        "manifest": "organs/sentra/stubs/szl-alloy/package.json",
+        "section": "dependencies"
+      },
+      "@workspace/a11oy-orchestration": {
+        "manifest": "organs/sentra/stubs/workspace-a11oy-orchestration/package.json",
+        "section": "dependencies"
+      },
+      "@workspace/ouroboros": {
+        "manifest": "organs/sentra/stubs/workspace-ouroboros/package.json",
+        "section": "dependencies"
+      },
+      "@workspace/tokens": {
+        "manifest": "organs/sentra/stubs/workspace-tokens/package.json",
+        "section": "dependencies"
+      }
+    },
+    "scope": "web/package.json workspace protocol dependencies"
+  }
+}

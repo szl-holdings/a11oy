@@ -1,0 +1,521 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-governed-action-predicate.v1.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "SZL Governed Action Predicate",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "predicateVersion",
+    "actionId",
+    "issuedAt",
+    "actor",
+    "subject",
+    "environment",
+    "decision",
+    "policy",
+    "evidence",
+    "outcome",
+    "retention",
+    "sideEffect"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "predicateVersion": {
+      "type": "string",
+      "pattern": "^v[1-9][0-9]*\\.[0-9]+(\\.[0-9]+)?$"
+    },
+    "actionId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{6,120}$"
+    },
+    "issuedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "displayName",
+        "is_service_account",
+        "organization",
+        "roles"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z0-9._@:-]{3,160}$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 120
+        },
+        "is_service_account": {
+          "const": false
+        },
+        "organization": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{2,120}$"
+        },
+        "roles": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": [
+              "requester",
+              "operator",
+              "reviewer",
+              "system-maintainer",
+              "system"
+            ]
+          },
+          "uniqueItems": true
+        },
+        "contact": {
+          "type": "string",
+          "pattern": "^[^\\s]+@[^\\s]+\\.[^\\s]+$"
+        }
+      }
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "type",
+        "version",
+        "scope"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{3,160}$"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "model",
+            "dataset",
+            "space",
+            "tool",
+            "policy",
+            "receipting",
+            "api-route"
+          ]
+        },
+        "version": {
+          "type": "string",
+          "minLength": 5
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["public", "staging", "production"]
+        },
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "system",
+        "deploymentId",
+        "tenant",
+        "sessionId",
+        "spanId"
+      ],
+      "properties": {
+        "system": {
+          "type": "string",
+          "enum": ["a11oy"]
+        },
+        "deploymentId": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{4,160}$"
+        },
+        "tenant": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "sessionId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{16,64}$"
+        },
+        "spanId": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{16,64}$"
+        },
+        "region": {
+          "type": "string",
+          "maxLength": 40
+        }
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "result",
+        "rule",
+        "policyVersion",
+        "policyDigest",
+        "riskContext",
+        "rationale",
+        "authenticatedHuman",
+        "decisionHash",
+        "consistencyProof"
+      ],
+      "properties": {
+        "result": {
+          "type": "string",
+          "enum": ["ALLOW", "BLOCK", "REVIEW", "DEFER"]
+        },
+        "rule": {
+          "type": "string",
+          "minLength": 3
+        },
+        "policyVersion": {
+          "type": "string",
+          "minLength": 6
+        },
+        "policyDigest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "riskContext": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "rationale": {
+          "type": "string",
+          "minLength": 16,
+          "maxLength": 4000
+        },
+        "authenticatedHuman": {
+          "const": true
+        },
+        "decisionHash": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "consistencyProof": {
+          "type": "string",
+          "enum": ["verified", "pending", "unavailable"]
+        },
+        "delegationPath": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/delegatedActor"
+          }
+        }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "jurisdiction",
+        "humanIntent",
+        "tamperEvident",
+        "boundedness"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 3
+        },
+        "jurisdiction": {
+          "type": "string",
+          "enum": ["eu-ai-act", "internal", "custom"]
+        },
+        "humanIntent": {
+          "type": "string",
+          "enum": ["assisted", "agent-autonomous", "manual"]
+        },
+        "tamperEvident": {
+          "type": "boolean",
+          "const": true
+        },
+        "boundedness": {
+          "type": "string",
+          "enum": ["bounded", "unbounded", "compensatable"]
+        },
+        "reasonCodes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "policy-mismatch",
+              "high-risk-surface",
+              "missing-human-attestation",
+              "resource-quota-exceeded",
+              "unverifiable-evidence",
+              "contradiction-detected"
+            ]
+          }
+        },
+        "auditReference": {
+          "$ref": "#/$defs/reference"
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state",
+        "localDurability",
+        "remoteSubmitted",
+        "observedInputs",
+        "observedOutputs"
+      ],
+      "properties": {
+        "state": {
+          "type": "string",
+          "enum": ["MEASURED", "SAMPLE", "SNAPSHOT", "UNKNOWN", "ROADMAP"]
+        },
+        "localDurability": {
+          "type": "boolean",
+          "const": true
+        },
+        "remoteSubmitted": {
+          "type": "boolean"
+        },
+        "observedInputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "type", "digest", "source"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["prompt", "tool-call", "model", "policy", "document"]
+              },
+              "digest": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "source": {
+                "type": "string",
+                "format": "uri"
+              }
+            }
+          }
+        },
+        "observedOutputs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "type", "integrity", "recordedAt"],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["receipt", "trace", "ledger-row", "alert"]
+              },
+              "integrity": {
+                "type": "string",
+                "pattern": "^[a-f0-9]{64}$"
+              },
+              "recordedAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            }
+          }
+        },
+        "ledger": {
+          "$ref": "#/$defs/reference"
+        },
+        "commandLog": {
+          "$ref": "#/$defs/reference"
+        }
+      }
+    },
+    "outcome": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "impactScore", "resourceDelta", "policyCompliance"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["released", "blocked", "degraded", "review-required"]
+        },
+        "impactScore": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "resourceDelta": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "policyCompliance": {
+          "type": "string",
+          "enum": ["pass", "fail", "pending", "review"]
+        },
+        "postDecisionChecks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "activeMonths",
+        "archiveYears",
+        "immutable",
+        "appendOnly"
+      ],
+      "properties": {
+        "activeMonths": {
+          "type": "integer",
+          "minimum": 12,
+          "maximum": 24
+        },
+        "archiveYears": {
+          "type": "integer",
+          "minimum": 3,
+          "maximum": 7
+        },
+        "immutable": {
+          "type": "boolean",
+          "const": true
+        },
+        "appendOnly": {
+          "type": "boolean",
+          "const": true
+        }
+      }
+    },
+    "sideEffect": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["class", "compensatable", "reversible", "recoveryProcedure"],
+      "properties": {
+        "class": {
+          "type": "string",
+          "enum": [
+            "NO_SIDE_EFFECT",
+            "MUTABLE_STATE",
+            "READ_ONLY",
+            "FINANCIAL",
+            "REPUTATIONAL",
+            "INFERENCE"
+          ]
+        },
+        "compensatable": {
+          "type": "boolean"
+        },
+        "reversible": {
+          "type": "boolean"
+        },
+        "recoveryProcedure": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 4096
+        },
+        "monitoringTags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "synchronization": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "local": {
+          "type": "string",
+          "enum": ["ACK", "PENDING", "FAILED"]
+        },
+        "remote": {
+          "type": "string",
+          "enum": ["SYNCED", "UNSYNCED", "FAILED"]
+        },
+        "remoteTarget": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "delegatedActor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "reason", "signature", "authorizedAt"],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9:._/-]{3,160}$"
+        },
+        "reason": {
+          "type": "string",
+          "maxLength": 280
+        },
+        "signature": {
+          "type": "string",
+          "minLength": 32
+        },
+        "authorizedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["uri", "digest", "generatedAt"],
+      "properties": {
+        "uri": {
+          "type": "string",
+          "format": "uri"
+        },
+        "digest": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "generatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

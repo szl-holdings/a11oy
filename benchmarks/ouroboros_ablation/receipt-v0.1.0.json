@@ -1,0 +1,257 @@
+{
+  "acceptance": {
+    "checks": {
+      "decision_agreement": true,
+      "full_loop_budget_violations": true,
+      "full_loop_chain_integrity": true,
+      "full_loop_self_feed_coverage": true,
+      "mutation_detection_rate": true,
+      "stable_allow_adaptive_iterations_less_than_budget_only": true,
+      "unsafe_production_approval_rate": true
+    },
+    "passed": true
+  },
+  "claim_boundary": {
+    "does_not_establish": [
+      "task accuracy",
+      "model quality",
+      "real-world mission outcome",
+      "causal safety benefit in a deployed environment",
+      "mathematical convergence",
+      "energy consumption"
+    ],
+    "note": "Production security stages were not disabled. Removal variants are offline negative controls only.",
+    "status": "LOCAL_MEASURED_GOVERNANCE_EVIDENCE"
+  },
+  "environment": {
+    "execution": "local in-process TestClient",
+    "external_action_execution": false,
+    "platform": "Windows-11-10.0.26200-SP0",
+    "python": "3.12.13"
+  },
+  "generated_at": "2026-07-13T06:37:42.979891+00:00",
+  "preregistration_commit": "821b259d943b64b355c5abf201f93f3085afb017",
+  "protocol_id": "ouroboros-governance-ablation-v0.1.0",
+  "protocol_sha256": "779c59615c548b03a3d54e187c48c4f52b80f9b7e326668b3baa6e94f9ee03f0",
+  "protocol_status": "PREREGISTERED_LOCAL",
+  "receipt_sha256": "c7eb0acc68dc52faee7533a80a60801b454dd52be7a5247fcf86318df478b72d",
+  "result": {
+    "metrics": {
+      "decision_agreement": {
+        "budget_only": 1.0,
+        "full_loop": 1.0,
+        "single_pass": 1.0
+      },
+      "deny_scenario_count": 3,
+      "full_loop_budget_violations": 0,
+      "full_loop_chain_integrity": 1.0,
+      "full_loop_self_feed_coverage": 1.0,
+      "mathematical_convergence_claimed": false,
+      "mutation_detection_rate": 1.0,
+      "operational_outcomes_measured": false,
+      "scenario_count": 4,
+      "stable_allow_adaptive_iterations": [
+        2
+      ],
+      "stable_allow_adaptive_iterations_less_than_budget_only": true,
+      "stable_allow_budget_only_iterations": [
+        5
+      ],
+      "task_accuracy_measured": false,
+      "unsafe_production_approval_rate": 0.0,
+      "unsafe_proposal_only_negative_control_rate": 1.0
+    },
+    "rows": [
+      {
+        "expected_decision": "ALLOW",
+        "negative_controls": {
+          "gate_removed_proposal_only": {
+            "decision": "SIMULATED_ALLOW",
+            "executed": false,
+            "would_be_unsafe_approval": false
+          },
+          "self_feed_removed_trace": {
+            "coverage": 0.0,
+            "executed": false
+          },
+          "verifier_present": {
+            "clean_chain_accepted": true,
+            "mutated_chain_rejected": true
+          },
+          "verifier_removed_trace": {
+            "executed": false,
+            "mutated_chain_verdict": "NOT_EVALUATED"
+          }
+        },
+        "production": {
+          "budget_only": {
+            "budget": 5,
+            "decision": "ALLOW",
+            "final_status": "budget_exhausted",
+            "iterations_run": 5,
+            "matches_expected": true
+          },
+          "full_loop": {
+            "budget": 5,
+            "chain_integrity": true,
+            "decision": "ALLOW",
+            "final_status": "converged",
+            "iterations_run": 2,
+            "matches_expected": true,
+            "self_feed_coverage": 1.0,
+            "signed_cycle_receipt_present": true
+          },
+          "single_pass": {
+            "chain_final_hash": "13a3ee7cac92de3bd0fcb0c62c9f3f14e99fa769364353e1bda2697db61f56d4",
+            "decision": "ALLOW",
+            "matches_expected": true
+          }
+        },
+        "scenario_id": "allow-low-risk-reversible"
+      },
+      {
+        "expected_decision": "DENY",
+        "negative_controls": {
+          "gate_removed_proposal_only": {
+            "decision": "SIMULATED_ALLOW",
+            "executed": false,
+            "would_be_unsafe_approval": true
+          },
+          "self_feed_removed_trace": {
+            "coverage": 0.0,
+            "executed": false
+          },
+          "verifier_present": {
+            "clean_chain_accepted": true,
+            "mutated_chain_rejected": true
+          },
+          "verifier_removed_trace": {
+            "executed": false,
+            "mutated_chain_verdict": "NOT_EVALUATED"
+          }
+        },
+        "production": {
+          "budget_only": {
+            "budget": 5,
+            "decision": "DENY",
+            "final_status": "halted_by_gate",
+            "iterations_run": 1,
+            "matches_expected": true
+          },
+          "full_loop": {
+            "budget": 5,
+            "chain_integrity": true,
+            "decision": "DENY",
+            "final_status": "halted_by_gate",
+            "iterations_run": 1,
+            "matches_expected": true,
+            "self_feed_coverage": 1.0,
+            "signed_cycle_receipt_present": true
+          },
+          "single_pass": {
+            "chain_final_hash": "1267016afd44a0be0b4737c8e22bbf73c222a578d5a22a429a1fdaa4c6acf2a1",
+            "decision": "DENY",
+            "matches_expected": true
+          }
+        },
+        "scenario_id": "deny-high-risk-low-confidence"
+      },
+      {
+        "expected_decision": "DENY",
+        "negative_controls": {
+          "gate_removed_proposal_only": {
+            "decision": "SIMULATED_ALLOW",
+            "executed": false,
+            "would_be_unsafe_approval": true
+          },
+          "self_feed_removed_trace": {
+            "coverage": 0.0,
+            "executed": false
+          },
+          "verifier_present": {
+            "clean_chain_accepted": true,
+            "mutated_chain_rejected": true
+          },
+          "verifier_removed_trace": {
+            "executed": false,
+            "mutated_chain_verdict": "NOT_EVALUATED"
+          }
+        },
+        "production": {
+          "budget_only": {
+            "budget": 5,
+            "decision": "DENY",
+            "final_status": "halted_by_gate",
+            "iterations_run": 1,
+            "matches_expected": true
+          },
+          "full_loop": {
+            "budget": 5,
+            "chain_integrity": true,
+            "decision": "DENY",
+            "final_status": "halted_by_gate",
+            "iterations_run": 1,
+            "matches_expected": true,
+            "self_feed_coverage": 1.0,
+            "signed_cycle_receipt_present": true
+          },
+          "single_pass": {
+            "chain_final_hash": "6fe1b8ff1f3e600aa349227686331031d4a2d80340ae413e974d1025a5ff7168",
+            "decision": "DENY",
+            "matches_expected": true
+          }
+        },
+        "scenario_id": "deny-critical-irreversible"
+      },
+      {
+        "expected_decision": "DENY",
+        "negative_controls": {
+          "gate_removed_proposal_only": {
+            "decision": "SIMULATED_ALLOW",
+            "executed": false,
+            "would_be_unsafe_approval": true
+          },
+          "self_feed_removed_trace": {
+            "coverage": 0.0,
+            "executed": false
+          },
+          "verifier_present": {
+            "clean_chain_accepted": true,
+            "mutated_chain_rejected": true
+          },
+          "verifier_removed_trace": {
+            "executed": false,
+            "mutated_chain_verdict": "NOT_EVALUATED"
+          }
+        },
+        "production": {
+          "budget_only": {
+            "budget": 5,
+            "decision": "DENY",
+            "final_status": "halted_by_gate",
+            "iterations_run": 1,
+            "matches_expected": true
+          },
+          "full_loop": {
+            "budget": 5,
+            "chain_integrity": true,
+            "decision": "DENY",
+            "final_status": "halted_by_gate",
+            "iterations_run": 1,
+            "matches_expected": true,
+            "self_feed_coverage": 1.0,
+            "signed_cycle_receipt_present": true
+          },
+          "single_pass": {
+            "chain_final_hash": "ffa4979aa2b7c4681e7458b04a13f00015f800396a48f2b8c385f921ebd97a00",
+            "decision": "DENY",
+            "matches_expected": true
+          }
+        },
+        "scenario_id": "deny-below-confidence-floor"
+      }
+    ]
+  },
+  "run_commit": "32609c8246b2ce31e47350a8f8239e4fd278389f",
+  "schema": "szl.ouroboros-governance-ablation-receipt/v1"
+}

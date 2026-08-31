@@ -1,0 +1,55 @@
+name: Release artifacts (SBOM + attestation)
+on:
+  release:
+    types: [created, published]
+  workflow_dispatch:
+permissions:
+  id-token: write
+  contents: write
+  packages: write
+  attestations: write
+jobs:
+  attest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          fetch-depth: 0
+
+      - name: Generate SBOM (CycloneDX JSON)
+        uses: anchore/sbom-action@ab5d7b5f48981941c4c5d6bf33aeb98fe3bae38c # v0.17.9
+        with:
+          format: cyclonedx-json
+          output-file: ${{ github.event.repository.name }}.sbom.cdx.json
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: '${{ github.event.repository.name }}.sbom.cdx.json'
+          push-to-registry: false
+
+      - name: Attest SBOM
+        uses: actions/attest-sbom@v2
+        with:
+          subject-path: '${{ github.event.repository.name }}.sbom.cdx.json'
+          sbom-path: '${{ github.event.repository.name }}.sbom.cdx.json'
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@59acb6260d9c0ba8f4a2f9d9b48431a222b68e20 # v3.5.0
+
+      - name: Cosign attest SBOM
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign attest-blob --yes \
+            --predicate ${{ github.event.repository.name }}.sbom.cdx.json \
+            --type cyclonedx \
+            --output-attestation ${{ github.event.repository.name }}.intoto.jsonl \
+            ${{ github.event.repository.name }}.sbom.cdx.json
+
+      - uses: softprops/action-gh-release@c062e08bd532815e2082a85e87e3ef29c3e6d191 # v2.0.8
+        if: github.event_name == 'release'
+        with:
+          files: |
+            ${{ github.event.repository.name }}.sbom.cdx.json
+            ${{ github.event.repository.name }}.intoto.jsonl

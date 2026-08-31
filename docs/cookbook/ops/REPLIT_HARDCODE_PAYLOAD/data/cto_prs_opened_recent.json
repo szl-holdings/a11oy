@@ -1,0 +1,43 @@
+{
+  "comment": "All PRs opened by CTO over the recent audit sweeps. Categorized for the merge waves.",
+  "fly_v9_fleet": [
+    { "repo": "ouroboros",        "pr": 31, "title": "feat/runtime/th1-th7-scaffold" },
+    { "repo": "ouroboros",        "pr": 32, "title": "feat/agentic/a11oy-core" },
+    { "repo": "sentra",           "pr": 22, "title": "feat/runtime/th2-th5-scaffold" },
+    { "repo": "vsp-otel",         "pr":  4, "title": "feat/runtime/vsp-spine" },
+    { "repo": "agi-forecast",     "pr":  4, "title": "feat/runtime/forecast-gauge" },
+    { "repo": "lutar-lean",       "pr": 18, "title": "feat/th8/lean-v2-close-7-sorries" },
+    { "repo": "ouroboros-thesis", "pr": 44, "title": "feat/arxiv/v2-finalized" },
+    { "repo": "szl-brand",        "pr": 15, "title": "feat/anatomy/full-body-v2" },
+    { "repo": ".github",          "pr": 35, "title": "feat/agentic/m2m-envelope" }
+  ],
+  "ci_wire": [
+    { "repo": "vsp-otel",     "pr": 5,  "title": "chore/ci/baseline-doctrine-v6" },
+    { "repo": "agi-forecast", "pr": 5,  "title": "chore/ci/baseline-doctrine-v6" },
+    { "repo": ".github",      "pr": 36, "title": "chore/ci/baseline-doctrine-v6" }
+  ],
+  "scorecard_security": [
+    { "repo": ".github",      "pr": 37, "title": "security: bump harden-runner + codeql + TokenPermissions" },
+    { "repo": "vsp-otel",     "pr":  6, "title": "chore: add .github/CODEOWNERS" },
+    { "repo": "vsp-otel",     "pr":  7, "title": "docs: fix CITATION.cff given-names" },
+    { "repo": "vsp-otel",     "pr":  8, "title": "chore: add .github/dependabot.yml" },
+    { "repo": "agi-forecast", "pr":  6, "title": "chore: add .github/CODEOWNERS" },
+    { "repo": "agi-forecast", "pr":  7, "title": "docs: fix CITATION.cff given-names" },
+    { "repo": "agi-forecast", "pr":  8, "title": "chore: add .github/dependabot.yml" },
+    { "repo": "szl-trust",    "pr": 13, "title": "ci: pin actions/checkout@v6 -> SHA" },
+    { "repo": "szl-cookbook", "pr": 12, "title": "ci: pin actions/checkout@v6 -> SHA" },
+    { "repo": "szl-brand",    "pr": 16, "title": "ci: pin actions/checkout@v6 -> SHA" },
+    { "repo": "lutar-lean",   "pr": 19, "title": "ci: pin elan init script to v4.2.1" }
+  ],
+  "anatomy": [
+    { "repo": "ouroboros",        "pr": 29, "title": "docs(anatomy): publish 4 PDFs" },
+    { "repo": "ouroboros-thesis", "pr": 39, "title": "docs(anatomy): publish 4 PDFs" },
+    { "repo": "ouroboros-thesis", "pr": 46, "title": "feat(anatomy): publish full 16-figure bundle [NEW]" },
+    { "repo": "szl-brand",        "pr": 15, "title": "feat(anatomy): full-body v2 (canonical 16-figure superset)" }
+  ],
+  "doi_gate": [
+    { "repo": "ouroboros",        "pr": 28, "title": "feat(huklla T11): DOI-title CI gate" },
+    { "repo": "ouroboros-thesis", "pr": 38, "title": "feat(huklla T11): DOI-title CI gate" },
+    { "repo": "szl-trust",        "pr": 11, "title": "feat(huklla T11): DOI-title CI gate" }
+  ]
+}

@@ -1,0 +1,239 @@
+# Copyright 2026 SZL Holdings
+# SPDX-License-Identifier: Apache-2.0
+#
+# The shared alert endpoint is consumed from the existing managed secret. The
+# provider protocol is inferred from the endpoint host or selected through the
+# ALERT_CHANNEL_MODE repository variable (auto, slack, ntfy, generic-json).
+# Receipts never contain the secret, URL path/query, or response body.
+
+name: Alert Channel Watch
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/alert-channel-watch.yml'
+      - 'scripts/alert_channel_canary.py'
+      - 'tests/test_alert_channel_canary.py'
+      - 'tests/test_alert_channel_workflow_contract.py'
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/alert-channel-watch.yml'
+      - 'scripts/alert_channel_canary.py'
+      - 'tests/test_alert_channel_canary.py'
+      - 'tests/test_alert_channel_workflow_contract.py'
+  schedule:
+    - cron: '37 7 * * *'
+  workflow_dispatch:
+    inputs:
+      send_canary:
+        description: 'Send one real low-noise canary now.'
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: alert-channel-watch
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Alert channel offline contract
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Prove protocol, one-attempt, redaction, and incident contracts
+        run: >-
+          pytest
+          tests/test_alert_channel_canary.py
+          tests/test_alert_channel_workflow_contract.py
+          -q
+
+  watch:
+    name: Verify shared receipt-failure delivery
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Decide whether this run performs a real delivery canary
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          DISPATCH_CANARY: ${{ github.event_name == 'workflow_dispatch' && inputs.send_canary == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          send=false
+          if [ "${EVENT_NAME}" = 'push' ]; then
+            send=true
+          elif [ "${DISPATCH_CANARY}" = 'true' ]; then
+            send=true
+          elif [ "${EVENT_NAME}" = 'schedule' ] && [ "$(date -u +%u)" = '1' ]; then
+            send=true
+          fi
+          echo "send=${send}" >> "$GITHUB_OUTPUT"
+      - name: Run one bounded, protocol-aware canary
+        id: canary
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ALERT_CHANNEL_MODE: ${{ vars.ALERT_CHANNEL_MODE }}
+          SEND: ${{ steps.plan.outputs.send }}
+        shell: bash
+        run: |
+          set +e
+          mkdir -p evidence
+          args=(--output evidence/alert-channel-canary.json --mode "${ALERT_CHANNEL_MODE:-auto}")
+          if [ "${SEND}" = 'true' ]; then args+=(--send); fi
+          python scripts/alert_channel_canary.py "${args[@]}"
+          rc=$?
+          state=$(python -c 'import json; print(json.load(open("evidence/alert-channel-canary.json"))["state"])')
+          echo "state=${state}" >> "$GITHUB_OUTPUT"
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Reconcile deterministic incident without false recovery
+        id: incident
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          RECEIPT_PATH: evidence/alert-channel-canary.json
+        with:
+          script: |
+            const fs = require('fs');
+            const receipt = JSON.parse(fs.readFileSync(process.env.RECEIPT_PATH, 'utf8'));
+            const state = String(receipt.state || 'UNAVAILABLE');
+            const marker = '<!-- alert-channel-watch-incident -->';
+            const title = '[ALERT-CHANNEL] Shared receipt-failure alert channel is OFF';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const q = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:alert-channel`;
+            const search = await github.rest.search.issuesAndPullRequests({q, sort: 'created', order: 'desc', per_page: 10});
+            const existing = search.data.items.find(item => !item.pull_request && item.title === title) || null;
+            const endpoint = receipt.endpoint || {};
+            const summary = [
+              `state=${state}`,
+              `mode=${endpoint.mode || 'UNKNOWN'}`,
+              `host=${endpoint.hostname || 'UNKNOWN'}`,
+              `http=${receipt.http_status ?? 'n/a'}`,
+              `attempts=${receipt.attempt_count ?? 0}`,
+            ].join(' ');
+            const failures = new Set(['MISSING','INVALID_CONFIGURATION','FAILING','TIMED_OUT','UNAVAILABLE','INVALID_RESPONSE']);
+
+            if (state === 'PRESENT_UNPROBED') {
+              core.info('Presence-only observation cannot close or rewrite a prior delivery incident.');
+              if (existing) core.setOutput('issue_url', existing.html_url);
+              return;
+            }
+
+            if (state === 'HEALTHY') {
+              if (existing && existing.state === 'open') {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  body: `Recovered after a real one-attempt 2xx delivery canary.\n\n\`${summary}\`\nRun: ${runUrl}`,
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: existing.number,
+                  state: 'closed',
+                  state_reason: 'completed',
+                });
+              }
+              return;
+            }
+
+            if (!failures.has(state)) {
+              core.setFailed(`Unrecognized canary state: ${state}`);
+              return;
+            }
+
+            const body = [
+              '## Shared Alert Channel Incident',
+              '', marker,
+              '**State:** FAILING',
+              `**Observed:** ${receipt.generated_at || new Date().toISOString()}`,
+              `**Run:** ${runUrl}`,
+              '', `\`${summary}\``, '',
+              'The shared receipt-failure channel did not complete a real 2xx delivery.',
+              'No endpoint path, query, webhook token, secret value, or response body is recorded.',
+              '',
+              'Recovery requires a real canary state of `HEALTHY`; a presence-only run cannot close this issue.',
+            ].join('\n');
+            if (existing) {
+              if (existing.state === 'closed') {
+                await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open'});
+              }
+              await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body});
+              core.setOutput('issue_url', existing.html_url);
+            } else {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['alert-channel','incident'],
+              });
+              core.setOutput('issue_url', created.data.html_url);
+            }
+      - name: Upload secret-free canary evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alert-channel-canary-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/alert-channel-canary.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Enforce delivery health when a real canary was required
+        if: always()
+        env:
+          STATE: ${{ steps.canary.outputs.state }}
+          SEND: ${{ steps.plan.outputs.send }}
+          ISSUE_URL: ${{ steps.incident.outputs.issue_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## Alert channel watch'
+            echo ''
+            echo "- planned real canary: ${SEND:-false}"
+            echo "- observed state: ${STATE:-UNKNOWN}"
+            if [ -n "${ISSUE_URL:-}" ]; then echo "- incident: ${ISSUE_URL}"; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "${STATE:-UNKNOWN}" = 'HEALTHY' ]; then exit 0; fi
+          if [ "${STATE:-UNKNOWN}" = 'PRESENT_UNPROBED' ] && [ "${SEND:-false}" != 'true' ]; then exit 0; fi
+          echo "::error::Shared alert channel did not prove a healthy delivery: ${STATE:-UNKNOWN}"
+          exit 1

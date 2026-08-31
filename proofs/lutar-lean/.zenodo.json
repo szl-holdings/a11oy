@@ -1,0 +1,64 @@
+{
+  "title": "lutar-lean — Lean 4 formalization of the Lutar Invariant Λ-uniqueness conjecture (Conjecture 1)",
+  "description": "Lean 4 + Mathlib formalization of the four-axiom characterization (A1 monotone, A2 homogeneous, A3 Egyptian-exact, A4 bounded) of the Lutar Invariant Λ_k as the weighted geometric mean with Egyptian unit-fraction weights. Machine-checked statements for the Λ-uniqueness conjecture (Conjecture 1 — proof-deferred, pending closure of CAUCHY_ND sorry) and the min/max bound (Theorem 2). Also provides a runtime parity check between the Lean Float implementation and the production TypeScript runtime (szl-holdings/ouroboros) on a curated set of reference vectors. Companion artefact to the Ouroboros Thesis (concept DOI 10.5281/zenodo.19944926); the v9 paper (10.5281/zenodo.20053148) introduces the unified operational account of the Lutar Invariant family that this proof scaffolds. NOTE: Λ-uniqueness is Conjecture 1 — NEVER theorem — per SZL Doctrine v11.",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Lutar, Stephen P.",
+      "affiliation": "SZL Holdings",
+      "orcid": "0009-0001-0110-4173"
+    }
+  ],
+  "access_right": "open",
+  "license": "Apache-2.0",
+  "keywords": [
+    "lean4",
+    "mathlib",
+    "formal-verification",
+    "kernel-verified",
+    "lutar-invariant",
+    "geometric-mean",
+    "egyptian-fractions",
+    "horus-eye-dyadic",
+    "brahmi-positional-zero",
+    "chinese-remainder-theorem",
+    "egyptian-false-position",
+    "akhmim-rmp-2n-table",
+    "bm-13901-quadratic",
+    "madhava-arctan-series",
+    "brahmagupta-fibonacci-identity",
+    "banach-contraction",
+    "babylonian-sqrt-iteration",
+    "liu-hui-pi",
+    "sexagesimal-regular",
+    "qhapaq-nan-relay",
+    "khipu-transduction",
+    "uniqueness-conjecture",
+    "szl-holdings",
+    "ouroboros-thesis",
+    "ai-governance",
+    "audit-closure"
+  ],
+  "communities": [
+    {
+      "identifier": "open-science"
+    }
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.19944926",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.20053148",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    },
+    {
+      "identifier": "10.5281/zenodo.20162352",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    }
+  ]
+}

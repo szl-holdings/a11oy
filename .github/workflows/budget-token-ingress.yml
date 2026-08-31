@@ -1,0 +1,59 @@
+name: Budget and token ingress contracts
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "szl_budget_router.py"
+      - "tests/test_budget_token_ingress.py"
+      - "tests/test_budget_token_ingress_assembled.py"
+      - "artifacts/proof-packets/20260818-budget-token-ingress.md"
+      - ".github/workflows/budget-token-ingress.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  budget-token-ingress:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact core test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Compile runtime and tests
+        run: >-
+          python -m py_compile
+          szl_budget_router.py
+          tests/test_budget_token_ingress.py
+          tests/test_budget_token_ingress_assembled.py
+
+      - name: Run budget, semantic ingress, and assembled-route contracts
+        run: >-
+          pytest -q
+          tests/test_budget_token_ingress.py
+          tests/test_budget_token_ingress_assembled.py
+
+      - name: Reject whitespace errors in the governed slice
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main:refs/remotes/origin/main
+          git diff --check origin/main...HEAD -- \
+            szl_budget_router.py \
+            tests/test_budget_token_ingress.py \
+            tests/test_budget_token_ingress_assembled.py \
+            artifacts/proof-packets/20260818-budget-token-ingress.md \
+            .github/workflows/budget-token-ingress.yml

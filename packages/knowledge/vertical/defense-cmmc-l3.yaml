@@ -1,0 +1,172 @@
+# Vertical Governance Policy: Defense — CMMC Level 3 / NIST SP 800-171
+# Doctrine v6 | R3 Adversarial Receipts
+# Last revised: 2025-07
+
+schema_version: "1.0.0"
+vertical: defense
+regime: CMMC-L3/NIST-SP-800-171
+effective_date: "2025-07-01"
+jurisdiction: US-Federal-DoD
+
+meta:
+  title: "Defense AI Governance Policy — CMMC Level 3 / NIST SP 800-171 Alignment"
+  description: >
+    Maps Cybersecurity Maturity Model Certification Level 3 and NIST SP 800-171
+    Controlled Unclassified Information (CUI) requirements to Doctrine v6 Λ-axes
+    for AI systems deployed in defense-industrial-base (DIB) contexts.
+  authority: "32 CFR Part 170 (CMMC); NIST SP 800-171 Rev 3 (2024); DFARS 252.204-7012"
+  receipt_chain_required: true
+  merkle_root_algorithm: SHA3-256
+  classification_ceiling: CUI
+
+regulatory_clauses:
+  - clause_id: CMMC-L3-AC.L3-3.1.3
+    title: "Control CUI Flow"
+    citation: "CMMC L3 AC.L3-3.1.3; NIST SP 800-171 Rev 3 § 3.1.3"
+    full_ref: "NIST SP 800-171 Rev 3 Control 3.1.3 — Control the flow of CUI in accordance with approved authorizations"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          AI inference requests containing CUI must be tagged, routed through
+          approved enclaves, and receipt-logged with enclave attestation token.
+      - axis: Λ10
+        label: Sovereignty
+        weight: 0.92
+        enforcement: mandatory
+
+  - clause_id: CMMC-L3-AU.L3-3.3.1
+    title: "Create and Retain System Audit Logs"
+    citation: "CMMC L3 AU.L3-3.3.1; NIST SP 800-171 Rev 3 § 3.3.1"
+    full_ref: "NIST SP 800-171 Rev 3 Control 3.3.1 — Create, protect, and retain system audit logs"
+    lambda_axes:
+      - axis: Λ7
+        label: Auditability
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          Merkle DAG receipt chain provides cryptographic audit log; each node
+          captures timestamp (TAI64N), actor DID, action type, CUI category code.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.78
+        enforcement: mandatory
+
+  - clause_id: CMMC-L3-IA.L3-3.5.3
+    title: "Multifactor Authentication"
+    citation: "CMMC L3 IA.L3-3.5.3; NIST SP 800-171 Rev 3 § 3.5.3"
+    full_ref: "NIST SP 800-171 Rev 3 Control 3.5.3 — Use multifactor authentication for local and network access"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 0.95
+        enforcement: mandatory
+      - axis: Λ2
+        label: Accountability
+        weight: 0.88
+        enforcement: mandatory
+        rationale: >
+          Each AI agent principal must carry a FIDO2/PIV-backed credential;
+          authentication event hashed into receipt chain root.
+
+  - clause_id: CMMC-L3-SI.L3-3.14.2
+    title: "Provide Protection from Malicious Code at Alternate Processed Locations"
+    citation: "CMMC L3 SI.L3-3.14.2; NIST SP 800-171 Rev 3 § 3.14.2"
+    full_ref: "NIST SP 800-171 Rev 3 Control 3.14.2 — Provide protection from malicious code at appropriate locations"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          AI model weights and inference artifacts must be integrity-verified
+          before each execution; hash comparison logged in receipt.
+      - axis: Λ8
+        label: Robustness
+        weight: 0.85
+        enforcement: mandatory
+
+  - clause_id: NIST-171-3.12.4
+    title: "System Security Plans"
+    citation: "NIST SP 800-171 Rev 3 § 3.12.4"
+    full_ref: "NIST SP 800-171 Rev 3 Control 3.12.4 — Develop, document, and periodically update system security plans"
+    lambda_axes:
+      - axis: Λ1
+        label: Transparency
+        weight: 0.85
+        enforcement: mandatory
+        rationale: >
+          AI system security plan must describe model architecture, training
+          data provenance, and governance receipt chain topology.
+      - axis: Λ9
+        label: Explainability
+        weight: 0.72
+        enforcement: recommended
+
+  - clause_id: DFARS-252.204-7012
+    title: "Safeguarding Covered Defense Information"
+    citation: "DFARS 252.204-7012(b); 48 CFR § 252.204-7012"
+    full_ref: "DFARS 252.204-7012 — Safeguarding Covered Defense Information and Cyber Incident Reporting"
+    lambda_axes:
+      - axis: Λ6
+        label: Security
+        weight: 1.0
+        enforcement: mandatory
+      - axis: Λ2
+        label: Accountability
+        weight: 0.92
+        enforcement: mandatory
+        rationale: >
+          72-hour cyber incident reporting obligation; AI anomaly detection
+          must auto-generate incident receipt with IOC hashes within 1 hour.
+
+  - clause_id: CMMC-L3-RA.L3-3.11.2
+    title: "Scan for Vulnerabilities"
+    citation: "CMMC L3 RA.L3-3.11.2; NIST SP 800-171 Rev 3 § 3.11.2"
+    full_ref: "NIST SP 800-171 Rev 3 Control 3.11.2 — Scan for vulnerabilities in organizational systems and applications"
+    lambda_axes:
+      - axis: Λ8
+        label: Robustness
+        weight: 0.90
+        enforcement: mandatory
+        rationale: >
+          AI pipeline must undergo adversarial robustness scanning quarterly;
+          scan results are commitment receipts in the Merkle DAG.
+      - axis: Λ4
+        label: Fairness
+        weight: 0.60
+        enforcement: recommended
+
+  - clause_id: EO-14110-AI-SAFETY
+    title: "Executive Order on AI Safety — Defense Applications"
+    citation: "E.O. 14110 § 4.2 (Oct 2023); DoD AI Adoption Strategy 2024"
+    full_ref: "E.O. 14110 § 4.2 — National security AI safety; DoD AI Adoption Strategy (Feb 2024)"
+    lambda_axes:
+      - axis: Λ5
+        label: Safety
+        weight: 1.0
+        enforcement: mandatory
+        rationale: >
+          Autonomous AI systems in defense must have human-on-the-loop kill
+          switches; each autonomous decision receipt must include HotL token.
+      - axis: Λ4
+        label: Fairness
+        weight: 0.75
+        enforcement: mandatory
+
+compliance_thresholds:
+  minimum_lambda_coverage: 8
+  mandatory_axes: [Λ5, Λ6, Λ7, Λ10]
+  receipt_retention_days: 3650        # 10 years DFARS
+  max_cui_inference_latency_ms: 100
+  adversarial_scan_cycle_days: 90
+  classification_ceiling: CUI
+
+receipt_chain:
+  algorithm: SHA3-256
+  chaining: merkle_dag
+  quorum: 3-of-5
+  nodes: [primary, secondary, tertiary, hot-standby, air-gapped-archive]
+  enclave_attestation: true

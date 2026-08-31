@@ -1,0 +1,73 @@
+cff-version: 1.2.0
+message: "If you use this paper, the Lutar invariant family, or the Ouroboros Thesis v4, please cite as below."
+title: "The Lutar Omega Formalism (v4) — Ouroboros Thesis"
+abstract: >-
+  We present the Lutar Omega Formalism, a hierarchical framework that unifies energy, mass, and information through a composite dimensionless signature \( L_\Omega \), and extend it with two structural diagnostic engines: the EPR-Bell Validator (EBEV) and the Geometric Coherence Invariants Engine (SGCE). The Omega Formalism builds seven progressively refined signatures from \( L_1 = E/(mc^2) \) (Einstein baseline) through information-theoretic corrections (\( L_2 \), Bekenstein entropy), conformal rescaling (\( L_3 \), Penrose CCC), thermodynamic coupling (\( L_4 \), Boltzmann-Shannon bridge), quantum-geometric phase (\( L_5 \), Berry holonomy), algebraic closure via \( E_8 \) triality (\( L_6 \)), and a final Noether-invariant conservation law (\( L_7 \)). The EBEV implements CHSH inequality diagnostics with verified Tsirelson bound saturation at \( S = 2\sqrt{2} \approx 2.828427 \). The SGCE provides phi-harmonic coherence analysis using the golden ratio \( \varphi = (1 + \sqrt{5})/2 \approx 1.618033988749895 \), Vesica Piscis ratio \( \sqrt{3} \), and Flower of Life sphere packing density \( \pi\sqrt{3}/6 \approx 0.9069 \). In the SZL Holdings ecosystem, the Omega Formalism serves as the quality evaluation backbone for all seven product surfaces (A11oy, Sentra, Amaru, Counsel, Terra, Vessels, Carlota Jo). A11oy, the cross-domain orchestration layer, routes every AI-generated output through the Omega pipeline before issuing a decision receipt. The EBEV provides structural correlation diagnostics for multi-source intelligence fusion in Sentra (cyber threat correlation) and Vessels (sanctions screening cross-reference). The SGCE provides harmonic coherence validation for Terra (property valuation model consistency) and Carlota Jo (portfolio balance assessment). All formulas ar
+type: software
+authors:
+  - family-names: Lutar
+    given-names: "Stephen P."
+
+    email: stephen@szlholdings.com
+    affiliation: "SZL Holdings, Inc."
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+doi: "10.5281/zenodo.20020841"
+identifiers:
+  - description: "Version DOI — Ouroboros Thesis v4 (this release)"
+    type: doi
+    value: "10.5281/zenodo.20020841"
+  - description: "Concept DOI — always resolves to the latest version"
+    type: doi
+    value: "10.5281/zenodo.19944926"
+  - description: "Ouroboros Thesis v1 (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.19867281"
+  - description: "Ouroboros Thesis v2 (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.19934129"
+  - description: "Ouroboros Thesis v3 (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.19983066"
+  - description: "Ouroboros Thesis v9 — UNIFIED-OPERATIONAL (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.20053148"
+  - description: "Ouroboros Thesis v10 — EXHAUSTIVE-AUDIT (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.20053163"
+  - description: "Ouroboros Thesis v11 — APPLIED Lambda (Zenodo)"
+    type: doi
+    value: "10.5281/zenodo.20119582"
+  - description: ORCID iD of the principal author
+    type: other
+    value: "https://orcid.org/0009-0001-0110-4173"
+repository-code: "https://github.com/szl-holdings/szl-holdings-platform"
+url: "https://github.com/szl-holdings/ouroboros-thesis"
+keywords:
+  - ouroboros
+  - omega-formalism
+  - EPR-Bell
+  - CHSH
+  - Tsirelson-bound
+  - geometric-coherence
+  - golden-ratio
+  - E8-triality
+  - conformal-cyclic-cosmology
+license: CC-BY-4.0
+version: "4.0.0"
+date-released: "2026-05-04"
+preferred-citation:
+  type: article
+  title: "The Lutar Omega Formalism: An Energy–Mass–Information Coupling with EPR–Bell Diagnostics and Geometric Coherence Invariants"
+  authors:
+    - family-names: Lutar
+      given-names: "Stephen P."
+
+      email: stephen@szlholdings.com
+      affiliation: "SZL Holdings, Inc."
+      orcid: "https://orcid.org/0009-0001-0110-4173"
+  year: 2026
+  month: 5
+  publisher:
+    name: Zenodo
+  doi: "10.5281/zenodo.20020841"
+  url: "https://doi.org/10.5281/zenodo.20020841"

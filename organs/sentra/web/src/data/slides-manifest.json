@@ -1,0 +1,106 @@
+[
+  {
+    "id": "sa-0001-4000-8000-000000000001",
+    "position": 1,
+    "filepath": "src/pages/slides/S01Cover.tsx",
+    "title": "Governed Decision Infrastructure",
+    "description": "growth capital pitch deck cover — Sentra, 2026",
+    "speakerNotes": "Open with the thesis in one line: Sentra builds the governance layer that makes AI decisions accountable.\n\nBeat: pause for two seconds. Let the cover land.\n\nThen: 'For the next twelve minutes I'm going to show you a category, a product, and a market — and a real platform you can click on today.'"
+  },
+  {
+    "id": "sa-0002-4000-8000-000000000002",
+    "position": 2,
+    "filepath": "src/pages/slides/S02SeriesProblem.tsx",
+    "title": "Problem: AI Without Accountability",
+    "description": "Every AI recommendation happens without a source, approval gate, or outcome record",
+    "speakerNotes": "Three statistics to anchor the room:\n  • 89% of enterprise AI deployments have no auditable decision trail.\n  • Only 11% of regulated industries can answer 'why did the model recommend this?' under audit.\n  • Average time to investigate one AI-driven incident: 14 days.\n\nName the pain in plain English: 'Today AI gives an answer. Nobody can prove where it came from, who approved it, or whether it worked.'"
+  },
+  {
+    "id": "sa-0003-4000-8000-000000000003",
+    "position": 3,
+    "filepath": "src/pages/slides/S03Category.tsx",
+    "title": "Category: Governed Decision Infrastructure",
+    "description": "$16.3B market growing at 24.7% CAGR to $50.1B by 2030",
+    "speakerNotes": "Frame the category. We are not 'an AI tool.' We are the layer underneath every AI tool that an enterprise will eventually be required to install.\n\nAnalog: just as observability emerged underneath microservices, governance emerges underneath agentic AI.\n\nMarket: $16.3B today, $50.1B by 2030 — 24.7% CAGR. Source: composite of Gartner GRC + IDC AI Governance + analyst extrapolation."
+  },
+  {
+    "id": "sa-0004-4000-8000-000000000004",
+    "position": 4,
+    "filepath": "src/pages/slides/S04Product.tsx",
+    "title": "Product: The Nine-Step Governance Loop",
+    "description": "Signal, Context, Recommendation, Simulation, Policy, Execution, Proof, Outcome, Learning",
+    "speakerNotes": "Walk the loop end-to-end in under 90 seconds. Don't read every step — group them:\n  1. Sense (Signal, Context)\n  2. Decide (Recommendation, Simulation, Policy)\n  3. Act (Execution)\n  4. Account (Proof, Outcome, Learning)\n\nKey line: 'Every step is hashed, versioned, and replayable. This is the audit trail regulators will demand by 2027.'"
+  },
+  {
+    "id": "sa-0005-4000-8000-000000000005",
+    "position": 5,
+    "filepath": "src/pages/slides/S05Demo.tsx",
+    "title": "Demo: The Platform Is Real",
+    "description": "Decision Theater — live, presentable, production-grade",
+    "speakerNotes": "TRANSITION TO LIVE DEMO HERE. Open Decision Theater in a second tab.\n\nIf time is short: skip to slide 6. The demo is in the appendix link.\n\nIf you do show it: pick ONE vertical (Vessels port-call decision is fastest — 90 seconds end-to-end). Show signal → recommendation → policy block → human approval → proof entry. Do not narrate every field; let the loop speak."
+  },
+  {
+    "id": "sa-0006-4000-8000-000000000006",
+    "position": 6,
+    "filepath": "src/pages/slides/S08DividerMoat.tsx",
+    "title": "Part Two — Why This Wins",
+    "description": "Divider into the moat: competitive differentiation, architecture, build evidence",
+    "speakerNotes": "Hold the divider for a full beat. This is the pivot from 'what we built' to 'why nobody else can catch us.'\n\nOne line: 'Part Two — why this wins. Not the demo. The moat.'\n\nThen click straight into the market and competitive matrix."
+  },
+  {
+    "id": "sa-0007-4000-8000-000000000007",
+    "position": 7,
+    "filepath": "src/pages/slides/S06Market.tsx",
+    "title": "Market: $16.3B to $50.1B",
+    "description": "Competitive matrix — five capabilities no named competitor closes",
+    "speakerNotes": "Competitive matrix is the meat. Five capabilities across the top: provenance, policy-as-code, simulation, multi-domain, replayability.\n\nDataRobot, Credo, Fiddler, Holistic AI — none ship more than two. We ship all five today.\n\nIf asked about hyperscalers: AWS Bedrock Guardrails and Azure AI Content Safety are filters, not loops. They block bad outputs; they don't account for decisions."
+  },
+  {
+    "id": "sa-0008-4000-8000-000000000008",
+    "position": 8,
+    "filepath": "src/pages/slides/S07SeriesDomains.tsx",
+    "title": "Domain Breadth: Six Verticals, One Loop",
+    "description": "Sentra, Vessels, Terra, Carlota Jo, Command, Counsel — all governed by the same nine-step loop",
+    "speakerNotes": "The defensibility is the loop, not the vertical. We've already shipped six verticals on the same primitives:\n  • Sentra — cyber resilience\n  • Vessels — maritime risk and trading\n  • Terra — real estate intelligence\n  • Carlota Jo — private advisory\n  • Command — unified ops\n  • Counsel — legal matter intelligence\n\nMessage: 'Adding a seventh vertical is a configuration job, not a rebuild.'"
+  },
+  {
+    "id": "sa-0012-4000-8000-000000000012",
+    "position": 9,
+    "filepath": "src/pages/slides/S10Alloy.tsx",
+    "title": "Alloy — The Enterprise AI Hub",
+    "description": "Introducing Alloy: unified front door to models, datasets, governance, and team controls",
+    "speakerNotes": "Transition: 'We just showed you six verticals on one loop. Now meet the surface that unifies all of them.'\n\nAlloy is the flagship enterprise AI hub — a single entry point where models, datasets, spaces, governance records, and team controls converge. Four pillars: Foundry (model & data layer), Governance (proof + policy + audit), Fleet (every SZL surface), Enterprise (SSO, regions, RBAC, inference).\n\nKey line: 'Alloy is not another dashboard. It's the operating system for governed AI.'"
+  },
+  {
+    "id": "sa-0013-4000-8000-000000000013",
+    "position": 10,
+    "filepath": "src/pages/slides/S11AlloyFoundry.tsx",
+    "title": "Alloy Foundry — The Model & Data Layer",
+    "description": "HF Hub API integration: models, datasets, spaces, and governed inference playground",
+    "speakerNotes": "Foundry delegates to the Hugging Face Hub API — same contract, same endpoints, but every invocation passes through the nine-step governance loop.\n\nFour tabs: Models (search + task filter), Datasets (live data preview), Spaces (embedded viewer), Inference (model selector + latency tracking).\n\nKey line: 'Every model call is hashed and auditable. This is what regulated enterprises need before they can deploy AI at scale.'"
+  },
+  {
+    "id": "sa-0009-4000-8000-000000000009",
+    "position": 11,
+    "filepath": "src/pages/slides/S13DividerVerdict.tsx",
+    "title": "Part Three — The Verdict",
+    "description": "Divider into the close: commercial path, the ask, what we offer",
+    "speakerNotes": "Hold the divider. This is the room's signal that the pitch is closing.\n\nOne line: 'Part Three — the verdict. Commercial path, the ask, and what we offer.'\n\nThen go straight into business model."
+  },
+  {
+    "id": "sa-0010-4000-8000-000000000010",
+    "position": 12,
+    "filepath": "src/pages/slides/S08BusinessModel.tsx",
+    "title": "Business Model: Platform + Domain Pack",
+    "description": "$50K–$500K/year enterprise tier — three-phase commercial path",
+    "speakerNotes": "Pricing: platform license + per-domain pack. Enterprise band $50K–$500K ARR, anchored to decision volume and number of domains.\n\nThree-phase commercial motion:\n  1. Pilot (60 days, fixed-fee, one domain)\n  2. Production (annual platform + one pack)\n  3. Expand (additional packs, audit/compliance modules)\n\nGross margin target: 78%. Logo retention target: 95%."
+  },
+  {
+    "id": "sa-0011-4000-8000-000000000011",
+    "position": 13,
+    "filepath": "src/pages/slides/S09Ask.tsx",
+    "title": "The Ask",
+    "description": "growth capital — use of funds, team plan, and the opportunity",
+    "speakerNotes": "The ask in one breath: 'We are raising a growth capital to harden the platform, ship two more verticals, and land the first ten enterprise logos.'\n\nUse of funds: 55% engineering, 25% go-to-market, 15% security and compliance, 5% operating runway.\n\nClose with the line of the deck: 'Every AI decision will eventually need an audit trail. We're already shipping the one that survives.'\n\nThen stop talking. Let them ask the next question."
+  }
+]

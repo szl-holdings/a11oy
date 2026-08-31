@@ -1,0 +1,29 @@
+# genome.toml -- QILLQAQ declarative organ DNA (config; parsed by stdlib tomllib)
+# HONEST NAMING: "DNA"/"genome" = config + module loading. No biology, no magic.
+# Doctrine v11 LOCKED numbers preserved verbatim elsewhere (749/14/163, 13-axis yuyay_v3,
+# replay bacf54434f1a3bf2d758b27a62d5fd580ca4c8d3b180693573eeebcaea631fc5). ADDITIVE only.
+
+[organ]
+name = "UNAY"
+quechua = "unay = long ago / ancient (cross-session memory)"
+function = "Cross-session continuity store keyed on the receipt chain."
+
+[role]
+loop = "read recent receipts -> fold into durable continuity index -> emit continuity-snapshot receipts"
+
+[reads]
+kinds = ["reasoning_verdict", "yuyay_score", "ledger_entry"]
+
+[writes]
+kinds = ["continuity_snapshot"]
+
+[boot]
+handler = "kipu_qillqaq.handlers:reconcile"
+enabled = true
+
+[meta]
+slug = "unay"
+substrate = "KIPU"
+engine = "QILLQAQ"
+author = "Yachay"
+agent = "Perplexity Computer Agent"

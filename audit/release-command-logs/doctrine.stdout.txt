@@ -1,0 +1,109 @@
+R1-G1 false-position calibration
+  ✓ T_aha_recovery_50_random_gates
+  ✓ T_aha_identity_target_y1
+  ✓ T_aha_identity_target_y2
+  ✓ T_aha_FAIL_degenerate_dx
+  ✓ T_aha_FAIL_degenerate_dy
+  ✓ T_aha_residual_zero
+  ✓ T_aha_RMP_problem_24_analog
+
+7 passed, 0 failed
+
+lid-check test results:
+  PASS  T_LID_all_axes_meet_threshold
+  PASS  T_LID_reports_failing_axis
+  PASS  T_LID_threshold_closed_half_space
+  PASS  T_LID_rejects_non_positive_axis_count
+  PASS  T_LID_rejects_non_finite_threshold
+  PASS  T_LID_rejects_non_finite_axis_score
+  PASS  T_R1_identity_repack_accepts_equal_vectors
+  PASS  T_R1_identity_repack_respects_tolerance
+  PASS  T_R1_identity_repack_rejects_mismatched_lengths
+  PASS  T_R1_identity_repack_rejects_bad_tolerance
+  PASS  T_TH12_1a_R1_identity_repack_preserves_LID_membership
+  PASS  T_TH12_1b_two_identity_rewrites_preserve_LID_membership
+  PASS  T_TH12_1c_three_identity_rewrites_preserve_LID_membership
+  PASS  T_DPO_threshold_applies_pinsker_gap
+  PASS  T_DPO_threshold_rejects_bad_inputs
+
+TOTAL: 15  PASSED: 15  FAILED: 0
+R4-I1 Madhava alternating-series bound
+  ✓ T_madhava_arctan_one_eq_pi_over_4
+  ✓ T_madhava_remainder_dominates_truncation_50_random_x
+  ✓ T_madhava_remainder_arctan_one_half_N10
+  ✓ T_madhava_arctan_zero_is_zero
+  ✓ T_madhava_FAIL_remainder_x_gt_1
+  ✓ T_madhava_FAIL_invalid_N
+  ✓ T_madhava_PACBayes_refinement_adds_remainder
+  ✓ T_madhava_PACBayes_refinement_monotone_in_N
+
+8 passed, 0 failed
+
+pac-bayes-bound test results:
+  PASS  T_pac_mono_kl: bound is monotone non-decreasing in KL
+  PASS  T_pac_tight: large n + small KL + permissive delta → tight bound
+  PASS  T_pac_nonvacuity: KL above threshold yields vacuous bound
+  PASS  T_pac_nineAxis_worst: identifies worst axis correctly
+  PASS  T_pac_nineAxis_length_check: wrong-length input is rejected
+  PASS  T_pac_validate_delta: delta=0 or delta=1 rejected
+  PASS  T_pac_validate_kl: negative KL rejected
+  PASS  T_pac_validate_risk: risk outside [0,1] rejected
+
+TOTAL: 8  PASSED: 8  FAILED: 0
+PASS  IDENTITY is unit
+PASS  pack/unpack: 1000 random unit quaternions stay within Q15 norm tolerance
+PASS  pack produces exactly 8 bytes
+PASS  pack is big-endian and deterministic on IDENTITY
+PASS  Hamilton product: associativity on 100 random triples (1e-12 tolerance)
+PASS  Hamilton product: norm-multiplicative on 100 random pairs (1e-12 tolerance)
+PASS  Hamilton product: IDENTITY is two-sided identity
+PASS  Conjugate: q · q* = (||q||², 0, 0, 0)
+PASS  normalize: 100 random non-zero quaternions reach unit norm
+PASS  normalize: rejects zero quaternion
+PASS  SLERP: t=0 returns q1, t=1 returns q2 (with sign convention)
+PASS  SLERP: t=0.5 matches direct half-angle reference (1e-4)
+PASS  SLERP: nearly-identical inputs use linear fallback and stay unit-norm
+PASS  SLERP: rejects t out of [0,1]
+PASS  pack: rejects non-finite components
+PASS  unpack: rejects wrong byte length
+
+16/16 tests passed.
+R4-I3 Brahmagupta–Fibonacci composition ring
+  ✓ T_BF_brahmagupta_worked_example
+  ✓ T_BF_100_random_integer_tuples_BigInt_exact
+  ✓ T_BF_50_random_real_tuples_FP
+  ✓ T_BF_identity_vector_acts_as_unit
+  ✓ T_BF_zero_vector_norm_zero
+  ✓ T_BF_norm_multiplicativity_on_unit_circle
+  ✓ T_BF_residual_matches_bfResidual
+
+7 passed, 0 failed
+
+kochen-specker-18 test results:
+  PASS  T_KS18_shape: witness ships 18 vectors and 9 contexts
+  PASS  T_KS18_cover: every vector label appears exactly twice
+  PASS  T_KS18_empty_observation: no non-contextual model satisfies the parity cover
+
+TOTAL: 3  PASSED: 3  FAILED: 0
+R1-G4 Akhmim/RMP self-verifying table
+  ✓ T_akhmim_all_50_entries_verify
+  ✓ T_akhmim_lookup_in_range
+  ✓ T_akhmim_lookup_out_of_range
+  ✓ T_akhmim_FAIL_empty_parts
+  ✓ T_akhmim_FAIL_zero_denominator
+  ✓ T_akhmim_FAIL_negative_part
+  ✓ T_akhmim_FAIL_corrupted_decomposition
+  ✓ T_akhmim_50_random_lookups_verify
+  ✓ T_akhmim_lookup_returns_undefined_even_n
+
+9 passed, 0 failed
+R3-G3 BM 13901 quadratic-completion solver
+  ✓ T_BM13901_problem_1
+  ✓ T_BM_50_random_quadratics
+  ✓ T_BM_b_equals_zero
+  ✓ T_BM_b_negative
+  ✓ T_BM_FAIL_negative_discriminant
+  ✓ T_BM_residual_matches_quadraticResidual
+  ✓ T_BM_large_c
+
+7 passed, 0 failed

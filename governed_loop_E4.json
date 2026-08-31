@@ -1,0 +1,437 @@
+{
+  "experiment_id": "E4-codex-kernel-governed-loop-unified-replit-all-in-one",
+  "source": "szl-holdings/szl-trust runs/E4-codex-kernel-2026-04-29",
+  "repo_commit": "7eb623f8b870128e615ac6be9880e0265204b454",
+  "payload_hash": "624332a9470f8509fcfb57c6c39ac8dc",
+  "final_state_hash": "fe20ecc47445dbd887b5b14ef26ed981",
+  "ledger_digest": "4d0a943cef5b8fa605919db38df5e8e7",
+  "steps_executed": 12,
+  "hard_stop_failures": 0,
+  "soft_failures": 1,
+  "stop_reason": "convergence",
+  "receipts_emitted": 12,
+  "policy_version": "covenant-v1",
+  "deployment_contract": {
+    "platform": "replit",
+    "healthcheck_path": "/api/healthz",
+    "expected_status": 200
+  },
+  "validators_unique": [
+    "drift_bounds",
+    "evidence_provenance",
+    "human_gate",
+    "state_transition_rule"
+  ],
+  "chain_verified": true,
+  "spans": [
+    {
+      "step": 1,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "b43f82a8c2935f8ba53b937474d7a0a2",
+      "state_next_hash": "e4c345c4df102af462eaa63964ab721b",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 0 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0001"
+    },
+    {
+      "step": 2,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "e4c345c4df102af462eaa63964ab721b",
+      "state_next_hash": "f9c2f84d65b407cdbd008ff15b902126",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 0 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0002"
+    },
+    {
+      "step": 3,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "f9c2f84d65b407cdbd008ff15b902126",
+      "state_next_hash": "31df514edf1cc8974f49f39e4fca9958",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 0 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0003"
+    },
+    {
+      "step": 4,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "31df514edf1cc8974f49f39e4fca9958",
+      "state_next_hash": "5666c1f1ae3593ebb21425869ce5e050",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 0 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0004"
+    },
+    {
+      "step": 5,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "5666c1f1ae3593ebb21425869ce5e050",
+      "state_next_hash": "f63e38b194eda83d8d50656dd818d0ae",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 1 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0005"
+    },
+    {
+      "step": 6,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "f63e38b194eda83d8d50656dd818d0ae",
+      "state_next_hash": "d851e6e84d83f4df3bf334acfd3d4808",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 1 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0006"
+    },
+    {
+      "step": 7,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "d851e6e84d83f4df3bf334acfd3d4808",
+      "state_next_hash": "403736f5039e147ff18aa3c472572a2c",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 1 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0007"
+    },
+    {
+      "step": 8,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "403736f5039e147ff18aa3c472572a2c",
+      "state_next_hash": "bdf33204bfaf39ef48dc72f8e892d9d4",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 1 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0008"
+    },
+    {
+      "step": 9,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "bdf33204bfaf39ef48dc72f8e892d9d4",
+      "state_next_hash": "e8e5cf6e568db6c7cb97c781d5b1b770",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 1 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0009"
+    },
+    {
+      "step": 10,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "e8e5cf6e568db6c7cb97c781d5b1b770",
+      "state_next_hash": "761f93da21fec9b0147bab9ec9860447",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "soft_fail",
+          "summary": "drift 2 above warning 2, no correction"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0010"
+    },
+    {
+      "step": 11,
+      "pipeline_stage": "Execution",
+      "decision_type": "drift_correction",
+      "summary": "Applied drift correction of -2d to restore alignment.",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "761f93da21fec9b0147bab9ec9860447",
+      "state_next_hash": "fc02a3a0186cd7dae99268ec967301e5",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 0 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0011"
+    },
+    {
+      "step": 12,
+      "pipeline_stage": "Execution",
+      "decision_type": "cycle_advance",
+      "summary": "Advanced one synodic cycle (+584d).",
+      "approval_status": "not_required",
+      "mocked": false,
+      "policy_version": "covenant-v1",
+      "state_prev_hash": "fc02a3a0186cd7dae99268ec967301e5",
+      "state_next_hash": "fe20ecc47445dbd887b5b14ef26ed981",
+      "validators": [
+        {
+          "name": "state_transition_rule",
+          "severity": "pass",
+          "summary": "delta well-formed"
+        },
+        {
+          "name": "drift_bounds",
+          "severity": "pass",
+          "summary": "drift 0 within bounds"
+        },
+        {
+          "name": "human_gate",
+          "severity": "pass",
+          "summary": "no approval required"
+        },
+        {
+          "name": "evidence_provenance",
+          "severity": "pass",
+          "summary": "receipt complete"
+        }
+      ],
+      "receipt_id": "rcpt-E4-codex-kernel-governed-loop-unified-replit-all-in-one-0012"
+    }
+  ],
+  "doctrine": "v9"
+}

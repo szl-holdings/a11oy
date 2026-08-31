@@ -1,0 +1,23 @@
+{
+  "name": "@workspace/api-server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stub package — historical placeholder. The real Express HTTP servers live in apps/alloy-runtime-api (unified v1 surface), apps/alloy-embedding-api (embedding gateway), and apps/alloy-ingestion-orchestrator (ingestion control plane). Additional service-tier servers in services/* and workers/*. This stub retains the single ouroboros route export for backward-compatibility with any direct import path consumers; new transport work goes in the apps/* servers.",
+  "exports": {
+    "./routes/ouroboros": {
+      "workspace": "./src/routes/ouroboros.ts",
+      "import": "./src/routes/ouroboros.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/ouroboros-integrations": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "catalog:",
+    "typescript": "catalog:"
+  }
+}

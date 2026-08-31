@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/benchmark-result.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "Serving benchmark result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["run_id", "engine", "engine_version", "model_revision", "tokenizer_revision", "environment_digest", "workload", "repetition", "status", "started_at", "completed_at", "metrics", "failure"],
+  "properties": {
+    "run_id": {"type": "string", "format": "uuid"},
+    "engine": {"enum": ["vllm", "sglang"]},
+    "engine_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-.+][A-Za-z0-9.-]+)?$"},
+    "model_revision": {"type": "string", "minLength": 7, "maxLength": 128},
+    "tokenizer_revision": {"type": "string", "minLength": 7, "maxLength": 128},
+    "environment_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "workload": {"type": "string", "minLength": 1, "maxLength": 128},
+    "repetition": {"type": "integer", "minimum": 1},
+    "status": {"enum": ["MEASURED", "FAILED", "BLOCKED"]},
+    "started_at": {"type": "string", "format": "date-time"},
+    "completed_at": {"type": "string", "format": "date-time"},
+    "metrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_throughput": {"type": "number", "minimum": 0},
+        "output_token_throughput": {"type": "number", "minimum": 0},
+        "ttft_ms_p50": {"type": "number", "minimum": 0},
+        "ttft_ms_p95": {"type": "number", "minimum": 0},
+        "tpot_ms_p50": {"type": "number", "minimum": 0},
+        "tpot_ms_p95": {"type": "number", "minimum": 0},
+        "itl_ms_p95": {"type": "number", "minimum": 0},
+        "error_rate": {"type": "number", "minimum": 0, "maximum": 1}
+      }
+    },
+    "failure": {"type": ["string", "null"], "maxLength": 4096}
+  }
+}

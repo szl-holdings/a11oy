@@ -1,0 +1,70 @@
+{
+  "_about": "DSSE-shaped IQ-gate receipts for szl-holdings/lutar-lean. Envelopes reference real Lean theorems at real GitHub blob SHAs at commit 7ec70ba760f3953db34738e8805d67c6cc64bd7e. Signatures are honestly labeled placeholders until Wire-D real signing lands.",
+  "doctrine": "v11",
+  "lambda_uniqueness": "Conjecture 1 — NOT a theorem (Λ-Aggregator Uniqueness; sorry-tagged in Lutar/Uniqueness.lean)",
+  "doctrine_version": "v11",
+  "concept_doi": "10.5281/zenodo.19944926",
+  "commit_sha": "7ec70ba760f3953db34738e8805d67c6cc64bd7e",
+  "receipts": [
+    {
+      "payloadType": "application/vnd.szl.iqgate+json",
+      "payload": "eyJfdHlwZSI6Imh0dHBzOi8vc3psaG9sZGluZ3MuZGV2L2lxZ2F0ZS92MSIsImNvbmNlcHRfZG9pIjoiMTAuNTI4MS96ZW5vZG8uMTk5NDQ5MjYiLCJkb2N0cmluZSI6eyJkZWNsYXJhdGlvbnMiOjc0OSwic29ycmllcyI6MTYzLCJ1bmlxdWVfYXhpb21zIjoxNH0sImRvY3RyaW5lX3ZlcnNpb24iOiJ2MTEiLCJnYXRlIjoiZ2F0ZV9sYW1iZGFfdW5pcXVlbmVzcyIsInByZWRpY2F0ZSI6ImxlYW40LXRoZW9yZW0tYXR0ZXN0YXRpb24iLCJzdGF0dXNfbm90ZSI6IkNvbmplY3R1cmUgMSAoXHUwMzliIGdlb21ldHJpYy1tZWFuIHVuaXF1ZW5lc3MpIFx1MjAxNCBzb3JyeS10YWdnZWQgKENBVUNIWV9ORCBvYmxpZ2F0aW9uLCBVbmlxdWVuZXNzLmxlYW46MTIwKSIsInN1YmplY3QiOnsiYmxvYl9zaGEiOiI3MzI5Y2ZiMzNlZTJiNDg3ZTJmZWEzOGQzZWU1Njg1NTAzNWY2MDI1IiwiYmxvYl91cmwiOiJodHRwczovL2dpdGh1Yi5jb20vc3psLWhvbGRpbmdzL2x1dGFyLWxlYW4vYmxvYi83ZWM3MGJhNzYwZjM5NTNkYjM0NzM4ZTg4MDVkNjdjNmNjNjRiZDdlL0x1dGFyL1VuaXF1ZW5lc3MubGVhbiIsImNvbW1pdF9zaGEiOiI3ZWM3MGJhNzYwZjM5NTNkYjM0NzM4ZTg4MDVkNjdjNmNjNjRiZDdlIiwibGVhbl9maWxlIjoiTHV0YXIvVW5pcXVlbmVzcy5sZWFuIiwicmVwbyI6InN6bC1ob2xkaW5ncy9sdXRhci1sZWFuIiwidGhlb3JlbSI6Imx1dGFyX2lzX2dlb21lYW4ifX0=",
+      "signatures": [
+        {
+          "keyid": "placeholder-ecdsa-p256",
+          "sig": "UExBQ0VIT0xERVItVU5USUwtV0lSRS1ELVNJR05JTkc6N2ZhYzBhYmFkYmM0ZjlmMDc2MzJkOTZlNGI1MDA3MGY3ZDA3MDU3Y2EyYmI0ZjBlZjJjYzJjN2ZmOWU0MWEwZg==",
+          "_note": "placeholder-ecdsa-p256; honest stub. Real ECDSA-P256 signature lands when Wire-D agent's signing pipeline is live. sig encodes SHA-256 of the DSSE PAE preimage for integrity binding only.",
+          "pae_sha256": "7fac0abadbc4f9f07632d96e4b50070f7d07057ca2bb4f0ef2cc2c7ff9e41a0f"
+        }
+      ]
+    },
+    {
+      "payloadType": "application/vnd.szl.iqgate+json",
+      "payload": "eyJfdHlwZSI6Imh0dHBzOi8vc3psaG9sZGluZ3MuZGV2L2lxZ2F0ZS92MSIsImNvbmNlcHRfZG9pIjoiMTAuNTI4MS96ZW5vZG8uMTk5NDQ5MjYiLCJkb2N0cmluZSI6eyJkZWNsYXJhdGlvbnMiOjc0OSwic29ycmllcyI6MTYzLCJ1bmlxdWVfYXhpb21zIjoxNH0sImRvY3RyaW5lX3ZlcnNpb24iOiJ2MTEiLCJnYXRlIjoiZ2F0ZV9wdXRuYW1fc21vb3RobmVzcyIsInByZWRpY2F0ZSI6ImxlYW40LXRoZW9yZW0tYXR0ZXN0YXRpb24iLCJzdGF0dXNfbm90ZSI6IlB1dG5hbSAyMDI1IEExIFx1MjAxNCBnY2Qgc3RhYmlsaXphdGlvbiAocmVsYXRpdmVseS1wcmltZSBzZXF1ZW5jZSkiLCJzdWJqZWN0Ijp7ImJsb2Jfc2hhIjoiMTgzNGI1NmJmNGQzYjQ0ODNiZjEzODE1NGI0NzZkOWNiNzJkNzczYiIsImJsb2JfdXJsIjoiaHR0cHM6Ly9naXRodWIuY29tL3N6bC1ob2xkaW5ncy9sdXRhci1sZWFuL2Jsb2IvN2VjNzBiYTc2MGYzOTUzZGIzNDczOGU4ODA1ZDY3YzZjYzY0YmQ3ZS9MdXRhci9QdXRuYW0vUF9BMS5sZWFuIiwiY29tbWl0X3NoYSI6IjdlYzcwYmE3NjBmMzk1M2RiMzQ3MzhlODgwNWQ2N2M2Y2M2NGJkN2UiLCJsZWFuX2ZpbGUiOiJMdXRhci9QdXRuYW0vUF9BMS5sZWFuIiwicmVwbyI6InN6bC1ob2xkaW5ncy9sdXRhci1sZWFuIiwidGhlb3JlbSI6Ikx1dGFyLlB1dG5hbS5QX0ExIn19",
+      "signatures": [
+        {
+          "keyid": "placeholder-ecdsa-p256",
+          "sig": "UExBQ0VIT0xERVItVU5USUwtV0lSRS1ELVNJR05JTkc6Y2Y0MWI5NjJkZTQ2ZDY5ZjExNTllNjU5MmY0Y2YyODkyZmFlZDAxZTU3YzIyYTA4MGU0YjBiZTU2YWIzZjI0OA==",
+          "_note": "placeholder-ecdsa-p256; honest stub. Real ECDSA-P256 signature lands when Wire-D agent's signing pipeline is live. sig encodes SHA-256 of the DSSE PAE preimage for integrity binding only.",
+          "pae_sha256": "cf41b962de46d69f1159e6592f4cf2892faed01e57c22a080e4b0be56ab3f248"
+        }
+      ]
+    },
+    {
+      "payloadType": "application/vnd.szl.iqgate+json",
+      "payload": "eyJfdHlwZSI6Imh0dHBzOi8vc3psaG9sZGluZ3MuZGV2L2lxZ2F0ZS92MSIsImNvbmNlcHRfZG9pIjoiMTAuNTI4MS96ZW5vZG8uMTk5NDQ5MjYiLCJkb2N0cmluZSI6eyJkZWNsYXJhdGlvbnMiOjc0OSwic29ycmllcyI6MTYzLCJ1bmlxdWVfYXhpb21zIjoxNH0sImRvY3RyaW5lX3ZlcnNpb24iOiJ2MTEiLCJnYXRlIjoiZ2F0ZV95dXlheV92M19yZXBsYXkiLCJwcmVkaWNhdGUiOiJsZWFuNC10aGVvcmVtLWF0dGVzdGF0aW9uIiwic3RhdHVzX25vdGUiOiJLMTAgdjIgKyB4b3NoaXJvMjU2KiogZGVjaWRhYmxlIHJlcGxheS1yb290IHByZWRpY2F0ZSAoWXV5YXkgdjMgZGV0ZXJtaW5pc3RpYyByZXBsYXkpIiwic3ViamVjdCI6eyJibG9iX3NoYSI6IjVhNmFhMWViMTgwNThkN2ZkOWEzZGIzYjYwYjQ3NzVkOTY5NTBjZDYiLCJibG9iX3VybCI6Imh0dHBzOi8vZ2l0aHViLmNvbS9zemwtaG9sZGluZ3MvbHV0YXItbGVhbi9ibG9iLzdlYzcwYmE3NjBmMzk1M2RiMzQ3MzhlODgwNWQ2N2M2Y2M2NGJkN2UvTHV0YXIvUFJORy9LMTB2Ml9SZXBsYXlSb290LmxlYW4iLCJjb21taXRfc2hhIjoiN2VjNzBiYTc2MGYzOTUzZGIzNDczOGU4ODA1ZDY3YzZjYzY0YmQ3ZSIsImxlYW5fZmlsZSI6Ikx1dGFyL1BSTkcvSzEwdjJfUmVwbGF5Um9vdC5sZWFuIiwicmVwbyI6InN6bC1ob2xkaW5ncy9sdXRhci1sZWFuIiwidGhlb3JlbSI6IklzUmVwbGF5Um9vdCJ9fQ==",
+      "signatures": [
+        {
+          "keyid": "placeholder-ecdsa-p256",
+          "sig": "UExBQ0VIT0xERVItVU5USUwtV0lSRS1ELVNJR05JTkc6NzNlODBiZGZiMjg3ZjQ4ODI4Yzk5ODE2Yzc1NmViNTdiMGVmOTE0MzBkZTNhMjIxZWQyZmJjN2E1NGZhMTI3YQ==",
+          "_note": "placeholder-ecdsa-p256; honest stub. Real ECDSA-P256 signature lands when Wire-D agent's signing pipeline is live. sig encodes SHA-256 of the DSSE PAE preimage for integrity binding only.",
+          "pae_sha256": "73e80bdfb287f48828c99816c756eb57b0ef91430de3a221ed2fbc7a54fa127a"
+        }
+      ]
+    },
+    {
+      "payloadType": "application/vnd.szl.iqgate+json",
+      "payload": "eyJfdHlwZSI6Imh0dHBzOi8vc3psaG9sZGluZ3MuZGV2L2lxZ2F0ZS92MSIsImNvbmNlcHRfZG9pIjoiMTAuNTI4MS96ZW5vZG8uMTk5NDQ5MjYiLCJkb2N0cmluZSI6eyJkZWNsYXJhdGlvbnMiOjc0OSwic29ycmllcyI6MTYzLCJ1bmlxdWVfYXhpb21zIjoxNH0sImRvY3RyaW5lX3ZlcnNpb24iOiJ2MTEiLCJnYXRlIjoiZ2F0ZV9kb2N0cmluZV92MTFfYXhpb21zXzE0IiwicHJlZGljYXRlIjoibGVhbjQtdGhlb3JlbS1hdHRlc3RhdGlvbiIsInN0YXR1c19ub3RlIjoiRG9jdHJpbmUgdjExIGF4aW9tIGJhc2UgXHUyMDE0IDE0IHVuaXF1ZSBheGlvbXMgKDc0OSBkZWNsYXJhdGlvbnMsIDE2MyBzb3JyaWVzKSIsInN1YmplY3QiOnsiYmxvYl9zaGEiOiJjNTEzZjE5OGIyZjdhMzdhYjI3Mjc4YzE0MWU1MDNmY2FlZjM2ZjgwIiwiYmxvYl91cmwiOiJodHRwczovL2dpdGh1Yi5jb20vc3psLWhvbGRpbmdzL2x1dGFyLWxlYW4vYmxvYi83ZWM3MGJhNzYwZjM5NTNkYjM0NzM4ZTg4MDVkNjdjNmNjNjRiZDdlL0x1dGFyL0F4aW9tcy5sZWFuIiwiY29tbWl0X3NoYSI6IjdlYzcwYmE3NjBmMzk1M2RiMzQ3MzhlODgwNWQ2N2M2Y2M2NGJkN2UiLCJsZWFuX2ZpbGUiOiJMdXRhci9BeGlvbXMubGVhbiIsInJlcG8iOiJzemwtaG9sZGluZ3MvbHV0YXItbGVhbiIsInRoZW9yZW0iOiJMdXRhci5BeGlvbXMgKEExLi5BNCwgQTNfbm9ybWFsaXplKSJ9fQ==",
+      "signatures": [
+        {
+          "keyid": "placeholder-ecdsa-p256",
+          "sig": "UExBQ0VIT0xERVItVU5USUwtV0lSRS1ELVNJR05JTkc6ZGNjMDk1ZWVhMjhhYTJlM2ExNDEyNWFhMDkzMzgyYWMxYzIzYTI5NDk0ZjI2MDgxOWMzODU4NzBlZWIwZWEwNw==",
+          "_note": "placeholder-ecdsa-p256; honest stub. Real ECDSA-P256 signature lands when Wire-D agent's signing pipeline is live. sig encodes SHA-256 of the DSSE PAE preimage for integrity binding only.",
+          "pae_sha256": "dcc095eea28aa2e3a14125aa093382ac1c23a29494f260819c385870eeb0ea07"
+        }
+      ]
+    },
+    {
+      "payloadType": "application/vnd.szl.iqgate+json",
+      "payload": "eyJfdHlwZSI6Imh0dHBzOi8vc3psaG9sZGluZ3MuZGV2L2lxZ2F0ZS92MSIsImNvbmNlcHRfZG9pIjoiMTAuNTI4MS96ZW5vZG8uMTk5NDQ5MjYiLCJkb2N0cmluZSI6eyJkZWNsYXJhdGlvbnMiOjc0OSwic29ycmllcyI6MTYzLCJ1bmlxdWVfYXhpb21zIjoxNH0sImRvY3RyaW5lX3ZlcnNpb24iOiJ2MTEiLCJnYXRlIjoiZ2F0ZV9iZWtlbnN0ZWluX2JvdW5kIiwicHJlZGljYXRlIjoibGVhbjQtdGhlb3JlbS1hdHRlc3RhdGlvbiIsInN0YXR1c19ub3RlIjoiQmVrZW5zdGVpbiBib3VuZCBzY2FmZm9sZCAoYmVrZW5zdGVpbl9ib3VuZCBwcm92ZWQ7IGJla2Vuc3RlaW5fYm91bmRfY29uamVjdHVyZSBzb3JyeS10YWdnZWQpIiwic3ViamVjdCI6eyJibG9iX3NoYSI6IjViOGM4NGE1NzZkOGE5NGZiZjMwYzg5NDc5ZjVlOGZjNDI1ZmVmZjAiLCJibG9iX3VybCI6Imh0dHBzOi8vZ2l0aHViLmNvbS9zemwtaG9sZGluZ3MvbHV0YXItbGVhbi9ibG9iLzdlYzcwYmE3NjBmMzk1M2RiMzQ3MzhlODgwNWQ2N2M2Y2M2NGJkN2UvTHV0YXIvUHV0bmFtL0Jla2Vuc3RlaW5Cb3VuZC5sZWFuIiwiY29tbWl0X3NoYSI6IjdlYzcwYmE3NjBmMzk1M2RiMzQ3MzhlODgwNWQ2N2M2Y2M2NGJkN2UiLCJsZWFuX2ZpbGUiOiJMdXRhci9QdXRuYW0vQmVrZW5zdGVpbkJvdW5kLmxlYW4iLCJyZXBvIjoic3psLWhvbGRpbmdzL2x1dGFyLWxlYW4iLCJ0aGVvcmVtIjoiYmVrZW5zdGVpbl9ib3VuZCJ9fQ==",
+      "signatures": [
+        {
+          "keyid": "placeholder-ecdsa-p256",
+          "sig": "UExBQ0VIT0xERVItVU5USUwtV0lSRS1ELVNJR05JTkc6NjdiOWI0YjU1ZDhmODgyMTBiZDBjYWNmNTM0YmU5ZWVkZjBhN2U4MjQyMTc0OGU3YWZkNDMyNWZjNjc2YzM1NA==",
+          "_note": "placeholder-ecdsa-p256; honest stub. Real ECDSA-P256 signature lands when Wire-D agent's signing pipeline is live. sig encodes SHA-256 of the DSSE PAE preimage for integrity binding only.",
+          "pae_sha256": "67b9b4b55d8f88210bd0cacf534be9eedf0a7e82421748e7afd4325fc676c354"
+        }
+      ]
+    }
+  ]
+}

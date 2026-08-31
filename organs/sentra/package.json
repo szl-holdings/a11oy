@@ -1,0 +1,16 @@
+{
+  "private": true,
+  "scripts": {
+    "test:offline": "bash scripts/offline-quickstart.sh test",
+    "build:offline": "bash scripts/offline-quickstart.sh build",
+    "dev:offline": "bash scripts/offline-quickstart.sh dev"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.16"
+  }
+}

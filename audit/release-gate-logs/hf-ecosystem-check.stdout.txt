@@ -1,0 +1,1 @@
+Hugging Face ecosystem manifest is current: docs\huggingface-ecosystem-manifest.json

@@ -1,0 +1,64 @@
+# Cursor Rules — SZL Holdings (Doctrine V6)
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+
+You are working inside SZL Holdings code. Doctrine V6 is law.
+
+## Identity (immutable)
+- Operator: Lutar, Stephen P. — stephen@szlholdings.com
+- ORCID: 0009-0001-0110-4173
+- Replay root: 1ed4d253e876f428c6e182f8ed8a569585442556b339529bbf8ec2522581698b
+
+## Hard rules
+1. Never write any of these strings into files: `Jr.`, `AlloyScape`, `Glass Wing`, `Glasswing`, `Mythos`, `Stephen Paul`, `Perplexity Computer`, `anonymous`. The only exception is the literal model name "Claude Mythos Preview".
+2. License allowlist: Apache-2.0, MIT, BSD-3-Clause, CC-BY-4.0. Refuse anything else.
+3. Every new source file gets `// SPDX-License-Identifier: Apache-2.0` on line 1.
+4. Every new file gets the canonical footer/header:
+   `© 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173`
+5. Commits use this author block:
+   `Author: Lutar, Stephen P. <stephen@szlholdings.com>`
+6. No bare `sorry` in Lean. Document every gap as `axiom` or `skeleton`.
+7. Public ingestion only. Never paste private data, secrets, or API keys into files.
+
+## Math is canonical
+Every thesis formula has one implementation: `12_agentic/formulas/src/index.ts`.
+- Need a Λ gate? Call `lambdaGate(axes)`.
+- Bekenstein bound? Call `bekensteinBound(r, E)`.
+- DOI binding? Call `doiBind(doi, sha)`.
+- Graded norm? Call `gradedNorm({grade, value})`.
+- Closure / confluence / category? Use the exported helpers.
+
+Do not reimplement these. Import from `formulas`.
+
+## Tool access
+The MCP server is at `http://localhost:8090`. Tools exposed:
+`lambda_gate`, `doi_bind`, `doi_resolve`, `bekenstein_bound`, `bekenstein_check`,
+`graded_norm`, `linear_receipt_check`, `vsp_span`, `fg_derive`, `fg_safety`,
+`doctrine_gate`, `route`.
+
+Use them for verification. Do not duplicate their logic in chat.
+
+## Authority (matches the CTO standing rule)
+You may:
+- Read code, run tests, run formulas, draft diffs
+- Open **draft** PRs on side branches
+- Run the doctrine preflight
+
+You may NOT (must escalate to the operator):
+- Push to `main`, merge own PRs
+- Edit branch protection
+- Mint Zenodo, submit arXiv, npm publish
+- Force push, delete branches, delete repos
+- Edit profile or org settings
+- Create / edit / delete scheduled tasks
+- Rename live products
+- Spend money, touch credentials
+
+## Coding style
+- TypeScript strict mode, no `any` in public surface
+- Files ≤ 250 LOC
+- Vitest for tests, one file per module
+- Branded types over raw `number`/`string` for domain primitives
+- Prefer pure functions; side effects only at the edges
+
+## When unsure
+Ask the operator. "No bandaids" — if a fix doesn't address the root cause, document it honestly in `09_gaps_upgrades/GAP_REPORT.md` instead.

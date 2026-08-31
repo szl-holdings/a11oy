@@ -1,0 +1,20 @@
+{
+  "replay_id": "replay-demo-001",
+  "original_claim_id": "claim-demo-001",
+  "policy_id": "policy-exec-bounds",
+  "tool_id": "tool-read-only-executor",
+  "input_digest": "81295f6b3511d03d0e074d401aa04ca6d70c347cd17c2b694c08c207325eb23a",
+  "environment": {
+    "mode": "counterfactual",
+    "candidate_policy": "policy-exec-bounds",
+    "approved_by": "approval-demo-001"
+  },
+  "result": {
+    "decision": "blocked-by-policy-change",
+    "reasons": [
+      "requires-organization-level-human-approval",
+      "policy-version-mismatch"
+    ]
+  },
+  "notes": "Counterfactual replay intended to demonstrate policy-sensitive drift capture before re-execution."
+}

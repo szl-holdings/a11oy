@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>a11oy — governance substrate · SZL Holdings</title>
+  <meta name="description" content="/v1/policy/evaluate · /v1/verify · /v1/ledger — one substrate, hash-chained, deny by default."/>
+  <meta property="og:title" content="a11oy — governance substrate · SZL Holdings"/>
+  <meta property="og:description" content="/v1/policy/evaluate · /v1/verify · /v1/ledger — one substrate, hash-chained, deny by default."/>
+  <meta property="og:image" content="assets/hero_a11oy.png"/>
+  <meta property="og:type" content="website"/>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+</head>
+<body>
+
+<a href="#main" class="skip">Skip to main content</a>
+
+<!-- ===== HEADER: bracketed identity chip (left) + CTA pill (right) ===== -->
+<header class="site-header">
+  <div class="header-inner">
+    <div class="brand">
+      <span class="brand-mark mono">A</span>
+      <span class="brand-name">a11oy</span>
+      <span class="brand-tag mono">/ governance substrate</span>
+    </div>
+    <a class="cta-pill" href="#try-it">
+      Try it live <span class="cta-arrow" aria-hidden="true">→</span>
+    </a>
+  </div>
+</header>
+
+<!-- ===== HERO ===== -->
+<main id="main">
+  <section class="hero">
+    <div class="grid-bg" aria-hidden="true"></div>
+
+    <div class="hero-rail hero-rail-left mono" aria-hidden="true">
+      <span>BASIN · GLOBAL</span><span>FEED · SIGNED</span><span>POSTURE · UNDERWAY</span>
+    </div>
+    <div class="hero-rail hero-rail-right mono" aria-hidden="true">
+      <span>NODE · A11OY-01</span><span>EPOCH · 2026.Q2</span>
+      <span class="rail-live"><span class="live-dot"></span>LIVE · RT</span>
+    </div>
+
+    <div class="hero-inner">
+      <div class="eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span class="eyebrow-text mono">· GOVERNANCE SUBSTRATE · SERIES A</span>
+      </div>
+
+      <h1 class="headline">
+        Every action signed. Every decision gated. Every receipt <span class="accent">verifiable.</span>
+      </h1>
+
+      <p class="support">/v1/policy/evaluate · /v1/verify · /v1/ledger — one substrate, hash-chained, deny by default.</p>
+
+      <div class="hero-ctas">
+        <a class="btn-primary" href="/console/">
+          Open console <span class="cta-arrow" aria-hidden="true">→</span>
+        </a>
+      </div>
+
+      <div class="hero-portrait">
+        <img src="assets/hero_a11oy.png" alt="a11oy painterly identity portrait" loading="eager"/>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== TRY IT PANEL (below founder-locked hero) ===== -->
+  <section class="reasoner-section" id="try-it" aria-label="a11oy live API demo">
+    <div class="reasoner-inner">
+      <div class="reasoner-eyebrow">
+        <span class="eyebrow-dot"></span>
+        <span class="reasoner-eyebrow-text">· governance substrate · api surface</span>
+      </div>
+      <h2 class="reasoner-heading">a11oy — policy gates &amp; receipts</h2>
+      <p class="reasoner-sub">Evaluate a policy action, inspect the receipt ledger, and verify chain integrity — directly against the live API. 749 decl / 14 axioms / 168 sorries.</p>
+
+      <div class="reasoner-controls">
+        <button class="r-btn r-btn-primary" id="btn-evaluate" onclick="runEvaluate()">&#9654; Evaluate sample policy</button>
+        <button class="r-btn" id="btn-ledger" onclick="showLedger()">&#x25A4; Show receipt ledger</button>
+        <button class="r-btn" id="btn-verify" onclick="runVerify()">&#x26A0; Verify a receipt</button>
+      </div>
+
+      <div class="reasoner-output">
+        <div class="output-label">
+          <span id="output-title">OUTPUT</span>
+          <span class="output-status">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">idle</span>
+          </span>
+        </div>
+        <pre class="output-pre" id="output-pre" role="log" aria-live="polite" aria-label="API response output"></pre>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <span class="footer-name">a11oy</span>
+      <span class="mono footer-by">/ by SZL Holdings</span>
+    </div>
+    <span class="mono footer-note">Counsel-governed · A11oy-orchestrated</span>
+  </div>
+</footer>
+
+<!-- Rosie floating operator widget (additive). Canonical source: SZLHOLDINGS/README assets/rosie. -->
+<link rel="stylesheet" href="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.css">
+<script src="https://szlholdings-readme.static.hf.space/assets/rosie/rosie-widget.js"
+        data-surface="a11oy"
+        data-a11oy-base="/api/a11oy"
+        defer></script>
+
+<script>
+/* a11oy try-it panel — Hampichiq II hardening pass */
+const API_BASE = '/api/a11oy';
+
+function setStatus(state, text) {
+  const dot = document.getElementById('status-dot');
+  const stxt = document.getElementById('status-text');
+  dot.className = 'status-dot ' + (state || '');
+  stxt.textContent = text || state || 'idle';
+}
+
+function setOutput(title, text) {
+  document.getElementById('output-title').textContent = title || 'OUTPUT';
+  document.getElementById('output-pre').textContent = text;
+}
+
+function formatJson(obj) {
+  return JSON.stringify(obj, null, 2);
+}
+
+function disableButtons(disabled) {
+  ['btn-evaluate', 'btn-ledger', 'btn-verify'].forEach(function(id) {
+    document.getElementById(id).disabled = disabled;
+  });
+}
+
+async function runEvaluate() {
+  disableButtons(true);
+  setStatus('loading', 'evaluating policy…');
+  setOutput('POLICY EVALUATE', '');
+  try {
+    const res = await fetch(API_BASE + '/v1/policy/evaluate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actionId: 'landing-demo',
+        severity: 'medium',
+        confidence: 0.9,
+        witnesses: ['agent-a', 'agent-b']
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+    const label = data.decision === 'allow' ? 'ALLOW ✓' : 'DENY ✗';
+    setStatus('ok', label + ' via ' + (data.gate || 'gate'));
+    setOutput('POLICY EVALUATE — ' + label, formatJson(data));
+  } catch (err) {
+    setStatus('err', 'error');
+    setOutput('POLICY EVALUATE — ERROR', String(err));
+  } finally {
+    disableButtons(false);
+  }
+}
+
+async function showLedger() {
+  disableButtons(true);
+  setStatus('loading', 'fetching ledger…');
+  setOutput('RECEIPT LEDGER', '');
+  try {
+    const res = await fetch(API_BASE + '/v1/ledger?limit=10');
+    const data = await res.json();
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+    setStatus('ok', 'ledger ✓ total ' + data.total);
+    setOutput('RECEIPT LEDGER — ' + data.count + ' of ' + data.total + ' receipts', formatJson(data));
+  } catch (err) {
+    setStatus('err', 'error');
+    setOutput('RECEIPT LEDGER — ERROR', String(err));
+  } finally {
+    disableButtons(false);
+  }
+}
+
+async function runVerify() {
+  disableButtons(true);
+  setStatus('loading', 'verifying receipt chain…');
+  setOutput('VERIFY RECEIPT', '');
+  try {
+    const res = await fetch(API_BASE + '/v1/verify', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ledger: [] }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error('HTTP ' + res.status + ': ' + JSON.stringify(data));
+    const label = data.valid ? 'VALID ✓' : 'INVALID ✗';
+    setStatus(data.valid ? 'ok' : 'err', label);
+    setOutput('VERIFY RECEIPT — ' + label, formatJson(data));
+  } catch (err) {
+    setStatus('err', 'error');
+    setOutput('VERIFY RECEIPT — ERROR', String(err));
+  } finally {
+    disableButtons(false);
+  }
+}
+</script>
+
+</body>
+</html>

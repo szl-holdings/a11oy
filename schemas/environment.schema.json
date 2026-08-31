@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/environment.schema.json",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "title": "Reproducible serving environment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["environment_id", "hardware", "software", "model", "tokenizer", "benchmark_client"],
+  "properties": {
+    "environment_id": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "hardware": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["gpu_model", "gpu_count", "gpu_memory_bytes", "cpu_model", "ram_bytes"],
+      "properties": {
+        "gpu_model": {"type": "string"},
+        "gpu_count": {"type": "integer", "minimum": 1},
+        "gpu_memory_bytes": {"type": "integer", "minimum": 1},
+        "cpu_model": {"type": "string"},
+        "ram_bytes": {"type": "integer", "minimum": 1}
+      }
+    },
+    "software": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os_image_digest", "driver_version", "cuda_version"],
+      "properties": {
+        "os_image_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "driver_version": {"type": "string"},
+        "cuda_version": {"type": "string"}
+      }
+    },
+    "model": {"type": "string", "pattern": "^[^@\\s]+@[0-9a-f]{7,64}$"},
+    "tokenizer": {"type": "string", "pattern": "^[^@\\s]+@[0-9a-f]{7,64}$"},
+    "benchmark_client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version", "artifact_digest"],
+      "properties": {
+        "name": {"const": "vllm-bench"},
+        "version": {"const": "0.1.0"},
+        "artifact_digest": {"const": "sha256:e2e246dfe34cd603b85e4d763f9aa6d60940be8b9cef48221f8a70d78420716c"}
+      }
+    }
+  }
+}

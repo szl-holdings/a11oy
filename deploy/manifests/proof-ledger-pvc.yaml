@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: a11oy-proof-ledger
+  namespace: a11oy
+  labels:
+    app.kubernetes.io/name: a11oy
+    app.kubernetes.io/part-of: szl-mesh
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi

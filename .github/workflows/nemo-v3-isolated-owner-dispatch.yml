@@ -1,0 +1,537 @@
+name: Nemo v3 isolated owner GPU dispatch
+
+# repository_dispatch always loads this workflow from the protected default
+# branch. Transport v3 admits one exact nested client_payload.selection object
+# so the complete immutable binding remains below GitHub's top-level property
+# limit. The caller selects only the protected envelope-data revision; the
+# b804-signed payload selects the older protected Bridge revision that may
+# execute. The managed Hub credential is scoped to two trusted helper steps
+# and never enters the networkless remote-code execution container.
+
+on:
+  repository_dispatch:
+    types: [nemo-v3-isolated-owner-gpu]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nemo-v3-isolated-owner-gpu-attempt
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    name: Execute one credential-separated Nemo v3 attempt
+    if: >-
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch) &&
+      github.ref_protected &&
+      github.actor == 'stephenlutar2-hash' &&
+      github.triggering_actor == 'stephenlutar2-hash'
+    runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
+    timeout-minutes: 330
+    env:
+      OWNER_DISPATCH_V3_JSON: ${{ toJson(github.event.client_payload) }}
+      TRAINING_IMAGE: unsloth/unsloth@sha256:9cc97606fc386b4b13455285eb7bd2668f51530988a9c2578707fe6cdfc46123
+      BRIDGE_ROOT: C:\szl-bridge
+      CACHE_ROOT: C:\szl-bridge-cache
+    steps:
+      - name: Check out the exact dispatched default-branch revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate explicit owner dispatch selection
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $git = Get-Command git.exe -ErrorAction SilentlyContinue
+          if ($git) {
+            $gitExecutable = $git.Source
+          } else {
+            $gitPath = (
+              "C:\Users\steph\.cache\codex-runtimes\codex-primary-runtime" +
+              "\dependencies\native\git\cmd\git.exe"
+            )
+            if (-not (Test-Path -LiteralPath $gitPath -PathType Leaf)) {
+              throw "Git is unavailable on the owner runner."
+            }
+            $gitExecutable = $gitPath
+            Add-Content `
+              -LiteralPath $env:GITHUB_PATH `
+              -Value (Split-Path -Parent $gitPath)
+          }
+
+          $python = (
+            "C:\Users\steph\.cache\codex-runtimes\codex-primary-runtime" +
+            "\dependencies\python\python.exe"
+          )
+          if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
+            $pythonCommand = Get-Command python.exe -ErrorAction Stop
+            $python = $pythonCommand.Source
+          }
+
+          $observed = (
+            & $gitExecutable -C $env:GITHUB_WORKSPACE rev-parse HEAD
+          ).Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $observed -cne "${{ github.sha }}"
+          ) {
+            throw "Checked-out source is not the exact dispatched github.sha."
+          }
+          if (
+            & $gitExecutable -C $env:GITHUB_WORKSPACE status `
+              --porcelain `
+              --untracked-files=all
+          ) {
+            throw "Exact dispatched source has tracked modifications."
+          }
+          $workflowBlob = (
+            & $gitExecutable -C $env:GITHUB_WORKSPACE rev-parse (
+              "${{ github.sha }}:" +
+              ".github/workflows/nemo-v3-isolated-owner-dispatch.yml"
+            )
+          ).Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $workflowBlob -cnotmatch "^[0-9a-f]{40}$"
+          ) {
+            throw "Protected owner workflow blob could not be resolved."
+          }
+
+          & $python `
+            (Join-Path $env:GITHUB_WORKSPACE (
+              "scripts\validate_nemo_v3_owner_dispatch.py"
+            )) `
+            select `
+            --dispatch-json-env OWNER_DISPATCH_V3_JSON `
+            --github-sha "${{ github.sha }}" `
+            --workflow-path (
+              Join-Path $env:GITHUB_WORKSPACE (
+                ".github\workflows\nemo-v3-isolated-owner-dispatch.yml"
+              )
+            ) `
+            --workflow-blob $workflowBlob `
+            --github-env $env:GITHUB_ENV
+          if ($LASTEXITCODE -ne 0) {
+            throw "Explicit owner dispatch selection was rejected."
+          }
+
+          "GIT_EXECUTABLE=$gitExecutable" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+          "HOST_PYTHON=$python" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Verify exact signed envelope as data
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $envelopeSource = Join-Path $env:RUNNER_TEMP (
+            "szl-gpu-bridge-envelope-" + $env:GITHUB_RUN_ID
+          )
+          $control = Join-Path $env:RUNNER_TEMP (
+            "szl-nemo-control-" + $env:GITHUB_RUN_ID
+          )
+          if (
+            (Test-Path -LiteralPath $envelopeSource) -or
+            (Test-Path -LiteralPath $control)
+          ) {
+            throw "Per-run envelope or control path already exists."
+          }
+
+          $remoteMain = (
+            & $env:GIT_EXECUTABLE ls-remote `
+              https://github.com/szl-holdings/szl-gpu-bridge.git `
+              refs/heads/main
+          ).Split("`t")[0].Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $remoteMain -cnotmatch "^[0-9a-f]{40}$" -or
+            $remoteMain -cne $env:ENVELOPE_REVISION
+          ) {
+            throw "Envelope revision is not exact current protected Bridge main."
+          }
+
+          & $env:GIT_EXECUTABLE clone `
+            --filter=blob:none `
+            --no-checkout `
+            https://github.com/szl-holdings/szl-gpu-bridge.git `
+            $envelopeSource
+          if ($LASTEXITCODE -ne 0) {
+            throw "Envelope-source clone failed."
+          }
+          & $env:GIT_EXECUTABLE -C $envelopeSource fetch `
+            origin `
+            main
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact protected Bridge main fetch failed."
+          }
+          & $env:GIT_EXECUTABLE -C $envelopeSource checkout `
+            --detach `
+            $env:ENVELOPE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact envelope revision checkout failed."
+          }
+          $observed = (
+            & $env:GIT_EXECUTABLE -C $envelopeSource rev-parse HEAD
+          ).Trim()
+          if ($observed -cne $env:ENVELOPE_REVISION) {
+            throw "Envelope source revision mismatch: $observed"
+          }
+          if (
+            & $env:GIT_EXECUTABLE -C $envelopeSource status `
+              --porcelain `
+              --untracked-files=all
+          ) {
+            throw "Exact envelope source is dirty."
+          }
+
+          $controlLock = Join-Path $env:GITHUB_WORKSPACE (
+            ".github\requirements\nemo-v3-control-win-py312.lock"
+          )
+          if (-not (Test-Path -LiteralPath $controlLock -PathType Leaf)) {
+            throw "Hash-verified trusted-control lock file is missing."
+          }
+          & $env:HOST_PYTHON -m venv $control
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted control virtual environment creation failed."
+          }
+          $controlPython = Join-Path $control "Scripts\python.exe"
+          & $controlPython -m pip install `
+            --disable-pip-version-check `
+            --require-hashes `
+            --only-binary=:all: `
+            --no-deps `
+            --requirement $controlLock
+          if ($LASTEXITCODE -ne 0) {
+            throw "Hash-verified trusted control dependency installation failed."
+          }
+          & $controlPython -m pip check
+          if ($LASTEXITCODE -ne 0) {
+            throw "Hash-verified trusted control dependency set is inconsistent."
+          }
+
+          & $controlPython `
+            (Join-Path $env:GITHUB_WORKSPACE (
+              "scripts\validate_nemo_v3_owner_dispatch.py"
+            )) `
+            verify-envelope `
+            --dispatch-json-env OWNER_DISPATCH_V3_JSON `
+            --github-sha "${{ github.sha }}" `
+            --workflow-path (
+              Join-Path $env:GITHUB_WORKSPACE (
+                ".github\workflows\nemo-v3-isolated-owner-dispatch.yml"
+              )
+            ) `
+            --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
+            --envelope-source $envelopeSource `
+            --github-env $env:GITHUB_ENV
+          if ($LASTEXITCODE -ne 0) {
+            throw "Owner signature or exact envelope binding was rejected."
+          }
+
+          "ENVELOPE_SOURCE=$envelopeSource" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+          "PROTECTED_BRIDGE_MAIN=$remoteMain" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+          "CONTROL_PYTHON=$controlPython" |
+            Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Prepare signed execution source and GPU image
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $source = Join-Path $env:RUNNER_TEMP (
+            "szl-gpu-bridge-runtime-" + $env:GITHUB_RUN_ID
+          )
+          if (Test-Path -LiteralPath $source) {
+            throw "Per-run execution source already exists."
+          }
+
+          & $env:GIT_EXECUTABLE -C $env:ENVELOPE_SOURCE fetch `
+            origin `
+            $env:EXECUTION_BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Signed execution revision fetch failed."
+          }
+          & $env:GIT_EXECUTABLE clone `
+            --filter=blob:none `
+            --no-checkout `
+            https://github.com/szl-holdings/szl-gpu-bridge.git `
+            $source
+          if ($LASTEXITCODE -ne 0) {
+            throw "Execution-source clone failed."
+          }
+          & $env:GIT_EXECUTABLE -C $source fetch `
+            --depth=1 `
+            origin `
+            $env:EXECUTION_BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact execution revision fetch failed."
+          }
+          & $env:GIT_EXECUTABLE -C $source checkout `
+            --detach `
+            $env:EXECUTION_BRIDGE_REVISION
+          if ($LASTEXITCODE -ne 0) {
+            throw "Exact execution revision checkout failed."
+          }
+
+          $confirmedMain = (
+            & $env:GIT_EXECUTABLE ls-remote `
+              https://github.com/szl-holdings/szl-gpu-bridge.git `
+              refs/heads/main
+          ).Split("`t")[0].Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $confirmedMain -cne $env:PROTECTED_BRIDGE_MAIN
+          ) {
+            throw "Protected Bridge main advanced during admission."
+          }
+
+          & $env:CONTROL_PYTHON `
+            (Join-Path $env:GITHUB_WORKSPACE (
+              "scripts\validate_nemo_v3_owner_dispatch.py"
+            )) `
+            verify-history `
+            --dispatch-json-env OWNER_DISPATCH_V3_JSON `
+            --github-sha "${{ github.sha }}" `
+            --workflow-path (
+              Join-Path $env:GITHUB_WORKSPACE (
+                ".github\workflows\nemo-v3-isolated-owner-dispatch.yml"
+              )
+            ) `
+            --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
+            --envelope-source $env:ENVELOPE_SOURCE `
+            --execution-source $source `
+            --remote-main $confirmedMain `
+            --git-executable $env:GIT_EXECUTABLE
+          if ($LASTEXITCODE -ne 0) {
+            throw "Signed Bridge runtime is not protected immutable history."
+          }
+
+          $docker = (Get-Command docker.exe -ErrorAction Stop).Source
+          & $docker pull $env:TRAINING_IMAGE
+          if ($LASTEXITCODE -ne 0) {
+            throw "Digest-pinned Unsloth image pull failed."
+          }
+          & $docker run `
+            --rm `
+            --gpus all `
+            --network none `
+            --entrypoint python `
+            $env:TRAINING_IMAGE `
+            -c "import torch; assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Digest-pinned container cannot access the owner GPU."
+          }
+
+          "BRIDGE_SOURCE=$source" | Add-Content -LiteralPath $env:GITHUB_ENV
+
+      - name: Prefetch exact authenticated inputs without executing model code
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:HF_TOKEN)) {
+            throw "HF_TOKEN was not injected into the trusted prefetch step."
+          }
+
+          $hfCache = Join-Path $env:CACHE_ROOT "huggingface\hub"
+          $inputCache = Join-Path $env:CACHE_ROOT "inputs"
+          foreach ($directory in @($hfCache, $inputCache)) {
+            if (-not (Test-Path -LiteralPath $directory)) {
+              New-Item -ItemType Directory -Path $directory | Out-Null
+            }
+          }
+          $spec = $env:VERIFIED_ENVELOPE_PATH
+          $engineKey = Join-Path $env:BRIDGE_SOURCE (
+            "keys\engine_pubkey_" + $env:ENGINE_KEY_ID + ".json"
+          )
+          $receipt = Join-Path $inputCache ($env:JOB_ID + "-prefetch.json")
+
+          & $env:CONTROL_PYTHON `
+            -B `
+            (Join-Path $env:BRIDGE_SOURCE "laptop\prefetch_nemo_v3.py") `
+            --spec $spec `
+            --engine-key $engineKey `
+            --job-id $env:JOB_ID `
+            --source-revision "${{ github.sha }}" `
+            --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
+            --execution-bridge-revision $env:EXECUTION_BRIDGE_REVISION `
+            --hf-cache $hfCache `
+            --input-cache $inputCache `
+            --receipt $receipt
+          if ($LASTEXITCODE -ne 0) {
+            throw "Authenticated prefetch failed."
+          }
+
+      - name: Atomically claim the single governed attempt
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $claimMain = (
+            & $env:GIT_EXECUTABLE ls-remote `
+              https://github.com/szl-holdings/szl-gpu-bridge.git `
+              refs/heads/main
+          ).Split("`t")[0].Trim()
+          if (
+            $LASTEXITCODE -ne 0 -or
+            $claimMain -cne $env:PROTECTED_BRIDGE_MAIN
+          ) {
+            throw "Protected Bridge main advanced before atomic claim."
+          }
+
+          & $env:CONTROL_PYTHON `
+            (Join-Path $env:GITHUB_WORKSPACE (
+              "scripts\validate_nemo_v3_owner_dispatch.py"
+            )) `
+            create-claim `
+            --dispatch-json-env OWNER_DISPATCH_V3_JSON `
+            --github-sha "${{ github.sha }}" `
+            --workflow-path (
+              Join-Path $env:GITHUB_WORKSPACE (
+                ".github\workflows\nemo-v3-isolated-owner-dispatch.yml"
+              )
+            ) `
+            --workflow-blob $env:EXPECTED_WORKFLOW_BLOB `
+            --envelope-source $env:ENVELOPE_SOURCE `
+            --execution-source $env:BRIDGE_SOURCE `
+            --remote-main $claimMain `
+            --git-executable $env:GIT_EXECUTABLE `
+            --bridge-root $env:BRIDGE_ROOT `
+            --run-id "${{ github.run_id }}" `
+            --run-attempt "${{ github.run_attempt }}"
+          if ($LASTEXITCODE -ne 0) {
+            throw "The selected governed attempt could not be claimed."
+          }
+
+      - name: Execute remote model code without network, credentials, or signing key
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        run: |
+          $ErrorActionPreference = "Stop"
+          & powershell.exe `
+            -NoProfile `
+            -NonInteractive `
+            -ExecutionPolicy Bypass `
+            -File (
+              Join-Path $env:BRIDGE_SOURCE "laptop\run_nemo_v3_isolated.ps1"
+            ) `
+            -JobId $env:JOB_ID `
+            -BridgeRevision $env:EXECUTION_BRIDGE_REVISION `
+            -Image $env:TRAINING_IMAGE `
+            -BridgeSource $env:BRIDGE_SOURCE `
+            -EnvelopePath $env:VERIFIED_ENVELOPE_PATH `
+            -BridgeRoot $env:BRIDGE_ROOT `
+            -HfCache (Join-Path $env:CACHE_ROOT "huggingface\hub") `
+            -InputCache (Join-Path $env:CACHE_ROOT "inputs")
+          if ($LASTEXITCODE -ne 0) {
+            throw "Credentialless GPU execution failed."
+          }
+
+      - name: Sign, upload, and immutably read back the fresh receipt
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          $ErrorActionPreference = "Stop"
+          if ([string]::IsNullOrWhiteSpace($env:HF_TOKEN)) {
+            throw "HF_TOKEN was not injected into the trusted finalizer step."
+          }
+
+          $jobRoot = Join-Path $env:BRIDGE_ROOT ("jobs\" + $env:JOB_ID)
+          $outbox = Join-Path $jobRoot "receipt-outbox"
+          $intents = @(
+            Get-ChildItem -LiteralPath $outbox -Filter "*.intent.json" -File
+          )
+          if ($intents.Count -ne 1) {
+            throw "Expected one fresh receipt intent; found $($intents.Count)."
+          }
+          $intent = Get-Content -LiteralPath $intents[0].FullName -Raw |
+            ConvertFrom-Json
+          $allowedReceiptNames = @(
+            "blocked_receipt.signed.json",
+            "nemo-v3-qualified.signed.json",
+            "nemo-v3-terminal.signed.json"
+          )
+          if ($intent.requestedReceiptName -notin $allowedReceiptNames) {
+            throw "Receipt intent requested an unapproved file name."
+          }
+          $expectedIntentName = (
+            $intent.requestedReceiptName -replace "\.signed\.json$", ".intent.json"
+          )
+          if ($intents[0].Name -cne $expectedIntentName) {
+            throw "Receipt intent file name does not match its requested receipt."
+          }
+          $notBefore = Get-Content -LiteralPath (
+            Join-Path $env:BRIDGE_ROOT (
+              "control\" + $env:JOB_ID + "-not-before.txt"
+            )
+          ) -Raw
+
+          & $env:CONTROL_PYTHON `
+            (Join-Path $env:BRIDGE_SOURCE "laptop\finalize_nemo_v3_receipt.py") `
+            --spec $env:VERIFIED_ENVELOPE_PATH `
+            --intent $intents[0].FullName `
+            --engine-key (
+              Join-Path $env:BRIDGE_SOURCE (
+                "keys\engine_pubkey_" + $env:ENGINE_KEY_ID + ".json"
+              )
+            ) `
+            --bridge-root $env:BRIDGE_ROOT `
+            --not-before $notBefore.Trim() `
+            --claim (
+              Join-Path $env:BRIDGE_ROOT (
+                "control\attempt-claims\" + $env:JOB_ID + ".json"
+              )
+            ) `
+            --execution-bridge-revision $env:EXECUTION_BRIDGE_REVISION `
+            --ledger (Join-Path $env:BRIDGE_ROOT "jobs\seen.txt")
+          if ($LASTEXITCODE -ne 0) {
+            throw "Trusted receipt finalization failed."
+          }
+
+      - name: Remove per-run trusted source and control runtime
+        if: ${{ always() }}
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File {0}
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          $runnerTemp = [IO.Path]::GetFullPath(
+            $env:RUNNER_TEMP
+          ).TrimEnd("\") + "\"
+          $temporaryPaths = @(
+            (Join-Path $env:RUNNER_TEMP (
+              "szl-gpu-bridge-envelope-" + $env:GITHUB_RUN_ID
+            )),
+            (Join-Path $env:RUNNER_TEMP (
+              "szl-gpu-bridge-runtime-" + $env:GITHUB_RUN_ID
+            )),
+            (Join-Path $env:RUNNER_TEMP (
+              "szl-nemo-control-" + $env:GITHUB_RUN_ID
+            ))
+          )
+          foreach ($path in $temporaryPaths) {
+            $resolved = [IO.Path]::GetFullPath($path)
+            $leaf = Split-Path -Leaf $resolved
+            if (
+              -not $resolved.StartsWith(
+                $runnerTemp,
+                [StringComparison]::OrdinalIgnoreCase
+              ) -or
+              $leaf -notmatch (
+                "^szl-(gpu-bridge-(envelope|runtime)|nemo-control)-[0-9]+$"
+              )
+            ) {
+              throw "Refusing to clean an unexpected path: $resolved"
+            }
+            if (Test-Path -LiteralPath $resolved) {
+              Remove-Item -LiteralPath $resolved -Recurse -Force
+            }
+          }

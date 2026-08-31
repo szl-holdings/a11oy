@@ -1,0 +1,257 @@
+name: Zarf Build and Sign (a11oy)
+
+# Real Zarf package build path for a11oy targeting uds-v0.3.1-rc.1.
+#
+# Per founder reframe 2026-05-30 ~15:27 EDT, a11oy is the Warhacker focal demo
+# target (the governed agentic execution fabric). This workflow is the
+# v0.3.1-rc.1 build path: it builds the OCI image from the repo Dockerfile, runs a
+# real `zarf package create` against the in-repo deploy/zarf.yaml skeleton, signs the
+# resulting .tar.zst with cosign keyless (reusing the pattern proven in
+# vessels/.github/workflows/uds-sign-release.yml), and uploads the signed assets to a
+# GitHub release named uds-v0.3.1-rc.1.
+#
+# DELIBERATE SAFETY DESIGN (matches the founder's doctrine):
+#   * Trigger is workflow_dispatch ONLY — never on tag push, never automatic.
+#     The founder triggers it manually after reviewing this PR. No tag is moved.
+#   * The release uds-v0.3.1-rc.1 is created BY this dispatch (a new name), not an
+#     existing tag. `gh release create … --target main` cuts it at dispatch time.
+#   * Image is pushed only when this dispatch runs. Opening/merging the PR pushes
+#     nothing.
+#
+# Produces the four things the PhD Systems Scope-2 audit found MISSING from the
+# v0.2.0 source-archive tarballs:
+#   zarf.yaml, checksums.txt, images/ (OCI layout), components/ (compressed).
+#
+# Cosign keyless verification (no stored key; GitHub OIDC + Fulcio + Rekor):
+#   cosign verify-blob \
+#     --certificate-identity-regexp \
+#       "https://github.com/szl-holdings/a11oy/.github/workflows/zarf-build-and-sign.yml.*" \
+#     --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+#     --bundle zarf-package-a11oy-amd64-uds-v0.3.1-rc.1.tar.zst.sigstore.json \
+#     zarf-package-a11oy-amd64-uds-v0.3.1-rc.1.tar.zst
+#
+# References:
+#   Zarf package create:  https://docs.zarf.dev/ref/create/
+#   UDS Core docs:         https://uds.defenseunicorns.com/core/
+#   Cosign keyless:        https://docs.sigstore.dev/cosign/signing/signing_with_blobs/
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_name:
+        description: 'Release name to create and upload to (founder-controlled)'
+        required: true
+        default: 'uds-v0.3.1-rc.1'
+        type: string
+      push_image:
+        description: 'Push the OCI image to GHCR (set true only when ready)'
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  build-sign-release:
+    name: Build image, zarf create, sign, release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write      # create release + upload assets
+      packages: write      # push OCI image to GHCR (only if push_image=true)
+      id-token: write      # cosign keyless OIDC token
+
+    env:
+      IMAGE: ghcr.io/szl-holdings/a11oy
+      # The image tag a11oy's deploy/zarf.yaml (and deploy/manifests) resolve to.
+      # NOTE: deploy/zarf.yaml currently pins ghcr.io/szl-holdings/a11oy:v1.0.0-alpha.
+      # For the rc, we build+tag rc.1 and retag :v1.0.0-alpha so `zarf package create`
+      # can vendor the layer the skeleton references without editing the skeleton.
+      IMAGE_TAG: uds-v0.3.1-rc.1
+      SKELETON_TAG: v1.0.0-alpha
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - name: Log in to GHCR
+        if: ${{ inputs.push_image }}
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build OCI image from repo Dockerfile
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          file: Dockerfile
+          # push only when explicitly requested via dispatch input
+          push: ${{ inputs.push_image }}
+          load: ${{ inputs.push_image == false }}
+          tags: |
+            ${{ env.IMAGE }}:${{ env.IMAGE_TAG }}
+            ${{ env.IMAGE }}:${{ env.SKELETON_TAG }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/szl-holdings/a11oy
+            org.opencontainers.image.description=A11oy — Brand Orchestration Layer
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ env.IMAGE_TAG }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Install Zarf
+        # Download Zarf v0.77.0 binary directly from GitHub releases.
+        # Replaces defenseunicorns/setup-zarf action (not in org allowlist).
+        # Zarf v0.77.0 adds keyless signing + offline verification.
+        run: |
+          ZARF_VERSION=v0.77.0
+          curl -fsSL "https://github.com/zarf-dev/zarf/releases/download/${ZARF_VERSION}/zarf_${ZARF_VERSION}_Linux_amd64" \
+            -o /usr/local/bin/zarf
+          chmod +x /usr/local/bin/zarf
+          zarf version
+
+      - name: zarf package create (dry-run inspect of the skeleton)
+        run: |
+          echo "Skeleton at deploy/zarf.yaml:"
+          cat deploy/zarf.yaml
+          echo "---"
+          # Confirm the package config is parseable and lists the expected refs.
+          # `zarf dev lint` validates the schema without building.
+          zarf dev lint deploy/ || echo "lint reported findings (see above)"
+
+      - name: zarf package create (real build from deploy/ skeleton)
+        run: |
+          # Build the real Zarf package. With the image present locally
+          # (load=true) or pushed to GHCR (push_image=true), Zarf vendors the
+          # image layer into images/ — producing a deployable package, not a
+          # source archive.
+          zarf package create deploy/ \
+            --confirm \
+            --architecture amd64 \
+            --output .
+          echo "=== built artifacts ==="
+          ls -la zarf-package-*.tar.zst
+
+      - name: Inspect package — prove the 4 required parts exist
+        run: |
+          PKG=$(ls zarf-package-a11oy-amd64-*.tar.zst | head -1)
+          echo "Inspecting ${PKG}"
+          # List the tarball contents and assert the four parts the PhD audit
+          # said were missing from the v0.2.0 source archives.
+          tar -I zstd -tf "${PKG}" > /tmp/pkg-listing.txt || zstd -dc "${PKG}" | tar -tf - > /tmp/pkg-listing.txt
+          echo "--- listing (head) ---"; head -40 /tmp/pkg-listing.txt
+          for part in "zarf.yaml" "checksums.txt" "images/" "components/"; do
+            if grep -q "${part}" /tmp/pkg-listing.txt; then
+              echo "PRESENT: ${part}"
+            else
+              echo "MISSING: ${part}"; exit 1
+            fi
+          done
+          echo "All four required parts present."
+
+      - name: Rename package to release-friendly name
+        id: pkg
+        run: |
+          SRC=$(ls zarf-package-a11oy-amd64-*.tar.zst | head -1)
+          DST="zarf-package-a11oy-amd64-${{ env.IMAGE_TAG }}.tar.zst"
+          [ "${SRC}" != "${DST}" ] && mv "${SRC}" "${DST}" || true
+          sha256sum "${DST}" > "${DST}.sha256"
+          echo "tarball=${DST}" >> "$GITHUB_OUTPUT"
+          echo "sha256=${DST}.sha256" >> "$GITHUB_OUTPUT"
+          echo "bundle=${DST}.sigstore.json" >> "$GITHUB_OUTPUT"
+
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign tarball with cosign keyless (GitHub OIDC)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign sign-blob \
+            --yes \
+            --bundle "${{ steps.pkg.outputs.bundle }}" \
+            "${{ steps.pkg.outputs.tarball }}"
+          echo "Signed -> ${{ steps.pkg.outputs.bundle }}"
+
+      - name: Verify signature (self-check)
+        env:
+          COSIGN_EXPERIMENTAL: "1"
+        run: |
+          cosign verify-blob \
+            --certificate-identity-regexp \
+              "https://github.com/szl-holdings/a11oy/.github/workflows/zarf-build-and-sign.yml.*" \
+            --certificate-oidc-issuer https://token.actions.githubusercontent.com \
+            --bundle "${{ steps.pkg.outputs.bundle }}" \
+            "${{ steps.pkg.outputs.tarball }}" \
+          && echo "Self-verification PASSED"
+
+      - name: Create release ${{ inputs.release_name }} and upload signed assets
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REL="${{ inputs.release_name }}"
+          # Create the release at the NEW name if it does not exist (no tag move).
+          if ! gh release view "${REL}" --repo szl-holdings/a11oy >/dev/null 2>&1; then
+            gh release create "${REL}" \
+              --repo szl-holdings/a11oy \
+              --target main \
+              --title "a11oy ${REL} — real Zarf package (signed)" \
+              --notes "Real Zarf package built from deploy/zarf.yaml. Cosign keyless signed. See zarf-build-and-sign.yml." \
+              --prerelease
+          fi
+          gh release upload "${REL}" \
+            "${{ steps.pkg.outputs.tarball }}" \
+            "${{ steps.pkg.outputs.sha256 }}" \
+            "${{ steps.pkg.outputs.bundle }}" \
+            --clobber \
+            --repo szl-holdings/a11oy
+          echo "Uploaded signed Zarf package to release ${REL}."
+
+      - name: Verification instructions
+        run: |
+          REL="${{ inputs.release_name }}"
+          echo "BASE=https://github.com/szl-holdings/a11oy/releases/download/${REL}"
+          echo "cosign verify-blob \\"
+          echo "  --certificate-identity-regexp 'https://github.com/szl-holdings/a11oy/.github/workflows/zarf-build-and-sign.yml.*' \\"
+          echo "  --certificate-oidc-issuer https://token.actions.githubusercontent.com \\"
+          echo "  --bundle ${{ steps.pkg.outputs.bundle }} \\"
+          echo "  ${{ steps.pkg.outputs.tarball }}"
+
+  # Issue #194: the zarf package build also mints REAL Sigstore keyless DSSE
+  # signatures over the governance decision log AND the vessels Khipu-ingest consumer
+  # receipt, uploaded to the same founder-named release. Signature-only upgrade —
+  # the SLSA claim is unchanged (still L1). Runs after the package release exists.
+  sign-receipts:
+    name: Sign governance + Khipu receipts (Sigstore keyless)
+    needs: build-sign-release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write     # upload signed envelope to the founder-named release
+      id-token: write     # REQUIRED: mints the ambient OIDC token Fulcio exchanges for a cert
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Sign + verify receipts
+        uses: ./.github/actions/sign-receipts
+      - name: Upload signed receipts to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REL="${{ inputs.release_name }}"
+          mapfile -t FILES < <(ls attestations/governance/*.dsse.json attestations/khipu/*.dsse.json attestations/khipu/*.node.json 2>/dev/null)
+          echo "Uploading ${#FILES[@]} signed receipt files to release ${REL}"
+          gh release upload "${REL}" "${FILES[@]}" --clobber --repo szl-holdings/a11oy
+      - name: Upload signed receipts as a workflow artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: signed-receipts
+          path: attestations/**/*.json
+          if-no-files-found: error
+

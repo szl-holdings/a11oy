@@ -1,0 +1,130 @@
+{
+  "allowed_actions": [
+    "read public market and forecast data",
+    "normalize event and resolution criteria",
+    "calculate calibration and disagreement",
+    "build scenario impact",
+    "draft risk brief",
+    "request committee decision",
+    "record resolution and scoring outcome"
+  ],
+  "buyer": "Risk, treasury, research, strategy, policy and investment-committee teams needing transparent event probabilities and scenario impact—not an execution bot.",
+  "canonical_source": {
+    "core": "szl-holdings/a11oy/verticals/puriq-markets",
+    "data_contracts": "szl-holdings/szl-lake/verticals/puriq-markets",
+    "model_evaluation": "szl-holdings/szl-forge",
+    "research": "szl-holdings/puriq-live as generated read-only research/Space adapter"
+  },
+  "decision_chain": [
+    "event contract and resolution criteria",
+    "market/forecast source revisions",
+    "probability and order-book history",
+    "liquidity, spread and source quality",
+    "cross-platform disagreement",
+    "forecast ensemble and calibration",
+    "scenario/business impact",
+    "policy and committee threshold",
+    "human decision",
+    "receipt, resolution and scoring outcome"
+  ],
+  "display_name": "Puriq Markets",
+  "evaluations": [
+    "event identity and resolution-criteria fidelity",
+    "historical price/orderbook ingestion accuracy",
+    "Brier and logarithmic score by forecast horizon",
+    "calibration and sharpness",
+    "cross-platform entity/event matching",
+    "liquidity/spread and stale-market behavior",
+    "resolution dispute and correction handling",
+    "data-license and jurisdiction/eligibility boundary",
+    "proof that no order/custody endpoint exists"
+  ],
+  "formula_bindings": [
+    "F1",
+    "F4",
+    "F7",
+    "F11",
+    "F12",
+    "F18",
+    "F19",
+    "F22",
+    "LAMBDA"
+  ],
+  "leaders": [
+    {
+      "name": "Polymarket",
+      "pattern": "CLOB market data, historical prices and explicit resolution process",
+      "url": "https://docs.polymarket.com/"
+    },
+    {
+      "name": "Metaculus",
+      "pattern": "community forecasting, proper scoring and aggregate predictions",
+      "url": "https://www.metaculus.com/help/scores-faq/"
+    },
+    {
+      "name": "UMA Optimistic Oracle",
+      "pattern": "propose, challenge and resolve assertions",
+      "url": "https://docs.uma.xyz/developers/optimistic-oracle-v3"
+    },
+    {
+      "name": "Gnosis Conditional Tokens",
+      "pattern": "open-source conditional outcome primitives",
+      "url": "https://github.com/gnosis/conditional-tokens-contracts"
+    },
+    {
+      "name": "OpenBB",
+      "pattern": "connect-once financial data platform and agent-facing interfaces",
+      "url": "https://github.com/OpenBB-finance/OpenBB"
+    }
+  ],
+  "pilot": {
+    "phases": [
+      "historical scoring baseline",
+      "live read-only monitoring",
+      "risk brief",
+      "committee decision",
+      "resolution/outcome"
+    ],
+    "scope": "one risk or strategy team, read-only public event sources, one internal scenario/exposure dataset"
+  },
+  "portfolio_role": "READ_ONLY_EVENT_RISK_CELL",
+  "position": 3,
+  "private_connectors": [
+    "customer risk register",
+    "treasury/exposure data",
+    "business scenario assumptions",
+    "committee policy and decision records"
+  ],
+  "prohibited_actions": [
+    "wallet or private-key custody",
+    "order placement, cancellation or signing",
+    "autonomous trading",
+    "market manipulation or wash trading",
+    "insider-information use",
+    "claim that market probability is truth or financial advice"
+  ],
+  "public_connectors": [
+    "Polymarket Gamma/CLOB market metadata and history",
+    "Metaculus public forecast and resolution data where permitted",
+    "Kalshi or other regulated event-contract public data where accessible and licensed",
+    "Federal Reserve, BLS, Treasury, SEC and other official macro/filing data"
+  ],
+  "schema": "szl.focus-vertical/v8",
+  "space": {
+    "id": "SZLHOLDINGS/puriq-markets",
+    "initial_mode": "read-only event-risk and forecast-assurance demonstration; no trading",
+    "source_visible": false,
+    "visibility": "protected"
+  },
+  "success_metrics": [
+    "event mapping precision",
+    "calibration and scoring",
+    "forecast disagreement detected",
+    "decision lead time",
+    "committee override rate",
+    "source freshness",
+    "risk brief reproduction"
+  ],
+  "vertical_id": "puriq-markets",
+  "wedge": "Event Definition-to-Decision Forecast Assurance"
+}

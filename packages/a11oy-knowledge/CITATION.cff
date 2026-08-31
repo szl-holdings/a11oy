@@ -1,0 +1,34 @@
+cff-version: 1.2.0
+message: "If you use this knowledge graph, please cite as below."
+type: software
+title: "a11oy-knowledge — Canonical Knowledge Graph for the a11oy Covenant Kernel"
+abstract: >-
+  Versioned TypeScript package exporting the canonical axiom set (A1-A14), theorems (TH1-TH3),
+  derivations (T1-T10), performance constants (K01-K13), DOI ledger, doctrine clauses,
+  and 10-vertical policy routing for the a11oy covenant kernel.
+authors:
+  - family-names: Lutar
+    given-names: Stephen
+    name-particle: P.
+    affiliation: SZL Holdings
+    orcid: "https://orcid.org/0009-0001-0110-4173"
+    email: "stephen@szlholdings.com"
+license: Apache-2.0
+version: "0.3.0"
+date-released: "2026-05-15"
+repository-code: "https://github.com/szl-holdings/a11oy"
+url: "https://github.com/szl-holdings/a11oy"
+identifiers:
+  - description: "Concept DOI for the canonical Ouroboros Thesis"
+    type: doi
+    value: "10.5281/zenodo.19944926"
+  - description: "v11 Applied Lambda paper"
+    type: doi
+    value: "10.5281/zenodo.20119582"
+keywords:
+  - covenant-kernel
+  - knowledge-graph
+  - lutar-invariant
+  - receipt-governance
+  - a11oy
+  - szl-holdings

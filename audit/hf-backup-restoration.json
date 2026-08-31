@@ -1,0 +1,28 @@
+{
+  "all_restores_match": true,
+  "generated_at": "2026-07-26T08:05:29.004654Z",
+  "repositories": [
+    {
+      "archive": "/home/runner/work/a11oy/a11oy/.hf-backup/archives/SZLHOLDINGS--a11oy.tar.gz",
+      "archive_sha256": "c4b0b2b6f63da49aa2ea3fa42aa9a89eb0c2125d0afe89dad81ab7e9a02feac6",
+      "file_count": 1686,
+      "manifest_sha256": "2269a54e3def3d90bbb08d64cf61c9f1afc439cec4d49aaa840a1ef357abe212",
+      "repository": "SZLHOLDINGS/a11oy",
+      "restore_match": true,
+      "revision": "a21cf6409361a4611236d780d4e7c24f35997eef",
+      "total_bytes": 64535414
+    },
+    {
+      "archive": "/home/runner/work/a11oy/a11oy/.hf-backup/archives/SZLHOLDINGS--killinchu.tar.gz",
+      "archive_sha256": "7550ed8e29edbd20f47ebb7646ce0cee3ef96bbfc9dcaadf2d28c1728a258716",
+      "file_count": 1001,
+      "manifest_sha256": "4113d1bea69028ffd57cc73a346b349b07f0a7037aa7d3feb642919d55a40db9",
+      "repository": "SZLHOLDINGS/killinchu",
+      "restore_match": true,
+      "revision": "515d01191039709553bcc47b275aaaaafd6e7238",
+      "total_bytes": 35310955
+    }
+  ],
+  "schema": "szl.hf-backup-restoration/v1",
+  "workflow_run_url": "https://github.com/szl-holdings/a11oy/actions/runs/30193943839"
+}

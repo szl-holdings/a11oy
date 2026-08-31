@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Decision Assurance — a11oy</title>
+<meta name="description" content="Packet 8 Decision Integrity Kernel on a-11-oy.com. Terra, Aegis, Puriq Markets, Counsel and Vessels at /terra /aegis /puriq-markets /counsel /vessels. Frozen demonstration cases. Formula authority NONE."/>
+<link rel="canonical" href="https://a-11-oy.com/decision"/>
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
+     GET /decision /terra /aegis /puriq-markets /counsel /vessels /demo /evaluations.
+     Status ROADMAP. Formula authority NONE. Λ = Conjecture 1.
+     Licensed AIS CLOSED. Not legal advice. Not a trading bot. Not a Palantir clone. -->
+<style>
+:root {
+  --ink:#09090b; --ink-2:#121214; --ink-3:#1c1c20; --paper:#f2efe8; --paper-dim:#c8c2b4;
+  --muted:#8a857a; --line:color-mix(in oklab, var(--paper) 12%, transparent);
+  --cord:#9a5a48; --ok:#7d9a7a; --deny:#d46a4c; --wait:#c9a15b;
+  --font-display:ui-serif, Georgia, "Times New Roman", serif;
+  --font-sans:ui-sans-serif, system-ui, sans-serif;
+  --font-mono:ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing:border-box; }
+html, body { margin:0; background:var(--ink); color:var(--paper); font-family:var(--font-sans); }
+a { color:var(--paper-dim); }
+a:hover { color:var(--paper); }
+header { position:sticky; top:0; z-index:20; background:color-mix(in oklab, var(--ink) 90%, transparent); border-bottom:1px solid var(--line); }
+.hdr { max-width:72rem; margin:0 auto; display:flex; align-items:center; justify-content:space-between; padding:0 1.25rem; min-height:52px; gap:1rem; }
+.brand { font-family:var(--font-display); font-size:1.1rem; color:var(--paper); text-decoration:none; }
+nav { display:flex; gap:.25rem; flex-wrap:wrap; }
+nav a { min-height:44px; display:flex; align-items:center; padding:0 .7rem; font-size:.85rem; color:var(--muted); text-decoration:none; }
+nav a.on, nav a:hover { color:var(--paper); }
+main { max-width:72rem; margin:0 auto; padding:2rem 1.25rem 6rem; }
+.kicker { font-family:var(--font-mono); font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); }
+h1 { font-family:var(--font-display); font-weight:500; font-size:clamp(2rem,5vw,3.1rem); letter-spacing:-.03em; margin:.4rem 0 .6rem; }
+.lede { max-width:42rem; color:var(--paper-dim); line-height:1.55; }
+.row { display:flex; flex-wrap:wrap; gap:.5rem; margin:1.25rem 0 1.5rem; }
+.chip { display:inline-flex; align-items:center; min-height:32px; padding:0 .75rem; border-radius:999px; font-family:var(--font-mono); font-size:11px; background:var(--paper); color:var(--ink); }
+.chip.mute { background:transparent; color:var(--muted); box-shadow:0 0 0 1px var(--line); }
+.tabs { display:flex; flex-wrap:wrap; gap:.4rem; margin:1.5rem 0 1rem; }
+button { cursor:pointer; font:inherit; color:var(--paper); background:var(--ink-2); border:1px solid var(--line); border-radius:999px; min-height:44px; padding:0 1rem; }
+button:hover, button:focus-visible, button.on { border-color:var(--cord); outline:none; }
+button.primary { background:var(--paper); color:var(--ink); border-color:var(--paper); }
+button:disabled { opacity:.45; cursor:not-allowed; }
+.grid { display:grid; gap:.75rem; }
+@media (min-width:860px) { .grid.theatre { grid-template-columns:minmax(16rem,.72fr) minmax(0,1.28fr); } }
+.panel { background:var(--ink-2); border-radius:12px; padding:1.1rem 1.25rem; box-shadow:0 0 0 1px var(--line); }
+h2 { font-family:var(--font-display); font-weight:500; font-size:1.2rem; margin:0 0 .4rem; }
+p { color:var(--paper-dim); line-height:1.5; }
+pre { background:var(--ink-3); border-radius:10px; padding:1rem; overflow:auto; white-space:pre-wrap; word-break:break-word; font-family:var(--font-mono); font-size:12px; color:var(--paper); }
+.DENIED { color:var(--deny); }
+.APPROVED { color:var(--ok); }
+.AWAITING_APPROVAL, .ABSTAINED, .ESCALATED { color:var(--wait); }
+.cases { display:flex; flex-direction:column; gap:.4rem; margin:.8rem 0; }
+.cases button { width:100%; border-radius:10px; text-align:left; display:flex; flex-direction:column; align-items:flex-start; gap:.2rem; padding:.7rem 1rem; }
+.cases button small { color:var(--muted); font-family:var(--font-mono); font-size:11px; letter-spacing:.08em; text-transform:uppercase; }
+.rail { display:grid; grid-template-columns:repeat(3,1fr); gap:.4rem; margin:0 0 1rem; }
+.rail li { list-style:none; border-radius:10px; padding:.7rem .8rem; background:var(--ink-3); }
+.rail b { display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
+.rail.on { box-shadow:0 0 0 1px var(--cord); }
+.rail.done b { color:var(--ok); }
+footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <div class="hdr">
+    <a class="brand" href="/">a11oy</a>
+    <nav>
+      <a href="/decision" class="on">Decision</a>
+      <a href="/demo">Demo</a>
+      <a href="/evaluations">Evaluations</a>
+      <a href="/vessels">Vessels</a>
+      <a href="/verify">Verify</a>
+      <a href="/">Home</a>
+    </nav>
+  </div>
+</header>
+<main>
+  <div class="kicker">Packet 8 · Decision Integrity Kernel 8.0.0</div>
+  <h1>Decision Assurance</h1>
+  <p class="lede">Turn a recommendation into an authorized, replayable outcome — or refuse it. Terra, Aegis, Puriq Markets, Counsel and Vessels run here on a-11-oy.com. Frozen demonstration cases. Fail-closed. Formulas do not grant authority. Licensed AIS stays CLOSED without a live key. No Hugging Face Space is required.</p>
+  <div class="row" id="meta"></div>
+  <div class="tabs" id="verticals"></div>
+  <div class="grid theatre">
+    <section class="panel">
+      <h2>Queue</h2>
+      <p id="vwedge"></p>
+      <div class="cases" id="cases"></div>
+      <div id="status"></div>
+    </section>
+    <section class="panel">
+      <h2 id="vtitle">Operator path</h2>
+      <ol class="rail" id="rail">
+        <li data-step="0"><b>01 Select</b> Frozen case. SAMPLE.</li>
+        <li data-step="1"><b>02 Evaluate</b> Kernel 8. Fail-closed.</li>
+        <li data-step="2"><b>03 Receipt</b> Replayable. Formula authority NONE.</li>
+      </ol>
+      <p>One primary action. Execute is not offered on this desk. The kernel evaluates and refuses. It does not stamp LIVE.</p>
+      <p><button class="primary" id="primary" type="button" disabled>Select a frozen case</button></p>
+      <h2>Receipt</h2>
+      <pre id="out">Select a frozen case. The kernel is fail-closed. Licensed AIS is CLOSED. No Hugging Face Space is required for this desk.</pre>
+    </section>
+  </div>
+  <footer>
+    Status ROADMAP. Data label SAMPLE. Formula authority NONE. Λ = Conjecture 1 / advisory.
+    Licensed AIS CLOSED. Production ready false.
+    Not legal advice. Not investment advice. Not a trading bot. Not a Palantir clone.
+    Canonical source: szl-holdings/a11oy/verticals.
+    Proof: <a href="https://a11oy.net/decision/">a11oy.net/decision</a>.
+    Product: a-11-oy.com. Never a11oy.com.
+  </footer>
+</main>
+<script>
+const PATH_TO_VERTICAL = {
+  "/terra": "terra",
+  "/aegis": "aegis",
+  "/puriq-markets": "puriq-markets",
+  "/puriq": "puriq-markets",
+  "/counsel": "counsel",
+  "/vessels": "vessels"
+};
+const meta = document.getElementById("meta");
+const tabs = document.getElementById("verticals");
+const casesEl = document.getElementById("cases");
+const status = document.getElementById("status");
+const out = document.getElementById("out");
+const vtitle = document.getElementById("vtitle");
+const vwedge = document.getElementById("vwedge");
+const primary = document.getElementById("primary");
+const rail = document.getElementById("rail");
+let current = "aegis";
+let selected = null;
+
+function chip(text, cls) {
+  const el = document.createElement("span");
+  el.className = "chip" + (cls && cls !== text ? " " + cls : "");
+  if (cls === text) el.classList.add(cls);
+  el.textContent = text;
+  return el;
+}
+function verticalFromLocation() {
+  const path = (location.pathname || "").replace(/\/+$/, "") || "/decision";
+  if (PATH_TO_VERTICAL[path]) return PATH_TO_VERTICAL[path];
+  const q = new URLSearchParams(location.search).get("v");
+  return q || "aegis";
+}
+function syncPath(id) {
+  const reverse = {
+    terra: "/terra",
+    aegis: "/aegis",
+    "puriq-markets": "/puriq-markets",
+    counsel: "/counsel",
+    vessels: "/vessels"
+  };
+  const next = reverse[id] || "/decision";
+  if (location.pathname.replace(/\/+$/, "") !== next) history.pushState({ v: id }, "", next);
+}
+function setRail(step) {
+  [...rail.children].forEach((el, i) => {
+    el.classList.toggle("on", i === step);
+    el.classList.toggle("done", i < step);
+  });
+}
+
+async function boot() {
+  const cat = await fetch("/api/a11oy/v1/decision").then((r) => r.json());
+  meta.replaceChildren(
+    chip(cat.status || "ROADMAP"),
+    chip("formula authority NONE", "mute"),
+    chip("licensed AIS CLOSED", "mute"),
+    chip((cat.verticals || []).length + " desks", "mute")
+  );
+  tabs.replaceChildren();
+  (cat.verticals || []).forEach((item) => {
+    const b = document.createElement("button");
+    b.textContent = item.display_name || item.id;
+    b.dataset.id = item.id;
+    b.addEventListener("click", () => show(item.id, b, true));
+    tabs.appendChild(b);
+  });
+  const want = verticalFromLocation();
+  const first = tabs.querySelector('button[data-id="' + want + '"]') || tabs.querySelector("button");
+  if (first) show(first.dataset.id, first, false);
+}
+
+async function show(id, btn, push) {
+  current = id;
+  selected = null;
+  tabs.querySelectorAll("button").forEach((el) => el.classList.toggle("on", el === btn));
+  if (push) syncPath(id);
+  const data = await fetch("/api/a11oy/v1/decision/" + encodeURIComponent(id)).then((r) => r.json());
+  vtitle.textContent = data.display_name || id;
+  vwedge.textContent = data.wedge || "";
+  casesEl.replaceChildren();
+  (data.cases || []).forEach((item) => {
+    const b = document.createElement("button");
+    b.innerHTML = "<span>" + (item.eval_id || item.case_id) + "</span><small>" + (item.expected_state || "") + "</small>";
+    b.addEventListener("click", () => pick(item, b));
+    casesEl.appendChild(b);
+  });
+  out.textContent = "Select a frozen case.";
+  status.replaceChildren();
+  primary.disabled = true;
+  primary.textContent = "Select a frozen case";
+  setRail(0);
+}
+
+function pick(item, btn) {
+  selected = item;
+  casesEl.querySelectorAll("button").forEach((el) => el.classList.toggle("on", el === btn));
+  primary.disabled = false;
+  primary.textContent = "Evaluate " + (item.eval_id || "case");
+  setRail(0);
+  out.textContent = "Ready. Formula authority NONE. Execute is not offered.";
+}
+
+async function run() {
+  if (!selected) return;
+  primary.disabled = true;
+  primary.textContent = "Evaluating…";
+  setRail(1);
+  out.textContent = "Evaluating " + (selected.eval_id || "") + "…";
+  const res = await fetch("/api/a11oy/v1/decision/" + encodeURIComponent(current) + "/evaluate", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(selected.payload || selected),
+  });
+  const data = await res.json();
+  const state = data.state || "UNKNOWN";
+  status.replaceChildren(chip(state, state), chip((data.reason_codes || []).join(", ") || "no reason", "mute"));
+  if (data.receipt && data.receipt.digest) status.appendChild(chip("digest " + data.receipt.digest.slice(0, 12), "mute"));
+  out.textContent = JSON.stringify(data, null, 2);
+  setRail(2);
+  primary.disabled = false;
+  primary.textContent = "Evaluate again";
+}
+
+primary.addEventListener("click", () => run().catch((err) => { out.textContent = String(err); primary.disabled = false; }));
+window.addEventListener("popstate", () => {
+  const id = verticalFromLocation();
+  const btn = tabs.querySelector('button[data-id="' + id + '"]');
+  if (btn) show(id, btn, false);
+});
+boot().catch((err) => { out.textContent = String(err); });
+</script>
+</body>
+</html>

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>a11oy — Wires · The Constitution · SZL Holdings</title>
+  <meta name="description" content="The live cross-organ mesh: five wires (B/C/D/E/F) that bind the organs into one signed organism. Each row reads a real a11oy endpoint — no mock data."/>
+  <!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
+     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
+<style>
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
+</style>
+<style>
+    :root{
+      --ground:#0a0a0a; --panel:#0c0c0c; --panel2:#070707;
+      --gold:#c9b787; --gold-bright:#d6c69a;
+      --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+      --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+      --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+      --teal-line:rgba(95,179,163,0.22);
+      --live:#5a8a6e; --err:#b06a5a;
+      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+      --display:'Space Grotesk',Georgia,serif;
+    }
+    *{box-sizing:border-box;}
+    html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);
+      font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+    .mono{font-family:var(--mono);}
+    a{color:inherit;}
+    :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}
+    .ribbon{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;
+      flex-wrap:wrap;padding:0.5rem 1.25rem;font-family:var(--mono);font-size:10px;
+      letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);
+      background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);}
+    .ribbon .sep{color:var(--dim);} .ribbon .teal{color:var(--teal);}
+    .ribbon .live{display:inline-flex;align-items:center;gap:0.4rem;color:var(--cream);}
+    .ribbon a{margin-left:auto;color:var(--teal);text-decoration:none;}
+    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulseDot 2.2s ease-in-out infinite;}
+    @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.35;}}
+    .hero{position:relative;overflow:hidden;padding:3rem 1.5rem 2rem;text-align:center;}
+    .grid-bg{position:absolute;inset:0;pointer-events:none;
+      background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+      background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);}
+    .hero-inner{position:relative;z-index:2;max-width:64rem;margin:0 auto;}
+    .eyebrow{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .85rem;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-soft);margin-bottom:1.5rem;}
+    .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulseDot 2.2s ease-in-out infinite;}
+    .eyebrow-text{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
+    .headline{font-size:clamp(2.2rem,5vw,4rem);font-weight:300;line-height:1.04;letter-spacing:-.035em;margin:0 0 1.1rem;color:var(--cream);}
+    .headline .accent{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
+    .support{font-size:16px;line-height:1.65;color:var(--paragraph);max-width:42rem;margin:0 auto 1.75rem;}
+    .stats{display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem;max-width:60rem;margin:0 auto;}
+    .stat{flex:1 1 150px;min-width:140px;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);padding:.9rem 1rem;text-align:left;}
+    .stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
+    .stat .v{font-size:1.35rem;font-weight:500;color:var(--gold);margin-top:.25rem;}
+    .stat .v.teal{color:var(--teal);}
+    .wrap{max-width:64rem;margin:1.5rem auto 3rem;padding:0 1.25rem;}
+    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;}
+    .r-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;font-size:11.5px;font-weight:500;font-family:var(--mono);
+      border-radius:6px;border:1px solid var(--gold-line);background:transparent;color:var(--gold);cursor:pointer;letter-spacing:.04em;transition:background .18s,border-color .18s;}
+    .r-btn:hover{background:rgba(201,183,135,.08);border-color:rgba(201,183,135,.35);}
+    .r-btn.primary{background:rgba(95,179,163,.10);border-color:var(--teal-line);color:var(--teal);}
+    .wire{border:1px solid var(--gold-line);border-radius:12px;background:var(--panel);padding:1.2rem 1.3rem;margin-bottom:1rem;}
+    .wire-head{display:flex;align-items:center;gap:.7rem;margin-bottom:.5rem;flex-wrap:wrap;}
+    .wire-id{font-family:var(--mono);font-size:12px;color:var(--teal);border:1px solid var(--teal-line);border-radius:5px;padding:.1rem .5rem;background:var(--teal-soft);}
+    .wire-edge{font-size:1.05rem;font-weight:500;color:var(--cream);}
+    .wire-status{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:.15rem .55rem;border-radius:999px;}
+    .st-live{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+    .st-proc{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+    .wire-detail{font-family:var(--mono);font-size:11.5px;color:var(--paragraph);line-height:1.6;}
+    .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:1rem;line-height:1.7;}
+    .honesty{max-width:64rem;margin:0 auto 2rem;padding:1.1rem 1.3rem;border:1px solid var(--gold-line);border-radius:10px;background:var(--gold-soft);
+      font-size:12px;color:var(--paragraph);line-height:1.7;}
+    .honesty b{color:var(--gold);}
+    .footer{padding:2rem 1.5rem 3rem;text-align:center;}
+    .footer .note{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
+    .const-wrap{max-width:64rem;margin:0 auto 2rem;padding:0 1.25rem;}
+.const-head{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap;margin:0 0 .35rem;}
+.const-head h2{font-size:1.5rem;font-weight:300;letter-spacing:-.02em;color:var(--cream);margin:0;}
+.const-ver{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);
+  border:1px solid var(--teal-line);border-radius:999px;padding:.2rem .7rem;background:var(--teal-soft);}
+.const-sub{font-size:13px;color:var(--paragraph);line-height:1.65;margin:0 0 1rem;}
+.rule{border:1px solid var(--gold-line);border-radius:10px;background:var(--panel);padding:.95rem 1.1rem;margin-bottom:.7rem;}
+.rule-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;}
+.rule-id{font-family:var(--mono);font-size:12px;color:var(--gold);border:1px solid var(--gold-line);border-radius:5px;padding:.1rem .5rem;background:var(--gold-soft);}
+.rule-st{font-size:.98rem;font-weight:500;color:var(--cream);}
+.rule-en{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:.15rem .55rem;border-radius:999px;}
+.en-live{color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);}
+.en-rec{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
+.en-dec{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
+.en-np{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
+.rule-body{font-family:var(--mono);font-size:11.5px;color:var(--paragraph);line-height:1.6;margin-top:.4rem;}
+.rule-body a{color:var(--teal);text-decoration:none;}
+.const-cred{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.8;margin-top:.9rem;}
+.const-cred a{color:var(--teal);text-decoration:none;}
+@media (max-width:560px){.wire-status{margin-left:0;}.rule-en{margin-left:0;}}
+  </style>
+</head>
+<body>
+<div class="ribbon">
+  <span>SZL HOLDINGS</span><span class="sep">/</span>
+  <span class="teal">A11OY</span><span class="sep">/</span>
+  <span>WIRES · THE CONSTITUTION</span><span class="sep">/</span>
+  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
+  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
+  <a href="/superpowers">superpowers →</a>
+</div>
+
+<section class="hero">
+  <div class="grid-bg" aria-hidden="true"></div>
+  <div class="hero-inner">
+    <div class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">· five wires · one signed organism</span></div>
+    <h1 class="headline">Five organs. <span class="accent">One constitution.</span></h1>
+    <p class="support">The mesh is the constitution: five wires that bind the organs into one organism. Each row below reads the live
+      <span class="mono">/api/a11oy/v1/mesh/state</span> endpoint — real status, no mock. Honest labels distinguish a fully cross-Space
+      wire from an in-process one.</p>
+    <div class="stats">
+      <div class="stat"><div class="k">Wires</div><div class="v" id="s-wires">—</div></div>
+      <div class="stat"><div class="k">Doctrine</div><div class="v teal" id="s-doc">v11</div></div>
+      <div class="stat"><div class="k">Λ status</div><div class="v teal">Conjecture 1</div></div>
+      <div class="stat"><div class="k">SLSA</div><div class="v teal">Build L2</div></div>
+    </div>
+  </div>
+</section>
+
+<div class="wrap">
+  <div class="controls">
+    <button class="r-btn primary" onclick="loadWires()">▶ Refresh the mesh</button>
+    <button class="r-btn" onclick="window.location='/observability'">Observability →</button>
+    <button class="r-btn" onclick="document.getElementById('constitution').scrollIntoView({behavior:'smooth'})">The written constitution ↓</button>
+  </div>
+  <div id="wires"></div>
+  <div class="meta" id="meta"></div>
+</div>
+
+
+<section class="const-wrap" id="constitution">
+  <div class="const-head">
+    <h2>The written constitution</h2>
+    <span class="const-ver">W-CONST v1.0 &middot; 2026-07-09</span>
+  </div>
+  <p class="const-sub">The wires above are the live mesh; these are the <b style="color:var(--cream)">versioned, numbered rules</b> the
+    organism is wired to obey. Each rule links to where its enforcement can be observed &mdash; a live endpoint, a receipt surface, or an
+    honest DECLARED label when the property is build-time. One rule is special: it is <b style="color:var(--cream)">never provable</b>, and the
+    constitution says so.</p>
+
+  <div class="rule" id="W-1">
+    <div class="rule-head"><span class="rule-id">W-1</span><span class="rule-st">Never fabricate.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">Every surfaced number carries MEASURED / REPORTED / UNKNOWN / UNAVAILABLE. A missing read is shown as missing, never invented.
+      Enforcement: <a href="/api/a11oy/v1/honest">/api/a11oy/v1/honest</a> (doctrine lock, live).</div>
+  </div>
+  <div class="rule" id="W-2">
+    <div class="rule-head"><span class="rule-id">W-2</span><span class="rule-st">&Lambda; stays Conjecture 1 &mdash; forever open.</span><span class="rule-en en-np">NEVER-PROVABLE</span></div>
+    <div class="rule-body">&Lambda;-uniqueness is machine-checked FALSE as an unconditional statement; it may only ever be advisory. No release, page, or
+      agent may promote it to a theorem. This clause is enshrined precisely because it can never be discharged.
+      Reference: <a href="/api/a11oy/v1/honest">/api/a11oy/v1/honest</a>.</div>
+  </div>
+  <div class="rule" id="W-3">
+    <div class="rule-head"><span class="rule-id">W-3</span><span class="rule-st">Bounded loops only.</span><span class="rule-en en-rec">RECEIPTED</span></div>
+    <div class="rule-body">Every agentic run executes under the ouroboros loop-kernel with an explicit step budget; each receipt carries the
+      steps / maxBudget / exit trace. No unbounded autonomy. Observe it: run the <a href="/ayllu">/ayllu council</a> and read the loop block in the receipt.</div>
+  </div>
+  <div class="rule" id="W-4">
+    <div class="rule-head"><span class="rule-id">W-4</span><span class="rule-st">Metered actions emit signed receipts.</span><span class="rule-en en-rec">RECEIPTED</span></div>
+    <div class="rule-body">DSSE / ECDSA-P256 signed, hash-chained. A decision without a receipt is a bug, not a feature.
+      Verify offline at <a href="/verify">/verify</a>.</div>
+  </div>
+  <div class="rule" id="W-5">
+    <div class="rule-head"><span class="rule-id">W-5</span><span class="rule-st">Sovereign serving &mdash; 0 runtime CDN.</span><span class="rule-en en-dec">DECLARED</span></div>
+    <div class="rule-body">No third-party runtime fetches; fonts and scripts are served same-origin. Build-time property &mdash; labelled DECLARED
+      honestly (verifiable by inspecting this very page's network panel).</div>
+  </div>
+  <div class="rule" id="W-6">
+    <div class="rule-head"><span class="rule-id">W-6</span><span class="rule-st">Proved-count honesty.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">Exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22}; the experimental kernel-verified tier is reported
+      separately and never folded in. Registry: <a href="/formulas">/formulas</a>.</div>
+  </div>
+  <div class="rule" id="W-7">
+    <div class="rule-head"><span class="rule-id">W-7</span><span class="rule-st">No energy claims without a meter.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">When no live meter exists the energy panel says UNAVAILABLE &mdash; no perpetual-motion numbers, ever.
+      Enforcement: <a href="/api/a11oy/v1/energy/live">/api/a11oy/v1/energy/live</a>.</div>
+  </div>
+  <div class="rule" id="W-8">
+    <div class="rule-head"><span class="rule-id">W-8</span><span class="rule-st">Knowledge instilled &ne; weights trained.</span><span class="rule-en en-live">LIVE-READ</span></div>
+    <div class="rule-body">Personas carry cited, instilled knowledge in their system prompts; no claim of weight-training is ever made.
+      Enforcement: <a href="/api/a11oy/v1/ayllu/roster">/api/a11oy/v1/ayllu/roster</a> (<span class="mono">knowledge_instilled</span> flag).</div>
+  </div>
+
+  <div class="const-cred">
+    format after <a href="https://github.com/openai/model_spec" rel="noopener">openai/model_spec</a> (CC0-1.0 &mdash; structure mirrored; rules are our own) &middot;
+    pattern citations: Constitutional AI (<a href="https://arxiv.org/abs/2212.08073" rel="noopener">arXiv:2212.08073</a>),
+    principle granularity (<a href="https://arxiv.org/abs/2310.13798" rel="noopener">arXiv:2310.13798</a>) &middot;
+    enforcement labels: LIVE-READ = a real endpoint you can click &middot; RECEIPTED = signed evidence per run &middot;
+    DECLARED = build-time property, honestly labelled &middot; NEVER-PROVABLE = enshrined open conjecture
+  </div>
+</section>
+
+<div class="honesty">
+  <b>Honesty.</b> Statuses are read live from <span class="mono">/api/a11oy/v1/mesh/state</span>. <b>LIVE</b> = a real in-Space wire;
+  <b>LIVE_IN_PROCESS</b> = real W3C trace ids generated + propagated within each Space (the cross-Space distributed-trace broker is
+  NOT yet wired and is shown honestly). Λ is <b>Conjecture 1</b>, never a theorem. Proved formulas = <b>8</b> {F1,F4,F7,F11,F12,F18,F19,F22}.
+  SLSA <b>Build L2</b> on all 5 organ images. No L3 / FedRAMP / Iron Bank / CMMC.
+</div>
+
+<footer class="footer"><span class="note">a11oy · governance substrate · by SZL Holdings · Counsel-governed · A11oy-orchestrated</span></footer>
+
+<script>
+async function getJSON(path){ const r=await fetch(path); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
+function statusClass(s){ return (s||'').toUpperCase().includes('PROCESS') ? 'st-proc' : 'st-live'; }
+async function loadWires(){
+  const host=document.getElementById('wires');
+  host.innerHTML='<div class="wire-detail mono">loading live mesh…</div>';
+  try{
+    const d=await getJSON('/api/a11oy/v1/mesh/state');
+    const wires=d.wires||{};
+    const keys=Object.keys(wires);
+    document.getElementById('s-wires').textContent=keys.length;
+    document.getElementById('s-doc').textContent=d.doctrine||'v11';
+    host.innerHTML='';
+    keys.forEach(k=>{
+      const w=wires[k];
+      const el=document.createElement('div'); el.className='wire';
+      el.innerHTML=`<div class="wire-head"><span class="wire-id">Wire ${k}</span>
+        <span class="wire-edge">${(w.edge||'').replace(/</g,'&lt;')}</span>
+        <span class="wire-status ${statusClass(w.status)}">${w.status||'—'}</span></div>
+        <div class="wire-detail">${(w.detail||'').replace(/</g,'&lt;')}</div>`;
+      host.appendChild(el);
+    });
+    const m=document.getElementById('meta');
+    m.innerHTML=`khipu_root: ${d.khipu_root||'(empty — resets on restart)'}<br>${(d.honesty||'').replace(/</g,'&lt;')}`;
+  }catch(e){ host.innerHTML='<div class="wire-detail mono" style="color:var(--err)">mesh unreachable: '+e.message+' — retry in a moment (transient).</div>'; }
+}
+loadWires();
+</script>
+</body>
+</html>

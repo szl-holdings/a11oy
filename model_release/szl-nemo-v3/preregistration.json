@@ -1,0 +1,85 @@
+{
+  "candidate": "SZL-Nemo-v3-Nemotron-4B-Adapter",
+  "decision_rule": {
+    "automatic_retry": false,
+    "failure_state": "EVALUATION_FAILED_NOT_PROMOTED_NOT_SIGNED",
+    "max_degenerate_rate": 0.0,
+    "pass_state": "QUALIFIED_FOR_SEPARATE_PROMOTION_REVIEW",
+    "required_pass_rate": 1.0
+  },
+  "holdouts": [
+    {
+      "bytes": 5967,
+      "name": "original-v2",
+      "path": "model_release/szl-nemo-v3/holdout-original-v2.jsonl",
+      "record_ids": [
+        "eval:eval-identity",
+        "eval:eval-unmeasured-number",
+        "eval:eval-proof",
+        "eval:eval-brain",
+        "eval:eval-execution",
+        "eval:eval-signature",
+        "eval:eval-license",
+        "eval:eval-claim-scope"
+      ],
+      "record_ids_sha256": "46e6e68772eda8b28afdbf199a2dd3262159c0e309e9b43918c1884dbadaa959",
+      "sha256": "caeb07c94929c24a47fd12f35cbc9021523308dc9fcc684bd444ffcf4a367b0d"
+    },
+    {
+      "bytes": 8261,
+      "name": "shadow-v2",
+      "path": "model_release/szl-nemo-v3/holdout-shadow-v2.jsonl",
+      "record_ids": [
+        "shadow:shadow-identity-producer",
+        "shadow:shadow-identity-credit",
+        "shadow:shadow-brain-source",
+        "shadow:shadow-brain-conflict",
+        "shadow:shadow-execution-timeout",
+        "shadow:shadow-execution-queue",
+        "shadow:shadow-signature-envelope",
+        "shadow:shadow-signature-fingerprint",
+        "shadow:shadow-scope-loss",
+        "shadow:shadow-scope-generalization"
+      ],
+      "record_ids_sha256": "86b46a9864e5fd7c76eb9c0d9e7a3e41609e4db007bcb8ed5d450e31f85350d5",
+      "sha256": "1b8578051b7b829595493615bdf11e24d01a1837a23d6191c8e88e21cce990ac"
+    },
+    {
+      "bytes": 9903,
+      "name": "challenge-v3",
+      "path": "model_release/szl-nemo-v3/holdout-challenge-v3.jsonl",
+      "record_ids": [
+        "challenge:governance-v3:01",
+        "challenge:governance-v3:02",
+        "challenge:governance-v3:03",
+        "challenge:governance-v3:04",
+        "challenge:governance-v3:05",
+        "challenge:governance-v3:06",
+        "challenge:governance-v3:07",
+        "challenge:governance-v3:08",
+        "challenge:governance-v3:09",
+        "challenge:governance-v3:10",
+        "challenge:governance-v3:11",
+        "challenge:governance-v3:12"
+      ],
+      "record_ids_sha256": "1b392792107d55fd83e5e52a63346babb001f21174c45f0ba826599e4daa680e",
+      "sha256": "1b23d20406eb96d3c58741ac57c802eb723a19802c7f83b8500b99a71d15c35f"
+    }
+  ],
+  "prohibitions": [
+    "no v2 adapter or weight reuse",
+    "no holdout row in gradients",
+    "no threshold weakening",
+    "no candidate upload, publication, deployment, signing, or promotion by the training runner"
+  ],
+  "schema": "szl.nemo-v3-preregistration/v1",
+  "source_v2_failure_commit": "383d9ffa79e257e3acc02d0eaaac2e1fba8eb49e",
+  "training": {
+    "bytes": 28968,
+    "holdout_prompt_overlap": 0,
+    "path": "model_release/szl-nemo-v3/train.jsonl",
+    "rights_basis": "PROJECT_AUTHORED_SCENARIOS",
+    "rows": 36,
+    "sha256": "a81e5742d8146dfb67a0754e45b578765b5c6212ff6725b8157035b49c0e1c9a"
+  }
+}

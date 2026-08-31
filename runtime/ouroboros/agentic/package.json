@@ -1,0 +1,31 @@
+{
+  "name": "@szl-holdings/agentic",
+  "version": "1.0.0",
+  "private": true,
+  "license": "Apache-2.0",
+  "author": "Lutar, Stephen P. <stephen@szlholdings.com> (ORCID 0009-0001-0110-4173)",
+  "description": "Doctrine-bound agentic AI workstation. a11oy orchestrator + every SZL formula + MCP server wired into Cursor, Claude Code, and Replit Agent.",
+  "type": "module",
+  "engines": {
+    "node": ">=20",
+    "bun": ">=1.1"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "mcp": "node --enable-source-maps mcp-server/dist/index.js",
+    "mcp:bun": "bun run mcp-server/src/index.ts",
+    "dev": "bun --watch mcp-server/src/index.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.0",
+    "@types/node": "^20.0.0"
+  },
+  "workspaces": [
+    "formulas",
+    "a11oy-core",
+    "mcp-server"
+  ]
+}

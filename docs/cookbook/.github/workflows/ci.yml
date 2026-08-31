@@ -1,0 +1,73 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Validate cookbook skills
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          persist-credentials: false
+
+      - name: Verify README is present
+        run: test -f README.md
+
+      - name: Verify LICENSE is Apache-2.0
+        run: grep -q "Apache License" LICENSE
+
+      - name: Inventory skills directory
+        run: |
+          set -euo pipefail
+          test -d skills
+          count=$(find skills -type d -mindepth 1 -maxdepth 1 | wc -l)
+          echo "Found $count skill directories."
+          if [ "$count" -ne 9 ]; then
+            echo "::error::Expected exactly 9 skill directories (README badge claims 9), found $count"
+            exit 1
+          fi
+          echo "Skill count assertion passed: 9/9"
+
+      - name: Each skill has a SKILL.md or README.md
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for skill in skills/*/; do
+            if [ ! -f "$skill/SKILL.md" ] && [ ! -f "$skill/README.md" ]; then
+              echo "::error::skill $skill is missing SKILL.md or README.md"
+              exit 1
+            fi
+          done
+          echo "All skill directories validated."
+
+      - name: Validate any JSON files in skills/ are well-formed
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          for f in $(find skills -name "*.json"); do
+            python3 -m json.tool "$f" > /dev/null || { echo "::error file=$f::Invalid JSON"; exit 1; }
+          done
+          echo "All JSON files in skills/ are valid."
+
+      - name: Markdown front-matter check (informational)
+        continue-on-error: true
+        run: |
+          shopt -s nullglob
+          for md in $(find skills -name "SKILL.md"); do
+            head -1 "$md" | grep -q "^---" || echo "::warning file=$md::no YAML front-matter"
+          done

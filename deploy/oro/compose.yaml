@@ -1,0 +1,61 @@
+# SPDX-License-Identifier: Apache-2.0
+services:
+  oro:
+    build:
+      context: ../..
+      dockerfile: deploy/oro/Dockerfile
+      args:
+        VERSION: ${ORO_VERSION:?set ORO_VERSION}
+        REVISION: ${ORO_REVISION:?set ORO_REVISION to the exact 40-character source SHA}
+        BUILD_DATE: ${ORO_BUILD_DATE:?set ORO_BUILD_DATE in UTC}
+    image: ghcr.io/szl-holdings/a11oy-oro:${ORO_VERSION}
+    restart: unless-stopped
+    read_only: true
+    init: true
+    user: "10001:10001"
+    cap_drop: ["ALL"]
+    security_opt:
+      - no-new-privileges:true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m,uid=10001,gid=10001,mode=0700
+    volumes:
+      - oro-data:/data
+    secrets:
+      - source: oro_ed25519
+        target: oro_ed25519
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+      - source: oro_api_token
+        target: oro_api_token
+        uid: "10001"
+        gid: "10001"
+        mode: 0400
+    environment:
+      SZL_ORO_ENV: production
+      SZL_ORO_DB_PATH: /data/oro.sqlite
+      SZL_ORO_SIGNING_KEY_PATH: /run/secrets/oro_ed25519
+      SZL_ORO_SIGNING_KEY_ID: ${SZL_ORO_SIGNING_KEY_ID:?set governed signer key ID}
+      SZL_ORO_API_TOKEN_PATH: /run/secrets/oro_api_token
+      SZL_ORO_API_TOKEN_ID: ${SZL_ORO_API_TOKEN_ID:?set a managed operator ID}
+    ports:
+      - "127.0.0.1:${ORO_PORT:-8877}:7860"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import json,urllib.request; d=json.load(urllib.request.urlopen('http://127.0.0.1:7860/api/a11oy/v1/oro/readyz',timeout=3)); assert d['ready'] is True"
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+volumes:
+  oro-data:
+
+secrets:
+  oro_ed25519:
+    file: ${ORO_SIGNING_KEY_FILE:?set an absolute host path to a mode-0600 Ed25519 PEM}
+  oro_api_token:
+    file: ${ORO_API_TOKEN_FILE:?set an absolute host path to a mode-0600 API token}

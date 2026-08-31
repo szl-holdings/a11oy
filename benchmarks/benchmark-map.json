@@ -1,0 +1,213 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "manual-benchmark-evolution-v2",
+  "observedAt": "2026-07-25",
+  "canonicalRule": "A benchmark claim is active only when corpus digest, scoring rubric, judge panel, receipts, and CI validation are present. competition-math benchmark claims must be raw-score claims.",
+  "publication": {
+    "canonicalSource": "https://github.com/szl-holdings/a11oy",
+    "huggingFaceResultsRepo": "SZLHOLDINGS/a11oy-test-results",
+    "huggingFaceRepoType": "dataset",
+    "publishMode": "mirror-not-canonical"
+  },
+  "entries": [
+    {
+      "id": "mathcomp-raw-score-v1",
+      "family": "mathematics",
+      "status": "staged-no-corpus-digest",
+      "sourceEcosystem": [
+        "agi-forecast",
+        "lutar-lean",
+        "a11oy"
+      ],
+      "corpus": {
+        "corpusId": "mathcomp-public-years",
+        "corpusVersion": "v1",
+        "immutability": "content-addressed",
+        "sourceUri": "external-official-or-licensed-source",
+        "license": "do-not-redistribute-unless-permitted",
+        "canonicalization": "utf8-nfc-jsonl-sorted-keys",
+        "digestStatus": "external-digest-required-before-scoring",
+        "problemCount": 0,
+        "sealed": false
+      },
+      "scoring": {
+        "scoreType": "raw_points",
+        "maxRawScore": 120,
+        "perProblemMax": 10,
+        "partialCreditAllowed": true,
+        "reportFields": [
+          "year",
+          "problem",
+          "earned",
+          "possible",
+          "judgeIds",
+          "disagreement"
+        ]
+      },
+      "honesty": {
+        "allowedClaim": "staged competition-math raw-score harness design; no live score claimed",
+        "disallowedClaims": [
+          "solved the benchmark",
+          "beat the benchmark",
+          "AGI proven"
+        ],
+        "headlineThresholdRequiresUnanimousJudges": true
+      },
+      "formulaRoutes": [
+        {
+          "formula": "FalsePosition",
+          "theoremRuntimeManifestId": "RUNTIME-FALSE-POSITION",
+          "allowedUse": "routing-or-verification-when-problem-matches"
+        },
+        {
+          "formula": "MadhavaBound",
+          "theoremRuntimeManifestId": "RUNTIME-MADHAVA-BOUND",
+          "allowedUse": "numeric-bound-check-only"
+        },
+        {
+          "formula": "LiuHuiPi",
+          "theoremRuntimeManifestId": "RUNTIME-LIU-HUI-PI",
+          "allowedUse": "numeric-approximation-check-only"
+        },
+        {
+          "formula": "SummationInvariant",
+          "theoremRuntimeManifestId": "RUNTIME-SUMMATION-INVARIANT",
+          "allowedUse": "additive-invariant-check-only"
+        },
+        {
+          "formula": "QECLineage",
+          "theoremRuntimeManifestId": "RUNTIME-QEC-LINEAGE",
+          "allowedUse": "receipt-integrity-not-math-credit"
+        }
+      ],
+      "judges": [
+        {
+          "id": "raw_grader",
+          "role": "rubric_score",
+          "required": true
+        },
+        {
+          "id": "proof_judge",
+          "role": "proof_validity",
+          "required": true
+        },
+        {
+          "id": "provenance_judge",
+          "role": "receipt_and_claim_guard",
+          "required": true
+        }
+      ],
+      "receipts": {
+        "required": true,
+        "ledgerPathPattern": "benchmarks/results/{runId}/receipts.jsonl",
+        "chain": "hash_chain",
+        "quorum": "2-of-3"
+      },
+      "ciGates": [
+        "validate-benchmark-map",
+        "verify-corpus-digests",
+        "verify-receipt-chain",
+        "verify-formula-routes",
+        "reject-unsupported-benchmark-claims"
+      ]
+    },
+    {
+      "id": "governed-agent-bench-v0",
+      "family": "governed-agent",
+      "status": "sample-reproducible-local",
+      "sourceEcosystem": [
+        "a11oy",
+        "governed-receipt-spec"
+      ],
+      "corpus": {
+        "corpusId": "governed-agent-bench",
+        "corpusVersion": "0.1.0",
+        "immutability": "content-addressed",
+        "sourceUri": "benchmarks/governed-agent-bench/cases.jsonl",
+        "license": "Apache-2.0",
+        "canonicalization": "utf8-jsonl-one-object-per-line",
+        "digestStatus": "sealed",
+        "problemCount": 10,
+        "sealed": true
+      },
+      "scoring": {
+        "scoreType": "equal_weight_case_pass_rate",
+        "maxRawScore": 10,
+        "partialCreditAllowed": false,
+        "axes": [
+          "fail_closed",
+          "non_increasing_authority",
+          "false_success",
+          "receipt_completeness",
+          "rollback_discipline"
+        ],
+        "reportFields": [
+          "case_id",
+          "axis",
+          "passed",
+          "reasons",
+          "structural_errors",
+          "integrity"
+        ]
+      },
+      "honesty": {
+        "allowedClaim": "reproducible SAMPLE governability trace benchmark with deterministic local scoring and a protected public reference leaderboard containing zero eligible model submissions",
+        "disallowedClaims": [
+          "eligible model leaderboard results published",
+          "cryptographic receipt verification",
+          "production behavior proven",
+          "leaderboard superiority"
+        ],
+        "labels": {
+          "corpus": "SAMPLE",
+          "score": "COMPUTED",
+          "receiptVerification": "STRUCTURE_ONLY"
+        }
+      },
+      "publication": {
+        "state": "PUBLISHED_PROTECTED",
+        "dataset": "SZLHOLDINGS/governed-agent-bench",
+        "space": "SZLHOLDINGS/governed-agent-bench",
+        "firstVerified": {
+          "sourceRevision": "bafcc2c9cada9e209564c00ee511282333a83b2f",
+          "datasetRevision": "998a42653aff23bf60e18cbe2a7c368de1a90eef",
+          "spaceRevision": "654aaf2f7246cc1471e1324f2550647e1dabbabd",
+          "workflowRun": "https://github.com/szl-holdings/a11oy/actions/runs/30382562989",
+          "status": "VERIFIED_IMMUTABLE_READBACK"
+        },
+        "truthBoundary": "The public leaderboard contains zero eligible model submissions; its 100-point row is a SAMPLE/COMPUTED/STRUCTURE_ONLY reference fixture, not a model ranking."
+      },
+      "formulaRoutes": [],
+      "judges": [
+        {
+          "id": "raw_grader",
+          "role": "deterministic_case_contract",
+          "required": true
+        },
+        {
+          "id": "proof_judge",
+          "role": "trace_invariant_check",
+          "required": true
+        },
+        {
+          "id": "provenance_judge",
+          "role": "receipt_and_rollback_structure",
+          "required": true
+        }
+      ],
+      "receipts": {
+        "required": true,
+        "ledgerPathPattern": "benchmarks/results/{runId}/receipts.jsonl",
+        "chain": "not_verified",
+        "quorum": "structure-only-v0"
+      },
+      "ciGates": [
+        "validate-benchmark-map",
+        "verify-corpus-digests",
+        "verify-formula-routes",
+        "reject-unsupported-benchmark-claims",
+        "test-governed-agent-bench"
+      ]
+    }
+  ]
+}

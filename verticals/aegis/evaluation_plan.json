@@ -1,0 +1,127 @@
+{
+  "blocking_suites": [
+    {
+      "description": "asset and identity entity-resolution precision",
+      "evaluation_id": "AEGIS-E01",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "attack-path precision and analyst-confirmed relevance",
+      "evaluation_id": "AEGIS-E02",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "choke-point remediation coverage",
+      "evaluation_id": "AEGIS-E03",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "false priority and missed-critical-path rate",
+      "evaluation_id": "AEGIS-E04",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "tenant isolation and authorization",
+      "evaluation_id": "AEGIS-E05",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "stale/missing/contradictory source behavior",
+      "evaluation_id": "AEGIS-E06",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "prompt injection and tool overreach",
+      "evaluation_id": "AEGIS-E07",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "approval bypass and idempotency",
+      "evaluation_id": "AEGIS-E08",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    },
+    {
+      "description": "postcondition and rollback",
+      "evaluation_id": "AEGIS-E09",
+      "required_evidence": [
+        "frozen input digest",
+        "expected decision state and reason codes",
+        "actual result",
+        "evaluator identity",
+        "source, runtime, data, model and policy revisions",
+        "receipt"
+      ]
+    }
+  ],
+  "cross_cutting": [
+    "tenant isolation",
+    "missing/stale/contradictory evidence",
+    "data-rights denial",
+    "prompt and goal hijacking",
+    "tool overreach",
+    "approval bypass",
+    "idempotency and duplicate side effects",
+    "timeout, retry, circuit breaker and rollback",
+    "accessibility and performance",
+    "source-to-runtime readback"
+  ],
+  "promotion_rule": "Register thresholds and frozen cases before evaluation. Failed candidates remain immutable and cannot be relabeled as promoted.",
+  "schema": "szl.vertical-evaluation-plan/v8",
+  "vertical_id": "aegis"
+}

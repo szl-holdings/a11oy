@@ -1,0 +1,15 @@
+{
+  "data_rights_and_lineage": "szl-holdings/szl-lake",
+  "documentation": "szl-holdings/docs-site",
+  "kernel_family": "szl-holdings/szl-kernels",
+  "large_migration_source_and_shared_packages": "szl-holdings/platform",
+  "model_and_evaluation_lifecycle": "szl-holdings/szl-forge",
+  "organization_governance": "szl-holdings/.github",
+  "product_runtime": "szl-holdings/a11oy",
+  "public_evidence": "szl-holdings/a11oy-net",
+  "vertical_thin_adapters": [
+    "szl-holdings/szl-real-estate",
+    "szl-holdings/counsel",
+    "szl-holdings/puriq-live"
+  ]
+}

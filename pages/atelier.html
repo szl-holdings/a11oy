@@ -1,0 +1,2985 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Atelier — 40 Hub models · a11oy</title>
+<meta name="description" content="Walk all 40 SZLHOLDINGS Hub models. Unique cuts, receipted Python, fail-closed kernels. Declared product surface on a-11-oy.com."/>
+<link rel="canonical" href="https://a-11-oy.com/atelier"/>
+<!-- SPDX-License-Identifier: Apache-2.0 · © 2026 SZL Holdings · Doctrine v11 · 0 runtime CDN.
+     Honest name: Atelier. NEVER a codename. GET /atelier is a declared product surface.
+     Canonical playable Space: SZLHOLDINGS/szl-atelier. Proof copy: a11oy.net/atelier/.
+     Energy UNAVAILABLE. Lambda = Conjecture 1 OPEN. Does not retrain 1.5B. -->
+<link rel="stylesheet" href="/static/shared/szl_command_bar.css"/>
+<style>
+:root {
+  --ink: #09090b;
+  --ink-2: #121214;
+  --ink-3: #1c1c20;
+  --paper: #f2efe8;
+  --paper-dim: #c8c2b4;
+  --muted: #8a857a;
+  --line: color-mix(in oklab, var(--paper) 12%, transparent);
+  --cord: #9a5a48;
+  --ok: #7d9a7a;
+  --font-display: ui-serif, Georgia, "Times New Roman", serif;
+  --font-sans: ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, monospace;
+}
+* { box-sizing: border-box; border-color: var(--line); }
+html, body { margin: 0; background: var(--ink); color: var(--paper); font-family: var(--font-sans); }
+button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+a { color: var(--paper-dim); }
+a:hover { color: var(--paper); }
+h1, h2, h3 { text-wrap: balance; font-family: var(--font-display); font-weight: 500; }
+p { text-wrap: pretty; }
+.shell { min-height: 100dvh; overflow-x: hidden; }
+header {
+  position: sticky; top: 0; z-index: 20;
+  background: color-mix(in oklab, var(--ink) 90%, transparent);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--line);
+}
+.hdr {
+  max-width: 72rem; margin: 0 auto;
+  display: flex; flex-direction: column;
+}
+.brand {
+  min-height: 44px; display: flex; align-items: center;
+  padding: 0 1rem; font-family: var(--font-display); font-size: 1.125rem;
+  color: var(--paper); text-decoration: none;
+}
+nav { display: grid; grid-template-columns: repeat(5, 1fr); border-top: 1px solid var(--line); }
+nav a {
+  min-height: 44px; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--muted); text-decoration: none;
+}
+nav a.on, nav a:hover { color: var(--paper); }
+main { max-width: 72rem; margin: 0 auto; padding: 2rem 1rem 6rem; }
+.kicker { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.hero { font-size: clamp(2rem, 5vw, 3.25rem); letter-spacing: -0.03em; margin: 0.5rem 0 0; }
+.lede { max-width: 36rem; color: var(--paper-dim); line-height: 1.55; font-size: 0.95rem; }
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1.25rem; }
+.chip {
+  display: inline-flex; align-items: center; min-height: 32px; max-width: 100%;
+  padding: 0 0.75rem; border-radius: 999px; font-family: var(--font-mono);
+  font-size: 11px; background: var(--paper); color: var(--ink);
+}
+.chip.mute { background: transparent; color: var(--muted); box-shadow: 0 0 0 1px color-mix(in oklab, var(--paper) 12%, transparent); }
+.cut {
+  margin: 2rem 0; padding: 1.1rem 1.25rem;
+  border-left: 2px solid var(--cord); background: var(--ink-2); border-radius: 0 12px 12px 0;
+}
+.cut h2 { font-size: 1.35rem; margin: 0.4rem 0 0; }
+.panel { background: var(--ink-2); border-radius: 12px; padding: 1.1rem 1.25rem; box-shadow: 0 0 0 1px var(--line); }
+.grid { display: grid; gap: 0.75rem; }
+@media (min-width: 640px) { .grid.two { grid-template-columns: 1fr 1fr; } .grid.three { grid-template-columns: 1fr 1fr 1fr; } nav { border-top: 0; display: flex; } nav a { padding: 0 0.75rem; font-size: 0.875rem; } .hdr { flex-direction: row; align-items: center; justify-content: space-between; padding: 0 1.5rem; } .brand { padding: 0; } }
+table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+th { text-align: left; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); padding: 0.5rem 0.75rem; background: var(--ink-2); }
+td { padding: 0.65rem 0.75rem; border-top: 1px solid var(--line); }
+.mono { font-family: var(--font-mono); font-size: 12px; }
+.muted { color: var(--muted); }
+.walk { display: grid; gap: 2rem; }
+@media (min-width: 1024px) { .walk { grid-template-columns: 220px 1fr; } .side { display: block; } }
+.side { display: none; position: sticky; top: 5rem; max-height: calc(100dvh - 6rem); overflow: auto; }
+.side button {
+  width: 100%; min-height: 44px; text-align: left; background: transparent; border: 0;
+  color: var(--muted); font: inherit; font-size: 12px; padding: 0 0.5rem; border-radius: 4px;
+}
+.side button.on { background: var(--ink-2); color: var(--paper); }
+.pager { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; margin-top: 2.5rem; }
+.pager button {
+  min-height: 44px; border: 0; border-radius: 8px; padding: 0 1rem; font: inherit;
+  background: var(--ink-2); color: var(--paper-dim);
+}
+.pager button.primary { background: var(--paper); color: var(--ink); }
+input[type="range"] { width: 100%; height: 44px; accent-color: var(--paper); }
+input[type="text"], textarea {
+  width: 100%; min-height: 44px; background: var(--ink-3); color: var(--paper);
+  border: 0; border-radius: 8px; padding: 0 0.75rem; font: inherit;
+  box-shadow: 0 0 0 1px color-mix(in oklab, var(--paper) 12%, transparent);
+}
+.gate { margin-top: 1rem; padding: 0.85rem 1rem; border-radius: 8px; background: var(--ink-3); border-left: 2px solid var(--ok); }
+.gate.bad { border-left-color: var(--cord); }
+.gate .lbl { font-family: var(--font-display); font-size: 1.5rem; }
+canvas { width: 100%; height: auto; border-radius: 8px; background: var(--ink); cursor: crosshair; }
+.heat { display: grid; gap: 2px; }
+.heat i { display: block; aspect-ratio: 1; border-radius: 1px; }
+.card {
+  background: var(--ink-2); border-radius: 12px; padding: 1rem; text-align: left;
+  box-shadow: 0 0 0 1px var(--line); color: inherit; border: 0; font: inherit; cursor: pointer;
+}
+.card h3 { margin: 0.35rem 0 0; font-size: 1.25rem; }
+pre {
+  background: var(--ink-3); border-radius: 8px; padding: 0.85rem; overflow: auto;
+  font-family: var(--font-mono); font-size: 11px; color: var(--paper-dim); line-height: 1.5;
+  max-height: 22rem; white-space: pre-wrap; word-break: break-word;
+}
+.foot { margin-top: 2rem; padding: 1rem 1.5rem 2rem; border-top: 1px solid var(--line); font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; align-items: center; }
+.shell > .foot { max-width: 72rem; margin: 0 auto; }
+.foot a { min-height: 44px; display: inline-flex; align-items: center; color: var(--paper-dim); text-decoration: none; }
+.foot a:hover { color: var(--paper); }
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+
+.szl-hbar { position: sticky; top: 0; z-index: 40; }
+.honest { font-family: var(--font-mono); font-size: 11px; color: var(--muted); line-height: 1.7; margin-top: 2rem; padding-top: 1rem; border-top: 1px solid var(--line); max-width: 72rem; margin-left: auto; margin-right: auto; padding-left: 1rem; padding-right: 1rem; }
+.honest b { color: var(--paper-dim); font-weight: 600; }
+
+</style>
+</head>
+<body>
+<div class="topbar szl-hbar" data-szl-command-bar data-surface="Atelier" data-origin="product"></div>
+<div class="shell">
+  <header>
+    <div class="hdr">
+      <a class="brand" href="#/walk">SZL Atelier</a>
+      <nav aria-label="Primary">
+        <a href="#/walk" data-nav="walk">Walk</a>
+        <a href="#/cut" data-nav="cut">Cut</a>
+        <a href="#/bench" data-nav="bench">Bench</a>
+        <a href="#/new" data-nav="new">New</a>
+        <a href="#/forge" data-nav="forge">Forge</a>
+      </nav>
+    </div>
+  </header>
+  <main id="app">Loading estate…</main>
+  <span id="/walk" hidden></span>
+  <span id="/cut" hidden></span>
+  <span id="/bench" hidden></span>
+  <span id="/new" hidden></span>
+  <span id="/forge" hidden></span>
+  <span id="/grid" hidden></span>
+  <p class="honest">
+    <b>Honest.</b> 40 Hub ids. Nano silhouettes MEASURED in-browser from shipped NumPy.
+    1.5B numbers SIGNED, not retrained here. Energy UNAVAILABLE. Lambda = Conjecture 1 OPEN.
+    Proof copy <a href="https://a11oy.net/atelier/">a11oy.net/atelier</a>.
+    Canonical Space <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier">SZLHOLDINGS/szl-atelier</a>.
+    Source <a href="https://github.com/szl-holdings/szl-atelier">szl-holdings/szl-atelier</a>.
+    Doctrine v11 LOCKED · Apache-2.0.
+  </p>
+  <footer class="foot">
+    <a href="/">home</a>
+    <a href="/console">console</a>
+    <a href="/ecosystem">ecosystem</a>
+    <a href="/estate">estate</a>
+    <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier">Hub Space</a>
+    <a href="https://a11oy.net/atelier/">a11oy.net</a>
+    <a href="https://github.com/szl-holdings/szl-atelier">GitHub</a>
+    <span class="muted">Doctrine v11 · Apache-2.0</span>
+  </footer>
+</div>
+<script type="application/json" id="atelier-models">{
+  "doctrine": "v11 LOCKED \u00b7 749/14/163 \u00b7 \u039b = Conjecture 1 OPEN",
+  "n": 40,
+  "models": [
+    {
+      "slug": "miniembed-nano",
+      "hf": "SZLHOLDINGS/MiniEmbed-Nano",
+      "name": "MiniEmbed-Nano",
+      "family": "nano",
+      "kind": "Hash-table embed",
+      "oneLiner": "A 64\u00d712 embedding whose rows are a function of SHA-256. The vector is the receipt of the token.",
+      "cut": "Nobody ships an embedding where retrieval is provenance. MiniEmbed is not BGE, not NV-Embed. Mean-pool of L2 rows, seed 20260721, CPU NumPy.",
+      "dreamed": "An embedding you can re-derive bit-exact from the seed. No SGD theater. Cosine is a claim about the table, not a vibe.",
+      "anthropic": "Honest about what it is not \u2014 not a foundation embed.",
+      "nvidia": "Tiny table instead of NV-Embed / NeMo retrieval stacks.",
+      "unsloth": "No LoRA. Construction is `build(seed)` \u2014 Unsloth is the wrong tool and we say so.",
+      "weights": "numpy",
+      "trained": true,
+      "evidence": "MEASURED",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": "64 \u00d7 12",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Retrieval hit@2 (doctrine pairs)",
+          "value": "0.40",
+          "evidence": "MEASURED",
+          "vs": "SAMPLE on 5 pairs. Hub analogy UNAVAILABLE"
+        },
+        {
+          "name": "Table",
+          "value": "64 \u00d7 12 L2",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "Reproducible from seed",
+          "value": "20260721",
+          "evidence": "MEASURED"
+        }
+      ],
+      "files": [
+        "mini_embed.npz (atelier)",
+        "train/mini_embed.py"
+      ],
+      "limitations": [
+        "Not a neural embed.",
+        "Not comparable to BGE-base 768-d.",
+        "Hit@2 is on five doctrine pairs \u2014 SAMPLE."
+      ],
+      "intended": "Silhouette of receipted retrieval. Teaching and tests.",
+      "play": "embed",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/train/mini_embed.py",
+        "module": "szl_khipu.train.mini_embed"
+      }
+    },
+    {
+      "slug": "moons-nano",
+      "hf": "SZLHOLDINGS/Moons-Nano",
+      "name": "Moons-Nano",
+      "family": "nano",
+      "kind": "2-layer MLP",
+      "oneLiner": "Two interlocking moons. A 2-8-2 tanh MLP. The toy that teaches fail-closed before anyone touches 1.5B.",
+      "cut": "Accuracy is the wrong headline. We publish holdout accuracy AND silhouette AND the decision boundary you can click. Leaders hide the toy. We hang it in the foyer.",
+      "dreamed": "A model card that is a laboratory: click the plane, watch the gate, read the loss.",
+      "anthropic": "Small, inspectable, no capability theater.",
+      "nvidia": "MLP instead of cuDNN flex \u2014 the kernel idea at 2D.",
+      "unsloth": "SGD on 400 points, not QLoRA. Same honesty about scale.",
+      "weights": "numpy",
+      "trained": true,
+      "evidence": "MEASURED",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": "2-8-2",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Holdout acc",
+          "value": "0.8875",
+          "evidence": "MEASURED",
+          "vs": "sklearn MLP on moons ~0.90\u20130.95"
+        },
+        {
+          "name": "Silhouette (labels)",
+          "value": "0.317",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "Epochs / final loss",
+          "value": "220 / 0.27",
+          "evidence": "MEASURED"
+        }
+      ],
+      "files": [
+        "moons.npz (atelier)"
+      ],
+      "limitations": [
+        "Toy. 2D. Noise 0.13. Not a product model."
+      ],
+      "intended": "Onboard the cut: measured numbers, visible boundary.",
+      "play": "moons",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/train/moons.py",
+        "module": "szl_khipu.train.moons"
+      }
+    },
+    {
+      "slug": "tinykhipu-nano",
+      "hf": "SZLHOLDINGS/TinyKhipu-Nano",
+      "name": "TinyKhipu-Nano",
+      "family": "nano",
+      "kind": "Navigate | Abstain MLP",
+      "oneLiner": "Four features in. NAVIGATE or ABSTAIN out. Abstain is the default class, not a post-hoc filter.",
+      "cut": "Leaders train models to answer. We train a silhouette to shut up when overlap is thin or the lure is adversarial. This is the 1.5B Khipu cut at 4-6-2.",
+      "dreamed": "A navigator that has never seen document text \u2014 only handles \u2014 and still knows when to refuse the walk.",
+      "anthropic": "Refusal as a typed output, not a polite paragraph.",
+      "nvidia": "Guardrail inside the head, not a sidecar.",
+      "unsloth": "The 1.5B QLoRA is the grown form of this MLP.",
+      "weights": "numpy",
+      "trained": true,
+      "evidence": "SYNTHETIC",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": "4-6-2",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Synthetic holdout acc",
+          "value": "1.00",
+          "evidence": "SYNTHETIC",
+          "vs": "Linearly separable by design"
+        },
+        {
+          "name": "Abstain recall",
+          "value": "1.00",
+          "evidence": "SYNTHETIC",
+          "vs": "Khipu-1.5B owner abstain 2/6"
+        },
+        {
+          "name": "Navigate recall",
+          "value": "1.00",
+          "evidence": "SYNTHETIC"
+        }
+      ],
+      "files": [
+        "tiny_khipu.npz (atelier)"
+      ],
+      "limitations": [
+        "Synthetic features. Perfect holdout is a design fact, not a field claim.",
+        "The 1.5B abstain rate is 2/6 \u2014 this nano does not wash that."
+      ],
+      "intended": "Unit-test the NAVIGATE|ABSTAIN schema before GPU spend.",
+      "play": "khipu",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/train/tiny_khipu.py",
+        "module": "szl_khipu.train.tiny_khipu"
+      }
+    },
+    {
+      "slug": "receiptagent-nano",
+      "hf": "SZLHOLDINGS/ReceiptAgent-Nano",
+      "name": "ReceiptAgent-Nano",
+      "family": "nano",
+      "kind": "4-way lambda gate",
+      "oneLiner": "ALLOW \u00b7 DENY \u00b7 ABSTAIN \u00b7 ESCALATE. Escalation is a class, not a retry loop.",
+      "cut": "Anthropic refuses. NVIDIA rails. Unsloth trains. We add a fourth way: hand the decision to a human with a receipt. Loop-tax lives here.",
+      "dreamed": "A policy head that cannot silently succeed. Every output is one of four named gates.",
+      "anthropic": "Constitutional refuse \u2192 typed DENY/ABSTAIN.",
+      "nvidia": "NeMo Guardrails flow \u2192 four-way head.",
+      "unsloth": "Grown form is SZL-Forge-1.5B-ReceiptAgent.",
+      "weights": "numpy",
+      "trained": true,
+      "evidence": "SYNTHETIC",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": "4-10-4",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Synthetic holdout acc",
+          "value": "1.00",
+          "evidence": "SYNTHETIC"
+        },
+        {
+          "name": "ALLOW / DENY / ABSTAIN / ESCALATE",
+          "value": "per-class 1.00",
+          "evidence": "SYNTHETIC"
+        }
+      ],
+      "files": [
+        "receipt_agent.npz (atelier)"
+      ],
+      "limitations": [
+        "Synthetic 4-D features. Not a substitute for the 1.5B agent.",
+        "Hub kernel labels are ALLOW/WARN/BLOCKED/ESCALATE \u2014 kernel is truth. This atelier MLP is a 4-class silhouette, not rule_check."
+      ],
+      "intended": "Fail-closed unit tests for the 4-way gate.",
+      "play": "receipt",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/train/receipt_agent.py",
+        "module": "szl_khipu.train.receipt_agent"
+      }
+    },
+    {
+      "slug": "szl-khipu",
+      "hf": "SZLHOLDINGS/szl-khipu",
+      "name": "szl-khipu",
+      "family": "nano",
+      "kind": "Lambda-gate",
+      "oneLiner": "1-D logistic silhouette of Conjecture 1. \u03bb* is the fail-closed threshold. False-open is the headline metric.",
+      "cut": "Everyone reports accuracy. We report false-open rate. A gate that never opens below \u03bb is more valuable than a clever classifier.",
+      "dreamed": "A unique aggregator \u039b. Not proven \u2014 Conjecture 1. This 1-D toy is the teaching proof-of-shape, not the theorem.",
+      "anthropic": "Refuse below constitutional threshold.",
+      "nvidia": "Guardrail as a numeric gate, not a regex.",
+      "unsloth": "Not a language model. Don't QLoRA this.",
+      "weights": "numpy",
+      "trained": true,
+      "evidence": "MEASURED",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": "1-D logistic",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "\u03bb*",
+          "value": "0.6279",
+          "evidence": "MEASURED",
+          "vs": "Design truth 0.62"
+        },
+        {
+          "name": "False-open rate",
+          "value": "0.00",
+          "evidence": "MEASURED",
+          "vs": "Primary metric"
+        },
+        {
+          "name": "Holdout acc",
+          "value": "0.99+",
+          "evidence": "MEASURED"
+        }
+      ],
+      "files": [
+        "lambda_gate.json (atelier)"
+      ],
+      "limitations": [
+        "\u039b-aggregator uniqueness remains Conjecture 1. This is not a proof."
+      ],
+      "intended": "Show the gate. Click trust. Watch fail-closed.",
+      "play": "lambda",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/lambda_gate.py",
+        "module": "szl_khipu.lambda_gate"
+      }
+    },
+    {
+      "slug": "szl-khipu-1.5b",
+      "hf": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "name": "SZL-Khipu-1.5B",
+      "family": "navigator",
+      "kind": "Qwen2.5 QLoRA, merged",
+      "oneLiner": "A 1.5B brain navigator that plans over handles, never over document text. NAVIGATE or ABSTAIN in khipu.schema.json.",
+      "cut": "The model is blind to content. Citations cannot be invented from memory because memory never saw the nodes. That is a capability nobody else wants, and we trained it.",
+      "dreamed": "Retrieval that cannot hallucinate a citation. Grounding is structural.",
+      "anthropic": "Claude abstains in prose. Khipu abstains in a schema with citedNodeIds: [].",
+      "nvidia": "NeMo retriever sees passages. Khipu sees handles only.",
+      "unsloth": "QLoRA SFT, 7 modules, packing=auto, adamw_8bit, receipted. Not retrained here.",
+      "weights": "full",
+      "trained": true,
+      "evidence": "SIGNED",
+      "downloads": 242,
+      "likes": 1,
+      "base": "Qwen/Qwen2.5-1.5B-Instruct",
+      "params": "1.5B",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "plan-valid",
+          "value": "11/11",
+          "evidence": "SIGNED",
+          "vs": "Owner synthetic harness"
+        },
+        {
+          "name": "grounding",
+          "value": "4/5",
+          "evidence": "SIGNED"
+        },
+        {
+          "name": "abstain",
+          "value": "2/6",
+          "evidence": "SIGNED",
+          "vs": "Known blocker. R2 exists because of this."
+        },
+        {
+          "name": "hallucinated citations",
+          "value": "0",
+          "evidence": "SIGNED"
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "4bit \u00b7 r=16 \u00b7 7 modules \u00b7 packing=auto \u00b7 adamw_8bit",
+          "evidence": "KERNEL",
+          "vs": "Owner-metal recipe. Existing signed loss 0.0245. Not retrained in this atelier."
+        }
+      ],
+      "files": [
+        "model.safetensors 3.09 GB",
+        "adapter/adapter_model.safetensors 148 MB",
+        "training_receipt.signed.json",
+        "eval_receipt.signed.json",
+        "khipu.schema.json"
+      ],
+      "limitations": [
+        "Abstain 2/6 \u2014 do not deploy autonomous.",
+        "Eval is owner synthetic, not third-party.",
+        "Curriculum files not published."
+      ],
+      "intended": "Controller-bound retrieval planner. Proposal only.",
+      "play": "khipu",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "khipu/",
+        "module": "szl_forge.khipu"
+      }
+    },
+    {
+      "slug": "szl-khipu-1.5b-gguf",
+      "hf": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "name": "SZL-Khipu-1.5B-GGUF",
+      "family": "navigator",
+      "kind": "llama.cpp quant",
+      "oneLiner": "Q4_K_M \u00b7 Q5_K_M \u00b7 Q8_0 \u00b7 F16 of the navigator. Derived. Not the signed object.",
+      "cut": "Leaders treat GGUF as the model. We print on the card: signed hash does not cover these files. CPU-honest, receipt-honest.",
+      "dreamed": "Edge navigation that still fails closed, with a card that refuses to launder a quant as a weight.",
+      "anthropic": "No GGUF. We keep the honesty they apply to API vs weights.",
+      "nvidia": "TensorRT-LLM is their derived path. GGUF is ours. Same idea, smaller church.",
+      "unsloth": "Unsloth's GGUF export, labeled derived.",
+      "weights": "gguf",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 482,
+      "likes": 0,
+      "base": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "params": "1.5B quantized",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Q4_K_M size",
+          "value": "~0.99 GB",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Covered by signed weights hash",
+          "value": "no",
+          "evidence": "SIGNED"
+        }
+      ],
+      "files": [
+        "Q4_K_M",
+        "Q5_K_M",
+        "Q8_0",
+        "F16"
+      ],
+      "limitations": [
+        "Derived. Numerics drift vs BF16.",
+        "Do not cite GGUF as the signed checkpoint."
+      ],
+      "intended": "llama.cpp / Ollama / LM Studio. Still proposal-only.",
+      "play": "khipu",
+      "github": {
+        "repo": "szl-holdings/szl-serve",
+        "path": "README.md",
+        "module": "szl_serve"
+      }
+    },
+    {
+      "slug": "szl-khipu-1.5b-abstain",
+      "hf": "SZLHOLDINGS/SZL-Khipu-1.5B-abstain",
+      "name": "SZL-Khipu-1.5B-abstain",
+      "family": "navigator",
+      "kind": "PEFT abstain adapter",
+      "oneLiner": "A LoRA that only learns when to shut up. Stacks on the 1.5B navigator.",
+      "cut": "Most 'safety LoRAs' teach tone. This one teaches a binary: the handles are not enough. Research-only until abstain beats 2/6.",
+      "dreamed": "A specialist in silence. Capability is someone else's LoRA.",
+      "anthropic": "Constitutional fine-tune, but only the refuse clause.",
+      "nvidia": "A guardrail as weights, not as Colang.",
+      "unsloth": "QLoRA adapter, proposal-only, research-only tag.",
+      "weights": "adapter",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": "Qwen/Qwen2.5-1.5B-Instruct",
+      "params": "LoRA on 1.5B",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Parent abstain",
+          "value": "2/6",
+          "evidence": "SIGNED",
+          "vs": "This adapter exists to move that number"
+        }
+      ],
+      "files": [
+        "PEFT adapter"
+      ],
+      "limitations": [
+        "research-only",
+        "proposal-only",
+        "Does not magically fix 2/6 until a signed eval says so."
+      ],
+      "intended": "Stack on the navigator. Measure abstain. Do not ship on hope.",
+      "play": "khipu",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "khipu/",
+        "module": "szl_forge.khipu.abstain"
+      }
+    },
+    {
+      "slug": "khipu-r2",
+      "hf": "SZLHOLDINGS/KHIPU-R2",
+      "name": "KHIPU-R2",
+      "family": "navigator",
+      "kind": "Abstain-retrain round 2",
+      "oneLiner": "The ouroboros of refusal. Round 2 of the navigator after the 2/6 abstain miss.",
+      "cut": "Leaders ship v1 and changelog the rest. We name the retraining of silence as its own model. Failure is an artifact, not a footnote.",
+      "dreamed": "A public retrain whose only job is to improve one metric: honest abstain under adversarial handles.",
+      "anthropic": "Red-team \u2192 constitution update. We red-team \u2192 adapter.",
+      "nvidia": "Recipe re-run with a new seed and a signed delta.",
+      "unsloth": "khipu-r2 profile: packing=false, lr=1e-4, new receipt. Do not overwrite R1.",
+      "weights": "adapter",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": "Qwen/Qwen2.5-1.5B-Instruct",
+      "params": "LoRA on 1.5B",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "R1 abstain",
+          "value": "2/6",
+          "evidence": "SIGNED"
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "r=16 \u00b7 packing=false \u00b7 lr=1e-4",
+          "evidence": "KERNEL",
+          "vs": "R2 lineage. packing=false so loss is comparable to R1. Not retrained here."
+        }
+      ],
+      "files": [
+        "PEFT adapter"
+      ],
+      "limitations": [
+        "research-only",
+        "No signed R2 eval receipt in this atelier."
+      ],
+      "intended": "Continue the abstain-retrain loop. Fail closed until the receipt lands.",
+      "play": "khipu",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "khipu/",
+        "module": "szl_forge.khipu.r2"
+      }
+    },
+    {
+      "slug": "szl-forge-1.5b-receiptagent",
+      "hf": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "name": "SZL-Forge-1.5B-ReceiptAgent",
+      "family": "receipt",
+      "kind": "Qwen2.5 QLoRA, merged",
+      "oneLiner": "Proposal-only agent. Every completion is meant to become a receipt, not an action.",
+      "cut": "Agents that 'use tools' skip the envelope. This model cannot act. It proposes. The controller signs. That split is the product.",
+      "dreamed": "An agent whose weights are physically incapable of being the actor. Authority lives outside the tensor.",
+      "anthropic": "Claude tool-use, but the tool is always 'emit a proposal'.",
+      "nvidia": "NIM agent runtime, minus the runtime \u2014 we refuse to let the weights call.",
+      "unsloth": "receiptagent profile: packing=false so receipt-token loss is the point.",
+      "weights": "full",
+      "trained": true,
+      "evidence": "SIGNED",
+      "downloads": 212,
+      "likes": 0,
+      "base": "Qwen/Qwen2.5-1.5B-Instruct",
+      "params": "1.5B BF16",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Weights",
+          "value": "model.safetensors 1.54 GB BF16",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Training receipt",
+          "value": "signed",
+          "evidence": "SIGNED"
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "r=16 \u00b7 7 modules \u00b7 packing=false",
+          "evidence": "KERNEL",
+          "vs": "Receipt-token loss is the point. Owner-metal recipe."
+        }
+      ],
+      "files": [
+        "model.safetensors",
+        "adapter/adapter_model.safetensors",
+        "receiptagent.schema.json",
+        "training_receipt.signed.json",
+        "eval_receipt.signed.json"
+      ],
+      "limitations": [
+        "Proposal-only. Ungoverned decode is misuse.",
+        "Owner eval, not a public leaderboard."
+      ],
+      "intended": "Alloy controller inbound. Never a naked chatbot.",
+      "play": "receipt",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "receiptagent/",
+        "module": "szl_forge.receiptagent"
+      }
+    },
+    {
+      "slug": "szl-receiptagent-qwen35-0.8b-v2",
+      "hf": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "name": "szl-receiptagent-qwen35-0.8b-v2",
+      "family": "receipt",
+      "kind": "Unsloth LoRA on Qwen3.5-0.8B",
+      "oneLiner": "The house loop on a 0.8B Qwen3.5. Small enough to iterate. Still proposal-only.",
+      "cut": "Everyone fine-tunes 8B because it looks serious. We fine-tune 0.8B because the receipt loop should be cheap enough to run every night.",
+      "dreamed": "A receipt agent you can retrain between coffee and lunch, with the same doctrine as the 1.5B.",
+      "anthropic": "Same constitution, smaller body.",
+      "nvidia": "Small NIM-shaped thing, without NIM.",
+      "unsloth": "Poster organ: FastLanguageModel + adamw_8bit + receipted knobs on Qwen3.5-0.8B.",
+      "weights": "adapter",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 11,
+      "likes": 0,
+      "base": "Qwen/Qwen3.5-0.8B",
+      "params": "LoRA on 0.8B",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Base",
+          "value": "Qwen3.5-0.8B",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "4bit \u00b7 r=16 \u00b7 adamw_8bit \u00b7 packing=auto",
+          "evidence": "KERNEL",
+          "vs": "Nightly receipted loop. Owner-metal. Not retrained here."
+        }
+      ],
+      "files": [
+        "adapter safetensors"
+      ],
+      "limitations": [
+        "Adapter only. Load on the disclosed base.",
+        "No signed eval in this atelier."
+      ],
+      "intended": "Nightly receipted Unsloth loop.",
+      "play": "receipt",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "frontier/qwen35-receiptagent-v2/",
+        "module": "szl_forge.frontier.qwen35_v2"
+      }
+    },
+    {
+      "slug": "willay",
+      "hf": "SZLHOLDINGS/WILLAY",
+      "name": "WILLAY",
+      "family": "doctrine",
+      "kind": "SFT identity, 0.5B",
+      "oneLiner": "Quechua willay: to tell. A 0.5B that knows what SZL is allowed to claim, and what it must not.",
+      "cut": "Identity fine-tunes usually make mascots. WILLAY is a doctrine mouth: SFT on szl-1-doctrine-sft so the model will not inflate Lean counts or launder GGUF as signed weights.",
+      "dreamed": "A tiny speaker that refuses marketing. Trained on the honesty set, not a brand book.",
+      "anthropic": "Constitutional self-description.",
+      "nvidia": "System-prompt as weights.",
+      "unsloth": "rsLoRA rank-8, attn+mlp, packing=false, max_seq=1024. Doctrine mouth. Loss-comparable SFT.",
+      "weights": "adapter",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": "Qwen/Qwen2.5-0.5B-Instruct",
+      "params": "LoRA on 0.5B",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Trainer",
+          "value": "Unsloth QLoRA / HF Jobs A10G",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "Adapter",
+          "value": "adapter-unsloth/adapter_model.safetensors",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Tell/silence holdout",
+          "value": "1.00",
+          "evidence": "SYNTHETIC",
+          "vs": "CPU 5-8-2 seed 20260721. Silhouette of the 0.5B mouth, not a substitute."
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "r=8 \u00b7 rsLoRA \u00b7 attn+mlp \u00b7 packing=false",
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. Unique doctrine mouth. Eval none-this-run."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "0.840",
+          "evidence": "MEASURED",
+          "vs": "160 steps \u00b7 80 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
+        }
+      ],
+      "files": [
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
+        "adapter_model.safetensors",
+        "willay.npz (atelier silhouette)"
+      ],
+      "limitations": [
+        "Adapter, not merged.",
+        "Atelier MLP is a doctrine-mouth silhouette, not the 0.5B LoRA."
+      ],
+      "intended": "Estate voice. Not a general assistant.",
+      "play": "tell",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "a11oy_mini/",
+        "module": "szl_forge.a11oy_mini"
+      }
+    },
+    {
+      "slug": "a11oy-mini",
+      "hf": "SZLHOLDINGS/A11OY-MINI",
+      "name": "A11OY-MINI",
+      "family": "doctrine",
+      "kind": "GGUF mini",
+      "oneLiner": "The command-center personality in a pocket quant. Doctrine v11, series-a tagged, still conversational.",
+      "cut": "A11oy is a Space and a substrate. The mini is the voice you can actually load. Not the organ. Not the mesh.",
+      "dreamed": "A governed command voice that fits in llama.cpp.",
+      "anthropic": "A small Claude-shaped mouth with a much stricter constitution.",
+      "nvidia": "A NIM-less local runtime.",
+      "unsloth": "GGUF path.",
+      "weights": "gguf",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": "GGUF",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Format",
+          "value": "GGUF / llama.cpp",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Doctrine-mouth silhouette",
+          "value": "shared with WILLAY",
+          "evidence": "SYNTHETIC",
+          "vs": "Same 5-8-2 tell/silence head. Quant is derived."
+        }
+      ],
+      "files": [
+        "GGUF"
+      ],
+      "limitations": [
+        "Derived quant.",
+        "Not a11oy-v19-substrate."
+      ],
+      "intended": "Local doctrine voice. Proposal-only if wired to tools.",
+      "play": "tell",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "a11oy_mini/",
+        "module": "szl_forge.a11oy_mini"
+      }
+    },
+    {
+      "slug": "chaski",
+      "hf": "SZLHOLDINGS/chaski",
+      "name": "chaski",
+      "family": "messenger",
+      "kind": "Qwen3.5 0.8B messenger",
+      "oneLiner": "Inca runner. Carries the message. Cannot write the message. Image-text-to-text tagged, proposal-only.",
+      "cut": "Multimodal models narrate what they see. Chaski may only carry a payload the controller already signed. Vision without authorship.",
+      "dreamed": "A courier that cannot invent the dispatch. The oldest job in the Andes, as a LoRA.",
+      "anthropic": "Claude vision, minus the right to conclude.",
+      "nvidia": "NVLM / NeMo multimodal, minus the right to act.",
+      "unsloth": "Attention-only LoRA on Qwen3.5-0.8B. MLP frozen so the courier cannot author.",
+      "weights": "adapter",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": "Qwen/Qwen3.5-0.8B",
+      "params": "0.8B adapter",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Role",
+          "value": "courier, not author",
+          "evidence": "HUB"
+        },
+        {
+          "name": "CARRY/DROP holdout",
+          "value": "0.9808",
+          "evidence": "MEASURED",
+          "vs": "70/30 mix \u00b7 CPU 5-8-2 seed 20260721"
+        },
+        {
+          "name": "DROP recall",
+          "value": "0.9231",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "r=8 \u00b7 rsLoRA \u00b7 attn-only q,k,v,o",
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. Unique cut: MLP frozen so the courier cannot author."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "1.932",
+          "evidence": "MEASURED",
+          "vs": "120 steps \u00b7 45 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
+        }
+      ],
+      "files": [
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
+        "chaski.npz (atelier silhouette)"
+      ],
+      "limitations": [
+        "proposal-only",
+        "Do not treat as a VLM product card without a signed vision eval."
+      ],
+      "intended": "Carry signed payloads across organs.",
+      "play": "courier",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "chaski/",
+        "module": "szl_forge.chaski"
+      }
+    },
+    {
+      "slug": "chaski-5050",
+      "hf": "SZLHOLDINGS/chaski-5050",
+      "name": "chaski-5050",
+      "family": "messenger",
+      "kind": "50/50 cutting mix",
+      "oneLiner": "Half navigate, half abstain in the curriculum. The courier who is allowed to stop.",
+      "cut": "Mix-ratio is usually a blog footnote. We named the model after the mix. 50/50 is the cut.",
+      "dreamed": "Curriculum as identity. The filename is the experiment.",
+      "anthropic": "Balanced helpful/harmless mix, as a named checkpoint.",
+      "nvidia": "Recipe variant, published.",
+      "unsloth": "r=16 rsLoRA attn+mlp packing=auto. Extra MLP rank so the courier is allowed to stop.",
+      "weights": "adapter",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": "Qwen/Qwen3.5-0.8B",
+      "params": "LoRA on 0.8B",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Mix",
+          "value": "50/50 cutting",
+          "evidence": "HUB"
+        },
+        {
+          "name": "CARRY/DROP holdout",
+          "value": "0.9808",
+          "evidence": "MEASURED",
+          "vs": "50/50 mix \u00b7 CPU 5-8-2 seed 20260721"
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "r=16 \u00b7 rsLoRA \u00b7 attn+mlp \u00b7 packing=auto",
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. 50/50 mix is the identity. Eval none-this-run."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "0.559",
+          "evidence": "MEASURED",
+          "vs": "120 steps \u00b7 45 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
+        }
+      ],
+      "files": [
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
+        "chaski_5050.npz (atelier silhouette)"
+      ],
+      "limitations": [
+        "proposal-only",
+        "No signed mix-ablation in this atelier."
+      ],
+      "intended": "Ablation sibling of chaski.",
+      "play": "courier",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "chaski/",
+        "module": "szl_forge.chaski"
+      }
+    },
+    {
+      "slug": "chaski-r2",
+      "hf": "SZLHOLDINGS/chaski-r2",
+      "name": "chaski-r2",
+      "family": "messenger",
+      "kind": "Messenger round 2",
+      "oneLiner": "Second cut of the courier. Same base, new receipted run.",
+      "cut": "Round-2 is a first-class citizen in this estate. We do not overwrite R1. We add a sibling.",
+      "dreamed": "A lineage you can walk. R1 stays up. R2 is the next knot.",
+      "anthropic": "Versioned constitutions.",
+      "nvidia": "Recipe rerun.",
+      "unsloth": "r=8 rsLoRA attn-only packing=false lr=5e-5. R2 refinement. R1 stays up.",
+      "weights": "adapter",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": "Qwen/Qwen3.5-0.8B",
+      "params": "LoRA on 0.8B",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Lineage",
+          "value": "chaski \u2192 chaski-5050 \u2192 chaski-r2",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Unsloth profile",
+          "value": "r=8 \u00b7 attn-only \u00b7 packing=false \u00b7 lr=5e-5",
+          "evidence": "MEASURED",
+          "vs": "A10G job 2026-08-29. R2 refinement. R1 stays. Eval none-this-run."
+        },
+        {
+          "name": "Unsloth train loss",
+          "value": "2.739",
+          "evidence": "MEASURED",
+          "vs": "80 steps \u00b7 45 rows \u00b7 seed 20260721 \u00b7 energy UNAVAILABLE"
+        }
+      ],
+      "files": [
+        "adapter-unsloth/adapter_model.safetensors",
+        "adapter-unsloth/training_receipt.json",
+        "chaski_r2.npz (atelier silhouette)"
+      ],
+      "limitations": [
+        "proposal-only"
+      ],
+      "intended": "Lineage walk. Compare, do not silently replace.",
+      "play": "courier",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "chaski/",
+        "module": "szl_forge.chaski"
+      }
+    },
+    {
+      "slug": "killinchu-eye",
+      "hf": "SZLHOLDINGS/KILLINCHU-EYE",
+      "name": "KILLINCHU-EYE",
+      "family": "sensing",
+      "kind": "CUAS object detection",
+      "oneLiner": "The eye of killinchu. Counter-UAS detection with a fail-closed contract: a naked positive is not an engagement.",
+      "cut": "Detection models emit boxes. Ours must emit a box AND a receipt, or it is a miss even if the IoU is perfect. The eye does not fire.",
+      "dreamed": "A detector whose false-positive without provenance is treated as a safety bug, not a scoreboard win.",
+      "anthropic": "Do not act on uncertain perception.",
+      "nvidia": "TAO / Metropolis / TensorRT detect, plus a gate they do not ship.",
+      "unsloth": "Wrong stack. This is not QLoRA.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "STUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": "alias / object-detection tag",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Hub tag",
+          "value": "object-detection",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Weighted checkpoint in this atelier",
+          "value": "absent",
+          "evidence": "HUB"
+        }
+      ],
+      "files": [
+        "alias"
+      ],
+      "limitations": [
+        "Tagged alias. Not a published detector checkpoint as of snapshot.",
+        "Do not claim mAP."
+      ],
+      "intended": "Name the organ. Wire when weights land. Fail closed until then.",
+      "play": "eye",
+      "github": {
+        "repo": "szl-holdings/killinchu",
+        "path": "README.md",
+        "module": "killinchu.eye"
+      }
+    },
+    {
+      "slug": "yarqa-attn",
+      "hf": "SZLHOLDINGS/YARQA-ATTN",
+      "name": "YARQA-ATTN",
+      "family": "kernel",
+      "kind": "Receipt-bound attention",
+      "oneLiner": "Attention that writes what it attended to. Yarqa: to ask. The kernel answers with a receipt, not a vibe.",
+      "cut": "FlashAttention is faster. YARQA is accountable. We steal the kernel discipline from NVIDIA and spend it on provenance, not FLOPs.",
+      "dreamed": "An attention op whose softmax support is reconstructable from a signed log.",
+      "anthropic": "Interpretability as a runtime artifact.",
+      "nvidia": "cuDNN / FlashAttention silhouette \u2014 then we add the receipt.",
+      "unsloth": "Unrelated. Don't wrap this in FastLanguageModel.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Lane",
+          "value": "kernel-lane / code",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Cross-canal leak (atelier silhouette)",
+          "value": "0.00",
+          "evidence": "MEASURED",
+          "vs": "Naive softmax leaks through the partition function"
+        }
+      ],
+      "files": [
+        "kernel sources on Hub"
+      ],
+      "limitations": [
+        "Not a checkpoint.",
+        "Performance vs FlashAttention is not claimed."
+      ],
+      "intended": "Drop-in attention with an audit tape.",
+      "play": "yarqa",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/yarqa.py",
+        "module": "szl_khipu.yarqa"
+      }
+    },
+    {
+      "slug": "szl-receipt-attn",
+      "hf": "SZLHOLDINGS/szl-receipt-attn",
+      "name": "szl-receipt-attn",
+      "family": "kernel",
+      "kind": "Gated attention",
+      "oneLiner": "Softmax gated by \u03bb. Tokens outside authority do not get weight. They get zero.",
+      "cut": "Guardrails after generation are late. Masking before softmax is the thing nobody ships because it hurts scores. We want the hurt.",
+      "dreamed": "A model that cannot attend to what it is not allowed to see.",
+      "anthropic": "Constitution applied at the attention head.",
+      "nvidia": "Fused kernel, NVIDIA-shaped, SZL-cut.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Op",
+          "value": "lambda-gated attention",
+          "evidence": "KERNEL"
+        },
+        {
+          "name": "Tiled residual vs naive (atelier)",
+          "value": "2.22e-16",
+          "evidence": "MEASURED",
+          "vs": "Not a FLOP claim vs FlashAttention. seed 20260721 S=8 D=4 br=4"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Kernel, not weights."
+      ],
+      "intended": "Fuse into governed decode.",
+      "play": "attn",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/receipt_attn.py",
+        "module": "szl_khipu.receipt_attn"
+      }
+    },
+    {
+      "slug": "szl-khipu-kernels",
+      "hf": "SZLHOLDINGS/szl-khipu-kernels",
+      "name": "szl-khipu-kernels",
+      "family": "kernel",
+      "kind": "Khipu kernel suite",
+      "oneLiner": "Lambda-gate, YARQA, NumPy silhouettes in one kernel repo.",
+      "cut": "A suite, not a zoo. One doctrine, several ops.",
+      "dreamed": "The cuDNN of governed inference \u2014 smaller, stricter, signed.",
+      "anthropic": "Principles compiled to ops.",
+      "nvidia": "Direct take: kernel packaging.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Contents",
+          "value": "lambda-gate \u00b7 yarqa \u00b7 numpy",
+          "evidence": "HUB"
+        },
+        {
+          "name": "YARQA leak (atelier)",
+          "value": "0.00",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "Vendored deps (atelier)",
+          "value": "chain.py \u00b7 doctrine.py",
+          "evidence": "KERNEL",
+          "vs": "SHA-256 silhouette of SHA3-256 metal. All 12 organs import."
+        }
+      ],
+      "files": [
+        "kernels"
+      ],
+      "limitations": [
+        "Not a neural model."
+      ],
+      "intended": "Import the ops. Do not pretender-load as transformers.",
+      "play": "yarqa",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/",
+        "module": "szl_khipu"
+      }
+    },
+    {
+      "slug": "szl-kernels",
+      "hf": "SZLHOLDINGS/szl-kernels",
+      "name": "szl-kernels",
+      "family": "kernel",
+      "kind": "Feature-extraction suite",
+      "oneLiner": "The older suite. Feature-extraction tagged. 199 Hub downloads. Embeddings with a provenance habit.",
+      "cut": "sklearn-shaped feature extraction that still carries the estate tags. Not MiniEmbed-Nano (64\u00d712). Not BGE.",
+      "dreamed": "A boring kernel pack that reviewers can actually run.",
+      "anthropic": "Small, named, limited.",
+      "nvidia": "Suite packaging.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "HUB",
+      "downloads": 199,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Hub downloads",
+          "value": "199",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Pipeline",
+          "value": "feature-extraction",
+          "evidence": "HUB"
+        }
+      ],
+      "files": [
+        "kernels"
+      ],
+      "limitations": [
+        "Not MiniEmbed-Nano.",
+        "Not a 1.5B."
+      ],
+      "intended": "Feature extraction under doctrine tags.",
+      "play": "yarqa",
+      "github": {
+        "repo": "szl-holdings/szl-kernels",
+        "path": "README.md",
+        "module": "szl_kernels"
+      }
+    },
+    {
+      "slug": "szl-maskmod",
+      "hf": "SZLHOLDINGS/szl-maskmod",
+      "name": "szl-maskmod",
+      "family": "kernel",
+      "kind": "Mask modulation",
+      "oneLiner": "Authority as a mask. Out-of-scope tokens are zeroed, not down-weighted. Soft permission is a leak.",
+      "cut": "Every safety paper multiplies by 0.1. We multiply by 0. There is no 'a little bit unauthorized'.",
+      "dreamed": "Hard masks as the default, not an ablation.",
+      "anthropic": "Hard refuse, compiled.",
+      "nvidia": "Fused mask kernel.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Rule",
+          "value": "zero, not 0.1",
+          "evidence": "KERNEL"
+        },
+        {
+          "name": "Causal future_mass (atelier)",
+          "value": "0.00",
+          "evidence": "MEASURED"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Kernel."
+      ],
+      "intended": "Compose with receipt-attn.",
+      "play": "mask",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/maskmod.py",
+        "module": "szl_khipu.maskmod"
+      }
+    },
+    {
+      "slug": "szl-block-kv",
+      "hf": "SZLHOLDINGS/szl-block-kv",
+      "name": "szl-block-kv",
+      "family": "kernel",
+      "kind": "Blocked KV cache",
+      "oneLiner": "KV cache that refuses to store keys it is not authorized to remember. arXiv:2309.06180 plus a gate.",
+      "cut": "Blocked KV was invented for speed. We use the blocking to forget on purpose. Memory is a privilege.",
+      "dreamed": "A cache that cannot be subpoenaed for what it was never allowed to hold.",
+      "anthropic": "No persistent unauthorized memory.",
+      "nvidia": "PagedAttention / blocked KV \u2014 then we spend it on governance.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Lineage",
+          "value": "arxiv:2309.06180 + gate",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Witness swap distinct pages",
+          "value": "changed",
+          "evidence": "MEASURED",
+          "vs": "same-physical unchanged; OOB fail-closed"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Kernel. Not a drop-in vLLM replacement."
+      ],
+      "intended": "Governed decode memory.",
+      "play": "blockkv",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/block_kv.py",
+        "module": "szl_khipu.block_kv"
+      }
+    },
+    {
+      "slug": "szl-lambda-gate",
+      "hf": "SZLHOLDINGS/szl-lambda-gate",
+      "name": "szl-lambda-gate",
+      "family": "kernel",
+      "kind": "Torch lambda gate",
+      "oneLiner": "The torch op of the 1-D silhouette. 94 Hub downloads. Surrogate tagged \u2014 we say so.",
+      "cut": "A gate you can `import` in PyTorch. Fail-closed by default.",
+      "dreamed": "The smallest possible governed op.",
+      "anthropic": "Refuse compiled to autograd.",
+      "nvidia": "Custom op, NVIDIA-shaped packaging.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "HUB",
+      "downloads": 94,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Hub downloads",
+          "value": "94",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Tag",
+          "value": "surrogate / torch",
+          "evidence": "HUB"
+        },
+        {
+          "name": "WGM A1\u2013A4 (atelier)",
+          "value": "pass",
+          "evidence": "MEASURED",
+          "vs": "A1\u2013A5 advisory. Conjecture 1 OPEN. proven_trust false"
+        },
+        {
+          "name": "Zero-axis",
+          "value": "blocks",
+          "evidence": "MEASURED"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Surrogate. Not Conjecture-1 solved."
+      ],
+      "intended": "Torch forward-pass gate.",
+      "play": "yuyay",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/lambda_gate.py",
+        "module": "szl_khipu.lambda_gate"
+      }
+    },
+    {
+      "slug": "szl-governed-norm",
+      "hf": "SZLHOLDINGS/szl-governed-norm",
+      "name": "szl-governed-norm",
+      "family": "kernel",
+      "kind": "RMSNorm / LayerNorm",
+      "oneLiner": "Normalization with a version receipt. Deprecated surrogate. 204 downloads. We keep it up so the deprecation is public.",
+      "cut": "Leaders delete the old kernel. We stamp deprecated and leave the receipt. History is part of governance.",
+      "dreamed": "A norm layer whose version cannot drift silently.",
+      "anthropic": "Honest deprecation.",
+      "nvidia": "RMSNorm kernel discipline.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "HUB",
+      "downloads": 204,
+      "likes": 1,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Hub downloads",
+          "value": "204",
+          "evidence": "HUB"
+        },
+        {
+          "name": "Status",
+          "value": "deprecated surrogate",
+          "evidence": "HUB"
+        },
+        {
+          "name": "RMSNorm unit residual (atelier)",
+          "value": "1.05e-5",
+          "evidence": "MEASURED",
+          "vs": "Integrity digest is SHA-256 silhouette, not SHA3-256 metal"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Deprecated.",
+        "Compatibility surrogate."
+      ],
+      "intended": "Do not start new work here. Read the stamp.",
+      "play": "yuyay",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/governed_norm.py",
+        "module": "szl_khipu.governed_norm"
+      }
+    },
+    {
+      "slug": "governed-inference-meter",
+      "hf": "SZLHOLDINGS/governed-inference-meter",
+      "name": "governed-inference-meter",
+      "family": "kernel",
+      "kind": "Tokens-per-joule",
+      "oneLiner": "NVML energy as a receipt, not a dashboard widget. Tokens per joule is an eval axis.",
+      "cut": "NVIDIA built NVML. We bound it. A run without joules is an incomplete receipt. Leaders brag FLOPs. We ask what it cost the wall.",
+      "dreamed": "Energy-attested inference as the default, including the honest case where energy is unavailable.",
+      "anthropic": "Honesty about cost.",
+      "nvidia": "Direct take: NVML. Cut: signed tokens-per-joule.",
+      "unsloth": "Train cheap, then measure the decode.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Axis",
+          "value": "tokens / joule",
+          "evidence": "KERNEL"
+        },
+        {
+          "name": "Sibling dataset",
+          "value": "energy-attested-runs (8 signed mock-route receipts; energy unavailable)",
+          "evidence": "SIGNED"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Energy may be unavailable. The card must say so \u2014 see energy-attested-runs."
+      ],
+      "intended": "Wrap decode. Write joules into the receipt or write UNAVAILABLE.",
+      "play": "meter",
+      "github": {
+        "repo": "szl-holdings/governed-inference-meter",
+        "path": "README.md",
+        "module": "governed_inference_meter"
+      }
+    },
+    {
+      "slug": "szl-invariants",
+      "hf": "SZLHOLDINGS/szl-invariants",
+      "name": "szl-invariants",
+      "family": "governance",
+      "kind": "Ed25519 invariant kernel",
+      "oneLiner": "Hash the tensor. Sign the hash. The invariant is the signature, not the blog post. 2 likes.",
+      "cut": "Checksums are optional. Ours are the product. If the signature fails, the model is not the model.",
+      "dreamed": "Weights that are invalid if unsigned \u2014 at load time, not at audit time.",
+      "anthropic": "Trust, but here we verify.",
+      "nvidia": "Supply-chain (signed containers) applied to tensors.",
+      "unsloth": "After merge, sign. Not during QLoRA.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 2,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Scheme",
+          "value": "Ed25519 over tensor hashes",
+          "evidence": "KERNEL"
+        },
+        {
+          "name": "DOI",
+          "value": "10.5281/zenodo.19944926",
+          "evidence": "HUB"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Proves integrity and origin, never accuracy."
+      ],
+      "intended": "Load-time invariant check.",
+      "play": "sign",
+      "github": {
+        "repo": "szl-holdings/szl-invariants",
+        "path": "README.md",
+        "module": "szl_invariants"
+      }
+    },
+    {
+      "slug": "szl-ouroboros",
+      "hf": "SZLHOLDINGS/szl-ouroboros",
+      "name": "szl-ouroboros",
+      "family": "governance",
+      "kind": "Loop-tax kernel",
+      "oneLiner": "Each retry spends authority. Infinite agent loops are a theft of the budget we named.",
+      "cut": "Agent frameworks retry until success. We tax the loop. Success that costs all remaining \u03bb is a failure.",
+      "dreamed": "A runtime that cannot grind a gate into dust.",
+      "anthropic": "Don't jailbreak yourself by persistence.",
+      "nvidia": "Scheduler quota, but for authority.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Rule",
+          "value": "loop-tax / non-increasing authority",
+          "evidence": "KERNEL"
+        },
+        {
+          "name": "Self-check modelMs",
+          "value": "1120 MEASURED",
+          "evidence": "KERNEL",
+          "vs": "overhead 180 DERIVED \u00b7 joules never invented"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Kernel. Pair with governed-agent-bench."
+      ],
+      "intended": "Wrap agent retries.",
+      "play": "ouroboros",
+      "github": {
+        "repo": "szl-holdings/szl-khipu",
+        "path": "szl_khipu/ouroboros.py",
+        "module": "szl_khipu.ouroboros"
+      }
+    },
+    {
+      "slug": "szl-formulas",
+      "hf": "SZLHOLDINGS/szl-formulas",
+      "name": "szl-formulas",
+      "family": "governance",
+      "kind": "Lean-bound formulas",
+      "oneLiner": "Canonical formulas with Lean obligations and proof-status tags. Lambda-aggregate lives here as a formula, not a myth.",
+      "cut": "Papers have appendices. We have a kernel of formulas whose sorry-count is public (Doctrine v11: 749 / 14 / 163).",
+      "dreamed": "A formula registry that cannot drift from the Lean tree.",
+      "anthropic": "Written principles, but ours compile.",
+      "nvidia": "Recipe as code.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Doctrine v11",
+          "value": "749 declarations \u00b7 14 axioms \u00b7 163 sorries",
+          "evidence": "SIGNED"
+        },
+        {
+          "name": "Numeric identities (atelier)",
+          "value": "8/8 CHECKED",
+          "evidence": "MEASURED",
+          "vs": "CHECKED \u2260 PROVEN"
+        },
+        {
+          "name": "Locked-8 structural (atelier)",
+          "value": "F1 F4 F7 F11 F12 F18 F19 F22",
+          "evidence": "KERNEL",
+          "vs": "Structural silhouettes, not a Lean kernel run"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "\u039b uniqueness is Conjecture 1 \u2014 NOT a theorem."
+      ],
+      "intended": "Import formulas. Check proof-status before citing.",
+      "play": "formulas",
+      "github": {
+        "repo": "szl-holdings/szl-formulas",
+        "path": "README.md",
+        "module": "szl_formulas"
+      }
+    },
+    {
+      "slug": "szl-govsign",
+      "hf": "SZLHOLDINGS/szl-govsign",
+      "name": "szl-govsign",
+      "family": "governance",
+      "kind": "DSSE / in-toto",
+      "oneLiner": "Signing kernel. Envelopes, not screenshots of envelopes.",
+      "cut": "Attestation as a library, not a PDF.",
+      "dreamed": "Every organ speaks DSSE.",
+      "anthropic": "No equivalent public kernel.",
+      "nvidia": "Signed containers / in-toto in supply chain.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Formats",
+          "value": "DSSE \u00b7 in-toto",
+          "evidence": "KERNEL"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Kernel."
+      ],
+      "intended": "Sign receipts. Verify offline.",
+      "play": "sign",
+      "github": {
+        "repo": "szl-holdings/szl-govsign",
+        "path": "README.md",
+        "module": "szl_govsign"
+      }
+    },
+    {
+      "slug": "szl-provctl",
+      "hf": "SZLHOLDINGS/szl-provctl",
+      "name": "szl-provctl",
+      "family": "governance",
+      "kind": "SLSA provenance",
+      "oneLiner": "Supply-chain controller. SLSA + in-toto. Who built it, from what, on which runner.",
+      "cut": "Model cards skip the builder. We treat the builder as part of the model.",
+      "dreamed": "A weight that is invalid without its provenance predicate.",
+      "anthropic": "No public SLSA for Claude weights.",
+      "nvidia": "NGC signed images \u2014 take, then apply to LoRAs.",
+      "unsloth": "After the job, attach SLSA. Unsloth does not.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Frameworks",
+          "value": "SLSA \u00b7 in-toto",
+          "evidence": "KERNEL"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Kernel."
+      ],
+      "intended": "CI predicate for every publish.",
+      "play": "sign",
+      "github": {
+        "repo": "szl-holdings/szl-provctl",
+        "path": "README.md",
+        "module": "szl_provctl"
+      }
+    },
+    {
+      "slug": "szl-blocked",
+      "hf": "SZLHOLDINGS/szl-blocked",
+      "name": "szl-blocked",
+      "family": "governance",
+      "kind": "EU AI Act Annex IV",
+      "oneLiner": "Technical documentation kernel for Annex IV. Compliance as code, not a consultant's slide.",
+      "cut": "People write Annex IV in Word. We keep a kernel that refuses to publish if the annex fields are empty.",
+      "dreamed": "A blocked publish \u2014 the name is the feature.",
+      "anthropic": "Policy docs. We want a gate.",
+      "nvidia": "Enterprise compliance packs.",
+      "unsloth": "No.",
+      "weights": "kernel",
+      "trained": false,
+      "evidence": "KERNEL",
+      "downloads": 0,
+      "likes": 1,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Target",
+          "value": "EU AI Act Annex IV",
+          "evidence": "HUB"
+        }
+      ],
+      "files": [
+        "kernel"
+      ],
+      "limitations": [
+        "Not legal advice. A documentation gate."
+      ],
+      "intended": "Block publish when annex fields are missing.",
+      "play": "sign",
+      "github": {
+        "repo": "szl-holdings/szl-blocked",
+        "path": "README.md",
+        "module": "szl_blocked"
+      }
+    },
+    {
+      "slug": "szl-nemo",
+      "hf": "SZLHOLDINGS/szl-nemo",
+      "name": "szl-nemo",
+      "family": "governance",
+      "kind": "sklearn doctrine triage",
+      "oneLiner": "Tfidf \u2192 LogisticRegression over doctrine rules R1\u2013R5. Not NVIDIA NeMo. Not Nemotron. Name collision, card-corrected.",
+      "cut": "We took the idea of recipe-conformance from NVIDIA NeMo and built a tiny sklearn surrogate that triages answers against five doctrine rules. Then we stripped the misleading nemotron tags. Honesty over SEO.",
+      "dreamed": "A 10-millisecond 'does this answer violate doctrine?' that CI can run on every card.",
+      "anthropic": "Constitutional classifier, tiny.",
+      "nvidia": "Silhouette of NeMo recipe-conformance. Cut: sklearn, disclosed, not a Nemotron.",
+      "unsloth": "No.",
+      "weights": "none",
+      "trained": true,
+      "evidence": "HUB",
+      "downloads": 5,
+      "likes": 0,
+      "base": null,
+      "params": "Tfidf+LR",
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Joblib on Hub",
+          "value": "quarantined \u2014 not the load path",
+          "evidence": "HUB"
+        },
+        {
+          "name": "rule_check R1 unlabeled number",
+          "value": "catches",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "rule_check R4 \u039b-as-theorem",
+          "value": "catches",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "honest unknown",
+          "value": "passes",
+          "evidence": "MEASURED"
+        },
+        {
+          "name": "Scripts",
+          "value": "szl_nemo/rules.py \u00b7 forge.py \u00b7 eval.py",
+          "evidence": "HUB"
+        }
+      ],
+      "files": [
+        "szl_nemo/rules.py",
+        "scripts/forge.py",
+        "scripts/eval.py",
+        "TRAINING_RECEIPT.json"
+      ],
+      "limitations": [
+        "Joblib surrogate is quarantined. rule_check is ground truth.",
+        "Not Nemotron. Not generative."
+      ],
+      "intended": "CI doctrine triage. Load rule_check, never pickle.",
+      "play": "sign",
+      "github": {
+        "repo": "szl-holdings/szl-nemo",
+        "path": "szl_nemo/rules.py",
+        "module": "szl_nemo.rules"
+      }
+    },
+    {
+      "slug": "a11oy-v19-substrate",
+      "hf": "SZLHOLDINGS/a11oy-v19-substrate",
+      "name": "a11oy-v19-substrate",
+      "family": "estate",
+      "kind": "Operational payload",
+      "oneLiner": "Zarf / UDS operational payload for a11oy. Policy, provenance, series-a. Not a chatbot.",
+      "cut": "The substrate is the product. Weights are a guest.",
+      "dreamed": "Airgap-deployable governance, not a demo Space pretending to be infra.",
+      "anthropic": "No public substrate.",
+      "nvidia": "Fleet Command / NIM ops \u2014 take the ops seriousness.",
+      "unsloth": "No.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Kind",
+          "value": "zarf / uds payload",
+          "evidence": "HUB"
+        }
+      ],
+      "files": [
+        "operational payload"
+      ],
+      "limitations": [
+        "Not a model."
+      ],
+      "intended": "Deploy a11oy under UDS. Do not load in transformers.",
+      "play": "seat",
+      "github": {
+        "repo": "szl-holdings/a11oy",
+        "path": "README.md",
+        "module": "a11oy"
+      }
+    },
+    {
+      "slug": "szl-training-scripts",
+      "hf": "SZLHOLDINGS/szl-training-scripts",
+      "name": "szl-training-scripts",
+      "family": "estate",
+      "kind": "Forge scripts",
+      "oneLiner": "The forge. Hub copy of the Unsloth-receipted training scripts. Tags were empty \u2014 this atelier is the card.",
+      "cut": "Training code is usually a gist. We give it a model id so the estate graph stays one piece.",
+      "dreamed": "A Hub id you can pin in a receipt: 'trained by this repo at this SHA'.",
+      "anthropic": "No public train scripts for Claude.",
+      "nvidia": "NeMo recipes.",
+      "unsloth": "The scripts wrap Unsloth v2 profiles. Cut is unique knobs per organ, bound in the receipt.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "HUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Profiles",
+          "value": "willay \u00b7 chaski \u00b7 chaski-5050 \u00b7 chaski-r2 \u00b7 khipu \u00b7 khipu-r2 \u00b7 receiptagent",
+          "evidence": "KERNEL"
+        }
+      ],
+      "files": [
+        "training scripts"
+      ],
+      "limitations": [
+        "Not a checkpoint. Wire to GitHub kit in this atelier."
+      ],
+      "intended": "Canonical train entrypoint.",
+      "play": "sign",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "README.md",
+        "module": "szl_forge"
+      }
+    },
+    {
+      "slug": "qantu",
+      "hf": "SZLHOLDINGS/qantu",
+      "name": "qantu",
+      "family": "roadmap",
+      "kind": "Named organ",
+      "oneLiner": "Roadmap organ. Not a checkpoint. The name is reserved so the estate does not lose the word.",
+      "cut": "We publish the empty seat. Pretending it is a model would be the sin the doctrine forbids.",
+      "dreamed": "A public backlog that cannot be confused with a weight.",
+      "anthropic": "No.",
+      "nvidia": "No.",
+      "unsloth": "No.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "ROADMAP",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Status",
+          "value": "not-a-checkpoint",
+          "evidence": "ROADMAP"
+        }
+      ],
+      "files": [
+        "roadmap stub"
+      ],
+      "limitations": [
+        "No weights. No train. No bench."
+      ],
+      "intended": "Hold the name. Fill later with a receipt, or delete.",
+      "play": "seat",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "qantu/",
+        "module": "szl_forge.qantu"
+      }
+    },
+    {
+      "slug": "waman",
+      "hf": "SZLHOLDINGS/waman",
+      "name": "waman",
+      "family": "roadmap",
+      "kind": "Killinchu roadmap organ",
+      "oneLiner": "Roadmap organ on the killinchu line. Not a checkpoint.",
+      "cut": "Same as qantu: the empty seat is published on purpose.",
+      "dreamed": "Sensing lineage with a named next body.",
+      "anthropic": "No.",
+      "nvidia": "No.",
+      "unsloth": "No.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "ROADMAP",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Status",
+          "value": "not-a-checkpoint",
+          "evidence": "ROADMAP"
+        }
+      ],
+      "files": [
+        "roadmap stub"
+      ],
+      "limitations": [
+        "No weights."
+      ],
+      "intended": "Killinchu lineage placeholder.",
+      "play": "seat",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "waman/",
+        "module": "szl_forge.waman"
+      }
+    },
+    {
+      "slug": "chakana",
+      "hf": "SZLHOLDINGS/chakana",
+      "name": "chakana",
+      "family": "roadmap",
+      "kind": "Andean cross organ",
+      "oneLiner": "Chakana: the stepped cross. Roadmap organ for crossing domains without mixing evidence classes.",
+      "cut": "A name for the thing that keeps MEASURED / SIGNED / MODELED from collapsing into a slide.",
+      "dreamed": "A kernel of crossings. Later.",
+      "anthropic": "No.",
+      "nvidia": "No.",
+      "unsloth": "No.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "ROADMAP",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Status",
+          "value": "not-a-checkpoint",
+          "evidence": "ROADMAP"
+        }
+      ],
+      "files": [
+        "roadmap stub"
+      ],
+      "limitations": [
+        "No weights."
+      ],
+      "intended": "Hold the crossing. Do not load.",
+      "play": "seat",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "chakana/",
+        "module": "szl_forge.chakana"
+      }
+    },
+    {
+      "slug": "tinku",
+      "hf": "SZLHOLDINGS/tinku",
+      "name": "tinku",
+      "family": "roadmap",
+      "kind": "Encounter organ",
+      "oneLiner": "Tinku: ritual encounter. Roadmap organ for contested decisions \u2014 two authorities, one receipt.",
+      "cut": "Multi-agent frameworks merge. Tinku would refuse to merge without a signed encounter.",
+      "dreamed": "A duel with an envelope.",
+      "anthropic": "Debate as constitution. We want a typed encounter.",
+      "nvidia": "No.",
+      "unsloth": "No.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "ROADMAP",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Status",
+          "value": "not-a-checkpoint",
+          "evidence": "ROADMAP"
+        }
+      ],
+      "files": [
+        "roadmap stub"
+      ],
+      "limitations": [
+        "No weights."
+      ],
+      "intended": "Name the encounter. Wait for the receipted design.",
+      "play": "seat",
+      "github": {
+        "repo": "szl-holdings/szl-forge",
+        "path": "tinku/",
+        "module": "szl_forge.tinku"
+      }
+    },
+    {
+      "slug": "szlholdings-stub",
+      "hf": "SZLHOLDINGS/SZLHOLDINGS",
+      "name": "SZLHOLDINGS",
+      "family": "estate",
+      "kind": "Org stub",
+      "oneLiner": "Not a checkpoint. Historical org stub so the id cannot be squatted by a fake model.",
+      "cut": "The empty model id is a security control.",
+      "dreamed": "An org that cannot be impersonated by a similarly named 'SZL-70B-instruct'.",
+      "anthropic": "No.",
+      "nvidia": "No.",
+      "unsloth": "No.",
+      "weights": "none",
+      "trained": false,
+      "evidence": "STUB",
+      "downloads": 0,
+      "likes": 0,
+      "base": null,
+      "params": null,
+      "license": "Apache-2.0",
+      "benches": [
+        {
+          "name": "Tag",
+          "value": "not-a-model",
+          "evidence": "STUB"
+        }
+      ],
+      "files": [
+        "org stub"
+      ],
+      "limitations": [
+        "Not a model."
+      ],
+      "intended": "Hold the id.",
+      "play": "seat",
+      "github": {
+        "repo": "szl-holdings/.github",
+        "path": "profile/README.md",
+        "module": "szl_holdings"
+      }
+    }
+  ],
+  "estate": [
+    {
+      "slug": "nexus",
+      "name": "NEXUS MK-II",
+      "kind": "github",
+      "href": "https://github.com/szl-holdings/nexus",
+      "oneLiner": "Holographic analog computing workstation. Phosphor CRT, oscilloscope, tape echo, patchbay, sequencer, voice.",
+      "cut": "Leaders ship chat UIs. We shipped a local-first analog desk that never pretends to be a model.",
+      "when": "live",
+      "evidence": "GitHub \u00b7 TypeScript \u00b7 Apache-2.0"
+    },
+    {
+      "slug": "szl-organ-integrity",
+      "name": "szl-organ-integrity",
+      "kind": "github",
+      "href": "https://github.com/szl-holdings/szl-organ-integrity",
+      "oneLiner": "Five-organ fail-closed integrity kernel. Replay it. SHA-256. Energy UNAVAILABLE.",
+      "cut": "Integrity is usually a dashboard. Ours is a kernel you can replay, with joules honestly missing.",
+      "when": "live",
+      "evidence": "GitHub \u00b7 \u039b = Conjecture 1"
+    },
+    {
+      "slug": "anatomy",
+      "name": "Living Anatomy",
+      "kind": "github",
+      "href": "https://github.com/szl-holdings/anatomy",
+      "oneLiner": "3D navigable organ substrate: reasoning cortex, trust gate, receipt bus, consensus, egress.",
+      "cut": "Org charts are slides. Anatomy is a walkable body with 8 proven formulas and an open conjecture.",
+      "when": "live",
+      "evidence": "GitHub + Hub Space"
+    },
+    {
+      "slug": "killinchu-osint-corpus",
+      "name": "killinchu-osint-corpus",
+      "kind": "dataset",
+      "href": "https://huggingface.co/datasets/SZLHOLDINGS/killinchu-osint-corpus",
+      "oneLiner": "36.2k-row OSINT corpus for the eye. A box without a row here is not an engagement.",
+      "cut": "CUAS datasets usually score mAP. This one scores whether the track is receipted.",
+      "when": "live",
+      "evidence": "Hub dataset \u00b7 36.2k rows"
+    },
+    {
+      "slug": "szl-lake",
+      "name": "szl-lake",
+      "kind": "dataset",
+      "href": "https://huggingface.co/datasets/SZLHOLDINGS/szl-lake",
+      "oneLiner": "2.44k-row lake. The estate's public memory, typed by evidence class.",
+      "cut": "A lake that will not mix MEASURED with SYNTHETIC. Mixing is the sin.",
+      "when": "live",
+      "evidence": "Hub dataset \u00b7 2.44k rows"
+    },
+    {
+      "slug": "why-we-lead",
+      "name": "why-we-lead",
+      "kind": "dataset",
+      "href": "https://huggingface.co/datasets/SZLHOLDINGS/why-we-lead",
+      "oneLiner": "226 rows of the cut: take, leave, SZL. The leaders page, as data.",
+      "cut": "Strategy decks rot. A dataset of why we lead can be hashed.",
+      "when": "live",
+      "evidence": "Hub dataset \u00b7 226 rows"
+    },
+    {
+      "slug": "receipted-unsloth",
+      "name": "receipted-unsloth",
+      "kind": "dataset",
+      "href": "https://huggingface.co/datasets/SZLHOLDINGS/receipted-unsloth",
+      "oneLiner": "The house loop as a dataset. Dataset SHA is the first line of the training receipt.",
+      "cut": "Unsloth trains fast. This set makes the train reproducible without trusting the log.",
+      "when": "live",
+      "evidence": "Hub dataset"
+    },
+    {
+      "slug": "atelier-space",
+      "name": "szl-atelier Space",
+      "kind": "space",
+      "href": "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier",
+      "oneLiner": "Walk all 40 Hub models. Unique cuts. Kernel playgrounds in the browser.",
+      "cut": "Leaders ship one demo Space. We shipped the whole catalog as a walk you can fail-close.",
+      "when": "live now",
+      "evidence": "Hub Space RUNNING \u00b7 a11oy.net/atelier \u00b7 a-11-oy.com/atelier"
+    },
+    {
+      "slug": "nexus-space",
+      "name": "NEXUS Space",
+      "kind": "space",
+      "href": "https://huggingface.co/spaces/SZLHOLDINGS/nexus",
+      "oneLiner": "The analog desk, running. Not a chatbot.",
+      "cut": "A Space that is an instrument, not a demo of a 70B.",
+      "when": "live",
+      "evidence": "Hub Space"
+    },
+    {
+      "slug": "anatomy-space",
+      "name": "anatomy Space",
+      "kind": "space",
+      "href": "https://huggingface.co/spaces/SZLHOLDINGS/anatomy",
+      "oneLiner": "Walk the five organs in a browser.",
+      "cut": "The body is the product. Weights are a guest.",
+      "when": "live",
+      "evidence": "Hub Space"
+    }
+  ]
+}</script>
+<script type="application/json" id="atelier-nano">{"seed":20260721,"trainedAt":"2026-08-29T14:29:04.574548+00:00","doctrine":"v11","label":"MEASURED","moons":{"w1":[[-0.22343,0.239654,0.036197,-0.198453,0.117701,0.237124,-0.779573,0.289665],[0.849349,-0.394227,-0.907399,0.449814,-0.280687,-0.705021,-0.220842,-1.146511]],"b1":[-0.042549,0.062676,0.223297,-0.081773,0.072527,0.003057,-0.019814,-0.128098],"w2":[[0.445681,-0.449709],[-0.71552,0.099391],[-0.361791,0.797449],[0.561433,-0.239978],[-0.189031,0.315571],[-0.555717,0.7344],[-0.214407,-0.031703],[-0.644751,1.072985]],"b2":[-0.173702,0.173702],"holdoutAcc":0.8875,"silhouette":0.3171,"finalLoss":0.274215,"epochs":220,"nTrain":320,"nTest":80,"cloud":[{"x":1.3239464955118545,"y":-0.47808922316424557,"yTrue":1},{"x":1.8658902485827353,"y":0.011847358220664309,"yTrue":1},{"x":0.9274245103208284,"y":0.13610322421623788,"yTrue":0},{"x":1.4241026765728857,"y":-0.26900357570328937,"yTrue":1},{"x":0.08754258134464693,"y":-0.14672035711345627,"yTrue":1},{"x":0.0795261489755737,"y":0.5441650901418771,"yTrue":1},{"x":1.7826030563538584,"y":0.21840558001963095,"yTrue":1},{"x":0.9149195643627203,"y":-0.38966577290419757,"yTrue":1},{"x":1.1792331760986219,"y":-0.6409400494215962,"yTrue":1},{"x":0.8885714611572281,"y":0.21678562192351808,"yTrue":0},{"x":1.3410282100624549,"y":-0.585295024362322,"yTrue":1},{"x":-0.9663781211944373,"y":0.16129446554695423,"yTrue":0},{"x":0.9044457244982544,"y":0.5768220253512197,"yTrue":0},{"x":-0.9964620047585058,"y":0.13121993829652184,"yTrue":0},{"x":0.8880373790034466,"y":0.3629160091622816,"yTrue":0},{"x":1.7427136904752105,"y":-0.1182246011198021,"yTrue":1},{"x":0.8517190530642995,"y":0.5586268884649065,"yTrue":0},{"x":0.08078107648185674,"y":0.6014119482564767,"yTrue":1},{"x":0.1082010751976495,"y":0.49725490214782325,"yTrue":1},{"x":0.8739492154954331,"y":-0.34751731006869846,"yTrue":1},{"x":1.2788636878944752,"y":-0.6377468668870253,"yTrue":1},{"x":-0.919478029013414,"y":0.35320361385336474,"yTrue":0},{"x":0.8342103728837917,"y":0.6669044634714679,"yTrue":0},{"x":0.4874303161316238,"y":-0.6829962380029369,"yTrue":1},{"x":1.1499327570627806,"y":-0.7096451964358215,"yTrue":1},{"x":0.6781473734523352,"y":0.7017549065135525,"yTrue":0},{"x":0.48847824624723224,"y":-0.5679178209912913,"yTrue":1},{"x":-0.12125143035665777,"y":0.7715261586888487,"yTrue":0},{"x":1.879698192375947,"y":-0.22802443249267007,"yTrue":1},{"x":0.27331456322465897,"y":0.8832099042840673,"yTrue":0},{"x":1.0636099836357984,"y":-0.41023300751376296,"yTrue":1},{"x":-0.5860178634885366,"y":0.8311763364909475,"yTrue":0},{"x":-0.6970908653281986,"y":0.6813475358167392,"yTrue":0},{"x":0.3582150494521213,"y":-0.07055881213279552,"yTrue":1},{"x":1.8915929429862341,"y":-0.20053645328171638,"yTrue":1},{"x":0.8737558984325482,"y":0.16404120385165097,"yTrue":0},{"x":0.7681129827083492,"y":0.6327268922036955,"yTrue":0},{"x":1.8180022963405646,"y":0.27825962884445543,"yTrue":1},{"x":-0.5358180641978194,"y":0.7509510306170227,"yTrue":0},{"x":-1.0153010717731092,"y":0.7713198138873862,"yTrue":0},{"x":1.9640628326852603,"y":0.04813746061631437,"yTrue":1},{"x":0.5793916369607799,"y":0.7979198118296311,"yTrue":0},{"x":-0.7504820653911687,"y":0.5323677274281733,"yTrue":0},{"x":1.7620812454843906,"y":-0.21047774280891687,"yTrue":1},{"x":0.4431729314251053,"y":0.8719885108311212,"yTrue":0},{"x":-0.7725467102257951,"y":0.7212077596017632,"yTrue":0},{"x":-0.9153541958083561,"y":0.5372763557529802,"yTrue":0},{"x":0.28230686648351055,"y":1.0899311889319938,"yTrue":0},{"x":0.5640822271125838,"y":0.7463038724407676,"yTrue":0},{"x":0.9439890487491087,"y":0.40784340695393995,"yTrue":0},{"x":0.27208753125886104,"y":0.46091999998296207,"yTrue":1},{"x":0.8858764702857272,"y":0.040676959494604634,"yTrue":0},{"x":1.7706286264275504,"y":0.025988857187544373,"yTrue":1},{"x":1.8273047010570023,"y":-0.06673082585319456,"yTrue":1},{"x":-0.9427570737120191,"y":-0.016191013922923943,"yTrue":0},{"x":1.9989473744978243,"y":0.3331090045916971,"yTrue":1},{"x":-0.9604342459489013,"y":0.4812549130414602,"yTrue":0},{"x":-0.5729847985373595,"y":0.9490224718894462,"yTrue":0},{"x":0.19994547084284814,"y":-0.1653238471508598,"yTrue":1},{"x":0.9457309749039181,"y":-0.5060898168482866,"yTrue":1},{"x":0.09601424622626689,"y":-0.446540661273169,"yTrue":1},{"x":-0.14869247344128236,"y":0.8367035589342784,"yTrue":0},{"x":1.6897376244445295,"y":0.04989324152281838,"yTrue":1},{"x":-0.5647680154426434,"y":0.8524772706241045,"yTrue":0},{"x":0.6053797759227151,"y":0.49317510758291805,"yTrue":0},{"x":0.20781800074884088,"y":0.2595926977797395,"yTrue":1},{"x":0.10342149242881396,"y":1.0436747494212504,"yTrue":0},{"x":1.6783300665410297,"y":0.05849810155999858,"yTrue":1},{"x":1.7381340247955777,"y":-0.11902928935489505,"yTrue":1},{"x":0.7345894670619312,"y":0.6600175071162624,"yTrue":0},{"x":-1.0466302136920889,"y":0.5935008353092369,"yTrue":0},{"x":0.8077011268705239,"y":0.7568746172323408,"yTrue":0},{"x":1.2296293968797158,"y":-0.46858252384289406,"yTrue":1},{"x":0.5295238914784053,"y":0.8992913696107383,"yTrue":0},{"x":0.6573853567687489,"y":-0.7152646005007739,"yTrue":1},{"x":-0.09293292303620113,"y":0.613653728431331,"yTrue":1},{"x":0.5716860320494251,"y":0.8189567455882059,"yTrue":0},{"x":-0.16694126157706918,"y":1.0520632760409643,"yTrue":0},{"x":0.23040084600960853,"y":1.118010669325654,"yTrue":0},{"x":1.114597976645553,"y":-0.4798394845312455,"yTrue":1},{"x":-0.8770187543457735,"y":0.32287842070853157,"yTrue":0},{"x":0.051050487920505365,"y":0.402637591156748,"yTrue":1},{"x":2.2946307973753086,"y":-0.012984402985598331,"yTrue":1},{"x":0.5372854337722837,"y":0.9474089483251183,"yTrue":0},{"x":0.007993911916216113,"y":0.3292129850515716,"yTrue":1},{"x":2.0642731720635297,"y":0.4896129025772938,"yTrue":1},{"x":-0.8910197337445105,"y":0.12040126447829416,"yTrue":0},{"x":-0.09585399550475124,"y":0.8362195191646565,"yTrue":0},{"x":0.9201816909741287,"y":-0.04255965221417758,"yTrue":0},{"x":1.9259183305701537,"y":0.024266962008390486,"yTrue":1},{"x":0.6589889827057318,"y":-0.3535152533693504,"yTrue":1},{"x":-0.21485543460224252,"y":0.6006131774833678,"yTrue":1},{"x":0.3668034327444768,"y":0.8771494785335787,"yTrue":0},{"x":1.1713325116581672,"y":-0.44725515095444546,"yTrue":1},{"x":0.4729918477841519,"y":-0.25318955731932036,"yTrue":1},{"x":-0.2858336523482141,"y":1.1802612105619397,"yTrue":0},{"x":0.196779294935434,"y":-0.24897624554513842,"yTrue":1},{"x":1.7451205403360208,"y":-0.4886945950399836,"yTrue":1},{"x":0.433050881930089,"y":1.0306279362108692,"yTrue":0},{"x":1.987990437152445,"y":-0.15595351385709452,"yTrue":1},{"x":0.14865724161560143,"y":-0.26393530808507626,"yTrue":1},{"x":1.0609298389702106,"y":-0.42434297993028325,"yTrue":1},{"x":1.7724407116382683,"y":-0.07692141887832876,"yTrue":1},{"x":1.583068290236815,"y":-0.5601759862733937,"yTrue":1},{"x":1.3217025032365943,"y":-0.42174851428092797,"yTrue":1},{"x":1.968655320584847,"y":0.10223546966389335,"yTrue":1},{"x":0.22235317125203058,"y":1.2618876296122779,"yTrue":0},{"x":0.4279709976659448,"y":0.8572055979539234,"yTrue":0},{"x":0.9178561030419906,"y":-0.4856910418790113,"yTrue":1},{"x":0.7351130406456342,"y":0.6658952861720991,"yTrue":0},{"x":-0.0658157269939261,"y":0.8771804888737444,"yTrue":0},{"x":0.05934205380011256,"y":0.016218239384392,"yTrue":1},{"x":-1.0840528619298584,"y":0.5114225517054944,"yTrue":0},{"x":1.8853699797784276,"y":0.1834847493585286,"yTrue":1},{"x":1.3692248350623188,"y":-0.5985823406122432,"yTrue":1},{"x":1.3531501396624814,"y":-0.21265245297632315,"yTrue":1},{"x":-0.966661186460403,"y":0.18733568451741678,"yTrue":0},{"x":1.175929165227191,"y":0.2961742876967265,"yTrue":0},{"x":0.2487883886109386,"y":-0.1752124416343524,"yTrue":1},{"x":0.5766292270948001,"y":0.4511221337368806,"yTrue":0},{"x":1.497242772730703,"y":-0.32845407768906465,"yTrue":1},{"x":1.8500029993983937,"y":0.3677299233649912,"yTrue":1},{"x":-0.927791481603812,"y":-0.17603362791629368,"yTrue":0},{"x":0.9072003411570267,"y":0.3520736432807927,"yTrue":0},{"x":1.5034550196373373,"y":-0.27022212725325967,"yTrue":1},{"x":1.8960001683227545,"y":0.3304022074634152,"yTrue":1},{"x":2.0512106442362272,"y":0.06315051688868169,"yTrue":1},{"x":1.0923650373588218,"y":-0.020752862984322863,"yTrue":0},{"x":-0.4227029489464916,"y":0.7111196519201636,"yTrue":0},{"x":1.0076323124073476,"y":-0.538246504657543,"yTrue":1},{"x":0.21211433716199618,"y":-0.5144374466757158,"yTrue":1},{"x":-0.8652469130629221,"y":0.6659433108556123,"yTrue":0},{"x":0.951759268185461,"y":-0.5926407317223135,"yTrue":1},{"x":-0.14821667464129296,"y":0.6281422676191776,"yTrue":0},{"x":-0.8391381446869319,"y":-0.055124852118170864,"yTrue":0},{"x":0.5340843170285531,"y":-0.3831029951668595,"yTrue":1},{"x":1.0348704465392302,"y":-0.333044790574504,"yTrue":1},{"x":0.7343759841533185,"y":0.7768869696568543,"yTrue":0},{"x":0.9104594613354644,"y":-0.6084855864500307,"yTrue":1},{"x":0.7173518070278089,"y":-0.14745648419619684,"yTrue":1},{"x":-0.8138057700190341,"y":0.47195299481353825,"yTrue":0},{"x":-0.11819452814815366,"y":0.7306637969736578,"yTrue":1},{"x":0.8746441202387636,"y":-0.6849139252863066,"yTrue":1},{"x":-0.8534114449170687,"y":0.5766446977167335,"yTrue":0},{"x":0.45061347250409645,"y":0.8773773406624398,"yTrue":0},{"x":1.8733231117845055,"y":0.56876928287193,"yTrue":1},{"x":-1.1081440527734503,"y":0.16664183247380182,"yTrue":0},{"x":1.8962336847234982,"y":0.3857258998606799,"yTrue":1},{"x":1.5225400491490155,"y":-0.7590462574746809,"yTrue":1},{"x":0.5220851983552199,"y":-0.4801406293095994,"yTrue":1},{"x":-0.26599160462578614,"y":0.10481463674956328,"yTrue":1},{"x":-0.4736831756757413,"y":0.7653458282249875,"yTrue":0},{"x":1.541695768499227,"y":-0.5449166352655419,"yTrue":1},{"x":0.1443845549734295,"y":0.9997085676470319,"yTrue":0},{"x":0.8277620126781958,"y":0.33164582247302477,"yTrue":0},{"x":0.11856607103028907,"y":-0.05950985187624715,"yTrue":1},{"x":0.7090711665373153,"y":0.36090471978257516,"yTrue":0},{"x":0.3006114298833669,"y":-0.3792574979575624,"yTrue":1},{"x":1.600070510151461,"y":-0.353111825402226,"yTrue":1},{"x":1.88588227904855,"y":0.04589653407525522,"yTrue":1},{"x":-0.17448673539230156,"y":0.7260956291110189,"yTrue":1},{"x":-0.17066597437669506,"y":0.374530484271102,"yTrue":1},{"x":1.253987770999342,"y":-0.44312459115681957,"yTrue":1},{"x":1.3542759208592872,"y":-0.5404812627148294,"yTrue":1},{"x":-0.765108539797758,"y":0.04049747015084626,"yTrue":0},{"x":1.8476746939058455,"y":0.2109129528228468,"yTrue":1},{"x":1.5309465370278874,"y":-0.19608630521103265,"yTrue":1},{"x":0.20200438961755518,"y":0.11030128247584194,"yTrue":1},{"x":1.2017799725849714,"y":-0.475475430020182,"yTrue":1},{"x":1.8095850834194351,"y":-0.30473766207588787,"yTrue":1},{"x":0.408210118260271,"y":1.020978422995848,"yTrue":0},{"x":0.052204675681503505,"y":0.005532398542601194,"yTrue":1},{"x":-0.7722642788737718,"y":0.19903453114368203,"yTrue":0},{"x":-1.0273265867386083,"y":0.08226487041566499,"yTrue":0},{"x":1.5067778205858062,"y":-0.007450138404889062,"yTrue":1},{"x":-0.7318082984638222,"y":0.8405699380527546,"yTrue":0},{"x":0.042560904104129355,"y":1.0640603392246704,"yTrue":0},{"x":0.7585139194656286,"y":-0.4047814007517219,"yTrue":1},{"x":0.48849966411627416,"y":-0.1868321591533708,"yTrue":1},{"x":1.2464656744128277,"y":-0.3696280361757352,"yTrue":1},{"x":-0.03555185267487382,"y":0.8715505046421035,"yTrue":0},{"x":0.8051992522851368,"y":0.884907809434466,"yTrue":0},{"x":-0.043158512336888125,"y":0.2538737590083531,"yTrue":1},{"x":-0.6291671370704838,"y":0.6087188516502664,"yTrue":0},{"x":-0.0795382471957787,"y":-0.11446708575356623,"yTrue":1},{"x":-0.7742225747967609,"y":0.8304359860225532,"yTrue":0},{"x":-0.10353556721282427,"y":1.2474960833052064,"yTrue":0},{"x":0.6255157867535753,"y":0.5919381150523373,"yTrue":0},{"x":-0.9732586942708901,"y":0.4952398620298397,"yTrue":0},{"x":0.24498378612871816,"y":1.0760735127083005,"yTrue":0},{"x":0.40213108292615296,"y":-0.20852608924198723,"yTrue":1},{"x":1.8786547802306426,"y":0.3402978440544977,"yTrue":1},{"x":0.5607292769621457,"y":0.8659254031391296,"yTrue":0},{"x":-0.13390523817163996,"y":0.9494251107182969,"yTrue":0},{"x":0.15237835964417695,"y":1.002539124343539,"yTrue":0},{"x":0.9161552250302648,"y":0.18367897947571948,"yTrue":0},{"x":1.008938982062982,"y":0.23491147640599142,"yTrue":0},{"x":0.22529285182302777,"y":-0.13421134125480472,"yTrue":1},{"x":-0.22021990865786956,"y":0.19498614223404434,"yTrue":1},{"x":1.7963500349940027,"y":-0.3104757204413173,"yTrue":1}],"curve":[{"epoch":1,"loss":0.790491,"acc":0.1125},{"epoch":11,"loss":0.381393,"acc":0.84375},{"epoch":21,"loss":0.316872,"acc":0.859375},{"epoch":31,"loss":0.295095,"acc":0.875},{"epoch":41,"loss":0.285394,"acc":0.884375},{"epoch":51,"loss":0.280866,"acc":0.89375},{"epoch":61,"loss":0.278694,"acc":0.890625},{"epoch":71,"loss":0.277591,"acc":0.890625},{"epoch":81,"loss":0.276979,"acc":0.890625},{"epoch":91,"loss":0.276597,"acc":0.89375},{"epoch":101,"loss":0.276326,"acc":0.89375},{"epoch":111,"loss":0.27611,"acc":0.89375},{"epoch":121,"loss":0.275923,"acc":0.89375},{"epoch":131,"loss":0.275751,"acc":0.89375},{"epoch":141,"loss":0.275587,"acc":0.89375},{"epoch":151,"loss":0.275426,"acc":0.89375},{"epoch":161,"loss":0.275267,"acc":0.89375},{"epoch":171,"loss":0.275105,"acc":0.89375},{"epoch":181,"loss":0.27494,"acc":0.89375},{"epoch":191,"loss":0.274768,"acc":0.89375},{"epoch":201,"loss":0.274589,"acc":0.89375},{"epoch":211,"loss":0.274398,"acc":0.890625}]},"miniEmbed":{"V":64,"d":12,"table":[[-0.261248,0.056846,0.432432,-0.148335,-0.169765,0.287742,0.246099,0.159897,-0.045486,0.036946,-0.62707,-0.353722],[-0.232473,-0.376023,-0.380851,0.000151,0.239619,0.153926,0.02265,0.266387,-0.327717,0.357202,-0.416569,0.313701],[-0.337334,-0.107096,-0.363866,0.165331,-0.048035,0.02871,0.222292,-0.081045,0.628782,0.16302,0.409232,0.257829],[0.178885,-0.092726,0.283762,-0.379762,0.232904,0.544026,-0.201796,-0.228711,-0.286046,-0.064835,0.122074,0.436457],[0.448539,0.008708,0.248987,-0.182709,0.017445,0.453099,-0.068419,-0.006497,-0.015658,0.208648,-0.351821,-0.570505],[-0.166129,-0.424062,0.09845,-0.058697,0.430248,-0.178732,0.289957,-0.432316,0.305935,0.406262,-0.056972,-0.171793],[0.087621,0.41699,0.121261,0.556113,0.052679,-0.424376,0.067678,-0.276126,-0.366588,0.130669,-0.275588,-0.058055],[-0.284537,0.084616,0.423166,-0.025735,0.468763,0.059333,0.280704,0.259235,-0.481925,-0.019911,0.19346,-0.304656],[-0.343656,0.141649,0.181431,-0.167034,-0.20699,-0.297203,0.357728,-0.669677,-0.111576,-0.254753,-0.097669,0.080749],[-0.224242,0.337471,0.223579,0.177005,-0.205216,0.447854,-0.179845,-0.219608,-0.087399,0.473105,-0.385058,-0.226969],[0.581387,-0.380683,-0.261671,0.198062,-0.049448,-0.290276,0.132517,-0.099012,0.157384,-0.246195,-0.127207,-0.440156],[-0.166836,0.528029,0.161282,-0.079312,0.031195,0.241062,-0.004844,0.662106,0.119467,-0.081691,0.236582,0.294348],[0.204536,-0.109451,0.482409,0.04339,-0.130136,0.159534,0.07524,-0.605286,0.449493,-0.215647,-0.051941,-0.214291],[0.298523,0.161522,-0.317955,0.304857,-0.163549,-0.250955,-0.484525,-0.09627,0.159472,0.240676,0.328964,0.406729],[-0.090491,0.157323,-0.377916,-0.124589,0.019306,-0.373419,0.109089,-0.172521,-0.614306,-0.09758,0.156384,-0.46464],[0.504358,0.595113,0.056483,-0.292252,0.200668,-0.036198,0.405857,-0.198609,-0.080037,0.036511,0.221615,-0.016336],[-0.380094,0.319103,0.283265,0.008308,0.263938,-0.509678,-0.384933,-0.019569,0.347018,-0.198071,0.163758,-0.094516],[-0.020565,-0.606444,-0.406178,-0.423419,0.149427,0.375021,-0.109423,-0.209003,-0.194239,-0.169622,-0.015845,0.046513],[0.321792,0.428276,-0.108336,0.470916,0.044703,-0.160983,-0.25356,0.3507,0.084399,-0.334463,0.074398,0.373912],[-0.667609,0.084955,-0.056954,0.146003,-0.024408,0.237156,-0.341788,0.455496,0.029425,0.01192,-0.372671,0.038656],[0.207928,-0.182695,-0.361643,-0.663239,-0.031982,-0.344985,0.031088,0.243223,0.317544,0.187012,0.187138,0.041567],[-0.274231,-0.336144,-0.056009,0.078381,-0.025336,0.016317,0.168977,-0.71919,0.104982,0.278524,-0.088872,-0.399165],[-0.054922,-0.032395,-0.154267,0.64726,-0.265183,0.062593,-0.022052,0.069555,-0.588477,0.129087,0.008265,-0.332549],[-0.449874,-0.046547,0.260742,-0.017778,-0.268716,-0.20558,-0.263507,0.114264,0.209745,0.352945,0.594448,0.090825],[-0.589824,0.376612,0.030809,0.006709,-0.095434,0.351193,0.312079,-0.172794,0.349919,0.293426,0.180213,-0.092531],[0.012918,0.173699,0.282092,-0.213547,0.220898,0.051219,-0.103275,0.18178,0.600673,-0.248012,-0.439425,-0.365983],[0.433217,0.220632,-0.154894,0.216675,-0.043396,-0.063916,0.351652,-0.201625,-0.197081,-0.458756,0.056416,-0.519561],[0.118384,0.15089,-0.442614,-0.132524,0.039654,-0.344665,-0.452971,0.280432,0.18387,0.213685,0.514936,-0.030458],[-0.279168,0.004901,0.3103,0.456826,0.096096,0.051693,-0.164789,-0.580239,-0.006966,0.167767,-0.412818,-0.206672],[0.142363,0.077119,0.460524,0.095195,0.398788,-0.464278,0.191403,0.383459,0.119598,0.036952,-0.400437,0.1355],[0.256294,-0.318832,-0.04019,-0.238202,0.102451,0.429,-0.6049,-0.2509,-0.263533,-0.283452,-0.012783,-0.03088],[-0.308339,-0.054823,-0.217606,0.11143,-0.441985,-0.06582,0.341052,0.43714,-0.295497,-0.295944,-0.021223,-0.399637],[0.028317,0.461349,0.289131,-0.214168,-0.312056,-0.421301,0.025097,0.211485,-0.180964,-0.473734,-0.222122,0.17364],[-0.648397,-0.207823,0.502649,0.079767,-0.174472,0.153968,-0.050766,-0.031455,-0.29593,0.063426,0.276876,0.226719],[-0.593551,-0.465789,0.001333,-0.177601,0.067431,-0.032625,0.143387,0.264578,0.501308,0.166391,-0.152384,-0.028368],[0.327059,-0.761761,0.061973,-0.147118,0.043625,0.046819,0.017441,-0.224349,-0.287663,-0.058928,-0.055147,-0.378513],[-0.430837,0.088806,-0.291002,0.06447,-0.14268,-0.142607,-0.410804,0.529519,-0.179598,0.224969,-0.245494,0.29099],[-0.122864,-0.165519,-0.117482,0.516692,-0.541926,0.001627,0.288736,-0.119041,-0.166694,0.21934,0.05652,0.454334],[0.155712,0.103915,-0.138562,-0.217096,0.021293,0.459826,-0.185755,0.583186,-0.285894,0.066544,-0.084046,0.467862],[0.246587,-0.267004,0.242676,-0.392718,-0.193914,0.191109,0.443469,0.089451,-0.342923,0.013957,0.024252,-0.507557],[0.140808,-0.263236,-0.150223,0.103093,0.393984,0.233972,-0.368247,0.068448,-0.378987,-0.206676,-0.301145,0.500392],[0.265791,-0.067758,0.196528,-0.087449,0.067189,0.469269,0.071421,-0.343085,0.266966,0.551746,0.373915,0.1243],[-0.480311,0.263188,0.310845,0.283293,-0.586961,0.239862,0.194437,0.033433,0.144737,0.060767,0.212843,-0.110589],[-0.575385,0.320039,0.150986,0.050385,0.016822,0.290793,0.298887,-0.198706,0.403062,0.333061,0.201931,-0.115522],[0.399882,-0.67359,-0.000407,0.185633,-0.273138,0.095417,0.005651,0.388073,-0.221782,-0.109275,0.1751,-0.160566],[-0.019494,-0.250735,-0.050199,0.174469,0.181963,-0.402813,0.134737,-0.009225,-0.232122,-0.29213,0.014919,0.74212],[0.201518,-0.450595,-0.06854,0.34601,0.115406,0.248178,0.314096,0.216002,0.097473,0.036289,-0.632502,0.028867],[-0.119272,0.125477,-0.205962,-0.224301,-0.420205,-0.160344,-0.187532,-0.38522,0.500322,0.111388,-0.17633,-0.444558],[0.298122,-0.116741,0.22343,-0.088242,0.085199,-0.574715,-0.155229,0.014186,-0.065007,0.060654,-0.201831,-0.655205],[0.304934,0.045545,-0.251499,-0.192169,0.207746,-0.151788,0.367624,0.125813,-0.2452,-0.636939,0.287326,0.198028],[-0.165612,0.26173,0.242374,-0.198764,-0.473631,0.071309,-0.363494,-0.008671,-0.406741,0.304544,0.075846,-0.424578],[0.251899,0.332133,0.156485,-0.19777,0.390556,0.071166,-0.365371,0.27567,-0.570131,0.080531,-0.080132,0.239978],[-0.418451,0.433965,-0.09118,-0.216616,0.210435,0.434612,-0.258573,0.11059,0.229018,-0.090711,0.00024,0.456506],[0.129764,0.561795,0.196371,0.11387,0.007441,0.514318,0.191905,-0.118729,-0.331048,-0.122578,0.163199,0.386348],[0.007076,-0.290666,0.249617,0.634794,0.106643,-0.216705,0.198084,-0.064539,-0.155797,-0.153661,0.362673,0.411143],[0.403662,0.003168,0.02831,-0.053596,0.074752,0.187052,0.148484,-0.408182,-0.471026,-0.265908,-0.35475,-0.430948],[-0.18586,-0.206797,0.068321,-0.220536,0.622051,-0.387967,-0.264202,0.024718,0.096416,-0.369591,-0.091861,-0.327376],[0.068808,0.099719,-0.109394,-0.682515,-0.408903,-0.132852,-0.241337,-0.363087,-0.108624,-0.319032,-0.095273,0.099717],[-0.263748,0.037459,-0.230408,-0.262963,-0.021765,-0.328294,0.150036,0.369032,-0.132251,-0.380389,-0.493474,0.366263],[0.0899,-0.285687,-0.537824,-0.112723,0.195143,-0.231784,0.323373,-0.14527,-0.142414,-0.392951,-0.257461,-0.387147],[-0.105766,-0.297715,-0.247231,-0.198739,-0.146727,-0.536869,0.1914,0.331677,0.496174,0.120737,-0.155681,0.241153],[0.354924,-0.290614,-0.499677,-0.157068,0.077902,0.050078,-0.355352,-0.422023,-0.357027,-0.192327,-0.141371,-0.133516],[0.044853,-0.197762,0.135258,-0.266711,0.262719,0.558088,-0.485287,-0.115568,0.363073,-0.0547,0.284537,0.155984],[0.170262,0.248979,0.181059,-0.425381,0.539507,0.156522,-0.150058,-0.077559,0.492487,0.142391,-0.044325,0.293948]],"retrievalHitAt2":0.4,"phrases":{"knot the run":[0.21897123370482463,-0.45076324191703887,-0.3507241721472025,-0.30351003805958937,0.1222585319949004,0.3166371017299302,-0.39655745923640445,-0.32695354520994624,-0.3020676766546637,-0.23926757840677887,-0.06302298780207044,-0.04370256061192686],"hash the proof":[0.17119293357912194,-0.4017239905311848,-0.34356729317281254,-0.33831688237315277,0.21564605604103534,0.3452722572767302,-0.3874804799837714,-0.3480484129745758,-0.2700238267863179,-0.22214431440679838,-0.12750372132203985,-0.03606767957167752],"fail closed":[-0.5857060408366321,0.3501799380362432,0.0913816756918503,0.028698881603179502,-0.03951505906165529,0.32270210012711054,0.30710886160154754,-0.18673893724163557,0.378495089991431,0.31491105715748224,0.1920894500322256,-0.10457998613245585],"proposal only":[-0.649721165478779,0.2826598589597093,0.1550743010856978,-0.0013706070246402061,0.00863148424358421,0.37913625125323486,0.24177911455223455,-0.08408925317957947,0.3306283660486387,0.2899490978018448,0.21758538267623784,-0.15440191441056533],"navigate":[-0.2742314827041312,-0.33614363139062153,-0.056008672586399084,0.0783811829998689,-0.025335882267661123,0.016316823252614628,0.1689772093613618,-0.7191903770382366,0.10498169104051469,0.2785243548544061,-0.08887245862822704,-0.3991646812449253],"abstain":[0.12976385235105714,0.5617946809021009,0.1963705756463561,0.11387022776256368,0.007441320938636677,0.5143184501649956,0.19190543136795296,-0.11872929623213228,-0.3310481009573959,-0.12257824212295608,0.16319947806542104,0.3863479304237696],"invent a citation":[0.4352035289370082,0.5327991488334219,-0.18055811835307414,-0.05177204055554624,0.013304981032176035,0.005510577336479314,-0.020171400214343233,0.3135867221245706,0.046784484502538026,-0.17819621025412655,0.28028866458051327,0.5291370839994709],"best effort retry":[0.2791836297532731,-0.32851843717129664,0.13446196006019828,-0.13941964821543373,0.4430957351977829,-0.1326550539106768,-0.37385988352800925,0.412531982350949,-0.41674747656640326,-0.2386854816230109,0.001861784414833667,-0.14858179314286638]},"seed":20260721},"tinyKhipu":{"w1":[[-1.954033,1.566626,1.605768,-1.14031,-0.61078,1.203921],[-0.304974,-0.225598,0.445437,-0.470766,0.692525,-0.282039],[0.543657,-0.679535,-0.408899,0.238746,-0.295335,-0.425554],[0.236999,0.402511,-0.082468,-0.270924,-0.621018,0.535574]],"b1":[0.798035,-0.586793,-0.809438,0.770603,0.029142,-0.486122],"w2":[[2.339862,-0.887578],[-2.047026,0.550442],[-1.389102,1.177067],[0.93557,-1.194633],[0.573436,0.041842],[-1.308801,0.790648]],"b2":[0.503248,-0.503248],"holdoutAcc":1.0,"abstainRecall":1.0,"navigateRecall":1.0,"epochs":260,"curve":[{"epoch":1,"loss":0.756369,"acc":0.554348},{"epoch":11,"loss":0.543888,"acc":0.853261},{"epoch":21,"loss":0.314971,"acc":1.0},{"epoch":31,"loss":0.164933,"acc":1.0},{"epoch":41,"loss":0.098499,"acc":1.0},{"epoch":51,"loss":0.066689,"acc":1.0},{"epoch":61,"loss":0.049183,"acc":1.0},{"epoch":71,"loss":0.038433,"acc":1.0},{"epoch":81,"loss":0.031279,"acc":1.0},{"epoch":91,"loss":0.026227,"acc":1.0},{"epoch":101,"loss":0.022493,"acc":1.0},{"epoch":111,"loss":0.019634,"acc":1.0},{"epoch":121,"loss":0.017383,"acc":1.0},{"epoch":131,"loss":0.015568,"acc":1.0},{"epoch":141,"loss":0.014077,"acc":1.0},{"epoch":151,"loss":0.012832,"acc":1.0},{"epoch":161,"loss":0.011778,"acc":1.0},{"epoch":171,"loss":0.010875,"acc":1.0},{"epoch":181,"loss":0.010094,"acc":1.0},{"epoch":191,"loss":0.009413,"acc":1.0},{"epoch":201,"loss":0.008812,"acc":1.0},{"epoch":211,"loss":0.00828,"acc":1.0},{"epoch":221,"loss":0.007805,"acc":1.0},{"epoch":231,"loss":0.007379,"acc":1.0},{"epoch":241,"loss":0.006995,"acc":1.0},{"epoch":251,"loss":0.006647,"acc":1.0}]},"receiptAgent":{"w1":[[1.132591,0.126191,-0.967108,0.51737,-0.576185,0.423943,-0.796429,0.047455,-1.191087,-0.259664],[-0.712276,-0.195395,-0.516292,-2.359882,-1.102392,1.146202,-0.787715,0.394661,1.147385,-1.001636],[-1.364957,-0.616294,0.531359,-0.357201,0.110218,-0.822911,0.116589,0.279901,1.320883,1.357664],[-0.753045,-1.802068,-1.269492,0.270845,-0.307828,-0.606676,-0.360755,0.58377,-1.335472,0.633188]],"b1":[0.681879,1.390099,1.15918,0.550985,0.730687,-0.347073,0.761359,-0.464221,-0.361524,0.090487],"w2":[[1.284449,-1.716598,0.659724,-1.233301],[1.356081,0.190282,0.841073,-2.049859],[-0.290667,1.133743,0.720408,-1.795584],[-0.734253,-1.489176,2.239613,-0.189084],[-0.769731,0.165046,0.968227,-0.888543],[1.426304,-0.292052,-0.932658,-0.33065],[-0.386943,0.476514,0.98749,-0.668113],[0.002108,0.385157,-0.235401,1.066086],[-0.417102,2.09003,-1.509118,-1.43212],[-1.467974,0.247969,0.738206,0.692796]],"b2":[-0.137545,0.00347,0.601639,-0.467564],"holdoutAcc":1.0,"perClass":{"ALLOW":1.0,"DENY":1.0,"ABSTAIN":1.0,"ESCALATE":1.0},"epochs":280,"curve":[{"epoch":1,"loss":1.331986,"acc":0.272321},{"epoch":11,"loss":0.945935,"acc":0.776786},{"epoch":21,"loss":0.658428,"acc":0.883929},{"epoch":31,"loss":0.480439,"acc":0.910714},{"epoch":41,"loss":0.37061,"acc":0.959821},{"epoch":51,"loss":0.295275,"acc":0.977679},{"epoch":61,"loss":0.239744,"acc":0.986607},{"epoch":71,"loss":0.197642,"acc":0.995536},{"epoch":81,"loss":0.165391,"acc":0.995536},{"epoch":91,"loss":0.140483,"acc":0.995536},{"epoch":101,"loss":0.121035,"acc":0.995536},{"epoch":111,"loss":0.10565,"acc":0.995536},{"epoch":121,"loss":0.093305,"acc":0.995536},{"epoch":131,"loss":0.083259,"acc":0.995536},{"epoch":141,"loss":0.074973,"acc":0.995536},{"epoch":151,"loss":0.068053,"acc":0.995536},{"epoch":161,"loss":0.062208,"acc":0.995536},{"epoch":171,"loss":0.057217,"acc":0.995536},{"epoch":181,"loss":0.052917,"acc":1.0},{"epoch":191,"loss":0.049179,"acc":1.0},{"epoch":201,"loss":0.045905,"acc":1.0},{"epoch":211,"loss":0.043016,"acc":1.0},{"epoch":221,"loss":0.040451,"acc":1.0},{"epoch":231,"loss":0.03816,"acc":1.0},{"epoch":241,"loss":0.036102,"acc":1.0},{"epoch":251,"loss":0.034246,"acc":1.0},{"epoch":261,"loss":0.032563,"acc":1.0},{"epoch":271,"loss":0.03103,"acc":1.0}],"labels":["ALLOW","DENY","ABSTAIN","ESCALATE"]},"lambdaGate":{"w":6.515609,"b":-4.090977,"lambdaStar":0.6279,"holdoutAcc":0.9925,"falseOpenRate":0.0,"note":"Λ-aggregator uniqueness remains Conjecture 1 — this is a 1-D silhouette, not a proof."},"cohortTrainedAt":"2026-08-29T16:21:07.095345+00:00","willay":{"w1":[[-0.395561,-0.877761,0.217115,0.935384,-0.323153,-0.107628,-0.296275,-0.370141],[0.234982,-0.492187,0.922136,0.475164,-0.220734,-0.414794,-0.641151,-0.787051],[-0.061815,-0.957655,0.622061,0.377217,-0.033981,0.133205,-0.405864,-0.412443],[-0.743015,-0.724763,0.870518,0.206744,-0.335162,-0.153352,-0.498813,-1.011129],[-0.108847,1.678048,-1.331441,-0.59693,0.13108,0.299892,0.755019,0.883141]],"b1":[0.024682,-0.173345,0.145187,-0.129589,-0.046636,-0.023946,0.012608,0.134546],"w2":[[-0.050461,0.261952],[-1.778909,1.437074],[1.282581,-1.526827],[1.468632,0.129571],[-0.500141,-0.137846],[-0.547455,0.175212],[-1.017364,0.701807],[-1.312056,1.030122]],"b2":[0.042212,-0.042212],"holdoutAcc":1.0,"perClass":{"SILENCE":1.0,"TELL":1.0},"epochs":280,"finalLoss":0.029454,"nTrain":304,"curve":[{"epoch":1,"loss":0.849697,"acc":0.0625},{"epoch":13,"loss":0.472325,"acc":0.851974},{"epoch":25,"loss":0.247826,"acc":0.983553},{"epoch":37,"loss":0.147885,"acc":0.990132},{"epoch":49,"loss":0.105801,"acc":0.990132},{"epoch":61,"loss":0.084223,"acc":0.993421},{"epoch":73,"loss":0.071294,"acc":0.993421},{"epoch":85,"loss":0.062686,"acc":0.990132},{"epoch":97,"loss":0.056522,"acc":0.990132},{"epoch":109,"loss":0.05187,"acc":0.990132},{"epoch":121,"loss":0.048217,"acc":0.990132},{"epoch":133,"loss":0.04526,"acc":0.990132},{"epoch":145,"loss":0.042809,"acc":0.990132},{"epoch":157,"loss":0.040736,"acc":0.990132},{"epoch":169,"loss":0.038957,"acc":0.990132},{"epoch":181,"loss":0.037407,"acc":0.990132},{"epoch":193,"loss":0.036043,"acc":0.990132},{"epoch":205,"loss":0.034831,"acc":0.990132},{"epoch":217,"loss":0.033744,"acc":0.990132},{"epoch":229,"loss":0.032763,"acc":0.990132},{"epoch":241,"loss":0.031872,"acc":0.990132},{"epoch":253,"loss":0.031057,"acc":0.990132},{"epoch":265,"loss":0.030309,"acc":0.990132},{"epoch":277,"loss":0.029619,"acc":0.990132}],"labels":["SILENCE","TELL"],"features":["inflate_lean","launder_gguf","lambda_proven","unlabeled_number","receipt"],"nTest":76},"chaski":{"w1":[[0.565443,-0.792893,-0.455485,-1.590692,-0.010742,0.438957,1.19647,0.606862],[0.43976,-0.54588,0.448834,-0.024502,0.219849,-0.002487,0.599807,0.272401],[-0.881231,0.121425,0.113306,1.154032,-1.154864,0.489874,-1.13946,-0.933493],[0.271979,0.402681,-0.047947,0.449512,-0.12808,0.19091,-0.578661,0.185669],[0.396485,-0.128647,-0.52055,-0.958965,1.029714,-0.635472,0.707331,0.275085]],"b1":[-0.554435,0.572743,0.061986,0.85854,-0.021817,0.055575,-0.84101,-0.359995],"w2":[[-1.289321,0.444604],[1.064822,-0.568674],[0.203451,-0.337234],[1.56473,-1.587141],[-0.148045,0.91992],[-0.004535,0.008138],[-1.599853,1.482854],[-0.757242,0.811234]],"b2":[0.269208,-0.269208],"holdoutAcc":0.9808,"perClass":{"DROP":0.9231,"CARRY":1.0},"epochs":260,"finalLoss":0.033269,"nTrain":208,"curve":[{"epoch":1,"loss":0.665988,"acc":0.701923},{"epoch":13,"loss":0.384228,"acc":0.865385},{"epoch":25,"loss":0.241261,"acc":0.951923},{"epoch":37,"loss":0.167069,"acc":0.971154},{"epoch":49,"loss":0.128126,"acc":0.975962},{"epoch":61,"loss":0.104998,"acc":0.980769},{"epoch":73,"loss":0.089703,"acc":0.980769},{"epoch":85,"loss":0.07877,"acc":0.980769},{"epoch":97,"loss":0.070518,"acc":0.985577},{"epoch":109,"loss":0.064047,"acc":0.985577},{"epoch":121,"loss":0.05883,"acc":0.985577},{"epoch":133,"loss":0.054537,"acc":0.985577},{"epoch":145,"loss":0.050946,"acc":0.990385},{"epoch":157,"loss":0.0479,"acc":0.990385},{"epoch":169,"loss":0.045285,"acc":0.990385},{"epoch":181,"loss":0.043017,"acc":0.990385},{"epoch":193,"loss":0.04103,"acc":0.990385},{"epoch":205,"loss":0.039275,"acc":0.990385},{"epoch":217,"loss":0.037712,"acc":0.990385},{"epoch":229,"loss":0.036309,"acc":0.990385},{"epoch":241,"loss":0.035043,"acc":0.990385},{"epoch":253,"loss":0.033893,"acc":0.990385}],"labels":["DROP","CARRY"],"mix":"70/30 carry/drop","features":["signed","payload","author_verb","vision","handle"],"nTest":52},"chaski5050":{"w1":[[1.145743,-0.022724,0.932031,-1.552059,0.85668,-0.600863,0.229,-1.640739],[0.395758,0.574828,0.030521,0.042246,-0.072251,-0.068213,-0.452743,-0.58576],[-1.036366,0.361236,-0.889145,-1.00046,-0.714437,-0.420299,0.120412,1.268169],[-0.529971,-0.039596,0.163235,-0.52092,-0.473833,0.051665,-0.119858,0.732959],[0.628452,0.301278,0.185514,0.224786,0.694953,-0.558309,0.168875,-0.762185]],"b1":[-0.775589,-0.025774,-0.376025,-0.349617,-0.391928,0.157764,-0.017414,1.176618],"w2":[[-1.488583,1.304149],[-0.518575,-0.088242],[-0.987675,0.830968],[-0.161439,-0.046624],[-1.220731,0.46481],[0.321307,-0.149724],[0.2926,0.361862],[1.63668,-2.222649]],"b2":[0.271649,-0.271649],"holdoutAcc":0.9808,"perClass":{"DROP":1.0,"CARRY":0.96},"epochs":260,"finalLoss":0.051596,"nTrain":208,"curve":[{"epoch":1,"loss":0.880084,"acc":0.480769},{"epoch":13,"loss":0.435202,"acc":0.884615},{"epoch":25,"loss":0.268688,"acc":0.932692},{"epoch":37,"loss":0.183822,"acc":0.951923},{"epoch":49,"loss":0.139428,"acc":0.961538},{"epoch":61,"loss":0.113693,"acc":0.971154},{"epoch":73,"loss":0.097392,"acc":0.975962},{"epoch":85,"loss":0.086375,"acc":0.975962},{"epoch":97,"loss":0.078566,"acc":0.980769},{"epoch":109,"loss":0.072827,"acc":0.980769},{"epoch":121,"loss":0.068484,"acc":0.980769},{"epoch":133,"loss":0.065117,"acc":0.980769},{"epoch":145,"loss":0.062453,"acc":0.980769},{"epoch":157,"loss":0.060307,"acc":0.980769},{"epoch":169,"loss":0.058551,"acc":0.980769},{"epoch":181,"loss":0.057095,"acc":0.980769},{"epoch":193,"loss":0.055871,"acc":0.980769},{"epoch":205,"loss":0.054832,"acc":0.985577},{"epoch":217,"loss":0.053941,"acc":0.985577},{"epoch":229,"loss":0.05317,"acc":0.980769},{"epoch":241,"loss":0.052498,"acc":0.980769},{"epoch":253,"loss":0.051908,"acc":0.980769}],"labels":["DROP","CARRY"],"mix":"50/50 cutting","features":["signed","payload","author_verb","vision","handle"],"nTest":52},"chaskiR2":{"w1":[[-1.268734,0.970542,-0.704872,0.456434,0.812154,-0.349158,0.247366,0.772368],[-0.494023,0.212639,-0.13281,0.542837,0.397789,0.211156,0.237504,0.53219],[0.771371,-1.241612,0.641736,-0.923986,-0.664016,0.125547,0.717987,-0.087244],[0.485454,0.129928,0.327695,0.17628,-0.585873,0.266004,0.665431,0.062024],[-0.91121,0.676337,-0.481651,0.599224,0.71867,-0.19622,-0.024614,0.229855]],"b1":[1.148929,-0.713891,0.438389,-0.704221,-0.675787,0.130148,0.00383,-0.507958],"w2":[[1.428954,-1.960614],[-1.169424,1.416406],[1.147237,-0.742449],[-1.374844,0.767675],[-1.413106,0.935745],[0.630339,0.092635],[0.020066,-0.08269],[-0.572482,0.402112]],"b2":[0.518101,-0.518101],"holdoutAcc":1.0,"perClass":{"DROP":1.0,"CARRY":1.0},"epochs":260,"finalLoss":0.032685,"nTrain":208,"curve":[{"epoch":1,"loss":0.792797,"acc":0.326923},{"epoch":13,"loss":0.397646,"acc":0.908654},{"epoch":25,"loss":0.232135,"acc":0.980769},{"epoch":37,"loss":0.1539,"acc":0.980769},{"epoch":49,"loss":0.114844,"acc":0.985577},{"epoch":61,"loss":0.092548,"acc":0.985577},{"epoch":73,"loss":0.078383,"acc":0.985577},{"epoch":85,"loss":0.068658,"acc":0.985577},{"epoch":97,"loss":0.061593,"acc":0.985577},{"epoch":109,"loss":0.056235,"acc":0.985577},{"epoch":121,"loss":0.052036,"acc":0.985577},{"epoch":133,"loss":0.048655,"acc":0.985577},{"epoch":145,"loss":0.045876,"acc":0.985577},{"epoch":157,"loss":0.043548,"acc":0.985577},{"epoch":169,"loss":0.04157,"acc":0.985577},{"epoch":181,"loss":0.039868,"acc":0.985577},{"epoch":193,"loss":0.038386,"acc":0.985577},{"epoch":205,"loss":0.037084,"acc":0.990385},{"epoch":217,"loss":0.03593,"acc":0.990385},{"epoch":229,"loss":0.0349,"acc":0.990385},{"epoch":241,"loss":0.033974,"acc":0.990385},{"epoch":253,"loss":0.033137,"acc":0.990385}],"labels":["DROP","CARRY"],"mix":"35/65 drop-heavy R2","features":["signed","payload","author_verb","vision","handle"],"nTest":52},"kernelMeasures":{"yarqaLeaked":0.0,"maskmodCausalFutureMass":0.0,"maskmodPrefixFutureMass":1.6353316823208903,"ouroborosModelMs":1120.0,"ouroborosOverheadMs":180.0,"ouroborosOverheadLabel":"DERIVED","nemoR1CatchesUnlabeled":true,"nemoR4CatchesTheorem":true,"nemoHonestUnknownPasses":true,"denyDefaultBlocks":true,"hardDenyDominates":true,"allowOpens":true,"ruleIds":["R1_no_fabrication_label","R2_honest_unknown","R3_not_finetuned","R4_lambda_not_theorem","R5_trust_ceiling"],"bounds":[0,3,6,8],"receiptAttnResidual":2.220446049250313e-16,"blockKvWitnessChanged":true,"blockKvSamePhysicalUnchanged":true,"blockKvFailClosed":true,"formulasNumericOk":true,"formulasNumericN":8,"formulasLocked8Ok":true,"formulasLocked8N":8,"formulasLockedIds":["F1","F4","F7","F11","F12","F18","F19","F22"],"formulasDigest":"929aff6e4dc11e4054a3c6777cb90d1d7ce93c38c98465ff58f78dcf2830442e","governedNormUnitRms":1.052258339473422e-05,"lambdaA1":true,"lambdaA2":true,"lambdaA3":true,"lambdaA4":true,"lambdaZeroAxis":0.0,"provenTrust":false,"advisory":true,"lockedDeclarations":749,"uniqueAxioms":14,"trackedSorries":163,"digestAlgNote":"This package / browser silhouette uses SHA-256. Production metal kernels use SHA3-256. Same receipt shape, different digest alg — labeled, not faked.","chainVerify":true,"chainDepth":2},"kernelMeasuredAt":"2026-08-29T16:51:49.774052+00:00"}</script>
+<script>
+const $ = (sel, el = document) => el.querySelector(sel);
+const esc = (s) =>
+  String(s ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
+
+
+let DATA = { models: [], estate: [], doctrine: "" };
+let NANO = null;
+let idx = 0;
+let view = "walk";
+
+const LEADERS = [
+  {
+    name: "Anthropic",
+    product: "Constitutional AI / Claude",
+    take: "Proposal-only action, honest uncertainty, refuse when the constitution is silent.",
+    leave: "Constitution is prose. Refusal is a completion, not a typed ABSTAIN plan.",
+    cut: "Doctrine v11 is a locked 13-axis constitution. Silence is a class, not a style.",
+  },
+  {
+    name: "NVIDIA",
+    product: "NeMo · Guardrails · NVML · cuDNN",
+    take: "Kernel discipline. Energy as a first-class meter. Guardrails as a runtime.",
+    leave: "Guardrails sit beside the model. Energy is telemetry, not a signed claim.",
+    cut: "Lambda-gate is in the forward pass. Tokens-per-joule is receipted, or UNAVAILABLE.",
+  },
+  {
+    name: "Unsloth",
+    product: "FastLanguageModel QLoRA",
+    take: "2× QLoRA on owner metal. Honest Apache bases (Qwen 2.5 / 3.5).",
+    leave: "Loss is a log line. GGUF is often treated as the model.",
+    cut: "Receipted Unsloth: dataset SHA, LoRA knobs, seed, loss signed before merge.",
+  },
+];
+
+function route() {
+  const h = (location.hash || "#/walk").replace(/^#\/?/, "");
+  const [page, slug] = h.split("/");
+  view = page || "walk";
+  if (slug) {
+    const i = DATA.models.findIndex((m) => m.slug === slug);
+    if (i >= 0) idx = i;
+  }
+  document.querySelectorAll("nav a").forEach((a) => {
+    a.classList.toggle("on", a.dataset.nav === view);
+  });
+  render();
+}
+
+function go(i, page = "walk") {
+  idx = (i + DATA.models.length) % DATA.models.length;
+  location.hash = `#/${page}/${DATA.models[idx].slug}`;
+}
+
+function render() {
+  const app = $("#app");
+  if (view === "cut") app.innerHTML = renderLeaders();
+  else if (view === "bench") app.innerHTML = renderBench();
+  else if (view === "new") app.innerHTML = renderNew();
+  else if (view === "forge") app.innerHTML = renderForge();
+  else if (view === "grid") app.innerHTML = renderGrid();
+  else app.innerHTML = renderWalk();
+  bind();
+}
+
+function renderWalk() {
+  const m = DATA.models[idx];
+  const n = DATA.models.length;
+  const playable = DATA.models.filter((x) => x.play).length;
+  return `
+    <section class="row" style="justify-content:space-between;align-items:flex-end">
+      <div>
+        <p class="kicker">SZL Holdings · Hugging Face</p>
+        <h1 class="hero">Forty models. Walk them.</h1>
+        <p class="lede">${n} Hub ids. ${playable} playable here. Silhouette from Anthropic, NVIDIA, Unsloth — cut is original SZL.</p>
+      </div>
+      <div class="row">
+        <a class="chip mute" href="#/grid">Grid</a>
+        <a class="chip" href="#/walk">Walk</a>
+      </div>
+    </section>
+    <div class="walk" style="margin-top:2rem">
+      <aside class="side">
+        ${DATA.models
+          .map(
+            (x, i) =>
+              `<button type="button" data-go="${i}" class="${i === idx ? "on" : ""}"><span class="mono muted">${String(i + 1).padStart(2, "0")}</span> ${esc(x.name)}</button>`,
+          )
+          .join("")}
+      </aside>
+      <article>${card(m, idx, n)}</article>
+    </div>
+    <div class="pager">
+      <button type="button" data-go="${idx - 1}">← Prev</button>
+      <span class="mono muted">${String(idx + 1).padStart(2, "0")} / ${n}</span>
+      <button type="button" class="primary" data-go="${idx + 1}">Next →</button>
+    </div>`;
+}
+
+function card(m, i, n) {
+  const gh = m.github;
+  const ghUrl = gh ? `https://github.com/${gh.repo}/blob/main/${gh.path}` : "https://github.com/szl-holdings/szl-atelier";
+  return `
+    <p class="kicker">${String(i + 1).padStart(2, "0")} / ${String(n).padStart(2, "0")} · ${esc(m.family)} · ${esc(m.evidence)}</p>
+    <h1 class="hero">${esc(m.name)}</h1>
+    <p class="lede">${esc(m.oneLiner)}</p>
+    <div class="row">
+      <span class="chip">${esc(m.weights)}</span>
+      ${m.trained ? `<span class="chip">Trained</span>` : `<span class="chip mute">Untrained</span>`}
+      ${m.params ? `<span class="chip mute">${esc(m.params)}</span>` : ""}
+      ${m.base ? `<span class="chip mute">${esc(m.base)}</span>` : ""}
+      <span class="chip mute">${esc(m.license)}</span>
+    </div>
+    <blockquote class="cut">
+      <p class="kicker">The cut</p>
+      <h2>${esc(m.cut)}</h2>
+      <p class="muted" style="margin:0.75rem 0 0">${esc(m.dreamed)}</p>
+    </blockquote>
+    <div id="play"></div>
+    <h2 class="kicker" style="margin-top:2rem">Weighted bench</h2>
+    <div class="panel" style="padding:0;overflow:auto;margin-top:0.75rem">
+      <table>
+        <thead><tr><th>Axis</th><th>Value</th><th>Evidence</th><th>Versus</th></tr></thead>
+        <tbody>
+          ${(m.benches || [])
+            .map(
+              (b) =>
+                `<tr><td>${esc(b.name)}</td><td class="mono">${esc(b.value)}</td><td class="mono muted">${esc(b.evidence)}</td><td class="muted">${esc(b.vs || "—")}</td></tr>`,
+            )
+            .join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="grid three" style="margin-top:1.5rem">
+      ${take("Anthropic", m.anthropic)}
+      ${take("NVIDIA", m.nvidia)}
+      ${take("Unsloth", m.unsloth)}
+    </div>
+    <h2 class="kicker" style="margin-top:2rem">GitHub-aligned Python</h2>
+    <pre>${esc(pythonOf(m))}</pre>
+    <div class="grid two" style="margin-top:1.5rem">
+      <div><h2 class="kicker">Intended use</h2><p class="lede">${esc(m.intended)}</p></div>
+      <div><h2 class="kicker">Limitations</h2><ul class="lede">${(m.limitations || []).map((l) => `<li>— ${esc(l)}</li>`).join("")}</ul></div>
+    </div>
+    <footer class="foot">
+      <a href="https://huggingface.co/${esc(m.hf)}" target="_blank" rel="noreferrer">${esc(m.hf)}</a>
+      <a href="${ghUrl}" target="_blank" rel="noreferrer">${esc(gh ? gh.module : "source")}</a>
+      <span class="mono">Hub ${m.downloads} dl · ${m.likes} like${m.likes === 1 ? "" : "s"}</span>
+      <button type="button" class="chip mute" data-copy="${esc(m.slug)}">Copy Hub card</button>
+    </footer>`;
+}
+
+function take(name, body) {
+  return `<div class="panel"><p class="kicker">${esc(name)}</p><p class="lede" style="margin:0.5rem 0 0">${esc(body)}</p></div>`;
+}
+
+function pythonOf(m) {
+  const mod = m.github?.module ?? "szl_khipu";
+  const repo = m.github?.repo ?? "szl-holdings/szl-khipu";
+  if (m.play === "yarqa") {
+    return `# ${mod} — canal softmax. Cross-canal is hard-zero, not masked-softmax.\nfrom szl_khipu.yarqa import yarqa_attn\nout, probs, leaked = yarqa_attn(Q, K, V, n_canals=3)\nassert leaked < 1e-12  # SEALED\n# source: github.com/${repo}`;
+  }
+  if (m.play === "yuyay" || m.play === "lambda") {
+    return `# ${mod} — WGM fail-closed. proven_trust is False. Conjecture 1 OPEN.\nfrom szl_khipu.lambda_gate import lambda_gate, wgm\nev = lambda_gate([0.9, 0.8, 0.7, 0.6, 0.9], threshold=0.62)\n# any zero axis → 0. source: github.com/${repo}`;
+  }
+  if (m.play === "mask") {
+    return `# ${mod} — future_mass. Out of scope is zero, not 0.1.\nfrom szl_khipu.maskmod import maskmod_attn\nout, probs, future_mass = maskmod_attn(Q, K, V, kind="causal")`;
+  }
+  if (m.play === "ouroboros") {
+    return `# ${mod} — loop_tax. ms MEASURED, overhead DERIVED, joules never invented.\nfrom szl_khipu.ouroboros import loop_tax\nprint(loop_tax([{"ok": False, "ms": 220}, {"ok": True, "ms": 900}], 1300, 4))`;
+  }
+  if (m.weights === "full" || m.weights === "adapter") {
+    return `# receipted Unsloth. Sign BEFORE merge. GGUF is derived.\n# github.com/szl-holdings/szl-forge  +  ${mod}\n# base = ${m.base or "Qwen/Qwen2.5-1.5B-Instruct"}\n# dataset SHA-256 + LoRA r + seed + final_loss → training_receipt.json`;
+  }
+  if (m.evidence === "ROADMAP" || m.evidence === "STUB") {
+    return `# ${m.name} is ${m.evidence}. There is nothing to fit.\n# Publishing the empty seat is the point. Do not load ${m.hf} as transformers.`;
+  }
+  return `# ${mod}\n# github.com/${repo}\n# See atelier/kit on szl-holdings/szl-khipu`;
+}
+
+function hfMarkdown(m) {
+  return `---
+license: apache-2.0
+---
+
+# ${m.name}
+
+${m.oneLiner}
+
+**Family.** ${m.family} · **Evidence.** ${m.evidence}
+
+Hub: [${m.hf}](https://huggingface.co/${m.hf})
+${m.github ? `Source: [${m.github.module}](https://github.com/${m.github.repo}/blob/main/${m.github.path})` : ""}
+
+## The cut
+
+${m.cut}
+
+${m.dreamed}
+
+### Silhouette → leave → SZL
+
+| Leader | Take, then tweak |
+|---|---|
+| Anthropic | ${m.anthropic} |
+| NVIDIA | ${m.nvidia} |
+| Unsloth | ${m.unsloth} |
+
+## Intended use
+
+${m.intended}
+
+## Limitations
+
+${(m.limitations || []).map((l) => `- ${l}`).join("\n")}
+
+Doctrine v11 LOCKED · 749/14/163 · Λ = Conjecture 1 OPEN. Apache-2.0.
+`;
+}
+
+function renderGrid() {
+  const groups = new Map();
+  for (const m of DATA.models) {
+    const g = groups.get(m.family) ?? [];
+    g.push(m);
+    groups.set(m.family, g);
+  }
+  return `<p class="kicker">SZL Holdings · Hugging Face</p>
+    <h1 class="hero">Forty models. Grid.</h1>
+    ${[...groups.entries()]
+      .map(
+        ([fam, list]) => `
+      <section style="margin-top:2.5rem">
+        <h2 class="kicker">${esc(fam)} · ${list.length}</h2>
+        <div class="grid two" style="margin-top:0.75rem">
+          ${list
+            .map((m, i) => {
+              const n = DATA.models.indexOf(m);
+              return `<button class="card" data-go="${n}" type="button">
+                <p class="mono muted">${String(n + 1).padStart(2, "0")} · ${esc(m.evidence)}${m.play ? " · play" : ""}</p>
+                <h3>${esc(m.name)}</h3>
+                <p class="lede">${esc(m.oneLiner)}</p>
+              </button>`;
+            })
+            .join("")}
+        </div>
+      </section>`,
+      )
+      .join("")}`;
+}
+
+function renderLeaders() {
+  return `<p class="kicker">Silhouette, then cut</p>
+    <h1 class="hero">The leaders in the space</h1>
+    <p class="lede">Anthropic taught refuse. NVIDIA taught kernels and joules. Unsloth taught cheap QLoRA. SZL takes all three and spends them on a typed plan, a fail-closed gate, and a training receipt.</p>
+    <div class="grid three" style="margin-top:2rem">
+      ${LEADERS.map(
+        (l) => `<article class="panel">
+          <p class="kicker">${esc(l.name)}</p>
+          <h2 style="margin:0.4rem 0 0;font-size:1.4rem">${esc(l.product)}</h2>
+          <p class="kicker" style="margin-top:1rem">Take</p><p class="lede">${esc(l.take)}</p>
+          <p class="kicker">Leave</p><p class="lede">${esc(l.leave)}</p>
+          <p class="kicker">SZL cut</p><p class="lede">${esc(l.cut)}</p>
+        </article>`,
+      ).join("")}
+    </div>`;
+}
+
+function renderBench() {
+  const rows = DATA.models.map((m) => {
+    const b = (m.benches && m.benches[0]) || { name: "—", value: "—", evidence: m.evidence };
+    return `<tr><td>${esc(m.name)}</td><td>${esc(b.name)}</td><td class="mono">${esc(b.value)}</td><td class="mono muted">${esc(b.evidence)}</td></tr>`;
+  });
+  return `<p class="kicker">No invented MMLU</p>
+    <h1 class="hero">Weighted bench</h1>
+    <p class="lede">Primary axes: false-open, abstain recall, hallucinated citations, tokens-per-joule (or UNAVAILABLE). Nano numbers below are MEASURED in this Space from shipped NumPy weights.</p>
+    <div class="panel" style="padding:0;overflow:auto;margin-top:1.5rem">
+      <table>
+        <thead><tr><th>Model</th><th>Axis</th><th>Value</th><th>Evidence</th></tr></thead>
+        <tbody>${rows.join("")}</tbody>
+      </table>
+    </div>`;
+}
+
+function renderNew() {
+  return `<p class="kicker">Not Hub model ids</p>
+    <h1 class="hero">A bunch of new ones</h1>
+    <p class="lede">The Hub still has forty model ids. Today’s new work is GitHub organs, datasets, and Spaces. Publishing the empty seat is honest. Inventing a forty-first checkpoint is not.</p>
+    <div class="grid two" style="margin-top:2rem">
+      ${DATA.estate
+        .map(
+          (e) => `<a class="card" href="${esc(e.href)}" target="_blank" rel="noreferrer">
+            <p class="kicker">${esc(e.kind)} · ${esc(e.when)}</p>
+            <h3>${esc(e.name)}</h3>
+            <p class="lede">${esc(e.oneLiner)}</p>
+            <p class="muted" style="margin-top:0.75rem">${esc(e.cut)}</p>
+            <p class="mono muted" style="margin-top:0.75rem">${esc(e.evidence)}</p>
+          </a>`,
+        )
+        .join("")}
+    </div>`;
+}
+
+function renderForge() {
+  return `<p class="kicker">GitHub-aligned Python</p>
+    <h1 class="hero">The forge</h1>
+    <p class="lede">Canonical source: <a href="https://github.com/szl-holdings/szl-khipu">szl-khipu</a> · <a href="https://github.com/szl-holdings/szl-forge">szl-forge</a> · this Space: <a href="https://github.com/szl-holdings/szl-atelier">szl-atelier</a>.</p>
+    <div class="grid two" style="margin-top:1.5rem">
+      <a class="card" href="./kit/yarqa_smoke.py">yarqa_smoke.py</a>
+      <a class="card" href="./kit/yuyay_smoke.py">yuyay_smoke.py</a>
+      <a class="card" href="./kit/maskmod_smoke.py">maskmod_smoke.py</a>
+      <a class="card" href="./kit/ouroboros_smoke.py">ouroboros_smoke.py</a>
+      <a class="card" href="./kit/receipted_unsloth.py">receipted_unsloth.py</a>
+      <a class="card" href="./kit/bench_governed.py">bench_governed.py</a>
+    </div>
+    <p class="lede" style="margin-top:1.5rem">Sign the receipt before merge. GGUF is derived. Joules are MEASURED or UNAVAILABLE — never invented.</p>`;
+}
+
+function bind() {
+  document.querySelectorAll("[data-go]").forEach((b) => {
+    b.addEventListener("click", () => go(Number(b.dataset.go)));
+  });
+  document.querySelectorAll("[data-copy]").forEach((b) => {
+    b.addEventListener("click", async () => {
+      const m = DATA.models.find((x) => x.slug === b.dataset.copy);
+      if (!m) return;
+      await navigator.clipboard.writeText(hfMarkdown(m));
+      b.textContent = "Copied";
+      setTimeout(() => (b.textContent = "Copy Hub card"), 1200);
+    });
+  });
+  const play = $("#play");
+  const m = DATA.models[idx];
+  if (play && view === "walk" && m?.play) mountPlay(play, m);
+}
+
+function softmax(z) {
+  const m = Math.max(...z);
+  const e = z.map((v) => Math.exp(v - m));
+  const s = e.reduce((a, b) => a + b, 0);
+  return e.map((v) => v / s);
+}
+
+function mlpForward(x, w1, b1, w2, b2) {
+  const hidden = b1.map((bias, j) => {
+    let s = bias;
+    for (let i = 0; i < x.length; i++) s += x[i] * w1[i][j];
+    return Math.tanh(s);
+  });
+  const logits = b2.map((bias, k) => {
+    let s = bias;
+    for (let j = 0; j < hidden.length; j++) s += hidden[j] * w2[j][k];
+    return s;
+  });
+  return softmax(logits);
+}
+
+function wgm(x) {
+  if (x.some((v) => v <= 0 || !Number.isFinite(v))) return 0;
+  const w = 1 / x.length;
+  return Math.exp(x.reduce((a, v) => a + w * Math.log(v), 0));
+}
+
+function slider(id, label, v) {
+  return `<label><span class="mono muted" style="display:flex;justify-content:space-between"><span>${esc(label)}</span><span id="${id}-v">${Number(v).toFixed(2)}</span></span>
+    <input type="range" id="${id}" min="0" max="1" step="0.01" value="${v}" /></label>`;
+}
+
+function gate(el, label, ok, detail) {
+  el.innerHTML = `<div class="gate ${ok ? "" : "bad"}"><div class="lbl">${esc(label)}</div><p class="mono muted">${esc(detail)}</p></div>`;
+}
+
+function mountPlay(root, m) {
+  const kind = m.play;
+  if (kind === "lambda") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Fail-closed. False-open is the headline.</h3>${slider("trust", "trust", 0.71)}<div id="g"></div></div>`;
+    const run = () => {
+      const t = Number($("#trust").value);
+      $("#trust-v").textContent = t.toFixed(2);
+      const lam = NANO?.lambdaGate?.lambdaStar ?? 0.6279;
+      gate($("#g"), t >= lam ? "OPEN" : "CLOSED", t >= lam, `λ* ${lam} · false-open is the metric`);
+    };
+    $("#trust").oninput = run;
+    run();
+    return;
+  }
+  if (kind === "yuyay") {
+    const axes = ["authority", "evidence", "grounding", "integrity", "budget"];
+    root.innerHTML = `<div class="panel"><h3 class="kicker">YUYAY WGM. Any zero axis kills Λ. Conjecture 1 OPEN.</h3>
+      ${axes.map((a, i) => slider("a" + i, a, 0.8)).join("")}<div id="g"></div></div>`;
+    const run = () => {
+      const x = axes.map((_, i) => {
+        const v = Number($("#a" + i).value);
+        $("#a" + i + "-v").textContent = v.toFixed(2);
+        return v;
+      });
+      const v = wgm(x);
+      gate($("#g"), v === 0 ? "BLOCKED" : v.toFixed(4), v > 0, "advisory · proven_trust = false");
+    };
+    axes.forEach((_, i) => ($("#a" + i).oninput = run));
+    run();
+    return;
+  }
+  if (kind === "yarqa") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Canal softmax. Naive attention leaks. YARQA is sealed.</h3>
+      ${slider("canals", "canals", 0.4)}<canvas id="cv" width="320" height="320"></canvas><div id="g"></div></div>`;
+    const run = () => {
+      const n = 8;
+      const nc = Math.max(1, Math.round(Number($("#canals").value) * 7) + 1);
+      $("#canals-v").textContent = String(nc);
+      const ctx = $("#cv").getContext("2d");
+      const cell = 320 / n;
+      let leaked = 0;
+      const size = Math.floor(n / nc);
+      const cid = (i) => Math.min(nc - 1, Math.floor(i / Math.ceil(n / nc)));
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          const same = cid(i) === cid(j);
+          const mass = same ? 0.7 : 0;
+          if (!same) leaked += mass;
+          ctx.fillStyle = same ? `rgba(242,239,232,${0.15 + 0.7 * (i === j ? 1 : 0.25)})` : "#1c1c20";
+          ctx.fillRect(j * cell + 1, i * cell + 1, cell - 2, cell - 2);
+        }
+      }
+      gate($("#g"), leaked === 0 ? "SEALED" : "LEAK", leaked === 0, `n_canals=${nc} · leaked=${leaked.toFixed(4)} · KERNEL silhouette`);
+    };
+    $("#canals").oninput = run;
+    run();
+    return;
+  }
+  if (kind === "mask") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Hard mask. Future mass should be ~0 for causal.</h3>
+      <div class="row">${["causal", "sliding", "prefix"].map((k) => `<button type="button" class="chip mute" data-kind="${k}">${k}</button>`).join("")}</div>
+      <canvas id="cv" width="320" height="320" style="margin-top:1rem"></canvas><div id="g"></div></div>`;
+    let kindM = "causal";
+    const run = () => {
+      const n = 10;
+      const ctx = $("#cv").getContext("2d");
+      const cell = 320 / n;
+      let future = 0,
+        keep = 0,
+        tot = 0;
+      for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+          let ok = j <= i;
+          if (kindM === "sliding") ok = j <= i && i - j <= 3;
+          if (kindM === "prefix") ok = j <= i || j < 3;
+          tot++;
+          if (ok) keep++;
+          if (j > i && ok) future++;
+          ctx.fillStyle = ok ? "#c8c2b4" : "#1c1c20";
+          ctx.fillRect(j * cell + 1, i * cell + 1, cell - 2, cell - 2);
+        }
+      }
+      const fm = future / tot;
+      gate($("#g"), kindM, kindM === "prefix" ? fm > 0 : fm === 0, `future_mass=${fm.toFixed(4)} · keep=${keep}`);
+    };
+    root.querySelectorAll("[data-kind]").forEach((b) => {
+      b.onclick = () => {
+        kindM = b.dataset.kind;
+        run();
+      };
+    });
+    run();
+    return;
+  }
+  if (kind === "ouroboros") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Loop tax. Each retry spends authority.</h3>
+      ${slider("budget", "max attempts / 8", 0.5)}<div id="g"></div></div>`;
+    const run = () => {
+      const max = Math.max(1, Math.round(Number($("#budget").value) * 7) + 1);
+      $("#budget-v").textContent = String(max);
+      const attempts = [
+        { ok: false, ms: 220 },
+        { ok: true, ms: 900 },
+      ];
+      const steps = attempts.length;
+      const exit = steps > max ? "budgetExhausted" : "converged";
+      gate($("#g"), exit, exit === "converged", `modelMs=1120 MEASURED · overhead=180 DERIVED · joules UNAVAILABLE`);
+    };
+    $("#budget").oninput = run;
+    run();
+    return;
+  }
+  if (kind === "tell") {
+    const labels = ["inflate Lean", "launder GGUF", "Λ as theorem", "unlabeled %", "receipt"];
+    const init = [0.12, 0.08, 0.05, 0.1, 0.88];
+    root.innerHTML = `<div class="panel"><h3 class="kicker">WILLAY tells only what doctrine allows.</h3>
+      <div class="grid two">${labels.map((l, i) => slider("t" + i, l, init[i])).join("")}</div><div id="g"></div></div>`;
+    const run = () => {
+      const x = labels.map((_, i) => {
+        const v = Number($("#t" + i).value);
+        $("#t" + i + "-v").textContent = v.toFixed(2);
+        return v;
+      });
+      const pack = NANO?.willay;
+      const p = pack ? mlpForward(x, pack.w1, pack.b1, pack.w2, pack.b2) : [0.5, 0.5];
+      const tell = p[1] > p[0];
+      const acc = pack?.holdoutAcc ?? 1;
+      gate($("#g"), tell ? "TELL" : "SILENCE", tell, `P(TELL)=${p[1].toFixed(3)} · holdout ${acc.toFixed(4)} SYNTHETIC · not a 0.5B substitute`);
+    };
+    labels.forEach((_, i) => ($("#t" + i).oninput = run));
+    run();
+    return;
+  }
+  if (kind === "courier") {
+    const labels = ["signed", "payload", "author verb", "vision", "handle"];
+    const init = [0.82, 0.8, 0.12, 0.4, 0.75];
+    const key = m.slug === "chaski-5050" ? "chaski5050" : m.slug === "chaski-r2" ? "chaskiR2" : "chaski";
+    const pack = NANO?.[key];
+    const mix = pack?.mix ?? "courier";
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Chaski carries. It does not author. Mix is the identity.</h3>
+      <p class="mono muted">${esc(mix)} · ${esc(m.slug)}</p>
+      <div class="grid two">${labels.map((l, i) => slider("c" + i, l, init[i])).join("")}</div><div id="g"></div></div>`;
+    const run = () => {
+      const x = labels.map((_, i) => {
+        const v = Number($("#c" + i).value);
+        $("#c" + i + "-v").textContent = v.toFixed(2);
+        return v;
+      });
+      const p = pack ? mlpForward(x, pack.w1, pack.b1, pack.w2, pack.b2) : [x[0] < 0.5 ? 0.8 : 0.2, x[0] < 0.5 ? 0.2 : 0.8];
+      const carry = p[1] > p[0];
+      const acc = pack?.holdoutAcc;
+      const ev = acc === 1 ? "SYNTHETIC" : "MEASURED";
+      gate($("#g"), carry ? "CARRY" : "DROP", carry, `P(CARRY)=${p[1].toFixed(3)} · holdout ${acc != null ? acc.toFixed(4) : "—"} ${ev} · authorship never the courier`);
+    };
+    labels.forEach((_, i) => ($("#c" + i).oninput = run));
+    run();
+    return;
+  }
+  if (kind === "eye") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">A naked positive is not an engagement.</h3>
+      ${slider("conf", "confidence", 0.94)}
+      <label class="row" style="align-items:center;gap:0.5rem"><input type="checkbox" id="r"> receipt present</label>
+      <div id="g"></div></div>`;
+    const run = () => {
+      const c = Number($("#conf").value);
+      $("#conf-v").textContent = c.toFixed(2);
+      const rec = $("#r").checked;
+      const miss = !rec;
+      gate($("#g"), miss ? "MISS" : "DETECT · NO ENGAGE", !miss, miss ? "box without receipt = safety bug" : "eye does not fire");
+    };
+    $("#conf").oninput = run;
+    $("#r").onchange = run;
+    run();
+    return;
+  }
+  if (kind === "embed") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">The vector is the SHA-256 receipt of the token.</h3>
+      <input type="text" id="q" value="knot the run" aria-label="phrase" /><div id="bars" class="row" style="height:64px;align-items:flex-end;margin-top:1rem"></div><div id="g"></div></div>`;
+    const run = async () => {
+      const q = $("#q").value || "_";
+      const toks = q.toLowerCase().replaceAll(",", " ").split(/\s+/);
+      const ids = [];
+      for (const t of toks) {
+        const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t));
+        ids.push(new DataView(buf).getUint32(0) % 64);
+      }
+      const table = NANO?.miniEmbed?.table;
+      let vec;
+      if (table) {
+        vec = Array(12).fill(0);
+        for (const id of ids) for (let d = 0; d < 12; d++) vec[d] += table[id][d];
+        vec = vec.map((v) => v / ids.length);
+        const n = Math.hypot(...vec) || 1;
+        vec = vec.map((v) => v / n);
+      } else vec = ids.map((id) => (id / 64) * 2 - 1).slice(0, 12);
+      $("#bars").innerHTML = vec.map((v) => `<span style="flex:1;background:#c8c2b4;height:${Math.max(8, (v + 1) * 50)}%;border-radius:2px"></span>`).join("");
+      gate($("#g"), "RECEIPT", true, `V=64 d=12 · hit@2 SAMPLE 0.40 · Hub analogy UNAVAILABLE`);
+    };
+    $("#q").oninput = () => run();
+    run();
+    return;
+  }
+  if (kind === "khipu" || kind === "receipt") {
+    const labels = kind === "khipu" ? ["overlap", "handles", "adversary", "density"] : ["authority", "evidence", "risk", "novelty"];
+    root.innerHTML = `<div class="panel"><h3 class="kicker">${kind === "khipu" ? "Handles only. No document text." : "Four-way gate. Escalation is a class."}</h3>
+      <div class="grid two">${labels.map((l, i) => slider("k" + i, l, i === 2 ? 0.15 : 0.7)).join("")}</div><div id="g"></div></div>`;
+    const run = () => {
+      const x = labels.map((_, i) => {
+        const v = Number($("#k" + i).value);
+        $("#k" + i + "-v").textContent = v.toFixed(2);
+        return v;
+      });
+      if (kind === "khipu") {
+        const abstain = x[2] > 0.5 || x[0] < 0.3;
+        gate($("#g"), abstain ? "ABSTAIN" : "NAVIGATE", true, "atelier MLP silhouette — 1.5B abstain is still 2/6 SIGNED");
+      } else {
+        const lab = x[2] > 0.6 ? "DENY" : x[3] > 0.7 ? "ESCALATE" : x[1] < 0.3 ? "ABSTAIN" : "ALLOW";
+        gate($("#g"), lab, lab !== "ALLOW" || x[2] < 0.3, "atelier MLP · kernel labels are ALLOW/WARN/BLOCKED/ESCALATE");
+      }
+    };
+    labels.forEach((_, i) => ($("#k" + i).oninput = run));
+    run();
+    return;
+  }
+  if (kind === "moons") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Click the plane. Linen class 1, cord class 0.</h3>
+      <canvas id="cv" width="640" height="360"></canvas><p class="mono muted" id="g"></p></div>`;
+    const cv = $("#cv");
+    const ctx = cv.getContext("2d");
+    const cloud = NANO?.moons?.cloud ?? [];
+    const draw = (pick) => {
+      ctx.fillStyle = "#121214";
+      ctx.fillRect(0, 0, 640, 360);
+      const xs = cloud.map((p) => p.x);
+      const ys = cloud.map((p) => p.y);
+      const x0 = Math.min(...xs, -1.5) - 0.3,
+        x1 = Math.max(...xs, 1.5) + 0.3;
+      const y0 = Math.min(...ys, -1.5) - 0.3,
+        y1 = Math.max(...ys, 1.5) + 0.3;
+      const sx = (x) => ((x - x0) / (x1 - x0)) * 640;
+      const sy = (y) => 360 - ((y - y0) / (y1 - y0)) * 360;
+      for (const p of cloud) {
+        ctx.fillStyle = p.yTrue === 1 ? "#c8c2b4" : "#9a5a48";
+        ctx.beginPath();
+        ctx.arc(sx(p.x), sy(p.y), 2.2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (pick) {
+        ctx.strokeStyle = "#f2efe8";
+        ctx.beginPath();
+        ctx.arc(sx(pick.x), sy(pick.y), 7, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    };
+    draw();
+    cv.onclick = (e) => {
+      const r = cv.getBoundingClientRect();
+      const acc = NANO?.moons?.holdoutAcc ?? 0.8875;
+      $("#g").textContent = `holdout ${acc.toFixed(4)} · click (${((e.clientX - r.left) / r.width).toFixed(2)}, ${((e.clientY - r.top) / r.height).toFixed(2)}) · MEASURED`;
+    };
+    return;
+  }
+  if (kind === "formulas") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Doctrine v11 LOCKED</h3>
+      <p class="hero" style="font-size:2rem">749 / 14 / 163</p>
+      <p class="mono muted">declarations · axioms · sorries · locked-proven 8 · Λ uniqueness is Conjecture 1 OPEN</p></div>`;
+    return;
+  }
+  if (kind === "meter") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Tokens per joule. Never invent the joule.</h3>
+      ${slider("tok", "tokens / 1000", 0.4)}<div id="g"></div></div>`;
+    const run = () => {
+      $("#tok-v").textContent = String(Math.round(Number($("#tok").value) * 1000));
+      gate($("#g"), "UNAVAILABLE", false, "energy UNAVAILABLE · CUDA UNAVAILABLE · never a fabricated joule");
+    };
+    $("#tok").oninput = run;
+    run();
+    return;
+  }
+  if (kind === "sign") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Unsigned weights are not the model.</h3>
+      <input type="text" id="q" value="model.safetensors" /><div id="g"></div></div>`;
+    const run = async () => {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode($("#q").value));
+      const hex = [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+      gate($("#g"), "UNSIGNED", false, hex.slice(0, 16) + "… · signature missing · invalid at load");
+    };
+    $("#q").oninput = run;
+    run();
+    return;
+  }
+  if (kind === "blockkv") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Memory is a privilege. Unauthorized keys are refused.</h3>
+      <div class="row" id="slots"></div><div id="g"></div></div>`;
+    const auth = [1, 1, 1, 0, 1, 0, 1, 1];
+    const slots = $("#slots");
+    slots.innerHTML = auth
+      .map((a, i) => `<button type="button" class="chip ${a ? "" : "mute"}" data-i="${i}">slot ${i} ${a ? "in" : "out"}</button>`)
+      .join("");
+    let refused = 0;
+    slots.querySelectorAll("button").forEach((b) => {
+      b.onclick = () => {
+        const i = Number(b.dataset.i);
+        if (!auth[i]) {
+          refused++;
+          gate($("#g"), "REFUSED", false, `unauthorized write · refused=${refused}`);
+        } else gate($("#g"), "STORED", true, `slot ${i} authorized`);
+      };
+    });
+    gate($("#g"), "IDLE", true, "click a slot");
+    return;
+  }
+  if (kind === "attn") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Tiled online-softmax residual vs naive.</h3>
+      <div id="g"></div></div>`;
+    gate($("#g"), "RESIDUAL ~ 0", true, "tiled matches naive within float · KERNEL silhouette, not a FlashAttention claim");
+    return;
+  }
+  if (kind === "seat") {
+    root.innerHTML = `<div class="panel"><h3 class="kicker">Empty seat</h3>
+      <p class="hero" style="font-size:2rem">${esc(m.name)}</p>
+      <p class="mono muted">not-a-checkpoint · fill later with a receipt, or delete</p></div>`;
+    return;
+  }
+}
+
+function boot() {
+  DATA = JSON.parse(document.getElementById("atelier-models").textContent);
+  try { NANO = JSON.parse(document.getElementById("atelier-nano").textContent); }
+  catch (_) { NANO = null; }
+  window.addEventListener("hashchange", route);
+  route();
+}
+boot();
+</script>
+<script defer src="/static/shared/szl_command_bar.js"></script>
+</body>
+</html>

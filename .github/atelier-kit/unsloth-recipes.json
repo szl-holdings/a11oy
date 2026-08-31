@@ -1,0 +1,471 @@
+{
+  "seed": 20260721,
+  "honesty": "RECIPE",
+  "energy_status": "UNAVAILABLE",
+  "note": "Recipes only. Not a GPU retrain. 3x speed is Unsloth HUB, not MEASURED.",
+  "profiles": {
+    "willay": {
+      "schema": "szl.training_receipt.v2",
+      "profile": "willay",
+      "base": "Qwen/Qwen2.5-0.5B-Instruct",
+      "cut": "Doctrine mouth. rsLoRA so rank-8 does not vanish. packing=false so silence/tell loss stays comparable. Short ctx: honesty set is short.",
+      "lora": {
+        "r": 8,
+        "alpha": 16,
+        "rslora": true,
+        "effective_scale": 5.656854,
+        "targets": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj",
+          "gate_proj",
+          "up_proj",
+          "down_proj"
+        ],
+        "dropout": 0,
+        "bias": "none",
+        "loftq": false
+      },
+      "unsloth": {
+        "load_in_4bit": true,
+        "gradient_checkpointing": "unsloth",
+        "optim": "adamw_8bit",
+        "packing": "false",
+        "max_seq": 1024,
+        "lr": 0.0001,
+        "max_steps": 160,
+        "warmup": 20,
+        "batch": 2,
+        "grad_accum": 4,
+        "techniques": {
+          "take": [
+            "4-bit QLoRA (load_in_4bit)",
+            "fused QK-RoPE + SwiGLU Triton kernels (automatic in FastLanguageModel)",
+            "adamw_8bit",
+            "use_gradient_checkpointing='unsloth'",
+            "lora_dropout=0, bias='none' (Unsloth-optimized)",
+            "auto padding-free packing when packing=auto",
+            "rsLoRA (alpha/sqrt(r)) on small-rank organs"
+          ],
+          "leave": [
+            "packing=True (changes loss scale \u2014 Unsloth docs)",
+            "LoftQ (start-of-run VRAM spike)",
+            "MoE Split-LoRA (not a MoE organ)",
+            "GGUF as the signed object",
+            "seed 3407",
+            "tokens-per-joule invented",
+            "3\u00d7/5\u00d7 speed cited as MEASURED \u2014 that is Unsloth's HUB claim"
+          ],
+          "cut": "Every knob in the receipt. Unique rank/targets/packing per organ. House seed 20260721. Sign before merge."
+        }
+      },
+      "seed": 20260721,
+      "proven_trust": false,
+      "energy_j": null,
+      "energy_status": "UNAVAILABLE",
+      "gguf": "derived \u2014 never the signed object",
+      "note": "Sign this envelope (DSSE/Ed25519) BEFORE merge. Do not GPU-retrain 1.5B from this atelier.",
+      "dataset": "doctrine.jsonl",
+      "dataset_sha256": null,
+      "dataset_status": "UNAVAILABLE",
+      "honesty": "RECIPE"
+    },
+    "chaski": {
+      "schema": "szl.training_receipt.v2",
+      "profile": "chaski",
+      "base": "Qwen/Qwen3.5-0.8B",
+      "cut": "Courier. Attention-only LoRA \u2014 MLP stays frozen so the runner cannot author the payload. Unique cut. Dense 0.8B, 4bit is allowed (MoE QLoRA is the thing Unsloth warns against).",
+      "lora": {
+        "r": 8,
+        "alpha": 16,
+        "rslora": true,
+        "effective_scale": 5.656854,
+        "targets": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj"
+        ],
+        "dropout": 0,
+        "bias": "none",
+        "loftq": false
+      },
+      "unsloth": {
+        "load_in_4bit": true,
+        "gradient_checkpointing": "unsloth",
+        "optim": "adamw_8bit",
+        "packing": "auto",
+        "max_seq": 1536,
+        "lr": 0.0001,
+        "max_steps": 120,
+        "warmup": 12,
+        "batch": 2,
+        "grad_accum": 4,
+        "techniques": {
+          "take": [
+            "4-bit QLoRA (load_in_4bit)",
+            "fused QK-RoPE + SwiGLU Triton kernels (automatic in FastLanguageModel)",
+            "adamw_8bit",
+            "use_gradient_checkpointing='unsloth'",
+            "lora_dropout=0, bias='none' (Unsloth-optimized)",
+            "auto padding-free packing when packing=auto",
+            "rsLoRA (alpha/sqrt(r)) on small-rank organs"
+          ],
+          "leave": [
+            "packing=True (changes loss scale \u2014 Unsloth docs)",
+            "LoftQ (start-of-run VRAM spike)",
+            "MoE Split-LoRA (not a MoE organ)",
+            "GGUF as the signed object",
+            "seed 3407",
+            "tokens-per-joule invented",
+            "3\u00d7/5\u00d7 speed cited as MEASURED \u2014 that is Unsloth's HUB claim"
+          ],
+          "cut": "Every knob in the receipt. Unique rank/targets/packing per organ. House seed 20260721. Sign before merge."
+        }
+      },
+      "seed": 20260721,
+      "proven_trust": false,
+      "energy_j": null,
+      "energy_status": "UNAVAILABLE",
+      "gguf": "derived \u2014 never the signed object",
+      "note": "Sign this envelope (DSSE/Ed25519) BEFORE merge. Do not GPU-retrain 1.5B from this atelier.",
+      "dataset": "doctrine.jsonl",
+      "dataset_sha256": null,
+      "dataset_status": "UNAVAILABLE",
+      "honesty": "RECIPE"
+    },
+    "chaski-5050": {
+      "schema": "szl.training_receipt.v2",
+      "profile": "chaski-5050",
+      "base": "Qwen/Qwen3.5-0.8B",
+      "cut": "50/50 cutting mix. Extra MLP rank so the courier is allowed to STOP. Mix is the identity.",
+      "lora": {
+        "r": 16,
+        "alpha": 16,
+        "rslora": true,
+        "effective_scale": 4.0,
+        "targets": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj",
+          "gate_proj",
+          "up_proj",
+          "down_proj"
+        ],
+        "dropout": 0,
+        "bias": "none",
+        "loftq": false
+      },
+      "unsloth": {
+        "load_in_4bit": true,
+        "gradient_checkpointing": "unsloth",
+        "optim": "adamw_8bit",
+        "packing": "auto",
+        "max_seq": 1536,
+        "lr": 0.0001,
+        "max_steps": 120,
+        "warmup": 12,
+        "batch": 2,
+        "grad_accum": 4,
+        "techniques": {
+          "take": [
+            "4-bit QLoRA (load_in_4bit)",
+            "fused QK-RoPE + SwiGLU Triton kernels (automatic in FastLanguageModel)",
+            "adamw_8bit",
+            "use_gradient_checkpointing='unsloth'",
+            "lora_dropout=0, bias='none' (Unsloth-optimized)",
+            "auto padding-free packing when packing=auto",
+            "rsLoRA (alpha/sqrt(r)) on small-rank organs"
+          ],
+          "leave": [
+            "packing=True (changes loss scale \u2014 Unsloth docs)",
+            "LoftQ (start-of-run VRAM spike)",
+            "MoE Split-LoRA (not a MoE organ)",
+            "GGUF as the signed object",
+            "seed 3407",
+            "tokens-per-joule invented",
+            "3\u00d7/5\u00d7 speed cited as MEASURED \u2014 that is Unsloth's HUB claim"
+          ],
+          "cut": "Every knob in the receipt. Unique rank/targets/packing per organ. House seed 20260721. Sign before merge."
+        }
+      },
+      "seed": 20260721,
+      "proven_trust": false,
+      "energy_j": null,
+      "energy_status": "UNAVAILABLE",
+      "gguf": "derived \u2014 never the signed object",
+      "note": "Sign this envelope (DSSE/Ed25519) BEFORE merge. Do not GPU-retrain 1.5B from this atelier.",
+      "dataset": "doctrine.jsonl",
+      "dataset_sha256": null,
+      "dataset_status": "UNAVAILABLE",
+      "honesty": "RECIPE"
+    },
+    "chaski-r2": {
+      "schema": "szl.training_receipt.v2",
+      "profile": "chaski-r2",
+      "base": "Qwen/Qwen3.5-0.8B",
+      "cut": "Round-2 refinement. packing=false + lower lr. R1 stays up. Do not overwrite.",
+      "lora": {
+        "r": 8,
+        "alpha": 16,
+        "rslora": true,
+        "effective_scale": 5.656854,
+        "targets": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj"
+        ],
+        "dropout": 0,
+        "bias": "none",
+        "loftq": false
+      },
+      "unsloth": {
+        "load_in_4bit": true,
+        "gradient_checkpointing": "unsloth",
+        "optim": "adamw_8bit",
+        "packing": "false",
+        "max_seq": 1536,
+        "lr": 5e-05,
+        "max_steps": 80,
+        "warmup": 8,
+        "batch": 2,
+        "grad_accum": 4,
+        "techniques": {
+          "take": [
+            "4-bit QLoRA (load_in_4bit)",
+            "fused QK-RoPE + SwiGLU Triton kernels (automatic in FastLanguageModel)",
+            "adamw_8bit",
+            "use_gradient_checkpointing='unsloth'",
+            "lora_dropout=0, bias='none' (Unsloth-optimized)",
+            "auto padding-free packing when packing=auto",
+            "rsLoRA (alpha/sqrt(r)) on small-rank organs"
+          ],
+          "leave": [
+            "packing=True (changes loss scale \u2014 Unsloth docs)",
+            "LoftQ (start-of-run VRAM spike)",
+            "MoE Split-LoRA (not a MoE organ)",
+            "GGUF as the signed object",
+            "seed 3407",
+            "tokens-per-joule invented",
+            "3\u00d7/5\u00d7 speed cited as MEASURED \u2014 that is Unsloth's HUB claim"
+          ],
+          "cut": "Every knob in the receipt. Unique rank/targets/packing per organ. House seed 20260721. Sign before merge."
+        }
+      },
+      "seed": 20260721,
+      "proven_trust": false,
+      "energy_j": null,
+      "energy_status": "UNAVAILABLE",
+      "gguf": "derived \u2014 never the signed object",
+      "note": "Sign this envelope (DSSE/Ed25519) BEFORE merge. Do not GPU-retrain 1.5B from this atelier.",
+      "dataset": "doctrine.jsonl",
+      "dataset_sha256": null,
+      "dataset_status": "UNAVAILABLE",
+      "honesty": "RECIPE"
+    },
+    "khipu": {
+      "schema": "szl.training_receipt.v2",
+      "profile": "khipu",
+      "base": "Qwen/Qwen2.5-1.5B-Instruct",
+      "cut": "Navigator. 7 modules so the schema can be emitted. packing=auto keeps loss comparable to signed 0.0245. Not retrained here.",
+      "lora": {
+        "r": 16,
+        "alpha": 16,
+        "rslora": false,
+        "effective_scale": 1.0,
+        "targets": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj",
+          "gate_proj",
+          "up_proj",
+          "down_proj"
+        ],
+        "dropout": 0,
+        "bias": "none",
+        "loftq": false
+      },
+      "unsloth": {
+        "load_in_4bit": true,
+        "gradient_checkpointing": "unsloth",
+        "optim": "adamw_8bit",
+        "packing": "auto",
+        "max_seq": 2048,
+        "lr": 0.0002,
+        "max_steps": 120,
+        "warmup": 10,
+        "batch": 2,
+        "grad_accum": 4,
+        "techniques": {
+          "take": [
+            "4-bit QLoRA (load_in_4bit)",
+            "fused QK-RoPE + SwiGLU Triton kernels (automatic in FastLanguageModel)",
+            "adamw_8bit",
+            "use_gradient_checkpointing='unsloth'",
+            "lora_dropout=0, bias='none' (Unsloth-optimized)",
+            "auto padding-free packing when packing=auto",
+            "rsLoRA (alpha/sqrt(r)) on small-rank organs"
+          ],
+          "leave": [
+            "packing=True (changes loss scale \u2014 Unsloth docs)",
+            "LoftQ (start-of-run VRAM spike)",
+            "MoE Split-LoRA (not a MoE organ)",
+            "GGUF as the signed object",
+            "seed 3407",
+            "tokens-per-joule invented",
+            "3\u00d7/5\u00d7 speed cited as MEASURED \u2014 that is Unsloth's HUB claim"
+          ],
+          "cut": "Every knob in the receipt. Unique rank/targets/packing per organ. House seed 20260721. Sign before merge."
+        }
+      },
+      "seed": 20260721,
+      "proven_trust": false,
+      "energy_j": null,
+      "energy_status": "UNAVAILABLE",
+      "gguf": "derived \u2014 never the signed object",
+      "note": "Sign this envelope (DSSE/Ed25519) BEFORE merge. Do not GPU-retrain 1.5B from this atelier.",
+      "dataset": "doctrine.jsonl",
+      "dataset_sha256": null,
+      "dataset_status": "UNAVAILABLE",
+      "honesty": "RECIPE"
+    },
+    "khipu-r2": {
+      "schema": "szl.training_receipt.v2",
+      "profile": "khipu-r2",
+      "base": "Qwen/Qwen2.5-1.5B-Instruct",
+      "cut": "Lineage sibling. packing=false so R2 loss is comparable to R1. Do not overwrite R1.",
+      "lora": {
+        "r": 16,
+        "alpha": 16,
+        "rslora": false,
+        "effective_scale": 1.0,
+        "targets": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj",
+          "gate_proj",
+          "up_proj",
+          "down_proj"
+        ],
+        "dropout": 0,
+        "bias": "none",
+        "loftq": false
+      },
+      "unsloth": {
+        "load_in_4bit": true,
+        "gradient_checkpointing": "unsloth",
+        "optim": "adamw_8bit",
+        "packing": "false",
+        "max_seq": 2048,
+        "lr": 0.0001,
+        "max_steps": 80,
+        "warmup": 8,
+        "batch": 2,
+        "grad_accum": 4,
+        "techniques": {
+          "take": [
+            "4-bit QLoRA (load_in_4bit)",
+            "fused QK-RoPE + SwiGLU Triton kernels (automatic in FastLanguageModel)",
+            "adamw_8bit",
+            "use_gradient_checkpointing='unsloth'",
+            "lora_dropout=0, bias='none' (Unsloth-optimized)",
+            "auto padding-free packing when packing=auto",
+            "rsLoRA (alpha/sqrt(r)) on small-rank organs"
+          ],
+          "leave": [
+            "packing=True (changes loss scale \u2014 Unsloth docs)",
+            "LoftQ (start-of-run VRAM spike)",
+            "MoE Split-LoRA (not a MoE organ)",
+            "GGUF as the signed object",
+            "seed 3407",
+            "tokens-per-joule invented",
+            "3\u00d7/5\u00d7 speed cited as MEASURED \u2014 that is Unsloth's HUB claim"
+          ],
+          "cut": "Every knob in the receipt. Unique rank/targets/packing per organ. House seed 20260721. Sign before merge."
+        }
+      },
+      "seed": 20260721,
+      "proven_trust": false,
+      "energy_j": null,
+      "energy_status": "UNAVAILABLE",
+      "gguf": "derived \u2014 never the signed object",
+      "note": "Sign this envelope (DSSE/Ed25519) BEFORE merge. Do not GPU-retrain 1.5B from this atelier.",
+      "dataset": "doctrine.jsonl",
+      "dataset_sha256": null,
+      "dataset_status": "UNAVAILABLE",
+      "honesty": "RECIPE"
+    },
+    "receiptagent": {
+      "schema": "szl.training_receipt.v2",
+      "profile": "receiptagent",
+      "base": "Qwen/Qwen2.5-1.5B-Instruct",
+      "cut": "Receipt-first SFT. packing=false: the loss on the receipt tokens is the point.",
+      "lora": {
+        "r": 16,
+        "alpha": 16,
+        "rslora": false,
+        "effective_scale": 1.0,
+        "targets": [
+          "q_proj",
+          "k_proj",
+          "v_proj",
+          "o_proj",
+          "gate_proj",
+          "up_proj",
+          "down_proj"
+        ],
+        "dropout": 0,
+        "bias": "none",
+        "loftq": false
+      },
+      "unsloth": {
+        "load_in_4bit": true,
+        "gradient_checkpointing": "unsloth",
+        "optim": "adamw_8bit",
+        "packing": "false",
+        "max_seq": 1536,
+        "lr": 0.0002,
+        "max_steps": 100,
+        "warmup": 10,
+        "batch": 2,
+        "grad_accum": 4,
+        "techniques": {
+          "take": [
+            "4-bit QLoRA (load_in_4bit)",
+            "fused QK-RoPE + SwiGLU Triton kernels (automatic in FastLanguageModel)",
+            "adamw_8bit",
+            "use_gradient_checkpointing='unsloth'",
+            "lora_dropout=0, bias='none' (Unsloth-optimized)",
+            "auto padding-free packing when packing=auto",
+            "rsLoRA (alpha/sqrt(r)) on small-rank organs"
+          ],
+          "leave": [
+            "packing=True (changes loss scale \u2014 Unsloth docs)",
+            "LoftQ (start-of-run VRAM spike)",
+            "MoE Split-LoRA (not a MoE organ)",
+            "GGUF as the signed object",
+            "seed 3407",
+            "tokens-per-joule invented",
+            "3\u00d7/5\u00d7 speed cited as MEASURED \u2014 that is Unsloth's HUB claim"
+          ],
+          "cut": "Every knob in the receipt. Unique rank/targets/packing per organ. House seed 20260721. Sign before merge."
+        }
+      },
+      "seed": 20260721,
+      "proven_trust": false,
+      "energy_j": null,
+      "energy_status": "UNAVAILABLE",
+      "gguf": "derived \u2014 never the signed object",
+      "note": "Sign this envelope (DSSE/Ed25519) BEFORE merge. Do not GPU-retrain 1.5B from this atelier.",
+      "dataset": "doctrine.jsonl",
+      "dataset_sha256": null,
+      "dataset_status": "UNAVAILABLE",
+      "honesty": "RECIPE"
+    }
+  }
+}

@@ -1,0 +1,448 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://szl-holdings.example/schemas/forge-frontier-portfolio-v1.schema.json",
+  "title": "SZL Forge Frontier Portfolio",
+  "description": "Research portfolio and dataset-consolidation contract. It is not a training, deployment, or promotion receipt.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_id",
+    "as_of",
+    "status",
+    "evidence_policy",
+    "target_laptop_profile",
+    "models",
+    "collections",
+    "retrieval_architecture",
+    "promotion_gates",
+    "primary_sources"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "const": "./forge_frontier_portfolio.schema.json"
+    },
+    "schema_id": {
+      "const": "szl.forge.frontier-portfolio/v1"
+    },
+    "as_of": {
+      "type": "string",
+      "format": "date"
+    },
+    "status": {
+      "const": "RESEARCH_PLAN_NOT_EXECUTED"
+    },
+    "evidence_policy": {
+      "$ref": "#/$defs/evidencePolicy"
+    },
+    "target_laptop_profile": {
+      "$ref": "#/$defs/targetLaptopProfile"
+    },
+    "models": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/model"
+      }
+    },
+    "collections": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/collection"
+      }
+    },
+    "retrieval_architecture": {
+      "$ref": "#/$defs/retrievalArchitecture"
+    },
+    "promotion_gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/promotionGate"
+      }
+    },
+    "primary_sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/primarySource"
+      }
+    }
+  },
+  "$defs": {
+    "evidenceLabel": {
+      "type": "string",
+      "enum": [
+        "PRIMARY_REPORTED",
+        "ENGINEERING_INFERENCE",
+        "DECLARED_PLAN",
+        "LOCAL_MEASURED_REQUIRED",
+        "NOT_MEASURED"
+      ]
+    },
+    "httpsUrl": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "nonEmptyStringArray": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "evidencePolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "local_measurements_in_this_manifest",
+        "vendor_benchmarks_are_local_evidence",
+        "promotion_rule",
+        "labels"
+      ],
+      "properties": {
+        "local_measurements_in_this_manifest": {
+          "const": false
+        },
+        "vendor_benchmarks_are_local_evidence": {
+          "const": false
+        },
+        "promotion_rule": {
+          "type": "string",
+          "minLength": 1
+        },
+        "labels": {
+          "type": "object",
+          "minProperties": 5,
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "targetLaptopProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_id",
+        "declared_target_class",
+        "evidence_label",
+        "local_benchmark_status",
+        "constraints"
+      ],
+      "properties": {
+        "profile_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "declared_target_class": {
+          "type": "string",
+          "minLength": 1
+        },
+        "evidence_label": {
+          "const": "DECLARED_PLAN"
+        },
+        "local_benchmark_status": {
+          "const": "NOT_MEASURED"
+        },
+        "constraints": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      }
+    },
+    "upstream": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository_id",
+        "url",
+        "license_spdx",
+        "evidence_label",
+        "revision_policy"
+      ],
+      "properties": {
+        "repository_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "license_spdx": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9.-]+$"
+        },
+        "evidence_label": {
+          "const": "PRIMARY_REPORTED"
+        },
+        "revision_policy": {
+          "type": "string",
+          "enum": [
+            "PIN_BEFORE_ANY_DOWNLOAD",
+            "EXISTING_PROGRAM_PIN_MUST_BE_PRESERVED"
+          ]
+        }
+      }
+    },
+    "laptopFeasibility": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "classification",
+        "evidence_label",
+        "local_benchmark_status",
+        "required_preflight"
+      ],
+      "properties": {
+        "classification": {
+          "type": "string",
+          "enum": [
+            "TRAINING_CANDIDATE_AFTER_PREFLIGHT",
+            "QUANTIZED_INFERENCE_FIRST_TRAINING_UNPROVEN",
+            "INFERENCE_CHALLENGER_TRAINING_NOT_RECOMMENDED",
+            "SERVICE_COMPONENT_CANDIDATE_AFTER_PREFLIGHT"
+          ]
+        },
+        "evidence_label": {
+          "const": "ENGINEERING_INFERENCE"
+        },
+        "local_benchmark_status": {
+          "const": "NOT_MEASURED"
+        },
+        "required_preflight": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      }
+    },
+    "model": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "priority",
+        "role",
+        "disposition",
+        "upstream",
+        "primary_reported_facts",
+        "laptop_feasibility",
+        "promotion_scope"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["P0", "P1", "P2", "P3"]
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "disposition": {
+          "type": "string",
+          "enum": [
+            "COMPLETE_EXISTING_PROGRAM",
+            "FRONTIER_BAKEOFF_CANDIDATE",
+            "BAKEOFF_CONTROL",
+            "INFERENCE_CHALLENGER",
+            "SPECIALIST_CANDIDATE",
+            "SECOND_BRAIN_COMPONENT",
+            "SAFETY_COMPONENT"
+          ]
+        },
+        "upstream": {
+          "$ref": "#/$defs/upstream"
+        },
+        "primary_reported_facts": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "laptop_feasibility": {
+          "$ref": "#/$defs/laptopFeasibility"
+        },
+        "promotion_scope": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      }
+    },
+    "candidateSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "url",
+        "license_spdx",
+        "status",
+        "evidence_label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "license_spdx": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "OPTIONAL_PENDING_ROW_LEVEL_ADMISSION"
+        },
+        "evidence_label": {
+          "const": "PRIMARY_REPORTED"
+        }
+      }
+    },
+    "collection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "role",
+        "status",
+        "evidence_label",
+        "candidate_sources",
+        "admission_gates",
+        "required_release_artifacts",
+        "forbidden_content"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9.-]+$"
+        },
+        "role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "PROPOSED_NOT_BUILT"
+        },
+        "evidence_label": {
+          "const": "DECLARED_PLAN"
+        },
+        "candidate_sources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/candidateSource"
+          }
+        },
+        "admission_gates": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "required_release_artifacts": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "forbidden_content": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      }
+    },
+    "retrievalArchitecture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "status",
+        "evidence_label",
+        "stages",
+        "query_routes",
+        "invariants"
+      ],
+      "properties": {
+        "status": {
+          "const": "DECLARED_NOT_IMPLEMENTED_BY_THIS_ARTIFACT"
+        },
+        "evidence_label": {
+          "const": "ENGINEERING_INFERENCE"
+        },
+        "stages": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "query_routes": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minProperties": 3
+        },
+        "invariants": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      }
+    },
+    "promotionGate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "requirement",
+        "required_evidence_label",
+        "current_status",
+        "blocking"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "requirement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "required_evidence_label": {
+          "const": "LOCAL_MEASURED_REQUIRED"
+        },
+        "current_status": {
+          "const": "NOT_MEASURED"
+        },
+        "blocking": {
+          "const": true
+        }
+      }
+    },
+    "primarySource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "title",
+        "publisher",
+        "url",
+        "accessed_on",
+        "evidence_label"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1
+        },
+        "url": {
+          "$ref": "#/$defs/httpsUrl"
+        },
+        "accessed_on": {
+          "type": "string",
+          "format": "date"
+        },
+        "evidence_label": {
+          "const": "PRIMARY_REPORTED"
+        }
+      }
+    }
+  }
+}

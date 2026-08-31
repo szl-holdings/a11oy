@@ -1,0 +1,70 @@
+name: Drain canonical GDW effect outbox
+
+on:
+  schedule:
+    - cron: "13,43 * * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: canonical-gdw-effect-drain
+  cancel-in-progress: false
+
+jobs:
+  drain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GDW_OPERATOR_TOKEN: ${{ secrets.GDW_OPERATOR_TOKEN }}
+      GDW_ORIGIN: https://szlholdings-a11oy.hf.space
+    steps:
+      - name: Require protected operator factor
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${GDW_OPERATOR_TOKEN:-}" || {
+            echo "::error::Missing repository secret GDW_OPERATOR_TOKEN"
+            exit 1
+          }
+          echo "::add-mask::$GDW_OPERATOR_TOKEN"
+
+      - name: Drain and verify the exact canonical runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import urllib.request
+
+          request = urllib.request.Request(
+              os.environ["GDW_ORIGIN"].rstrip("/")
+              + "/api/a11oy/v1/gdw/drain?limit=1000",
+              method="POST",
+              headers={
+                  "Authorization": "Bearer " + os.environ["GDW_OPERATOR_TOKEN"],
+              },
+          )
+          with urllib.request.urlopen(request, timeout=120) as response:
+              payload = json.loads(response.read().decode("utf-8"))
+          if (
+              response.status != 200
+              or payload.get("failed") != 0
+              or payload.get("integrity_ok") is not True
+          ):
+              raise SystemExit("GDW drain did not satisfy the live contract")
+          print(
+              json.dumps(
+                  {
+                      "schema": payload.get("schema"),
+                      "exported": payload.get("exported"),
+                      "pending_effects": payload.get("pending_effects"),
+                      "integrity_ok": payload.get("integrity_ok"),
+                      "credential_values_recorded": False,
+                  },
+                  sort_keys=True,
+              )
+          )
+          PY

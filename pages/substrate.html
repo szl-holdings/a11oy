@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0 © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v10 -->
+<!-- ADDITIVE moat surface — shipped via HfApi.create_commit (never GitHub Actions). -->
+<html lang="en"><head>
+<meta charset="utf-8"/><meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Substrate Inspector — @szl/substrate</title>
+<style>:root{--bg:#0b0d12;--panel:#12151d;--ink:#e7ecf3;--mut:#8a93a6;--acc:#7cc4ff;--ok:#54d18c;--warn:#ffcf5c;--bad:#ff6b6b;--line:#222838;--mono:'SF Mono',ui-monospace,'JetBrains Mono',Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif}
+a{color:var(--acc)}
+.wrap{max-width:1080px;margin:0 auto;padding:28px 20px 80px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px}
+.brand{font-weight:700;letter-spacing:.5px}
+.tag{font-size:12px;color:var(--mut)}
+.nav a{margin-left:14px;font-size:13px;text-decoration:none;color:var(--mut)}
+.nav a:hover{color:var(--acc)}
+h1{font-size:26px;margin:24px 0 6px}
+h2{font-size:18px;margin:28px 0 10px;border-bottom:1px solid var(--line);padding-bottom:6px}
+.sub{color:var(--mut);margin:0 0 18px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:820px){.grid,.grid3{grid-template-columns:1fr}}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 8px;font-size:14px;letter-spacing:.4px;text-transform:uppercase;color:var(--mut)}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:20px;border:1px solid var(--line);color:var(--mut);margin:2px 4px 2px 0}
+.pill.ok{color:var(--ok);border-color:#1f5a3c}
+.pill.warn{color:var(--warn);border-color:#5a4a1f}
+.pill.bad{color:var(--bad);border-color:#5a1f1f}
+.pill.acc{color:var(--acc);border-color:#1f3a5a}
+textarea,pre{width:100%;background:#0a0c11;color:var(--ink);border:1px solid var(--line);border-radius:8px;font-family:var(--mono);font-size:12.5px;padding:10px}
+pre{overflow:auto;max-height:340px;white-space:pre-wrap;word-break:break-word}
+button{background:var(--acc);color:#06121f;border:0;border-radius:8px;padding:9px 16px;font-weight:600;cursor:pointer;font-size:13px}
+button.ghost{background:transparent;color:var(--acc);border:1px solid var(--acc)}
+button:disabled{opacity:.5;cursor:default}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0;align-items:center}
+.k{color:var(--acc)} .v{color:var(--ink)}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;font-family:var(--mono)}
+.tbl th,.tbl td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top}
+.tbl th{color:var(--mut);font-weight:600}
+.st-PROVEN{color:var(--ok);font-weight:700}
+.st-AXIOM{color:var(--acc);font-weight:700}
+.st-CONJECTURE{color:var(--warn);font-weight:700}
+.st-SORRY{color:var(--bad);font-weight:700}
+.mut{color:var(--mut)}
+.honest{background:#0e1117;border:1px solid #2a2030;border-left:3px solid var(--warn);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.honest b{color:var(--warn)}
+.disc{background:#160e12;border:1px solid #4a2030;border-left:3px solid var(--bad);border-radius:10px;padding:14px 16px;margin:22px 0;font-size:13px}
+.disc b{color:var(--bad)}
+code{font-family:var(--mono);color:var(--acc);font-size:12.5px}
+.bar{height:14px;background:#0a0c11;border:1px solid var(--line);border-radius:8px;overflow:hidden;margin:8px 0}
+.bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--ok));transition:width .25s}
+.modgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:6px;font-family:var(--mono);font-size:11.5px}
+.mod{border:1px solid var(--line);border-radius:6px;padding:6px 8px;display:flex;justify-content:space-between;gap:6px}
+.mod .s{font-weight:700}
+.mono{font-family:var(--mono);font-size:12px}
+footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}</style></head><body><div class="wrap">
+<div class="top">
+  <div><span class="brand">a11oy</span> <span class="tag">· Governance Substrate · Doctrine v10</span></div>
+  <div class="nav">
+    <a href="/">home</a><a href="/wires">wires</a><a href="/codex-kernel">codex-kernel</a>
+    <a href="/substrate">substrate</a><a href="/evidence">evidence</a><a href="/run-all">run-all</a>
+  </div>
+</div>
+
+<h1>Substrate Inspector — @szl/substrate v0.2.0</h1>
+<p class="sub">Sovereign Execution Substrate — policy-shaped graphs, evidence-chained transitions, confidence-budget routing, and counterfactual replay for all SZL workflows.<br>
+Source: <a href="https://github.com/szl-holdings/platform/tree/main/packages/substrate">https://github.com/szl-holdings/platform/tree/main/packages/substrate</a> · public package (<code>private:false</code>) · #2 — compile-time Kahn-sort approval-DAG (packages/substrate/src/compiler.ts).</p>
+
+<div class="row"><span class='pill acc'>Reason()</span><span class='pill acc'>Retrieve()</span><span class='pill acc'>ToolCall()</span><span class='pill acc'>Verify()</span><span class='pill acc'>Decide()</span><span class='pill acc'>ApprovalGate()</span></div>
+<div class="row"><span class="mut" style="font-size:12px">modes:</span><span class='pill'>live</span><span class='pill'>dry-run</span><span class='pill'>replay</span><span class='pill'>counterfactual</span></div>
+
+<div class="grid">
+  <div class="card"><h3>The moat in one line</h3>
+    <p>The single, opinionated execution runtime every SZL product surface (Lyte · Aegis · Vessels · Terra · Counsel · Carlota Jo) calls the same way.
+    <code>defineWorkflow(&#123;stages, policy, budget&#125;)</code> → <code>runtime.start(workflow, input, &#123;mode&#125;)</code> → <code>PipelineRun</code>.</p></div>
+  <div class="card"><h3>Innovation #2 — compile-time approval-DAG</h3>
+    <p><code>compiler.ts</code> runs a Kahn topological sort over the approval DAG <b>at compile time</b> and throws
+    <code>SubstrateCompilerError</code> for cycles, orphan gates, or high-risk side-effects reachable without an ancestor
+    <code>ApprovalGate()</code>. Topology-enforced, not runtime-checked. Tests: <code>vitest — src/engine.test.ts · src/compiler.test.ts · src/workflows/phase2.test.ts</code>.</p></div>
+</div>
+
+<h2>Substrate packages (the moat)</h2>
+<div class="row">
+  <span class="pill ok">@szl/substrate</span>
+  <span class='pill'>@szl/substrate-adapters</span><span class='pill'>@szl/substrate-client</span>
+</div>
+
+<h2>Public API surface — core files</h2>
+<table class="tbl"><tr><th>File</th><th>Purpose</th><th>LOC</th><th>Exports</th></tr><tr><td class='mono'>src/index.ts</td><td>Public package entry — re-exports every primitive, type, runtime, compiler, journal, telemetry &amp; workflow symbol.</td><td style='text-align:right' class='mut'>332</td><td class='mono mut'>AdvisorMatch, AegisThreatTriageInput, AegisThreatTriageResult, AnomalyFinding, AnyStage, ApprovalGate, BriefSection, CarlotaJoTaskRoutingInput…</td></tr><tr><td class='mono'>src/types.ts</td><td>Core TypeScript interfaces + Zod schemas: ExecutionMode, SideEffectCategory, 7 StageTypes, WorkflowDefinition, PipelineRun, EvidenceBundle.</td><td style='text-align:right' class='mut'>559</td><td class='mono mut'>AnyStage, AnyStageSchema, ApprovalGate, ApprovalGateSchema, BaseStage, CompiledGraph, CompiledStageNode, ConfidenceBudget…</td></tr><tr><td class='mono'>src/stage-primitives.ts</td><td>Five stage primitive factories — Reason() · Retrieve() · ToolCall() · Verify() · Decide() — plus ApprovalGate(), definePolicy(), defineBudget().</td><td style='text-align:right' class='mut'>161</td><td class='mono mut'>ApprovalGate, Decide, Reason, Retrieve, ToolCall, Verify, defineBudget, definePolicy</td></tr><tr><td class='mono'>src/compiler.ts</td><td>Innovation #2 — compile-time Kahn topological sort over the approval DAG; throws SubstrateCompilerError for cycles, orphan gates, or high-risk side-effects reachable without an ancestor ApprovalGate. Topology-enforced, not runtime-checked.</td><td style='text-align:right' class='mut'>276</td><td class='mono mut'>SubstrateCompilerError, compile</td></tr><tr><td class='mono'>src/engine.ts</td><td>SubstrateRuntime: start(workflow, input, {mode}) → PipelineRun. Workflow registry (register/lookup/list/clear), defaultRuntime singleton.</td><td style='text-align:right' class='mut'>1105</td><td class='mono mut'>SubstrateRuntime, SubstrateRuntimeOptions, clearWorkflowRegistry, defaultRuntime, listWorkflows, lookupWorkflow, registerWorkflow</td></tr><tr><td class='mono'>src/journal.ts</td><td>Evidence-chained journal: computeBundleHash, hashValue, sign/verify bundle signatures, SubstrateJournal store, runtime event bus.</td><td style='text-align:right' class='mut'>540</td><td class='mono mut'>JournalStore, RunStore, SubstrateJournal, SubstrateRuntimeEvent, SubstrateRuntimeEventType, computeBundleHash, defaultJournal, defaultJournalStore…</td></tr><tr><td class='mono'>src/budget-router.ts</td><td>Confidence-budget routing — routeByBudget, aggregatePipelineConfidence, validateFinalConfidence (escalate when budget exceeded).</td><td style='text-align:right' class='mut'>110</td><td class='mono mut'>RoutingDecision, aggregatePipelineConfidence, routeByBudget, validateFinalConfidence</td></tr><tr><td class='mono'>src/adapters.ts</td><td>Adapter registries (model/policy/resource/retriever/tool) + wirePolicyEngineAdapter / wireToolMeshAdapter bridges to platform packages.</td><td style='text-align:right' class='mut'>494</td><td class='mono mut'>McpCapabilitySpec, McpToolCall, McpToolDefinition, McpToolResult, ModelAdapter, ModelAdapterInput, ModelAdapterOutput, PolicyAdapter…</td></tr><tr><td class='mono'>src/telemetry.ts</td><td>OpenTelemetry spans: SubstrateTelemetry, getMetrics, getRecentSpans, getRunSpans (SubstrateSpan).</td><td style='text-align:right' class='mut'>279</td><td class='mono mut'>SubstrateSpan, SubstrateTelemetry, getMetrics, getRecentSpans, getRunSpans</td></tr><tr><td class='mono'>src/python-worker.ts</td><td>Bridge to services/substrate-py-workers — protocol messages (claim/result/error/heartbeat/register), PYTHON_WORKER_PROTOCOL_VERSION.</td><td style='text-align:right' class='mut'>386</td><td class='mono mut'>PYTHON_WORKER_PROTOCOL_VERSION, PythonWorkerBaseMessage, PythonWorkerChannel, PythonWorkerMessage, PythonWorkerMessageType, RegisteredWorker, StageClaimMessage, StageErrorMessage…</td></tr><tr><td class='mono'>src/cli/bin.ts</td><td>`substrate` CLI binary entrypoint.</td><td style='text-align:right' class='mut'>80</td><td class='mono mut'></td></tr><tr><td class='mono'>src/cli/replay.ts</td><td>Replay &amp; counterfactual — replay(), handleReplayRequest, resolvePolicyProfileById, formatDiff (deterministic re-execution of a recorded run).</td><td style='text-align:right' class='mut'>312</td><td class='mono mut'>PolicyNotFoundError, ReplayEndpointRequest, ReplayEndpointResponse, ReplayOptions, ReplayResult, formatDiff, handleReplayRequest, replay…</td></tr></table>
+
+<h2>Reference + vertical workflow packs</h2>
+<table class="tbl"><tr><th>Workflow</th><th>Purpose</th><th>Exports</th></tr><tr><td class='mono'>opportunity-audit.ts</td><td>Phase-1 reference workflow — anomaly→remediation opportunity audit (Lyte retriever).</td><td class='mono mut'>AnomalyFinding, OpportunityAuditInput, OpportunityAuditResult, RemediationDecision, isLyteRetrieverRegistered, opportunityAuditWorkflow</td></tr><tr><td class='mono'>cross-system-reconciliation.ts</td><td>Reconcile discrepancies across systems → reconciliation decision.</td><td class='mono mut'>CrossSystemReconciliationInput, CrossSystemReconciliationResult, ReconciliationDecision, ReconciliationDiscrepancy, crossSystemReconciliationWorkflow, runCrossSystemReconciliation</td></tr><tr><td class='mono'>evidence-based-recommendation.ts</td><td>Evidence-cited recommendation decision packet.</td><td class='mono mut'>EvidenceBasedRecommendationInput, EvidenceBasedRecommendationResult, EvidenceCitation, RecommendationDecisionPacket, evidenceBasedRecommendationWorkflow, runEvidenceBasedRecommendation</td></tr><tr><td class='mono'>executive-brief.ts</td><td>Multi-section executive brief generation.</td><td class='mono mut'>BriefSection, ExecutiveBriefInput, ExecutiveBriefOutput, ExecutiveBriefResult, executiveBriefWorkflow, runExecutiveBrief</td></tr><tr><td class='mono'>risk-escalation.ts</td><td>Risk-signal summary → escalation decision.</td><td class='mono mut'>RiskEscalationDecision, RiskEscalationInput, RiskEscalationResult, RiskSignalSummary, riskEscalationWorkflow, runRiskEscalation</td></tr><tr><td class='mono'>aegis-threat-triage.ts</td><td>Aegis vertical pack — threat triage decision.</td><td class='mono mut'>AegisThreatTriageInput, AegisThreatTriageResult, ThreatTriageDecision, TriagedThreat, aegisThreatTriageWorkflow, runAegisThreatTriage</td></tr><tr><td class='mono'>carlota-jo-task-routing.ts</td><td>Carlota Jo vertical pack — advisor-match task routing.</td><td class='mono mut'>AdvisorMatch, CarlotaJoTaskRoutingInput, CarlotaJoTaskRoutingResult, TaskRoutingDecision, carlotaJoTaskRoutingWorkflow, runCarlotaJoTaskRouting</td></tr><tr><td class='mono'>lyte-operational-drift.ts</td><td>Lyte vertical pack — operational drift detection decision.</td><td class='mono mut'>DriftItem, LyteOperationalDriftInput, LyteOperationalDriftResult, OperationalDriftDecision, lyteOperationalDriftWorkflow, runLyteOperationalDrift</td></tr><tr><td class='mono'>prism-counsel-evidence-packaging.ts</td><td>Prism Counsel vertical pack — legal evidence packaging + matter deadlines.</td><td class='mono mut'>EvidencePackage, MatterDeadline, PrismCounselDecision, PrismCounselEvidencePackagingInput, PrismCounselEvidencePackagingResult, prismCounselEvidencePackagingWorkflow</td></tr><tr><td class='mono'>terra-portfolio-anomaly.ts</td><td>Terra vertical pack — portfolio anomaly decision.</td><td class='mono mut'>PortfolioAnomaly, PortfolioAnomalyDecision, TerraPortfolioAnomalyInput, TerraPortfolioAnomalyResult, runTerraPortfolioAnomaly, terraPortfolioAnomalyWorkflow</td></tr><tr><td class='mono'>vessels-voyage-anomaly.ts</td><td>Vessels vertical pack — voyage anomaly decision.</td><td class='mono mut'>VesselsVoyageAnomalyInput, VesselsVoyageAnomalyResult, VoyageAnomaly, VoyageAnomalyDecision, runVesselsVoyageAnomaly, vesselsVoyageAnomalyWorkflow</td></tr><tr><td class='mono'>index.ts</td><td>Demo seed inputs for the reference workflows.</td><td class='mono mut'>ALL_WORKFLOW_SEEDS, WorkflowSeedKey, aegisThreatTriageSeed, carlotaJoTaskRoutingSeed, crossSystemReconciliationSeed, evidenceBasedRecommendationSeed</td></tr></table>
+
+<h2>Subpath exports (package.json)</h2>
+<div class="row"><span class='pill mut'>.</span><span class='pill mut'>./adapters</span><span class='pill mut'>./budget-router</span><span class='pill mut'>./compiler</span><span class='pill mut'>./engine</span><span class='pill mut'>./journal</span><span class='pill mut'>./python-worker</span><span class='pill mut'>./telemetry</span><span class='pill mut'>./types</span><span class='pill mut'>./workflows/aegis-threat-triage</span><span class='pill mut'>./workflows/carlota-jo-task-routing</span><span class='pill mut'>./workflows/cross-system-reconciliation</span><span class='pill mut'>./workflows/evidence-based-recommendation</span><span class='pill mut'>./workflows/executive-brief</span><span class='pill mut'>./workflows/lyte-operational-drift</span><span class='pill mut'>./workflows/opportunity-audit</span><span class='pill mut'>./workflows/prism-counsel-evidence-packaging</span><span class='pill mut'>./workflows/risk-escalation</span><span class='pill mut'>./workflows/seeds</span><span class='pill mut'>./workflows/terra-portfolio-anomaly</span><span class='pill mut'>./workflows/vessels-voyage-anomaly</span></div>
+
+<div class="honest"><b>What is honest right now.</b> This page reads the real
+<code>packages/substrate/</code> source in <code>szl-holdings/platform</code> and lists every public file, its purpose, and its
+exported symbols. The substrate is <b>real code</b> (compiler + engine + journal + budget-router + 11 workflow packs).
+It is shipped here as an <b>inspector / documentation surface</b> — the live TypeScript runtime executes inside the platform
+monorepo (and the substrate-py-workers GPU fleet), not inside this static HF Space. The side-effect categories enforced by the
+compiler are: read-only, write-internal, write-external, financial, notification, deletion, escalation, infrastructure.</div>
+
+<footer>SZL Holdings · Apache-2.0 · ORCID <a href="https://orcid.org/0009-0001-0110-4173">0009-0001-0110-4173</a> ·
+Doctrine v10 (749 declarations · 14 unique axioms · 163 tracked sorries · lutar-v18.0.0 @ c7c0ba17).
+Shipped additively via HfApi.create_commit.</footer>
+</div></body></html>

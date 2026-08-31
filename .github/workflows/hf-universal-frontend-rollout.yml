@@ -1,0 +1,238 @@
+name: HF universal frontend manual rollout
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Plan the estate or execute revision-bound Hub pull requests
+        required: true
+        default: plan
+        type: choice
+        options: [plan, execute]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-universal-frontend-manual-rollout
+  cancel-in-progress: false
+
+env:
+  REPORT: evidence/hf-universal-frontend-estate.json
+  BACKUPS: evidence/hf-universal-frontend-preimages
+  ISSUE_TITLE: '[HF-UNIVERSAL-FRONTEND] Source-native rollout incomplete'
+
+jobs:
+  plan:
+    name: Revision-bound public estate plan
+    if: inputs.operation == 'plan' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Require exact current protected main after checkout
+        run: bash .github/scripts/require-current-main.sh
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Install exact Hub client
+        run: >-
+          python -m pip install --disable-pip-version-check --require-hashes
+          -r .github/requirements/hf-universal-frontend-runtime.txt
+
+      - name: Generate public plan without mutation
+        id: plan
+        shell: bash
+        run: |
+          set +e
+          python scripts/hf_universal_frontend_control.py \
+            --org SZLHOLDINGS \
+            --source-map docs/huggingface-space-source-map-v1.json \
+            --report "$REPORT" \
+            --backup-dir "$BACKUPS"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          test "$code" -eq 0 -o "$code" -eq 2
+
+      - name: Upload plan and preimage index
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-universal-frontend-plan-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.REPORT }}
+            ${{ env.BACKUPS }}
+          if-no-files-found: error
+          retention-days: 90
+
+  execute:
+    name: Revision-bound Hub PR rollout
+    if: inputs.operation == 'execute' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      issues: write
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Require exact current protected main after checkout
+        run: bash .github/scripts/require-current-main.sh
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Require managed Hugging Face authority
+        run: test -n "${HF_ORG_TOKEN:-}"
+
+      - name: Install exact Hub client
+        run: >-
+          python -m pip install --disable-pip-version-check --require-hashes
+          -r .github/requirements/hf-universal-frontend-runtime.txt
+
+      - name: Create, merge, and read back revision-bound Hub pull requests
+        id: execute
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/require-current-main.sh
+          set +e
+          python scripts/hf_universal_frontend_control.py \
+            --org SZLHOLDINGS \
+            --source-map docs/huggingface-space-source-map-v1.json \
+            --authority-guard .github/scripts/require-current-main.sh \
+            --execute \
+            --merge \
+            --report "$REPORT" \
+            --backup-dir "$BACKUPS"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload exact rollout evidence and rollback preimages
+        id: evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-universal-frontend-rollout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.REPORT }}
+            ${{ env.BACKUPS }}
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Synchronize one deterministic blocker issue
+        if: ${{ always() && steps.evidence.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/require-current-main.sh
+          test -f "$REPORT"
+          issue_output="$(gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/issues?state=all&per_page=100" \
+            --jq ".[][] | select(.pull_request == null and .title == \"$ISSUE_TITLE\") | \"\\(.number)\\t\\(.state | ascii_upcase)\"")"
+          issue_matches=()
+          if [ -n "$issue_output" ]; then
+            mapfile -t issue_matches <<< "$issue_output"
+          fi
+          if [ "${#issue_matches[@]}" -gt 1 ]; then
+            echo "::error::Multiple deterministic universal-frontend issues exist; refusing ambiguous mutation."
+            exit 1
+          fi
+          number=""
+          issue_state=""
+          if [ "${#issue_matches[@]}" -eq 1 ]; then
+            IFS=$'\t' read -r number issue_state <<< "${issue_matches[0]}"
+          fi
+          python - "$REPORT" > /tmp/hf-universal-frontend-issue.md <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          report = json.loads(pathlib.Path(sys.argv[1]).read_text())
+          print('## Hugging Face universal frontend estate')
+          print()
+          print(f"- Release: `{report.get('release')}`")
+          print(f"- Assets evaluated: **{report.get('asset_count')}**")
+          print(f"- Complete: **{report.get('complete')}**")
+          print(f"- State counts: `{json.dumps(report.get('state_counts', {}), sort_keys=True)}`")
+          print()
+          blocked = report.get('blocked_assets') or []
+          failed = report.get('failed_assets') or []
+          if blocked:
+              print('### Source-native or authority blockers')
+              for item in blocked:
+                  print(f'- `{item}`')
+              print()
+          if failed:
+              print('### Failed transactions')
+              for item in failed:
+                  print(f'- `{item}`')
+              print()
+          print(f"Evidence: {pathlib.Path(sys.argv[1])}")
+          print()
+          print('This owner-dispatched rollout may update supported model or dataset cards through revision-bound Hugging Face pull requests. It performs no direct Space write and does not modify model weights, dataset payloads, visibility, hardware, storage, allocation, or secrets.')
+          PY
+          complete="$(python - "$REPORT" <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          print('true' if json.loads(pathlib.Path(sys.argv[1]).read_text()).get('complete') is True else 'false')
+          PY
+          )"
+          if [ "$complete" = true ]; then
+            if [ -n "$number" ]; then
+              bash .github/scripts/require-current-main.sh
+              gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
+              if [ "$issue_state" = "OPEN" ]; then
+                bash .github/scripts/require-current-main.sh
+                gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed --comment "Exact estate report is complete for protected source ${GITHUB_SHA}."
+              fi
+            fi
+          elif [ -z "$number" ]; then
+            bash .github/scripts/require-current-main.sh
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" --body-file /tmp/hf-universal-frontend-issue.md
+          else
+            if [ "$issue_state" = "CLOSED" ]; then
+              bash .github/scripts/require-current-main.sh
+              gh issue reopen "$number" --repo "$GITHUB_REPOSITORY"
+            fi
+            bash .github/scripts/require-current-main.sh
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-universal-frontend-issue.md
+          fi
+
+      - name: Enforce complete estate
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.execute.outputs.exit_code }}
+        run: test "${EXIT_CODE:-4}" -eq 0

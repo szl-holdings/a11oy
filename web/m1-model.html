@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>A11oy M1 · Experimental Model Gate</title>
+  <style>
+    :root{color-scheme:dark;--bg:#070a0e;--panel:#0d1218;--line:#202a35;--muted:#8794a4;--text:#edf3f8;--amber:#f2b84b;--red:#ff6b6b;--cyan:#4dd9d0;--blue:#74a8ff}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 90% 0,#10202a 0,transparent 28rem),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif}
+    main{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:42px 0 70px}.eyebrow{color:var(--cyan);font:600 11px/1.2 ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.16em;text-transform:uppercase}
+    h1{font-size:clamp(34px,6vw,68px);letter-spacing:-.045em;line-height:.95;margin:16px 0 20px;max-width:850px}.sub{max-width:760px;color:#a9b4c1;font-size:16px}
+    .boundary{margin-top:26px;border:1px solid #594421;background:#17130c;padding:15px 18px;display:flex;gap:12px;align-items:flex-start}.boundary strong{color:var(--amber)}
+    .topline{display:flex;justify-content:space-between;gap:18px;align-items:center;margin:38px 0 14px}.topline h2{margin:0;font-size:18px}.badge{border:1px solid var(--line);padding:6px 10px;font:700 11px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.08em}
+    .badge.ready{color:var(--cyan);border-color:#1c665f}.badge.blocked{color:var(--red);border-color:#703331}.badge.unavailable{color:var(--amber);border-color:#6b542a}
+    .grid{display:grid;grid-template-columns:repeat(5,1fr);gap:12px}.card{min-height:190px;background:linear-gradient(150deg,#10161d,#0b0f14);border:1px solid var(--line);padding:19px}.card .index{color:#526171;font:12px ui-monospace,SFMono-Regular,Consolas,monospace}.card h3{font-size:19px;margin:38px 0 8px}.state{font:700 11px ui-monospace,SFMono-Regular,Consolas,monospace;letter-spacing:.04em;color:var(--amber);word-break:break-word}.detail{margin-top:13px;color:var(--muted);font-size:12px}
+    .evidence{display:grid;grid-template-columns:1.2fr .8fr;gap:12px;margin-top:12px}.panel{background:var(--panel);border:1px solid var(--line);padding:20px}.panel h2{margin:0 0 16px;font-size:18px}.rows{display:grid;gap:8px}.row{display:grid;grid-template-columns:170px 1fr;gap:14px;border-top:1px solid #17202a;padding-top:9px}.row span:first-child{color:var(--muted)}code{font:12px ui-monospace,SFMono-Regular,Consolas,monospace;color:#cce8ff;overflow-wrap:anywhere}
+    label{display:block;color:var(--muted);font-size:12px;margin:14px 0 7px}textarea,input{width:100%;border:1px solid #283542;background:#080c10;color:var(--text);padding:11px;font:13px ui-monospace,SFMono-Regular,Consolas,monospace}textarea{min-height:110px;resize:vertical}.controls{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    button{margin-top:14px;border:1px solid #306b67;background:#123632;color:#d9fffb;padding:11px 16px;font-weight:700;cursor:pointer}button:disabled{border-color:#343b43;background:#171b20;color:#65717e;cursor:not-allowed}.result{margin-top:14px;min-height:80px;white-space:pre-wrap;background:#080c10;border:1px solid #202a35;padding:12px;color:#cbd6e0}
+    footer{margin-top:28px;color:#596675;font-size:12px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.evidence{grid-template-columns:1fr}}@media(max-width:560px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.topline{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">A11oy / model operations / M1</div>
+  <h1>Evidence before inference.</h1>
+  <p class="sub">The M1 adapter is an experimental, local-only candidate. The gate independently checks exact weights, offline load evidence, evaluation receipts, GPU admission, and provider identity before a single token can run.</p>
+  <div class="boundary"><strong>NOT_PROMOTED</strong><span>Quality remains NOT_ESTABLISHED. This surface never converts compatibility evidence into a production or safety claim.</span></div>
+
+  <div class="topline"><h2>Operational chain</h2><div id="overall" class="badge unavailable">CHECKING</div></div>
+  <section class="grid" aria-label="M1 operational stages">
+    <article class="card"><div class="index">00 / CORPUS</div><h3>Coverage</h3><div id="corpus-state" class="state">CHECKING</div><div id="corpus-detail" class="detail">Every Brain node gets an explicit decision.</div></article>
+    <article class="card"><div class="index">01 / ARTIFACT</div><h3>Weights</h3><div id="weights-state" class="state">CHECKING</div><div id="weights-detail" class="detail">Exact base, adapter, and tokenizer digests.</div></article>
+    <article class="card"><div class="index">02 / RUNTIME</div><h3>Load</h3><div id="load-state" class="state">CHECKING</div><div id="load-detail" class="detail">Offline reload, GPU admission, local provider.</div></article>
+    <article class="card"><div class="index">03 / EVIDENCE</div><h3>Evaluation</h3><div id="evaluation-state" class="state">CHECKING</div><div id="evaluation-detail" class="detail">Receipt integrity with limitations retained.</div></article>
+    <article class="card"><div class="index">04 / EFFECTOR</div><h3>Inference</h3><div id="inference-state" class="state">DISABLED</div><div id="inference-detail" class="detail">Experimental local-only. Production blocked.</div></article>
+  </section>
+
+  <section class="evidence">
+    <div class="panel"><h2>Verified identity</h2><div class="rows">
+      <div class="row"><span>Candidate</span><code id="candidate">—</code></div>
+      <div class="row"><span>Base revision</span><code id="revision">—</code></div>
+      <div class="row"><span>License evidence</span><code id="license">—</code></div>
+      <div class="row"><span>Provider</span><code id="provider">—</code></div>
+      <div class="row"><span>GPU admission</span><code id="gpu">—</code></div>
+      <div class="row"><span>Brain decisions</span><code id="brain-rows">—</code></div>
+      <div class="row"><span>Distinct artifacts</span><code id="artifacts">—</code></div>
+      <div class="row"><span>Quarantined / excluded</span><code id="quarantine">—</code></div>
+      <div class="row"><span>Formula curriculum</span><code id="formulas">—</code></div>
+      <div class="row"><span>Formula status</span><code id="formula-status">—</code></div>
+      <div class="row"><span>Corpus receipt</span><code id="corpus-receipt">—</code></div>
+      <div class="row"><span>Evaluation receipt</span><code id="evaluation-receipt">—</code></div>
+      <div class="row"><span>Unrun suites</span><code id="unrun">—</code></div>
+    </div></div>
+    <div class="panel"><h2>Bounded local turn</h2>
+      <label for="prompt">Prompt · max 2,048 characters</label><textarea id="prompt" maxlength="2048" placeholder="Inference stays disabled until every gate passes."></textarea>
+      <div class="controls"><div><label for="tokens">Max new tokens</label><input id="tokens" type="number" min="1" max="128" value="64"></div><div><label for="temperature">Temperature</label><input id="temperature" type="number" min="0" max="1" step="0.1" value="0"></div></div>
+      <button id="run" disabled>Run experimental inference</button><div id="result" class="result">No inference attempted.</div>
+    </div>
+  </section>
+  <footer>Network, download, training, publishing, and production aliases are disabled by contract. Status reads never fabricate model output.</footer>
+</main>
+<script>
+  const endpoint='/api/a11oy/v1/models/m1'; let snapshot=null;
+  const put=(id,value)=>{document.getElementById(id).textContent=value??'—'};
+  function show(data){snapshot=data;const overall=document.getElementById('overall');overall.textContent=data.operational_state||'UNAVAILABLE';overall.className='badge '+(data.operational_state==='READY_EXPERIMENTAL'?'ready':data.operational_state==='BLOCKED'?'blocked':'unavailable');
+    for(const key of ['corpus','weights','load','evaluation','inference']){const item=(data.stages||{})[key]||{};put(key+'-state',item.state||'UNAVAILABLE')}
+    const coverage=data.corpus_coverage||{},corpus=data.checks?.corpus_ingestion||{},statuses=coverage.formula_status||{};
+    put('candidate',data.candidate_id);put('revision',data.checks?.metadata?.revision);put('license',`${data.checks?.metadata?.license||'—'} · ${data.checks?.metadata?.license_evidence||'—'}`);put('provider',data.checks?.provider_identity?.provider_id||data.checks?.provider_identity?.reason);put('gpu',data.checks?.gpu_admission?.reason);put('brain-rows',`${coverage.node_decisions_total??'—'} / ${coverage.node_decisions_expected??'—'}`);put('artifacts',coverage.distinct_artifacts);put('quarantine',coverage.quarantined_or_excluded_nodes);put('formulas',`${coverage.formula_records_current_versioned_sources??'—'} current · requested 200 ${coverage.formula_requested_200_claim||'UNVERIFIED'}`);put('formula-status',`accepted ${statuses.KERNEL_ACCEPTED??0}; conditional ${statuses.CONDITIONAL??0}; open ${statuses.OPEN??0}; refuted ${statuses.REFUTED??0}`);put('corpus-receipt',corpus.corpus_receipt_id);put('evaluation-receipt',corpus.evaluation_receipt_id);put('unrun',(data.checks?.evaluation_receipt?.unrun_suites||[]).length);
+    document.getElementById('run').disabled=data.operational_state!=='READY_EXPERIMENTAL';
+  }
+  async function refresh(){try{const response=await fetch(endpoint,{cache:'no-store'});show(await response.json())}catch(error){show({operational_state:'UNAVAILABLE',stages:{},checks:{}})}}
+  document.getElementById('run').addEventListener('click',async()=>{const button=document.getElementById('run'),result=document.getElementById('result');button.disabled=true;result.textContent='Running exact preflight…';try{const response=await fetch(endpoint+'/infer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({schema:'szl.m1-experimental-inference-request/v1',prompt:document.getElementById('prompt').value,max_new_tokens:Number(document.getElementById('tokens').value),temperature:Number(document.getElementById('temperature').value),requested_tier:'EXPERIMENTAL_LOCAL_ONLY',provider_id:'a11oy.m1.local-peft/v1'})});const body=await response.json();result.textContent=body.inference?.text||`${body.state||'UNAVAILABLE'} · ${body.error||body.gate?.checks?.gpu_admission?.reason||'No output fabricated.'}`;await refresh()}catch(error){result.textContent='UNAVAILABLE · request failed; no output fabricated.'}finally{button.disabled=snapshot?.operational_state!=='READY_EXPERIMENTAL'}});
+  refresh();setInterval(refresh,30000);
+</script>
+</body>
+</html>

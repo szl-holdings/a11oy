@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:szl:governance:evidence:v1",
+  "title": "Governance Evidence Package v1",
+  "type": "object",
+  "required": ["receipts", "doctrine_version", "audit_hashes"],
+  "properties": {
+    "receipts": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "doctrine_version": {"type": "string"},
+    "audit_hashes": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "notes": {"type": "string"}
+  },
+  "additionalProperties": false
+}

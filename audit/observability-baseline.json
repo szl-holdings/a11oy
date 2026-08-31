@@ -1,0 +1,17 @@
+{
+  "content_capture": {
+    "reason": "production collector configuration is unavailable",
+    "status": "UNKNOWN"
+  },
+  "generated_at": "2026-07-26T08:52:41+00:00",
+  "label": "MEASURED",
+  "live_collector": {
+    "reason": "no production collector credentials or endpoint were supplied",
+    "status": "BLOCKED"
+  },
+  "tracked_surfaces": [
+    "vsp_otel",
+    "docs/OBSERVABILITY_SECURITY.md",
+    "szl_observability.py"
+  ]
+}

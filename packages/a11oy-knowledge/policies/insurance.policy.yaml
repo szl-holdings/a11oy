@@ -1,0 +1,54 @@
+# a11oy Covenant Policy — Insurance
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: insurance
+policy_name: "Insurance"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "NAIC Model Law 881"
+  - "NY DFS Circular Letter 7 (2022)"
+  - "NAIC AI Principles (2020)"
+
+required_attestors:
+  - chief_actuary
+  - ai_ethics_board
+  - compliance_officer
+
+lambda_floors:
+  moralGrounding: 0.97
+  measurabilityHonesty: 0.99
+  informationIntegrity: 0.99
+  constructiveTransparency: 0.99
+  economicGrounding: 0.97
+
+forbidden_inputs:
+  - prohibited_rating_factors
+  - non_actuarially_justified_proxies
+
+retention_days: 1825
+
+required_output_formats:
+  - csv_underwriting_log
+  - json_receipt
+  - pdf_state_filing
+
+primitives_applicable:
+  - A1
+  - A5
+  - A8
+  - A9
+  - A12
+  - A14
+  - T6
+  - T9
+  - T10
+
+acv_range_usd:
+  low: 200000
+  mid: 750000
+  high: 2000000

@@ -1,0 +1,117 @@
+{
+  "artifacts": {
+    "admission_tranche": {
+      "bytes": 81940,
+      "path": "data/admission-tranche.jsonl",
+      "rows": 148,
+      "sha256": "951db654168ea732f84fd185234227a555b13e013ee182d8bce89eae62fb35fe"
+    },
+    "brain_evidence_summary": {
+      "bytes": 2593,
+      "path": "data/brain-evidence-summary.json",
+      "sha256": "c4aafdcc60411ff82d6040ccd787ca8c1e63ac5a3386b914767d105072988593"
+    },
+    "formula_crosswalk": {
+      "bytes": 161227,
+      "path": "data/formula-id-crosswalk.json",
+      "rows": 146,
+      "sha256": "cde0b70299a673f7e64aae7598f38cde038ec47bf7c48612abf9ea2f91bdc832"
+    },
+    "proof_obligation_queue": {
+      "bytes": 186321,
+      "path": "data/proof-obligation-queue.jsonl",
+      "rows": 146,
+      "sha256": "1726eba8ad2142272d353d0ee1b6805380b9fa9c689fb4db71c8e3ea7becf1f1"
+    },
+    "source_admission_manifest": {
+      "bytes": 6972,
+      "path": "data/source-admission-manifest.json",
+      "sha256": "37c3ded4d6d5590157f93f7e926ff942e398e46c44c9e277c8ed846bc518bff8"
+    },
+    "source_artifact_receipt": {
+      "bytes": 903,
+      "path": "data/source-artifact-receipt.json",
+      "sha256": "b5061b748b31dfb14ccdcef345e0d565fe8b11d30979a71f544aed8623d6dd54"
+    }
+  },
+  "claims_boundary": {
+    "independent_replication_claimed": false,
+    "mathematical_proof_added": false,
+    "model_promotion_allowed": false,
+    "model_training_triggered": false,
+    "peer_review_claimed": false,
+    "proof_credit_added": 0,
+    "raw_brain_text_included": false,
+    "training_eligibility_claimed": false
+  },
+  "dataset": {
+    "admission_tranche_rows": 148,
+    "formula_crosswalk_rows": 146,
+    "proof_obligation_queue_rows": 146,
+    "queue_membership_counts": {
+      "ACTION_REQUIRED": 144,
+      "AUDIT_ONLY": 2
+    },
+    "resolved_status_counts": {
+      "CONDITIONAL": 28,
+      "KERNEL_ACCEPTED": 2,
+      "OPEN": 115,
+      "REFUTED": 1
+    },
+    "split": "HOLDOUT_ONLY",
+    "training_eligible_rows": 0,
+    "tranche_kind_counts": {
+      "FORMULA_STATUS_METADATA": 146,
+      "SZL_LAKE_EVIDENCE": 2
+    }
+  },
+  "license": {
+    "scope": "Package-authored metadata, schemas, and deterministic transformations.",
+    "spdx": "Apache-2.0",
+    "upstream_rights_rule": "The package license does not cure unknown or incompatible rights in any upstream source; publication remains blocked pending item-level review."
+  },
+  "prohibited_claims": [
+    "THE_DATASET_IS_TRAINING_ELIGIBLE",
+    "A_FORMULA_ID_ALONE_TRANSFERS_PROOF_BETWEEN_NAMESPACES",
+    "EXECUTABILITY_IMPLIES_MATHEMATICAL_PROOF",
+    "THE_LOCAL_RETRIEVAL_PILOT_ESTABLISHES_EXTERNAL_VALIDITY",
+    "THIS_UNPUBLISHED_PACKAGE_HAS_A_DOI_OR_PEER_REVIEW"
+  ],
+  "publication": {
+    "blockers": [
+      "HUMAN_RELEASE_APPROVAL_REQUIRED",
+      "ROW_LEVEL_RIGHTS_AND_LICENSE_REVIEW_REQUIRED",
+      "ARCHIVE_UPLOAD_AND_READBACK_NOT_RUN",
+      "DOI_NOT_MINTED"
+    ],
+    "doi": "PENDING",
+    "doi_url": "PENDING",
+    "peer_reviewed": false,
+    "publish_allowed": false,
+    "remote_mutation_performed": false,
+    "state": "UNPUBLISHED_CANDIDATE",
+    "zenodo_deposition_created": false
+  },
+  "record_type": "dataset",
+  "schema_version": "szl.proof-obligation-dataset-release.v1",
+  "schemas": {
+    "proof_obligation_record": "schemas/proof-obligation-record.schema.json",
+    "release_manifest": "schemas/release-manifest.schema.json"
+  },
+  "source_snapshots": {
+    "brain_evidence": {
+      "commit": "706894f52a45f80a5c440aeaafc52eec33fafc23",
+      "manifest_receipt_sha256": "f4efeeb9a982459a32fd9ff732bf3f3980156d8b657f20f0ac7b8cec8d88c242",
+      "protocol_id": "brain-canonical-retrieval-pilot-v1",
+      "results_receipt_sha256": "cec022dffff5ed39d72863dc23dfd090965de8d632c3ecdf61e2cb50126d4923"
+    },
+    "formula_admission": {
+      "admission_manifest_and_receipt_commit": "b7b0f2996edf674d7365d37112371fa6690e7c0e",
+      "artifact_receipt_sha256": "893d0d365e84f936bf263b0e7e435d9ab3641662ebc4a33396e6f41108abcea7",
+      "crosswalk_and_tranche_commit": "e4d269b309fe67264f1dfe64a65c3c5fb6ecf570",
+      "crosswalk_receipt_sha256": "6da2819f3195e08f82290a6006cc92f914fada1510ee105d8eeb864564862b52"
+    }
+  },
+  "title": "SZL Proof-Obligation Queue and Receipt-Scoped Formula Crosswalk",
+  "version": "0.1.0"
+}

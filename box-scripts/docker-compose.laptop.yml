@@ -1,0 +1,49 @@
+# SPDX-License-Identifier: Apache-2.0
+# (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 - Doctrine v11
+#
+# docker-compose.laptop.yml - betterwithage (RTX 5050 laptop), the SECONDARY node.
+#
+# The laptop is lightweight: the unified gateway + public tunnel live on omen. The
+# laptop only needs (1) GPU telemetry so Prometheus on omen can scrape it, and
+# (2) NOTHING else in Docker - Ollama and the #789 energy probe run NATIVELY on
+# Windows (see the WSL2 fragility note in docker-compose.yml and the runbook).
+#
+# ==============================================================================
+# NATIVE-WINDOWS FALLBACK (recommended on the laptop especially):
+#   * Ollama            -> native Windows service (box-scripts/laptop_persist.ps1)
+#   * #789 energy probe -> native  python box-scripts/ollama_energy_probe.py --loop 60
+#                          (OLLAMA_MODEL defaults to glm-4.7-flash:latest)
+#   * omen_joule_exporter.py -> native, OMEN_ENGINE_NAME=betterwithage on :9471
+#   * cloudflared laptop-szl -> native task -> gpu2/meter2.a-11-oy.com
+# A laptop on battery is exactly where WSL2 GPU-in-Docker is least reliable, so
+# prefer native for the model + probe. This compose is OPTIONAL telemetry only.
+# ==============================================================================
+#
+# HONESTY (Doctrine v11): if this box is a laptop that sleeps / goes on battery,
+# it may NOT be reachable. Do not claim it as a live pool member unless a real
+# call succeeds. LiteLLM's cooldown_time drops it automatically when it errors.
+
+services:
+  # GPU telemetry only. Scraped by omen's Prometheus over the tailnet (:9400).
+  dcgm-exporter:
+    image: nvcr.io/nvidia/k8s/dcgm-exporter:4.4.1-4.6.0-distroless  # pinned
+    container_name: dcgm-exporter
+    restart: unless-stopped
+    ports:
+      - "9400:9400"
+    cap_add:
+      - SYS_ADMIN
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]   # WSL2 passthrough caveat applies; if it fails,
+                                    # rely on the NATIVE #789 probe for MEASURED joules.
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9400/metrics >/dev/null 2>&1 || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s

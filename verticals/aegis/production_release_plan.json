@@ -1,0 +1,147 @@
+{
+  "artifact_pattern": "one immutable A11oy image plus signed vertical manifest",
+  "manifest_digest": "14e72ffcde8d8d402b5efb045e9bc651be940eb4d1ed59e8431e64a000a07367",
+  "one_writer": true,
+  "required_readback": [
+    "GitHub source revision and tree",
+    "image and SBOM digest",
+    "vertical manifest digest",
+    "Hub commit and runtime revision",
+    "database migration revision",
+    "data, model, policy and evaluation revisions",
+    "positive and negative demo receipts",
+    "rollback state"
+  ],
+  "rings": [
+    "SOURCE_ONLY",
+    "PREVIEW",
+    "STAGING",
+    "PROTECTED_CANDIDATE",
+    "DESIGN_PARTNER",
+    "PILOT_READY",
+    "PRODUCTION_READY"
+  ],
+  "schema": "szl.vertical-release-plan/v8",
+  "space": {
+    "id": "SZLHOLDINGS/aegis-assurance",
+    "initial_mode": "public/synthetic defensive-security demonstration plus private tenant connectors",
+    "source_visible": false,
+    "visibility": "protected"
+  },
+  "stages": [
+    {
+      "blocks_release": true,
+      "exit_evidence": "approved PRD and vertical manifest",
+      "owner_agent": "ProductArchitectureAgent",
+      "requirements": "customer/problem/decision chain, buyer, success metric, prohibited actions",
+      "stage": "Wedge and product contract",
+      "stage_id": "P00"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "canonical source map and admission receipt",
+      "owner_agent": "CanonicalSourceAgent",
+      "requirements": "one source, one writer, consumers, migration/tombstone, no new placeholder",
+      "stage": "Canonical source and estate admission",
+      "stage_id": "P01"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "data-rights register and threat model",
+      "owner_agent": "DataRightsAgent/SecurityThreatModelAgent",
+      "requirements": "license, privacy, retention, training use, abuse, identity, authority",
+      "stage": "Data rights and threat model",
+      "stage_id": "P02"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "approved RFC and generated schemas",
+      "owner_agent": "ProductArchitectureAgent",
+      "requirements": "domain graph, OpenAPI, event schema, UI truth fields, storage and rollback",
+      "stage": "RFC and typed contracts",
+      "stage_id": "P03"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "clean-clone/build manifests and digests",
+      "owner_agent": "ProductionControlAgent",
+      "requirements": "locked toolchain, one package manager, reproducible generated output",
+      "stage": "Clean clone and deterministic build",
+      "stage_id": "P04"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "JUnit/test aggregate and coverage scope",
+      "owner_agent": "EvaluationRedTeamAgent",
+      "requirements": "critical logic, formula boundaries, schemas, APIs, migrations",
+      "stage": "Unit, property and contract tests",
+      "stage_id": "P05"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "fault-injection/load/restore evidence",
+      "owner_agent": "BackendSREAgent",
+      "requirements": "source outages, stale/conflict, tenancy, retries, idempotency, restore and rollback",
+      "stage": "Integration and failure testing",
+      "stage_id": "P06"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "SARIF, threat-model closure and attestation",
+      "owner_agent": "SecurityThreatModelAgent",
+      "requirements": "SSDF, ASVS, secrets, CodeQL/SAST, dependency, SBOM/ML-BOM, action authorization",
+      "stage": "Security verification",
+      "stage_id": "P07"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "Playwright traces, axe, Lighthouse and RUM",
+      "owner_agent": "FrontendExperienceAgent",
+      "requirements": "cross-browser E2E, WCAG 2.2, visual states, mobile, Core Web Vitals",
+      "stage": "Frontend quality",
+      "stage_id": "P08"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "exact-head PR and protected merge receipt",
+      "owner_agent": "ProductionControlAgent",
+      "requirements": "current base, checks, review threads, no bypass, signed squash",
+      "stage": "Exact-head review and protected promotion",
+      "stage_id": "P09"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "ring results, canary thresholds and rollback",
+      "owner_agent": "ProductionControlAgent/HubReleaseAgent",
+      "requirements": "immutable artifact through preview, staging, canary and production",
+      "stage": "Build once and deployment rings",
+      "stage_id": "P10"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "runtime readback and offline-verifiable receipt",
+      "owner_agent": "IndependentVerifierAgent",
+      "requirements": "source, image, manifest, data, model, policy, DB and provider identity",
+      "stage": "Runtime readback and independent verification",
+      "stage_id": "P11"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "SLO/error-budget dashboards and incidents",
+      "owner_agent": "BackendSREAgent",
+      "requirements": "availability, latency, freshness, correctness, safety, cost and alert ownership",
+      "stage": "Operate with SLO/error budget",
+      "stage_id": "P12"
+    },
+    {
+      "blocks_release": true,
+      "exit_evidence": "postmortem, corrective actions and DORA metrics",
+      "owner_agent": "ProductionControlAgent",
+      "requirements": "contain, reproduce, fix, verify, correct evidence, update escaped control",
+      "stage": "Postmortem and product learning",
+      "stage_id": "P13"
+    }
+  ],
+  "storage": "managed PostgreSQL/object storage; ephemeral Space disk is never production truth",
+  "vertical_id": "aegis"
+}

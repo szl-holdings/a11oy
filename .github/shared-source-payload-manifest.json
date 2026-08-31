@@ -1,0 +1,9 @@
+{
+  "files": {
+    "static-vendor/a11oy-operator-widget.js": "a9d3ed961a7b3606d5721de4d56f478fbef85b6d1dd04447e26500068708ba0c",
+    "szl_spaces_proxy.py": "b4a7ea8b836d264fc67c278d8e233304b9db4901593d9a7858755cbbc9c0a617",
+    "szl_spaces_surface.py": "3adf1b01ddaedc69205e74d29ddda2d0e5b79c2413c7f8cfba06318de3a3ef8a"
+  },
+  "payload_id": "hub-cut-7-keep-2026-08-29",
+  "schema": "szl-shared-source-payload/v1"
+}

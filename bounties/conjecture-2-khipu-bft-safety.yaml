@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: Apache-2.0
+# SZL Holdings — Open-Problem Bounty Board · Doctrine v11
+id: conjecture-2-khipu-bft-safety
+title: "Khipu Byzantine Quorum Safety — Conjecture 2 (OPEN)"
+status: OPEN
+conjecture: 2
+doctrine: v11
+
+summary: >
+  Unconditional Byzantine-fault-tolerant Khipu quorum safety (no split-brain under
+  an equivocating organ) is Conjecture 2 — the genuine open BFT frontier. It is NOT
+  a theorem under bare hypotheses.
+
+problem_statement: |
+  The Khipu quorum protocol must guarantee agreement (no two honest quorums certify
+  conflicting verdicts) in the presence of Byzantine organs. The open obligation is
+  `ubuntu_quorum_safety` in `Lutar/Innovations/round12/Identity_Ayni_Quorum.lean`,
+  stated unconditionally. A Byzantine organ can equivocate (sign two conflicting
+  votes), so the unconditional statement cannot hold without the right charter and
+  honesty hypotheses; that is exactly why it remains a conjecture.
+
+the_gap: |
+  The conditional safety theorem is already proven (Wave 23,
+  `khipu_quorum_safety_conditional`): under {n >= 3f+1, |faulty| <= f,
+  |quorum| >= n-f, honest non-equivocation} two quorums cannot certify conflicting
+  verdicts. The OPEN gap is whether the unconditional obligation can be discharged,
+  or proven to require a strictly weaker hypothesis than honest non-equivocation —
+  while never asserting the false unconditional-without-honesty statement.
+
+already_proven_do_not_reclaim: |
+  Wave 23 `khipu_quorum_safety_conditional` and the Wave 13
+  `quorum_agreement_single_valued_vote` shadow are CONDITIONAL / non-Byzantine and
+  already proven. This bounty is the UNCONDITIONAL frontier only; do not represent
+  the conditional results as settling Conjecture 2.
+
+target:
+  theorem_name: ubuntu_quorum_safety
+  file: "Lutar/Innovations/round12/Identity_Ayni_Quorum.lean"
+  repo: szl-holdings/lutar-lean
+
+acceptance_criteria:
+  - id: lake-build-green
+    check: "`lake build` is green on the pinned toolchain; lutar-lean lake-build.yml + lean.yml pass."
+  - id: no-sorry
+    check: "No `sorry` / `sorryAx` in the target obligation and its dependencies."
+  - id: axiom-allowlist
+    check: "`#print axioms ubuntu_quorum_safety` is a subset of [propext, Quot.sound, Classical.choice]; any added hypothesis must be a stated theorem premise, not a new global axiom."
+  - id: no-new-axiom
+    check: "No new `axiom` declarations and no `native_decide` trust escape hatches; the numbers drift gate (check_numbers_drift.py) stays green."
+  - id: becomes-real
+    check: "The proof is REAL: kernel-checked, zero `sorry`, in-policy axioms only."
+
+verification:
+  arbiter: "lutar-lean CI (lake-build.yml gate + numbers drift, lean.yml kernel check) on a PR to main — automated, no bypass."
+  must_become_real: true
+
+reward:
+  amount: founder-set
+  currency: USD
+  note: >
+    The monetary award is founder-set and published in the bounty repo's pinned
+    issue. This board never invents a figure.
+  extras:
+    - "Lean co-author credit on the SZL Holdings thesis."
+    - "Materially-advancing partial submissions are eligible for pro-rata recognition at founder discretion."
+
+submission:
+  intake_repo: https://github.com/szl-holdings/lutar-lean
+  pull_request: "Fork lutar-lean, discharge `ubuntu_quorum_safety`, open a PR to main. CI is the arbiter; green = eligible."
+
+references:
+  - "Lutar/Wave23/QuorumSafety.lean"
+  - "Lutar/Innovations/round12/Identity_Ayni_Quorum.lean"
+  - "Lutar/Wave8/Byzantine.lean"
+  - "../README.md (section: The Λ line — Conjecture 1; Byzantine BFT safety row)"
+
+honesty: >
+  Unconditional Khipu BFT safety is Conjecture 2 — it is NOT a theorem. The
+  unconditional-without-honesty statement is false (a Byzantine organ can
+  equivocate). Only the conditional form is proven; never represent this OPEN
+  conjecture as proved. A submission clears the bar only when the kernel verifies it
+  (REAL).

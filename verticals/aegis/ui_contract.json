@@ -1,0 +1,87 @@
+{
+  "accessibility": {
+    "requirements": [
+      "keyboard complete",
+      "visible focus and restoration",
+      "screen-reader status announcements",
+      "320px reflow",
+      "reduced motion",
+      "high contrast",
+      "minimum target size",
+      "map/graph table alternative"
+    ],
+    "standard": "WCAG 2.2 AA"
+  },
+  "performance": {
+    "defer": [
+      "large graph",
+      "map",
+      "3D",
+      "whole-estate inventory",
+      "nonessential animation"
+    ],
+    "field_p75": {
+      "CLS_max": 0.1,
+      "INP_milliseconds_max": 200,
+      "LCP_seconds_max": 2.5
+    }
+  },
+  "routes": [
+    {
+      "path": "/aegis",
+      "role": "buyer and vertical decision-theatre entry"
+    },
+    {
+      "path": "/aegis/command",
+      "role": "operator command"
+    },
+    {
+      "path": "/aegis/cases",
+      "role": "case work queue"
+    },
+    {
+      "accessible_alternative": "filterable table and textual path explanation",
+      "path": "/aegis/graph",
+      "role": "domain graph"
+    },
+    {
+      "path": "/aegis/approvals",
+      "role": "human approval queue"
+    },
+    {
+      "path": "/aegis/evidence",
+      "role": "sources, rights, receipts, limits, incidents and release evidence"
+    },
+    {
+      "path": "/aegis/verify",
+      "role": "offline-capable verification"
+    }
+  ],
+  "schema": "szl.evidence-bearing-ui/v8",
+  "states": [
+    "LOADING",
+    "READY",
+    "EMPTY",
+    "UNAVAILABLE",
+    "PARTIAL",
+    "DENIED",
+    "ABSTAINED",
+    "ESCALATED",
+    "AWAITING_APPROVAL",
+    "DEGRADED",
+    "ERROR"
+  ],
+  "truth_fields": [
+    "evidence_class",
+    "runtime_state",
+    "authority_state",
+    "freshness",
+    "source_digest",
+    "rights_state",
+    "policy_revision",
+    "data_and_model_revisions",
+    "replay_url",
+    "limitations"
+  ],
+  "vertical_id": "aegis"
+}

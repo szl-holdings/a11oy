@@ -1,0 +1,7 @@
+{
+  "proof_id": "amaru.heart.v1",
+  "sha256": "55d5d7013a31769f34e6a44971e6121ece9b17eefbc93c68d7fa79d9e3a1bc13",
+  "kind": "kernel-source",
+  "summary": "care - harm clamped to [0,1]",
+  "notes": "sha256 computed over the canonical kernel.py source bytes; re-pin via services/amaru/scripts/pin_proofs.py after edits."
+}

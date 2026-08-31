@@ -1,0 +1,19 @@
+# Build context is the repo root: docker build -f web/Dockerfile -t sentra-web .
+node_modules
+**/node_modules
+**/dist
+.git
+.github
+.devcontainer
+.pytest_cache
+**/__pycache__
+*.pyc
+.env
+.env.*
+*.log
+docs
+**/*.md
+!web/index.html
+test
+**/coverage
+.DS_Store

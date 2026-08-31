@@ -1,0 +1,74 @@
+name: lean citation guard
+
+# Catches broken / phantom Lean proof citations before they ship.
+#
+# Task #562 fixed a phantom proof citation in the a11oy policy gates: a gate
+# cited a Lean file (Lutar/Gate/BekensteinEntropyMeasure.lean) that never existed
+# in szl-holdings/lutar-lean, presenting an unproven claim as machine-checked.
+# This guard verifies that every citation which CLAIMS a real, machine-checked
+# Lean proof (gates_manifest.json lean_status == "real", and the mirroring
+# LEAN_FILE/LEAN_COMMIT constants in packages/policy/src/gates/*_gate.ts) points
+# at a file that actually exists in lutar-lean. A citation whose file exists
+# nowhere fails the build.
+#
+# docs/theorem-runtime-manifest.json additionally HARD-FAILS on undisclosed
+# phantom theorem citations: an entry whose leanStatus == "theorem", not marked
+# stagedAdvisory=true, whose concrete Lutar/*.lean leanFile is absent on
+# lutar-lean main (the Task #695 class). Entries honestly marked phantom /
+# staged-advisory / conjectured (and non-concrete/aspirational references) are
+# reported but allowed, so honest disclosure is preserved. The guard also fails
+# if a corpus/formulas/ mirror drifts from its source manifest (must be
+# byte-identical).
+#
+# See scripts/check_lean_citations.py for the policy and
+# scripts/check_lean_citations.test.sh for the offline negative-fixture self-test.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "gates_manifest.json"
+      - "docs/theorem-runtime-manifest.json"
+      - "corpus/formulas/a11oy__gates_manifest.json"
+      - "corpus/formulas/a11oy__docs__theorem-runtime-manifest.json"
+      - "packages/policy/src/gates/**"
+      - "scripts/check_lean_citations.py"
+      - "scripts/check_lean_citations.test.sh"
+      - ".github/workflows/lean-citation-guard.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "gates_manifest.json"
+      - "docs/theorem-runtime-manifest.json"
+      - "corpus/formulas/a11oy__gates_manifest.json"
+      - "corpus/formulas/a11oy__docs__theorem-runtime-manifest.json"
+      - "packages/policy/src/gates/**"
+      - "scripts/check_lean_citations.py"
+      - "scripts/check_lean_citations.test.sh"
+      - ".github/workflows/lean-citation-guard.yml"
+  schedule:
+    - cron: "23 7 * * 1"   # weekly sweep (Mon 07:23 UTC) — catches lutar-lean drift
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  guard:
+    name: No phantom Lean proof citations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Self-test the guard (offline negative fixtures)
+        run: bash scripts/check_lean_citations.test.sh
+      - name: Verify every real-proof citation exists in lutar-lean
+        run: python3 scripts/check_lean_citations.py --root .

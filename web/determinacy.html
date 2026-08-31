@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<!--
+  a11oy · DETERMINACY — analytic continuation → proof doctrine (showcase lane).
+  © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
+  0 runtime CDN: system fonts only, no external scripts. The power-series viz is
+  REAL arithmetic computed in-browser (partial sums S_N(z) = sum_{n=0}^{N} z^n);
+  nothing is fabricated. The math→doctrine bridge is explicitly labelled
+  ILLUSTRATIVE; the governing claim it mirrors (verifiable hash-chained Khipu
+  receipts) is the live, real artifact, wired to a real a11oy endpoint
+  (/api/a11oy/v1/khipu/organs) with an HONEST NO-LIVE-DATA fallback. Maturity is
+  labelled LIVE / ROADMAP / MODELED throughout (doctrine v11). Analytic-continuation
+  framing after Daniel Buchta (cited in-page) — illustrative, not a claimed proof.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Determinacy — Local Data Determines Global Truth</title>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
+    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
+    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.6 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#0d1320,#0a0e14)}
+  h1{margin:0;font-size:19px;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:980px}
+  .nav{margin-top:10px;display:flex;gap:14px;flex-wrap:wrap;font-size:12px}
+  .nav a{color:var(--acc2);text-decoration:none}
+  .nav a:hover{text-decoration:underline}
+  .wrap{max-width:1080px;margin:0 auto;padding:22px}
+  section{margin:0 0 26px}
+  .eyebrow{color:var(--acc);font-size:11px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+  h2{font-size:16px;letter-spacing:.3px;margin:0 0 10px;color:var(--ink)}
+  h3{font-size:14px;letter-spacing:.2px;margin:0 0 6px;color:var(--acc)}
+  p{margin:0 0 12px}
+  .hook{font-size:26px;line-height:1.35;font-weight:700;letter-spacing:.3px;margin:6px 0 14px}
+  .hook .em{color:var(--acc)}
+  .lede{font-size:15px;color:#cdd8e6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px;margin:0 0 14px}
+  .quote{border-left:3px solid var(--acc);background:var(--panel2);padding:12px 16px;
+         border-radius:0 8px 8px 0;color:#cdd8e6;margin:0 0 14px;font-style:normal}
+  .quote.big{font-size:16px;color:var(--ink)}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;
+        border:1px solid var(--line);white-space:nowrap}
+  .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
+  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
+  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
+  .pill.live{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.illus{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  a{color:var(--acc2)}
+  code{color:var(--acc2);font-size:12px}
+  .nolive{color:var(--warn)}
+  /* viz */
+  .vizgrid{display:grid;gap:16px;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}
+  @media(max-width:820px){.vizgrid{grid-template-columns:1fr}}
+  canvas{display:block;width:100%;height:auto;background:var(--panel2);
+          border:1px solid var(--line);border-radius:10px;touch-action:none}
+  .ctrls{display:flex;flex-direction:column;gap:12px}
+  .ctrl{display:flex;flex-direction:column;gap:5px}
+  .ctrl label{color:var(--mut);font-size:12px;display:flex;justify-content:space-between}
+  .ctrl label b{color:var(--ink)}
+  input[type=range]{width:100%;accent-color:var(--acc)}
+  .readout{font-size:12.5px;color:#c4d0de;background:var(--panel2);
+           border:1px solid var(--line);border-radius:8px;padding:10px 12px;line-height:1.7}
+  .readout b{color:var(--ink)}
+  .readout .conv{color:var(--ok)} .readout .div{color:var(--err)}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--mut);margin-top:8px}
+  .legend .sw{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:middle;margin-right:5px}
+  /* bridge */
+  .bridge{display:grid;gap:14px;grid-template-columns:1fr 1fr}
+  @media(max-width:760px){.bridge{grid-template-columns:1fr}}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+  .col h3{margin-top:0}
+  .step{display:flex;gap:10px;align-items:flex-start;margin:0 0 12px}
+  .step .n{flex:0 0 22px;height:22px;border-radius:50%;display:flex;align-items:center;
+           justify-content:center;font-size:11px;background:var(--panel2);
+           border:1px solid var(--line);color:var(--acc)}
+  .step .t{flex:1}
+  .step .t b{color:var(--ink)}
+  .step .t span{color:#c4d0de}
+  .arrow{color:var(--mut);text-align:center;font-size:18px;margin:-4px 0 8px 32px}
+  .live-line{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px}
+  .live-line .v{color:var(--ink);word-break:break-word}
+  .cite{color:var(--mut);font-size:11.5px;margin-top:10px;line-height:1.6}
+  .cite a{color:var(--acc2)}
+  .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px}
+  .btn{display:inline-block;padding:8px 14px;border-radius:8px;border:1px solid var(--line);
+       background:var(--panel2);color:var(--acc2);text-decoration:none;font-size:12.5px}
+  .btn:hover{border-color:var(--acc);text-decoration:none}
+  .btn.prime{border-color:#13403c;background:#0a201e;color:var(--acc)}
+  footer{color:var(--mut);font-size:11px;padding:18px 22px;border-top:1px solid var(--line);line-height:1.7}
+  .reflist{font-size:11.5px;color:var(--mut);line-height:1.7}
+  .reflist li{margin-bottom:5px}
+  .reflist a{color:var(--acc2);word-break:break-all}
+  @media(max-width:640px){.hook{font-size:21px}.wrap{padding:16px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · Determinacy — Local Data Determines Global Truth</h1>
+  <div class="sub">SZL Holdings showcase · An <b>illustrative</b> visualization of the analytic-continuation / Identity-Theorem principle — <i>strong structure makes local data determine the global truth</i> — and how it mirrors SZL's signed-receipt proof doctrine. The power series is <b>real arithmetic</b> computed in your browser; nothing is fabricated. Maturity labelled <span class="pill live">LIVE</span> / <span class="pill road">ROADMAP</span> / <span class="pill illus">ILLUSTRATIVE</span>; the live claim is wired to a real a11oy endpoint (honest <span class="nolive">NO-LIVE-DATA</span> fallback).</div>
+  <nav class="nav">
+    <a href="/console/">← Console</a>
+    <a href="/frontier">Frontier</a>
+    <a href="/signature-is-not-proof">Signature ≠ Proof</a>
+    <a href="/governance">Governance</a>
+    <a href="/api/a11oy/v1/khipu/organs">Khipu organs (live) →</a>
+  </nav>
+</header>
+
+<div class="wrap">
+
+  <!-- HOOK -->
+  <section>
+    <div class="eyebrow">SZL Holdings · Proof doctrine · June 2026</div>
+    <div class="hook">Local data can determine global truth.<br><span class="em">When the structure is strong enough, one verified fact pins down the whole.</span></div>
+    <p class="lede">A function that is analytic on a connected domain is rigid: if two analytic functions agree on
+    even a tiny patch — an arc, a sequence of points with a limit — they agree <i>everywhere</i> on the
+    domain. There is no freedom left. That is the <b>Identity Theorem</b>, and the machinery that carries
+    a locally-valid formula out to its unique global form is <b>analytic continuation</b>. SZL builds the
+    same rigidity into provenance: a single verified signed receipt, chained by cryptographic structure,
+    determines the integrity of the whole chain. Verify one, the rest follows.</p>
+  </section>
+
+  <!-- 1 · INTERACTIVE VIZ -->
+  <section>
+    <div class="eyebrow">1 · The power series, computed for real</div>
+    <h2>f(z) = &Sigma; z<sup>n</sup> = 1/(1&minus;z) — local series vs. global continuation</h2>
+    <p>The geometric series <code>&Sigma;<sub>n&ge;0</sub> z<sup>n</sup></code> converges <b>only inside the unit disk</b>
+    <code>|z| &lt; 1</code>. There its partial sums <code>S<sub>N</sub>(z) = 1 + z + z<sup>2</sup> + &hellip; + z<sup>N</sup></code>
+    march toward a limit. Yet the function it represents, <code>1/(1&minus;z)</code>, is perfectly well-defined
+    <b>everywhere except z = 1</b>. The series is the <i>local data</i>; <code>1/(1&minus;z)</code> is the
+    <i>unique global continuation</i> — the only analytic function on <code>&#8450;\{1}</code> that agrees with the
+    series on the disk. Drag the controls: the partial sum below is computed honestly in JavaScript
+    (<code>S<sub>N</sub></code> by direct summation), and compared against the closed form.</p>
+
+    <div class="card">
+      <div class="vizgrid">
+        <div>
+          <canvas id="cv" width="640" height="420"></canvas>
+          <div class="legend">
+            <span><span class="sw" style="background:#1f2a3a"></span>unit disk |z| &lt; 1 (series converges)</span>
+            <span><span class="sw" style="background:#5ad1c9"></span>chosen z</span>
+            <span><span class="sw" style="background:#7aa2f7"></span>partial sums S<sub>0</sub>…S<sub>N</sub> (real)</span>
+            <span><span class="sw" style="background:#3fb950"></span>global value 1/(1&minus;z)</span>
+          </div>
+        </div>
+        <div class="ctrls">
+          <div class="ctrl">
+            <label>terms N <b id="nVal">12</b></label>
+            <input type="range" id="nRange" min="0" max="80" value="12"/>
+          </div>
+          <div class="ctrl">
+            <label>Re(z) <b id="reVal">0.60</b></label>
+            <input type="range" id="reRange" min="-150" max="150" value="60"/>
+          </div>
+          <div class="ctrl">
+            <label>Im(z) <b id="imVal">0.30</b></label>
+            <input type="range" id="imRange" min="-150" max="150" value="30"/>
+          </div>
+          <div class="readout" id="readout">computing…</div>
+          <p style="font-size:11.5px;color:var(--mut);margin:0">Tip: pick a <b>z</b> outside the disk — the
+          partial sums diverge (the series has nothing to say), but <code>1/(1&minus;z)</code> still returns the
+          single value the global function is forced to take there. That value is not invented; it is
+          <b>determined</b> by the local data through the structure.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 2 · THE BRIDGE -->
+  <section>
+    <div class="eyebrow">2 · Why it matters for proof &amp; defense</div>
+    <h2>The bridge — math principle &harr; SZL receipt doctrine <span class="pill illus">ILLUSTRATIVE</span></h2>
+    <p>The parallel below is a <b>metaphor we find clarifying</b>, not a mathematical claim that receipts
+    <i>are</i> analytic functions. The left column is the genuine theorem; the right column is the live SZL
+    artifact it inspired. We label the bridge illustrative on purpose — doctrine v11, honesty over checklist.</p>
+
+    <div class="bridge">
+      <div class="col">
+        <h3>Analytic continuation (the theorem)</h3>
+        <div class="step"><div class="n">1</div><div class="t"><b>Local series, valid on |z|&lt;1.</b>
+          <span>The geometric series is meaningful only inside the unit disk — a small, local patch of data.</span></div></div>
+        <div class="arrow">&darr;</div>
+        <div class="step"><div class="n">2</div><div class="t"><b>Analytic continuation.</b>
+          <span>Overlapping power-series expansions carry the function out, patch by patch, past the disk's edge.</span></div></div>
+        <div class="arrow">&darr;</div>
+        <div class="step"><div class="n">3</div><div class="t"><b>Unique global function (Identity Theorem).</b>
+          <span>Analyticity leaves no freedom: the continuation to <code>&#8450;\{1}</code> is the one and only
+          <code>1/(1&minus;z)</code>. Local data has determined the global truth.</span></div></div>
+      </div>
+
+      <div class="col">
+        <h3>SZL receipt doctrine (the live artifact)</h3>
+        <div class="step"><div class="n">1</div><div class="t"><b>One signed receipt (local).</b>
+          <span>A single DSSE-style signed Khipu receipt records one state change — a small, local fact you can check on its own.</span></div></div>
+        <div class="arrow">&darr;</div>
+        <div class="step"><div class="n">2</div><div class="t"><b>Hash-chain verification.</b>
+          <span>Each receipt commits to its predecessor's digest (SHA3-256), so re-walking the prev-links carries trust forward, link by link.</span></div></div>
+        <div class="arrow">&darr;</div>
+        <div class="step"><div class="n">3</div><div class="t"><b>Whole-chain integrity (determined).</b>
+          <span>Cryptographic structure leaves no freedom: recomputing the seals from a verified head down to genesis determines whether the entire chain is intact. Verify one, the whole follows.</span></div></div>
+        <div class="live-line" id="khipu-live"><span class="pill warn">checking…</span><span class="v">Khipu organs (live re-walk)</span></div>
+      </div>
+    </div>
+
+    <div class="quote">The shared idea — and the only claim we make about the bridge — is <b>rigidity</b>:
+    <i>stronger structure &rarr; less local freedom &rarr; local information determines the whole.</i> In analysis,
+    the structure is analyticity. In a11oy, it is the cryptographic hash-chain. The viz is illustrative; the
+    receipt chain is the real, checkable artifact.</div>
+
+    <div class="card">
+      <h3>From the metaphor to the real artifact</h3>
+      <p>A judge can click straight through from the picture to the live, recomputed proof — no fabricated
+      values anywhere along the way.</p>
+      <div class="btnrow">
+        <a class="btn prime" href="/api/a11oy/v1/khipu/organs">Re-walk live Khipu chains →</a>
+        <a class="btn" href="/signature-is-not-proof">Why a signature ≠ proof →</a>
+        <a class="btn" href="/frontier">Frontier roll-up →</a>
+      </div>
+      <div class="cite">The Khipu verifier recomputes each receipt's SHA3-256 seal in-process and re-walks
+      prev-links to genesis, returning a COMPUTED PASS/FAIL/NOT_FOUND — never an asserted one. Khipu chain
+      <b>integrity</b> is real; BFT consensus over it is <b>Conjecture 2</b> (honestly labelled, not a theorem).
+      Λ-uniqueness is <b>Conjecture 1</b>. <span class="pill road">ROADMAP</span>: external SCITT-style
+      transparency so third parties can re-verify without trusting the producer.</div>
+    </div>
+  </section>
+
+  <!-- 3 · ATTRIBUTION -->
+  <section>
+    <div class="eyebrow">3 · Honest attribution</div>
+    <div class="card">
+      <p>Analytic-continuation framing after Daniel Buchta, <i>"Mathematical Thinking Series No. 17: Analytic
+      Continuation — Local Data Determines Global Truth."</i> This visualization is <b>illustrative</b>; the
+      governing claim it mirrors (verifiable hash-chained receipts) is the live, real artifact. We do not
+      claim this page proves anything — the partial sums are honest arithmetic, the bridge is an explicitly
+      illustrative metaphor, and the only proof on offer is the recomputable Khipu chain linked above.
+      External ideas are cited, never claimed as ours (doctrine v11).</p>
+    </div>
+  </section>
+
+  <!-- REFERENCES -->
+  <section>
+    <div class="eyebrow">References</div>
+    <ol class="reflist">
+      <li>Daniel Buchta, "Mathematical Thinking Series No. 17: Analytic Continuation — Local Data Determines Global Truth" (the framing this illustrative page is built after).</li>
+      <li>Identity Theorem &amp; analytic continuation — standard complex analysis (e.g. Ahlfors, <i>Complex Analysis</i>): an analytic function on a connected open set is determined by its values on any set with a limit point.</li>
+      <li>Geometric series: <code>&Sigma;<sub>n&ge;0</sub> z<sup>n</sup> = 1/(1&minus;z)</code> for <code>|z| &lt; 1</code>; the right-hand side is the unique analytic continuation to <code>&#8450;\{1}</code>.</li>
+      <li>a11oy universal Khipu verifier — <a href="/api/a11oy/v1/khipu/organs">/api/a11oy/v1/khipu/organs</a>, <a href="/api/a11oy/v1/khipu/verify/REPLACE_WITH_DIGEST">/api/a11oy/v1/khipu/verify/{digest}</a> (recomputed PASS/FAIL/NOT_FOUND).</li>
+    </ol>
+  </section>
+
+</div>
+
+<footer>
+  a11oy showcase · doctrine v11 · Determinacy — local data determines global truth (ILLUSTRATIVE) ·
+  power-series partial sums are REAL in-browser arithmetic, never fabricated · the bridge to receipts is an
+  explicitly illustrative metaphor · Λ = Conjecture 1 (advisory, &lt; 1.0) · Khipu integrity real, BFT =
+  Conjecture 2 · trust &lt; 100% · 0 runtime CDN.<br>
+  Live re-walk fetched from <span style="color:var(--acc2)">/api/a11oy/v1/khipu/organs</span> — honest
+  NO-LIVE-DATA fallback, never fabricated. Analytic-continuation framing after Daniel Buchta (cited above).
+  About SZL Holdings · sovereign-compute, AI-governance &amp; defense-tech, NYC · NAICS 541715.
+</footer>
+
+<script>
+// 0-CDN inline. The power series is REAL arithmetic computed here in the browser;
+// no value is fabricated. The one live claim (Khipu organs re-walk) probes a real
+// a11oy endpoint and degrades to an HONEST NO-LIVE-DATA chip on failure.
+(function(){
+  "use strict";
+
+  // ---- complex helpers ----
+  function cmul(a, b){ return [a[0]*b[0] - a[1]*b[1], a[0]*b[1] + a[1]*b[0]]; }
+  function cadd(a, b){ return [a[0]+b[0], a[1]+b[1]]; }
+  function cabs(a){ return Math.hypot(a[0], a[1]); }
+
+  // Honest partial sum S_N(z) = sum_{n=0}^{N} z^n by direct summation (no closed form).
+  function partialSums(z, N){
+    var sums = [];
+    var acc = [0, 0];
+    var pow = [1, 0]; // z^0
+    for(var n=0; n<=N; n++){
+      acc = cadd(acc, pow);
+      sums.push([acc[0], acc[1]]);
+      pow = cmul(pow, z);
+    }
+    return sums;
+  }
+  // Global continuation 1/(1-z), defined for z != 1.
+  function globalValue(z){
+    var d = [1 - z[0], -z[1]];
+    var den = d[0]*d[0] + d[1]*d[1];
+    if(den === 0) return null; // z == 1, pole
+    return [d[0]/den, -d[1]/den]; // 1 / d
+  }
+
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var W = cv.width, H = cv.height;
+  // complex-plane window: Re,Im in [-2.6, 2.6]; scale so the unit disk is generous.
+  var SPAN = 2.6;
+  function toPx(z){
+    return [ (z[0] + SPAN) / (2*SPAN) * W, H - (z[1] + SPAN) / (2*SPAN) * H ];
+  }
+
+  function draw(z, N){
+    ctx.clearRect(0, 0, W, H);
+    // grid
+    ctx.strokeStyle = '#16202e'; ctx.lineWidth = 1;
+    for(var g=-2; g<=2; g++){
+      var px = toPx([g, 0]), py = toPx([0, g]);
+      ctx.beginPath(); ctx.moveTo(px[0], 0); ctx.lineTo(px[0], H); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, py[1]); ctx.lineTo(W, py[1]); ctx.stroke();
+    }
+    // axes
+    ctx.strokeStyle = '#26344a'; ctx.lineWidth = 1.2;
+    var o = toPx([0,0]);
+    ctx.beginPath(); ctx.moveTo(0, o[1]); ctx.lineTo(W, o[1]); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(o[0], 0); ctx.lineTo(o[0], H); ctx.stroke();
+    // unit disk (region of convergence)
+    var c = toPx([0,0]);
+    var rpx = (1 / (2*SPAN)) * W;
+    ctx.beginPath(); ctx.arc(c[0], c[1], rpx, 0, Math.PI*2);
+    ctx.fillStyle = 'rgba(31,42,58,0.55)'; ctx.fill();
+    ctx.strokeStyle = '#334a5a'; ctx.lineWidth = 1.4; ctx.stroke();
+    // pole at z = 1
+    var pole = toPx([1,0]);
+    ctx.fillStyle = '#f85149';
+    ctx.beginPath(); ctx.arc(pole[0], pole[1], 4, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#f85149'; ctx.font = '11px ui-monospace,monospace';
+    ctx.fillText('pole z=1', pole[0]+7, pole[1]-6);
+
+    // We plot, in the VALUE plane overlaid on the same axes, the trajectory of the
+    // partial sums S_0..S_N (blue) converging (or not) toward the global value (green).
+    var sums = partialSums(z, N);
+    var gv = globalValue(z);
+
+    // partial-sum trajectory
+    ctx.strokeStyle = 'rgba(122,162,247,0.55)'; ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    for(var i=0; i<sums.length; i++){
+      var p = toPx(sums[i]);
+      if(i===0) ctx.moveTo(p[0], p[1]); else ctx.lineTo(p[0], p[1]);
+    }
+    ctx.stroke();
+    for(var j=0; j<sums.length; j++){
+      var pp = toPx(sums[j]);
+      ctx.fillStyle = 'rgba(122,162,247,0.9)';
+      ctx.beginPath(); ctx.arc(pp[0], pp[1], j===sums.length-1?3.4:1.8, 0, Math.PI*2); ctx.fill();
+    }
+    // chosen z marker
+    var zp = toPx(z);
+    ctx.fillStyle = '#5ad1c9';
+    ctx.beginPath(); ctx.arc(zp[0], zp[1], 4.5, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#5ad1c9'; ctx.fillText('z', zp[0]+7, zp[1]-6);
+    // global value marker
+    if(gv){
+      var gp = toPx(gv);
+      ctx.fillStyle = '#3fb950';
+      ctx.beginPath(); ctx.arc(gp[0], gp[1], 4.5, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#3fb950'; ctx.fillText('1/(1-z)', gp[0]+7, gp[1]+14);
+    }
+    return { sums: sums, gv: gv };
+  }
+
+  function fmt(c){
+    if(!c) return '∞ (pole)';
+    var s = c[1] >= 0 ? '+' : '−';
+    return c[0].toFixed(4) + ' ' + s + ' ' + Math.abs(c[1]).toFixed(4) + 'i';
+  }
+
+  var nR = document.getElementById('nRange');
+  var reR = document.getElementById('reRange');
+  var imR = document.getElementById('imRange');
+  var nV = document.getElementById('nVal');
+  var reV = document.getElementById('reVal');
+  var imV = document.getElementById('imVal');
+  var out = document.getElementById('readout');
+
+  function update(){
+    var N = parseInt(nR.value, 10);
+    var re = parseInt(reR.value, 10) / 100;
+    var im = parseInt(imR.value, 10) / 100;
+    var z = [re, im];
+    nV.textContent = N;
+    reV.textContent = re.toFixed(2);
+    imV.textContent = im.toFixed(2);
+
+    var r = draw(z, N);
+    var SN = r.sums[r.sums.length - 1];
+    var gv = r.gv;
+    var modz = cabs(z);
+    var inside = modz < 1;
+    var err = gv ? cabs([SN[0]-gv[0], SN[1]-gv[1]]) : null;
+
+    var verdict;
+    if(inside){
+      verdict = '<span class="conv">series CONVERGES</span> (|z| &lt; 1)';
+    } else if(modz === 1){
+      verdict = '<span class="div">boundary</span> (|z| = 1; series does not converge)';
+    } else {
+      verdict = '<span class="div">series DIVERGES</span> (|z| &gt; 1) — but the global function is still defined';
+    }
+
+    out.innerHTML =
+      '<b>|z|</b> = ' + modz.toFixed(4) + ' &middot; ' + verdict + '<br>' +
+      '<b>S<sub>' + N + '</sub>(z)</b> = ' + fmt(SN) + ' <span style="color:var(--mut)">(real partial sum)</span><br>' +
+      '<b>1/(1−z)</b> = ' + fmt(gv) + ' <span style="color:var(--mut)">(unique global continuation)</span><br>' +
+      (err === null
+        ? '<span class="div">z = 1 is a pole — no finite value</span>'
+        : '<b>|S<sub>' + N + '</sub> − 1/(1−z)|</b> = ' + err.toExponential(3) +
+          (inside ? ' <span class="conv">→ 0 as N grows</span>'
+                  : ' <span class="div">does not shrink (outside the disk)</span>'));
+  }
+
+  nR.addEventListener('input', update);
+  reR.addEventListener('input', update);
+  imR.addEventListener('input', update);
+  update();
+
+  // ---- the single LIVE claim: re-walk real Khipu organ chains ----
+  function setLive(ok, label, href){
+    var el = document.getElementById('khipu-live');
+    if(!el) return;
+    var pill = ok ? '<span class="pill live">LIVE ✓</span>'
+                  : '<span class="pill warn">NO-LIVE-DATA</span>';
+    var v = (href && ok)
+        ? '<span class="v"><a href="'+href+'">'+label+'</a></span>'
+        : '<span class="v">'+label+'</span>';
+    el.innerHTML = pill + v;
+  }
+  fetch('/api/a11oy/v1/khipu/organs', {headers:{'accept':'application/json'}})
+    .then(function(r){ return r.ok ? r.json().catch(function(){return null;}) : null; })
+    .then(function(j){
+      if(j === null){ setLive(false, 'Khipu organs (re-walk)'); return; }
+      var n = Array.isArray(j) ? j.length
+            : (j && Array.isArray(j.organs) ? j.organs.length : null);
+      var label = (n !== null)
+        ? n + ' organ chain(s) re-walked, links_intact recomputed'
+        : 'Khipu organs (re-walk)';
+      setLive(true, label, '/api/a11oy/v1/khipu/organs');
+    })
+    .catch(function(){ setLive(false, 'Khipu organs (re-walk)'); });
+})();
+</script>
+</body>
+</html>

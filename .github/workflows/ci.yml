@@ -1,0 +1,38 @@
+name: Docs CI
+
+# CI for showcase repos that ship documentation and metadata only.
+# Validates citation files, markdown, links, governance files, and runs
+# the secret scan. Path filters prevent unnecessary runs on asset-only
+# changes (e.g. social previews) so we don't churn cancelled runs.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.md'
+      - '**.cff'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '.github/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '**.md'
+      - '**.cff'
+      - 'LICENSE'
+      - 'NOTICE'
+      - '.github/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    uses: szl-holdings/.github/.github/workflows/reusable-docs-ci.yml@4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb # v1 (.github main)
+
+  secrets:
+    uses: szl-holdings/.github/.github/workflows/reusable-secret-scan.yml@4d38db6d5ff8c3d18c8831a4426e8dba6dc80ceb # v1 (.github main)

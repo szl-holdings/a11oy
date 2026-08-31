@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<!--
+  a11oy AUTO-REVIEW console — GOVERNED + SIGNED evolution of Cursor's Auto-review.
+  © 2026 Lutar, Stephen P. — SZL Holdings. SPDX-License-Identifier: Apache-2.0
+  0 runtime CDN: the ONLY external script is the in-image vendored Chart.js
+  (/vendor/chart.umd.min.js) plus in-image shared label/receipt engines. All data
+  is fetched live from /api/a11oy/v1/autoreview/*. Every rate is MEASURED from the
+  live decision log or honestly labelled ROADMAP — nothing fabricated.
+  Pattern credit: Cursor "Agent autonomy & Auto-review"
+  https://cursor.com/blog/agent-autonomy-auto-review — made GOVERNED (OPA/Rego +
+  OSCAL + NIST AI RMF MANAGE), Λ-gated (Conjecture 1, never 100%), DSSE-signed,
+  conformal-calibrated, with flapping detection.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy · Auto-Review (Governed Autonomy)</title>
+<script src="/vendor/chart.umd.min.js"></script>
+<script src="/static/shared/szl_label_engine.js"></script>
+<script src="/static/shared/szl_receipt_cosign.js"></script>
+<!-- F2: vendored F1 holographic kit (0 runtime CDN) for the optional 3D autonomy dial + verdict trust-sphere. -->
+<script src="/static/shared/szl_holo3d.js"></script>
+<style>
+  :root{
+    --bg:#0a0e14; --panel:#121823; --panel2:#0f141d; --line:#1f2a3a;
+    --ink:#e6edf3; --mut:#8b98a9; --acc:#5ad1c9; --acc2:#7aa2f7;
+    --ok:#3fb950; --warn:#d29922; --err:#f85149; --road:#a371f7;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:14px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  header{padding:18px 22px;border-bottom:1px solid var(--line);
+         background:linear-gradient(180deg,#0d1320,#0a0e14)}
+  h1{margin:0;font-size:18px;letter-spacing:.3px}
+  .sub{color:var(--mut);font-size:12px;margin-top:4px;max-width:980px}
+  .wrap{max-width:1180px;margin:0 auto;padding:18px 22px}
+  .grid{display:grid;gap:16px;grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+        padding:16px 18px}
+  .card.full{grid-column:1/-1}
+  .card h2{margin:0 0 10px;font-size:14px;letter-spacing:.4px;color:var(--acc)}
+  .kv{display:flex;justify-content:space-between;gap:10px;padding:3px 0;
+      border-bottom:1px dotted #1a2435}
+  .kv:last-child{border-bottom:0}
+  .k{color:var(--mut)} .v{color:var(--ink);text-align:right;word-break:break-word}
+  .big{font-size:30px;font-weight:700;letter-spacing:.5px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;
+        border:1px solid var(--line)}
+  .pill.ok{color:var(--ok);border-color:#163a1f;background:#0e2113}
+  .pill.err{color:var(--err);border-color:#4a1c1c;background:#240f0f}
+  .pill.warn{color:var(--warn);border-color:#3a3015;background:#1f1a0a}
+  .pill.road{color:var(--road);border-color:#2e2147;background:#160f24}
+  .pill.acc{color:var(--acc);border-color:#13403c;background:#0a201e}
+  .cite{color:var(--mut);font-size:11px;margin-top:8px}
+  .cite code{color:var(--acc2)} .cite a{color:var(--acc2)}
+  .mono{font-family:inherit}
+  .set{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0}
+  .set .lab{padding:4px 11px;border-radius:7px;border:1px solid var(--line);
+            background:#0e1622;font-size:13px}
+  .set .lab.in{border-color:#13403c;background:#0a201e;color:var(--acc)}
+  table{width:100%;border-collapse:collapse;font-size:12px}
+  th,td{text-align:left;padding:5px 7px;border-bottom:1px solid #1a2435;
+        vertical-align:top}
+  th{color:var(--mut);font-weight:600}
+  .note{color:var(--mut);font-size:11px;margin-top:8px;line-height:1.55}
+  .loading{color:var(--mut)} .err{color:var(--err)}
+  .sha{color:var(--acc2);font-size:11px}
+  a{color:var(--acc2)}
+  footer{color:var(--mut);font-size:11px;padding:14px 22px;border-top:1px solid var(--line)}
+  /* dial */
+  .dial{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 10px}
+  .dlv{flex:1 1 80px;min-width:78px;text-align:center;padding:8px 6px;border-radius:8px;
+       border:1px solid var(--line);background:#0e1622;cursor:pointer;font-size:12px;
+       transition:.12s}
+  .dlv:hover{border-color:var(--acc)}
+  .dlv.sel{border-color:var(--acc);background:#0a201e;color:var(--acc);font-weight:700}
+  .dlv .lv{font-size:16px;font-weight:700}
+  .dlv .nm{font-size:10px;color:var(--mut);margin-top:2px;line-height:1.3}
+  .dlv.sel .nm{color:var(--acc)}
+  .btn{display:inline-block;padding:7px 14px;border-radius:8px;border:1px solid var(--acc);
+       background:#0a201e;color:var(--acc);cursor:pointer;font:inherit;font-size:12px}
+  .btn:hover{background:#0d2b28}
+  /* react/inline review stream */
+  .step{border:1px solid var(--line);border-radius:8px;padding:10px 12px;margin:8px 0;
+        background:var(--panel2)}
+  .step .hd{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .step .act{font-size:11px;color:var(--mut);margin-top:6px}
+  .step.allow{border-left:3px solid var(--ok)}
+  .step.narrow{border-left:3px solid var(--warn)}
+  .step.block{border-left:3px solid var(--err)}
+  .step.escalate{border-left:3px solid var(--road)}
+  .ti{color:#b9c6d6;word-break:break-all}
+  .vd{font-size:11px}
+  .meta{font-size:11px;color:var(--mut);margin-top:6px;display:flex;gap:12px;flex-wrap:wrap}
+  .meta b{color:var(--ink)}
+  .explain{color:#cfd8e3;font-size:12px;margin-top:6px;border-top:1px dotted #1a2435;
+           padding-top:6px}
+  .selfc{color:var(--acc);font-size:11px;margin-top:4px}
+  /* F2 — 3D autonomy dial + verdict trust-sphere (additive; 2D content stays). */
+  #ar3d-toggle{background:#0e1622;border:1px solid var(--acc);color:var(--acc);border-radius:7px;
+    padding:6px 12px;font:12px ui-monospace,monospace;cursor:pointer;margin-top:8px}
+  #ar3d-panel{display:none;margin:16px 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+  #ar3d-panel h2{margin:0 0 8px;font-size:14px;letter-spacing:.4px;color:var(--acc)}
+  .ar3d-stage{display:grid;grid-template-columns:1.4fr 1fr;gap:14px}
+  @media(max-width:860px){.ar3d-stage{grid-template-columns:1fr}}
+  #ar3d-canvas{width:100%;height:400px;background:#070b12;border:1px solid var(--line);border-radius:8px;position:relative}
+  #ar3d-mode{position:absolute;top:8px;right:10px;font-size:10px;color:var(--mut);z-index:5}
+  .ar3d-side{display:flex;flex-direction:column;gap:10px}
+  .ar3d-box{background:#0e1622;border:1px solid var(--line);border-radius:8px;padding:10px}
+  .ar3d-box h3{margin:0 0 6px;font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--mut)}
+  .ar3d-dialrow{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px}
+  .ar3d-dlv{flex:1;min-width:42px;text-align:center;padding:6px 4px;border:1px solid var(--line);
+    border-radius:7px;background:#0b121c;cursor:pointer;font-size:11px}
+  .ar3d-dlv.sel{border-color:var(--acc);color:var(--acc);background:#0a201e}
+  .ar3d-ctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+  .ar3d-ctl input{background:#0e1622;color:var(--ink);border:1px solid var(--line);border-radius:6px;
+    padding:6px 9px;font:12px ui-monospace,monospace}
+  .ar3d-ctl button{background:#0e1622;color:var(--ink);border:1px solid var(--line);border-radius:6px;
+    padding:6px 11px;font:12px ui-monospace,monospace;cursor:pointer}
+  .ar3d-ctl button:hover{border-color:var(--acc)}
+  #ar3d-verdict{font-size:12px;color:var(--ink);line-height:1.6;min-height:18px}
+  #ar3d-lam{font-size:30px;font-weight:700;letter-spacing:.5px}
+  .ar3d-board{display:flex;gap:6px;flex-wrap:wrap;min-height:30px;align-items:center}
+  .ar3d-rcpt{padding:3px 8px;border-radius:7px;border:1px solid var(--line);background:#0b121c;
+    font-size:10px;animation:ar3d-in .5s ease}
+  @keyframes ar3d-in{from{opacity:0;transform:translateX(18px)}to{opacity:1;transform:none}}
+  .ar3d-rcpt.allow{border-color:var(--ok);color:var(--ok)}.ar3d-rcpt.narrow{border-color:var(--warn);color:var(--warn)}
+  .ar3d-rcpt.block-with-explanation{border-color:var(--err);color:var(--err)}.ar3d-rcpt.escalate{border-color:var(--road);color:var(--road)}
+  .ar3d-mut{color:var(--mut);font-size:11px}
+</style>
+</head>
+<body>
+<header>
+  <h1>a11oy · Auto-Review <span class="pill acc">GOVERNED AUTONOMY</span></h1>
+  <div class="sub">Our governed + signed evolution of Cursor's
+    <a href="https://cursor.com/blog/agent-autonomy-auto-review" target="_blank" rel="noopener">Auto-review</a>:
+    a context-aware classifier runs <b>INLINE before every Action node</b> in the ReAct loop.
+    Verdict ∈ {allow, narrow, block-with-explanation, escalate}, intent-relative, workspace-aware.
+    Each verdict is <b>Λ-gated</b> (Conjecture 1, never 100% safe), <b>DSSE-signed</b>, expressed as
+    <b>OPA/Rego</b> rules mapped to <b>OSCAL</b> controls + <b>NIST AI RMF MANAGE</b>, and
+    conformal-calibrated. On block we return an explanation so the parent self-corrects;
+    we escalate to a human only when truly needed. Effectors stay SIMULATED.</div>
+  <button id="ar3d-toggle" type="button">Show 3D autonomy</button>
+</header>
+<div class="wrap">
+
+  <!-- ===================== 3D AUTONOMY ENHANCEMENT (toggle; 2D below is the fallback) ===================== -->
+  <section id="ar3d-panel" aria-label="3D autonomy review">
+    <h2>3D AUTONOMY — dial L0–L5 drives a live Λ-gated verdict sphere</h2>
+    <div class="ar3d-stage">
+      <div id="ar3d-canvas"><div id="ar3d-mode">init…</div></div>
+      <div class="ar3d-side">
+        <div class="ar3d-box">
+          <h3>Autonomy dial (graded, not binary)</h3>
+          <div class="ar3d-dialrow" id="ar3d-dial"><span class="ar3d-mut">loading dial…</span></div>
+          <div id="ar3d-dialdesc" class="ar3d-mut"></div>
+        </div>
+        <div class="ar3d-box">
+          <h3>Classify an action (live /classify)</h3>
+          <div class="ar3d-ctl">
+            <input id="ar3d-intent" value="debug the auth flow" aria-label="intent" placeholder="intent"/>
+          </div>
+          <div class="ar3d-ctl">
+            <input id="ar3d-tool" value="shell" aria-label="tool" placeholder="tool" style="max-width:90px"/>
+            <input id="ar3d-input" value="cat .env api_key token" aria-label="tool input" placeholder="tool input"/>
+            <button id="ar3d-classify" type="button">▶ classify</button>
+          </div>
+          <div class="ar3d-mut" style="margin-bottom:6px">Verdict colors the trust-sphere by Λ-effective; each signed verdict animates a receipt chip onto the board below.</div>
+          <div id="ar3d-lam">Λ —</div>
+          <div id="ar3d-verdict" class="ar3d-mut">no verdict yet</div>
+        </div>
+        <div class="ar3d-box">
+          <h3>Signed-verdict receipts (board)</h3>
+          <div class="ar3d-board" id="ar3d-board"><span class="ar3d-mut">run a classify to sign verdicts onto the board</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="cite" style="margin-top:10px">3D enhancement of the
+      <a href="https://cursor.com/blog/agent-autonomy-auto-review" target="_blank" rel="noopener">Cursor Auto-review</a>
+      autonomy-dial pattern, hardened with
+      <a href="https://github.com/invariantlabs-ai/invariant" target="_blank" rel="noopener">Invariant</a>-style
+      inline guardrails and
+      <a href="https://github.com/NVIDIA/NeMo-Guardrails" target="_blank" rel="noopener">NeMo Guardrails (Colang)</a>
+      dialogue rails. Each verdict stays Λ-gated (Conjecture 1, &lt; 1.0), DSSE-signed, never 100% safe.
+      Holographic kit vendored at <code>/static/shared/szl_holo3d.js</code> · 0 runtime CDN.</div>
+  </section>
+
+  <div class="grid">
+
+    <!-- AUTONOMY DIAL -->
+    <div class="card" id="dial-card">
+      <h2>AUTONOMY DIAL — L0–L5 (graded, not a binary switch)</h2>
+      <div id="dial" class="loading">loading dial…</div>
+      <div class="cite">SAE-style graded autonomy for agents. Higher levels auto-execute
+        more action classes; risky/secret/irreversible/effector actions still gate at
+        <em>every</em> level. Cursor Auto-review autonomy-dial pattern, made governed.</div>
+    </div>
+
+    <!-- MEASURED RATES -->
+    <div class="card" id="rates-card">
+      <h2>MEASURED RATES — block / interrupt / flap</h2>
+      <div id="rates" class="loading">measuring live…</div>
+      <div class="cite">Block-rate / interrupt-rate / flap-rate are MEASURED from the live
+        rolling decision log (label <em>ROADMAP</em> until enough real runs accrue). Cursor
+        reports ~4% blocked / ~7% chats interrupted — we <b>measure ours</b>, we do not borrow it.</div>
+    </div>
+
+    <!-- CALIBRATION + CONFORMAL -->
+    <div class="card" id="cal-card">
+      <h2>CALIBRATION (ECE/Brier gate) + CONFORMAL SET</h2>
+      <div id="cal" class="loading">measuring live…</div>
+      <canvas id="relchart" height="150" style="margin-top:10px"></canvas>
+      <div class="cite">ECE (equal-width bins) + Brier; gate ECE &lt; 0.05 required for any
+        automated (no-human) verdict, <b>fails closed</b> on unmeasured. Conformal set replaces
+        bare confidence % (Dev B's <code>szl_conformal</code> helper).
+        <code>arXiv:2505.15437</code> / <code>arXiv:2305.18404</code>.</div>
+    </div>
+
+    <!-- FLAPPING -->
+    <div class="card" id="flap-card">
+      <h2>FLAPPING DETECTION — verdict stability</h2>
+      <div id="flap" class="loading">measuring live…</div>
+      <div class="cite">FLAPPING = the same case (intent+tool+input+dial) gets DIFFERENT
+        verdicts across repeated runs. Flapping → policy is unstable → tighten it.</div>
+    </div>
+
+    <!-- INLINE REVIEW STREAM (gated-run) -->
+    <div class="card full" id="run-card">
+      <h2>INLINE REVIEW STREAM — block → explanation → self-correct trace</h2>
+      <div style="margin-bottom:10px">
+        <span class="k">demo intent:</span>
+        <input id="intent" value="debug the auth flow" style="width:280px;background:#0e1622;
+               color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 8px;
+               font:inherit;font-size:12px"/>
+        <span class="k" style="margin-left:10px">dial:</span>
+        <span id="run-dial" class="mono acc">L3</span>
+        <button class="btn" id="runbtn" style="margin-left:12px">▶ run gated ReAct plan</button>
+      </div>
+      <div id="run" class="loading">Click “run gated ReAct plan” — the classifier reviews each
+        Action node inline, signs each verdict, blocks the risky one with an explanation
+        (so the parent self-corrects), and allows the safe one.</div>
+      <div class="cite">Demonstrates the keystone: classifier runs subagent-style INLINE at
+        the Action node of Dev A's ReAct loop (<code>/api/a11oy/v1/agent/react/*</code>), not as
+        a separate round-trip. Each step carries a DSSE-signed receipt + the Rego rule hit + the
+        OSCAL control cited. A code-shaped step also shows its <b>a11oy Restraint rung</b>
+        (<code>/api/a11oy/v1/restraint</code>): a bloated diff that skipped the frugality ladder is
+        narrowed by <b>AR-006 prefer-minimal-diff</b> (OSCAL SA-8/SA-15/CM-7 · NIST AI RMF MANAGE 2.3).</div>
+    </div>
+
+    <!-- POLICY (Rego + OSCAL + NIST) -->
+    <div class="card full" id="pol-card">
+      <h2>POLICY — OPA/Rego rules → OSCAL controls → NIST AI RMF MANAGE</h2>
+      <div id="pol" class="loading">loading policy…</div>
+      <div class="cite">Rules authored in <a href="https://github.com/open-policy-agent/opa"
+        target="_blank" rel="noopener">OPA/Rego</a>; each maps to an
+        <a href="https://github.com/usnistgov/OSCAL" target="_blank" rel="noopener">OSCAL</a>
+        control (SP 800-53 Rev5 via
+        <a href="https://github.com/usnistgov/oscal-content" target="_blank" rel="noopener">oscal-content</a>)
+        and a <a href="https://airc.nist.gov/airmf-resources/airmf/5-sec-core/" target="_blank"
+        rel="noopener">NIST AI RMF MANAGE</a> subcategory. We MAP-TO / ALIGN-WITH — this is not a
+        certification or ATO.</div>
+    </div>
+
+    <!-- RECENT SIGNED DECISIONS -->
+    <div class="card full" id="recent-card">
+      <h2>RECENT DECISIONS — per-decision signed receipt + rule + control</h2>
+      <div id="recent" class="loading">loading live decision log…</div>
+      <div class="cite">Live rolling log. Each row carries the verdict, the Rego rule hit, the
+        OSCAL control(s), the Λ-effective value (&lt; 1.0), and the canonical decision hash that is
+        DSSE-signed into the node's receipt.</div>
+    </div>
+
+  </div>
+</div>
+<footer>
+  a11oy auto-review lane · Λ = Conjecture 1 (advisory, &lt; 1.0, never 100%) · trust &lt; 100% ·
+  tamper-evident DSSE · SLSA L1 honest / L2 in progress / L3 roadmap · effectors SIMULATED · 0 runtime CDN.
+  Data: <span class="mono">/api/a11oy/v1/autoreview/{dial,classify,gated-run,policy,metrics,recent,_diag}</span>
+</footer>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});
+function kv(k,v){return `<div class="kv"><span class="k">${esc(k)}</span><span class="v">${v}</span></div>`}
+async function getj(u){const r=await fetch(u);if(!r.ok)throw new Error(u+" -> "+r.status);return r.json()}
+async function postj(u,b){const r=await fetch(u,{method:"POST",headers:{"content-type":"application/json"},
+  body:JSON.stringify(b||{})});if(!r.ok)throw new Error(u+" -> "+r.status);return r.json()}
+const pct=x=>(x==null?"—":(x*100).toFixed(1)+"%");
+function vpill(v){
+  const m={allow:"ok","narrow":"warn","block-with-explanation":"err","escalate":"road"};
+  return `<span class="pill ${m[v]||""}">${esc(v)}</span>`;
+}
+let DIAL=3;
+
+// ---- AUTONOMY DIAL ----
+getj("/api/a11oy/v1/autoreview/dial").then(d=>{
+  DIAL=d.default!=null?d.default:3;
+  let cells=(d.levels||[]).map(l=>
+    `<div class="dlv ${l.level===DIAL?"sel":""}" data-lv="${l.level}">
+       <div class="lv">L${l.level}</div>
+       <div class="nm">${esc((l.label||"").replace(/^L\d+\s*[—-]\s*/,""))}</div>
+     </div>`).join("");
+  $("#dial").innerHTML=`<div class="dial">${cells}</div><div id="dialdesc" class="note"></div>`;
+  const desc=()=>{const sel=(d.levels||[]).find(x=>x.level===DIAL)||{};
+    $("#dialdesc").innerHTML=`<b style="color:var(--acc)">L${DIAL} — ${esc((sel.label||"").replace(/^L\d+\s*[—-]\s*/,""))}</b>: ${esc(sel.desc||sel.policy||sel.description||"")}`;
+    $("#run-dial").textContent="L"+DIAL;};
+  desc();
+  document.querySelectorAll(".dlv").forEach(c=>c.addEventListener("click",()=>{
+    DIAL=parseInt(c.dataset.lv,10);
+    document.querySelectorAll(".dlv").forEach(x=>x.classList.toggle("sel",parseInt(x.dataset.lv,10)===DIAL));
+    desc();
+  }));
+}).catch(e=>$("#dial").innerHTML=`<div class="err">dial unavailable: ${esc(e.message)}</div>`);
+
+// ---- MEASURED RATES + CALIBRATION + FLAP (one /metrics call) ----
+getj("/api/a11oy/v1/autoreview/metrics").then(d=>{
+  const meas=(d.rate_status||"").indexOf("MEASURED")>=0;
+  const stp=meas?`<span class="pill acc">MEASURED</span>`:`<span class="pill road">ROADMAP</span>`;
+  $("#rates").innerHTML=
+    `<div class="big">${pct(d.block_rate)}</div><div class="k" style="margin-top:-6px">block-rate ${stp}</div>`+
+    kv("decisions logged (n)",`<b>${d.decisions_logged}</b>`)+
+    kv("interrupt-rate",pct(d.interrupt_rate))+
+    kv("escalate-rate",pct(d.escalate_rate))+
+    kv("narrow-rate",pct(d.narrow_rate))+
+    kv("allow-rate",pct(d.allow_rate))+
+    `<div class="note">${esc(d.honest_target||"")}</div>`;
+
+  // calibration + conformal
+  const m=d.calibration||{};
+  const measured=m.status==="measured";
+  const gateok=(m.ece!=null)&&(m.ece<(m.ece_gate_threshold||0.05));
+  $("#cal").innerHTML=
+    kv("model / agent",`<span class="mono">${esc(m.model)} / ${esc(m.agent_type)}</span>`)+
+    kv("status",measured?`<span class="pill acc">measured</span>`:`<span class="pill warn">${esc(m.status)}</span>`)+
+    kv("samples (n)",m.n)+
+    kv("ECE",`<b class="mono">${measured?m.ece.toFixed(4):"not_measured"}</b>`)+
+    kv("Brier"+(m.brier_kind?` (${esc(m.brier_kind)})`:""),`<span class="mono">${m.brier!=null?m.brier.toFixed(4):"—"}</span>`)+
+    kv("accuracy",pct(m.accuracy))+
+    kv("auto-response gate",gateok?`<span class="pill ok">ALLOW (ECE&lt;${m.ece_gate_threshold||0.05})</span>`:`<span class="pill err">DENY → human-on-loop</span>`)+
+    `<div class="note">Λ-effective is capped &lt; 1.0 (Conjecture 1): we never claim 100% safe.</div>`;
+  const arr=Array.isArray(m.reliability)?m.reliability.filter(b=>b.count>0):[];
+  if(window.Chart&&arr.length){
+    new Chart($("#relchart"),{type:"bar",
+      data:{labels:arr.map(b=>(b.lo!=null?b.lo:0).toFixed(2)),
+            datasets:[
+              {label:"accuracy",data:arr.map(b=>b.accuracy),backgroundColor:"#5ad1c9"},
+              {label:"mean confidence",data:arr.map(b=>b.mean_conf),type:"line",borderColor:"#7aa2f7",fill:false}
+            ]},
+      options:{plugins:{legend:{labels:{color:"#8b98a9"}}},
+               scales:{x:{ticks:{color:"#8b98a9"},grid:{color:"#1a2435"}},
+                       y:{min:0,max:1,ticks:{color:"#8b98a9"},grid:{color:"#1a2435"}}}}});
+  } else { $("#relchart").style.display="none"; }
+
+  // flapping
+  const f=d.flapping||{};
+  $("#flap").innerHTML=
+    `<div class="big">${pct(f.flap_rate)}</div><div class="k" style="margin-top:-6px">flap-rate <span class="pill ${ (f.flap_rate_status||"").indexOf("MEASURED")>=0?"acc":"road"}">${esc(f.flap_rate_status||"ROADMAP")}</span></div>`+
+    kv("cases seen",f.cases_seen)+
+    kv("cases repeated",f.cases_repeated)+
+    kv("cases flapping",f.cases_flapping!=null?`<b>${f.cases_flapping}</b>`:"—")+
+    `<div class="note">${esc(f.definition||"")}</div>`;
+}).catch(e=>{
+  $("#rates").innerHTML=`<div class="err">metrics unavailable: ${esc(e.message)}</div>`;
+  $("#cal").innerHTML=$("#flap").innerHTML=`<div class="err">unavailable</div>`;
+});
+
+// ---- INLINE REVIEW STREAM ----
+function renderRun(d){
+  const cls={allow:"allow","narrow":"narrow","block-with-explanation":"block","escalate":"escalate"};
+  let steps=(d.trace||[]).map(s=>{
+    const signed=s.signed?`<span class="pill ok">DSSE signed</span>`:`<span class="pill warn">unsigned</span>`;
+    const conf=(s.conformal_set||[]).join(", ");
+    return `<div class="step ${cls[s.verdict]||""}">
+      <div class="hd">
+        <div><span class="k">#${s.seq} ${esc(s.node)}</span>
+          <span class="ti"> → ${esc(s.tool)}: <code>${esc(s.tool_input)}</code></span></div>
+        <div class="vd">${vpill(s.verdict)} ${signed}</div>
+      </div>
+      <div class="act">${esc(s.action)}</div>
+      ${s.explanation?`<div class="explain">${esc(s.explanation)}</div>`:""}
+      ${s.self_correct_hint?`<div class="selfc">↻ self-correct hint: ${esc(s.self_correct_hint)}</div>`:""}
+      <div class="meta">
+        <span>rule <b>${esc(s.rule_id||"—")}</b></span>
+        <span>OSCAL <b>${esc((s.oscal_controls||[]).join(", ")||"—")}</b></span>
+        <span>NIST <b>${esc(s.nist_ai_rmf||"—")}</b></span>
+        <span>Λ-eff <b>${s.lambda_effective!=null?s.lambda_effective.toFixed(3):"—"}</b></span>
+        <span>conformal {<b>${esc(conf)}</b>}</span>
+        <span>restraint ${(s.restraint&&s.restraint.code_shaped)?`rung <b>${esc(String(s.restraint_rung!=null?s.restraint_rung:"?"))}/6 ${esc(s.restraint.rung_key||"")}</b>${s.restraint.bloated?` · <b class="acc">bloated → prefer minimal diff</b>`:` · within ladder`}`:`<b>n/a (not code)</b>`}</span>
+        <span class="sha">hash ${esc((s.decision_hash||"").slice(0,20))}…</span>
+      </div></div>`;
+  }).join("");
+  $("#run").innerHTML=
+    `<div class="note" style="margin-bottom:8px">${esc(d.pattern||"")} · dial <b class="acc">L${d.dial} — ${esc((d.dial_label||"").replace(/^L\d+\s*[—-]\s*/,""))}</b></div>`+
+    steps;
+}
+$("#runbtn").addEventListener("click",async()=>{
+  $("#run").innerHTML=`<div class="loading">running inline review at each Action node…</div>`;
+  try{
+    const d=await postj("/api/a11oy/v1/autoreview/gated-run",
+      {intent:$("#intent").value,dial:DIAL,
+       actions:[
+         {tool:"read",tool_input:"README.md"},
+         {tool:"shell",tool_input:"cat .env api_key token"},
+         {tool:"shell",tool_input:"rm -rf / production"},
+         {tool:"write_file",tool_input:"# format the current date as ISO 8601\nclass DateFormatter:\n    def __init__(self, sep='-', upper=False):\n        self.sep = sep\n        self.upper = upper\n    def _pad(self, n):\n        s = str(n)\n        return s if len(s) >= 2 else '0' + s\n    def format(self, y, m, d):\n        parts = [self._pad(y), self._pad(m), self._pad(d)]\n        out = self.sep.join(parts)\n        return out.upper() if self.upper else out\n"}
+       ]});
+    renderRun(d);
+  }catch(e){$("#run").innerHTML=`<div class="err">gated-run failed: ${esc(e.message)}</div>`;}
+});
+
+// ---- POLICY ----
+getj("/api/a11oy/v1/autoreview/policy").then(d=>{
+  let rows=(d.rules||[]).map(r=>
+    `<tr><td class="mono">${esc(r.id)}</td><td>${esc(r.title)}</td><td>${vpill(r.verdict)}</td>
+      <td class="mono">${esc((r.oscal||[]).join(", "))}</td>
+      <td class="mono">${esc(r.nist_ai_rmf)}</td></tr>`).join("");
+  const cdroot=d.oscal_component_definition||{};
+  const ocd=cdroot["component-definition"]||{};
+  const comp=(ocd.components||[])[0]||{};
+  const ci=(comp["control-implementations"]||[])[0]||{};
+  const ireqs=(ci["implemented-requirements"]||[]).length;
+  const otitle=(ocd.metadata||{}).title||"component-definition";
+  $("#pol").innerHTML=
+    kv("policy version",`<span class="mono">${esc(d.policy_version)}</span>`)+
+    kv("rego sha256",`<span class="sha mono">${esc((d.rego_sha256||"").slice(0,32))}…</span>`)+
+    kv("engine",`<span class="pill road">in-image deterministic eval (opa runtime ROADMAP)</span>`)+
+    kv("honesty",`<span class="note">${esc(d.honest)}</span>`)+
+    `<table style="margin-top:10px"><tr><th>rule id</th><th>title</th><th>verdict</th><th>OSCAL</th><th>NIST AI RMF</th></tr>${rows}</table>`+
+    `<div class="note" style="margin-top:8px">OSCAL component-definition: <b>${esc(otitle)}</b> · <b>${ireqs}</b> implemented requirements (SP 800-53 Rev5 + NIST AI RMF MANAGE).</div>`;
+}).catch(e=>$("#pol").innerHTML=`<div class="err">policy unavailable: ${esc(e.message)}</div>`);
+
+// ---- RECENT DECISIONS ----
+getj("/api/a11oy/v1/autoreview/recent?limit=25").then(d=>{
+  let rows=(d.recent||[]).map(r=>
+    `<tr><td class="mono">${esc((r.ts||"").slice(11,19))}</td>
+      <td>${esc(r.intent||"")}</td>
+      <td class="ti"><code>${esc(r.tool)}: ${esc((r.tool_input||"").slice(0,46))}</code></td>
+      <td>L${r.dial}</td>
+      <td>${vpill(r.verdict)}</td>
+      <td class="mono">${esc(r.rule_id||"—")}</td>
+      <td class="mono">${esc((r.oscal||[]).join(", "))}</td>
+      <td class="mono">${esc(r.nist||"")}</td>
+      <td class="mono">${r.lambda_effective!=null?r.lambda_effective.toFixed(3):"—"}</td>
+      <td class="sha">${esc((r.decision_hash||"").slice(0,14))}…</td></tr>`).join("");
+  $("#recent").innerHTML=
+    `<table><tr><th>time</th><th>intent</th><th>action</th><th>dial</th><th>verdict</th>
+      <th>Rego rule</th><th>OSCAL</th><th>NIST</th><th>Λ-eff</th><th>decision hash (signed)</th></tr>
+      ${rows||`<tr><td colspan="10" class="k">no decisions logged yet</td></tr>`}</table>`;
+}).catch(e=>$("#recent").innerHTML=`<div class="err">recent unavailable: ${esc(e.message)}</div>`);
+
+// honesty audit of our own copy (catch "100%", "tamper-proof", etc.)
+try{ if(window.SZLLabels&&SZLLabels.auditText){
+  const flags=SZLLabels.auditText(document.body.innerText||"");
+  if(flags&&flags.length){console.warn("[autoreview] label audit flags:",flags);}
+}}catch(_){}
+</script>
+<script>
+/* F2 Auto-Review 3D (additive) */
+/* F2 — Auto-Review 3D controller (additive enhancement; 2D content is the fallback).
+ * 0 runtime CDN: kit is vendored at /static/shared/szl_holo3d.js (imported only).
+ * Reads LIVE /api/a11oy/v1/autoreview/{dial,classify}. Λ-gated (Conjecture 1, <1.0),
+ * DSSE-signed verdicts, trust < 100%. Never fabricates metrics. */
+(function () {
+  "use strict";
+  var BASE = "/api/a11oy/v1/autoreview";
+  var Q = function (id) { return document.getElementById(id); };
+  var ESC = function (s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g,function(c){return({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]||c);});
+  };
+  // verdict -> board chip class (matches .ar3d-rcpt.<verdict> CSS)
+  var VCLASS = {
+    "allow": "allow", "narrow": "narrow",
+    "block-with-explanation": "block-with-explanation", "escalate": "escalate"
+  };
+
+  var scene = null, sphere = null, dial = 3, dialLevels = [], built = false, signed = 0;
+
+  function getj(u) {
+    return fetch(u).then(function (r) {
+      if (!r.ok) { throw new Error(u + " -> " + r.status); }
+      return r.json();
+    });
+  }
+  function postj(u, b) {
+    return fetch(u, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(b || {})
+    }).then(function (r) {
+      if (!r.ok) { throw new Error(u + " -> " + r.status); }
+      return r.json();
+    });
+  }
+
+  function setMode() {
+    var el = Q("ar3d-mode");
+    if (!el) { return; }
+    if (!window.SZLHolo) { el.textContent = "3D kit unavailable — using 2D content below"; return; }
+    try {
+      var caps = SZLHolo.capabilities();
+      el.textContent = "render: " + (caps.mode || "?") + (caps.webgl2 ? " (webgl2)" : "");
+    } catch (_) { el.textContent = "render: ready"; }
+  }
+
+  // ---- AUTONOMY DIAL (live /dial) ----
+  function loadDial() {
+    return getj(BASE + "/dial").then(function (d) {
+      dialLevels = d.levels || [];
+      dial = (d.default != null) ? d.default : 3;
+      renderDial();
+    }).catch(function (e) {
+      var r = Q("ar3d-dial");
+      if (r) { r.innerHTML = '<span class="ar3d-mut">dial unavailable: ' + ESC(e.message) + "</span>"; }
+    });
+  }
+  function renderDial() {
+    var row = Q("ar3d-dial");
+    if (!row) { return; }
+    row.innerHTML = dialLevels.map(function (l) {
+      return '<div class="ar3d-dlv' + (l.level === dial ? " sel" : "") +
+        '" data-lv="' + l.level + '">L' + l.level + "</div>";
+    }).join("");
+    var cells = row.querySelectorAll(".ar3d-dlv");
+    for (var i = 0; i < cells.length; i++) {
+      cells[i].addEventListener("click", function (ev) {
+        dial = parseInt(ev.currentTarget.getAttribute("data-lv"), 10);
+        renderDial();
+        describeDial();
+      });
+    }
+    describeDial();
+  }
+  function describeDial() {
+    var el = Q("ar3d-dialdesc");
+    if (!el) { return; }
+    var sel = null;
+    for (var i = 0; i < dialLevels.length; i++) {
+      if (dialLevels[i].level === dial) { sel = dialLevels[i]; break; }
+    }
+    sel = sel || {};
+    var label = (sel.label || "").replace(/^L\d+\s*[\u2014-]\s*/, "");
+    el.innerHTML = '<b style="color:var(--acc)">L' + dial + " — " + ESC(label) + "</b>: " +
+      ESC(sel.desc || sel.policy || sel.description || "");
+  }
+
+  // ---- 3D SCENE + verdict trust-sphere ----
+  function ensureScene() {
+    if (built) { return true; }
+    var mount = Q("ar3d-canvas");
+    if (!mount || !window.SZLHolo) { return false; }
+    try {
+      scene = SZLHolo.createScene(mount, { sample: false });
+      // verdict trust-sphere — starts at a neutral, honest sub-1.0 Λ
+      sphere = scene.addTrustSphere({ center: [0, 0, 0], radius: 0.8, lambda: 0.5, label: "VERDICT" });
+      scene.setLambda(0.5);
+      scene.start();
+      built = true;
+      setMode();
+      return true;
+    } catch (e) {
+      var el = Q("ar3d-mode");
+      if (el) { el.textContent = "3D init failed — 2D content below is intact"; }
+      return false;
+    }
+  }
+
+  // map a verdict to a board chip + animate it onto the board
+  function pushReceipt(d) {
+    var board = Q("ar3d-board");
+    if (!board) { return; }
+    if (signed === 0) { board.innerHTML = ""; }
+    signed += 1;
+    var v = d.verdict || "—";
+    var lam = (typeof d.lambda_effective === "number") ? d.lambda_effective : null;
+    var sig = d.receipt && d.receipt.envelope && d.receipt.envelope.signed;
+    var hash = (d.decision_hash || "").slice(0, 12);
+    var chip = document.createElement("div");
+    chip.className = "ar3d-rcpt " + (VCLASS[v] || "");
+    chip.innerHTML = "#" + signed + " " + ESC(v) +
+      (lam != null ? " · Λ" + lam.toFixed(2) : "") +
+      (sig ? " · ✔signed" : " · unsigned") +
+      (hash ? ' · <span style="opacity:.7">' + ESC(hash) + "…</span>" : "");
+    board.appendChild(chip);
+  }
+
+  // ---- CLASSIFY (live /classify) -> recolor sphere by Λ, sign receipt onto board ----
+  function classify() {
+    var btn = Q("ar3d-classify");
+    if (btn) { btn.disabled = true; }
+    var verdEl = Q("ar3d-verdict");
+    if (verdEl) { verdEl.textContent = "classifying…"; }
+    // NOTE: /classify treats `workspace` as an object; omit it (string 500s the endpoint).
+    var body = {
+      intent: (Q("ar3d-intent") || {}).value || "",
+      tool: (Q("ar3d-tool") || {}).value || "",
+      tool_input: (Q("ar3d-input") || {}).value || "",
+      dial: dial
+    };
+    return postj(BASE + "/classify", body).then(function (d) {
+      var lam = (typeof d.lambda_effective === "number") ? d.lambda_effective : 0.5;
+      // honest: Λ stays < 1.0 (Conjecture 1) — clamp just under 1
+      if (lam >= 1.0) { lam = 0.999; }
+      if (sphere) { sphere.lambda = lam; }
+      if (scene) { scene.setLambda(lam); }
+      var lamEl = Q("ar3d-lam");
+      if (lamEl) {
+        lamEl.textContent = "Λ " + lam.toFixed(3);
+        if (window.SZLHolo && SZLHolo.lambdaColor) { lamEl.style.color = SZLHolo.lambdaColor(lam); }
+      }
+      if (verdEl) {
+        verdEl.innerHTML = "<b>" + ESC(d.verdict || "—") + "</b> (L" +
+          ESC(d.dial != null ? d.dial : dial) + ") · rule <b>" + ESC(d.rule_id || "—") +
+          "</b> · OSCAL " + ESC((d.oscal_controls || []).join(", ") || "—") +
+          "<br>" + ESC(d.explanation || "");
+        verdEl.className = "";
+      }
+      pushReceipt(d);
+    }).catch(function (e) {
+      if (verdEl) { verdEl.innerHTML = '<span style="color:var(--err)">classify failed: ' + ESC(e.message) + "</span>"; }
+    }).then(function () {
+      if (btn) { btn.disabled = false; }
+    });
+  }
+
+  // ---- TOGGLE (keeps 2D content as fallback) ----
+  function toggle() {
+    var panel = Q("ar3d-panel");
+    var btn = Q("ar3d-toggle");
+    if (!panel) { return; }
+    var showing = panel.style.display !== "none" && panel.style.display !== "";
+    if (showing) {
+      panel.style.display = "none";
+      if (btn) { btn.textContent = "Show 3D autonomy"; }
+      if (scene && scene.stop) { try { scene.stop(); } catch (_) {} }
+    } else {
+      panel.style.display = "block";
+      if (btn) { btn.textContent = "Hide 3D autonomy"; }
+      if (ensureScene() && scene && scene.start) { try { scene.start(); } catch (_) {} }
+    }
+  }
+
+  function init() {
+    var btn = Q("ar3d-toggle");
+    if (btn) { btn.addEventListener("click", toggle); }
+    var cb = Q("ar3d-classify");
+    if (cb) { cb.addEventListener("click", classify); }
+    loadDial();
+    setMode();
+    if (!window.SZLHolo) {
+      var el = Q("ar3d-mode");
+      if (el) { el.textContent = "3D kit unavailable — 2D content below is the fallback"; }
+    }
+    // expose hooks for live verification
+    window.__AR3D_toggle = toggle;
+    window.__AR3D_classify = classify;
+    window.__AR3D_state = function () {
+      return { built: built, dial: dial, signed: signed, lambda: sphere ? sphere.lambda : null };
+    };
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
+</script>
+</body>
+</html>

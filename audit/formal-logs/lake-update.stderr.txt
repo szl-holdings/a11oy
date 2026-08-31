@@ -1,0 +1,9 @@
+
+Downloaded: 0 file(s) [attempted 1/4 = 25%]
+Downloaded: 0 file(s) [attempted 2/4 = 50%]
+Downloaded: 0 file(s) [attempted 3/4 = 75%]
+Downloaded: 0 file(s) [attempted 4/4 = 100%] (0% success)
+Warning: some files were not found in the cache.
+This usually means that your local checkout of mathlib4 has diverged from upstream.
+If you push your commits to a branch of the mathlib4 repository, CI will build the oleans and they will be available later.
+info: mathlib: running post-update hooks

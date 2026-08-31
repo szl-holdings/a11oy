@@ -1,0 +1,50 @@
+{
+  "claim_rule": "No production, customer, ROI, superiority, compliance, legal, financial, security or transaction claim without current exact evidence.",
+  "display_name": "Puriq Markets",
+  "metrics": [
+    "event mapping precision",
+    "calibration and scoring",
+    "forecast disagreement detected",
+    "decision lead time",
+    "committee override rate",
+    "source freshness",
+    "risk brief reproduction"
+  ],
+  "schema": "szl.investor-decision-theatre/v8",
+  "sequence": [
+    {
+      "show": "buyer and costly decision problem",
+      "step": 1
+    },
+    {
+      "show": "source, rights, freshness and evidence",
+      "step": 2
+    },
+    {
+      "show": "domain graph and proposal",
+      "step": 3
+    },
+    {
+      "show": "formula results with authority NONE",
+      "step": 4
+    },
+    {
+      "show": "policy and human approval",
+      "step": 5
+    },
+    {
+      "show": "approved bounded action or recorded decision",
+      "step": 6
+    },
+    {
+      "show": "denial, abstention or escalation",
+      "step": 7
+    },
+    {
+      "show": "receipt, offline verification, replay and outcome",
+      "step": 8
+    }
+  ],
+  "vertical_id": "puriq-markets",
+  "wedge": "Event Definition-to-Decision Forecast Assurance"
+}

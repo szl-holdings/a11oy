@@ -1,0 +1,7 @@
+# SPDX-License-Identifier: Apache-2.0
+# sentra runtime deps. Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1.
+# NOTE: sentra's primary deps are pinned in the Dockerfile (HF Space build).
+# This file declares the cross-pod tracing dependency for the mesh wire-up.
+# vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
+# resolves offline (no PyPI dependency at build time) — honest, no-mock.
+vsp-otel>=0.1

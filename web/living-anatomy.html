@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>a11oy — Living Anatomy (one governed organism) · SZL Holdings</title>
+<meta name="description" content="a11oy + killinchu as one governed organism: the live 3D anatomy scene with proven formulas living in each organ and honest maturity labels (locked-8; Λ = Conjecture 1; Byzantine = Conjecture 2 OPEN)."/>
+<!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
+     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
+<style>
+@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
+@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
+</style>
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --rail:#0b0b0b;
+  --gold:#c9b787; --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --teal-line:rgba(95,179,163,0.22);
+  --live:#5a8a6e; --green:#39d98a; --yellow:#f5c451; --orange:#ff8a5c; --blue:#5bc8ff;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --display:'Space Grotesk',Georgia,serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--gold);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--gold-line);background:var(--gold-soft);}
+.flag.active{color:var(--gold);background:var(--gold-soft);border-color:var(--gold);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.35rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--teal);}
+.card .sub{font-family:var(--mono);font-size:10px;color:var(--muted);}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1.1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .4rem;display:flex;align-items:center;justify-content:space-between;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.embed{width:100%;height:78vh;min-height:560px;border:1px solid var(--gold-line);border-radius:8px;background:#05070c;overflow:hidden;position:relative;}
+.embed iframe{width:100%;height:100%;border:0;display:block;}
+.organs{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin-top:.4rem;}
+.organ{border:1px solid var(--gold-line);background:var(--rail);border-radius:8px;padding:.7rem .9rem;}
+.organ .nm{font-weight:600;font-size:.95rem;}
+.organ .tref{font-family:var(--mono);font-size:10.5px;color:var(--teal);margin:.2rem 0;}
+.organ .mat{font-family:var(--mono);font-size:9.5px;text-transform:uppercase;letter-spacing:.07em;padding:.12rem .4rem;border-radius:4px;display:inline-block;}
+.organ .desc{font-size:.82rem;color:var(--paragraph);line-height:1.55;margin-top:.3rem;}
+.footnote{margin-top:1.2rem;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;border-top:1px solid var(--gold-line);padding-top:.9rem;}
+.footnote b{color:var(--cream);}
+@media(max-width:980px){.cards{grid-template-columns:repeat(2,1fr);}.organs{grid-template-columns:1fr;}}
+.hud{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;}
+.chip{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--gold-line);background:var(--rail);padding:.32rem .62rem;border-radius:6px;cursor:pointer;transition:.15s;}
+.chip:hover{color:var(--cream);border-color:var(--teal-line);}
+.chip.active{color:var(--teal);background:var(--teal-soft);border-color:var(--teal);font-weight:600;}
+.chip .k{opacity:.6;margin-left:.35rem;}
+.iconbtn{font-family:var(--mono);font-size:10px;letter-spacing:.06em;text-transform:uppercase;color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);padding:.32rem .62rem;border-radius:6px;cursor:pointer;transition:.15s;}
+.iconbtn:hover{color:var(--cream);border-color:var(--gold);}
+.hint{font-family:var(--mono);font-size:10px;color:var(--dim);margin:.55rem 0 0;line-height:1.6;}
+.views{display:grid;grid-template-columns:repeat(2,1fr);gap:.7rem;margin-top:.4rem;}
+.view{border:1px solid var(--gold-line);background:var(--rail);border-radius:8px;padding:.7rem .9rem;}
+.view .vh{font-weight:600;font-size:.9rem;display:flex;align-items:center;gap:.45rem;}
+.view .vg{font-family:var(--mono);font-size:9.5px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-left:auto;}
+.view .vd{font-size:.8rem;color:var(--paragraph);line-height:1.5;margin-top:.3rem;}
+.view .vd code{font-family:var(--mono);color:var(--teal);font-size:.74rem;}
+.view .vd b{color:var(--cream);}
+.links{display:flex;flex-wrap:wrap;gap:.6rem;margin-top:.3rem;}
+.linkcard{flex:1 1 240px;border:1px solid var(--gold-line);background:var(--rail);border-radius:8px;padding:.7rem .9rem;transition:.15s;}
+.linkcard:hover{border-color:var(--teal-line);background:var(--teal-soft);}
+.linkcard .lt{font-weight:600;font-size:.9rem;}
+.linkcard .ls{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:.2rem;}
+.nav-item{display:inline-flex;align-items:center;gap:.4rem;font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--gold-line);background:var(--rail);padding:.3rem .62rem;border-radius:6px;margin:.6rem .4rem 0 0;transition:.15s;cursor:pointer;}
+.nav-item:first-of-type{margin-left:1.4rem;}
+.nav-item:hover{color:var(--cream);border-color:var(--teal-line);}
+.nav-item .ico{opacity:.85;}
+@media(max-width:980px){.views{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span><span class="sep">/</span><span>LIVING ANATOMY</span>
+  <span class="sep">/</span><span class="live"><span class="live-dot"></span><span id="livelbl">LIVE · RT</span></span>
+  <span class="switcher">
+    <a class="flag" href="/fleet-c2">Fleet C2</a>
+    <a class="flag active" href="/living-anatomy">Living Anatomy</a>
+    <a class="flag" href="/code">Code</a>
+  </span>
+</div>
+<div class="wrap">
+  <h1>Living Anatomy (one governed organism)<span class="badge">a11oy + killinchu as ONE organism · proven formulas in the organs</span></h1>
+  <p class="lede">a11oy and killinchu are <b>one connected governed organism</b>, not two products. This 3D anatomy scene overlays the <b>proven formulas living in each organ</b> with <b>honest maturity labels</b> — reasoning, policy, field node, orchestrator, each carrying a theorem_ref. That is the <b>proof backbone</b>: every organ's function is tied to a formally-stated property.</p>
+  <div class="cards">
+    <div class="card"><div class="lbl">Organism</div><div class="big">a11oy + killinchu</div><div class="sub">one governed body</div></div>
+    <div class="card"><div class="lbl">Locked-proven</div><div class="big" style="color:var(--green)" id="c_locked">8</div><div class="sub">F1 F4 F7 F11 F12 F18 F19 F22 @ c7c0ba17</div></div>
+    <div class="card"><div class="lbl">Λ (trust)</div><div class="big" style="color:var(--orange)">Conjecture 1</div><div class="sub">advisory · NOT a theorem</div></div>
+    <div class="card"><div class="lbl">Consensus mesh</div><div class="big" id="c_mesh" style="color:var(--teal)">—</div><div class="sub">Byzantine = Conjecture 2 OPEN</div></div>
+  </div>
+  <div class="panel">
+    <h2>Living anatomy (live 3D) — opens zoomed OUT to the whole estate<span class="meta">szlholdings-anatomy.hf.space</span></h2>
+    <div class="hud" style="margin:.15rem 0 .7rem">
+      <button class="chip active" data-view="estate" onclick="setView('estate',this)">⤢ Estate<span class="k">zoom-out</span></button>
+      <button class="chip" data-view="council" onclick="setView('council',this)">◎ Ayllu council</button>
+      <button class="chip" data-view="organism" onclick="setView('organism',this)">◉ Organism</button>
+      <span style="flex:1"></span>
+      <button class="iconbtn" onclick="goFs()">⛶ Fullscreen</button>
+      <a class="iconbtn" href="https://szlholdings-anatomy.hf.space#estate" target="_blank" rel="noopener">Open scene ↗</a>
+    </div>
+    <div class="embed" id="embed"><iframe id="scene" src="https://szlholdings-anatomy.hf.space#estate" title="SZL Living Anatomy (a11oy + killinchu)" loading="lazy" referrerpolicy="no-referrer" allowfullscreen allow="fullscreen"></iframe></div>
+    <p class="hint">Opens on the <b style="color:var(--cream)">estate</b> zoom-out so the whole estate &amp; its wirings are visible at a glance. Inside the scene: drag to orbit · scroll to zoom · ⟲ resets · ▦ estate lens toggles the honesty panel.</p>
+  </div>
+  <div class="panel">
+    <h2>Estate &amp; Ayllu views<span class="meta">v10 · camera presets</span></h2>
+    <div class="views">
+      <div class="view"><div class="vh">⤢ Estate<span class="vg">zoom-out</span></div><div class="vd">Zoom OUT to the whole estate — hardware &amp; stack (<b>declared</b>, no live probe). Gold labels mark each estate node.</div></div>
+      <div class="view"><div class="vh">◎ Ayllu council<span class="vg">live roster</span></div><div class="vd">Zoom to the Ayllu council — the live persona roster, read from <code>/v1/ayllu/roster</code>. An empty live roster is shown as a declared snapshot, never faked.</div></div>
+      <div class="view"><div class="vh">◉ Organism<span class="vg">home</span></div><div class="vd">The home view of the single governed organism (a11oy + killinchu) — the default when no view is requested.</div></div>
+      <div class="view"><div class="vh">▦ Estate lens<span class="vg">honesty panel</span></div><div class="vd">Toggles the estate/council honesty panel: council source (live vs declared), the PhysicsNeMo PINN lab (measured), and the declared hardware &amp; stack.</div></div>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>The same organism — the other two surfaces<span class="meta">one anatomy, cross-linked</span></h2>
+    <div class="links">
+      <a class="linkcard" href="https://szlholdings-anatomy.hf.space#estate" target="_blank" rel="noopener"><div class="lt">Standalone anatomy scene ↗</div><div class="ls">szlholdings-anatomy.hf.space · full-screen 3D (opens zoomed-out)</div></a>
+      <a class="linkcard" href="https://szlholdings-killinchu.hf.space" target="_blank" rel="noopener"><div class="lt">killinchu — the field-node body ↗</div><div class="ls">szlholdings-killinchu.hf.space · counter-UAS twin (same organism)</div></a>
+      <a class="linkcard" href="/formulas"><div class="lt">/formulas — the named-formula registry</div><div class="ls">23 addressable FormulaAgents · live proof-state reveal · honest Lean status</div></a>
+      <a class="linkcard" href="/wires#constitution"><div class="lt">/wires — the written constitution</div><div class="ls">W-CONST v1.0 · numbered rules wired to live enforcement evidence</div></a>
+    </div>
+  </div>
+  <div class="panel">
+    <h2>Proven formulas living in the organs<span class="meta">theorem_ref + honest maturity</span></h2>
+    <div class="organs">
+      <div class="organ"><div class="nm">Brain — reasoning cortex (a11oy)</div><div class="tref">F12 · Pinsker / KL-control · Lutar kernel c7c0ba17</div><span class="mat" style="background:rgba(57,217,138,.12);color:var(--green)">locked-proven</span><div class="desc">The reasoning organ's confidence bounds are backed by a locked-proven information-theoretic inequality (one of the 5).</div></div>
+      <div class="organ"><div class="nm">Heart — Λ trust gate (both)</div><div class="tref">Λ uniqueness · Conjecture 1 (machine-checked FALSE as unconditional)</div><span class="mat" style="background:rgba(255,138,92,.12);color:var(--orange)">conjecture (advisory)</span><div class="desc">The Λ-gate beats per decision. Λ is Conjecture 1 — advisory only; uniqueness holds conditionally (CUT-2), never unconditionally.</div></div>
+      <div class="organ"><div class="nm">Skeleton — locked-8 spine (both)</div><div class="tref">F1 F4 F7 F11 F12 F18 F19 F22 @ kernel c7c0ba17</div><span class="mat" style="background:rgba(57,217,138,.12);color:var(--green)">locked-proven</span><div class="desc">Exactly 8 formulas form the load-bearing spine — kernel-verified, never inflated. Experimental tier (CI-green @ 044eb098) is NOT folded in.</div></div>
+      <div class="organ"><div class="nm">Nervous system — consensus mesh (both)</div><div class="tref">Khipu Conjecture 2 · Byzantine quorum safety</div><span class="mat" style="background:rgba(255,138,92,.12);color:var(--orange)">conjecture (OPEN)</span><div class="desc">The quorum is read live, but Byzantine safety is Conjecture 2 — OPEN. We surface the live quorum, not a proof.</div></div>
+      <div class="organ"><div class="nm">Field node — counter-UAS body (killinchu)</div><div class="tref">CUT-2 conditional · threshold-policy · @ 044eb098</div><span class="mat" style="background:rgba(245,196,81,.12);color:var(--yellow)">conditional (CI-green)</span><div class="desc">The field organ runs governed interdiction; its threshold policy is conditional/experimental, CI-green on main — labeled, not locked.</div></div>
+      <div class="organ"><div class="nm">Circulatory — signed receipt bus (both)</div><div class="tref">DSSE / ECDSA-P256 · hash-chain + Merkle audit (A5 measured)</div><span class="mat" style="background:rgba(91,200,255,.12);color:var(--blue)">measured</span><div class="desc">Every decision flows as a genuinely signed receipt. Deterministic replay is axiom A5 — measured, not a theorem.</div></div>
+    </div>
+  </div>
+  <div class="footnote">
+    <b>Honest by design.</b> Live embed of the shared anatomy scene. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 (never inflated); CUT-2 conditional/experimental @ 044eb098; Byzantine quorum = Conjecture 2 (OPEN); A5 deterministic replay = measured. Mesh quorum is read live. 0 runtime CDN — anatomy scene is a same-org HF static Space. Anatomical vocabulary (brain, heart, skeleton…) is an <b>engineering metaphor</b> for system organs — no medical-atlas or neuroscience claim is made or implied.
+  </div>
+</div>
+<script>
+const A="/api/a11oy";
+const $=id=>document.getElementById(id);
+function setView(v,btn){
+  var f=document.getElementById('scene'); if(!f) return;
+  f.src="https://szlholdings-anatomy.hf.space#"+v;   // hash-only change = in-place camera move, no reload
+  var chips=document.querySelectorAll('.chip'); for(var i=0;i<chips.length;i++){ chips[i].classList.toggle('active', chips[i]===btn); }
+}
+function goFs(){
+  var e=document.getElementById('embed'); if(!e) return;
+  if(document.fullscreenElement){ if(document.exitFullscreen) document.exitFullscreen(); return; }
+  var rq=e.requestFullscreen||e.webkitRequestFullscreen||e.msRequestFullscreen; if(rq) rq.call(e);
+}
+async function getJSON(u){try{const r=await fetch(u);if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+async function load(){
+  // mesh / consensus from killinchu uds healthz (cross-app, one organism)
+  const h=await getJSON("https://szlholdings-killinchu.hf.space/api/killinchu/uds/v1/healthz");
+  if(h&&h.quorum&&h.quorum.healthy!=null){
+    const q=h.quorum;
+    $('c_mesh').textContent=q.healthy+' / 4'+(q.healthy>=4?' (HOLDS)':'');
+    $('c_mesh').style.color='var(--teal)';
+  }else{
+    // honest: no live read => say so; never fake a quorum
+    $('c_mesh').textContent='UNREACHABLE';
+    $('c_mesh').style.color='var(--orange)';
+  }
+  // confirm a11oy live
+  const cl=await getJSON(A+"/code/healthz");
+  $('livelbl').textContent=(cl&&cl.mode==='live')?'LIVE · RT':'LIVE';
+}
+load();
+setInterval(load,30000);
+</script>
+</body>
+</html>

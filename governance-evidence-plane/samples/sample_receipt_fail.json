@@ -1,0 +1,22 @@
+{
+  "receipt_id": "receipt-demo-fail-001",
+  "agent_id": "agent-demo",
+  "policy_id": "policy-exec-bounds",
+  "tool_id": "tool-read-only-executor",
+  "data_scope": "redacted-corpus",
+  "human_approval_id": "approval-demo-001",
+  "model_digest": "sha256:00000000",
+  "output_digest": "81295f6b3511d03d0e074d401aa04ca6d70c347cd17c2b694c08c207325eb23a",
+  "telemetry": {
+    "trace_id": "trace-demo-001",
+    "span_id": "span-demo-001"
+  },
+  "timestamp_utc": "2026-08-11T19:13:31Z",
+  "signature": "this-is-not-a-valid-signature",
+  "evidence_chain": [
+    "decision-transparency-log",
+    "counterfactual-replay",
+    "semantic-run-diff"
+  ],
+  "replay_hint": "counterfactual-fail=policy-exec-bounds"
+}

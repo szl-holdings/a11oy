@@ -1,0 +1,2 @@
+[ELIFECYCLE] Command failed with exit code 1.
+[WARN]  Local package.json exists, but node_modules missing, did you mean to install?

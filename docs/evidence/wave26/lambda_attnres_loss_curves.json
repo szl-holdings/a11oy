@@ -1,0 +1,21 @@
+{
+  "schema": "szl.wave26.lambda-attnres-evidence/v1",
+  "capability_label": "MODELED",
+  "evidence_status": "UNAVAILABLE",
+  "claim_upgrade_allowed": false,
+  "minimum_compute_budgets": 3,
+  "required_arms": [
+    "standard-residual",
+    "block-attnres",
+    "lambda-attnres"
+  ],
+  "matching_requirements": [
+    "model dimensions",
+    "training tokens",
+    "dataset",
+    "optimizer",
+    "hardware"
+  ],
+  "runs": [],
+  "limitations": "No compute-matched loss or scaling-efficiency results have been collected."
+}

@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+# a11oy runtime deps. Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 · Λ = Conjecture 1.
+# NOTE: a11oy's primary deps are pinned in the Dockerfile (HF Space build).
+# This file declares the cross-pod tracing dependency for the mesh wire-up.
+# vsp-otel is also vendored per-file COPY under ./vsp_otel/ so the import
+# resolves offline (no PyPI dependency at build time) — honest, no-mock.
+vsp-otel>=0.1
+# OpenTelemetry SDK + OTLP/gRPC exporter — the dependency closure that makes
+# vsp-otel's server spans actually EXPORTABLE. Without these _Tracer no-ops and
+# every span goes nowhere (shelfware). Export is GATED on OTEL_EXPORTER_OTLP_ENDPOINT:
+# when unset, vsp_otel stays honestly in-process-only (no collector is claimed);
+# when set, spans export OTLP/gRPC to that endpoint.
+opentelemetry-sdk>=1.44.0
+opentelemetry-exporter-otlp>=1.44.0
+# Runtime signing/import parity with the Docker image. Exact pin: the DSSE and
+# boot-ephemeral Council signer must not silently resolve a different crypto
+# implementation in requirements-based deployments.
+cryptography==50.0.0
+# ADDITIVE (Formulas → Ecosystem, Opus 4.8 2026-06-03): real BLS12-381 aggregate
+# signatures over the Khipu chain (a11oy.formulas.bls_aggregate). Optional at runtime —
+# the module returns an HONEST error + ECDSA fallback if absent (never a fake 'verified').
+py_ecc>=8.0.0
+# ADDITIVE (Tier B, issue #203): GENUINE Sigstore keyless signing for deploy/
+# governance receipts (szl_formulas.dsse_envelope_real). Fulcio ephemeral
+# ECDSA-P256 cert + Rekor transparency log. Optional at runtime — only CI jobs
+# with `id-token: write` can mint a real signature; every other runtime keeps the
+# HONEST dsse_envelope() placeholder (DsseSigningUnavailable, never a fake sig).
+sigstore>=4.5.0
+# ADDITIVE (szl-substrate extraction POC): the shared substrate package is the
+# single source of truth for modules duplicated across a11oy + killinchu
+# (szl-holdings/szl-substrate). a11oy_autoreview.py (szl_calibration) and
+# a11oy_ayllu.py (szl_dsse) now PREFER `from szl_substrate import ...` and fall
+# back to the local vendored copy if the package is absent — so the HF Space
+# build (which per-file COPYs the local copies and has no PyPI egress) keeps
+# working UNCHANGED. Uncomment to install the package where egress is available;
+# private repo, so installed via git. The guarded fallback makes this OPTIONAL.
+# szl-substrate @ git+https://github.com/szl-holdings/szl-substrate@main

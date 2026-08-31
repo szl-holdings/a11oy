@@ -1,0 +1,10 @@
+{
+  "phases": [
+    "read-only graph",
+    "case prioritization",
+    "draft remediation",
+    "approval",
+    "verified closure"
+  ],
+  "scope": "one customer environment with one identity, one cloud/security and one work-management connector"
+}

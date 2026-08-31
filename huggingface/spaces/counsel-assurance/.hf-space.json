@@ -1,0 +1,11 @@
+{
+  "adapter": "szl-holdings/a11oy/huggingface/spaces/counsel-assurance",
+  "app_port": 7860,
+  "canonical_source": "szl-holdings/a11oy/verticals/counsel",
+  "github_adapter": "szl-holdings/counsel",
+  "sdk": "docker",
+  "source_visible": false,
+  "space_id": "SZLHOLDINGS/counsel-assurance",
+  "status": "ROADMAP",
+  "visibility": "private"
+}

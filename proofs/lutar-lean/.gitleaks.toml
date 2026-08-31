@@ -1,0 +1,20 @@
+# VENDORED FROM szl-holdings/platform@de08cf8ec5836b0cef968d6560a92ecbd1bc6f4b — services/customer-portal/.gitleaks.toml
+# DO NOT EDIT HERE. Edit in the monorepo, then run scripts/sync_from_monorepo.sh sync.
+# Gitleaks config for SZL Holdings. Extends defaults; allow-lists known false positives.
+# Doctrine v11 LOCKED 749/14/163 locked_at c7c0ba17
+title = "SZL Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "SZL known false-positives"
+# cosign / sigstore PUBLIC keys are safe to commit (public verification material).
+regexes = [
+  '''-----BEGIN PUBLIC KEY-----[\s\S]*?-----END PUBLIC KEY-----''',
+]
+paths = [
+  '''cosign\.pub''',
+  '''.*\.pub$''',
+  '''.*cosign.*\.pem$''',
+]

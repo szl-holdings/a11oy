@@ -1,0 +1,164 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/receipt-agent-artifact-reconciliation.v1.json",
+  "title": "ReceiptAgent exact-artifact and current-head reconciliation",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "state",
+    "maturity",
+    "observed_at",
+    "repository",
+    "qualified_revision",
+    "public_head_revision",
+    "receipt_signature_validity",
+    "exact_qualified_artifact_binding",
+    "current_public_head_equivalence",
+    "authorization",
+    "non_claims",
+    "fixture_sha256",
+    "reconciliation_sha256"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "szl.receiptagent-artifact-reconciliation.v1"
+    },
+    "state": {
+      "const": "ARTIFACT_BYTES_RECONCILED_MEASURED_NOT_PROMOTED"
+    },
+    "maturity": {
+      "const": "MEASURED"
+    },
+    "observed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "repository": {
+      "const": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"
+    },
+    "qualified_revision": {
+      "const": "fa73dc1bd8eeece727d0b5c1db52448ec0703e8b"
+    },
+    "public_head_revision": {
+      "const": "2e62cb5f8e6a17052da532305a467861094a2109"
+    },
+    "receipt_signature_validity": {
+      "type": "object",
+      "required": ["training", "evaluation", "key_id", "trust_boundary"],
+      "properties": {
+        "training": {"const": true},
+        "evaluation": {"const": true},
+        "key_id": {"const": "e7f01810aaa97394"},
+        "trust_boundary": {
+          "const": "REPOSITORY_DECLARED_KEY_NOT_INDEPENDENTLY_PINNED"
+        }
+      },
+      "additionalProperties": false
+    },
+    "exact_qualified_artifact_binding": {
+      "type": "object",
+      "required": [
+        "verified",
+        "qualification_receipt_sha256",
+        "model_raw_sha256",
+        "model_receipt_directory_sha256",
+        "adapter_raw_sha256",
+        "adapter_receipt_directory_sha256",
+        "model_lfs_pointer_git_blob_sha1",
+        "adapter_lfs_pointer_git_blob_sha1",
+        "digest_domain"
+      ],
+      "properties": {
+        "verified": {"const": true},
+        "qualification_receipt_sha256": {
+          "const": "5abc85af639477f32951784c372beef33a608375586c111e517692207074ba7b"
+        },
+        "model_raw_sha256": {
+          "const": "a797592fb35c32cc6ebf5739c0a1d9312123300acaf09987d207d86196bc6e7d"
+        },
+        "model_receipt_directory_sha256": {
+          "const": "851af12990cc2077bb610ebe3e4511a077f1fc59f8e7ebe21d40c73a7da64c69"
+        },
+        "adapter_raw_sha256": {
+          "const": "706aff139489d62cb1ac221c0f92a1a8595cd6a42032c542efe8028684e57cf2"
+        },
+        "adapter_receipt_directory_sha256": {
+          "const": "5eb426c1a4cd17faa4c46590d3aff22671023f64a179e7b47b5bcab4c59e47cd"
+        },
+        "model_lfs_pointer_git_blob_sha1": {
+          "const": "1a6ef2a0a8e2281b4d543060f9df5f766d6ee764"
+        },
+        "adapter_lfs_pointer_git_blob_sha1": {
+          "const": "0cb49f48902ad765f489fd45b21cc186afca93ad"
+        },
+        "digest_domain": {
+          "const": "SHA256_UTF8_BASENAME_CONCAT_RAW_FILE_BYTES"
+        }
+      },
+      "additionalProperties": false
+    },
+    "current_public_head_equivalence": {
+      "type": "object",
+      "required": [
+        "verified",
+        "qualified_commit_git_object_verified",
+        "public_head_commit_git_object_verified",
+        "complete_revision_tree_delta_verified",
+        "inference_bearing_blob_count",
+        "all_inference_bearing_git_blobs_equal",
+        "non_inference_delta"
+      ],
+      "properties": {
+        "verified": {"const": true},
+        "qualified_commit_git_object_verified": {"const": true},
+        "public_head_commit_git_object_verified": {"const": true},
+        "complete_revision_tree_delta_verified": {"const": true},
+        "inference_bearing_blob_count": {"const": 12},
+        "all_inference_bearing_git_blobs_equal": {"const": true},
+        "non_inference_delta": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "object",
+              "required": ["path", "change", "inference_bearing"],
+              "properties": {
+                "path": {"const": "SZL_ESTATE_MANAGED.json"},
+                "change": {"const": "ADDED"},
+                "inference_bearing": {"const": false}
+              },
+              "additionalProperties": false
+            }
+          ],
+          "minItems": 1,
+          "maxItems": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "authorization": {
+      "type": "object",
+      "required": ["trained", "uploaded", "promoted", "deployed"],
+      "properties": {
+        "trained": {"const": false},
+        "uploaded": {"const": false},
+        "promoted": {"const": false},
+        "deployed": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "non_claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {"type": "string"}
+    },
+    "fixture_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "reconciliation_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    }
+  },
+  "additionalProperties": false
+}

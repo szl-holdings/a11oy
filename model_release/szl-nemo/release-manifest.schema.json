@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/szl-nemo-release-manifest-v2.json",
+  "title": "SZL-Nemo release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schema_version",
+    "candidate_id",
+    "artifact_kind",
+    "release_state",
+    "quality_claim",
+    "weights_present_in_repository",
+    "szl_fine_tuned",
+    "training_state",
+    "hub",
+    "base",
+    "runtime_qualification",
+    "required_receipts_for_trained_candidate",
+    "promotion"
+  ],
+  "properties": {
+    "$schema": {"const": "./release-manifest.schema.json"},
+    "schema_version": {"const": "szl.nemo.release-manifest.v2"},
+    "candidate_id": {"const": "SZL-Nemo-runtime-recipe-v1"},
+    "artifact_kind": {"const": "OLLAMA_CONFIGURATION_RECIPE"},
+    "release_state": {"const": "RUNTIME_QUALIFIED_RECIPE_NOT_FINE_TUNED"},
+    "quality_claim": {"const": "NOT_ESTABLISHED"},
+    "weights_present_in_repository": {"const": false},
+    "szl_fine_tuned": {"const": false},
+    "training_state": {"const": "NOT_FINE_TUNED"},
+    "hub": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "revision", "repository_role"],
+      "properties": {
+        "repository": {"const": "SZLHOLDINGS/szl-nemo"},
+        "revision": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "repository_role": {"const": "VERSIONED_CONFIGURATION_RECIPE_NOT_WEIGHT_REPOSITORY"}
+      }
+    },
+    "base": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "ollama_tag", "expected_ollama_registry_manifest_sha256", "license", "license_url"],
+      "properties": {
+        "repository": {"const": "nvidia/NVIDIA-Nemotron-3-Nano-4B-BF16"},
+        "ollama_tag": {"const": "nemotron-3-nano:4b"},
+        "expected_ollama_registry_manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "license": {"const": "NVIDIA Nemotron Open Model License"},
+        "license_url": {"type": "string", "pattern": "^https://huggingface\\.co/nvidia/"}
+      }
+    },
+    "runtime_qualification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["state", "served_model", "served_model_digest", "attestation_path", "attestation_sha256", "signature_scope", "quality_state"],
+      "properties": {
+        "state": {"const": "LOCAL_LIVE_VERIFIED"},
+        "served_model": {"const": "szl-nemo:latest"},
+        "served_model_digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "attestation_path": {"const": "attestations/szl-nemo-live-2026-07-15.json"},
+        "attestation_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "signature_scope": {"const": "PROCESS_BOOT_EPHEMERAL"},
+        "quality_state": {"const": "UNVERIFIED_MODEL_OUTPUT"}
+      }
+    },
+    "required_receipts_for_trained_candidate": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {"type": "string", "minLength": 1}
+    },
+    "promotion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["automatic", "recipe_runtime_ready", "trained_candidate_ready", "trained_and_weighted_claim_allowed", "canonical_model_upload_allowed", "reason"],
+      "properties": {
+        "automatic": {"const": false},
+        "recipe_runtime_ready": {"const": true},
+        "trained_candidate_ready": {"const": false},
+        "trained_and_weighted_claim_allowed": {"const": false},
+        "canonical_model_upload_allowed": {"const": false},
+        "reason": {"type": "string", "minLength": 80}
+      }
+    }
+  }
+}

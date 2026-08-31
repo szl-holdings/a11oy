@@ -1,0 +1,199 @@
+{
+  "case_id": "puriq-fomc",
+  "eval_id": "PURIQ-E-AWAIT-01",
+  "expected_reason_codes": [
+    "HUMAN_APPROVAL_REQUIRED"
+  ],
+  "expected_state": "AWAITING_APPROVAL",
+  "payload": {
+    "allowed_actions": [
+      "read public market and forecast data",
+      "normalize event and resolution criteria",
+      "calculate calibration and disagreement",
+      "build scenario impact",
+      "draft risk brief",
+      "request committee decision",
+      "record resolution and scoring outcome"
+    ],
+    "case_id": "puriq-fomc",
+    "chain_index": 3,
+    "chain_len": 10,
+    "contradictions": [],
+    "evidence": [
+      {
+        "citation": "public tape demo",
+        "claim": "Quoted probability 0.62 on the event contract.",
+        "class": "OFFICIAL",
+        "id": "ev-px",
+        "source_id": "poly",
+        "weight": 0.7
+      },
+      {
+        "citation": "forecast demo",
+        "claim": "Historical calibration on similar contracts is incomplete.",
+        "class": "OFFICIAL",
+        "id": "ev-cal",
+        "source_id": "meta",
+        "weight": 0.55
+      }
+    ],
+    "graph": {
+      "edges": [
+        {
+          "from": "f1",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f4",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f7",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "policy",
+          "rel": "requires",
+          "to": "authority"
+        },
+        {
+          "from": "authority",
+          "rel": "signs",
+          "to": "receipt"
+        },
+        {
+          "from": "poly",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "meta",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "poly",
+          "rel": "asserts",
+          "to": "ev-px"
+        },
+        {
+          "from": "ev-px",
+          "rel": "about",
+          "to": "entity"
+        },
+        {
+          "from": "ev-px",
+          "rel": "weights",
+          "to": "f4"
+        },
+        {
+          "from": "meta",
+          "rel": "asserts",
+          "to": "ev-cal"
+        },
+        {
+          "from": "ev-cal",
+          "rel": "about",
+          "to": "entity"
+        },
+        {
+          "from": "ev-cal",
+          "rel": "weights",
+          "to": "f4"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "entity",
+          "kind": "entity",
+          "label": "FOMC event"
+        },
+        {
+          "id": "policy",
+          "kind": "policy",
+          "label": "Policy DENY"
+        },
+        {
+          "id": "authority",
+          "kind": "authority",
+          "label": "Human authority"
+        },
+        {
+          "id": "receipt",
+          "kind": "receipt",
+          "label": "Receipt"
+        },
+        {
+          "id": "f1",
+          "kind": "formula",
+          "label": "F1 identity"
+        },
+        {
+          "id": "f4",
+          "kind": "formula",
+          "label": "F4 aggregate"
+        },
+        {
+          "id": "f7",
+          "kind": "formula",
+          "label": "F7 freshness"
+        },
+        {
+          "id": "poly",
+          "kind": "source",
+          "label": "public event market"
+        },
+        {
+          "id": "meta",
+          "kind": "source",
+          "label": "forecast aggregation"
+        },
+        {
+          "id": "ev-px",
+          "kind": "evidence",
+          "label": "public tape demo"
+        },
+        {
+          "id": "ev-cal",
+          "kind": "evidence",
+          "label": "forecast demo"
+        }
+      ]
+    },
+    "prior_approval": false,
+    "prohibited_actions": [
+      "wallet or private-key custody",
+      "order placement, cancellation or signing",
+      "autonomous trading",
+      "market manipulation or wash trading",
+      "insider-information use",
+      "claim that market probability is truth or financial advice"
+    ],
+    "proposed_action": "draft risk brief",
+    "sources": [
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "poly",
+        "name": "public event market",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      },
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "meta",
+        "name": "forecast aggregation",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      }
+    ],
+    "used_fuel": 2,
+    "vertical_id": "puriq-markets"
+  }
+}

@@ -1,0 +1,58 @@
+# Contradiction ledger — distinct from the claims registry.
+# A stale claim is not the same disease as a self-contradicting estate.
+# Scoring: BLOCKER=25, HIGH=10, MEDIUM=4, LOW=1.
+# Release gate: score < 20 AND zero BLOCKERs.
+
+schema: a11oy.contradictions.v1
+as_of: "2026-08-29"
+score: 84
+gate: HOLD
+
+items:
+  - id: C-HF-SPRAWL
+    severity: BLOCKER
+    title: Hub Spaces vs pin-five
+    a: "Pin a11oy, killinchu, immune, atelier, holographic"
+    b: "44 Spaces on 2026-08-29"
+    remedy: Relabel or redirect. Do not silently delete.
+    points: 25
+
+  - id: C-STALE-METRICS
+    severity: BLOCKER
+    title: May 12 metrics still readable as live
+    a: "848 / 5524 / 1220 / <=0.59ms verified 2026-05-12"
+    b: Zero-Bandaid Law
+    remedy: Degrade to SNAPSHOT/UNKNOWN. This ledger is source of truth.
+    points: 25
+
+  - id: C-NAMING
+    severity: HIGH
+    title: Name/category drift
+    a: "a11oy — governed execution fabric"
+    b: Orchestrator / substrate / inference / holographic estate
+    remedy: LEXICON.md + CI fail on forbidden phrases.
+    points: 10
+
+  - id: C-KHIPU-DOWNLOADS
+    severity: HIGH
+    title: Khipu download figure stale
+    a: "Council ~2.36k"
+    b: "Hub 502 / 553 / 493"
+    remedy: Reprint from claims-ledger only.
+    points: 10
+
+  - id: C-REPO-SPRAWL
+    severity: HIGH
+    title: 95 repos vs no-20th-repo
+    a: Canonical home a11oy
+    b: "95 repos, several created 2026-08-29 labeled not a second flagship"
+    remedy: Bind as packages. Stop minting repos.
+    points: 10
+
+  - id: C-HOLOGRAPHIC
+    severity: MEDIUM
+    title: Decoration on MODELED surfaces
+    a: No holograms unless data is real, current, interactive
+    b: README still leads the estate footer with Holographic Estate
+    remedy: Proof first. Holograms labeled holograms.
+    points: 4

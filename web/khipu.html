@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SZL KHIPU — knot · hash · fail closed · a-11-oy.com</title>
+<meta name="description" content="Product organ for SZL KHIPU. Duals Ari=GreenLight and Kay Pacha=Anatomy. Original cuts only. CUDA UNAVAILABLE. Energy UNAVAILABLE. Conjecture 1 OPEN. proven_trust false."/>
+<style>
+:root{--bg:#05070d;--ink:#e8edf4;--muted:#8b96a6;--line:#1c2430;--gold:#e8c074;--proof:#3af4c8;--block:#c17a72;--panel:#0c1118}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 ui-sans-serif,system-ui,sans-serif}
+body{min-height:100vh;background-image:linear-gradient(rgba(58,244,200,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(58,244,200,.04) 1px,transparent 1px);background-size:48px 48px}
+a{color:var(--proof)}button,input{font:inherit}button{cursor:pointer;background:transparent;color:var(--proof);border:1px solid #1a5c4e;padding:.45rem .8rem}
+button:hover{background:#0d2a24}button.warn{color:var(--gold);border-color:#5a4a28}button.bad{color:var(--block);border-color:#5a3430}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(5,7,13,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);font:10.5px/1 ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:var(--gold)}
+.topbar .sep{color:var(--muted)}
+.live{display:inline-flex;align-items:center;gap:.4rem;color:var(--ink);letter-spacing:.08em}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.live-dot.ready{background:var(--proof)}.live-dot.error{background:var(--block)}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);text-decoration:none;text-transform:none;letter-spacing:0;font-size:11px}
+.flag:hover{color:var(--ink);border-color:var(--line)}
+.flag.active{color:var(--bg);background:var(--gold);border-color:var(--gold)}
+header,main,footer{max-width:980px;margin:0 auto;padding:1.4rem 1.2rem}
+.ey{font:11px/1 ui-monospace,Menlo,monospace;letter-spacing:.22em;text-transform:uppercase;color:var(--muted)}
+h1{font:500 2.3rem/1.1 Georgia,serif;letter-spacing:-.03em;margin:.4rem 0}
+h2{font:500 1.05rem/1.2 Georgia,serif;margin:0 0 .55rem}
+.lede{color:var(--muted);max-width:46rem}
+.chip{display:inline-block;border:1px solid var(--line);padding:.15rem .5rem;margin:.15rem;font:11px ui-monospace,Menlo,monospace;color:var(--muted)}
+.gold{color:var(--gold);border-color:#5a4a28}.livechip{color:var(--proof);border-color:#1a5c4e}
+.panel{border:1px solid var(--line);background:var(--panel);padding:1rem;margin:1rem 0}
+.axes{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:.4rem}
+.orgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.5rem}
+.org{border:1px solid var(--line);padding:.55rem .7rem;font:12px/1.35 ui-monospace,Menlo,monospace}
+.org b{display:block;font:500 13px/1.2 Georgia,serif}
+.org.down{border-color:#5a3430;color:var(--block)}
+label{font:12px/1.3 ui-monospace,Menlo,monospace;color:var(--muted)}
+pre{font:12px/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;margin:.6rem 0 0}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin:.4rem 0}
+table{width:100%;border-collapse:collapse;font:12px/1.45 ui-monospace,Menlo,monospace}
+th,td{text-align:left;padding:.35rem 0;border-bottom:1px solid var(--line);color:var(--muted)}
+th{color:var(--gold);font-weight:500}
+.cut{color:var(--ink)}.not{color:var(--block)}
+.links{display:flex;flex-wrap:wrap;gap:.45rem;margin:1rem 0 0}
+.links a{border:1px solid var(--line);padding:.35rem .7rem;text-decoration:none;font:12px ui-monospace,Menlo,monospace}
+@media(max-width:760px){
+  .topbar{position:static}
+  .switcher{order:3;width:100%;margin-left:0}
+  .flag{min-height:44px;display:inline-flex;align-items:center}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span>
+  <span class="live"><span class="live-dot" id="liveDot"></span><span id="liveTag" aria-live="polite">KHIPU · CONNECTING</span></span>
+  <span class="switcher">
+    <a class="flag active" href="/khipu">KHIPU</a>
+    <a class="flag" href="/lyte">LYTE lattice</a>
+    <a class="flag" href="/immune">Immune</a>
+    <a class="flag" href="/formulas">Formulas</a>
+    <a class="flag" href="/anatomy-v5">Anatomy</a>
+    <a class="flag" href="/console">Command</a>
+    <a class="flag" href="/">Home</a>
+  </span>
+</div>
+<header>
+  <div class="ey">a-11-oy.com/khipu · product organ · GET /khipu HTML is exact · /khipu/{hash} stays receipts</div>
+  <h1>Knot the run. Hash the proof. Fail closed.</h1>
+  <p class="lede">Product organ of SZL KHIPU. Duals <strong>Ari = GreenLight</strong> and <strong>Kay Pacha = Anatomy</strong>. Original cuts only — never a rehost of Qwen, Mixtral, SGLang, FlashAttention, SageAttention, FlexAttention, or vLLM. First paint is CONNECTING. Live NumPy is claimed only after <code>/api/a11oy/v1/khipu-organ/healthz</code> answers; otherwise this page is a JS silhouette. Two public origins only: a-11-oy.com and a11oy.net. Never a11oy.com.</p>
+  <span class="chip gold">Conjecture 1 OPEN</span>
+  <span class="chip">energy UNAVAILABLE</span>
+  <span class="chip">proven_trust false</span>
+  <span class="chip">CUDA UNAVAILABLE</span>
+  <span class="chip" id="runtimeChip">runtime CONNECTING</span>
+  <span class="chip livechip">locked-proven 8</span>
+  <nav class="links" aria-label="Origins">
+    <a href="https://a11oy.net/khipu/">Proof RECORD · a11oy.net</a>
+    <a href="https://github.com/szl-holdings/szl-khipu">GitHub</a>
+    <a href="https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu">Hub Space</a>
+    <a href="/api/a11oy/v1/khipu-organ/status">status JSON</a>
+  </nav>
+</header>
+<main>
+  <section class="panel" id="lambda">
+    <h2>Λ gate — 13 Yuyay axes</h2>
+    <p class="lede">Weighted geometric mean. Any zero or non-finite axis fail-closes. Advisory, not a uniqueness proof.</p>
+    <div class="axes" id="axes"></div>
+    <div class="row"><button id="score">score Λ</button> <button class="bad" id="zero">zero-route heart</button></div>
+    <pre id="out-lambda">idle</pre>
+  </section>
+  <section class="panel" id="greenlight">
+    <h2>Ari · GreenLight</h2>
+    <p class="lede">Fail-closed promotion. A sorry cannot be painted green. Claiming proven_trust or stamping a joule BLOCKS. Dual of Anatomy.</p>
+    <div class="row">
+      <button id="gl-run">evaluate</button>
+      <button class="warn" id="gl-sorry">paint sorry green</button>
+      <button class="bad" id="gl-proven">claim proven</button>
+      <button class="bad" id="gl-joule">stamp joule</button>
+    </div>
+    <pre id="out-green">idle</pre>
+  </section>
+  <section class="panel" id="anatomy">
+    <h2>Kay Pacha · Anatomy — five organs</h2>
+    <p class="lede">HEART/YUYAY · YAWAR · YACHAY · OTel · Khipu skeleton. Any DOWN organ or fabricated joule blocks the body. Not a Three.js rehost. Dual of GreenLight.</p>
+    <div class="row">
+      <button id="an-run">evaluate body</button>
+      <button class="bad" id="an-heart">zero HEART</button>
+      <button class="bad" id="an-joule">fabricate joule</button>
+    </div>
+    <div class="orgs" id="org-box"></div>
+    <pre id="out-anatomy">idle</pre>
+  </section>
+  <section class="panel" id="prefix">
+    <h2>PrefixWitness · RouteWitness</h2>
+    <p class="lede">Original cuts. A poisoned radix cache fail-closes. An expert swapped after routing fail-closes. Not SGLang. Not Mixtral. No tokens/s claim.</p>
+    <div class="row">
+      <button id="px-run">prefix digest</button>
+      <button class="bad" id="px-hijack">hijack cache</button>
+      <button id="rt-run">route digest</button>
+      <button class="bad" id="rt-swap">swap expert</button>
+    </div>
+    <pre id="out-prefix">idle</pre>
+    <pre id="out-route">idle</pre>
+  </section>
+  <section class="panel">
+    <h2>Original cuts — never the leader's code</h2>
+    <table>
+      <thead><tr><th>Cut</th><th>Job</th><th>Not</th></tr></thead>
+      <tbody>
+        <tr><td class="cut">PrefixWitness</td><td>radix-prefix KV digest</td><td class="not">not SGLang</td></tr>
+        <tr><td class="cut">RouteWitness</td><td>expert-assignment digest</td><td class="not">not Mixtral</td></tr>
+        <tr><td class="cut">TileReceipt</td><td>schedule receipt</td><td class="not">not Dao .cu</td></tr>
+        <tr><td class="cut">ScoreMod</td><td>score modification</td><td class="not">not FlexAttention</td></tr>
+        <tr><td class="cut">BlockWitness</td><td>block KV witness</td><td class="not">not vLLM</td></tr>
+        <tr><td class="cut">YARQA</td><td>canal attention</td><td class="not">not SageAttention · not CUDA</td></tr>
+      </tbody>
+    </table>
+  </section>
+  <section class="panel">
+    <h2>Nanos · TRAINING_RECEIPT seed 20260721</h2>
+    <table>
+      <thead><tr><th>Nano</th><th>Bound</th><th>Not</th></tr></thead>
+      <tbody>
+        <tr><td class="cut">TinyKhipu-Nano</td><td>NAVIGATE / ABSTAIN silhouette</td><td class="not">not Qwen · not 1.5B</td></tr>
+        <tr><td class="cut">ReceiptAgent-Nano</td><td>kernel is truth</td><td class="not">not 1.5B</td></tr>
+        <tr><td class="cut">Moons-Nano</td><td>2→8→2</td><td class="not">not a published benchmark</td></tr>
+        <tr><td class="cut">MiniEmbed-Nano</td><td>self-NN replay on 16 toks</td><td class="not">not 3290×128 MiniEmbed</td></tr>
+      </tbody>
+    </table>
+    <p class="lede" style="margin-top:.8rem">1.5B / QLoRA RESEARCH, not trained here. FIFO kernel Hub cards (GreenLight / Anatomy / Chaski) stay 401 — this organ does not mint them. Never a11oy.com.</p>
+  </section>
+</main>
+<footer>Apache-2.0 · Doctrine v11 LOCKED · 749/14/163 · never a fabricated joule · never a11oy.com</footer>
+<script>
+const API="/api/a11oy/v1/khipu-organ";
+const N=["moralGrounding","measurabilityHonesty","empiricalGrounding","logicalConsistency","sourceTransparency","reproducibility","licenseHygiene","scopeDiscipline","claimCalibration","evalAwareness","deceptionKeywords","conflictingDirectives","reversalDirective"];
+const F=[0.95,0.95,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9,0.9];
+const ORG=[
+  {id:"heart",name:"HEART",quechua:"YUYAY",role:"13-axis conjunctive critique — advisory Λ"},
+  {id:"circulatory",name:"CIRCULATORY",quechua:"YAWAR",role:"append-only receipt bus"},
+  {id:"brain",name:"BRAIN",quechua:"YACHAY",role:"read-only reasoning cortex"},
+  {id:"nervous",name:"NERVOUS",quechua:"OTel",role:"telemetry spine — energy UNAVAILABLE"},
+  {id:"skeleton",name:"SKELETON",quechua:"Khipu",role:"locked-8 formula spine"}
+];
+const box=document.getElementById("axes");
+box.innerHTML=N.map((n,i)=>`<label>${n}<br><input data-i="${i}" type="range" min="0" max="1" step="0.01" value="${F[i]}"></label>`).join("");
+function wgm(x){if(x.some(v=>!Number.isFinite(v)||v<=0))return 0;const w=1/x.length,log=x.reduce((s,v)=>s+w*Math.log(v),0),v=Math.exp(log);return Number.isFinite(v)?v:0}
+function read(){return [...box.querySelectorAll("input")].map(el=>Number(el.value))}
+function show(id,obj){document.getElementById(id).textContent=JSON.stringify(obj,null,2)}
+function djb2(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16).padStart(8,"0")}
+function mulberry32(a){return function(){let t=a+=0x6D2B79F5;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+const honesty={proven_trust:false,energy_status:"UNAVAILABLE",conjecture_1:"OPEN",cuda:"UNAVAILABLE"};
+let live=false;
+function setLive(ok,label){
+  live=ok;
+  document.getElementById("liveDot").className="live-dot"+(ok?" ready":" error");
+  document.getElementById("liveTag").textContent=label;
+  document.getElementById("runtimeChip").textContent=ok?"runtime LIVE (organ)":"JS silhouette fallback";
+}
+async function post(path, body){
+  const r=await fetch(API+path,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(body||{})});
+  if(!r.ok) throw new Error("http "+r.status);
+  return r.json();
+}
+async function prefer(path, body, fallback){
+  if(live){try{return await post(path, body)}catch(e){/* fall through */}}
+  return fallback();
+}
+document.getElementById("score").onclick=async()=>{
+  const axes=read();
+  show("out-lambda", await prefer("/lambda",{axes},()=>{const v=wgm(axes);return {value:v,blocked:v===0,reason:v===0?"zero-routed":"advisory pass — uniqueness remains Conjecture 1 OPEN",kind:"js-silhouette",...honesty}}));
+};
+document.getElementById("zero").onclick=()=>{box.querySelector("input").value=0;document.getElementById("score").click()};
+function greenlight(flags){
+  const checks=[
+    {id:"sorry",ok:flags.paint_sorry!==1,detail:flags.paint_sorry===1?"BLOCKED · a sorry cannot be painted green":"sorry stays sorry · locked-8 is 8, not 21"},
+    {id:"conjecture1",ok:flags.claim_proven!==1,detail:flags.claim_proven===1?"BLOCKED · proven_trust cannot be true while Λ is Conjecture 1":"proven_trust locked false · uniqueness OPEN"},
+    {id:"energy",ok:flags.stamp_joule!==1,detail:flags.stamp_joule===1?"BLOCKED · fabricated joule · energy UNAVAILABLE":"energy UNAVAILABLE · never a fabricated joule"}
+  ];
+  const blocked=checks.some(c=>!c.ok);
+  return {dual:"Ari",painted:checks.filter(c=>!c.ok).length,blocked:blocked?1:0,greenlit:blocked?0:1,provenTrust:false,energy:"UNAVAILABLE",conjecture1:"OPEN",checks,reason:blocked?(checks.find(c=>!c.ok).detail):"GREEN-LIGHT · LIVE bound · proven_trust false · energy UNAVAILABLE",kind:"js-silhouette",...honesty};
+}
+async function runGL(flags){show("out-green", await prefer("/greenlight",flags,()=>greenlight(flags)))}
+document.getElementById("gl-run").onclick=()=>runGL({paint_sorry:0,claim_proven:0,stamp_joule:0});
+document.getElementById("gl-sorry").onclick=()=>runGL({paint_sorry:1,claim_proven:0,stamp_joule:0});
+document.getElementById("gl-proven").onclick=()=>runGL({paint_sorry:0,claim_proven:1,stamp_joule:0});
+document.getElementById("gl-joule").onclick=()=>runGL({paint_sorry:0,claim_proven:0,stamp_joule:1});
+function anatomyLocal(p){
+  const organs=ORG.map(o=>{
+    let down=false,detail=o.role;
+    if(o.id==="heart"&&p.zero_heart){down=true;detail="DOWN · HEART/YUYAY zeroed"}
+    if(p.fabricate_joule){down=true;detail="DOWN · fabricated joule · energy UNAVAILABLE"}
+    return {...o,status:down?"DOWN":"LIVE",detail};
+  });
+  return {dual:"Kay Pacha",blocked:organs.some(o=>o.status==="DOWN"),liveCount:organs.filter(o=>o.status==="LIVE").length,organs,energy:"UNAVAILABLE",conjecture1:"OPEN",reason:organs.some(o=>o.status==="DOWN")?"body BLOCKED":"body LIVE · proven_trust false · energy UNAVAILABLE",kind:"js-silhouette",...honesty};
+}
+function paintOrgans(y){
+  const organs=y.organs||[];
+  document.getElementById("org-box").innerHTML=organs.map(o=>`<div class="org${o.status==="DOWN"?" down":""}"><b>${o.name} / ${o.quechua}</b>${o.status}<br>${o.detail||o.role||""}</div>`).join("");
+}
+async function runAn(p){const y=await prefer("/anatomy",p,()=>anatomyLocal(p));paintOrgans(y);show("out-anatomy",y)}
+document.getElementById("an-run").onclick=()=>runAn({});
+document.getElementById("an-heart").onclick=()=>runAn({zero_heart:true});
+document.getElementById("an-joule").onclick=()=>runAn({fabricate_joule:true});
+function prefixLocal(hijack){
+  const stems=["NAV","NAV ABSTAIN","YUYAY","YUYAY WILLAY ARI"];
+  const nodes=stems.map(prefix=>{const kv="kv:7:"+prefix;return {prefix,kv,digest:djb2(kv)}});
+  const claimed=nodes.map(n=>n.digest).join("|");
+  if(hijack) nodes[0]={...nodes[0],kv:nodes[0].kv+"#POISON"};
+  const now=nodes.map(n=>djb2(n.kv)).join("|");
+  const hold=now===claimed&&!hijack?1:0;
+  return {hold,broken:hold?0:1,hijack:hijack?1:0,reason:hold?"PrefixWitness HOLDS · radix digest matches · not SGLang · no tokens/s claim":"PrefixWitness BROKEN · cached KV mutated after digest · fail closed",kind:"js-silhouette",...honesty};
+}
+function routeLocal(tamper){
+  const rng=mulberry32(7),E=4,N=8;
+  const assignment=Array.from({length:N},()=>{const row=Array.from({length:E},()=>rng());let b=0;for(let e=1;e<E;e++)if(row[e]>row[b])b=e;return b});
+  const digest=djb2(assignment.join(","));
+  const routed=assignment.slice();
+  if(tamper) routed[0]=(routed[0]+1)%E;
+  const now=djb2(routed.join(","));
+  const hold=now===digest&&!tamper?1:0;
+  return {hold,broken:hold?0:1,assignment:routed,reason:hold?"RouteWitness HOLDS · assignment digest matches · not Mixtral · no tokens/s claim":"RouteWitness BROKEN · expert swapped after routing · fail closed",kind:"js-silhouette",...honesty};
+}
+document.getElementById("px-run").onclick=async()=>show("out-prefix", await prefer("/prefix",{hijack:0},()=>prefixLocal(0)));
+document.getElementById("px-hijack").onclick=async()=>show("out-prefix", await prefer("/prefix",{hijack:1},()=>prefixLocal(1)));
+document.getElementById("rt-run").onclick=async()=>show("out-route", await prefer("/route",{tamper:0},()=>routeLocal(0)));
+document.getElementById("rt-swap").onclick=async()=>show("out-route", await prefer("/route",{tamper:1},()=>routeLocal(1)));
+fetch(API+"/healthz").then(r=>{if(!r.ok)throw new Error("down");return r.json()}).then(j=>{
+  setLive(j.ok===true && j.certified!==true, j.ok?"KHIPU · ORGAN LIVE":"KHIPU · CONNECTING");
+}).catch(()=>setLive(false,"KHIPU · JS SILHOUETTE"));
+</script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+{
+  "private_connectors": [
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "leases and amendments",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "rent roll",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "debt and financing",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "capex and property-management records",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "valuation and scenario systems",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    },
+    {
+      "class": "customer_or_licensed",
+      "contract_and_rights_required": true,
+      "enabled_by_default": false,
+      "name": "CRM and committee workflow",
+      "tenant_scoped": true,
+      "training_use_default": "PROHIBITED"
+    }
+  ],
+  "public_connectors": [
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "NYC DOF ACRIS and parcel identifiers",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "NYC PLUTO/MapPLUTO",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "NYC DOB, HPD and OATH",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "FEMA, Census, Treasury, BLS and SEC where relevant",
+      "rights_review_required": true,
+      "source_revision_required": true
+    },
+    {
+      "admitted": false,
+      "class": "public_or_standard",
+      "failure_policy": "bounded timeout, source-specific retry/backoff and honest unavailable state",
+      "freshness_contract": "LIVE|CACHED|STALE|UNAVAILABLE",
+      "name": "MapLibre with map/table parity",
+      "rights_review_required": true,
+      "source_revision_required": true
+    }
+  ],
+  "schema": "szl.connector-registry/v8",
+  "secrets": "managed server-side secret store only; never client code, logs, traces, screenshots, errors or receipts",
+  "vertical_id": "terra"
+}

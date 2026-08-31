@@ -1,0 +1,42 @@
+# .grype.yaml — Grype CVE gate configuration with honest justification
+# © 2026 Lutar, Stephen P. — SZL Holdings · Doctrine v11
+# HONESTY CONTRACT: suppress ONLY upstream-unfixable CVEs not exploitable in
+# amaru's deployment topology. Every entry has a justification. Verified 2026-06-10.
+# Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>
+#
+# ─── REVIEW POLICY ───────────────────────────────────────────────────────────
+# Each release: run `grype dir:. --fail-on high` and review new findings.
+# Remove suppression entries when a fixed version is available and integrated.
+# ─────────────────────────────────────────────────────────────────────────────
+
+ignore:
+  # ── PyTorch distributed / RCE CVEs (amaru uses CPU embedding only) ─────────
+
+  - vulnerability: CVE-2024-5480
+    reason: >
+      PyTorch distributed RPC RCE (disputed). amaru uses torch ONLY for
+      CPU sentence-transformer embeddings in szl_rag.py. torch.distributed
+      is never imported or invoked. CVE disputed by PyTorch maintainers
+      (NVD rejected). Not exploitable in amaru's HF Space topology.
+
+  - vulnerability: CVE-2025-32434
+    reason: >
+      torch.load() RCE with weights_only=True, fixed in torch>=2.6.0.
+      amaru never calls torch.load() — embeddings are computed live, no
+      pickle deserialisation of untrusted model files. Track upgrade to
+      torch>=2.6 when sentence-transformers supports it.
+
+  - vulnerability: CVE-2024-48063
+    reason: >
+      PyTorch RemoteModule deserialization RCE (disputed). amaru does not
+      use torch.distributed or RemoteModule. Disputed by PyTorch maintainers
+      as intended behaviour for distributed trusted environments.
+
+  - vulnerability: CVE-2024-35198
+    reason: >
+      TorchServe URL bypass. torchserve package is NOT installed in the
+      amaru image. This CVE does not apply.
+
+  - vulnerability: CVE-2024-35199
+    reason: >
+      TorchServe gRPC port binding. torchserve NOT installed. Does not apply.

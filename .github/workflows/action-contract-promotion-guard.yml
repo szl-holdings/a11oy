@@ -1,0 +1,63 @@
+name: Action-contract promotion guard
+
+# This repository-owned run is advisory until an organization ruleset binds
+# this file with "Require workflows to pass before merging". Requiring its job
+# name as an ordinary status context is unsafe because a pull request can edit
+# its own pull_request workflow definition.
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - reopened
+      - ready_for_review
+      - synchronize
+  merge_group:
+    types:
+      - checks_requested
+
+permissions:
+  contents: read
+
+jobs:
+  promotion-qualification:
+    name: Action-contract promotion qualification
+    runs-on: ubuntu-latest
+    env:
+      PROTECTED_BASE_SHA: ${{ github.event_name == 'merge_group' && github.event.merge_group.base_sha || github.event.pull_request.base.sha }}
+      CANDIDATE_SHA: ${{ github.event_name == 'merge_group' && github.sha || github.event.pull_request.head.sha }}
+      CANDIDATE_REPOSITORY: ${{ github.event_name == 'merge_group' && github.repository || github.event.pull_request.head.repo.full_name }}
+    steps:
+      - name: Checkout protected base
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          path: protected-base
+          persist-credentials: false
+          ref: ${{ env.PROTECTED_BASE_SHA }}
+
+      - name: Checkout candidate as untrusted data
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: candidate
+          persist-credentials: false
+          ref: ${{ env.CANDIDATE_SHA }}
+          repository: ${{ env.CANDIDATE_REPOSITORY }}
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Validate candidate manifest with protected code
+        shell: bash
+        run: |
+          set -euo pipefail
+          candidate_manifest="candidate/docs/action-contract-manifest.json"
+          test -f "${candidate_manifest}"
+          test ! -L "${candidate_manifest}"
+          cp -- "${candidate_manifest}" "protected-base/docs/action-contract-manifest.json"
+          cd protected-base
+          python3 scripts/validate_action_contract_manifest.py \
+            --runtime-root "${GITHUB_WORKSPACE}/candidate"

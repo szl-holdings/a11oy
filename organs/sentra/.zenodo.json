@@ -1,0 +1,38 @@
+{
+  "title": "sentra \u2014 Cyber resilience command. Threat modeling, posture drift detection, incident response, and policy-gated remediation with full audit trails.",
+  "description": "Cyber resilience command. Threat modeling, posture drift detection, incident response, and policy-gated remediation with full audit trails.",
+  "upload_type": "software",
+  "creators": [
+    {
+      "name": "Lutar, Stephen P.",
+      "affiliation": "SZL Holdings",
+      "orcid": "0009-0001-0110-4173"
+    }
+  ],
+  "access_right": "open",
+  "license": "Apache-2.0",
+  "keywords": [
+    "ai-governance",
+    "incident-response",
+    "cyber-resilience",
+    "governed-ai",
+    "sentra",
+    "series-a",
+    "threat-modeling",
+    "posture-drift",
+    "szl-holdings",
+    "ouroboros"
+  ],
+  "communities": [
+    {
+      "identifier": "open-science"
+    }
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.19944926",
+      "relation": "isSupplementTo",
+      "scheme": "doi"
+    }
+  ]
+}

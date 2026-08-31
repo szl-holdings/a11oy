@@ -1,0 +1,94 @@
+{
+  "name": "workspace",
+  "version": "1.1.0",
+  "private": true,
+  "description": "A11oy governed-AI execution fabric — Apache-2.0, signed receipts, fail-closed evidence states, sovereign/self-hosted inference, and formal-artifact lineage.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "jest __tests__/",
+    "test:knowledge": "cd packages/a11oy-knowledge && npm test",
+    "test:knowledge:lookup": "tsx packages/a11oy-knowledge/src/theorems_lookup.test.ts",
+    "test:qec": "tsx packages/qec-integrity/src/qec_lineage.test.ts",
+    "test:policy-gates": "tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+    "test:policy-contract": "python3 -m pytest -q tests/test_operation_verified_policy.py",
+    "test:policy-negative": "python3 -m pytest -q tests/test_operation_verified_policy.py -k 'denial or rejected or tampering or replay or unknown'",
+    "test:policy-mutation": "python3 -m pytest -q tests/test_operation_verified_policy.py -k 'tampering or expiry or revocation or lifecycle'",
+    "test:policy-differential": "python3 -m pytest -q tests/test_operation_verified_policy.py -k finite_refinement",
+    "verify:formal-policy": "python3 scripts/verify_lutar_policy.py",
+    "verify:policy-runtime": "python3 scripts/verify_policy_runtime.py",
+    "reports:verified-throughput": "python3 scripts/build_operation_verified_throughput_reports.py",
+    "audit:web-workspace": "python3 scripts/audit_web_workspace_dependencies.py",
+    "verify:release-commands": "python3 scripts/verify_release_commands.py",
+    "test:core": "cd web/packages/a11oy-core && npx vitest run",
+    "test:all": "npm test && npm run test:knowledge && npm run test:qec && npm run test:core",
+    "build:doctrine": "pnpm --dir web/packages/a11oy-connection run build && pnpm --dir web/packages/a11oy-core run build",
+    "test:doctrine": "pnpm --dir web/packages/a11oy-core run test:doctrine",
+    "typecheck:doctrine": "pnpm --dir web/packages/a11oy-connection run build && pnpm --dir web/packages/a11oy-connection run typecheck && pnpm --dir web/packages/a11oy-core run typecheck",
+    "web:source:verify": "node scripts/verify_web_source.mjs",
+    "web:install": "pnpm web:source:verify && pnpm --package=pnpm@10.26.1 dlx pnpm --dir vendor/platform install --filter @workspace/a11oy... --frozen-lockfile",
+    "build:web": "pnpm web:install && pnpm --package=pnpm@10.26.1 dlx pnpm --dir vendor/platform --filter @workspace/a11oy run build",
+    "typecheck:web": "pnpm web:source:verify && pnpm --package=pnpm@10.26.1 dlx pnpm --dir vendor/platform --filter @workspace/a11oy run typecheck",
+    "payload:manifest": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json",
+    "payload:verify": "python3 scripts/payload_manifest.py deploy --output deploy/MANIFEST.json --verify",
+    "payload:huggingface": "python3 scripts/prepare_huggingface_payload.py",
+    "payload:bundle": "pnpm build:doctrine && pnpm payload:manifest && pnpm payload:huggingface && python3 scripts/build_operational_payload.py",
+    "payload:bundle:verify": "python3 scripts/build_operational_payload.py --verify",
+    "ecosystem:audit": "python3 scripts/ecosystem_audit.py",
+    "ecosystem:readiness": "python3 scripts/build_ecosystem_readiness.py --check",
+    "ecosystem:readiness:write": "python3 scripts/build_ecosystem_readiness.py",
+    "hf:ecosystem:audit": "python3 scripts/audit_huggingface_ecosystem.py --check",
+    "hf:ecosystem:write": "python3 scripts/audit_huggingface_ecosystem.py",
+    "frontier:lexicon": "python3 tools/lexicon_gate.py --check",
+    "frontier:bootstrap": "python3 tools/szl_convergence_bootstrap.py --run",
+    "frontier:bootstrap:verify": "python3 tools/szl_convergence_bootstrap.py --verify",
+    "frontier:release-gate": "python3 tools/release_gate.py --run",
+    "frontier:release-gate:verify": "python3 tools/release_gate.py --verify",
+    "payload:publish:huggingface": "python3 scripts/publish_huggingface_payload.py",
+    "operation:inventory": "python3 scripts/generate_operation_inventory.py",
+    "operation:reports": "python3 scripts/generate_operation_reports.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/szl-holdings/a11oy.git"
+  },
+  "keywords": [],
+  "author": "Stephen P. Lutar Jr. <contact@szlholdings.com>",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/szl-holdings/a11oy/issues"
+  },
+  "homepage": "https://a-11-oy.com",
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^26.3.0",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "jest": "^30.4.2",
+    "js-yaml": "^5.4.0",
+    "ts-jest": "^29.4.12",
+    "tsx": "^4.23.12",
+    "typescript": "^6.0.3"
+  },
+  "pnpm": {
+    "overrides": {
+      "vite": "^6.4.2",
+      "esbuild": "0.28.1",
+      "js-yaml@<4.3.1": "4.3.1",
+      "brace-expansion": "5.0.9",
+      "fast-uri@<3.1.5": "3.1.5"
+    }
+  },
+  "overrides": {
+    "esbuild": "0.28.1",
+    "js-yaml@>=4.0.0 <4.3.1": "4.3.1",
+    "brace-expansion": "5.0.9",
+    "fast-uri@<3.1.5": "3.1.5",
+    "@istanbuljs/load-nyc-config": {
+      "js-yaml": "4.3.1"
+    }
+  }
+}

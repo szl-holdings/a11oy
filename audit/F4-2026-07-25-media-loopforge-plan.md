@@ -1,0 +1,42 @@
+# Workcell F4-2026-07-25-MEDIA-LOOPFORGE
+
+- Status: LOCALLY VERIFIED / EXTERNAL ATTESTATION PENDING
+- Agent: CodexSmith
+- Objective: make one media-write path emit an actual Khipu receipt and bind its identifiers into the C2PA-aligned sidecar, while promoting Loop Forge into the first three holographic surfaces with accurate safety framing.
+- Files planned:
+  - `a11oy_code_orchestrator.py`
+  - `content_credentials.py`
+  - `Dockerfile`
+  - `audit/F4-2026-07-25-media-loopforge-plan.md`
+  - `audit/F4-2026-07-25-media-loopforge-proof.md`
+  - `audit/screenshot-catalog.md`
+  - `tests/test_content_credentials_khipu.py`
+  - `static/3d/holographic.html`
+  - `static/3d/surfaces/loopforge.js`
+  - `szl_kc_loop_forge.py`
+  - `serve.py`
+  - `docs/LOOP_FORGE_SAFETY.md`
+  - `docs/assets/screenshots/current/2026-07-25-loop-forge-top-three.png`
+  - `tests/test_loop_forge_surface_priority.py`
+- Success criteria:
+  - the media bytes are written before a Khipu receipt is emitted
+  - the receipt carries the real asset hash and the credential carries the exact returned receipt ID and receipt hash
+  - an attested-execution link is optional and honestly labelled UNAVAILABLE when absent
+  - no receipt is emitted on reads
+  - the deployed agent tool catalog exposes the governed media writer and the runtime image contains its credential module
+  - durable Khipu appends select and advance one persisted head inside a SQLite write transaction
+  - symlink destinations are rejected before a governed media write is consumed
+  - unsigned credentials remain STRUCTURAL-ONLY and sidecar-only; no C2PA Trust List or embedded JUMBF claim is introduced
+  - Loop Forge appears within the first three surface entries
+  - Loop Forge is framed as bounded, kernel-gated, reward-hacking-resistant prototype machinery; Lambda remains Conjecture 1
+- Verification planned:
+  - focused Python unit tests
+  - Python syntax compilation
+  - surface ordering test
+  - doctrine-grep relevant checks
+  - full GitHub CI after push
+- External boundaries:
+  - no C2PA Trust List certificate is available
+  - no embedded JUMBF credential is produced
+  - no hardware attestation is fabricated
+  - no live UI screenshot is possible without a running deployment, so the PR remains draft

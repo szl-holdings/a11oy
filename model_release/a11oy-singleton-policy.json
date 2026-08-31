@@ -1,0 +1,32 @@
+{
+  "schema": "szl.a11oy-singleton-policy/v1",
+  "canonical_space": "SZLHOLDINGS/a11oy",
+  "source_authority": {
+    "repository": "szl-holdings/a11oy",
+    "branch": "main",
+    "deployment_workflow": ".github/workflows/hf-sync.yml",
+    "rule": "Protected GitHub source and its reviewed deployment receipts are authoritative."
+  },
+  "permanent_a11oy_spaces": [
+    "SZLHOLDINGS/a11oy"
+  ],
+  "retired_clone_ids": [
+    "SZLHOLDINGS/a11oy-clone-1",
+    "SZLHOLDINGS/a11oy-clone-2",
+    "SZLHOLDINGS/a11oy-clone-3",
+    "SZLHOLDINGS/a11oy-clone-4"
+  ],
+  "clone_recreation_enabled": false,
+  "future_experiment_locations": [
+    "Git feature branches",
+    "pull requests",
+    "Replit previews",
+    "automatically expiring temporary environments"
+  ],
+  "recovery_boundary": "A clone timestamp or automation marker is never allowed to outrank protected GitHub source. Clone-only work must enter GitHub through a reviewed PR before deployment.",
+  "remediation": {
+    "reason": "The final clone retirement pass selected clone-4 by automation last-modified ordering and removed three canonical-only paths.",
+    "action": "Trigger the canonical Dockerfile-derived Hugging Face sync from current protected main with pruning and per-file attestation.",
+    "claim": "This policy file triggers restoration; deployment and live route verification remain separate evidence gates."
+  }
+}

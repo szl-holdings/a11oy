@@ -1,0 +1,199 @@
+{
+  "case_id": "terra-stale-navy",
+  "eval_id": "TERRA-E-ABSTAIN",
+  "expected_reason_codes": [
+    "STALE_OR_UNAVAILABLE_SOURCE"
+  ],
+  "expected_state": "ABSTAINED",
+  "payload": {
+    "allowed_actions": [
+      "resolve identity",
+      "create cited dossier",
+      "extract clauses, dates, rights and obligations",
+      "flag risk",
+      "model transparent scenarios",
+      "draft committee memo",
+      "request approval",
+      "record outcome"
+    ],
+    "case_id": "terra-stale-navy",
+    "chain_index": 3,
+    "chain_len": 10,
+    "contradictions": [],
+    "evidence": [
+      {
+        "citation": "PLUTO 26v1",
+        "claim": "M1 overlay",
+        "class": "OFFICIAL",
+        "id": "ev-zone",
+        "source_id": "pluto",
+        "weight": 0.8
+      },
+      {
+        "citation": "OATH NOV",
+        "claim": "Open ECB last seen 2025",
+        "class": "OFFICIAL",
+        "id": "ev-oath",
+        "source_id": "oath",
+        "weight": 0.8
+      }
+    ],
+    "graph": {
+      "edges": [
+        {
+          "from": "f1",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f4",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "f7",
+          "rel": "informs",
+          "to": "policy"
+        },
+        {
+          "from": "policy",
+          "rel": "requires",
+          "to": "authority"
+        },
+        {
+          "from": "authority",
+          "rel": "signs",
+          "to": "receipt"
+        },
+        {
+          "from": "pluto",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "oath",
+          "rel": "describes",
+          "to": "entity"
+        },
+        {
+          "from": "pluto",
+          "rel": "asserts",
+          "to": "ev-zone"
+        },
+        {
+          "from": "ev-zone",
+          "rel": "about",
+          "to": "entity"
+        },
+        {
+          "from": "ev-zone",
+          "rel": "weights",
+          "to": "f4"
+        },
+        {
+          "from": "oath",
+          "rel": "asserts",
+          "to": "ev-oath"
+        },
+        {
+          "from": "ev-oath",
+          "rel": "about",
+          "to": "entity"
+        },
+        {
+          "from": "ev-oath",
+          "rel": "weights",
+          "to": "f4"
+        }
+      ],
+      "nodes": [
+        {
+          "id": "entity",
+          "kind": "entity",
+          "label": "63 Flushing Avenue"
+        },
+        {
+          "id": "policy",
+          "kind": "policy",
+          "label": "Policy DENY"
+        },
+        {
+          "id": "authority",
+          "kind": "authority",
+          "label": "Human authority"
+        },
+        {
+          "id": "receipt",
+          "kind": "receipt",
+          "label": "Receipt"
+        },
+        {
+          "id": "f1",
+          "kind": "formula",
+          "label": "F1 identity"
+        },
+        {
+          "id": "f4",
+          "kind": "formula",
+          "label": "F4 aggregate"
+        },
+        {
+          "id": "f7",
+          "kind": "formula",
+          "label": "F7 freshness"
+        },
+        {
+          "id": "pluto",
+          "kind": "source",
+          "label": "NYC PLUTO"
+        },
+        {
+          "id": "oath",
+          "kind": "source",
+          "label": "NYC OATH/ECB"
+        },
+        {
+          "id": "ev-zone",
+          "kind": "evidence",
+          "label": "PLUTO 26v1"
+        },
+        {
+          "id": "ev-oath",
+          "kind": "evidence",
+          "label": "OATH NOV"
+        }
+      ]
+    },
+    "prior_approval": false,
+    "prohibited_actions": [
+      "automatic offer, acquisition, sale, lease or financing commitment",
+      "investment-advice or certified-valuation claim",
+      "unlicensed owner/contact redistribution",
+      "silent assumption or valuation overwrite",
+      "high-volume source collection outside published terms"
+    ],
+    "proposed_action": "draft committee memo",
+    "sources": [
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "LIVE",
+        "id": "pluto",
+        "name": "NYC PLUTO",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      },
+      {
+        "captured_at": "2026-08-28T14:00:00-04:00",
+        "class": "public_or_standard",
+        "freshness": "STALE",
+        "id": "oath",
+        "name": "NYC OATH/ECB",
+        "revision": "packet8-demo",
+        "rights": "ADMITTED"
+      }
+    ],
+    "used_fuel": 2,
+    "vertical_id": "terra"
+  }
+}

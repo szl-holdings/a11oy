@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-07-26T08:52:31+00:00",
+  "label": "MEASURED",
+  "risks": [
+    {
+      "id": "OVT-R1",
+      "label": "BLOCKED",
+      "owner": "Founder / infrastructure owner",
+      "risk": "Cloud, registry, and cluster identities are not independently inventoried.",
+      "severity": "P0"
+    },
+    {
+      "id": "OVT-R2",
+      "label": "BLOCKED",
+      "owner": "Platform engineering",
+      "risk": "No identical-hardware vLLM/SGLang benchmark receipt exists.",
+      "severity": "P0"
+    },
+    {
+      "id": "OVT-R3",
+      "label": "BLOCKED",
+      "owner": "Platform engineering",
+      "risk": "No immutable staging artifact was independently verified in this run.",
+      "severity": "P0"
+    },
+    {
+      "id": "OVT-R4",
+      "label": "PLANNED",
+      "owner": "CTO / independent reviewer",
+      "risk": "Formal authorization statements require independent English-statement review.",
+      "severity": "P1"
+    },
+    {
+      "id": "OVT-R5",
+      "label": "MEASURED",
+      "owner": "Platform engineering",
+      "risk": "Deployment identity endpoints may be absent or incomplete; see deployment-identities.json.",
+      "severity": "P1"
+    }
+  ]
+}

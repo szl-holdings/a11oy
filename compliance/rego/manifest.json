@@ -1,0 +1,36 @@
+{
+  "bundle": "a11oy-policy-gates",
+  "doctrine": "v11",
+  "digest": "sha256:4b035da9e752dcdb81c8390974752fc729da8192e60a0459de50a05d4c9563ba",
+  "gates": [
+    {
+      "name": "classification_boundary",
+      "package": "a11oy.gates.classification_boundary",
+      "controls": [
+        "ISO42001/A.9.6",
+        "NIST80053/AC-3",
+        "EUAIAct/Art.14"
+      ]
+    },
+    {
+      "name": "human_override_required",
+      "package": "a11oy.gates.human_override_required",
+      "controls": [
+        "ISO42001/A.9.3",
+        "ISO42001/A.4.6",
+        "NIST80053/AU-2",
+        "EUAIAct/Art.14"
+      ]
+    },
+    {
+      "name": "deployment_readiness",
+      "package": "a11oy.gates.deployment_readiness",
+      "controls": [
+        "ISO27001/8.25",
+        "NIST80053/CM-3",
+        "ISO42001/A.6.7"
+      ]
+    }
+  ],
+  "note": "Version-locked OPA/Rego bundle. Every DSSE receipt cites this digest. ALIGNMENT only."
+}

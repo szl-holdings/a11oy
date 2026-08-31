@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>a11oy — Grid Energy Harvest · Proven Energy Engine · SZL Holdings</title>
+<meta name="description" content="Honest grid/harvest view of the Proven Energy Engine: the Bekenstein-gated energy+information budget (F19/TH6, a proven inequality), the cumulative joules-est-over-time series (SAMPLE/ESTIMATE — no on-box meter behind the budget layer), and a client-side off-peak/normal/peak window heuristic (NOT a live tariff feed). No free-energy / perpetual-motion claims."/>
+<!-- 0 runtime CDN (doctrine v11): uPlot (MIT) + Apache ECharts (Apache-2.0) vendored same-origin at /vendor/*. System fonts only. -->
+<link rel="stylesheet" href="/vendor/uPlot.min.css"/>
+<style>
+:root{
+  --ground:#0a0a0a; --panel:#0e0e0e; --panel2:#080808;
+  --gold:#c9b787; --gold-bright:#d6c69a;
+  --holo:#39d8c8; --holo-soft:rgba(57,216,200,0.10); --holo-line:rgba(57,216,200,0.24);
+  --teal:#5fb3a3;
+  --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
+  --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
+  --live:#5a8a6e; --warn:#c9a05f;
+  --green:#39d98a; --yellow:#f5c451; --red:#ff6a5a; --blue:#5bc8ff;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --display:ui-sans-serif,system-ui,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);font-family:var(--display);-webkit-font-smoothing:antialiased;}
+.mono{font-family:var(--mono);}
+a{color:inherit;text-decoration:none;}
+.topbar{position:sticky;top:0;z-index:60;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;padding:.5rem 1.1rem;background:rgba(10,10,10,.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--holo-line);font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--holo);}
+.topbar .sep{color:var(--dim);}
+.topbar .live{display:inline-flex;align-items:center;gap:.4rem;color:var(--cream);}
+.live-dot{width:6px;height:6px;border-radius:50%;background:var(--holo);box-shadow:0 0 6px var(--holo);animation:pulse 2.2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.35;}}
+.switcher{margin-left:auto;display:flex;align-items:center;gap:.3rem;flex-wrap:wrap;}
+.flag{padding:.22rem .55rem;border-radius:6px;border:1px solid transparent;color:var(--muted);transition:.15s;}
+.flag:hover{color:var(--cream);border-color:var(--holo-line);background:var(--holo-soft);}
+.flag.active{color:var(--ground);background:var(--holo);border-color:var(--holo);font-weight:600;}
+.wrap{max-width:1320px;margin:0 auto;padding:1.6rem 1.4rem 4rem;}
+h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
+.badge{display:inline-block;font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--holo);border:1px solid var(--holo-line);background:var(--holo-soft);padding:.25rem .6rem;border-radius:5px;margin-left:.4rem;vertical-align:middle;}
+.lede{color:var(--paragraph);font-size:.95rem;line-height:1.65;max-width:1180px;margin:.6rem 0 1rem;}
+.lede b{color:var(--cream);font-weight:600;}
+.econ{border:1px solid var(--gold-line);background:var(--gold-soft);border-radius:8px;padding:.7rem 1rem;margin:.4rem 0 1.2rem;font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.7;}
+.econ .k{color:var(--gold);text-transform:uppercase;letter-spacing:.08em;font-size:10px;}
+.econ .hi{color:var(--holo);}
+.subnav{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:.1rem 0 1.2rem;}
+.subnav .lbl{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-right:.2rem;}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.8rem;margin:0 0 1.2rem;}
+.card{border:1px solid var(--gold-line);background:var(--panel);border-radius:8px;padding:.85rem 1rem;}
+.card .lbl{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.card .big{font-size:1.5rem;font-weight:600;margin:.35rem 0 .15rem;color:var(--holo);overflow-wrap:anywhere;}
+.card .sub{font-family:var(--mono);font-size:10.5px;color:var(--muted);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.panel{border:1px solid var(--gold-line);background:var(--panel);border-radius:10px;padding:1rem 1.1rem;margin-bottom:1rem;}
+.panel h2{font-size:1.05rem;font-weight:600;margin:0 0 .2rem;display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap;}
+.panel h2 .meta{font-family:var(--mono);font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;}
+.chip{font-family:var(--mono);font-size:9px;letter-spacing:.06em;text-transform:uppercase;border-radius:4px;padding:.12rem .42rem;white-space:nowrap;border:1px solid var(--dim);color:var(--muted);}
+.chip.measured{color:var(--green);border-color:rgba(57,217,138,.5);background:rgba(57,217,138,.08);}
+.chip.sample,.chip.estimate{color:var(--warn);border-color:var(--warn);background:rgba(201,160,95,.06);}
+.chip.modeled{color:var(--blue);border-color:rgba(91,200,255,.5);background:rgba(91,200,255,.07);}
+.chip.unavailable{color:var(--red);border-color:rgba(255,106,90,.5);background:rgba(255,106,90,.07);}
+.uarea{width:100%;height:300px;}
+.echart{width:100%;height:300px;}
+.win{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.2rem;}
+.win .cell{border:1px solid var(--gold-line);border-radius:7px;padding:.7rem;text-align:center;font-family:var(--mono);}
+.win .cell .t{font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);}
+.win .cell .h{font-size:9.5px;color:var(--muted);margin-top:.2rem;}
+.win .cell .v{font-size:1rem;font-weight:600;margin-top:.3rem;color:var(--muted);}
+.win .cell.on{border-color:var(--holo-line);background:var(--holo-soft);}
+.win .cell.on .v{color:var(--holo);}
+.win .cell.peak.on{border-color:rgba(255,106,90,.45);background:rgba(255,106,90,.07);}
+.win .cell.peak.on .v{color:var(--red);}
+.win .cell.normal.on{border-color:rgba(245,196,81,.45);background:rgba(245,196,81,.07);}
+.win .cell.normal.on .v{color:var(--yellow);}
+.simnote{border:1px solid var(--warn);background:rgba(201,160,95,.06);border-radius:8px;padding:.7rem .9rem;margin-top:.8rem;font-family:var(--mono);font-size:11px;color:#d8c39a;line-height:1.65;}
+.simnote b{color:var(--warn);}
+table{width:100%;border-collapse:collapse;margin-top:.6rem;font-family:var(--mono);font-size:11px;}
+th,td{text-align:left;padding:.4rem .5rem;border-bottom:1px solid var(--gold-line);white-space:nowrap;}
+th{color:var(--dim);font-weight:500;font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;}
+td{color:var(--paragraph);}
+td.ok{color:var(--green);}
+td.bad{color:var(--red);}
+.scrollx{overflow-x:auto;}
+.empty{font-family:var(--mono);font-size:11.5px;color:var(--muted);border:1px dashed var(--holo-line);border-radius:8px;padding:1.1rem 1rem;margin-top:.2rem;line-height:1.6;text-align:center;}
+.empty b{color:var(--cream);}
+.kv{font-family:var(--mono);font-size:12px;color:var(--paragraph);line-height:1.9;margin-top:.3rem;}
+.kv .k{color:var(--dim);display:inline-block;min-width:150px;}
+.kv .v{color:var(--cream);}
+.footnote{margin-top:1.6rem;font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.7;border-top:1px solid var(--gold-line);padding-top:.9rem;}
+.footnote b{color:var(--cream);}
+@media(max-width:980px){.cards{grid-template-columns:repeat(2,1fr);}.grid2{grid-template-columns:1fr;}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important;}.live-dot{animation:none;}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <span>SZL HOLDINGS</span><span class="sep">/</span><span>a11oy</span><span class="sep">/</span><span>GRID ENERGY HARVEST</span>
+  <span class="sep">/</span><span class="live"><span class="live-dot"></span><span id="livelbl">LIVE · RT</span></span>
+  <span class="switcher">
+    <a class="flag" href="/energy">Energy</a>
+    <a class="flag" href="/energy-ops">Live Energy</a>
+    <a class="flag" href="/energy-3d">3D Holographic</a>
+    <a class="flag active" href="/energy-harvest">Grid Harvest</a>
+    <a class="flag" href="/code">Code</a>
+  </span>
+</div>
+<div class="wrap">
+  <h1>Grid Energy Harvest<span class="badge">Bekenstein-gated budget (F19/TH6) · SAMPLE energy · heuristic window</span></h1>
+  <p class="lede">A live, <b>honest</b> grid/harvest view of the Proven Energy Engine. The cumulative series is the <b>Bekenstein-gated energy+information budget</b> — every task receipt's <code>joules_est</code> over time, each passing the gate <code>shannon_bits ≤ output_bytes·8</code> (<b>F19/TH6, a proven inequality</b>, locked-8 — not an assertion). <b>Energy figures are SAMPLE/ESTIMATE</b>: there is no on-box power meter behind the budget layer, so joules are labeled, never presented as measured. The off-peak / normal / peak window is a <b>client-side heuristic from the server clock — NOT a live tariff feed</b> (no real-time grid price is wired). <b>No free-energy / perpetual-motion claims</b>: the engine harvests WASTED energy and <i>proves bounded information work</i>; any harvest framing is MODELED/SAMPLE.</p>
+  <div class="econ"><span class="k">Why it matters:</span> harvest yield and energy efficiency are <span class="hi">measured-or-labeled, never assumed</span> — the only unacceptable outcome is over-claiming (fabricated joules, a fake tariff feed, or a perpetual-motion story). This surface refuses to over-claim: when the budget is empty it shows the structure with an honest <b>"no tasks yet"</b>, never fake bars.</div>
+  <div class="subnav">
+    <span class="lbl">Bound endpoints (poll ~5s):</span>
+    <span class="flag" style="border-color:var(--holo-line);background:var(--holo-soft);cursor:default">/v1/energy/harvest</span>
+    <span class="flag" style="border-color:var(--holo-line);background:var(--holo-soft);cursor:default">/v1/energy/budget</span>
+    <span class="flag" style="border-color:var(--holo-line);background:var(--holo-soft);cursor:default">/v1/energy/ledger</span>
+  </div>
+
+  <div class="cards">
+    <div class="card"><div class="lbl">Tasks gated</div><div class="big" id="c_tasks" style="color:var(--blue)">—</div><div class="sub">Bekenstein receipts</div></div>
+    <div class="card"><div class="lbl">All within bound</div><div class="big" id="c_within" style="color:var(--green)">—</div><div class="sub">F19/TH6 gate</div></div>
+    <div class="card"><div class="lbl">Total joules-est <span class="chip sample" id="c_joules_lbl">sample</span></div><div class="big" id="c_joules" style="color:var(--warn)">—</div><div class="sub">estimate · not metered</div></div>
+    <div class="card"><div class="lbl">Power window</div><div class="big" id="c_window">—</div><div class="sub" id="c_window_sub">client-side heuristic</div></div>
+  </div>
+
+  <div class="panel">
+    <h2>(1) Cumulative joules-est over time
+      <span style="display:flex;gap:.4rem;align-items:center"><span class="chip sample" id="area_lbl">sample</span><span class="meta">/v1/energy/harvest · budget.series</span></span>
+    </h2>
+    <div id="area_mount"><div class="uarea" id="area_chart"></div></div>
+    <div class="empty" id="area_empty" style="display:none"><b>No tasks yet.</b> The in-memory Bekenstein budget ledger is empty (it resets on process restart). Track a task via <code>/api/a11oy/v1/energy/budget?bytes=…</code> to populate the series — until then this is the honest empty-state, not a fabricated curve.</div>
+    <div class="simnote"><b>joules_est is SAMPLE/ESTIMATE</b> — no on-box meter is wired behind the budget layer (doctrine v11). The curve is the running sum of per-task <code>joules_est</code>; the chip reflects the payload's <code>joules_label</code>. The plot tint mirrors the current heuristic window (green=off-peak, amber=normal, red=peak) — a clock heuristic, NOT a tariff feed.</div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>(2) Off-peak window<span class="meta">server-clock heuristic</span></h2>
+      <div class="win" id="win">
+        <div class="cell offpeak" data-w="off-peak"><div class="t">Off-peak</div><div class="h" id="win_h_off">—</div><div class="v">—</div></div>
+        <div class="cell normal" data-w="normal"><div class="t">Normal</div><div class="h" id="win_h_norm">—</div><div class="v">—</div></div>
+        <div class="cell peak" data-w="peak"><div class="t">Peak</div><div class="h" id="win_h_peak">—</div><div class="v">—</div></div>
+      </div>
+      <div class="simnote" id="win_note"><b>Client-side heuristic, NOT a live tariff feed.</b> The window is derived from the server clock (hour-of-day bands) — it mirrors the engine's off-peak provider but <b>no real-time grid price is wired</b>. No price or carbon figure is claimed as metered.</div>
+    </div>
+    <div class="panel">
+      <h2>(3) Bekenstein budget gauge
+        <span style="display:flex;gap:.4rem;align-items:center"><span class="chip measured" id="gauge_chip">proven</span><span class="meta">Σ shannon_bits ÷ Σ n·8</span></span>
+      </h2>
+      <div class="echart" id="gauge_chart" style="height:260px"></div>
+      <div class="empty" id="gauge_empty" style="display:none"><b>No tasks yet.</b> Nothing to gate — the F19/TH6 inequality holds vacuously over an empty ledger.</div>
+      <div class="simnote" id="gauge_note"><b>Proven inequality (F19/TH6, locked-8):</b> empirical byte-entropy is always ≤ n·8, so the needle stays at or below 100% of the ceiling unless an upstream over-claim occurs (then it reads OVER, in red). Kernel-checked in EnergyBudgetWitness.lean (0-sorry). <code>all_within_bound</code> is the real gate result.</div>
+    </div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel">
+      <h2>(4) Per-task receipt ledger<span class="meta">/v1/energy/harvest · per receipt</span></h2>
+      <div class="scrollx" id="led_wrap" style="display:none">
+        <table>
+          <thead><tr>
+            <th>#</th><th>shannon_bits</th><th>bekenstein n·8</th><th>within</th><th>joules_est <span class="chip sample">est</span></th><th>Σ joules-est</th><th>ts</th>
+          </tr></thead>
+          <tbody id="led_body"></tbody>
+        </table>
+      </div>
+      <div class="empty" id="led_empty"><b>No per-task receipts yet.</b> The in-memory ledger is empty and resets on process restart. The table structure stays visible so the shape is honest — no placeholder rows.</div>
+    </div>
+    <div class="panel">
+      <h2>Harvest composition + signed ledger
+        <span style="display:flex;gap:.4rem;align-items:center"><span class="chip modeled" id="mix_chip">modeled</span><span class="meta">/v1/energy/ledger</span></span>
+      </h2>
+      <div class="echart" id="mix_chart" style="height:170px"></div>
+      <div class="kv" id="sl_kv" style="display:none">
+        <div><span class="k">Signed jobs</span><span class="v" id="sl_jobs">—</span></div>
+        <div><span class="k">Joules MEASURED-billable</span><span class="v" id="sl_meas">—</span> <span class="chip measured">measured</span></div>
+        <div><span class="k">kWh total</span><span class="v" id="sl_kwh">—</span></div>
+        <div><span class="k">Receipt chain</span><span class="v" id="sl_chain">—</span></div>
+      </div>
+      <div class="empty" id="sl_empty" style="display:none"><b>Signed ledger unavailable.</b> /v1/energy/ledger did not return a chain — showing no measured total (honest empty-state, never a fabricated number).</div>
+      <div class="simnote"><b>Two honesty tiers, never mixed:</b> the <span style="color:var(--warn)">SAMPLE/ESTIMATE</span> joules-est above come from the budget layer (no meter); the <span style="color:var(--green)">MEASURED-billable</span> joules here come only from real NVML deltas in the signed receipt chain. The donut splits MEASURED-billable vs SAMPLE-est headroom — a MODELED composition, not a grid source mix.</div>
+    </div>
+  </div>
+
+  <div class="footnote">
+    <b>Honest by design.</b> The Bekenstein gate is <b>F19 (locked-8) / TH6</b>, a machine-checked inequality (EnergyBudgetWitness.lean, 0-sorry) — Σ shannon_bits ≤ Σ output_bytes·8. <b>All joules-est figures are SAMPLE/ESTIMATE</b> (no on-box meter behind the budget layer); only the signed-ledger <code>joules_measured_billable</code> is MEASURED (real NVML deltas). The off-peak/normal/peak window is a <b>client-side clock heuristic, NOT a live tariff feed</b>. <b>No free-energy / perpetual-motion claims</b> — the engine harvests WASTED energy and proves bounded information work; harvest framing is MODELED/SAMPLE. Λ trust = <b>Conjecture 1</b> (advisory, never a theorem). <b>0 runtime CDN</b> — uPlot (MIT) + Apache ECharts (Apache-2.0) served same-origin from <code>/vendor/*</code>; system fonts. Poll ~5s; every value MEASURED-or-labeled, never fabricated.
+  </div>
+</div>
+
+<!-- 0 CDN: uPlot (MIT) + Apache ECharts (Apache-2.0) vendored same-origin. -->
+<script src="/vendor/uPlot.iife.min.js"></script>
+<script src="/vendor/echarts.min.js"></script>
+<script>
+const A="/api/a11oy";
+const $=id=>document.getElementById(id);
+const REDUCED = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+async function getJSON(u){try{const r=await fetch(u,{headers:{'accept':'application/json'}});if(!r.ok)return null;return await r.json();}catch(e){return null;}}
+function fmt(n,d){if(n==null||isNaN(n))return '—';const x=Number(n);return d!=null?x.toFixed(d):String(x);}
+function tsEpoch(s){const t=Date.parse(s);return isNaN(t)?null:Math.floor(t/1000);}
+
+// ---- honesty chip helper ----------------------------------------------------
+function setChip(el,label){
+  if(!el)return;
+  const l=String(label||'SAMPLE').toUpperCase();
+  el.textContent=l.toLowerCase();
+  el.className='chip '+({MEASURED:'measured',SAMPLE:'sample',ESTIMATE:'estimate',MODELED:'modeled',UNAVAILABLE:'unavailable'}[l]||'sample');
+}
+
+// ---- (2) off-peak window ----------------------------------------------------
+const WIN_COLORS={'off-peak':'rgba(57,217,138,0.10)','normal':'rgba(245,196,81,0.08)','peak':'rgba(255,106,90,0.08)'};
+let CURRENT_WINDOW='normal';
+function renderWindow(tw){
+  if(!tw)return;
+  CURRENT_WINDOW=tw.window||'normal';
+  const bands=tw.bands||{};
+  $('win_h_off').textContent=bands['off-peak']||'';
+  $('win_h_norm').textContent=bands['normal']||'';
+  $('win_h_peak').textContent=bands['peak']||'';
+  const hh=(tw.local_hour!=null)?('NOW · '+String(tw.local_hour).padStart(2,'0')+':00'):'NOW';
+  document.querySelectorAll('#win .cell').forEach(c=>{
+    const on=c.dataset.w===CURRENT_WINDOW;
+    c.classList.toggle('on',on);
+    c.querySelector('.v').textContent=on?hh:'—';
+  });
+  $('c_window').textContent=CURRENT_WINDOW;
+  $('c_window').style.color=({'off-peak':'var(--green)','normal':'var(--yellow)','peak':'var(--red)'}[CURRENT_WINDOW])||'var(--holo)';
+  $('c_window_sub').textContent='heuristic · hour '+(tw.local_hour!=null?tw.local_hour:'—');
+}
+
+// ---- (1) cumulative joules-est area chart (uPlot, MIT) ----------------------
+let uplot=null;
+// background tint = current heuristic window (clock heuristic, NOT a tariff feed)
+const windowTint={hooks:{draw:[u=>{
+  const {ctx}=u; const {left,top,width,height}=u.bbox;
+  ctx.save(); ctx.fillStyle=WIN_COLORS[CURRENT_WINDOW]||'transparent';
+  ctx.fillRect(left,top,width,height); ctx.restore();
+}]}};
+function buildUplot(){
+  const el=$('area_chart'); if(!el||!window.uPlot)return;
+  const w=el.clientWidth||el.parentElement.clientWidth||800;
+  const opts={
+    width:w, height:300,
+    plugins:[windowTint],
+    cursor:{points:{size:6}},
+    scales:{x:{time:true}},
+    axes:[
+      {stroke:'#888',grid:{stroke:'rgba(201,183,135,0.10)'},ticks:{stroke:'rgba(201,183,135,0.18)'},font:'11px ui-monospace,monospace'},
+      {stroke:'#888',grid:{stroke:'rgba(201,183,135,0.10)'},ticks:{stroke:'rgba(201,183,135,0.18)'},font:'11px ui-monospace,monospace',
+       label:'Σ joules-est (SAMPLE)',labelFont:'11px ui-monospace,monospace',labelSize:34},
+    ],
+    series:[
+      {},
+      {label:'Σ joules-est',stroke:'#39d8c8',width:2,fill:'rgba(57,216,200,0.18)',
+       points:{show:false},
+       value:(u,v)=>v==null?'—':v.toFixed(3)+' J (est)'},
+    ],
+  };
+  uplot=new uPlot(opts,[[],[]],el);
+  window.addEventListener('resize',()=>{ if(uplot) uplot.setSize({width:(el.clientWidth||w),height:300}); });
+}
+function renderArea(series,label){
+  setChip($('area_lbl'),label);
+  const rows=Array.isArray(series)?series.filter(r=>r&&r.ts):[];
+  const hasData=rows.length>0;
+  $('area_empty').style.display=hasData?'none':'block';
+  $('area_chart').style.display=hasData?'block':'none';
+  if(!hasData){return;}
+  if(!uplot)buildUplot();
+  // build x (epoch seconds) + y (cumulative joules-est). Fall back to index if ts unparseable.
+  let xs=[], ys=[]; let useIndex=false;
+  rows.forEach((r,i)=>{const e=tsEpoch(r.ts); if(e==null)useIndex=true;});
+  rows.forEach((r,i)=>{
+    const e=tsEpoch(r.ts);
+    xs.push(useIndex?i:(e!=null?e:i));
+    ys.push(Number(r.cumulative_joules_est!=null?r.cumulative_joules_est:r.joules_est)||0);
+  });
+  if(uplot){ uplot.setData([xs,ys]); }
+}
+
+// ---- (3) Bekenstein budget gauge (ECharts, Apache-2.0) ----------------------
+let gaugeChart=null;
+function buildGauge(){
+  const el=$('gauge_chart'); if(!el||!window.echarts)return;
+  gaugeChart=echarts.init(el,null,{renderer:'canvas'});
+}
+function renderGauge(sumSh,sumCeil,allWithin,taskCount){
+  const has=(taskCount>0)&&(sumCeil!=null)&&(sumCeil>0);
+  $('gauge_empty').style.display=has?'none':'block';
+  $('gauge_chart').style.display=has?'block':'none';
+  // chip reflects the REAL gate result
+  const gchip=$('gauge_chip');
+  if(allWithin===false){gchip.textContent='OVER';gchip.className='chip unavailable';}
+  else{gchip.textContent='within bound';gchip.className='chip measured';}
+  if(!has)return;
+  if(!gaugeChart)buildGauge();
+  const pct=Math.max(0,Math.min(sumSh/sumCeil,1.2))*100;
+  const over=sumSh>sumCeil+1e-9;
+  gaugeChart && gaugeChart.setOption({
+    animation:!REDUCED,
+    series:[{
+      type:'gauge',min:0,max:100,startAngle:210,endAngle:-30,
+      radius:'95%',center:['50%','62%'],
+      progress:{show:true,width:14,itemStyle:{color:over?'#ff6a5a':'#39d8c8'}},
+      axisLine:{lineStyle:{width:14,color:[[0.8,'rgba(57,216,200,0.18)'],[1,'rgba(255,106,90,0.25)']]}},
+      axisTick:{show:false},splitLine:{length:10,lineStyle:{color:'#555'}},
+      axisLabel:{color:'#888',fontSize:9,distance:14,formatter:v=>v+'%'},
+      pointer:{itemStyle:{color:over?'#ff6a5a':'#39d8c8'}},
+      anchor:{show:true,size:8,itemStyle:{color:over?'#ff6a5a':'#39d8c8'}},
+      title:{show:true,offsetCenter:[0,'34%'],color:'#888',fontSize:10,
+             fontFamily:'ui-monospace,monospace'},
+      detail:{valueAnimation:!REDUCED,offsetCenter:[0,'8%'],fontSize:22,
+              fontFamily:'ui-monospace,monospace',color:over?'#ff6a5a':'#39d8c8',
+              formatter:v=>v.toFixed(1)+'%'},
+      data:[{value:pct,name:over?'OVER CEILING':'of F19/TH6 ceiling'}],
+    }],
+  });
+}
+
+// ---- harvest composition donut (ECharts) -----------------------------------
+let mixChart=null;
+function renderMix(measBillable,sampleEst){
+  const el=$('mix_chart'); if(!el||!window.echarts)return;
+  if(!mixChart)mixChart=echarts.init(el,null,{renderer:'canvas'});
+  const m=Number(measBillable)||0, s=Number(sampleEst)||0;
+  if(m<=0&&s<=0){
+    mixChart.setOption({animation:false,
+      title:{text:'no joules yet',left:'center',top:'center',textStyle:{color:'#888',fontSize:11,fontFamily:'ui-monospace,monospace'}},
+      series:[]},true);
+    return;
+  }
+  mixChart.setOption({
+    animation:!REDUCED,
+    tooltip:{trigger:'item',formatter:p=>p.name+': '+p.value.toFixed(3)+' J'},
+    legend:{bottom:0,textStyle:{color:'#9a9a9a',fontSize:9,fontFamily:'ui-monospace,monospace'},itemWidth:9,itemHeight:9},
+    series:[{
+      type:'pie',radius:['46%','72%'],center:['50%','44%'],avoidLabelOverlap:true,
+      itemStyle:{borderColor:'#0e0e0e',borderWidth:2},
+      label:{show:false},labelLine:{show:false},
+      data:[
+        {value:m,name:'MEASURED-billable',itemStyle:{color:'#39d98a'}},
+        {value:s,name:'SAMPLE-est',itemStyle:{color:'#c9a05f'}},
+      ],
+    }],
+  },true);
+}
+
+// ---- (4) ledger table -------------------------------------------------------
+function renderLedger(series){
+  const rows=Array.isArray(series)?series.filter(r=>r&&r.ts):[];
+  if(!rows.length){$('led_wrap').style.display='none';$('led_empty').style.display='block';return;}
+  $('led_empty').style.display='none';$('led_wrap').style.display='block';
+  $('led_body').innerHTML=rows.map((r,i)=>{
+    const wb=r.within_bound===true;
+    return `<tr>
+      <td>${i+1}</td>
+      <td>${fmt(r.shannon_bits,1)}</td>
+      <td>${r.bekenstein_bound_bits==null?'—':r.bekenstein_bound_bits}</td>
+      <td class="${wb?'ok':'bad'}">${r.within_bound==null?'—':(wb?'✓':'✗')}</td>
+      <td>${fmt(r.joules_est,3)}</td>
+      <td>${fmt(r.cumulative_joules_est,3)}</td>
+      <td>${String(r.ts||'—')}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ---- signed ledger summary --------------------------------------------------
+function renderSignedLedger(sl){
+  const ok=sl&&sl.available;
+  $('sl_kv').style.display=ok?'block':'none';
+  $('sl_empty').style.display=ok?'none':'block';
+  if(!ok)return;
+  $('sl_jobs').textContent=sl.jobs!=null?sl.jobs:'—';
+  $('sl_meas').textContent=(sl.joules_measured_billable!=null?fmt(sl.joules_measured_billable,3):'0')+' J';
+  $('sl_kwh').textContent=sl.kwh_total!=null?fmt(sl.kwh_total,6)+' kWh':'—';
+  const chainOk=sl.chain_ok===true;
+  $('sl_chain').innerHTML=`<span style="color:${chainOk?'var(--green)':'var(--red)'}">${chainOk?'OK':'BROKEN'}</span> · len ${sl.chain_length!=null?sl.chain_length:'—'}`;
+}
+
+// ---- main poll loop ---------------------------------------------------------
+async function loadAll(){
+  const [harvest,budget,ledger]=await Promise.all([
+    getJSON(A+"/v1/energy/harvest"),
+    getJSON(A+"/v1/energy/budget"),
+    getJSON(A+"/v1/energy/ledger"),
+  ]);
+  if(!harvest){
+    $('livelbl').textContent='FALLBACK';
+    renderArea([],'UNAVAILABLE');renderLedger([]);
+    $('c_tasks').textContent='—';$('c_within').textContent='—';$('c_joules').textContent='—';
+    return;
+  }
+  $('livelbl').textContent='LIVE · RT';
+  const tw=harvest.tariff_window||null; renderWindow(tw);
+  const b=harvest.budget||{};
+  const series=b.series||[];
+  const jlabel=b.joules_label||harvest.total_joules_label||'SAMPLE';
+
+  // summary cards (prefer the live /budget summary, fall back to harvest budget block)
+  const bs=(budget&&budget.task_count!=null)?budget:b;
+  const tc=(bs.task_count!=null)?bs.task_count:series.length;
+  $('c_tasks').textContent=tc;
+  const allWithin=(bs.all_within_bound!=null)?bs.all_within_bound:(series.length?series.every(r=>r.within_bound):null);
+  $('c_within').textContent=(allWithin==null)?'—':(allWithin?'YES':'NO');
+  $('c_within').style.color=(allWithin===false)?'var(--red)':'var(--green)';
+  const tj=(bs.total_joules_est!=null)?bs.total_joules_est:(harvest.total_joules!=null?harvest.total_joules:series.reduce((a,r)=>a+(Number(r.joules_est)||0),0));
+  $('c_joules').textContent=fmt(tj,3)+' J';
+  setChip($('c_joules_lbl'),jlabel);
+
+  // (1) area
+  renderArea(series,jlabel);
+  // (3) gauge — Σ shannon vs Σ ceiling (prefer /budget summary; fall back to series sums)
+  const sumSh=(budget&&budget.total_shannon_bits!=null)?budget.total_shannon_bits:series.reduce((a,r)=>a+(Number(r.shannon_bits)||0),0);
+  const sumCeil=(budget&&budget.total_bekenstein_bound_bits!=null)?budget.total_bekenstein_bound_bits:series.reduce((a,r)=>a+(Number(r.bekenstein_bound_bits)||0),0);
+  renderGauge(sumSh,sumCeil,allWithin,tc);
+  // (4) ledger
+  renderLedger(series);
+
+  // signed ledger (prefer dedicated /ledger endpoint, fall back to harvest.signed_ledger)
+  let sl=harvest.signed_ledger||{available:false};
+  if(ledger){
+    const t=ledger.totals||ledger;
+    const chain=ledger.chain||ledger;
+    sl={available:true,
+        jobs:(t.jobs!=null?t.jobs:sl.jobs),
+        joules_measured_billable:(t.joules_measured_billable!=null?t.joules_measured_billable:sl.joules_measured_billable),
+        kwh_total:(t.kwh_total!=null?t.kwh_total:sl.kwh_total),
+        chain_ok:(chain.ok!=null?chain.ok:(ledger.chain_ok!=null?ledger.chain_ok:sl.chain_ok)),
+        chain_length:(chain.length!=null?chain.length:(ledger.chain_length!=null?ledger.chain_length:sl.chain_length))};
+  }
+  renderSignedLedger(sl);
+  // composition donut: MEASURED-billable vs SAMPLE-est
+  renderMix(sl&&sl.joules_measured_billable, tj);
+}
+
+buildUplot(); buildGauge();
+loadAll();
+setInterval(loadAll,5000);
+</script>
+</body>
+</html>

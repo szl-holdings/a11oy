@@ -1,0 +1,153 @@
+name: HF Space module-drift guard
+
+# Pull requests and deployed-runtime checks are separate lifecycle proofs.
+#
+# PR admission proves that the current protected base is exactly represented by
+# one stable immutable Hugging Face repository revision, and that the candidate
+# does not introduce unmanaged Dockerfile COPY drift. It does not depend on an
+# unrelated live request queue or mutate the Space.
+#
+# Scheduled, manual, and post-deployment checks retain the strict live
+# source-bound controller: the runtime must be RUNNING and /api/build-info must
+# produce two stable exact-source observations. A paused or unmeasured runtime
+# therefore stays red at the release/runtime boundary rather than deadlocking
+# every unrelated source PR.
+#
+# Pushes do not run this workflow because they race publication. Every main
+# push enters hf-sync without a path filter; hf-sync deploys, restarts, relocks,
+# and then dispatches this workflow against protected main.
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '37 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  hf-module-drift:
+    name: Protected base matches immutable HF repository
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected base verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: baseline
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Checkout exact reusable tools revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054
+          path: tools
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prove stable immutable deployed-base repository parity
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SOURCE_REF: ${{ github.event.pull_request.base.sha }}
+        run: |
+          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_repository_parity.py \
+            --tools-script tools/.github/scripts/hf_module_drift_check.py \
+            --github-repo "$GITHUB_REPOSITORY" \
+            --github-ref "$SOURCE_REF" \
+            --hf-repo SZLHOLDINGS/a11oy \
+            --report-out hf-current-base-parity.out.json
+
+      - name: Upload immutable deployed-base proof
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-current-base-parity
+          path: hf-current-base-parity.out.json
+          if-no-files-found: error
+          retention-days: 90
+
+  hf-runtime-live:
+    name: Scheduled live HF runtime source witness
+    if: github.event_name != 'pull_request'
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@0816263f1e83734658d6e5a8a7cd3834f36a2054
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      mode: source-bound-baseline
+      trusted-base-ref: ${{ github.sha }}
+      candidate-ref: ${{ github.sha }}
+      source-probe-path: /api/build-info
+      dockerfile-path: Dockerfile
+      github-ref: ${{ github.sha }}
+      hf-ref: main
+
+  hf-repository-parity:
+    name: Immutable HF repository byte parity
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected-base verifier
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: baseline
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+
+      - name: Checkout exact reusable tools revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054
+          path: tools
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prove the candidate introduces no unmanaged deployed-byte drift
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.event.pull_request.base.sha }}
+          SOURCE_REF: ${{ github.event.pull_request.head.sha }}
+        run: |
+          "$pythonLocation/bin/python3" baseline/.github/scripts/verify_hf_candidate_admission.py \
+            --tools-script tools/.github/scripts/hf_module_drift_check.py \
+            --github-repo "$GITHUB_REPOSITORY" \
+            --base-ref "$BASE_REF" \
+            --github-ref "$SOURCE_REF" \
+            --hf-repo SZLHOLDINGS/a11oy \
+            --report-out hf-repository-parity.out.json
+
+      - name: Upload immutable candidate repository parity report
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-repository-parity
+          path: hf-repository-parity.out.json
+          if-no-files-found: error
+          retention-days: 90

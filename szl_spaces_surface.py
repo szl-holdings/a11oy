@@ -1,0 +1,1130 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: Apache-2.0
+# © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
+"""szl_spaces_surface.py — console "Spaces" surface (health API + tiles + nav).
+
+ADDITIVE, self-contained, SHARED across a11oy + killinchu. The console companion to
+the canonical handoff module: a LIVE health view of the public KEEP-6 Hub estate plus a
+clean tiles page and ONE idempotent nav item, following the additive-injector pattern
+(a11oy_nav_wireup.py / killinchu_nav_wireup.py).
+
+ROUTES (additive, inserted at the FRONT of the router so they beat the SPA + Node-proxy
+catch-alls — same route-to-front idiom as a11oy_hf_assets.py):
+
+  GET  /api/<ns>/v1/spaces/health  -> for each Space, an HONEST status:
+        {name, slug, title, sdk, stage, app_reachable, url, canonical_url, proxy_url}
+        - stage          : runtime.stage from the HF API
+                           (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>),
+                           or "unknown" if that API call degrades. LABELLED as HF-API.
+        - app_reachable  : a REAL server-side probe of
+                           https://szlholdings-<name>.hf.space/ (HEAD, short timeout).
+                           true ONLY when the probe really succeeded. Never fabricated.
+        Degrade -> stage:"unknown", app_reachable:false. NEVER a faked stage/200.
+
+  GET/HEAD /spaces                 -> a clean tiles page (one card per Space: honest
+        title, live status dot fed by /health, destination on product/proof/Hub,
+        and a separate huggingface.co repository link).
+        Folded Spaces render as a destination ledger, not live Hub probes.
+        No upstream app executes inside the a11oy or Killinchu origin. Pure inline
+        markup, 0 browser CDN. Status dots are filled by a tiny inline fetch of the
+        SAME-ORIGIN /health JSON (our own server-side-probed endpoint).
+
+NAV: a BaseHTTPMiddleware injector adds ONE nav item "Spaces" -> /spaces into the
+console left-nav (before <div class="side-foot">, with nav-group / nav-item fallbacks).
+Idempotent — keyed by data-attribute data-nav-spaces="hf1"; removes NOTHING from the SPA
+source; never touches /api, /v1, /assets, /static, /vendor responses. Works identically
+on the a11oy /console and killinchu /elite consoles (same sidebar markup) — which is why
+this module can be byte-identical in both apps.
+
+The /spaces probe + HF-API call are SERVER-SIDE fetches (resolve the shared httpx client
+lazily from serve.py, like szl_engine_status) — 0 runtime CDN, same justification as
+a11oy_hf_assets.py. No auth token forwarded to HF (public Spaces / public API).
+
+Doctrine v11: locked-proven = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17;
+Λ = Conjecture 1; Khipu = Conjecture 2; trust never 100%; 0 runtime CDN; no user-visible
+codenames (Space names are their own honest titles); never commits a key; additive-only;
+honest "unknown"/false beats a fabricated stage.
+
+Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
+"""
+from __future__ import annotations
+
+import asyncio
+import sys
+import time
+from html import escape as html_escape
+from typing import Any
+
+_ORG = "SZLHOLDINGS"
+_ORG_PREFIX = "szlholdings-"
+SPACE_TILE_ORIGIN_MODE = "canonical-isolated-hf/v1"
+
+PRODUCT = "https://a-11-oy.com"
+PROOF = "https://a11oy.net"
+
+# Public Hub KEEP set — MEASURED 2026-08-30 unauthenticated author-list.
+# Application KEEP is these 6. README is a profile card, not an application Space.
+# Atlas keep-7 (18:05Z) is a prior snapshot and is not rewritten here.
+# Folded Spaces are PAUSED+PRIVATE and are not health-probed here. Destinations
+# are existing product and proof paths. RECORD: https://a11oy.net/spaces.json.
+# /verify is not cloned. Occupancy stays UNAVAILABLE. pause+private, never delete.
+SPACES: list[dict[str, str]] = [
+    {"name": "a11oy", "slug": "a11oy", "title": "a11oy — Command Center", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT},
+    {"name": "killinchu", "slug": "killinchu", "title": "killinchu — Andean Drone Intelligence", "sdk": "docker",
+     "action": "KEEP", "dest": "https://szlholdings-killinchu.hf.space/elite"},
+    {"name": "immune", "slug": "immune", "title": "IMMUNE — Verifiable AI Defense Matrix", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT + "/immune"},
+    {"name": "szl-khipu", "slug": "szl-khipu", "title": "szl-khipu", "sdk": "docker",
+     "action": "KEEP", "dest": PRODUCT + "/khipu"},
+    {"name": "szl-atelier", "slug": "szl-atelier", "title": "SZL Atelier — forty-model walk", "sdk": "static",
+     "action": "KEEP", "dest": PROOF + "/atelier/"},
+    {"name": "governed-receipt-verifier", "slug": "governed-receipt-verifier", "title": "Governed Receipt Verifier", "sdk": "static",
+     "action": "KEEP", "dest": PROOF + "/record/"},
+]
+KEEP_TARGET = 6
+
+FOLD_SPACES: list[dict[str, str]] = [
+    {"name": "llm-router-live", "slug": "llm-router-live", "title": "SZL LLM Router", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Router is the product. Status Space is STALE. Do not keep a second front door."},
+    {"name": "hatun-mcp", "slug": "hatun-mcp", "title": "hatun — MCP Server", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/wires",
+     "why": "MCP is a bind, not a flagship. Product wires already exist."},
+    {"name": "sda", "slug": "sda", "title": "SZL SDA", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Organ workstation. Residuals MODELED. Not a second detection product."},
+    {"name": "yarqa", "slug": "yarqa", "title": "yarqa — Plug-Flow Compartments (live or sample, always honest)", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Canal partition is an organ, not a Space. CFD, never locked-8."},
+    {"name": "holographic", "slug": "holographic", "title": "Holographic Estate", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/anatomy-v5",
+     "why": "Hologram sprawl. One atlas. Fold into anatomy."},
+    {"name": "cosmos", "slug": "cosmos", "title": "SZL Cosmos", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/living-anatomy",
+     "why": "Unmapped RUNNING Space. Bind as anatomy, not a third map."},
+    {"name": "szl-model-inference-lab", "slug": "szl-model-inference-lab", "title": "SZL Model Inference Lab", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/console",
+     "why": "Lab is not a flagship. Command Center is /console."},
+    {"name": "khipu-lab", "slug": "khipu-lab", "title": "khipu-lab", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/khipu",
+     "why": "Duplicate knot lab. KHIPU already lives on product /khipu. RECORD on a11oy.net/khipu/."},
+    {"name": "nexus", "slug": "nexus", "title": "nexus", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/nexus",
+     "why": "Analog workstation is an a11oy package (AO-2026-08-29-003), not a flagship. Bound at /nexus."},
+    {"name": "szl-command-lab", "slug": "szl-command-lab", "title": "szl-command-lab", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/console",
+     "why": "Command already has a body. Lab is a fork."},
+    {"name": "szl-sovereign-os", "slug": "szl-sovereign-os", "title": "szl-sovereign-os", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "This OS is the operator kernel. Hub rehost is a hologram."},
+    {"name": "immune-lattice", "slug": "immune-lattice", "title": "immune-lattice", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/immune",
+     "why": "Lattice is not a sibling of IMMUNE. One admission surface."},
+    {"name": "a11oy-factory", "slug": "a11oy-factory", "title": "a11oy-factory", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Factory is a bind (AO-2026-08-29-001), not a second flagship."},
+    {"name": "lyte-services", "slug": "lyte-services", "title": "lyte-services", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Lyte is the one admitted cell. Compiling a frontier still returns BLOCKED."},
+    {"name": "lyte-lattice", "slug": "lyte-lattice", "title": "lyte-lattice", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/lyte",
+     "why": "BIND hologram. Hub is the artifact registry. Not a second flagship."},
+    {"name": "szl-quant-live", "slug": "szl-quant-live", "title": "szl-quant-live", "sdk": "static",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Static hologram. Paper quotes already MEASURED. No order routing."},
+    {"name": "terra-assurance", "slug": "terra-assurance", "title": "terra-assurance", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "why": "Unmapped docker. Not a flagship. Occupancy stays UNAVAILABLE."},
+    {"name": "ayllu", "slug": "ayllu", "title": "ayllu", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/ayllu/",
+     "why": "Counsel showcase already lives on the proof origin. Does not run the council."},
+    {"name": "counsel", "slug": "counsel", "title": "counsel", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/ayllu/",
+     "why": "Duplicate of ayllu. One lab URL."},
+    {"name": "experiments", "slug": "experiments", "title": "experiments", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/experiments/",
+     "why": "Experimental split-outs already have a proof path. Not locked-8."},
+    {"name": "szl-experiments", "slug": "szl-experiments", "title": "szl-experiments", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/experiments/",
+     "why": "Same lab, second Space. Fold, do not twin."},
+    {"name": "energy-attested-runs", "slug": "energy-attested-runs", "title": "Energy-Attested Inference Runs", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "honesty": "8/8 SIMULATED",
+     "why": "Energy stays UNAVAILABLE until NVML is MEASURED. Index the claim, do not host a joule hologram."},
+    {"name": "guardrail-receipt", "slug": "guardrail-receipt", "title": "Guardrail Decision-Receipt", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "One signing primitive. Wrappers become adapters."},
+    {"name": "governed-norm-holo", "slug": "governed-norm-holo", "title": "Governed Norms — WILLAY classifiers", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Static HTML Space. Estate snapshot is the inventory, not a live dashboard."},
+    {"name": "lambda-gate-holo", "slug": "lambda-gate-holo", "title": "Λ Gate — Conjecture 1, never green", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Λ remains Conjecture 1. A hologram is not a theorem."},
+    {"name": "energy-attest-holo", "slug": "energy-attest-holo", "title": "Energy Attestation Holo", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "One meter. Honest UNAVAILABLE. No second joule path."},
+    {"name": "receipt-chain-live", "slug": "receipt-chain-live", "title": "Receipt Chain Live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Live chain is on product /api/lake. Proof indexes pointers."},
+    {"name": "szl-provctl-live", "slug": "szl-provctl-live", "title": "szl-provctl-live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Hub-mirror explosion. Publish from one suite."},
+    {"name": "szl-kernels-live", "slug": "szl-kernels-live", "title": "SZL Kernel Operations Hub", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/#atlas",
+     "why": "Atlas lists kernels. A live Space is not a second source."},
+    {"name": "szl-govsign-live", "slug": "szl-govsign-live", "title": "szl-govsign-live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Fold into szl-receipt + governed-receipt-spec."},
+    {"name": "szl-blocked-live", "slug": "szl-blocked-live", "title": "szl-blocked-live", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Refusals are tamper-EVIDENT on product. Hologram is theater."},
+    {"name": "szl-estate-live", "slug": "szl-estate-live", "title": "Khipu Loom — Governed AI Estate", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/estate/",
+     "why": "Estate snapshot already exists on the proof origin."},
+    {"name": "szl-forge-lab", "slug": "szl-forge-lab", "title": "SZL Forge Lab", "sdk": "static",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/atelier/",
+     "honesty": "SNAPSHOT — not a trainer, not Serve Studio",
+     "why": "Cuts belong next to the forty-model walk, not as a sibling Space."},
+    {"name": "governed-agent-bench", "slug": "governed-agent-bench", "title": "Governed Agent Benchmark", "sdk": "gradio",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Bench metadata is REPORTED. Not a runtime origin."},
+    {"name": "evidence-studio", "slug": "evidence-studio", "title": "evidence-studio", "sdk": "docker",
+     "action": "FOLD", "sink": "proof", "dest": PROOF + "/record/",
+     "why": "Evidence wall is RECORD. Studio is not a third origin."},
+    {"name": "david-leads", "slug": "david-leads", "title": "David Leads — Sovereign Insurance Intelligence", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "honesty": "PII/leads stay private",
+     "why": "Insurance vertical is not a flagship. Hub Space is PAUSED+PRIVATE. pause+private, never delete."},
+    {"name": "anatomy", "slug": "anatomy", "title": "SZL Living Anatomy", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT + "/anatomy-v5",
+     "why": "Living map already on product /anatomy-v5 and /living-anatomy. Hub Space re-privatized. Not a second origin."},
+    {"name": "szl-real-estate", "slug": "szl-real-estate", "title": "SZL Real Estate — public-records underwriting", "sdk": "docker",
+     "action": "FOLD", "sink": "product", "dest": PRODUCT,
+     "honesty": "Occupancy UNAVAILABLE",
+     "why": "Public-records underwriting is not a flagship. Occupancy stays UNAVAILABLE. Hub Space PAUSED+PRIVATE."},
+]
+ARCHIVE_SPACES: list[dict[str, str]] = [
+    {"name": "second-brain", "slug": "second-brain", "title": "second-brain", "sdk": "docker",
+     "action": "ARCHIVE", "dest": "",
+     "why": "Duplicate brain. Not an origin. Not a lab. Stamp HISTORICAL."},
+]
+_SPACE_BY_NAME = {sp["name"]: sp for sp in SPACES}
+_SPACE_BY_SLUG = {sp["slug"]: sp for sp in SPACES}
+_FOLD_BY_NAME = {sp["name"]: sp for sp in FOLD_SPACES}
+_FOLD_BY_SLUG = {sp["slug"]: sp for sp in FOLD_SPACES}
+# Product Spaces retained as metadata for consumers that distinguish flagship hosts.
+_OWN_HOST = {"a11oy", "killinchu"}
+
+_DOCTRINE = {
+    "version": "v11",
+    "lambda": "Conjecture 1",
+    "khipu": "Conjecture 2",
+    "locked_proven": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+    "trust_ceiling": "never 100%",
+}
+
+_PROBE_TIMEOUT = 2.0
+_HF_API_TIMEOUT = 2.0
+_HEALTH_CACHE_TTL = 20.0  # seconds — keep the tiles page snappy without re-probing 6x.
+_HEALTH_CACHE: dict[str, Any] = {"ts": 0.0, "payload": None}
+_RUNNING_STAGES = {"RUNNING"}
+_HF_LIST_URL = f"https://huggingface.co/api/spaces?author={_ORG}&limit=1000&full=true"
+_CUSTOM_DOMAINS = {"a11oy": "a-11-oy.com"}
+_CONTRACT_ATTEMPTS = 2
+_CONTRACT_FAILURE_THRESHOLD = 2
+_CONTRACT_CIRCUIT_COOLDOWN = 30.0
+_CONTRACT_CIRCUITS: dict[str, dict[str, Any]] = {}
+
+
+def _space_record(identifier: str) -> dict[str, str]:
+    """Resolve KEEP or FOLD identifiers; fail closed for unknown names."""
+    record = (_SPACE_BY_NAME.get(identifier) or _SPACE_BY_SLUG.get(identifier)
+              or _FOLD_BY_NAME.get(identifier) or _FOLD_BY_SLUG.get(identifier))
+    if record is None:
+        raise ValueError("unknown Space identifier: %s" % identifier)
+    return record
+
+
+def hf_url(name: str) -> str:
+    record = _space_record(name)
+    host_suffix = ".static.hf.space" if record["sdk"] == "static" else ".hf.space"
+    return f"https://{_ORG_PREFIX}{record['slug']}{host_suffix}"
+
+
+def hf_api_url(name: str) -> str:
+    record = _space_record(name)
+    return f"https://huggingface.co/api/spaces/{_ORG}/{record['name']}"
+
+
+def hf_repo_url(name: str) -> str:
+    record = _space_record(name)
+    return f"https://huggingface.co/spaces/{_ORG}/{record['name']}"
+
+
+def canonical_url(name: str) -> str:
+    """Operator destination: product, proof, or Hub. Not a quality claim."""
+    record = _space_record(name)
+    dest = record.get("dest") or ""
+    return dest if dest else hf_url(name)
+
+
+def proxy_url(name: str) -> str:
+    """Deprecated compatibility alias for ``canonical_url``.
+
+    No upstream Space executes under the host application's origin; interactive
+    apps, streaming, cookies, and authentication stay isolated on Hugging Face.
+    """
+    return canonical_url(name)
+
+
+# Exact public contracts for the two API-bearing Spaces audited in this repair.
+# These are deliberately route-level probes: a 200 root page is not evidence that
+# the API consumed by the Space is registered or compatible.
+SPACE_API_CONTRACTS: dict[str, tuple[dict[str, Any], ...]] = {
+    "anatomy": (
+        {"id": "manifest", "url": hf_url("anatomy") + "/api/anatomy/v1/manifest",
+         "expected": {"schema": "szl.anatomy-manifest/v1"}},
+        {"id": "capabilities", "url": hf_url("anatomy") + "/api/anatomy/v1/capabilities",
+         "expected": {"schema": "szl.anatomy-capabilities/v1"}},
+        {"id": "evidence", "url": hf_url("anatomy") + "/api/anatomy/v1/evidence",
+         "expected": {"schema": "szl.anatomy-evidence/v1"}},
+        {"id": "receipt", "url": hf_url("anatomy") + "/api/anatomy/v1/receipt",
+         "expected": {"verification_state": "STRUCTURAL_ONLY"}},
+    ),
+    "sda": (
+        {"id": "compute_pool", "url": "https://a-11-oy.com/api/a11oy/v1/compute-pool",
+         "expected": {"status": "live"}},
+        {"id": "receipt_verifier", "url": "https://a-11-oy.com/api/a11oy/v1/verify/receipt",
+         "expected": {"schema": "szl.public-receipt-verifier/manifest/v1"}},
+        {"id": "killinchu_mosaic_cop",
+         "url": "https://szlholdings-killinchu.hf.space/api/killinchu/v1/mosaic/cop",
+         "expected": {"ok": True}},
+    ),
+}
+
+
+def _resolve_client() -> Any:
+    """Lazily resolve the app's shared httpx.AsyncClient from serve.py (same idiom as
+    szl_engine_status), so registration order doesn't matter."""
+    try:
+        import serve as _serve  # type: ignore
+        return getattr(_serve, "_http_client", None)
+    except Exception:
+        return None
+
+
+# stdlib fallback fetch — this is the PROVEN-working outbound path on the live box
+# (a11oy_hf_assets.py reaches huggingface.co via urllib server-side). When the shared
+# httpx.AsyncClient is None or its outbound attempt fails, we fall back to urllib run in
+# a thread so the probe still reflects REAL reachability instead of a false negative.
+# Still 0 browser CDN (server-side fetch). No auth token forwarded (public).
+def _urllib_probe(url: str, timeout: float, want_json: bool = False) -> Any:
+    """Blocking stdlib fetch. Returns (status_code, json_or_None). Raises on failure."""
+    import json as _json
+    import urllib.request
+    req = urllib.request.Request(url, headers={"User-Agent": "szl-spaces-surface/1.0"})
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        status = getattr(r, "status", None) or r.getcode()
+        if want_json:
+            data = r.read(262144)
+            try:
+                return status, _json.loads(data.decode("utf-8", "replace"))
+            except Exception:
+                return status, None
+        return status, None
+
+
+async def _to_thread(fn, *a, **kw):
+    return await asyncio.get_event_loop().run_in_executor(None, lambda: fn(*a, **kw))
+
+
+def _apply_hf_runtime(result: dict[str, Any], data: Any) -> None:
+    """Project only public Hub runtime/domain evidence into an honest Space row."""
+    if not isinstance(data, dict):
+        return
+    runtime = data.get("runtime") or {}
+    stage = runtime.get("stage")
+    if isinstance(stage, str) and stage:
+        result["stage"] = stage
+
+    domains = []
+    for item in runtime.get("domains") or []:
+        if not isinstance(item, dict) or not isinstance(item.get("domain"), str):
+            continue
+        domains.append({
+            "domain": item["domain"],
+            "provider_stage": str(item.get("stage") or "unknown").upper(),
+        })
+    if domains:
+        result["domains"] = domains
+
+    expected = _CUSTOM_DOMAINS.get(result["slug"])
+    if expected:
+        observed = next((item for item in domains if item["domain"] == expected), None)
+        provider_stage = observed["provider_stage"] if observed else "UNKNOWN"
+        result["custom_domain"] = {
+            "domain": expected,
+            "provider_stage": provider_stage,
+            "state": "LIVE" if provider_stage == "READY" else (
+                "DEGRADED" if observed else "UNAVAILABLE"
+            ),
+            "source": "hf-api",
+        }
+
+
+async def _probe_inventory(client: Any) -> dict[str, Any]:
+    """Compare the canonical application set with the public Hub Spaces API set."""
+    status = None
+    data = None
+    via = None
+    if client is not None:
+        try:
+            response = await asyncio.wait_for(
+                client.get(
+                    _HF_LIST_URL,
+                    timeout=_HF_API_TIMEOUT,
+                    headers={"User-Agent": "szl-spaces-surface/1.0"},
+                ),
+                timeout=_HF_API_TIMEOUT,
+            )
+            status = response.status_code
+            data = response.json() if status == 200 else None
+            via = "httpx"
+        except Exception:
+            status = None
+    if status is None:
+        try:
+            status, data = await asyncio.wait_for(
+                _to_thread(_urllib_probe, _HF_LIST_URL, _HF_API_TIMEOUT, True),
+                timeout=_HF_API_TIMEOUT,
+            )
+            via = "urllib"
+        except Exception as exc:
+            return {
+                "schema": "szl.hf-space-inventory/v1",
+                "state": "UNAVAILABLE",
+                "canonical_count": len(_SPACE_BY_NAME),
+                "error": type(exc).__name__,
+            }
+
+    if status != 200:
+        return {
+            "schema": "szl.hf-space-inventory/v1",
+            "state": "UNAVAILABLE",
+            "canonical_count": len(_SPACE_BY_NAME),
+            "http_status": status,
+            "source": via,
+            "error": "hub_api_http_status",
+        }
+    if not isinstance(data, list):
+        return {
+            "schema": "szl.hf-space-inventory/v1",
+            "state": "UNAVAILABLE",
+            "canonical_count": len(_SPACE_BY_NAME),
+            "http_status": status,
+            "source": via,
+            "error": "hub_api_schema",
+        }
+
+    observed = set()
+    for index, item in enumerate(data):
+        identity = item.get("id") if isinstance(item, dict) else None
+        if not isinstance(identity, str) or not identity.startswith(_ORG + "/"):
+            return {
+                "schema": "szl.hf-space-inventory/v1",
+                "state": "UNAVAILABLE",
+                "canonical_count": len(_SPACE_BY_NAME),
+                "http_status": status,
+                "source": via,
+                "error": "hub_api_schema",
+                "malformed_index": index,
+            }
+        name = identity.split("/", 1)[1]
+        if not name or "/" in name:
+            return {
+                "schema": "szl.hf-space-inventory/v1",
+                "state": "UNAVAILABLE",
+                "canonical_count": len(_SPACE_BY_NAME),
+                "http_status": status,
+                "source": via,
+                "error": "hub_api_schema",
+                "malformed_index": index,
+            }
+        if name != "README":
+            observed.add(name)
+    expected = set(_SPACE_BY_NAME)  # public KEEP 6, not folded/private
+    missing = sorted(expected - observed)
+    unexpected = sorted(observed - expected)
+    return {
+        "schema": "szl.hf-space-inventory/v1",
+        "state": "LIVE" if not missing and not unexpected else "DEGRADED",
+        "canonical_count": len(expected),
+        "observed_count": len(observed),
+        "missing": missing,
+        "unexpected": unexpected,
+        "http_status": status,
+        "source": via,
+    }
+
+
+def _contract_circuit(contract_id: str) -> dict[str, Any]:
+    return _CONTRACT_CIRCUITS.setdefault(contract_id, {"failures": 0, "open_until": 0.0})
+
+
+async def _contract_attempt(
+    client: Any, contract: dict[str, Any], attempt: int
+) -> tuple[int, Any, str]:
+    if client is not None and attempt == 1:
+        response = await client.get(
+            contract["url"], timeout=_PROBE_TIMEOUT, follow_redirects=True
+        )
+        return (
+            response.status_code,
+            response.json() if 200 <= response.status_code < 300 else None,
+            "httpx",
+        )
+    status, data = await _to_thread(
+        _urllib_probe, contract["url"], _PROBE_TIMEOUT, True
+    )
+    return int(status), data, "urllib"
+
+
+async def _probe_contract(client: Any, contract: dict[str, Any]) -> dict[str, Any]:
+    """Probe one dependency with bounded retry and a fail-closed local circuit."""
+    now = time.monotonic()
+    circuit = _contract_circuit(contract["id"])
+    if circuit["open_until"] > now:
+        return {
+            "id": contract["id"],
+            "url": contract["url"],
+            "state": "UNAVAILABLE",
+            "probe_state": "CIRCUIT_OPEN",
+            "attempts": 0,
+            "retry_after_s": round(circuit["open_until"] - now, 3),
+        }
+
+    status = None
+    data = None
+    via = None
+    error = None
+    attempts = 0
+    for attempt in range(1, _CONTRACT_ATTEMPTS + 1):
+        attempts = attempt
+        try:
+            status, data, via = await asyncio.wait_for(
+                _contract_attempt(client, contract, attempt),
+                timeout=_PROBE_TIMEOUT,
+            )
+        except Exception as exc:
+            error = type(exc).__name__
+            continue
+
+        expected = contract["expected"]
+        matches = isinstance(data, dict) and all(data.get(k) == v for k, v in expected.items())
+        if 200 <= int(status) < 300 and matches:
+            circuit.update({"failures": 0, "open_until": 0.0})
+            return {
+                "id": contract["id"],
+                "url": contract["url"],
+                "state": "LIVE",
+                "probe_state": "OBSERVED",
+                "http_status": status,
+                "expected": expected,
+                "probe_via": via,
+                "attempts": attempts,
+                "circuit_state": "CLOSED",
+            }
+        error = "ContractMismatch" if 200 <= int(status) < 300 else "HTTPStatus"
+        if int(status) < 500 and int(status) != 429:
+            break
+
+    circuit["failures"] += 1
+    if circuit["failures"] >= _CONTRACT_FAILURE_THRESHOLD:
+        circuit["open_until"] = time.monotonic() + _CONTRACT_CIRCUIT_COOLDOWN
+    return {
+        "id": contract["id"],
+        "url": contract["url"],
+        "state": "UNAVAILABLE",
+        "probe_state": "FAILED",
+        "http_status": status,
+        "expected": contract["expected"],
+        "probe_via": via,
+        "attempts": attempts,
+        "error": error or "Unavailable",
+        "circuit_state": "OPEN" if circuit["open_until"] > time.monotonic() else "CLOSED",
+    }
+
+
+async def _probe_contracts(client: Any, slug: str) -> list[dict[str, Any]]:
+    import asyncio as _asyncio
+    contracts = SPACE_API_CONTRACTS.get(slug, ())
+    return list(await _asyncio.gather(*[_probe_contract(client, item) for item in contracts]))
+
+
+async def _probe_one(client: Any, sp: dict[str, str]) -> dict[str, Any]:
+    """HONEST per-Space status. app_reachable is a REAL HEAD probe; stage is from the
+    HF API. Any failure degrades to honest false/'unknown' — never fabricated."""
+    name = sp["name"]
+    slug = sp["slug"]
+    result: dict[str, Any] = {
+        "name": name,
+        "slug": slug,
+        "title": sp["title"],
+        "sdk": sp["sdk"],
+        "url": hf_url(name),
+        "canonical_url": canonical_url(name),
+        "proxy_url": proxy_url(name),
+        "own_host": slug in _OWN_HOST,
+        "stage": "unknown",         # from HF API; HF-API-labelled below
+        "stage_source": "hf-api",
+        "app_reachable": False,     # REAL probe; only true when the probe truly succeeds
+    }
+    honesty = sp.get("honesty")
+    if honesty:
+        result["honesty"] = honesty
+    # (1) REAL liveness probe of the canonical Space app. Try the shared async httpx
+    #     client first; on None/failure fall back to the PROVEN stdlib urllib path.
+    probed = False
+    if client is not None:
+        try:
+            r = await client.request("HEAD", hf_url(name) + "/",
+                                     timeout=_PROBE_TIMEOUT, follow_redirects=True)
+            result["app_reachable"] = bool(r.status_code < 500)
+            result["app_status"] = r.status_code
+            result["probe_via"] = "httpx"
+            probed = True
+        except Exception:
+            try:
+                r = await client.get(hf_url(name) + "/", timeout=_PROBE_TIMEOUT,
+                                     follow_redirects=True)
+                result["app_reachable"] = bool(r.status_code < 500)
+                result["app_status"] = r.status_code
+                result["probe_via"] = "httpx"
+                probed = True
+            except Exception:
+                probed = False
+    if not probed:
+        # stdlib fallback (the path a11oy_hf_assets proves works on this box).
+        try:
+            status, _ = await _to_thread(_urllib_probe, hf_url(name) + "/", _PROBE_TIMEOUT, False)
+            result["app_reachable"] = bool(status < 500)
+            result["app_status"] = status
+            result["probe_via"] = "urllib"
+        except Exception as e:
+            result["app_reachable"] = False
+            result["probe_error"] = type(e).__name__
+
+    # (2) HF API runtime.stage (public API, no token). Honest "unknown" on any failure.
+    got_stage = False
+    if client is not None:
+        try:
+            ra = await client.get(hf_api_url(name), timeout=_HF_API_TIMEOUT,
+                                  headers={"User-Agent": "szl-spaces-surface/1.0"})
+            if ra.status_code == 200:
+                data = ra.json()
+                _apply_hf_runtime(result, data)
+                got_stage = True
+            else:
+                result["stage_http"] = ra.status_code
+                got_stage = True
+        except Exception:
+            got_stage = False
+    if not got_stage:
+        try:
+            status, data = await _to_thread(_urllib_probe, hf_api_url(name), _HF_API_TIMEOUT, True)
+            if status == 200 and isinstance(data, dict):
+                _apply_hf_runtime(result, data)
+            else:
+                result["stage_http"] = status
+        except Exception as e:
+            result["stage_error"] = type(e).__name__
+
+    contracts = await _probe_contracts(client, slug)
+    if contracts:
+        result["contracts"] = contracts
+        live_count = sum(item["state"] == "LIVE" for item in contracts)
+        result["contract_state"] = (
+            "LIVE" if live_count == len(contracts)
+            else "UNAVAILABLE" if live_count == 0
+            else "DEGRADED"
+        )
+
+    result["state"] = _space_health_state(result)
+    return result
+
+
+def _space_health_state(space: dict[str, Any]) -> str:
+    """Derive one conservative, user-facing state from observed row evidence."""
+    reachable = bool(space.get("app_reachable"))
+    stage = str(space.get("stage") or "unknown").upper()
+    contract_state = str(space.get("contract_state") or "LIVE").upper()
+    custom_domain_state = str(
+        (space.get("custom_domain") or {}).get("state") or "LIVE"
+    ).upper()
+    if (reachable and stage in _RUNNING_STAGES and contract_state == "LIVE"
+            and custom_domain_state == "LIVE"):
+        return "LIVE"
+    if not reachable and stage == "UNKNOWN" and contract_state in {"LIVE", "UNAVAILABLE"}:
+        return "UNAVAILABLE"
+    return "DEGRADED"
+
+
+def _aggregate_health_state(spaces: list[dict[str, Any]]) -> str:
+    """Derive a conservative top-level state from the observed Space rows."""
+    if not spaces:
+        return "UNAVAILABLE"
+    states = [_space_health_state(row) for row in spaces]
+    if all(state == "LIVE" for state in states):
+        return "LIVE"
+    if all(state == "UNAVAILABLE" for state in states):
+        return "UNAVAILABLE"
+    return "DEGRADED"
+
+
+async def spaces_health() -> dict[str, Any]:
+    """Aggregate honest health for the public KEEP-6 Hub estate (short TTL cache)."""
+    now = time.monotonic()
+    if _HEALTH_CACHE["payload"] is not None and (now - _HEALTH_CACHE["ts"]) < _HEALTH_CACHE_TTL:
+        cached = _HEALTH_CACHE["payload"]
+        # Return a new top-level mapping: label the transport as CACHED while
+        # preserving the original aggregate verdict for auditability.
+        return {
+            **cached,
+            "state": "CACHED",
+            "cached_state": cached.get("state", "UNAVAILABLE"),
+        }
+
+    client = _resolve_client()
+    # Probe every Space concurrently. _probe_one handles client=None internally by
+    # falling back to the stdlib urllib path (the proven outbound path on this box),
+    # so we always return REAL reachability, degrading honestly only on true failure.
+    results = await asyncio.gather(
+        _probe_inventory(client),
+        *[_probe_one(client, sp) for sp in SPACES],
+    )
+    inventory = results[0]
+    spaces = list(results[1:])
+    aggregate_state = _aggregate_health_state(spaces)
+    if aggregate_state == "LIVE" and inventory["state"] != "LIVE":
+        aggregate_state = "DEGRADED"
+
+    payload = {
+        "state": aggregate_state,
+        "count": len(spaces),
+        "inventory": inventory,
+        "spaces": spaces,
+        "labels": {
+            "state": "Fresh: LIVE only when every app is reachable and HF reports RUNNING; otherwise DEGRADED or UNAVAILABLE. TTL reuse is CACHED with cached_state.",
+            "space_state": "LIVE requires app_reachable:true plus HF stage RUNNING and every configured exact API contract LIVE; partial evidence is DEGRADED",
+            "contract_state": "Anatomy and SDA validate exact stable JSON markers on their public dependency routes; a root-page 200 cannot override a failed contract",
+            "inventory": "LIVE only when the public KEEP-6 application set exactly equals the unauthenticated Hub API set; folded Spaces are PAUSED+PRIVATE and are not in this set; README is a special organization surface, not an application Space",
+            "custom_domain": "HF API provider state; PENDING remains DEGRADED even when a separate edge currently routes traffic",
+            "stage": "HF API runtime.stage (https://huggingface.co/api/spaces/SZLHOLDINGS/<name>)",
+            "app_reachable": "REAL server-side HEAD/GET probe of the canonical Space app",
+            "degrade": "stage:'unknown' + app_reachable:false; never fabricated",
+            "energy-attested-runs": "8/8 SIMULATED — not MEASURED joules",
+            "szl-forge-lab": "SNAPSHOT — not a trainer, not Serve Studio",
+        },
+        "note": "Server-side probed; 0 browser CDN. Honest LIVE/DEGRADED/UNAVAILABLE; cache reuse is explicitly CACHED.",
+        "doctrine": _DOCTRINE,
+        "fetchedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+    }
+    _HEALTH_CACHE["payload"] = payload
+    _HEALTH_CACHE["ts"] = now
+    return payload
+
+
+# ---------------------------------------------------------------------------
+# Tiles page — pure inline markup, 0 CDN. Status dots are filled by a tiny inline
+# fetch of the SAME-ORIGIN /api/<ns>/v1/spaces/health (our own server-side-probed
+# endpoint, not a CDN). Cards are pre-rendered so the page is useful even with JS off.
+# ---------------------------------------------------------------------------
+def _tiles_page(ns: str) -> bytes:
+    cards = []
+    for sp in SPACES:
+        name = sp["name"]
+        slug = sp["slug"]
+        title = sp["title"]
+        primary = canonical_url(name)
+        primary_label = "Open destination"
+        honesty = html_escape(sp.get("honesty") or "PUBLIC · KEEP")
+        honesty_html = '<div class="sp-honesty">%s</div>' % honesty
+        cards.append(
+            '<article class="sp-card" data-space="%s">'
+            '<header class="sp-head">'
+            '<span class="sp-dot" data-dot="%s" title="status">&#9679;</span>'
+            '<h2 class="sp-title">%s</h2></header>'
+            '<div class="sp-kind">%s &middot; %s &middot; KEEP</div>'
+            '%s'
+            '<div class="sp-stage" data-stage="%s">stage: <span>checking&hellip;</span></div>'
+            '<div class="sp-links">'
+            '<a class="sp-open" href="%s" rel="noopener">%s &#8599;</a>'
+            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">View Hub repository &#8599;</a>'
+            '</div></article>'
+            % (slug, slug, title, name, sp["sdk"], honesty_html, slug,
+               html_escape(primary, quote=True), primary_label, hf_repo_url(name))
+        )
+    fold_cards = []
+    for sp in FOLD_SPACES:
+        name = sp["name"]
+        title = sp["title"]
+        dest = html_escape(sp["dest"], quote=True)
+        honesty = html_escape(sp.get("honesty") or "FOLD · PAUSED · PRIVATE")
+        why = html_escape(sp.get("why") or "")
+        fold_cards.append(
+            '<article class="sp-card sp-fold" data-fold="%s">'
+            '<header class="sp-head"><h2 class="sp-title">%s</h2></header>'
+            '<div class="sp-kind">%s &middot; %s &middot; FOLD &rarr; %s</div>'
+            '<div class="sp-honesty">%s</div>'
+            '<div class="sp-stage">%s</div>'
+            '<div class="sp-links">'
+            '<a class="sp-open" href="%s" rel="noopener">Open destination &#8599;</a>'
+            '<a class="sp-hf" href="%s" rel="noopener" target="_blank">Hub (private) &#8599;</a>'
+            '</div></article>'
+            % (name, title, name, sp["sdk"], html_escape(sp.get("sink") or ""),
+               honesty, why, dest, hf_repo_url(name))
+        )
+    html = (
+        '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>Spaces &middot; ' + ns + '</title>'
+        '<style>'
+        ':root{color-scheme:dark}'
+        '*{box-sizing:border-box}'
+        'body{margin:0;background:#0b0f14;color:#cdd6e0;'
+        'font:15px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}'
+        '.sp-wrap{max-width:1100px;margin:0 auto;padding:2rem 1.25rem;min-width:0}'
+        '.sp-h1{color:#e7eef6;font-size:1.6rem;margin:0 0 .25rem}'
+        '.sp-h2{color:#e7eef6;font-size:1.15rem;margin:1.8rem 0 .35rem}'
+        '.sp-sub{color:#8a96a3;margin:0 0 .75rem;overflow-wrap:anywhere}'
+        '.sp-health{display:flex;align-items:center;gap:.45rem;min-height:44px;'
+        'color:#8a96a3;margin:0 0 1rem}'
+        '.sp-health strong{border:1px solid #3b4654;border-radius:999px;padding:.22rem .55rem;'
+        'color:#9fb0c0;font-size:.76rem;letter-spacing:.04em}'
+        '.sp-health strong.live{border-color:#3ad07a;color:#3ad07a}'
+        '.sp-health strong.degraded{border-color:#c9a23a;color:#c9a23a}'
+        '.sp-health strong.unavailable{border-color:#e0593a;color:#e0593a}'
+        '.sp-health strong.cached,.sp-health strong.checking{border-color:#697787;color:#9fb0c0}'
+        '.sp-grid{display:grid;gap:1rem;min-width:0;'
+        'grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}'
+        '.sp-card{background:#121821;border:1px solid #1d2632;border-radius:12px;'
+        'padding:1rem 1.1rem;display:flex;flex-direction:column;gap:.5rem;min-width:0}'
+        '.sp-fold{border-style:dashed;opacity:.92}'
+        '.sp-head{display:flex;align-items:center;gap:.55rem;min-width:0}'
+        '.sp-dot{color:#5b6675;font-size:.7rem;line-height:1}'
+        '.sp-dot.up{color:#3ad07a}.sp-dot.down{color:#e0593a}.sp-dot.unknown{color:#c9a23a}'
+        '.sp-title{font-size:1rem;margin:0;color:#e7eef6;font-weight:600;min-width:0;overflow-wrap:anywhere}'
+        '.sp-kind{color:#697787;font-size:.76rem;overflow-wrap:anywhere}'
+        '.sp-honesty{color:#c9a23a;font-size:.78rem;overflow-wrap:anywhere}'
+        '.sp-stage{color:#7c8794;font-size:.82rem;overflow-wrap:anywhere}'
+        '.sp-stage span{color:#9fb0c0}'
+        '.sp-links{margin-top:auto;display:flex;gap:.9rem;flex-wrap:wrap;padding-top:.4rem}'
+        '.sp-links a{display:inline-flex;align-items:center;min-height:44px;padding:.4rem .15rem}'
+        '.sp-open{color:#d4a444;text-decoration:none;font-weight:600}'
+        '.sp-hf{color:#7c8794;text-decoration:none}'
+        '.sp-foot{color:#5b6675;font-size:.8rem;margin-top:1.6rem;overflow-wrap:anywhere}'
+        '@media(max-width:375px){'
+        '.sp-wrap{padding:1.25rem .75rem}.sp-grid{grid-template-columns:minmax(0,1fr)}'
+        '.sp-links{gap:.15rem}.sp-links a{flex:1 1 100%}}'
+        '</style></head>'
+        '<body><main class="sp-wrap">'
+        '<h1 class="sp-h1">Hugging Face Spaces</h1>'
+        f'<p class="sp-sub">Public Hub cut is {len(SPACES)} KEEP (MEASURED). '
+        'Folded Spaces are PAUSED+PRIVATE and open on existing '
+        '<code>a-11-oy.com</code> and <code>a11oy.net</code> paths. Health probes the public 6 only. '
+        'Legacy <code>/spaces/<slug></code> links are no-store 307 handoffs to those destinations. '
+        'RECORD: <a href="https://a11oy.net/spaces.json" rel="noopener">a11oy.net/spaces.json</a>. '
+        '/verify is not cloned.</p>'
+        '<p class="sp-health">Estate health: '
+        '<strong id="sp-estate-health" class="checking" aria-live="polite">CHECKING</strong></p>'
+        '<div class="sp-grid">' + "".join(cards) + '</div>'
+        '<h2 class="sp-h2">Folded · PAUSED + PRIVATE</h2>'
+        f'<p class="sp-sub">{len(FOLD_SPACES)} Spaces folded into product and proof destinations. '
+        'Not public Hub. Reachability of a destination is never quality. '
+        'second-brain is ARCHIVE / HISTORICAL.</p>'
+        '<div class="sp-grid">' + "".join(fold_cards) + '</div>'
+        '<p class="sp-foot">Status dot & stage on KEEP tiles are filled from the same-origin '
+        '<code>/api/' + ns + '/v1/spaces/health</code> endpoint (real server-side probe '
+        '+ HF API). Honest: a grey/amber dot means starting or unknown, never a faked up. '
+        'Folded tiles are not live-probed.</p>'
+        '</main>'
+        '<script>'
+        '(function(){'
+        'var estate=document.getElementById("sp-estate-health");'
+        'function estateState(raw,cached){'
+        'var allowed={LIVE:1,DEGRADED:1,UNAVAILABLE:1,CACHED:1};'
+        'raw=String(raw||"UNAVAILABLE").toUpperCase();if(!allowed[raw])raw="UNAVAILABLE";'
+        'var label=raw;if(raw==="CACHED")label="CACHED \\u00b7 "+String(cached||"UNAVAILABLE").toUpperCase()+" snapshot";'
+        'if(estate){estate.className=raw.toLowerCase();estate.textContent=label;}}'
+        'function healthUnavailable(){estateState("UNAVAILABLE");'
+        'var cards=document.querySelectorAll(".sp-card[data-space]");for(var i=0;i<cards.length;i++){'
+        'var dot=cards[i].querySelector(".sp-dot");if(dot){dot.classList.remove("up","unknown");'
+        'dot.classList.add("down");dot.title="UNAVAILABLE / health fetch failed";}'
+        'var st=cards[i].querySelector(".sp-stage span");if(st)st.textContent="UNAVAILABLE \\u00b7 health fetch failed";}}'
+        'fetch("/api/' + ns + '/v1/spaces/health").then(function(r){'
+        'if(!r.ok)throw new Error("health "+r.status);return r.json();})'
+        '.then(function(d){estateState(d.state,d.cached_state);(d.spaces||[]).forEach(function(s){'
+        'var card=document.querySelector(\'[data-space="\'+(s.slug||s.name)+\'"]\');if(!card)return;'
+        'var dot=card.querySelector(".sp-dot");'
+        'var stage=String(s.stage||"unknown").toUpperCase();'
+        'var state=String(s.state||((s.app_reachable&&stage==="RUNNING")?"LIVE":'
+        '((s.app_reachable||stage!=="UNKNOWN")?"DEGRADED":"UNAVAILABLE"))).toUpperCase();'
+        'if(state!=="LIVE"&&state!=="DEGRADED"&&state!=="UNAVAILABLE")state="UNAVAILABLE";'
+        'if(dot){dot.classList.remove("up","down","unknown");'
+        'dot.classList.add(state==="LIVE"?"up":(state==="DEGRADED"?"unknown":"down"));'
+        'dot.title=state+" / "+(s.app_reachable?"reachable":"unreachable")+" / stage:"+(s.stage||"unknown");}'
+        'var st=card.querySelector(".sp-stage span");'
+        'if(st){st.textContent=state+" \\u00b7 "+(s.stage||"unknown")+'
+        '(s.app_reachable?" \\u00b7 reachable":" \\u00b7 unreachable");}'
+        '});}).catch(healthUnavailable);'
+        '})();'
+        '</script>'
+        '</body></html>'
+    )
+    return html.encode("utf-8")
+
+# ---------------------------------------------------------------------------
+# Nav injector — ONE "Spaces" nav item into the console left-nav. Same additive,
+# idempotent BaseHTTPMiddleware idiom as a11oy_nav_wireup / killinchu_nav_wireup.
+# ---------------------------------------------------------------------------
+_NAV_MARKER = b'data-nav-spaces="hf1"'
+_FOOT_ANCHOR = b'<div class="side-foot">'
+_GROUP_ANCHOR = b'<div class="nav-group">'
+_NAVITEM_ANCHOR = b'<div class="nav-item"'
+
+
+def _nav_item() -> bytes:
+    """ONE 'Spaces' nav item, mirroring the console's own nav-item markup so it inherits
+    the console styling (0 CDN, 0 codename). Globe glyph; honest label."""
+    return (
+        '<a class="nav-item" data-nav-spaces="hf1" data-wireup-path="/spaces" '
+        'href="/spaces" style="cursor:pointer;text-decoration:none">'
+        '<span class="ico">\U0001F310</span>Spaces</a>'
+    ).encode("utf-8")
+
+
+def _make_injector():
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.responses import Response
+
+    nav_item = _nav_item()
+
+    class _SpacesNavInjector(BaseHTTPMiddleware):
+        async def dispatch(self, request, call_next):
+            resp = await call_next(request)
+            try:
+                ct = (resp.headers.get("content-type") or "").lower()
+                if "text/html" not in ct:
+                    return resp
+                p = request.url.path
+                if (p.startswith("/api/") or p.startswith("/v1/")
+                        or p.startswith("/vendor/") or p.startswith("/assets/")
+                        or p.startswith("/static/")):
+                    return resp
+                # The /spaces tiles page IS our own page; don't inject the sidebar nav
+                # into it (it has no console sidebar). Cheap guard — also keeps it idempotent.
+                if p == "/spaces" or p.startswith("/spaces/"):
+                    return resp
+
+                body = b""
+                async for chunk in resp.body_iterator:
+                    body += chunk if isinstance(chunk, (bytes, bytearray)) else str(chunk).encode()
+
+                if _NAV_MARKER not in body:
+                    if _FOOT_ANCHOR in body:
+                        body = body.replace(_FOOT_ANCHOR, nav_item + _FOOT_ANCHOR, 1)
+                    elif _NAVITEM_ANCHOR in body:
+                        # No footer found, but a nav exists -> place after the first
+                        # nav-item div so 'Spaces' still lands in the nav.
+                        start = body.find(_NAVITEM_ANCHOR)
+                        end = body.find(b"</div>", start)
+                        if end != -1:
+                            end += len(b"</div>")
+                            body = body[:end] + nav_item + body[end:]
+                    elif _GROUP_ANCHOR in body:
+                        body = body.replace(_GROUP_ANCHOR, _GROUP_ANCHOR + nav_item, 1)
+
+                # body_iterator is consumed — MUST rebuild the Response even if unchanged,
+                # else downstream sees an empty body (white screen).
+                headers = dict(resp.headers)
+                headers.pop("content-length", None)
+                return Response(content=body, status_code=resp.status_code,
+                                headers=headers, media_type="text/html")
+            except Exception:
+                return resp
+
+    return _SpacesNavInjector
+
+
+def register(app, ns: str = "a11oy") -> str:
+    """ADDITIVE: mount GET /api/<ns>/v1/spaces/health + GET/HEAD /spaces (rich tiles)
+    at the FRONT of the router (beat the SPA + Node-proxy catch-alls), and attach the
+    idempotent 'Spaces' nav injector. try/except-guarded by the caller."""
+    try:
+        from starlette.responses import Response, JSONResponse as _JSON
+    except Exception as e:  # pragma: no cover
+        return "unavailable: %r" % (e,)
+
+    n_before = len(app.router.routes)
+    tiles = _tiles_page(ns)
+
+    async def _health(request):
+        payload = await spaces_health()
+        return _JSON(payload, headers={"Cache-Control": "no-store"})
+
+    async def _tiles(request):
+        headers = {"Cache-Control": "no-store"}
+        if request.method.upper() == "HEAD":
+            return Response(content=b"", status_code=200, media_type="text/html", headers=headers)
+        return Response(content=tiles, status_code=200, media_type="text/html", headers=headers)
+
+    from starlette.routing import Route
+    routes = [
+        Route("/api/%s/v1/spaces/health" % ns, _health, methods=["GET"]),
+        # The rich tiles page OWNS /spaces (wins over szl_spaces_proxy's fallback index
+        # because this module is registered SECOND and front-inserts after it).
+        Route("/spaces", _tiles, methods=["GET", "HEAD"]),
+    ]
+    for r in routes:
+        app.router.routes.append(r)
+
+    new = app.router.routes[n_before:]
+    del app.router.routes[n_before:]
+    app.router.routes[0:0] = new
+
+    app.add_middleware(_make_injector())
+
+    print("[%s] Spaces surface registered: /api/%s/v1/spaces/health + /spaces (tiles, "
+          "%d spaces) + nav injector [moved %d routes to front]"
+          % (ns, ns, len(SPACES), len(new)), file=sys.stderr)
+    return "ok: %d spaces, health + tiles + nav, %d routes" % (len(SPACES), len(new))
+
+
+# ---------------------------------------------------------------------------
+# Self-test — pure stdlib + starlette TestClient; no real network. Stubs the shared
+# client to assert: health degrades honestly (no client -> stage unknown + reachable
+# false), tiles page lists ALL 26 names + has the health-fetch JS, nav injects exactly
+# once + is idempotent + removes nothing, /spaces is NOT nav-injected.
+# ---------------------------------------------------------------------------
+if __name__ == "__main__":
+    import ast as _ast
+    with open(__file__, "r", encoding="utf-8") as _fh:
+        _ast.parse(_fh.read())
+
+    assert len(SPACES) == KEEP_TARGET == 6 and "README" not in _SPACE_BY_NAME, len(SPACES)
+    assert "szl-khipu" in _SPACE_BY_NAME and "szl-atelier" in _SPACE_BY_NAME
+    assert "governed-receipt-verifier" in _SPACE_BY_NAME
+    assert "david-leads" in _FOLD_BY_NAME and "anatomy" in _FOLD_BY_NAME
+    assert "szl-real-estate" in _FOLD_BY_NAME
+    assert "szl-khipu" not in _FOLD_BY_NAME
+    assert "governed-receipt-verifier" not in _FOLD_BY_NAME
+    assert canonical_url("nexus") == PRODUCT + "/nexus"
+    assert canonical_url("szl-khipu") == PRODUCT + "/khipu"
+    assert canonical_url("governed-receipt-verifier") == PROOF + "/record/"
+    assert "governed-agent-bench" in _FOLD_BY_NAME
+    assert "governed-agent-bench" not in _SPACE_BY_NAME
+    assert len(FOLD_SPACES) >= 37
+    tp = _tiles_page("a11oy")
+    for sp in SPACES:
+        assert sp["name"].encode() in tp, "tiles missing %s" % sp["name"]
+        assert sp["title"].encode() in tp, "tiles missing title %s" % sp["title"]
+        assert canonical_url(sp["name"]).encode() in tp, "tiles missing destination"
+        assert hf_repo_url(sp["name"]).encode() in tp, "tiles missing repository link"
+        assert proxy_url(sp["name"]) == canonical_url(sp["name"]), "primary link must stay isolated"
+    assert b"/api/a11oy/v1/spaces/health" in tp, "tiles must fetch the health endpoint"
+    assert b"http://" not in tp, "tiles must be 0 CDN (no http://)"
+    assert b'href="/spaces/' not in tp, "tiles must not execute an app under this origin"
+    assert b"Public Hub cut is 6 KEEP" in tp
+    assert b"/verify is not cloned" in tp
+    assert b"a11oy.net/spaces.json" in tp
+    assert b"data-fold=\"cosmos\"" in tp
+    # Repository anchors are navigation only; no browser asset is loaded from HF.
+    assert tp.count(b"https://huggingface.co/spaces/SZLHOLDINGS/") >= len(SPACES)
+    assert b'<script src="https://' not in tp and b'<link href="https://' not in tp
+
+    running = {"app_reachable": True, "app_status": 200, "stage": "RUNNING"}
+    unknown = {"app_reachable": False, "stage": "unknown"}
+    http_200_unknown = {"app_reachable": True, "app_status": 200, "stage": "unknown"}
+    assert _aggregate_health_state([running, dict(running)]) == "LIVE"
+    assert _aggregate_health_state([unknown, dict(unknown)]) == "UNAVAILABLE"
+    assert _aggregate_health_state([running, unknown]) == "DEGRADED"
+    assert _aggregate_health_state([http_200_unknown]) == "DEGRADED", \
+        "HTTP 200 alone must never upgrade aggregate state to LIVE"
+    assert _space_health_state(running) == "LIVE"
+    assert _space_health_state(unknown) == "UNAVAILABLE"
+    assert _space_health_state(http_200_unknown) == "DEGRADED"
+
+    from starlette.applications import Starlette
+    from starlette.responses import HTMLResponse, PlainTextResponse
+    from starlette.routing import Route as _R
+    from starlette.testclient import TestClient
+
+    SAMPLE_CONSOLE = (
+        '<html><body><aside>'
+        '<div class="nav-group">Operate</div>'
+        '<div class="nav-item" data-view="x" onclick="go(\'x\')">'
+        '<span class="ico">+</span>Existing</div>'
+        '<div class="side-foot">footer</div>'
+        '</aside></body></html>'
+    )
+
+    async def _console(req):
+        return HTMLResponse(SAMPLE_CONSOLE)
+
+    app = Starlette(routes=[
+        _R("/console", _console),
+        _R("/{full_path:path}", lambda req: PlainTextResponse("SPA")),
+    ])
+    st = register(app, ns="a11oy")
+    assert st.startswith("ok:"), st
+    c = TestClient(app)
+
+    # health: no httpx client wired -> falls back to the stdlib urllib probe. Stub that
+    # final outbound path so this self-test is hermetic and verifies the exact honest
+    # degrade contract for every audited Space (no network, no fabricated green state).
+    _self_mod = sys.modules[__name__]
+    _orig_probe = _self_mod._urllib_probe
+    def _offline(*_a, **_k):
+        raise OSError("simulated offline audit")
+    _self_mod._urllib_probe = _offline
+    _HEALTH_CACHE["ts"] = 0.0
+    _HEALTH_CACHE["payload"] = None
+    try:
+        health_response = c.get("/api/a11oy/v1/spaces/health")
+        h = health_response.json()
+    finally:
+        _self_mod._urllib_probe = _orig_probe
+        _HEALTH_CACHE["ts"] = 0.0
+        _HEALTH_CACHE["payload"] = None
+    assert h["count"] == 6, h["count"]
+    assert h["state"] == "UNAVAILABLE", h["state"]
+    assert health_response.headers["cache-control"] == "no-store"
+    for s in h["spaces"]:
+        assert s["app_reachable"] is False, "offline probe must honestly degrade false"
+        assert s["stage"] == "unknown", "offline HF API must honestly degrade unknown"
+        assert s["state"] == "UNAVAILABLE", "offline row must fail closed"
+    assert h["doctrine"]["locked_proven"] == ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
+
+    # tiles page resolves + lists all names
+    t = c.get("/spaces")
+    assert t.status_code == 200 and "text/html" in t.headers["content-type"], t.status_code
+    assert t.headers["cache-control"] == "no-store"
+    for sp in SPACES:
+        assert sp["name"] in t.text, "tiles page missing %s" % sp["name"]
+
+    # nav injects exactly once + idempotent + removes nothing
+    p1 = c.get("/console").text
+    p2 = c.get("/console").text
+    assert p1.count('data-nav-spaces="hf1"') == 1, "nav must inject exactly once"
+    assert p2.count('data-nav-spaces="hf1"') == 1, "nav must be idempotent"
+    assert 'href="/spaces"' in p1, "nav must link /spaces with a real anchor"
+    assert "Operate</div>" in p1 and "Existing</div>" in p1 and "footer</div>" in p1, \
+        "must remove nothing from the SPA source"
+    assert p1 == p2, "second console render must be byte-identical (idempotent)"
+    # the tiles page itself must NOT be nav-injected (it has no console sidebar)
+    assert 'data-nav-spaces="hf1"' not in c.get("/spaces").text, "/spaces must not be nav-injected"
+
+    print("szl_spaces_surface: ALL OK (6 KEEP destinations; honest degrade; "
+          "tiles 0-CDN + no-store; nav idempotent + additive; /spaces not self-injected)")

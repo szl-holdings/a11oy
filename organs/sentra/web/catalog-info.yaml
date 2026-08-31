@@ -1,0 +1,29 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: sentra
+  title: Sentra — Cyber Resilience Command
+  description: Cyber resilience command SPA — threat monitoring, vulnerability tracking, incident response, and security posture management.
+  annotations:
+    github.com/project-slug: szl-holdings/monorepo
+    backstage.io/techdocs-ref: dir:.
+    szl.io/scorecard-score: '1.3'
+    szl.io/golden-path-deviation: "SPA — no server-side health endpoint; OTel instrumentation pending"
+    backstage.io/runbook-url: https://github.com/szl-holdings/monorepo/blob/main/docs/runbooks/sentra.md
+  tags:
+    - operations
+    - cyber
+    - security
+    - typescript
+    - react
+    - vite
+spec:
+  type: website
+  lifecycle: production
+  owner: group:platform-team
+  system: system:sentra
+  domain: domain:operations
+  dependsOn:
+    - component:api-server
+  consumesApis:
+    - api:szl-rest-v1

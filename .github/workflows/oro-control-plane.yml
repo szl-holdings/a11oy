@@ -1,0 +1,128 @@
+name: ORO operational control plane
+
+on:
+  pull_request:
+    paths:
+      - "oro/**"
+      - "schemas/oro/**"
+      - "deploy/oro/**"
+      - "tests/test_oro_operational_v3.py"
+      - ".github/workflows/oro-control-plane.yml"
+  push:
+    branches: [main]
+    paths:
+      - "oro/**"
+      - "schemas/oro/**"
+      - "deploy/oro/**"
+      - "tests/test_oro_operational_v3.py"
+      - ".github/workflows/oro-control-plane.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oro-control-plane-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Install exact core test dependencies
+        run: |
+          python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+          python3 -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/oro-loopback.txt
+      - name: Compile the complete ORO runtime
+        run: python3 -m compileall -q oro tests/test_oro_operational_v3.py
+      - name: Validate committed JSON schemas
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          files = sorted(Path("schemas/oro/v1").glob("*.json"))
+          assert files, "no ORO schemas found"
+          for path in files:
+              value = json.loads(path.read_text(encoding="utf-8"))
+              assert value.get("$schema") == "https://json-schema.org/draft/2020-12/schema", path
+              assert value.get("$id"), path
+              assert value.get("additionalProperties") is False, path
+          print(f"validated {len(files)} ORO Draft 2020-12 schemas")
+          PY
+      - name: Prove rank, barrier, signing, persistence, API, and refusal contracts
+        run: python3 -m pytest -q tests/test_oro_operational_v3.py
+      - name: Start real Uvicorn loopback runtime
+        env:
+          SZL_ORO_ENV: development
+          SZL_ORO_DB_PATH: ${{ runner.temp }}/oro-loopback.sqlite
+          SZL_ORO_ALLOW_EPHEMERAL_SIGNER: "1"
+          SZL_ORO_ALLOW_DEVELOPMENT_AUTH: "1"
+        run: |
+          set -euo pipefail
+          python3 -m uvicorn oro.api:app --host 127.0.0.1 --port 8877 >"$RUNNER_TEMP/oro-uvicorn.log" 2>&1 &
+          echo $! >"$RUNNER_TEMP/oro-uvicorn.pid"
+          ready=0
+          for attempt in $(seq 1 40); do
+            if curl --fail --silent --show-error http://127.0.0.1:8877/api/a11oy/v1/oro/readyz >"$RUNNER_TEMP/oro-ready.json"; then
+              ready=1
+              break
+            fi
+            sleep 0.25
+          done
+          if [ "$ready" != "1" ]; then
+            echo "ORO loopback did not become ready; uvicorn log:" >&2
+            cat "$RUNNER_TEMP/oro-uvicorn.log" >&2 || true
+            exit 1
+          fi
+          curl --fail --silent --show-error http://127.0.0.1:8877/api/a11oy/v1/oro/healthz >"$RUNNER_TEMP/oro-health.json"
+          curl --fail --silent --show-error http://127.0.0.1:8877/api/a11oy/v1/oro/contract >"$RUNNER_TEMP/oro-contract.json"
+          curl --fail --silent --show-error http://127.0.0.1:8877/oro >"$RUNNER_TEMP/oro-dashboard.html"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path(os.environ["RUNNER_TEMP"])
+          health = json.loads((root / "oro-health.json").read_text())
+          ready = json.loads((root / "oro-ready.json").read_text())
+          contract = json.loads((root / "oro-contract.json").read_text())
+          dashboard = (root / "oro-dashboard.html").read_text()
+          assert health["alive"] is True
+          assert ready["ready"] is True
+          assert ready["signer"]["state"] == "ACTIVE"
+          assert ready["write_authorizer"]["state"] == "ACTIVE"
+          assert contract["normal_termination"] == "STRUCTURAL_RANK_DECREASE"
+          assert contract["release_effector"] == "ABSENT"
+          assert contract["machine_checked_termination"] == "NOT_PROVED"
+          assert "Obligation-Ranked Orbits" in dashboard
+          assert "https://cdn" not in dashboard.lower()
+          PY
+      - name: Stop loopback runtime
+        if: always()
+        run: |
+          if test -f "$RUNNER_TEMP/oro-uvicorn.pid"; then
+            kill "$(cat "$RUNNER_TEMP/oro-uvicorn.pid")" 2>/dev/null || true
+          fi
+      - name: Upload source-bound loopback evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: oro-loopback-evidence-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/oro-health.json
+            ${{ runner.temp }}/oro-ready.json
+            ${{ runner.temp }}/oro-contract.json
+            ${{ runner.temp }}/oro-uvicorn.log
+          if-no-files-found: error
+          retention-days: 90

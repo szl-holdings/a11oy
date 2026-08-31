@@ -1,0 +1,138 @@
+{
+  "component-definition": {
+    "uuid": "a11oy-comp-def-v11",
+    "metadata": {
+      "title": "a11oy Governed AI Orchestrator \u2014 OSCAL Component Definition",
+      "last-modified": "2026-06-14T06:40:15.254257+00:00",
+      "version": "v11",
+      "oscal-version": "1.1.2",
+      "remarks": "Coverage assessments reflect a11oy's INTERNAL analysis of its mechanisms against published framework control text. a11oy ALIGNS WITH / MAPS TO these frameworks; it does NOT claim certification. No third-party certification has been obtained for any framework as of Doctrine v11. Gaps are shown honestly. \u039b = Conjecture 1; locked-proven = 8 @ c7c0ba17; trust never 100%."
+    },
+    "components": [
+      {
+        "uuid": "a11oy-orchestrator",
+        "type": "software",
+        "title": "a11oy Governed AI Orchestrator",
+        "description": "Governed agentic-AI orchestration layer emitting a DSSE-signed receipt per inference. ALIGNS WITH the controls below; not certified.",
+        "props": [
+          {
+            "name": "doctrine",
+            "ns": "https://szlholdings.ai/ns/oscal",
+            "value": "v11"
+          },
+          {
+            "name": "kernel-commit",
+            "ns": "https://szlholdings.ai/ns/oscal",
+            "value": "c7c0ba17"
+          },
+          {
+            "name": "policy-bundle-digest",
+            "ns": "https://szlholdings.ai/ns/oscal",
+            "value": "sha256:4b035da9e752dcdb81c8390974752fc729da8192e60a0459de50a05d4c9563ba"
+          },
+          {
+            "name": "eu-ai-act-class",
+            "ns": "https://szlholdings.ai/ns/oscal",
+            "value": "High-Risk (self-classified)"
+          }
+        ],
+        "control-implementations": [
+          {
+            "uuid": "ci-800-53r5",
+            "source": "https://raw.githubusercontent.com/usnistgov/oscal-content/main/nist.gov/SP800-53/rev5/json/NIST_SP-800-53_rev5_catalog.json",
+            "description": "a11oy mechanism mapping to NIST SP 800-53 Rev 5 (alignment only).",
+            "implemented-requirements": [
+              {
+                "uuid": "ir-95efdfab",
+                "control-id": "au-2",
+                "description": "[COVERED] DSSE-signed audit event per inference (verdict + rule ID) (a11oy Event logging).",
+                "props": [
+                  {
+                    "name": "coverage",
+                    "ns": "https://szlholdings.ai/ns/oscal",
+                    "value": "COVERED"
+                  }
+                ]
+              },
+              {
+                "uuid": "ir-941c0684",
+                "control-id": "au-3",
+                "description": "[COVERED] Timestamp + input/output hash in every receipt (a11oy Content of audit records).",
+                "props": [
+                  {
+                    "name": "coverage",
+                    "ns": "https://szlholdings.ai/ns/oscal",
+                    "value": "COVERED"
+                  }
+                ]
+              },
+              {
+                "uuid": "ir-a0f3ffcd",
+                "control-id": "au-9",
+                "description": "[COVERED] Records sealed in DSSE envelopes signed by ECDSA-P256; tamper-detectable (a11oy Protection of audit information).",
+                "props": [
+                  {
+                    "name": "coverage",
+                    "ns": "https://szlholdings.ai/ns/oscal",
+                    "value": "COVERED"
+                  }
+                ]
+              },
+              {
+                "uuid": "ir-80c2667f",
+                "control-id": "cm-8",
+                "description": "[COVERED] Model ID + version + digest recorded per inference (a11oy System component inventory).",
+                "props": [
+                  {
+                    "name": "coverage",
+                    "ns": "https://szlholdings.ai/ns/oscal",
+                    "value": "COVERED"
+                  }
+                ]
+              },
+              {
+                "uuid": "ir-76491072",
+                "control-id": "ra-3",
+                "description": "[COVERED] 13-axis \u039b trust score is the per-inference risk assessment (a11oy Risk assessment).",
+                "props": [
+                  {
+                    "name": "coverage",
+                    "ns": "https://szlholdings.ai/ns/oscal",
+                    "value": "COVERED"
+                  }
+                ]
+              },
+              {
+                "uuid": "ir-74879421",
+                "control-id": "si-10",
+                "description": "[PARTIAL] Input hash + classification-boundary gate (a11oy Information input validation).",
+                "props": [
+                  {
+                    "name": "coverage",
+                    "ns": "https://szlholdings.ai/ns/oscal",
+                    "value": "PARTIAL"
+                  }
+                ]
+              },
+              {
+                "uuid": "ir-rego-b4e45455",
+                "control-id": "ac-3",
+                "description": "Rego gate a11oy.gates.classification_boundary (controls: ISO42001/A.9.6, NIST80053/AC-3, EUAIAct/Art.14). Bundle digest sha256:4b035da9e752dcdb81c8390974752fc729da8192e60a0459de50a05d4c9563ba is cited in every DSSE receipt."
+              },
+              {
+                "uuid": "ir-rego-0abacbce",
+                "control-id": "ac-3",
+                "description": "Rego gate a11oy.gates.human_override_required (controls: ISO42001/A.9.3, ISO42001/A.4.6, NIST80053/AU-2, EUAIAct/Art.14). Bundle digest sha256:4b035da9e752dcdb81c8390974752fc729da8192e60a0459de50a05d4c9563ba is cited in every DSSE receipt."
+              },
+              {
+                "uuid": "ir-rego-864d6ebc",
+                "control-id": "ac-3",
+                "description": "Rego gate a11oy.gates.deployment_readiness (controls: ISO27001/8.25, NIST80053/CM-3, ISO42001/A.6.7). Bundle digest sha256:4b035da9e752dcdb81c8390974752fc729da8192e60a0459de50a05d4c9563ba is cited in every DSSE receipt."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "_comment": "Policy inventory for the GitHub<->HF-Space module-drift guard (a11oy). ignore_paths/ignore_extensions identify non-source artifacts outside byte parity. accepted_divergences is mandatory and intentionally empty; review-bound candidate admission never consumes this file and no managed source divergence may be waived here.",
+  "ignore_paths": [
+    "console/assets/**",
+    "console/static/**",
+    "pages/claims/**"
+  ],
+  "ignore_extensions": [
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".ico",
+    ".svg",
+    ".wasm",
+    ".woff",
+    ".woff2",
+    ".ttf",
+    ".eot",
+    ".mp4",
+    ".mp3",
+    ".pdf",
+    ".zip",
+    ".gz",
+    ".br",
+    ".map"
+  ],
+  "accepted_divergences": {}
+}

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="160" viewBox="0 0 860 160" font-family="'JetBrains Mono','SFMono-Regular',monospace" font-size="13.5" role="img" aria-label="szl-cookbook — run a recipe">
+  <rect width="860" height="160" rx="12" fill="#0b0f1a" stroke="#1d2740"/>
+  <rect width="860" height="34" rx="12" fill="#161b2b"/>
+  <rect y="22" width="860" height="12" fill="#161b2b"/>
+  <circle cx="20" cy="17" r="6" fill="#ff5f56"/><circle cx="42" cy="17" r="6" fill="#ffbd2e"/><circle cx="64" cy="17" r="6" fill="#27c93f"/>
+  <text x="430.0" y="22" text-anchor="middle" fill="#8893ad" font-size="12">szl-cookbook — run a recipe</text>
+  <text x="22" y="52" fill="#5ad1ff" opacity="1">$ szl-cookbook run verify-receipt-chain</text>
+<text x="22" y="73" fill="#e8ecf6" opacity="0">[1/3] fetch latest Khipu head<set attributeName="opacity" to="1" begin="0.5s" fill="freeze"/></text>
+<text x="22" y="94" fill="#e8ecf6" opacity="0">[2/3] walk Merkle DAG  149 receipts<set attributeName="opacity" to="1" begin="1.0s" fill="freeze"/></text>
+<text x="22" y="115" fill="#7CFFB2" opacity="0">[3/3] chain_verified=true  replay-hash matches<set attributeName="opacity" to="1" begin="1.5s" fill="freeze"/></text>
+<rect x="22" y="123" width="9" height="15" fill="#7CFFB2" opacity="0"><set attributeName="opacity" to="1" begin="2.0s" fill="freeze"/><animate attributeName="opacity" values="1;0;1" dur="1s" begin="2.0s" repeatCount="indefinite"/></rect>
+</svg>

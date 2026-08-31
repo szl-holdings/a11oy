@@ -1,0 +1,1477 @@
+{
+  "schemaVersion": 1,
+  "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
+  "observedAt": "2026-08-11T20:11:54Z",
+  "doctrine": {
+    "noFakeGreen": true,
+    "noFakeSignedAssets": true,
+    "githubCanonical": true,
+    "hfGeneratedMirror": true,
+    "excludedUntilFunded": [
+      "carlota-jo",
+      "counsel",
+      "terra"
+    ]
+  },
+  "stageDefinitions": {
+    "operational": "Code/tests/docs support an active demo path in GitHub.",
+    "supporting-operational": "Supports the demo as library, proof, receipt, telemetry, brand, trust, or workflow infrastructure.",
+    "blocked-upstream": "Requires upstream proof/CI/release correction before broad claims.",
+    "proxy-ready": "Patch/artifact exists but target repo write or owner action is required.",
+    "release-payload": "Included in checksummed/signed or generated payload artifacts.",
+    "generated-mirror": "Published/generated Hugging Face mirror of GitHub-backed content.",
+    "staged": "Prepared but not public/verified/live enough for active claims.",
+    "excluded-until-funded": "Visible scaffold, intentionally outside active-demo scope."
+  },
+  "machineGeneratedCounts": {
+    "githubReadinessEntries": 19,
+    "huggingFacePublic": {
+      "models": 16,
+      "datasets": 27,
+      "spaces": 26
+    },
+    "huggingFaceScope": {
+      "visibility": "public-only",
+      "authenticated": false,
+      "privateAssetsIncluded": false,
+      "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
+      "revisionFields": "Every item has sha and lastModified snapshot evidence plus a cardSemanticSha256 claim digest at observedAt; --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
+    },
+    "theoremRuntimeEntries": 46
+  },
+  "repositories": [
+    {
+      "name": "a11oy",
+      "stage": "operational",
+      "tier": "hub",
+      "github": "https://github.com/szl-holdings/a11oy",
+      "activeShowcase": true,
+      "evidence": [
+        "README.md",
+        "docs/PROVENANCE.md",
+        "docs/INVESTOR_DEMO.md",
+        "artifacts/a11oy-uds/README.md",
+        "deploy/MANIFEST.json",
+        ".github/workflows/doctrine.yml",
+        ".github/workflows/operational.yml",
+        ".github/workflows/huggingface.yml",
+        "https://github.com/szl-holdings/a11oy/releases/tag/v1.0.1",
+        "https://github.com/szl-holdings/a11oy/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Merge/proxy runtime hardening branches and republish HF payload from GitHub."
+    },
+    {
+      "name": "platform",
+      "stage": "supporting-operational",
+      "tier": "runtime-composition",
+      "github": "https://github.com/szl-holdings/platform",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/platform",
+        "https://github.com/szl-holdings/platform/releases/tag/v1.0.0-codex-kernel"
+      ],
+      "guardrails": [
+        "Use as canonical integration evidence; keep production-readiness claims scoped to current CI and release artifacts."
+      ],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "ouroboros",
+      "stage": "supporting-operational",
+      "tier": "runtime-substrate",
+      "github": "https://github.com/szl-holdings/ouroboros",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/ouroboros",
+        "https://github.com/szl-holdings/ouroboros/releases/tag/v6.3.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "lutar-lean",
+      "stage": "blocked-upstream",
+      "tier": "formal-proof",
+      "github": "https://github.com/szl-holdings/lutar-lean",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/lutar-lean",
+        "https://github.com/szl-holdings/lutar-lean/releases/tag/lutar-v18.0.0",
+        "https://doi.org/10.5281/zenodo.20434308"
+      ],
+      "guardrails": [
+        "Latest observed Lean kernel CI needs upstream repair before broad 'all green' or 'zero sorry' copy is repeated.",
+        "Use exact theorem/module references for formal claims."
+      ],
+      "nextAction": "Apply kernel-green proxy patch in Lean-enabled runner; keep 7 sorries honest."
+    },
+    {
+      "name": "ouroboros-thesis",
+      "stage": "blocked-upstream",
+      "tier": "formal-thesis",
+      "github": "https://github.com/szl-holdings/ouroboros-thesis",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/ouroboros-thesis",
+        "https://doi.org/10.5281/zenodo.20434276",
+        "https://doi.org/10.5281/zenodo.19944926"
+      ],
+      "guardrails": [
+        "Thesis v18.0 DOI is the current citation anchor; GitHub release list reconciliation remains an upstream action.",
+        "Treat the thesis as the claim taxonomy, not blanket runtime proof."
+      ],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "rosie",
+      "stage": "supporting-operational",
+      "tier": "receipt-substrate",
+      "github": "https://github.com/szl-holdings/rosie",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/rosie",
+        "https://github.com/szl-holdings/rosie/releases/tag/v1.0.1",
+        "https://github.com/szl-holdings/rosie/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "amaru",
+      "stage": "supporting-operational",
+      "tier": "receipt-substrate",
+      "github": "https://github.com/szl-holdings/amaru",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/amaru",
+        "https://github.com/szl-holdings/amaru/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "sentra",
+      "stage": "supporting-operational",
+      "tier": "receipt-substrate",
+      "github": "https://github.com/szl-holdings/sentra",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/sentra",
+        "https://github.com/szl-holdings/sentra/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "uds-mesh",
+      "stage": "supporting-operational",
+      "tier": "mesh-contract",
+      "github": "https://github.com/szl-holdings/uds-mesh",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/uds-mesh",
+        "https://github.com/szl-holdings/uds-mesh/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "vsp-otel",
+      "stage": "supporting-operational",
+      "tier": "observability",
+      "github": "https://github.com/szl-holdings/vsp-otel",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/vsp-otel",
+        "https://github.com/szl-holdings/vsp-otel/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "szl-cookbook",
+      "stage": "supporting-operational",
+      "tier": "operator-docs",
+      "github": "https://github.com/szl-holdings/szl-cookbook",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/szl-cookbook",
+        "https://github.com/szl-holdings/szl-cookbook/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "agi-forecast",
+      "stage": "supporting-operational",
+      "tier": "forecast",
+      "github": "https://github.com/szl-holdings/agi-forecast",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/agi-forecast",
+        "https://github.com/szl-holdings/agi-forecast/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Merge FG-S1-S4 pipeline and competition-math v2 harness; preserve the recorded raw-score baseline unless a rerun proves improvement."
+    },
+    {
+      "name": "vessels",
+      "stage": "operational",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/vessels",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/vessels",
+        "https://github.com/szl-holdings/vessels/releases/tag/uds-v0.2.0"
+      ],
+      "guardrails": [
+        "Use as the active vertical demo wedge; avoid implying every vertical scaffold is funded or production-ready."
+      ],
+      "nextAction": "Land repo-specific receipt/formula/UDS patches via proxy; do not fake signed assets."
+    },
+    {
+      "name": "counsel",
+      "stage": "excluded-until-funded",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/counsel",
+      "activeShowcase": false,
+      "evidence": [
+        "https://github.com/szl-holdings/counsel"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep excluded until funded; do not market as active demo."
+    },
+    {
+      "name": "terra",
+      "stage": "excluded-until-funded",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/terra",
+      "activeShowcase": false,
+      "evidence": [
+        "https://github.com/szl-holdings/terra"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep excluded until funded; do not market as active demo."
+    },
+    {
+      "name": "carlota-jo",
+      "stage": "excluded-until-funded",
+      "tier": "vertical-product",
+      "github": "https://github.com/szl-holdings/carlota-jo",
+      "activeShowcase": false,
+      "evidence": [
+        "https://github.com/szl-holdings/carlota-jo"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep excluded until funded; do not market as active demo."
+    },
+    {
+      "name": "szl-trust",
+      "stage": "supporting-operational",
+      "tier": "trust",
+      "github": "https://github.com/szl-holdings/szl-trust",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/szl-trust"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": "szl-brand",
+      "stage": "supporting-operational",
+      "tier": "brand",
+      "github": "https://github.com/szl-holdings/szl-brand",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/szl-brand",
+        "https://github.com/szl-holdings/szl-brand/releases/tag/v0.1.0"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    },
+    {
+      "name": ".github",
+      "stage": "supporting-operational",
+      "tier": "org-governance",
+      "github": "https://github.com/szl-holdings/.github",
+      "activeShowcase": true,
+      "evidence": [
+        "https://github.com/szl-holdings/.github"
+      ],
+      "guardrails": [],
+      "nextAction": "Keep GitHub evidence current and link from generated HF surfaces."
+    }
+  ],
+  "formulas": [
+    {
+      "id": "RUNTIME-FALSE-POSITION",
+      "formula": "FalsePosition",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/falsePosition_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "caveat": "Runtime gate is tested; cite Lean proof status separately when making formal claims."
+    },
+    {
+      "id": "RUNTIME-MADHAVA-BOUND",
+      "formula": "MadhavaBound",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/madhavaBound_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "caveat": "Full arctangent specialization still has tracked Lean sorries; runtime enforces numeric remainder threshold."
+    },
+    {
+      "id": "RUNTIME-LIU-HUI-PI",
+      "formula": "LiuHuiPi",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/liuHuiPi_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "caveat": "Convergence is axiom/tracked in Lean; runtime enforces approximation threshold. STAGED-ADVISORY by design."
+    },
+    {
+      "id": "RUNTIME-ADVERSARIAL-ROBUSTNESS",
+      "formula": "AdversarialRobustness",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/adversarialRobustness_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "caveat": "Numeric gate is the Lipschitz special case, not the full abstract metric theorem."
+    },
+    {
+      "id": "RUNTIME-SUMMATION-INVARIANT",
+      "formula": "SummationInvariant",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/summationInvariant_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "caveat": "Runtime checks additive receipt invariants."
+    },
+    {
+      "id": "RUNTIME-PARETO-STABILIZATION",
+      "formula": "ParetoStabilization",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/pareto_stabilization.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "caveat": "Pareto stabilization enforced in finite rounds; runtime iterates up to maxRounds."
+    },
+    {
+      "id": "RUNTIME-A1-SOUNDNESS-AXIOM",
+      "formula": "SoundnessAxiom",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/soundnessAxiom_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Enforces conjunctive 9-axis Lambda floor; no open sorries in gate Lean file."
+    },
+    {
+      "id": "RUNTIME-A2-MORAL-GROUNDING-FLOOR",
+      "formula": "MoralGroundingFloor",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/moralGroundingFloor_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/MoralGrounding.lean to the real kernel-checked theorem MoralGroundingTheorem (with corollary P_moral_iff_conjunction) in Lutar/DoctrineV3/MoralGrounding.lean (zero sorry, zero axiom). The Lean proof establishes the structural core: the moral-safety predicate P_moral decomposes into a finite six-category harm conjunction provable by exhaustive case analysis (Doctrine V3 Section 6). The 0.95 numeric floor and ORCID requirement are the runtime predicate (tested separately); they are not encoded in Lean because they require a probability-space axiom, as disclosed in the Lean file (Section 6.4)."
+    },
+    {
+      "id": "RUNTIME-A3-MEASURABILITY-HONESTY-FLOOR",
+      "formula": "MeasurabilityHonestyFloor",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/measurabilityHonestyFloor_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/MeasurabilityHonesty.lean to the real kernel-checked theorem MeasurabilityHonestyTheorem (with corollary ReceiptSlot.verified_ne_markedUnverifiable) in Lutar/DoctrineV3/MeasurabilityHonesty.lean (zero sorry, zero axiom). The Lean proof establishes the exhaustive, mutually-exclusive partition {Verified, MarkedUnverifiable} of every receipt slot (Doctrine V3 Section 7). The numeric honesty floor and unsupported-claim penalty are the runtime predicate, tested separately."
+    },
+    {
+      "id": "RUNTIME-A4-DUAL-WITNESS-DISJOINTNESS",
+      "formula": "DualWitnessDisjointness",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/dualWitnessDisjointness_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Identity disjointness checked by string comparison of witness IDs."
+    },
+    {
+      "id": "RUNTIME-A5-DETERMINISTIC-REPLAY",
+      "formula": "DeterministicReplay",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/deterministicReplay_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Replay determinism enforced over configurable number of runs."
+    },
+    {
+      "id": "RUNTIME-A6-HASH-CHAIN-INTEGRITY",
+      "formula": "HashChainIntegrity",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/hashChainIntegrity_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/HashChainIntegrity.lean to the real theorem th_v18_14c_hash_audit_integrity (with th_v18_14a/b/d) in Lutar/Thesis/TH_V18_14_SHA256CollisionHonest.lean. AXIOM-ADVISORY: the audit-integrity and injectivity theorems are conditioned on the honest open axiom A15 (sha256_collision_resistant), which cannot be discharged in Lean 4 without a P != NP / computational-hardness assumption (NIST FIPS 180-4). A15 is disclosed in-file as an OPEN PROBLEM per Lean Czar B2 discipline; the structural tamper-detection proof is otherwise sorry-free."
+    },
+    {
+      "id": "STAGED-A7-BEKENSTEIN-BOUND",
+      "formula": "BekensteinBound",
+      "stage": "staged",
+      "claimStatus": "staged-advisory",
+      "runtimeFile": "packages/policy/src/gates/bekensteinBound_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "STAGED-ADVISORY. Lean proof pending; gate defaults to enforced:false, severity:warning."
+    },
+    {
+      "id": "RUNTIME-A8-INGEST-DISCIPLINE",
+      "formula": "IngestDiscipline",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/ingestDiscipline_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Ingest queue depth and epoch freshness enforced at gate boundary."
+    },
+    {
+      "id": "RUNTIME-A9-DOCTRINE-COMPLETENESS",
+      "formula": "DoctrineCompleteness",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/doctrineCompleteness_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Checks presence of all required doctrine clause fields; no content validation."
+    },
+    {
+      "id": "RUNTIME-A10-TEMPORAL-CONSISTENCY",
+      "formula": "TemporalConsistency",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/temporalConsistency_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Causal ordering enforced over receipt timestamp sequence."
+    },
+    {
+      "id": "RUNTIME-A11-CAUSAL-SEPARABILITY",
+      "formula": "CausalSeparability",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/causalSeparability_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Causal loop detection is structural (DAG check), not semantic."
+    },
+    {
+      "id": "RUNTIME-A12-CONSTRUCTIVE-TRANSPARENCY",
+      "formula": "ConstructiveTransparency",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/constructiveTransparency_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Evidence chain field presence checked; content provenance is a separate concern."
+    },
+    {
+      "id": "RUNTIME-A14-ECONOMIC-GROUNDING",
+      "formula": "EconomicGrounding",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/economicGrounding_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Economic cost floor enforced; currency normalization is caller responsibility."
+    },
+    {
+      "id": "RUNTIME-T1-RHO-CLOSURE-COMPOSITION",
+      "formula": "RhoClosureComposition",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/rhoClosureComposition_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Closure composition checked over finite organ list."
+    },
+    {
+      "id": "RUNTIME-T2-LAMBDA-MONOTONICITY",
+      "formula": "LambdaMonotonicity",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/lambdaMonotonicity_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/LambdaMonotonicity.lean to the real kernel-checked theorem th_v18_01_lambda_monotone in Lutar/Thesis/TH_V18_01_LambdaMonotonicity.lean (fully proved, axioms: none). It proves that Lambda k is monotone in each argument (axis-wise x <= y implies Lambda k x <= Lambda k y) via Lutar.lambda_isMonotone. This is the Lambda-monotonicity theorem only; Lambda-uniqueness remains Conjecture 1 (NOT a theorem) and is never claimed proven, per Doctrine v11."
+    },
+    {
+      "id": "RUNTIME-T3-MERKLE-DAG-BATCH",
+      "formula": "MerkleDagBatch",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/merkleDagBatch_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: DAG acyclicity checked; full Merkle proof path verification is separate."
+    },
+    {
+      "id": "RUNTIME-T4-BEKENSTEIN-ENTROPY-MEASURE",
+      "formula": "BekensteinEntropyMeasure",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/bekensteinEntropyMeasure_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Runtime numeric predicate is independently testable; the byte bound dpiEntropyBound r = sizeBytes * 8 is kernel-checked (zero sorry) as theorem TH6 in Lutar/DPI/DPIBound.lean (dpi_bound_positive, dpi_bound_monotone). The prior phantom citation Lutar/Gate/BekensteinEntropyMeasure.lean never existed in lutar-lean and has been removed."
+    },
+    {
+      "id": "RUNTIME-T5-REPLAY-DETERMINISM",
+      "formula": "ReplayDeterminism",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/replayDeterminism_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Replay hash comparison; PRNG seed handling is caller responsibility."
+    },
+    {
+      "id": "RUNTIME-T6-CONJUNCTIVE-GATE-COUNTEREXAMPLE",
+      "formula": "ConjunctiveGateCounterexample",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/conjunctiveGateCounterexample_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Counterexample witnesses are logged to receipt for audit."
+    },
+    {
+      "id": "RUNTIME-T7-PRIVACY-MASK",
+      "formula": "PrivacyMask",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/privacyMask_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/PrivacyMask.lean to the real kernel-checked theorem scitt_mask_entropy_bound (with mask_refinement_entropy_mono, full_mask_zero_entropy, scitt_mask_preserves_hash) in Lutar/DPI/SCITTMaskEntropy.lean (axiom-free, zero sorry). It proves the DPI privacy property H(mask(X)) <= H(X) (Cover-Thomas 2006 Section 2.8) for the SCITT mask kernel."
+    },
+    {
+      "id": "RUNTIME-T8-SINGLE-WITNESS-EXCLUSION",
+      "formula": "SingleWitnessExclusion",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/singleWitnessExclusion_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/SingleWitnessExclusion.lean to Lutar/TwoWitness.lean, the KS-18 two-witness contextuality model used by a11oy-ks18-witness.ts. The soundness half two_witness_KS18_soundness (a consistent witness reports zero inconsistencies and flags CLASSICAL) is fully proved (zero sorry). THEOREM-WITH-TRACKED-SORRIES: the completeness half no_NCHV (no single non-contextual hidden-variable witness exists, the formal ground for 'single witness insufficient') depends on double_count, whose Cabello double-counting identity is left as one tracked sorry (2^18 decide enumeration, obligation documented in-file)."
+    },
+    {
+      "id": "RUNTIME-T9-CROSS-REGION-POLICY",
+      "formula": "CrossRegionPolicy",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/crossRegionPolicy_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Region tags checked for coverage; actual data residency is a separate enforcement."
+    },
+    {
+      "id": "RUNTIME-T10-DOCTRINE-ENFORCEMENT",
+      "formula": "DoctrineEnforcement",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/doctrineEnforcement_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Enforcement clause flags checked; content of flags is caller responsibility."
+    },
+    {
+      "id": "RUNTIME-TH1-COMPOSABILITY",
+      "formula": "Composability",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/composability_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/Composability.lean to the real kernel-checked theorem composition_overhead_bound (with totalOverhead_le_len_mul_max, totalOverhead_append) in Lutar/Composition/CompositionOverhead.lean (no axiom, no sorry). It proves the linear overhead bound totalOverhead systems <= systems.length * C for N composed cost systems. The strict-bound improvement is tracked separately (composition_overhead_strict_bound_tracked, an explicit obligation marker, not a claimed result)."
+    },
+    {
+      "id": "RUNTIME-TH2-REPLAY-DOI-DUALITY",
+      "formula": "ReplayDoiDuality",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/replayDoiDuality_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: DOI format and replay root presence checked; DOI resolution is not performed at gate time."
+    },
+    {
+      "id": "RUNTIME-TH3-ANATOMY-REDUCTION",
+      "formula": "AnatomyReduction",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/anatomyReduction_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Layer coverage checked; layer content validation is a separate concern."
+    },
+    {
+      "id": "STAGED-TH4-LAMBDA-CATEGORY-COMPOSABILITY",
+      "formula": "LambdaCategoryComposability",
+      "stage": "staged",
+      "claimStatus": "staged-advisory",
+      "runtimeFile": "packages/policy/src/gates/lambdaCategoryComposability_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "STAGED-ADVISORY. Pending LaxFunctor.lean formalization. Gate defaults to enforced:false."
+    },
+    {
+      "id": "RUNTIME-TH5-RECEIPT-CHAIN-CONFLUENCE",
+      "formula": "ReceiptChainConfluence",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/receiptChainConfluence_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Confluence enforced by deterministic hash ordering; formal confluence proof is the backing."
+    },
+    {
+      "id": "RUNTIME-TH6-BEKENSTEIN-ENTROPY-DPI",
+      "formula": "BekensteinEntropyDpi",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/bekensteinEntropyDpi_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Numeric DPI monotonicity enforced over discrete label distributions."
+    },
+    {
+      "id": "RUNTIME-TH7-CURRY-HOWARD-RECEIPT-CALCULUS",
+      "formula": "CurryHowardReceiptCalculus",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/curryHowardReceiptCalculus_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Receipt term structure checked; full type-theoretic correspondence is lineage."
+    },
+    {
+      "id": "CONJECTURE-THL1-LAMBDA-UNIQUENESS",
+      "formula": "LambdaUniquenessConjecture",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/lambdaUniquenessConjecture_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "CONJECTURE \u2014 NOT a theorem. \u039b uniqueness is Conjecture 1 per Doctrine v11. Gate validates scoring consistency; formal uniqueness is unproven. Gate file renamed to lambdaUniquenessConjecture_gate.ts."
+    },
+    {
+      "id": "RUNTIME-THL2-LAMBDA-MINMAX-BOUNDS",
+      "formula": "LambdaMinMaxBounds",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/lambdaMinMaxBounds_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "Repointed from the phantom path Lutar/Gate/LambdaMinMaxBounds.lean to the real kernel-checked theorem lambdaMinMaxBounds in Lutar/Bound.lean (lean_status=real in gates_manifest.json). Gate Lean file has 0 sorries; 2 sorries exist elsewhere in lutar-lean (not in this gate's proof)."
+    },
+    {
+      "id": "STAGED-THL3-BEKENSTEIN-SOUNDNESS",
+      "formula": "BekensteinSoundness",
+      "stage": "staged",
+      "claimStatus": "staged-advisory",
+      "runtimeFile": "packages/policy/src/gates/bekensteinSoundness_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "STAGED-ADVISORY. Lean formal proof pending lutar-lean PR #12. Gate defaults to enforced:false."
+    },
+    {
+      "id": "RUNTIME-THL4-RHO-CLOSURE-PRODUCTION",
+      "formula": "RhoClosureProduction",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/rhoClosureProduction_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "validationCommand": "npx tsx packages/policy/src/gates/__tests__/policy_gates_extended.test.ts",
+      "caveat": "PHANTOM CITATION: this leanFile does NOT exist in szl-holdings/lutar-lean (audited against main, 2026-06-11); the runtime gate is tested but the Lean proof is NOT machine-checked. Disclosed per SZL Doctrine v11 (honesty over checklist). Original note: Empirically measured 100% closure; gate enforces minimum closure rate."
+    },
+    {
+      "id": "RUNTIME-THRESHOLD-POLICY-SEVERITY",
+      "formula": "ThresholdPolicySeverity",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/policy/src/gates/thresholdPolicySeverity_gate.ts",
+      "testFile": "packages/policy/src/gates/__tests__/policy_gates.test.ts",
+      "validationCommand": "npm run test:policy-gates",
+      "caveat": "TypeScript runtime gate is tested and emits a DSSE-shaped HMAC receipt on allow; Lean formalization is not claimed."
+    },
+    {
+      "id": "RUNTIME-QEC-LINEAGE",
+      "formula": "QECLineage",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/qec-integrity/src/qec_lineage.ts",
+      "testFile": "packages/qec-integrity/src/qec_lineage.test.ts",
+      "validationCommand": "npm run test:qec",
+      "caveat": "Runtime parity tests are real; do not claim full quantum threshold theorem. Kitaev/CSS Lean files fail lake build."
+    },
+    {
+      "id": "RUNTIME-RECEIPT-SUBSTRATE",
+      "formula": "ReceiptSubstrate",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/receipt-substrate/src/index.ts",
+      "testFile": "packages/receipt-substrate/src/receipt_substrate.test.ts",
+      "validationCommand": "npm test --prefix packages/receipt-substrate",
+      "caveat": "Local quorum labels are not external cryptographic signer verification."
+    },
+    {
+      "id": "RUNTIME-KNOWLEDGE-THEOREMS",
+      "formula": "KnowledgeGraph",
+      "stage": "operational",
+      "claimStatus": "verified-runtime",
+      "runtimeFile": "packages/a11oy-knowledge/src/theorems.ts",
+      "testFile": "packages/a11oy-knowledge/src/theorems_lookup.test.ts",
+      "validationCommand": "npm run test:knowledge:lookup",
+      "caveat": "Lookup reachability is runtime-verified; proof status remains per theorem."
+    },
+    {
+      "id": "STAGED-WHEELER-WINDOW",
+      "formula": "DelayedChoiceClosure",
+      "stage": "blocked-upstream",
+      "claimStatus": "lean-backed-needs-runtime",
+      "runtimeFile": null,
+      "testFile": null,
+      "validationCommand": null,
+      "caveat": "Proof substrate exists; no A11oy TypeScript runtime gate wired yet. Not counted in the 35 anchor gates."
+    },
+    {
+      "id": "STAGED-FEYNMAN-KNOT",
+      "formula": "AuditReidemeister",
+      "stage": "roadmap",
+      "claimStatus": "historical-roadmap",
+      "runtimeFile": null,
+      "testFile": null,
+      "validationCommand": null,
+      "caveat": "Citation lineage is real; audit-Reidemeister invariance remains conjectural/tracked. Not counted in the 35 anchor gates."
+    }
+  ],
+  "huggingFace": [
+    {
+      "id": "SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/SZL-Khipu-1.5B-GGUF"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-v19-substrate",
+      "repoType": "model",
+      "stage": "generated-mirror",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-inference-meter",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/governed-inference-meter"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-blocked",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-blocked"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-formulas",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-formulas"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-governed-norm",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-governed-norm"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-govsign",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-govsign"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-invariants",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-invariants"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-kernels",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-kernels"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-lambda-gate",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-lambda-gate"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-nemo",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-nemo"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-ouroboros",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-ouroboros"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provctl",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-provctl"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/SZLHOLDINGS",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "org-profile-duplicate-review"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/SZLHOLDINGS"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy-verifiable-corpus",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/a11oy-verifiable-corpus"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/alloy-sovereign-eval-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/alloy-sovereign-eval-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/canonical-formulas-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/canonical-formulas-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/doctrine-v10-v11",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/doctrine-v10-v11"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/energy-attested-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/energy-attested-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-agent-bench",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-agent-bench"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-receipts-bench",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/governed-receipts-bench"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/k-verify-benchmark-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/k-verify-benchmark-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/killinchu-osint-corpus",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/killinchu-osint-corpus"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lean-proofs-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/lean-proofs-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lean-theorem-tree",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/lean-theorem-tree"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ouroboros-arxiv-preprint",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/ouroboros-arxiv-preprint"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/rag-corpus-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/rag-corpus-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/readiness-runs",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/readiness-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-1-doctrine-sft",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-1-doctrine-sft"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-artifacts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-artifacts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-lake",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-lake"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-quant-sft-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-quant-sft-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-second-brain-inrepo",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/test-results",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/test-results"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/thesis-corpus-v18",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/thesis-corpus-v18"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/thesis-v18-formal-verification",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/thesis-v18-formal-verification"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/uds-bundles-v1",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/uds-bundles-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/uds-governance-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/uds-governance-receipts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/uds-spans-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/uds-spans-receipts"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/why-we-lead",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/why-we-lead"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/a11oy"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/anatomy",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/anatomy"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/cosmos",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/cosmos"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/david-leads",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/david-leads"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/energy-attest-holo",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/energy-attest-holo"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/energy-attested-runs",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/energy-attested-runs"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-agent-bench",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-agent-bench"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-norm-holo",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-norm-holo"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/governed-receipt-verifier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/governed-receipt-verifier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/guardrail-receipt",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/guardrail-receipt"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/hatun-mcp",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/hatun-mcp"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/holographic",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/holographic"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/immune",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/immune"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/killinchu",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/killinchu"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lambda-gate-holo",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/lambda-gate-holo"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/llm-router-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/receipt-chain-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/receipt-chain-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/sda",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/sda"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-blocked-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-blocked-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-estate-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-estate-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-forge-lab",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-forge-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-govsign-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-govsign-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-kernels-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-kernels-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-model-inference-lab",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-model-inference-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-provctl-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-provctl-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/yarqa",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/yarqa"
+      ]
+    }
+  ],
+  "uds": {
+    "stage": "operator-proof-point",
+    "evidence": [
+      "artifacts/a11oy-uds/README.md",
+      "artifacts/a11oy-uds/docs/OPERATOR-QUICKSTART.md",
+      "docs/UDS_FRONTIER_GAP_MAP.md",
+      "deploy/MANIFEST.json"
+    ],
+    "blockedForCatalogGrade": [
+      "Signed tar.zst/signature/sha256/pubkey assets must exist and verify for each v0.3.x release.",
+      "UDS Package CR / Helm / monitor / network policy integration is not complete for A11oy catalog-grade packaging.",
+      "Multi-repo mesh capstone requires real a11oy/amaru/sentra/rosie/vessels assets."
+    ]
+  }
+}

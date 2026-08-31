@@ -1,0 +1,56 @@
+# a11oy Covenant Policy — Critical Infrastructure / Utilities
+# Author: Lutar, Stephen P. | ORCID 0009-0001-0110-4173 | Apache-2.0
+# Version: 0.3.0 | 2026-05-15
+
+policy_id: critical_infrastructure
+policy_name: "Critical Infrastructure / Utilities"
+version: "0.3.0"
+author: "Lutar, Stephen P."
+orcid: "0009-0001-0110-4173"
+license: Apache-2.0
+
+regulations:
+  - "NERC CIP-013-2"
+  - "IEC 62443-3-3"
+  - "TSA Pipeline Security Directive SD-02C"
+  - "NIST CSF 2.0"
+
+required_attestors:
+  - system_security_officer
+  - control_systems_engineer
+  - incident_commander
+
+lambda_floors:
+  moralGrounding: 0.99
+  actionReversibility: 0.99
+  scopeContainment: 1.0
+  informationIntegrity: 0.99
+  adversarialRobustness: 0.99
+  temporalConsistency: 0.99
+
+forbidden_inputs:
+  - unauthenticated_control_commands
+  - non_air_gapped_ot_data
+
+retention_days: 1825
+
+required_output_formats:
+  - ics_audit_log
+  - json_receipt
+  - nerc_compliance_report
+
+primitives_applicable:
+  - A4
+  - A5
+  - A6
+  - A10
+  - A13
+  - T5
+  - T9
+  - T10
+  - TH1
+
+acv_range_usd:
+  low: 1000000
+  mid: 5000000
+  high: 20000000

@@ -1,0 +1,35 @@
+{
+  "framework": "modulus_physicsnemo",
+  "problem": "poisson",
+  "seeds": [
+    {
+      "seed": 0,
+      "rel_l2_vs_exact": 0.0002990356588270515,
+      "wall_s": 100.17,
+      "trainable_params": 2209
+    },
+    {
+      "seed": 1,
+      "rel_l2_vs_exact": 0.0009063577745109797,
+      "wall_s": 98.15,
+      "trainable_params": 2209
+    },
+    {
+      "seed": 2,
+      "rel_l2_vs_exact": 0.00014039473899174482,
+      "wall_s": 124.26,
+      "trainable_params": 2209
+    }
+  ],
+  "framework_versions": {
+    "physicsnemo": "2.1.1",
+    "torch": "2.12.1+cu130",
+    "backend": "pytorch-cuda"
+  },
+  "license": "Apache-2.0 (NVIDIA PhysicsNeMo; benchmark-only dev dependency, NOT shipped)",
+  "method_class": "neural PINN (PhysicsNeMo FullyConnected MLP; manual PDE-residual loop, Adam + L-BFGS)",
+  "device": "NVIDIA GeForce RTX 5050 Laptop GPU",
+  "note": "Uses PhysicsNeMo core model layer (physicsnemo.models.mlp.FullyConnected), NOT the PhysicsNeMo-Sym PDE DSL. Same net/optimizer budget and same exact solutions as the DeepXDE arm for an apples-to-apples neural comparison.",
+  "energy": "NOT-MEASURED (no power meter)",
+  "ran_at": "2026-07-02T07:53:45Z"
+}

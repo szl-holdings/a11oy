@@ -1,0 +1,40 @@
+# a11oy Restraint benchmark — Ponytail methodology PORTED to OUR stack.
+#
+# PROVENANCE (honest): this config is adapted from the open-source Ponytail
+# skill's benchmark (github.com/DietrichGebert/ponytail/blob/main/benchmarks/
+# promptfooconfig.yaml, MIT, © 2026 DietrichGebert). We reuse Ponytail's FIVE
+# everyday tasks and its two-of-its-three arms idea, but we measure OUR arm
+# (a11oy-restraint) on OUR models. We DO NOT reprint Ponytail's published
+# numbers (80-94% less code, 47-77% cheaper, 3-6x faster, median across
+# Haiku/Sonnet/Opus) as ours — those stay CITED as Ponytail's.
+#
+# Run:   npx promptfoo@latest eval -c benchmarks/restraint/promptfooconfig.yaml --repeat 10
+# View:  npx promptfoo@latest view
+# Needs a model key in the environment (set it, then the live UI label flips
+# from SAMPLE/ROADMAP to MEASURED for the run you actually executed).
+#
+# Two arms ONLY (no-skill baseline vs a11oy-restraint). LOC is counted
+# deterministically from fenced code blocks; tokens + latency come from the API.
+description: "a11oy Restraint vs no-skill baseline: same model, same tasks. Measures code LOC (deterministic) and tokens/latency (API telemetry). Numbers are OURS, measured on OUR stack — never Ponytail's reprinted."
+
+prompts:
+  - id: file://arms/baseline.txt
+    label: baseline (no skill)
+  - id: file://arms/a11oy-restraint.txt
+    label: a11oy-restraint
+
+defaultTest:
+  assert:
+    - type: javascript
+      value: file://loc.js
+      metric: code_loc
+
+# The same five everyday tasks Ponytail benchmarks (cited; tasks are facts, not
+# Ponytail's measured outputs). Our restraint ladder is expected to stop high on
+# most of these (stdlib / native / one-line).
+tests:
+  - vars: { task: "Write me a Python function that validates email addresses." }
+  - vars: { task: "Add debounce to a search input in vanilla JavaScript. It currently fires an API call on every keystroke." }
+  - vars: { task: "Write Python code that reads sales.csv and sums the 'amount' column." }
+  - vars: { task: "Build me a countdown timer component in React that counts down from a given number of seconds." }
+  - vars: { task: "Add rate limiting to my FastAPI endpoint so users can't spam it." }
