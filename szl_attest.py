@@ -390,20 +390,165 @@ def training_config() -> dict[str, Any]:
     return out
 
 
+# --------------------------------------------------------------------------- #
+# Canonical locked-8 verification source.
+#
+# The locked-8 authority in this estate is the doctrine lock itself, not the
+# dispute crosswalk:
+#   * ``szl_be_hardening.DOCTRINE_LOCK`` is what GET /api/a11oy/v1/honest serves
+#     as locked_formula_count / locked_formula_ids — the number every kernel chip,
+#     honesty manifest and doctrine/anatomy drift guard binds to. It carries the
+#     no-axiom theorem ``locked_count_eight`` (lutar-lean #219 + platform #321).
+#   * ``szl_brainconstitution`` carries an INDEPENDENT LOCKED_SET / LOCKED_COUNT /
+#     KERNEL_COMMIT triple used by the constitution compliance gate.
+# Both are pure-Python doctrine constants present in every built image, so no
+# external asset can silently go missing at runtime. Agreement between the two
+# independent witnesses (equal recomputed lock digests) IS the integrity check —
+# drift in either one breaks it.
+#
+# ``szl_formula_registry.receipt_basis()`` is deliberately NOT the authority here:
+# its own coverage_scope says it is a dispute-relevant maturity crosswalk and
+# "not an inventory of the full estate", and its locked_proven_ids list is the
+# narrower challenged baseline {F1,F11,F12,F18,F19}. It is kept below as an
+# OPTIONAL corroboration strand (subset / Λ cross-check), never as the source of
+# the locked-8 truth. Its pinned JSON + Lean assets are also not shipped in every
+# image, which is why binding the kernel claim to it produced an honest-but-
+# mislocated FAILED verdict in the deployed runtime.
+# --------------------------------------------------------------------------- #
+CANONICAL_LOCK_WITNESSES = ("szl_be_hardening", "szl_brainconstitution")
+CANONICAL_LOCK_SOURCE = (
+    "szl_be_hardening.DOCTRINE_LOCK (GET /api/a11oy/v1/honest locked_formula_count "
+    "+ locked_formula_ids; no-axiom theorem locked_count_eight @ c7c0ba17), "
+    "cross-witnessed by szl_brainconstitution.LOCKED_SET"
+)
+
+
+def _lock_digest(commit: Any, count: Any, ids: Any) -> str:
+    """Recompute the canonical SHA-256 over one witness's locked-8 lock."""
+    payload = {
+        "kernel_commit": str(commit or ""),
+        "locked_formula_count": count,
+        "locked_formula_ids": list(ids or ()),
+    }
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False).encode("utf-8")
+    return hashlib.sha256(blob).hexdigest()
+
+
+def _canonical_lock_witnesses() -> tuple[list[dict[str, Any]], list[str]]:
+    """Read every canonical locked-8 witness available THIS request.
+
+    Returns ``(witnesses, errors)``. A witness that cannot be imported, or that
+    exposes no locked set, is reported as an error string — never silently
+    counted as agreement.
+    """
+    witnesses: list[dict[str, Any]] = []
+    errors: list[str] = []
+    for name in CANONICAL_LOCK_WITNESSES:
+        try:
+            mod = __import__(name)
+        except Exception as exc:  # pragma: no cover - defensive
+            errors.append(f"{name} unreadable ({type(exc).__name__})")
+            continue
+        lock = getattr(mod, "DOCTRINE_LOCK", None)
+        if isinstance(lock, dict):
+            ids = tuple(lock.get("locked_formula_ids") or ())
+            count = lock.get("locked_formula_count")
+            commit = lock.get("commit")
+            lam = lock.get("lambda")
+        else:
+            ids = tuple(getattr(mod, "LOCKED_SET", ()) or ())
+            count = getattr(mod, "LOCKED_COUNT", None)
+            commit = getattr(mod, "KERNEL_COMMIT", None)
+            lam = getattr(mod, "LAMBDA_STATUS", None) or getattr(mod, "LAMBDA", None)
+            if not lam:
+                # Some witnesses declare Λ only inside their doctrine block.
+                block = getattr(mod, "_doctrine_block", None)
+                if callable(block):
+                    try:
+                        lam = (block() or {}).get("lambda")
+                    except Exception:
+                        lam = None
+        if not ids or count is None:
+            errors.append(f"{name} exposes no locked-8 lock — not counted as a witness")
+            continue
+        witnesses.append({
+            "source": name,
+            "locked_formula_ids": list(ids),
+            "locked_formula_count": count,
+            "kernel_commit": commit,
+            "lambda_status": lam,
+            "lock_digest": _lock_digest(commit, count, ids),
+            "digest_algorithm": "sha256",
+        })
+    return witnesses, errors
+
+
+def _dispute_crosswalk() -> dict[str, Any]:
+    """Optional corroboration strand — the dispute-scoped maturity crosswalk.
+
+    NOT the locked-8 authority. Kept as honest disclosure: it covers the locked-8
+    ids but classifies the challenged F4/F7/F22 as EXPERIMENTAL inside its own
+    narrower dispute scope. Unreadable (its pinned JSON/Lean assets are not
+    shipped in every image) yields status UNAVAILABLE with the reason — it never
+    fails, and never passes, the canonical kernel claim on its own.
+    """
+    strand: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "authority_for_locked8": False,
+        "note": ("szl_formula_registry.receipt_basis() is a dispute-relevant maturity "
+                 "crosswalk (its own coverage_scope: 'not an inventory of the full "
+                 "estate'); corroboration only, never the locked-8 source"),
+        "reason": None,
+    }
+    try:
+        import szl_formula_registry as _reg
+        basis = _reg.receipt_basis()
+        locked_ids = list(basis.get("locked_proven_ids") or ())
+        covered = list(getattr(_reg, "EXPECTED_COVERED_IDS", ()))
+        strand.update({
+            "status": "READ",
+            "schema_version": basis.get("schema_version"),
+            "registry_version": basis.get("registry_version"),
+            "coverage_scope": basis.get("coverage_scope"),
+            "exhaustive": basis.get("exhaustive"),
+            "formula_registry_digest": basis.get("formula_registry_digest"),
+            "digest_algorithm": basis.get("digest_algorithm"),
+            "signature_status": basis.get("signature_status"),
+            "crosswalk_locked_proven_ids": locked_ids,
+            "crosswalk_covered_ids": covered,
+            "lambda_status": basis.get("lambda_status"),
+            "locked8_ids_all_covered": all(fid in covered for fid in LOCKED_8),
+            "crosswalk_not_inflated": set(locked_ids).issubset(set(LOCKED_8)),
+            "challenged_ids_experimental_in_this_scope": [
+                fid for fid in LOCKED_8 if fid not in locked_ids],
+        })
+    except Exception as exc:
+        strand["reason"] = (f"dispute crosswalk unreadable ({type(exc).__name__}) — "
+                            "corroboration absent; the canonical locked-8 witnesses "
+                            "stand on their own")
+    return strand
+
+
 def kernel_verification() -> dict[str, Any]:
-    """Verify the locked-8 kernel claim against the digest-verified registry.
+    """Verify the locked-8 kernel claim against the CANONICAL locked-8 source.
 
     Real in-request verification (never a hard-coded True):
-      1. ``szl_formula_registry`` loads with digest verification ON — it
-         recomputes the canonical SHA-256 over the registry payload and
-         re-asserts its structural invariants, raising on any drift.
-      2. Every doctrine locked-8 id is COVERED by that registry.
-      3. The registry's locked_proven set is not inflated beyond the locked-8.
-      4. Λ is still ``CONJECTURE_1_ADVISORY`` — a promoted Λ invalidates the
+      1. ``registry_digest_verified`` — at least two INDEPENDENT canonical
+         witnesses were read this request and their recomputed SHA-256 lock
+         digests are identical. Drift in either witness (an extra id, a changed
+         count, a moved kernel commit) diverges the digests → False.
+      2. ``locked8_covered`` — every doctrine locked-8 id is locked-proven by
+         EVERY witness, and each witness's declared count is exactly 8.
+      3. ``locked_set_not_inflated`` — no witness carries an id beyond the
+         locked-8, and its declared count equals the size of its own set.
+      4. ``lambda_is_conjecture`` — Λ is still Conjecture 1 in every witness (and
+         in the dispute crosswalk when readable). A promoted Λ invalidates the
          kernel claim outright.
 
-    Any failed check, or an unreadable registry, yields ``verified: False`` with
-    the reason recorded. There is no path to a fabricated True.
+    Any failed check, or fewer than two readable witnesses, yields
+    ``verified: False`` with the reason recorded. There is no path to a
+    fabricated True.
     """
     out: dict[str, Any] = {
         "verified": False,
@@ -414,35 +559,54 @@ def kernel_verification() -> dict[str, Any]:
         "reason": None,
     }
     try:
-        import szl_formula_registry as _reg
-    except Exception as exc:
-        out["reason"] = f"formula registry unreadable ({type(exc).__name__}) — not verified"
-        return out
-    try:
-        basis = _reg.receipt_basis()
-        covered = tuple(getattr(_reg, "EXPECTED_COVERED_IDS", ()))
-        locked_ids = tuple(basis.get("locked_proven_ids") or ())
+        witnesses, errors = _canonical_lock_witnesses()
+        crosswalk = _dispute_crosswalk()
+        digests = sorted({w["lock_digest"] for w in witnesses})
+        # Λ rule: at least one witness DECLARES a Λ status, and no witness
+        # anywhere promotes Λ past Conjecture 1. A witness that declares nothing
+        # cannot vouch for Λ, and is never counted as if it had.
+        declared = [str(w.get("lambda_status") or "").strip()
+                    for w in witnesses if w.get("lambda_status")]
+        lam_ok = bool(declared) and all(
+            d.lower().startswith("conjecture 1") for d in declared)
+        if crosswalk["status"] == "READ":
+            lam_ok = lam_ok and str(
+                crosswalk.get("lambda_status") or "").startswith("CONJECTURE_1")
         checks = {
-            "registry_digest_verified": bool(basis.get("formula_registry_digest")),
-            "locked8_covered": all(fid in covered for fid in LOCKED_8),
-            "locked_set_not_inflated": set(locked_ids).issubset(set(LOCKED_8)),
-            "lambda_is_conjecture": str(basis.get("lambda_status", "")).startswith(
-                "CONJECTURE_1"),
+            # Two independent witnesses read, byte-identical on the lock.
+            "registry_digest_verified": len(witnesses) >= 2 and len(digests) == 1,
+            # Every witness proves the full locked-8; count exactly 8.
+            "locked8_covered": bool(witnesses) and all(
+                set(LOCKED_8).issubset(set(w["locked_formula_ids"]))
+                and w["locked_formula_count"] == len(LOCKED_8)
+                for w in witnesses),
+            # …and nothing beyond it; declared count matches the real set.
+            "locked_set_not_inflated": bool(witnesses) and all(
+                set(w["locked_formula_ids"]).issubset(set(LOCKED_8))
+                and w["locked_formula_count"] == len(set(w["locked_formula_ids"]))
+                for w in witnesses),
+            "lambda_is_conjecture": lam_ok,
         }
         out["checks"] = checks
         out["registry"] = {
-            "schema_version": basis.get("schema_version"),
-            "registry_version": basis.get("registry_version"),
-            "formula_registry_digest": basis.get("formula_registry_digest"),
-            "digest_algorithm": basis.get("digest_algorithm"),
-            "signature_status": basis.get("signature_status"),
-            "registry_locked_proven_ids": list(locked_ids),
-            "lambda_status": basis.get("lambda_status"),
+            "canonical_source": CANONICAL_LOCK_SOURCE,
+            "witnesses": witnesses,
+            "witness_count": len(witnesses),
+            "witness_errors": errors,
+            "agreed_lock_digest": digests[0] if len(digests) == 1 else None,
+            "digest_algorithm": "sha256",
+            "dispute_crosswalk": crosswalk,
+            "authority_note": ("locked-8 truth is read from the doctrine lock served by "
+                               "/api/a11oy/v1/honest, cross-witnessed by the brain "
+                               "constitution; the dispute-scoped formula crosswalk is "
+                               "corroboration only"),
         }
         out["verified"] = all(checks.values())
         if not out["verified"]:
             failed = sorted(k for k, v in checks.items() if not v)
             out["reason"] = "failed kernel checks: " + ", ".join(failed)
+            if errors:
+                out["reason"] += " (" + "; ".join(errors) + ")"
         return out
     except Exception as exc:
         out["reason"] = (f"kernel verification raised {type(exc).__name__} — "
