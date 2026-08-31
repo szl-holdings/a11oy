@@ -1,0 +1,65 @@
+name: temporary-forward-port-brainlocal-1530
+
+on:
+  push:
+    branches:
+      - feat/frontier-brainlocal
+    paths:
+      - .github/workflows/temporary-forward-port-brainlocal-1530.yml
+
+permissions:
+  contents: write
+
+jobs:
+  forward-port:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check out exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/frontier-brainlocal
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Integrate current main, preserving main on textual conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main
+          git merge --no-ff --no-commit -X theirs origin/main
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "::error::unresolved paths remain; refusing forward-port"
+            git diff --name-status --diff-filter=U
+            exit 1
+          fi
+
+      - name: Verify the complete brainlocal contract survived the merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest -q \
+            tests/test_brainlocal.py \
+            tests/test_dockerfile_layer_budget.py \
+            tests/test_frontier_model_admission.py \
+            tests/test_model_intel_frontier_estate.py \
+            tests/test_demo_critical_routes.py
+          python scripts/check_manifest_coverage.py
+          python scripts/check_banned_tokens.py --root . --allowlist .doctrine-allowlist
+          python -m py_compile serve.py szl3d_holographic.py szl_brainlocal.py
+          git diff --check
+
+      - name: Commit only the passing current-main integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/temporary-forward-port-brainlocal-1530.yml
+          git add -A
+          git commit \
+            -m "feat(brain): forward-port brainlocal onto current main" \
+            -m "Current main won every textual conflict; the complete brainlocal, Docker, registry, manifest, doctrine, admission, and critical-route suites passed before this commit was created." \
+            -m "Signed-off-by: Stephen P. Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:refs/heads/feat/frontier-brainlocal
