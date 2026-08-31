@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import tempfile
 import unittest
 from pathlib import Path
@@ -98,10 +99,9 @@ class SecurityTransitionTests(unittest.TestCase):
                     tampered,
                 )
 
-    def test_candidate_report_binds_security_and_all_other_drift_to_tree(self) -> None:
+    def test_clean_candidate_report_admits_only_explicit_dot_proof(self) -> None:
         verifier = SimpleNamespace(
             EXPECTED_COMPATIBILITY_WARNING=COMPAT_WARNING,
-            CANDIDATE_AHEAD_VALUES=frozenset({"github", "github?"}),
         )
         base_tree = {
             SECURITY.SECURITY_PATH: "1" * 40,
@@ -109,31 +109,19 @@ class SecurityTransitionTests(unittest.TestCase):
         }
         head_tree = {
             SECURITY.SECURITY_PATH: "3" * 40,
-            "SECURITY.md": "4" * 40,
+            "SECURITY.md": "2" * 40,
         }
-        errors = [
-            {
-                "kind": "drift",
-                "path": path,
-                "severity": "error",
-                "ahead": "github",
-                "lineage_conflict": False,
-                "github_sha": head_tree[path],
-                "hf_oid": base_tree[path],
-            }
-            for path in (SECURITY.SECURITY_PATH, "SECURITY.md")
-        ]
         report = {
             "schema": 1,
-            "status": "drift",
-            "error_count": 2,
+            "status": "ok",
+            "error_count": 0,
             "warn_count": 1,
             "files_compared": 17,
             "github_repo": "szl-holdings/a11oy",
             "github_ref": "b" * 40,
             "hf_repo": "SZLHOLDINGS/a11oy",
             "hf_ref": "c" * 40,
-            "findings": [*errors, COMPAT_WARNING],
+            "findings": [COMPAT_WARNING],
         }
         admitted = SECURITY.validate_candidate_report(
             report,
@@ -147,15 +135,11 @@ class SecurityTransitionTests(unittest.TestCase):
             head_tree=head_tree,
             expected_files_compared=17,
         )
-        self.assertEqual(
-            admitted,
-            [SECURITY.SECURITY_PATH, "SECURITY.md"],
-        )
+        self.assertEqual(admitted, [])
 
-    def test_candidate_report_without_bound_security_row_fails_closed(self) -> None:
+    def test_candidate_report_rejects_any_comparator_visible_drift(self) -> None:
         verifier = SimpleNamespace(
             EXPECTED_COMPATIBILITY_WARNING=COMPAT_WARNING,
-            CANDIDATE_AHEAD_VALUES=frozenset({"github"}),
         )
         base_tree = {SECURITY.SECURITY_PATH: "1" * 40, "README.md": "2" * 40}
         head_tree = {SECURITY.SECURITY_PATH: "3" * 40, "README.md": "4" * 40}
@@ -184,7 +168,7 @@ class SecurityTransitionTests(unittest.TestCase):
         }
         with self.assertRaisesRegex(
             SECURITY.AdmissionError,
-            "security.txt drift row",
+            "drift outside the explicit dot-prefixed security proof",
         ):
             SECURITY.validate_candidate_report(
                 report,
@@ -198,6 +182,91 @@ class SecurityTransitionTests(unittest.TestCase):
                 head_tree=head_tree,
                 expected_files_compared=2,
             )
+
+    def test_successor_proves_base_dot_parity_and_records_evidence(self) -> None:
+        base_ref = "a" * 40
+        github_ref = "b" * 40
+        hf_ref = "c" * 40
+        dot_sha256 = "d" * 64
+        base_tree = {SECURITY.SECURITY_PATH: "1" * 40}
+        head_tree = {SECURITY.SECURITY_PATH: "2" * 40}
+        candidate_report = {
+            "schema": 1,
+            "status": "ok",
+            "error_count": 0,
+            "warn_count": 1,
+            "files_compared": 17,
+            "github_repo": "szl-holdings/a11oy",
+            "github_ref": github_ref,
+            "hf_repo": "SZLHOLDINGS/a11oy",
+            "hf_ref": hf_ref,
+            "findings": [COMPAT_WARNING],
+        }
+
+        def run_comparator(**kwargs):
+            kwargs["report_out"].write_text(
+                json.dumps(candidate_report),
+                encoding="utf-8",
+            )
+            return SimpleNamespace(returncode=0, stdout="")
+
+        verifier = SimpleNamespace(
+            EXPECTED_COMPATIBILITY_WARNING=COMPAT_WARNING,
+            verify_ancestry=mock.Mock(),
+            github_blob_tree=mock.Mock(side_effect=[base_tree, head_tree]),
+            resolve_stable_revision=mock.Mock(return_value=hf_ref),
+            verify_leading_dot_copy=mock.Mock(return_value=dot_sha256),
+            run_comparator=mock.Mock(side_effect=run_comparator),
+        )
+        base_controller = SimpleNamespace(
+            SHA_RE=re.compile(r"[0-9a-f]{40}"),
+            load_verifier=mock.Mock(return_value=verifier),
+            read_bound_github_file=mock.Mock(
+                side_effect=[BASE_SECURITY, HEAD_SECURITY]
+            ),
+            run_strict_comparator=mock.Mock(
+                return_value={"files_compared": 17}
+            ),
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            tools_script = Path(temporary) / "tools.py"
+            tools_script.write_text("# pinned comparator\n", encoding="utf-8")
+            with (
+                mock.patch.object(
+                    SECURITY,
+                    "load_base_controller",
+                    return_value=base_controller,
+                ),
+                mock.patch.object(SECURITY, "validate_control_plane"),
+            ):
+                report = SECURITY.prove_security_successor(
+                    tools_script=tools_script,
+                    github_repo="szl-holdings/a11oy",
+                    base_ref=base_ref,
+                    github_ref=github_ref,
+                    hf_repo="SZLHOLDINGS/a11oy",
+                )
+
+        verifier.verify_leading_dot_copy.assert_called_once_with(
+            github_repo="szl-holdings/a11oy",
+            github_ref=base_ref,
+            hf_repo="SZLHOLDINGS/a11oy",
+            hf_ref=hf_ref,
+        )
+        self.assertEqual(
+            report["base_leading_dot_copy"],
+            {
+                "path": SECURITY.SECURITY_PATH,
+                "sha256": dot_sha256,
+                "status": "exact",
+            },
+        )
+        self.assertEqual(report["comparator_drift_paths"], [])
+        self.assertEqual(
+            report["review_bound_drift_paths"],
+            [SECURITY.SECURITY_PATH],
+        )
 
 
 class SelectorTests(unittest.TestCase):
