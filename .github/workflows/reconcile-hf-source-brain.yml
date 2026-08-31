@@ -6,6 +6,7 @@ on:
       - fix/hf-source-brain-parity-20260831
     paths:
       - .github/scripts/reconcile_hf_source_brain.py
+      - .github/scripts/refresh_brain_count_contracts.py
       - .github/workflows/reconcile-hf-source-brain.yml
   workflow_dispatch: {}
 
@@ -18,7 +19,7 @@ concurrency:
 
 jobs:
   reconcile:
-    name: Prove exact Space source and refresh derived graph truth
+    name: Prove Space parity and refresh measured Brain contracts
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -31,7 +32,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: fix/hf-source-brain-parity-20260831
-          fetch-depth: 3
+          fetch-depth: 4
           persist-credentials: false
 
       - name: Set up Python
@@ -45,9 +46,13 @@ jobs:
       - name: Prove immutable Space source and refresh Brain registry
         run: python3 .github/scripts/reconcile_hf_source_brain.py
 
+      - name: Refresh schema and test contracts from the measured graph
+        run: python3 .github/scripts/refresh_brain_count_contracts.py
+
       - name: Remove bounded migration controls before verification
         run: |
           rm -f .github/scripts/reconcile_hf_source_brain.py
+          rm -f .github/scripts/refresh_brain_count_contracts.py
           rm -f .github/workflows/reconcile-hf-source-brain.yml
 
       - name: Validate source syntax
@@ -98,9 +103,13 @@ jobs:
           )
           expected = {
               ".github/scripts/reconcile_hf_source_brain.py",
+              ".github/scripts/refresh_brain_count_contracts.py",
               ".github/workflows/reconcile-hf-source-brain.yml",
               "docs/proofs/hf-source-brain-reconciliation-2026-08-31.json",
               "model_release/frontier-qualification/frontier-adoption.json",
+              "model_release/frontier-qualification/frontier-adoption.schema.json",
+              "tests/test_frontier_model_admission.py",
+              "tests/test_model_intel_frontier_estate.py",
               *proof["changed_source_paths"],
           }
           if observed != expected:
@@ -110,8 +119,16 @@ jobs:
               )
           if proof["source_state"] not in {"ALREADY_MATCHED", "IMPORTED"}:
               raise SystemExit(f"unexpected source state: {proof['source_state']!r}")
-          if proof["brain_registry"]["current_raw_nodes"] != proof["brain_registry"]["graph_node_count"]:
+          contracts = proof.get("derived_count_contracts") or {}
+          measured = proof["brain_registry"]["current_raw_nodes"]
+          if measured != proof["brain_registry"]["graph_node_count"]:
               raise SystemExit("Brain registry count does not equal the measured graph")
+          if contracts.get("measured_raw_nodes") != measured:
+              raise SystemExit("derived schema/test contracts do not match the measured graph")
+          if contracts.get("schema_constants_refreshed") is not True:
+              raise SystemExit("schema constants were not refreshed")
+          if contracts.get("test_expectations_refreshed") is not True:
+              raise SystemExit("test expectations were not refreshed")
           PY
           git diff --cached --check
 
@@ -125,8 +142,8 @@ jobs:
           git config user.name "SZL Reconciliation Bot"
           git config user.email "noreply@szlholdings.ai"
           git commit \
-            -m "fix(hf): prove Space parity and refresh Brain registry" \
-            -m "Verify five allowlisted UTF-8 files against immutable Space revision 8bd83a12d69a24050bce9601b772eefb547e2927, import only mismatches, refresh the exact derived Brain node count, retain a machine-readable proof, and remove the bounded migration controls before commit."
+            -m "fix(hf): prove Space parity and refresh Brain contracts" \
+            -m "Verify five allowlisted UTF-8 files against immutable Space revision 8bd83a12d69a24050bce9601b772eefb547e2927, import only mismatches, refresh the measured Brain registry, schema constants, and exact test expectations, retain a machine-readable proof, and remove the bounded migration controls before commit."
           git push \
             "https://x-access-token:${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
             "HEAD:refs/heads/${TARGET_BRANCH}"
