@@ -22,3 +22,5 @@ pages/console.html:167.233.50.75
 # public-documentation endpoint http://localhost:11434/v1 (Ollama's own default,
 # not internal a11oy infra). localhost is not a private tailnet address.
 web/src/data/cookbookData.ts::11434
+static/3d/surfaces/brainlocal.js::11434
+static/3d/holographic.html::11434
