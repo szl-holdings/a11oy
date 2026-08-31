@@ -2,6 +2,7 @@
 """Regressions for one canonical router-counter registry per process."""
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import sys
 from types import ModuleType
 
@@ -42,7 +43,7 @@ def _counter_capable_registry() -> ModuleType:
             "counter_state": "OBSERVED",
             "counter_scope": "process_lifetime",
             "counter_started_at": "2026-08-26T12:00:00Z",
-            "observed_at": "2026-08-26T12:00:01Z",
+            "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "routing_decisions_total": sum(item["routing_decisions"] for item in routes),
             "routes": routes,
         }
