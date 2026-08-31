@@ -27,13 +27,17 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
     def test_pull_requests_prove_the_exact_protected_base_without_live_queue_dependency(
         self,
     ) -> None:
-        self.assertIn("name: Source in sync with the live HF Space", self.pr_job)
+        self.assertIn("name: Protected base matches immutable HF repository", self.pr_job)
         self.assertIn("if: github.event_name == 'pull_request'", self.pr_job)
         self.assertIn("github.event.pull_request.base.sha", self.pr_job)
         self.assertIn("verify_hf_repository_parity.py", self.pr_job)
+        self.assertIn('--github-ref "$SOURCE_REF"', self.pr_job)
         self.assertIn("hf-current-base-parity.out.json", self.pr_job)
         self.assertNotIn("source-probe-path", self.pr_job)
-        self.assertNotIn("/api/build-info", self.pr_job)
+        self.assertIn(
+            "Scheduled, manual, and post-deployment checks retain the strict live",
+            self.pr_job,
+        )
 
     def test_scheduled_manual_and_post_deploy_checks_keep_the_strict_live_controller(
         self,
@@ -51,8 +55,11 @@ class RepositoryBoundDriftWorkflowTests(unittest.TestCase):
     def test_pull_requests_also_prove_candidate_managed_byte_parity(self) -> None:
         self.assertIn("Immutable HF repository byte parity", self.repository_job)
         self.assertIn("if: github.event_name == 'pull_request'", self.repository_job)
+        self.assertIn("github.event.pull_request.base.sha", self.repository_job)
         self.assertIn("github.event.pull_request.head.sha", self.repository_job)
-        self.assertIn("verify_hf_repository_parity.py", self.repository_job)
+        self.assertIn("select_hf_candidate_admission.py", self.repository_job)
+        self.assertIn('--base-ref "$BASE_REF"', self.repository_job)
+        self.assertIn('--github-ref "$SOURCE_REF"', self.repository_job)
         self.assertIn(
             "ref: 0816263f1e83734658d6e5a8a7cd3834f36a2054",
             self.repository_job,

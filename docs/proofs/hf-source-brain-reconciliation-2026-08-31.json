@@ -1,0 +1,109 @@
+{
+  "brain_registry": {
+    "changed": true,
+    "current_raw_nodes": 9470,
+    "graph_node_count": 9470,
+    "path": "model_release/frontier-qualification/frontier-adoption.json",
+    "previous_raw_nodes_available": 9469,
+    "previous_raw_nodes_observed": 9469
+  },
+  "changed_source_paths": [],
+  "derived_count_contracts": {
+    "changes": [
+      {
+        "current": "\"raw_nodes_observed\": {\"const\": 9470}",
+        "path": "model_release/frontier-qualification/frontier-adoption.schema.json",
+        "previous": "\"raw_nodes_observed\": {\"const\": 9469}"
+      },
+      {
+        "current": "\"raw_nodes_available_to_retrieval_and_evaluation\": {\"const\": 9470}",
+        "path": "model_release/frontier-qualification/frontier-adoption.schema.json",
+        "previous": "\"raw_nodes_available_to_retrieval_and_evaluation\": {\"const\": 9469}"
+      },
+      {
+        "current": "assert brain[\"raw_nodes_observed\"] == 9470",
+        "path": "tests/test_frontier_model_admission.py",
+        "previous": "assert brain[\"raw_nodes_observed\"] == 9469"
+      },
+      {
+        "current": "assert registry[\"brain_model_truth\"][\"raw_nodes_observed\"] == 9470",
+        "path": "tests/test_model_intel_frontier_estate.py",
+        "previous": "assert registry[\"brain_model_truth\"][\"raw_nodes_observed\"] == 9469"
+      }
+    ],
+    "measured_raw_nodes": 9470,
+    "schema_constants_refreshed": true,
+    "test_expectations_refreshed": true
+  },
+  "external_mutations": {
+    "huggingface_written": false,
+    "model_weights_changed": false,
+    "production_deployed": false
+  },
+  "files": [
+    {
+      "bytes": 20452,
+      "changed": false,
+      "mode": "100644",
+      "path": "pages/pricing.html",
+      "previous_sha256": "171905bb09dc438e1ce236f7578d727b53d17f3696d80f3b041f36cca26498f0",
+      "source_sha256": "171905bb09dc438e1ce236f7578d727b53d17f3696d80f3b041f36cca26498f0"
+    },
+    {
+      "bytes": 975816,
+      "changed": false,
+      "mode": "100644",
+      "path": "serve.py",
+      "previous_sha256": "450f7876e6a8f55603c4829d40006fcc1f31d329dd198fdb4de558dd0519e217",
+      "source_sha256": "450f7876e6a8f55603c4829d40006fcc1f31d329dd198fdb4de558dd0519e217"
+    },
+    {
+      "bytes": 79940,
+      "changed": false,
+      "mode": "100644",
+      "path": "static/3d/holographic.html",
+      "previous_sha256": "bff5a3426aff0bacf923fd416c02c4a8479df18aa80cf0abb9071ab4a7c23a57",
+      "source_sha256": "bff5a3426aff0bacf923fd416c02c4a8479df18aa80cf0abb9071ab4a7c23a57"
+    },
+    {
+      "bytes": 6609,
+      "changed": false,
+      "mode": "100644",
+      "path": "static/3d/surfaces/braincite.js",
+      "previous_sha256": "f0c01cdbc64e614b39162406ced16f1f938b1a30fe19daa85364d29a030b8d3d",
+      "source_sha256": "f0c01cdbc64e614b39162406ced16f1f938b1a30fe19daa85364d29a030b8d3d"
+    },
+    {
+      "bytes": 54603,
+      "changed": false,
+      "mode": "100644",
+      "path": "szl3d_holographic.py",
+      "previous_sha256": "63cbcc04af013d3c1f328c6c18983f31cf92da5b75edb14e279ed24da343f673",
+      "source_sha256": "63cbcc04af013d3c1f328c6c18983f31cf92da5b75edb14e279ed24da343f673"
+    }
+  ],
+  "generated_at": "2026-08-31T19:15:47.427783Z",
+  "github_base": "9cbc318007e6751982bbf9e435bc46b8ae7a475d",
+  "github_repository": "szl-holdings/a11oy",
+  "honesty": "This proof verifies exact text-byte parity with one immutable public Space revision, imports only mismatched allowlisted bytes, and refreshes a derived node count. It does not certify runtime behavior or authorize model weights.",
+  "huggingface_remote": "https://huggingface.co/spaces/SZLHOLDINGS/a11oy.git",
+  "huggingface_repository": "SZLHOLDINGS/a11oy",
+  "huggingface_revision": "8bd83a12d69a24050bce9601b772eefb547e2927",
+  "proof_sha256": "123676eb1fe1031dbb0d13c1915657838ae360016ecc4ff2a6e1b659afb76f9c",
+  "schema": "a11oy.hf-source-brain-reconciliation/v1",
+  "source_policy": {
+    "exact_allowlist": [
+      "pages/pricing.html",
+      "serve.py",
+      "static/3d/holographic.html",
+      "static/3d/surfaces/braincite.js",
+      "szl3d_holographic.py"
+    ],
+    "git_lfs_smudge": false,
+    "max_file_bytes": 26214400,
+    "regular_files_only": true,
+    "utf8_only": true
+  },
+  "source_state": "ALREADY_MATCHED",
+  "status": "RECONCILED"
+}
