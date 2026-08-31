@@ -28,7 +28,14 @@ def test_security_txt_is_canonical_and_copied_into_runtime_static_tree() -> None
     security = (ROOT / ".well-known" / "security.txt").read_text(encoding="utf-8")
     dockerfile = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 
-    assert "Contact: mailto:security@szlholdings.ai" in security
+    assert (
+        "Contact: https://github.com/szl-holdings/a11oy/security/advisories/new"
+        in security
+    )
+    assert "Contact: mailto:security@szlholdings.com" in security
+    assert (
+        "szlholdings.ai" not in security
+    ), "szlholdings.ai does not resolve; never advertise a dead disclosure channel"
     assert "Encryption:" not in security, "do not advertise a nonexistent public key"
     assert "Canonical: https://a-11-oy.com/.well-known/security.txt" in security
     assert "Policy: https://github.com/szl-holdings/a11oy/blob/main/SECURITY.md" in security
