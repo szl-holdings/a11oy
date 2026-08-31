@@ -5,6 +5,8 @@ from pathlib import Path
 import unittest
 
 from routers.frontier_reads import normalize_phase_b_payload
+from szl_alloy_models import ALLOY_ROSTER
+from szl_llm_registry import MODEL_REGISTRY
 
 
 ROOT = Path(__file__).resolve().parents[1]
