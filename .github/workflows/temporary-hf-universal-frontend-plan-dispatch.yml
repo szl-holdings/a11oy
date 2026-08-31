@@ -1,0 +1,51 @@
+name: temporary-hf-universal-frontend-plan-dispatch
+
+on:
+  push:
+    branches:
+      - ops/hf-universal-frontend-plan-dispatch-20260830
+    paths:
+      - .github/workflows/temporary-hf-universal-frontend-plan-dispatch.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_MAIN: 67e5426bfd0627f073c3bf3cb036fb3558b693e4
+    steps:
+      - name: Require the exact protected flagship revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)"
+          if [ "$observed" != "$EXPECTED_MAIN" ]; then
+            echo "::error::protected main moved: expected $EXPECTED_MAIN, observed $observed"
+            exit 1
+          fi
+
+      - name: Dispatch controller contract and zero-mutation estate plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh workflow run hf-universal-frontend-estate.yml \
+            --repo "$GITHUB_REPOSITORY" --ref main
+          gh workflow run hf-universal-frontend-rollout.yml \
+            --repo "$GITHUB_REPOSITORY" --ref main -f operation=plan
+
+      - name: Record the plan boundary
+        shell: bash
+        run: |
+          cat >> "$GITHUB_STEP_SUMMARY" <<'EOF'
+          ## Universal frontend estate plan dispatched
+
+          The controller contract and revision-bound `plan` operation were dispatched from
+          exact protected `a11oy/main`. This phase creates no Hugging Face pull request and
+          changes no model card, dataset card, Space file, weight, data, visibility, hardware,
+          storage, allocation, or secret.
+          EOF
