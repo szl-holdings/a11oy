@@ -33,7 +33,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
-      - name: Apply exact validator pin migration
+      - name: Apply exact validator and fixture pin migration
         shell: bash
         run: |
           set -euo pipefail
@@ -41,28 +41,43 @@ jobs:
           from pathlib import Path
 
           validator = Path('scripts/validate_frontdoor_source_integrity.py')
+          tests = Path('scripts/test_frontdoor_source_integrity.py')
           workflow = Path('.github/workflows/hf-module-drift.yml')
           old = 'step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40'
           new = 'step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c'
 
           validator_text = validator.read_text(encoding='utf-8')
+          tests_text = tests.read_text(encoding='utf-8')
           workflow_text = workflow.read_text(encoding='utf-8')
+
           if validator_text.count(old) != 1:
               raise SystemExit('independent validator old pin must occur exactly once')
+          if tests_text.count(old) != 2:
+              raise SystemExit('canonical workflow fixture old pin must occur exactly twice')
           if workflow_text.count(new) != 2:
               raise SystemExit('HF workflow must use the reviewed new pin exactly twice')
+
           validator_text = validator_text.replace(old, new)
+          tests_text = tests_text.replace(old, new)
           if old in validator_text or validator_text.count(new) != 1:
               raise SystemExit('validator pin replacement was not exact')
+          if old in tests_text or tests_text.count(new) != 2:
+              raise SystemExit('canonical fixture pin replacement was not exact')
+
           validator.write_text(validator_text, encoding='utf-8')
+          tests.write_text(tests_text, encoding='utf-8')
           PY
 
-          test "$(git diff --name-only)" = 'scripts/validate_frontdoor_source_integrity.py'
+          actual="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' \
+            scripts/test_frontdoor_source_integrity.py \
+            scripts/validate_frontdoor_source_integrity.py | sort)"
+          test "$actual" = "$expected"
           git diff --check
           python3 scripts/test_frontdoor_source_integrity.py
           python3 scripts/validate_frontdoor_source_integrity.py
 
-      - name: Commit exact tested validator repair
+      - name: Commit exact tested integrity lockstep repair
         shell: bash
         env:
           BRANCH: fix/vendor-base-after-dco-20260831
@@ -70,7 +85,9 @@ jobs:
           set -euo pipefail
           git config user.name 'SZL CI'
           git config user.email 'noreply@szlholdings.ai'
-          git add scripts/validate_frontdoor_source_integrity.py
-          git diff --cached --quiet && { echo 'Validator already aligned.'; exit 0; }
-          git commit -m 'test: align HF integrity validator with Harden Runner 2.21.0'
+          git add \
+            scripts/test_frontdoor_source_integrity.py \
+            scripts/validate_frontdoor_source_integrity.py
+          git diff --cached --quiet && { echo 'Integrity validator and fixture already aligned.'; exit 0; }
+          git commit -m 'test: align HF integrity guard with Harden Runner 2.21.0'
           git push origin "HEAD:${BRANCH}"
