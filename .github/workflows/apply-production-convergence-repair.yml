@@ -1,5 +1,6 @@
 name: Apply Production Convergence Repair
 
+# Attempt 3: exact standalone-selector regression after the repair logic passed.
 on:
   push:
     branches:
