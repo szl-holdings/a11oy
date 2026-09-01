@@ -1,0 +1,76 @@
+name: Production Convergence Guard
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "a11oy_landing.html"
+      - "console/assets/szl-flow.css"
+      - "console/assets/szl-flow.js"
+      - "docs/frontend-flow-shell-state.json"
+      - "pages/integrations.html"
+      - "scripts/repair_a11oy_frontdoor.py"
+      - "scripts/rollout_frontend_flow_shell.py"
+      - "spaces/sda/index.html"
+      - "szl_connectors_serve.py"
+      - "tests/test_frontend_flow_shell.py"
+      - "tests/test_frontend_source_boundaries.py"
+      - "tests/test_integrations_flow_boundary.py"
+      - ".github/workflows/apply-production-convergence-repair.yml"
+  push:
+    branches: [main]
+    paths:
+      - "a11oy_landing.html"
+      - "console/assets/szl-flow.css"
+      - "console/assets/szl-flow.js"
+      - "docs/frontend-flow-shell-state.json"
+      - "pages/integrations.html"
+      - "scripts/repair_a11oy_frontdoor.py"
+      - "scripts/rollout_frontend_flow_shell.py"
+      - "spaces/sda/index.html"
+      - "szl_connectors_serve.py"
+      - "tests/test_frontend_flow_shell.py"
+      - "tests/test_frontend_source_boundaries.py"
+      - "tests/test_integrations_flow_boundary.py"
+      - ".github/workflows/apply-production-convergence-repair.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-convergence-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Frontend and backend source boundaries
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Verify convergence contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/rollout_frontend_flow_shell.py \
+            scripts/repair_a11oy_frontdoor.py \
+            szl_connectors_serve.py \
+            tests/test_integrations_flow_boundary.py \
+            tests/test_frontend_flow_shell.py \
+            tests/test_frontend_source_boundaries.py
+          python tests/test_integrations_flow_boundary.py -v
+          python tests/test_frontend_flow_shell.py -v
+          python tests/test_frontend_source_boundaries.py -v
+          python scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
+          python scripts/rollout_frontend_flow_shell.py --check
+          node --check console/assets/szl-flow.js
+          git diff --check

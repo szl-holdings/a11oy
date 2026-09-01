@@ -5,6 +5,15 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/repair-cloudflare-product-edge.yml"
+      - "cloudflare/**"
+      - "scripts/repair_cloudflare_product_edge.py"
+      - "tests/test_cloudflare_product_edge.py"
+      - "szl_connectors_serve.py"
+      - "a11oy_landing.html"
+      - "console/assets/szl-flow.css"
+      - "scripts/rollout_frontend_flow_shell.py"
+      - "pages/integrations.html"
+      - "spaces/sda/index.html"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -16,6 +25,10 @@ on:
 permissions:
   contents: read
   issues: write
+
+concurrency:
+  group: cloudflare-product-root
+  cancel-in-progress: false
 
 env:
   EDGE_REPORT: /tmp/cloudflare-product-edge.json

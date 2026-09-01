@@ -28,16 +28,38 @@ from pathlib import Path
 
 try:  # FastAPI types are present in the a11oy image
     from fastapi import FastAPI, Request
-    from fastapi.responses import JSONResponse, FileResponse
+    from fastapi.responses import JSONResponse, FileResponse, HTMLResponse
 except Exception:  # pragma: no cover — import-time guard
     FastAPI = object  # type: ignore
     Request = object  # type: ignore
+    HTMLResponse = object  # type: ignore
 
 import szl_connectors as sc
 from szl_connectors import oauth as _oauth
 
 _PAGES_DIR = Path(os.environ.get("SZL_PAGES_DIR", "/app/pages"))
 _INDEX_HTML = Path("/app/static/index.html")
+_FLOW_STYLE = '<link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />'
+_FLOW_SCRIPT = '<script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>'
+
+
+def _with_a11oy_flow_shell(text: str) -> str:
+    """Bind the product-only Flow Shell without mutating shared source bytes."""
+    style_count = text.count('data-szl-flow-asset="style"')
+    script_count = text.count('data-szl-flow-asset="script"')
+    if style_count > 1 or script_count > 1:
+        raise ValueError("duplicate Flow Shell marker")
+    if style_count == 0:
+        index = text.lower().rfind("</head>")
+        if index < 0:
+            raise ValueError("integrations document has no closing head")
+        text = text[:index] + "  " + _FLOW_STYLE + "\n" + text[index:]
+    if script_count == 0:
+        index = text.lower().rfind("</body>")
+        if index < 0:
+            raise ValueError("integrations document has no closing body")
+        text = text[:index] + "  " + _FLOW_SCRIPT + "\n" + text[index:]
+    return text
 
 
 def register(app, ns: str = "a11oy") -> str:
@@ -126,6 +148,15 @@ def register(app, ns: str = "a11oy") -> str:
     async def _integrations_page():  # noqa: ANN202
         f = _PAGES_DIR / "integrations.html"
         if f.is_file():
+            if ns == "a11oy":
+                try:
+                    page = _with_a11oy_flow_shell(f.read_text(encoding="utf-8"))
+                except (OSError, UnicodeError, ValueError) as error:
+                    return JSONResponse(
+                        {"error": "integrations page unavailable", "detail": type(error).__name__},
+                        status_code=500,
+                    )
+                return HTMLResponse(page, media_type="text/html")
             return FileResponse(f, media_type="text/html")
         if _INDEX_HTML.is_file():
             return FileResponse(_INDEX_HTML, media_type="text/html")

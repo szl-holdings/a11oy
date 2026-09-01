@@ -30,17 +30,35 @@ GLOBS = (
     "spaces/*/index.html",
 )
 EXCLUDE_PARTS = {"node_modules", "vendor", "archive", "archives", "fixtures", ".git"}
+SOURCE_MANAGED_PATHS = {"pages/integrations.html"}
+SOURCE_BOUNDARY_MARKERS = ("DO NOT EDIT HERE.", "VENDORED FROM ")
+
+
+def source_managed(path: Path) -> bool:
+    # Another source contract owns these HTML bytes.
+    rel = path.relative_to(ROOT).as_posix()
+    if rel in SOURCE_MANAGED_PATHS:
+        return True
+    try:
+        head = path.read_text(encoding="utf-8")[:4096]
+    except (OSError, UnicodeError):
+        return False
+    return any(marker in head for marker in SOURCE_BOUNDARY_MARKERS)
 
 
 def candidates() -> list[Path]:
     found: set[Path] = set()
     for rel in EXACT:
         path = ROOT / rel
-        if path.is_file():
+        if path.is_file() and not source_managed(path):
             found.add(path)
     for pattern in GLOBS:
         for path in ROOT.glob(pattern):
-            if path.is_file() and not (set(path.relative_to(ROOT).parts) & EXCLUDE_PARTS):
+            if (
+                path.is_file()
+                and not (set(path.relative_to(ROOT).parts) & EXCLUDE_PARTS)
+                and not source_managed(path)
+            ):
                 found.add(path)
     return sorted(found)
 
@@ -73,11 +91,11 @@ def inject(path: Path) -> str:
     return "present"
 
 
-def update_state(changed: list[str], examined: int) -> None:
+def update_state(bound: list[str], examined: int) -> None:
     payload = json.loads(STATE.read_text(encoding="utf-8"))
     payload["state"] = "ROLLED_OUT"
     payload["examined_documents"] = examined
-    payload["injected_documents"] = changed
+    payload["injected_documents"] = bound
     STATE.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -89,6 +107,7 @@ def main() -> int:
 
     rows = []
     changed: list[str] = []
+    bound: list[str] = []
     for path in candidates():
         rel = path.relative_to(ROOT).as_posix()
         result = inject(path) if not args.check else (
@@ -97,6 +116,8 @@ def main() -> int:
         rows.append({"path": rel, "result": result})
         if result == "injected":
             changed.append(rel)
+        if result in {"injected", "present"}:
+            bound.append(rel)
 
     if not rows:
         raise SystemExit("no live HTML candidates were found")
@@ -107,13 +128,14 @@ def main() -> int:
         missing = [row["path"] for row in rows if row["result"] == "missing"]
         raise SystemExit("missing flow shell: " + ", ".join(missing))
     if not args.check:
-        update_state(changed, len(rows))
+        update_state(bound, len(rows))
 
     report = {
         "schema": "szl.frontend-flow-shell-rollout/v1",
         "mode": "CHECK" if args.check else "APPLY",
         "examined": len(rows),
         "changed": len(changed),
+        "bound": len(bound),
         "rows": rows,
     }
     if args.report:

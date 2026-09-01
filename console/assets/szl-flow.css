@@ -208,7 +208,12 @@ body[data-szl-theme="voyage"] {
   background: var(--szl-flow-panel);
 }
 .szl-flow-switch strong { color: var(--szl-flow-accent); font-weight: 750; }
-.szl-flow-toggle { display: none; }
+.szl-flow-toggle {
+  display: none;
+  min-width: 48px;
+  min-height: 48px;
+  border-radius: 6px;
+}
 .szl-flow-rail a:focus-visible,
 .szl-flow-rail button:focus-visible { outline: 3px solid var(--szl-flow-accent); outline-offset: 3px; }
 
