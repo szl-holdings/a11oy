@@ -1,5 +1,5 @@
 {
-  "examined_documents": 109,
+  "examined_documents": 107,
   "injected_documents": [
     "a11oy_landing.html",
     "cathedral_genius.html",
@@ -42,7 +42,6 @@
     "pages/harvest.html",
     "pages/hatun-mcp.html",
     "pages/hub.html",
-    "pages/integrations.html",
     "pages/landing.html",
     "pages/mesh.html",
     "pages/observability.html",
@@ -68,7 +67,6 @@
     "pages/wasi-rikuq.html",
     "pages/wires.html",
     "spaces/orbital/index.html",
-    "spaces/sda/index.html",
     "web/agent-loop.html",
     "web/agentic-gpu.html",
     "web/autoreview.html",

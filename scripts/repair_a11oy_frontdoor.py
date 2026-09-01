@@ -29,7 +29,7 @@ MOBILE_FINAL_BLOCK = '''  @media(max-width:560px){
     .hero{min-height:auto}
     .hero .wrap{padding-top:32px;padding-bottom:44px}
     .cta-row{display:grid;grid-template-columns:1fr;width:100%}
-    .cta-row .btn{width:100%;white-space:normal;text-align:center}
+    .cta-row .btn{width:100%;min-height:52px;border-radius:6px;white-space:normal;text-align:center}
     .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
   }
 '''
