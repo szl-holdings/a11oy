@@ -1,0 +1,70 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply CourtListener rate-limit repair
+
+on:
+  push:
+    branches:
+      - fix/courtlistener-rate-limit-pacing-20260901
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-courtlistener-rate-limit-pacing-20260901
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Apply, verify, and commit legal feed pacing
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/courtlistener-rate-limit-pacing-20260901
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+
+      - name: Install exact focused test runtime
+        run: python3 -m pip install --disable-pip-version-check 'pytest==9.0.3' 'httpx==0.28.1' 'fastapi==0.116.1' 'anyio==4.10.0' 'cryptography==45.0.6'
+
+      - name: Apply deterministic transport and cache edits
+        run: python3 .github/scripts/apply_courtlistener_rate_limit_fix.py
+
+      - name: Verify focused legal feed and readiness contracts
+        run: |
+          set -euo pipefail
+          python3 -m py_compile \
+            a11oy_vertical_feeds.py \
+            a11oy_devb_endpoints.py \
+            tests/test_feed_cache_singleflight.py
+          python3 -m pytest -q tests/test_feed_cache_singleflight.py
+          python3 tools/readiness-harness/gen_tabs_matrix.py --check
+          node --test tools/readiness-harness/probe_runner.test.mjs
+          git diff --check
+
+      - name: Commit only permanent reviewed changes
+        env:
+          BRANCH: fix/courtlistener-rate-limit-pacing-20260901
+        run: |
+          set -euo pipefail
+          git config user.name 'SZL Holdings Automation'
+          git config user.email 'eng@szlholdings.com'
+          git add a11oy_vertical_feeds.py
+          git add a11oy_devb_endpoints.py
+          git add tests/test_feed_cache_singleflight.py
+          git rm .github/scripts/apply_courtlistener_rate_limit_fix.py
+          git rm .github/workflows/apply-courtlistener-rate-limit-fix.yml
+          git diff --cached --check
+          git commit -s -m 'fix(legal): serialize and retry CourtListener bursts'
+          git push origin "HEAD:${BRANCH}"
