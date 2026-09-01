@@ -28,6 +28,7 @@ input,select,textarea{background:#0a0c11;color:var(--ink);border:1px solid var(-
 audio{width:100%;margin-top:10px}
 footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:var(--mut);font-size:12px}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <div class="wrap">
@@ -101,5 +102,6 @@ async function streamSpeak(){try{const text=encodeURIComponent(document.getEleme
 }catch(e){show('speakout','error: '+e);}}
 loadVoices();
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

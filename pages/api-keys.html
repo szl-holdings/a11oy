@@ -31,7 +31,8 @@ pre{background:#0d0f17;border:1px solid var(--line);border-radius:10px;padding:1
 .note{border-left:3px solid var(--gold);padding:8px 14px;background:rgba(217,179,92,.06);color:#d8dbe6;font-size:13.5px;margin:14px 0;border-radius:0 8px 8px 0}
 footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;padding:18px 22px;line-height:1.7}
 .kbd{background:#1c2030;border:1px solid var(--line);border-radius:6px;padding:1px 7px;font-family:ui-monospace,monospace;font-size:12px}
-</style></head><body>
+</style>  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
+</head><body>
 <header><span class="brand">a11oy</span><span class="tag">Brand Orchestration Layer · the one place to see everything</span></header>
 <nav><a href="/hub">Hub</a><a href="/a11oy.code">a11oy.code</a><a href="/docs">Docs</a><a href="/pricing">Pricing</a><a href="/api-keys" class="active">API Keys</a><a href="/sdk">SDK</a><a href="/status">Status</a><a href="/observability">Observability</a><a href="/security">Security</a><a href="/compliance">Compliance</a><a href="/cued-engagement">Cued Engagement</a><a href="/uds">UDS</a><a href="/counter-uas">Counter-UAS</a><a href="/evidence">Evidence</a><a href="/upgrades">Upgrades</a><a href="/audit">Audit</a><a href="/gap-report">Gap Report</a></nav>
 <main><h1>API Keys — issuance, scopes, rotation</h1><p class="sub">Keys are tamper-evident (cosign signature over the key fingerprint), least-privilege by scope AND flagship, and instantly revocable. The server never stores the raw key — only sha256(key).</p>
@@ -44,4 +45,5 @@ szl_live_killinchu_Q2m7...   live key hard-bound to killinchu only
 szl_test_4Hh1...             sandbox key (no billing, no real fleet data)</pre><h2>Scopes</h2><table><tr><th>Action scope</th><th>Flagship allowlist</th><th>Enforcement</th></tr><tr><td>read / write / admin</td><td>a11oy · amaru · sentra · killinchu · rosie</td><td>server-side, derived from the OpenAPI path operationId verb class</td></tr></table><div class="note">Revocation writes a Khipu receipt and flips status to <code>revoked</code>; the next verification fails closed. A cosign signature lets a Greene-grade auditor verify the key-issuance event independently. Signing is honestly labeled <b>cosign PLACEHOLDER</b> (no Sigstore transparency-log inclusion yet).</div><p>Mint / revoke / rotate keys in the customer portal. This tab explains the model.</p>
 </main>
 <footer>Doctrine v12 (PURIQ) additive · v11/v12 LOCKED: 749 declarations · 14 axioms · 163 sorries · 13-axis yuyay_v3 · lutar-v18.0.0 @ c7c0ba17 · SLSA L1 (honest) · Khipu signature = DSSE/cosign PLACEHOLDER<br>HfApi direct push only · IP-HOLD a11oy#57 untouched · ADDITIVE / zero-regression · Khipu receipt on every action · Signed <b>Yachay</b> · Co-author Perplexity Computer Agent</footer>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body></html>

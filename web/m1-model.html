@@ -18,6 +18,7 @@
     button{margin-top:14px;border:1px solid #306b67;background:#123632;color:#d9fffb;padding:11px 16px;font-weight:700;cursor:pointer}button:disabled{border-color:#343b43;background:#171b20;color:#65717e;cursor:not-allowed}.result{margin-top:14px;min-height:80px;white-space:pre-wrap;background:#080c10;border:1px solid #202a35;padding:12px;color:#cbd6e0}
     footer{margin-top:28px;color:#596675;font-size:12px}@media(max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}.evidence{grid-template-columns:1fr}}@media(max-width:560px){.grid{grid-template-columns:1fr}.row{grid-template-columns:1fr}.topline{align-items:flex-start;flex-direction:column}}
   </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <main>
@@ -72,5 +73,6 @@
   document.getElementById('run').addEventListener('click',async()=>{const button=document.getElementById('run'),result=document.getElementById('result');button.disabled=true;result.textContent='Running exact preflight…';try{const response=await fetch(endpoint+'/infer',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({schema:'szl.m1-experimental-inference-request/v1',prompt:document.getElementById('prompt').value,max_new_tokens:Number(document.getElementById('tokens').value),temperature:Number(document.getElementById('temperature').value),requested_tier:'EXPERIMENTAL_LOCAL_ONLY',provider_id:'a11oy.m1.local-peft/v1'})});const body=await response.json();result.textContent=body.inference?.text||`${body.state||'UNAVAILABLE'} · ${body.error||body.gate?.checks?.gpu_admission?.reason||'No output fabricated.'}`;await refresh()}catch(error){result.textContent='UNAVAILABLE · request failed; no output fabricated.'}finally{button.disabled=snapshot?.operational_state!=='READY_EXPERIMENTAL'}});
   refresh();setInterval(refresh,30000);
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>
