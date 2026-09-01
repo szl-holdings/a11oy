@@ -11154,6 +11154,85 @@ try:
             return local
         return _AC_HF_ROSTER[0]["hf_repo"]
 
+    # ── SECOND-BRAIN citation-handle bridge (SZL_SECOND_BRAIN_RAG=1 — OFF by default).
+    # Isolated retrieval-augmentation seam for this sovereign/local-LLM-capable
+    # request path (the outbound OpenAI-compatible call built just below, which
+    # serves the self-hosted node when A11OY_MODEL_BASE_URL + A11OY_GPU_TOKEN
+    # are set, with the served model named by SZL_LOCAL_LLM_MODEL). When the
+    # operator opts in, the user's query is FIRST posted to the LIVE
+    # SZLHOLDINGS/second-brain HF Space (/api/v1/retrieve) and, ONLY on a LIVE
+    # well-formed response, that API's citation HANDLES (nodeId + short note +
+    # sha256, verbatim) plus the API's OWN honesty string are prepended to the
+    # outbound messages as one extra system message. The upstream API is a
+    # lexical-overlap ranker over a PUBLIC 575-chunk projection
+    # (content_access=HANDLES_ONLY) — it is NOT semantic retrieval and it is NOT
+    # the private 9464-node brain graph, and neither this code nor its labels
+    # may upgrade that claim. Fail-closed: timeout / non-2xx / malformed JSON /
+    # missing "handles" -> status UNAVAILABLE, the messages go out UNCHANGED,
+    # and generation.second_brain_rag NEVER claims retrieval was used. When the
+    # flag is unset the bridge is never consulted and this path is byte-identical
+    # to before. packages/inference/ is COPY'd into the image (Dockerfile), so
+    # the bridge ships; a missing module degrades to UNAVAILABLE, never a crash.
+    try:
+        from packages.inference.src.retrieval.second_brain_bridge import (
+            format_citation_context as _ac_sb_format,
+            retrieve_handles as _ac_sb_retrieve,
+        )
+    except Exception:  # pragma: no cover — import failure must never break /code
+        _ac_sb_format = None
+        _ac_sb_retrieve = None
+
+    def _ac_second_brain_rag_enabled() -> bool:
+        # Request-time read so the operator can toggle without a redeploy and so
+        # tests can monkeypatch the env. Unset/empty/other value => OFF.
+        return (os.environ.get("SZL_SECOND_BRAIN_RAG") or "").strip().lower() in ("1", "true", "yes")
+
+    def _ac_second_brain_augment(query, messages):
+        """The ONE gated seam: optionally prepend second-brain citation handles.
+
+        Returns (messages, meta). Flag OFF -> (messages UNCHANGED, None): the
+        caller's behavior is byte-identical to before this seam existed. Flag
+        ON + LIVE -> (one citation system message prepended, meta status=LIVE
+        with the API fields verbatim). Flag ON + any failure -> (messages
+        UNCHANGED, meta status=UNAVAILABLE used=False). Never raises, never
+        fabricates a handle, never claims retrieval that did not happen."""
+        if not _ac_second_brain_rag_enabled():
+            return messages, None
+        base_meta = {
+            "source": "SZLHOLDINGS/second-brain HF Space /api/v1/retrieve",
+            "kind": "citation-handles",
+            "label": ("citation handles from a public lexical index, not "
+                      "semantic retrieval, not the full brain graph"),
+        }
+        if not callable(_ac_sb_retrieve):
+            return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
+                              "error": "bridge module not importable in this image"}
+        try:
+            _sb_res = _ac_sb_retrieve(query)
+        except Exception as _sb_exc:  # fail-closed: a bridge bug never breaks inference
+            return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
+                              "error": "bridge raised: %s" % type(_sb_exc).__name__}
+        if (getattr(_sb_res, "status", None) == "LIVE"
+                and getattr(_sb_res, "handles", None)
+                and callable(_ac_sb_format)):
+            _cite = _ac_sb_format(_sb_res)
+            if _cite:
+                _corpus = getattr(_sb_res, "corpus_n", None)
+                _label = ("citation handles from a public %s-chunk lexical index, "
+                          "not semantic retrieval, not the full brain graph"
+                          % (_corpus if isinstance(_corpus, int) else "public"))
+                _meta = {**base_meta, "status": "LIVE", "used": True, "label": _label,
+                         "schema": getattr(_sb_res, "schema", None),
+                         "handles": _sb_res.handles,          # VERBATIM from the API
+                         "scores": getattr(_sb_res, "scores", []),   # VERBATIM
+                         "honesty": getattr(_sb_res, "honesty", ""),  # VERBATIM
+                         "corpus_n": _corpus,
+                         "content_access": getattr(_sb_res, "content_access", None)}
+                return ([{"role": "system", "content": _cite}] + messages), _meta
+        return messages, {**base_meta, "status": "UNAVAILABLE", "used": False,
+                          "error": (getattr(_sb_res, "error", None)
+                                    or "no LIVE handles returned")}
+
     def _ac_hf_chat(messages, max_tokens=640, want_model=None):
         """Call the OpenAI-compatible HF Router server-side, 2x retry + roster
         fallback. Returns {ok,text,model,license,attempts,rate_limited,error}.
@@ -11239,7 +11318,17 @@ try:
                     "signed receipt are real. Set the HF_TOKEN Space secret to enable LIVE "
                     "open-weight inference (server-side only). Role: %s."
                     % (organ, tier["tier"], tier["model_id"], tier["role"]))
-            return stub, "deterministic", {"backend": "local-deterministic", "configured": False}
+            _stub_meta = {"backend": "local-deterministic", "configured": False}
+            if _ac_second_brain_rag_enabled():
+                # No inference credential -> no outbound call exists to augment,
+                # so the bridge is never consulted; say so honestly and never
+                # claim retrieval was used.
+                _stub_meta["second_brain_rag"] = {
+                    "status": "UNAVAILABLE", "used": False,
+                    "kind": "citation-handles",
+                    "source": "SZLHOLDINGS/second-brain HF Space /api/v1/retrieve",
+                    "error": "no inference credential configured; no outbound call to augment"}
+            return stub, "deterministic", _stub_meta
         messages = [
             {"role": "system", "content": (
                 "You are a11oy Code, a governed open-weight coding assistant. Answer the "
@@ -11247,20 +11336,30 @@ try:
                 "runnable code when relevant.")},
             {"role": "user", "content": query},
         ]
+        # SECOND-BRAIN seam (SZL_SECOND_BRAIN_RAG=1): may prepend ONE citation
+        # system message; with the flag unset this returns (messages, None)
+        # untouched — zero behavior change.
+        messages, _sb_meta = _ac_second_brain_augment(query, messages)
         res = _ac_hf_chat(messages)
         if res.get("ok"):
-            return res["text"], "generative", {
+            _gen_meta = {
                 "backend": _ac_inference_kind(), "endpoint": _AC_ROUTER_BASE,
                 "model": res.get("model"), "display": res.get("display"),
                 "license": res.get("license"), "attempts": res.get("attempts"),
                 "configured": True}
+            if _sb_meta is not None:
+                _gen_meta["second_brain_rag"] = _sb_meta
+            return res["text"], "generative", _gen_meta
         # token present but inference failed -> honest error, never a fake answer
         fail = ("[GENERATIVE-FAILED] HF_TOKEN is present but the open-weight inference call "
                 "failed (%s). a11oy.code never fabricates output. The tier/organ/Λ math and "
                 "the signed receipt below are still real." % res.get("error"))
-        return fail, "generative_error", {"backend": _ac_inference_kind(), "configured": True,
-                                          "error": res.get("error"),
-                                          "rate_limited": res.get("rate_limited")}
+        _fail_meta = {"backend": _ac_inference_kind(), "configured": True,
+                      "error": res.get("error"),
+                      "rate_limited": res.get("rate_limited")}
+        if _sb_meta is not None:
+            _fail_meta["second_brain_rag"] = _sb_meta
+        return fail, "generative_error", _fail_meta
 
     async def _ac_route_impl(request: "Request", auto: bool):
         body, _err = await _safe_json_body(request)
