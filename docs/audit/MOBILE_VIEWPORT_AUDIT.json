@@ -1,0 +1,194 @@
+{
+  "checked_at": "2026-09-01T04:46:42.830860+00:00",
+  "method": "headless Chromium 151, playwright 1.x, real viewports 375/768/1440, networkidle + 1.5s settle, horizontal-overflow threshold 2px",
+  "results": [
+    {
+      "target": "a-11-oy.com",
+      "url": "https://a-11-oy.com/",
+      "width": 375,
+      "http_status": 404,
+      "h_overflow_px": 0,
+      "verdict": "FAIL",
+      "notes": [
+        "HTTP 404"
+      ],
+      "title": "Hugging Face \u2013 The AI community building the future."
+    },
+    {
+      "target": "a-11-oy.com",
+      "url": "https://a-11-oy.com/",
+      "width": 768,
+      "http_status": 404,
+      "h_overflow_px": 0,
+      "verdict": "FAIL",
+      "notes": [
+        "HTTP 404"
+      ],
+      "title": "Hugging Face \u2013 The AI community building the future."
+    },
+    {
+      "target": "a-11-oy.com",
+      "url": "https://a-11-oy.com/",
+      "width": 1440,
+      "http_status": 404,
+      "h_overflow_px": 0,
+      "verdict": "FAIL",
+      "notes": [
+        "HTTP 404"
+      ],
+      "title": "Hugging Face \u2013 The AI community building the future."
+    },
+    {
+      "target": "a11oy.net",
+      "url": "https://a11oy.net/",
+      "width": 375,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy Proof Registry | SZL Holdings"
+    },
+    {
+      "target": "a11oy.net",
+      "url": "https://a11oy.net/",
+      "width": 768,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy Proof Registry | SZL Holdings"
+    },
+    {
+      "target": "a11oy.net",
+      "url": "https://a11oy.net/",
+      "width": 1440,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy Proof Registry | SZL Holdings"
+    },
+    {
+      "target": "space-a11oy",
+      "url": "https://szlholdings-a11oy.hf.space",
+      "width": 375,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy \u2014 AI that proves its receipt state and refuses to lie"
+    },
+    {
+      "target": "space-a11oy",
+      "url": "https://szlholdings-a11oy.hf.space",
+      "width": 768,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy \u2014 AI that proves its receipt state and refuses to lie"
+    },
+    {
+      "target": "space-a11oy",
+      "url": "https://szlholdings-a11oy.hf.space",
+      "width": 1440,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy \u2014 AI that proves its receipt state and refuses to lie"
+    },
+    {
+      "target": "space-killinchu",
+      "url": "https://szlholdings-killinchu.hf.space",
+      "width": 375,
+      "http_status": 200,
+      "h_overflow_px": 195,
+      "verdict": "FAIL",
+      "notes": [
+        "horizontal overflow 195px at 375px"
+      ],
+      "title": "killinchu \u2014 Autonomous Systems \u00b7 Drones & Vessels \u00b7 SZL Holdings"
+    },
+    {
+      "target": "space-killinchu",
+      "url": "https://szlholdings-killinchu.hf.space",
+      "width": 768,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "killinchu \u2014 Autonomous Systems \u00b7 Drones & Vessels \u00b7 SZL Holdings"
+    },
+    {
+      "target": "space-killinchu",
+      "url": "https://szlholdings-killinchu.hf.space",
+      "width": 1440,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "killinchu \u2014 Autonomous Systems \u00b7 Drones & Vessels \u00b7 SZL Holdings"
+    },
+    {
+      "target": "space-verifier",
+      "url": "https://szlholdings-governed-receipt-verifier.static.hf.space",
+      "width": 375,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy \u2014 Offline Governed-Action Verifier"
+    },
+    {
+      "target": "space-verifier",
+      "url": "https://szlholdings-governed-receipt-verifier.static.hf.space",
+      "width": 768,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy \u2014 Offline Governed-Action Verifier"
+    },
+    {
+      "target": "space-verifier",
+      "url": "https://szlholdings-governed-receipt-verifier.static.hf.space",
+      "width": 1440,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "a11oy \u2014 Offline Governed-Action Verifier"
+    },
+    {
+      "target": "space-atelier",
+      "url": "https://szlholdings-szl-atelier.hf.space",
+      "width": 375,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "SZL Atelier"
+    },
+    {
+      "target": "space-atelier",
+      "url": "https://szlholdings-szl-atelier.hf.space",
+      "width": 768,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "SZL Atelier"
+    },
+    {
+      "target": "space-atelier",
+      "url": "https://szlholdings-szl-atelier.hf.space",
+      "width": 1440,
+      "http_status": 200,
+      "h_overflow_px": 0,
+      "verdict": "PASS",
+      "notes": [],
+      "title": "SZL Atelier"
+    }
+  ]
+}
