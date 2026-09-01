@@ -1,0 +1,90 @@
+name: Repair Cloudflare Product Root
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-cloudflare-product-edge.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Resolve zone and validate route ownership without changing Cloudflare"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  EDGE_REPORT: /tmp/cloudflare-product-edge.json
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Run network-free controller tests
+        run: python tests/test_cloudflare_product_edge.py -v
+      - name: Deploy exact-scope edge repair and prove the public root
+        id: edge
+        shell: bash
+        run: |
+          set +e
+          args=(--report "$EDGE_REPORT")
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" = "true" ]; then args+=(--dry-run); fi
+          python scripts/repair_cloudflare_product_edge.py "${args[@]}"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload secret-free edge evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloudflare-product-edge-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.EDGE_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Publish compact incident update
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY' > /tmp/edge-comment.md
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path(os.environ["EDGE_REPORT"]).read_text())
+          print("## Cloudflare product-root controller")
+          print()
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          print(f"- Status: `{report.get('status', 'UNKNOWN')}`")
+          print(f"- Exact routes: `{', '.join(report.get('routes', []))}`")
+          probe = report.get("probe") or {}
+          if probe:
+              print(f"- Public root: status `{probe.get('status')}`; edge `{probe.get('edge')}`; body marker `{probe.get('body_has_a11oy')}`")
+          if report.get("error"):
+              print(f"- Blocker: `{report['error']}`")
+          print("- Token material was not recorded.")
+          PY
+          gh issue comment 1359 --body-file /tmp/edge-comment.md
+      - name: Enforce proved result
+        shell: bash
+        run: |
+          code="${{ steps.edge.outputs.exit_code }}"
+          test -n "$code"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Cloudflare product-root repair did not reach a proved result (exit $code)."
+            exit "$code"
+          fi

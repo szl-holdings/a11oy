@@ -1,0 +1,111 @@
+{
+  "schema": "szl.frontend-theme-registry/v1",
+  "version": "1.0.0",
+  "published_for": "SZL Holdings public product, proof, and KEEP-6 application surfaces",
+  "principle": "One flow shell, distinct instruments. Shared navigation, spacing, focus, touch, evidence labels, and reduced-motion behavior; unique visual language per surface.",
+  "shared_contract": {
+    "minimum_touch_target_px": 44,
+    "viewports": [320, 360, 390, 768, 1024, 1440],
+    "safe_area_aware": true,
+    "reduced_motion_required": true,
+    "horizontal_overflow_forbidden": true,
+    "external_runtime_assets_forbidden": true,
+    "reserved_hue_policy": "KANCHAY_ONLY",
+    "origins": {
+      "product": "https://a-11-oy.com",
+      "proof": "https://a11oy.net"
+    },
+    "journeys": [
+      {"id": "start", "label": "Start Here"},
+      {"id": "products", "label": "Products & Demos"},
+      {"id": "models", "label": "Models & Data"},
+      {"id": "kernels", "label": "Kernels & SDKs"},
+      {"id": "proofs", "label": "Proofs & Research"}
+    ]
+  },
+  "application_spaces": [
+    {
+      "id": "a11oy",
+      "source": "szl-holdings/a11oy",
+      "theme": "conductor",
+      "motif": "live command field, signal arcs, proof teal and lattice blue",
+      "accent": "#3af4c8",
+      "secondary": "#5b8dee",
+      "destination": "https://a-11-oy.com"
+    },
+    {
+      "id": "killinchu",
+      "source": "szl-holdings/killinchu",
+      "theme": "sentry",
+      "motif": "radar sweep, tactical grid, safety amber and field green",
+      "accent": "#74d680",
+      "secondary": "#e3b65b",
+      "destination": "https://szlholdings-killinchu.hf.space/elite"
+    },
+    {
+      "id": "immune",
+      "source": "szl-holdings/immune",
+      "theme": "sentinel",
+      "motif": "cell membrane, admission gates, ice blue and controlled red",
+      "accent": "#75d7ff",
+      "secondary": "#e8746e",
+      "destination": "https://a-11-oy.com/immune"
+    },
+    {
+      "id": "szl-khipu",
+      "source": "szl-holdings/szl-khipu",
+      "theme": "weave",
+      "motif": "woven cords, knot topology, copper and sun gold",
+      "accent": "#d7b96b",
+      "secondary": "#c97845",
+      "destination": "https://a-11-oy.com/khipu"
+    },
+    {
+      "id": "szl-atelier",
+      "source": "szl-holdings/szl-atelier",
+      "theme": "atelier",
+      "motif": "editorial workbench, specimen cards, warm paper and coral",
+      "accent": "#f0eee6",
+      "secondary": "#e8746e",
+      "destination": "https://a11oy.net/atelier/"
+    },
+    {
+      "id": "governed-receipt-verifier",
+      "source": "szl-holdings/governed-receipt-spec",
+      "theme": "forensic",
+      "motif": "checksum ledger, signature lanes, verification green and amber",
+      "accent": "#77d6a3",
+      "secondary": "#d7b96b",
+      "destination": "https://a11oy.net/record/"
+    }
+  ],
+  "product_routes": {
+    "/": "conductor",
+    "/console": "operator",
+    "/estate": "atlas",
+    "/anatomy-v5": "anatomy",
+    "/living-anatomy": "anatomy",
+    "/immune": "sentinel",
+    "/khipu": "weave",
+    "/lyte": "observatory",
+    "/nexus": "bridge",
+    "/decision": "decision",
+    "/terra": "blueprint",
+    "/aegis": "sentry",
+    "/puriq-markets": "market",
+    "/counsel": "counsel",
+    "/verify": "forensic",
+    "/trust": "forensic"
+  },
+  "proof_routes": {
+    "/": "ledger",
+    "/record/": "forensic",
+    "/diligence/": "dossier",
+    "/estate/": "atlas-mono",
+    "/atelier/": "atelier-mono",
+    "/khipu/": "weave-mono",
+    "/decision/": "decision-mono",
+    "/security/": "security-mono",
+    "/notes/": "notebook"
+  }
+}
