@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-08-31T23:50:02Z",
+  "observedAt": "2026-09-01T12:32:42Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,8 +27,8 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 44,
-      "datasets": 30,
-      "spaces": 34
+      "datasets": 31,
+      "spaces": 35
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1382,6 +1382,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/release-assets",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/release-assets"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-1-doctrine-sft",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1592,6 +1602,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/gdw-frontier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/gdw-frontier"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/governed-agent-bench",
       "repoType": "space",
       "stage": "inventory",
@@ -1679,6 +1699,18 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/lyte-lattice",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [
+        "stale-product-name-review"
+      ],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/lyte-lattice"
       ]
     },
     {
@@ -1829,16 +1861,6 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-sovereign-os"
-      ]
-    },
-    {
-      "id": "SZLHOLDINGS/terra-assurance",
-      "repoType": "space",
-      "stage": "inventory",
-      "private": false,
-      "unsafeFlags": [],
-      "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/terra-assurance"
       ]
     },
     {
