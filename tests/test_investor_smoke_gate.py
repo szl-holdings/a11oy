@@ -311,3 +311,24 @@ def test_http_request_timeout_stays_fail_closed(monkeypatch):
     assert calls["n"] == 2
     assert got.status is None
     assert "TimeoutError" in (got.error or "")
+
+def test_http_request_uses_cloudflare_compatible_browser_headers(monkeypatch):
+    captured = {}
+
+    class _Opener:
+        def open(self, req, timeout=20):
+            captured.update({key.lower(): value for key, value in req.header_items()})
+            return _FakeHttpResp()
+
+    monkeypatch.setattr(
+        gate.urllib.request, "build_opener", lambda *_a, **_k: _Opener()
+    )
+    got = gate.http_request("https://example.invalid/healthz")
+    assert got.status == 200
+    assert captured["user-agent"].startswith("Mozilla/5.0")
+    assert "a11oy-investor-smoke-gate/1.1" in captured["user-agent"]
+    assert captured["accept-language"] == "en-US,en;q=0.9"
+    assert captured["cache-control"] == "no-cache"
+    assert captured["pragma"] == "no-cache"
+    assert "authorization" not in captured
+    assert "cookie" not in captured
