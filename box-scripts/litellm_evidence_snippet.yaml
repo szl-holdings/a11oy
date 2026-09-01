@@ -1,0 +1,15 @@
+# Evidence-plane wiring for the sovereign mesh LiteLLM gateway (gateway.a-11-oy.com).
+# Merge into box-scripts/litellm_config.yaml to get a tamper-evident, hash-chained
+# DSSE receipt for EVERY request crossing the mesh (both nodes, every retry).
+# Requires: pip install -e packages/szl-receipts -e packages/szl-evidence-litellm
+# (from the szl-platform monorepo) in the environment that runs litellm.
+litellm_settings:
+  callbacks: ["szl_evidence_litellm.plugin.SZLEvidenceLogger"]
+
+general_settings:
+  # Receipt sink lives next to the gateway; one append-only receipts.jsonl per box.
+  # SZL_EVIDENCE_DIR: directory for the chain + content-addressed evidence sidecars
+  # SZL_EVIDENCE_MODE: FAIL_CLOSED (audit-grade; a receipt failure blocks the request)
+  #                    or FAIL_OPEN  (latency-grade; drops are counted loudly)
+  # SZL_CAPTURE_BODIES: unset = digests only (default, privacy by minimization)
+  master_key: os.environ/LITELLM_MASTER_KEY
