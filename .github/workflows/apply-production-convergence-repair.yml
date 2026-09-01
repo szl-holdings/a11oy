@@ -1,7 +1,8 @@
 name: Apply Production Convergence Repair
 
-# Attempt 7: exact platform pin plus an indentation-safe, explicit line splice
-# for the generated mobile-selector regression block.
+# Attempt 8: commit the fully verified product/source changes separately from
+# workflow-file updates. The GitHub connector applies workflow changes after
+# this run because the Actions app token cannot update workflow definitions.
 on:
   push:
     branches:
@@ -155,16 +156,22 @@ jobs:
           git diff --check
           git status --short
 
-      - name: Retire bounded executor and commit exact repair
+      - name: Commit verified product and source-boundary repair
         shell: bash
         run: |
           set -euo pipefail
-          rm -f \
-            .github/workflows/apply-production-convergence-repair.yml \
-            scripts/apply_production_convergence_repair.py
+          git restore \
+            .github/workflows/ghcr-build-push.yml \
+            .github/workflows/repair-cloudflare-product-edge.yml
+          rm -f scripts/apply_production_convergence_repair.py
           git config user.name "SZL Production Convergence Controller"
           git config user.email "stephenlutar2@gmail.com"
           git add -A
           git diff --cached --quiet && { echo "No convergence diff produced"; exit 1; }
+          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
+            echo "::error::The Actions token may not push workflow-file mutations."
+            git diff --cached --name-only
+            exit 1
+          fi
           git commit -s -m "fix(production): converge frontend and backend boundaries"
           git push origin HEAD:fix/production-convergence-20260901
