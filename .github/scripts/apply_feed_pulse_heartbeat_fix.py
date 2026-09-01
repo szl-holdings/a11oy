@@ -81,7 +81,7 @@ def append_test_once(path: Path) -> None:
     text = path.read_text(encoding="utf-8")
     if TEST_MARKER in text:
         raise RuntimeError(f"test marker already present in {path}")
-    path.write_text(text.rstrip() + TEST_BLOCK + "\n", encoding="utf-8")
+    path.write_text(text.rstrip() + TEST_BLOCK.rstrip() + "\n", encoding="utf-8")
 
 
 def main() -> int:
