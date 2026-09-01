@@ -649,7 +649,7 @@ def feed_courtlistener(term: str, limit: int = 20, kind: str = "o") -> dict[str,
         return {"count": d.get("count"), "term": term, "items": items}
 
     return _cached(_variant_cache_key("cl", kind=kind, term=term, limit=limit),
-                   url, ttl=180, parser=parse)
+                   url, ttl=900, parser=parse)
 
 
 def feed_fedregister(limit: int = 20, term: str | None = None) -> dict[str, Any]:

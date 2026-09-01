@@ -93,6 +93,18 @@ _SOURCE_HTTP_TIMEOUT_DEFAULT_S = 4.0
 _SOURCE_HTTP_TIMEOUT_MIN_S = 0.25
 _SOURCE_HTTP_TIMEOUT_MAX_S = 15.0
 
+# CourtListener v4 permits anonymous read traffic but rate-limits cold bursts.
+# Every CourtListener transport in this process crosses one serialized scheduler
+# so vertical, Dev-B, warm-loop, and readiness calls cannot fan out upstream.
+_COURTLISTENER_MIN_INTERVAL_ENV = "A11OY_COURTLISTENER_MIN_INTERVAL_S"
+_COURTLISTENER_MIN_INTERVAL_DEFAULT_S = 1.0
+_COURTLISTENER_MIN_INTERVAL_MIN_S = 0.25
+_COURTLISTENER_MIN_INTERVAL_MAX_S = 10.0
+_COURTLISTENER_RETRY_MAX_DELAY_S = 10.0
+_COURTLISTENER_MAX_ATTEMPTS = 3
+_COURTLISTENER_RATE_LOCK = threading.Lock()
+_COURTLISTENER_NEXT_REQUEST_AT = 0.0
+
 
 def _source_http_timeout_s() -> float:
     """Return the one bounded transport budget used by every live source."""
@@ -116,6 +128,108 @@ def _source_url_allowed(url: str) -> bool:
     if parsed.scheme == "https":
         return True
     return parsed.scheme == "http" and host in {"127.0.0.1", "localhost", "::1"}
+
+
+def _courtlistener_min_interval_s() -> float:
+    """Return the bounded minimum spacing between CourtListener requests."""
+    raw = os.environ.get(
+        _COURTLISTENER_MIN_INTERVAL_ENV,
+        str(_COURTLISTENER_MIN_INTERVAL_DEFAULT_S),
+    )
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        value = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S
+    if not math.isfinite(value):
+        value = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S
+    return max(
+        _COURTLISTENER_MIN_INTERVAL_MIN_S,
+        min(_COURTLISTENER_MIN_INTERVAL_MAX_S, value),
+    )
+
+
+def _is_courtlistener_source(url: str) -> bool:
+    try:
+        parsed = httpx.URL(url)
+    except Exception:
+        return False
+    return (
+        parsed.scheme == "https"
+        and (parsed.host or "").lower().rstrip(".") == "www.courtlistener.com"
+        and parsed.path.startswith("/api/rest/v4/")
+    )
+
+
+def _courtlistener_retry_after_s(response: Any, attempt: int) -> float:
+    """Honor a numeric Retry-After value, otherwise use bounded backoff."""
+    headers = getattr(response, "headers", None) or {}
+    raw = headers.get("retry-after") or headers.get("Retry-After")
+    try:
+        delay = float(raw)
+    except (TypeError, ValueError, OverflowError):
+        delay = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S * (2 ** max(0, attempt))
+    if not math.isfinite(delay):
+        delay = _COURTLISTENER_MIN_INTERVAL_DEFAULT_S
+    return max(
+        _courtlistener_min_interval_s(),
+        min(_COURTLISTENER_RETRY_MAX_DELAY_S, delay),
+    )
+
+
+def _courtlistener_wait_locked() -> None:
+    """Reserve the next process-wide CourtListener request slot.
+
+    Callers must hold ``_COURTLISTENER_RATE_LOCK``. Sleeping happens while the
+    lock is held deliberately: no other request may leapfrog the reserved slot.
+    """
+    global _COURTLISTENER_NEXT_REQUEST_AT
+    now = time.monotonic()
+    delay = max(0.0, _COURTLISTENER_NEXT_REQUEST_AT - now)
+    if delay:
+        time.sleep(delay)
+    _COURTLISTENER_NEXT_REQUEST_AT = (
+        time.monotonic() + _courtlistener_min_interval_s()
+    )
+
+
+def _courtlistener_defer_locked(delay_s: float) -> None:
+    global _COURTLISTENER_NEXT_REQUEST_AT
+    _COURTLISTENER_NEXT_REQUEST_AT = max(
+        _COURTLISTENER_NEXT_REQUEST_AT,
+        time.monotonic() + max(0.0, delay_s),
+    )
+
+
+def _source_json_with_bounded_retry(
+    client: httpx.Client,
+    url: str,
+    headers: Optional[dict[str, str]] = None,
+) -> Any:
+    """Fetch JSON once, except for bounded CourtListener HTTP 429 recovery."""
+    def request() -> Any:
+        return client.get(url, headers=headers) if headers else client.get(url)
+
+    if not _is_courtlistener_source(url):
+        response = request()
+        response.raise_for_status()
+        return response.json()
+
+    with _COURTLISTENER_RATE_LOCK:
+        for attempt in range(_COURTLISTENER_MAX_ATTEMPTS):
+            _courtlistener_wait_locked()
+            response = request()
+            if (
+                getattr(response, "status_code", None) == 429
+                and attempt + 1 < _COURTLISTENER_MAX_ATTEMPTS
+            ):
+                _courtlistener_defer_locked(
+                    _courtlistener_retry_after_s(response, attempt)
+                )
+                continue
+            response.raise_for_status()
+            return response.json()
+
+    raise RuntimeError("CourtListener request exhausted bounded retry contract")
 
 
 def _courtlistener_public_url(value: Any) -> str:
@@ -651,9 +765,7 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None, label="live", hea
     result: Optional[dict[str, Any]] = None
     try:
         with _client() as cl:
-            r = cl.get(url, headers=headers) if headers else cl.get(url)
-            r.raise_for_status()
-            data = r.json()
+            data = _source_json_with_bounded_retry(cl, url, headers=headers)
         val = parser(data) if parser else data
         _CACHE.put(key, val, ttl, status="live")
         result = {"value": val, "freshness": _CACHE.freshness(key)}
