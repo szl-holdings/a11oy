@@ -57,6 +57,7 @@ pre.cmd{background:var(--panel2);border:1px solid var(--gold-line);border-radius
 .live{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--mono);font-size:11px;color:var(--green);}
 .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <div class="wrap">
@@ -213,5 +214,6 @@ async function loadAll(){await Promise.all([loadBench(),loadEnergy(),loadInfo()]
 loadAll();
 setInterval(loadAll,30000);
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

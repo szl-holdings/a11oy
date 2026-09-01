@@ -32,6 +32,7 @@ pre{background:var(--ink-3);border-radius:10px;padding:1rem;overflow:auto;white-
 .actions{display:flex;flex-wrap:wrap;gap:.4rem;margin:1rem 0}
 footer{margin-top:3rem;font-size:.8rem;color:var(--muted)}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <header>
@@ -109,5 +110,6 @@ async function run(vertical, evalId) {
 document.getElementById("aegis").addEventListener("click", () => run("aegis", "AEGIS-E-AWAIT-01"));
 document.getElementById("vessels").addEventListener("click", () => run("vessels", "VESSELS-E-DENY-AIS"));
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

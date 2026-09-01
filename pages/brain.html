@@ -31,7 +31,8 @@ pre{background:#0a1626;border:1px solid var(--line);border-radius:8px;padding:12
 @media(max-width:760px){.row{grid-template-columns:1fr}}
 .foot{margin-top:40px;color:var(--mut);font-size:12px;border-top:1px solid var(--line);padding-top:14px}
 nav a{margin-right:14px;font-weight:600}
-</style></head>
+</style>  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
+</head>
 <body><div class="wrap">
 <nav class="note"><a href="/">home</a><a href="/mesh">/mesh</a><a href="/wires">/wires</a><a href="/governed-loops">/governed-loops</a><a href="/codex-kernel">/codex-kernel</a><a href="/upgrades">/upgrades</a></nav>
 <h1>a11oy — Brain</h1>
@@ -97,4 +98,5 @@ async function loadGates(){out.textContent='…';try{const r=await fetch('/api/a
 async function route(){rout.textContent='…';try{const r=await fetch('/api/a11oy/v1/llm/route',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({prompt:'Evaluate this Λ-gate decision',axis_scores:[0.6,0.55,0.7,0.5,0.6,0.55,0.6,0.5,0.65,0.6,0.55,0.6,0.5],task_hint:'math'})});rout.textContent=JSON.stringify(await r.json(),null,2);}catch(e){rout.textContent='error: '+e;}}
 (async()=>{try{const r=await fetch('/api/a11oy/v1/llm/tiers');const d=await r.json();const t=document.getElementById('tiers');d.tiers.forEach(x=>{const tr=document.createElement('tr');tr.innerHTML=`<td>${x.rank}</td><td><code>${x.id}</code></td><td>${x.use}</td><td>${x.why}</td>`;t.appendChild(tr);});}catch(e){}})();
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body></html>

@@ -54,6 +54,7 @@
   #stage-wrap{min-height:60vh}
  }
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <header>
@@ -105,5 +106,6 @@ async function boot() {
 window.addEventListener("beforeunload", () => { try { if (showcase) showcase.dispose(); } catch (_) {} });
 boot();
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

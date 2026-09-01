@@ -87,6 +87,7 @@ html,body{margin:0;height:100%;background:var(--bg-base);color:var(--text-primar
 @media(max-width:1280px){.shell{grid-template-columns:300px 1fr}.zone-drawer{display:none}}
 @media(max-width:768px){.shell{grid-template-columns:1fr;grid-template-areas:"map" "footer";grid-template-rows:1fr 36px}.zone-inbox{display:none}}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <div class="shell">
@@ -580,5 +581,6 @@ refresh();
 api.stream(msg => { if (msg.type==="receipt") refresh(); }, () => {});
 setInterval(refresh, 15000); // gentle reconcile
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>
