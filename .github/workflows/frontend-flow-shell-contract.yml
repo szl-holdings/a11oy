@@ -1,0 +1,73 @@
+name: Frontend Flow Shell Contract
+
+on:
+  pull_request:
+    paths:
+      - "a11oy_landing.html"
+      - "govern_showcase.html"
+      - "cathedral_genius.html"
+      - "pages/**"
+      - "web/**"
+      - "console/**"
+      - "spaces/**"
+      - "docs/frontend-theme-registry-v1.json"
+      - "docs/frontend-flow-shell-state.json"
+      - "scripts/rollout_frontend_flow_shell.py"
+      - "tests/test_frontend_flow_shell.py"
+      - "tests/test_cloudflare_product_edge.py"
+      - "scripts/repair_cloudflare_product_edge.py"
+      - "cloudflare/**"
+      - ".github/workflows/repair-cloudflare-product-edge.yml"
+      - ".github/workflows/frontend-flow-shell-contract.yml"
+      - ".github/workflows/rollout-frontend-flow-shell.yml"
+  push:
+    branches: [main]
+    paths:
+      - "a11oy_landing.html"
+      - "govern_showcase.html"
+      - "cathedral_genius.html"
+      - "pages/**"
+      - "web/**"
+      - "console/**"
+      - "spaces/**"
+      - "docs/frontend-theme-registry-v1.json"
+      - "docs/frontend-flow-shell-state.json"
+      - "scripts/rollout_frontend_flow_shell.py"
+      - "tests/test_frontend_flow_shell.py"
+      - "tests/test_cloudflare_product_edge.py"
+      - "scripts/repair_cloudflare_product_edge.py"
+      - "cloudflare/**"
+      - ".github/workflows/repair-cloudflare-product-edge.yml"
+      - ".github/workflows/frontend-flow-shell-contract.yml"
+      - ".github/workflows/rollout-frontend-flow-shell.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Compile rollout controller
+        run: python -m py_compile scripts/rollout_frontend_flow_shell.py tests/test_frontend_flow_shell.py
+      - name: Run offline flow-shell and edge contracts
+        run: |
+          python tests/test_frontend_flow_shell.py -v
+          python tests/test_cloudflare_product_edge.py -v
+      - name: Verify exact rollout when active
+        shell: bash
+        run: |
+          state="$(python -c 'import json; print(json.load(open("docs/frontend-flow-shell-state.json"))["state"])')"
+          if [ "$state" = "ROLLED_OUT" ]; then
+            python scripts/rollout_frontend_flow_shell.py --check
+          fi
+      - name: Whitespace integrity
+        run: git diff --check

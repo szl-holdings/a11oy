@@ -1,0 +1,7 @@
+{
+  "schema": "szl.frontend-flow-shell-state/v1",
+  "state": "ASSETS_READY",
+  "product_origin": "https://a-11-oy.com",
+  "proof_origin": "https://a11oy.net",
+  "rollout": "workflow_dispatch:.github/workflows/rollout-frontend-flow-shell.yml"
+}

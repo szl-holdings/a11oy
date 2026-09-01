@@ -1,0 +1,90 @@
+name: Roll out Frontend Flow Shell
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/rollout-frontend-flow-shell.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Validate and show the patch without pushing a branch"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: rollout-frontend-flow-shell
+  cancel-in-progress: false
+
+jobs:
+  rollout:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Apply source-native HTML bindings
+        run: python scripts/rollout_frontend_flow_shell.py --report /tmp/frontend-flow-rollout.json
+      - name: Verify offline contract and exact idempotence
+        run: |
+          python tests/test_frontend_flow_shell.py -v
+          python scripts/rollout_frontend_flow_shell.py --check
+          git diff --check
+      - name: Publish reviewable rollout pull request
+        if: ${{ github.event_name == 'push' || !inputs.dry_run }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="feat/frontend-flow-shell-${GITHUB_RUN_ID}"
+          git config user.name "SZL Frontend Flow Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git checkout -b "$branch"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No rollout changes remain."
+            exit 0
+          fi
+          git commit -s -m "feat(frontend): bind distinct surfaces to one flow shell"
+          git push origin "$branch"
+          pr_url="$(gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "feat(frontend): distinct surfaces, one governed flow" \
+            --body-file - <<'BODY'
+          ## What changes
+
+          Binds the local SZL Flow Shell to the real product frontends already shipped in the A11oy image. Every route retains its own visual instrument while sharing one five-journey navigation grammar, product/proof origin handoff, keyboard behavior, 44px touch targets, safe-area handling, reduced-motion behavior, and scroll progress.
+
+          ## Distinct instruments
+
+          Command, operator, atlas, anatomy, sentinel, weave, observatory, bridge, decision, blueprint, sentry, markets, counsel, voyage, and forensic routes use separate deterministic motifs and accents. This is not one generic skin.
+
+          ## Boundaries
+
+          - No API, policy, receipt, signer, model, or DNS behavior changes.
+          - Assets are local and already travel through the existing `COPY console/ ./static/` deployment path.
+          - The proof origin remains independent at `a11oy.net`.
+          - The custom-domain root incident remains separately verified at the Cloudflare edge.
+
+          Closes the frontend portion of #1359 after the post-merge source-bound deployment and viewport canary pass.
+          BODY
+          )"
+          echo "### Rollout PR" >> "$GITHUB_STEP_SUMMARY"
+          echo "$pr_url" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish dry-run diff
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: git diff --stat && git diff --check
