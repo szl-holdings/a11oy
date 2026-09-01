@@ -1,6 +1,7 @@
 name: Apply Production Convergence Repair
 
-# Attempt 3: exact standalone-selector regression after the repair logic passed.
+# Attempt 4: verify the exact platform pin from one local checkout rather than
+# issuing one raw.githubusercontent.com request per vendored file.
 on:
   push:
     branches:
@@ -33,22 +34,62 @@ jobs:
 
       - name: Restore canonical shared and vendored sources
         shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          rm -rf /tmp/killinchu-convergence
-          git clone --depth 1 \
-            --branch fix/shared-integrations-flow-boundary-20260901 \
-            https://github.com/szl-holdings/killinchu.git \
-            /tmp/killinchu-convergence
+          KILLINCHU_BRANCH="fix/shared-integrations-flow-boundary-20260901"
+          PLATFORM_PIN="880fda4f67fd2bbdc3507dce6d81fb782ca64c4c"
+
+          killinchu_ready=0
+          for attempt in 1 2 3; do
+            rm -rf /tmp/killinchu-convergence
+            if git clone --depth 1 --branch "${KILLINCHU_BRANCH}" \
+              https://github.com/szl-holdings/killinchu.git \
+              /tmp/killinchu-convergence; then
+              killinchu_ready=1
+              break
+            fi
+            sleep $((attempt * 5))
+          done
+          test "${killinchu_ready}" -eq 1
+
+          platform_ready=0
+          for attempt in 1 2 3; do
+            rm -rf /tmp/platform-convergence
+            if git clone --filter=blob:none --no-checkout \
+              https://github.com/szl-holdings/platform.git \
+              /tmp/platform-convergence \
+              && git -C /tmp/platform-convergence fetch --depth 1 origin "${PLATFORM_PIN}" \
+              && git -C /tmp/platform-convergence checkout --detach "${PLATFORM_PIN}"; then
+              platform_ready=1
+              break
+            fi
+            sleep $((attempt * 5))
+          done
+          test "${platform_ready}" -eq 1
+          test "$(git -C /tmp/platform-convergence rev-parse HEAD)" = "${PLATFORM_PIN}"
 
           cp /tmp/killinchu-convergence/szl_connectors_serve.py szl_connectors_serve.py
           cp /tmp/killinchu-convergence/pages/integrations.html pages/integrations.html
           cp /tmp/killinchu-convergence/tests/test_integrations_flow_boundary.py \
             tests/test_integrations_flow_boundary.py
 
-          bash scripts/sync_from_monorepo.sh sync
+          python - <<'PY'
+          from pathlib import Path
+
+          pin = "880fda4f67fd2bbdc3507dce6d81fb782ca64c4c"
+          source_rel = "replit-sync/hf_spaces/hf_sda_space/index.html"
+          source = Path("/tmp/platform-convergence", source_rel).read_text(encoding="utf-8")
+          header = (
+              f"<!-- VENDORED FROM szl-holdings/platform@{pin} — {source_rel} -->\n"
+              "<!-- DO NOT EDIT HERE. Edit in the monorepo, then run "
+              "scripts/sync_from_monorepo.sh sync. -->\n"
+          )
+          Path("spaces/sda/index.html").write_text(
+              header + source,
+              encoding="utf-8",
+              newline="\n",
+          )
+          PY
 
       - name: Apply source-boundary, mobile, edge, and supply-chain hardening
         run: python scripts/apply_production_convergence_repair.py
@@ -60,6 +101,7 @@ jobs:
         shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
+          PLATFORM_DIR: /tmp/platform-convergence
         run: |
           set -euo pipefail
           python -m py_compile \
