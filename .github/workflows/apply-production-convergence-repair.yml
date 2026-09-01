@@ -1,177 +1,76 @@
-name: Apply Production Convergence Repair
+name: Production Convergence Guard
 
-# Attempt 8: commit the fully verified product/source changes separately from
-# workflow-file updates. The GitHub connector applies workflow changes after
-# this run because the Actions app token cannot update workflow definitions.
 on:
-  push:
-    branches:
-      - "fix/production-convergence-20260901"
+  pull_request:
+    branches: [main]
     paths:
+      - "a11oy_landing.html"
+      - "console/assets/szl-flow.css"
+      - "console/assets/szl-flow.js"
+      - "docs/frontend-flow-shell-state.json"
+      - "pages/integrations.html"
+      - "scripts/repair_a11oy_frontdoor.py"
+      - "scripts/rollout_frontend_flow_shell.py"
+      - "spaces/sda/index.html"
+      - "szl_connectors_serve.py"
+      - "tests/test_frontend_flow_shell.py"
+      - "tests/test_frontend_source_boundaries.py"
+      - "tests/test_integrations_flow_boundary.py"
       - ".github/workflows/apply-production-convergence-repair.yml"
+  push:
+    branches: [main]
+    paths:
+      - "a11oy_landing.html"
+      - "console/assets/szl-flow.css"
+      - "console/assets/szl-flow.js"
+      - "docs/frontend-flow-shell-state.json"
+      - "pages/integrations.html"
+      - "scripts/repair_a11oy_frontdoor.py"
+      - "scripts/rollout_frontend_flow_shell.py"
+      - "spaces/sda/index.html"
+      - "szl_connectors_serve.py"
+      - "tests/test_frontend_flow_shell.py"
+      - "tests/test_frontend_source_boundaries.py"
+      - "tests/test_integrations_flow_boundary.py"
+      - ".github/workflows/apply-production-convergence-repair.yml"
+  workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: apply-production-convergence-repair-a11oy
-  cancel-in-progress: false
+  group: production-convergence-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apply:
+  verify:
+    name: Frontend and backend source boundaries
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     steps:
-      - name: Check out exact convergence branch
+      - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: fix/production-convergence-20260901
-          fetch-depth: 0
-
+          persist-credentials: false
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-
-      - name: Restore canonical shared and vendored sources
+      - name: Verify convergence contracts
         shell: bash
-        run: |
-          set -euo pipefail
-          KILLINCHU_BRANCH="fix/shared-integrations-flow-boundary-20260901"
-          PLATFORM_PIN="880fda4f67fd2bbdc3507dce6d81fb782ca64c4c"
-
-          killinchu_ready=0
-          for attempt in 1 2 3; do
-            rm -rf /tmp/killinchu-convergence
-            if git clone --depth 1 --branch "${KILLINCHU_BRANCH}" \
-              https://github.com/szl-holdings/killinchu.git \
-              /tmp/killinchu-convergence; then
-              killinchu_ready=1
-              break
-            fi
-            sleep $((attempt * 5))
-          done
-          test "${killinchu_ready}" -eq 1
-
-          platform_ready=0
-          for attempt in 1 2 3; do
-            rm -rf /tmp/platform-convergence
-            if git clone --filter=blob:none --no-checkout \
-              https://github.com/szl-holdings/platform.git \
-              /tmp/platform-convergence \
-              && git -C /tmp/platform-convergence fetch --depth 1 origin "${PLATFORM_PIN}" \
-              && git -C /tmp/platform-convergence checkout --detach "${PLATFORM_PIN}"; then
-              platform_ready=1
-              break
-            fi
-            sleep $((attempt * 5))
-          done
-          test "${platform_ready}" -eq 1
-          test "$(git -C /tmp/platform-convergence rev-parse HEAD)" = "${PLATFORM_PIN}"
-
-          cp /tmp/killinchu-convergence/szl_connectors_serve.py szl_connectors_serve.py
-          cp /tmp/killinchu-convergence/pages/integrations.html pages/integrations.html
-          cp /tmp/killinchu-convergence/tests/test_integrations_flow_boundary.py \
-            tests/test_integrations_flow_boundary.py
-
-          python - <<'PY'
-          from pathlib import Path
-
-          pin = "880fda4f67fd2bbdc3507dce6d81fb782ca64c4c"
-          source_rel = "replit-sync/hf_spaces/hf_sda_space/index.html"
-          source = Path("/tmp/platform-convergence", source_rel).read_text(encoding="utf-8")
-          header = (
-              f"<!-- VENDORED FROM szl-holdings/platform@{pin} — {source_rel} -->\n"
-              "<!-- DO NOT EDIT HERE. Edit in the monorepo, then run "
-              "scripts/sync_from_monorepo.sh sync. -->\n"
-          )
-          Path("spaces/sda/index.html").write_text(
-              header + source,
-              encoding="utf-8",
-              newline="\n",
-          )
-          PY
-
-      - name: Apply source-boundary, mobile, edge, and supply-chain hardening
-        run: python scripts/apply_production_convergence_repair.py
-
-      - name: Tighten generated mobile-selector contract
-        shell: bash
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("tests/test_frontend_source_boundaries.py")
-          text = path.read_text(encoding="utf-8")
-          start_marker = "        toggle = re.search(\n"
-          end_marker = '        body = toggle.group("body")\n'
-          start = text.find(start_marker)
-          end = text.find(end_marker, start)
-          if start < 0 or end < 0:
-              raise SystemExit("generated mobile-selector test boundaries were not found")
-          end += len(end_marker)
-          replacement = "\n".join([
-              "        toggle_bodies = re.findall(",
-              '            r"(?m)^[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",',
-              "            css,",
-              "            re.S,",
-              "        )",
-              '        body = next((candidate for candidate in toggle_bodies if "display: none" in candidate), None)',
-              "        self.assertIsNotNone(body)",
-              "",
-          ])
-          path.write_text(text[:start] + replacement + text[end:], encoding="utf-8", newline="\n")
-          PY
-
-      - name: Reconcile eligible product surfaces and rollout state
-        run: python scripts/rollout_frontend_flow_shell.py
-
-      - name: Verify frontend, backend, source, and supply-chain contracts
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-          PLATFORM_DIR: /tmp/platform-convergence
         run: |
           set -euo pipefail
           python -m py_compile \
-            scripts/apply_production_convergence_repair.py \
             scripts/rollout_frontend_flow_shell.py \
             scripts/repair_a11oy_frontdoor.py \
             szl_connectors_serve.py \
             tests/test_integrations_flow_boundary.py \
             tests/test_frontend_flow_shell.py \
             tests/test_frontend_source_boundaries.py
-
           python tests/test_integrations_flow_boundary.py -v
           python tests/test_frontend_flow_shell.py -v
           python tests/test_frontend_source_boundaries.py -v
           python scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
           python scripts/rollout_frontend_flow_shell.py --check
-          bash scripts/sync_from_monorepo.sh check --strict-headers
-          python .github/shared-file-drift-check.py \
-            . /tmp/killinchu-convergence \
-            --self-name=a11oy --sibling-name=killinchu
           node --check console/assets/szl-flow.js
           git diff --check
-          git status --short
-
-      - name: Commit verified product and source-boundary repair
-        shell: bash
-        run: |
-          set -euo pipefail
-          git restore \
-            .github/workflows/ghcr-build-push.yml \
-            .github/workflows/repair-cloudflare-product-edge.yml
-          rm -f scripts/apply_production_convergence_repair.py
-          git config user.name "SZL Production Convergence Controller"
-          git config user.email "stephenlutar2@gmail.com"
-          git add -A
-          git diff --cached --quiet && { echo "No convergence diff produced"; exit 1; }
-          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
-            echo "::error::The Actions token may not push workflow-file mutations."
-            git diff --cached --name-only
-            exit 1
-          fi
-          git commit -s -m "fix(production): converge frontend and backend boundaries"
-          git push origin HEAD:fix/production-convergence-20260901
