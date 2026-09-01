@@ -69,7 +69,7 @@
         {
           "id": "mobile_viewports_checked",
           "satisfied": true,
-          "method": "headless Chromium 151, real 375/768/1440 viewports, programmatic overflow detection, 18 checks: 14 PASS / killinchu@375 FAIL (fixed killinchu#369, pending deploy) / a-11-oy.com edge 404 (INCIDENT-2026-09-01)",
+          "method": "headless Chromium 151, real 375/768/1440 viewports, programmatic overflow detection, 18 checks: 14 PASS / killinchu@375 FAIL (fixed killinchu#369, pending deploy) / a-11-oy.com edge 404 (INCIDENT-2026-09-01) | killinchu@375 re-measured PASS after #369 deploy (0px overflow)",
           "artifact_digests": [
             "e041b771f59e46ae18ef14097caa9894c786fd2a951886de81ec52cdfcf13403"
           ]
@@ -100,6 +100,7 @@
       "deployment_revision": "a11oy.net live sha256==repo sha256 (front door)"
     },
     "limitations": [
+      "killinchu@375px overflow: FIXED (killinchu#369) and re-measured PASS 2026-09-01T~04:5xZ (0px overflow, headless Chromium, live Space post-rebuild).",
       "This receipt is UNSIGNED \u2014 the org signing key is not available to the auditor; verdict class UNSIGNED-LOCAL.",
       "HF space/dataset privacy split derived by authenticated-total minus public-API count (48-34=14 private spaces; 38-30=8 private datasets).",
       "Runtime stage was not probed per-Space; RUNNING is not evidence of deployed revision anywhere in this pass.",
@@ -107,7 +108,6 @@
       "HF org card correction BLOCKED by token scope (read-repos/contribute-repos only; 403 on org Space write and PR). Proposed card committed at docs/audit/HF_ORG_CARD_PROPOSED.md for manual apply.",
       "Kernels inventory is API-derived with recorded method; a Hub-UI visual pass was not performed (no browser session). Any future published kernel count must cite this matrix and its date.",
       "a-11-oy.com edge 404 OPEN at audit time (INCIDENT-2026-09-01) \u2014 custom-domain repair needs HF org admin or Cloudflare re-auth.",
-      "killinchu@375px overflow fix merged-pending-deploy at receipt time; re-measurement required before claiming PASS.",
       "Receipt remains UNSIGNED \u2014 org signing key is founder-held. Verdict floor is INCOMPLETE until signed."
     ]
   }
