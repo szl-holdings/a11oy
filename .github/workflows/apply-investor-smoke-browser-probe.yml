@@ -30,6 +30,14 @@ jobs:
           ref: fix/feed-pulse-heartbeat-freshness
           fetch-depth: 0
 
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Install approved investor-smoke test runner
+        run: python3 -m pip install pytest
+
       - name: Apply deterministic transport and regression edits
         run: python .github/scripts/apply_investor_smoke_browser_probe.py
 
