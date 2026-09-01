@@ -1,7 +1,7 @@
 name: Apply Production Convergence Repair
 
-# Attempt 4: verify the exact platform pin from one local checkout rather than
-# issuing one raw.githubusercontent.com request per vendored file.
+# Attempt 5: exact platform pin plus explicit selection of the mobile toggle
+# override when validating the generated accessibility contract.
 on:
   push:
     branches:
@@ -93,6 +93,36 @@ jobs:
 
       - name: Apply source-boundary, mobile, edge, and supply-chain hardening
         run: python scripts/apply_production_convergence_repair.py
+
+      - name: Tighten generated mobile-selector contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/test_frontend_source_boundaries.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''        toggle = re.search(
+              r"(?m)^[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",
+              css,
+              re.S,
+          )
+          self.assertIsNotNone(toggle)
+          body = toggle.group("body")
+          '''
+          new = '''        toggle_bodies = re.findall(
+              r"(?m)^[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",
+              css,
+              re.S,
+          )
+          body = next((candidate for candidate in toggle_bodies if "display: none" in candidate), None)
+          self.assertIsNotNone(body)
+          '''
+          if text.count(old) != 1:
+              raise SystemExit("generated mobile-selector test anchor was not unique")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+          PY
 
       - name: Reconcile eligible product surfaces and rollout state
         run: python scripts/rollout_frontend_flow_shell.py
