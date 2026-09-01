@@ -1,0 +1,94 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply front-door visual cohesion repair
+
+on:
+  push:
+    branches:
+      - fix/frontdoor-visual-cohesion-20260901
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-frontdoor-visual-cohesion-20260901
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Restore one coherent front-door design system
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/frontdoor-visual-cohesion-20260901
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify reviewed source relationship
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "fix/frontdoor-visual-cohesion-20260901"
+          git merge-base --is-ancestor 3de5c1918a5a5fcc8216983a9f57dad9e86a1f21 HEAD
+          test "$(git rev-parse origin/main)" = "547897a940bd43081ab488b4b077fce171bf51be"
+
+      - name: Revert only the split-theme front-door merge
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen P. Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git revert --no-edit 3de5c1918a5a5fcc8216983a9f57dad9e86a1f21
+          git rm .github/workflows/apply-frontdoor-visual-cohesion.yml
+          git commit --amend -s -m "fix(frontdoor): restore one coherent KANCHAY experience"
+
+      - name: Verify the restored source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          page = Path('a11oy_landing.html').read_text(encoding='utf-8')
+          required = (
+              '<canvas id="hero-canvas"></canvas>',
+              'mountHero',
+              'id="hero-fallback"',
+              '--proof:#3af4c8',
+              '--lattice:#5b8dee',
+              'KANCHAY palette',
+          )
+          forbidden = (
+              'SZL monochrome "genius" hero',
+              '<canvas id="holo"',
+              'class="mg-receipt"',
+              '--mg-cream:',
+              'Scoped to .hero',
+          )
+          missing = [token for token in required if token not in page]
+          leaked = [token for token in forbidden if token in page]
+          if missing or leaked:
+              raise SystemExit({'missing': missing, 'leaked': leaked})
+          test_path = Path('tests/test_monochrome_hero_contract.py')
+          if test_path.exists():
+              raise SystemExit('split-theme regression test was not removed by the exact revert')
+          print('front-door visual cohesion source contract: PASS')
+          PY
+          python scripts/check_a11oy_frontdoor_truth.py a11oy_landing.html
+          python scripts/repair_a11oy_frontdoor.py --check
+          python scripts/validate_frontdoor_source_integrity.py
+          python scripts/check_banned_tokens.py
+          python -m pytest -q tests/test_holographic_command_bar.py tests/test_identity_lock.py
+          git diff HEAD^ --check
+
+      - name: Publish the single reviewed repair commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push --force-with-lease origin HEAD:fix/frontdoor-visual-cohesion-20260901
