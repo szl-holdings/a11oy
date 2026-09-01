@@ -42,7 +42,10 @@ COORD_KEYS = frozenset(
 SNAPSHOT_DATE = "2026-08-28"
 CANONICAL_ORIGIN = "https://a-11-oy.com"
 HF_SPACE = "https://szlholdings-a11oy.hf.space"
-USER_AGENT = "a11oy-investor-smoke-gate/1.0 (+https://github.com/szl-holdings/a11oy)"
+USER_AGENT = (
+    "Mozilla/5.0 (compatible; a11oy-investor-smoke-gate/1.1; "
+    "+https://github.com/szl-holdings/a11oy)"
+)
 
 ALLOWED_STATUSES = frozenset(
     {"PASS", "FAIL", "UNAVAILABLE", "SNAPSHOT", "UNCONFIGURED"}
@@ -865,7 +868,13 @@ def _http_request_once(
     req = urllib.request.Request(
         url,
         method=method.upper(),
-        headers={"User-Agent": USER_AGENT, "Accept": "*/*"},
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": "text/html,application/xhtml+xml,application/json;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        },
     )
     opener = urllib.request.build_opener(
         urllib.request.HTTPRedirectHandler() if follow else _NoRedirect()

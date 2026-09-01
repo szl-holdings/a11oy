@@ -227,3 +227,36 @@ test("explicit evidence-kind fields remain fail-closed for unknown values", () =
     normalized: "vendor-pending",
   }]);
 });
+
+test("feed pulse freshness grades its current heartbeat clock", () => {
+  const spec = readinessMatrix.endpoints["/api/a11oy/v1/feeds/pulse"];
+  const nowMs = Date.parse("2026-09-01T05:30:00Z");
+  const body = {
+    probed_at: "2026-09-01T05:29:50Z",
+    items: [{
+      feed: "celestrak",
+      mode: "cached",
+      fetched_at: "2026-08-31T00:00:00Z",
+      source_url: "https://celestrak.org/",
+    }],
+  };
+
+  const currentHeartbeat = evaluateFreshness(
+    "/api/a11oy/v1/feeds/pulse",
+    spec,
+    body,
+    nowMs,
+  );
+  assert.equal(currentHeartbeat.freshOk, true);
+  assert.equal(currentHeartbeat.ageSec, 10);
+
+  const missingHeartbeat = evaluateFreshness(
+    "/api/a11oy/v1/feeds/pulse",
+    spec,
+    { items: body.items },
+    nowMs,
+  );
+  assert.equal(missingHeartbeat.freshOk, false);
+  assert.equal(missingHeartbeat.freshnessMissing, true);
+  assert.match(missingHeartbeat.freshnessReason, /probed_at/);
+});
