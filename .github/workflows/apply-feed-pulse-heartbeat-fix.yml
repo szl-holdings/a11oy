@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply feed-pulse heartbeat repair
+
+on:
+  push:
+    branches:
+      - fix/feed-pulse-heartbeat-freshness
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-feed-pulse-heartbeat-fix
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Apply, verify, and commit bounded repair
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
+        with:
+          egress-policy: audit
+
+      - name: Check out exact feature head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/feed-pulse-heartbeat-freshness
+          fetch-depth: 0
+
+      - name: Apply deterministic source and contract edits
+        run: python .github/scripts/apply_feed_pulse_heartbeat_fix.py
+
+      - name: Verify generated contract and targeted Node regressions
+        run: |
+          python tools/readiness-harness/gen_tabs_matrix.py --check
+          node --test tools/readiness-harness/probe_runner.test.mjs
+
+      - name: Commit only the permanent reviewed changes
+        env:
+          BRANCH: fix/feed-pulse-heartbeat-freshness
+        run: |
+          set -euo pipefail
+          git config user.name "SZL Holdings Automation"
+          git config user.email "eng@szlholdings.com"
+          git add tools/readiness-harness/gen_tabs_matrix.py
+          git add tools/readiness-harness/tabs.json
+          git add tools/readiness-harness/probe_runner.test.mjs
+          git rm .github/scripts/apply_feed_pulse_heartbeat_fix.py
+          git rm .github/workflows/apply-feed-pulse-heartbeat-fix.yml
+          git diff --cached --check
+          git commit -s -m "fix(readiness): grade feed pulse by current heartbeat"
+          git push origin "HEAD:${BRANCH}"
