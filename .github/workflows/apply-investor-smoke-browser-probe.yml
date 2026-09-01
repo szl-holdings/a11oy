@@ -1,0 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply investor-smoke browser probe repair
+
+on:
+  push:
+    branches:
+      - fix/feed-pulse-heartbeat-freshness
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-investor-smoke-browser-probe
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Apply, verify, and commit browser-compatible probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
+        with:
+          egress-policy: audit
+
+      - name: Check out exact feature head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/feed-pulse-heartbeat-freshness
+          fetch-depth: 0
+
+      - name: Apply deterministic transport and regression edits
+        run: python .github/scripts/apply_investor_smoke_browser_probe.py
+
+      - name: Verify fail-closed smoke contract
+        run: python -m pytest -q tests/test_investor_smoke_gate.py
+
+      - name: Commit only permanent reviewed changes
+        env:
+          BRANCH: fix/feed-pulse-heartbeat-freshness
+        run: |
+          set -euo pipefail
+          git config user.name "SZL Holdings Automation"
+          git config user.email "eng@szlholdings.com"
+          git add scripts/investor_smoke_gate.py
+          git add tests/test_investor_smoke_gate.py
+          git rm .github/scripts/apply_investor_smoke_browser_probe.py
+          git rm .github/workflows/apply-investor-smoke-browser-probe.yml
+          git diff --cached --check
+          git commit -s -m "fix(smoke): use browser-compatible canonical-origin probes"
+          git push origin "HEAD:${BRANCH}"
