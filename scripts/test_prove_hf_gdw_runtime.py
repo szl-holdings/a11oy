@@ -928,3 +928,124 @@ def test_restart_proof_preserves_generation_session_and_artifacts(monkeypatch):
     assert report["after_prepared_at"] == "after-restart"
     assert report["global_integrity"]["pending_effects"] == 0
     assert report["credential_values_recorded"] is False
+
+
+def _http_error(status, body="{}", retry_after=None):
+    """Return a factory so every attempt observes a fresh, unread body."""
+
+    import email.message
+    import io
+    from urllib.error import HTTPError
+
+    headers = email.message.Message()
+    if retry_after is not None:
+        headers["Retry-After"] = str(retry_after)
+    def build():
+        return HTTPError(
+            "https://example.invalid/api",
+            status,
+            "error",
+            headers,
+            io.BytesIO(body.encode("utf-8")),
+        )
+
+    return build
+
+
+class _FakeResponse:
+    def __init__(self, payload):
+        self._payload = json.dumps(payload).encode("utf-8")
+
+    def read(self):
+        return self._payload
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_exc):
+        return False
+
+
+def _install_urlopen(monkeypatch, outcomes):
+    calls = []
+    slept = []
+
+    def fake_urlopen(request, timeout=None):
+        calls.append(request)
+        outcome = outcomes[min(len(calls) - 1, len(outcomes) - 1)]
+        if callable(outcome):
+            raise outcome()
+        return _FakeResponse(outcome)
+
+    monkeypatch.setattr(proof, "urlopen", fake_urlopen)
+    monkeypatch.setattr(proof.time, "sleep", lambda seconds: slept.append(seconds))
+    return calls, slept
+
+
+def test_request_json_retries_a_saturated_admission_ceiling(monkeypatch):
+    calls, slept = _install_urlopen(
+        monkeypatch,
+        [
+            _http_error(429, '{"detail":"GDW quota exceeded: OWNER_SESSIONS_QUOTA"}'),
+            _http_error(429, '{"detail":"GDW quota exceeded: OWNER_SESSIONS_QUOTA"}'),
+            {"decision": "ACCEPT"},
+        ],
+    )
+    assert proof.request_json("POST", "https://example.invalid/api") == {
+        "decision": "ACCEPT"
+    }
+    assert len(calls) == 3
+    assert slept == [2.0, 4.0]
+
+
+def test_request_json_honours_retry_after(monkeypatch):
+    _calls, slept = _install_urlopen(
+        monkeypatch,
+        [_http_error(503, "{}", retry_after=7), {"ok": True}],
+    )
+    assert proof.request_json("GET", "https://example.invalid/api") == {"ok": True}
+    assert slept == [7.0]
+
+
+def test_request_json_retries_a_booting_runtime(monkeypatch):
+    calls, _slept = _install_urlopen(
+        monkeypatch,
+        [_http_error(502), _http_error(504), {"status": "REAL"}],
+    )
+    assert proof.request_json("GET", "https://example.invalid/api") == {
+        "status": "REAL"
+    }
+    assert len(calls) == 3
+
+
+def test_request_json_never_retries_a_contract_or_integrity_failure(monkeypatch):
+    for status in (400, 401, 403, 404, 409, 422, 500):
+        calls, _slept = _install_urlopen(monkeypatch, [_http_error(status, "denied")])
+        with pytest.raises(RuntimeError) as excinfo:
+            proof.request_json("POST", "https://example.invalid/api")
+        assert not isinstance(excinfo.value, proof.TransientRequestError)
+        assert f"HTTP {status}" in str(excinfo.value)
+        assert len(calls) == 1
+
+
+def test_request_json_fails_honestly_when_a_transient_condition_persists(monkeypatch):
+    calls, _slept = _install_urlopen(
+        monkeypatch,
+        [_http_error(429, '{"detail":"GDW quota exceeded: OWNER_SESSIONS_QUOTA"}')],
+    )
+    with pytest.raises(proof.TransientRequestError) as excinfo:
+        proof.request_json("POST", "https://example.invalid/api")
+    assert len(calls) == proof._REQUEST_ATTEMPTS
+    assert "persisted across" in str(excinfo.value)
+    assert "OWNER_SESSIONS_QUOTA" in str(excinfo.value)
+
+
+def test_poll_scoped_calls_use_a_short_budget(monkeypatch):
+    calls, _slept = _install_urlopen(monkeypatch, [_http_error(503)])
+    with pytest.raises(proof.TransientRequestError):
+        proof.request_json(
+            "GET",
+            "https://example.invalid/api",
+            attempts=proof._POLL_ATTEMPTS,
+        )
+    assert len(calls) == proof._POLL_ATTEMPTS
