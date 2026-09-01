@@ -288,7 +288,11 @@ class FrontendSourceBoundaryContract(unittest.TestCase):
 
     def test_mobile_controls_have_safe_rounded_hit_geometry(self) -> None:
         css = (ROOT / "console" / "assets" / "szl-flow.css").read_text(encoding="utf-8")
-        toggle = re.search(r"\.szl-flow-toggle\s*\{(?P<body>[^}]*)\}", css, re.S)
+        toggle = re.search(
+            r"(?m)^[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",
+            css,
+            re.S,
+        )
         self.assertIsNotNone(toggle)
         body = toggle.group("body")
         self.assertIn("min-width: 48px", body)
