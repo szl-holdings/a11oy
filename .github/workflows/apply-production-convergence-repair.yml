@@ -1,0 +1,419 @@
+name: Apply Production Convergence Repair
+
+on:
+  push:
+    branches:
+      - "fix/production-convergence-20260901"
+    paths:
+      - ".github/workflows/apply-production-convergence-repair.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-production-convergence-repair-a11oy
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact convergence branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/production-convergence-20260901
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Restore canonical shared and vendored sources
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/killinchu-convergence
+          git clone --depth 1 \
+            --branch fix/shared-integrations-flow-boundary-20260901 \
+            https://github.com/szl-holdings/killinchu.git \
+            /tmp/killinchu-convergence
+
+          cp /tmp/killinchu-convergence/szl_connectors_serve.py szl_connectors_serve.py
+          cp /tmp/killinchu-convergence/pages/integrations.html pages/integrations.html
+          cp /tmp/killinchu-convergence/tests/test_integrations_flow_boundary.py \
+            tests/test_integrations_flow_boundary.py
+
+          bash scripts/sync_from_monorepo.sh sync
+
+      - name: Apply source-boundary, mobile, edge, and supply-chain hardening
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: Path, old: str, new: str, label: str) -> None:
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected one anchor, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+
+          rollout = Path("scripts/rollout_frontend_flow_shell.py")
+          replace_once(
+              rollout,
+              'EXCLUDE_PARTS = {"node_modules", "vendor", "archive", "archives", "fixtures", ".git"}\n\n\ndef candidates() -> list[Path]:',
+              """EXCLUDE_PARTS = {"node_modules", "vendor", "archive", "archives", "fixtures", ".git"}
+          SOURCE_MANAGED_PATHS = {"pages/integrations.html"}
+          SOURCE_BOUNDARY_MARKERS = ("DO NOT EDIT HERE.", "VENDORED FROM ")
+
+
+          def source_managed(path: Path) -> bool:
+              \"\"\"Return true when another source contract owns the HTML bytes.\"\"\"
+              rel = path.relative_to(ROOT).as_posix()
+              if rel in SOURCE_MANAGED_PATHS:
+                  return True
+              try:
+                  head = path.read_text(encoding="utf-8")[:4096]
+              except (OSError, UnicodeError):
+                  return False
+              return any(marker in head for marker in SOURCE_BOUNDARY_MARKERS)
+
+
+          def candidates() -> list[Path]:""",
+              "rollout source-boundary constants",
+          )
+          replace_once(
+              rollout,
+              """        if path.is_file():
+                      found.add(path)""",
+              """        if path.is_file() and not source_managed(path):
+                      found.add(path)""",
+              "rollout exact candidate boundary",
+          )
+          replace_once(
+              rollout,
+              """            if path.is_file() and not (set(path.relative_to(ROOT).parts) & EXCLUDE_PARTS):
+                          found.add(path)""",
+              """            if (
+                          path.is_file()
+                          and not (set(path.relative_to(ROOT).parts) & EXCLUDE_PARTS)
+                          and not source_managed(path)
+                      ):
+                          found.add(path)""",
+              "rollout glob candidate boundary",
+          )
+          replace_once(
+              rollout,
+              """def update_state(changed: list[str], examined: int) -> None:
+              payload = json.loads(STATE.read_text(encoding="utf-8"))
+              payload["state"] = "ROLLED_OUT"
+              payload["examined_documents"] = examined
+              payload["injected_documents"] = changed""",
+              """def update_state(bound: list[str], examined: int) -> None:
+              payload = json.loads(STATE.read_text(encoding="utf-8"))
+              payload["state"] = "ROLLED_OUT"
+              payload["examined_documents"] = examined
+              payload["injected_documents"] = bound""",
+              "rollout complete state bookkeeping",
+          )
+          replace_once(
+              rollout,
+              """    rows = []
+              changed: list[str] = []
+              for path in candidates():""",
+              """    rows = []
+              changed: list[str] = []
+              bound: list[str] = []
+              for path in candidates():""",
+              "rollout bound list",
+          )
+          replace_once(
+              rollout,
+              """        if result == "injected":
+                      changed.append(rel)
+
+              if not rows:""",
+              """        if result == "injected":
+                      changed.append(rel)
+                  if result in {"injected", "present"}:
+                      bound.append(rel)
+
+              if not rows:""",
+              "rollout bound collection",
+          )
+          replace_once(
+              rollout,
+              """    if not args.check:
+                  update_state(changed, len(rows))""",
+              """    if not args.check:
+                  update_state(bound, len(rows))""",
+              "rollout state call",
+          )
+          replace_once(
+              rollout,
+              """        "changed": len(changed),
+                  "rows": rows,""",
+              """        "changed": len(changed),
+                  "bound": len(bound),
+                  "rows": rows,""",
+              "rollout report bound count",
+          )
+
+          css = Path("console/assets/szl-flow.css")
+          replace_once(
+              css,
+              ".szl-flow-toggle { display: none; }",
+              """.szl-flow-toggle {
+            display: none;
+            min-width: 48px;
+            min-height: 48px;
+            border-radius: 6px;
+          }""",
+              "Flow Shell mobile menu hit geometry",
+          )
+
+          landing = Path("a11oy_landing.html")
+          old_cta = ".cta-row .btn{width:100%;white-space:normal;text-align:center}"
+          new_cta = ".cta-row .btn{width:100%;min-height:52px;border-radius:6px;white-space:normal;text-align:center}"
+          replace_once(landing, old_cta, new_cta, "front-door mobile CTA geometry")
+
+          repair = Path("scripts/repair_a11oy_frontdoor.py")
+          repair_text = repair.read_text(encoding="utf-8")
+          marker = "MOBILE_FINAL_BLOCK ="
+          before, separator, after = repair_text.partition(marker)
+          if not separator:
+              raise SystemExit("front-door repair: MOBILE_FINAL_BLOCK anchor missing")
+          if after.count(old_cta) < 1:
+              raise SystemExit("front-door repair: mobile CTA anchor missing after final block")
+          after = after.replace(old_cta, new_cta, 1)
+          repair.write_text(before + separator + after, encoding="utf-8", newline="\n")
+
+          edge = Path(".github/workflows/repair-cloudflare-product-edge.yml")
+          replace_once(
+              edge,
+              """    paths:
+                    - ".github/workflows/repair-cloudflare-product-edge.yml"""",
+              """    paths:
+                    - ".github/workflows/repair-cloudflare-product-edge.yml"
+                    - "cloudflare/**"
+                    - "scripts/repair_cloudflare_product_edge.py"
+                    - "tests/test_cloudflare_product_edge.py"
+                    - "szl_connectors_serve.py"
+                    - "a11oy_landing.html"
+                    - "console/assets/szl-flow.css"
+                    - "scripts/rollout_frontend_flow_shell.py"
+                    - "pages/integrations.html"
+                    - "spaces/sda/index.html"""",
+              "Cloudflare production-surface triggers",
+          )
+          replace_once(
+              edge,
+              """env:
+            EDGE_REPORT: /tmp/cloudflare-product-edge.json""",
+              """concurrency:
+            group: cloudflare-product-root
+            cancel-in-progress: false
+
+          env:
+            EDGE_REPORT: /tmp/cloudflare-product-edge.json""",
+              "Cloudflare repair serialization",
+          )
+
+          ghcr = Path(".github/workflows/ghcr-build-push.yml")
+          replace_once(
+              ghcr,
+              "      attestations: write\n",
+              "      attestations: write\n      artifact-metadata: write\n",
+              "GHCR artifact metadata permission",
+          )
+          replace_once(
+              ghcr,
+              """      - name: cosign sign
+                  env:
+                    COSIGN_EXPERIMENTAL: "1"
+                  run: |
+                    cosign sign --yes ghcr.io/szl-holdings/${{ github.event.repository.name }}:uds-v0.3.0
+                    cosign sign --yes ghcr.io/szl-holdings/${{ github.event.repository.name }}:latest""",
+              """      - name: cosign sign
+                  env:
+                    COSIGN_EXPERIMENTAL: "1"
+                    IMG: ghcr.io/szl-holdings/${{ github.event.repository.name }}
+                    DIGEST: ${{ steps.build-push.outputs.digest }}
+                  run: |
+                    set -euo pipefail
+                    for attempt in 1 2 3; do
+                      if cosign sign --yes "${IMG}@${DIGEST}"; then
+                        echo "Signed immutable image ${IMG}@${DIGEST}."
+                        exit 0
+                      fi
+                      if [ "${attempt}" -eq 3 ]; then
+                        echo "::error::Sigstore signing failed after ${attempt} bounded attempts."
+                        exit 1
+                      fi
+                      sleep $((attempt * 10))
+                    done""",
+              "GHCR immutable digest signing",
+          )
+          PY
+
+      - name: Reconcile eligible product surfaces and state
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/rollout_frontend_flow_shell.py
+
+      - name: Add source-boundary regression contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > tests/test_frontend_source_boundaries.py <<'PY'
+          #!/usr/bin/env python3
+          """Regression contract for Flow Shell source ownership and mobile hit geometry."""
+          from __future__ import annotations
+
+          import importlib.util
+          import json
+          import re
+          import unittest
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          ROLLOUT_PATH = ROOT / "scripts" / "rollout_frontend_flow_shell.py"
+          STYLE_MARKER = 'data-szl-flow-asset="style"'
+          SCRIPT_MARKER = 'data-szl-flow-asset="script"'
+
+
+          def load_rollout():
+              spec = importlib.util.spec_from_file_location("rollout_frontend_flow_shell", ROLLOUT_PATH)
+              if spec is None or spec.loader is None:
+                  raise RuntimeError("unable to load rollout module")
+              module = importlib.util.module_from_spec(spec)
+              spec.loader.exec_module(module)
+              return module
+
+
+          class FrontendSourceBoundaryContract(unittest.TestCase):
+              @classmethod
+              def setUpClass(cls) -> None:
+                  cls.rollout = load_rollout()
+
+              def test_shared_and_vendored_html_are_never_source_mutated(self) -> None:
+                  integrations = ROOT / "pages" / "integrations.html"
+                  sda = ROOT / "spaces" / "sda" / "index.html"
+                  self.assertTrue(self.rollout.source_managed(integrations))
+                  self.assertTrue(self.rollout.source_managed(sda))
+
+                  candidates = {path.relative_to(ROOT).as_posix() for path in self.rollout.candidates()}
+                  self.assertNotIn("pages/integrations.html", candidates)
+                  self.assertNotIn("spaces/sda/index.html", candidates)
+
+                  for path in (integrations, sda):
+                      text = path.read_text(encoding="utf-8")
+                      self.assertNotIn(STYLE_MARKER, text, path.as_posix())
+                      self.assertNotIn(SCRIPT_MARKER, text, path.as_posix())
+
+              def test_rollout_state_contains_only_eligible_bound_documents(self) -> None:
+                  state = json.loads(
+                      (ROOT / "docs" / "frontend-flow-shell-state.json").read_text(encoding="utf-8")
+                  )
+                  bound = set(state["injected_documents"])
+                  eligible = {path.relative_to(ROOT).as_posix() for path in self.rollout.candidates()}
+                  self.assertEqual(bound, eligible)
+                  self.assertEqual(state["examined_documents"], len(eligible))
+
+              def test_mobile_controls_have_safe_rounded_hit_geometry(self) -> None:
+                  css = (ROOT / "console" / "assets" / "szl-flow.css").read_text(encoding="utf-8")
+                  toggle = re.search(r"\.szl-flow-toggle\s*\{(?P<body>[^}]*)\}", css, re.S)
+                  self.assertIsNotNone(toggle)
+                  body = toggle.group("body")
+                  self.assertIn("min-width: 48px", body)
+                  self.assertIn("min-height: 48px", body)
+                  self.assertIn("border-radius: 6px", body)
+
+                  landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+                  self.assertIn(
+                      ".cta-row .btn{width:100%;min-height:52px;border-radius:6px;"
+                      "white-space:normal;text-align:center}",
+                      landing,
+                  )
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          PY
+
+      - name: Verify frontend, backend, source, and supply-chain contracts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/rollout_frontend_flow_shell.py \
+            scripts/repair_a11oy_frontdoor.py \
+            szl_connectors_serve.py \
+            tests/test_integrations_flow_boundary.py \
+            tests/test_frontend_source_boundaries.py
+
+          python tests/test_integrations_flow_boundary.py -v
+          python tests/test_frontend_flow_shell.py -v
+          python tests/test_frontend_source_boundaries.py -v
+          python scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
+          python scripts/rollout_frontend_flow_shell.py --check
+          bash scripts/sync_from_monorepo.sh check --strict-headers
+          python .github/shared-file-drift-check.py \
+            . /tmp/killinchu-convergence \
+            --self-name=a11oy --sibling-name=killinchu
+          node --check console/assets/szl-flow.js
+          git diff --check
+
+          python - <<'PY'
+          from pathlib import Path
+          import subprocess
+
+          allowed = {
+              ".github/workflows/ghcr-build-push.yml",
+              ".github/workflows/repair-cloudflare-product-edge.yml",
+              "a11oy_landing.html",
+              "console/assets/szl-flow.css",
+              "docs/frontend-flow-shell-state.json",
+              "pages/integrations.html",
+              "scripts/repair_a11oy_frontdoor.py",
+              "scripts/rollout_frontend_flow_shell.py",
+              "spaces/sda/index.html",
+              "szl_connectors_serve.py",
+              "tests/test_frontend_source_boundaries.py",
+              "tests/test_integrations_flow_boundary.py",
+          }
+          changed = {
+              line.strip()
+              for line in subprocess.check_output(
+                  ["git", "diff", "--name-only"], text=True
+              ).splitlines()
+              if line.strip()
+          }
+          unexpected = changed - allowed
+          missing = allowed - changed
+          if unexpected:
+              raise SystemExit("unexpected convergence diff: " + ", ".join(sorted(unexpected)))
+          if missing:
+              raise SystemExit("expected convergence diff missing: " + ", ".join(sorted(missing)))
+          print("Exact convergence diff:", ", ".join(sorted(changed)))
+          PY
+
+      - name: Retire bounded executor and commit exact repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-production-convergence-repair.yml
+          git config user.name "SZL Production Convergence Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --quiet && { echo "No convergence diff produced"; exit 1; }
+          git commit -s -m "fix(production): converge frontend and backend boundaries"
+          git push origin HEAD:fix/production-convergence-20260901
