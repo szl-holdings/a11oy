@@ -1,0 +1,65 @@
+name: Refresh HF manifest once
+
+on:
+  push:
+    branches:
+      - fix/hf-manifest-drift-20260901
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-hf-manifest-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c
+        with:
+          egress-policy: audit
+
+      - name: Checkout refresh branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/hf-manifest-drift-20260901
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+
+      - name: Prove collector before mutation
+        run: |
+          set -euo pipefail
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py
+
+      - name: Regenerate from current public Hub evidence
+        run: |
+          set -euo pipefail
+          python3 scripts/audit_huggingface_ecosystem.py --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/audit_huggingface_ecosystem.py --check --output docs/huggingface-ecosystem-manifest.json
+
+      - name: Remove one-shot controller
+        run: rm .github/workflows/refresh-hf-manifest-once.yml
+
+      - name: Commit generated evidence to branch
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/huggingface-ecosystem-manifest.json .github/workflows/refresh-hf-manifest-once.yml
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo 'No manifest drift remained.'
+            exit 0
+          fi
+          git commit -m 'chore(hf): refresh public ecosystem manifest'
+          git push origin HEAD:fix/hf-manifest-drift-20260901
