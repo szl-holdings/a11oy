@@ -41,12 +41,23 @@ STATIC_VARIABLES = {
     # The mounted Hugging Face bucket is a network filesystem. DELETE avoids
     # WAL shared-memory assumptions while preserving transactional SQLite.
     "GDW_SQLITE_JOURNAL": "DELETE",
-    "GDW_OWNER_MAX_ACTIVE_REQUESTS": "1000",
-    "GDW_OWNER_MAX_ACTIVE_SESSIONS": "100",
+    # Admission ceilings, not integrity gates. Every deployment of main opens
+    # exactly one governed promotion session plus one governed promotion
+    # request, and those objects stay ACTIVE for GDW_RETENTION_SECONDS (7 days)
+    # before the retention compactor tombstones them and releases the slot.
+    # The previous owner ceiling of 100 active sessions was far below this
+    # estate's real 7-day deployment volume, so the ceiling stayed saturated
+    # and POST /gdw/step intermittently answered 429 OWNER_SESSIONS_QUOTA,
+    # failing the sync while the runtime itself was healthy. Sizing the
+    # ceilings above the true 7-day working set removes that false failure.
+    # The substantive resource guard is GDW_OWNER_MAX_STORED_BYTES, which is
+    # deliberately unchanged, so unbounded growth is still refused.
+    "GDW_OWNER_MAX_ACTIVE_REQUESTS": "50000",
+    "GDW_OWNER_MAX_ACTIVE_SESSIONS": "5000",
     "GDW_OWNER_MAX_PENDING_EFFECTS": "2000",
     "GDW_OWNER_MAX_STORED_BYTES": "268435456",
-    "GDW_GLOBAL_MAX_ACTIVE_REQUESTS": "100000",
-    "GDW_GLOBAL_MAX_ACTIVE_SESSIONS": "10000",
+    "GDW_GLOBAL_MAX_ACTIVE_REQUESTS": "500000",
+    "GDW_GLOBAL_MAX_ACTIVE_SESSIONS": "50000",
     "GDW_GLOBAL_MAX_PENDING_EFFECTS": "100000",
     "GDW_GLOBAL_MAX_STORED_BYTES": "2147483648",
     "GDW_OWNER_MAX_ARTIFACTS": "10000",

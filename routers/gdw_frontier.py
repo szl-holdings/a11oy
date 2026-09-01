@@ -1502,9 +1502,15 @@ def register(app, ns: str = "a11oy"):
         except HTTPException:
             raise
         except GDWQuotaExceeded as exc:
+            # Name the saturated ceiling and advertise a backoff. The code is
+            # a policy identifier (for example OWNER_SESSIONS_QUOTA), never
+            # credential or payload material, and naming it is what lets a
+            # caller distinguish "retry shortly" from a contract violation.
+            code = str(getattr(exc, "code", "") or "UNSPECIFIED_QUOTA")
             raise HTTPException(
                 status_code=429,
-                detail="GDW quota exceeded",
+                detail=f"GDW quota exceeded: {code}",
+                headers={"Retry-After": "5"},
             ) from exc
         except GDWLifecycleError as exc:
             raise HTTPException(

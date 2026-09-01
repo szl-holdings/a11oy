@@ -46,6 +46,19 @@ def test_desired_variables_digest_token_without_recording_it() -> None:
     assert variables["GDW_REQUIRED_MOUNT"] == "/data"
     assert variables["GDW_OUTBOX_ENABLED"] == "1"
     assert variables["GDW_OWNER_MAX_PENDING_EFFECTS"] == "2000"
+    # The promotion probe opens one session and one request per deployment and
+    # holds them for the 7-day retention window; the ceilings must stay above
+    # that working set or the sync fails on 429 instead of on real evidence.
+    assert int(variables["GDW_OWNER_MAX_ACTIVE_SESSIONS"]) >= 5000
+    assert int(variables["GDW_OWNER_MAX_ACTIVE_REQUESTS"]) >= 50000
+    assert int(variables["GDW_GLOBAL_MAX_ACTIVE_SESSIONS"]) >= int(
+        variables["GDW_OWNER_MAX_ACTIVE_SESSIONS"]
+    )
+    assert int(variables["GDW_GLOBAL_MAX_ACTIVE_REQUESTS"]) >= int(
+        variables["GDW_OWNER_MAX_ACTIVE_REQUESTS"]
+    )
+    # The real storage guard is unchanged: capacity is still bounded.
+    assert variables["GDW_OWNER_MAX_STORED_BYTES"] == "268435456"
     assert variables["GDW_EFFECT_MAX_ATTEMPTS"] == "20"
     assert variables["GDW_POLICY_ORIGIN"] == "http://127.0.0.1:7860"
 

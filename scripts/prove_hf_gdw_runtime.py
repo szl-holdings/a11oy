@@ -12,7 +12,7 @@ import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.error import HTTPError
+from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 import sys
@@ -26,7 +26,67 @@ if str(_REPOSITORY_ROOT) not in sys.path:
 import szl_dsse
 
 
-def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
+# Statuses that describe a runtime that is not ready to answer *yet* rather
+# than a runtime that answered with a contract violation. A freshly deployed
+# docker Space is still booting (502/503/504), and the GDW successor rejects
+# admission with 429 while an owner/global ceiling is momentarily saturated and
+# the outbox drain / retention compactor has not yet released the slots.
+# Every one of these is a capacity or readiness condition, never an integrity
+# verdict: integrity verdicts arrive as HTTP 200 bodies (or as 4xx contract
+# errors) and are still asserted, unretried, by the callers below.
+_TRANSIENT_HTTP_STATUSES = frozenset({408, 425, 429, 502, 503, 504})
+_REQUEST_ATTEMPTS = 6
+# Calls made from inside a convergence loop already have an outer retry
+# budget, so they only absorb a single hiccup and let the loop re-poll.
+_POLL_ATTEMPTS = 2
+_REQUEST_BACKOFF_SECONDS = 2.0
+_REQUEST_BACKOFF_CAP_SECONDS = 30.0
+_RETRY_AFTER_CAP_SECONDS = 60.0
+
+
+class TransientRequestError(RuntimeError):
+    """A readiness/capacity condition that survived the whole retry budget."""
+
+
+def _retry_after_seconds(headers) -> float | None:
+    try:
+        raw = headers.get("Retry-After") if headers is not None else None
+    except AttributeError:
+        raw = None
+    if raw is None:
+        return None
+    try:
+        seconds = float(str(raw).strip())
+    except (TypeError, ValueError):
+        return None
+    if seconds < 0:
+        return None
+    return min(seconds, _RETRY_AFTER_CAP_SECONDS)
+
+
+def _backoff_seconds(attempt: int) -> float:
+    return min(
+        _REQUEST_BACKOFF_CAP_SECONDS,
+        _REQUEST_BACKOFF_SECONDS * (2 ** (attempt - 1)),
+    )
+
+
+def request_json(
+    method: str,
+    url: str,
+    *,
+    token: str | None = None,
+    attempts: int = _REQUEST_ATTEMPTS,
+    **kwargs,
+):
+    """Perform one JSON call, retrying only readiness/capacity conditions.
+
+    Mutating calls in this proof carry an ``X-Request-Id`` idempotency key, so
+    a retried POST is replayed by the runtime instead of duplicated. Any
+    non-transient status (contract, authorization, lifecycle, or fail-closed
+    500 responses) is raised immediately and unchanged.
+    """
+
     headers = dict(kwargs.pop("headers", {}))
     payload = kwargs.pop("json", None)
     if kwargs:
@@ -37,20 +97,37 @@ def request_json(method: str, url: str, *, token: str | None = None, **kwargs):
     if payload is not None:
         data = json.dumps(payload).encode("utf-8")
         headers["Content-Type"] = "application/json"
-    request = Request(
-        url,
-        data=data,
-        headers=headers,
-        method=method,
+    budget = max(1, int(attempts))
+    last_transient = ""
+    for attempt in range(1, budget + 1):
+        request = Request(
+            url,
+            data=data,
+            headers=headers,
+            method=method,
+        )
+        try:
+            with urlopen(request, timeout=30) as response:
+                return json.loads(response.read().decode("utf-8"))
+        except HTTPError as exc:
+            response_body = exc.read().decode("utf-8", errors="replace")
+            detail = f"HTTP {exc.code} {method} {url}: {response_body[:2048]}"
+            if exc.code not in _TRANSIENT_HTTP_STATUSES:
+                raise RuntimeError(detail) from exc
+            last_transient = detail
+            delay = _retry_after_seconds(getattr(exc, "headers", None))
+        except (URLError, TimeoutError, OSError, json.JSONDecodeError) as exc:
+            last_transient = (
+                f"{type(exc).__name__} {method} {url}"
+            )
+            delay = None
+        if attempt >= budget:
+            break
+        time.sleep(delay if delay is not None else _backoff_seconds(attempt))
+    raise TransientRequestError(
+        f"transient condition persisted across {budget} attempts: "
+        f"{last_transient}"
     )
-    try:
-        with urlopen(request, timeout=30) as response:
-            return json.loads(response.read().decode("utf-8"))
-    except HTTPError as exc:
-        response_body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(
-            f"HTTP {exc.code} {method} {url}: {response_body[:2048]}"
-        ) from exc
 
 
 def _canonical_hash(value) -> str:
@@ -699,12 +776,15 @@ def _prove_drain_convergence(
 
     for _attempt in range(1, attempts + 1):
         try:
-            health = request_json("GET", health_url)
+            health = request_json(
+                "GET", health_url, attempts=_POLL_ATTEMPTS
+            )
             last_health = health
             global_integrity = request_json(
                 "GET",
                 global_integrity_url,
                 token=operator_token,
+                attempts=_POLL_ATTEMPTS,
             )
             last_global_integrity = global_integrity
             if (
@@ -770,6 +850,7 @@ def _prove_drain_convergence(
                 "POST",
                 drain_url,
                 token=operator_token,
+                attempts=_POLL_ATTEMPTS,
             )
             last_drain = confirmed_drain
             if _drain_contract_is_valid(
@@ -780,6 +861,7 @@ def _prove_drain_convergence(
                     "GET",
                     global_integrity_url,
                     token=operator_token,
+                    attempts=_POLL_ATTEMPTS,
                 )
                 last_global_integrity = confirmed_integrity
                 if _global_integrity_is_complete(
@@ -891,11 +973,17 @@ def prove_restart(
     last_error = "NOT_OBSERVED"
     for _attempt in range(1, attempts + 1):
         try:
-            build_info = request_json("GET", f"{base}/api/build-info")
+            build_info = request_json(
+                "GET",
+                f"{base}/api/build-info",
+                attempts=_POLL_ATTEMPTS,
+            )
             revision = str(
                 (build_info.get("build") or {}).get("revision") or ""
             ).lower()
-            candidate = request_json("GET", health_url)
+            candidate = request_json(
+                "GET", health_url, attempts=_POLL_ATTEMPTS
+            )
             persistence = candidate.get("persistence") or {}
             storage = persistence.get("storage") or {}
             if (
@@ -993,7 +1081,11 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
     recovery_evidence = _new_recovery_evidence()
     for attempt in range(1, 121):
         try:
-            build_info = request_json("GET", f"{base}/api/build-info")
+            build_info = request_json(
+                "GET",
+                f"{base}/api/build-info",
+                attempts=_POLL_ATTEMPTS,
+            )
             deployed_revision = str(
                 (build_info.get("build") or {}).get("revision") or ""
             ).lower()
@@ -1003,7 +1095,9 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
                 continue
             try:
                 candidate = request_json(
-                    "GET", f"{base}/api/a11oy/v1/gdw/healthz"
+                    "GET",
+                    f"{base}/api/a11oy/v1/gdw/healthz",
+                    attempts=_POLL_ATTEMPTS,
                 )
             except Exception:
                 candidate = {}
@@ -1011,6 +1105,7 @@ def prove(*, origin: str, source_sha: str, operator_token: str) -> dict:
                 "GET",
                 f"{base}/api/a11oy/v1/gdw/integrity/global",
                 token=operator_token,
+                attempts=_POLL_ATTEMPTS,
             )
             candidate_persistence = candidate.get("persistence") or {}
             candidate_storage = candidate_persistence.get("storage") or {}
