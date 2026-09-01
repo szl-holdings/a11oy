@@ -10,14 +10,8 @@
   never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
   The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
   Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.
-  DOM/sections owned by Dev 1. The hero now renders the SZL monochrome "genius" design
-  system v1: a dependency-free monochrome point-cloud proof kernel on <canvas id="holo">
-  plus an honest live-read card wired to this deployment's own Python API
-  (/api/a11oy/healthz, /api/a11oy/v1/frontier/surfaces, /api/a11oy/v1/attest/manifest).
-  Every hero value is fetched in-request and stays UNAVAILABLE when the source does not
-  answer; SIGNED is written only on a signature that exists AND verified this request.
-  Three.js r160 stays vendored + pinned for the 3D frontier surfaces that import it.
-  KANCHAY palette outside the hero. No purple. a-11-oy.com remains the
+  DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
+  preserved verbatim below. KANCHAY palette. No purple. a-11-oy.com remains the
   canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
@@ -170,12 +164,15 @@
     border-color:rgba(91,141,238,0.6);color:#c5d8ff;
     box-shadow:0 6px 24px -12px rgba(91,141,238,0.32);transform:translateY(-1px)}
 
-  /* ---- hero (base rules — pinned by scripts/check_a11oy_frontdoor_truth.py) ---- */
+  /* ---- hero (canvas owned by Dev 2 — markup preserved) ---- */
   .hero{position:relative;min-height:92vh;display:flex;align-items:center;overflow:hidden}
+  #hero-canvas{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block}
   .hero-scrim{position:absolute;inset:0;z-index:1;pointer-events:none;
     background:
       radial-gradient(ellipse 65% 70% at 68% 50%, transparent 0%, rgba(8,12,20,0.55) 55%, rgba(8,12,20,0.9) 100%),
       linear-gradient(to right, rgba(8,12,20,0.84) 0%, rgba(8,12,20,0.5) 45%, rgba(8,12,20,0.14) 100%)}
+  .hero-fallback{position:absolute;inset:0;z-index:0;display:none;
+    background:radial-gradient(600px 600px at 65% 45%, rgba(58,244,200,0.07), transparent 70%)}
   .hero .wrap{position:relative;z-index:2;padding-top:54px;padding-bottom:54px}
   .hero-inner{max-width:740px}
   .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 14px;border-radius:999px;
@@ -393,104 +390,6 @@
   .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
   @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.pulse-grid{grid-template-columns:1fr}}
-
-  /* ================== SZL monochrome "genius" hero — design system v1 ==================
-     Enterprise restraint (Nvidia / Datadog / New Relic) + True Anomaly near-black canvas +
-     Anthropic warm off-white for large display. Black / white / cream + a tight neutral grey
-     ramp ONLY: no neon, no colored pills, no decorative gradient. Grade is TEXT, never a pill.
-     Scoped to .hero (and the hero receipt) so the rest of the page keeps its own treatment.
-     These rules are ADDITIVE and sit AFTER the pinned base rules and BEFORE the late mobile
-     override block, so the documented cascade order is preserved. Mobile-first: clamp()
-     everywhere, single column below 1000px. */
-  :root{
-    --mg-bg:#000000; --mg-bg-soft:#0a0a0b; --mg-panel:#0d0d0f;
-    --mg-ink:#ffffff; --mg-cream:#f0eee6;
-    --mg-t1:#e8e8ea; --mg-t2:#9a9a9e; --mg-t3:#5f5f63;
-    --mg-line:#1c1c1f; --mg-line2:#2a2a2e;
-  }
-  .hero{background:var(--mg-bg);border-bottom:1px solid var(--mg-line);
-    min-height:min(92vh,780px);padding-block:clamp(8px,2vw,24px)}
-  /* holographic monochrome point-cloud proof kernel (see the inline holo kernel script) */
-  #holo{position:absolute;inset:0;width:100%;height:100%;z-index:0;display:block;opacity:.9}
-  .hero .hero-scrim{background:radial-gradient(140% 120% at 72% 40%,transparent 30%,var(--mg-bg) 86%)}
-  .hero .wrap{display:flex;flex-direction:column;align-items:flex-start;
-    gap:clamp(26px,4vw,38px);width:100%}
-  .hero .hero-inner{max-width:760px}
-  .hero .eyebrow{border:1px solid var(--mg-line2);background:transparent;color:var(--mg-t2);
-    font-family:var(--mono);font-size:clamp(11px,2.8vw,12.5px);font-weight:400;letter-spacing:.04em;
-    border-radius:999px;padding:7px 14px;margin-bottom:clamp(18px,4vw,26px)}
-  .hero .eyebrow .dot{background:var(--mg-ink);box-shadow:0 0 8px rgba(255,255,255,.6);width:6px;height:6px}
-  .hero h1.title{font-size:clamp(34px,7vw,72px);line-height:1.03;letter-spacing:-.03em;font-weight:600;
-    color:var(--mg-cream);text-shadow:none;margin:0 0 clamp(16px,3vw,24px)}
-  .hero h1.title .grad{background:none;-webkit-background-clip:initial;background-clip:initial;
-    -webkit-text-fill-color:var(--mg-ink);color:var(--mg-ink);font-weight:700;filter:none}
-  .hero .lede{font-size:clamp(15px,3.4vw,18px);line-height:1.6;color:var(--mg-t2);max-width:600px;
-    text-shadow:none;margin:0 0 clamp(22px,4vw,30px)}
-  .hero .lede b{color:var(--mg-t1);font-weight:600}
-  .hero .cta-row{gap:11px;margin-bottom:0}
-  .hero .btn{font-family:var(--mono);font-size:14px;font-weight:400;letter-spacing:0;
-    border-radius:9px;box-shadow:none}
-  .hero .btn-primary{background:var(--mg-ink);color:var(--mg-bg);border-color:var(--mg-ink)}
-  .hero .btn-primary:hover{background:var(--mg-cream);border-color:var(--mg-cream);color:var(--mg-bg);box-shadow:none}
-  .hero .btn-lattice{background:transparent;color:var(--mg-t1);border-color:var(--mg-line2)}
-  .hero .btn-lattice:hover{background:rgba(255,255,255,.03);border-color:var(--mg-t2);color:var(--mg-ink);box-shadow:none}
-  .hero .btn-ghost{background:transparent;color:var(--mg-t2);border-color:transparent}
-  .hero .btn-ghost:hover{background:transparent;color:var(--mg-ink);border-color:transparent}
-  .hero a:focus-visible,.hero button:focus-visible{outline:3px solid var(--mg-ink)}
-  .hero .hero-stats{gap:12px}
-  .hero .stat{border:1px solid var(--mg-line2);border-radius:14px;background:var(--mg-panel);
-    backdrop-filter:none;-webkit-backdrop-filter:none;padding:16px 18px;transition:border-color .2s,transform .2s}
-  .hero .stat:hover{border-color:var(--mg-t2);transform:translateY(-1px);box-shadow:0 8px 30px -12px #000}
-  .hero .stat .k{font-family:var(--mono);color:var(--mg-t1);font-weight:500}
-  .hero .stat .k.proof{color:var(--mg-ink)}
-  .hero .stat .k.gray{color:var(--mg-t2)}
-  .hero .stat .l{color:var(--mg-t3);font-family:var(--mono);letter-spacing:.1em}
-  .hero .stat .l .stat-note{color:var(--mg-t3)}
-  .hero .stat .stat-note a{color:var(--mg-t2)}
-  .hero .stat .stat-note a:hover{color:var(--mg-ink)}
-  .hero .chip{border:1px solid var(--mg-line2);background:transparent;color:var(--mg-t2)}
-  .hero .chip .dot{background:var(--mg-t2)}
-
-  /* ---- honest live-read card (the ONE shared SZL card object, receipt variant) ---- */
-  .mg-receipt{position:relative;width:100%;max-width:560px;border:1px solid var(--mg-line2);
-    border-radius:14px;overflow:hidden;background:var(--mg-panel);
-    box-shadow:0 30px 90px -40px rgba(0,0,0,.9),inset 0 1px 0 rgba(255,255,255,.03)}
-  @media(min-width:1040px){.mg-receipt{max-width:520px}}
-  .mg-rh{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;
-    padding:13px 17px;border-bottom:1px solid var(--mg-line);
-    font-family:var(--mono);font-size:11.5px;letter-spacing:.05em;color:var(--mg-t3)}
-  .mg-verifying{display:flex;align-items:center;gap:8px}
-  .mg-verifying .mg-dot{width:7px;height:7px;border-radius:50%;background:var(--mg-t3);transition:.3s}
-  .mg-receipt.mg-ok .mg-verifying .mg-dot{background:var(--mg-ink);box-shadow:0 0 10px rgba(255,255,255,.7)}
-  .mg-receipt.mg-ok .mg-txt{color:var(--mg-t1)}
-  .mg-rbody{padding:17px;font-family:var(--mono);font-size:12.5px;line-height:1.9}
-  .mg-row{display:flex;justify-content:space-between;gap:12px;padding:2px 0}
-  .mg-k{color:var(--mg-t3)}
-  .mg-v{color:var(--mg-t1);text-align:right;overflow-wrap:anywhere;word-break:break-word;min-width:0}
-  .mg-v.hl{color:var(--mg-ink);font-weight:500}
-  .mg-v.na{color:var(--mg-t3)}
-  .mg-chip{display:inline-block;font-size:10px;padding:2px 8px;border-radius:5px;
-    border:1px solid var(--mg-line2);color:var(--mg-t2)}
-  .mg-hashbar{height:3px;border-radius:2px;margin-top:12px;background:var(--mg-line2);overflow:hidden}
-  .mg-hashbar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--mg-t3),#fff);
-    transition:width 1.2s cubic-bezier(.4,0,.2,1)}
-  .mg-receipt.mg-ok .mg-hashbar i{width:100%}
-  @media(prefers-reduced-motion:reduce){.mg-hashbar i{transition:none}}
-  .mg-stamp{margin-top:13px;padding-top:12px;border-top:1px solid var(--mg-line);
-    display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
-  .mg-stamp .mg-k{font-size:10.5px}
-  .mg-verdict{font-family:var(--mono);font-weight:600;font-size:13.5px;letter-spacing:.05em;color:var(--mg-t3)}
-  .mg-receipt.mg-ok .mg-verdict{color:var(--mg-ink)}
-  .mg-src{margin:12px 0 0;font-family:var(--mono);font-size:10.5px;line-height:1.7;color:var(--mg-t3);
-    overflow-wrap:anywhere}
-  .mg-src a{color:var(--mg-t2);border-bottom:1px solid var(--mg-line2)}
-  .mg-src a:hover{color:var(--mg-ink)}
-  @media(min-width:1000px){
-    .hero .wrap{flex-direction:row;align-items:center;justify-content:space-between;gap:clamp(28px,4vw,56px)}
-    .hero .hero-inner{flex:1 1 560px}
-    .mg-receipt{flex:0 1 520px;align-self:center}
-  }
-
   /* Mobile overrides intentionally follow all equal-specificity base rules. */
   @media(max-width:560px){
     .wrap{padding-inline:16px}
@@ -539,16 +438,11 @@
 </header>
 <main id="main">
 
-<!-- ====================== (1) HERO — monochrome holographic proof kernel ======================
-  SZL monochrome "genius" design system v1. The centrepiece is a monochrome point-cloud
-  "proof kernel" on <canvas id="holo"> (the Hugging Face Gaussian-splat / point-cloud
-  aesthetic, not neon particles), drawn by the inline holo-kernel script at the foot of
-  this document. 0 CDN, 0 dependencies, prefers-reduced-motion aware.
-  All honest copy, honest labels, and doctrine below are preserved verbatim.
--->
+<!-- ====================== (1) HERO — canvas + boot owned by Dev 2 ====================== -->
 <section class="hero">
-  <canvas id="holo" aria-hidden="true"></canvas>
+  <canvas id="hero-canvas"></canvas>
   <div class="hero-scrim" aria-hidden="true"></div>
+  <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
     <div class="hero-inner">
       <span class="eyebrow"><span class="dot"></span> Governed agent change management · verifiable by anyone, offline</span>
@@ -584,36 +478,6 @@
         </div>
       </div>
     </div>
-
-    <!-- Honest live-read card. Every value below is fetched from this deployment's own
-         Python API in-request. Nothing is fabricated: any field that does not answer stays
-         UNAVAILABLE, and the verdict line is only ever the verbatim state the API reports.
-         SIGNED is rendered only when the attestation API reports a signature that both
-         exists and verified this request. Λ = Conjecture 1 — advisory, never a theorem. -->
-    <aside class="mg-receipt" id="mg-receipt" aria-label="Live read from this deployment's API">
-      <div class="mg-rh">
-        <span>live read · a11oy/v1</span>
-        <span class="mg-verifying"><span class="mg-dot"></span><span class="mg-txt" id="mg-state">reading…</span></span>
-      </div>
-      <div class="mg-rbody">
-        <div class="mg-row"><span class="mg-k">service</span><span class="mg-v na" id="mg-service">UNAVAILABLE</span></div>
-        <div class="mg-row"><span class="mg-k">doctrine</span><span class="mg-v na" id="mg-doctrine">UNAVAILABLE</span></div>
-        <div class="mg-row"><span class="mg-k">kernel_pin</span><span class="mg-v hl na" id="mg-kernel">UNAVAILABLE</span></div>
-        <div class="mg-row"><span class="mg-k">frontier surfaces</span><span class="mg-v na" id="mg-surfaces">UNAVAILABLE</span></div>
-        <div class="mg-row"><span class="mg-k">Λ</span><span class="mg-v"><span class="mg-chip">Conjecture 1 · not a theorem</span></span></div>
-        <div class="mg-row"><span class="mg-k">policy verdict</span><span class="mg-v na" id="mg-policy">UNAVAILABLE</span></div>
-        <div class="mg-row"><span class="mg-k">signer state</span><span class="mg-v na" id="mg-signer">UNAVAILABLE</span></div>
-        <div class="mg-row"><span class="mg-k">statement_digest</span><span class="mg-v na" id="mg-digest">UNAVAILABLE</span></div>
-        <div class="mg-hashbar" aria-hidden="true"><i></i></div>
-        <div class="mg-stamp">
-          <span class="mg-k">offline-checkable · no trust in SZL</span>
-          <span class="mg-verdict" id="mg-verdict">UNAVAILABLE</span>
-        </div>
-        <p class="mg-src">Read this request from <a href="/api/a11oy/healthz">/api/a11oy/healthz</a> ·
-          <a href="/api/a11oy/v1/frontier/surfaces">/api/a11oy/v1/frontier/surfaces</a> ·
-          <a href="/api/a11oy/v1/attest/manifest">/api/a11oy/v1/attest/manifest</a>. Check the same JSON yourself.</p>
-      </div>
-    </aside>
   </div>
 </section>
 
@@ -950,10 +814,7 @@
   </div>
 </footer>
 
-<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) — Dev 2 =====================
-  Three.js r160 (MIT) stays vendored in-image at /hero/vendor3d and pinned here for the 3D
-  frontier surfaces that import it. The front-door hero no longer loads it: the monochrome
-  proof kernel below is dependency-free 2D canvas, which is smaller and mobile-safer. -->
+<!-- ===================== SOVEREIGN IMPORTMAP (vendored, NO CDN) — Dev 2 ===================== -->
 <script type="importmap">
 { "imports": {
   "three": "/hero/vendor3d/three.module.min.js",
@@ -961,156 +822,22 @@
 } }
 </script>
 
-<!-- ===================== HERO: monochrome holographic proof kernel =====================
-  SZL design system v1 centrepiece. Fibonacci-sphere point cloud, depth-brightened white
-  dots, faint white wire links, one subtle warm-white core glow. Monochrome only — no
-  colour, no neon. Reduced-motion aware (fewer points, frozen). 0 CDN, 0 dependencies. -->
-<script>
-(function(){
-  var cv=document.getElementById('holo'); if(!cv||!cv.getContext) return;
-  var ctx=cv.getContext('2d'); if(!ctx) return;
-  var W,H,DPR=Math.min(window.devicePixelRatio||1,2),CX,CY,S;
-  function rs(){W=cv.width=cv.clientWidth*DPR;H=cv.height=(cv.clientHeight||600)*DPR;CX=W*0.5;CY=H*0.5;S=Math.min(W,H)*0.32;}
-  var reduce=window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches;
-  rs();addEventListener('resize',function(){rs();if(reduce)frame();});
-  var N=reduce?420:900, pts=[], i;
-  for(i=0;i<N;i++){
-    var y=1-(i/(N-1))*2, rr=Math.sqrt(1-y*y), th=i*2.399963;
-    pts.push([Math.cos(th)*rr,y,Math.sin(th)*rr]);
+<!-- ===================== HERO BOOT (Three.js holographic field) — Dev 2 ===================== -->
+<script type="module">
+  import { mountHero } from "/landing/app.js";
+  const canvas = document.getElementById("hero-canvas");
+  try {
+    const h = mountHero(canvas);
+    if (!h || !h.ok) {
+      canvas.style.display = "none";
+      document.getElementById("hero-fallback").style.display = "block";
+    } else {
+      window.__a11oyHero = h;
+    }
+  } catch (e) {
+    canvas.style.display = "none";
+    document.getElementById("hero-fallback").style.display = "block";
   }
-  var t=0;
-  function frame(){
-    ctx.clearRect(0,0,W,H);
-    if(!reduce)t+=0.0032;
-    var cy=Math.cos(t),sy=Math.sin(t),cx=Math.cos(t*0.5),sx=Math.sin(t*0.5);
-    var proj=[],k;
-    for(k=0;k<pts.length;k++){
-      var p=pts[k],x=p[0],yy=p[1],z=p[2];
-      var x1=x*cy - z*sy, z1=x*sy + z*cy;
-      var y2=yy*cx - z1*sx, z2=yy*sx + z1*cx;
-      var d=2.6/(2.6+z2);
-      proj.push([CX+x1*S*d, CY+y2*S*d, z2, d]);
-    }
-    ctx.lineWidth=0.6*DPR;
-    for(k=0;k<proj.length;k+=7){
-      var a=proj[k];
-      for(var j=k+1;j<Math.min(k+9,proj.length);j++){
-        var b=proj[j],dx=a[0]-b[0],dy=a[1]-b[1];
-        if(dx*dx+dy*dy<(46*DPR)*(46*DPR)){
-          ctx.strokeStyle='rgba(255,255,255,'+(0.05*a[3])+')';
-          ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
-        }
-      }
-    }
-    for(k=0;k<proj.length;k++){
-      var q=proj[k], bright=0.28+0.72*((q[2]+1)/2), r=(0.7+1.3*q[3])*DPR;
-      ctx.fillStyle='rgba(255,255,255,'+(0.15+0.6*bright).toFixed(3)+')';
-      ctx.beginPath();ctx.arc(q[0],q[1],r,0,7);ctx.fill();
-    }
-    var g=ctx.createRadialGradient(CX,CY,0,CX,CY,S*1.4);
-    g.addColorStop(0,'rgba(240,238,230,0.06)');g.addColorStop(1,'rgba(240,238,230,0)');
-    ctx.fillStyle=g;ctx.beginPath();ctx.arc(CX,CY,S*1.4,0,7);ctx.fill();
-    if(reduce)return;
-    requestAnimationFrame(frame);
-  }
-  frame();
-})();
-</script>
-
-<!-- ===================== HERO LIVE READ (real endpoints, honest UNAVAILABLE) =====================
-  Three read-only GETs against this deployment's own Python API. No value is ever synthesised:
-  a field that does not answer stays UNAVAILABLE, the signer state is echoed verbatim from the
-  runtime, and SIGNED is written only when the attestation API reports signature.signed AND
-  signature.verified true for THIS request. Read-only routes mint nothing. -->
-<script>
-(function(){
-  var $=function(id){return document.getElementById(id);};
-  var card=$("mg-receipt"); if(!card) return;
-  function put(id,val){
-    var el=$(id); if(!el) return;
-    if(val===null||val===undefined||val===""){el.textContent="UNAVAILABLE";el.classList.add("na");return;}
-    el.textContent=String(val);el.classList.remove("na");
-  }
-  function note(id,text){var el=$(id); if(el&&text)el.setAttribute("title",String(text));}
-  function getJSON(url){
-    return fetch(url,{headers:{accept:"application/json"},cache:"no-store"})
-      .then(function(r){return r.ok?r.json():null;})
-      .catch(function(){return null;});
-  }
-  function shortHash(h){
-    if(typeof h!=="string"||h.length<16)return null;
-    return h.slice(0,8)+"\u2026"+h.slice(-8);
-  }
-  Promise.all([
-    getJSON("/api/a11oy/healthz"),
-    getJSON("/api/a11oy/v1/frontier/surfaces"),
-    getJSON("/api/a11oy/v1/attest/manifest")
-  ]).then(function(res){
-    var health=res[0], surf=res[1], att=res[2];
-    var reads=0;
-
-    if(health&&health.service){
-      reads++;
-      put("mg-service", health.service+(health.version?(" "+health.version):""));
-    }
-    var doctrine=(att&&att.statement&&att.statement.predicate&&att.statement.predicate.doctrine)
-      ||(health&&health.doctrine)||null;
-    if(doctrine){put("mg-doctrine", doctrine);}
-
-    var subject=att&&att.statement&&att.statement.subject&&att.statement.subject[0];
-    var pin=subject&&subject.digest&&(subject.digest.gitCommit||subject.digest.sha256);
-    if(pin){put("mg-kernel", pin); note("mg-kernel", subject.name||"");}
-
-    if(surf&&typeof surf.count==="number"){
-      reads++;
-      var sm=surf.summary||{};
-      var txt=surf.count+" registered";
-      if(typeof sm.present==="number")txt+=" \u00b7 "+sm.present+" present";
-      if(typeof sm.unavailable==="number"&&sm.unavailable>0)txt+=" \u00b7 "+sm.unavailable+" UNAVAILABLE";
-      put("mg-surfaces", txt);
-      note("mg-surfaces", "source: "+(surf.source||"/api/a11oy/v1/frontier/surfaces"));
-    }
-
-    var sig=att&&att.verification&&att.verification.signature;
-    if(att&&att.verdict){
-      reads++;
-      put("mg-policy", att.verdict+(att.label?(" \u00b7 "+att.label):""));
-      note("mg-policy", att.verdict_scope||"");
-    }
-
-    var signerStatus=null;
-    if(health&&health.rollup&&health.rollup.signer&&health.rollup.signer.status){
-      signerStatus=health.rollup.signer.status;
-    }else if(sig&&sig.status){
-      signerStatus=sig.status;
-    }
-    put("mg-signer", signerStatus);
-
-    var digest=att&&att.statement_digest_sha256;
-    var shortened=shortHash(digest);
-    if(shortened){put("mg-digest", shortened); note("mg-digest", digest);}
-
-    /* Verdict: verbatim honest state. SIGNED only on a real verified signature. */
-    var verdict;
-    if(sig&&sig.signed===true&&sig.verified===true){
-      verdict="SIGNED";
-    }else if(digest){
-      verdict="HASH-LINKED";
-    }else{
-      verdict="UNAVAILABLE";
-    }
-    put("mg-verdict", verdict);
-    note("mg-verdict", sig&&sig.note?sig.note:"");
-
-    if(reads>0){
-      card.classList.add("mg-ok");
-      var stamp=new Date().toISOString().replace("T"," ").slice(0,19)+"Z";
-      put("mg-state", "read "+stamp);
-    }else{
-      put("mg-state", "UNAVAILABLE \u2014 no endpoint answered");
-    }
-  });
-})();
 </script>
 
 <!-- ===================== LIVE DATA (honest; one consolidated read + fallbacks) ===================== -->
