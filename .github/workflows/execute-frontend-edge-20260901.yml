@@ -1,0 +1,108 @@
+name: Execute Frontend Rollout and Product Edge Repair
+
+on:
+  push:
+    branches:
+      - "ops/execute-frontend-edge-20260901"
+    paths:
+      - ".github/workflows/execute-frontend-edge-20260901.yml"
+
+permissions:
+  contents: write
+  issues: write
+
+concurrency:
+  group: execute-frontend-edge-20260901
+  cancel-in-progress: false
+
+env:
+  EDGE_REPORT: /tmp/cloudflare-product-edge.json
+  ROLLOUT_REPORT: /tmp/frontend-flow-rollout.json
+
+jobs:
+  rollout:
+    name: Apply and verify product Flow Shell bindings
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact operator branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/execute-frontend-edge-20260901
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Apply source-native product bindings
+        run: python scripts/rollout_frontend_flow_shell.py --report "$ROLLOUT_REPORT"
+      - name: Verify exact frontend contract and idempotence
+        run: |
+          python tests/test_frontend_flow_shell.py -v
+          python scripts/rollout_frontend_flow_shell.py --check
+          python -m py_compile scripts/rollout_frontend_flow_shell.py
+          node --check console/assets/szl-flow.js
+          git diff --check
+      - name: Remove bounded executor and commit only permanent rollout files
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/execute-frontend-edge-20260901.yml
+          git config user.name "SZL Frontend Rollout Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No rollout changes remain."
+            exit 0
+          fi
+          git commit -s -m "feat(frontend): bind distinct product surfaces to one flow shell"
+          git push origin HEAD:ops/execute-frontend-edge-20260901
+
+  edge:
+    name: Reconcile and prove exact Cloudflare product root
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+    steps:
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: 3747387d30cad6d5b6252ec5fc2fa80d36eef539
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Verify network-free edge contracts
+        run: |
+          python tests/test_cloudflare_product_edge.py -v
+          python -m py_compile scripts/repair_cloudflare_product_edge.py
+          node --check cloudflare/a11oy-product-root-worker.mjs
+      - name: Deploy exact-scope adapter and prove public root
+        id: reconcile
+        shell: bash
+        run: |
+          set +e
+          python scripts/repair_cloudflare_product_edge.py --report "$EDGE_REPORT"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload secret-free edge evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11oy-product-edge-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.EDGE_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+      - name: Enforce proved edge result
+        shell: bash
+        run: |
+          code="${{ steps.reconcile.outputs.exit_code }}"
+          test -n "$code"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Product-edge reconciliation did not reach LIVE (exit $code)."
+            cat "$EDGE_REPORT"
+            exit "$code"
+          fi
