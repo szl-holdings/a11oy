@@ -62,6 +62,7 @@
   a{color:var(--acc2)}
   footer{color:var(--mut);font-size:11px;padding:14px 22px;border-top:1px solid var(--line)}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <header>
@@ -249,5 +250,6 @@ getj("/api/a11oy/v1/gov/lean").then(d=>{
     `<div class="note">${esc(d.honesty||"")}</div>`;
 }).catch(e=>$("#lean").innerHTML=`<div class="err">lean unavailable: ${esc(e.message)}</div>`);
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

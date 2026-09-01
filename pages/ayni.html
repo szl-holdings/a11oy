@@ -39,6 +39,7 @@ input[type=range]{width:100%}
 .row{display:flex;gap:16px;flex-wrap:wrap;align-items:center}
 .cite{font-size:12px;color:var(--mut);border-top:1px solid var(--line);margin-top:18px;padding-top:12px}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <div class="wrap">
@@ -146,5 +147,6 @@ document.getElementById('scrub').addEventListener('input', e=>loadReplay(e.targe
 loadAyni(); loadReplay(1.0); loadTinkuy();
 setInterval(loadAyni, 15000); setInterval(loadTinkuy, 15000);
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

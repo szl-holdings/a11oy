@@ -258,6 +258,7 @@
   .frow code{font-family:var(--mono);font-size:11.5px;color:var(--accent);background:rgba(61,240,224,.06);padding:4px 9px;border-radius:6px;white-space:nowrap}
   @media(max-width:640px){.frow{grid-template-columns:42px 1fr;gap:8px}.frow code{grid-column:1/-1;white-space:normal;margin-top:4px}}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <canvas id="bg"></canvas>
@@ -644,5 +645,6 @@ function render(d){
   if($('#rstat'))$('#rstat').textContent='SEQ '+(r.seq??0)+' · '+dec.toUpperCase();
 }
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

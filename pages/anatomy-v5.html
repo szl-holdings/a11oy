@@ -26,6 +26,7 @@
     @media(max-width:680px){header{position:static}header .wrap{flex-wrap:wrap;padding:11px 0 8px}nav{width:100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:thin}nav a{flex:0 0 auto}.tabs{top:0}}
     @media(max-width:620px){.hero{padding-top:44px}.vitals,.grid5{grid-template-columns:repeat(2,minmax(0,1fr))}.panel{padding:16px}.body{min-height:690px}.body:before{inset:5% 4%}.organ{width:126px}.brain{left:calc(50% - 63px)}.router{left:calc(50% - 63px);top:22%}.models{left:2%;top:39%}.kernels{right:2%;top:39%}.receipts{left:calc(50% - 63px);top:54%}.data{left:2%;top:69%}.spaces{right:2%;top:69%}.formulas{left:calc(50% - 63px);top:84%}.route{grid-template-columns:1fr}.section-head{align-items:start;flex-direction:column}.formula-tools{align-items:stretch;flex-direction:column}.formula-tools input{min-width:0;width:100%}}
   </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
   <a class="skip" href="#main">Skip to content</a>
@@ -237,5 +238,6 @@
     Promise.all(Object.entries(endpoints).map(async([name,paths])=>{probes[name]=await probe(name,paths);paint()})).then(paint);
   })();
   </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

@@ -49,6 +49,7 @@ th{color:var(--gold);font-weight:500}
 }
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <div class="topbar">
@@ -250,5 +251,6 @@ fetch(API+"/healthz").then(r=>{if(!r.ok)throw new Error("down");return r.json()}
   setLive(j.ok===true && j.certified!==true, j.ok?"KHIPU · ORGAN LIVE":"KHIPU · CONNECTING");
 }).catch(()=>setLive(false,"KHIPU · JS SILHOUETTE"));
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

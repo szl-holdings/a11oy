@@ -60,6 +60,7 @@ pre { background:var(--ink-3); border-radius:10px; padding:1rem; overflow:auto; 
 .rail.done b { color:var(--ok); }
 footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <header>
@@ -243,5 +244,6 @@ window.addEventListener("popstate", () => {
 });
 boot().catch((err) => { out.textContent = String(err); });
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>

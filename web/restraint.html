@@ -93,6 +93,7 @@ td.hi{color:var(--teal);}
 .chip{font-family:var(--mono);font-size:10.5px;color:var(--muted);border:1px solid var(--gold-line);border-radius:20px;padding:.25rem .65rem;cursor:pointer;}
 .chip:hover{color:var(--cream);background:var(--gold-soft);}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <div class="topbar">
@@ -302,5 +303,6 @@ $('#runbench').onclick=runbench;
 (async function(){var i=await getJSON('/api/a11oy/v1/restraint/info');if(i&&i.doctrine){$('#b-doctrine').textContent='Doctrine '+i.doctrine.version;$('#c-signer').textContent='in-image ECDSA-P256';}})();
 run();
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>
