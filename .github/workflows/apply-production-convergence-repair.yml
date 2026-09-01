@@ -1,7 +1,7 @@
 name: Apply Production Convergence Repair
 
-# Attempt 5: exact platform pin plus explicit selection of the mobile toggle
-# override when validating the generated accessibility contract.
+# Attempt 6: exact platform pin plus deterministic start/end replacement of the
+# generated mobile-selector regression block.
 on:
   push:
     branches:
@@ -103,15 +103,14 @@ jobs:
 
           path = Path("tests/test_frontend_source_boundaries.py")
           text = path.read_text(encoding="utf-8")
-          old = '''        toggle = re.search(
-              r"(?m)^[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",
-              css,
-              re.S,
-          )
-          self.assertIsNotNone(toggle)
-          body = toggle.group("body")
-          '''
-          new = '''        toggle_bodies = re.findall(
+          start_marker = "        toggle = re.search(\n"
+          end_marker = '        body = toggle.group("body")\n'
+          start = text.find(start_marker)
+          end = text.find(end_marker, start)
+          if start < 0 or end < 0:
+              raise SystemExit("generated mobile-selector test boundaries were not found")
+          end += len(end_marker)
+          replacement = '''        toggle_bodies = re.findall(
               r"(?m)^[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",
               css,
               re.S,
@@ -119,9 +118,7 @@ jobs:
           body = next((candidate for candidate in toggle_bodies if "display: none" in candidate), None)
           self.assertIsNotNone(body)
           '''
-          if text.count(old) != 1:
-              raise SystemExit("generated mobile-selector test anchor was not unique")
-          path.write_text(text.replace(old, new, 1), encoding="utf-8", newline="\n")
+          path.write_text(text[:start] + replacement + text[end:], encoding="utf-8", newline="\n")
           PY
 
       - name: Reconcile eligible product surfaces and rollout state
