@@ -750,7 +750,14 @@ SCHEMAS = {
             "doctrine": "object",
         },
     },
-    "feeds_pulse": {"type": "object", "anyKey": ["items", "feed_count", "live_count"]},
+    "feeds_pulse": {
+        "type": "object",
+        "anyKey": ["items", "feed_count", "live_count"],
+        # The endpoint is a current liveness/provenance heartbeat. Its child
+        # rows retain original fetched_at clocks and cached/down labels, while
+        # the endpoint SLA grades the explicit current probe observation.
+        "requiredPathTypes": {"probed_at": "timestamp"},
+    },
     "kevgate": {"type": "object", "anyKey": ["items", "gate_catalog", "count"]},
     "router_stats": {
         "type": "object",
