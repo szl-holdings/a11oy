@@ -7,7 +7,8 @@ name: Investor smoke gate (S1–S12)
 # trust/console #cnt-locked must read GET /api/a11oy/v1/honest locked_formula_count
 # (8 or N/A). Genome LOCKED-PROVEN=25 is catalog. PR 1396 landed console
 # #cnt-locked on main. S1/S2 product is 1394 on main; live probes measure
-# origin and must not invent LIVE. Do not touch 1363.
+# the canonical runtime and must not invent LIVE. The public apex is a static
+# landing/evidence pointer and is intentionally not used as the runtime probe.
 #
 # This workflow is ordinary Actions until branch protection lists the exact
 # check-run names. This PR cannot self-certify as control-plane-required.
@@ -83,4 +84,4 @@ jobs:
       - name: Live GET/HEAD probes (no POST)
         run: |
           python3 scripts/investor_smoke_gate.py --mode live \
-            --origin https://a-11-oy.com
+            --origin https://szlholdings-a11oy.hf.space
