@@ -26,6 +26,9 @@ MARKER = "lifecycle: post-deployment-repository-parity/v1"
 SELECTOR = "select_hf_candidate_admission.py"
 VERIFIER = "verify_hf_repository_parity.py"
 TOOLS_PIN = "0816263f1e83734658d6e5a8a7cd3834f36a2054"
+POST_DEPLOY_DISPATCH = (
+    'gh workflow run hf-module-drift.yml --repo "$GITHUB_REPOSITORY" --ref main'
+)
 
 
 def active_source(text: str) -> str:
@@ -115,12 +118,12 @@ def validate_text(workflow: str, sync_workflow: str) -> list[str]:
 
     require(
         sync_workflow,
-        "gh workflow run hf-module-drift.yml --ref main",
+        POST_DEPLOY_DISPATCH,
         "hf-sync must dispatch the parity workflow against protected main after publication",
         errors,
     )
     deploy_index = sync_workflow.find("Deploy, source-bind, and attest exact surface")
-    dispatch_index = sync_workflow.find("gh workflow run hf-module-drift.yml --ref main")
+    dispatch_index = sync_workflow.find(POST_DEPLOY_DISPATCH)
     if deploy_index < 0 or dispatch_index < 0 or dispatch_index <= deploy_index:
         errors.append("post-deployment parity dispatch must appear after the governed publication job")
 
