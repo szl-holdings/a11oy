@@ -1,0 +1,39 @@
+name: One-shot flow contract formatting fix
+
+on:
+  push:
+    branches: [design/command-center-v2-20260902]
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: design/command-center-v2-20260902
+      - name: Preserve literal accessibility contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path('console/assets/szl-flow.css')
+          text = path.read_text(encoding='utf-8')
+          if 'min-height: 44px' not in text:
+              old = 'min-height:44px'
+              if old not in text:
+                  raise SystemExit('44px touch target declaration missing')
+              text = text.replace(old, 'min-height: 44px', 1)
+              path.write_text(text, encoding='utf-8')
+          PY
+          git config user.name "szl-ui[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add console/assets/szl-flow.css
+          if ! git diff --cached --quiet; then
+            git diff --cached --check
+            git commit -m "fix(ui): preserve literal 44px touch contract" -m "Signed-off-by: szl-ui[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
+            git push origin HEAD:design/command-center-v2-20260902
+          fi
