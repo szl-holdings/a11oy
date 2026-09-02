@@ -95,6 +95,7 @@ jobs:
           PASSED: ${{ steps.probe.outputs.passed }}
           FAILED: ${{ steps.probe.outputs.failed }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
             echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands as the signal."

@@ -145,5 +145,6 @@ jobs:
         # llama-wheel-guard.yml so the page logic can't drift between guards);
         # this step only builds the human MSG and hands it off.
         run: |
+          source scripts/managed_alert_env.sh &&
           export MSG=":rotating_light: a11oy GGUF weight guard FAILED on its weekly scheduled re-verification. The pinned ${REPO:-?}/${FILE:-?} @ ${REV:-?} weight could not be obtained and size/sha256-verified, so the alloy demo tier would ship a model-less image (silently, if a '|| echo' mask is ever reintroduced on the Dockerfile fetch). Run: ${RUN_URL} . Fix: re-pin rev/size/sha256 in lockstep to a present, matching GGUF on the upstream HF repo."
           bash scripts/weight_guard_alert.sh

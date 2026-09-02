@@ -160,6 +160,7 @@ jobs:
           GH_BYTES: ${{ steps.compare.outputs.gh_bytes }}
           HF_BYTES: ${{ steps.compare.outputs.hf_bytes }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
             echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run still stands as the signal."
