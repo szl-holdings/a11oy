@@ -1,0 +1,42 @@
+name: Fix Holographic v2 Gate on Branch
+
+on:
+  push:
+    branches:
+      - feat/holographic-experience-v2-20260902
+    paths:
+      - ".github/workflows/fix-holographic-v2-gate-on-branch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  harden:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/holographic-experience-v2-20260902
+          fetch-depth: 0
+      - name: Correct empty legacy-status handling and remove one-shot controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/holographic-v2-gate-and-merge.yml')
+          text = path.read_text(encoding='utf-8')
+          old = 'if peers and not pending and legacy.get("state") != "pending":'
+          new = 'if peers and not pending and not any(row.get("state") == "pending" for row in legacy.get("statuses", [])):'
+          if old not in text:
+              raise SystemExit('expected gate expression not found')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+          rm .github/workflows/fix-holographic-v2-gate-on-branch.yml
+          git config user.name "SZL Gate Hardening Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add .github/workflows/holographic-v2-gate-and-merge.yml .github/workflows/fix-holographic-v2-gate-on-branch.yml
+          git commit -s -m "fix(ci): handle repositories without legacy status contexts"
+          git push origin HEAD:feat/holographic-experience-v2-20260902
