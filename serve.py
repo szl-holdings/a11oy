@@ -2056,6 +2056,17 @@ try:
 except Exception as _brainverdict_e:  # pragma: no cover
     print(f"[a11oy] Brain verdict NOT registered: {_brainverdict_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN SENTRY (feat/frontier-brainsentry) — defensive-cyber blue-team signal triage.
+# Ranks security signals by transparent auditable rules for a human analyst; takes NO
+# action, never claims malice, no signals -> UNAVAILABLE. Defensive only, not counter-UAS.
+# Manifest at GET /api/a11oy/v1/brain/brainsentry/manifest; receipt-on-write (POST). Guarded.
+try:
+    import szl_brainsentry as _szl_brainsentry
+    _brainsentry_status = _szl_brainsentry.register(app, ns="a11oy")
+    print(f"[a11oy] Brain sentry registered: {_brainsentry_status}", file=__import__("sys").stderr)
+except Exception as _brainsentry_e:  # pragma: no cover
+    print(f"[a11oy] Brain sentry NOT registered: {_brainsentry_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
 # grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
