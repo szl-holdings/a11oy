@@ -45,7 +45,6 @@
     "pages/harvest.html",
     "pages/hatun-mcp.html",
     "pages/hub.html",
-    "pages/integrations.html",
     "pages/landing.html",
     "pages/mesh.html",
     "pages/observability.html",
@@ -71,7 +70,6 @@
     "pages/wasi-rikuq.html",
     "pages/wires.html",
     "spaces/orbital/index.html",
-    "spaces/sda/index.html",
     "web/agent-loop.html",
     "web/agentic-gpu.html",
     "web/autoreview.html",
@@ -114,13 +112,17 @@
     "web/v4_fleet_panel.html",
     "web/verify-receipt.html"
   ],
-  "bound_documents": 109,
+  "bound_documents": 107,
   "decorative_motion_is_measured_telemetry": false,
-  "examined_documents": 109,
+  "examined_documents": 107,
   "opt_out_documents": [],
   "product_origin": "https://a-11-oy.com",
   "proof_origin": "https://a11oy.net",
   "schema": "szl.holographic-experience-rollout/v2",
+  "source_managed_documents": [
+    "pages/integrations.html",
+    "spaces/sda/index.html"
+  ],
   "state": "ROLLED_OUT",
   "version": "2.0.0"
 }
