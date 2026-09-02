@@ -66,6 +66,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check out managed alert transport
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Post a [TEST-ignore] alert through the same webhook
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -73,6 +77,7 @@ jobs:
           REPO: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "::warning::SLACK_WEBHOOK_URL secret not configured — cannot send the test alert. Wire the secret, then re-run this manual test."
@@ -206,6 +211,7 @@ jobs:
           EXIT_CODE: ${{ steps.guard.outputs.exit_code }}
           FINDINGS: ${{ steps.guard.outputs.findings }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the rolling incident issue still stand."

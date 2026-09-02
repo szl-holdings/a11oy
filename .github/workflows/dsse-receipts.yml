@@ -363,6 +363,7 @@ jobs:
           REPO_PATH: ${{ steps.publish.outputs.repo_path }}
           REASON: ${{ steps.verifyledger.outputs.reason }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "::warning::SLACK_WEBHOOK_URL secret not configured — skipping direct alert. The failed run and the annotation above still stand."

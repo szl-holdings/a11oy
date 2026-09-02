@@ -58,6 +58,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Check out managed alert transport
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - name: Post a [TEST-ignore] alert through the same webhook
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
@@ -65,6 +69,7 @@ jobs:
           REPO: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "::warning::SLACK_WEBHOOK_URL secret not configured — cannot send the test alert. Wire the secret, then re-run this manual test."
@@ -310,6 +315,7 @@ jobs:
           BASELINE_OK: ${{ steps.recheck.outputs.baseline_ok }}
           FAILED_FILES: ${{ steps.recheck.outputs.failed_files }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "::error::receipt-alert channel UNAVAILABLE — SLACK_WEBHOOK_URL is unset/empty while a published governance receipt is FAILING re-check. The failure will NOT page. Failing this step loudly (a dead alarm must never read green); the rolling rekor-recheck incident issue still stands. Re-set the SLACK_WEBHOOK_URL secret to the a11oy-uptime ntfy webhook."

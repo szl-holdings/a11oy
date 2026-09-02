@@ -180,6 +180,7 @@ jobs:
           TARGET_RID: ${{ steps.target.outputs.run_id }}
           SERVER_URL: ${{ github.server_url }}
         run: |
+          source scripts/managed_alert_env.sh &&
           set -euo pipefail
           if [ -z "${SLACK_WEBHOOK_URL}" ]; then
             echo "::error::receipt-alert channel UNAVAILABLE — SLACK_WEBHOOK_URL is unset/empty while the release-receipt summary guard is FAILING. The failure will NOT page. Failing this step loudly (a dead alarm must never read green); the red run still stands. Re-set the SLACK_WEBHOOK_URL secret to the a11oy-uptime ntfy webhook."

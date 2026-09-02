@@ -16,6 +16,10 @@ on:
       - 'scripts/alert_channel_canary.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_workflow_contract.py'
+      - 'scripts/managed_alert_endpoint.py'
+      - 'scripts/managed_alert_env.sh'
+      - 'tests/test_managed_alert_endpoint.py'
+      - 'tests/test_managed_alert_transport_workflows.py'
   push:
     branches: [main]
     paths:
@@ -23,6 +27,10 @@ on:
       - 'scripts/alert_channel_canary.py'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_workflow_contract.py'
+      - 'scripts/managed_alert_endpoint.py'
+      - 'scripts/managed_alert_env.sh'
+      - 'tests/test_managed_alert_endpoint.py'
+      - 'tests/test_managed_alert_transport_workflows.py'
   schedule:
     - cron: '37 7 * * *'
   workflow_dispatch:
@@ -67,6 +75,8 @@ jobs:
           pytest
           tests/test_alert_channel_canary.py
           tests/test_alert_channel_workflow_contract.py
+          tests/test_managed_alert_endpoint.py
+          tests/test_managed_alert_transport_workflows.py
           -q
 
   watch:
@@ -114,6 +124,7 @@ jobs:
           SEND: ${{ steps.plan.outputs.send }}
         shell: bash
         run: |
+          source scripts/managed_alert_env.sh &&
           set +e
           mkdir -p evidence
           args=(--output evidence/alert-channel-canary.json --mode "${ALERT_CHANNEL_MODE:-auto}")

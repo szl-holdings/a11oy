@@ -6,16 +6,24 @@ on:
       - '.github/workflows/alert-relay-worker.yml'
       - 'ops/alert-relay-worker/**'
       - 'scripts/alert_channel_canary.py'
+      - 'scripts/managed_alert_endpoint.py'
+      - 'scripts/managed_alert_env.sh'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
+      - 'tests/test_managed_alert_endpoint.py'
+      - 'tests/test_managed_alert_transport_workflows.py'
   push:
     branches: [main]
     paths:
       - '.github/workflows/alert-relay-worker.yml'
       - 'ops/alert-relay-worker/**'
       - 'scripts/alert_channel_canary.py'
+      - 'scripts/managed_alert_endpoint.py'
+      - 'scripts/managed_alert_env.sh'
       - 'tests/test_alert_channel_canary.py'
       - 'tests/test_alert_channel_static_registry_contract.py'
+      - 'tests/test_managed_alert_endpoint.py'
+      - 'tests/test_managed_alert_transport_workflows.py'
   workflow_dispatch:
 
 permissions:
@@ -27,11 +35,126 @@ concurrency:
 
 jobs:
   test:
-    name: Test fail-closed relay contract
+    name: Test fail-closed relay and migration contracts
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Checkout
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Exercise relay contract
-        run: node --test ops/alert-relay-worker/test/index.test.mjs
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Exercise relay and workflow contracts
+        run: |
+          node --test ops/alert-relay-worker/test/index.test.mjs
+          pytest \
+            tests/test_alert_channel_canary.py \
+            tests/test_alert_channel_static_registry_contract.py \
+            tests/test_managed_alert_endpoint.py \
+            tests/test_managed_alert_transport_workflows.py \
+            -q
+
+  deploy:
+    name: Deploy exact relay and prove one real delivery
+    if: github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.1.0
+        with:
+          node-version: '22'
+          check-latest: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Require a Cloudflare deployment credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "${CLOUDFLARE_API_TOKEN:-}" ]; then
+            echo "::error::No Cloudflare API token is configured for the relay deployment."
+            exit 1
+          fi
+      - name: Deploy the exact source-controlled Worker and custom domain
+        shell: bash
+        run: >-
+          npx --yes wrangler@4.128.0 deploy
+          --config ops/alert-relay-worker/wrangler.jsonc
+      - name: Wait only for the declared custom-domain DNS name
+        shell: bash
+        run: |
+          python - <<'PY'
+          import socket
+          import time
+
+          host = "ntfy.a11oy.net"
+          for attempt in range(12):
+              try:
+                  socket.getaddrinfo(host, 443, type=socket.SOCK_STREAM)
+                  break
+              except socket.gaierror:
+                  if attempt == 11:
+                      raise
+                  time.sleep(5)
+          PY
+      - name: Run one bounded real delivery canary
+        id: canary
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          ALERT_CHANNEL_MODE: ntfy
+        shell: bash
+        run: |
+          source scripts/managed_alert_env.sh &&
+          mkdir -p evidence
+          set +e
+          python scripts/alert_channel_canary.py \
+            --output evidence/alert-channel-post-deploy.json \
+            --mode ntfy \
+            --send
+          rc=$?
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+      - name: Upload secret-free delivery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: alert-relay-post-deploy-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/alert-channel-post-deploy.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Enforce real delivery health
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.canary.outputs.exit_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${EXIT_CODE:-missing}" != '0' ]; then
+            echo "::error::The deployed relay did not prove one real 2xx delivery."
+            exit 1
+          fi
