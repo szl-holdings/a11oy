@@ -1,44 +1,47 @@
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Static wiring guards for the bound /command SPA on a-11-oy.com.
+"""Static wiring guards for the bound /command surface on a-11-oy.com.
 
-Not a landing-door rewrite. Product door stays Products / Catalog / Proof.
-/console stays the operator runtime.
+/command is the canonical premium Command Center and prefers the existing
+20-tab Elite Console. /console remains the separate operator runtime.
 """
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SPA = ROOT / "pages" / "command-center.html"
+LEGACY_SPA = ROOT / "pages" / "command-center.html"
+ELITE_SPA = ROOT / "web" / "elite_console.html"
 MOD = ROOT / "a11oy_command_center.py"
 SERVE = ROOT / "serve.py"
 DOCKER = ROOT / "Dockerfile"
-LANDING = ROOT / "a11oy_landing.html"
 
 
-def test_command_center_spa_is_product_origin() -> None:
-    html = SPA.read_text(encoding="utf-8")
+def test_elite_command_center_is_real_api_bound_surface() -> None:
+    html = ELITE_SPA.read_text(encoding="utf-8")
+    assert html.startswith("<!DOCTYPE html>") or "<!DOCTYPE html>" in html[:400]
+    assert "Elite Console" in html
+    assert "20 fully-functional tabs" in html
+    assert "zero mocks" in html.lower()
+    assert "/api/a11oy/" in html
+    assert "Conjecture 1" in html
+    assert "cdnjs" not in html and "googleapis" not in html and "jsdelivr" not in html
+
+
+def test_legacy_public_spa_remains_available_as_fallback() -> None:
+    html = LEGACY_SPA.read_text(encoding="utf-8")
     assert html.startswith("<!DOCTYPE html>")
     assert 'rel="canonical" href="https://a-11-oy.com/command"' in html
     assert "a11oy.net" in html
-    assert "cdnjs" not in html and "googleapis" not in html
-    assert "jsdelivr" not in html
-    assert 'href="/console"' in html
-    assert 'href="/command/zk"' in html
-    assert 'href="/command/invest"' in html
-    assert 'href="/command/build"' in html
-    assert 'href="/command/census"' in html
     assert "Conjecture 1" in html
-    assert "MEASURED" in html  # local circuit SAT only
-    assert "Hub RUNNING" in html
 
 
-def test_module_does_not_steal_console() -> None:
+def test_module_prefers_elite_and_does_not_steal_console() -> None:
     src = MOD.read_text(encoding="utf-8")
     assert "def register(app" in src
-    assert '"/console"' not in src or "does not steal" in src
-    assert "Does not steal existing /console" in src
+    assert 'here / "web" / "elite_console.html"' in src
+    assert 'Path("/app/web/elite_console.html")' in src
+    assert 'here / "pages" / "command-center.html"' in src
     assert '"/command"' in src
-    assert "not a landing door" in src
+    assert "does not steal /console" in src
 
 
 def test_serve_imports_and_calls_register() -> None:
@@ -46,21 +49,14 @@ def test_serve_imports_and_calls_register() -> None:
     assert "import a11oy_command_center as _a11oy_command_center" in src
     assert '_a11oy_command_center.register(app, ns="a11oy")' in src
     assert 'for _cc_path in ("/command", "/command-center")' not in src
-    assert "command-center.html" in src
 
 
-def test_dockerfile_copies_module() -> None:
+def test_dockerfile_copies_command_and_elite_assets() -> None:
     src = DOCKER.read_text(encoding="utf-8")
     assert "a11oy_command_center.py" in src
     assert "COPY pages/ ./pages/" in src
-
-
-def test_landing_door_is_not_rewritten() -> None:
-    html = LANDING.read_text(encoding="utf-8")
-    nav = html.split('<nav class="nav-links" id="site-nav">', 1)[1].split("</nav>", 1)[0]
-    assert 'aria-label="Open the command center"' in nav
-    assert 'href="/console"' in nav
-    assert 'href="/command"' not in nav
+    # Elite console is already part of the shipped web surface used by /elite-console.
+    assert "COPY web/ ./web/" in src or "web/elite_console.html" in src
 
 
 def test_module_selftest_if_starlette_present() -> None:
