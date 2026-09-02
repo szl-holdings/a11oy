@@ -1,0 +1,26 @@
+{
+  "schema": "szl.surface-policy/v1",
+  "effective": "2026-09-02",
+  "canonical_product_front_door": "https://a-11-oy.com/products/",
+  "canonical_evidence_front_door": "https://a11oy.net",
+  "rules": [
+    "All product showcases and non-vertical tools live on a-11-oy.com.",
+    "Hugging Face Spaces are reserved for one flagship demo per business vertical.",
+    "Models, datasets and collections may remain on Hugging Face independent of the Space policy.",
+    "A legacy Space is eligible for deletion only after unique source, product copy, and evidence references are captured in GitHub and the product front door.",
+    "GitHub remains canonical source; Hugging Face is a deployment and discovery surface."
+  ],
+  "flagship_spaces": [
+    {"slug":"a11oy","product":"A11oy Command","vertical":"command","source":"szl-holdings/a11oy"},
+    {"slug":"killinchu","product":"Killinchu","vertical":"defense","source":"szl-holdings/killinchu"},
+    {"slug":"terra","product":"Terra","vertical":"real-estate","source":"szl-holdings/szl-real-estate"},
+    {"slug":"sentra","product":"Sentra","vertical":"cybersecurity","source":"szl-holdings/szl-defensive-control-plane"},
+    {"slug":"counsel","product":"PRISM Counsel","vertical":"legal","source":"szl-holdings/counsel"},
+    {"slug":"finance","product":"PURIQ Finance","vertical":"finance","source":"szl-holdings/puriq-live"},
+    {"slug":"vessels","product":"Vessels","vertical":"maritime","source":"szl-holdings/szl-fleet-overlay"},
+    {"slug":"lyte","product":"Lyte","vertical":"observability","source":"szl-holdings/lyte-lattice"},
+    {"slug":"david-leads","product":"David Leads","vertical":"insurance","source":"szl-holdings/david-leads"}
+  ],
+  "website_only_examples": ["immune","anatomy","szl-atelier","khipu","receipt-verifier","router","kernels","forge","evidence-studio"],
+  "delete_strategy": "export-or-map -> verify front-door capture -> verify source ownership -> delete legacy Space"
+}
