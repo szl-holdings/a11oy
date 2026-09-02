@@ -1,0 +1,55 @@
+# SPDX-License-Identifier: Apache-2.0
+name: HF Publish Vertical Flagships
+
+on:
+  push:
+    branches:
+      - exec/hf-vertical-flagships-v1
+    paths:
+      - scripts/hf_publish_vertical_flagships_v2.py
+      - .github/workflows/hf-publish-vertical-flagships.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-publish-vertical-flagships
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install pinned publisher
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.10.1'
+      - name: Publish and verify six flagship Spaces
+        run: python scripts/hf_publish_vertical_flagships_v2.py
+      - name: Upload immutable receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}
+          path: hf-vertical-flagships-receipt.json
+          if-no-files-found: error
+          retention-days: 90
