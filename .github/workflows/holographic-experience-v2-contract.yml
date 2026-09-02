@@ -1,0 +1,93 @@
+name: Holographic Experience v2 Contract
+
+on:
+  pull_request:
+    paths:
+      - "console/assets/szl-holo-v2.css"
+      - "console/assets/szl-holo-v2.js"
+      - "docs/holographic-experience-v2/**"
+      - "scripts/rollout_holographic_experience_v2.py"
+      - "tests/test_holographic_experience_v2.py"
+      - ".github/workflows/holographic-experience-v2-contract.yml"
+      - ".github/workflows/rollout-holographic-experience-v2.yml"
+      - "a11oy_landing.html"
+      - "govern_showcase.html"
+      - "cathedral_genius.html"
+      - "pages/**"
+      - "web/**"
+      - "console/**"
+      - "spaces/**"
+  push:
+    branches: [main]
+    paths:
+      - "console/assets/szl-holo-v2.css"
+      - "console/assets/szl-holo-v2.js"
+      - "docs/holographic-experience-v2/**"
+      - "scripts/rollout_holographic_experience_v2.py"
+      - "tests/test_holographic_experience_v2.py"
+      - ".github/workflows/holographic-experience-v2-contract.yml"
+      - ".github/workflows/rollout-holographic-experience-v2.yml"
+      - "a11oy_landing.html"
+      - "govern_showcase.html"
+      - "cathedral_genius.html"
+      - "pages/**"
+      - "web/**"
+      - "console/**"
+      - "spaces/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Compile controllers and tests
+        run: |
+          python -m py_compile \
+            scripts/rollout_holographic_experience_v2.py \
+            tests/test_holographic_experience_v2.py
+      - name: Validate JSON contracts
+        run: |
+          python -m json.tool docs/holographic-experience-v2/theme-registry.json >/dev/null
+          python -m json.tool docs/holographic-experience-v2/rollout-state.json >/dev/null
+      - name: Validate JavaScript syntax
+        run: node --check console/assets/szl-holo-v2.js
+      - name: Run offline contract suite
+        run: python tests/test_holographic_experience_v2.py
+      - name: Prove source binding in an isolated copy
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+          cp -a . "$work/repo"
+          cd "$work/repo"
+          python scripts/rollout_holographic_experience_v2.py --report "$work/apply.json"
+          python scripts/rollout_holographic_experience_v2.py --check --report "$work/check.json"
+          python tests/test_holographic_experience_v2.py
+          git diff --check
+      - name: Enforce compressed asset budgets
+        shell: bash
+        run: |
+          set -euo pipefail
+          gzip -9 -c console/assets/szl-holo-v2.css > /tmp/szl-holo-v2.css.gz
+          gzip -9 -c console/assets/szl-holo-v2.js > /tmp/szl-holo-v2.js.gz
+          css_bytes="$(wc -c < /tmp/szl-holo-v2.css.gz)"
+          js_bytes="$(wc -c < /tmp/szl-holo-v2.js.gz)"
+          echo "CSS gzip: $css_bytes bytes"
+          echo "JS gzip: $js_bytes bytes"
+          test "$css_bytes" -le 24576
+          test "$js_bytes" -le 18432
+      - name: Whitespace integrity
+        run: git diff --check

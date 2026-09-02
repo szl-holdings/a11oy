@@ -1,0 +1,170 @@
+{
+  "schema": "szl.holographic-experience/v2",
+  "version": "2.0.0",
+  "name": "A11oy Holo-Constellation",
+  "purpose": "One governed experience system with a distinct visual instrument for every SZL product, proof surface, and application Space.",
+  "inspiration_principles": {
+    "editorial_clarity": "Large human-readable typography, calm hierarchy, generous whitespace, and precise language.",
+    "orbital_depth": "Cinematic spatial composition, orbital paths, mission-control framing, and disciplined darkness.",
+    "performance_materiality": "GPU-grade dimensional surfaces, specular light, depth cues, and fast progressive enhancement.",
+    "observability_legibility": "Dense operational information organized by signal, state, confidence, evidence, and action.",
+    "agentic_workflows": "Visible handoffs between human and machine actors without implying unmeasured autonomy.",
+    "premium_storytelling": "Strong product narrative, modular sections, and polished transitions without decorative overload."
+  },
+  "originality_boundary": [
+    "No copied source code, graphics, trademarks, layouts, illustrations, motion sequences, or proprietary assets.",
+    "Reference companies inform design principles only; all implementation, motifs, tokens, copy, and components are SZL-original.",
+    "Decorative motion is labeled and never presented as measured telemetry.",
+    "Operational claims remain bound to measured evidence and existing honesty contracts."
+  ],
+  "shared_contract": {
+    "minimum_touch_target_px": 44,
+    "supported_viewports_px": [320, 360, 390, 768, 1024, 1440, 1920],
+    "reduced_motion": "required",
+    "forced_colors": "required",
+    "prefers_contrast": "required",
+    "keyboard_navigation": "required",
+    "safe_area_support": "required",
+    "horizontal_overflow": "forbidden",
+    "third_party_runtime_assets": "forbidden",
+    "analytics_or_tracking": "not included",
+    "progressive_enhancement": "CSS first; Canvas enhancement optional; content remains usable without animation",
+    "performance_budget": {
+      "core_css_gzip_kb_max": 24,
+      "core_js_gzip_kb_max": 18,
+      "long_task_ms_max": 50,
+      "animation_fps_target": 60,
+      "animation_fps_low_power": 30,
+      "continuous_animation_layers_max": 3
+    }
+  },
+  "origins": {
+    "product": {
+      "host": "a-11-oy.com",
+      "instrument": "command-constellation",
+      "personality": "decisive, spatial, operational",
+      "material": "obsidian glass with cyan and controlled lime signal light",
+      "motif": "vector field plus governed orbit paths"
+    },
+    "proof": {
+      "host": "a11oy.net",
+      "instrument": "evidence-vault",
+      "personality": "forensic, archival, exact",
+      "material": "graphite glass with mint and amber evidence light",
+      "motif": "ledger lanes plus checksum constellations"
+    }
+  },
+  "surfaces": {
+    "a11oy": {
+      "label": "A11oy Command",
+      "archetype": "command",
+      "motif": "command-constellation",
+      "palette": ["#050806", "#0c1513", "#f3fff8", "#9fb7ad", "#b8ff45", "#31e6d1"],
+      "motion": "vector drift and proof-orbit handoff",
+      "density": "balanced"
+    },
+    "lyte": {
+      "label": "Lyte",
+      "archetype": "observability",
+      "motif": "signal-aurora",
+      "palette": ["#03100f", "#0a211d", "#effffb", "#92bdb2", "#50ffd0", "#78a8ff"],
+      "motion": "signal ribbons and anomaly pulses",
+      "density": "high"
+    },
+    "vessels": {
+      "label": "Vessels",
+      "archetype": "maritime",
+      "motif": "bathymetric-radar",
+      "palette": ["#020d18", "#09243a", "#effbff", "#8cb5c9", "#50ddff", "#2d7cff"],
+      "motion": "radar sweep and route wake",
+      "density": "high"
+    },
+    "terra": {
+      "label": "Terra",
+      "archetype": "real-estate",
+      "motif": "topographic-parcels",
+      "palette": ["#06110b", "#12271a", "#f5fff7", "#9db7a3", "#7bea98", "#d9a45c"],
+      "motion": "parcel reveal and topographic drift",
+      "density": "balanced"
+    },
+    "aegis": {
+      "label": "Aegis",
+      "archetype": "security",
+      "motif": "threat-lattice",
+      "palette": ["#120606", "#281010", "#fff4f2", "#c6a19c", "#ff625b", "#ffb34d"],
+      "motion": "threat triangulation and shield lock",
+      "density": "high"
+    },
+    "prism-counsel": {
+      "label": "PRISM Counsel",
+      "archetype": "legal",
+      "motif": "case-facets",
+      "palette": ["#070b18", "#141a31", "#f8f9ff", "#a8b0ca", "#7da8ff", "#d7c4ff"],
+      "motion": "deadline line and evidence facet",
+      "density": "balanced"
+    },
+    "carlota-jo": {
+      "label": "Carlota Jo",
+      "archetype": "advisory",
+      "motif": "editorial-orbit",
+      "palette": ["#140a17", "#2b1330", "#fff7ff", "#c6a8c7", "#e2a8ff", "#ef9b67"],
+      "motion": "editorial reveal and relationship orbit",
+      "density": "low"
+    },
+    "nexus": {
+      "label": "Nexus",
+      "archetype": "integration",
+      "motif": "connection-field",
+      "palette": ["#070918", "#151831", "#f7f7ff", "#a5aac8", "#9a8cff", "#53e9ff"],
+      "motion": "node routing and handshake traces",
+      "density": "high"
+    },
+    "factory": {
+      "label": "A11oy Factory",
+      "archetype": "build-system",
+      "motif": "assembly-circuit",
+      "palette": ["#070c07", "#171f13", "#fafff5", "#abb9a4", "#c9ff5c", "#7e9cff"],
+      "motion": "assembly lanes and artifact promotion",
+      "density": "high"
+    },
+    "ouroboros": {
+      "label": "Ouroboros",
+      "archetype": "research",
+      "motif": "recursive-ring",
+      "palette": ["#100b05", "#24180b", "#fffaf0", "#c4b59b", "#ffd36e", "#c094ff"],
+      "motion": "recursive rings and loop closure",
+      "density": "balanced"
+    },
+    "khipu": {
+      "label": "KHIPU",
+      "archetype": "kernel",
+      "motif": "woven-proof",
+      "palette": ["#120b05", "#271a0e", "#fff9ee", "#c6b39b", "#e9c66e", "#c87945"],
+      "motion": "woven trace and knot confirmation",
+      "density": "high"
+    },
+    "killinchu": {
+      "label": "Killinchu",
+      "archetype": "agent-orchestration",
+      "motif": "agent-swarm",
+      "palette": ["#100615", "#26102e", "#fff5ff", "#c5a4c9", "#ff74d4", "#68e8ff"],
+      "motion": "agent swarm and governed convergence",
+      "density": "high"
+    },
+    "proof": {
+      "label": "A11oy Proof Network",
+      "archetype": "evidence",
+      "motif": "evidence-vault",
+      "palette": ["#060a10", "#101722", "#f1f5f8", "#9eabb6", "#76d8aa", "#e2bb6d"],
+      "motion": "checksum shimmer only on interactive pages; static ledger on zero-JavaScript records",
+      "density": "balanced"
+    }
+  },
+  "shared_journeys": [
+    {"id": "command", "label": "Command", "href": "https://a-11-oy.com/"},
+    {"id": "products", "label": "Products", "href": "https://a-11-oy.com/console"},
+    {"id": "proof", "label": "Proof", "href": "https://a11oy.net/record/"},
+    {"id": "source", "label": "Source", "href": "https://github.com/szl-holdings"},
+    {"id": "spaces", "label": "Spaces", "href": "https://huggingface.co/SZLHOLDINGS"}
+  ]
+}
