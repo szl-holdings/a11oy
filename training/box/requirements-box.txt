@@ -14,7 +14,7 @@
 # --- core training stack ---
 # stack pinned TOGETHER (transformers 5.x cascades with trl/unsloth) - verified set Jul 2026; do not bump package-by-package
 unsloth==2026.6.9
-transformers==5.5.0
+transformers==5.10.1
 trl==0.24.0
 peft==0.19.1
 bitsandbytes==0.49.2
