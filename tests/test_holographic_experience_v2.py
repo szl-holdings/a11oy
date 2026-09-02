@@ -15,6 +15,10 @@ STATE_PATH = ROOT / "docs" / "holographic-experience-v2" / "rollout-state.json"
 BINDER_PATH = ROOT / "scripts" / "rollout_holographic_experience_v2.py"
 STYLE_MARKER = 'data-szl-holo-asset="style-v2"'
 SCRIPT_MARKER = 'data-szl-holo-asset="script-v2"'
+SOURCE_MANAGED = {
+    "pages/integrations.html",
+    "spaces/sda/index.html",
+}
 
 
 class HolographicExperienceV2Contract(unittest.TestCase):
@@ -141,8 +145,12 @@ class HolographicExperienceV2Contract(unittest.TestCase):
     def test_binder_is_local_idempotent_and_scope_limited(self) -> None:
         self.assertIn("def is_bound", self.binder)
         self.assertIn("def bind", self.binder)
+        self.assertIn("def source_managed", self.binder)
+        self.assertIn("SOURCE_MANAGED", self.binder)
         self.assertIn("data-szl-holo-disabled", self.binder)
         self.assertIn("a11oy_landing.html", self.binder)
+        for relative in SOURCE_MANAGED:
+            self.assertIn(relative, self.binder)
         for prohibited in ("requests.", "urllib", "subprocess", "os.environ", "force_push"):
             self.assertNotIn(prohibited, self.binder)
 
@@ -153,6 +161,13 @@ class HolographicExperienceV2Contract(unittest.TestCase):
         bindings = self.state.get("bindings", [])
         self.assertIn("a11oy_landing.html", bindings)
         self.assertEqual(self.state["bound_documents"], len(bindings))
+        self.assertEqual(self.state["examined_documents"], len(bindings))
+        self.assertEqual(set(self.state.get("source_managed_documents", [])), SOURCE_MANAGED)
+        self.assertTrue(SOURCE_MANAGED.isdisjoint(bindings))
+        for relative in SOURCE_MANAGED:
+            text = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertNotIn(STYLE_MARKER, text, relative)
+            self.assertNotIn(SCRIPT_MARKER, text, relative)
         for relative in bindings:
             text = (ROOT / relative).read_text(encoding="utf-8")
             self.assertEqual(text.count(STYLE_MARKER), 1, relative)
