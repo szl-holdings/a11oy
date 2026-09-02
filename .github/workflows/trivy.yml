@@ -59,7 +59,6 @@ jobs:
 
       - name: Summarize actionable Grype findings
         if: always()
-        continue-on-error: true
         shell: bash
         run: |
           python3 - <<'PY'
