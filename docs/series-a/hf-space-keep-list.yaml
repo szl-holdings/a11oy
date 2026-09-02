@@ -1,37 +1,38 @@
-as_of: "2026-09-02T21:15:15Z"
+as_of: "2026-09-02T22:02:09Z"
 state: LIVE
 action: pause_and_private_never_delete
-product: https://a-11-oy.com
+product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 hub: https://huggingface.co/SZLHOLDINGS
-collection: https://huggingface.co/collections/SZLHOLDINGS/canonical-public-spaces-7-6a9315ac72207f841dff230d
 counts:
-  spaces_total: 52
-  spaces_public: 7
-  spaces_private: 45
+  spaces_total: 57
+  spaces_public: 9
+  spaces_private: 48
 keep:
   - id: SZLHOLDINGS/a11oy
-    role: product
+    role: command
     dest: https://a-11-oy.com
   - id: SZLHOLDINGS/killinchu
-    role: defense_vertical
+    role: defense
+  - id: SZLHOLDINGS/terra
+    role: real_estate
+  - id: SZLHOLDINGS/sentra
+    role: cybersecurity
+  - id: SZLHOLDINGS/counsel
+    role: legal
+  - id: SZLHOLDINGS/finance
+    role: finance
+  - id: SZLHOLDINGS/vessels
+    role: maritime
+  - id: SZLHOLDINGS/lyte
+    role: business_observability
   - id: SZLHOLDINGS/david-leads
-    role: insurance_vertical
-  - id: SZLHOLDINGS/anatomy
-    role: living_map
-  - id: SZLHOLDINGS/immune
-    role: safety_kernel
-  - id: SZLHOLDINGS/szl-real-estate
-    role: public_records_underwriting
-  - id: SZLHOLDINGS/szl-atelier
-    role: artifact_walk
-folded_private_recapture:
-  - SZLHOLDINGS/szl-khipu
-  - SZLHOLDINGS/governed-receipt-verifier
+    role: insurance
 org_card: SZLHOLDINGS/README
 last_execution:
-  workflow_run: 33684002630
-  artifact: hf-space-consolidation-33684002630-1
-  artifact_sha256: f2ad9b440ce463089717eb4b38701e652024d64fbad9f4eb159b2a483f291d92
+  workflow_run: 33687884541
+  attempt: 2
+  artifact: hf-nine-flagship-consolidation-33687884541-2
+  artifact_sha256: 043aba51a8386038620aca8ecbb122795d51e4317d46d2f513c437413312d916
   terminal_green: true
-note: "Authenticated inventory measured 2026-09-02T21:15:15Z: 52 total, 7 canonical public RUNNING, 45 folded private; dynamic folds paused where supported, static folds remain private because static Spaces cannot pause. None deleted."
+note: "Authenticated inventory measured 2026-09-02: 57 total, exactly 9 canonical public RUNNING, 48 folded private; dynamic folds paused where supported and static folds remain private because static Spaces cannot pause. None deleted. Permanent deletion remains gated on unique source, product copy, evidence, and replacement preservation."
