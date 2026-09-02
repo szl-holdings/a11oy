@@ -1,0 +1,79 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply managed alert relay repair
+
+on:
+  push:
+    branches:
+      - fix/managed-alert-relay-operational
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-managed-alert-relay-repair
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    name: Apply, verify, and commit alert transport repair
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact feature head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/managed-alert-relay-operational
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Apply deterministic repair
+        run: python .github/scripts/apply_managed_alert_repair.py
+
+      - name: Install exact core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Verify endpoint, workflow, and relay contracts
+        run: |
+          pytest \
+            tests/test_alert_channel_canary.py \
+            tests/test_alert_channel_static_registry_contract.py \
+            tests/test_alert_channel_workflow_contract.py \
+            tests/test_managed_alert_endpoint.py \
+            tests/test_managed_alert_transport_workflows.py \
+            -q
+          node --test ops/alert-relay-worker/test/index.test.mjs
+
+      - name: Parse every workflow after the migration
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          for path in sorted(Path('.github/workflows').glob('*.yml')):
+              yaml.safe_load(path.read_text(encoding='utf-8'))
+          PY
+
+      - name: Commit only permanent reviewed changes
+        env:
+          BRANCH: fix/managed-alert-relay-operational
+        run: |
+          set -euo pipefail
+          git config user.name "SZL Holdings Automation"
+          git config user.email "eng@szlholdings.com"
+          git add .github/workflows
+          git add scripts/managed_alert_endpoint.py scripts/managed_alert_env.sh
+          git add tests/test_managed_alert_endpoint.py tests/test_managed_alert_transport_workflows.py
+          git rm .github/scripts/apply_managed_alert_repair.py
+          git rm .github/workflows/apply-managed-alert-repair.yml
+          git diff --cached --check
+          git commit -s -m "fix(alerts): operationalize managed relay across workflows"
+          git push origin "HEAD:${BRANCH}"
