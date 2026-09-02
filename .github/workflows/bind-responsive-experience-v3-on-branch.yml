@@ -1,0 +1,53 @@
+name: Bind Responsive Experience v3 on Review Branch
+
+on:
+  push:
+    branches:
+      - feat/responsive-experience-v3
+    paths:
+      - ".github/workflows/bind-responsive-experience-v3-on-branch.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: bind-responsive-experience-v3
+  cancel-in-progress: false
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact review branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/responsive-experience-v3
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Bind the reviewed responsive layer
+        run: python scripts/bind_responsive_experience_v3.py
+
+      - name: Verify exact binding and contract
+        run: |
+          python scripts/bind_responsive_experience_v3.py --check
+          python tests/test_responsive_experience_v3.py -v
+          git diff --check
+
+      - name: Commit the generated binding and retire this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/bind-responsive-experience-v3-on-branch.yml
+          git config user.name "SZL Responsive Experience Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add console/assets/szl-hologram-v2.css \
+                  docs/responsive-experience-v3.json \
+                  .github/workflows/bind-responsive-experience-v3-on-branch.yml
+          git commit -s -m "feat(frontend): bind responsive v3 across product surfaces"
+          git push origin HEAD:feat/responsive-experience-v3

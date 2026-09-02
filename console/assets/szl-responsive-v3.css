@@ -1,0 +1,406 @@
+/*
+ * SZL Responsive Experience v3
+ * Mobile-first layout and interaction contract for the A11oy product estate.
+ * Presentation only: no telemetry, evidence, readiness, or receipt semantics.
+ */
+
+:root {
+  --szl-vw-min: 20rem;
+  --szl-stage-max: 100rem;
+  --szl-reading-max: 72ch;
+  --szl-gutter: clamp(1rem, 2.4vw, 2.75rem);
+  --szl-section-gap: clamp(3.5rem, 8vw, 9rem);
+  --szl-card-gap: clamp(.875rem, 1.8vw, 1.5rem);
+  --szl-touch: 44px;
+  --szl-touch-roomy: 48px;
+  --szl-radius-responsive: clamp(12px, 1.2vw, 22px);
+  --szl-header-safe: calc(4.5rem + env(safe-area-inset-top, 0px));
+  --szl-bottom-safe: calc(5rem + env(safe-area-inset-bottom, 0px));
+  --szl-display: clamp(2.5rem, 1.45rem + 5.2vw, 7.5rem);
+  --szl-h1: clamp(2.25rem, 1.6rem + 3vw, 5.5rem);
+  --szl-h2: clamp(1.75rem, 1.35rem + 1.8vw, 3.5rem);
+  --szl-h3: clamp(1.2rem, 1.02rem + .8vw, 1.9rem);
+  --szl-body: clamp(.98rem, .94rem + .18vw, 1.12rem);
+  --szl-small: clamp(.78rem, .75rem + .14vw, .9rem);
+}
+
+html {
+  min-inline-size: var(--szl-vw-min);
+  max-inline-size: 100%;
+  overflow-x: clip;
+  scroll-padding-top: var(--szl-header-safe);
+  text-size-adjust: 100%;
+  -webkit-text-size-adjust: 100%;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  min-inline-size: 0;
+}
+
+body {
+  max-inline-size: 100%;
+  overflow-x: clip;
+  font-size: var(--szl-body);
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+:where(main, [role="main"]) {
+  inline-size: 100%;
+  max-inline-size: var(--szl-stage-max);
+  margin-inline: auto;
+}
+
+:where(section, article, header, footer, nav, aside) {
+  scroll-margin-top: var(--szl-header-safe);
+}
+
+:where(.container, .shell, .stage, .page-shell, .content-shell, .command-shell,
+  .szl-container, .szl-shell, .szl-stage, [data-szl-container]) {
+  inline-size: min(100%, var(--szl-stage-max));
+  margin-inline: auto;
+  padding-inline: var(--szl-gutter);
+}
+
+:where(.prose, .copy, .lede, .description, .narrative, [data-szl-reading]) {
+  max-inline-size: var(--szl-reading-max);
+  overflow-wrap: anywhere;
+  text-wrap: pretty;
+}
+
+:where(h1, h2, h3, h4, h5, h6) {
+  max-inline-size: 24ch;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+h1 { font-size: var(--szl-h1); line-height: .98; }
+h2 { font-size: var(--szl-h2); line-height: 1.05; }
+h3 { font-size: var(--szl-h3); line-height: 1.15; }
+
+:where(p, li, dd, dt, figcaption, blockquote) {
+  overflow-wrap: anywhere;
+}
+
+:where(img, picture, video, canvas, svg, iframe, model-viewer) {
+  display: block;
+  max-inline-size: 100%;
+}
+
+:where(img, video, canvas, svg) {
+  block-size: auto;
+}
+
+:where(iframe, model-viewer, canvas[data-szl-stage], .visual-stage, .hologram-stage,
+  .hero-visual, [data-szl-visual]) {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  aspect-ratio: var(--szl-stage-ratio, 16 / 9);
+  contain: layout paint;
+}
+
+:where(pre, code, samp, kbd) {
+  font-variant-ligatures: none;
+  overflow-wrap: normal;
+}
+
+pre {
+  max-inline-size: 100%;
+  overflow: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
+  tab-size: 2;
+}
+
+:where(table) {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  border-collapse: collapse;
+}
+
+:where(.table-scroll, .table-wrap, [data-szl-table-scroll]) {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+:where(th, td) {
+  overflow-wrap: anywhere;
+  vertical-align: top;
+}
+
+:where(button, [role="button"], input, select, textarea, summary,
+  a[class*="button"], a[class*="btn"], .chip, .tab, [role="tab"]) {
+  min-block-size: var(--szl-touch);
+  max-inline-size: 100%;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:where(button, [role="button"], a, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: max(2px, .14em) solid currentColor;
+  outline-offset: 3px;
+}
+
+:where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  font: inherit;
+}
+
+:where(dialog, [role="dialog"], .modal, .drawer, .sheet) {
+  max-inline-size: min(calc(100vw - 2 * var(--szl-gutter)), 72rem);
+  max-block-size: min(90dvh, 60rem);
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+
+:where(.grid, .card-grid, .feature-grid, .metric-grid, .product-grid,
+  .surface-grid, .command-grid, [data-szl-grid]) {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--szl-grid-min, 17rem)), 1fr));
+  gap: var(--szl-card-gap);
+  align-items: stretch;
+}
+
+:where(.stack, [data-szl-stack]) > * + * {
+  margin-block-start: var(--szl-stack-gap, 1rem);
+}
+
+:where(.cluster, .actions, .button-row, .chip-row, .filter-row,
+  [data-szl-cluster]) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(.5rem, 1vw, .9rem);
+  align-items: center;
+}
+
+:where(.hero, .masthead, .command-hero, [data-szl-hero]) {
+  min-block-size: min(82svh, 64rem);
+  padding-block: clamp(5rem, 11vh, 10rem) clamp(3rem, 8vh, 7rem);
+}
+
+:where(.hero-grid, .split, .two-column, [data-szl-split]) {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
+  gap: clamp(1.5rem, 4vw, 5rem);
+  align-items: center;
+}
+
+:where(.sticky, [data-szl-sticky]) {
+  position: sticky;
+  top: var(--szl-header-safe);
+}
+
+:where(.szl-flow-rail, .szl-holo-rail, .szl-command-dock, [data-szl-dock]) {
+  max-inline-size: calc(100vw - 2 * max(.5rem, env(safe-area-inset-left, 0px)));
+  max-block-size: calc(100dvh - var(--szl-header-safe) - env(safe-area-inset-bottom, 0px));
+}
+
+:where(.szl-flow-links, .szl-holo-links, nav ul, nav ol) {
+  max-inline-size: 100%;
+}
+
+:where(.panel, .card, .tile, .module, .instrument, [data-szl-panel]) {
+  container-type: inline-size;
+  border-radius: var(--szl-radius-responsive);
+}
+
+@container (max-width: 28rem) {
+  :where(.panel, .card, .tile, .module, .instrument, [data-szl-panel]) {
+    --szl-panel-padding: 1rem;
+  }
+  :where(.panel-header, .card-header, .module-header) {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+/* Compact mobile: preserve every function; change only composition. */
+@media (max-width: 47.999rem) {
+  :root {
+    --szl-gutter: clamp(.875rem, 4.5vw, 1.25rem);
+    --szl-section-gap: clamp(3rem, 12vw, 5rem);
+    --szl-card-gap: .875rem;
+    --szl-stage-ratio: 4 / 3;
+  }
+
+  body { line-height: 1.5; }
+
+  :where(.hero, .masthead, .command-hero, [data-szl-hero]) {
+    min-block-size: auto;
+    padding-block: clamp(4.75rem, 16vw, 7rem) clamp(2.5rem, 10vw, 4rem);
+  }
+
+  :where(.hero-grid, .split, .two-column, [data-szl-split]) {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  :where(.hero-copy, .split-copy) { order: 1; }
+  :where(.hero-visual, .split-visual, [data-szl-visual]) { order: 2; }
+
+  :where(.grid, .card-grid, .feature-grid, .metric-grid, .product-grid,
+    .surface-grid, .command-grid, [data-szl-grid]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  :where(.actions, .button-row, [data-szl-actions]) > :where(a, button) {
+    flex: 1 1 10rem;
+    justify-content: center;
+  }
+
+  :where(.sticky, [data-szl-sticky]) {
+    position: static;
+  }
+
+  :where(table[data-szl-responsive="stack"], .responsive-table) {
+    display: block;
+  }
+  :where(table[data-szl-responsive="stack"], .responsive-table) :where(thead) {
+    position: absolute;
+    inline-size: 1px;
+    block-size: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  :where(table[data-szl-responsive="stack"], .responsive-table) :where(tbody, tr, td) {
+    display: block;
+    inline-size: 100%;
+  }
+  :where(table[data-szl-responsive="stack"], .responsive-table) tr {
+    padding-block: .75rem;
+    border-block-end: 1px solid currentColor;
+  }
+
+  :where(.szl-flow-rail, .szl-holo-rail, .szl-command-dock, [data-szl-dock]) {
+    inset-inline: max(.5rem, env(safe-area-inset-left, 0px));
+    inline-size: auto;
+    transform: none;
+  }
+}
+
+/* Phones in landscape: keep controls reachable without consuming the screen. */
+@media (max-height: 31rem) and (orientation: landscape) {
+  :root { --szl-header-safe: calc(3.5rem + env(safe-area-inset-top, 0px)); }
+
+  :where(.hero, .masthead, .command-hero, [data-szl-hero]) {
+    min-block-size: auto;
+    padding-block: 4rem 2rem;
+  }
+
+  :where(.szl-flow-rail, .szl-holo-rail, .szl-command-dock, [data-szl-dock]) {
+    max-block-size: calc(100dvh - 1rem);
+    overflow-y: auto;
+  }
+}
+
+/* Tablet and compact desktop. */
+@media (min-width: 48rem) and (max-width: 79.999rem) {
+  :root {
+    --szl-stage-max: 76rem;
+    --szl-grid-min: 15rem;
+  }
+
+  :where(.hero-grid, .split, .two-column, [data-szl-split]) {
+    grid-template-columns: minmax(0, 1fr) minmax(18rem, .8fr);
+  }
+}
+
+/* Theatre mode: use the canvas; do not merely stretch text. */
+@media (min-width: 100rem) {
+  :root {
+    --szl-stage-max: min(92vw, 120rem);
+    --szl-reading-max: 76ch;
+    --szl-gutter: clamp(2rem, 3vw, 4.5rem);
+    --szl-card-gap: clamp(1.25rem, 1.5vw, 2.25rem);
+    --szl-grid-min: 20rem;
+  }
+
+  :where(main, [role="main"]) {
+    max-inline-size: var(--szl-stage-max);
+  }
+
+  :where(.hero-grid, .split, .two-column, [data-szl-split]) {
+    grid-template-columns: minmax(32rem, .9fr) minmax(40rem, 1.1fr);
+  }
+
+  :where(.command-grid, .surface-grid, [data-szl-theatre-grid]) {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  :where([data-szl-span="3"]) { grid-column: span 3; }
+  :where([data-szl-span="4"]) { grid-column: span 4; }
+  :where([data-szl-span="6"]) { grid-column: span 6; }
+  :where([data-szl-span="8"]) { grid-column: span 8; }
+  :where([data-szl-span="12"]) { grid-column: 1 / -1; }
+}
+
+@media (min-width: 150rem) {
+  :root {
+    --szl-stage-max: 136rem;
+    --szl-body: 1.16rem;
+    --szl-grid-min: 22rem;
+  }
+}
+
+/* Hover and depth are enhancements, never prerequisites. */
+@media (hover: hover) and (pointer: fine) {
+  :where(a, button, [role="button"], .card, .panel, [data-szl-panel]) {
+    transition-duration: min(var(--szl-motion-duration, 220ms), 280ms);
+    transition-timing-function: cubic-bezier(.2, .8, .2, 1);
+  }
+}
+
+/* Prevent iOS zoom and preserve larger targets on touch-first hardware. */
+@media (pointer: coarse) {
+  :where(input:not([type="checkbox"]):not([type="radio"]), select, textarea) {
+    font-size: max(16px, 1em);
+  }
+  :where(button, [role="button"], summary, a[class*="button"], a[class*="btn"],
+    .chip, .tab, [role="tab"]) {
+    min-block-size: var(--szl-touch-roomy);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto !important; }
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  :where(.panel, .card, .tile, .module, .instrument, [data-szl-panel]) {
+    border-width: max(1px, .08em);
+  }
+}
+
+@media (forced-colors: active) {
+  :where(button, [role="button"], input, select, textarea, summary, a, .panel,
+    .card, .tile, .module, [data-szl-panel]) {
+    forced-color-adjust: auto;
+  }
+}
+
+@media print {
+  :root { --szl-stage-max: none; }
+  html, body { overflow: visible; }
+  :where(.szl-flow-rail, .szl-holo-rail, .szl-command-dock, [data-szl-dock],
+    canvas[aria-hidden="true"], .ambient-field, .hologram-field) {
+    display: none !important;
+  }
+  :where(main, [role="main"], .container, .shell, .stage) {
+    max-inline-size: none;
+    padding: 0;
+  }
+  :where(a[href])::after { content: " (" attr(href) ")"; font-size: .8em; }
+}

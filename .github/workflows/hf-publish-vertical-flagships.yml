@@ -2,12 +2,6 @@
 name: HF Publish Vertical Flagships
 
 on:
-  push:
-    branches:
-      - exec/hf-vertical-flagships-v1
-    paths:
-      - scripts/hf_publish_vertical_flagships_v2.py
-      - .github/workflows/hf-publish-vertical-flagships.yml
   workflow_dispatch:
 
 permissions:
