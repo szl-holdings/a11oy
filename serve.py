@@ -2044,6 +2044,18 @@ try:
 except Exception as _brainreceipt_e:  # pragma: no cover
     print(f"[a11oy] Brain receipt NOT registered: {_brainreceipt_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- BRAIN VERDICT (feat/frontier-brainverdict) — the verifiable answer. Composes
+# brainserve+braincite+braineval into one assurance verdict and binds it under the estate
+# signer (brainreceipt). assurance never above components; no live model -> UNVERIFIABLE;
+# signature proves integrity not truth. Manifest at GET /api/a11oy/v1/brain/brainverdict/
+# manifest; receipt-on-write (POST verdict/sign). Guarded.
+try:
+    import szl_brainverdict as _szl_brainverdict
+    _brainverdict_status = _szl_brainverdict.register(app, ns="a11oy")
+    print(f"[a11oy] Brain verdict registered: {_brainverdict_status}", file=__import__("sys").stderr)
+except Exception as _brainverdict_e:  # pragma: no cover
+    print(f"[a11oy] Brain verdict NOT registered: {_brainverdict_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 
 # -- BRAIN CONSENSUS (feat/frontier-brainconsensus) — honest CORROBORATION of a brain
 # grounding over the SAME honest brain graph: GET /api/a11oy/v1/brain/consensus/info (static
