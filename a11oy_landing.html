@@ -400,6 +400,10 @@
     .cta-row .btn{width:100%;min-height:52px;border-radius:6px;white-space:normal;text-align:center}
     .card,.tier,.vcard,.cstat,.estate-cell{min-width:0}
   }
+
+  /* live-canary touch remediation 2026-09-02 */
+  .cta-row{position:relative;z-index:20}
+  .cta-row .btn{position:relative;z-index:21;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding-top:12px;padding-bottom:12px;pointer-events:auto}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
