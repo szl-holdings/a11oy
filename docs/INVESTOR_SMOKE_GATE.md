@@ -10,37 +10,50 @@ required checks green.** Encodes assertions only. Does not rewrite
 `data/genome.json`, does not weaken Immutable HF repository byte parity
 (Dockerfile untouched), does not POST, does not add HEAD handlers or signer
 fields (those landed in **1394** on main), and does not touch PR 1363.
-PR **1396** merged the console `#cnt-locked` kernel chip; this PR does not
+PR **1396** merged the console `#cnt-locked` kernel chip; this gate does not
 re-edit that chrome. **Do not invent LIVE.** a11oy.net dual-origin smokes
-are a later cut.
+remain a separate proof-origin contract.
+
+## Public-origin contract
+
+- Static product front door: `https://a-11-oy.com`
+- Canonical application runtime: `https://szlholdings-a11oy.hf.space`
+- Independent proof origin: `https://a11oy.net`
+
+The static front door is not an API origin. It is probed independently for a
+reachable HTTP 200 root. S1–S12 runtime routes, API responses, HEAD/GET parity,
+signer state, ledger behavior, and source-bound application checks run against
+the canonical Hugging Face Space until an independently proved edge proxy
+changes that architecture.
 
 Workflow: `.github/workflows/investor-smoke-gate.yml`
 
 | Job (exact check-run name) | What it proves |
 |---|---|
-| `Investor smoke contract (S1-S12 static)` | Fixtures, skip-as-green rejection, S12 YAML, D-rows, L-row SNAPSHOT date |
+| `Investor smoke contract (S1-S12 static)` | Fixtures, origin separation, skip-as-green rejection, S12 YAML, D-rows, L-row SNAPSHOT date |
 | `Investor smoke bind (S7 kernel chips → /honest 8)` | Kernel chips bind to `/honest` `locked_formula_count` (8 or N/A) |
-| `Investor smoke live probes` | GET/HEAD against `https://a-11-oy.com` only (measured, never invented) |
+| `Investor smoke live probes` | Static apex reachability plus GET/HEAD assertions against the canonical application runtime; no POST |
 
 This pull request cannot certify those names as control-plane-required.
 `.github/BRANCH_PROTECTION.md` is a Frontier source-pin v2 guarded file, so
-this PR does not add rows there. Proposed required-check names:
+this change does not add rows there. Proposed required-check names:
 
 - `Investor smoke contract (S1-S12 static)`
 - `Investor smoke bind (S7 kernel chips → /honest 8)`
 - `Investor smoke live probes`
 
-QHAPAQ names them required-green. This PR cannot self-certify the
+QHAPAQ names them required-green. This change cannot self-certify the
 control-plane bind.
 
 ## Owners
 
-| Defect | Owner | This PR |
+| Defect | Owner | This gate |
 |---|---|---|
 | S7 console `#cnt-locked` | **PR 1396** (merged `c038cc95`) | Fail-closed bind. Landing `#pt-locked` via `loadKernelLocked`, trust `#cnt-locked` (1394), and console `#cnt-locked` (1396) must stay bound to `/honest`. Genome `LOCKED-PROVEN=25` is a real catalog tier. |
-| S1 HEAD vs GET | **1394 on main** | Probe only. Live origin is measured; source HEAD is not LIVE. |
+| S1 HEAD vs GET | **1394 on main** | Probe only. Runtime is measured; source HEAD is not LIVE. |
 | S2 signer contract | **1394 on main** | Probe only. `DSSE-LIVE` only on `/api/a11oy/healthz` rollup.signer; lean health JSON is `ABSENT` / `UNAVAILABLE`. |
 | S3 unlabeled live coords | this gate | Fail-closed: UNAVAILABLE, MEASURED **with method**, or unit-labelled. Do not invent MEASURED. |
+| Static apex reachability | Pages front door | Root must return HTTP 200; no application API capability is inferred. |
 | PR 1366 memory covenant PG18 | out of scope | **RED**. Not this gate. |
 | PR 1363 | HOLD | Do not touch. |
 
@@ -63,30 +76,30 @@ PASS only when **all** of these bind the kernel chip to
 3. `pages/console.html` `#cnt-locked` — same rule
 
 Landing, Trust, and Console bind on current main (1394 + **1396**
-`c038cc95`). This PR does **not** rewrite `data/genome.json` or re-implement
+`c038cc95`). This gate does **not** rewrite `data/genome.json` or re-implement
 that UI.
 
 ## Matrix
 
 Verdicts: `PASS` · `FAIL` · `UNAVAILABLE` · `SNAPSHOT <date>` · `UNCONFIGURED`.
-A missing probe is **FAIL**. `SNAPSHOT` without a date is rejected.
+A missing runtime probe is **FAIL**. `SNAPSHOT` without a date is rejected.
 `UNAVAILABLE` is allowed only for S4 / S6 / S9. `UNCONFIGURED` is allowed only
 for wire-D. L1–L6 are `SNAPSHOT 2026-08-28`.
 
-| ID | Check | Honest result this PR encodes |
+| ID | Check | Honest result this gate encodes |
 |---|---|---|
-| S1 | HEAD must not 405/404 where GET is 200 | Source: 1394 on main. Live: measured only |
-| S2 | `DSSE-LIVE` only on `/api/a11oy/healthz` rollup.signer; lean health `ABSENT`/`UNAVAILABLE` | Source: 1394 on main. Live: measured only |
-| S3 | Live coords UNAVAILABLE, MEASURED with method, or unit-labelled; no raw unlabeled latitude in first viewport | Source: 1394 units. Live: measured only. One ISS TimeoutError retry; persistent timeout is FAIL |
+| S1 | HEAD must not 405/404 where GET is 200 | Source: 1394 on main. Canonical runtime: measured only |
+| S2 | `DSSE-LIVE` only on `/api/a11oy/healthz` rollup.signer; lean health `ABSENT`/`UNAVAILABLE` | Source: 1394 on main. Canonical runtime: measured only |
+| S3 | Live coords UNAVAILABLE, MEASURED with method, or unit-labelled; no raw unlabeled latitude in first viewport | Source: 1394 units. Runtime: measured only. One ISS TimeoutError retry; persistent timeout is FAIL |
 | S4 | Staging receipt-write | **UNAVAILABLE** (no POST) |
-| S5 | Ledger GET does not mint | PASS |
+| S5 | Ledger GET does not mint | Runtime probe |
 | S6 | Refuse / abstain | **UNAVAILABLE** (no POST) |
-| S7 | Kernel chips → `/honest` `locked_formula_count` (8 or N/A) | **PASS** after PR 1396 console `#cnt-locked` (in-repo bind + live `/honest`=8) |
-| S8 | Designed JSON 404 | PASS |
+| S7 | Kernel chips → `/honest` `locked_formula_count` (8 or N/A) | In-repo bind plus canonical runtime `/honest` |
+| S8 | Designed JSON 404 | Runtime probe |
 | S9 | Authz empty-state | **UNAVAILABLE** |
-| S10 | OG image 200 | PASS |
-| S11 | HF Space 200 | PASS |
-| S12 | README YAML | PASS |
+| S10 | OG image 200 | Runtime probe |
+| S11 | HF Space 200 | Canonical runtime root |
+| S12 | README YAML | Static repository contract |
 | L1–L6 | Stress | **SNAPSHOT 2026-08-28** |
 | D5 | Catalog size 144 ≠ kernel 8 | PASS (size label; catalog LOCKED-PROVEN=25 is not the kernel) |
 | D10 | Screenshots | **SNAPSHOT 2026-07-25** |
@@ -96,25 +109,29 @@ for wire-D. L1–L6 are `SNAPSHOT 2026-08-28`.
 ## Out of scope (standing)
 
 - Never merge PR 1363 (HOLD).
-- PR 1396 is merged; do not re-edit console chrome in this gate PR.
+- PR 1396 is merged; do not re-edit console chrome in this gate.
 - PR 1366: **RED**, out of scope.
 - No Dockerfile / hf-sync admission-input changes.
 - No POST.
 - No genome.json rewrite.
+- Do not infer application health from the static front door.
 - Do not invent LIVE from source-only 1394.
-- a11oy.net dual-origin smokes: later cut.
+- a11oy.net dual-origin smokes remain separate.
 
 ## Measured live
 
-Canonical origin `https://a-11-oy.com`. Re-probe after deploy; do not copy
-source PASS onto the live job.
+The workflow performs two independent measurements:
 
-See the pull-request body for the last measured live matrix.
+1. `https://a-11-oy.com/` must be a reachable static product front door.
+2. `https://szlholdings-a11oy.hf.space` must satisfy the fail-closed runtime
+   S1–S12 GET/HEAD assertions.
+
+A pass on either origin does not substitute for a pass on the other.
 
 ## Run locally
 
 ```bash
-python3 -m pytest -q tests/test_investor_smoke_gate.py
+python3 -m pytest -q tests/test_investor_smoke_gate.py tests/test_investor_smoke_origin_contract.py
 python3 -m pytest -q tests/test_investor_smoke_bind.py
-python3 scripts/investor_smoke_gate.py --mode live --origin https://a-11-oy.com
+python3 scripts/investor_smoke_gate.py --mode live --origin https://szlholdings-a11oy.hf.space
 ```
