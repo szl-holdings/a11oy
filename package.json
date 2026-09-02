@@ -79,7 +79,7 @@
       "esbuild": "0.28.1",
       "js-yaml@<4.3.1": "4.3.1",
       "brace-expansion": "5.0.9",
-      "fast-uri@<3.1.5": "3.1.5",
+      "fast-uri@<3.1.6": "3.1.6",
       "browserslist@<=4.28.6": "4.28.7"
     }
   },
@@ -87,7 +87,7 @@
     "esbuild": "0.28.1",
     "js-yaml@>=4.0.0 <4.3.1": "4.3.1",
     "brace-expansion": "5.0.9",
-    "fast-uri@<3.1.5": "3.1.5",
+    "fast-uri@<3.1.6": "3.1.6",
     "@istanbuljs/load-nyc-config": {
       "js-yaml": "4.3.1"
     },
