@@ -35,28 +35,10 @@ jobs:
           text = path.read_text(encoding="utf-8")
           needle = '''    errors.extend(
                   _validate_checkout_steps(
-                      baseline,
-                      label="protected-base",
-                      source_path="baseline",
-                      source_ref="${{ github.event.pull_request.base.sha }}",
-                      report_path="hf-current-base-parity.out.json",
-                  )
-              )
-              errors.extend(
-                  _validate_checkout_steps(
                       candidate,
                       label="candidate",
           '''
-          replacement = '''    errors.extend(
-                  _validate_checkout_steps(
-                      baseline,
-                      label="protected-base",
-                      source_path="baseline",
-                      source_ref="${{ github.event.pull_request.base.sha }}",
-                      report_path="hf-current-base-parity.out.json",
-                  )
-              )
-              # The v1 lifecycle successor delegates the post-deployment job's
+          replacement = '''    # The v1 lifecycle successor delegates the post-deployment job's
               # exact temporal and command contract to the dedicated standard-
               # library validator. The legacy candidate-fixture path remains
               # below so its adversarial self-tests retain full coverage.
@@ -68,7 +50,7 @@ jobs:
                       label="candidate",
           '''
           if text.count(needle) != 1:
-              raise SystemExit(f"expected one protected-base/candidate validation seam, found {text.count(needle)}")
+              raise SystemExit(f"expected one candidate validation seam, found {text.count(needle)}")
           path.write_text(text.replace(needle, replacement), encoding="utf-8", newline="\n")
           PY
       - name: Preserve the existing adversarial validator suite
