@@ -1,0 +1,531 @@
+/* SZL Spectral Fabric v2
+   Original state-of-the-art presentation layer for the A11oy product estate.
+   It preserves product-owned layouts and adds a shared holographic interaction field.
+   Local-only. No analytics. No runtime CDN. No fabricated operational state. */
+
+:root {
+  --szl-spectral-pointer-x: 50%;
+  --szl-spectral-pointer-y: 42%;
+  --szl-spectral-tilt-x: 0deg;
+  --szl-spectral-tilt-y: 0deg;
+  --szl-spectral-scroll: 0;
+  --szl-spectral-velocity: 0;
+  --szl-spectral-depth: 1;
+  --szl-spectral-mesh-shift-x: 0px;
+  --szl-spectral-mesh-shift-y: 0px;
+  --szl-spectral-orbit-shift-x: 0px;
+  --szl-spectral-orbit-shift-y: 0px;
+  --szl-spectral-orbit-rotate: 0deg;
+  --szl-spectral-node-position-x: 50%;
+  --szl-spectral-node-position-y: 50%;
+  --szl-spectral-node-shift-y: 0px;
+  --szl-spectral-beam-shift-x: 0px;
+  --szl-spectral-beam-shift-y: 0px;
+  --szl-spectral-bloom-opacity: .44;
+  --szl-spectral-bloom-scale: 1;
+  --szl-spectral-grid-size: 56px;
+  --szl-spectral-grid-angle: 0deg;
+  --szl-spectral-field-opacity: .72;
+  --szl-spectral-line: color-mix(in srgb, var(--szl-flow-accent) 24%, transparent);
+  --szl-spectral-line-soft: color-mix(in srgb, var(--szl-flow-secondary) 13%, transparent);
+  --szl-spectral-glow: color-mix(in srgb, var(--szl-flow-accent) 18%, transparent);
+  --szl-spectral-glow-2: color-mix(in srgb, var(--szl-flow-secondary) 14%, transparent);
+  --szl-spectral-mesh:
+    linear-gradient(var(--szl-spectral-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--szl-spectral-line-soft) 1px, transparent 1px);
+  --szl-spectral-orbit:
+    repeating-radial-gradient(circle at 66% 38%, transparent 0 68px, var(--szl-spectral-line) 69px 70px),
+    conic-gradient(from 12deg at 66% 38%, var(--szl-spectral-glow), transparent 17% 76%, var(--szl-spectral-glow-2));
+  --szl-spectral-nodes:
+    radial-gradient(circle, color-mix(in srgb, var(--szl-flow-accent) 68%, white 8%) 0 1px, transparent 2px);
+  --szl-spectral-node-size: 96px 96px;
+}
+
+html[data-szl-spectral-v2="true"] {
+  color-scheme: dark;
+  accent-color: var(--szl-flow-accent);
+  scroll-padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+}
+
+body[data-szl-spectral="product"] {
+  --szl-spectral-route-label: "A11oy";
+}
+
+.szl-spectral-field {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  overflow: clip;
+  pointer-events: none;
+  contain: strict;
+  opacity: var(--szl-spectral-field-opacity);
+  mix-blend-mode: screen;
+  isolation: isolate;
+}
+
+.szl-spectral-layer {
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.szl-spectral-mesh {
+  background-image: var(--szl-spectral-mesh);
+  background-size: var(--szl-spectral-grid-size) var(--szl-spectral-grid-size);
+  mask-image: radial-gradient(ellipse at var(--szl-spectral-pointer-x) var(--szl-spectral-pointer-y), #000 0 18%, rgba(0,0,0,.72) 40%, transparent 76%);
+  transform:
+    perspective(980px)
+    rotateX(calc(58deg + var(--szl-spectral-tilt-y)))
+    rotateZ(var(--szl-spectral-grid-angle))
+    translate3d(var(--szl-spectral-mesh-shift-x), var(--szl-spectral-mesh-shift-y), -40px)
+    scale(1.14);
+  transform-origin: 50% 58%;
+  opacity: .62;
+}
+
+.szl-spectral-orbit {
+  inset: -8%;
+  background: var(--szl-spectral-orbit);
+  mask-image: radial-gradient(circle at 66% 38%, #000 0 8%, rgba(0,0,0,.88) 31%, transparent 68%);
+  transform:
+    translate3d(var(--szl-spectral-orbit-shift-x), var(--szl-spectral-orbit-shift-y), 0)
+    rotate(var(--szl-spectral-orbit-rotate));
+  opacity: .48;
+  animation: szl-spectral-orbit 28s linear infinite;
+}
+
+.szl-spectral-nodes {
+  inset: -6%;
+  background-image: var(--szl-spectral-nodes);
+  background-size: var(--szl-spectral-node-size);
+  background-position:
+    var(--szl-spectral-node-position-x)
+    var(--szl-spectral-node-position-y);
+  mask-image: linear-gradient(115deg, transparent 4%, #000 28% 72%, transparent 96%);
+  opacity: .34;
+  transform: translate3d(0, var(--szl-spectral-node-shift-y), 0);
+}
+
+.szl-spectral-beam {
+  inset: -40% -20%;
+  background:
+    linear-gradient(
+      112deg,
+      transparent 0 35%,
+      color-mix(in srgb, var(--szl-flow-accent) 5%, transparent) 38%,
+      color-mix(in srgb, var(--szl-flow-secondary) 12%, transparent) 43%,
+      transparent 49% 66%,
+      color-mix(in srgb, var(--szl-flow-accent) 7%, transparent) 69%,
+      transparent 74%
+    );
+  filter: blur(22px);
+  transform:
+    translate3d(var(--szl-spectral-beam-shift-x), var(--szl-spectral-beam-shift-y), 0)
+    rotate(calc(-4deg + var(--szl-spectral-tilt-x)));
+  opacity: .72;
+  animation: szl-spectral-breathe 12s ease-in-out infinite alternate;
+}
+
+.szl-spectral-scan {
+  inset: -10% 0;
+  background:
+    linear-gradient(
+      180deg,
+      transparent 0 42%,
+      color-mix(in srgb, var(--szl-flow-accent) 7%, transparent) 48%,
+      color-mix(in srgb, var(--szl-flow-accent) 26%, transparent) 49.8%,
+      color-mix(in srgb, var(--szl-flow-secondary) 8%, transparent) 50.2%,
+      transparent 56%
+    );
+  mask-image: linear-gradient(90deg, transparent 3%, #000 20% 80%, transparent 97%);
+  opacity: .32;
+  transform: translate3d(0, -68%, 0);
+  animation: szl-spectral-scan 13s cubic-bezier(.45,0,.2,1) infinite;
+}
+
+.szl-spectral-bloom {
+  inset: 0;
+  background:
+    radial-gradient(
+      circle at var(--szl-spectral-pointer-x) var(--szl-spectral-pointer-y),
+      color-mix(in srgb, var(--szl-flow-accent) 18%, transparent) 0,
+      color-mix(in srgb, var(--szl-flow-secondary) 8%, transparent) 14%,
+      transparent 38%
+    ),
+    radial-gradient(
+      ellipse at 50% 108%,
+      color-mix(in srgb, var(--szl-flow-accent) 11%, transparent),
+      transparent 58%
+    );
+  opacity: var(--szl-spectral-bloom-opacity);
+  transform: scale(var(--szl-spectral-bloom-scale));
+}
+
+/* Route-specific instruments: shared mechanics, distinct operational character. */
+body[data-szl-theme="conductor"] {
+  --szl-spectral-grid-size: 58px;
+  --szl-spectral-grid-angle: -3deg;
+  --szl-spectral-orbit:
+    repeating-radial-gradient(circle at 70% 34%, transparent 0 72px, var(--szl-spectral-line) 73px 74px),
+    conic-gradient(from 225deg at 70% 34%, transparent 0 54%, var(--szl-spectral-glow) 57% 59%, transparent 62% 91%, var(--szl-spectral-glow-2));
+}
+body[data-szl-theme="operator"] {
+  --szl-spectral-grid-size: 42px;
+  --szl-spectral-mesh:
+    repeating-linear-gradient(0deg, transparent 0 41px, var(--szl-spectral-line-soft) 42px 43px),
+    repeating-linear-gradient(90deg, transparent 0 83px, var(--szl-spectral-line-soft) 84px 85px);
+  --szl-spectral-orbit:
+    linear-gradient(90deg, transparent 0 8%, var(--szl-spectral-line) 8.1% 8.25%, transparent 8.35% 91%, var(--szl-spectral-line) 91.1% 91.25%, transparent 91.35%),
+    repeating-linear-gradient(0deg, transparent 0 62px, var(--szl-spectral-glow) 63px 64px);
+}
+body[data-szl-theme="atlas"] {
+  --szl-spectral-grid-size: 74px;
+  --szl-spectral-grid-angle: 30deg;
+  --szl-spectral-mesh:
+    linear-gradient(30deg, var(--szl-spectral-line-soft) 1px, transparent 1px),
+    linear-gradient(150deg, var(--szl-spectral-line-soft) 1px, transparent 1px);
+  --szl-spectral-orbit:
+    radial-gradient(circle at 22% 26%, var(--szl-spectral-glow) 0 2px, transparent 3px),
+    radial-gradient(circle at 78% 42%, var(--szl-spectral-glow-2) 0 2px, transparent 3px),
+    linear-gradient(24deg, transparent 49.5%, var(--szl-spectral-line) 50%, transparent 50.5%);
+}
+body[data-szl-theme="anatomy"] {
+  --szl-spectral-grid-size: 108px;
+  --szl-spectral-mesh:
+    repeating-radial-gradient(ellipse at 24% 46%, transparent 0 34px, var(--szl-spectral-line-soft) 35px 36px),
+    repeating-radial-gradient(ellipse at 78% 54%, transparent 0 52px, var(--szl-spectral-line-soft) 53px 54px);
+  --szl-spectral-orbit:
+    radial-gradient(ellipse at 50% 48%, transparent 0 17%, var(--szl-spectral-line) 17.4% 17.8%, transparent 18.2% 31%, var(--szl-spectral-glow) 31.4% 32%, transparent 32.5%);
+}
+body[data-szl-theme="sentinel"] {
+  --szl-spectral-grid-size: 88px;
+  --szl-spectral-mesh:
+    repeating-radial-gradient(circle at 68% 36%, transparent 0 54px, var(--szl-spectral-line-soft) 55px 56px),
+    linear-gradient(32deg, transparent 49.5%, var(--szl-spectral-line-soft) 50%, transparent 50.5%);
+  --szl-spectral-orbit:
+    conic-gradient(from 0deg at 68% 36%, var(--szl-spectral-glow), transparent 8% 86%, var(--szl-spectral-glow-2)),
+    radial-gradient(circle at 68% 36%, transparent 0 12%, var(--szl-spectral-line) 12.3% 12.8%, transparent 13%);
+}
+body[data-szl-theme="weave"] {
+  --szl-spectral-grid-size: 48px;
+  --szl-spectral-grid-angle: 9deg;
+  --szl-spectral-mesh:
+    repeating-linear-gradient(28deg, transparent 0 24px, var(--szl-spectral-line) 25px 26px),
+    repeating-linear-gradient(-28deg, transparent 0 31px, var(--szl-spectral-line-soft) 32px 33px);
+  --szl-spectral-orbit:
+    repeating-conic-gradient(from 18deg at 72% 38%, transparent 0 12deg, var(--szl-spectral-glow) 13deg 14deg, transparent 15deg 28deg);
+}
+body[data-szl-theme="observatory"] {
+  --szl-spectral-grid-size: 82px;
+  --szl-spectral-mesh:
+    repeating-linear-gradient(90deg, transparent 0 79px, var(--szl-spectral-line-soft) 80px 81px),
+    linear-gradient(180deg, transparent 0 72%, var(--szl-spectral-line-soft) 72.2% 72.6%, transparent 72.8%);
+  --szl-spectral-orbit:
+    conic-gradient(from 80deg at 54% 38%, transparent, var(--szl-spectral-glow), transparent 28%, var(--szl-spectral-glow-2), transparent 64%);
+}
+body[data-szl-theme="bridge"] {
+  --szl-spectral-grid-size: 96px;
+  --szl-spectral-mesh:
+    radial-gradient(circle, var(--szl-spectral-line) 0 2px, transparent 3px),
+    linear-gradient(30deg, transparent 49.5%, var(--szl-spectral-line-soft) 50%, transparent 50.5%),
+    linear-gradient(150deg, transparent 49.5%, var(--szl-spectral-line-soft) 50%, transparent 50.5%);
+  --szl-spectral-orbit:
+    linear-gradient(120deg, transparent 20%, var(--szl-spectral-glow) 20.5% 21%, transparent 21.5% 64%, var(--szl-spectral-glow-2) 64.5% 65%, transparent 65.5%);
+}
+body[data-szl-theme="decision"] {
+  --szl-spectral-grid-size: 72px;
+  --szl-spectral-mesh:
+    linear-gradient(45deg, transparent 49.4%, var(--szl-spectral-line-soft) 50%, transparent 50.6%),
+    linear-gradient(135deg, transparent 49.4%, var(--szl-spectral-line-soft) 50%, transparent 50.6%);
+  --szl-spectral-orbit:
+    conic-gradient(from 45deg at 76% 28%, var(--szl-spectral-glow), transparent 18% 30%, var(--szl-spectral-glow-2) 31% 42%, transparent 43% 100%);
+}
+body[data-szl-theme="blueprint"] {
+  --szl-spectral-grid-size: 36px;
+  --szl-spectral-mesh:
+    linear-gradient(var(--szl-spectral-line-soft) 1px, transparent 1px),
+    linear-gradient(90deg, var(--szl-spectral-line-soft) 1px, transparent 1px),
+    repeating-radial-gradient(ellipse at 70% 42%, transparent 0 46px, var(--szl-spectral-line) 47px 48px);
+  --szl-spectral-orbit:
+    linear-gradient(24deg, transparent 0 49.5%, var(--szl-spectral-glow) 50%, transparent 50.5%);
+}
+body[data-szl-theme="sentry"] {
+  --szl-spectral-grid-size: 84px;
+  --szl-spectral-mesh:
+    linear-gradient(32deg, transparent 49.4%, var(--szl-spectral-line-soft) 50%, transparent 50.6%),
+    linear-gradient(148deg, transparent 49.4%, var(--szl-spectral-line-soft) 50%, transparent 50.6%);
+  --szl-spectral-orbit:
+    repeating-radial-gradient(circle at 74% 42%, transparent 0 56px, var(--szl-spectral-line) 57px 58px),
+    conic-gradient(from 0deg at 74% 42%, var(--szl-spectral-glow), transparent 12% 88%, var(--szl-spectral-glow-2));
+}
+body[data-szl-theme="market"] {
+  --szl-spectral-grid-size: 64px;
+  --szl-spectral-mesh:
+    repeating-linear-gradient(90deg, transparent 0 63px, var(--szl-spectral-line-soft) 64px 65px),
+    repeating-linear-gradient(0deg, transparent 0 47px, var(--szl-spectral-line-soft) 48px 49px);
+  --szl-spectral-orbit:
+    linear-gradient(145deg, transparent 0 45%, var(--szl-spectral-glow) 45.3% 46%, transparent 46.3%),
+    repeating-linear-gradient(90deg, transparent 0 127px, var(--szl-spectral-glow-2) 128px 130px);
+}
+body[data-szl-theme="counsel"] {
+  --szl-spectral-grid-size: 52px;
+  --szl-spectral-mesh:
+    repeating-linear-gradient(0deg, transparent 0 50px, var(--szl-spectral-line-soft) 51px 52px),
+    linear-gradient(90deg, transparent 0 8%, var(--szl-spectral-line) 8.1% 8.25%, transparent 8.35%);
+  --szl-spectral-orbit:
+    radial-gradient(circle at 82% 18%, var(--szl-spectral-glow) 0, transparent 31%),
+    linear-gradient(90deg, transparent 0 72%, var(--szl-spectral-glow-2) 72.2% 72.5%, transparent 72.8%);
+}
+body[data-szl-theme="forensic"] {
+  --szl-spectral-grid-size: 32px;
+  --szl-spectral-mesh:
+    repeating-linear-gradient(0deg, transparent 0 31px, var(--szl-spectral-line-soft) 32px 33px),
+    repeating-linear-gradient(90deg, transparent 0 95px, var(--szl-spectral-line-soft) 96px 97px);
+  --szl-spectral-orbit:
+    linear-gradient(90deg, var(--szl-spectral-glow), transparent 18% 76%, var(--szl-spectral-glow-2)),
+    repeating-linear-gradient(0deg, transparent 0 63px, var(--szl-spectral-line) 64px 65px);
+}
+body[data-szl-theme="voyage"] {
+  --szl-spectral-grid-size: 92px;
+  --szl-spectral-mesh:
+    repeating-radial-gradient(ellipse at 72% 50%, transparent 0 62px, var(--szl-spectral-line-soft) 63px 64px),
+    linear-gradient(165deg, transparent 0 54%, var(--szl-spectral-line) 54.3% 55%, transparent 55.3%);
+  --szl-spectral-orbit:
+    conic-gradient(from 18deg at 72% 50%, var(--szl-spectral-glow), transparent 18% 82%, var(--szl-spectral-glow-2));
+}
+
+/* Prism treatment for the shared rail. */
+.szl-flow-rail {
+  border-color: color-mix(in srgb, var(--szl-flow-accent) 24%, var(--szl-flow-line));
+  background:
+    linear-gradient(118deg, color-mix(in srgb, var(--szl-flow-accent) 6%, transparent), transparent 34% 68%, color-mix(in srgb, var(--szl-flow-secondary) 7%, transparent)),
+    color-mix(in srgb, var(--szl-flow-bg) 94%, transparent);
+  box-shadow:
+    0 26px 86px rgba(0,0,0,.52),
+    0 0 0 1px color-mix(in srgb, var(--szl-flow-accent) 8%, transparent) inset,
+    0 0 44px color-mix(in srgb, var(--szl-flow-accent) 8%, transparent);
+  backdrop-filter: blur(24px) saturate(135%);
+  -webkit-backdrop-filter: blur(24px) saturate(135%);
+}
+
+.szl-flow-rail::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    linear-gradient(105deg, transparent 4%, color-mix(in srgb, white 10%, transparent) 18%, transparent 31% 72%, color-mix(in srgb, var(--szl-flow-accent) 12%, transparent));
+  mask-image: linear-gradient(#000, transparent 54%);
+  opacity: .72;
+}
+
+.szl-flow-origin {
+  position: relative;
+  overflow: hidden;
+  min-width: 146px;
+  align-content: center;
+  flex-wrap: wrap;
+  padding-block: 6px;
+  background:
+    radial-gradient(circle at 18% 28%, color-mix(in srgb, var(--szl-flow-accent) 13%, transparent), transparent 42%),
+    var(--szl-flow-panel);
+}
+
+.szl-flow-context {
+  display: block;
+  max-width: 112px;
+  overflow: hidden;
+  color: var(--szl-flow-accent);
+  font: 720 9px/1.15 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .11em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.szl-flow-mode {
+  display: block;
+  max-width: 112px;
+  overflow: hidden;
+  color: var(--szl-flow-sub);
+  font: 560 8px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .08em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.szl-flow-link,
+.szl-flow-switch,
+.szl-flow-toggle {
+  position: relative;
+  overflow: hidden;
+}
+
+.szl-flow-link::after,
+.szl-flow-switch::after,
+.szl-flow-toggle::after {
+  content: "";
+  position: absolute;
+  inset: auto 15% 3px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--szl-flow-accent), transparent);
+  opacity: 0;
+  transform: scaleX(.2);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.szl-flow-link:hover::after,
+.szl-flow-link:focus-visible::after,
+.szl-flow-link[aria-current="page"]::after,
+.szl-flow-switch:hover::after,
+.szl-flow-switch:focus-visible::after,
+.szl-flow-toggle:hover::after,
+.szl-flow-toggle:focus-visible::after {
+  opacity: .8;
+  transform: scaleX(1);
+}
+
+[data-szl-spectral-card="true"] {
+  --szl-card-line: color-mix(in srgb, var(--szl-flow-accent) 18%, transparent);
+  transition: transform .22s cubic-bezier(.2,.75,.2,1), box-shadow .22s ease, border-color .22s ease, filter .22s ease;
+  box-shadow:
+    0 0 0 1px var(--szl-card-line) inset,
+    0 16px 44px rgba(0,0,0,.12);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  [data-szl-spectral-card="true"]:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--szl-flow-accent) 36%, transparent);
+    box-shadow:
+      0 0 0 1px color-mix(in srgb, var(--szl-flow-accent) 28%, transparent) inset,
+      0 24px 66px rgba(0,0,0,.2),
+      0 0 34px color-mix(in srgb, var(--szl-flow-accent) 6%, transparent);
+    filter: saturate(1.04);
+  }
+}
+
+/* Progressive reveal only where the browser implements scroll-driven animation. */
+@supports (animation-timeline: view()) {
+  body[data-szl-spectral="product"] :where(main > section, main > article, [data-szl-reveal="true"]) {
+    animation: szl-spectral-reveal both linear;
+    animation-timeline: view();
+    animation-range: entry 5% cover 28%;
+  }
+}
+
+html[data-szl-performance="balanced"] {
+  --szl-spectral-field-opacity: .54;
+}
+html[data-szl-performance="balanced"] .szl-spectral-scan {
+  display: none;
+}
+html[data-szl-performance="balanced"] .szl-spectral-layer {
+  will-change: auto;
+}
+html[data-szl-performance="quiet"] {
+  --szl-spectral-field-opacity: .31;
+}
+html[data-szl-performance="quiet"] .szl-spectral-mesh,
+html[data-szl-performance="quiet"] .szl-spectral-orbit,
+html[data-szl-performance="quiet"] .szl-spectral-scan,
+html[data-szl-performance="quiet"] .szl-spectral-nodes {
+  display: none;
+}
+html[data-szl-performance="quiet"] .szl-spectral-beam {
+  animation: none;
+  filter: blur(34px);
+}
+html[data-szl-performance="quiet"] [data-szl-spectral-card="true"] {
+  transition: none;
+}
+
+@keyframes szl-spectral-orbit {
+  to { rotate: 1turn; }
+}
+@keyframes szl-spectral-breathe {
+  from { opacity: .42; scale: .98; }
+  to { opacity: .76; scale: 1.04; }
+}
+@keyframes szl-spectral-scan {
+  0%, 10% { transform: translate3d(0, -68%, 0); opacity: 0; }
+  18% { opacity: .32; }
+  78% { opacity: .24; }
+  92%, 100% { transform: translate3d(0, 72%, 0); opacity: 0; }
+}
+@keyframes szl-spectral-reveal {
+  from { opacity: .72; transform: translateY(12px) scale(.995); filter: blur(3px); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@media (max-width: 820px) {
+  :root {
+    --szl-spectral-grid-size: 48px;
+    --szl-spectral-field-opacity: .48;
+  }
+  .szl-spectral-field { mix-blend-mode: plus-lighter; }
+  .szl-spectral-orbit { opacity: .3; }
+  .szl-spectral-nodes { opacity: .2; }
+  .szl-flow-origin { min-width: 52px; }
+  .szl-flow-context,
+  .szl-flow-mode { display: none; }
+}
+
+@media (max-width: 420px) {
+  .szl-spectral-field { opacity: .4; }
+  .szl-spectral-mesh { background-size: 42px 42px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .szl-spectral-layer,
+  [data-szl-spectral-card="true"],
+  .szl-flow-link::after,
+  .szl-flow-switch::after,
+  .szl-flow-toggle::after {
+    animation: none !important;
+    transition: none !important;
+    will-change: auto !important;
+  }
+  .szl-spectral-scan { display: none; }
+  .szl-spectral-orbit { transform: none; }
+  [data-szl-spectral-card="true"]:hover { transform: none; }
+}
+
+@media (prefers-contrast: more) {
+  :root {
+    --szl-spectral-line: color-mix(in srgb, var(--szl-flow-accent) 48%, transparent);
+    --szl-spectral-line-soft: color-mix(in srgb, var(--szl-flow-secondary) 34%, transparent);
+  }
+  .szl-spectral-field { opacity: .32; }
+  .szl-flow-rail {
+    border-width: 2px;
+    background: var(--szl-flow-bg);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .szl-spectral-field { display: none !important; }
+  [data-szl-spectral-card="true"] {
+    border: 1px solid CanvasText;
+    box-shadow: none;
+    filter: none;
+  }
+  .szl-flow-rail::before,
+  .szl-flow-link::after,
+  .szl-flow-switch::after,
+  .szl-flow-toggle::after { display: none; }
+}
+
+@media print {
+  .szl-spectral-field { display: none !important; }
+  [data-szl-spectral-card="true"] {
+    box-shadow: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}

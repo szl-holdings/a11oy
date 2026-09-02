@@ -1,0 +1,82 @@
+{
+  "schema": "szl.spectral-fabric-theme-registry/v2",
+  "version": "2.0.0",
+  "name": "SZL Spectral Fabric",
+  "principle": "One governed flow, many unmistakable instruments. Shared interaction mechanics never flatten product identity.",
+  "design_synthesis": [
+    "editorial restraint and legible hierarchy",
+    "cinematic mission framing with purposeful depth",
+    "accelerated-compute energy without decorative overload",
+    "dense operational telemetry with progressive disclosure",
+    "visible procedure storytelling and auditable state transitions",
+    "business-state narratives tied to outcomes rather than vanity metrics"
+  ],
+  "originality_boundary": {
+    "third_party_assets": false,
+    "third_party_code": false,
+    "third_party_trade_dress_replication": false,
+    "implementation": "Original SZL code, KANCHAY palette, product-owned information architecture, and route-specific geometry."
+  },
+  "shared_contract": {
+    "origins": {
+      "product": "https://a-11-oy.com",
+      "proof": "https://a11oy.net"
+    },
+    "journeys": [
+      {"id": "start", "label": "Start Here"},
+      {"id": "products", "label": "Products & Demos"},
+      {"id": "models", "label": "Models & Data"},
+      {"id": "kernels", "label": "Kernels & SDKs"},
+      {"id": "proofs", "label": "Proofs & Research"}
+    ],
+    "minimum_touch_target_px": 44,
+    "viewports": [320, 360, 390, 768, 1024, 1440],
+    "safe_area_aware": true,
+    "keyboard_escape_navigation": true,
+    "visible_focus": true,
+    "reduced_motion_required": true,
+    "high_contrast_required": true,
+    "forced_colors_required": true,
+    "print_fallback_required": true,
+    "horizontal_overflow_forbidden": true,
+    "external_runtime_assets_forbidden": true,
+    "analytics_or_tracking": false,
+    "runtime_data_claims_from_decoration": false
+  },
+  "performance_tiers": {
+    "full": "Pointer depth, orbit, mesh, nodes, scan, bloom, and progressive panel treatment.",
+    "balanced": "Reduced opacity and layer count for mobile or constrained hardware.",
+    "quiet": "Static bloom and beam only for reduced motion, data saver, or low-resource devices."
+  },
+  "product_instruments": [
+    {"route": "/", "theme": "conductor", "label": "A11oy Command", "motif": "governed proof constellation", "purpose": "estate front door and command narrative"},
+    {"route": "/console", "theme": "operator", "label": "Command Console", "motif": "telemetry matrix", "purpose": "dense operational control"},
+    {"route": "/estate", "theme": "atlas", "label": "Estate Atlas", "motif": "topology coordinates", "purpose": "system and artifact discovery"},
+    {"route": "/anatomy", "theme": "anatomy", "label": "System Anatomy", "motif": "living membranes", "purpose": "organ and dependency inspection"},
+    {"route": "/immune", "theme": "sentinel", "label": "Immune", "motif": "admission radar", "purpose": "policy and integrity defense"},
+    {"route": "/khipu", "theme": "weave", "label": "KHIPU", "motif": "woven memory topology", "purpose": "memory and provenance"},
+    {"route": "/lyte", "theme": "observatory", "label": "Lyte", "motif": "signal aurora", "purpose": "business observability"},
+    {"route": "/nexus", "theme": "bridge", "label": "Nexus", "motif": "connection field", "purpose": "integration and routing"},
+    {"route": "/decision", "theme": "decision", "label": "Decision Kernel", "motif": "branch geometry", "purpose": "adjudication and approval"},
+    {"route": "/terra", "theme": "blueprint", "label": "Terra", "motif": "parcel blueprint", "purpose": "property intelligence"},
+    {"route": "/aegis", "theme": "sentry", "label": "Aegis", "motif": "threat lattice", "purpose": "defense and security operations"},
+    {"route": "/puriq-markets", "theme": "market", "label": "Puriq Markets", "motif": "market telemetry", "purpose": "market intelligence"},
+    {"route": "/counsel", "theme": "counsel", "label": "PRISM Counsel", "motif": "matter lines", "purpose": "legal matter command"},
+    {"route": "/vessels", "theme": "voyage", "label": "Vessels", "motif": "bathymetric sonar", "purpose": "maritime intelligence"},
+    {"route": "/verify", "theme": "forensic", "label": "Receipt Verify", "motif": "checksum ledger", "purpose": "independent verification"}
+  ],
+  "space_families": [
+    {"family": "command", "motif": "proof constellation", "examples": ["a11oy", "szl-command-lab"]},
+    {"family": "observability", "motif": "signal aurora", "examples": ["lyte", "lyte-lattice"]},
+    {"family": "maritime", "motif": "bathymetric sonar", "examples": ["vessels"]},
+    {"family": "property", "motif": "topographic parcels", "examples": ["terra", "szl-real-estate"]},
+    {"family": "security", "motif": "threat lattice", "examples": ["aegis", "immune"]},
+    {"family": "legal", "motif": "matter facets", "examples": ["prism-counsel", "counsel"]},
+    {"family": "advisory", "motif": "editorial orbit", "examples": ["carlota-jo"]},
+    {"family": "integration", "motif": "connection field", "examples": ["nexus"]},
+    {"family": "factory", "motif": "assembly circuit", "examples": ["a11oy-factory", "szl-forge"]},
+    {"family": "research", "motif": "recursive rings", "examples": ["ouroboros", "szl-papers"]},
+    {"family": "agents", "motif": "agent swarm", "examples": ["killinchu"]},
+    {"family": "memory", "motif": "woven traces", "examples": ["szl-khipu", "khipu-consensus"]}
+  ]
+}
