@@ -1,0 +1,55 @@
+name: Reconcile Holographic v2 Branch
+
+on:
+  push:
+    branches:
+      - feat/holographic-experience-v2-20260902
+    paths:
+      - ".github/workflows/reconcile-holographic-v2-branch.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reconcile-holographic-v2-branch
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/holographic-experience-v2-20260902
+          fetch-depth: 0
+      - name: Reconcile exact gate and remove controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git pull --ff-only origin feat/holographic-experience-v2-20260902
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/holographic-v2-gate-and-merge.yml')
+          text = path.read_text(encoding='utf-8')
+          branch_old = "github.head_ref == 'feat/holographic-experience-v2-20260902' &&"
+          branch_new = "(github.head_ref == 'feat/holographic-experience-v2-20260902' || github.head_ref == 'feat/holographic-experience-v2-bind-20260902') &&"
+          if branch_old in text:
+              text = text.replace(branch_old, branch_new)
+          elif branch_new not in text:
+              raise SystemExit('branch gate condition is not recognized')
+          status_old = 'if peers and not pending and legacy.get("state") != "pending":'
+          status_new = 'if peers and not pending and not any(row.get("state") == "pending" for row in legacy.get("statuses", [])):'
+          if status_old in text:
+              text = text.replace(status_old, status_new)
+          elif status_new not in text:
+              raise SystemExit('legacy status condition is not recognized')
+          path.write_text(text, encoding='utf-8')
+          PY
+          rm -f .github/workflows/fix-holographic-v2-gate-on-branch.yml .github/workflows/extend-holographic-v2-gate-on-branch.yml .github/workflows/reconcile-holographic-v2-branch.yml
+          git config user.name "SZL Holographic Branch Reconciler"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -s -m "fix(ci): reconcile holographic v2 gate state"
+          git push origin HEAD:feat/holographic-experience-v2-20260902
