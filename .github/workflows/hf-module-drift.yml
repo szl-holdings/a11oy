@@ -1,21 +1,23 @@
 name: HF Space module-drift guard
 
-# Pull requests and deployed-runtime checks are separate lifecycle proofs.
+# lifecycle: post-deployment-repository-parity/v1
 #
-# PR admission proves that the current protected base is exactly represented by
-# one stable immutable Hugging Face repository revision, and that the candidate
-# does not introduce unmanaged Dockerfile COPY drift. It does not depend on an
-# unrelated live request queue or mutate the Space.
+# Pull-request and deployed-runtime checks are deliberately separated.
 #
-# Scheduled, manual, and post-deployment checks retain the strict live
-# source-bound controller: the runtime must be RUNNING and /api/build-info must
-# produce two stable exact-source observations. A paused or unmeasured runtime
-# therefore stays red at the release/runtime boundary rather than deadlocking
-# every unrelated source PR.
+# Pull requests prove that the current protected base is exactly represented by
+# one stable immutable Hugging Face repository revision. An unmerged candidate
+# is never required to equal the currently deployed public Space.
+#
+# Scheduled, manual, and post-deployment checks prove that the exact protected
+# main revision equals the Hub repository bytes and that the served runtime is
+# RUNNING with two stable /api/build-info source observations.
 #
 # Pushes do not run this workflow because they race publication. Every main
 # push enters hf-sync without a path filter; hf-sync deploys, restarts, relocks,
-# and then dispatches this workflow against protected main.
+# and only then dispatches this workflow against protected main.
+#
+# The historical selector `select_hf_candidate_admission.py` remains available
+# for explicit forensic replay, but this lifecycle workflow never invokes it.
 
 on:
   pull_request:
@@ -100,7 +102,7 @@ jobs:
 
   hf-repository-parity:
     name: Immutable HF repository byte parity
-    if: github.event_name == 'pull_request'
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -109,11 +111,11 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Checkout exact protected-base verifier
+      - name: Checkout exact protected source verifier
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          path: baseline
-          ref: ${{ github.event.pull_request.base.sha }}
+          path: source
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Checkout exact reusable tools revision
@@ -129,25 +131,23 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Prove the candidate introduces no unmanaged deployed-byte drift
+      - name: Prove exact post-deployment repository byte parity
         env:
           GITHUB_TOKEN: ${{ github.token }}
-          BASE_REF: ${{ github.event.pull_request.base.sha }}
-          SOURCE_REF: ${{ github.event.pull_request.head.sha }}
+          SOURCE_REF: ${{ github.sha }}
         run: |
-          "$pythonLocation/bin/python3" baseline/.github/scripts/select_hf_candidate_admission.py \
+          "$pythonLocation/bin/python3" source/.github/scripts/verify_hf_repository_parity.py \
             --tools-script tools/.github/scripts/hf_module_drift_check.py \
             --github-repo "$GITHUB_REPOSITORY" \
-            --base-ref "$BASE_REF" \
             --github-ref "$SOURCE_REF" \
             --hf-repo SZLHOLDINGS/a11oy \
-            --report-out hf-repository-parity.out.json
+            --report-out hf-post-deployment-repository-parity.out.json
 
-      - name: Upload immutable candidate repository parity report
+      - name: Upload immutable post-deployment repository parity proof
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: hf-repository-parity
-          path: hf-repository-parity.out.json
+          name: hf-post-deployment-repository-parity
+          path: hf-post-deployment-repository-parity.out.json
           if-no-files-found: error
           retention-days: 90

@@ -1,0 +1,53 @@
+name: HF parity lifecycle contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/hf-module-drift.yml"
+      - ".github/workflows/hf-sync.yml"
+      - ".github/workflows/hf-parity-lifecycle-contract.yml"
+      - "scripts/validate_hf_parity_lifecycle.py"
+      - "scripts/validate_frontdoor_source_integrity.py"
+      - "tests/test_hf_parity_lifecycle.py"
+      - "tests/test_hf_source_bound_drift_contract.py"
+      - "tests/test_hf_candidate_selector_wiring.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/hf-module-drift.yml"
+      - ".github/workflows/hf-sync.yml"
+      - ".github/workflows/hf-parity-lifecycle-contract.yml"
+      - "scripts/validate_hf_parity_lifecycle.py"
+      - "scripts/validate_frontdoor_source_integrity.py"
+      - "tests/test_hf_parity_lifecycle.py"
+      - "tests/test_hf_source_bound_drift_contract.py"
+      - "tests/test_hf_candidate_selector_wiring.py"
+
+permissions:
+  contents: read
+
+jobs:
+  lifecycle:
+    name: Base before merge; exact main after publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+      - name: Validate lifecycle
+        run: python3 scripts/validate_hf_parity_lifecycle.py
+      - name: Run lifecycle contracts
+        run: python3 -m unittest -v tests.test_hf_parity_lifecycle tests.test_hf_source_bound_drift_contract tests.test_hf_candidate_selector_wiring
+      - name: Preserve source-integrity attack tests
+        run: |
+          python3 scripts/test_frontdoor_source_integrity.py
+          python3 scripts/validate_frontdoor_source_integrity.py
+      - name: Diff hygiene
+        run: git diff --check
