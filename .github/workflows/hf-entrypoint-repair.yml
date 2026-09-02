@@ -1,0 +1,138 @@
+# SPDX-License-Identifier: Apache-2.0
+name: HF Deterministic Entrypoint Repair
+
+on:
+  push:
+    branches:
+      - ops/hf-estate-recovery-20260902-v3
+    paths:
+      - scripts/hf_entrypoint_repair.py
+      - .github/workflows/hf-entrypoint-repair.yml
+      - scripts/hf_estate_recover.py
+      - docs/huggingface-space-source-map-v1.json
+      - docs/series-a/HF_SPACE_CONSOLIDATION.md
+      - szl_spaces_surface.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hf-deterministic-entrypoint-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Repair only unambiguous existing Space entrypoints
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      HF_READ_TOKEN: ${{ secrets.HF_READ_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify deterministic one-file repair policy
+        run: python scripts/hf_entrypoint_repair.py --self-test
+
+      - name: Repair only unambiguous missing app_file metadata
+        id: repair
+        continue-on-error: true
+        run: |
+          set +e
+          python scripts/hf_entrypoint_repair.py \
+            --org SZLHOLDINGS \
+            --repo-root . \
+            --settle-seconds 240 \
+            --json-out hf-entrypoint-repair.json \
+            --markdown-out hf-entrypoint-repair.md
+          rc=$?
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload source-repair receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: szl-hf-entrypoint-repair-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-entrypoint-repair.json
+            hf-entrypoint-repair.md
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Publish exact residual source diagnoses to the rolling incident
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          REPORT_PATH: hf-entrypoint-repair.json
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- szl-hf-estate-recovery-incident -->';
+            const title = '[HF-ESTATE] Non-folded Space recovery residuals';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+            } catch (error) {
+              core.warning(`Entrypoint report unavailable: ${error.name}`);
+              return;
+            }
+            const residual = Array.isArray(report.residual) ? report.residual : [];
+            const actions = Array.isArray(report.actions) ? report.actions : [];
+            if (!residual.length && !actions.length) return;
+            const query = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:hf-estate-recovery`;
+            const found = await github.rest.search.issuesAndPullRequests({q: query, sort: 'created', order: 'desc', per_page: 10});
+            const existing = found.data.items.find(item => !item.pull_request && item.title === title) || null;
+            const lines = [
+              '### Deterministic entrypoint repair pass',
+              '',
+              `Run: ${runUrl}`,
+              `README-only repairs pushed: ${actions.filter(row => row.pushed).length}`,
+              `Residual source diagnoses: ${residual.length}`,
+              '',
+              ...actions.map(row => `- REPAIR \`${row.space}\`: ${row.result}; candidate=\`${row.candidate || 'none'}\`; after=\`${row.stage_after || 'not observed'}\``),
+              ...residual.map(row => `- RESIDUAL \`${row.space}\` — \`${row.stage}\`: ${row.reason}`),
+            ];
+            if (existing) {
+              await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: lines.join('\n')});
+            } else if (residual.length) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body: ['## Hugging Face Estate Recovery', '', marker, '', ...lines].join('\n'),
+                labels: ['hf-estate-recovery', 'incident'],
+              });
+            }
+
+      - name: Enforce deterministic repair result
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.repair.outputs.exit_code }}
+        run: |
+          case "${EXIT_CODE:-2}" in
+            0) echo "No deterministic entrypoint residual remains." ;;
+            1) echo "::error::Some failed Spaces require application or dependency repair; exact diagnoses are in the receipt."; exit 1 ;;
+            *) echo "::error::Entrypoint repair could not inventory or authenticate to the estate."; exit 1 ;;
+          esac

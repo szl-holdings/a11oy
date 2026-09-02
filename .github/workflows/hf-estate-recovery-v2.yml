@@ -1,0 +1,153 @@
+# SPDX-License-Identifier: Apache-2.0
+name: HF Estate Recovery v2
+
+on:
+  push:
+    branches:
+      - ops/hf-estate-recovery-20260902-v3
+    paths:
+      - scripts/hf_estate_recover.py
+      - scripts/hf_estate_recover_v2.py
+      - .github/workflows/hf-estate-recovery-v2.yml
+      - docs/huggingface-space-source-map-v1.json
+      - docs/series-a/HF_SPACE_CONSOLIDATION.md
+      - szl_spaces_surface.py
+  workflow_dispatch:
+    inputs:
+      observe_seconds:
+        description: Seconds to observe BUILDING/STARTING before a factory reboot
+        required: false
+        default: "360"
+      settle_seconds:
+        description: Maximum post-recovery settle window
+        required: false
+        default: "900"
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: hf-estate-recovery-v2
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Recover every non-folded SZLHOLDINGS Space
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      HF_READ_TOKEN: ${{ secrets.HF_READ_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      HF_BUILD_OBSERVE_SECONDS: ${{ github.event_name == 'workflow_dispatch' && inputs.observe_seconds || '360' }}
+      HF_RECOVERY_SETTLE_SECONDS: ${{ github.event_name == 'workflow_dispatch' && inputs.settle_seconds || '900' }}
+      HF_RECOVERY_POLL_SECONDS: "45"
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact recovery source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Verify recovery policy offline
+        run: python scripts/hf_estate_recover_v2.py --self-test
+
+      - name: Recover the live Space estate
+        id: recovery
+        continue-on-error: true
+        run: |
+          set +e
+          python scripts/hf_estate_recover_v2.py \
+            --org SZLHOLDINGS \
+            --repo-root . \
+            --json-out hf-recovery-report-v2.json \
+            --markdown-out hf-recovery-report-v2.md
+          rc=$?
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable recovery receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: szl-hf-estate-recovery-v2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-recovery-report-v2.json
+            hf-recovery-report-v2.md
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Reconcile the rolling HF estate incident
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          REPORT_PATH: hf-recovery-report-v2.json
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- szl-hf-estate-recovery-incident -->';
+            const title = '[HF-ESTATE] Non-folded Space recovery residuals';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+            } catch (error) {
+              report = {terminal_green: false, errors: [`recovery report unavailable: ${error.name}`], residual: [], spaces: []};
+            }
+            const query = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:hf-estate-recovery`;
+            const found = await github.rest.search.issuesAndPullRequests({q: query, sort: 'created', order: 'desc', per_page: 10});
+            const existing = found.data.items.find(item => !item.pull_request && item.title === title) || null;
+            const residual = Array.isArray(report.residual) ? report.residual : [];
+            const errors = Array.isArray(report.errors) ? report.errors : [];
+            const details = residual.slice(0, 80).map(row => `- \`${row.space || 'unknown'}\` — \`${row.stage || 'UNKNOWN'}\`: ${row.reason || 'see receipt'}`);
+            if (errors.length) details.push('', '**Operator errors**', ...errors.slice(0, 20).map(value => `- ${value}`));
+            const body = [
+              '## Hugging Face Estate Recovery', '', marker,
+              `**State:** ${report.terminal_green ? 'RECOVERED' : 'RESIDUALS'}`,
+              `**Observed:** ${report.completed_at || report.generated_at || new Date().toISOString()}`,
+              `**Run:** ${runUrl}`,
+              `**Spaces inventoried:** ${(report.spaces || []).length}`,
+              `**Residual non-folded assets:** ${residual.length}`,
+              '', ...(details.length ? details : ['Every non-folded Space reached `RUNNING`.']), '',
+              'Intentional source-declared folds were preserved. The receipt contains no token, secret value, or opaque endpoint.',
+            ].join('\n');
+            if (report.terminal_green) {
+              if (existing && existing.state === 'open') {
+                await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: `Recovered. Every non-folded Space reached RUNNING.\n\nRun: ${runUrl}`});
+                await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed', state_reason: 'completed'});
+              }
+              return;
+            }
+            if (existing) {
+              if (existing.state === 'closed') await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open'});
+              await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body});
+            } else {
+              await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body, labels: ['hf-estate-recovery', 'incident']});
+            }
+
+      - name: Enforce terminal recovery state
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.recovery.outputs.exit_code }}
+        run: |
+          case "${EXIT_CODE:-2}" in
+            0) echo "Every non-folded SZLHOLDINGS Space reached RUNNING." ;;
+            1) echo "::error::Non-folded Spaces remain failed or recovering. See the immutable receipt."; exit 1 ;;
+            *) echo "::error::HF estate recovery could not execute or inventory the estate."; exit 1 ;;
+          esac

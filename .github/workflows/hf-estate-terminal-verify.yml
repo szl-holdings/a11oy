@@ -1,0 +1,148 @@
+# SPDX-License-Identifier: Apache-2.0
+name: HF Estate Terminal Verification
+
+on:
+  push:
+    branches:
+      - ops/hf-estate-recovery-20260902-v3
+    paths:
+      - .github/workflows/hf-estate-terminal-verify.yml
+      - scripts/hf_estate_recover.py
+      - scripts/hf_estate_recover_v2.py
+      - scripts/hf_entrypoint_repair.py
+      - scripts/hf_canonical_source_repair.py
+      - docs/huggingface-space-source-map-v1.json
+      - docs/series-a/HF_SPACE_CONSOLIDATION.md
+      - szl_spaces_surface.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: hf-estate-terminal-verification
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Require every non-folded Space to reach RUNNING
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      HF_READ_TOKEN: ${{ secrets.HF_READ_TOKEN }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact verification source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Allow restart and source-repair lanes to settle
+        run: sleep 900
+
+      - name: Verify the terminal operator offline
+        run: python scripts/hf_estate_recover_v2.py --self-test
+
+      - name: Reconcile and verify the complete live estate
+        id: terminal
+        continue-on-error: true
+        run: |
+          set +e
+          python scripts/hf_estate_recover_v2.py \
+            --org SZLHOLDINGS \
+            --repo-root . \
+            --observe-seconds 0 \
+            --settle-seconds 600 \
+            --poll-seconds 30 \
+            --json-out hf-estate-terminal-report.json \
+            --markdown-out hf-estate-terminal-report.md
+          rc=$?
+          echo "exit_code=${rc}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload terminal estate receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: szl-hf-estate-terminal-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-estate-terminal-report.json
+            hf-estate-terminal-report.md
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Reconcile terminal recovery incident
+        if: always()
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          REPORT_PATH: hf-estate-terminal-report.json
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = '<!-- szl-hf-estate-recovery-incident -->';
+            const title = '[HF-ESTATE] Non-folded Space recovery residuals';
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            let report;
+            try {
+              report = JSON.parse(fs.readFileSync(process.env.REPORT_PATH, 'utf8'));
+            } catch (error) {
+              report = {terminal_green: false, residual: [], errors: [`terminal report unavailable: ${error.name}`], spaces: []};
+            }
+            const residual = Array.isArray(report.residual) ? report.residual : [];
+            const errors = Array.isArray(report.errors) ? report.errors : [];
+            const query = `repo:${context.repo.owner}/${context.repo.repo} in:body "${marker}" label:hf-estate-recovery`;
+            const found = await github.rest.search.issuesAndPullRequests({q: query, sort: 'created', order: 'desc', per_page: 10});
+            const existing = found.data.items.find(item => !item.pull_request && item.title === title) || null;
+            const summary = [
+              '## Hugging Face Estate — Terminal Verification', '', marker,
+              `**State:** ${report.terminal_green ? 'RECOVERED' : 'RESIDUALS'}`,
+              `**Observed:** ${report.completed_at || report.generated_at || new Date().toISOString()}`,
+              `**Run:** ${runUrl}`,
+              `**Spaces inventoried:** ${(report.spaces || []).length}`,
+              `**Residual non-folded assets:** ${residual.length}`,
+              '',
+              ...residual.map(row => `- \`${row.space}\` — \`${row.stage}\`: ${row.reason}`),
+              ...errors.map(value => `- operator error: ${value}`),
+              '',
+              'Source-declared folds remain preserved. Terminal green requires an actual RUNNING runtime for every non-folded Space.',
+            ].join('\n');
+            if (report.terminal_green) {
+              if (existing && existing.state === 'open') {
+                await github.rest.issues.createComment({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: `Terminal verification passed. Every non-folded Space reports RUNNING.\n\nRun: ${runUrl}`});
+                await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'closed', state_reason: 'completed'});
+              }
+            } else if (existing) {
+              if (existing.state === 'closed') await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, state: 'open'});
+              await github.rest.issues.update({owner: context.repo.owner, repo: context.repo.repo, issue_number: existing.number, body: summary});
+            } else {
+              await github.rest.issues.create({owner: context.repo.owner, repo: context.repo.repo, title, body: summary, labels: ['hf-estate-recovery', 'incident']});
+            }
+
+      - name: Enforce terminal estate state
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.terminal.outputs.exit_code }}
+        run: |
+          case "${EXIT_CODE:-2}" in
+            0) echo "Terminal green: every non-folded SZLHOLDINGS Space reports RUNNING." ;;
+            1) echo "::error::Terminal verification found non-folded Space residuals. See the immutable receipt."; exit 1 ;;
+            *) echo "::error::Terminal verification could not authenticate or inventory the estate."; exit 1 ;;
+          esac
