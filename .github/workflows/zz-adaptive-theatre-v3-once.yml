@@ -1,0 +1,91 @@
+name: Apply Adaptive Theatre v3 once
+
+on:
+  push:
+    branches:
+      - feat/adaptive-theatre-v3
+    paths:
+      - ".github/workflows/zz-adaptive-theatre-v3-once.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: adaptive-theatre-v3-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/adaptive-theatre-v3
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Set up Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+      - name: Bind the adaptive layer to the existing holographic host
+        shell: python
+        run: |
+          from pathlib import Path
+
+          css_path = Path("console/assets/szl-hologram-v2.css")
+          js_path = Path("console/assets/szl-hologram-v2.js")
+          css_import = '@import url("/assets/szl-adaptive-theatre-v3.css"); /* szl:adaptive-theatre-v3 */\n'
+          js_marker = 'data-szl-adaptive-theatre-v3-loader'
+          js_loader = r'''
+          ;(function () {
+            "use strict";
+            if (window.__SZL_ADAPTIVE_THEATRE_V3_LOADER__) return;
+            window.__SZL_ADAPTIVE_THEATRE_V3_LOADER__ = true;
+            var existing = document.querySelector("script[data-szl-adaptive-theatre-v3-loader]");
+            if (existing) return;
+            var script = document.createElement("script");
+            script.src = "/assets/szl-adaptive-theatre-v3.js";
+            script.defer = true;
+            script.dataset.szlAdaptiveTheatreV3Loader = "true";
+            document.head.appendChild(script);
+          }());
+          '''.strip() + "\n"
+
+          css = css_path.read_text(encoding="utf-8")
+          if css.count("szl:adaptive-theatre-v3") > 1:
+              raise SystemExit("duplicate adaptive CSS import marker")
+          if "szl:adaptive-theatre-v3" not in css:
+              if css.startswith("@charset"):
+                  end = css.find(";") + 1
+                  css = css[:end] + "\n" + css_import + css[end:].lstrip("\n")
+              else:
+                  css = css_import + css
+              css_path.write_text(css, encoding="utf-8", newline="\n")
+
+          js = js_path.read_text(encoding="utf-8")
+          if js.count(js_marker) > 1:
+              raise SystemExit("duplicate adaptive JavaScript loader marker")
+          if js_marker not in js:
+              js_path.write_text(js.rstrip() + "\n\n" + js_loader, encoding="utf-8", newline="\n")
+      - name: Verify responsive, syntax, and honesty contracts
+        run: |
+          python tests/test_adaptive_theatre_v3.py -v
+          node --check console/assets/szl-hologram-v2.js
+          node --check console/assets/szl-adaptive-theatre-v3.js
+          python -m py_compile tests/test_adaptive_theatre_v3.py
+          git diff --check
+      - name: Commit the exact validated binding and remove this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/zz-adaptive-theatre-v3-once.yml
+          git config user.name "SZL Adaptive Theatre Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git commit -s -m "feat(frontend): bind Adaptive Theatre v3 to product surfaces"
+          git push origin HEAD:feat/adaptive-theatre-v3
