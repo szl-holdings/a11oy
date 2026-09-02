@@ -1,0 +1,59 @@
+name: Roll out Holographic Experience v2
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/rollout-holographic-experience-v2.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rollout-holographic-experience-v2
+  cancel-in-progress: false
+
+jobs:
+  bind:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Bind source-owned product surfaces
+        run: python scripts/rollout_holographic_experience_v2.py --report /tmp/holographic-rollout-v2.json
+      - name: Verify exact idempotence and contracts
+        run: |
+          python scripts/rollout_holographic_experience_v2.py --check
+          python tests/test_holographic_experience_v2.py
+          node --check console/assets/szl-holo-v2.js
+          git diff --check
+      - name: Push review branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch="feat/holographic-experience-v2-bound"
+          git config user.name "SZL Holographic Experience Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "::error::Review branch $branch already exists; refusing to overwrite it."
+            exit 1
+          fi
+          git checkout -b "$branch"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No binding changes remain."
+            exit 0
+          fi
+          git commit -s -m "feat(frontend): bind Holo-Constellation v2 to product surfaces"
+          git push origin "$branch"
+          echo "## Review branch" >> "$GITHUB_STEP_SUMMARY"
+          echo "\`$branch\` contains the exact source bindings and must be merged through normal review." >> "$GITHUB_STEP_SUMMARY"
