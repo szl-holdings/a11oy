@@ -39,20 +39,29 @@ EXCLUDED_PARTS = {
     "coverage",
     "dist",
 }
+SOURCE_MANAGED = {
+    "pages/integrations.html",
+    "spaces/sda/index.html",
+}
+
+
+def source_managed(path: Path) -> bool:
+    """Return True for files whose bytes are controlled by another source repository."""
+    return path.relative_to(ROOT).as_posix() in SOURCE_MANAGED
 
 
 def documents() -> list[Path]:
     found: set[Path] = set()
     for relative in EXACT:
         path = ROOT / relative
-        if path.is_file():
+        if path.is_file() and not source_managed(path):
             found.add(path)
     for pattern in GLOBS:
         for path in ROOT.glob(pattern):
             if not path.is_file():
                 continue
             parts = set(path.relative_to(ROOT).parts)
-            if not parts.intersection(EXCLUDED_PARTS):
+            if not parts.intersection(EXCLUDED_PARTS) and not source_managed(path):
                 found.add(path)
     return sorted(found)
 
@@ -68,6 +77,8 @@ def is_bound(text: str) -> bool:
 def bind(path: Path) -> str:
     text = _read(path)
     relative = path.relative_to(ROOT).as_posix()
+    if source_managed(path):
+        return "source-managed"
     if "data-szl-holo-disabled" in text:
         return "opt-out"
     if "</head>" not in text.lower() or "</body>" not in text.lower():
@@ -107,6 +118,7 @@ def update_state(rows: list[dict[str, str]]) -> None:
     state["opt_out_documents"] = [
         row["path"] for row in rows if row["result"] == "opt-out"
     ]
+    state["source_managed_documents"] = sorted(SOURCE_MANAGED)
     STATE.write_text(json.dumps(state, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -141,6 +153,7 @@ def run(*, check: bool) -> dict[str, object]:
         "changed": sum(row["result"] == "bound" for row in rows),
         "present": sum(row["result"] == "present" for row in rows),
         "opt_out": sum(row["result"] == "opt-out" for row in rows),
+        "source_managed": sorted(SOURCE_MANAGED),
         "rows": rows,
     }
 
