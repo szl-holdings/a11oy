@@ -42,7 +42,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
         with:
           egress-policy: audit
       - name: Checkout exact protected base verifier
@@ -101,7 +101,7 @@ jobs:
     timeout-minutes: 15
     steps:
       - name: Harden runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920
         with:
           egress-policy: audit
       - name: Checkout exact protected-base verifier
@@ -553,7 +553,7 @@ class IntegrityGuardSelfTest(unittest.TestCase):
             VALID_WORKFLOW.replace(
                 "    steps:\n",
                 "    steps:\n      - uses: &action "
-                "step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40\n",
+                "step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920\n",
                 1,
             ),
             VALID_WORKFLOW.replace(

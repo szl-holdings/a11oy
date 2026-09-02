@@ -38,6 +38,7 @@ footer{margin-top:34px;border-top:1px solid var(--line);padding-top:14px;color:v
 {"imports":{"three":"/static/3d/vendor/three/three.module.min.js","three/addons/":"/static/3d/vendor/three/addons/"}}
 </script>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
+  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
 </head>
 <body>
 <div class="wrap">
@@ -127,5 +128,6 @@ let t=0;function loop(){t+=0.016;body.position.y=0.05*Math.sin(t*1.6);head.posit
 size();window.addEventListener('resize',()=>{size();cam.aspect=canvas.clientWidth/canvas.clientHeight;cam.updateProjectionMatrix();});loop();
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
+  <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
 </body>
 </html>
