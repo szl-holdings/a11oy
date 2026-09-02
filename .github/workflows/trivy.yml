@@ -57,6 +57,55 @@ jobs:
           output-file: grype-results.sarif
           cache-db: true
 
+      - name: Summarize actionable Grype findings
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("grype-results.sarif")
+          if not path.is_file():
+              print("GRYPE_SUMMARY: SARIF file unavailable")
+              raise SystemExit(0)
+
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          findings = []
+          for run in payload.get("runs", []):
+              rules = {
+                  rule.get("id"): rule
+                  for rule in run.get("tool", {}).get("driver", {}).get("rules", [])
+                  if rule.get("id")
+              }
+              for result in run.get("results", []):
+                  rule_id = result.get("ruleId") or "UNKNOWN"
+                  rule = rules.get(rule_id, {})
+                  properties = rule.get("properties", {})
+                  severity = (
+                      properties.get("security-severity")
+                      or properties.get("severity")
+                      or result.get("level")
+                      or "unknown"
+                  )
+                  message = result.get("message", {}).get("text", "")
+                  locations = []
+                  for location in result.get("locations", []):
+                      physical = location.get("physicalLocation", {})
+                      artifact = physical.get("artifactLocation", {}).get("uri")
+                      region = physical.get("region", {})
+                      line = region.get("startLine")
+                      if artifact:
+                          locations.append(f"{artifact}:{line}" if line else artifact)
+                  findings.append((rule_id, str(severity), message, ", ".join(locations)))
+
+          print(f"GRYPE_SUMMARY: findings={len(findings)}")
+          for rule_id, severity, message, locations in findings:
+              print(f"GRYPE_FINDING rule={rule_id} severity={severity} location={locations}")
+              print(f"  {message}")
+          PY
+
       - name: Upload Grype SARIF
         uses: github/codeql-action/upload-sarif@6f530319d8c989665d0835536ec9571735fd2008 # v3.28.15
         if: always()
