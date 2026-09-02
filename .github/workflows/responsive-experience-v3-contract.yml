@@ -1,0 +1,70 @@
+name: Responsive Experience v3 Contract
+
+on:
+  pull_request:
+    paths:
+      - "console/assets/szl-responsive-v3.css"
+      - "console/assets/szl-hologram-v2.css"
+      - "docs/responsive-experience-v3.json"
+      - "scripts/bind_responsive_experience_v3.py"
+      - "tests/test_responsive_experience_v3.py"
+      - ".github/workflows/responsive-experience-v3-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "console/assets/szl-responsive-v3.css"
+      - "console/assets/szl-hologram-v2.css"
+      - "docs/responsive-experience-v3.json"
+      - "scripts/bind_responsive_experience_v3.py"
+      - "tests/test_responsive_experience_v3.py"
+      - ".github/workflows/responsive-experience-v3-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contract:
+    name: Mobile-to-theatre responsive contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Compile the binder and contract
+        run: >-
+          python -m py_compile
+          scripts/bind_responsive_experience_v3.py
+          tests/test_responsive_experience_v3.py
+
+      - name: Run the offline responsive contract
+        run: python tests/test_responsive_experience_v3.py -v
+
+      - name: Verify exact binding when active
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(python -c 'import json; print(json.load(open("docs/responsive-experience-v3.json"))["state"])')"
+          if [ "$state" = "BOUND" ]; then
+            python scripts/bind_responsive_experience_v3.py --check
+          fi
+
+      - name: CSS structure and source integrity
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          css = Path("console/assets/szl-responsive-v3.css").read_text(encoding="utf-8")
+          if css.count("{") != css.count("}"):
+              raise SystemExit("unbalanced CSS braces")
+          if len(css.encode("utf-8")) > 32000:
+              raise SystemExit("responsive CSS exceeds the 32 KB source budget")
+          PY
+          git diff --check
