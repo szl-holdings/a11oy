@@ -1,0 +1,13 @@
+{
+  "schema": "szl.holographic-experience-rollout/v2",
+  "state": "ASSETS_READY",
+  "version": "2.0.0",
+  "product_origin": "https://a-11-oy.com",
+  "proof_origin": "https://a11oy.net",
+  "assets": [
+    "/assets/szl-holo-v2.css",
+    "/assets/szl-holo-v2.js"
+  ],
+  "bindings": [],
+  "decorative_motion_is_measured_telemetry": false
+}
