@@ -1,0 +1,40 @@
+{
+  "schema": "szl.responsive-experience/v3",
+  "state": "ASSET_READY",
+  "roles": {
+    "product_front_door": "https://a-11-oy.com",
+    "application_runtime": "https://szlholdings-a11oy.hf.space",
+    "proof_origin": "https://a11oy.net"
+  },
+  "viewports": [
+    {"name": "compact-phone", "width": 320, "height": 568},
+    {"name": "modern-phone", "width": 375, "height": 812},
+    {"name": "large-phone", "width": 430, "height": 932},
+    {"name": "phone-landscape", "width": 812, "height": 375},
+    {"name": "tablet", "width": 768, "height": 1024},
+    {"name": "compact-desktop", "width": 1280, "height": 800},
+    {"name": "desktop", "width": 1440, "height": 900},
+    {"name": "full-hd", "width": 1920, "height": 1080},
+    {"name": "theatre", "width": 2560, "height": 1440},
+    {"name": "ultrawide", "width": 3440, "height": 1440}
+  ],
+  "requirements": {
+    "horizontal_overflow_px": 0,
+    "minimum_touch_target_px": 44,
+    "minimum_touch_target_coarse_px": 48,
+    "keyboard_focus_visible": true,
+    "safe_area_aware": true,
+    "reduced_motion": true,
+    "increased_contrast": true,
+    "forced_colors": true,
+    "print_mode": true,
+    "container_queries": true,
+    "dynamic_viewport_units": true,
+    "external_runtime_dependencies": 0
+  },
+  "binding": {
+    "host_asset": "console/assets/szl-hologram-v2.css",
+    "responsive_asset": "console/assets/szl-responsive-v3.css",
+    "marker": "szl-responsive-v3"
+  }
+}
