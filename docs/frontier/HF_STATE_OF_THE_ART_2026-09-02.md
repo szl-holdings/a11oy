@@ -1,4 +1,4 @@
-# Hugging Face State-of-the-Art Adoption Plan — 2026-09-02
+# Hugging Face Frontier Adoption Plan — 2026-09-02
 
 Status: RESEARCHED / ADOPTION PLAN / NO MODEL CLAIMS WITHOUT EVIDENCE
 
@@ -40,7 +40,7 @@ SZL action:
 
 ## 4. Retrieval — upgrade from single-vector-only RAG
 
-Sentence Transformers 5.4 added multimodal embedding and reranking across text, images, audio and video. Hugging Face's August 2026 multi-vector/late-interaction support preserves token-level vectors and MaxSim scoring; this is especially strong for visual document retrieval and can avoid OCR-first pipelines. Ettin rerankers were released as state-of-the-art-at-size rerankers in May 2026.
+Sentence Transformers 5.4 added multimodal embedding and reranking across text, images, audio and video. Hugging Face's August 2026 multi-vector/late-interaction support preserves token-level vectors and MaxSim scoring; this is especially strong for visual document retrieval and can avoid OCR-first pipelines. Ettin rerankers were released as high-performing size-efficient rerankers in May 2026.
 
 SZL action:
 - Create a three-lane retrieval fabric:
