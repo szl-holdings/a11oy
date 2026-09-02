@@ -12,8 +12,8 @@
     "zero_download_policy": "ZERO_DOWNLOADS_ALONE_NEVER_AUTHORIZES_DELETE_OR_ARCHIVE"
   },
   "brain_model_truth": {
-    "raw_nodes_observed": 9474,
-    "raw_nodes_available_to_retrieval_and_evaluation": 9474,
+    "raw_nodes_observed": 9475,
+    "raw_nodes_available_to_retrieval_and_evaluation": 9475,
     "raw_nodes_admitted_to_gradients": 0,
     "current_weight_model": "SZLHOLDINGS/SZL-Khipu-1.5B",
     "current_weight_model_relation": "TRAINED_ON_SYNTHETIC_HANDLE_NAVIGATION_NOT_RAW_BRAIN_NODE_CONTENT",
