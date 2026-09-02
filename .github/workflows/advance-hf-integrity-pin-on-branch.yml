@@ -46,8 +46,8 @@ jobs:
                   raise SystemExit(f"expected legacy pin not found in {path}")
               path.write_text(text.replace(old, new), encoding="utf-8")
               total += count
-          if total != 3:
-              raise SystemExit(f"expected exactly three legacy pin references, found {total}")
+          if total != 4:
+              raise SystemExit(f"expected exactly four legacy pin references, found {total}")
           PY
 
       - name: Prove canonical workflow and adversarial fixtures
