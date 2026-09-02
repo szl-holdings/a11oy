@@ -22,7 +22,7 @@ datasets: [SZLHOLDINGS/a11oy-verifiable-corpus, SZLHOLDINGS/szl-lake]
 ---
 
 <!--
-  a11oy README lead · 2026-08-29
+  a11oy README lead · 2026-09-02 honest runtime URLs
   This repository is SOURCE for the product origin https://a-11-oy.com
   Proof lives at https://a11oy.net
   Never a11oy.com
@@ -55,6 +55,7 @@ is a failed verification, not a display error.
 |---|---|
 | Product origin | [a-11-oy.com](https://a-11-oy.com) |
 | Proof registry | [a11oy.net](https://a11oy.net) |
+| Runtime location | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) |
 | Source | this repository |
 | Doctrine | v11 LOCKED |
 | Λ | Conjecture 1 (OPEN — not a theorem) |
@@ -66,10 +67,17 @@ is a failed verification, not a display error.
 
 ## Live surfaces
 
-| Surface | URL |
-|---|---|
-| Console | [a-11-oy.com/console](https://a-11-oy.com/console) |
-| Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) |
+Measured 2026-09-02: the apex `a-11-oy.com` currently serves the static
+GitHub Pages landing (`szl-holdings.github.io`). `/console` and
+`/api/a11oy/v1/*` on that host were Pages 404s. Use the Space until the
+apex is proxied back to this runtime.
+
+| Surface | URL | Class |
+|---|---|---|
+| Runtime Command Center | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) | REACHABLE location |
+| Doctrine posture | [Space /api/a11oy/v1/honest](https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest) | runtime |
+| Product apex landing | [a-11-oy.com](https://a-11-oy.com) | static Pages |
+| Proof registry | [a11oy.net](https://a11oy.net) | static RECORD |
 
 [a11oy-factory](https://github.com/szl-holdings/a11oy-factory) is a bind
 of this source. It is not a second flagship.
@@ -98,22 +106,25 @@ Full proof library: **[szl-holdings/lutar-lean](https://github.com/szl-holdings/
 # Verify the build attestation
 gh attestation verify oci://ghcr.io/szl-holdings/a11oy:latest --repo szl-holdings/a11oy
 
-# Check live doctrine posture
-curl -s https://a-11-oy.com/api/a11oy/v1/honest | jq .doctrine_lock.lambda
-# → "Conjecture 1"
+# Check live doctrine posture on the runtime (not the Pages apex)
+curl -s https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest | jq .doctrine_lock.lambda
+# → "Conjecture 1" when the Space answers that contract
 ```
 
 ---
 
-## Live surfaces
+## Runtime API surfaces
+
+These paths exist on the Space. They are not served by the current
+GitHub Pages apex.
 
 | Surface | URL |
 |---|---|
-| Command Center | [a-11-oy.com/console](https://a-11-oy.com/console) |
-| Governance | [a-11-oy.com/governance](https://a-11-oy.com/governance) |
-| Live energy ledger | [a-11-oy.com/api/a11oy/v1/energy/ledger](https://a-11-oy.com/api/a11oy/v1/energy/ledger) |
-| Doctrine posture | [a-11-oy.com/api/a11oy/v1/honest](https://a-11-oy.com/api/a11oy/v1/honest) |
-| WILLAY classifiers | [a-11-oy.com/api/a11oy/v1/willay/classifiers](https://a-11-oy.com/api/a11oy/v1/willay/classifiers) |
+| Command Center | [szlholdings-a11oy.hf.space](https://szlholdings-a11oy.hf.space/) |
+| Governance | [Space /governance](https://szlholdings-a11oy.hf.space/governance) |
+| Energy ledger | [Space energy ledger](https://szlholdings-a11oy.hf.space/api/a11oy/v1/energy/ledger) |
+| Doctrine posture | [Space honest](https://szlholdings-a11oy.hf.space/api/a11oy/v1/honest) |
+| WILLAY classifiers | [Space classifiers](https://szlholdings-a11oy.hf.space/api/a11oy/v1/willay/classifiers) |
 
 ### Persistent receipt storage (HF Space)
 
@@ -139,7 +150,7 @@ The unified Khipu and energy ledgers use separate `/data/a11oy/*` paths.
   replacement identity.
 
 Check current signing and storage status at `GET /api/a11oy/v1/signing-status`
-and `GET /api/a11oy/v1/series-a/status`.
+and `GET /api/a11oy/v1/series-a/status` on the Space.
 
 ---
 
@@ -147,10 +158,11 @@ and `GET /api/a11oy/v1/series-a/status`.
 
 | Claim | Status |
 |---|---|
-| Signed receipts on every governed action | **LIVE** |
+| Signed receipts on every governed action | **LIVE on the Space when signer present; UNSIGNED-honest otherwise** |
 | 8 formulas locked-proven (Lean 4) | **LOCKED · kernel c7c0ba17** |
 | Λ uniqueness | **Conjecture 1** (conditional Theorem U proven axiom-free) |
 | SLSA supply chain | **L1 honest · L2 build-attested · L3 roadmap** |
+| Apex `/console` on a-11-oy.com | **Pages 404 as of 2026-09-02; pointer repair in flight** |
 | FedRAMP / ATO | **ROADMAP** |
 | EXECUTION guard | **ROADMAP** |
 
@@ -230,7 +242,7 @@ to its captured run.
 - [Associated research-program concept DOI — 10.5281/zenodo.19944926](https://doi.org/10.5281/zenodo.19944926)
 - [Existing formal-artifact record — 10.5281/zenodo.20434276](https://doi.org/10.5281/zenodo.20434276)
 - [A11oy software releases](https://github.com/szl-holdings/a11oy/releases) — the v1.1.0 software-version DOI stays `PENDING_ZENODO_READBACK` until Zenodo resolves the immutable release
-- [Canonical product surface](https://a-11-oy.com) · [public proof registry `a11oy.net`](https://a11oy.net)
+- [Canonical product surface](https://a-11-oy.com) · [runtime Space](https://szlholdings-a11oy.hf.space/) · [public proof registry `a11oy.net`](https://a11oy.net)
 
 ---
 
