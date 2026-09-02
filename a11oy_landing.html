@@ -10,8 +10,10 @@
   never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.
   The genome registry (144 entries) is grouped into 4 honesty tiers — a different, larger set.
   Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.
-  DOM/sections owned by Dev 1; the #hero-canvas + /landing/app.js boot is owned by Dev 2 —
-  preserved verbatim below. KANCHAY palette. No purple. a-11-oy.com remains the
+  DOM/sections owned by Dev 1. The #hero-canvas boot is now a dependency-free WebGL
+  GPU-particle flow field (particle state in a float texture, advected each frame by a
+  curl-noise fragment shader) — no library, 0 CDN. Three.js r160 stays vendored in-image
+  at /hero/vendor3d for the frontier 3D surfaces. Monochrome only. No purple. a-11-oy.com remains the
   canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
@@ -390,6 +392,132 @@
   .pulse-time{margin-top:14px;color:var(--ghost);font:11px var(--mono)}
   @media(max-width:900px){.pulse-grid{grid-template-columns:repeat(2,1fr)}}
   @media(max-width:560px){.pulse-grid{grid-template-columns:1fr}}
+
+  /* ==========================================================================
+     NVIDIA IDENTITY v2 — a-11-oy.com one-of-one surface
+     GPU / technical precision. Fluid modular type (major-third 1.25, 12px
+     base) + sharp 12-column grid + hairline dividers + a dense monospace
+     instrument panel. MONOCHROME ONLY — black / white / warm off-white /
+     neutral grey ramp. No colour, no neon, no decorative gradient.
+     These rules intentionally follow the base hero rules above and precede
+     the late mobile-override block below.
+     ========================================================================== */
+  :root{
+    /* modular 1.25 (major third) from a 12px base: 12/15/19/24/30/37/46/58/72 */
+    --fs-1:clamp(11px,2.4vw,12px);
+    --fs-2:clamp(13px,3vw,15px);
+    --fs-3:clamp(15px,3.6vw,19px);
+    --fs-4:clamp(18px,4.4vw,24px);
+    --fs-5:clamp(21px,5vw,30px);
+    --fs-6:clamp(25px,5.6vw,37px);
+    --fs-7:clamp(29px,6vw,46px);
+    --fs-8:clamp(33px,6.4vw,58px);
+    --fs-9:clamp(36px,6.8vw,72px);
+    --measure:68ch;
+  }
+  /* optical + numeric discipline (Nvidia "Elements": display/heading/body/label) */
+  body{text-rendering:optimizeLegibility;font-feature-settings:"ss01","cv01","kern"}
+  .mono,.stat .k,.nv-v,.nv-num,.tier .tnum,.vcard .lam .val{
+    font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1,"zero" 1}
+  h1,h2,h3{text-wrap:balance}
+  p,li{text-wrap:pretty}
+  .band p.intro{max-width:min(var(--measure),720px);font-size:var(--fs-3);line-height:1.6}
+  .band .kick{font-size:var(--fs-1);letter-spacing:.12em;color:var(--sub)}
+
+  /* ---- hero: full-bleed GPU flow field behind a scrim-masked copy column ---- */
+  #hero-canvas{opacity:.95;filter:saturate(0)}
+  .hero-scrim{
+    background:
+      radial-gradient(115% 130% at 74% 46%, transparent 26%, rgba(0,0,0,.72) 68%, rgba(0,0,0,.96) 100%),
+      linear-gradient(to right, rgba(0,0,0,.94) 0%, rgba(0,0,0,.88) 34%, rgba(0,0,0,.42) 66%, rgba(0,0,0,.20) 100%)}
+  /* second scrim pass — guarantees copy never collides with the field at any width */
+  .hero::after{content:"";position:absolute;inset:0;z-index:1;pointer-events:none;
+    background:linear-gradient(to bottom, rgba(0,0,0,.86) 0%, rgba(0,0,0,.30) 26%, rgba(0,0,0,.34) 72%, rgba(0,0,0,.92) 100%)}
+  @media(max-width:999px){
+    /* single column: the field must sit fully behind the copy, never through it */
+    .hero-scrim{background:linear-gradient(to bottom, rgba(0,0,0,.90) 0%, rgba(0,0,0,.80) 40%, rgba(0,0,0,.90) 100%)}
+    .hero::after{background:rgba(0,0,0,.55)}
+    #hero-canvas{opacity:.55}
+  }
+  .hero-fallback{background:
+    radial-gradient(760px 620px at 68% 44%, rgba(255,255,255,.055), transparent 72%)}
+
+  /* sharp 12-column grid */
+  .nv-grid{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));
+    gap:clamp(22px,3vw,34px);width:100%;align-items:start}
+  .hero-inner.nv-copy{grid-column:1 / -1;max-width:min(var(--measure),700px)}
+  .nv-panel{grid-column:1 / -1;min-width:0}
+  @media(min-width:1000px){
+    .hero-inner.nv-copy{grid-column:1 / span 7;max-width:none}
+    .nv-panel{grid-column:8 / span 5}
+  }
+
+  /* eyebrow — mono, uppercase, +0.12em (fluid type system) */
+  .eyebrow{font-family:var(--mono);font-size:var(--fs-1);font-weight:500;
+    text-transform:uppercase;letter-spacing:.12em;border-radius:0;
+    border:1px solid var(--border);background:rgba(0,0,0,.55);color:var(--sub);
+    padding:7px 12px;margin-bottom:clamp(18px,2.4vw,26px)}
+  .eyebrow .dot{width:6px;height:6px;background:var(--ink)}
+
+  h1.title{font-size:var(--fs-8);line-height:1.06;letter-spacing:-.022em;font-weight:600;
+    color:var(--gold);text-wrap:balance;margin:0 0 clamp(14px,2vw,22px);
+    text-shadow:0 2px 26px rgba(0,0,0,.9),0 1px 4px rgba(0,0,0,.7)}
+  h1.title .grad{background:none;-webkit-background-clip:initial;background-clip:initial;
+    -webkit-text-fill-color:currentColor;color:var(--ink);font-weight:700;filter:none}
+  .lede{font-size:var(--fs-3);line-height:1.6;color:var(--sub);text-wrap:pretty;
+    max-width:min(var(--measure),620px);margin:0 0 clamp(20px,3vw,28px)}
+  .cta-row .btn{border-radius:4px;font-family:var(--mono);font-size:var(--fs-2);letter-spacing:.02em}
+
+  /* ---- hero spec readouts: hairline instrument strip, not floating cards ---- */
+  .hero-stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:0;
+    margin-top:clamp(24px,3vw,34px)}
+  @media(min-width:760px){.hero-stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+  .stat{padding:13px 14px;border:0;border-radius:0;min-width:0;
+    background:rgba(0,0,0,.78);backdrop-filter:none;-webkit-backdrop-filter:none}
+  .stat .k{font-size:var(--fs-5);font-weight:500;letter-spacing:-.02em}
+  .stat .l{font-size:var(--fs-1);letter-spacing:.11em;font-family:var(--mono);text-transform:uppercase}
+  .stat .l .stat-note{font-size:10.5px;letter-spacing:.01em;line-height:1.55;text-wrap:pretty}
+
+  /* ---- instrument panel: the live receipt/attest read, presented as an
+         engineered readout (dense mono, hairline rules, tabular figures) ---- */
+  .nv-panel{border:1px solid var(--border);border-radius:0;background:rgba(0,0,0,.80);
+    box-shadow:0 30px 90px -46px #000;font-family:var(--mono)}
+  .nv-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:11px 14px;border-bottom:1px solid var(--border)}
+  .nv-eyebrow{font-size:var(--fs-1);letter-spacing:.13em;text-transform:uppercase;color:var(--ghost)}
+  .nv-state{font-size:var(--fs-1);letter-spacing:.11em;text-transform:uppercase;color:var(--sub);
+    display:inline-flex;align-items:center;gap:7px}
+  .nv-state i{width:6px;height:6px;border-radius:50%;background:var(--ghost);flex:none}
+  .nv-panel.is-live .nv-state i{background:var(--ink)}
+  .nv-panel.is-live .nv-state{color:var(--t1,#e8e8ea)}
+  .nv-rows{padding:4px 14px 10px}
+  .nv-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;
+    padding:6px 0;border-bottom:1px solid rgba(255,255,255,.045)}
+  .nv-row:last-child{border-bottom:0}
+  .nv-k{font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ghost);flex:none}
+  .nv-v{font-size:12.5px;line-height:1.55;color:var(--ink);text-align:right;
+    overflow-wrap:anywhere;word-break:break-word;min-width:0}
+  .nv-v.dim{color:var(--sub)}
+  .nv-chip{display:inline-block;font-size:10.5px;letter-spacing:.06em;padding:2px 7px;
+    border:1px solid var(--border);color:var(--sub);border-radius:0}
+  /* label spectrum — proportional hairline bar built ONLY from real counts */
+  .nv-spectrum{display:flex;height:4px;margin:2px 14px 0;background:var(--border);overflow:hidden}
+  .nv-spectrum span{display:block;height:100%}
+  .nv-legend{display:flex;flex-wrap:wrap;gap:4px 14px;padding:9px 14px 2px;
+    font-size:10.5px;letter-spacing:.07em;color:var(--ghost)}
+  .nv-legend b{color:var(--sub);font-weight:500}
+  .nv-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:11px 14px;margin-top:8px;border-top:1px solid var(--border)}
+  .nv-foot .nv-k{font-size:10.5px;letter-spacing:.05em;text-transform:none}
+  .nv-verdict{font-size:13px;font-weight:600;letter-spacing:.09em;color:var(--ghost)}
+  .nv-panel.is-live .nv-verdict{color:var(--ink)}
+  .nv-src{margin:0;padding:0 14px 12px;font-size:10.5px;line-height:1.7;color:var(--ghost);
+    text-wrap:pretty;overflow-wrap:anywhere}
+  .nv-src a{color:var(--sub);border-bottom:1px solid var(--border)}
+  .nv-src a:hover{color:var(--ink)}
+  @media(prefers-reduced-motion:reduce){#hero-canvas{opacity:.5}}
+
   /* Mobile overrides intentionally follow all equal-specificity base rules. */
   @media(max-width:560px){
     .wrap{padding-inline:16px}
@@ -451,7 +579,8 @@
   <div class="hero-scrim" aria-hidden="true"></div>
   <div class="hero-fallback" id="hero-fallback"></div>
   <div class="wrap">
-    <div class="hero-inner">
+   <div class="nv-grid">
+    <div class="hero-inner nv-copy">
       <span class="eyebrow"><span class="dot"></span> Governed agent change management · verifiable by anyone, offline</span>
       <!-- audit 2026-08-30: single buyer sentence as the hero (estate audit first-fold fix) -->
       <h1 class="title">Every AI action your agents take, <span class="grad">policy-gated and signed into a receipt</span> you can verify offline.</h1>
@@ -485,6 +614,39 @@
         </div>
       </div>
     </div>
+
+    <!-- Instrument panel — the live receipt / attest read.
+         Every row ships as UNAVAILABLE and is only overwritten by a value this
+         request actually returned. Nothing here is fabricated or cached. -->
+    <aside class="nv-panel" id="nv-panel" aria-label="Runtime instrument panel">
+      <div class="nv-head">
+        <span class="nv-eyebrow">Runtime · instrument</span>
+        <span class="nv-state" id="nv-state"><i></i>reading…</span>
+      </div>
+      <div class="nv-rows">
+        <div class="nv-row"><span class="nv-k">service</span><span class="nv-v" id="nv-service">UNAVAILABLE</span></div>
+        <div class="nv-row"><span class="nv-k">doctrine</span><span class="nv-v" id="nv-doctrine">UNAVAILABLE</span></div>
+        <div class="nv-row"><span class="nv-k">kernel_pin</span><span class="nv-v" id="nv-kernel">UNAVAILABLE</span></div>
+        <div class="nv-row"><span class="nv-k">surfaces</span><span class="nv-v" id="nv-surfaces">UNAVAILABLE</span></div>
+        <div class="nv-row"><span class="nv-k">policy</span><span class="nv-v" id="nv-policy">UNAVAILABLE</span></div>
+        <div class="nv-row"><span class="nv-k">signer</span><span class="nv-v dim" id="nv-signer">UNAVAILABLE</span></div>
+        <div class="nv-row"><span class="nv-k">stmt_digest</span><span class="nv-v" id="nv-digest">UNAVAILABLE</span></div>
+        <div class="nv-row"><span class="nv-k">Λ</span><span class="nv-v"><span class="nv-chip">Conjecture 1 · not a theorem</span></span></div>
+      </div>
+      <div class="nv-spectrum" id="nv-spectrum" role="img" aria-label="Frontier surface honesty-label distribution — unavailable until the endpoint answers"></div>
+      <div class="nv-legend" id="nv-legend"><span>label spectrum · <b>UNAVAILABLE</b></span></div>
+      <div class="nv-foot">
+        <span class="nv-k">offline-checkable · no trust in SZL</span>
+        <span class="nv-verdict" id="nv-verdict">UNAVAILABLE</span>
+      </div>
+      <p class="nv-src">Read live this session from
+        <a href="/api/a11oy/healthz">/api/a11oy/healthz</a> ·
+        <a href="/api/a11oy/v1/frontier/surfaces">/api/a11oy/v1/frontier/surfaces</a> ·
+        <a href="/api/a11oy/v1/attest/manifest">/api/a11oy/v1/attest/manifest</a>.
+        Receipt records · signer state separate. SIGNED is written only when the attestation
+        API reports a signature that is both present and verified.</p>
+    </aside>
+   </div>
   </div>
 </section>
 
@@ -829,22 +991,477 @@
 } }
 </script>
 
-<!-- ===================== HERO BOOT (Three.js holographic field) — Dev 2 ===================== -->
-<script type="module">
-  import { mountHero } from "/landing/app.js";
-  const canvas = document.getElementById("hero-canvas");
-  try {
-    const h = mountHero(canvas);
-    if (!h || !h.ok) {
-      canvas.style.display = "none";
-      document.getElementById("hero-fallback").style.display = "block";
-    } else {
-      window.__a11oyHero = h;
-    }
-  } catch (e) {
-    canvas.style.display = "none";
-    document.getElementById("hero-fallback").style.display = "block";
+<!-- ===================== HERO BOOT — GPU PARTICLE FLOW FIELD =====================
+  "Compute you can see." A real GPU particle system: N particle states live in a
+  floating-point texture; every frame a fragment shader advects each particle
+  through a divergence-free curl-noise flow field and writes the new state to a
+  ping-ponged texture. A second pass reads that texture in the VERTEX shader
+  (vertex texture fetch) and draws one small white point per particle, additively,
+  over a trail buffer that is faded each frame.
+
+  Technique adapted from the public-domain state-in-a-texture GPU particle
+  approach demonstrated by skeeto/webgl-particles (https://github.com/skeeto/webgl-particles).
+  Reimplemented here in plain WebGL with no library and NO CDN — a11oy ships 0
+  runtime CDN. Three.js r160 stays vendored in-image at /hero/vendor3d for the
+  frontier 3D surfaces; the hero no longer needs it.
+
+  MONOCHROME ONLY: white points on black. No colour is written anywhere.
+  Mobile-safe: half the grid below 820px CSS px, DPR capped at 2, paused when the
+  hero scrolls out of view or the tab is hidden.
+  prefers-reduced-motion: no simulation at all — a sparse STATIC point field is
+  painted once on a 2D canvas.
+================================================================================ -->
+<script>
+(function(){
+  "use strict";
+  var canvas = document.getElementById("hero-canvas");
+  var fallback = document.getElementById("hero-fallback");
+  if(!canvas) return;
+
+  function useFallback(){
+    try{ canvas.style.display = "none"; }catch(e){}
+    if(fallback) fallback.style.display = "block";
   }
+
+  var reduce = false;
+  try{ reduce = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches); }catch(e){}
+
+  /* ---------- reduced motion: one static, sparse 2D point field ---------- */
+  function staticField(){
+    var ctx = null;
+    try{ ctx = canvas.getContext("2d"); }catch(e){}
+    if(!ctx){ useFallback(); return; }
+    function paint(){
+      var dpr = Math.min(window.devicePixelRatio || 1, 2);
+      var w = canvas.clientWidth || 1200, h = canvas.clientHeight || 700;
+      canvas.width = Math.max(1, Math.round(w * dpr));
+      canvas.height = Math.max(1, Math.round(h * dpr));
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      var n = w < 820 ? 420 : 900, s = 1;
+      for(var i = 0; i < n; i++){
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        var x = (s / 0x7fffffff);
+        s = (s * 1103515245 + 12345) & 0x7fffffff;
+        var y = (s / 0x7fffffff);
+        var a = 0.10 + 0.34 * (1.0 - Math.abs(y - 0.5) * 2.0) * (0.35 + 0.65 * x);
+        ctx.fillStyle = "rgba(255,255,255," + a.toFixed(3) + ")";
+        ctx.fillRect(Math.round(x * canvas.width), Math.round(y * canvas.height),
+                     Math.max(1, Math.round(dpr)), Math.max(1, Math.round(dpr)));
+      }
+    }
+    paint();
+    var t = null;
+    window.addEventListener("resize", function(){ clearTimeout(t); t = setTimeout(paint, 220); });
+  }
+  if(reduce){ staticField(); return; }
+
+  /* ---------- WebGL context + float render-target capability ---------- */
+  var opts = { alpha:true, antialias:false, depth:false, stencil:false,
+               premultipliedAlpha:false, preserveDrawingBuffer:false, powerPreference:"low-power" };
+  var gl = null, isGL2 = false;
+  try{ gl = canvas.getContext("webgl2", opts); isGL2 = !!gl; }catch(e){}
+  if(!gl){ try{ gl = canvas.getContext("webgl", opts) || canvas.getContext("experimental-webgl", opts); }catch(e){} }
+  if(!gl){ staticField(); return; }
+
+  // vertex texture fetch is mandatory for the render pass
+  if(gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS) < 1){ staticField(); return; }
+
+  var stateType = null, stateInternal = null;
+  if(isGL2){
+    if(gl.getExtension("EXT_color_buffer_float")){
+      stateType = gl.FLOAT; stateInternal = gl.RGBA32F;
+    }else if(gl.getExtension("EXT_color_buffer_half_float")){
+      stateType = gl.HALF_FLOAT; stateInternal = gl.RGBA16F;
+    }
+  }else{
+    if(gl.getExtension("OES_texture_float")){
+      gl.getExtension("OES_texture_float_linear");
+      gl.getExtension("WEBGL_color_buffer_float");
+      stateType = gl.FLOAT; stateInternal = gl.RGBA;
+    }
+  }
+  if(stateType === null){ staticField(); return; }
+
+  /* ---------- shader plumbing ---------- */
+  function sh(type, src){
+    var s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s) || "shader");
+    return s;
+  }
+  function prog(vs, fs){
+    var p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p) || "link");
+    return p;
+  }
+
+  var QUAD_VS =
+    "attribute vec2 a_q;varying vec2 v_uv;" +
+    "void main(){v_uv=a_q*0.5+0.5;gl_Position=vec4(a_q,0.0,1.0);}";
+
+  // divergence-free 2D curl of a value-noise potential = the flow field
+  var NOISE =
+    "float h11(float p){p=fract(p*0.1031);p*=p+33.33;p*=p+p;return fract(p);}" +
+    "vec3 h33(vec3 p){p=vec3(dot(p,vec3(127.1,311.7,74.7)),dot(p,vec3(269.5,183.3,246.1)),dot(p,vec3(113.5,271.9,124.6)));" +
+    "return -1.0+2.0*fract(sin(p)*43758.5453123);}" +
+    "float gnoise(vec3 p){vec3 i=floor(p),f=fract(p);vec3 u=f*f*(3.0-2.0*f);" +
+    "return mix(mix(mix(dot(h33(i+vec3(0.,0.,0.)),f-vec3(0.,0.,0.)),dot(h33(i+vec3(1.,0.,0.)),f-vec3(1.,0.,0.)),u.x)," +
+    "mix(dot(h33(i+vec3(0.,1.,0.)),f-vec3(0.,1.,0.)),dot(h33(i+vec3(1.,1.,0.)),f-vec3(1.,1.,0.)),u.x),u.y)," +
+    "mix(mix(dot(h33(i+vec3(0.,0.,1.)),f-vec3(0.,0.,1.)),dot(h33(i+vec3(1.,0.,1.)),f-vec3(1.,0.,1.)),u.x)," +
+    "mix(dot(h33(i+vec3(0.,1.,1.)),f-vec3(0.,1.,1.)),dot(h33(i+vec3(1.,1.,1.)),f-vec3(1.,1.,1.)),u.x),u.y),u.z);}" +
+    "vec2 curl(vec2 q,float t){float e=0.045;" +
+    "float a=gnoise(vec3(q+vec2(0.0,e),t));float b=gnoise(vec3(q-vec2(0.0,e),t));" +
+    "float c=gnoise(vec3(q+vec2(e,0.0),t));float d=gnoise(vec3(q-vec2(e,0.0),t));" +
+    "return vec2(a-b,d-c)/(2.0*e);}";
+
+  var SIM_FS =
+    "precision highp float;" + NOISE +
+    "uniform sampler2D u_state;uniform float u_time;uniform float u_dt;uniform float u_aspect;" +
+    "varying vec2 v_uv;" +
+    "void main(){vec4 s=texture2D(u_state,v_uv);vec2 p=s.xy;float life=s.z;float seed=s.w;" +
+    "vec2 q=vec2(p.x*u_aspect,p.y);" +
+    "vec2 v=curl(q*1.55,u_time*0.030);" +
+    "v+=curl(q*3.90,u_time*0.052)*0.22;" +   // second octave = finer filaments
+    "v=normalize(v/8.0+vec2(0.62,0.0));" +   // unit speed + steady left-to-right compute drift
+    "p+=vec2(v.x/u_aspect,v.y)*u_dt*0.00295;" +
+    "life-=u_dt*(0.0034+0.0052*seed);" +
+    "if(life<=0.0||p.x<-0.06||p.x>1.06||p.y<-0.06||p.y>1.06){" +
+    "  float k=seed*137.13+floor(u_time*6.0)*0.618;" +
+    "  p=vec2(h11(k),h11(k+7.77));life=1.0;}" +
+    "gl_FragColor=vec4(p,life,seed);}";
+
+  var DRAW_VS =
+    "precision highp float;attribute float a_i;uniform sampler2D u_state;" +
+    "uniform vec2 u_dim;uniform float u_size;varying float v_a;" +
+    "void main(){float x=mod(a_i,u_dim.x);float y=floor(a_i/u_dim.x);" +
+    "vec2 uv=(vec2(x,y)+0.5)/u_dim;vec4 s=texture2D(u_state,uv);" +
+    "v_a=smoothstep(0.0,0.10,s.z)*smoothstep(1.0,0.88,s.z);" +
+    "gl_Position=vec4(s.xy*2.0-1.0,0.0,1.0);gl_PointSize=u_size;}";
+
+  var DRAW_FS =
+    "precision mediump float;varying float v_a;uniform float u_gain;" +
+    "void main(){float m=smoothstep(0.5,0.08,length(gl_PointCoord-0.5));" +
+    "float c=v_a*m*u_gain;gl_FragColor=vec4(c,c,c,1.0);}";
+
+  var FADE_FS =
+    "precision mediump float;uniform float u_fade;varying vec2 v_uv;" +
+    "void main(){gl_FragColor=vec4(0.0,0.0,0.0,u_fade);}";
+
+  var COPY_FS =
+    "precision mediump float;uniform sampler2D u_tex;varying vec2 v_uv;" +
+    "void main(){gl_FragColor=texture2D(u_tex,v_uv);}";
+
+  var pSim, pDraw, pFade, pCopy;
+  try{
+    pSim  = prog(QUAD_VS, SIM_FS);
+    pDraw = prog(DRAW_VS, DRAW_FS);
+    pFade = prog(QUAD_VS, FADE_FS);
+    pCopy = prog(QUAD_VS, COPY_FS);
+  }catch(e){ staticField(); return; }
+
+  /* ---------- buffers ---------- */
+  var quadBuf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
+
+  // particle grid: 256x256 = 65,536 points on desktop, 128x128 = 16,384 on small screens
+  var side = (canvas.clientWidth || 1200) < 820 ? 128 : 256;
+  var COUNT = side * side;
+
+  var idxBuf = gl.createBuffer();
+  var idx = new Float32Array(COUNT);
+  for(var i = 0; i < COUNT; i++) idx[i] = i;
+  gl.bindBuffer(gl.ARRAY_BUFFER, idxBuf);
+  gl.bufferData(gl.ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+
+  function tex(w, h, internal, format, type, data){
+    var t = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, t);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texImage2D(gl.TEXTURE_2D, 0, internal, w, h, 0, format, type, data || null);
+    return t;
+  }
+  function fbo(t){
+    var f = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, f);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, t, 0);
+    var ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    return ok ? f : null;
+  }
+
+  // seed state: uniform positions, staggered lifetimes, per-particle seed
+  var seed = new Float32Array(COUNT * 4);
+  var r = 2463534242;
+  function rnd(){ r ^= r << 13; r ^= r >>> 17; r ^= r << 5; return ((r >>> 0) / 4294967296); }
+  for(var j = 0; j < COUNT; j++){
+    seed[j*4    ] = rnd();
+    seed[j*4 + 1] = rnd();
+    seed[j*4 + 2] = rnd();          // life
+    seed[j*4 + 3] = rnd();          // seed
+  }
+  var seedData = seed;
+  if(stateType !== gl.FLOAT){
+    // HALF_FLOAT upload path: convert to Uint16 half-precision
+    var half = new Uint16Array(COUNT * 4), fb = new Float32Array(1), ib = new Int32Array(fb.buffer);
+    for(var k = 0; k < seed.length; k++){
+      fb[0] = seed[k]; var x = ib[0];
+      var s2 = (x >>> 16) & 0x8000, e = ((x >>> 23) & 0xff) - 112, m = x & 0x7fffff;
+      half[k] = (e <= 0) ? s2 : (e >= 31 ? (s2 | 0x7c00) : (s2 | (e << 10) | (m >> 13)));
+    }
+    seedData = half;
+  }
+
+  var texA = tex(side, side, stateInternal, gl.RGBA, stateType, seedData);
+  var texB = tex(side, side, stateInternal, gl.RGBA, stateType, null);
+  var fboA = fbo(texA), fboB = fbo(texB);
+  if(!fboA || !fboB){ staticField(); return; }
+
+  var trailTex = null, trailFbo = null, W = 0, H = 0, DPR = 1;
+
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    var cw = canvas.clientWidth || 1200, ch = canvas.clientHeight || 700;
+    var nw = Math.max(1, Math.round(cw * DPR)), nh = Math.max(1, Math.round(ch * DPR));
+    if(nw === W && nh === H) return;
+    W = nw; H = nh; canvas.width = W; canvas.height = H;
+    if(trailFbo) gl.deleteFramebuffer(trailFbo);
+    if(trailTex) gl.deleteTexture(trailTex);
+    trailTex = tex(W, H, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    trailFbo = fbo(trailTex);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  }
+  resize();
+  if(!trailFbo){ staticField(); return; }
+
+  function bindQuad(p){
+    var loc = gl.getAttribLocation(p, "a_q");
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  }
+
+  var uSimState = gl.getUniformLocation(pSim, "u_state"),
+      uSimTime  = gl.getUniformLocation(pSim, "u_time"),
+      uSimDt    = gl.getUniformLocation(pSim, "u_dt"),
+      uSimAsp   = gl.getUniformLocation(pSim, "u_aspect"),
+      uDrawSt   = gl.getUniformLocation(pDraw, "u_state"),
+      uDrawDim  = gl.getUniformLocation(pDraw, "u_dim"),
+      uDrawSize = gl.getUniformLocation(pDraw, "u_size"),
+      uDrawGain = gl.getUniformLocation(pDraw, "u_gain"),
+      uFade     = gl.getUniformLocation(pFade, "u_fade"),
+      uCopyTex  = gl.getUniformLocation(pCopy, "u_tex"),
+      aIdx      = gl.getAttribLocation(pDraw, "a_i");
+
+  var t0 = 0, running = true, visible = true, raf = 0, lost = false;
+
+  canvas.addEventListener("webglcontextlost", function(ev){
+    ev.preventDefault(); lost = true; cancelAnimationFrame(raf); useFallback();
+  }, false);
+
+  // pause when off-screen (mobile battery) and when the tab is hidden
+  try{
+    var io = new IntersectionObserver(function(en){ visible = en[0].isIntersecting; },
+      { rootMargin: "120px" });
+    io.observe(canvas);
+  }catch(e){}
+  document.addEventListener("visibilitychange", function(){ running = !document.hidden; });
+
+  var rt = null;
+  window.addEventListener("resize", function(){ clearTimeout(rt); rt = setTimeout(resize, 200); });
+
+  function frame(now){
+    raf = requestAnimationFrame(frame);
+    if(lost) return;
+    if(!running || !visible){ t0 = now; return; }
+    if(!t0) t0 = now;
+    var dt = Math.min((now - t0) / 16.6667, 2.5); t0 = now;
+    var time = now * 0.001;
+
+    // 1) advect every particle in the state texture (GPU, one fragment per particle)
+    gl.disable(gl.BLEND);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fboB);
+    gl.viewport(0, 0, side, side);
+    gl.useProgram(pSim); bindQuad(pSim);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
+    gl.uniform1i(uSimState, 0);
+    gl.uniform1f(uSimTime, time);
+    gl.uniform1f(uSimDt, dt);
+    gl.uniform1f(uSimAsp, W / Math.max(1, H));
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    var sw = texA; texA = texB; texB = sw;
+    var fw = fboA; fboA = fboB; fboB = fw;
+
+    // 2) fade the trail buffer, then add this frame's points
+    gl.bindFramebuffer(gl.FRAMEBUFFER, trailFbo);
+    gl.viewport(0, 0, W, H);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    gl.useProgram(pFade); bindQuad(pFade);
+    gl.uniform1f(uFade, 0.052);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.useProgram(pDraw);
+    gl.bindBuffer(gl.ARRAY_BUFFER, idxBuf);
+    gl.enableVertexAttribArray(aIdx);
+    gl.vertexAttribPointer(aIdx, 1, gl.FLOAT, false, 0, 0);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texA);
+    gl.uniform1i(uDrawSt, 0);
+    gl.uniform2f(uDrawDim, side, side);
+    gl.uniform1f(uDrawSize, Math.max(1.0, 1.5 * DPR));
+    gl.uniform1f(uDrawGain, 0.82);
+    gl.drawArrays(gl.POINTS, 0, COUNT);
+
+    // 3) present
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, W, H);
+    gl.disable(gl.BLEND);
+    gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.useProgram(pCopy); bindQuad(pCopy);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, trailTex);
+    gl.uniform1i(uCopyTex, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  }
+  raf = requestAnimationFrame(frame);
+  window.__a11oyHero = { ok:true, kind:"gpu-particle-flow-field", particles:COUNT };
+})();
+</script>
+
+<!-- ============ HERO INSTRUMENT PANEL — live read, honest by default ============
+  Three read-only GETs against this origin. Every row starts as UNAVAILABLE in the
+  static HTML and is only replaced by a value this request actually returned; a
+  failed read leaves UNAVAILABLE standing. No value is cached, guessed or derived.
+  SIGNED is written only when the attestation API reports signature.signed === true
+  AND signature.verified === true. Otherwise HASH-LINKED (a real statement digest
+  exists) or UNAVAILABLE. Λ stays "Conjecture 1 · not a theorem". Never green.
+=============================================================================== -->
+<script>
+(function(){
+  "use strict";
+  var panel = document.getElementById("nv-panel");
+  if(!panel) return;
+  var $ = function(id){ return document.getElementById(id); };
+  var txt = function(id, v){ var e = $(id); if(e && typeof v === "string" && v) e.textContent = v; };
+  var EP_HEALTH   = "/api/a11oy/healthz";
+  var EP_SURFACES = "/api/a11oy/v1/frontier/surfaces";
+  var EP_ATTEST   = "/api/a11oy/v1/attest/manifest";
+
+  function get(url){
+    return fetch(url, { cache:"no-store", credentials:"omit" }).then(function(r){
+      if(!r.ok) throw new Error(url + " " + r.status);
+      return r.json();
+    });
+  }
+  function soft(url){ return get(url).then(function(d){ return d; }, function(){ return null; }); }
+  function str(v){ return (typeof v === "string" && v.length) ? v : null; }
+  function int(v){ return (typeof v === "number" && isFinite(v)) ? v : null; }
+
+  // greyscale only — the ramp is lightness, never hue
+  var RAMP = { "MEASURED":"#ffffff", "LIVE":"#e8e8ea", "MODELED":"#9a9a9e",
+               "STRUCTURAL-ONLY":"#6c6c70", "ROADMAP":"#4a4a4e", "UNAVAILABLE":"#2a2a2e" };
+
+  Promise.all([soft(EP_HEALTH), soft(EP_SURFACES), soft(EP_ATTEST)]).then(function(res){
+    var health = res[0], surf = res[1], att = res[2];
+    var answered = 0, i;
+    for(i = 0; i < res.length; i++) if(res[i]) answered++;
+
+    // --- service (healthz) ---
+    if(health){
+      var svc = str(health.service), ver = str(health.version);
+      if(svc) txt("nv-service", ver ? (svc + " " + ver) : svc);
+      var sg = health.rollup && health.rollup.signer;
+      if(sg && str(sg.status)) txt("nv-signer", sg.status);   // verbatim, never upgraded
+    }
+
+    // --- doctrine: attest predicate first, healthz second ---
+    var doctrine = null;
+    if(att && att.statement && att.statement.predicate) doctrine = str(att.statement.predicate.doctrine);
+    if(!doctrine && health) doctrine = str(health.doctrine);
+    if(doctrine) txt("nv-doctrine", doctrine);
+
+    // --- kernel pin (attest subject digest) ---
+    if(att && att.statement && att.statement.subject && att.statement.subject.length){
+      var d0 = att.statement.subject[0] && att.statement.subject[0].digest;
+      if(d0 && str(d0.gitCommit)) txt("nv-kernel", d0.gitCommit);
+    }
+
+    // --- frontier surfaces + honesty-label spectrum ---
+    if(surf){
+      var sm = surf.summary || {};
+      var cnt = int(surf.count), pres = int(sm.present), un = int(sm.unavailable);
+      if(cnt !== null){
+        var line = cnt + " registered";
+        if(pres !== null) line += " · " + pres + " present";
+        if(un !== null)   line += " · " + un + " UNAVAILABLE";
+        txt("nv-surfaces", line);
+      }
+      var lc = sm.label_counts, total = 0, key;
+      if(lc){
+        for(key in lc) if(Object.prototype.hasOwnProperty.call(lc, key)) total += (int(lc[key]) || 0);
+      }
+      if(total > 0){
+        var order = ["MEASURED","LIVE","MODELED","STRUCTURAL-ONLY","ROADMAP","UNAVAILABLE"], seen = {}, bar = "", leg = "";
+        var emit = function(k){
+          var n = int(lc[k]); if(n === null || n <= 0 || seen[k]) return; seen[k] = 1;
+          bar += '<span style="width:' + ((n / total) * 100).toFixed(3) + '%;background:' +
+                 (RAMP[k] || "#5f5f63") + '"></span>';
+          leg += '<span>' + k + ' <b>' + n + '</b></span>';
+        };
+        for(i = 0; i < order.length; i++) emit(order[i]);
+        for(key in lc) if(Object.prototype.hasOwnProperty.call(lc, key)) emit(key);
+        $("nv-spectrum").innerHTML = bar;
+        $("nv-spectrum").setAttribute("aria-label",
+          "Frontier surface honesty-label distribution across " + total + " surfaces");
+        $("nv-legend").innerHTML = leg;
+      }
+    }
+
+    // --- policy verdict + evidence label (attest) ---
+    var digest = null, signedOk = false;
+    if(att){
+      var verdict = str(att.verdict), label = str(att.label);
+      if(verdict) txt("nv-policy", label ? (verdict + " · " + label) : verdict);
+      var scope = str(att.verdict_scope);
+      if(scope){ var pe = $("nv-policy"); if(pe) pe.setAttribute("title", scope); }
+      digest = str(att.statement_digest_sha256);
+      if(digest && digest.length > 20){
+        var short = digest.slice(0, 8) + "…" + digest.slice(-8);
+        txt("nv-digest", short);
+        var de = $("nv-digest"); if(de) de.setAttribute("title", "sha256 " + digest);
+      }
+      var sig = att.verification && att.verification.signature;
+      signedOk = !!(sig && sig.signed === true && sig.verified === true);
+      if(sig && str(sig.status) && $("nv-signer").textContent === "UNAVAILABLE") txt("nv-signer", sig.status);
+    }
+
+    // --- honest verdict stamp ---
+    var stamp = "UNAVAILABLE";
+    if(signedOk) stamp = "SIGNED";
+    else if(digest) stamp = "HASH-LINKED";
+    txt("nv-verdict", stamp);
+
+    // --- header state ---
+    if(answered === 0){
+      txt("nv-state", "UNAVAILABLE — no endpoint answered");
+    }else{
+      panel.classList.add("is-live");
+      txt("nv-state", answered === 3 ? "read live · 3/3 endpoints" : ("read live · " + answered + "/3 endpoints"));
+      var st = $("nv-state");
+      if(st && !st.querySelector("i")){ var ic = document.createElement("i"); st.insertBefore(ic, st.firstChild); }
+    }
+  }, function(){
+    txt("nv-state", "UNAVAILABLE — no endpoint answered");
+  });
+})();
 </script>
 
 <!-- ===================== LIVE DATA (honest; one consolidated read + fallbacks) ===================== -->
