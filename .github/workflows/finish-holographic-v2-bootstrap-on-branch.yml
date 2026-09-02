@@ -1,0 +1,151 @@
+name: Finish Holographic v2 Bootstrap on Branch
+
+on:
+  push:
+    branches:
+      - feat/holographic-experience-v2-20260902
+    paths:
+      - ".github/workflows/finish-holographic-v2-bootstrap-on-branch.yml"
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: finish-holographic-v2-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  finish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: feat/holographic-experience-v2-20260902
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/holographic-experience-v2-20260902
+          fetch-depth: 0
+      - name: Reconcile reusable gate and remove temporary controllers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git pull --ff-only origin "$BRANCH"
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/holographic-v2-gate-and-merge.yml')
+          text = path.read_text(encoding='utf-8')
+          old_branch = "github.head_ref == 'feat/holographic-experience-v2-20260902' &&"
+          new_branch = "(github.head_ref == 'feat/holographic-experience-v2-20260902' || github.head_ref == 'feat/holographic-experience-v2-bind-20260902') &&"
+          if old_branch in text:
+              text = text.replace(old_branch, new_branch)
+          elif new_branch not in text:
+              raise SystemExit('unrecognized branch condition')
+          old_status = 'if peers and not pending and legacy.get("state") != "pending":'
+          new_status = 'if peers and not pending and not any(row.get("state") == "pending" for row in legacy.get("statuses", [])):'
+          if old_status in text:
+              text = text.replace(old_status, new_status)
+          elif new_status not in text:
+              raise SystemExit('unrecognized legacy-status condition')
+          path.write_text(text, encoding='utf-8')
+          PY
+          rm -f \
+            .github/workflows/fix-holographic-v2-gate-on-branch.yml \
+            .github/workflows/extend-holographic-v2-gate-on-branch.yml \
+            .github/workflows/reconcile-holographic-v2-branch.yml \
+            .github/workflows/finish-holographic-v2-bootstrap-on-branch.yml
+          git config user.name "SZL Holographic v2 Finisher"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          if ! git diff --cached --quiet; then
+            git commit -s -m "fix(ci): finalize reusable holographic v2 gates"
+            git push origin HEAD:"$BRANCH"
+          fi
+          echo "FINAL_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Verify exact finalized source
+        run: |
+          python -m py_compile scripts/rollout_holographic_experience_v2.py tests/test_holographic_experience_v2.py
+          node --check console/assets/szl-hologram-v2.js
+          python tests/test_holographic_experience_v2.py
+          git diff --check
+      - name: Wait for stable green peers and merge exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import subprocess
+          import time
+
+          repo = os.environ['GITHUB_REPOSITORY']
+          branch = os.environ['BRANCH']
+          sha = os.environ['FINAL_SHA']
+          allowed = {'success', 'neutral', 'skipped'}
+
+          def api(path, *extra):
+              return json.loads(subprocess.check_output(['gh', 'api', path, *extra], text=True))
+
+          pulls = api(f'repos/{repo}/pulls?state=open&head=szl-holdings:{branch}&per_page=20')
+          if len(pulls) != 1:
+              raise SystemExit(f'expected one exact-head PR, found {len(pulls)}')
+          pull = pulls[0]
+          if pull['head']['sha'] != sha:
+              raise SystemExit('PR head moved after finalization')
+          number = pull['number']
+          stable = 0
+          last_names = None
+          for _ in range(300):
+              current = api(f'repos/{repo}/pulls/{number}')
+              if current.get('merged'):
+                  print('PR already merged by the reusable gate.')
+                  raise SystemExit(0)
+              checks = api(f'repos/{repo}/commits/{sha}/check-runs?per_page=100').get('check_runs', [])
+              peers = [row for row in checks if row.get('name') not in {'gate-and-merge', 'finish'}]
+              failed = [row for row in peers if row.get('status') == 'completed' and row.get('conclusion') not in allowed]
+              if failed:
+                  raise SystemExit('peer check failure: ' + json.dumps([{'name': row.get('name'), 'conclusion': row.get('conclusion'), 'url': row.get('html_url')} for row in failed], sort_keys=True))
+              pending = [row for row in peers if row.get('status') != 'completed']
+              legacy = api(f'repos/{repo}/commits/{sha}/status')
+              legacy_failed = [row for row in legacy.get('statuses', []) if row.get('state') in {'error', 'failure'}]
+              if legacy_failed:
+                  raise SystemExit('legacy status failure: ' + json.dumps(legacy_failed, sort_keys=True)[:4000])
+              names = tuple(sorted((row.get('name'), row.get('status'), row.get('conclusion')) for row in peers))
+              clean = bool(peers) and not pending and not any(row.get('state') == 'pending' for row in legacy.get('statuses', []))
+              if clean and names == last_names:
+                  stable += 1
+              elif clean:
+                  stable = 1
+              else:
+                  stable = 0
+              last_names = names
+              if stable >= 3:
+                  break
+              time.sleep(10)
+          else:
+              raise SystemExit('timed out waiting for a stable green check set')
+
+          for _ in range(60):
+              current = api(f'repos/{repo}/pulls/{number}')
+              if current.get('merged'):
+                  print('PR merged by reusable gate.')
+                  raise SystemExit(0)
+              result = api(
+                  f'repos/{repo}/pulls/{number}/merge',
+                  '--method', 'PUT',
+                  '-f', f'sha={sha}',
+                  '-f', 'merge_method=squash',
+                  '-f', f'commit_title=feat(frontend): ship SZL Holographic Experience v2 (#{number})',
+                  '-f', 'commit_message=Original local-only holographic command plane, adaptive interaction engine, route-specific instruments, accessibility and low-power fallbacks, guarded rollout, and offline contracts.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>',
+              )
+              if result.get('merged'):
+                  print('Merged exact finalized SHA.')
+                  raise SystemExit(0)
+              time.sleep(10)
+          raise SystemExit('GitHub did not accept the exact-head merge')
+          PY

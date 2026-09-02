@@ -1,0 +1,50 @@
+name: Extend Holographic v2 Gate on Branch
+
+on:
+  push:
+    branches:
+      - feat/holographic-experience-v2-20260902
+    paths:
+      - ".github/workflows/extend-holographic-v2-gate-on-branch.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  extend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/holographic-experience-v2-20260902
+          fetch-depth: 0
+      - name: Add binding branch and harden empty-status behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('.github/workflows/holographic-v2-gate-and-merge.yml')
+          text = path.read_text(encoding='utf-8')
+          old_branch = "github.head_ref == 'feat/holographic-experience-v2-20260902' &&"
+          new_branch = "(github.head_ref == 'feat/holographic-experience-v2-20260902' || github.head_ref == 'feat/holographic-experience-v2-bind-20260902') &&"
+          if old_branch in text:
+              text = text.replace(old_branch, new_branch)
+          elif new_branch not in text:
+              raise SystemExit('expected branch condition not found')
+          old_status = 'if peers and not pending and legacy.get("state") != "pending":'
+          new_status = 'if peers and not pending and not any(row.get("state") == "pending" for row in legacy.get("statuses", [])):'
+          if old_status in text:
+              text = text.replace(old_status, new_status)
+          elif new_status not in text:
+              raise SystemExit('expected status condition not found')
+          path.write_text(text, encoding='utf-8')
+          PY
+          rm .github/workflows/extend-holographic-v2-gate-on-branch.yml
+          git config user.name "SZL Holographic Gate Extension Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add .github/workflows/holographic-v2-gate-and-merge.yml .github/workflows/extend-holographic-v2-gate-on-branch.yml
+          git commit -s -m "fix(ci): gate both bootstrap and binding branches"
+          git push origin HEAD:feat/holographic-experience-v2-20260902
