@@ -944,6 +944,12 @@ def _validate_parity_jobs(workflow: str) -> list[str]:
             report_path="hf-current-base-parity.out.json",
         )
     )
+    # The v1 lifecycle successor delegates the post-deployment job's
+    # exact temporal and command contract to the dedicated standard-
+    # library validator. The legacy candidate-fixture path remains
+    # below so its adversarial self-tests retain full coverage.
+    if "lifecycle: post-deployment-repository-parity/v1" in workflow:
+        return errors
     errors.extend(
         _validate_checkout_steps(
             candidate,

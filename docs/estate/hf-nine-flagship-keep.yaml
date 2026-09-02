@@ -1,0 +1,23 @@
+as_of: "2026-09-02"
+state: APPLY
+product: https://a-11-oy.com/products/
+proof: https://a11oy.net
+keep:
+  - id: SZLHOLDINGS/a11oy
+    role: command
+  - id: SZLHOLDINGS/killinchu
+    role: defense
+  - id: SZLHOLDINGS/terra
+    role: real_estate
+  - id: SZLHOLDINGS/sentra
+    role: cybersecurity
+  - id: SZLHOLDINGS/counsel
+    role: legal
+  - id: SZLHOLDINGS/finance
+    role: finance
+  - id: SZLHOLDINGS/vessels
+    role: maritime
+  - id: SZLHOLDINGS/lyte
+    role: business_observability
+  - id: SZLHOLDINGS/david-leads
+    role: insurance
