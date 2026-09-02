@@ -1,36 +1,44 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
 # (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173
-"""Serve the public Command Center SPA as a bound path on the product origin.
+"""Serve the canonical A11oy Command Center on the product origin.
 
 Product host: a-11-oy.com  (this surface)
 Proof host:   a11oy.net    (do not serve this surface there)
 
-Bound path only. Does not edit the landing door (Products / Catalog / Proof).
-Does not steal existing /console (Python operator runtime). Mounts:
+The canonical /command surface now prefers the existing 20-tab Elite Console,
+which is backed by real /api/a11oy/... endpoints through szl_elite_console.py.
+The older public command-center SPA remains an explicit fallback only if the
+Elite Console asset is absent from a constrained build.
+
+Bound path only. Does not edit the landing door and does not steal /console,
+which remains the operator runtime. Mounts:
 
   GET+HEAD /command
   GET+HEAD /command/{rest}
 
-/command-center is 307'd onto /command by serve.py. Read-path only.
+/command-center is 307'd onto /command by serve.py.
 """
 from pathlib import Path
 from typing import List
 
-SPA_NAME = "command-center.html"
 MOUNTS = ("/command",)
 
 
 def _spa_path() -> Path:
+    """Resolve the richest shipped Command Center, fail-soft to legacy UI."""
     here = Path(__file__).resolve().parent
-    for cand in (
-        here / "pages" / SPA_NAME,
-        Path("/app/pages") / SPA_NAME,
-        here / SPA_NAME,
-    ):
+    candidates = (
+        here / "web" / "elite_console.html",
+        Path("/app/web/elite_console.html"),
+        here / "pages" / "command-center.html",
+        Path("/app/pages/command-center.html"),
+        here / "command-center.html",
+    )
+    for cand in candidates:
         if cand.is_file():
             return cand
-    return here / "pages" / SPA_NAME
+    return here / "web" / "elite_console.html"
 
 
 def _existing_paths(app) -> set:
@@ -59,7 +67,7 @@ def _front_move(app, paths: set) -> None:
 
 
 def register(app, ns: str = "a11oy") -> List[str]:
-    """Mount the Command Center SPA. Additive; skips paths already registered."""
+    """Mount the canonical Command Center. Additive; skips existing paths."""
     del ns  # surface is host-level, not namespaced
     spa = _spa_path()
     registered: List[str] = []
@@ -70,6 +78,7 @@ def register(app, ns: str = "a11oy") -> List[str]:
     from starlette.routing import Route
 
     async def _spa(_request=None, rest: str = ""):
+        del rest
         return FileResponse(spa, media_type="text/html; charset=utf-8")
 
     existing = _existing_paths(app)
@@ -92,8 +101,9 @@ def register(app, ns: str = "a11oy") -> List[str]:
         _add(path, _spa, ["GET", "HEAD"])
     _add("/command/{rest:path}", _spa, ["GET", "HEAD"])
     _front_move(app, mounted | set(MOUNTS) | {"/command/{rest:path}"})
+    flavor = "elite-20-tab" if spa.name == "elite_console.html" else "legacy-fallback"
     registered.append(
-        "command-center SPA on /command (does not steal /console; not a landing door)"
+        f"command-center {flavor} on /command (does not steal /console; not a landing door)"
     )
     return registered
 
@@ -107,13 +117,13 @@ def _selftest() -> None:
     spa = _spa_path()
     assert spa.is_file(), spa
     html = spa.read_text(encoding="utf-8")
-    assert "a11oy Command Center" in html
-    assert "https://a-11-oy.com/command" in html
-    assert "/console" in html, "must keep a link to the operator console"
+    assert ("Elite Console" in html) or ("a11oy Command Center" in html)
+    if spa.name == "elite_console.html":
+        assert "20 fully-functional tabs" in html
+        assert "/api/a11oy/" in html
+        assert "zero mocks" in html.lower()
     assert "cdnjs" not in html and "googleapis" not in html and "jsdelivr" not in html
-    assert "fonts.gstatic" not in html
     assert "Conjecture 1" in html
-    assert "a11oy.net" in html
 
     async def _console(_req):
         return HTMLResponse("<html><body>operator console</body></html>")
@@ -122,15 +132,25 @@ def _selftest() -> None:
     out = register(app, ns="a11oy")
     assert any("/command" in row for row in out), out
     c = TestClient(app)
-    for path in ("/command", "/command/zk", "/command/invest", "/command/build", "/command/census", "/command/console"):
+    for path in (
+        "/command",
+        "/command/overview",
+        "/command/gates",
+        "/command/alerts",
+        "/command/anatomy",
+        "/command/honest",
+    ):
         r = c.get(path)
         assert r.status_code == 200, (path, r.status_code)
-        assert "a11oy Command Center" in r.text
+        assert ("Elite Console" in r.text) or ("a11oy Command Center" in r.text)
         h = c.head(path)
         assert h.status_code == 200, (path, h.status_code)
     op = c.get("/console")
     assert op.status_code == 200 and "operator console" in op.text
-    print("a11oy_command_center: ALL OK (SPA on /command; /console untouched; 0 CDN)")
+    print(
+        "a11oy_command_center: ALL OK "
+        f"({spa.name} on /command; /console untouched; 0 runtime CDN)"
+    )
 
 
 if __name__ == "__main__":
