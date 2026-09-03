@@ -55,7 +55,7 @@ jobs:
             fi
           done
 
-      - name: Remove retired manifest and catalog entries
+      - name: Remove retired entries and restore the canonical offline hooks
         shell: bash
         run: |
           set -euo pipefail
@@ -103,6 +103,62 @@ jobs:
                   f"{workspace}: removed {sorted(removed)}, expected {sorted(plugin_keys)}"
               )
           workspace.write_text("\n".join(kept) + "\n", encoding="utf-8")
+
+          stub_manifest = Path("organs/sentra/stubs/api-client-react/package.json")
+          stub_data = json.loads(stub_manifest.read_text(encoding="utf-8"))
+          dependencies = stub_data.setdefault("dependencies", {})
+          if not isinstance(dependencies, dict):
+              raise SystemExit(f"{stub_manifest}: dependencies must be an object")
+          dependencies["@tanstack/react-query"] = "catalog:"
+          stub_manifest.write_text(
+              json.dumps(stub_data, indent=2) + "\n", encoding="utf-8"
+          )
+
+          stub_source = Path("organs/sentra/stubs/api-client-react/index.ts")
+          prior = stub_source.read_text(encoding="utf-8")
+          if prior.strip() != "export {};":
+              raise SystemExit(
+                  f"{stub_source}: expected the known empty drifted stub before repair"
+              )
+          stub_source.write_text(
+              """import {
+            type QueryKey,
+            type UseMutationOptions,
+            type UseQueryOptions,
+            useMutation,
+            useQuery,
+          } from '@tanstack/react-query';
+
+          const STANDARD_DEFAULTS = {
+            staleTime: 60_000,
+            gcTime: 5 * 60_000,
+            refetchOnWindowFocus: false,
+            retry: 1,
+          } as const;
+
+          export function useStandardQuery<
+            TQueryFnData = unknown,
+            TError = Error,
+            TData = TQueryFnData,
+            TQueryKey extends QueryKey = QueryKey,
+          >(options: UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>) {
+            return useQuery<TQueryFnData, TError, TData, TQueryKey>({
+              ...STANDARD_DEFAULTS,
+              ...options,
+            });
+          }
+
+          export function useStandardMutation<
+            TData = unknown,
+            TError = Error,
+            TVariables = void,
+            TContext = unknown,
+          >(options: UseMutationOptions<TData, TError, TVariables, TContext>) {
+            return useMutation<TData, TError, TVariables, TContext>(options);
+          }
+          """.replace("          ", ""),
+              encoding="utf-8",
+          )
           PY
 
       - name: Install the self-contained Sentra workspace
@@ -124,7 +180,7 @@ jobs:
           pnpm --dir organs/sentra build:offline
           pnpm --dir organs/sentra test:offline
 
-      - name: Verify complete dependency cleanup
+      - name: Verify complete dependency cleanup and stub repair
         shell: bash
         run: |
           set -euo pipefail
@@ -138,19 +194,27 @@ jobs:
             echo '::error::Retired Replit Vite plugin references remain in the cleaned inputs'
             exit 1
           fi
+          grep -Fq 'export function useStandardQuery' organs/sentra/stubs/api-client-react/index.ts
+          grep -Fq 'export function useStandardMutation' organs/sentra/stubs/api-client-react/index.ts
+          grep -Fq '"@tanstack/react-query": "catalog:"' organs/sentra/stubs/api-client-react/package.json
           git diff --check
           git status --short
 
-      - name: Commit deterministic cleanup
+      - name: Commit deterministic cleanup and build repair
         shell: bash
         run: |
           set -euo pipefail
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
-          git add web/package.json organs/sentra/web/package.json organs/sentra/pnpm-workspace.yaml
+          git add \
+            web/package.json \
+            organs/sentra/web/package.json \
+            organs/sentra/pnpm-workspace.yaml \
+            organs/sentra/stubs/api-client-react/index.ts \
+            organs/sentra/stubs/api-client-react/package.json
           if git diff --cached --quiet; then
-            echo '::error::The dependency cleanup produced no tracked changes'
+            echo '::error::The cleanup and repair produced no tracked changes'
             exit 1
           fi
-          git commit -s -m "refactor(build): remove retired Replit Vite dependencies"
+          git commit -s -m "fix(build): remove Replit Vite deps and restore Sentra hooks"
           git push origin "HEAD:${GITHUB_REF_NAME}"
