@@ -52,7 +52,7 @@ jobs:
       - name: Execute exact network-free controller and Worker contracts
         run: |
           set -euo pipefail
-          python -m pytest tests/test_cloudflare_product_edge.py -q
+          python -m unittest tests.test_cloudflare_product_edge -v
           node --test tests/test_cloudflare_product_edge_worker.mjs
           python -m py_compile scripts/repair_cloudflare_product_edge.py
           node --check ops/cloudflare/product-edge-worker.mjs
