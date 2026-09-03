@@ -1,0 +1,154 @@
+name: Repair Hugging Face Product Domain
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-hf-product-domain.yml"
+      - "scripts/repair_hf_product_domain.py"
+      - "tests/test_repair_hf_product_domain.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-hf-product-domain.yml"
+      - "scripts/repair_hf_product_domain.py"
+      - "tests/test_repair_hf_product_domain.py"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hf-product-domain-repair
+  cancel-in-progress: false
+
+env:
+  DOMAIN_REPORT: /tmp/hf-product-domain-repair.json
+
+jobs:
+  contract:
+    name: Prove the single-Space custom-domain controller
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Run network-free controller regressions
+        run: python tests/test_repair_hf_product_domain.py -v
+
+      - name: Check syntax and diff hygiene
+        run: |
+          python -m py_compile scripts/repair_hf_product_domain.py
+          git diff --check
+
+  repair:
+    name: Replace the bad www claim and prove the canonical apex
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Repair the authenticated HF custom-domain attachment
+        id: repair
+        shell: bash
+        env:
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HUGGINGFACEHUB_API_TOKEN: ${{ secrets.HUGGINGFACEHUB_API_TOKEN }}
+          HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+        run: |
+          set +e
+          python scripts/repair_hf_product_domain.py \
+            --report "$DOMAIN_REPORT" \
+            --attempts 90 \
+            --interval 10
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload secret-free domain receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-product-domain-repair-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.DOMAIN_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Record the apex result on INC-05
+        if: always()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          python - <<'PY' > /tmp/hf-domain-comment.md
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path(os.environ["DOMAIN_REPORT"]).read_text(encoding="utf-8"))
+          print("## Hugging Face canonical-apex repair receipt")
+          print()
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          print(f"- Status: `{report.get('status', 'UNKNOWN')}`")
+          print(f"- Space: `{report.get('space')}`")
+          print(f"- Desired domain: `{report.get('desired_domain')}`")
+          print(f"- Plan: `{', '.join(report.get('plan', [])) or 'idempotent-readback'}`")
+          print(f"- DNS mutated: `{report.get('dns_mutated')}`")
+          print(f"- Cloudflare mutated: `{report.get('cloudflare_mutated')}`")
+          print(f"- Token value recorded: `{report.get('token_recorded')}`")
+          proof = report.get("proof") or {}
+          root = proof.get("root") or {}
+          if proof:
+              print(f"- Provider state: `{proof.get('desired_state')}`")
+              print(f"- Apex root: HTTP `{root.get('status')}`, verified `{root.get('verified')}`")
+          if report.get("error"):
+              print(f"- Blocker: `{report['error']}`")
+          print()
+          print("INC-05 remains open until the separate `www` canonical redirect is also proved.")
+          PY
+          gh issue comment 1497 --body-file /tmp/hf-domain-comment.md || true
+          exit 0
+
+      - name: Enforce provider-ready apex
+        if: always()
+        shell: bash
+        run: |
+          code="${{ steps.repair.outputs.exit_code }}"
+          test -n "$code"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::The Hugging Face canonical apex did not reach READY plus branded HTTP 200."
+            exit "$code"
+          fi
