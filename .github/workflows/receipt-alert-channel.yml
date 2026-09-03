@@ -169,7 +169,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          state="$(gh issue view 541 --repo "$GITHUB_REPOSITORY" --json state --jq '.state' 2>/dev/null || true)"
+          if state="$(gh issue view 541 --repo "$GITHUB_REPOSITORY" --json state --jq '.state' 2>/dev/null)"; then
+            :
+          else
+            state=""
+          fi
           if [ "$state" != "OPEN" ]; then
             echo "Issue 541 is already closed or unavailable."
             exit 0
