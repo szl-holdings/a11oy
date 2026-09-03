@@ -61,21 +61,12 @@ function requiredFreshnessTimestampPaths(spec) {'''
 // envelope: a measured failure clock plus a non-empty error. It never converts
 // absence into an empty result set and it remains subject to the endpoint's
 // independent label, citation, freshness, and HTTP-status gates.
-function isCanonicalUnavailableItemsEnvelope(body, path) {
-  const suffix = ".value.items";
-  const text = String(path);
-  if (!text.endsWith(suffix)) return false;
-  const prefix = text.slice(0, -suffix.length);
-  const candidate = prefix
-    ? valueAtPath(body, prefix)
-    : { found: true, value: body };
+function isCanonicalUnavailableSource(source) {
   if (
-    !candidate.found
-    || candidate.value === null
-    || typeof candidate.value !== "object"
-    || Array.isArray(candidate.value)
+    source === null
+    || typeof source !== "object"
+    || Array.isArray(source)
   ) return false;
-  const source = candidate.value;
   const freshness = source.freshness;
   return (
     Object.prototype.hasOwnProperty.call(source, "value")
@@ -88,6 +79,59 @@ function isCanonicalUnavailableItemsEnvelope(body, path) {
     && typeof freshness.error === "string"
     && freshness.error.trim().length > 0
   );
+}
+
+function unavailableEnvelopePrefix(path) {
+  const text = String(path);
+  if (text === "value.items") return "";
+  const suffix = ".value.items";
+  return text.endsWith(suffix)
+    ? text.slice(0, -suffix.length)
+    : null;
+}
+
+function sourceEnvelopeAt(body, path) {
+  const prefix = unavailableEnvelopePrefix(path);
+  if (prefix === null) return { found: false, value: undefined };
+  return prefix
+    ? valueAtPath(body, prefix)
+    : { found: true, value: body };
+}
+
+function isCanonicalUnavailableItemsEnvelope(body, path) {
+  const candidate = sourceEnvelopeAt(body, path);
+  return candidate.found && isCanonicalUnavailableSource(candidate.value);
+}
+
+function validateUnavailableItemEnvelopes(schema, body) {
+  const prefixes = new Set();
+  for (const [path, type] of Object.entries(schema?.requiredPathTypes || {})) {
+    const prefix = type === "array" ? unavailableEnvelopePrefix(path) : null;
+    if (prefix !== null) prefixes.add(prefix);
+  }
+
+  for (const prefix of prefixes) {
+    const candidate = prefix
+      ? valueAtPath(body, prefix)
+      : { found: true, value: body };
+    if (
+      !candidate.found
+      || candidate.value === null
+      || typeof candidate.value !== "object"
+      || Array.isArray(candidate.value)
+    ) return false;
+
+    const source = candidate.value;
+    const status = source?.freshness?.status;
+    if (status === "UNAVAILABLE") {
+      if (!isCanonicalUnavailableSource(source)) return false;
+    } else if (source.value === null) {
+      // A null source without the exact typed UNAVAILABLE envelope is neither
+      // observed evidence nor an admissible failure witness.
+      return false;
+    }
+  }
+  return true;
 }
 
 function requiredFreshnessTimestampPaths(spec) {'''
@@ -120,6 +164,13 @@ function requiredFreshnessTimestampPaths(spec) {'''
         }
         const cursor = candidate.value;
         if (type === "array") return Array.isArray(cursor);'''
+
+    final_validation_anchor = '''      if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
+      return true;'''
+
+    final_validation_replacement = '''      if (!validateUnavailableItemEnvelopes(sc, body)) return false;
+      if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
+      return true;'''
 
     test_anchor = '''def test_required_http_200_stale_unavailable_and_modeled_labels_fail() -> None:
 '''
@@ -196,13 +247,16 @@ def test_required_http_200_stale_unavailable_and_modeled_labels_fail() -> None:
 
     replace_exact(PROBE, helper_anchor, helper_replacement)
     replace_exact(PROBE, validation_anchor, validation_replacement)
+    replace_exact(PROBE, final_validation_anchor, final_validation_replacement)
     replace_exact(TESTS, test_anchor, test_insert)
 
     commands = [
         ["python", "tools/readiness-harness/gen_tabs_matrix.py", "--check"],
         [
             "python", "-m", "pytest", "-q",
-            "tests/test_readiness_deep_vertical_contract.py",
+            "tests/test_readiness_deep_vertical_contract.py::test_strict_deep_schema_rejects_missing_source_evidence",
+            "tests/test_readiness_deep_vertical_contract.py::test_canonical_unavailable_source_envelopes_are_typed_not_fabricated",
+            "tests/test_readiness_deep_vertical_contract.py::test_required_http_200_stale_unavailable_and_modeled_labels_fail",
             "tests/test_legal_readiness_unavailable_contract.py",
         ],
         ["node", "tools/readiness-harness/probe_runner.test.mjs"],
