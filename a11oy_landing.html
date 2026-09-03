@@ -17,7 +17,7 @@
   canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
-<html lang="en">
+<html lang="en" data-szl-public-experience-v3="true" data-szl-space-holo-v2="true" data-szl-zoom-tier="normal">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -538,7 +538,24 @@
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
   <link rel="stylesheet" href="/assets/apex-v2.css" data-szl-apex-v2="style" />
   <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
-</head>
+<style id="szl-public-experience-v3-2">
+html[data-szl-public-experience-v3="true"],html[data-szl-public-experience-v3="true"] body{max-inline-size:100%;overflow-x:clip}
+html[data-szl-public-experience-v3="true"] :where(main,section,article,aside,header,footer,nav,div){min-inline-size:0}
+html[data-szl-public-experience-v3="true"] :where(.skip-link,.origin-banner a,header.nav .brand,.szl-flow-rail a,a[href*="ledger"],.audience-paths a){display:inline-flex;align-items:center;min-block-size:44px;max-inline-size:100%;touch-action:manipulation}
+html[data-szl-public-experience-v3="true"] .origin-banner a{padding-inline:8px}
+html[data-szl-public-experience-v3="true"] .skip-link{padding-block:10px}
+.audience-paths{padding-block:clamp(48px,8vw,96px)}.audience-paths>p{max-inline-size:68ch;color:var(--sub)}
+.audience-path-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-block-start:24px}
+.audience-paths a{min-block-size:132px!important;padding:20px;border:1px solid var(--border);border-radius:var(--r);background:rgba(255,255,255,.035);flex-direction:column;align-items:flex-start!important;justify-content:center;gap:6px}
+.audience-paths a:hover{border-color:rgba(255,255,255,.55);background:rgba(255,255,255,.07)}
+.audience-paths span{color:var(--ghost);font:600 11px/1.3 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.audience-paths strong{font:650 clamp(18px,2vw,24px)/1.2 var(--head)}.audience-paths small{color:var(--sub);line-height:1.5}
+html[data-szl-zoom-tier="high"] header.nav,html[data-szl-zoom-tier="extreme"] header.nav,html[style*="zoom: 2"] header.nav,html[style*="zoom:2"] header.nav,html[style*="zoom: 4"] header.nav,html[style*="zoom:4"] header.nav{position:relative!important;inset:auto!important;inline-size:auto!important;max-inline-size:100%!important;transform:none!important}
+html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"] .szl-flow-rail,html[style*="zoom: 2"] .szl-flow-rail,html[style*="zoom:2"] .szl-flow-rail,html[style*="zoom: 4"] .szl-flow-rail,html[style*="zoom:4"] .szl-flow-rail{position:relative!important;inset:auto!important;inline-size:auto!important;max-inline-size:100%!important;max-block-size:none!important;margin:8px!important;transform:none!important;overflow:auto!important;flex-wrap:wrap!important}
+@media(max-width:760px){.audience-path-grid{grid-template-columns:minmax(0,1fr)}.audience-paths a{min-block-size:112px!important}}
+@media(prefers-reduced-motion:reduce){.audience-paths a{transition:none!important}}
+@media(forced-colors:active){.audience-paths a{forced-color-adjust:auto}}
+</style></head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 
@@ -930,7 +947,14 @@
 </section>
 
 <!-- ============================ (8) FOOTER ============================ -->
-</main>
+<section class="audience-paths wrap" aria-labelledby="audience-paths-title">
+<p class="mono">TASK-FIRST ENTRY POINTS</p><h2 id="audience-paths-title">Choose the view that matches your job.</h2>
+<p>The product, implementation evidence, and operating status stay separate so users, developers, and investors can verify the layer they need without navigating the entire estate.</p>
+<div class="audience-path-grid">
+<a href="/static/3d/holographic.html" aria-label="Open the A11oy operator experience"><span>Users and operators</span><strong>Run the governed experience</strong><small>Explore evidence-labelled operational surfaces and defensive workbenches.</small></a>
+<a href="https://github.com/szl-holdings/a11oy" target="_blank" rel="noopener" aria-label="Open the A11oy source repository"><span>Developers</span><strong>Inspect source and contracts</strong><small>Review APIs, tests, deployment authority, and reproducible evidence.</small></a>
+<a href="https://a11oy.net/status/" target="_blank" rel="noopener" aria-label="Open the independently attested estate status"><span>Investors and diligence</span><strong>Verify operating status</strong><small>Separate observed deployment evidence from modeled claims and roadmap work.</small></a>
+</div></section></main>
 <footer>
   <div class="wrap">
     <div class="cols">
@@ -1857,5 +1881,5 @@
 
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
-</body>
+<script id="szl-public-experience-v3-runtime">(function(){'use strict';var r=document.documentElement,f=0;function s(){f=0;var z=Number.parseFloat(r.style.zoom||'1');if(!Number.isFinite(z)||z<=0)z=1;r.dataset.szlPublicExperienceV3='true';r.dataset.szlSpaceHoloV2='true';r.dataset.szlZoomTier=z>=3?'extreme':(z>=1.5?'high':'normal')}function q(){if(!f)f=window.requestAnimationFrame(s)}s();if(window.MutationObserver)new MutationObserver(q).observe(r,{attributes:true,attributeFilter:['style']});window.addEventListener('resize',q,{passive:true})}());</script></body>
 </html>
