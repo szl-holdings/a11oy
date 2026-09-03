@@ -93,28 +93,30 @@ jobs:
               end = source.index(end_marker, start)
               return source[:start] + replacement + source[end:]
 
-          vertical_block = '''    "vert_legal_feed": {
-              "type": "object",
-              "required": [
-                  "vertical", "federal_register", "court_filings", "sources_cited",
-                  "doctrine",
-              ],
-              "properties": {"vertical": {"const": "legal"}},
-              "requiredPaths": [
-                  "federal_register.value", "federal_register.freshness.status",
-                  "federal_register.freshness.fetched_at", "court_filings.value",
-                  "court_filings.freshness.status", "court_filings.freshness.fetched_at",
-              ],
-              "requiredPathTypes": {
-                  "federal_register.freshness.status": "string",
-                  "federal_register.freshness.fetched_at": "timestamp",
-                  "court_filings.freshness.status": "string",
-                  "court_filings.freshness.fetched_at": "timestamp",
-                  "sources_cited": "array", "doctrine": "object",
-              },
-              "sourceEnvelopePaths": ["federal_register", "court_filings"],
-          },
-'''
+          vertical_lines = [
+              '    "vert_legal_feed": {',
+              '        "type": "object",',
+              '        "required": [',
+              '            "vertical", "federal_register", "court_filings", "sources_cited",',
+              '            "doctrine",',
+              '        ],',
+              '        "properties": {"vertical": {"const": "legal"}},',
+              '        "requiredPaths": [',
+              '            "federal_register.value", "federal_register.freshness.status",',
+              '            "federal_register.freshness.fetched_at", "court_filings.value",',
+              '            "court_filings.freshness.status", "court_filings.freshness.fetched_at",',
+              '        ],',
+              '        "requiredPathTypes": {',
+              '            "federal_register.freshness.status": "string",',
+              '            "federal_register.freshness.fetched_at": "timestamp",',
+              '            "court_filings.freshness.status": "string",',
+              '            "court_filings.freshness.fetched_at": "timestamp",',
+              '            "sources_cited": "array", "doctrine": "object",',
+              '        },',
+              '        "sourceEnvelopePaths": ["federal_register", "court_filings"],',
+              '    },',
+          ]
+          vertical_block = "\n".join(vertical_lines) + "\n"
           text = replace_block(
               text,
               start_marker='    "vert_legal_feed": {\n',
@@ -123,21 +125,23 @@ jobs:
               label="vertical legal source envelopes",
           )
 
-          matter_block = '''    "devb_legal_matter": {
-              "type": "object",
-              "required": ["surface", "term", "opinions", "doctrine"],
-              "properties": {"surface": {"const": "matter"}},
-              "requiredPaths": [
-                  "opinions.value", "opinions.freshness.status",
-                  "opinions.freshness.fetched_at",
-              ],
-              "requiredPathTypes": {
-                  "term": "string", "opinions.freshness.status": "string",
-                  "opinions.freshness.fetched_at": "timestamp", "doctrine": "object",
-              },
-              "sourceEnvelopePaths": ["opinions"],
-          },
-'''
+          matter_lines = [
+              '    "devb_legal_matter": {',
+              '        "type": "object",',
+              '        "required": ["surface", "term", "opinions", "doctrine"],',
+              '        "properties": {"surface": {"const": "matter"}},',
+              '        "requiredPaths": [',
+              '            "opinions.value", "opinions.freshness.status",',
+              '            "opinions.freshness.fetched_at",',
+              '        ],',
+              '        "requiredPathTypes": {',
+              '            "term": "string", "opinions.freshness.status": "string",',
+              '            "opinions.freshness.fetched_at": "timestamp", "doctrine": "object",',
+              '        },',
+              '        "sourceEnvelopePaths": ["opinions"],',
+              '    },',
+          ]
+          matter_block = "\n".join(matter_lines) + "\n"
           text = replace_block(
               text,
               start_marker='    "devb_legal_matter": {\n',
