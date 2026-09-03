@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EU AI Act Article 12 — Record-Keeping, Solved with Receipts | SZL Holdings</title>
+<meta name="description" content="Article 12 of the EU AI Act requires automatic event logging for high-risk AI systems. GovernedAction/v1 receipts map to every required audit-trail field — verifiable offline.">
+<style>
+  :root{--cream:#F7F6F2;--ink:#1B474D;--teal:#01696F;--gold:#C8B26A;--line:#d8d4c8}
+  *{box-sizing:border-box}html,body{overflow-x:hidden}
+  body{margin:0;background:var(--cream);color:var(--ink);font-family:Georgia,'Times New Roman',serif;line-height:1.6}
+  header,main,footer{max-width:72rem;margin:0 auto;padding:0 1.25rem}
+  .eyebrow{letter-spacing:.18em;text-transform:uppercase;font-size:.75rem;color:var(--teal);font-family:ui-monospace,Menlo,monospace}
+  h1{font-size:2.25rem;line-height:1.2;margin:.5rem 0 1rem}
+  h2{font-size:1.5rem;margin-top:3rem;border-bottom:2px solid var(--gold);padding-bottom:.4rem}
+  h3{font-size:1.1rem;margin-bottom:.25rem}
+  .lead{font-size:1.15rem;max-width:56rem}
+  .label{display:inline-block;font-family:ui-monospace,Menlo,monospace;font-size:.7rem;letter-spacing:.08em;border:1px solid var(--teal);color:var(--teal);padding:.15rem .5rem;border-radius:999px;vertical-align:middle}
+  .label.roadmap{border-color:var(--gold);color:#7a6a35}
+  table{width:100%;border-collapse:collapse;margin:1.25rem 0;font-size:.95rem;background:#fff}
+  th,td{border:1px solid var(--line);padding:.65rem .8rem;text-align:left;vertical-align:top}
+  th{background:var(--ink);color:var(--cream);font-weight:600}
+  tr:nth-child(even) td{background:#f1efe8}
+  .card{border:1px solid var(--line);border-left:4px solid var(--teal);background:#fff;padding:1rem 1.25rem;margin:1rem 0}
+  .honest{border-left-color:var(--gold)}
+  a{color:var(--teal)}
+  a.btn,nav a{display:inline-block;min-height:44px;min-width:44px;padding:.7rem 1.1rem;margin:.25rem .5rem .25rem 0;border:1px solid var(--teal);border-radius:.4rem;text-decoration:none;font-family:ui-monospace,Menlo,monospace;font-size:.9rem}
+  a.btn.primary{background:var(--teal);color:var(--cream)}
+  ul{padding-left:1.25rem} li{margin:.35rem 0}
+  code{font-family:ui-monospace,Menlo,monospace;font-size:.9em;background:#efece4;padding:.1rem .3rem;border-radius:.25rem}
+  footer{margin-top:4rem;padding-top:1.5rem;border-top:1px solid var(--line);font-size:.85rem;color:#4a5a5e}
+</style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
+</head>
+<body>
+<header>
+  <p class="eyebrow">SZL HOLDINGS · HONEST BY DESIGN</p>
+  <h1>EU AI Act Article 12: record-keeping that verifies, not just records.</h1>
+  <p class="lead">Article 12 of Regulation (EU) 2024/1689 requires high-risk AI systems to <em>technically allow the automatic recording of events over the lifetime of the system</em>. Those obligations reached full application for Annex III high-risk systems on <strong>2 August 2026</strong>, and Article 26(6) separately requires deployers to retain the logs under their control for <strong>at least six months</strong>. GovernedAction/v1 — the open receipt format behind every a11oy gated action — was built to be exactly that record: automatic, tamper-evident, and verifiable offline.</p>
+  <nav aria-label="Primary">
+    <a class="btn primary" href="/pricing">See the 30-day pilot</a>
+    <a class="btn" href="/verify">Verify a receipt in your browser</a>
+    <a class="btn" href="/compliance">FedRAMP / SOC 2 / IL5 / CMMC path</a>
+  </nav>
+</header>
+<main>
+  <h2>The deadline is not upcoming. It passed.</h2>
+  <div class="card">
+    <p><span class="label">MEASURED</span> <strong>2 August 2026</strong> — full application of the high-risk obligations (Articles 9–17 for providers, Article 26 for deployers) under Regulation (EU) 2024/1689. Automatic event logging under Article 12 is now enforceable law for in-scope systems, and deployers carry the mirror duty to keep those logs for at least six months. Maximum penalties under the Act reach €35M or 7% of global turnover for the most serious infringements.</p>
+  </div>
+
+  <h2>Every required audit-trail field, mapped to a receipt field</h2>
+  <p>2026 audit-trail checklists for SOX, HIPAA, the EU AI Act, FFIEC, and PCI DSS v4.0 converge on the same twelve fields. Each maps to a field a GovernedAction/v1 receipt already carries:</p>
+  <table>
+    <thead><tr><th>Required audit-trail field</th><th>GovernedAction/v1 receipt binding</th></tr></thead>
+    <tbody>
+      <tr><td>Timestamp (NTP-synced, UTC)</td><td><code>issued_at</code> — UTC issuance time inside the signed envelope</td></tr>
+      <tr><td>Unique decision ID</td><td><code>action_id</code> — unique per gated action</td></tr>
+      <tr><td>Authenticated human identity</td><td><code>approver</code> — approval tier and identity, where a human gate fired</td></tr>
+      <tr><td>AI system identity and version</td><td><code>subject</code> digest + source revision binding</td></tr>
+      <tr><td>Model identity and version</td><td>Model/provider provenance recorded per response</td></tr>
+      <tr><td>Inputs received, with source attribution</td><td>Evidence references bound into the payload digest</td></tr>
+      <tr><td>Policy, rule, or prompt invoked</td><td><code>policy_gates</code> — the gates traversed, by name and version</td></tr>
+      <tr><td>Reasoning in human-readable language</td><td>Bounded loop trace attached to the receipt</td></tr>
+      <tr><td>Output produced</td><td>Output digest inside the signed subject</td></tr>
+      <tr><td>Action taken downstream</td><td><code>admission</code> result — admitted, held, or denied, with the executed effect</td></tr>
+      <tr><td>Human review / approval identity</td><td>Approval record at the caller's tier</td></tr>
+      <tr><td>Tamper-evident integrity proof</td><td><strong>DSSE envelope, ECDSA P-256 signature, hash-chained ledger</strong> — alter one byte and offline verification fails</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Prove it without talking to us</h2>
+  <div class="card">
+    <h3>Offline verification, no server in the trust path</h3>
+    <p>Take any receipt to <a href="/verify">/verify</a>. The check runs entirely in your browser against the published keys. Tamper a byte and watch it fail. No SZL server decides anything — that is the difference between a governance <em>dashboard</em> and governance <em>proof</em>.</p>
+  </div>
+  <div class="card">
+    <h3>Adversarial test suite</h3>
+    <p>The GovernedAction/v1 format ships with a public adversarial suite — 64 held proof-of-concept attacks against the receipt claim — plus PASS/FAIL-labeled conformance vectors so you can test your own verifier against ours.</p>
+  </div>
+
+  <h2>Honest boundaries</h2>
+  <div class="card honest">
+    <ul>
+      <li><span class="label roadmap">NOT LEGAL ADVICE</span> SZL Holdings builds technical infrastructure. Whether your system is in scope of Annex III, and what your full obligations are, is a question for your counsel.</li>
+      <li><span class="label roadmap">CONFORMANCE ≠ CERTIFICATION</span> An Article 12 conformance profile is a technical mapping, not a certification. No notified body has certified anything here, and we say so.</li>
+      <li><span class="label">MEASURED</span> Receipts verify offline against published keys today. That specific claim you can test yourself, right now, at /verify.</li>
+    </ul>
+  </div>
+
+  <h2>Start</h2>
+  <p>The 30-day Governed Evidence Pilot wires one of your agent workflows end to end: policy gates on every action, signed hash-chained receipts, ten controls mapped to ISO/IEC 42001, the EU AI Act, and NIST AI RMF, an auditor export bundle, and an external adversarial review — fixed scope, fixed price, measurable acceptance in writing up front.</p>
+  <nav aria-label="Next steps">
+    <a class="btn primary" href="/pricing">Pricing and pilot</a>
+    <a class="btn" href="/assurance">Assurance surface</a>
+    <a class="btn" href="https://a11oy.net">Evidence registry</a>
+  </nav>
+</main>
+<footer>
+  <p>SZL Holdings, LLC · Product <a href="/">a-11-oy.com</a> · Evidence <a href="https://a11oy.net">a11oy.net</a> · Source <a href="https://github.com/szl-holdings">github.com/szl-holdings</a></p>
+  <p>Regulatory references: Regulation (EU) 2024/1689, Article 12 (record-keeping), Article 26(6) (deployer log retention). Field mapping reflects commonly published 2026 audit-trail checklists; your obligations depend on your system's classification.</p>
+</footer>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
+</body>
+</html>
