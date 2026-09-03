@@ -91,10 +91,17 @@ def test_archived_vertical_repositories_remain_out_of_source_links() -> None:
     assert "a11oy/tree/main/verticals/vessels" in text
 
 
-def test_owner_dispatch_workflow_points_at_v4_and_protected_main() -> None:
+def test_owner_dispatch_and_bounded_protected_main_trigger_point_at_v4() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
     assert "workflow_dispatch:" in workflow
-    assert "\n  push:" not in workflow
+    assert "\n  push:" in workflow
+    assert "branches: [main]" in workflow
+    for path in (
+        "scripts/hf_publish_vertical_flagships_v4.py",
+        "tests/test_hf_publish_vertical_flagships_v4.py",
+        ".github/workflows/hf-publish-vertical-flagships.yml",
+    ):
+        assert f"      - {path}" in workflow
     assert "scripts/hf_publish_vertical_flagships_v4.py" in workflow
     assert 'test "$GITHUB_REF" = refs/heads/main' in workflow
     assert 'test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"' in workflow
