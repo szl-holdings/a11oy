@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Retire unused Replit Vite dependencies from the a11oy/Sentra build.
 
-This migration is intentionally deterministic and fail-closed. It updates only
-known manifests/catalog entries and the two self-contained Sentra stubs used by
-its public offline build.
+The migration is deterministic, convergence-safe, and fail-closed. It accepts
+known work that another protected writer has already completed, but rejects
+unknown stub drift and incomplete runtime contracts.
 """
 
 from __future__ import annotations
@@ -40,13 +40,15 @@ def remove_manifest_dependencies(relative_path: str) -> None:
     if not isinstance(dev_dependencies, dict):
         raise SystemExit(f"{path}: devDependencies object missing")
 
-    missing = [name for name in PLUGIN_KEYS if name not in dev_dependencies]
-    if missing:
-        raise SystemExit(f"{path}: expected retired dependencies missing: {missing}")
-
-    for name in PLUGIN_KEYS:
+    removed = [name for name in PLUGIN_KEYS if name in dev_dependencies]
+    for name in removed:
         del dev_dependencies[name]
-    write_json(path, data)
+
+    if removed:
+        write_json(path, data)
+        print(f"{relative_path}: removed {', '.join(removed)}")
+    else:
+        print(f"{relative_path}: retired dependencies already absent")
 
 
 def remove_catalog_entries() -> None:
@@ -66,11 +68,11 @@ def remove_catalog_entries() -> None:
         else:
             removed.add(match)
 
-    if removed != set(PLUGIN_KEYS):
-        raise SystemExit(
-            f"{path}: removed {sorted(removed)}, expected {sorted(PLUGIN_KEYS)}"
-        )
-    path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+    if removed:
+        path.write_text("\n".join(kept) + "\n", encoding="utf-8")
+        print(f"organs/sentra/pnpm-workspace.yaml: removed {', '.join(sorted(removed))}")
+    else:
+        print("organs/sentra/pnpm-workspace.yaml: retired catalog entries already absent")
 
 
 def restore_api_client_stub() -> None:
@@ -79,12 +81,21 @@ def restore_api_client_stub() -> None:
     dependencies = manifest.setdefault("dependencies", {})
     if not isinstance(dependencies, dict):
         raise SystemExit(f"{manifest_path}: dependencies must be an object")
-    dependencies["@tanstack/react-query"] = "catalog:"
-    write_json(manifest_path, manifest)
+    if dependencies.get("@tanstack/react-query") != "catalog:":
+        dependencies["@tanstack/react-query"] = "catalog:"
+        write_json(manifest_path, manifest)
 
     source_path = ROOT / "organs/sentra/stubs/api-client-react/index.ts"
-    if source_path.read_text(encoding="utf-8").strip() != "export {};":
-        raise SystemExit(f"{source_path}: expected the known empty drifted stub")
+    current = source_path.read_text(encoding="utf-8")
+    canonical_markers = (
+        "export function useStandardQuery",
+        "export function useStandardMutation",
+    )
+    if all(marker in current for marker in canonical_markers):
+        print("api-client-react stub: canonical wrappers already present")
+        return
+    if current.strip() != "export {};":
+        raise SystemExit(f"{source_path}: unknown API-client stub drift")
 
     source_path.write_text(
         """import {
@@ -125,13 +136,15 @@ export function useStandardMutation<
 """,
         encoding="utf-8",
     )
+    print("api-client-react stub: restored canonical wrappers")
 
 
 def restore_shared_ui_operational_contract() -> None:
     path = ROOT / "organs/sentra/stubs/shared-ui/index.ts"
     current = path.read_text(encoding="utf-8")
     if "export const OperationalOwnerChip" in current:
-        raise SystemExit(f"{path}: operational contract unexpectedly already present")
+        print("shared-ui stub: operational contract already present")
+        return
 
     contract = r'''
 
@@ -219,12 +232,12 @@ export const OperationalDetailPane = NoopComponent;
 export const OperationalQueueRow = NoopComponent;
 '''
     path.write_text(current.rstrip() + contract + "\n", encoding="utf-8")
+    print("shared-ui stub: restored operational contract")
 
 
 def collect_runtime_named_imports() -> set[str]:
-    # The braces exclusion prevents a multiline match from crossing into a
-    # different import declaration, which was the source of the prior false
-    # positives from React, lucide-react, and other packages.
+    # Excluding braces prevents a multiline match from crossing import
+    # declarations and creating false positives from unrelated packages.
     import_pattern = re.compile(
         r"^[ \t]*(?:import|export)[ \t]*(?:type[ \t]+)?\{"
         r"(?P<names>[^{}]*)\}[ \t\r\n]*from[ \t\r\n]*['\"]"
