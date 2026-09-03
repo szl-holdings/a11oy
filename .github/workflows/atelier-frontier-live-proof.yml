@@ -1,0 +1,146 @@
+name: Atelier Frontier source-bound live proof
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/atelier-frontier-live-proof.yml"
+      - "scripts/verify_atelier_frontier_live.py"
+      - "tests/test_atelier_frontier_live.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/atelier-frontier-live-proof.yml"
+      - "scripts/verify_atelier_frontier_live.py"
+      - "tests/test_atelier_frontier_live.py"
+  workflow_run:
+    workflows: ["Sync and Relock Canonical Hugging Face Space"]
+    types: [completed]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atelier-frontier-live-proof-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Prove the fail-closed live verifier offline
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_branch == 'main')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out the exact event source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Assert exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse --verify HEAD)" = "$SOURCE_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install hash-locked core test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Run network-free live-verifier regressions
+        run: |
+          pytest tests/test_atelier_frontier_live.py -q
+          python -m py_compile scripts/verify_atelier_frontier_live.py
+
+      - name: Prove committed diff hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          base="$(git merge-base HEAD origin/main)"
+          git diff --check "$base" HEAD
+
+  live:
+    name: Prove exact live page, registry, evaluator, and source identity
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+      ORIGIN: https://szlholdings-a11oy.hf.space
+      REPORT: /tmp/atelier-frontier-live-proof.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact deployed source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Probe exact canonical Atelier deployment
+        id: proof
+        shell: bash
+        run: |
+          set +e
+          python scripts/verify_atelier_frontier_live.py \
+            --origin "$ORIGIN" \
+            --source-sha "$SOURCE_SHA" \
+            --report "$REPORT"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable secret-free live evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: atelier-frontier-live-proof-${{ github.event.workflow_run.id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce exact source-bound live result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.proof.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          code="${EXIT_CODE:-2}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Atelier Frontier live proof failed with exit $code."
+            exit "$code"
+          fi
+          echo "Atelier Frontier is source-bound, clean-room, read-only, and live."
