@@ -169,7 +169,7 @@ def test_assets_are_local_accessible_and_do_not_clone_reference_brand() -> None:
     for token in (
         "data-szl-public-experience-v3",
         "prefers-reduced-motion",
-        "min-height:44px",
+        "min-height:48px",
         "overflow-x:hidden",
     ):
         assert token in combined
