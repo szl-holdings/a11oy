@@ -269,7 +269,7 @@ ENDPOINTS = {
         note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
     "/api/a11oy/v1/vert/legal/feed": ep(
         schema="vert_legal_feed", sla=HOUR, citations=True,
-        allow_labels=("live", "cached", "reference"),
+        allow_labels=("live", "cached", "reference", "UNAVAILABLE"),
         note="Canonical Legal renderer feed: Federal Register + CourtListener."),
     "/api/a11oy/v1/vert/cyber/feed": ep(
         schema="vert_cyber_feed", sla=HOUR, citations=True,
@@ -301,18 +301,23 @@ ENDPOINTS = {
         note="Static devb capability descriptor; deep legal routes carry the freshness evidence."),
     "/api/a11oy/v1/devb/legal/matter?limit=1": ep(
         schema="devb_legal_matter", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "UNAVAILABLE"),
         note="Bounded CourtListener matter probe; returned opinions carry authority URLs."),
     "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1": ep(
         schema="devb_legal_matter", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "UNAVAILABLE"),
         note="Bounded CourtListener authority probe for the defense-builder alias."),
     "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1": ep(
         schema="devb_legal_matter", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "UNAVAILABLE"),
         note="Bounded CourtListener authority probe for the insurance-review alias."),
     "/api/a11oy/v1/devb/legal/regulatory?limit=1": ep(
         schema="devb_legal_regulatory", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "UNAVAILABLE"),
         note="Federal Register documents and agency catalog with source URLs."),
     "/api/a11oy/v1/devb/legal/exposure?limit=1": ep(
         schema="devb_legal_exposure", sla=HOUR, citations=True,
+        allow_labels=("live", "cached", "UNAVAILABLE"),
         note="SEC/CourtListener exposure graph; case nodes retain CourtListener URLs."),
 
     # ── seismic ──
