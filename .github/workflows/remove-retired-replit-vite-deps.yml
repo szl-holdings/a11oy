@@ -10,6 +10,7 @@ on:
       - organs/sentra/stubs/platform-registry/index.ts
       - organs/sentra/stubs/design-system/index.ts
       - organs/sentra/stubs/brand-registry/index.ts
+      - organs/sentra/web/src/lib/dual-use/dual-use-detector.ts
 
 permissions:
   contents: write
@@ -110,6 +111,7 @@ jobs:
           grep -Fq 'export const EvalBadge' organs/sentra/stubs/design-system/index.ts
           grep -Fq 'export const LeaderboardTable' organs/sentra/stubs/design-system/index.ts
           grep -Fq 'export function copyrightLine' organs/sentra/stubs/brand-registry/index.ts
+          grep -Fq 'function normalizeLookupValue' organs/sentra/web/src/lib/dual-use/dual-use-detector.ts
           git diff --check
           git status --short
 
