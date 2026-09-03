@@ -11,7 +11,7 @@ on:
       - "routers/frontier_reads.py"
       - "routers/atelier_frontier.py"
       - "routers/atelier_frontier_web/**"
-      - "tests/test_atelier_frontier.py"
+      - "tests/test_atelier_frontier*.py"
   push:
     branches: [main]
     paths:
@@ -22,7 +22,7 @@ on:
       - "routers/frontier_reads.py"
       - "routers/atelier_frontier.py"
       - "routers/atelier_frontier_web/**"
-      - "tests/test_atelier_frontier.py"
+      - "tests/test_atelier_frontier*.py"
   workflow_dispatch: {}
 
 permissions:
@@ -34,7 +34,7 @@ concurrency:
 
 jobs:
   contract:
-    name: Prove clean-room intake, modeled evaluation, and route wiring
+    name: Prove clean-room intake, modeled evaluation, route wiring, and touch geometry
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -64,7 +64,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          pytest tests/test_atelier_frontier.py -q
+          pytest \
+            tests/test_atelier_frontier.py \
+            tests/test_atelier_frontier_geometry.py \
+            -q
           python -m py_compile \
             routers/atelier_frontier.py \
             routers/frontier_reads.py \
