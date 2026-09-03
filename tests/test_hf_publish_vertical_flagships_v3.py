@@ -27,10 +27,10 @@ def test_archived_vertical_repositories_are_not_advertised_as_sources() -> None:
     assert "a11oy/tree/main/verticals/vessels" in source
 
 
-def test_execution_trigger_is_single_diff_and_protected_main_bound() -> None:
+def test_publisher_is_owner_dispatched_and_current_main_bound() -> None:
     workflow = WORKFLOW.read_text(encoding="utf-8")
-    assert "exec/hf-publish-vertical-flagships-v3" in workflow
-    assert "ops/hf-publish-vertical-flagships-v3.trigger" in workflow
-    assert 'test "$EXPECTED_BASE" = "$current_main"' in workflow
-    assert 'test "${#changed[@]}" -eq 1' in workflow
+    assert "workflow_dispatch:" in workflow
+    assert "\n  push:" not in workflow
+    assert 'test "$GITHUB_REF" = refs/heads/main' in workflow
+    assert 'test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"' in workflow
     assert "persist-credentials: false" in workflow

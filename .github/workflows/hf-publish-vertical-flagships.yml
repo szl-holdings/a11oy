@@ -3,11 +3,6 @@ name: HF Publish Vertical Flagships
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - exec/hf-publish-vertical-flagships-v3
-    paths:
-      - ops/hf-publish-vertical-flagships-v3.trigger
 
 permissions:
   contents: read
@@ -39,22 +34,13 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Require execution branch derived from current protected main
-        if: github.event_name == 'push'
-        env:
-          EXPECTED_BASE: ${{ github.event.before }}
+      - name: Require exact current protected main
         shell: bash
         run: |
           set -euo pipefail
-          zero=0000000000000000000000000000000000000000
-          test -n "${EXPECTED_BASE:-}"
-          test "$EXPECTED_BASE" != "$zero"
+          test "$GITHUB_REF" = refs/heads/main
           git fetch --no-tags --depth=1 origin main
-          current_main="$(git rev-parse FETCH_HEAD)"
-          test "$EXPECTED_BASE" = "$current_main"
-          mapfile -t changed < <(git diff --name-only "$EXPECTED_BASE" "$GITHUB_SHA")
-          test "${#changed[@]}" -eq 1
-          test "${changed[0]}" = ops/hf-publish-vertical-flagships-v3.trigger
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
