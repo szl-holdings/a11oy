@@ -32,11 +32,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: aegis-proof-cells-${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+  group: aegis-proof-cells-${{ github.event.workflow_run.id || github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
 env:
-  SOURCE_SHA: ${{ github.event.workflow_run.head_sha || github.event.pull_request.head.sha || github.sha }}
+  PIP_NO_CACHE_DIR: "1"
   ORIGIN: https://szlholdings-a11oy.hf.space
   LIVE_REPORT: /tmp/aegis-proof-cells-live.json
 
@@ -44,9 +44,8 @@ jobs:
   contract:
     name: Prove clean-room registry, deny gates, deterministic receipts, and responsive surface
     if: >-
-      github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.head_branch == 'main')
+      github.event_name != 'workflow_run' &&
+      (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main')
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
@@ -55,32 +54,38 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Check out exact candidate or deployed source
+      - name: Check out the event revision without persisted credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.SOURCE_SHA }}
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Assert exact checkout identity
+      - name: Record exact checkout identity
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse --verify HEAD)" = "$SOURCE_SHA"
+          source_sha="$(git rev-parse --verify HEAD)"
+          test "${#source_sha}" -eq 40
+          case "$source_sha" in
+            *[!0-9a-f]*) exit 2 ;;
+          esac
+          echo "SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: ""
 
-      - name: Set up Node.js
+      - name: Set up Node.js without package-manager caching
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
+          package-manager-cache: false
 
       - name: Install hash-locked core test dependencies
         run: >-
-          python -m pip install --disable-pip-version-check
+          python -m pip install --disable-pip-version-check --no-cache-dir
           --require-hashes -r .github/requirements/ci-core.txt
 
       - name: Prove Aegis Proof Cells contracts
@@ -109,26 +114,41 @@ jobs:
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.head_branch == 'main'
-    needs: contract
     runs-on: ubuntu-24.04
     timeout-minutes: 15
+    env:
+      EXPECTED_SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
-      - name: Check out exact deployed protected source
+      - name: Check out protected main without persisted credentials
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ env.SOURCE_SHA }}
-          fetch-depth: 1
+          ref: refs/heads/main
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Select only the exact deployed protected-main ancestor
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${#EXPECTED_SOURCE_SHA}" -eq 40
+          case "$EXPECTED_SOURCE_SHA" in
+            *[!0-9a-f]*) exit 2 ;;
+          esac
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$EXPECTED_SOURCE_SHA" origin/main
+          git checkout --detach "$EXPECTED_SOURCE_SHA"
+          test "$(git rev-parse --verify HEAD)" = "$EXPECTED_SOURCE_SHA"
 
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+          cache: ""
 
       - name: Probe exact live source and fail-closed Aegis contracts
         id: proof
@@ -137,7 +157,7 @@ jobs:
           set +e
           python scripts/verify_aegis_proof_cells_live.py \
             --origin "$ORIGIN" \
-            --source-sha "$SOURCE_SHA" \
+            --source-sha "$EXPECTED_SOURCE_SHA" \
             --report "$LIVE_REPORT" \
             --attempts 18 \
             --retry-seconds 10
@@ -171,7 +191,7 @@ jobs:
           report = json.loads(Path(os.environ["LIVE_REPORT"]).read_text(encoding="utf-8"))
           assert report.get("ok") is True
           assert report.get("status") == "PASS"
-          assert report.get("source_sha") == os.environ["SOURCE_SHA"]
+          assert report.get("source_sha") == os.environ["EXPECTED_SOURCE_SHA"]
           assert report.get("registry", {}).get("source_code_copied") is False
           assert report.get("registry", {}).get("effectors") == 0
           assert report.get("authority", {}).get("external_writes") == "DISABLED"
