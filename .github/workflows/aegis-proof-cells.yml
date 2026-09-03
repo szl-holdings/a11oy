@@ -22,7 +22,7 @@ on:
       - "scripts/verify_aegis_proof_cells_live.py"
       - "tests/test_aegis_proof_cells.py"
       - "tests/test_aegis_proof_cells.mjs"
-      - "tests/test_aegis_proof-cells_live.py"
+      - "tests/test_aegis_proof_cells_live.py"
   workflow_run:
     workflows: ["Sync and Relock Canonical Hugging Face Space"]
     types: [completed]
