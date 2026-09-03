@@ -1,0 +1,165 @@
+name: Repair Cloudflare Product Edge — production authority
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/repair-cloudflare-product-edge-production.yml"
+      - "scripts/repair_cloudflare_product_edge.py"
+      - "ops/cloudflare/product-edge-worker.mjs"
+      - "tests/test_cloudflare_product_edge.py"
+      - "tests/test_cloudflare_product_edge_worker.mjs"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Resolve exact provider state without applying mutations"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: cloudflare-product-edge-v4
+  cancel-in-progress: false
+
+env:
+  EDGE_REPORT: /tmp/cloudflare-product-edge-v4-production.json
+
+jobs:
+  contract:
+    name: Re-prove the bounded reversible edge controller
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Execute exact network-free controller and Worker contracts
+        run: |
+          set -euo pipefail
+          python -m pytest tests/test_cloudflare_product_edge.py -q
+          node --test tests/test_cloudflare_product_edge_worker.mjs
+          python -m py_compile scripts/repair_cloudflare_product_edge.py
+          node --check ops/cloudflare/product-edge-worker.mjs
+          git diff --check
+
+  repair:
+    name: Use production authority and prove the canonical public edge
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Execute the bounded provider cutover
+        id: edge
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_DNS_API_TOKEN || secrets.CLOUDFLARE_ZONE_API_TOKEN || secrets.CLOUDFLARE_WORKER_API_TOKEN || secrets.CF_WORKERS_API_TOKEN || secrets.CF_ZONE_API_TOKEN }}
+        run: |
+          set +e
+          args=(--report "$EDGE_REPORT")
+          if [ "${{ inputs.dry_run || false }}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          python scripts/repair_cloudflare_product_edge.py "${args[@]}"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload the secret-free provider receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloudflare-product-edge-v4-production-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.EDGE_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Reconcile INC-05 from independent public proof
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set +e
+          python - <<'PY' > /tmp/cloudflare-product-edge-production-comment.md
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path(os.environ["EDGE_REPORT"]).read_text(encoding="utf-8"))
+          print("## Cloudflare production-authority edge receipt")
+          print()
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          print(f"- Status: `{report.get('status', 'UNKNOWN')}`")
+          print(f"- Desired routes: `{', '.join(report.get('desired_routes', []))}`")
+          print(f"- Exact web hosts: `{', '.join(report.get('web_hosts', []))}`")
+          print(f"- DNS mutated: `{report.get('dns_mutated')}`")
+          print(f"- DNS rollback succeeded: `{report.get('dns_rollback_succeeded')}`")
+          print(f"- Token value recorded: `{report.get('token_recorded')}`")
+          probe = report.get("probe") or {}
+          root = probe.get("root") or {}
+          honest = probe.get("honest") or {}
+          www = probe.get("www") or {}
+          if root:
+              print(f"- Apex root: HTTP `{root.get('status')}`, edge `{root.get('edge')}`, verified `{probe.get('root_verified')}`")
+          if honest:
+              contract = probe.get("honest_contract") or {}
+              print(f"- Honesty API: HTTP `{honest.get('status')}`, organ `{contract.get('organ')}`, locked `{contract.get('locked_formula_count')}`, verified `{probe.get('honest_verified')}`")
+          if www:
+              print(f"- www: HTTP `{www.get('status')}`, location `{www.get('location')}`, verified `{probe.get('www_verified')}`")
+          if report.get("error"):
+              print(f"- Blocker: `{report['error']}`")
+          PY
+          gh issue comment 1497 --body-file /tmp/cloudflare-product-edge-production-comment.md || true
+          status="$(python -c 'import json,os; print(json.load(open(os.environ["EDGE_REPORT"]))["status"])')"
+          if [ "$status" = "LIVE" ]; then
+            gh issue close 1497 --reason completed
+          else
+            gh issue reopen 1497 || true
+          fi
+          exit 0
+
+      - name: Enforce a proved LIVE edge
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="${{ steps.edge.outputs.exit_code }}"
+          test -n "$code"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::The production-authority edge controller did not reach LIVE; inspect the secret-free receipt."
+            exit "$code"
+          fi
