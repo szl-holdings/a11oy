@@ -6,6 +6,7 @@ on:
       - refactor/remove-retired-replit-vite-deps-20260903
     paths:
       - .github/workflows/remove-retired-replit-vite-deps.yml
+      - scripts/maintenance/retire_replit_vite.py
 
 permissions:
   contents: write
@@ -44,7 +45,7 @@ jobs:
           corepack prepare pnpm@10.26.1 --activate
           test "$(pnpm --version)" = "10.26.1"
 
-      - name: Prove the plugins are unused before removal
+      - name: Prove retired plugins are not active
         shell: bash
         run: |
           set -euo pipefail
@@ -55,226 +56,14 @@ jobs:
             fi
           done
 
-      - name: Remove retired entries and restore canonical offline contracts
+      - name: Prepare deterministic retirement migration
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from __future__ import annotations
+          python -m py_compile scripts/maintenance/retire_replit_vite.py
+          python scripts/maintenance/retire_replit_vite.py
 
-          import json
-          import re
-          from pathlib import Path
-
-          plugin_keys = (
-              "@replit/vite-plugin-cartographer",
-              "@replit/vite-plugin-dev-banner",
-              "@replit/vite-plugin-runtime-error-modal",
-          )
-
-          for manifest_name in ("web/package.json", "organs/sentra/web/package.json"):
-              path = Path(manifest_name)
-              data = json.loads(path.read_text(encoding="utf-8"))
-              dev = data.get("devDependencies")
-              if not isinstance(dev, dict):
-                  raise SystemExit(f"{path}: devDependencies object missing")
-              missing = [key for key in plugin_keys if key not in dev]
-              if missing:
-                  raise SystemExit(f"{path}: expected retired dependencies missing: {missing}")
-              for key in plugin_keys:
-                  del dev[key]
-              path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-
-          workspace = Path("organs/sentra/pnpm-workspace.yaml")
-          lines = workspace.read_text(encoding="utf-8").splitlines()
-          removed: set[str] = set()
-          kept: list[str] = []
-          for line in lines:
-              stripped = line.strip()
-              matched = next(
-                  (key for key in plugin_keys if stripped.startswith(f'"{key}":')),
-                  None,
-              )
-              if matched is not None:
-                  removed.add(matched)
-                  continue
-              kept.append(line)
-          if removed != set(plugin_keys):
-              raise SystemExit(
-                  f"{workspace}: removed {sorted(removed)}, expected {sorted(plugin_keys)}"
-              )
-          workspace.write_text("\n".join(kept) + "\n", encoding="utf-8")
-
-          api_manifest = Path("organs/sentra/stubs/api-client-react/package.json")
-          api_data = json.loads(api_manifest.read_text(encoding="utf-8"))
-          dependencies = api_data.setdefault("dependencies", {})
-          if not isinstance(dependencies, dict):
-              raise SystemExit(f"{api_manifest}: dependencies must be an object")
-          dependencies["@tanstack/react-query"] = "catalog:"
-          api_manifest.write_text(json.dumps(api_data, indent=2) + "\n", encoding="utf-8")
-
-          api_source = Path("organs/sentra/stubs/api-client-react/index.ts")
-          prior_api = api_source.read_text(encoding="utf-8")
-          if prior_api.strip() != "export {};":
-              raise SystemExit(f"{api_source}: expected the known empty drifted stub before repair")
-          api_source.write_text(
-              """import {
-            type QueryKey,
-            type UseMutationOptions,
-            type UseQueryOptions,
-            useMutation,
-            useQuery,
-          } from '@tanstack/react-query';
-
-          const STANDARD_DEFAULTS = {
-            staleTime: 60_000,
-            gcTime: 5 * 60_000,
-            refetchOnWindowFocus: false,
-            retry: 1,
-          } as const;
-
-          export function useStandardQuery<
-            TQueryFnData = unknown,
-            TError = Error,
-            TData = TQueryFnData,
-            TQueryKey extends QueryKey = QueryKey,
-          >(options: UseQueryOptions<TQueryFnData, TError, TData, TQueryKey>) {
-            return useQuery<TQueryFnData, TError, TData, TQueryKey>({
-              ...STANDARD_DEFAULTS,
-              ...options,
-            });
-          }
-
-          export function useStandardMutation<
-            TData = unknown,
-            TError = Error,
-            TVariables = void,
-            TContext = unknown,
-          >(options: UseMutationOptions<TData, TError, TVariables, TContext>) {
-            return useMutation<TData, TError, TVariables, TContext>(options);
-          }
-          """.replace("          ", ""),
-              encoding="utf-8",
-          )
-
-          shared_source = Path("organs/sentra/stubs/shared-ui/index.ts")
-          shared_text = shared_source.read_text(encoding="utf-8")
-          if "export const OperationalOwnerChip" in shared_text:
-              raise SystemExit(f"{shared_source}: operational contract unexpectedly already present")
-          operational_contract = r'''
-
-          // Canonical operational-primitives contract for the self-contained offline build.
-          export type OperationalStatus = string;
-          export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
-          export type ApprovalState = 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
-          export type ActorType = 'user' | 'system' | 'agent';
-          export type OperationalOwner = {
-            userId?: string | number;
-            name?: string;
-            email?: string;
-            role?: string;
-            assignedAt?: string;
-          };
-          export type EvidenceItem = {
-            id: string;
-            label: string;
-            value: string;
-            source?: string;
-            confidence?: number;
-            timestamp?: string;
-          };
-          export type AuditHistoryEntry = Record<string, unknown>;
-          export type EscalationPath = Record<string, unknown>;
-          export type NextAction = Record<string, unknown>;
-          export type OperationalEntity = Record<string, unknown> & { id: string | number };
-          export type StatusConfig = {
-            label: string;
-            color: string;
-            bg: string;
-            dotColor?: string;
-            terminal?: boolean;
-          };
-
-          export const STATUS_CONFIGS: Record<string, StatusConfig> = {};
-          export const RISK_CONFIGS: Record<string, { label: string; color: string; bg: string; score: number }> = {};
-          export const APPROVAL_CONFIGS: Record<string, { label: string; color: string; bg: string }> = {};
-          export function getStatusConfig(status: string): StatusConfig {
-            return { label: status, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)' };
-          }
-          export function getRiskConfig(level: string) {
-            return { label: level, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)', score: 0 };
-          }
-          export function getApprovalConfig(state: string) {
-            return { label: state, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)' };
-          }
-          export function riskScoreToLevel(score: number): RiskLevel {
-            if (score >= 0.85) return 'critical';
-            if (score >= 0.65) return 'high';
-            if (score >= 0.35) return 'medium';
-            return 'low';
-          }
-          export function severityToRiskLevel(severity: string): RiskLevel {
-            return severity === 'critical' || severity === 'high' || severity === 'medium'
-              ? severity
-              : 'low';
-          }
-          export function isTerminalStatus(status: string): boolean {
-            return ['completed', 'succeeded', 'failed', 'cancelled', 'rejected', 'resolved', 'closed'].includes(status);
-          }
-          export function formatAgo(value?: string): string { return value ? value : '—'; }
-          export function formatDuration(startedAt?: string, completedAt?: string): string {
-            return startedAt && completedAt ? `${startedAt} – ${completedAt}` : '—';
-          }
-
-          export const OperationalStatusBadge = NoopComponent;
-          export const OperationalRiskBadge = NoopComponent;
-          export const OperationalApprovalBadge = NoopComponent;
-          export const OperationalOwnerChip = NoopComponent;
-          export const OperationalEvidencePanel = NoopComponent;
-          export const OperationalAuditTimeline = NoopComponent;
-          export const OperationalEscalationPanel = NoopComponent;
-          export const OperationalDetailPane = NoopComponent;
-          export const OperationalQueueRow = NoopComponent;
-          '''.replace("          ", "")
-          shared_source.write_text(shared_text.rstrip() + operational_contract + "\n", encoding="utf-8")
-
-          # Fail closed with one complete list of missing runtime named exports.
-          shared_text = shared_source.read_text(encoding="utf-8")
-          exported_values = set(
-              re.findall(
-                  r"export\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)",
-                  shared_text,
-              )
-          )
-          import_pattern = re.compile(
-              r"(?:import|export)\s*\{(?P<names>.*?)\}\s*from\s*['\"]"
-              r"@szl-holdings/shared-ui(?:/[^'\"]*)?['\"]",
-              re.DOTALL,
-          )
-          required_values: set[str] = set()
-          for source_path in sorted(Path("organs/sentra/web/src").rglob("*")):
-              if source_path.suffix not in {".ts", ".tsx"}:
-                  continue
-              source_text = source_path.read_text(encoding="utf-8")
-              for match in import_pattern.finditer(source_text):
-                  names = re.sub(r"/\*.*?\*/", "", match.group("names"), flags=re.DOTALL)
-                  for raw_name in names.split(","):
-                      name = raw_name.strip()
-                      if not name or name.startswith("type "):
-                          continue
-                      original = re.split(r"\s+as\s+", name, maxsplit=1)[0].strip()
-                      if re.fullmatch(r"[A-Za-z_$][\w$]*", original):
-                          required_values.add(original)
-          missing_exports = sorted(required_values - exported_values)
-          if missing_exports:
-              raise SystemExit(
-                  "shared-ui offline stub is missing runtime named exports: "
-                  + ", ".join(missing_exports)
-              )
-          print(f"shared-ui runtime export audit passed for {len(required_values)} named imports")
-          PY
-
-      - name: Install the self-contained Sentra workspace
+      - name: Install self-contained Sentra workspace
         shell: bash
         env:
           NODE_AUTH_TOKEN: ""
@@ -293,7 +82,7 @@ jobs:
           pnpm --dir organs/sentra build:offline
           pnpm --dir organs/sentra test:offline
 
-      - name: Verify complete dependency cleanup and stub repair
+      - name: Verify complete dependency and contract repair
         shell: bash
         run: |
           set -euo pipefail
@@ -304,7 +93,7 @@ jobs:
             organs/sentra/web/vite.config.ts \
             organs/sentra/pnpm-workspace.yaml
           then
-            echo '::error::Retired Replit Vite plugin references remain in the cleaned inputs'
+            echo '::error::Retired Replit Vite plugin references remain in cleaned inputs'
             exit 1
           fi
           grep -Fq 'export function useStandardQuery' organs/sentra/stubs/api-client-react/index.ts
@@ -315,7 +104,7 @@ jobs:
           git diff --check
           git status --short
 
-      - name: Commit deterministic cleanup and build repairs
+      - name: Commit production diff and remove temporary machinery
         shell: bash
         run: |
           set -euo pipefail
@@ -328,9 +117,13 @@ jobs:
             organs/sentra/stubs/api-client-react/index.ts \
             organs/sentra/stubs/api-client-react/package.json \
             organs/sentra/stubs/shared-ui/index.ts
+          git rm \
+            .github/workflows/remove-retired-replit-vite-deps.yml \
+            scripts/maintenance/retire_replit_vite.py
+          git diff --cached --check
           if git diff --cached --quiet; then
-            echo '::error::The cleanup and repairs produced no tracked changes'
+            echo '::error::The retirement migration produced no tracked production changes'
             exit 1
           fi
-          git commit -s -m "fix(build): remove Replit Vite deps and restore Sentra stubs"
+          git commit -s -m "fix(build): retire Replit Vite dependencies and restore Sentra offline contracts"
           git push origin "HEAD:${GITHUB_REF_NAME}"
