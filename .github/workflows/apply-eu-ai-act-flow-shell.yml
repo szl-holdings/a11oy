@@ -44,18 +44,19 @@ jobs:
           python scripts/rollout_frontend_flow_shell.py --check
           python tests/test_frontend_flow_shell.py -v
           git diff --check
-          changed="$(git diff --name-only)"
-          test "$changed" = "pages/eu-ai-act.html" || {
+          changed="$(git diff --name-only | sort)"
+          expected="$(printf '%s\n' docs/frontend-flow-shell-state.json pages/eu-ai-act.html | sort)"
+          test "$changed" = "$expected" || {
             echo "::error::Unexpected flow-shell collateral drift: $changed"
             exit 1
           }
 
-      - name: Commit only the instrumented page
+      - name: Commit only deterministic rollout outputs
         run: |
           set -euo pipefail
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
-          git add pages/eu-ai-act.html
+          git add docs/frontend-flow-shell-state.json pages/eu-ai-act.html
           git diff --cached --check
           git commit -s -m "fix(web): apply canonical flow shell to EU AI Act page"
           git push origin "HEAD:${GITHUB_REF_NAME}"
