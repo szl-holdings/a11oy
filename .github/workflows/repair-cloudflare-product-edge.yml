@@ -20,7 +20,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Resolve the zone and validate exact route ownership without changing Cloudflare"
+        description: "Resolve exact routes and apex/www DNS proxy state without changing Cloudflare"
         required: false
         type: boolean
         default: false
@@ -30,15 +30,15 @@ permissions:
   issues: write
 
 concurrency:
-  group: cloudflare-product-edge-v3
+  group: cloudflare-product-edge-v4
   cancel-in-progress: false
 
 env:
-  EDGE_REPORT: /tmp/cloudflare-product-edge-v3.json
+  EDGE_REPORT: /tmp/cloudflare-product-edge-v4.json
 
 jobs:
   contract:
-    name: Prove the bounded apex proxy and www redirect contracts
+    name: Prove bounded routes, reversible DNS cutover, and Worker behavior
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -71,7 +71,7 @@ jobs:
           git diff --check
 
   repair:
-    name: Deploy and prove the canonical product edge
+    name: Deploy, cut over exact DNS proxy state, and prove the public edge
     if: github.event_name != 'pull_request'
     needs: contract
     runs-on: ubuntu-24.04
@@ -93,7 +93,7 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Deploy exact routes and prove root, honesty API, and www
+      - name: Stage exact routes, enable existing web records, and prove public behavior
         id: edge
         shell: bash
         env:
@@ -113,7 +113,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: cloudflare-product-edge-v3-${{ github.run_id }}-${{ github.run_attempt }}
+          name: cloudflare-product-edge-v4-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ env.EDGE_REPORT }}
           if-no-files-found: error
           retention-days: 90
@@ -131,17 +131,23 @@ jobs:
           from pathlib import Path
 
           report = json.loads(Path(os.environ["EDGE_REPORT"]).read_text(encoding="utf-8"))
-          print("## Cloudflare canonical product-edge receipt")
+          print("## Cloudflare canonical product-edge v4 receipt")
           print()
           print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
           print(f"- Status: `{report.get('status', 'UNKNOWN')}`")
           print(f"- Origin: `{report.get('origin')}`")
           print(f"- Desired routes: `{', '.join(report.get('desired_routes', []))}`")
-          print(f"- Apex proxy authorized: `{report.get('apex_proxy_authorized')}`")
+          print(f"- Exact web hosts: `{', '.join(report.get('web_hosts', []))}`")
+          print(f"- DNS initially proxied: `{report.get('dns_initially_proxied')}`")
           print(f"- DNS mutated: `{report.get('dns_mutated')}`")
+          print(f"- DNS rollback succeeded: `{report.get('dns_rollback_succeeded')}`")
           print(f"- Token value recorded: `{report.get('token_recorded')}`")
           for row in report.get("route_results", []):
               print(f"- Route action: `{row.get('action')}` → `{row.get('state')}`")
+          for row in report.get("dns_results", []):
+              print(f"- DNS action: `{row.get('host')}` `{row.get('type')}` → `{row.get('state')}`")
+          for row in report.get("dns_rollback", []):
+              print(f"- DNS rollback: `{row.get('host')}` `{row.get('type')}` → `{row.get('state')}`")
           probe = report.get("probe") or {}
           root = probe.get("root") or {}
           honest = probe.get("honest") or {}
@@ -172,6 +178,6 @@ jobs:
           code="${{ steps.edge.outputs.exit_code }}"
           test -n "$code"
           if [ "$code" -ne 0 ]; then
-            echo "::error::The canonical product edge did not reach a proved result; inspect the secret-free receipt."
+            echo "::error::The canonical product edge did not reach a proved result; inspect the secret-free v4 receipt."
             exit "$code"
           fi
