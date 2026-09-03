@@ -1,0 +1,179 @@
+name: Apply unavailable source-envelope schema repair
+
+on:
+  push:
+    branches:
+      - fix/readiness-unavailable-source-envelopes
+    paths:
+      - .github/workflows/apply-unavailable-source-envelope-schema.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-unavailable-source-envelope-schema
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/readiness-unavailable-source-envelopes
+          fetch-depth: 0
+
+      - name: Add conditional source-envelope validation and regenerate contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path_name: str, label: str, old: str, new: str) -> None:
+              path = Path(path_name)
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(
+                      f"{path_name} [{label}]: expected one replacement seam, found {count}"
+                  )
+              path.write_text(
+                  text.replace(old, new, 1), encoding="utf-8", newline="\n"
+              )
+
+          probe_path = "tools/readiness-harness/probe_runner.mjs"
+          probe_old = (
+              '      if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;\n'
+          )
+          probe_new = (
+              '      if (sc.sourceEnvelopePaths) {\n'
+              '        if (!Array.isArray(sc.sourceEnvelopePaths)) return false;\n'
+              '        const envelopesValid = sc.sourceEnvelopePaths.every((path) => {\n'
+              '          const value = valueAtPath(body, `${path}.value`);\n'
+              '          const status = valueAtPath(body, `${path}.freshness.status`);\n'
+              '          const fetchedAt = valueAtPath(body, `${path}.freshness.fetched_at`);\n'
+              '          if (!value.found || !status.found || !fetchedAt.found) return false;\n'
+              '          if (typeof status.value !== "string" || toDate(fetchedAt.value) === null) {\n'
+              '            return false;\n'
+              '          }\n'
+              '          if (status.value === "UNAVAILABLE") return value.value === null;\n'
+              '          return typeof value.value === "object"\n'
+              '            && value.value !== null\n'
+              '            && !Array.isArray(value.value)\n'
+              '            && Array.isArray(value.value.items);\n'
+              '        });\n'
+              '        if (!envelopesValid) return false;\n'
+              '      }\n'
+              '      if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;\n'
+          )
+          replace_once(probe_path, "source envelope validator", probe_old, probe_new)
+
+          generator = Path("tools/readiness-harness/gen_tabs_matrix.py")
+          text = generator.read_text(encoding="utf-8")
+
+          def replace_block(
+              source: str,
+              *,
+              start_marker: str,
+              end_marker: str,
+              replacement: str,
+              label: str,
+          ) -> str:
+              if source.count(start_marker) != 1 or source.count(end_marker) != 1:
+                  raise SystemExit(f"generator [{label}]: block markers are not unique")
+              start = source.index(start_marker)
+              end = source.index(end_marker, start)
+              return source[:start] + replacement + source[end:]
+
+          vertical_block = '''    "vert_legal_feed": {
+              "type": "object",
+              "required": [
+                  "vertical", "federal_register", "court_filings", "sources_cited",
+                  "doctrine",
+              ],
+              "properties": {"vertical": {"const": "legal"}},
+              "requiredPaths": [
+                  "federal_register.value", "federal_register.freshness.status",
+                  "federal_register.freshness.fetched_at", "court_filings.value",
+                  "court_filings.freshness.status", "court_filings.freshness.fetched_at",
+              ],
+              "requiredPathTypes": {
+                  "federal_register.freshness.status": "string",
+                  "federal_register.freshness.fetched_at": "timestamp",
+                  "court_filings.freshness.status": "string",
+                  "court_filings.freshness.fetched_at": "timestamp",
+                  "sources_cited": "array", "doctrine": "object",
+              },
+              "sourceEnvelopePaths": ["federal_register", "court_filings"],
+          },
+'''
+          text = replace_block(
+              text,
+              start_marker='    "vert_legal_feed": {\n',
+              end_marker='    "vert_cyber_feed": {\n',
+              replacement=vertical_block,
+              label="vertical legal source envelopes",
+          )
+
+          matter_block = '''    "devb_legal_matter": {
+              "type": "object",
+              "required": ["surface", "term", "opinions", "doctrine"],
+              "properties": {"surface": {"const": "matter"}},
+              "requiredPaths": [
+                  "opinions.value", "opinions.freshness.status",
+                  "opinions.freshness.fetched_at",
+              ],
+              "requiredPathTypes": {
+                  "term": "string", "opinions.freshness.status": "string",
+                  "opinions.freshness.fetched_at": "timestamp", "doctrine": "object",
+              },
+              "sourceEnvelopePaths": ["opinions"],
+          },
+'''
+          text = replace_block(
+              text,
+              start_marker='    "devb_legal_matter": {\n',
+              end_marker='    "devb_legal_regulatory": {\n',
+              replacement=matter_block,
+              label="DevB matter source envelope",
+          )
+          generator.write_text(text, encoding="utf-8", newline="\n")
+          PY
+          python3 tools/readiness-harness/gen_tabs_matrix.py
+
+      - name: Prove observed and unavailable evidence remain distinguishable
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check tools/readiness-harness/probe_runner.mjs
+          python3 tests/test_readiness_unavailable_source_envelopes.py
+          python3 -m pytest -q \
+            tests/test_readiness_unavailable_source_envelopes.py \
+            tests/test_readiness_deep_vertical_contract.py \
+            tests/test_legal_readiness_unavailable_contract.py
+          python3 tools/readiness-harness/gen_tabs_matrix.py --check
+          python3 -m compileall -q \
+            tools/readiness-harness/gen_tabs_matrix.py \
+            tests/test_readiness_unavailable_source_envelopes.py
+
+      - name: Commit only the bounded schema successor
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add \
+            tools/readiness-harness/probe_runner.mjs \
+            tools/readiness-harness/gen_tabs_matrix.py \
+            tools/readiness-harness/tabs.json
+          git diff --cached --check
+          git commit -m 'fix(readiness): validate unavailable source envelopes without inventing rows' -m 'Observed legal sources must retain an items array. Never-observed sources pass only with value null, an exact UNAVAILABLE evidence state, and a real observation timestamp.' -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/readiness-unavailable-source-envelopes
