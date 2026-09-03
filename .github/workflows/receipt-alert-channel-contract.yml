@@ -60,7 +60,7 @@ jobs:
           workflow = Path(".github/workflows/receipt-alert-channel.yml").read_text(encoding="utf-8")
           required = (
               "permissions:\n  contents: read\n  issues: write",
-              "GH_TOKEN: ${{ github.token }}",
+              "GH_TOKEN: " + "$" + "{{ github.token }}",
               "python scripts/receipt_alert_delivery.py",
               "DELIVERED_WITH_SECONDARY_DEGRADATION",
               "Close issue 541 only after the protected-main canary succeeds",
