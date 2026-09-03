@@ -1,73 +1,84 @@
 # Bricklayer.ai → Aegis Proof Cells clean-room intake
 
-**Observed:** 2026-09-03  
-**Disposition:** `REFERENCE_ONLY_CLEAN_ROOM`  
-**Affiliation:** none  
-**External implementation imported:** no  
+**Observed:** 2026-09-03
+
+**Disposition:** `REFERENCE_ONLY_CLEAN_ROOM`
+
+**Affiliation:** none
+
+**External implementation imported:** no
+
 **Bricklayer source code copied:** no
 
 ## Purpose
 
-This record separates public architectural observation from software reuse. Bricklayer.ai
-publishes product and engineering descriptions of a coordinated AI workforce for security
-operations. No official public Bricklayer implementation repository was identified in the
-bounded GitHub search performed for this build. Public website content is not a software
-license and is not treated as permission to copy source, prompts, procedures, text, visual
-identity, trademarks, or private platform behavior.
+This record separates public architectural observation from software reuse. Bricklayer.ai publishes product and engineering descriptions of a coordinated AI workforce for security operations. No official public Bricklayer implementation repository was identified in the bounded GitHub search performed for this build. Public website content is not a software license and is not treated as permission to copy source, prompts, procedures, text, visual identity, trademarks, or private platform behavior.
 
-Aegis Proof Cells is therefore an original SZL implementation. It adopts only abstract
-operating ideas that are common to modern security operations: role specialization,
-evidence-preserving handoffs, reusable procedures, tenant segmentation, independent policy
-enforcement, analyst oversight, and auditable outcomes.
+Aegis Proof Cells is an original SZL implementation. It adopts only high-level operating ideas common to modern security operations: role specialization, evidence-preserving handoffs, reusable procedures, tenant segmentation, independent policy enforcement, analyst oversight, and auditable outcomes.
 
-## Public Bricklayer architectural observations
+## Public architecture observations
 
-1. **Coordinated specialist workforce**  
-   Source: https://www.bricklayer.ai/platform/  
-   Observation: specialist agents are assembled around security goals and approved
-   procedures, with human oversight and auditable activity.
+1. **Coordinated specialist workforce**
 
-2. **Multi-Agent Context Engineering (MACE)**  
-   Source: https://www.bricklayer.ai/insights/multi-agent-context-engineering-mace-the-discipline-behind-investigative-artificial-intelligence-ai/  
-   Published: 2025-09-26  
-   Observation: investigations need context containers that accumulate evidentiary,
-   procedural, investigative, decision, and output context across handoffs.
+   Source: `https://www.bricklayer.ai/platform/`
 
-3. **Insights and Insight Groups**  
-   Source: https://www.bricklayer.ai/insights/introducing-insight-groups-structuring-context-for-the-coordinated-ai-soc/  
-   Published: 2026-04-20  
-   Observation: investigation knowledge is more reusable when it is structured into
-   discrete, typed units rather than buried in unstructured task output.
+   Observation: specialist agents are assembled around security goals and approved procedures, with human oversight and auditable activity.
 
-4. **Agentic policy enforcement**  
-   Source: https://www.bricklayer.ai/insights/governing-ai-agents-announcing-our-first-patent-in-agentic-policy-enforcement/  
-   Published: 2026-03-24  
-   Observation: an independent control layer is required when agents can access tools,
-   data, and multi-step procedures.
+2. **Multi-Agent Context Engineering (MACE)**
 
-5. **Shared Agentic Library**  
-   Source: https://www.bricklayer.ai/insights/introducing-the-shared-agentic-library/  
-   Published: 2026-06-03  
-   Observation: proven operational capabilities should be packaged as reusable, governed,
-   versioned assets.
+   Source: `https://www.bricklayer.ai/insights/multi-agent-context-engineering-mace-the-discipline-behind-investigative-artificial-intelligence-ai/`
 
-6. **Credential labels and tenant segmentation**  
-   Source: https://www.bricklayer.ai/insights/bricklayer-ai-introduces-credential-labels-and-azure-sentinel-support/  
-   Published: 2025-02-21  
-   Observation: one procedure may operate across customers or business units only when
-   credentials and scope remain explicitly segmented.
+   Published: 2025-09-26
 
-7. **Long-term memory and dynamic procedures**  
-   Source: https://www.bricklayer.ai/insights/bricklayer-ai-introduces-guided-onboarding-long-term-memory-and-dynamic-procedures-creating-humanlike-intelligence-in-their-ai-agents-built-for-security-operations-centers/  
-   Published: 2025-04-28  
-   Observation: reusable operational learning and goal-derived procedures are product
-   primitives, but retained memory must remain tenant-, rights-, and purpose-bound.
+   Observation: investigations need context containers that accumulate evidentiary, procedural, investigative, decision, and output context across handoffs.
 
-8. **Curated public and internal context sources**  
-   Source: https://www.bricklayer.ai/insights/bricklayer-ai-introduces-public-blog-support-and-csv-datastores-to-strengthen-autonomous-investigations-and-report-generation/  
-   Published: 2025-03-25  
-   Observation: public and organization-specific sources need explicit curation and
-   provenance rather than indiscriminate retrieval.
+3. **Insights and Insight Groups**
+
+   Source: `https://www.bricklayer.ai/insights/introducing-insight-groups-structuring-context-for-the-coordinated-ai-soc/`
+
+   Published: 2026-04-20
+
+   Observation: investigation knowledge is more reusable when structured into discrete typed units rather than unstructured task prose.
+
+4. **Agentic policy enforcement**
+
+   Source: `https://www.bricklayer.ai/insights/governing-ai-agents-announcing-our-first-patent-in-agentic-policy-enforcement/`
+
+   Published: 2026-03-24
+
+   Observation: an independent control layer is required when agents can access tools, data, and multi-step procedures.
+
+5. **Shared Agentic Library**
+
+   Source: `https://www.bricklayer.ai/insights/introducing-the-shared-agentic-library/`
+
+   Published: 2026-06-03
+
+   Observation: proven operational capabilities should be packaged as reusable, governed, versioned assets.
+
+6. **Credential labels and tenant segmentation**
+
+   Source: `https://www.bricklayer.ai/insights/bricklayer-ai-introduces-credential-labels-and-azure-sentinel-support/`
+
+   Published: 2025-02-21
+
+   Observation: procedures operating across customers or business units require explicit credential and scope segmentation.
+
+7. **Long-term memory and dynamic procedures**
+
+   Source: `https://www.bricklayer.ai/insights/bricklayer-ai-introduces-guided-onboarding-long-term-memory-and-dynamic-procedures-creating-humanlike-intelligence-in-their-ai-agents-built-for-security-operations-centers/`
+
+   Published: 2025-04-28
+
+   Observation: reusable operational learning and goal-derived procedures are useful primitives, but retained memory must remain tenant-, rights-, and purpose-bound.
+
+8. **Curated public and internal context sources**
+
+   Source: `https://www.bricklayer.ai/insights/bricklayer-ai-introduces-public-blog-support-and-csv-datastores-to-strengthen-autonomous-investigations-and-report-generation/`
+
+   Published: 2025-03-25
+
+   Observation: public and organization-specific sources require explicit curation and provenance rather than indiscriminate retrieval.
 
 ## SZL/Aegis transformation
 
@@ -84,13 +95,11 @@ enforcement, analyst oversight, and auditable outcomes.
 | Human collaboration | Approval-gated remediation planning |
 | Platform actions | Disabled effectors in the public workbench |
 
-The resulting system is not a Bricklayer clone. It uses different names, schemas, interface,
-governance, formulas, evidence semantics, and deployment contracts.
+The resulting system is not a Bricklayer clone. It uses different names, schemas, interface, governance, formulas, evidence semantics, and deployment contracts.
 
 ## Public standards and code references
 
-The implementation does not vendor these repositories. They provide standards and
-architecture references at immutable public revisions:
+The implementation does not vendor these repositories. They provide standards and architecture references at immutable public revisions:
 
 | Project | Revision | License treatment | Use |
 |---|---|---|---|
@@ -109,14 +118,13 @@ The public workbench:
 - sends no case input to external services;
 - calls only same-origin, read-only A11oy evidence routes;
 - denies cross-tenant scope;
-- denies offensive intrusion, exploitation, credential theft, evasion, persistence,
-  destructive activity, and malware deployment;
+- denies offensive intrusion, exploitation, credential theft, evasion, persistence, destructive activity, and malware deployment;
 - requires human approval for containment or remediation proposals;
 - provides no production authorization;
 - binds no effector and performs no external write;
 - labels all planning scores `MODELED`;
 - caps modeled confidence at `0.97`;
-- emits a deterministic SHA-256 client receipt that is explicitly unsigned and unpersisted;
+- emits a deterministic SHA-256 client receipt explicitly marked unsigned and unpersisted;
 - reports missing or stale evidence as `UNAVAILABLE` or `ABSTAINED`.
 
 ## Runtime assets
@@ -128,6 +136,4 @@ The public workbench:
 /static/3d/aegis-proof-cells/registry.json
 ```
 
-The files ship through the existing `COPY console/ ./static/` canonical A11oy image contract.
-A dedicated post-deployment workflow verifies exact source identity, HTTP behavior, local
-asset digests, registry governance, and zero-effectors state.
+The files ship through the existing `COPY console/ ./static/` canonical A11oy image contract. A dedicated post-deployment workflow verifies exact source identity, HTTP behavior, local asset digests, registry governance, and zero-effectors state.
