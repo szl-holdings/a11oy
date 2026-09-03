@@ -1,0 +1,100 @@
+name: Atelier Frontier Candidate Bootstrap
+
+on:
+  push:
+    branches:
+      - feat/atelier-frontier-meta-success-synthesis-v1
+    paths:
+      - ".github/workflows/atelier-frontier-bootstrap.yml"
+      - "ops/atelier_frontier/bootstrap_candidate.py"
+      - "ops/atelier_frontier/payload/**"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atelier-frontier-candidate-bootstrap
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Prove exact current-main lineage and bounded bootstrap diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/feat/atelier-frontier-meta-success-synthesis-v1
+          git fetch --no-tags origin main
+          base="$(git rev-parse HEAD^)"
+          current_main="$(git rev-parse origin/main)"
+          test "$base" = "$current_main"
+          mapfile -t changed < <(git diff --name-only "$base" HEAD | sort)
+          expected=(
+            .github/workflows/atelier-frontier-bootstrap.yml
+            ops/atelier_frontier/bootstrap_candidate.py
+            ops/atelier_frontier/payload/part-00.txt
+            ops/atelier_frontier/payload/part-01.txt
+            ops/atelier_frontier/payload/part-02.txt
+            ops/atelier_frontier/payload/part-03.txt
+            ops/atelier_frontier/payload/part-04.txt
+            ops/atelier_frontier/payload/part-05.txt
+            ops/atelier_frontier/payload/part-06.txt
+            ops/atelier_frontier/payload/part-07.txt
+          )
+          mapfile -t expected_sorted < <(printf '%s\n' "${expected[@]}" | sort)
+          diff <(printf '%s\n' "${expected_sorted[@]}") <(printf '%s\n' "${changed[@]}")
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Materialize and integrate the clean-room candidate
+        run: python ops/atelier_frontier/bootstrap_candidate.py
+
+      - name: Install hash-locked core test dependencies
+        run: pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Prove the integrated package
+        run: |
+          pytest tests/test_atelier_frontier.py -q
+          python -m py_compile routers/atelier_frontier.py routers/frontier_reads.py routers/__init__.py
+          node --check routers/atelier_frontier_web/app.js
+          grep -F 'from routers import atelier_frontier as _atelier_frontier' routers/frontier_reads.py
+          grep -F 'href="/atelier/frontier"' pages/atelier.html
+          git diff --check
+
+      - name: Remove one-shot bootstrap machinery
+        run: |
+          rm .github/workflows/atelier-frontier-bootstrap.yml
+          rm ops/atelier_frontier/bootstrap_candidate.py
+          rm -rf ops/atelier_frontier/payload
+          rmdir ops/atelier_frontier
+
+      - name: Commit integrated candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit \
+            -m "feat(atelier): integrate clean-room frontier workbench" \
+            -m "Register the 26-repository provenance ledger and hard-zero MODELED evaluator before the SPA catch-all, link it from the existing Atelier, and remove the one-shot bootstrap machinery." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
