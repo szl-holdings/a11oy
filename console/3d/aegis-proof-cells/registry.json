@@ -1,0 +1,321 @@
+{
+  "authority": {
+    "automatic_retries": 0,
+    "credentials_accepted": false,
+    "cross_tenant_access": "DENIED",
+    "default_effect": "DENY",
+    "destructive_remediation": "DENIED",
+    "effectors": [],
+    "external_writes": "DISABLED",
+    "human_approval_required": true,
+    "offensive_intrusion": "DENIED",
+    "production_authorization": false,
+    "secrets_persisted": false
+  },
+  "bricklayer_boundary": {
+    "affiliation": "NONE",
+    "brand_identity_reused": false,
+    "classification": "REFERENCE_ONLY_CLEAN_ROOM",
+    "note": "Public product and engineering publications were used only to identify high-level operating patterns. The implementation, naming, data model, interface, policies, and code are original SZL/Aegis expression.",
+    "official_public_code_repository_found": false,
+    "proprietary_implementation_available": false,
+    "source_code_copied": false,
+    "visual_identity_copied": false,
+    "website_copy_copied": false
+  },
+  "context_types": [
+    "EVIDENTIARY",
+    "PROCEDURAL",
+    "INVESTIGATIVE",
+    "DECISION",
+    "OUTCOME"
+  ],
+  "evidence_class": "REPORTED_REFERENCE_ARCHITECTURE",
+  "live_read_only_sources": [
+    {
+      "claim": "CISA KEV-backed status when source is available",
+      "id": "kev",
+      "path": "/api/a11oy/v1/sec/kevgate"
+    },
+    {
+      "claim": "ATT&CK-oriented defensive context",
+      "id": "attack",
+      "path": "/api/a11oy/v1/sec/attack"
+    },
+    {
+      "claim": "Current A11oy threat context",
+      "id": "threats",
+      "path": "/api/a11oy/v1/sec/threats"
+    },
+    {
+      "claim": "Read-only threat graph context",
+      "id": "threatgraph",
+      "path": "/api/a11oy/v1/sec/threatgraph"
+    },
+    {
+      "claim": "CVE evidence surface",
+      "id": "cve",
+      "path": "/api/a11oy/v1/sec/cve"
+    }
+  ],
+  "observed_at": "2026-09-03",
+  "operating_mode": "DEFENSIVE_READ_ONLY_INVESTIGATION_PLANNER",
+  "procedure_capsules": [
+    {
+      "approval_required_for": [
+        "block-indicator",
+        "isolate-host",
+        "disable-account",
+        "purge-email",
+        "remediate"
+      ],
+      "cells": [
+        "signal-intake",
+        "identity-scope",
+        "asset-context",
+        "evidence-provenance",
+        "threat-context",
+        "incident-investigation",
+        "outcome-debrief"
+      ],
+      "id": "alert-triage-v1",
+      "mission": "alert-triage"
+    },
+    {
+      "approval_required_for": [
+        "block-indicator",
+        "disable-account",
+        "purge-email",
+        "remediate"
+      ],
+      "cells": [
+        "signal-intake",
+        "identity-scope",
+        "threat-context",
+        "incident-investigation",
+        "evidence-provenance",
+        "remediation-planning",
+        "outcome-debrief"
+      ],
+      "id": "phishing-investigation-v1",
+      "mission": "phishing"
+    },
+    {
+      "approval_required_for": [
+        "isolate-host",
+        "block-indicator",
+        "remediate"
+      ],
+      "cells": [
+        "signal-intake",
+        "identity-scope",
+        "asset-context",
+        "detection-engineering",
+        "threat-context",
+        "incident-investigation",
+        "evidence-provenance",
+        "remediation-planning",
+        "outcome-debrief"
+      ],
+      "id": "endpoint-investigation-v1",
+      "mission": "endpoint"
+    },
+    {
+      "approval_required_for": [
+        "remediate"
+      ],
+      "cells": [
+        "signal-intake",
+        "identity-scope",
+        "asset-context",
+        "exposure-analysis",
+        "threat-context",
+        "evidence-provenance",
+        "remediation-planning",
+        "outcome-debrief"
+      ],
+      "id": "vulnerability-prioritization-v1",
+      "mission": "vulnerability"
+    },
+    {
+      "approval_required_for": [
+        "disable-account",
+        "remediate"
+      ],
+      "cells": [
+        "signal-intake",
+        "identity-scope",
+        "asset-context",
+        "cloud-posture",
+        "exposure-analysis",
+        "evidence-provenance",
+        "remediation-planning",
+        "outcome-debrief"
+      ],
+      "id": "cloud-posture-review-v1",
+      "mission": "cloud"
+    },
+    {
+      "approval_required_for": [],
+      "cells": [
+        "signal-intake",
+        "identity-scope",
+        "threat-context",
+        "evidence-provenance",
+        "incident-investigation",
+        "outcome-debrief"
+      ],
+      "id": "threat-intelligence-brief-v1",
+      "mission": "threat-intel"
+    }
+  ],
+  "proof_cells": [
+    {
+      "id": "signal-intake",
+      "name": "Signal Intake",
+      "purpose": "Normalize defensive alerts without discarding source evidence."
+    },
+    {
+      "id": "identity-scope",
+      "name": "Identity & Scope",
+      "purpose": "Bind tenant, principal, mission, and permitted connector labels."
+    },
+    {
+      "id": "asset-context",
+      "name": "Asset Context",
+      "purpose": "Resolve affected assets, owners, and business criticality."
+    },
+    {
+      "id": "detection-engineering",
+      "name": "Detection Engineering",
+      "purpose": "Assess detection intent, logic, and evidence coverage."
+    },
+    {
+      "id": "threat-context",
+      "name": "Threat Context",
+      "purpose": "Map observed behavior to defensive threat knowledge."
+    },
+    {
+      "id": "exposure-analysis",
+      "name": "Exposure Analysis",
+      "purpose": "Prioritize material and exploitable exposure."
+    },
+    {
+      "id": "cloud-posture",
+      "name": "Cloud Posture",
+      "purpose": "Evaluate cloud configuration and identity-control evidence."
+    },
+    {
+      "id": "incident-investigation",
+      "name": "Incident Investigation",
+      "purpose": "Build a source-labelled timeline and test hypotheses."
+    },
+    {
+      "id": "evidence-provenance",
+      "name": "Evidence Provenance",
+      "purpose": "Maintain freshness, source, transformations, and confidence."
+    },
+    {
+      "id": "remediation-planning",
+      "name": "Remediation Planning",
+      "purpose": "Draft bounded defensive actions requiring human approval."
+    },
+    {
+      "id": "outcome-debrief",
+      "name": "Outcome & Debrief",
+      "purpose": "Record limitations, results, and reusable lessons."
+    }
+  ],
+  "public_architecture_observations": [
+    {
+      "abstract_pattern": "Specialized security roles coordinate under approved procedures with analyst oversight.",
+      "id": "coordinated-workforce",
+      "published_or_observed": "observed 2026-09-03",
+      "reuse_policy": "REFERENCE_ONLY",
+      "source": "https://www.bricklayer.ai/platform/",
+      "szl_transformation": "Aegis Proof Cells use Tenant Passports, Evidence Atoms, Procedure Capsules, and Decision Receipts."
+    },
+    {
+      "abstract_pattern": "Investigation context must accumulate across specialist handoffs.",
+      "id": "context-containers",
+      "published_or_observed": "2025-09-26",
+      "reuse_policy": "REFERENCE_ONLY",
+      "source": "https://www.bricklayer.ai/insights/multi-agent-context-engineering-mace-the-discipline-behind-investigative-artificial-intelligence-ai/",
+      "szl_transformation": "Aegis Evidence Groups preserve evidentiary, procedural, investigative, decision, and outcome context."
+    },
+    {
+      "abstract_pattern": "Structured, reusable investigation observations should replace unstructured handoff prose.",
+      "id": "insight-groups",
+      "published_or_observed": "2026-04-20",
+      "reuse_policy": "REFERENCE_ONLY",
+      "source": "https://www.bricklayer.ai/insights/introducing-insight-groups-structuring-context-for-the-coordinated-ai-soc/",
+      "szl_transformation": "Evidence Atoms are typed, source-labelled, freshness-bound records grouped into a Proof Chain."
+    },
+    {
+      "abstract_pattern": "Agent actions need an independent control layer and complete auditability.",
+      "id": "policy-enforcement",
+      "published_or_observed": "2026-03-24",
+      "reuse_policy": "REFERENCE_ONLY",
+      "source": "https://www.bricklayer.ai/insights/governing-ai-agents-announcing-our-first-patent-in-agentic-policy-enforcement/",
+      "szl_transformation": "Aegis applies deny-by-default Covenant Policy, hard-zero safety gates, human approvals, and effectors disabled."
+    },
+    {
+      "abstract_pattern": "Proven operational configurations should be packaged as governed reusable assets.",
+      "id": "shared-library",
+      "published_or_observed": "2026-06-03",
+      "reuse_policy": "REFERENCE_ONLY",
+      "source": "https://www.bricklayer.ai/insights/introducing-the-shared-agentic-library/",
+      "szl_transformation": "Versioned Procedure Capsules carry scope, prerequisites, cell graph, evidence contract, and approval requirements."
+    },
+    {
+      "abstract_pattern": "Multi-tenant procedures need explicit credential and environment segmentation.",
+      "id": "credential-segmentation",
+      "published_or_observed": "2025-02-21",
+      "reuse_policy": "REFERENCE_ONLY",
+      "source": "https://www.bricklayer.ai/insights/bricklayer-ai-introduces-credential-labels-and-azure-sentinel-support/",
+      "szl_transformation": "Tenant Passport labels select connector classes only; credentials are never accepted by this client-side workbench."
+    }
+  ],
+  "routes": {
+    "page": "/static/3d/aegis-proof-cells.html",
+    "registry": "/static/3d/aegis-proof-cells/registry.json",
+    "script": "/static/3d/aegis-proof-cells/app.mjs",
+    "styles": "/static/3d/aegis-proof-cells/styles.css"
+  },
+  "schema": "szl.aegis-proof-cells.registry/v1",
+  "standards_and_public_code": [
+    {
+      "license": "Apache-2.0",
+      "name": "Open Cybersecurity Schema Framework",
+      "repository": "https://github.com/ocsf/ocsf-schema",
+      "revision": "2c61b24c2f21d2ea316fca7d640bb37df3374011",
+      "source_code_copied": false,
+      "use": "Semantic reference for normalized defensive evidence."
+    },
+    {
+      "license": "TERMS_REVIEW_REQUIRED",
+      "name": "MITRE ATT&CK STIX Data",
+      "repository": "https://github.com/mitre-attack/attack-stix-data",
+      "revision": "6cda5ad8462c79e14fbb872f4e09059b18e0cfc4",
+      "source_code_copied": false,
+      "use": "Technique-oriented threat context reference."
+    },
+    {
+      "license": "Apache-2.0",
+      "name": "OpenTelemetry Specification",
+      "repository": "https://github.com/open-telemetry/opentelemetry-specification",
+      "revision": "eec6fadba46a5002f55ff88ce4405d58a1aa4aec",
+      "source_code_copied": false,
+      "use": "Trace and evidence-correlation semantic reference."
+    },
+    {
+      "license": "Apache-2.0",
+      "name": "Open Policy Agent",
+      "repository": "https://github.com/open-policy-agent/opa",
+      "revision": "92da7b47f05488487dcbdf1625e405d9141c6c38",
+      "source_code_copied": false,
+      "use": "Policy-decision architecture reference; no runtime dependency."
+    }
+  ],
+  "title": "Aegis Proof Cells"
+}

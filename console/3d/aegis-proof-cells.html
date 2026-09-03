@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en" data-szl-public-experience-v3="true" data-aegis-proof-cells="v1">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="description" content="Aegis Proof Cells: a governed, defensive, evidence-preserving investigation planner.">
+  <title>Aegis Proof Cells — SZL Holdings</title>
+  <link rel="stylesheet" href="/static/3d/aegis-proof-cells/styles.css?v=5b85354daf5fd09abea415bbad6a4c87f1c8a14f6cb7b62ded77637323461019">
+  <script type="module" src="/static/3d/aegis-proof-cells/app.mjs?v=ef16f51b2182701d9950c1ffa6dc22965f52df27f29a35a7fe7e67c433c20df9"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to Aegis Proof Cells</a>
+<main id="main">
+  <header>
+    <div class="eyebrow">Aegis / Governed Defensive Operations</div>
+    <h1>Proof Cells</h1>
+    <p class="lede">
+      A coordinated defensive investigation workbench built around tenant isolation,
+      evidence continuity, explicit procedure capsules, analyst approval, and deterministic
+      Proof Chain receipts.
+    </p>
+    <div class="truth-banner" id="boot-state" role="status" aria-live="polite">
+      Original SZL/Aegis implementation. Bricklayer.ai public materials are architectural
+      references only. No Bricklayer source, prompts, site copy, visual identity, or private
+      implementation is included. External writes and effectors are disabled.
+    </div>
+  </header>
+
+  <section class="metrics" aria-label="Capability status">
+    <article class="metric">
+      <span class="metric-label">Proof cells</span>
+      <strong id="cell-count">11</strong>
+    </article>
+    <article class="metric">
+      <span class="metric-label">Procedure capsules</span>
+      <strong id="capsule-count">6</strong>
+    </article>
+    <article class="metric">
+      <span class="metric-label">Operating mode</span>
+      <strong id="mode">DEFENSIVE READ-ONLY</strong>
+    </article>
+  </section>
+
+  <section class="layout">
+    <article class="panel">
+      <div class="eyebrow">Investigation planner</div>
+      <h2>Evaluate a defensive case</h2>
+      <p>
+        The planner returns a deterministic cell sequence and decision state. It never
+        executes containment, remediation, credential access, or external writes.
+      </p>
+      <form id="case-form">
+        <label>
+          Tenant ID
+          <input name="tenant_id" value="tenant-demo" autocomplete="off" required>
+        </label>
+        <label>
+          Passport tenant ID
+          <input name="passport_tenant_id" value="tenant-demo" autocomplete="off" required>
+        </label>
+        <label>
+          Alert ID
+          <input name="alert_id" value="alert-001" autocomplete="off">
+        </label>
+        <label>
+          Source
+          <input name="source" value="SIEM" autocomplete="off">
+        </label>
+        <label>
+          Mission
+          <select name="mission">
+            <option value="alert-triage">Alert triage</option>
+            <option value="phishing">Phishing investigation</option>
+            <option value="endpoint">Endpoint investigation</option>
+            <option value="vulnerability">Vulnerability prioritization</option>
+            <option value="cloud">Cloud posture review</option>
+            <option value="threat-intel">Threat intelligence brief</option>
+          </select>
+        </label>
+        <label>
+          Requested action
+          <select name="requested_action">
+            <option value="investigate">Investigate</option>
+            <option value="draft-report">Draft report</option>
+            <option value="block-indicator">Block indicator</option>
+            <option value="isolate-host">Isolate host</option>
+            <option value="disable-account">Disable account</option>
+            <option value="purge-email">Purge email</option>
+            <option value="remediate">Remediate</option>
+          </select>
+        </label>
+        <label>
+          Severity
+          <select name="severity">
+            <option>LOW</option>
+            <option selected>MEDIUM</option>
+            <option>HIGH</option>
+            <option>CRITICAL</option>
+          </select>
+        </label>
+        <label>
+          Evidence atom count
+          <input name="evidence_count" type="number" min="0" max="1000" value="3">
+        </label>
+        <label class="checkbox">
+          <input name="evidence_fresh" type="checkbox" checked>
+          Evidence is current
+        </label>
+        <label class="checkbox">
+          <input name="human_approved" type="checkbox">
+          Human approval recorded
+        </label>
+        <button type="submit">Generate governed plan</button>
+      </form>
+      <div class="status">Decision: <strong id="decision-state">UNAVAILABLE</strong></div>
+      <pre id="case-result" aria-live="polite">Submit the case to generate a deterministic, effect-free plan.</pre>
+    </article>
+
+    <aside class="panel">
+      <div class="eyebrow">Evidence bus</div>
+      <h2>Read-only A11oy security context</h2>
+      <p>
+        These probes call same-origin defensive evidence routes. A failed source remains
+        <strong>UNAVAILABLE</strong>; it is never upgraded to live evidence.
+      </p>
+      <button id="refresh-evidence" type="button">Refresh evidence sources</button>
+      <div class="status" id="evidence-state">Not observed</div>
+      <pre id="evidence-output" aria-live="polite">Evidence sources have not been probed.</pre>
+    </aside>
+  </section>
+
+  <section aria-labelledby="cells-heading">
+    <div class="section-heading">
+      <div class="eyebrow">Specialist workforce</div>
+      <h2 id="cells-heading">Eleven bounded Proof Cells</h2>
+      <p class="lede">
+        Every cell receives the same Tenant Passport and accumulates typed Evidence Atoms.
+        Handoffs preserve source, freshness, procedure, hypothesis, decision, and outcome context.
+      </p>
+    </div>
+    <div class="cells" id="cells"></div>
+  </section>
+
+  <footer>
+    <p>
+      Registry SHA-256: <code>6dbffba48d8c1204f4c6586695705718f4d15b8232377606ff553230761c7880</code>. JavaScript SHA-256:
+      <code>ef16f51b2182701d9950c1ffa6dc22965f52df27f29a35a7fe7e67c433c20df9</code>. CSS SHA-256: <code>5b85354daf5fd09abea415bbad6a4c87f1c8a14f6cb7b62ded77637323461019</code>.
+    </p>
+    <p>
+      Defensive decision support only. No affiliation with Bricklayer AI. No production
+      action is authorized by this page or its MODELED score. Inspect the
+      <a href="/static/3d/aegis-proof-cells/registry.json">machine registry</a>.
+    </p>
+  </footer>
+</main>
+</body>
+</html>

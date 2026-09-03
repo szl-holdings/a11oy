@@ -1,0 +1,197 @@
+name: Aegis Proof Cells clean-room and live proof
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/aegis-proof-cells.yml"
+      - "console/3d/aegis-proof-cells.html"
+      - "console/3d/aegis-proof-cells/**"
+      - "docs/third-party/bricklayer-ai-intake-v1.md"
+      - "scripts/verify_aegis_proof_cells_live.py"
+      - "tests/test_aegis_proof_cells.py"
+      - "tests/test_aegis_proof_cells.mjs"
+      - "tests/test_aegis_proof_cells_live.py"
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/aegis-proof-cells.yml"
+      - "console/3d/aegis-proof-cells.html"
+      - "console/3d/aegis-proof-cells/**"
+      - "docs/third-party/bricklayer-ai-intake-v1.md"
+      - "scripts/verify_aegis_proof_cells_live.py"
+      - "tests/test_aegis_proof_cells.py"
+      - "tests/test_aegis_proof_cells.mjs"
+      - "tests/test_aegis_proof_cells_live.py"
+  workflow_run:
+    workflows: ["Sync and Relock Canonical Hugging Face Space"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aegis-proof-cells-${{ github.event.workflow_run.id || github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+env:
+  PIP_NO_CACHE_DIR: "1"
+  ORIGIN: https://szlholdings-a11oy.hf.space
+  LIVE_REPORT: /tmp/aegis-proof-cells-live.json
+
+jobs:
+  contract:
+    name: Prove clean-room registry, deny gates, deterministic receipts, and responsive surface
+    if: github.event_name != 'workflow_run'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out the event revision without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Record exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_sha="$(git rev-parse --verify HEAD)"
+          test "${#source_sha}" -eq 40
+          case "$source_sha" in
+            *[!0-9a-f]*) exit 2 ;;
+          esac
+          echo "SOURCE_SHA=$source_sha" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: ""
+
+      - name: Set up Node.js without package-manager caching
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+          package-manager-cache: false
+
+      - name: Install hash-locked core test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Prove Aegis Proof Cells contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          pytest \
+            tests/test_aegis_proof_cells.py \
+            tests/test_aegis_proof_cells_live.py \
+            -q
+          node --test tests/test_aegis_proof_cells.mjs
+          node --check console/3d/aegis-proof-cells/app.mjs
+          python -m py_compile scripts/verify_aegis_proof_cells_live.py
+
+      - name: Prove committed diff hygiene
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          base="$(git merge-base HEAD origin/main)"
+          git diff --check "$base" HEAD
+
+  live-proof:
+    name: Prove exact deployed Aegis page, assets, registry, and source identity
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_branch == 'main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      EXPECTED_SOURCE_SHA: ${{ github.event.workflow_run.head_sha }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out current protected main without persisted credentials
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate the deployed revision as data from protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${#EXPECTED_SOURCE_SHA}" -eq 40
+          case "$EXPECTED_SOURCE_SHA" in
+            *[!0-9a-f]*) exit 2 ;;
+          esac
+          git fetch --no-tags origin main
+          current_main="$(git rev-parse --verify origin/main)"
+          test "$(git rev-parse --verify HEAD)" = "$current_main"
+          git merge-base --is-ancestor "$EXPECTED_SOURCE_SHA" "$current_main"
+          echo "VERIFIER_SOURCE_SHA=$current_main" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+          cache: ""
+
+      - name: Probe exact live source and fail-closed Aegis contracts
+        id: proof
+        shell: bash
+        run: |
+          set +e
+          python scripts/verify_aegis_proof_cells_live.py \
+            --origin "$ORIGIN" \
+            --source-sha "$EXPECTED_SOURCE_SHA" \
+            --report "$LIVE_REPORT" \
+            --attempts 18 \
+            --retry-seconds 10
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable secret-free live evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: aegis-proof-cells-live-${{ github.event.workflow_run.id }}-${{ github.run_attempt }}
+          path: ${{ env.LIVE_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce exact live result
+        if: always()
+        env:
+          EXIT_CODE: ${{ steps.proof.outputs.exit_code }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -f "$LIVE_REPORT"
+          test "${EXIT_CODE:-2}" = "0"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path(os.environ["LIVE_REPORT"]).read_text(encoding="utf-8"))
+          assert report.get("ok") is True
+          assert report.get("status") == "PASS"
+          assert report.get("source_sha") == os.environ["EXPECTED_SOURCE_SHA"]
+          assert report.get("registry", {}).get("source_code_copied") is False
+          assert report.get("registry", {}).get("effectors") == 0
+          assert report.get("authority", {}).get("external_writes") == "DISABLED"
+          PY
