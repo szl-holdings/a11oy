@@ -1,0 +1,39 @@
+{
+  "bundle_id": "szl-offline-verify-sample-v1",
+  "payloadType": "application/vnd.szl.heart.beat+json",
+  "genesis": "0000000000000000000000000000000000000000000000000000000000000000",
+  "beats": [
+    {
+      "payloadType": "application/vnd.szl.heart.beat+json",
+      "payload": "eyJwcmV2X2JlYXRfaGFzaCI6IjAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAiLCJyZWNlaXB0Ijp7ImFjdGlvbiI6ImdvdmVybmVkLWFjdGlvbi0wIiwiZGVtbyI6dHJ1ZSwiZ2F0ZSI6Inl1eWF5LTEzIiwidmVyZGljdCI6IkFMTE9XIn0sInNlcSI6MCwidHMiOiIyMDI2LTA5LTAyVDAwOjAwOjAwWiJ9",
+      "signatures": [
+        {
+          "keyid": "e02165204e94b1c8b70b825137673db02f663b447dcb758503f7432cc55c8661",
+          "sig": "MEUCIQCkKukAPN4G/rxYvvEfJVj/wCqqtumCfh/ml9tcYN6U0gIgas3yl8g4aDLYc5zutFWFfbDLl8aTqiPtTynX2v6O/QI="
+        }
+      ]
+    },
+    {
+      "payloadType": "application/vnd.szl.heart.beat+json",
+      "payload": "eyJwcmV2X2JlYXRfaGFzaCI6IjE2YjUxNGNjMTk2ZmYwYzg2YTU0YTM3Mjc0YzcwZWZlODQwYmY4MzcxZWI5OTc3ZTEwMzZlZDViMGUzYzU3NDkiLCJyZWNlaXB0Ijp7ImFjdGlvbiI6ImdvdmVybmVkLWFjdGlvbi0xIiwiZGVtbyI6dHJ1ZSwiZ2F0ZSI6Inl1eWF5LTEzIiwidmVyZGljdCI6IkFMTE9XIn0sInNlcSI6MSwidHMiOiIyMDI2LTA5LTAyVDAwOjAwOjAxWiJ9",
+      "signatures": [
+        {
+          "keyid": "e02165204e94b1c8b70b825137673db02f663b447dcb758503f7432cc55c8661",
+          "sig": "MEUCIBLEqkJxLUs42UZTDrJ1LvSl6Pl+HKNb2c7ck1w7O4V3AiEAnc7rX66wHOzaoRYilbLCpuorLxXQRA9JnD4untnK3CA="
+        }
+      ]
+    },
+    {
+      "payloadType": "application/vnd.szl.heart.beat+json",
+      "payload": "eyJwcmV2X2JlYXRfaGFzaCI6ImVhNjM4YTI0YmJhZjAzZGYzYTA1MWUwYmEyN2ViNTA3ZmJjODhhMWQ1NjQ4YTY4NmM5MGJkZGM2ZjJjYTk2NjUiLCJyZWNlaXB0Ijp7ImFjdGlvbiI6ImdvdmVybmVkLWFjdGlvbi0yIiwiZGVtbyI6dHJ1ZSwiZ2F0ZSI6Inl1eWF5LTEzIiwidmVyZGljdCI6IkFMTE9XIn0sInNlcSI6MiwidHMiOiIyMDI2LTA5LTAyVDAwOjAwOjAyWiJ9",
+      "signatures": [
+        {
+          "keyid": "e02165204e94b1c8b70b825137673db02f663b447dcb758503f7432cc55c8661",
+          "sig": "MEYCIQCU7jlepBiIn5dBujOM+Z/5fXq+9G5fsKYwROA2GUm5GQIhAMD8piZP+0j+9TbyNa6HYPAJ7no2JgTj+vsUHqPY5djc"
+        }
+      ]
+    }
+  ],
+  "expected_root": "e9c3cb7c3260c4f9c7a86a2c68d20d4f4c187691d9da85745332b71f7af3381b",
+  "note": "Ephemeral demo key. Real bundles are signed by estate organ keys published at github.com/szl-holdings/.github/tree/main/cosign-keys."
+}
