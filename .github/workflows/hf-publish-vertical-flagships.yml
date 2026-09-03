@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: Apache-2.0
 name: HF Publish Vertical Flagships
 
+# Owner-dispatch only by design. `hf-sync.yml` remains the sole automatic
+# Hugging Face writer in this repository; this publisher targets six separate
+# flagship Spaces and must never race the canonical A11oy synchronization lane.
 on:
   workflow_dispatch:
 
