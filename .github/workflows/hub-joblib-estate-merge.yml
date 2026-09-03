@@ -2,27 +2,50 @@ name: Hub joblib estate merge PRs
 
 on:
   workflow_dispatch: {}
+  workflow_run:
+    workflows: ["Hub joblib estate quarantine PRs"]
+    types: [completed]
 
 permissions:
   contents: read
 
+concurrency:
+  group: hub-joblib-merge-${{ github.event.workflow_run.id || github.run_id }}
+  cancel-in-progress: false
+
 jobs:
   merge:
-    name: Merge Hub PRs deleting model.joblib
+    name: Verify, merge, and read back Hub quarantine PRs
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository
+      )
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - name: Check out exact source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Check out the exact successful controller source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
+
       - name: Install Hub client
         run: python -m pip install --disable-pip-version-check "huggingface_hub==1.23.0"
-      - name: Merge Hub quarantine PRs
+
+      - name: Verify exact diffs, merge, and read back
         env:
           HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
         run: python scripts/hub_merge_joblib_quarantine_prs.py
