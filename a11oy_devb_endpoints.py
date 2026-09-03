@@ -465,10 +465,12 @@ def _readiness_public_source_local(entry: Any) -> Any:
     status = str(freshness.get("status") or "").strip().lower()
     if status in _READINESS_PUBLIC_FRESHNESS and freshness.get("fetched_at") is not None:
         return entry
-    if status not in _READINESS_PUBLIC_FRESHNESS and entry.get("value") is None:
-        return entry
     out = dict(entry)
     fresh = dict(freshness)
+    if status not in _READINESS_PUBLIC_FRESHNESS and entry.get("value") is None:
+        fresh["status"] = "UNAVAILABLE"
+        out["freshness"] = fresh
+        return out
     if fresh.get("fetched_at") is None:
         age_s = fresh.get("age_s")
         if isinstance(age_s, (int, float)) and not isinstance(age_s, bool):
@@ -621,6 +623,18 @@ def _ledger(label: str, n: int = 25) -> dict[str, Any]:
 # LEGAL / COUNSEL feeds
 # ===========================================================================
 _CL = "https://www.courtlistener.com/api/rest/v4/search/"
+_COURTLISTENER_CITATION = {
+    "provider": "Free Law Project - CourtListener",
+    "source_url": "https://www.courtlistener.com/help/api/rest/",
+}
+_FEDERAL_REGISTER_CITATION = {
+    "provider": "Office of the Federal Register - U.S. National Archives",
+    "source_url": "https://www.federalregister.gov/developers/documentation/api/v1",
+}
+_SEC_EDGAR_CITATION = {
+    "provider": "U.S. Securities and Exchange Commission - EDGAR",
+    "source_url": "https://www.sec.gov/edgar/sec-api-documentation",
+}
 
 
 def feed_courtlistener(term: str, limit: int = 20, kind: str = "o") -> dict[str, Any]:
@@ -1067,6 +1081,7 @@ def register(app: FastAPI) -> dict[str, Any]:
         # closed). Payload keys unchanged.
         return JSONResponse({"surface": "matter", "term": term,
                              "opinions": _readiness_public_source(op),
+                             "sources_cited": [dict(_COURTLISTENER_CITATION)],
                              "doctrine": DOCTRINE})
 
     @app.get(base + "/legal/regulatory", include_in_schema=False)
@@ -1082,6 +1097,7 @@ def register(app: FastAPI) -> dict[str, Any]:
         return JSONResponse({"surface": "regulatory",
                              "federal_register": _readiness_public_source(fr),
                              "agencies": _readiness_public_source(ag),
+                             "sources_cited": [dict(_FEDERAL_REGISTER_CITATION)],
                              "doctrine": DOCTRINE})
 
     @app.get(base + "/legal/exposure", include_in_schema=False)
@@ -1089,7 +1105,12 @@ def register(app: FastAPI) -> dict[str, Any]:
         term: Annotated[str, Query(min_length=1, max_length=160)] = "securities",
         limit: Annotated[int, Query(ge=1, le=100)] = 18,
     ):
-        return JSONResponse(await _run_blocking(exposure_graph, term, limit))
+        result = dict(await _run_blocking(exposure_graph, term, limit))
+        result["sources_cited"] = [
+            dict(_SEC_EDGAR_CITATION),
+            dict(_COURTLISTENER_CITATION),
+        ]
+        return JSONResponse(result)
 
     # ---- ENTERPRISE ----
     @app.get(base + "/ent/exec", include_in_schema=False)

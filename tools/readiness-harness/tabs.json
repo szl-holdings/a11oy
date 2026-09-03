@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-09-01T00:00:00Z",
+  "generatedAt": "2026-09-03T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -1059,7 +1059,8 @@
         "allowLabels": [
           "live",
           "cached",
-          "reference"
+          "reference",
+          "UNAVAILABLE"
         ],
         "liesIf": [
           "mock",
@@ -1271,7 +1272,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "UNAVAILABLE"
         ],
         "liesIf": [
           "mock",
@@ -1292,7 +1294,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "UNAVAILABLE"
         ],
         "liesIf": [
           "mock",
@@ -1313,7 +1316,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "UNAVAILABLE"
         ],
         "liesIf": [
           "mock",
@@ -1334,7 +1338,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "UNAVAILABLE"
         ],
         "liesIf": [
           "mock",
@@ -1355,7 +1360,8 @@
         ],
         "allowLabels": [
           "live",
-          "cached"
+          "cached",
+          "UNAVAILABLE"
         ],
         "liesIf": [
           "mock",
