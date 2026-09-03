@@ -1,0 +1,61 @@
+name: Apply EU AI Act frontend flow shell
+
+on:
+  push:
+    branches:
+      - feat/eu-ai-act-article-12-20260903
+    paths:
+      - ".github/workflows/apply-eu-ai-act-flow-shell.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-eu-ai-act-flow-shell-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: Roll out canonical shell and prove no collateral drift
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Apply the existing deterministic rollout controller
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/rollout_frontend_flow_shell.py tests/test_frontend_flow_shell.py
+          python scripts/rollout_frontend_flow_shell.py
+          python scripts/rollout_frontend_flow_shell.py --check
+          python tests/test_frontend_flow_shell.py -v
+          git diff --check
+          changed="$(git diff --name-only)"
+          test "$changed" = "pages/eu-ai-act.html" || {
+            echo "::error::Unexpected flow-shell collateral drift: $changed"
+            exit 1
+          }
+
+      - name: Commit only the instrumented page
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add pages/eu-ai-act.html
+          git diff --cached --check
+          git commit -s -m "fix(web): apply canonical flow shell to EU AI Act page"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
