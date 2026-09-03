@@ -1,2 +1,0 @@
-PR 1738 user-authored synchronization marker.
-This file is removed by the immediately following commit.
