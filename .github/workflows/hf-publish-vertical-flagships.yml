@@ -44,45 +44,197 @@ jobs:
           test "${#changed[@]}" -eq 1
           test "${changed[0]}" = .github/workflows/hf-publish-vertical-flagships.yml
 
-      - name: Apply exact rendered-experience repairs
+      - name: Materialize the exact rendered-experience repair
         shell: bash
-        env:
-          STYLE_B64: CjxzdHlsZSBpZD0ic3psLXB1YmxpYy1leHBlcmllbmNlLXYzLTIiPgogIGh0bWxbZGF0YS1zemwtcHVibGljLWV4cGVyaWVuY2UtdjM9InRydWUiXSwKICBodG1sW2RhdGEtc3psLXB1YmxpYy1leHBlcmllbmNlLXYzPSJ0cnVlIl0gYm9keSB7CiAgICBtYXgtaW5saW5lLXNpemU6IDEwMCU7CiAgICBvdmVyZmxvdy14OiBjbGlwOwogIH0KICBodG1sW2RhdGEtc3psLXB1YmxpYy1leHBlcmllbmNlLXYzPSJ0cnVlIl0gOndoZXJlKG1haW4sc2VjdGlvbixhcnRpY2xlLGFzaWRlLGhlYWRlcixmb290ZXIsbmF2LGRpdikgewogICAgbWluLWlubGluZS1zaXplOiAwOwogIH0KICBodG1sW2RhdGEtc3psLXB1YmxpYy1leHBlcmllbmNlLXYzPSJ0cnVlIl0gOndoZXJlKC5za2lwLWxpbmssLm9yaWdpbi1iYW5uZXIgYSxoZWFkZXIubmF2IC5icmFuZCwuc3psLWZsb3ctcmFpbCBhLGFbaHJlZio9ImxlZGdlciJdLC5hdWRpZW5jZS1wYXRocyBhKSB7CiAgICBkaXNwbGF5OiBpbmxpbmUtZmxleDsKICAgIGFsaWduLWl0ZW1zOiBjZW50ZXI7CiAgICBtaW4tYmxvY2stc2l6ZTogNDRweDsKICAgIG1heC1pbmxpbmUtc2l6ZTogMTAwJTsKICAgIHRvdWNoLWFjdGlvbjogbWFuaXB1bGF0aW9uOwogIH0KICBodG1sW2RhdGEtc3psLXB1YmxpYy1leHBlcmllbmNlLXYzPSJ0cnVlIl0gLm9yaWdpbi1iYW5uZXIgYSB7CiAgICBwYWRkaW5nLWlubGluZTogOHB4OwogIH0KICBodG1sW2RhdGEtc3psLXB1YmxpYy1leHBlcmllbmNlLXYzPSJ0cnVlIl0gLnNraXAtbGluayB7CiAgICBtaW4tYmxvY2stc2l6ZTogNDRweDsKICAgIHBhZGRpbmctYmxvY2s6IDEwcHg7CiAgfQogIC5hdWRpZW5jZS1wYXRocyB7CiAgICBwYWRkaW5nLWJsb2NrOiBjbGFtcCg0OHB4LDh2dyw5NnB4KTsKICB9CiAgLmF1ZGllbmNlLXBhdGhzID4gcCB7CiAgICBtYXgtaW5saW5lLXNpemU6IDY4Y2g7CiAgICBjb2xvcjogdmFyKC0tc3ViKTsKICB9CiAgLmF1ZGllbmNlLXBhdGgtZ3JpZCB7CiAgICBkaXNwbGF5OiBncmlkOwogICAgZ3JpZC10ZW1wbGF0ZS1jb2x1bW5zOiByZXBlYXQoMyxtaW5tYXgoMCwxZnIpKTsKICAgIGdhcDogMTRweDsKICAgIG1hcmdpbi1ibG9jay1zdGFydDogMjRweDsKICB9CiAgLmF1ZGllbmNlLXBhdGhzIGEgewogICAgbWluLWJsb2NrLXNpemU6IDEzMnB4ICFpbXBvcnRhbnQ7CiAgICBwYWRkaW5nOiAyMHB4OwogICAgYm9yZGVyOiAxcHggc29saWQgdmFyKC0tYm9yZGVyKTsKICAgIGJvcmRlci1yYWRpdXM6IHZhcigtLXIpOwogICAgYmFja2dyb3VuZDogcmdiYSgyNTUsMjU1LDI1NSwuMDM1KTsKICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47CiAgICBhbGlnbi1pdGVtczogZmxleC1zdGFydCAhaW1wb3J0YW50OwogICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7CiAgICBnYXA6IDZweDsKICB9CiAgLmF1ZGllbmNlLXBhdGhzIGE6aG92ZXIgewogICAgYm9yZGVyLWNvbG9yOiByZ2JhKDI1NSwyNTUsMjU1LC41NSk7CiAgICBiYWNrZ3JvdW5kOiByZ2JhKDI1NSwyNTUsMjU1LC4wNyk7CiAgfQogIC5hdWRpZW5jZS1wYXRocyBzcGFuIHsKICAgIGNvbG9yOiB2YXIoLS1naG9zdCk7CiAgICBmb250OiA2MDAgMTFweC8xLjMgdmFyKC0tbW9ubyk7CiAgICBsZXR0ZXItc3BhY2luZzogLjEyZW07CiAgICB0ZXh0LXRyYW5zZm9ybTogdXBwZXJjYXNlOwogIH0KICAuYXVkaWVuY2UtcGF0aHMgc3Ryb25nIHsKICAgIGZvbnQ6IDY1MCBjbGFtcCgxOHB4LDJ2dywyNHB4KS8xLjIgdmFyKC0taGVhZCk7CiAgfQogIC5hdWRpZW5jZS1wYXRocyBzbWFsbCB7CiAgICBjb2xvcjogdmFyKC0tc3ViKTsKICAgIGxpbmUtaGVpZ2h0OiAxLjU7CiAgfQogIGh0bWxbZGF0YS1zemwtem9vbS10aWVyPSJoaWdoIl0gaGVhZGVyLm5hdiwKICBodG1sW2RhdGEtc3psLXpvb20tdGllcj0iZXh0cmVtZSJdIGhlYWRlci5uYXYsCiAgaHRtbFtzdHlsZSo9Inpvb206IDIiXSBoZWFkZXIubmF2LAogIGh0bWxbc3R5bGUqPSJ6b29tOjIiXSBoZWFkZXIubmF2LAogIGh0bWxbc3R5bGUqPSJ6b29tOiA0Il0gaGVhZGVyLm5hdiwKICBodG1sW3N0eWxlKj0iem9vbTo0Il0gaGVhZGVyLm5hdiB7CiAgICBwb3NpdGlvbjogcmVsYXRpdmUgIWltcG9ydGFudDsKICAgIGluc2V0OiBhdXRvICFpbXBvcnRhbnQ7CiAgICBpbmxpbmUtc2l6ZTogYXV0byAhaW1wb3J0YW50OwogICAgbWF4LWlubGluZS1zaXplOiAxMDAlICFpbXBvcnRhbnQ7CiAgICB0cmFuc2Zvcm06IG5vbmUgIWltcG9ydGFudDsKICB9CiAgaHRtbFtkYXRhLXN6bC16b29tLXRpZXI9ImhpZ2giXSAuc3psLWZsb3ctcmFpbCwKICBodG1sW2RhdGEtc3psLXpvb20tdGllcj0iZXh0cmVtZSJdIC5zemwtZmxvdy1yYWlsLAogIGh0bWxbc3R5bGUqPSJ6b29tOiAyIl0gLnN6bC1mbG93LXJhaWwsCiAgaHRtbFtzdHlsZSo9Inpvb206MiJdIC5zemwtZmxvdy1yYWlsLAogIGh0bWxbc3R5bGUqPSJ6b29tOiA0Il0gLnN6bC1mbG93LXJhaWwsCiAgaHRtbFtzdHlsZSo9Inpvb206NCJdIC5zemwtZmxvdy1yYWlsIHsKICAgIHBvc2l0aW9uOiByZWxhdGl2ZSAhaW1wb3J0YW50OwogICAgaW5zZXQ6IGF1dG8gIWltcG9ydGFudDsKICAgIGlubGluZS1zaXplOiBhdXRvICFpbXBvcnRhbnQ7CiAgICBtYXgtaW5saW5lLXNpemU6IDEwMCUgIWltcG9ydGFudDsKICAgIG1heC1ibG9jay1zaXplOiBub25lICFpbXBvcnRhbnQ7CiAgICBtYXJnaW46IDhweCAhaW1wb3J0YW50OwogICAgdHJhbnNmb3JtOiBub25lICFpbXBvcnRhbnQ7CiAgICBvdmVyZmxvdzogYXV0byAhaW1wb3J0YW50OwogICAgZmxleC13cmFwOiB3cmFwICFpbXBvcnRhbnQ7CiAgfQogIEBtZWRpYSAobWF4LXdpZHRoOiA3NjBweCkgewogICAgLmF1ZGllbmNlLXBhdGgtZ3JpZCB7IGdyaWQtdGVtcGxhdGUtY29sdW1uczogbWlubWF4KDAsMWZyKTsgfQogICAgLmF1ZGllbmNlLXBhdGhzIGEgeyBtaW4tYmxvY2stc2l6ZTogMTEycHggIWltcG9ydGFudDsgfQogIH0KICBAbWVkaWEgKHByZWZlcnMtcmVkdWNlZC1tb3Rpb246IHJlZHVjZSkgewogICAgLmF1ZGllbmNlLXBhdGhzIGEgeyB0cmFuc2l0aW9uOiBub25lICFpbXBvcnRhbnQ7IH0KICB9CiAgQG1lZGlhIChmb3JjZWQtY29sb3JzOiBhY3RpdmUpIHsKICAgIC5hdWRpZW5jZS1wYXRocyBhIHsgZm9yY2VkLWNvbG9yLWFkanVzdDogYXV0bzsgfQogIH0KPC9zdHlsZT4K
-          AUDIENCE_B64: CjxzZWN0aW9uIGNsYXNzPSJhdWRpZW5jZS1wYXRocyB3cmFwIiBhcmlhLWxhYmVsbGVkYnk9ImF1ZGllbmNlLXBhdGhzLXRpdGxlIj4KICA8cCBjbGFzcz0ibW9ubyI+VEFTSy1GSVJTVCBFTlRSWSBQT0lOVFM8L3A+CiAgPGgyIGlkPSJhdWRpZW5jZS1wYXRocy10aXRsZSI+Q2hvb3NlIHRoZSB2aWV3IHRoYXQgbWF0Y2hlcyB5b3VyIGpvYi48L2gyPgogIDxwPlRoZSBwcm9kdWN0LCBpbXBsZW1lbnRhdGlvbiBldmlkZW5jZSwgYW5kIG9wZXJhdGluZyBzdGF0dXMgc3RheSBzZXBhcmF0ZSBzbyB1c2VycywgZGV2ZWxvcGVycywgYW5kIGludmVzdG9ycyBjYW4gdmVyaWZ5IHRoZSBsYXllciB0aGV5IG5lZWQgd2l0aG91dCBuYXZpZ2F0aW5nIHRoZSBlbnRpcmUgZXN0YXRlLjwvcD4KICA8ZGl2IGNsYXNzPSJhdWRpZW5jZS1wYXRoLWdyaWQiPgogICAgPGEgaHJlZj0iL3N0YXRpYy8zZC9ob2xvZ3JhcGhpYy5odG1sIiBhcmlhLWxhYmVsPSJPcGVuIHRoZSBBMTFveSBvcGVyYXRvciBleHBlcmllbmNlIj4KICAgICAgPHNwYW4+VXNlcnMgYW5kIG9wZXJhdG9yczwvc3Bhbj4KICAgICAgPHN0cm9uZz5SdW4gdGhlIGdvdmVybmVkIGV4cGVyaWVuY2U8L3N0cm9uZz4KICAgICAgPHNtYWxsPkV4cGxvcmUgZXZpZGVuY2UtbGFiZWxsZWQgb3BlcmF0aW9uYWwgc3VyZmFjZXMgYW5kIGRlZmVuc2l2ZSB3b3JrYmVuY2hlcy48L3NtYWxsPgogICAgPC9hPgogICAgPGEgaHJlZj0iaHR0cHM6Ly9naXRodWIuY29tL3N6bC1ob2xkaW5ncy9hMTFveSIgdGFyZ2V0PSJfYmxhbmsiIHJlbD0ibm9vcGVuZXIiIGFyaWEtbGFiZWw9Ik9wZW4gdGhlIEExMW95IHNvdXJjZSByZXBvc2l0b3J5Ij4KICAgICAgPHNwYW4+RGV2ZWxvcGVyczwvc3Bhbj4KICAgICAgPHN0cm9uZz5JbnNwZWN0IHNvdXJjZSBhbmQgY29udHJhY3RzPC9zdHJvbmc+CiAgICAgIDxzbWFsbD5SZXZpZXcgQVBJcywgdGVzdHMsIGRlcGxveW1lbnQgYXV0aG9yaXR5LCBhbmQgcmVwcm9kdWNpYmxlIGV2aWRlbmNlLjwvc21hbGw+CiAgICA8L2E+CiAgICA8YSBocmVmPSJodHRwczovL2ExMW95Lm5ldC9zdGF0dXMvIiB0YXJnZXQ9Il9ibGFuayIgcmVsPSJub29wZW5lciIgYXJpYS1sYWJlbD0iT3BlbiB0aGUgaW5kZXBlbmRlbnRseSBhdHRlc3RlZCBlc3RhdGUgc3RhdHVzIj4KICAgICAgPHNwYW4+SW52ZXN0b3JzIGFuZCBkaWxpZ2VuY2U8L3NwYW4+CiAgICAgIDxzdHJvbmc+VmVyaWZ5IG9wZXJhdGluZyBzdGF0dXM8L3N0cm9uZz4KICAgICAgPHNtYWxsPlNlcGFyYXRlIG9ic2VydmVkIGRlcGxveW1lbnQgZXZpZGVuY2UgZnJvbSBtb2RlbGVkIGNsYWltcyBhbmQgcm9hZG1hcCB3b3JrLjwvc21hbGw+CiAgICA8L2E+CiAgPC9kaXY+Cjwvc2VjdGlvbj4K
-          SCRIPT_B64: CjxzY3JpcHQgaWQ9InN6bC1wdWJsaWMtZXhwZXJpZW5jZS12My1ydW50aW1lIj4KKGZ1bmN0aW9uICgpIHsKICAndXNlIHN0cmljdCc7CiAgdmFyIHJvb3QgPSBkb2N1bWVudC5kb2N1bWVudEVsZW1lbnQ7CiAgdmFyIGZyYW1lID0gMDsKICBmdW5jdGlvbiBzeW5jKCkgewogICAgZnJhbWUgPSAwOwogICAgdmFyIHJhdyA9IHJvb3Quc3R5bGUuem9vbSB8fCAnMSc7CiAgICB2YXIgem9vbSA9IE51bWJlci5wYXJzZUZsb2F0KHJhdyk7CiAgICBpZiAoIU51bWJlci5pc0Zpbml0ZSh6b29tKSB8fCB6b29tIDw9IDApIHpvb20gPSAxOwogICAgcm9vdC5kYXRhc2V0LnN6bFB1YmxpY0V4cGVyaWVuY2VWMyA9ICd0cnVlJzsKICAgIHJvb3QuZGF0YXNldC5zemxTcGFjZUhvbG9WMiA9ICd0cnVlJzsKICAgIHJvb3QuZGF0YXNldC5zemxab29tVGllciA9IHpvb20gPj0gMyA/ICdleHRyZW1lJyA6ICh6b29tID49IDEuNSA/ICdoaWdoJyA6ICdub3JtYWwnKTsKICB9CiAgZnVuY3Rpb24gc2NoZWR1bGUoKSB7CiAgICBpZiAoIWZyYW1lKSBmcmFtZSA9IHdpbmRvdy5yZXF1ZXN0QW5pbWF0aW9uRnJhbWUoc3luYyk7CiAgfQogIHN5bmMoKTsKICBpZiAod2luZG93Lk11dGF0aW9uT2JzZXJ2ZXIpIHsKICAgIG5ldyBNdXRhdGlvbk9ic2VydmVyKHNjaGVkdWxlKS5vYnNlcnZlKHJvb3QsIHthdHRyaWJ1dGVzOnRydWUsYXR0cmlidXRlRmlsdGVyOlsnc3R5bGUnXX0pOwogIH0KICB3aW5kb3cuYWRkRXZlbnRMaXN0ZW5lcigncmVzaXplJywgc2NoZWR1bGUsIHtwYXNzaXZlOnRydWV9KTsKfSgpKTsKPC9zY3JpcHQ+Cg==
-          TEST_B64: ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgoKZGVmIHRlc3RfbGFuZGluZ19oYXNfc3RhdGljX3YzX2lkZW50aXR5X2FuZF90YXNrX2ZpcnN0X3BhdGhzKCkgLT4gTm9uZToKICAgIHNvdXJjZSA9IFBhdGgoImExMW95X2xhbmRpbmcuaHRtbCIpLnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQogICAgZm9yIG1hcmtlciBpbiAoCiAgICAgICAgJ2RhdGEtc3psLXB1YmxpYy1leHBlcmllbmNlLXYzPSJ0cnVlIicsCiAgICAgICAgJ2RhdGEtc3psLXNwYWNlLWhvbG8tdjI9InRydWUiJywKICAgICAgICAnaWQ9InN6bC1wdWJsaWMtZXhwZXJpZW5jZS12My0yIicsCiAgICAgICAgJ2lkPSJzemwtcHVibGljLWV4cGVyaWVuY2UtdjMtcnVudGltZSInLAogICAgICAgICdpZD0iYXVkaWVuY2UtcGF0aHMtdGl0bGUiJywKICAgICAgICAnVXNlcnMgYW5kIG9wZXJhdG9ycycsCiAgICAgICAgJ0RldmVsb3BlcnMnLAogICAgICAgICdJbnZlc3RvcnMgYW5kIGRpbGlnZW5jZScsCiAgICAgICAgJ21pbi1ibG9jay1zaXplOiA0NHB4JywKICAgICAgICAnZGF0YS1zemwtem9vbS10aWVyPSJleHRyZW1lIicsCiAgICAgICAgJ2hlYWRlci5uYXYnLAogICAgICAgICcuc3psLWZsb3ctcmFpbCcsCiAgICApOgogICAgICAgIGFzc2VydCBtYXJrZXIgaW4gc291cmNlCiAgICBydW50aW1lID0gc291cmNlW3NvdXJjZS5pbmRleCgnaWQ9InN6bC1wdWJsaWMtZXhwZXJpZW5jZS12My1ydW50aW1lIicpOl0KICAgIGFzc2VydCAibG9jYWxTdG9yYWdlIiBub3QgaW4gcnVudGltZQogICAgYXNzZXJ0ICJzZXNzaW9uU3RvcmFnZSIgbm90IGluIHJ1bnRpbWUKICAgIGFzc2VydCAiZmV0Y2goIiBub3QgaW4gcnVudGltZQo=
         run: |
           set -euo pipefail
-          python - <<'PY'
-          import base64
-          import os
+          cat > /tmp/materialize_a11oy_public_experience.py <<'PY'
           from pathlib import Path
 
-          landing = Path('a11oy_landing.html')
-          text = landing.read_text(encoding='utf-8')
+          landing = Path("a11oy_landing.html")
+          text = landing.read_text(encoding="utf-8")
+
           old_root = '<html lang="en">'
-          new_root = '<html lang="en" data-szl-public-experience-v3="true" data-szl-space-holo-v2="true" data-szl-zoom-tier="normal">'
+          new_root = (
+              '<html lang="en" data-szl-public-experience-v3="true" '
+              'data-szl-space-holo-v2="true" data-szl-zoom-tier="normal">'
+          )
           if new_root not in text:
               if text.count(old_root) != 1:
-                  raise SystemExit('landing lacks one exact HTML root')
+                  raise SystemExit("landing lacks one exact HTML root")
               text = text.replace(old_root, new_root, 1)
 
-          style = base64.b64decode(os.environ['STYLE_B64']).decode('utf-8')
-          audience = base64.b64decode(os.environ['AUDIENCE_B64']).decode('utf-8')
-          script = base64.b64decode(os.environ['SCRIPT_B64']).decode('utf-8')
-          test_source = base64.b64decode(os.environ['TEST_B64']).decode('utf-8')
+          style = r'''
+          <style id="szl-public-experience-v3-2">
+            html[data-szl-public-experience-v3="true"],
+            html[data-szl-public-experience-v3="true"] body {
+              max-inline-size: 100%;
+              overflow-x: clip;
+            }
+            html[data-szl-public-experience-v3="true"] :where(
+              main, section, article, aside, header, footer, nav, div
+            ) { min-inline-size: 0; }
+            html[data-szl-public-experience-v3="true"] :where(
+              .skip-link,
+              .origin-banner a,
+              header.nav .brand,
+              .szl-flow-rail a,
+              a[href*="ledger"],
+              .audience-paths a
+            ) {
+              display: inline-flex;
+              align-items: center;
+              min-block-size: 44px;
+              max-inline-size: 100%;
+              touch-action: manipulation;
+            }
+            html[data-szl-public-experience-v3="true"] .origin-banner a {
+              padding-inline: 8px;
+            }
+            html[data-szl-public-experience-v3="true"] .skip-link {
+              min-block-size: 44px;
+              padding-block: 10px;
+            }
+            .audience-paths { padding-block: clamp(48px, 8vw, 96px); }
+            .audience-paths > p { max-inline-size: 68ch; color: var(--sub); }
+            .audience-path-grid {
+              display: grid;
+              grid-template-columns: repeat(3, minmax(0, 1fr));
+              gap: 14px;
+              margin-block-start: 24px;
+            }
+            .audience-paths a {
+              min-block-size: 132px !important;
+              padding: 20px;
+              border: 1px solid var(--border);
+              border-radius: var(--r);
+              background: rgba(255,255,255,.035);
+              flex-direction: column;
+              align-items: flex-start !important;
+              justify-content: center;
+              gap: 6px;
+            }
+            .audience-paths a:hover {
+              border-color: rgba(255,255,255,.55);
+              background: rgba(255,255,255,.07);
+            }
+            .audience-paths span {
+              color: var(--ghost);
+              font: 600 11px/1.3 var(--mono);
+              letter-spacing: .12em;
+              text-transform: uppercase;
+            }
+            .audience-paths strong {
+              font: 650 clamp(18px, 2vw, 24px)/1.2 var(--head);
+            }
+            .audience-paths small { color: var(--sub); line-height: 1.5; }
+            html[data-szl-zoom-tier="high"] header.nav,
+            html[data-szl-zoom-tier="extreme"] header.nav,
+            html[style*="zoom: 2"] header.nav,
+            html[style*="zoom:2"] header.nav,
+            html[style*="zoom: 4"] header.nav,
+            html[style*="zoom:4"] header.nav {
+              position: relative !important;
+              inset: auto !important;
+              inline-size: auto !important;
+              max-inline-size: 100% !important;
+              transform: none !important;
+            }
+            html[data-szl-zoom-tier="high"] .szl-flow-rail,
+            html[data-szl-zoom-tier="extreme"] .szl-flow-rail,
+            html[style*="zoom: 2"] .szl-flow-rail,
+            html[style*="zoom:2"] .szl-flow-rail,
+            html[style*="zoom: 4"] .szl-flow-rail,
+            html[style*="zoom:4"] .szl-flow-rail {
+              position: relative !important;
+              inset: auto !important;
+              inline-size: auto !important;
+              max-inline-size: 100% !important;
+              max-block-size: none !important;
+              margin: 8px !important;
+              transform: none !important;
+              overflow: auto !important;
+              flex-wrap: wrap !important;
+            }
+            @media (max-width: 760px) {
+              .audience-path-grid { grid-template-columns: minmax(0, 1fr); }
+              .audience-paths a { min-block-size: 112px !important; }
+            }
+            @media (prefers-reduced-motion: reduce) {
+              .audience-paths a { transition: none !important; }
+            }
+            @media (forced-colors: active) {
+              .audience-paths a { forced-color-adjust: auto; }
+            }
+          </style>
+          '''
           if 'id="szl-public-experience-v3-2"' not in text:
-              if text.count('</head>') != 1:
-                  raise SystemExit('landing lacks one closing head')
-              text = text.replace('</head>', style + '</head>', 1)
+              if text.count("</head>") != 1:
+                  raise SystemExit("landing lacks one closing head")
+              text = text.replace("</head>", style + "</head>", 1)
+
+          audience = r'''
+          <section class="audience-paths wrap" aria-labelledby="audience-paths-title">
+            <p class="mono">TASK-FIRST ENTRY POINTS</p>
+            <h2 id="audience-paths-title">Choose the view that matches your job.</h2>
+            <p>The product, implementation evidence, and operating status stay separate so users, developers, and investors can verify the layer they need without navigating the entire estate.</p>
+            <div class="audience-path-grid">
+              <a href="/static/3d/holographic.html" aria-label="Open the A11oy operator experience">
+                <span>Users and operators</span>
+                <strong>Run the governed experience</strong>
+                <small>Explore evidence-labelled operational surfaces and defensive workbenches.</small>
+              </a>
+              <a href="https://github.com/szl-holdings/a11oy" target="_blank" rel="noopener" aria-label="Open the A11oy source repository">
+                <span>Developers</span>
+                <strong>Inspect source and contracts</strong>
+                <small>Review APIs, tests, deployment authority, and reproducible evidence.</small>
+              </a>
+              <a href="https://a11oy.net/status/" target="_blank" rel="noopener" aria-label="Open the independently attested estate status">
+                <span>Investors and diligence</span>
+                <strong>Verify operating status</strong>
+                <small>Separate observed deployment evidence from modeled claims and roadmap work.</small>
+              </a>
+            </div>
+          </section>
+          '''
           if 'id="audience-paths-title"' not in text:
-              if text.count('</main>') != 1:
-                  raise SystemExit('landing lacks one closing main')
-              text = text.replace('</main>', audience + '</main>', 1)
+              if text.count("</main>") != 1:
+                  raise SystemExit("landing lacks one closing main")
+              text = text.replace("</main>", audience + "</main>", 1)
+
+          runtime = r'''
+          <script id="szl-public-experience-v3-runtime">
+          (function () {
+            'use strict';
+            var root = document.documentElement;
+            var frame = 0;
+            function sync() {
+              frame = 0;
+              var raw = root.style.zoom || '1';
+              var zoom = Number.parseFloat(raw);
+              if (!Number.isFinite(zoom) || zoom <= 0) zoom = 1;
+              root.dataset.szlPublicExperienceV3 = 'true';
+              root.dataset.szlSpaceHoloV2 = 'true';
+              root.dataset.szlZoomTier = zoom >= 3 ? 'extreme' : (zoom >= 1.5 ? 'high' : 'normal');
+            }
+            function schedule() {
+              if (!frame) frame = window.requestAnimationFrame(sync);
+            }
+            sync();
+            if (window.MutationObserver) {
+              new MutationObserver(schedule).observe(
+                root,
+                {attributes: true, attributeFilter: ['style']}
+              );
+            }
+            window.addEventListener('resize', schedule, {passive: true});
+          }());
+          </script>
+          '''
           if 'id="szl-public-experience-v3-runtime"' not in text:
-              if text.count('</body>') != 1:
-                  raise SystemExit('landing lacks one closing body')
-              text = text.replace('</body>', script + '</body>', 1)
+              if text.count("</body>") != 1:
+                  raise SystemExit("landing lacks one closing body")
+              text = text.replace("</body>", runtime + "</body>", 1)
 
           required = (
               'data-szl-public-experience-v3="true"',
@@ -98,18 +250,54 @@ jobs:
           )
           missing = [marker for marker in required if marker not in text]
           if missing:
-              raise SystemExit(f'landing repair is incomplete: {missing}')
-          landing.write_text(text, encoding='utf-8')
-          Path('tests/test_a11oy_landing_public_experience_v3.py').write_text(test_source, encoding='utf-8')
+              raise SystemExit(f"landing repair is incomplete: {missing}")
+          landing.write_text(text, encoding="utf-8")
+
+          test_source = '''from pathlib import Path
+
+
+def test_landing_has_static_v3_identity_and_task_first_paths() -> None:
+    source = Path("a11oy_landing.html").read_text(encoding="utf-8")
+    for marker in (
+        'data-szl-public-experience-v3="true"',
+        'data-szl-space-holo-v2="true"',
+        'id="szl-public-experience-v3-2"',
+        'id="szl-public-experience-v3-runtime"',
+        'id="audience-paths-title"',
+        'Users and operators',
+        'Developers',
+        'Investors and diligence',
+        'min-block-size: 44px',
+        'data-szl-zoom-tier="extreme"',
+        'header.nav',
+        '.szl-flow-rail',
+    ):
+        assert marker in source
+    runtime = source[source.index('id="szl-public-experience-v3-runtime"'):]
+    assert "localStorage" not in runtime
+    assert "sessionStorage" not in runtime
+    assert "fetch(" not in runtime
+'''
+          Path("tests/test_a11oy_landing_public_experience_v3.py").write_text(
+              test_source,
+              encoding="utf-8",
+          )
           PY
+          python /tmp/materialize_a11oy_public_experience.py
           git show origin/main:.github/workflows/hf-publish-vertical-flagships.yml > .github/workflows/hf-publish-vertical-flagships.yml
-          git diff --check
-          mapfile -t final_changed < <(git diff --name-only origin/main)
-          test "${#final_changed[@]}" -eq 2
-          printf '%s\n' "${final_changed[@]}" | grep -Fx a11oy_landing.html
-          printf '%s\n' "${final_changed[@]}" | grep -Fx tests/test_a11oy_landing_public_experience_v3.py
+          git add a11oy_landing.html tests/test_a11oy_landing_public_experience_v3.py .github/workflows/hf-publish-vertical-flagships.yml
+          git diff --cached --check
+          mapfile -t staged < <(git diff --cached --name-only)
+          test "${#staged[@]}" -eq 3
+          printf '%s\n' "${staged[@]}" | grep -Fx .github/workflows/hf-publish-vertical-flagships.yml
+          printf '%s\n' "${staged[@]}" | grep -Fx a11oy_landing.html
+          printf '%s\n' "${staged[@]}" | grep -Fx tests/test_a11oy_landing_public_experience_v3.py
           python -m py_compile tests/test_a11oy_landing_public_experience_v3.py
-          python -m pytest tests/test_a11oy_landing_public_experience_v3.py -q
+          python - <<'PY'
+          import runpy
+          namespace = runpy.run_path("tests/test_a11oy_landing_public_experience_v3.py")
+          namespace["test_landing_has_static_v3_identity_and_task_first_paths"]()
+          PY
 
       - name: Commit the permanent two-file result
         shell: bash
@@ -117,9 +305,9 @@ jobs:
           set -euo pipefail
           git config user.name 'Stephen Lutar'
           git config user.email 'stephenlutar2@gmail.com'
-          git add a11oy_landing.html tests/test_a11oy_landing_public_experience_v3.py .github/workflows/hf-publish-vertical-flagships.yml
-          mapfile -t staged < <(git diff --cached --name-only)
-          test "${#staged[@]}" -eq 3
           git commit -m 'fix(frontend): make A11oy mobile, zoom-safe, and task-first' -m 'Add a static Public Experience v3 identity, exact audit-derived touch and 400 percent zoom containment, and distinct user, developer, and investor entry paths.' -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
-          test "$(git diff --name-only origin/main HEAD | wc -l)" -eq 2
+          mapfile -t final_changed < <(git diff --name-only origin/main HEAD)
+          test "${#final_changed[@]}" -eq 2
+          printf '%s\n' "${final_changed[@]}" | grep -Fx a11oy_landing.html
+          printf '%s\n' "${final_changed[@]}" | grep -Fx tests/test_a11oy_landing_public_experience_v3.py
           git push origin HEAD:fix/a11oy-mobile-public-experience-v3-2
