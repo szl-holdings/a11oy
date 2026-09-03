@@ -1,0 +1,88 @@
+name: Materialize HF drift repair evidence
+
+on:
+  push:
+    branches:
+      - ops/hf-drift-materialize-20260903-0337
+    paths:
+      - ".github/workflows/materialize-hf-drift-repair.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: materialize-hf-drift-repair-20260903
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact materializer branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Prove collector contracts
+        run: |
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py
+      - name: Generate exact public manifest and derived matrix
+        run: |
+          python3 scripts/audit_huggingface_ecosystem.py --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/build_ecosystem_stage_matrix.py
+          python3 scripts/audit_huggingface_ecosystem.py --check --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/build_ecosystem_stage_matrix.py --check
+          git diff --check
+      - name: Verify quarantine outcome is reflected honestly
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path('docs/huggingface-ecosystem-manifest.json').read_text(encoding='utf-8'))
+          models = {row['id']: row for row in manifest['inventory']['models']}
+          affected = (
+              'SZLHOLDINGS/szl-governed-norm',
+              'SZLHOLDINGS/szl-blocked',
+              'SZLHOLDINGS/szl-govsign',
+              'SZLHOLDINGS/szl-provctl',
+              'SZLHOLDINGS/szl-nemo',
+              'SZLHOLDINGS/szl-invariants',
+              'SZLHOLDINGS/szl-ouroboros',
+              'SZLHOLDINGS/szl-formulas',
+          )
+          missing = [name for name in affected if name not in models]
+          if missing:
+              raise SystemExit(f'missing quarantined model inventory rows: {missing}')
+          unsafe = {
+              name: models[name].get('unsafeFlags') or []
+              for name in affected
+              if models[name].get('unsafeFlags')
+          }
+          if unsafe:
+              raise SystemExit(f'executable artifact flags remain: {unsafe}')
+          expected = {'models': 44, 'datasets': 31, 'spaces': 9}
+          if manifest.get('counts') != expected:
+              raise SystemExit(f'unexpected public counts: {manifest.get("counts")}')
+          print(json.dumps({'status': 'PASS', 'affected_models': len(affected), 'counts': manifest['counts']}, sort_keys=True))
+          PY
+      - name: Upload source-ready repair files
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-drift-repair-source-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            docs/huggingface-ecosystem-manifest.json
+            docs/ecosystem-stage-matrix.json
+          if-no-files-found: error
+          retention-days: 30
