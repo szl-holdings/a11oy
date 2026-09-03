@@ -11,6 +11,13 @@ const PRODUCT_HOST = "a-11-oy.com";
 const WWW_HOST = "www.a-11-oy.com";
 const ORIGIN_HOST = "szlholdings-a11oy.hf.space";
 const EDGE_VERSION = "a11oy-product-edge-v3";
+const READ_ONLY_METHODS = new Set(["GET", "HEAD"]);
+const PUBLIC_ROUTE_ALIASES = Object.freeze({
+  "/spectral": "/static/3d/holographic.html",
+  "/spectral/": "/static/3d/holographic.html",
+  "/controller": "/api/a11oy/v1/honest",
+  "/controller/": "/api/a11oy/v1/honest",
+});
 
 const STRIP_REQUEST_HEADERS = [
   "host",
@@ -32,11 +39,17 @@ export function canonicalLocation(requestUrl) {
   return target.toString();
 }
 
-export function originLocation(requestUrl) {
+export function resolveOriginPath(pathname, method = "GET") {
+  if (!READ_ONLY_METHODS.has(String(method).toUpperCase())) return pathname;
+  return PUBLIC_ROUTE_ALIASES[pathname] || pathname;
+}
+
+export function originLocation(requestUrl, method = "GET") {
   const target = new URL(requestUrl);
   target.protocol = "https:";
   target.hostname = ORIGIN_HOST;
   target.port = "";
+  target.pathname = resolveOriginPath(target.pathname, method);
   return target;
 }
 
@@ -96,7 +109,7 @@ export async function handleRequest(request, fetchImpl = fetch) {
     return errorResponse(421, "misdirected_request");
   }
 
-  const upstream = originLocation(incoming.toString());
+  const upstream = originLocation(incoming.toString(), request.method);
   const headers = requestHeaders(request.headers);
   let outgoing;
   try {
@@ -115,6 +128,9 @@ export async function handleRequest(request, fetchImpl = fetch) {
 
   const output = new Headers(response.headers);
   output.set("x-szl-edge", EDGE_VERSION);
+  if (upstream.pathname !== incoming.pathname) {
+    output.set("x-szl-edge-alias", `${incoming.pathname}->${upstream.pathname}`);
+  }
   output.set(
     "link",
     `<https://${PRODUCT_HOST}${incoming.pathname || "/"}>; rel="canonical"`,
