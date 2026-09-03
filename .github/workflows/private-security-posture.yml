@@ -1,0 +1,125 @@
+name: Private security posture
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/scripts/private_security_posture.py"
+      - ".github/workflows/private-security-posture.yml"
+      - ".github/workflows/private-security-posture-contract.yml"
+      - "tests/test_private_security_posture.py"
+  schedule:
+    - cron: "31 7 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: read
+  security-events: read
+  issues: write
+
+concurrency:
+  group: private-security-posture-${{ github.repository }}
+  cancel-in-progress: false
+
+env:
+  REPORT_PATH: private-security-posture.json
+
+jobs:
+  observe:
+    name: Observe aggregate private-alert posture
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      # A managed organization credential may expose alert families that the
+      # repository GITHUB_TOKEN cannot. Every family independently reports
+      # OBSERVED or UNAVAILABLE; a fallback token never implies zero alerts.
+      SZL_SECURITY_TOKEN: ${{ secrets.SZL_ORG_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.SZL_GITHUB_TOKEN || secrets.GH_PAT || github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Run network-free privacy and safety contracts
+        run: |
+          set -euo pipefail
+          python -m unittest -v tests.test_private_security_posture
+          python -m py_compile .github/scripts/private_security_posture.py
+          git diff --check
+
+      - name: Collect redacted source-bound posture
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/private_security_posture.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --revision "$GITHUB_SHA" \
+            --default-branch main \
+            --report "$REPORT_PATH" \
+            --apply
+
+      - name: Independently verify the public persistence boundary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util
+          import json
+          import sys
+          from pathlib import Path
+
+          module_path = Path('.github/scripts/private_security_posture.py')
+          spec = importlib.util.spec_from_file_location('private_security_posture', module_path)
+          if spec is None or spec.loader is None:
+              raise SystemExit('posture verifier could not load the controller')
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+
+          path = Path('private-security-posture.json')
+          if not path.is_file():
+              raise SystemExit('private posture controller did not emit its receipt')
+          receipt = json.loads(path.read_text(encoding='utf-8'))
+          if receipt.get('schema') != module.SCHEMA:
+              raise SystemExit('unexpected private posture schema')
+          privacy = receipt.get('privacy') or {}
+          required_false = (
+              'raw_alerts_persisted',
+              'alert_urls_persisted',
+              'paths_persisted',
+              'secret_types_persisted',
+              'automatic_dismissal',
+          )
+          if any(privacy.get(key) is not False for key in required_false):
+              raise SystemExit('private posture receipt violated its privacy declaration')
+          if module.public_receipt_errors(receipt):
+              raise SystemExit('private posture receipt crossed the public persistence boundary')
+          print(json.dumps({
+              'schema': receipt['schema'],
+              'source_revision': receipt['source_revision'],
+              'summary_digest': receipt['summary_digest'],
+              'attention': receipt['attention'],
+              'incident_action': receipt['incident_action'],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload immutable redacted posture receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: private-security-posture-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 90
