@@ -1,0 +1,71 @@
+name: Witness receipt alert channel once
+
+on:
+  push:
+    branches:
+      - ops/witness-receipt-alert-channel-20260902
+    paths:
+      - ".github/workflows/witness-receipt-alert-channel-once.yml"
+
+permissions:
+  actions: write
+  contents: write
+  issues: write
+
+jobs:
+  witness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Dispatch and identify the exact protected-main canary
+        id: run
+        shell: bash
+        run: |
+          set -euo pipefail
+          marker="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          gh workflow run receipt-alert-channel.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f canary=true \
+            -f severity=info \
+            -f message="Founder-triggered receipt alert delivery canary" \
+            -f source_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          run_id=""
+          for attempt in $(seq 1 30); do
+            run_id="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow receipt-alert-channel.yml \
+              --event workflow_dispatch \
+              --branch main \
+              --limit 10 \
+              --json databaseId,createdAt \
+              --jq '.[] | select(.createdAt >= "'"$marker"'") | .databaseId' | head -n1)"
+            if [ -n "$run_id" ]; then break; fi
+            sleep 2
+          done
+          test -n "$run_id"
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Require the exact delivery canary to succeed
+        run: gh run watch "${{ steps.run.outputs.run_id }}" --repo "$GITHUB_REPOSITORY" --exit-status --interval 10
+
+      - name: Close issue 541 if the successful canary did not already close it
+        shell: bash
+        run: |
+          set -euo pipefail
+          state="$(gh issue view 541 --repo "$GITHUB_REPOSITORY" --json state --jq '.state' 2>/dev/null || true)"
+          if [ "$state" = "OPEN" ]; then
+            gh issue close 541 \
+              --repo "$GITHUB_REPOSITORY" \
+              --reason completed \
+              --comment "The protected-main dual-path receipt-alert workflow completed live canary run `${{ steps.run.outputs.run_id }}` successfully. GitHub Issues is the required durable delivery authority; the ntfy relay is independently evidenced and cannot suppress the primary alert."
+          fi
+
+      - name: Remove the transient witness branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" --delete "$GITHUB_REF_NAME"
