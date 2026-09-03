@@ -1,0 +1,59 @@
+name: Controlled branch-only Hugging Face manifest refresh
+
+on:
+  push:
+    branches:
+      - fix/hf-manifest-current-20260903
+    paths:
+      - .github/workflows/_refresh_hf_manifest_branch.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: hf-manifest-refresh-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Generate, verify, and commit the current public Hub manifest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.19.1
+        with:
+          egress-policy: audit
+
+      - name: Check out the controlled branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-manifest-current-20260903
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate from current public Hugging Face evidence
+        run: |
+          set -euo pipefail
+          python scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+          python scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+
+      - name: Commit only the generated manifest
+        run: |
+          set -euo pipefail
+          changed=$(git status --porcelain -- docs/huggingface-ecosystem-manifest.json)
+          test -n "$changed"
+          test "$(git status --porcelain | wc -l | tr -d ' ')" = "1"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- docs/huggingface-ecosystem-manifest.json
+          git commit -s -m "chore(hf): refresh current public ecosystem manifest"
+          git push origin HEAD:fix/hf-manifest-current-20260903
