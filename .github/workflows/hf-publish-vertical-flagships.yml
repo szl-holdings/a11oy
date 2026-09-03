@@ -1,14 +1,11 @@
 # SPDX-License-Identifier: Apache-2.0
 name: HF Publish Vertical Flagships
 
+# This publisher is an explicit operator action. hf-sync.yml is the sole
+# automatic main-push writer for the canonical A11oy Space and owns deployment,
+# source binding, live verification, and relock evidence.
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - scripts/hf_publish_vertical_flagships_v4.py
-      - tests/test_hf_publish_vertical_flagships_v4.py
-      - .github/workflows/hf-publish-vertical-flagships.yml
 
 permissions:
   contents: read
