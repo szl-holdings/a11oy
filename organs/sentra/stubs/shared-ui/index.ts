@@ -82,3 +82,126 @@ export type SentientCrossLink = any;
 export type SentientUpdate = any;
 
 export default NoopComponent;
+
+// Canonical operational-primitives contract for the self-contained offline build.
+export type OperationalStatus = string;
+export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+export type ApprovalState = 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
+export type ActorType = 'user' | 'system' | 'agent';
+export type DataState = 'live' | 'demo' | 'loading' | 'error' | 'seeded' | 'simulated' | 'unavailable';
+export type OperationalOwner = {
+  userId?: string | number;
+  name?: string;
+  email?: string;
+  role?: string;
+  assignedAt?: string;
+};
+export type EvidenceItem = {
+  id: string;
+  label: string;
+  value: string;
+  source?: string;
+  confidence?: number;
+  timestamp?: string;
+};
+export type AuditHistoryEntry = Record<string, unknown>;
+export type EscalationPath = Record<string, unknown>;
+export type NextAction = Record<string, unknown>;
+export type OperationalEntity = Record<string, unknown> & { id: string | number };
+export type StatusConfig = {
+  label: string;
+  color: string;
+  bg: string;
+  dotColor?: string;
+  terminal?: boolean;
+};
+
+export const STATUS_CONFIGS: Record<string, StatusConfig> = {};
+export const RISK_CONFIGS: Record<string, { label: string; color: string; bg: string; score: number }> = {};
+export const APPROVAL_CONFIGS: Record<string, { label: string; color: string; bg: string }> = {};
+
+const OFFLINE_LANE_ACCENT = {
+  primary: '#f5f5f5',
+  secondary: '#a3a3a3',
+  muted: '#737373',
+} as const;
+
+export const LANE_ACCENT_HEX = {
+  alloy: OFFLINE_LANE_ACCENT,
+  lyte: OFFLINE_LANE_ACCENT,
+  terra: OFFLINE_LANE_ACCENT,
+  aegis: OFFLINE_LANE_ACCENT,
+  vessels: OFFLINE_LANE_ACCENT,
+  counsel: OFFLINE_LANE_ACCENT,
+  carlota: OFFLINE_LANE_ACCENT,
+  sentra: OFFLINE_LANE_ACCENT,
+} as const;
+
+export function getStatusConfig(status: string): StatusConfig {
+  return { label: status, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)' };
+}
+
+export function getRiskConfig(level: string) {
+  return { label: level, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)', score: 0 };
+}
+
+export function getApprovalConfig(state: string) {
+  return { label: state, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)' };
+}
+
+export function riskScoreToLevel(score: number): RiskLevel {
+  if (score >= 0.85) return 'critical';
+  if (score >= 0.65) return 'high';
+  if (score >= 0.35) return 'medium';
+  return 'low';
+}
+
+export function severityToRiskLevel(severity: string): RiskLevel {
+  return severity === 'critical' || severity === 'high' || severity === 'medium'
+    ? severity
+    : 'low';
+}
+
+export function isTerminalStatus(status: string): boolean {
+  return ['completed', 'succeeded', 'failed', 'cancelled', 'rejected', 'resolved', 'closed'].includes(status);
+}
+
+export function formatAgo(value?: string): string {
+  return value || '—';
+}
+
+export function formatDuration(startedAt?: string, completedAt?: string): string {
+  return startedAt && completedAt ? `${startedAt} – ${completedAt}` : '—';
+}
+
+export function useContactModal(_source?: string) {
+  return {
+    isOpen: false,
+    open: noop,
+    close: noop,
+  };
+}
+
+export function useRealtimeChannel<T = unknown>(_channel: string) {
+  return {
+    lastMessage: null as T | null,
+    isConnected: false,
+    status: 'offline' as const,
+  };
+}
+
+export const BatchPdfPanel = NoopComponent;
+export const BillingAccount = NoopComponent;
+export const ConstellationGraph = NoopComponent;
+export const DocumentEnginePanel = NoopComponent;
+export const GraphQLDataPanel = NoopComponent;
+export const SigningDashboard = NoopComponent;
+export const OperationalStatusBadge = NoopComponent;
+export const OperationalRiskBadge = NoopComponent;
+export const OperationalApprovalBadge = NoopComponent;
+export const OperationalOwnerChip = NoopComponent;
+export const OperationalEvidencePanel = NoopComponent;
+export const OperationalAuditTimeline = NoopComponent;
+export const OperationalEscalationPanel = NoopComponent;
+export const OperationalDetailPane = NoopComponent;
+export const OperationalQueueRow = NoopComponent;

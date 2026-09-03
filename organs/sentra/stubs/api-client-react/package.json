@@ -1,1 +1,14 @@
-{"name":"@szl-holdings/api-client-react","version":"0.0.1","private":true,"type":"module","main":"./index.ts","exports":{".":"./index.ts","./*":"./index.ts"}}
+{
+  "name": "@szl-holdings/api-client-react",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./*": "./index.ts"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "catalog:"
+  }
+}
