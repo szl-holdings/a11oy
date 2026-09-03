@@ -1,13 +1,13 @@
-as_of: "2026-09-02T22:02:09Z"
-state: LIVE
+as_of: "2026-09-03T23:39:00Z"
+state: APPLY
 action: pause_and_private_never_delete
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 hub: https://huggingface.co/SZLHOLDINGS
 counts:
   spaces_total: 57
-  spaces_public: 9
-  spaces_private: 48
+  spaces_public_target: 10
+  spaces_private_target: 47
 keep:
   - id: SZLHOLDINGS/a11oy
     role: command
@@ -28,11 +28,17 @@ keep:
     role: business_observability
   - id: SZLHOLDINGS/david-leads
     role: insurance
+  - id: SZLHOLDINGS/anatomy
+    role: living_system_atlas
+    dest: https://a-11-oy.com/living-anatomy
+    source: szl-holdings/anatomy
+    dependencies:
+      - szl-holdings/szl-second-brain
 org_card: SZLHOLDINGS/README
-last_execution:
+previous_execution:
   workflow_run: 33687884541
   attempt: 2
   artifact: hf-nine-flagship-consolidation-33687884541-2
   artifact_sha256: 043aba51a8386038620aca8ecbb122795d51e4317d46d2f513c437413312d916
-  terminal_green: true
-note: "Authenticated inventory measured 2026-09-02: 57 total, exactly 9 canonical public RUNNING, 48 folded private; dynamic folds paused where supported and static folds remain private because static Spaces cannot pause. None deleted. Permanent deletion remains gated on unique source, product copy, evidence, and replacement preservation."
+  terminal_green_for_nine_flagships: true
+note: "Target policy: 57 total, 10 canonical public Spaces including SZLHOLDINGS/anatomy, and 47 folded private. Anatomy is a source-bound public/running Living Anatomy flagship whose read-only YACHAY organ consumes the exact public projection from szl-holdings/szl-second-brain. None deleted. Dynamic folds remain paused where supported and static folds remain private because static Spaces cannot pause."
