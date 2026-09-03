@@ -37,13 +37,13 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          def replace_once(path_name: str, old: str, new: str) -> None:
+          def replace_once(path_name: str, label: str, old: str, new: str) -> None:
               path = Path(path_name)
               text = path.read_text(encoding="utf-8")
               count = text.count(old)
               if count != 1:
                   raise SystemExit(
-                      f"{path_name}: expected one replacement seam, found {count}"
+                      f"{path_name} [{label}]: expected one replacement seam, found {count}"
                   )
               path.write_text(
                   text.replace(old, new, 1), encoding="utf-8", newline="\n"
@@ -63,27 +63,16 @@ jobs:
               '        out["freshness"] = fresh\n'
               '        return out\n'
           )
-          replace_once("a11oy_vertical_feeds.py", helper_old, helper_new)
-          replace_once("a11oy_devb_endpoints.py", helper_old, helper_new)
-
           replace_once(
-              "a11oy_vertical_feeds.py",
-              '    observed value passes through UNAVAILABLE so the schema fails closed.\n'
-              '    Nothing is fabricated: no synthetic items, no invented timestamps.\n',
-              '    observed value is emitted as canonical UNAVAILABLE so clients never\n'
-              '    confuse missing evidence with live or cached data. Nothing is fabricated:\n'
-              '    no synthetic items and no invented timestamps.\n',
+              "a11oy_vertical_feeds.py", "vertical helper", helper_old, helper_new
           )
           replace_once(
-              "a11oy_devb_endpoints.py",
-              '# observation timestamp; a never-observed source stays UNAVAILABLE\n'
-              '# so the schema fails closed. No fabricated items, no invented timestamps.\n',
-              '# observation timestamp; a never-observed source is emitted as canonical\n'
-              '# UNAVAILABLE. No fabricated items and no invented timestamps.\n',
+              "a11oy_devb_endpoints.py", "devb helper", helper_old, helper_new
           )
 
           replace_once(
               "a11oy_devb_endpoints.py",
+              "legal source registry",
               '_CL = "https://www.courtlistener.com/api/rest/v4/search/"\n',
               '_CL = "https://www.courtlistener.com/api/rest/v4/search/"\n'
               '_COURTLISTENER_CITATION = {\n'
@@ -102,6 +91,7 @@ jobs:
 
           replace_once(
               "a11oy_devb_endpoints.py",
+              "matter citations",
               '        return JSONResponse({"surface": "matter", "term": term,\n'
               '                             "opinions": _readiness_public_source(op),\n'
               '                             "doctrine": DOCTRINE})\n',
@@ -112,6 +102,7 @@ jobs:
           )
           replace_once(
               "a11oy_devb_endpoints.py",
+              "regulatory citations",
               '        return JSONResponse({"surface": "regulatory",\n'
               '                             "federal_register": _readiness_public_source(fr),\n'
               '                             "agencies": _readiness_public_source(ag),\n'
@@ -124,6 +115,7 @@ jobs:
           )
           replace_once(
               "a11oy_devb_endpoints.py",
+              "exposure citations",
               '    async def _legal_exposure(\n'
               '        term: Annotated[str, Query(min_length=1, max_length=160)] = "securities",\n'
               '        limit: Annotated[int, Query(ge=1, le=100)] = 18,\n'
@@ -143,6 +135,7 @@ jobs:
 
           replace_once(
               "tools/readiness-harness/gen_tabs_matrix.py",
+              "vertical legal labels",
               '    "/api/a11oy/v1/vert/legal/feed": ep(\n'
               '        schema="vert_legal_feed", sla=HOUR, citations=True,\n'
               '        allow_labels=("live", "cached", "reference"),\n',
@@ -150,57 +143,52 @@ jobs:
               '        schema="vert_legal_feed", sla=HOUR, citations=True,\n'
               '        allow_labels=("live", "cached", "reference", "UNAVAILABLE"),\n',
           )
-          for route_and_note in (
+
+          endpoint_replacements = (
               (
+                  "matter labels",
+                  '    "/api/a11oy/v1/devb/legal/matter?limit=1": ep(\n'
+                  '        schema="devb_legal_matter", sla=HOUR, citations=True,\n',
                   '    "/api/a11oy/v1/devb/legal/matter?limit=1": ep(\n'
                   '        schema="devb_legal_matter", sla=HOUR, citations=True,\n'
-                  '        note="Bounded CourtListener matter probe; returned opinions carry authority URLs."),\n',
-                  '    "/api/a11oy/v1/devb/legal/matter?limit=1": ep(\n'
-                  '        schema="devb_legal_matter", sla=HOUR, citations=True,\n'
-                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n'
-                  '        note="Bounded CourtListener matter probe; returned opinions carry authority URLs."),\n',
+                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n',
               ),
               (
+                  "defense matter labels",
+                  '    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1": ep(\n'
+                  '        schema="devb_legal_matter", sla=HOUR, citations=True,\n',
                   '    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1": ep(\n'
                   '        schema="devb_legal_matter", sla=HOUR, citations=True,\n'
-                  '        note="Bounded CourtListener authority probe for the defense-builder alias."),\n',
-                  '    "/api/a11oy/v1/devb/legal/matter?term=defense&limit=1": ep(\n'
-                  '        schema="devb_legal_matter", sla=HOUR, citations=True,\n'
-                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n'
-                  '        note="Bounded CourtListener authority probe for the defense-builder alias."),\n',
+                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n',
               ),
               (
+                  "insurance matter labels",
+                  '    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1": ep(\n'
+                  '        schema="devb_legal_matter", sla=HOUR, citations=True,\n',
                   '    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1": ep(\n'
                   '        schema="devb_legal_matter", sla=HOUR, citations=True,\n'
-                  '        note="Bounded CourtListener authority probe for the insurance-review alias."),\n',
-                  '    "/api/a11oy/v1/devb/legal/matter?term=insurance&limit=1": ep(\n'
-                  '        schema="devb_legal_matter", sla=HOUR, citations=True,\n'
-                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n'
-                  '        note="Bounded CourtListener authority probe for the insurance-review alias."),\n',
+                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n',
               ),
               (
+                  "regulatory labels",
+                  '    "/api/a11oy/v1/devb/legal/regulatory?limit=1": ep(\n'
+                  '        schema="devb_legal_regulatory", sla=HOUR, citations=True,\n',
                   '    "/api/a11oy/v1/devb/legal/regulatory?limit=1": ep(\n'
                   '        schema="devb_legal_regulatory", sla=HOUR, citations=True,\n'
-                  '        note="Federal Register documents and agency catalog with source URLs."),\n',
-                  '    "/api/a11oy/v1/devb/legal/regulatory?limit=1": ep(\n'
-                  '        schema="devb_legal_regulatory", sla=HOUR, citations=True,\n'
-                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n'
-                  '        note="Federal Register documents and agency catalog with source URLs."),\n',
+                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n',
               ),
               (
+                  "exposure labels",
+                  '    "/api/a11oy/v1/devb/legal/exposure?limit=1": ep(\n'
+                  '        schema="devb_legal_exposure", sla=HOUR, citations=True,\n',
                   '    "/api/a11oy/v1/devb/legal/exposure?limit=1": ep(\n'
                   '        schema="devb_legal_exposure", sla=HOUR, citations=True,\n'
-                  '        note="SEC/CourtListener exposure graph; case nodes retain CourtListener URLs."),\n',
-                  '    "/api/a11oy/v1/devb/legal/exposure?limit=1": ep(\n'
-                  '        schema="devb_legal_exposure", sla=HOUR, citations=True,\n'
-                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n'
-                  '        note="SEC/CourtListener exposure graph; case nodes retain CourtListener URLs."),\n',
+                  '        allow_labels=("live", "cached", "UNAVAILABLE"),\n',
               ),
-          ):
+          )
+          for label, old, new in endpoint_replacements:
               replace_once(
-                  "tools/readiness-harness/gen_tabs_matrix.py",
-                  route_and_note[0],
-                  route_and_note[1],
+                  "tools/readiness-harness/gen_tabs_matrix.py", label, old, new
               )
           PY
           python3 tools/readiness-harness/gen_tabs_matrix.py
