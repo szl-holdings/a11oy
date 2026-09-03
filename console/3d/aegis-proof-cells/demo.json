@@ -1,0 +1,46 @@
+{
+  "schema": "szl.aegis-proof-cells.case-input/v1",
+  "tenant": "demo-tenant",
+  "authorized_tenant": "demo-tenant",
+  "principal": "analyst@example.test",
+  "purpose": "defensive investigation demonstration",
+  "mission": "investigate",
+  "action": "analyze_only",
+  "human_approval": false,
+  "safety_gate": 1,
+  "evidence": [
+    {
+      "id": "evt-001",
+      "kind": "authentication_event",
+      "source": "synthetic-ocsf-demo",
+      "freshness": "LIVE",
+      "observed_at": "2026-09-03T12:00:00Z",
+      "asset": "workstation-17",
+      "principal": "user@example.test",
+      "summary": "Three failed sign-ins followed by a successful sign-in from TEST-NET address 192.0.2.10.",
+      "confidence": 0.91
+    },
+    {
+      "id": "evt-002",
+      "kind": "process_event",
+      "source": "synthetic-edr-demo",
+      "freshness": "CACHED",
+      "observed_at": "2026-09-03T12:02:00Z",
+      "asset": "workstation-17",
+      "summary": "A signed administration shell launched by an approved management agent.",
+      "confidence": 0.78
+    },
+    {
+      "id": "ctx-001",
+      "kind": "asset_context",
+      "source": "synthetic-cmdb-demo",
+      "freshness": "LIVE",
+      "observed_at": "2026-09-03T11:55:00Z",
+      "asset": "workstation-17",
+      "summary": "Standard user workstation; no production workload; owner and support group are known.",
+      "confidence": 0.95
+    }
+  ],
+  "expected_state": "SANDBOX_READY",
+  "notice": "Synthetic defensive demonstration only. Addresses and domains use reserved example ranges."
+}
