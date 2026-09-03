@@ -5,6 +5,10 @@ on:
     branches: [main]
     paths:
       - ".github/workflows/repair-cloudflare-product-edge-production.yml"
+      - "scripts/repair_cloudflare_product_edge.py"
+      - "ops/cloudflare/product-edge-worker.mjs"
+      - "tests/test_cloudflare_product_edge.py"
+      - "tests/test_cloudflare_product_edge_worker.mjs"
   workflow_dispatch:
     inputs:
       dry_run:
