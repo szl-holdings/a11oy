@@ -55,7 +55,7 @@ jobs:
             fi
           done
 
-      - name: Remove retired entries and restore the canonical offline hooks
+      - name: Remove retired entries and restore canonical offline contracts
         shell: bash
         run: |
           set -euo pipefail
@@ -63,6 +63,7 @@ jobs:
           from __future__ import annotations
 
           import json
+          import re
           from pathlib import Path
 
           plugin_keys = (
@@ -104,23 +105,19 @@ jobs:
               )
           workspace.write_text("\n".join(kept) + "\n", encoding="utf-8")
 
-          stub_manifest = Path("organs/sentra/stubs/api-client-react/package.json")
-          stub_data = json.loads(stub_manifest.read_text(encoding="utf-8"))
-          dependencies = stub_data.setdefault("dependencies", {})
+          api_manifest = Path("organs/sentra/stubs/api-client-react/package.json")
+          api_data = json.loads(api_manifest.read_text(encoding="utf-8"))
+          dependencies = api_data.setdefault("dependencies", {})
           if not isinstance(dependencies, dict):
-              raise SystemExit(f"{stub_manifest}: dependencies must be an object")
+              raise SystemExit(f"{api_manifest}: dependencies must be an object")
           dependencies["@tanstack/react-query"] = "catalog:"
-          stub_manifest.write_text(
-              json.dumps(stub_data, indent=2) + "\n", encoding="utf-8"
-          )
+          api_manifest.write_text(json.dumps(api_data, indent=2) + "\n", encoding="utf-8")
 
-          stub_source = Path("organs/sentra/stubs/api-client-react/index.ts")
-          prior = stub_source.read_text(encoding="utf-8")
-          if prior.strip() != "export {};":
-              raise SystemExit(
-                  f"{stub_source}: expected the known empty drifted stub before repair"
-              )
-          stub_source.write_text(
+          api_source = Path("organs/sentra/stubs/api-client-react/index.ts")
+          prior_api = api_source.read_text(encoding="utf-8")
+          if prior_api.strip() != "export {};":
+              raise SystemExit(f"{api_source}: expected the known empty drifted stub before repair")
+          api_source.write_text(
               """import {
             type QueryKey,
             type UseMutationOptions,
@@ -159,6 +156,122 @@ jobs:
           """.replace("          ", ""),
               encoding="utf-8",
           )
+
+          shared_source = Path("organs/sentra/stubs/shared-ui/index.ts")
+          shared_text = shared_source.read_text(encoding="utf-8")
+          if "export const OperationalOwnerChip" in shared_text:
+              raise SystemExit(f"{shared_source}: operational contract unexpectedly already present")
+          operational_contract = r'''
+
+          // Canonical operational-primitives contract for the self-contained offline build.
+          export type OperationalStatus = string;
+          export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
+          export type ApprovalState = 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
+          export type ActorType = 'user' | 'system' | 'agent';
+          export type OperationalOwner = {
+            userId?: string | number;
+            name?: string;
+            email?: string;
+            role?: string;
+            assignedAt?: string;
+          };
+          export type EvidenceItem = {
+            id: string;
+            label: string;
+            value: string;
+            source?: string;
+            confidence?: number;
+            timestamp?: string;
+          };
+          export type AuditHistoryEntry = Record<string, unknown>;
+          export type EscalationPath = Record<string, unknown>;
+          export type NextAction = Record<string, unknown>;
+          export type OperationalEntity = Record<string, unknown> & { id: string | number };
+          export type StatusConfig = {
+            label: string;
+            color: string;
+            bg: string;
+            dotColor?: string;
+            terminal?: boolean;
+          };
+
+          export const STATUS_CONFIGS: Record<string, StatusConfig> = {};
+          export const RISK_CONFIGS: Record<string, { label: string; color: string; bg: string; score: number }> = {};
+          export const APPROVAL_CONFIGS: Record<string, { label: string; color: string; bg: string }> = {};
+          export function getStatusConfig(status: string): StatusConfig {
+            return { label: status, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)' };
+          }
+          export function getRiskConfig(level: string) {
+            return { label: level, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)', score: 0 };
+          }
+          export function getApprovalConfig(state: string) {
+            return { label: state, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)' };
+          }
+          export function riskScoreToLevel(score: number): RiskLevel {
+            if (score >= 0.85) return 'critical';
+            if (score >= 0.65) return 'high';
+            if (score >= 0.35) return 'medium';
+            return 'low';
+          }
+          export function severityToRiskLevel(severity: string): RiskLevel {
+            return severity === 'critical' || severity === 'high' || severity === 'medium'
+              ? severity
+              : 'low';
+          }
+          export function isTerminalStatus(status: string): boolean {
+            return ['completed', 'succeeded', 'failed', 'cancelled', 'rejected', 'resolved', 'closed'].includes(status);
+          }
+          export function formatAgo(value?: string): string { return value ? value : '—'; }
+          export function formatDuration(startedAt?: string, completedAt?: string): string {
+            return startedAt && completedAt ? `${startedAt} – ${completedAt}` : '—';
+          }
+
+          export const OperationalStatusBadge = NoopComponent;
+          export const OperationalRiskBadge = NoopComponent;
+          export const OperationalApprovalBadge = NoopComponent;
+          export const OperationalOwnerChip = NoopComponent;
+          export const OperationalEvidencePanel = NoopComponent;
+          export const OperationalAuditTimeline = NoopComponent;
+          export const OperationalEscalationPanel = NoopComponent;
+          export const OperationalDetailPane = NoopComponent;
+          export const OperationalQueueRow = NoopComponent;
+          '''.replace("          ", "")
+          shared_source.write_text(shared_text.rstrip() + operational_contract + "\n", encoding="utf-8")
+
+          # Fail closed with one complete list of missing runtime named exports.
+          shared_text = shared_source.read_text(encoding="utf-8")
+          exported_values = set(
+              re.findall(
+                  r"export\s+(?:async\s+)?(?:const|let|var|function|class)\s+([A-Za-z_$][\w$]*)",
+                  shared_text,
+              )
+          )
+          import_pattern = re.compile(
+              r"(?:import|export)\s*\{(?P<names>.*?)\}\s*from\s*['\"]"
+              r"@szl-holdings/shared-ui(?:/[^'\"]*)?['\"]",
+              re.DOTALL,
+          )
+          required_values: set[str] = set()
+          for source_path in sorted(Path("organs/sentra/web/src").rglob("*")):
+              if source_path.suffix not in {".ts", ".tsx"}:
+                  continue
+              source_text = source_path.read_text(encoding="utf-8")
+              for match in import_pattern.finditer(source_text):
+                  names = re.sub(r"/\*.*?\*/", "", match.group("names"), flags=re.DOTALL)
+                  for raw_name in names.split(","):
+                      name = raw_name.strip()
+                      if not name or name.startswith("type "):
+                          continue
+                      original = re.split(r"\s+as\s+", name, maxsplit=1)[0].strip()
+                      if re.fullmatch(r"[A-Za-z_$][\w$]*", original):
+                          required_values.add(original)
+          missing_exports = sorted(required_values - exported_values)
+          if missing_exports:
+              raise SystemExit(
+                  "shared-ui offline stub is missing runtime named exports: "
+                  + ", ".join(missing_exports)
+              )
+          print(f"shared-ui runtime export audit passed for {len(required_values)} named imports")
           PY
 
       - name: Install the self-contained Sentra workspace
@@ -197,10 +310,12 @@ jobs:
           grep -Fq 'export function useStandardQuery' organs/sentra/stubs/api-client-react/index.ts
           grep -Fq 'export function useStandardMutation' organs/sentra/stubs/api-client-react/index.ts
           grep -Fq '"@tanstack/react-query": "catalog:"' organs/sentra/stubs/api-client-react/package.json
+          grep -Fq 'export const OperationalOwnerChip' organs/sentra/stubs/shared-ui/index.ts
+          grep -Fq 'export const OperationalAuditTimeline' organs/sentra/stubs/shared-ui/index.ts
           git diff --check
           git status --short
 
-      - name: Commit deterministic cleanup and build repair
+      - name: Commit deterministic cleanup and build repairs
         shell: bash
         run: |
           set -euo pipefail
@@ -211,10 +326,11 @@ jobs:
             organs/sentra/web/package.json \
             organs/sentra/pnpm-workspace.yaml \
             organs/sentra/stubs/api-client-react/index.ts \
-            organs/sentra/stubs/api-client-react/package.json
+            organs/sentra/stubs/api-client-react/package.json \
+            organs/sentra/stubs/shared-ui/index.ts
           if git diff --cached --quiet; then
-            echo '::error::The cleanup and repair produced no tracked changes'
+            echo '::error::The cleanup and repairs produced no tracked changes'
             exit 1
           fi
-          git commit -s -m "fix(build): remove Replit Vite deps and restore Sentra hooks"
+          git commit -s -m "fix(build): remove Replit Vite deps and restore Sentra stubs"
           git push origin "HEAD:${GITHUB_REF_NAME}"
