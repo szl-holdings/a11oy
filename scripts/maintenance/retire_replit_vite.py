@@ -153,6 +153,7 @@ export type OperationalStatus = string;
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type ApprovalState = 'none' | 'pending' | 'approved' | 'rejected' | 'expired';
 export type ActorType = 'user' | 'system' | 'agent';
+export type DataState = 'live' | 'demo' | 'loading' | 'error' | 'seeded' | 'simulated' | 'unavailable';
 export type OperationalOwner = {
   userId?: string | number;
   name?: string;
@@ -183,6 +184,23 @@ export type StatusConfig = {
 export const STATUS_CONFIGS: Record<string, StatusConfig> = {};
 export const RISK_CONFIGS: Record<string, { label: string; color: string; bg: string; score: number }> = {};
 export const APPROVAL_CONFIGS: Record<string, { label: string; color: string; bg: string }> = {};
+
+const OFFLINE_LANE_ACCENT = {
+  primary: '#f5f5f5',
+  secondary: '#a3a3a3',
+  muted: '#737373',
+} as const;
+
+export const LANE_ACCENT_HEX = {
+  alloy: OFFLINE_LANE_ACCENT,
+  lyte: OFFLINE_LANE_ACCENT,
+  terra: OFFLINE_LANE_ACCENT,
+  aegis: OFFLINE_LANE_ACCENT,
+  vessels: OFFLINE_LANE_ACCENT,
+  counsel: OFFLINE_LANE_ACCENT,
+  carlota: OFFLINE_LANE_ACCENT,
+  sentra: OFFLINE_LANE_ACCENT,
+} as const;
 
 export function getStatusConfig(status: string): StatusConfig {
   return { label: status, color: '#7c85a0', bg: 'rgba(124,133,160,0.08)' };
@@ -221,6 +239,28 @@ export function formatDuration(startedAt?: string, completedAt?: string): string
   return startedAt && completedAt ? `${startedAt} – ${completedAt}` : '—';
 }
 
+export function useContactModal(_source?: string) {
+  return {
+    isOpen: false,
+    open: noop,
+    close: noop,
+  };
+}
+
+export function useRealtimeChannel<T = unknown>(_channel: string) {
+  return {
+    lastMessage: null as T | null,
+    isConnected: false,
+    status: 'offline' as const,
+  };
+}
+
+export const BatchPdfPanel = NoopComponent;
+export const BillingAccount = NoopComponent;
+export const ConstellationGraph = NoopComponent;
+export const DocumentEnginePanel = NoopComponent;
+export const GraphQLDataPanel = NoopComponent;
+export const SigningDashboard = NoopComponent;
 export const OperationalStatusBadge = NoopComponent;
 export const OperationalRiskBadge = NoopComponent;
 export const OperationalApprovalBadge = NoopComponent;
@@ -232,14 +272,16 @@ export const OperationalDetailPane = NoopComponent;
 export const OperationalQueueRow = NoopComponent;
 '''
     path.write_text(current.rstrip() + contract + "\n", encoding="utf-8")
-    print("shared-ui stub: restored operational contract")
+    print("shared-ui stub: restored complete offline contract")
 
 
 def collect_runtime_named_imports() -> set[str]:
     # Excluding braces prevents a multiline match from crossing import
     # declarations and creating false positives from unrelated packages.
+    # Declaration-level `import type` / `export type` blocks are excluded from
+    # the runtime export set; inline `type Name` specifiers are excluded below.
     import_pattern = re.compile(
-        r"^[ \t]*(?:import|export)[ \t]*(?:type[ \t]+)?\{"
+        r"^[ \t]*(?:import|export)[ \t]*(?P<type_decl>type[ \t]+)?\{"
         r"(?P<names>[^{}]*)\}[ \t\r\n]*from[ \t\r\n]*['\"]"
         r"@szl-holdings/shared-ui(?:/[^'\"]*)?['\"]",
         re.MULTILINE,
@@ -252,6 +294,8 @@ def collect_runtime_named_imports() -> set[str]:
             continue
         source = source_path.read_text(encoding="utf-8")
         for match in import_pattern.finditer(source):
+            if match.group("type_decl"):
+                continue
             names = re.sub(r"/\*.*?\*/", "", match.group("names"), flags=re.DOTALL)
             for raw_name in names.split(","):
                 name = raw_name.strip()
