@@ -66,6 +66,15 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/maintenance/retire_replit_vite.py
           python scripts/maintenance/retire_replit_vite.py
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("organs/sentra/stubs/shared-ui/index.ts")
+          path.write_text(
+              path.read_text(encoding="utf-8").rstrip() + "\n",
+              encoding="utf-8",
+          )
+          PY
 
       - name: Install self-contained Sentra workspace
         shell: bash
