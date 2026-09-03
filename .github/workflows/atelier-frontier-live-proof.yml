@@ -78,6 +78,70 @@ jobs:
           base="$(git merge-base HEAD origin/main)"
           git diff --check "$base" HEAD
 
+  live-baseline:
+    name: Prove the exact deployed protected-base Atelier surface
+    if: github.event_name == 'pull_request'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      SOURCE_SHA: ${{ github.event.pull_request.base.sha }}
+      ORIGIN: https://szlholdings-a11oy.hf.space
+      REPORT: /tmp/atelier-frontier-live-baseline.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out reviewed verifier source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Probe current protected-base deployment
+        id: proof
+        shell: bash
+        run: |
+          set +e
+          python scripts/verify_atelier_frontier_live.py \
+            --origin "$ORIGIN" \
+            --source-sha "$SOURCE_SHA" \
+            --report "$REPORT"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable secret-free baseline evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: atelier-frontier-live-baseline-pr-${{ github.event.pull_request.number }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Enforce exact source-bound baseline result
+        if: always()
+        shell: bash
+        env:
+          EXIT_CODE: ${{ steps.proof.outputs.exit_code }}
+        run: |
+          set -euo pipefail
+          code="${EXIT_CODE:-2}"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Atelier Frontier protected-base proof failed with exit $code."
+            exit "$code"
+          fi
+          echo "Protected-base Atelier Frontier is source-bound and live."
+
   live:
     name: Prove exact live page, registry, evaluator, and source identity
     if: >-
