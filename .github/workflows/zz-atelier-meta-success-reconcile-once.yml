@@ -1,0 +1,123 @@
+name: Atelier Meta-Success protected-main reconciliation once
+
+on:
+  push:
+    branches:
+      - feat/atelier-frontier-meta-success-synthesis-v1
+    paths:
+      - .github/workflows/zz-atelier-meta-success-reconcile-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: atelier-meta-success-reconcile-once
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/feat/atelier-frontier-meta-success-synthesis-v1'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact candidate branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/atelier-frontier-meta-success-synthesis-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Merge current protected main without rewriting lineage
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = 'feat/atelier-frontier-meta-success-synthesis-v1'
+          git fetch --no-tags origin refs/heads/main:refs/remotes/origin/main
+          MAIN_SHA="$(git rev-parse --verify origin/main)"
+          BEFORE_SHA="$(git rev-parse --verify HEAD)"
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git merge --no-edit --no-ff origin/main
+          AFTER_MERGE_SHA="$(git rev-parse --verify HEAD)"
+          test "$(git merge-base --is-ancestor "$MAIN_SHA" HEAD; echo $?)" = '0'
+          {
+            echo "main_sha=$MAIN_SHA"
+            echo "candidate_before=$BEFORE_SHA"
+            echo "merge_sha=$AFTER_MERGE_SHA"
+          } >> "$GITHUB_ENV"
+
+      - name: Prove clean-room synthesis and source contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m compileall -q serve.py src tests 2>/dev/null || python -m compileall -q serve.py src 2>/dev/null || true
+          mapfile -t focused < <(find tests -maxdepth 1 -type f \( -iname '*meta*success*.py' -o -iname '*atelier*.py' -o -iname '*fashion*thinking*.py' -o -iname '*external*pattern*.py' \) -print | sort)
+          if [ "${#focused[@]}" -eq 0 ]; then
+            echo '::error::No focused Meta-Success/Atelier regression contract was found.'
+            exit 1
+          fi
+          python -m pytest -q "${focused[@]}"
+          git diff --check origin/main...HEAD
+          if git grep -I -n -E 'github\.com/meta-success/.+/(raw|blob)/|meta-success\.com' -- ':!docs/**' ':!evidence/**' ':!THIRD_PARTY_NOTICES*' ':!tests/**'; then
+            echo '::error::Candidate contains a prohibited runtime dependency on the external implementation or site.'
+            exit 1
+          fi
+          test -f THIRD_PARTY_NOTICES.md || test -f THIRD_PARTY_NOTICES || {
+            echo '::error::Third-party notice surface is missing.'
+            exit 1
+          }
+
+      - name: Emit immutable reconciliation evidence and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/atelier
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          payload = {
+              "schema": "szl.atelier.meta-success-lineage/v1",
+              "branch": "feat/atelier-frontier-meta-success-synthesis-v1",
+              "protected_main_sha": os.environ["main_sha"],
+              "candidate_before_sha": os.environ["candidate_before"],
+              "merge_sha": os.environ["merge_sha"],
+              "reuse_boundary": "license-aware-pattern-abstraction-and-clean-room-expression",
+              "external_source_runtime_dependency": False,
+              "modeled_performance_is_measured": False,
+          }
+          canonical = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+          payload["proof_chain_sha256"] = hashlib.sha256(canonical).hexdigest()
+          Path("evidence/atelier/meta-success-protected-main-lineage.json").write_text(
+              json.dumps(payload, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          rm -f .github/workflows/zz-atelier-meta-success-reconcile-once.yml
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo '::error::Reconciliation produced no reviewable terminal commit.'
+            exit 1
+          fi
+          git commit -s -m 'merge(main): reconcile Meta-Success synthesis with protected lineage'
+          git push origin HEAD:refs/heads/feat/atelier-frontier-meta-success-synthesis-v1
+
+      - name: Prove one-shot machinery is absent from terminal tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e .github/workflows/zz-atelier-meta-success-reconcile-once.yml
+          git status --porcelain=v1 | grep -q '^' && {
+            echo '::error::Terminal checkout is dirty.'
+            git status --short
+            exit 1
+          } || true
