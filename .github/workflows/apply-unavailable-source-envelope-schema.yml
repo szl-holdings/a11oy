@@ -157,8 +157,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          python3 -m pip install --disable-pip-version-check pytest
           node --check tools/readiness-harness/probe_runner.mjs
-          python3 tests/test_readiness_unavailable_source_envelopes.py
           python3 -m pytest -q \
             tests/test_readiness_unavailable_source_envelopes.py \
             tests/test_readiness_deep_vertical_contract.py \
