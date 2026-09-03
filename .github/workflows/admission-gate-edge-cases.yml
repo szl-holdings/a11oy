@@ -1,0 +1,59 @@
+name: Admission gate edge-case regressions
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "tests/test_admission_gate_edge_cases.py"
+      - ".github/workflows/admission-gate-edge-cases.yml"
+      - "szl_claim_rupture_gate.py"
+      - "szl_confattest.py"
+      - "szl_dsse.py"
+      - "szl_public_verify.py"
+  push:
+    branches: [main]
+    paths:
+      - "tests/test_admission_gate_edge_cases.py"
+      - ".github/workflows/admission-gate-edge-cases.yml"
+      - "szl_claim_rupture_gate.py"
+      - "szl_confattest.py"
+      - "szl_dsse.py"
+      - "szl_public_verify.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: admission-gate-edge-cases-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Reject unknown signers, digest drift, over-ceiling trust, and empty claims
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact test dependencies
+        run: python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Run the four admission boundary regressions
+        run: python -m pytest tests/test_admission_gate_edge_cases.py -q
+
+      - name: Diff hygiene
+        run: git diff --check
