@@ -1670,10 +1670,12 @@ def _readiness_public_source(entry: Any) -> Any:
     status = str(freshness.get("status") or "").strip().lower()
     if status in _READINESS_PUBLIC_FRESHNESS and freshness.get("fetched_at") is not None:
         return entry
-    if status not in _READINESS_PUBLIC_FRESHNESS and entry.get("value") is None:
-        return entry
     out = dict(entry)
     fresh = dict(freshness)
+    if status not in _READINESS_PUBLIC_FRESHNESS and entry.get("value") is None:
+        fresh["status"] = "UNAVAILABLE"
+        out["freshness"] = fresh
+        return out
     if fresh.get("fetched_at") is None:
         age_s = fresh.get("age_s")
         if isinstance(age_s, (int, float)) and not isinstance(age_s, bool):
