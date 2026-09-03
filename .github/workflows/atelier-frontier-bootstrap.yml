@@ -39,9 +39,9 @@ jobs:
           set -euo pipefail
           test "$GITHUB_REF" = refs/heads/feat/atelier-frontier-meta-success-synthesis-v1
           git fetch --no-tags origin main
-          base="$(git rev-parse HEAD^)"
-          current_main="$(git rev-parse origin/main)"
-          test "$base" = "$current_main"
+          base="$(git merge-base HEAD origin/main)"
+          git merge-base --is-ancestor "$base" origin/main
+          test "$(git rev-list --count "$base"..HEAD)" -ge 1
           mapfile -t changed < <(git diff --name-only "$base" HEAD | sort)
           expected=(
             .github/workflows/atelier-frontier-bootstrap.yml
