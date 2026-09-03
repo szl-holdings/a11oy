@@ -118,3 +118,21 @@ test("apex preserves bounded application write methods and bodies", async () => 
   assert.deepEqual(JSON.parse(await forwarded.text()), { prompt: "prove it" });
   assert.equal(response.status, 200);
 });
+
+test("HEAD reaches the fixed origin but never emits an upstream body", async () => {
+  let forwarded;
+  const response = await handleRequest(
+    new Request("https://a-11-oy.com/healthz", { method: "HEAD" }),
+    async (request) => {
+      forwarded = request;
+      return new Response("upstream-body-must-not-be-emitted", {
+        status: 200,
+        headers: { "content-type": "text/plain" },
+      });
+    },
+  );
+  assert.equal(forwarded.method, "HEAD");
+  assert.equal(forwarded.url, "https://szlholdings-a11oy.hf.space/healthz");
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "");
+});
