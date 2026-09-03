@@ -28,6 +28,10 @@ intentional rather than an orphaned source file.
 existing Series-A seam. It intentionally owns no database, signer, credentials,
 scheduler, passport authority, or effectors.
 
+`atelier_frontier` is the GET/HEAD-only clean-room reference intake and MODELED
+candidate evaluator. It copies no third-party source or identity and binds no
+signer, credential, persistence layer, scheduler, or effector.
+
 The package top-level name is `routers` (not szl_*/a11oy_*), so it is intentionally
 OUTSIDE the guarded-import-liveness first-party scan — and the files exist anyway.
 
@@ -39,5 +43,6 @@ __all__ = [
     "research_3d",
     "frontier_reads",
     "frontier_now_control_plane",
+    "atelier_frontier",
     "series_a_control_plane",
 ]
