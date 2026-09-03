@@ -9,7 +9,7 @@ on:
   workflow_dispatch: {}
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: materialize-hf-drift-repair-20260903
@@ -24,11 +24,11 @@ jobs:
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
-      - name: Checkout exact materializer branch
+      - name: Checkout exact review branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.sha }}
-          persist-credentials: false
+          ref: ops/hf-drift-materialize-20260903-0337
+          persist-credentials: true
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -86,3 +86,26 @@ jobs:
             docs/ecosystem-stage-matrix.json
           if-no-files-found: error
           retention-days: 30
+      - name: Commit only the generated source evidence and retire this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "SZL HF Drift Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add docs/huggingface-ecosystem-manifest.json docs/ecosystem-stage-matrix.json
+          git rm .github/workflows/materialize-hf-drift-repair.yml
+          python3 - <<'PY'
+          import subprocess
+          expected = {
+              '.github/workflows/materialize-hf-drift-repair.yml',
+              'docs/ecosystem-stage-matrix.json',
+              'docs/huggingface-ecosystem-manifest.json',
+          }
+          changed = set(subprocess.check_output(['git', 'diff', '--cached', '--name-only'], text=True).splitlines())
+          if changed != expected:
+              raise SystemExit(f'unexpected staged paths: {sorted(changed)}')
+          PY
+          git commit \
+            -m "chore(hf): refresh post-quarantine ecosystem evidence" \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:ops/hf-drift-materialize-20260903-0337"
