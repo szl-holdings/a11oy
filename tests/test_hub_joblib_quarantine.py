@@ -43,7 +43,7 @@ def _details(**overrides):
         "status": "open",
         "title": MERGE.TITLE,
         "author": "owner",
-        "target_branch": "main",
+        "target_branch": "refs/heads/main",
         "conflicting_files": None,
         "diff": GOOD_DIFF,
     }
@@ -51,8 +51,9 @@ def _details(**overrides):
     return SimpleNamespace(**values)
 
 
-def test_exact_single_file_deletion_is_accepted():
-    details = _details()
+@pytest.mark.parametrize("target_branch", ["main", "refs/heads/main"])
+def test_exact_single_file_deletion_is_accepted_for_canonical_main_refs(target_branch):
+    details = _details(target_branch=target_branch)
     assert (
         MERGE._validate_candidate(_DetailsApi(details), "SZLHOLDINGS/example", details, "owner")
         is details
@@ -85,9 +86,11 @@ def test_unexpected_or_non_deletion_diff_is_rejected(diff):
     [
         ("author", "attacker"),
         ("target_branch", "dev"),
+        ("target_branch", "refs/heads/develop"),
         ("status", "draft"),
         ("is_pull_request", False),
         ("conflicting_files", ["model.joblib"]),
+        ("conflicting_files", True),
         ("title", "quarantine: remove model.joblib and README"),
     ],
 )
