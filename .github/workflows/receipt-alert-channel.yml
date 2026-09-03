@@ -169,13 +169,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if state="$(gh issue view 541 --repo "$GITHUB_REPOSITORY" --json state --jq '.state' 2>/dev/null)"; then
-            :
-          else
-            state=""
+          if ! state="$(gh issue view 541 --repo "$GITHUB_REPOSITORY" --json state --jq '.state' 2>/dev/null)"; then
+            echo "::error::Unable to read issue 541 state; refusing to report the closure path as complete."
+            exit 1
           fi
           if [ "$state" != "OPEN" ]; then
-            echo "Issue 541 is already closed or unavailable."
+            echo "Issue 541 is already closed."
             exit 0
           fi
           ntfy_status="$(python -c 'import json; print(json.load(open("receipt-alert-delivery.json"))["ntfy"]["status"])')"
