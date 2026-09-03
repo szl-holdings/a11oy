@@ -1,0 +1,54 @@
+name: Close superseded ntfy repair once
+
+on:
+  push:
+    branches:
+      - ops/close-superseded-ntfy-pr-20260902
+    paths:
+      - ".github/workflows/close-superseded-ntfy-pr-once.yml"
+
+permissions:
+  contents: write
+  issues: read
+  pull-requests: write
+
+jobs:
+  close:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Prove the durable alert successor is protected and live-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "/repos/${GITHUB_REPOSITORY}/contents/scripts/receipt_alert_delivery.py?ref=main" --jq '.sha' >/dev/null
+          state="$(gh issue view 541 --repo "$GITHUB_REPOSITORY" --json state --jq '.state')"
+          test "$state" = "CLOSED"
+
+      - name: Close only the obsolete single-relay pull request
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t prs < <(
+            gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
+              --state open \
+              --head fix-541-restore-ntfy-relay \
+              --json number \
+              --jq '.[].number'
+          )
+          for number in "${prs[@]}"; do
+            gh pr comment "$number" \
+              --repo "$GITHUB_REPOSITORY" \
+              --body "Superseded by the protected dual-path receipt-alert implementation now on main. GitHub Issues is the required durable primary; ntfy remains an independently evidenced optional secondary. Issue #541 reached its live canary closure gate, so this single-relay candidate is no longer the canonical repair."
+            gh pr close "$number" --repo "$GITHUB_REPOSITORY"
+          done
+
+      - name: Remove transient cleanup branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" --delete "$GITHUB_REF_NAME"
