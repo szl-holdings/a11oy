@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   canonicalLocation,
   handleRequest,
+  originLocation,
+  resolveOriginPath,
   rewriteOriginLocation,
 } from "../cloudflare/a11oy-product-root-worker.mjs";
 
@@ -65,6 +67,56 @@ test("apex proxies the exact path to the fixed Space origin", async () => {
     response.headers.get("link"),
     '<https://a-11-oy.com/api/a11oy/v1/honest>; rel="canonical"',
   );
+});
+
+test("public spectral and controller aliases resolve to canonical origin routes", async () => {
+  const observed = [];
+  for (const [path, expected] of [
+    ["/spectral?mode=proof", "/static/3d/holographic.html?mode=proof"],
+    ["/spectral/?mode=proof", "/static/3d/holographic.html?mode=proof"],
+    ["/controller?fresh=1", "/api/a11oy/v1/honest?fresh=1"],
+    ["/controller/?fresh=1", "/api/a11oy/v1/honest?fresh=1"],
+  ]) {
+    const response = await handleRequest(
+      new Request(`https://a-11-oy.com${path}`),
+      async (request) => {
+        observed.push(new URL(request.url));
+        return new Response("origin-bytes", { status: 200 });
+      },
+    );
+    const incoming = new URL(`https://a-11-oy.com${path}`);
+    const expectedUrl = new URL(`https://szlholdings-a11oy.hf.space${expected}`);
+    assert.equal(observed.at(-1).toString(), expectedUrl.toString());
+    assert.equal(
+      response.headers.get("x-szl-edge-alias"),
+      `${incoming.pathname}->${expectedUrl.pathname}`,
+    );
+    assert.equal(response.status, 200);
+    assert.equal(await response.text(), "origin-bytes");
+  }
+});
+
+test("aliases are read-only and preserve upstream failure status", async () => {
+  assert.equal(resolveOriginPath("/controller", "POST"), "/controller");
+  assert.equal(
+    originLocation("https://a-11-oy.com/controller?x=1", "POST").toString(),
+    "https://szlholdings-a11oy.hf.space/controller?x=1",
+  );
+
+  let forwarded;
+  const response = await handleRequest(
+    new Request("https://a-11-oy.com/spectral", { method: "GET" }),
+    async (request) => {
+      forwarded = request;
+      return new Response("not present", { status: 404 });
+    },
+  );
+  assert.equal(
+    forwarded.url,
+    "https://szlholdings-a11oy.hf.space/static/3d/holographic.html",
+  );
+  assert.equal(response.status, 404);
+  assert.equal(await response.text(), "not present");
 });
 
 test("relative and hf.space redirects are rewritten to the apex", () => {
