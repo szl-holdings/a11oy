@@ -36,4 +36,5 @@ jobs:
       - name: Enforce root mobile/accessibility contract
         run: |
           python policy/scripts/check_public_experience_v4.py \
-            target/a11oy_landing.html
+            target/a11oy_landing.html \
+            target/console/assets/apex-v2.css
