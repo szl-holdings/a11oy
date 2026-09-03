@@ -1,0 +1,194 @@
+name: Receipt alert channel
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/receipt_alert_delivery.py"
+      - "tests/test_receipt_alert_delivery.py"
+      - ".github/workflows/receipt-alert-channel.yml"
+      - ".github/workflows/receipt-alert-channel-contract.yml"
+  schedule:
+    - cron: "43 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      message:
+        description: "Alert or canary message"
+        required: false
+        type: string
+        default: "Receipt alert delivery canary"
+      severity:
+        description: "info, warning, error, or critical"
+        required: false
+        type: choice
+        options: [info, warning, error, critical]
+        default: info
+      source_url:
+        description: "Credential-free HTTPS evidence URL"
+        required: false
+        type: string
+        default: ""
+      canary:
+        description: "Create, acknowledge, and close a synthetic delivery issue"
+        required: false
+        type: boolean
+        default: true
+  workflow_call:
+    inputs:
+      message:
+        description: "Receipt verification alert message"
+        required: true
+        type: string
+      severity:
+        description: "info, warning, error, or critical"
+        required: false
+        type: string
+        default: error
+      source_url:
+        description: "Credential-free HTTPS evidence URL"
+        required: false
+        type: string
+        default: ""
+      canary:
+        description: "Use synthetic create/acknowledge/close behavior"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: receipt-alert-channel-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  ALERT_REPORT: receipt-alert-delivery.json
+
+jobs:
+  deliver:
+    name: Durable GitHub alert with optional ntfy relay
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    env:
+      GH_TOKEN: ${{ github.token }}
+      NTFY_TOPIC_URL: ${{ secrets.NTFY_TOPIC_URL }}
+      NTFY_TOKEN: ${{ secrets.NTFY_TOKEN }}
+      EVENT_NAME: ${{ github.event_name }}
+      INPUT_MESSAGE: ${{ inputs.message || '' }}
+      INPUT_SEVERITY: ${{ inputs.severity || '' }}
+      INPUT_SOURCE_URL: ${{ inputs.source_url || '' }}
+      INPUT_CANARY: ${{ inputs.canary || false }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Run network-free delivery contracts
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q tests/test_receipt_alert_delivery.py
+          python -m py_compile scripts/receipt_alert_delivery.py
+
+      - name: Deliver the alert or synthetic canary
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(--report "$ALERT_REPORT")
+          case "$EVENT_NAME" in
+            workflow_call|workflow_dispatch)
+              message="${INPUT_MESSAGE:-Receipt alert delivery canary}"
+              severity="${INPUT_SEVERITY:-info}"
+              args+=(--message "$message" --severity "$severity")
+              if [ -n "${INPUT_SOURCE_URL:-}" ]; then
+                args+=(--source-url "$INPUT_SOURCE_URL")
+              fi
+              if [ "${INPUT_CANARY:-false}" = "true" ]; then
+                args+=(--canary)
+              fi
+              ;;
+            *)
+              args+=(
+                --canary
+                --message "Scheduled receipt alert delivery canary for ${GITHUB_REPOSITORY}@${GITHUB_SHA}"
+                --severity info
+                --source-url "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+              )
+              ;;
+          esac
+          python scripts/receipt_alert_delivery.py "${args[@]}"
+
+      - name: Verify the delivery receipt is complete and secret-free
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          path = Path("receipt-alert-delivery.json")
+          if not path.is_file():
+              raise SystemExit("receipt alert workflow emitted no delivery receipt")
+          text = path.read_text(encoding="utf-8")
+          payload = json.loads(text)
+          if payload.get("schema") != "szl.receipt-alert-delivery/v1":
+              raise SystemExit("unexpected receipt alert report schema")
+          if payload.get("token_value_recorded") is not False:
+              raise SystemExit("receipt alert report did not deny token recording")
+          if re.search(r"(?:gh[pousr]_|github_pat_|hf_)[A-Za-z0-9_]{20,}", text):
+              raise SystemExit("credential-shaped content appeared in delivery evidence")
+          if payload.get("status") not in {
+              "DELIVERED",
+              "DELIVERED_WITH_SECONDARY_DEGRADATION",
+          }:
+              raise SystemExit(f"required GitHub delivery did not succeed: {payload.get('status')}")
+          github = payload.get("github") or {}
+          if github.get("status") != "DELIVERED" or not github.get("delivery_digest"):
+              raise SystemExit("GitHub primary delivery is not proved")
+          ntfy = payload.get("ntfy") or {}
+          if "topic" in json.dumps(ntfy, sort_keys=True).casefold():
+              raise SystemExit("ntfy topic identity leaked into the evidence receipt")
+          print(json.dumps(payload, indent=2, sort_keys=True))
+          PY
+
+      - name: Close issue 541 only after the protected-main canary succeeds
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! state="$(gh issue view 541 --repo "$GITHUB_REPOSITORY" --json state --jq '.state' 2>/dev/null)"; then
+            echo "::error::Unable to read issue 541 state; refusing to report the closure path as complete."
+            exit 1
+          fi
+          if [ "$state" != "OPEN" ]; then
+            echo "Issue 541 is already closed."
+            exit 0
+          fi
+          ntfy_status="$(python -c 'import json; print(json.load(open("receipt-alert-delivery.json"))["ntfy"]["status"])')"
+          github_action="$(python -c 'import json; print(json.load(open("receipt-alert-delivery.json"))["github"]["action"])')"
+          gh issue close 541 \
+            --repo "$GITHUB_REPOSITORY" \
+            --reason completed \
+            --comment "Resolved by the protected dual-path receipt-alert channel. The required GitHub Issues canary was delivered, acknowledged, and closed (`${github_action}`), and its secret-free receipt was validated. ntfy is now an independently evidenced optional secondary (`${ntfy_status}`); its degradation cannot suppress the durable primary alert."
+
+      - name: Upload immutable secret-free delivery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: receipt-alert-delivery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.ALERT_REPORT }}
+          if-no-files-found: error
+          retention-days: 90
