@@ -14,6 +14,8 @@ from pathlib import Path
 PAYLOAD_PARTS = 8
 EXPECTED = {'.github/workflows/atelier-frontier.yml': '7f1ff44377a7e89f31e403a65a53dea4d02598c395ac55b61eef956e0e1dc478', 'docs/third-party/meta-success-intake-v1.md': 'f2854cd181aecb3a00cd3a086499a0936e7a9c07165fb467763578788a836cba', 'routers/atelier_frontier.py': '9ef4a66e725fa3854b0be5a1be85617df58eda9b9300ea596d2aa1ee8d28d7b7', 'routers/atelier_frontier_web/app.js': 'ab2050f533f63323acd9fb894fdc94a08288b030bd2a94857cefebf828ed02e6', 'routers/atelier_frontier_web/index.html': '8af3f9819dad4a0548fb45966f39388c3118671148059aec6bbc262ae4fee211', 'routers/atelier_frontier_web/styles.css': '4e5bca5fedca019bdb3efad8672d5014186612ee4f058eb1021631c04be55e5d', 'tests/test_atelier_frontier.py': '6c85e14ce49da880e063166bb4c5ebf6b67bc644c8633e4260597cba1935caf0'}
 
+GENERATED_TEXT_PATHS = ("docs/third-party/meta-success-intake-v1.md",)
+
 
 def replace_once(path: Path, old: str, new: str) -> None:
     text = path.read_text(encoding="utf-8")
@@ -21,6 +23,20 @@ def replace_once(path: Path, old: str, new: str) -> None:
     if count != 1:
         raise SystemExit(f"{path}: expected one integration anchor, found {count}")
     path.write_text(text.replace(old, new), encoding="utf-8")
+
+
+def canonicalize_generated_text(root: Path) -> None:
+    """Remove horizontal end-of-line whitespace from generated text deterministically."""
+    for rel in GENERATED_TEXT_PATHS:
+        path = root / rel
+        text = path.read_text(encoding="utf-8")
+        had_final_newline = text.endswith(("\n", "\r"))
+        normalized = "\n".join(line.rstrip(" \t") for line in text.splitlines())
+        if had_final_newline:
+            normalized += "\n"
+        path.write_text(normalized, encoding="utf-8")
+        if any(line.endswith((" ", "\t")) for line in normalized.splitlines()):
+            raise SystemExit(f"{path}: trailing horizontal whitespace survived canonicalization")
 
 
 def materialize(root: Path) -> None:
@@ -152,10 +168,12 @@ def integrate(root: Path) -> None:
 def main() -> int:
     root = Path(__file__).resolve().parents[2]
     materialize(root)
+    canonicalize_generated_text(root)
     integrate(root)
     report = {
         "schema": "szl.atelier-frontier-bootstrap/v1",
         "files": EXPECTED,
+        "canonicalized_generated_text": list(GENERATED_TEXT_PATHS),
         "source_copy_used": False,
         "external_writes": "DISABLED_BY_RUNTIME_SURFACE",
     }
