@@ -1,0 +1,219 @@
+name: Execute Hub joblib quarantine v2 once
+
+on:
+  push:
+    branches:
+      - exec/hub-joblib-quarantine-v2-20260903
+    paths:
+      - .github/workflows/execute-hub-joblib-quarantine-v2-once.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: execute-hub-joblib-quarantine-v2-once
+  cancel-in-progress: false
+
+jobs:
+  execute:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      BASE_SHA: 620c15836077cc4e3c0aaf571e5d942c5e20030d
+      REPORT: hub-joblib-quarantine-v2.json
+      HF_TOKEN: ${{ secrets.HF_TOKEN || secrets.HF_ORG_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact execution head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 2
+          persist-credentials: false
+
+      - name: Prove immutable protected-main lineage and one-file execution diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "$BASE_SHA"
+          git fetch --no-tags --depth=1 origin main
+          git merge-base --is-ancestor "$BASE_SHA" FETCH_HEAD
+          mapfile -t changed < <(git diff --name-only "$BASE_SHA" "$GITHUB_SHA")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = .github/workflows/execute-hub-joblib-quarantine-v2-once.yml
+
+      - name: Check out the exact protected source revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.BASE_SHA }}
+          path: protected-source
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Require managed Hugging Face authority
+        run: test -n "${HF_TOKEN:-}"
+
+      - name: Install exact Hub client
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.23.0"
+
+      - name: Open exact-parent PRs, merge only returned discussions, and read back
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import os
+          import re
+          import time
+          from pathlib import Path
+          from typing import Any
+
+          from huggingface_hub import CommitOperationDelete, HfApi
+
+          targets = (
+              "SZLHOLDINGS/szl-blocked",
+              "SZLHOLDINGS/szl-formulas",
+              "SZLHOLDINGS/szl-governed-norm",
+              "SZLHOLDINGS/szl-govsign",
+              "SZLHOLDINGS/szl-invariants",
+              "SZLHOLDINGS/szl-nemo",
+              "SZLHOLDINGS/szl-ouroboros",
+              "SZLHOLDINGS/szl-provctl",
+          )
+          token = os.environ.get("HF_TOKEN", "").strip()
+          if not token:
+              raise SystemExit("HF_TOKEN is unavailable")
+          api = HfApi(token=token)
+          rows: list[dict[str, Any]] = []
+          overall = True
+
+          for repo_id in targets:
+              row: dict[str, Any] = {"repo_id": repo_id, "ok": False}
+              try:
+                  before = api.repo_info(repo_id=repo_id, repo_type="model")
+                  parent = str(before.sha)
+                  siblings = {item.rfilename for item in (before.siblings or [])}
+                  row["parent_revision"] = parent
+                  row["joblib_present_before"] = "model.joblib" in siblings
+
+                  if "model.joblib" not in siblings:
+                      row["action"] = "VERIFIED_CURRENT"
+                  else:
+                      created = api.create_commit(
+                          repo_id=repo_id,
+                          repo_type="model",
+                          operations=[CommitOperationDelete(path_in_repo="model.joblib")],
+                          commit_message="quarantine: remove model.joblib from approved path",
+                          create_pr=True,
+                          parent_commit=parent,
+                      )
+                      discussion_num = getattr(created, "pr_num", None)
+                      pr_url = str(getattr(created, "pr_url", "") or "")
+                      if discussion_num is None:
+                          match = re.search(r"/discussions/(\d+)(?:$|[/?#])", pr_url)
+                          discussion_num = int(match.group(1)) if match else None
+                      if discussion_num is None:
+                          raise RuntimeError("exact created pull request did not expose a discussion number")
+                      row["discussion_num"] = int(discussion_num)
+                      api.merge_pull_request(
+                          repo_id=repo_id,
+                          discussion_num=int(discussion_num),
+                          repo_type="model",
+                      )
+                      row["action"] = "OPENED_AND_MERGED_EXACT_DISCUSSION"
+
+                  deadline = time.time() + 120
+                  after = None
+                  while time.time() < deadline:
+                      after = api.repo_info(repo_id=repo_id, repo_type="model")
+                      after_files = {item.rfilename for item in (after.siblings or [])}
+                      if "model.joblib" not in after_files:
+                          break
+                      time.sleep(5)
+                  if after is None:
+                      raise RuntimeError("post-mutation readback unavailable")
+                  after_files = {item.rfilename for item in (after.siblings or [])}
+                  row["observed_revision"] = str(after.sha)
+                  row["joblib_present_after"] = "model.joblib" in after_files
+                  row["ok"] = not row["joblib_present_after"]
+                  if not row["ok"]:
+                      raise RuntimeError("model.joblib remained after bounded readback")
+              except Exception as exc:  # preserve one secret-free observation per target
+                  row["error"] = f"{type(exc).__name__}: {exc}"
+                  overall = False
+              rows.append(row)
+
+          receipt = {
+              "schema": "szl.hf-joblib-quarantine/v2",
+              "observed_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+              "source_revision": os.environ["BASE_SHA"],
+              "operation": "exact-parent-pr-delete-and-exact-discussion-merge",
+              "target_count": len(targets),
+              "ok": overall and all(row.get("ok") is True for row in rows),
+              "targets": rows,
+              "boundaries": {
+                  "deleted_path": "model.joblib",
+                  "other_paths_mutated": False,
+                  "visibility_changed": False,
+                  "hardware_changed": False,
+                  "secrets_persisted": False,
+              },
+          }
+          Path(os.environ["REPORT"]).write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({
+              "ok": receipt["ok"],
+              "source_revision": receipt["source_revision"],
+              "targets": [
+                  {
+                      "repo_id": row["repo_id"],
+                      "action": row.get("action"),
+                      "observed_revision": row.get("observed_revision"),
+                      "joblib_present_after": row.get("joblib_present_after"),
+                      "ok": row.get("ok"),
+                      "error": row.get("error"),
+                  }
+                  for row in rows
+              ],
+          }, indent=2, sort_keys=True))
+          raise SystemExit(0 if receipt["ok"] else 1)
+          PY
+
+      - name: Validate the terminal receipt
+        if: always()
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          receipt = json.loads(Path(os.environ["REPORT"]).read_text(encoding="utf-8"))
+          assert receipt["schema"] == "szl.hf-joblib-quarantine/v2"
+          assert receipt["source_revision"] == os.environ["BASE_SHA"]
+          assert receipt["target_count"] == 8
+          assert receipt["ok"] is True
+          assert all(row["ok"] is True and row["joblib_present_after"] is False for row in receipt["targets"])
+          print("terminal quarantine receipt: PASS")
+          PY
+
+      - name: Upload immutable quarantine receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-joblib-quarantine-v2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT }}
+          if-no-files-found: error
+          retention-days: 180
