@@ -1,0 +1,93 @@
+name: Receipt alert channel contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "scripts/receipt_alert_delivery.py"
+      - "tests/test_receipt_alert_delivery.py"
+      - ".github/workflows/receipt-alert-channel.yml"
+      - ".github/workflows/receipt-alert-channel-contract.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/receipt_alert_delivery.py"
+      - "tests/test_receipt_alert_delivery.py"
+      - ".github/workflows/receipt-alert-channel.yml"
+      - ".github/workflows/receipt-alert-channel-contract.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Durable primary, evidenced secondary, no secret leakage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Run network-free alert contracts
+        run: |
+          python -m pip install --disable-pip-version-check pytest
+          python -m pytest -q tests/test_receipt_alert_delivery.py
+          python -m py_compile scripts/receipt_alert_delivery.py
+
+      - name: Validate the workflow's required authority and boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          workflow = Path(".github/workflows/receipt-alert-channel.yml").read_text(encoding="utf-8")
+          required = (
+              "permissions:\n  contents: read\n  issues: write",
+              "GH_TOKEN: ${{ github.token }}",
+              "python scripts/receipt_alert_delivery.py",
+              "DELIVERED_WITH_SECONDARY_DEGRADATION",
+              "Close issue 541 only after the protected-main canary succeeds",
+              "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+              "if-no-files-found: error",
+          )
+          for token in required:
+              if workflow.count(token) != 1:
+                  raise SystemExit(f"required alert workflow contract missing or repeated: {token}")
+          forbidden = (
+              "continue-on-error: true",
+              "|| true",
+              "permissions:\n  contents: write",
+              "/branches/main/protection",
+              "/rulesets",
+          )
+          for token in forbidden:
+              if token in workflow:
+                  raise SystemExit(f"forbidden alert workflow weakening: {token}")
+          PY
+
+      - name: Reject provider and repository-control mutation primitives
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -R -n -E '/branches/.*/protection|/rulesets|actions/secrets|dependabot/secrets|codespaces/secrets|"(visibility|private|archived)"[[:space:]]*:' \
+            scripts/receipt_alert_delivery.py
+
+      - name: Diff hygiene
+        run: git diff --check
