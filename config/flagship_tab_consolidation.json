@@ -1,0 +1,127 @@
+{
+  "schema": "szl.flagship-tab-consolidation/v1",
+  "status": "PLANNED_NOT_YET_DEPLOYED",
+  "canonical_product_origin": "https://a-11-oy.com",
+  "canonical_proof_origin": "https://a11oy.net",
+  "policy": {
+    "source_of_truth": "GitHub repositories under szl-holdings",
+    "org_space_policy": "Keep public flagship Spaces only after build, health, route, and source-parity verification.",
+    "legacy_space_deletion": "FORBIDDEN until target tab is deployed, target health and route checks pass, source parity is recorded, and a rollback source is retained.",
+    "personal_space_policy": "Novelty and lab experiences may live under betterwithage only after a complete copied build passes its health check."
+  },
+  "flagships": [
+    {
+      "id": "a11oy",
+      "space": "SZLHOLDINGS/a11oy",
+      "source_repo": "szl-holdings/a11oy",
+      "tabs": [
+        "Overview",
+        "Command",
+        "Evidence",
+        "Models",
+        "Frontier",
+        "Operations",
+        "Knowledge",
+        "Khipu",
+        "Governed routing"
+      ],
+      "consolidates": [
+        "a11oy-factory",
+        "evidence-studio",
+        "szl-command-lab",
+        "llm-router-live",
+        "hatun-mcp",
+        "szl-frontier",
+        "gdw-frontier",
+        "szl-khipu",
+        "szl-sovereign-os",
+        "prove-it",
+        "governed-receipt-verifier",
+        "energy-attested-runs",
+        "receipt-chain-live",
+        "szl-govsign-live",
+        "szl-provctl-live",
+        "szl-kernels-live",
+        "szl-blocked-live",
+        "lambda-gate-holo",
+        "governed-norm-holo",
+        "energy-attest-holo"
+      ]
+    },
+    {
+      "id": "killinchu",
+      "space": "SZLHOLDINGS/killinchu",
+      "source_repo": "szl-holdings/killinchu",
+      "tabs": ["Airspace", "Detection", "Fusion", "ROE", "Evidence", "Simulation"],
+      "consolidates": ["sda"]
+    },
+    {
+      "id": "counsel",
+      "space": "SZLHOLDINGS/counsel",
+      "source_repo": "szl-holdings/ayllu",
+      "tabs": ["Matters", "Evidence", "Council", "Assurance", "Deadlines"],
+      "consolidates": ["ayllu", "counsel-assurance"]
+    },
+    {
+      "id": "terra",
+      "space": "SZLHOLDINGS/terra",
+      "source_repo": "szl-holdings/szl-real-estate",
+      "tabs": ["Underwriting", "Public records", "Portfolio", "Assurance", "Evidence"],
+      "consolidates": ["szl-real-estate", "terra-assurance"]
+    },
+    {
+      "id": "sentra",
+      "space": "SZLHOLDINGS/sentra",
+      "source_repo": "szl-holdings/szl-defensive-control-plane",
+      "tabs": ["Security posture", "Events", "Cases", "Controls", "Assurance"],
+      "consolidates": ["aegis-assurance", "guardrail-receipt"]
+    },
+    {
+      "id": "finance",
+      "space": "SZLHOLDINGS/finance",
+      "source_repo": "szl-holdings/szl-quant",
+      "tabs": ["Research", "Signals", "Portfolios", "Market evidence", "Risk limits"],
+      "consolidates": ["puriq-markets", "szl-quant-live"]
+    },
+    {
+      "id": "vessels",
+      "space": "SZLHOLDINGS/vessels",
+      "source_repo": "szl-holdings/szl-fleet-overlay",
+      "tabs": ["Fleet", "Voyages", "Risk", "Maritime intelligence", "Evidence"],
+      "consolidates": []
+    },
+    {
+      "id": "lyte",
+      "space": "SZLHOLDINGS/lyte",
+      "source_repo": "szl-holdings/lyte-services",
+      "tabs": ["Telemetry", "Services", "Lattice", "Incidents", "Evidence"],
+      "consolidates": ["lyte-services", "lyte-lattice"]
+    },
+    {
+      "id": "david-leads",
+      "space": "SZLHOLDINGS/david-leads",
+      "source_repo": "szl-holdings/david-leads",
+      "tabs": ["Accounts", "Leads", "Signals", "Scoring", "Evidence", "Workflows"],
+      "consolidates": []
+    }
+  ],
+  "personal_preservation": [
+    "nexus",
+    "cosmos",
+    "holographic",
+    "khipu-lab",
+    "szl-experiments",
+    "second-brain",
+    "szl-model-inference-lab",
+    "governed-agent-bench"
+  ],
+  "delete_gate": [
+    "GitHub source revision recorded",
+    "target flagship tab deployed",
+    "target route returns successful response",
+    "target health endpoint passes",
+    "target Space public when designated flagship",
+    "rollback source retained",
+    "post-deploy verification receipt recorded"
+  ]
+}
