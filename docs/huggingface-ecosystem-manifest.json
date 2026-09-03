@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/audit_huggingface_ecosystem.py",
-  "observedAt": "2026-09-03T03:51:26Z",
+  "observedAt": "2026-09-03T11:16:39Z",
   "org": "SZLHOLDINGS",
   "inventoryScope": {
     "visibility": "public-only",
@@ -1713,8 +1713,8 @@
         "disabled": false,
         "sdk": null,
         "license": "other",
-        "sha": "552ed63a086c6a569711ba1af2737332e4391b4a",
-        "lastModified": "2026-09-03T03:49:17.000Z",
+        "sha": "b5741672d2dce6e5953ec2e89db490d354dcc6cf",
+        "lastModified": "2026-09-03T11:12:22.000Z",
         "cardSemanticSha256": "7b09277401ed789f6ac2885e5307b621780e0d6b4a6369f7e00e0cdc7e9d68b1",
         "createdAt": "2026-06-12T11:38:04.000Z",
         "tags": [
@@ -2117,9 +2117,9 @@
         "disabled": false,
         "sdk": null,
         "license": "cc-by-4.0",
-        "sha": "b56add276dfca3cf9b19e475764a506da204513c",
-        "lastModified": "2026-09-02T12:32:22.000Z",
-        "cardSemanticSha256": "534e1346300c2a4f48eb14250953d21610830b3d70a8548c70056b9626dd84d5",
+        "sha": "78edbce222cbb6d0987aa1dcc09409a8baf78b5b",
+        "lastModified": "2026-09-03T08:48:03.000Z",
+        "cardSemanticSha256": "db4cb00926f532f6094cdffb0707c2f029f59df2aa499420706ad952a38a1942",
         "createdAt": "2026-06-02T02:15:41.000Z",
         "tags": [
           "task_categories:other",
@@ -2508,8 +2508,8 @@
         "disabled": false,
         "sdk": "docker",
         "license": "apache-2.0",
-        "sha": "66383a91171783a82e3adb675bbec455f45b5938",
-        "lastModified": "2026-09-03T00:30:46.000Z",
+        "sha": "06fda08daea064c610b387bc9a9e6a1572db1d31",
+        "lastModified": "2026-09-03T11:09:17.000Z",
         "cardSemanticSha256": "febfa0cf645f6ac27d919a5004dfde21e454bac29262c630446fe5d49a77e13c",
         "createdAt": "2026-06-03T21:58:01.000Z",
         "tags": [
