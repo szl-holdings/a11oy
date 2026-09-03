@@ -1,0 +1,121 @@
+name: Temporary advance immutable HF publisher pin
+
+on:
+  push:
+    branches:
+      - chore/hf-publisher-pin-29d6c78-20260903
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tmp-advance-hf-publisher-pin-20260903
+  cancel-in-progress: false
+
+jobs:
+  advance-pin:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.actor == 'stephenlutar2-hash'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      OLD_PIN: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+      NEW_PIN: 29d6c78ffa135231bcea885774ea8c4c6f6e84eb
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.ref_name }}
+
+      - name: Advance the complete source-derived pin closure
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          old = os.environ["OLD_PIN"]
+          new = os.environ["NEW_PIN"]
+          expected = {
+              ".github/workflows/hf-sync.yml": 1,
+              "tools/check_copy_sync_lockstep.py": 1,
+              "audit/workflow-action-pins.json": 2,
+              "tests/test_copy_sync_lockstep_source_derived.py": 2,
+              "tests/test_operational_route_contracts.py": 1,
+              "tests/test_canonical_a11oy_relock.py": 1,
+          }
+
+          for raw_path, count in expected.items():
+              path = Path(raw_path)
+              text = path.read_text(encoding="utf-8")
+              observed = text.count(old)
+              if observed != count:
+                  raise SystemExit(
+                      f"{raw_path}: expected {count} occurrence(s) of {old}, found {observed}"
+                  )
+              if new in text:
+                  raise SystemExit(f"{raw_path}: new pin already present before controlled advance")
+              path.write_text(text.replace(old, new), encoding="utf-8")
+              updated = path.read_text(encoding="utf-8")
+              if updated.count(old) != 0 or updated.count(new) != count:
+                  raise SystemExit(f"{raw_path}: replacement closure is not exact")
+
+          with Path("audit/workflow-action-pins.json").open(encoding="utf-8") as handle:
+              json.load(handle)
+          PY
+
+          python3 -m py_compile \
+            tools/check_copy_sync_lockstep.py \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py \
+            tests/test_canonical_a11oy_relock.py
+          python3 tests/test_copy_sync_lockstep_source_derived.py
+          python3 tests/test_operational_route_contracts.py
+          python3 tests/test_canonical_a11oy_relock.py
+          python3 tools/check_copy_sync_lockstep.py
+          git diff --check
+
+      - name: Commit the exact pin closure and retire this workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/_tmp-advance-hf-publisher-pin-20260903.yml
+          if git grep -n "$OLD_PIN" -- \
+              .github/workflows/hf-sync.yml \
+              tools/check_copy_sync_lockstep.py \
+              audit/workflow-action-pins.json \
+              tests/test_copy_sync_lockstep_source_derived.py \
+              tests/test_operational_route_contracts.py \
+              tests/test_canonical_a11oy_relock.py; then
+            echo '::error::Old reusable publisher pin remains in the governed closure.'
+            exit 1
+          fi
+          test "$(git grep -o "$NEW_PIN" -- \
+              .github/workflows/hf-sync.yml \
+              tools/check_copy_sync_lockstep.py \
+              audit/workflow-action-pins.json \
+              tests/test_copy_sync_lockstep_source_derived.py \
+              tests/test_operational_route_contracts.py \
+              tests/test_canonical_a11oy_relock.py | wc -l | tr -d ' ')" = '8'
+          git diff --check
+          git config user.name 'Stephen Lutar'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add \
+            .github/workflows/hf-sync.yml \
+            tools/check_copy_sync_lockstep.py \
+            audit/workflow-action-pins.json \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py \
+            tests/test_canonical_a11oy_relock.py \
+            .github/workflows/_tmp-advance-hf-publisher-pin-20260903.yml
+          git commit \
+            -m 'chore(hf): advance publisher pin after 429 hardening' \
+            -m 'Advance the canonical A11oy deploy caller, capability allowlist, audit inventory, and exact contract tests to the reviewed reusable publisher merge that adds bounded fail-closed retry for rate-limited tree reads.' \
+            -m 'No Hugging Face repository, runtime, custom domain, DNS record, provider secret, or product claim is changed by this commit.' \
+            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin "HEAD:${GITHUB_REF_NAME}"
