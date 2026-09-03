@@ -1,0 +1,80 @@
+name: offline-receipt-verify
+
+# Fail-closed CI gate for the offline receipt-chain verifier (#1625, PR #1711).
+# Positive control: the committed sample bundle MUST verify (CHAIN OK, exit 0).
+# Negative controls: a byte-flipped bundle and a wrong signer key MUST be
+# rejected (exit 1). A verifier that accepts tampering fails this workflow.
+
+on:
+  pull_request:
+    paths:
+      - "examples/verify_chain_offline.py"
+      - "examples/make_sample_chain.py"
+      - "examples/offline-verify-sample/**"
+      - ".github/workflows/offline-receipt-verify.yml"
+  push:
+    branches: [main]
+    paths:
+      - "examples/verify_chain_offline.py"
+      - "examples/make_sample_chain.py"
+      - "examples/offline-verify-sample/**"
+      - ".github/workflows/offline-receipt-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install the only dependency
+        run: pip install cryptography
+
+      - name: Positive control — sample bundle verifies
+        run: |
+          python examples/verify_chain_offline.py \
+            --bundle examples/offline-verify-sample/bundle.json \
+            --pubkey examples/offline-verify-sample/pubkey.pem | tee verify.log
+          grep -q "CHAIN OK" verify.log
+
+      - name: Negative control — tampered bundle is rejected
+        run: |
+          python - <<'EOF'
+          import base64, json
+          b = json.load(open("examples/offline-verify-sample/bundle.json"))
+          raw = bytearray(base64.b64decode(b["beats"][0]["payload"]))
+          raw[16] ^= 0x01  # flip one byte inside the first beat payload
+          b["beats"][0]["payload"] = base64.b64encode(bytes(raw)).decode()
+          json.dump(b, open("/tmp/tampered.json", "w"))
+          EOF
+          if python examples/verify_chain_offline.py \
+              --bundle /tmp/tampered.json \
+              --pubkey examples/offline-verify-sample/pubkey.pem; then
+            echo "::error::verifier accepted a tampered bundle — gate is broken"
+            exit 1
+          fi
+          echo "negative control OK: tampered bundle rejected"
+
+      - name: Negative control — wrong signer key is rejected
+        run: |
+          python - <<'EOF'
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric import ec
+          k = ec.generate_private_key(ec.SECP256R1()).public_key()
+          open("/tmp/attacker.pem", "wb").write(k.public_bytes(
+              serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo))
+          EOF
+          if python examples/verify_chain_offline.py \
+              --bundle examples/offline-verify-sample/bundle.json \
+              --pubkey /tmp/attacker.pem; then
+            echo "::error::verifier accepted an unknown signer key — gate is broken"
+            exit 1
+          fi
+          echo "negative control OK: unknown signer rejected"
