@@ -1,0 +1,168 @@
+name: Promote joblib quarantine once
+
+on:
+  push:
+    branches:
+      - ops/promote-joblib-quarantine-20260902
+    paths:
+      - ".github/workflows/promote-joblib-quarantine-once.yml"
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_HEAD: fix/hub-joblib-estate-quarantine-signed
+    steps:
+      - name: Resolve the exact P0 pull request
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          row="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --state open \
+            --head "$TARGET_HEAD" \
+            --json number,headRefOid,isDraft,baseRefName \
+            --jq '.[] | select(.isDraft == false and .baseRefName == "main") | [.number,.headRefOid] | @tsv' | head -n1)"
+          test -n "$row"
+          number="${row%%$'\t'*}"
+          sha="${row#*$'\t'}"
+          test -n "$number"
+          test "$sha" != "$row"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+      - name: Require clean mergeability at the exact head
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 12); do
+            current="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid,mergeable,mergeStateStatus --jq '[.headRefOid,.mergeable,.mergeStateStatus] | @tsv')"
+            sha="${current%%$'\t'*}"
+            rest="${current#*$'\t'}"
+            mergeable="${rest%%$'\t'*}"
+            state="${rest#*$'\t'}"
+            test "$sha" = "$HEAD_SHA"
+            if [ "$mergeable" = "MERGEABLE" ] && { [ "$state" = "CLEAN" ] || [ "$state" = "HAS_HOOKS" ] || [ "$state" = "UNSTABLE" ]; }; then
+              exit 0
+            fi
+            if [ "$mergeable" = "CONFLICTING" ] || [ "$state" = "DIRTY" ]; then
+              echo "::error::P0 quarantine branch conflicts with current protected main."
+              exit 1
+            fi
+            sleep 5
+          done
+          echo "::error::GitHub did not produce a clean mergeability result."
+          exit 1
+
+      - name: Wait for every exact-head check to finish green
+        shell: bash
+        env:
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          repo = os.environ["GITHUB_REPOSITORY"]
+          sha = os.environ["HEAD_SHA"]
+          token = os.environ["GH_TOKEN"]
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "SZL-joblib-quarantine-promotion/1.0",
+          }
+          allowed = {"success", "neutral", "skipped"}
+
+          def get(path):
+              req = urllib.request.Request("https://api.github.com" + path, headers=headers)
+              with urllib.request.urlopen(req, timeout=45) as response:
+                  return json.loads(response.read())
+
+          deadline = time.monotonic() + 30 * 60
+          while time.monotonic() < deadline:
+              checks = get(f"/repos/{repo}/commits/{sha}/check-runs?per_page=100").get("check_runs", [])
+              statuses = get(f"/repos/{repo}/commits/{sha}/status").get("statuses", [])
+              failed = [
+                  f"{row.get('name')}:{row.get('conclusion')}"
+                  for row in checks
+                  if row.get("status") == "completed"
+                  and str(row.get("conclusion") or "").casefold() not in allowed
+              ] + [
+                  f"{row.get('context')}:{row.get('state')}"
+                  for row in statuses
+                  if row.get("state") in {"failure", "error"}
+              ]
+              active = [
+                  str(row.get("name") or row.get("id"))
+                  for row in checks
+                  if row.get("status") != "completed"
+              ] + [
+                  str(row.get("context") or row.get("id"))
+                  for row in statuses
+                  if row.get("state") == "pending"
+              ]
+              if failed:
+                  raise SystemExit("P0 quarantine checks failed: " + ", ".join(failed))
+              if checks and not active:
+                  print(json.dumps({"head": sha, "checks": len(checks), "statuses": len(statuses), "result": "PASS"}, sort_keys=True))
+                  break
+              print("waiting for P0 checks:", active or ["none observed yet"])
+              time.sleep(10)
+          else:
+              raise SystemExit("timed out waiting for P0 quarantine checks")
+          PY
+
+      - name: Reject review objections, unresolved threads, or head drift
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -euo pipefail
+          current="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid,reviewDecision --jq '[.headRefOid,(.reviewDecision // "")] | @tsv')"
+          test "${current%%$'\t'*}" = "$HEAD_SHA"
+          test "${current#*$'\t'}" != "CHANGES_REQUESTED"
+          owner="${GITHUB_REPOSITORY%%/*}"
+          name="${GITHUB_REPOSITORY#*/}"
+          unresolved="$(gh api graphql \
+            -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}' \
+            -f owner="$owner" -f name="$name" -F number="$PR_NUMBER" \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')"
+          test "$unresolved" = "0"
+
+      - name: Merge the P0 quarantine through ordinary protection
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --squash \
+            --delete-branch \
+            --match-head-commit "$HEAD_SHA" \
+            --subject "security(models): quarantine executable Hub model artifacts"
+
+      - name: Remove the transient promoter branch
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" --delete "$GITHUB_REF_NAME"
