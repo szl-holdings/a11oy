@@ -6,6 +6,7 @@ from pathlib import Path
 
 SCRIPT = Path("scripts/hf_publish_vertical_flagships_v4.py")
 WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
+SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
 
 
 def source() -> str:
@@ -91,18 +92,25 @@ def test_archived_vertical_repositories_remain_out_of_source_links() -> None:
     assert "a11oy/tree/main/verticals/vessels" in text
 
 
-def test_owner_dispatch_and_bounded_protected_main_trigger_point_at_v4() -> None:
-    workflow = WORKFLOW.read_text(encoding="utf-8")
-    assert "workflow_dispatch:" in workflow
-    assert "\n  push:" in workflow
-    assert "branches: [main]" in workflow
-    for path in (
+def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
+    manual = WORKFLOW.read_text(encoding="utf-8")
+    sync = SYNC_WORKFLOW.read_text(encoding="utf-8")
+
+    assert "workflow_dispatch:" in manual
+    assert "\n  push:" not in manual
+    assert "scripts/hf_publish_vertical_flagships_v4.py" in manual
+    assert 'test "$GITHUB_REF" = refs/heads/main' in manual
+    assert 'test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"' in manual
+    assert "persist-credentials: false" in manual
+
+    for fragment in (
+        "publish-vertical-flagships:",
+        "needs: deploy",
+        "Publish and live-verify six domain-native flagship Spaces",
         "scripts/hf_publish_vertical_flagships_v4.py",
-        "tests/test_hf_publish_vertical_flagships_v4.py",
-        ".github/workflows/hf-publish-vertical-flagships.yml",
+        "hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}",
+        "huggingface_hub==1.10.1",
+        "ref: ${{ github.sha }}",
+        "persist-credentials: false",
     ):
-        assert f"      - {path}" in workflow
-    assert "scripts/hf_publish_vertical_flagships_v4.py" in workflow
-    assert 'test "$GITHUB_REF" = refs/heads/main' in workflow
-    assert 'test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"' in workflow
-    assert "persist-credentials: false" in workflow
+        assert fragment in sync
