@@ -3,6 +3,12 @@ name: HF Publish Vertical Flagships
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - scripts/hf_publish_vertical_flagships_v4.py
+      - tests/test_hf_publish_vertical_flagships_v4.py
+      - .github/workflows/hf-publish-vertical-flagships.yml
 
 permissions:
   contents: read
