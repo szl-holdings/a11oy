@@ -18,7 +18,9 @@ The additive Series-A controller is registered at this same pre-catch-all seam. 
 keeps GET/HEAD read-only, uses explicit POSTs for refresh/evaluate/execute, and
 fails one surface closed without taking down the existing frontier reads. Frontier
 Now is a read-only projection over that controller: no second store, signer,
-credential, scheduler, passport authority, or effector.
+credential, scheduler, passport authority, or effector. Atelier Frontier shares
+this pre-catch-all seam as a clean-room, GET/HEAD-only reference registry and
+MODELED evaluator; it has no provider write authority or effectors.
 
 Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
@@ -295,12 +297,25 @@ def register(app) -> dict:
             "effectors": [],
         }
 
+    try:
+        from routers import atelier_frontier as _atelier_frontier
+
+        atelier_frontier = _atelier_frontier.register(app, ns="a11oy")
+    except Exception as exc:  # reference intake must never take down A11oy
+        atelier_frontier = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+            "effectors": [],
+        }
+
     return {
         "ok": True,
         "ns": "a11oy",
         "group": "frontier-reads",
         "series_a": series_a,
         "frontier_now": frontier_now,
+        "atelier_frontier": atelier_frontier,
         "routes": [
             "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
             "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
@@ -309,5 +324,8 @@ def register(app) -> dict:
             "/frontier-now", "/now",
             "/api/a11oy/v1/frontier-now/summary",
             "/api/a11oy/v1/frontier-now/inventory",
+            "/atelier/frontier",
+            "/api/a11oy/v1/atelier/frontier/registry",
+            "/api/a11oy/v1/atelier/frontier/evaluate",
         ],
     }
