@@ -177,6 +177,84 @@ function valueAtPath(obj, path) {
   return { found: true, value: cursor };
 }
 
+// Source wrappers use value=null when an upstream has never produced evidence.
+// That state is schema-valid only when it is the exact canonical UNAVAILABLE
+// envelope: a measured failure clock plus a non-empty error. It never converts
+// absence into an empty result set and it remains subject to the endpoint's
+// independent label, citation, freshness, and HTTP-status gates.
+function isCanonicalUnavailableSource(source) {
+  if (
+    source === null
+    || typeof source !== "object"
+    || Array.isArray(source)
+  ) return false;
+  const freshness = source.freshness;
+  return (
+    Object.prototype.hasOwnProperty.call(source, "value")
+    && source.value === null
+    && freshness !== null
+    && typeof freshness === "object"
+    && !Array.isArray(freshness)
+    && freshness.status === "UNAVAILABLE"
+    && toDate(freshness.fetched_at) !== null
+    && typeof freshness.error === "string"
+    && freshness.error.trim().length > 0
+  );
+}
+
+function unavailableEnvelopePrefix(path) {
+  const text = String(path);
+  if (text === "value.items") return "";
+  const suffix = ".value.items";
+  return text.endsWith(suffix)
+    ? text.slice(0, -suffix.length)
+    : null;
+}
+
+function sourceEnvelopeAt(body, path) {
+  const prefix = unavailableEnvelopePrefix(path);
+  if (prefix === null) return { found: false, value: undefined };
+  return prefix
+    ? valueAtPath(body, prefix)
+    : { found: true, value: body };
+}
+
+function isCanonicalUnavailableItemsEnvelope(body, path) {
+  const candidate = sourceEnvelopeAt(body, path);
+  return candidate.found && isCanonicalUnavailableSource(candidate.value);
+}
+
+function validateUnavailableItemEnvelopes(schema, body) {
+  const prefixes = new Set();
+  for (const [path, type] of Object.entries(schema?.requiredPathTypes || {})) {
+    const prefix = type === "array" ? unavailableEnvelopePrefix(path) : null;
+    if (prefix !== null) prefixes.add(prefix);
+  }
+
+  for (const prefix of prefixes) {
+    const candidate = prefix
+      ? valueAtPath(body, prefix)
+      : { found: true, value: body };
+    if (
+      !candidate.found
+      || candidate.value === null
+      || typeof candidate.value !== "object"
+      || Array.isArray(candidate.value)
+    ) return false;
+
+    const source = candidate.value;
+    const status = source?.freshness?.status;
+    if (status === "UNAVAILABLE") {
+      if (!isCanonicalUnavailableSource(source)) return false;
+    } else if (source.value === null) {
+      // A null source without the exact typed UNAVAILABLE envelope is neither
+      // observed evidence nor an admissible failure witness.
+      return false;
+    }
+  }
+  return true;
+}
+
 function requiredFreshnessTimestampPaths(spec) {
   const schema = SCHEMAS[spec?.schema];
   if (!schema || schema.type !== "object" || !schema.requiredPathTypes) return [];
@@ -536,19 +614,16 @@ function validateSchema(schemaName, body) {
         !Object.prototype.hasOwnProperty.call(rule, "const") || body[key] === rule.const
       )) return false;
       if (sc.requiredPaths && !sc.requiredPaths.every((path) => {
-        let cursor = body;
-        for (const key of path.split(".")) {
-          if (!cursor || typeof cursor !== "object" || !(key in cursor)) return false;
-          cursor = cursor[key];
-        }
-        return true;
+        const candidate = valueAtPath(body, path);
+        return candidate.found || isCanonicalUnavailableItemsEnvelope(body, path);
       })) return false;
       if (sc.requiredPathTypes && !Object.entries(sc.requiredPathTypes).every(([path, type]) => {
-        let cursor = body;
-        for (const key of path.split(".")) {
-          if (!cursor || typeof cursor !== "object" || !(key in cursor)) return false;
-          cursor = cursor[key];
+        const candidate = valueAtPath(body, path);
+        if (!candidate.found) {
+          return type === "array"
+            && isCanonicalUnavailableItemsEnvelope(body, path);
         }
+        const cursor = candidate.value;
         if (type === "array") return Array.isArray(cursor);
         if (type === "nonempty_array") return Array.isArray(cursor) && cursor.length > 0;
         if (type === "object") {
@@ -566,6 +641,7 @@ function validateSchema(schemaName, body) {
         }
         return false;
       })) return false;
+      if (!validateUnavailableItemEnvelopes(sc, body)) return false;
       if (sc.anyKey && !sc.anyKey.some((k) => k in body)) return false;
       return true;
     }
