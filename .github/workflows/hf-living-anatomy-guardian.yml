@@ -1,0 +1,273 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Living Anatomy lifecycle guardian
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/series-a/hf-space-keep-list.yaml
+      - docs/estate/hf-nine-flagship-keep.yaml
+      - .github/workflows/hf-living-anatomy-guardian.yml
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-living-anatomy-guardian
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      SPACE_ID: SZLHOLDINGS/anatomy
+      SPACE_ORIGIN: https://szlholdings-anatomy.hf.space
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Hugging Face client
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.23.0"
+
+      - name: Reconcile visibility, runtime, sleep policy, and live contract
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          from huggingface_hub import HfApi
+
+          SPACE = os.environ["SPACE_ID"]
+          ORIGIN = os.environ["SPACE_ORIGIN"].rstrip("/")
+          RECEIPT = Path("living-anatomy-guardian-receipt.json")
+          TOKEN_KEYS = (
+              "HF_ORG_TOKEN",
+              "HF_WRITE_TOKEN",
+              "HF_TOKEN",
+              "HUGGINGFACE_TOKEN",
+              "HUGGING_FACE_HUB_TOKEN",
+          )
+          token = next(
+              (os.environ.get(key, "").strip() for key in TOKEN_KEYS if os.environ.get(key, "").strip()),
+              "",
+          )
+
+          def now() -> str:
+              return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+
+          def enum_value(value) -> str:
+              raw = getattr(value, "value", value)
+              return str(raw or "UNKNOWN")
+
+          def stage(runtime) -> str:
+              return enum_value(getattr(runtime, "stage", None)).upper()
+
+          def hardware(runtime) -> str:
+              return enum_value(getattr(runtime, "hardware", None)).lower()
+
+          def get_json(path: str, timeout: int = 20) -> dict:
+              request = urllib.request.Request(
+                  ORIGIN + path,
+                  headers={
+                      "Accept": "application/json",
+                      "Cache-Control": "no-cache",
+                      "User-Agent": "szl-living-anatomy-guardian/1.0",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=timeout) as response:
+                  payload = json.load(response)
+              if not isinstance(payload, dict):
+                  raise RuntimeError(f"non-object JSON from {path}")
+              return payload
+
+          receipt = {
+              "schema": "szl.hf-living-anatomy-guardian/v1",
+              "space": SPACE,
+              "origin": ORIGIN,
+              "started_at": now(),
+              "status": "FAIL",
+              "authority": "LIFECYCLE_ONLY",
+              "hardware_mutation": "FORBIDDEN",
+          }
+
+          try:
+              if not token:
+                  raise RuntimeError("no Hugging Face write token is configured")
+              api = HfApi(token=token)
+              info = api.space_info(SPACE)
+              runtime = api.get_space_runtime(SPACE)
+              receipt["before"] = {
+                  "private": bool(getattr(info, "private", False)),
+                  "stage": stage(runtime),
+                  "hardware": hardware(runtime),
+                  "hf_revision": str(getattr(info, "sha", "") or ""),
+              }
+
+              actions: list[str] = []
+              if bool(getattr(info, "private", False)):
+                  api.update_repo_settings(
+                      repo_id=SPACE,
+                      repo_type="space",
+                      private=False,
+                  )
+                  actions.append("visibility:private->public")
+
+              current_hardware = hardware(runtime)
+              if current_hardware and current_hardware not in {"unknown", "none", "cpu-basic"}:
+                  api.set_space_sleep_time(repo_id=SPACE, sleep_time=-1)
+                  sleep_policy = "NEVER_SLEEP_UPGRADED_HARDWARE"
+                  actions.append("sleep_time:-1")
+              elif current_hardware == "cpu-basic":
+                  sleep_policy = "HF_FIXED_48H_INACTIVITY_CPU_BASIC"
+              else:
+                  sleep_policy = "UNAVAILABLE_HARDWARE_STATE"
+
+              current_stage = stage(runtime)
+              restartable = {
+                  "PAUSED",
+                  "SLEEPING",
+                  "STOPPED",
+                  "RUNTIME_ERROR",
+                  "BUILD_ERROR",
+                  "CONFIG_ERROR",
+              }
+              if current_stage in restartable:
+                  api.restart_space(
+                      repo_id=SPACE,
+                      factory_reboot=current_stage in {
+                          "RUNTIME_ERROR",
+                          "BUILD_ERROR",
+                          "CONFIG_ERROR",
+                      },
+                  )
+                  actions.append(f"restart:{current_stage}")
+
+              deadline = time.monotonic() + 900
+              last_stage = current_stage
+              while time.monotonic() < deadline:
+                  info = api.space_info(SPACE)
+                  runtime = api.get_space_runtime(SPACE)
+                  last_stage = stage(runtime)
+                  if bool(getattr(info, "private", False)):
+                      api.update_repo_settings(
+                          repo_id=SPACE,
+                          repo_type="space",
+                          private=False,
+                      )
+                      actions.append("visibility:reconciled-public")
+                  if last_stage == "RUNNING" and not bool(getattr(info, "private", False)):
+                      break
+                  if last_stage in restartable:
+                      api.restart_space(
+                          repo_id=SPACE,
+                          factory_reboot=last_stage in {
+                              "RUNTIME_ERROR",
+                              "BUILD_ERROR",
+                              "CONFIG_ERROR",
+                          },
+                      )
+                      actions.append(f"restart-retry:{last_stage}")
+                  time.sleep(15)
+              else:
+                  raise TimeoutError(f"Space did not become public/RUNNING; last stage={last_stage}")
+
+              live_error = None
+              for attempt in range(12):
+                  try:
+                      living = get_json("/api/anatomy/v1/living-health?refresh=1")
+                      brain = get_json("/api/anatomy/v1/brain/health?refresh=1")
+                      source = get_json("/.well-known/szl-source.json?refresh=1")
+                      if living.get("ready") is not True:
+                          raise RuntimeError("combined Living Anatomy readiness is false")
+                      if brain.get("ready") is not True:
+                          raise RuntimeError("Second Brain readiness is false")
+                      if int(brain.get("chunk_count") or 0) != 575:
+                          raise RuntimeError("Second Brain public chunk count is not 575")
+                      if brain.get("private_graph_nodes_loaded") != 0:
+                          raise RuntimeError("public Space reports private graph nodes loaded")
+                      if brain.get("content_access") != "HANDLES_ONLY":
+                          raise RuntimeError("public Space is not handles-only")
+                      anatomy_revision = str(
+                          source.get("source", {}).get("commit") or ""
+                      )
+                      brain_revision = str(brain.get("source_revision") or "")
+                      if len(anatomy_revision) != 40 or len(brain_revision) != 40:
+                          raise RuntimeError("live source binding lacks exact Git revisions")
+                      live_error = None
+                      break
+                  except Exception as error:
+                      live_error = f"{type(error).__name__}: {error}"
+                      if attempt == 11:
+                          raise RuntimeError(
+                              f"live source-bound contract did not verify: {live_error}"
+                          ) from error
+                      time.sleep(10)
+
+              info = api.space_info(SPACE)
+              runtime = api.get_space_runtime(SPACE)
+              receipt.update(
+                  {
+                      "status": "PASS",
+                      "finished_at": now(),
+                      "actions": actions,
+                      "sleep_policy": sleep_policy,
+                      "after": {
+                          "private": bool(getattr(info, "private", False)),
+                          "stage": stage(runtime),
+                          "hardware": hardware(runtime),
+                          "hf_revision": str(getattr(info, "sha", "") or ""),
+                      },
+                      "live_contract": {
+                          "ready": True,
+                          "anatomy_source_revision": anatomy_revision,
+                          "second_brain_source_revision": brain_revision,
+                          "second_brain_public_chunks": 575,
+                          "content_access": "HANDLES_ONLY",
+                          "private_graph_nodes_loaded": 0,
+                      },
+                  }
+              )
+          except Exception as error:
+              receipt["finished_at"] = now()
+              receipt["error"] = f"{type(error).__name__}: {error}"
+              raise
+          finally:
+              RECEIPT.write_text(
+                  json.dumps(receipt, sort_keys=True, indent=2) + "\n",
+                  encoding="utf-8",
+              )
+              print(json.dumps(receipt, sort_keys=True))
+          PY
+
+      - name: Upload immutable guardian receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: living-anatomy-guardian-${{ github.run_id }}-${{ github.run_attempt }}
+          path: living-anatomy-guardian-receipt.json
+          if-no-files-found: error
+          retention-days: 90

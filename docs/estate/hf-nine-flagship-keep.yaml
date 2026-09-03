@@ -1,4 +1,4 @@
-as_of: "2026-09-02"
+as_of: "2026-09-03"
 state: APPLY
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
@@ -21,3 +21,9 @@ keep:
     role: business_observability
   - id: SZLHOLDINGS/david-leads
     role: insurance
+  - id: SZLHOLDINGS/anatomy
+    role: living_system_atlas
+    dest: https://a-11-oy.com/living-anatomy
+    source: szl-holdings/anatomy
+    dependencies:
+      - szl-holdings/szl-second-brain
