@@ -1,0 +1,157 @@
+name: Aegis Proof Cells exact-tree convergence once
+
+on:
+  push:
+    branches:
+      - ops/aegis-proof-cells-converge-v1-20260903
+    paths:
+      - ".github/workflows/zz-aegis-proof-cells-converge-once.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+
+concurrency:
+  group: aegis-proof-cells-exact-tree-convergence
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    if: github.repository == 'szl-holdings/a11oy' && github.actor == 'stephenlutar2-hash'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_BRANCH: ops/aegis-proof-cells-converge-v1-20260903
+      SOURCE_BRANCH: feat/aegis-proof-cells-operational-v1-20260903
+    steps:
+      - name: Check out exact convergence branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Fetch protected main and optional original candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git fetch --no-tags origin "$SOURCE_BRANCH:refs/remotes/origin/$SOURCE_BRANCH" || true
+          test "$(git merge-base HEAD origin/main)" = "$(git rev-parse origin/main)"
+
+      - name: Materialize only permanent Aegis product files
+        shell: bash
+        run: |
+          set -euo pipefail
+          files=(
+            .github/workflows/aegis-proof-cells.yml
+            console/3d/aegis-proof-cells.html
+            console/3d/aegis-proof-cells/registry.json
+            console/3d/aegis-proof-cells/demo.json
+            console/3d/aegis-proof-cells/app.mjs
+            console/3d/aegis-proof-cells/engine.mjs
+            docs/third-party/bricklayer-ai-intake-v1.md
+            scripts/verify_aegis_proof_cells_live.py
+            tests/test_aegis_proof_cells_static.py
+            tests/test_aegis_proof_cells_engine.mjs
+            tests/test_aegis_proof_cells_live.py
+          )
+          for file in "${files[@]}"; do
+            if git cat-file -e "origin/main:$file" 2>/dev/null; then
+              git checkout origin/main -- "$file"
+            elif git show-ref --verify --quiet "refs/remotes/origin/$SOURCE_BRANCH" && \
+                 git cat-file -e "origin/$SOURCE_BRANCH:$file" 2>/dev/null; then
+              git checkout "origin/$SOURCE_BRANCH" -- "$file"
+            else
+              echo "::error::Required permanent source is unavailable: $file"
+              exit 1
+            fi
+          done
+
+          # Correct the path-only trigger typo from the provisional branch.
+          sed -i 's#tests/test_aegis_proof-cells_static.py#tests/test_aegis_proof_cells_static.py#g' \
+            .github/workflows/aegis-proof-cells.yml
+
+          # Temporary promotion controllers are never part of the final product tree.
+          rm -f \
+            .github/workflows/aegis-proof-cells-promote.yml \
+            .github/workflows/aegis-proof-cells-merge-once.yml \
+            .github/workflows/aegis-proof-cells-cleanup-once.yml \
+            .github/workflows/aegis-proof-cells-finalize-once.yml \
+            .github/workflows/zz-aegis-proof-cells-converge-once.yml
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: "22"
+
+      - name: Install hash-locked core test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Prove the exact final tree before promotion
+        shell: bash
+        run: |
+          set -euo pipefail
+          pytest \
+            tests/test_aegis_proof_cells_static.py \
+            tests/test_aegis_proof_cells_live.py \
+            -q
+          node --test tests/test_aegis_proof_cells_engine.mjs
+          node --check console/3d/aegis-proof-cells/app.mjs
+          node --check console/3d/aegis-proof-cells/engine.mjs
+          python -m py_compile scripts/verify_aegis_proof_cells_live.py
+          git diff --check
+
+      - name: Commit the final-tree delta when one exists
+        id: commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "SZL Aegis Convergence"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          git commit -s -m "feat(aegis): converge operational defensive Proof Cells"
+          git push origin "HEAD:$TARGET_BRANCH"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Open or reuse clean protected pull request
+        if: steps.commit.outputs.changed == 'true'
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          url="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$TARGET_BRANCH" --state open --json url --jq '.[0].url // empty')"
+          if [ -z "$url" ]; then
+            url="$(gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$TARGET_BRANCH" \
+              --title 'feat(aegis): converge operational defensive Proof Cells' \
+              --body 'Idempotent final-tree convergence for the Aegis Proof Cells release. This PR contains only permanent clean-room product source, tests, documentation, and the read-only post-deployment verifier. Temporary promotion controllers are absent. No administrative merge, external effector, provider mutation, offensive capability, credential path, or Bricklayer proprietary implementation is introduced. Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>')"
+          fi
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for all candidate checks and use ordinary squash merge
+        if: steps.commit.outputs.changed == 'true'
+        env:
+          PR_URL: ${{ steps.pr.outputs.url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$PR_URL"
+          gh pr checks "$PR_URL" --repo "$GITHUB_REPOSITORY" --watch --interval 20
+          gh pr merge "$PR_URL" --repo "$GITHUB_REPOSITORY" --squash --delete-branch
