@@ -77,7 +77,11 @@ class LegalReadinessUnavailableContractTests(unittest.TestCase):
     def test_last_good_sources_remain_cached_with_original_clock(self) -> None:
         observed_at = time.time() - 45.0
         payload = {
-            "value": {"items": [{"url": "https://example.invalid/evidence"}]},
+            "value": {
+                "items": [
+                    {"url": "https://www.courtlistener.com/help/api/rest/"}
+                ]
+            },
             "freshness": {
                 "status": "stale",
                 "fetched_at": observed_at,
