@@ -1,0 +1,93 @@
+name: Controlled apex routing diagnostic
+
+on:
+  push:
+    branches:
+      - diagnose/apex-routing-20260903
+    paths:
+      - .github/workflows/_diagnose_apex_routing.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apex-routing-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    name: Capture DNS, TLS, redirects, and origin responses
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Check out diagnostic source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Capture DNS chain
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in a-11-oy.com www.a-11-oy.com szl-holdings.github.io szlholdings-a11oy.hf.space; do
+            echo "===== DNS ${host} ====="
+            getent ahosts "${host}" || true
+            if command -v dig >/dev/null 2>&1; then
+              echo "-- CNAME --"
+              dig +short CNAME "${host}" || true
+              echo "-- A --"
+              dig +short A "${host}" || true
+              echo "-- AAAA --"
+              dig +short AAAA "${host}" || true
+              echo "-- NS --"
+              dig +short NS "${host}" || true
+            fi
+          done
+          if command -v dig >/dev/null 2>&1; then
+            echo "===== ZONE NS a-11-oy.com ====="
+            dig +short NS a-11-oy.com || true
+            echo "===== CAA a-11-oy.com ====="
+            dig +short CAA a-11-oy.com || true
+          fi
+
+      - name: Capture TLS certificates
+        shell: bash
+        run: |
+          set -euo pipefail
+          for host in a-11-oy.com szl-holdings.github.io szlholdings-a11oy.hf.space; do
+            echo "===== TLS ${host} ====="
+            timeout 15 openssl s_client -connect "${host}:443" -servername "${host}" </dev/null 2>/dev/null \
+              | openssl x509 -noout -subject -issuer -serial -dates -ext subjectAltName || true
+          done
+
+      - name: Capture HTTP routing evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          urls=(
+            "https://a-11-oy.com/"
+            "https://a-11-oy.com/console"
+            "https://a-11-oy.com/products/"
+            "https://www.a-11-oy.com/"
+            "https://szl-holdings.github.io/"
+            "https://szlholdings-a11oy.hf.space/"
+            "https://szlholdings-a11oy.hf.space/console"
+          )
+          for url in "${urls[@]}"; do
+            echo "===== HTTP ${url} ====="
+            curl --silent --show-error --location \
+              --max-time 25 --connect-timeout 10 \
+              --output /tmp/body \
+              --dump-header /tmp/headers \
+              --write-out 'effective_url=%{url_effective}\nhttp_code=%{http_code}\nremote_ip=%{remote_ip}\nredirects=%{num_redirects}\ncontent_type=%{content_type}\nsize_download=%{size_download}\n' \
+              "${url}" || true
+            sed -n '1,40p' /tmp/headers || true
+            echo "-- BODY PREFIX --"
+            head -c 500 /tmp/body | tr '\000-\010\013\014\016-\037' ' ' || true
+            echo
+          done
