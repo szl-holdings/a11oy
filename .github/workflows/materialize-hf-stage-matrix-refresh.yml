@@ -1,0 +1,48 @@
+name: Materialize HF stage matrix refresh
+
+on:
+  push:
+    branches:
+      - fix/hf-ecosystem-manifest-refresh-20260903-v2
+    paths:
+      - ".github/workflows/materialize-hf-stage-matrix-refresh.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-hf-stage-matrix-refresh-20260903
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout exact manifest branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-ecosystem-manifest-refresh-20260903-v2
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate the deterministic matrix from the refreshed manifest
+        run: |
+          python3 scripts/build_ecosystem_stage_matrix.py
+          python3 scripts/build_ecosystem_stage_matrix.py --check
+          git diff --check
+
+      - name: Commit the derived matrix and remove this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-hf-stage-matrix-refresh.yml
+          git config user.name "SZL HF Matrix Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git add docs/ecosystem-stage-matrix.json .github/workflows/materialize-hf-stage-matrix-refresh.yml
+          git commit -s -m "chore(hf): refresh the derived ecosystem stage matrix"
+          git push origin HEAD:fix/hf-ecosystem-manifest-refresh-20260903-v2
