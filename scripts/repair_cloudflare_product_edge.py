@@ -1,18 +1,15 @@
 #!/usr/bin/env python3
-"""Deploy and prove the www-only Cloudflare canonical redirect.
+"""Deploy and prove the bounded Cloudflare edge for the A11oy product domain.
 
-The canonical product front door is served independently at ``a-11-oy.com``.
-This controller has no authority to proxy or replace that apex. It may only:
+The controller has authority over exactly two Worker routes:
 
-1. remove the exact legacy apex-root Worker route when that route is owned by
-   the known retired SZL worker;
-2. deploy the inert www-only redirect Worker;
-3. bind ``www.a-11-oy.com/*`` to that Worker; and
-4. prove a literal 301 with exact path/query preservation while the apex still
-   returns HTTP 200 without the retired edge marker.
+* ``a-11-oy.com/*`` reverse-proxies to the fixed public
+  ``SZLHOLDINGS/a11oy`` Space origin while preserving the visitor-facing host;
+* ``www.a-11-oy.com/*`` returns a path/query-preserving 301 to the apex.
 
-Unknown route ownership, an apex wildcard, absent credentials, provider errors,
-or failed public readback all fail closed. Token values are never persisted.
+It never writes DNS, never prints or persists a credential, refuses foreign
+route ownership, and reaches ``LIVE`` only after uncached public readback of the
+root, the honesty API, and the www redirect.
 """
 from __future__ import annotations
 
@@ -30,25 +27,28 @@ from typing import Any
 API = "https://api.cloudflare.com/client/v4"
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_WORKER = ROOT / "cloudflare" / "a11oy-product-root-worker.mjs"
-SCRIPT_NAME = "szl-a11oy-www-redirect-v2"
-RETIRED_SCRIPT_NAME = "szl-a11oy-product-root-v1"
-KNOWN_SCRIPT_NAMES = frozenset({SCRIPT_NAME, RETIRED_SCRIPT_NAME})
+SCRIPT_NAME = "szl-a11oy-product-edge-v3"
+RETIRED_ROOT_SCRIPT = "szl-a11oy-product-root-v1"
+RETIRED_WWW_SCRIPT = "szl-a11oy-www-redirect-v2"
+KNOWN_SCRIPT_NAMES = frozenset(
+    {SCRIPT_NAME, RETIRED_ROOT_SCRIPT, RETIRED_WWW_SCRIPT}
+)
 ZONE_NAME = "a-11-oy.com"
+APEX_ROUTE = "a-11-oy.com/*"
 WWW_ROUTE = "www.a-11-oy.com/*"
-LEGACY_APEX_ROUTE = "a-11-oy.com/"
-FORBIDDEN_APEX_WILDCARD = "a-11-oy.com/*"
-EDGE_MARKER = "a11oy-www-redirect-v2"
-RETIRED_EDGE_MARKER = "a11oy-product-root-v1"
-PROBE_PATH = "/__szl_www_redirect_probe__"
-PROBE_QUERY = "contract=v2"
+LEGACY_APEX_ROOT_ROUTE = "a-11-oy.com/"
+DESIRED_ROUTES = (APEX_ROUTE, WWW_ROUTE)
+EDGE_MARKER = "a11oy-product-edge-v3"
+WWW_PROBE_PATH = "/__szl_edge_probe__/path"
+WWW_PROBE_QUERY = "contract=v3&preserve=yes"
 
 
 class EdgeError(RuntimeError):
-    pass
+    """Fail-closed provider or public-proof error."""
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
-    """Expose the redirect response instead of following it."""
+    """Expose 3xx responses instead of following them."""
 
     def redirect_request(self, request, file_pointer, code, message, headers, new_url):  # type: ignore[no-untyped-def]
         return None
@@ -59,8 +59,20 @@ def token() -> str:
         os.environ.get("CLOUDFLARE_API_TOKEN")
         or os.environ.get("CF_API_TOKEN")
         or os.environ.get("CLOUDFLARE_TOKEN")
+        or os.environ.get("CF_TOKEN")
+        or os.environ.get("CLOUDFLARE_WORKERS_API_TOKEN")
         or ""
     ).strip()
+
+
+def _safe_error(error: BaseException, bearer: str) -> str:
+    try:
+        text = str(error)
+    except Exception:
+        text = "<unprintable>"
+    if bearer:
+        text = text.replace(bearer, "<redacted>")
+    return " ".join(text.split())[:4000] or "<empty>"
 
 
 def request_json(
@@ -106,9 +118,9 @@ def request_json(
 def multipart_module(source: bytes) -> tuple[bytes, str]:
     boundary = "----szl" + secrets.token_hex(16)
     metadata = json.dumps(
-        {"main_module": "worker.mjs", "compatibility_date": "2026-09-01"},
+        {"main_module": "worker.mjs", "compatibility_date": "2026-09-03"},
         separators=(",", ":"),
-    ).encode()
+    ).encode("utf-8")
     chunks = [
         (
             f"--{boundary}\r\n"
@@ -157,57 +169,65 @@ def upload_worker(account_id: str, bearer: str, worker: Path) -> dict[str, Any]:
     return value
 
 
+def _routes_by_pattern(current: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    by_pattern: dict[str, dict[str, Any]] = {}
+    for row in current:
+        pattern = str(row.get("pattern") or "")
+        if not pattern:
+            continue
+        if pattern in by_pattern:
+            raise EdgeError(f"DUPLICATE_ROUTE_PATTERN: {pattern}")
+        by_pattern[pattern] = row
+    return by_pattern
+
+
 def route_plan(current: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Return an exact bounded plan or reject ambiguous route ownership."""
-    by_pattern = {str(row.get("pattern")): row for row in current}
-    wildcard = by_pattern.get(FORBIDDEN_APEX_WILDCARD)
-    if wildcard is not None:
-        raise EdgeError(
-            "APEX_WILDCARD_CONFLICT: "
-            f"{FORBIDDEN_APEX_WILDCARD} is owned by {wildcard.get('script')!r}"
-        )
-
+    """Return an exact bounded route plan or reject ambiguous ownership."""
+    by_pattern = _routes_by_pattern(current)
     plan: list[dict[str, Any]] = []
-    legacy = by_pattern.get(LEGACY_APEX_ROUTE)
+
+    legacy = by_pattern.get(LEGACY_APEX_ROOT_ROUTE)
     if legacy is not None:
-        legacy_script = legacy.get("script")
-        legacy_id = legacy.get("id")
-        if legacy_script not in KNOWN_SCRIPT_NAMES or not legacy_id:
+        script = legacy.get("script")
+        route_id = legacy.get("id")
+        if script not in KNOWN_SCRIPT_NAMES or not route_id:
             raise EdgeError(
-                "APEX_ROUTE_CONFLICT: "
-                f"{LEGACY_APEX_ROUTE} is owned by {legacy_script!r}"
+                "LEGACY_APEX_ROUTE_CONFLICT: "
+                f"{LEGACY_APEX_ROOT_ROUTE} is owned by {script!r}"
             )
         plan.append(
             {
-                "action": "delete-known-legacy-apex-route",
-                "pattern": LEGACY_APEX_ROUTE,
-                "route_id": str(legacy_id),
-                "script": str(legacy_script),
+                "action": "delete-known-legacy-apex-root",
+                "pattern": LEGACY_APEX_ROOT_ROUTE,
+                "route_id": str(route_id),
+                "script": str(script),
             }
         )
 
-    www = by_pattern.get(WWW_ROUTE)
-    if www is None:
-        plan.append(
-            {
-                "action": "create-www-route",
-                "pattern": WWW_ROUTE,
-                "script": SCRIPT_NAME,
-            }
-        )
-    else:
-        www_script = www.get("script")
-        www_id = www.get("id")
-        if www_script not in KNOWN_SCRIPT_NAMES or not www_id:
+    for role, pattern in (("apex", APEX_ROUTE), ("www", WWW_ROUTE)):
+        existing = by_pattern.get(pattern)
+        if existing is None:
+            plan.append(
+                {
+                    "action": f"create-{role}-route",
+                    "pattern": pattern,
+                    "script": SCRIPT_NAME,
+                }
+            )
+            continue
+
+        script = existing.get("script")
+        route_id = existing.get("id")
+        if script not in KNOWN_SCRIPT_NAMES or not route_id:
             raise EdgeError(
-                f"WWW_ROUTE_CONFLICT: {WWW_ROUTE} is owned by {www_script!r}"
+                f"{role.upper()}_ROUTE_CONFLICT: {pattern} is owned by {script!r}"
             )
         plan.append(
             {
-                "action": "update-www-route",
-                "pattern": WWW_ROUTE,
-                "route_id": str(www_id),
-                "from_script": str(www_script),
+                "action": f"update-{role}-route",
+                "pattern": pattern,
+                "route_id": str(route_id),
+                "from_script": str(script),
                 "script": SCRIPT_NAME,
             }
         )
@@ -218,27 +238,29 @@ def apply_route_plan(
     zone_id: str,
     bearer: str,
     plan: list[dict[str, Any]],
+    *,
+    dry_run: bool,
 ) -> list[dict[str, Any]]:
     results: list[dict[str, Any]] = []
     for item in plan:
         action = item["action"]
-        if action == "delete-known-legacy-apex-route":
+        if dry_run:
+            results.append({**item, "state": "would-apply"})
+            continue
+
+        if action == "delete-known-legacy-apex-root":
             value = request_json(
                 "DELETE",
                 f"/zones/{zone_id}/workers/routes/{item['route_id']}",
                 bearer=bearer,
             )
             results.append(
-                {
-                    **item,
-                    "state": "deleted",
-                    "provider_result": value.get("result"),
-                }
+                {**item, "state": "deleted", "provider_result": value.get("result")}
             )
             continue
 
-        payload = {"pattern": WWW_ROUTE, "script": SCRIPT_NAME}
-        if action == "update-www-route":
+        payload = {"pattern": item["pattern"], "script": SCRIPT_NAME}
+        if action.startswith("update-"):
             value = request_json(
                 "PUT",
                 f"/zones/{zone_id}/workers/routes/{item['route_id']}",
@@ -246,7 +268,7 @@ def apply_route_plan(
                 payload=payload,
             )
             state = "updated"
-        elif action == "create-www-route":
+        elif action.startswith("create-"):
             value = request_json(
                 "POST",
                 f"/zones/{zone_id}/workers/routes",
@@ -261,112 +283,127 @@ def apply_route_plan(
             {
                 **item,
                 "state": state,
-                "provider_route_id": result.get("id"),
+                "provider_route_id_suffix": str(result.get("id") or "")[-6:],
                 "provider_script": result.get("script") or SCRIPT_NAME,
             }
         )
     return results
 
 
-def _redirect_observation(url: str) -> dict[str, Any]:
+def _observation(url: str, *, follow_redirects: bool = True) -> dict[str, Any]:
     request = urllib.request.Request(
         url,
         method="GET",
         headers={
-            "User-Agent": "SZL-www-redirect-proof/2.0",
-            "Cache-Control": "no-cache",
+            "User-Agent": "SZL-product-edge-proof/3.0",
+            "Cache-Control": "no-cache, no-store",
+            "Pragma": "no-cache",
         },
     )
-    opener = urllib.request.build_opener(NoRedirect())
+    opener = (
+        urllib.request.build_opener()
+        if follow_redirects
+        else urllib.request.build_opener(NoRedirect())
+    )
     try:
         with opener.open(request, timeout=30) as response:
+            body = response.read(131072)
             return {
                 "status": response.status,
                 "location": response.headers.get("location"),
                 "edge": response.headers.get("x-szl-edge"),
+                "content_type": response.headers.get("content-type"),
                 "final_url": response.geturl(),
+                "body": body.decode("utf-8", "replace"),
             }
     except urllib.error.HTTPError as exc:
+        body = exc.read(32768)
         return {
             "status": exc.code,
             "location": exc.headers.get("location"),
             "edge": exc.headers.get("x-szl-edge"),
+            "content_type": exc.headers.get("content-type"),
             "final_url": exc.geturl(),
+            "body": body.decode("utf-8", "replace"),
         }
     except (urllib.error.URLError, TimeoutError, OSError) as exc:
         return {
             "status": None,
             "location": None,
             "edge": None,
+            "content_type": None,
             "final_url": None,
+            "body": "",
             "error": type(exc).__name__,
         }
 
 
-def _apex_observation() -> dict[str, Any]:
-    url = f"https://{ZONE_NAME}/"
-    request = urllib.request.Request(
-        url,
-        method="GET",
-        headers={
-            "User-Agent": "SZL-www-redirect-proof/2.0",
-            "Cache-Control": "no-cache",
-        },
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            body = response.read(65536).decode("utf-8", "replace")
-            return {
-                "status": response.status,
-                "edge": response.headers.get("x-szl-edge"),
-                "final_url": response.geturl(),
-                "body_has_szl": "szl" in body.lower(),
-            }
-    except urllib.error.HTTPError as exc:
-        return {
-            "status": exc.code,
-            "edge": exc.headers.get("x-szl-edge"),
-            "final_url": exc.geturl(),
-            "body_has_szl": False,
-        }
-    except (urllib.error.URLError, TimeoutError, OSError) as exc:
-        return {
-            "status": None,
-            "edge": None,
-            "final_url": None,
-            "body_has_szl": False,
-            "error": type(exc).__name__,
-        }
+def _public_summary(observation: dict[str, Any]) -> dict[str, Any]:
+    """Return only bounded, non-content public evidence for the receipt."""
+    return {
+        key: observation.get(key)
+        for key in ("status", "location", "edge", "content_type", "final_url", "error")
+        if observation.get(key) is not None
+    }
 
 
-def public_probe(attempts: int = 18) -> dict[str, Any]:
-    source = f"https://www.{ZONE_NAME}{PROBE_PATH}?{PROBE_QUERY}"
-    expected = f"https://{ZONE_NAME}{PROBE_PATH}?{PROBE_QUERY}"
+def public_probe(attempts: int = 24) -> dict[str, Any]:
+    www_source = f"https://www.{ZONE_NAME}{WWW_PROBE_PATH}?{WWW_PROBE_QUERY}"
+    www_expected = f"https://{ZONE_NAME}{WWW_PROBE_PATH}?{WWW_PROBE_QUERY}"
+    root_url = f"https://{ZONE_NAME}/?__szl_edge_probe__=v3"
+    honest_url = f"https://{ZONE_NAME}/api/a11oy/v1/honest?__szl_edge_probe__=v3"
     last: dict[str, Any] = {}
+
     for attempt in range(1, attempts + 1):
-        www = _redirect_observation(source)
-        apex = _apex_observation()
+        www = _observation(www_source, follow_redirects=False)
+        root = _observation(root_url)
+        honest = _observation(honest_url)
+
+        root_body = str(root.get("body") or "").lower()
+        root_ok = (
+            root.get("status") == 200
+            and root.get("edge") == EDGE_MARKER
+            and ("a11oy" in root_body or "szl" in root_body)
+        )
+
+        honest_json: dict[str, Any] = {}
+        try:
+            parsed = json.loads(str(honest.get("body") or ""))
+            if isinstance(parsed, dict):
+                honest_json = parsed
+        except json.JSONDecodeError:
+            honest_json = {}
+        honest_ok = (
+            honest.get("status") == 200
+            and honest.get("edge") == EDGE_MARKER
+            and honest_json.get("organ") == "a11oy"
+            and honest_json.get("locked_formula_count") == 8
+        )
+
         www_ok = (
             www.get("status") == 301
-            and www.get("location") == expected
+            and www.get("location") == www_expected
             and www.get("edge") == EDGE_MARKER
         )
-        apex_ok = (
-            apex.get("status") == 200
-            and apex.get("body_has_szl") is True
-            and apex.get("edge") != RETIRED_EDGE_MARKER
-        )
+
         last = {
             "attempt": attempt,
-            "www": www,
-            "www_expected_location": expected,
+            "root": _public_summary(root),
+            "root_verified": root_ok,
+            "honest": _public_summary(honest),
+            "honest_contract": {
+                "organ": honest_json.get("organ"),
+                "locked_formula_count": honest_json.get("locked_formula_count"),
+            },
+            "honest_verified": honest_ok,
+            "www": _public_summary(www),
+            "www_expected_location": www_expected,
             "www_verified": www_ok,
-            "apex": apex,
-            "apex_verified": apex_ok,
         }
-        if www_ok and apex_ok:
+        if root_ok and honest_ok and www_ok:
             return last
         time.sleep(min(5, attempt))
+
     raise EdgeError("PUBLIC_PROBE_FAILED: " + json.dumps(last, sort_keys=True))
 
 
@@ -383,15 +420,16 @@ def main() -> int:
     args = parser.parse_args()
 
     report: dict[str, Any] = {
-        "schema": "szl.cloudflare-www-redirect/v2",
+        "schema": "szl.cloudflare-product-edge/v3",
         "zone": ZONE_NAME,
+        "origin": "SZLHOLDINGS/a11oy",
         "script": SCRIPT_NAME,
-        "desired_routes": [WWW_ROUTE],
-        "retired_route": LEGACY_APEX_ROUTE,
+        "desired_routes": list(DESIRED_ROUTES),
         "dry_run": args.dry_run,
         "status": "BLOCKED",
         "token_recorded": False,
-        "apex_proxy_authorized": False,
+        "apex_proxy_authorized": True,
+        "dns_mutated": False,
     }
     bearer = token()
     if not bearer:
@@ -402,6 +440,11 @@ def main() -> int:
         return 2
 
     try:
+        verify = request_json("GET", "/user/tokens/verify", bearer=bearer).get("result") or {}
+        report["token_status"] = verify.get("status")
+        if verify.get("status") != "active":
+            raise EdgeError("Cloudflare API token is not active")
+
         zones = request_json(
             "GET",
             "/zones?"
@@ -423,22 +466,27 @@ def main() -> int:
         report["account_id_suffix"] = account_id[-6:]
 
         current = request_json(
-            "GET",
-            f"/zones/{zone_id}/workers/routes",
-            bearer=bearer,
+            "GET", f"/zones/{zone_id}/workers/routes", bearer=bearer
         ).get("result") or []
         plan = route_plan(current)
         report["route_plan"] = plan
-        if args.dry_run:
-            report["status"] = "VALIDATED"
-            report["probe"] = {"status": "SKIPPED_DRY_RUN"}
-        else:
+
+        if not args.dry_run:
             upload_worker(account_id, bearer, args.worker)
-            report["route_results"] = apply_route_plan(zone_id, bearer, plan)
-            report["probe"] = public_probe()
-            report["status"] = "LIVE"
+        report["route_results"] = apply_route_plan(
+            zone_id,
+            bearer,
+            plan,
+            dry_run=args.dry_run,
+        )
+        report["probe"] = (
+            {"status": "SKIPPED_DRY_RUN"}
+            if args.dry_run
+            else public_probe()
+        )
+        report["status"] = "VALIDATED" if args.dry_run else "LIVE"
     except EdgeError as exc:
-        report["error"] = str(exc)
+        report["error"] = _safe_error(exc, bearer)
         write_report(args.report, report)
         print(json.dumps(report, indent=2, sort_keys=True))
         return 1
