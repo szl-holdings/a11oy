@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 from cryptography.hazmat.primitives import hashes
@@ -50,7 +51,7 @@ def test_valid_signature_from_unknown_signer_is_denied() -> None:
 
 
 def test_corrupted_subject_digest_is_denied_after_signature_gate(
-    tmp_path: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPatch
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     target = tmp_path / "artifact.bin"
     target.write_bytes(b"actual immutable artifact bytes")
