@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/remove-retired-replit-vite-deps.yml
       - scripts/maintenance/retire_replit_vite.py
+      - organs/sentra/stubs/platform-registry/index.ts
 
 permissions:
   contents: write
@@ -101,6 +102,8 @@ jobs:
           grep -Fq '"@tanstack/react-query": "catalog:"' organs/sentra/stubs/api-client-react/package.json
           grep -Fq 'export const OperationalOwnerChip' organs/sentra/stubs/shared-ui/index.ts
           grep -Fq 'export const OperationalAuditTimeline' organs/sentra/stubs/shared-ui/index.ts
+          grep -Fq 'export function makeClaimResolver' organs/sentra/stubs/platform-registry/index.ts
+          grep -Fq 'export function metricDisplay' organs/sentra/stubs/platform-registry/index.ts
           git diff --check
           git status --short
 
