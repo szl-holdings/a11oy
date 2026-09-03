@@ -2,9 +2,10 @@
 """Verify and merge only exact Hub PRs that delete model.joblib.
 
 The merge path fails closed unless each candidate is an open pull request owned
-by the authenticated actor, targets main, has no conflicts, and contains one
-and only one git diff: deletion of model.joblib. Each merge is followed by a
-fresh Hub readback proving that model.joblib is absent.
+by the authenticated actor, targets the Hub's canonical main ref, has no
+conflicts, and contains one and only one git diff: deletion of model.joblib.
+Each merge is followed by a fresh Hub readback proving that model.joblib is
+absent.
 """
 from __future__ import annotations
 
@@ -25,6 +26,7 @@ TARGETS = (
 )
 TITLE = "quarantine: remove model.joblib from approved path"
 JOBLIB_PATH = "model.joblib"
+MAIN_TARGETS = frozenset(("main", "refs/heads/main"))
 _DIFF_HEADER = re.compile(r"^diff --git a/(.+) b/(.+)$", re.MULTILINE)
 
 
@@ -75,8 +77,10 @@ def _validate_candidate(api: Any, repo_id: str, discussion: Any, actor: str) -> 
         raise RuntimeError(
             f"candidate author {details.author!r} does not match authenticated actor {actor!r}"
         )
-    if details.target_branch != "main":
-        raise RuntimeError(f"candidate target branch is {details.target_branch!r}, not 'main'")
+    if details.target_branch not in MAIN_TARGETS:
+        raise RuntimeError(
+            f"candidate target branch is {details.target_branch!r}, not a canonical main ref"
+        )
     if details.conflicting_files not in (None, False, [], ()):
         raise RuntimeError(f"candidate has conflicts: {details.conflicting_files!r}")
 
