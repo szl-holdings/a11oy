@@ -1,5 +1,5 @@
 {
-  "__doctrine-scanner-exempt": "legacy live-product surface; rename tracked as separate engineering debt \u2014 see scripts/check-doctrine-v6.mjs header",
+  "__doctrine-scanner-exempt": "legacy live-product surface; rename tracked as separate engineering debt — see scripts/check-doctrine-v6.mjs header",
   "name": "@workspace/a11oy",
   "version": "0.0.0",
   "private": true,
@@ -53,9 +53,6 @@
     "urql": "^5.0.1"
   },
   "devDependencies": {
-    "@replit/vite-plugin-cartographer": "catalog:",
-    "@replit/vite-plugin-dev-banner": "catalog:",
-    "@replit/vite-plugin-runtime-error-modal": "catalog:",
     "@szl-holdings/payload": "workspace:*",
     "@szl-holdings/security-headers": "workspace:*",
     "@szl-holdings/shared-contracts": "workspace:*",
