@@ -3,6 +3,11 @@ name: HF Publish Vertical Flagships
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - exec/hf-publish-vertical-flagships-v3
+    paths:
+      - ops/hf-publish-vertical-flagships-v3.trigger
 
 permissions:
   contents: read
@@ -26,19 +31,42 @@ jobs:
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
+
       - name: Checkout exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
+          fetch-depth: 1
           persist-credentials: false
+
+      - name: Require execution branch derived from current protected main
+        if: github.event_name == 'push'
+        env:
+          EXPECTED_BASE: ${{ github.event.before }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          zero=0000000000000000000000000000000000000000
+          test -n "${EXPECTED_BASE:-}"
+          test "$EXPECTED_BASE" != "$zero"
+          git fetch --no-tags --depth=1 origin main
+          current_main="$(git rev-parse FETCH_HEAD)"
+          test "$EXPECTED_BASE" = "$current_main"
+          mapfile -t changed < <(git diff --name-only "$EXPECTED_BASE" "$GITHUB_SHA")
+          test "${#changed[@]}" -eq 1
+          test "${changed[0]}" = ops/hf-publish-vertical-flagships-v3.trigger
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
+
       - name: Install pinned publisher
         run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.10.1'
-      - name: Publish and verify six flagship Spaces
+
+      - name: Publish and live-verify six flagship Spaces
         run: python scripts/hf_publish_vertical_flagships_v2.py
+
       - name: Upload immutable receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -46,4 +74,4 @@ jobs:
           name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}
           path: hf-vertical-flagships-receipt.json
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 180
