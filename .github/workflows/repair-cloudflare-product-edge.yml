@@ -1,23 +1,17 @@
-name: Repair Cloudflare Product Root
+name: Repair Cloudflare WWW Redirect
 
 on:
   push:
     branches: [main]
     paths:
       - ".github/workflows/repair-cloudflare-product-edge.yml"
-      - "cloudflare/**"
+      - "cloudflare/a11oy-product-root-worker.mjs"
       - "scripts/repair_cloudflare_product_edge.py"
       - "tests/test_cloudflare_product_edge.py"
-      - "szl_connectors_serve.py"
-      - "a11oy_landing.html"
-      - "console/assets/szl-flow.css"
-      - "scripts/rollout_frontend_flow_shell.py"
-      - "pages/integrations.html"
-      - "spaces/sda/index.html"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Resolve zone and validate route ownership without changing Cloudflare"
+        description: "Resolve the zone and validate exact route ownership without changing Cloudflare"
         required: false
         type: boolean
         default: false
@@ -27,77 +21,105 @@ permissions:
   issues: write
 
 concurrency:
-  group: cloudflare-product-root
+  group: cloudflare-www-redirect
   cancel-in-progress: false
 
 env:
-  EDGE_REPORT: /tmp/cloudflare-product-edge.json
+  EDGE_REPORT: /tmp/cloudflare-www-redirect.json
 
 jobs:
   repair:
+    name: Prove www-only canonical redirect
     runs-on: ubuntu-latest
     timeout-minutes: 12
     env:
       GH_TOKEN: ${{ github.token }}
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN }}
     steps:
-      - name: Checkout exact main
+      - name: Checkout exact protected main
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: main
           persist-credentials: false
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Run network-free controller tests
+
+      - name: Run network-free route, secret, and worker-boundary tests
         run: python tests/test_cloudflare_product_edge.py -v
-      - name: Deploy exact-scope edge repair and prove the public root
+
+      - name: Check JavaScript syntax
+        run: node --check cloudflare/a11oy-product-root-worker.mjs
+
+      - name: Deploy the exact www-only redirect and prove both hosts
         id: edge
         shell: bash
         run: |
           set +e
           args=(--report "$EDGE_REPORT")
-          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" = "true" ]; then args+=(--dry-run); fi
+          if [ "${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}" = "true" ]; then
+            args+=(--dry-run)
+          fi
           python scripts/repair_cloudflare_product_edge.py "${args[@]}"
           code=$?
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
+
       - name: Upload secret-free edge evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: cloudflare-product-edge-${{ github.run_id }}-${{ github.run_attempt }}
+          name: cloudflare-www-redirect-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ env.EDGE_REPORT }}
           if-no-files-found: error
           retention-days: 90
-      - name: Publish compact incident update
+
+      - name: Reconcile INC-05
         if: always()
         shell: bash
         run: |
-          python - <<'PY' > /tmp/edge-comment.md
-          import json, os
+          set +e
+          python - <<'PY' > /tmp/cloudflare-www-comment.md
+          import json
+          import os
           from pathlib import Path
-          report = json.loads(Path(os.environ["EDGE_REPORT"]).read_text())
-          print("## Cloudflare product-root controller")
+
+          report = json.loads(Path(os.environ["EDGE_REPORT"]).read_text(encoding="utf-8"))
+          print("## Cloudflare www-only redirect receipt")
           print()
           print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
           print(f"- Status: `{report.get('status', 'UNKNOWN')}`")
-          print(f"- Exact routes: `{', '.join(report.get('routes', []))}`")
+          print(f"- Desired route: `{', '.join(report.get('desired_routes', []))}`")
+          print(f"- Apex proxy authorized: `{report.get('apex_proxy_authorized')}`")
+          print(f"- Token value recorded: `{report.get('token_recorded')}`")
+          for row in report.get("route_results", []):
+              print(f"- Route action: `{row.get('action')}` → `{row.get('state')}`")
           probe = report.get("probe") or {}
-          if probe:
-              print(f"- Public root: status `{probe.get('status')}`; edge `{probe.get('edge')}`; body marker `{probe.get('body_has_a11oy')}`")
+          www = probe.get("www") or {}
+          apex = probe.get("apex") or {}
+          if www:
+              print(f"- `www`: HTTP `{www.get('status')}`, location `{www.get('location')}`, edge `{www.get('edge')}`")
+          if apex:
+              print(f"- apex: HTTP `{apex.get('status')}`, retired edge marker `{apex.get('edge')}`")
           if report.get("error"):
               print(f"- Blocker: `{report['error']}`")
-          print("- Token material was not recorded.")
           PY
-          gh issue comment 1359 --body-file /tmp/edge-comment.md
-      - name: Enforce proved result
+          gh issue comment 1497 --body-file /tmp/cloudflare-www-comment.md
+          status="$(python -c 'import json,os; print(json.load(open(os.environ["EDGE_REPORT"]))["status"])')"
+          if [ "$status" = "LIVE" ]; then
+            gh issue close 1497 --reason completed
+          fi
+          exit 0
+
+      - name: Enforce proved redirect
+        if: always()
         shell: bash
         run: |
           code="${{ steps.edge.outputs.exit_code }}"
           test -n "$code"
           if [ "$code" -ne 0 ]; then
-            echo "::error::Cloudflare product-root repair did not reach a proved result (exit $code)."
+            echo "::error::The www-only Cloudflare redirect did not reach a proved result; inspect the secret-free evidence artifact."
             exit "$code"
           fi
