@@ -1,0 +1,131 @@
+name: Promote current HF manifest and harden provider backoff
+
+on:
+  push:
+    branches:
+      - fix/hf-manifest-rate-limit-20260904
+    paths:
+      - .github/workflows/_promote_hf_manifest_and_backoff_branch.yml
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: promote-hf-manifest-and-backoff-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Verify candidate, patch bounded retries, and commit exact files
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact recovery branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-manifest-rate-limit-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Download and verify the protected-main candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/hf-candidate
+          mkdir -p /tmp/hf-candidate
+          gh run download 33917812732 \
+            --repo szl-holdings/a11oy \
+            --name huggingface-ecosystem-manifest-candidate-33917812732 \
+            --dir /tmp/hf-candidate
+          candidate=/tmp/hf-candidate/huggingface-ecosystem-manifest.candidate.json
+          echo '33c0a08041871d2ab899db4e08aa2a445a4da6edfd7e675144ebf7c2facc6acb  /tmp/hf-candidate/huggingface-ecosystem-manifest.candidate.json' | sha256sum --check --strict
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          candidate = Path('/tmp/hf-candidate/huggingface-ecosystem-manifest.candidate.json')
+          data = json.loads(candidate.read_text(encoding='utf-8'))
+          assert data['schemaVersion'] == 1
+          assert data['generatedBy'] == 'scripts/audit_huggingface_ecosystem.py'
+          assert data['org'] == 'SZLHOLDINGS'
+          assert data['inventoryScope']['visibility'] == 'public-only'
+          assert data['inventoryScope']['authenticated'] is False
+          assert data['counts'] == {'models': 44, 'datasets': 33, 'spaces': 15}
+          assert data['observedAt'] == '2026-09-04T20:54:32Z'
+          for plural in ('models', 'datasets', 'spaces'):
+              assert len(data['inventory'][plural]) == data['counts'][plural]
+          PY
+          cp "$candidate" docs/huggingface-ecosystem-manifest.json
+
+      - name: Harden bounded Retry-After handling
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          script_path = Path('scripts/audit_huggingface_ecosystem.py')
+          text = script_path.read_text(encoding='utf-8')
+          text = text.replace(
+              'RETRY_ATTEMPTS = 3\nRETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})\n',
+              'RETRY_ATTEMPTS = 6\nMAX_RETRY_DELAY = 60.0\nRETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})\n',
+              1,
+          )
+          marker = '\n\ndef open_url_with_retry(\n'
+          helper = '''\n\ndef retry_delay(error: BaseException, attempt: int) -> float:\n    """Return a bounded provider-aware delay for one retry."""\n\n    delay = float(min(2**attempt, MAX_RETRY_DELAY))\n    if isinstance(error, urllib.error.HTTPError) and error.headers is not None:\n        raw = error.headers.get("Retry-After")\n        if raw:\n            try:\n                delay = max(delay, min(float(raw), MAX_RETRY_DELAY))\n            except (TypeError, ValueError):\n                pass\n    return delay\n'''
+          if marker not in text:
+              raise SystemExit('retry function insertion marker missing')
+          text = text.replace(marker, helper + marker, 1)
+          old_loop = '''    for attempt in range(attempts):\n        try:\n            return urllib.request.urlopen(url, timeout=timeout)\n        except urllib.error.HTTPError as exc:\n            if exc.code not in RETRYABLE_HTTP_CODES or attempt + 1 == attempts:\n                raise\n        except (urllib.error.URLError, ConnectionError, TimeoutError):\n            if attempt + 1 == attempts:\n                raise\n        sleep(float(2**attempt))\n'''
+          new_loop = '''    for attempt in range(attempts):\n        try:\n            return urllib.request.urlopen(url, timeout=timeout)\n        except urllib.error.HTTPError as exc:\n            if exc.code not in RETRYABLE_HTTP_CODES or attempt + 1 == attempts:\n                raise\n            retry_error: BaseException = exc\n        except (urllib.error.URLError, ConnectionError, TimeoutError) as exc:\n            if attempt + 1 == attempts:\n                raise\n            retry_error = exc\n        sleep(retry_delay(retry_error, attempt))\n'''
+          if old_loop not in text:
+              raise SystemExit('retry loop replacement marker missing')
+          text = text.replace(old_loop, new_loop, 1)
+          script_path.write_text(text, encoding='utf-8')
+
+          test_path = Path('scripts/test_audit_huggingface_ecosystem.py')
+          tests = test_path.read_text(encoding='utf-8')
+          insert_before = '    def test_live_fetch_fails_closed_after_retry_exhaustion(self) -> None:\n'
+          new_test = '''    def test_live_fetch_honors_numeric_retry_after(self) -> None:\n        calls = 0\n        sleeps: list[float] = []\n        original_urlopen = audit.urllib.request.urlopen\n\n        class Response:\n            def __enter__(self):\n                return self\n\n            def __exit__(self, *_: object) -> None:\n                return None\n\n        def rate_limited_urlopen(url: str, *, timeout: float):\n            nonlocal calls\n            calls += 1\n            if calls == 1:\n                raise audit.urllib.error.HTTPError(\n                    url,\n                    429,\n                    "Too Many Requests",\n                    {"Retry-After": "17"},\n                    None,\n                )\n            return Response()\n\n        audit.urllib.request.urlopen = rate_limited_urlopen\n        try:\n            response = audit.open_url_with_retry(\n                "https://huggingface.co/api/models",\n                attempts=2,\n                sleep=sleeps.append,\n            )\n        finally:\n            audit.urllib.request.urlopen = original_urlopen\n\n        self.assertIsInstance(response, Response)\n        self.assertEqual(calls, 2)\n        self.assertEqual(sleeps, [17.0])\n\n'''
+          if insert_before not in tests:
+              raise SystemExit('retry test insertion marker missing')
+          tests = tests.replace(insert_before, new_test + insert_before, 1)
+          test_path.write_text(tests, encoding='utf-8')
+          PY
+
+      - name: Prove the recovered source offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/test_audit_huggingface_ecosystem.py
+          python -m py_compile scripts/audit_huggingface_ecosystem.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          data = json.loads(Path('docs/huggingface-ecosystem-manifest.json').read_text(encoding='utf-8'))
+          assert data['counts'] == {'models': 44, 'datasets': 33, 'spaces': 15}
+          PY
+          git diff --check
+          test "$(git status --porcelain | wc -l | tr -d ' ')" = '3'
+
+      - name: Commit only the recovered manifest and retry contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            docs/huggingface-ecosystem-manifest.json \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/test_audit_huggingface_ecosystem.py
+          git commit -s -m 'fix(hf): promote current manifest and honor provider backoff'
+          git push origin HEAD:fix/hf-manifest-rate-limit-20260904
