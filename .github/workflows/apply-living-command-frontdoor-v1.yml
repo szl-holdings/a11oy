@@ -1,0 +1,71 @@
+name: Apply Living Command Fabric front door v1
+
+on:
+  push:
+    branches:
+      - feat/living-command-fabric-frontdoor-v1
+    paths:
+      - .github/workflows/apply-living-command-frontdoor-v1.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-living-command-frontdoor-v1
+  cancel-in-progress: false
+
+jobs:
+  transform:
+    name: Apply exact source transformation and prove contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/living-command-fabric-frontdoor-v1
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Apply fail-closed front-door and publisher convergence
+        run: python tools/apply_living_command_frontdoor_v1.py
+
+      - name: Validate the machine-readable architecture and public truth contract
+        run: |
+          set -euo pipefail
+          python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
+          python -m unittest tests.test_living_command_fabric_frontdoor -v
+          python -m py_compile \
+            tools/apply_living_command_frontdoor_v1.py \
+            tests/test_living_command_fabric_frontdoor.py \
+            scripts/hf_publish_vertical_services.py
+          git diff --check
+
+      - name: Commit only the durable implementation
+        env:
+          BRANCH: feat/living-command-fabric-frontdoor-v1
+        run: |
+          set -euo pipefail
+          git rm tools/apply_living_command_frontdoor_v1.py
+          git rm .github/workflows/apply-living-command-frontdoor-v1.yml
+          git add \
+            a11oy_landing.html \
+            scripts/hf_publish_vertical_services.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            docs/strategy/living-command-fabric.v1.json \
+            tests/test_living_command_fabric_frontdoor.py
+          git config user.name "SZL Frontier Operator"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -m "feat(frontdoor): expose the Living Command Fabric" \
+            -m "Show the exact Anatomy/formula authority map and six source-bound domain bodies while preserving the buyer hero and runtime proof instrument. Repair the vertical-services source pin and add a network-free truth contract." \
+            -m "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${BRANCH}"
