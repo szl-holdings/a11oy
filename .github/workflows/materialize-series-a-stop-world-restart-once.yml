@@ -52,7 +52,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git rm .github/workflows/materialize-series-a-stop-world-restart-once.yml tools/fix_series_a_materializer_syntax.py tools/materialize_series_a_stop_world_restart.py
+          git rm -f .github/workflows/materialize-series-a-stop-world-restart-once.yml tools/fix_series_a_materializer_syntax.py tools/materialize_series_a_stop_world_restart.py
           git diff --check HEAD
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
