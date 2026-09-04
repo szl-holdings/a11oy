@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply HF idempotency repair with admitted pytest
+
+on:
+  push:
+    branches:
+      - fix/hf-existing-space-idempotency-v1
+    paths:
+      - .github/workflows/apply-hf-existing-space-idempotency-v4.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-hf-existing-space-idempotency-v4
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-existing-space-idempotency-v1
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Extract and execute the already-reviewed product materializer
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          source = Path(".github/workflows/apply-hf-existing-space-idempotency-v3.yml")
+          lines = source.read_text(encoding="utf-8").splitlines()
+          anchor = "      - name: Apply exact publisher repair"
+          start = lines.index(anchor)
+          run_line = next(
+              index for index in range(start + 1, len(lines))
+              if lines[index] == "        run: |"
+          )
+          end = next(
+              index for index in range(run_line + 1, len(lines))
+              if lines[index].startswith("      - name:")
+          )
+          script_lines = []
+          for line in lines[run_line + 1:end]:
+              if line.startswith("          "):
+                  script_lines.append(line[10:])
+              elif line:
+                  raise SystemExit("materializer indentation drift")
+              else:
+                  script_lines.append("")
+          script = "\n".join(script_lines) + "\n"
+          if "ensure_space_repository" not in script or "Path(path).unlink()" not in script:
+              raise SystemExit("materializer identity drift")
+          Path("/tmp/apply-hf-idempotency.sh").write_text(script, encoding="utf-8")
+          PY
+          bash /tmp/apply-hf-idempotency.sh
+
+      - name: Install the exact admitted test runtime
+        run: python -m pip install --disable-pip-version-check --no-cache-dir pytest==9.0.3
+
+      - name: Prove repaired publisher contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services.py
+          python -m pytest \
+            tests/test_hf_existing_space_idempotency.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            -q
+          git diff --check
+
+      - name: Commit exact forward repair and remove the last one-shot writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-hf-existing-space-idempotency-v4.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services.py \
+            tests/test_hf_existing_space_idempotency.py \
+            .github/workflows/apply-hf-existing-space-idempotency.yml \
+            .github/workflows/apply-hf-existing-space-idempotency-v3.yml \
+            .github/workflows/apply-hf-existing-space-idempotency-v4.yml
+          git commit -s -m "fix(hf): avoid creation quota for existing Spaces"
+          git push origin HEAD:fix/hf-existing-space-idempotency-v1
