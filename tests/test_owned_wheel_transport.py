@@ -13,6 +13,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts/fetch_owned_khipu_wheel.py"
+WORKFLOW = ROOT / ".github/workflows/llama-wheel-guard.yml"
 
 
 def load():
@@ -40,7 +41,11 @@ def fixture_transport(monkeypatch, body=b"valid wheel fixture"):
         calls.append((request.full_url, timeout))
         return Response(body)
 
-    monkeypatch.setattr(module.urllib.request, "build_opener", lambda *a: SimpleNamespace(open=open_request))
+    monkeypatch.setattr(
+        module.urllib.request,
+        "build_opener",
+        lambda *a: SimpleNamespace(open=open_request),
+    )
     return module, calls
 
 
@@ -70,7 +75,11 @@ def test_interrupted_stream_removes_temporary_file(tmp_path, monkeypatch):
         def read(self, size=-1):
             raise TimeoutError("fixture interruption")
 
-    monkeypatch.setattr(module.urllib.request, "build_opener", lambda *a: SimpleNamespace(open=lambda *a, **kw: Broken()))
+    monkeypatch.setattr(
+        module.urllib.request,
+        "build_opener",
+        lambda *a: SimpleNamespace(open=lambda *a, **kw: Broken()),
+    )
     with pytest.raises(TimeoutError):
         module.fetch_wheel(tmp_path)
     assert list(tmp_path.iterdir()) == []
@@ -85,38 +94,68 @@ def test_elapsed_budget_stops_download(tmp_path, monkeypatch):
     assert list(tmp_path.iterdir()) == []
 
 
-@pytest.mark.parametrize("url", [
-    "http://github.com/file", "https://example.com/file",
-    "https://github.com.evil.invalid/file", "https://github.com:8443/file",
-    "https://user@github.com/file", "file:///tmp/wheel",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://github.com/file",
+        "https://example.com/file",
+        "https://github.com.evil.invalid/file",
+        "https://github.com:8443/file",
+        "https://user@github.com/file",
+        "file:///tmp/wheel",
+    ],
+)
 def test_redirect_rejected_before_following(url):
     module = load()
     with pytest.raises(ValueError):
         module.ReleaseRedirects().redirect_request(
-            urllib.request.Request(module.URL), None, 302, "Found", {}, url)
+            urllib.request.Request(module.URL), None, 302, "Found", {}, url
+        )
 
 
 def test_official_https_release_redirect_is_accepted():
     module = load()
     url = "https://release-assets.githubusercontent.com/example/wheel?signature=fixture"
     redirected = module.ReleaseRedirects().redirect_request(
-        urllib.request.Request(module.URL), None, 302, "Found", {}, url)
+        urllib.request.Request(module.URL), None, 302, "Found", {}, url
+    )
     assert redirected.full_url == url
 
 
 def test_release_identity_remains_pinned():
     module = load()
     assert module.EXPECTED_SIZE == 23912624
-    assert module.EXPECTED_SHA256 == "d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596"
-    assert module.URL == "https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+    assert (
+        module.EXPECTED_SHA256
+        == "d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596"
+    )
+    assert module.URL == (
+        "https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/"
+        "llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64."
+        "manylinux_2_17_x86_64.whl"
+    )
 
 
 def test_dockerfile_ships_transport_without_remote_add():
     text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
-    assert "COPY scripts/fetch_owned_khipu_wheel.py /tmp/fetch_owned_khipu_wheel.py" in text
+    assert (
+        "COPY scripts/fetch_owned_khipu_wheel.py /tmp/fetch_owned_khipu_wheel.py"
+        in text
+    )
     assert "RUN python3 /tmp/fetch_owned_khipu_wheel.py" in text
     assert "ADD --checksum=" not in text
     assert "RUN python3 <<'WHEELCHK'" in text
     assert "23912624" in text and "libc.so.6" in text
     assert "COPY a11oy_governed_cortex.py" in text
+
+
+def test_guard_validates_and_executes_source_owned_transport():
+    text = WORKFLOW.read_text(encoding="utf-8")
+    assert "'scripts/fetch_owned_khipu_wheel.py'" in text
+    assert "'tests/test_owned_wheel_transport.py'" in text
+    assert "Resolve the source-owned official wheel contract" in text
+    assert 'spec_from_file_location("owned_wheel_contract"' in text
+    assert 'module.fetch_wheel(Path(os.environ["RUNNER_TEMP"]))' in text
+    assert "expected exactly one official wheel ADD contract" not in text
+    assert "sha256sum -c -" in text
+    assert 'assert b"libc.so.6" in data' in text
