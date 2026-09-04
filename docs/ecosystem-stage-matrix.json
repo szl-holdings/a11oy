@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-04T20:54:32Z",
+  "observedAt": "2026-09-04T21:57:58Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -28,7 +28,7 @@
     "huggingFacePublic": {
       "models": 44,
       "datasets": 33,
-      "spaces": 15
+      "spaces": 16
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1549,6 +1549,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/a11oy"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ayllu",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/ayllu"
       ]
     },
     {
