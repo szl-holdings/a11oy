@@ -1,0 +1,223 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply holographic Brain v7 once
+
+on:
+  push:
+    branches:
+      - feat/holographic-brain-anatomy-v7-20260904
+    paths:
+      - .github/workflows/apply-holographic-brain-v7-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/holographic-brain-anatomy-v7-20260904
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the source-native holographic integration
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import ast
+          import re
+          from pathlib import Path
+
+
+          def read(path: Path) -> str:
+              return path.read_text(encoding="utf-8")
+
+
+          def write(path: Path, value: str) -> None:
+              path.write_text(value, encoding="utf-8", newline="\n")
+
+
+          # Bind the local assets to the existing holographic shell exactly once.
+          html_path = Path("static/3d/holographic.html")
+          html = read(html_path)
+          style_tag = '<link rel="stylesheet" href="/static/3d/brain-v7.css" data-szl-brain-v7="style" />'
+          script_tag = '<script src="/static/3d/brain-v7.js" defer data-szl-brain-v7="script"></script>'
+          if html.count('data-szl-brain-v7="style"') > 1 or html.count('data-szl-brain-v7="script"') > 1:
+              raise SystemExit("duplicate holographic Brain v7 asset marker")
+          if 'data-szl-brain-v7="style"' not in html:
+              match = re.search(r"</head\s*>", html, flags=re.IGNORECASE)
+              if not match:
+                  raise SystemExit("holographic shell has no closing head")
+              html = html[: match.start()] + "  " + style_tag + "\n" + html[match.start() :]
+          if 'data-szl-brain-v7="script"' not in html:
+              matches = list(re.finditer(r"</body\s*>", html, flags=re.IGNORECASE))
+              if not matches:
+                  raise SystemExit("holographic shell has no closing body")
+              point = matches[-1].start()
+              html = html[:point] + "  " + script_tag + "\n" + html[point:]
+          write(html_path, html)
+
+          # Resolve the production FastAPI host from the root Dockerfile first;
+          # fall back to an AST search for a unique root-level app assignment.
+          docker_path = Path("Dockerfile")
+          docker = read(docker_path) if docker_path.is_file() else ""
+          host_path = None
+          uvicorn = re.search(r"([A-Za-z0-9_.]+):app", docker)
+          if uvicorn:
+              candidate = Path(uvicorn.group(1).replace(".", "/") + ".py")
+              if candidate.is_file():
+                  host_path = candidate
+          if host_path is None:
+              candidates = []
+              for path in sorted(Path(".").glob("*.py")):
+                  if path.name == "brain_v7_holographic.py" or path.name.startswith("test_"):
+                      continue
+                  try:
+                      tree = ast.parse(read(path))
+                  except SyntaxError:
+                      continue
+                  for node in tree.body:
+                      if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                          continue
+                      targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                      if any(isinstance(target, ast.Name) and target.id == "app" for target in targets):
+                          candidates.append(path)
+                          break
+              preferred = [
+                  path
+                  for path in candidates
+                  if "szl3d_holographic" in read(path) or "static/3d" in read(path)
+              ]
+              pool = preferred or candidates
+              if len(pool) == 1:
+                  host_path = pool[0]
+              elif Path("app.py") in pool:
+                  host_path = Path("app.py")
+              elif Path("main.py") in pool:
+                  host_path = Path("main.py")
+          if host_path is None or not host_path.is_file():
+              raise SystemExit("unable to identify the production FastAPI host")
+
+          host = read(host_path)
+          call_marker = "install_brain_v7_holographic_routes(app)"
+          if call_marker not in host:
+              tree = ast.parse(host)
+              imports = [
+                  node
+                  for node in tree.body
+                  if isinstance(node, (ast.Import, ast.ImportFrom))
+              ]
+              assignments = []
+              for node in tree.body:
+                  if not isinstance(node, (ast.Assign, ast.AnnAssign)):
+                      continue
+                  targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                  if any(isinstance(target, ast.Name) and target.id == "app" for target in targets):
+                      assignments.append(node)
+              if not assignments:
+                  raise SystemExit(f"{host_path} has no top-level app assignment")
+              import_line = (
+                  "from brain_v7_holographic import install_brain_v7_holographic_routes\n"
+              )
+              lines = host.splitlines(keepends=True)
+              insertions = []
+              if import_line.strip() not in host:
+                  import_after = int(imports[-1].end_lineno) if imports else 0
+                  insertions.append((import_after, "\n" + import_line))
+              call_after = int(assignments[-1].end_lineno)
+              insertions.append(
+                  (
+                      call_after,
+                      "\n# SZL-HOLOGRAPHIC-BRAIN-V7: fixed-origin, handles-only observability.\n"
+                      "install_brain_v7_holographic_routes(app)\n",
+                  )
+              )
+              for line_number, addition in sorted(insertions, reverse=True):
+                  lines.insert(line_number, addition)
+              host = "".join(lines)
+              write(host_path, host)
+
+          # Ensure the root module is in an explicit Docker closure. The 3D assets
+          # remain under the already copied static/3d tree.
+          if docker_path.is_file() and "brain_v7_holographic.py" not in docker:
+              copy_line = "COPY brain_v7_holographic.py ./\n"
+              match = re.search(r"(?m)^(USER|EXPOSE|CMD|ENTRYPOINT)\b", docker)
+              if match:
+                  docker = docker[: match.start()] + copy_line + docker[match.start() :]
+              else:
+                  docker = docker.rstrip() + "\n" + copy_line
+              write(docker_path, docker)
+
+          docs_path = Path("docs/HOLOGRAPHIC_BRAIN_V7.md")
+          docs_path.write_text(
+              '''# A11oy Holographic · YACHAY Brain v7\n\nThe existing holographic shell now contains one focused **Brain v7** control.\nIt does not add another permanent navigation rail. The control reads only A11oy\nsame-origin routes backed by five fixed public Living Anatomy endpoints.\n\n## Data path\n\n```text\nszl-second-brain protected main\n  → exact review-candidate snapshot\n  → betterwithage/anatomy handles-only routes\n  → A11oy fixed-origin bounded adapter\n  → local holographic Brain v7 canvas\n```\n\nEvery candidate handle carries an exact source revision and SHA-256. Candidate\ncontent is rejected by the A11oy adapter and browser. Redirects, caller-supplied\norigins, and unbounded response bodies are rejected.\n\n## Formula and quant truth boundary\n\nThe source atlas contains 30 attributed records, 21 executable formulas, and\nnine quant domains. The exact locked-proven set remains eight. Per-obligation\nstatus and corpus-reported status do not promote a formula. The F-number mapping\nremains `UNKNOWN_NOT_INFERRED`; Lambda remains Conjecture 1 and advisory only.\n\n## Authority\n\nThe holograph observes and helps a reviewer navigate evidence. It grants no\nprivate-memory access, training, weight update, truth promotion, merge, tool\nexecution, provider mutation, or consequential-action authority.\n\n## Same-origin routes\n\n- `/api/a11oy/v1/holographic/brain-v7/contract`\n- `/api/a11oy/v1/holographic/brain-v7/health`\n- `/api/a11oy/v1/holographic/brain-v7/frontier`\n- `/api/a11oy/v1/holographic/brain-v7/formulas`\n- `/api/a11oy/v1/holographic/brain-v7/quant`\n- `/api/a11oy/v1/holographic/brain-v7/ouroboros`\n''',
+              encoding="utf-8",
+          )
+
+          Path("docs/holographic-brain-v7-host.json").write_text(
+              __import__("json").dumps(
+                  {
+                      "schema": "szl.a11oy.holographic-brain-v7-host/v1",
+                      "host_file": host_path.as_posix(),
+                      "shell": html_path.as_posix(),
+                      "backend": "brain_v7_holographic.py",
+                      "style": "static/3d/brain-v7.css",
+                      "script": "static/3d/brain-v7.js",
+                      "upstream": "https://betterwithage-anatomy.hf.space",
+                      "content_access": "HANDLES_ONLY",
+                      "authority": "OBSERVE_AND_REVIEW_ONLY",
+                  },
+                  indent=2,
+                  sort_keys=True,
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Install exact focused test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "pytest==8.3.5" "fastapi>=0.115,<1" "httpx>=0.27,<1"
+
+      - name: Prove backend, shell, accessibility, and authority contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile brain_v7_holographic.py tests/test_brain_v7_holographic.py
+          node --check static/3d/brain-v7.js
+          python -m pytest -q tests/test_brain_v7_holographic.py
+          test "$(grep -Fc 'data-szl-brain-v7=\"style\"' static/3d/holographic.html)" -eq 1
+          test "$(grep -Fc 'data-szl-brain-v7=\"script\"' static/3d/holographic.html)" -eq 1
+          test "$(git grep -l 'install_brain_v7_holographic_routes(app)' -- '*.py' ':!brain_v7_holographic.py' | wc -l)" -eq 1
+          grep -F 'https://betterwithage-anatomy.hf.space' brain_v7_holographic.py
+          grep -F 'HANDLES_ONLY' brain_v7_holographic.py
+          grep -F 'provider_mutation": "NONE"' brain_v7_holographic.py
+          git diff --check
+
+      - name: Remove temporary controller and commit durable holographic v7 source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/apply-holographic-brain-v7-once.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add --all
+          git diff --cached --quiet && { echo "::error::No holographic Brain v7 changes were produced"; exit 1; }
+          git commit -s -m "feat(holographic): wire YACHAY Brain and quant v7"
+          git push origin HEAD:feat/holographic-brain-anatomy-v7-20260904
