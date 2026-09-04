@@ -15,6 +15,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STYLE = '<link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />'
 SCRIPT = '<script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>'
+STYLE_MARKER = 'data-szl-holo-asset="style-v2"'
+SCRIPT_MARKER = 'data-szl-holo-asset="script-v2"'
+STYLE_HREF = 'href="/assets/szl-holo-v2.css"'
+SCRIPT_SRC = 'src="/assets/szl-holo-v2.js"'
 STATE = ROOT / "docs" / "holographic-experience-v2" / "rollout-state.json"
 
 EXACT = (
@@ -71,7 +75,18 @@ def _read(path: Path) -> str:
 
 
 def is_bound(text: str) -> bool:
-    return STYLE in text and SCRIPT in text
+    """Validate the binding by identity, not incidental attribute serialization.
+
+    HTML permits attributes in any order and both ``>`` and ``/>`` forms. The
+    source contract is one marker for each local asset plus the exact local
+    href/src. Duplicate markers remain a hard failure in :func:`bind`.
+    """
+    return (
+        text.count(STYLE_MARKER) == 1
+        and text.count(SCRIPT_MARKER) == 1
+        and STYLE_HREF in text
+        and SCRIPT_SRC in text
+    )
 
 
 def bind(path: Path) -> str:
@@ -84,8 +99,8 @@ def bind(path: Path) -> str:
     if "</head>" not in text.lower() or "</body>" not in text.lower():
         return "not-document"
 
-    style_count = text.count('data-szl-holo-asset="style-v2"')
-    script_count = text.count('data-szl-holo-asset="script-v2"')
+    style_count = text.count(STYLE_MARKER)
+    script_count = text.count(SCRIPT_MARKER)
     if style_count > 1 or script_count > 1:
         raise RuntimeError(f"duplicate Holo-Constellation marker in {relative}")
 
@@ -102,6 +117,8 @@ def bind(path: Path) -> str:
     if changed:
         path.write_text(text, encoding="utf-8", newline="\n")
         return "bound"
+    if not is_bound(text):
+        raise RuntimeError(f"invalid Holo-Constellation binding in {relative}")
     return "present"
 
 
