@@ -1,5 +1,7 @@
 /* SZL A11oy canonical product edge v3.
 
+   Protected-main proof retrigger: 2026-09-04. Runtime semantics unchanged.
+
    Exact authority:
    - a-11-oy.com/*      -> fixed SZLHOLDINGS/a11oy Space origin
    - www.a-11-oy.com/*  -> 301 to the canonical apex, preserving path + query
