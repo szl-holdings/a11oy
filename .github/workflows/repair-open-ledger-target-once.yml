@@ -1,0 +1,61 @@
+name: Repair open-ledger touch target once
+
+on:
+  push:
+    branches:
+      - fix/public-experience-open-ledger-target-v1
+    paths:
+      - .github/workflows/repair-open-ledger-target-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-open-ledger-target-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/public-experience-open-ledger-target-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply the exact receipt-derived touch target
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object a11oy_landing.html)" = 23ed91ff7d8f69942927e51992424882bfb6746a
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("a11oy_landing.html")
+          text = path.read_text(encoding="utf-8")
+          old = "  .stat .stat-note a{color:var(--proof);text-decoration:none}"
+          new = "  .stat .stat-note a{display:inline-flex;align-items:center;min-height:44px;padding-inline:6px;color:var(--proof);text-decoration:none}"
+          if text.count(old) != 1:
+              raise SystemExit("open-ledger CSS target drifted")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          python -m pytest tests/test_public_experience_open_ledger.py -q
+          git diff --check
+          git rm .github/workflows/repair-open-ledger-target-once.yml
+          mapfile -t changed < <(git diff --name-only | sort)
+          test "${#changed[@]}" -eq 2
+          test "${changed[0]}" = .github/workflows/repair-open-ledger-target-once.yml
+          test "${changed[1]}" = a11oy_landing.html
+
+      - name: Commit exact correction and remove bootstrap
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add a11oy_landing.html
+          git commit -m 'fix(ux): make the proof ledger link a 44px target' -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/public-experience-open-ledger-target-v1
