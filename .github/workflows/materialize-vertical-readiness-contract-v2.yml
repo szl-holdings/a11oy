@@ -1,0 +1,140 @@
+name: Materialize vertical readiness signer contract v2
+
+on:
+  push:
+    branches:
+      - fix/vertical-readiness-signer-contract-v2
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-vertical-readiness-signer-contract-v2-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/vertical-readiness-signer-contract-v2
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Align emergency live proof with the canonical v2 readiness schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path('.github/workflows/emergency-live-convergence-v1.yml')
+          temporary = Path('.github/workflows/materialize-vertical-readiness-contract-v2.yml')
+          source = target.read_text(encoding='utf-8')
+
+          vertical_anchor = '''              vertical = {
+          '''
+          signer_probe = '''              verticals = vertical_ready.get("verticals")
+              verticals = verticals if isinstance(verticals, dict) else {}
+              expected_verticals = {
+                  "sentra", "lyte", "killinchu", "finance", "terra", "counsel"
+              }
+              persistent_signer_ready = (
+                  set(verticals) == expected_verticals
+                  and all(
+                      isinstance(row, dict)
+                      and row.get("ready") is True
+                      and row.get("status") == "READY"
+                      and isinstance(row.get("requirements"), dict)
+                      and row["requirements"].get("persistent_signing_key") is True
+                      for row in verticals.values()
+                  )
+              )
+              vertical = {
+          '''
+          if source.count(vertical_anchor) != 1:
+              raise SystemExit(
+                  f'expected one vertical proof anchor, found {source.count(vertical_anchor)}'
+              )
+          source = source.replace(vertical_anchor, signer_probe, 1)
+
+          old_field = '''                  "signing_key_source": vertical_ready.get("sentra_signing_key_source"),
+          '''
+          new_field = '''                  "persistent_signer_ready": persistent_signer_ready,
+                  "expected_verticals": sorted(expected_verticals),
+                  "observed_verticals": sorted(verticals),
+          '''
+          if source.count(old_field) != 1:
+              raise SystemExit(
+                  f'expected one obsolete signer field, found {source.count(old_field)}'
+              )
+          source = source.replace(old_field, new_field, 1)
+
+          old_gate = '''                  and vertical["signing_key_source"] == "env"
+          '''
+          new_gate = '''                  and vertical["persistent_signer_ready"] is True
+          '''
+          if source.count(old_gate) != 1:
+              raise SystemExit(
+                  f'expected one obsolete signer gate, found {source.count(old_gate)}'
+              )
+          source = source.replace(old_gate, new_gate, 1)
+
+          source = source.replace(
+              '"schema": "szl.emergency-live-convergence-proof/v1"',
+              '"schema": "szl.emergency-live-convergence-proof/v2"',
+              1,
+          )
+          target.write_text(source, encoding='utf-8')
+          temporary.unlink()
+          PY
+
+      - name: Validate Python, YAML, and readiness contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "huggingface_hub==1.10.1" "pytest==8.4.2" "PyYAML==6.0.3"
+          python -m py_compile scripts/hf_publish_vertical_services.py
+          python -m pytest -q \
+            tests/test_hf_vertical_readiness_signer_contract_v2.py \
+            tests/test_hf_space_secret_reader_compat.py \
+            tests/test_hf_publish_vertical_flagships_v4.py
+          python - <<'PY'
+          from pathlib import Path
+          import yaml
+
+          workflow = Path('.github/workflows/emergency-live-convergence-v1.yml')
+          source = workflow.read_text(encoding='utf-8')
+          yaml.safe_load(source)
+          required = (
+              'persistent_signer_ready',
+              'expected_verticals',
+              'observed_verticals',
+              'persistent_signing_key',
+              'szl.emergency-live-convergence-proof/v2',
+          )
+          for token in required:
+              assert token in source, token
+          assert 'signing_key_source' not in source
+          assert 'sentra_signing_key_source' not in source
+          PY
+
+      - name: Commit the verified permanent repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -s -m "fix(hf): verify persistent signer through readiness v2"
+          git push origin HEAD:fix/vertical-readiness-signer-contract-v2
