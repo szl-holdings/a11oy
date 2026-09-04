@@ -254,6 +254,7 @@ def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     selected_ids = {str(row["id"]) for row in selected}
     reserve_repositories = (
+        FORMULA_REPOSITORY,
         "szl-holdings/anatomy",
         "szl-holdings/ouroboros",
         "szl-holdings/a11oy",
