@@ -34,10 +34,29 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
                 self.assertIn("dest: https://a-11-oy.com/living-anatomy", policy)
 
     def test_canonical_fleet_count_includes_anatomy(self) -> None:
-        self.assertIn("spaces_public_target: 10", self.series_a)
-        self.assertIn("spaces_private_target: 47", self.series_a)
-        self.assertEqual(10, self.series_a.count("  - id: SZLHOLDINGS/"))
-        self.assertEqual(10, self.estate.count("  - id: SZLHOLDINGS/"))
+        self.assertIn("spaces_public_target: 8", self.series_a)
+        self.assertIn("spaces_private_target: 49", self.series_a)
+        self.assertEqual(8, self.series_a.count("  - id: SZLHOLDINGS/", 0, self.series_a.index("retire_into_killinchu:")))
+        self.assertEqual(8, self.estate.count("  - id: SZLHOLDINGS/", 0, self.estate.index("retire_into_killinchu:")))
+
+    def test_resilience_family_has_one_public_keeper(self) -> None:
+        for name, policy in (
+            ("series-a", self.series_a),
+            ("estate", self.estate),
+        ):
+            keep_section = policy.split("keep:", 1)[1].split("retire_into_killinchu:", 1)[0]
+            retire_section = policy.split("retire_into_killinchu:", 1)[1]
+            with self.subTest(policy=name):
+                self.assertEqual(1, keep_section.count("- id: SZLHOLDINGS/killinchu"))
+                for legacy in (
+                    "SZLHOLDINGS/vessels",
+                    "SZLHOLDINGS/sentra",
+                    "SZLHOLDINGS/immune",
+                    "SZLHOLDINGS/immune-lattice",
+                    "SZLHOLDINGS/aegis-assurance",
+                ):
+                    self.assertNotIn(f"- id: {legacy}", keep_section)
+                    self.assertIn(f"- id: {legacy}", retire_section)
 
     def test_consolidator_consumes_the_canonical_keep_policy(self) -> None:
         self.assertIn('Path("docs/series-a/hf-space-keep-list.yaml")', self.consolidator)
