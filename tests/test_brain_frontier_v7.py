@@ -222,3 +222,44 @@ def test_dependency_revisions_must_be_exact() -> None:
     broken[ANATOMY_REPOSITORY] = "main"
     with pytest.raises(MaterializationError, match="not exact"):
         build_snapshot("5" * 40, state_raw, candidates_raw, broken)
+
+def test_selection_accepts_reserved_repository_already_in_formula_tissue() -> None:
+    state_raw, candidates_raw = fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    authority = next(item for item in rows if item["source_kind"] == "formula-authority")
+    authority["source_repository"] = "szl-holdings/anatomy"
+    rebuilt = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["candidate_set_sha256"] = hashlib.sha256(rebuilt).hexdigest()
+    snapshot = build_snapshot(
+        "5" * 40,
+        json.dumps(state).encode(),
+        rebuilt,
+        dependencies(),
+    )
+    assert snapshot["selected_handle_count"] == 72
+    assert "szl-holdings/anatomy" in {handle["repository"] for handle in snapshot["handles"]}
+
+
+def test_selection_still_fails_when_reserved_repository_is_absent_from_all_rows() -> None:
+    state_raw, candidates_raw = fixture()
+    rows = [
+        json.loads(line)
+        for line in candidates_raw.splitlines()
+        if json.loads(line)["source_repository"] != "szl-holdings/szl-nemo"
+    ]
+    missing = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["candidate_count"] = len(rows)
+    state["candidate_set_sha256"] = hashlib.sha256(missing).hexdigest()
+    with pytest.raises(
+        MaterializationError,
+        match="reserved repository has no candidate: szl-holdings/szl-nemo",
+    ):
+        build_snapshot(
+            "5" * 40,
+            json.dumps(state).encode(),
+            missing,
+            dependencies(),
+        )
+

@@ -31,6 +31,10 @@ def test_client_uses_one_same_origin_snapshot_without_persistence_or_telemetry()
     assert "HANDLES_ONLY" in source
     assert "DISCOVERED_REVIEW_REQUIRED" in source
     assert "payload.handles.length !== 72" in source
+    assert "REQUIRED_REPOSITORIES" in source
+    assert "ALLOWED_REPOSITORIES" in source
+    assert "szl-holdings/anatomy" in source
+    assert "szl-holdings/szl-nemo" in source
     assert re.search(r"\bhandle\.content\b", source) is None
     assert "payload.content" not in source
     for forbidden in (

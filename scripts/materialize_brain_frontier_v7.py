@@ -261,6 +261,8 @@ def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         "szl-holdings/szl-nemo",
     )
     for repository in reserve_repositories:
+        if any(row.get("source_repository") == repository for row in selected):
+            continue
         candidate = next(
             (
                 row

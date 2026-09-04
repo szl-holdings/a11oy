@@ -10,6 +10,21 @@
   const HANDLE_ID = /^frontier:[0-9a-f]{32}$/;
   const REVISION = /^[0-9a-f]{40}$/;
   const DIGEST = /^[0-9a-f]{64}$/;
+  const ALLOWED_REPOSITORIES = new Set([
+    "szl-holdings/szl-formulas",
+    "szl-holdings/ouroboros",
+    "szl-holdings/anatomy",
+    "szl-holdings/a11oy",
+    "szl-holdings/szl-forge",
+    "szl-holdings/szl-nemo",
+  ]);
+  const REQUIRED_REPOSITORIES = [
+    "szl-holdings/anatomy",
+    "szl-holdings/ouroboros",
+    "szl-holdings/a11oy",
+    "szl-holdings/szl-forge",
+    "szl-holdings/szl-nemo",
+  ];
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
   const state = {
     open: false,
@@ -42,6 +57,7 @@
 
   function validateHandle(handle) {
     if (!handle || typeof handle !== "object") return false;
+    if (!ALLOWED_REPOSITORIES.has(String(handle.repository ?? ""))) return false;
     if (!HANDLE_ID.test(String(handle.nodeId ?? ""))) return false;
     if (!DIGEST.test(String(handle.sha256 ?? ""))) return false;
     if (!REVISION.test(String(handle.revision ?? ""))) return false;
@@ -61,6 +77,8 @@
     if (!Array.isArray(payload.handles) || payload.handles.length !== 72) return false;
     if (!payload.handles.every(validateHandle)) return false;
     if (payload.selected_handle_count !== payload.handles.length) return false;
+    const presentRepos = new Set(payload.handles.map((handle) => String(handle.repository ?? "")));
+    if (!REQUIRED_REPOSITORIES.every((repository) => presentRepos.has(repository))) return false;
     const brain = payload.sources?.second_brain;
     const anatomy = payload.sources?.anatomy;
     const formula = payload.formula_atlas;
