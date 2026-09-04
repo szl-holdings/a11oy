@@ -3,8 +3,8 @@
 """Canonical vertical estate publisher.
 
 The established Domain Experience v4 publisher runs unchanged first. The same
-single-writer job then publishes and attests the combined six-engine runtime
-from the exact merged vertical-services revision.
+single-writer job then publishes and attests the combined six-engine frontier-v3
+runtime from the exact merged vertical-services revision.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 FLAGSHIP_IMPL = HERE / "hf_publish_vertical_flagships_v4_impl.py"
-COMBINED_IMPL = HERE / "hf_publish_vertical_services.py"
+COMBINED_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 
@@ -92,7 +92,7 @@ def main() -> int:
     try:
         secret_reader = ensure_space_secret_reader()
         combined_code, combined_error = run_publisher(
-            "szl_vertical_services",
+            "szl_vertical_services_frontier_v3",
             COMBINED_IMPL,
         )
     except Exception as exc:
@@ -105,7 +105,7 @@ def main() -> int:
         "complete": False,
     }
     combined = read_receipt(COMBINED_RECEIPT) or {
-        "schema": "szl.hf-vertical-services-publication/v1",
+        "schema": "szl.hf-vertical-services-publication/v2",
         "complete": False,
     }
     if flagship_error:
@@ -115,7 +115,7 @@ def main() -> int:
 
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
-    flagship["estate_schema"] = "szl.hf-vertical-estate/v5"
+    flagship["estate_schema"] = "szl.hf-vertical-estate/v6"
     flagship["combined_runtime"] = combined
     flagship["flagship_exit_code"] = flagship_code
     flagship["combined_exit_code"] = combined_code
