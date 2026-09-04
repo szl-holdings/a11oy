@@ -15,6 +15,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 STYLE = '<link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />'
 SCRIPT = '<script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>'
+STYLE_MARKER = 'data-szl-holo-asset="style-v2"'
+SCRIPT_MARKER = 'data-szl-holo-asset="script-v2"'
 STATE = ROOT / "docs" / "holographic-experience-v2" / "rollout-state.json"
 
 EXACT = (
@@ -71,7 +73,8 @@ def _read(path: Path) -> str:
 
 
 def is_bound(text: str) -> bool:
-    return STYLE in text and SCRIPT in text
+    """Accept one semantic marker regardless of harmless HTML attribute ordering."""
+    return text.count(STYLE_MARKER) == 1 and text.count(SCRIPT_MARKER) == 1
 
 
 def bind(path: Path) -> str:
@@ -84,8 +87,8 @@ def bind(path: Path) -> str:
     if "</head>" not in text.lower() or "</body>" not in text.lower():
         return "not-document"
 
-    style_count = text.count('data-szl-holo-asset="style-v2"')
-    script_count = text.count('data-szl-holo-asset="script-v2"')
+    style_count = text.count(STYLE_MARKER)
+    script_count = text.count(SCRIPT_MARKER)
     if style_count > 1 or script_count > 1:
         raise RuntimeError(f"duplicate Holo-Constellation marker in {relative}")
 
