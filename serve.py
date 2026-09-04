@@ -4304,6 +4304,9 @@ try:
     app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    async def _anatomy_alias():
+        return RedirectResponse("/living-anatomy", status_code=302)
+    app.add_api_route("/anatomy", _anatomy_alias, methods=["GET"], include_in_schema=False)
     # ATELIER (2026-08-29): declared product surface. pages/atelier.html rides
     # the wholesale COPY pages/ — no Dockerfile edit (protected admission input).
     # Serve the walk in-app. If the page is missing, 307 to the RUNNING Space.
