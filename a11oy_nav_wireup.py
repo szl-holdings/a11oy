@@ -349,6 +349,8 @@ _PUBLIC_PAGE_ALIASES = (
     ("/router", None, "redirect", "/console"),
     ("/products", None, "redirect", "/#products"),
     ("/products/", None, "redirect", "/#products"),
+    ("/hatun", None, "redirect", "/hatun-mcp"),
+    ("/hatun/", None, "redirect", "/hatun-mcp"),
 )
 
 
