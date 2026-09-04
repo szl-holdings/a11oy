@@ -1,4 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
+# Second owner-authored activation after the workflow exists on this branch.
 name: Materialize real-estate readiness truth repair once
 
 "on":
