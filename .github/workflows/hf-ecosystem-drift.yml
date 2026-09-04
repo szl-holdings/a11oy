@@ -1,125 +1,83 @@
-name: HF Ecosystem manifest drift
+name: Refresh HF ecosystem manifest once
 
 on:
   push:
-    branches: [main]
-  schedule:
-    - cron: '11 7 * * 1'
-  workflow_dispatch: {}
+    branches:
+      - chore/refresh-hf-ecosystem-manifest-20260904-2228
+    paths:
+      - .github/workflows/hf-ecosystem-drift.yml
 
 permissions:
-  contents: read
-  issues: write
+  contents: write
 
 concurrency:
-  group: hf-ecosystem-manifest-drift
+  group: refresh-hf-ecosystem-manifest-20260904-2228
   cancel-in-progress: false
 
 jobs:
-  drift:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
-      - name: Checkout exact protected source
+
+      - name: Check out exact authorized branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
-          persist-credentials: false
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify one-shot identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/chore/refresh-hf-ecosystem-manifest-20260904-2228"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.12'
-      - name: Prove the manifest collector and revision contracts offline
-        run: |
-          python3 scripts/test_audit_huggingface_ecosystem.py
-          python3 -m py_compile scripts/audit_huggingface_ecosystem.py
-      - name: Compare the tracked manifest with current public Hub evidence
-        id: check
-        shell: bash
-        run: |
-          set +e
-          mkdir -p evidence
-          python3 scripts/audit_huggingface_ecosystem.py \
-            --check \
-            --output docs/huggingface-ecosystem-manifest.json
-          code=$?
-          if [ "$code" -eq 0 ]; then
-            state='CURRENT'
-          else
-            state='DRIFT_OR_UNAVAILABLE'
-          fi
-          echo "state=${state}" >> "$GITHUB_OUTPUT"
-          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
-          exit 0
-      - name: Generate a source-labelled candidate manifest
-        if: steps.check.outputs.state != 'CURRENT'
-        continue-on-error: true
-        run: >-
-          python3 scripts/audit_huggingface_ecosystem.py
-          --output evidence/huggingface-ecosystem-manifest.candidate.json
-      - name: Synchronize deterministic drift incident
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-          STATE: ${{ steps.check.outputs.state }}
-          TITLE: '[HF-ECOSYSTEM-DRIFT] Public manifest is stale'
+
+      - name: Regenerate and verify the current public inventory
         shell: bash
         run: |
           set -euo pipefail
-          number=$(gh issue list \
-            --repo "$GITHUB_REPOSITORY" \
-            --state all \
-            --limit 100 \
-            --search '"[HF-ECOSYSTEM-DRIFT] Public manifest is stale" in:title' \
-            --json number,title \
-            --jq '.[] | select(.title == "[HF-ECOSYSTEM-DRIFT] Public manifest is stale") | .number' \
-            | head -n 1)
-          if [ "${STATE:-UNKNOWN}" = 'CURRENT' ]; then
-            if [ -n "$number" ]; then
-              gh issue close "$number" \
-                --repo "$GITHUB_REPOSITORY" \
-                --reason completed \
-                --comment "Current protected source matches current public Hugging Face ecosystem evidence. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" || true
-            fi
-            exit 0
-          fi
-          cat > /tmp/hf-drift-issue.md <<EOF
-          ## Public Hugging Face ecosystem drift
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+          node scripts/validate_huggingface_ecosystem_schema.mjs
+          node scripts/test_validate_huggingface_ecosystem_schema.mjs
 
-          The tracked source-labelled manifest did not match the current public Hub observation, or the observation was unavailable.
+      - name: Restore the canonical controller and commit only evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git show origin/main:.github/workflows/hf-ecosystem-drift.yml \
+            > .github/workflows/hf-ecosystem-drift.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add docs/huggingface-ecosystem-manifest.json \
+            .github/workflows/hf-ecosystem-drift.yml
+          git diff --cached --check
+          test -n "$(git diff --cached --name-only)"
+          git commit -s -m "chore(hf): refresh the measured public ecosystem manifest"
+          git push origin HEAD:chore/refresh-hf-ecosystem-manifest-20260904-2228
 
-          - Protected source: ${GITHUB_SHA}
-          - Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
-          - State: ${STATE:-UNKNOWN}
-          - Candidate artifact: huggingface-ecosystem-manifest-candidate-${GITHUB_RUN_ID} when generation succeeds
-
-          No model, dataset, Space, collection, bucket, visibility, hardware, or secret state was changed by this controller.
-          EOF
-          if [ -z "$number" ]; then
-            gh issue create \
-              --repo "$GITHUB_REPOSITORY" \
-              --title "$TITLE" \
-              --body-file /tmp/hf-drift-issue.md
-          else
-            gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true
-            gh issue edit "$number" \
-              --repo "$GITHUB_REPOSITORY" \
-              --body-file /tmp/hf-drift-issue.md
-          fi
-      - name: Upload candidate evidence
-        if: steps.check.outputs.state != 'CURRENT'
+      - name: Upload the exact refreshed evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: huggingface-ecosystem-manifest-candidate-${{ github.run_id }}
-          path: evidence/huggingface-ecosystem-manifest.candidate.json
-          if-no-files-found: warn
+          name: refreshed-hf-ecosystem-manifest-${{ github.run_id }}
+          path: docs/huggingface-ecosystem-manifest.json
+          if-no-files-found: error
           retention-days: 90
-      - name: Enforce current public manifest
-        if: always()
-        env:
-          STATE: ${{ steps.check.outputs.state }}
-        run: test "${STATE}" = "CURRENT"
