@@ -1,0 +1,36 @@
+{
+  "schema": "szl.estate-truth-convergence/v1",
+  "status": "SOURCE_CONVERGED",
+  "observed_at": "2026-09-04T04:24:49.703433Z",
+  "source_commit": "46dc804222de58b5ffd922a89a78460dd077fee2",
+  "input_revision": "d50032a80da270851e3a1c05750e0460c34c94f8",
+  "killinchu_revision": "c797b4d1ea336c02f08ddaf72c01b152f3c04d4d",
+  "vertical_services_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
+  "workflow_commits": {
+    "living_anatomy_guardian": "f7db7e05ccce760f97f608be020defafaa94bdb7",
+    "synthetic_runtime_monitor": "c6536aa56765b1e6c9db0d25dabd33c01c1f2340"
+  },
+  "proof": {
+    "ecosystem_audit_tests_passed": 16,
+    "focused_tests_passed": 31,
+    "schema_validation": "PASSED",
+    "living_anatomy_guardian_sha256": "e63ff568cfc489280ff54e0db97f4aef2d2e7e049c4cb4ea21d26acc6c2dbf2d",
+    "synthetic_runtime_monitor_sha256": "3a77458f23891d3a22ec297094fea0fda6e42d06f00885355f543e329d63a0b4"
+  },
+  "public_product_taxonomy": {
+    "killinchu": "SOLE_PUBLIC_CYBER_PHYSICAL_RESILIENCE_PRODUCT",
+    "aegis": "PORTFOLIO_LABEL",
+    "operational_capability_planes": [
+      "defend",
+      "maritime",
+      "counter-uas",
+      "evidence"
+    ],
+    "migration_gated": [
+      "immune",
+      "immune-lattice"
+    ]
+  },
+  "provider_mutation_performed": false,
+  "provider_mutation_gate": "DURABLE_DEFEND_STATE_AND_LIVE_RESTART_WITNESS_REQUIRED"
+}
