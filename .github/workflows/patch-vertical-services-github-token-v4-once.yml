@@ -36,51 +36,56 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('.github/workflows/hf-sync.yml')
-          text = path.read_text(encoding='utf-8')
-          anchor = '''  publish-vertical-flagships:
-            name: Publish and live-verify six domain-native flagship Spaces
-            needs: deploy
-            runs-on: ubuntu-latest
-            timeout-minutes: 50
-            env:
-              HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
-          '''
-          replacement = '''  publish-vertical-flagships:
-            name: Publish and live-verify six domain-native flagship Spaces
-            needs: deploy
-            runs-on: ubuntu-latest
-            timeout-minutes: 50
-            env:
-              # The nested exact-source deployer deliberately reads GITHUB_TOKEN
-              # when --require-default-branch-tip is enabled. Keep this scoped to
-              # the vertical publisher job rather than exporting it globally.
-              GITHUB_TOKEN: ${{ github.token }}
-              HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
-          '''
-          if replacement in text:
-              raise SystemExit('repair already materialized')
-          if anchor not in text:
-              raise SystemExit('expected publish-vertical-flagships anchor not found')
-          path.write_text(text.replace(anchor, replacement, 1), encoding='utf-8')
-          Path('.github/workflows/patch-vertical-services-github-token-v4-once.yml').unlink()
+          workflow_path = Path('.github/workflows/hf-sync.yml')
+          one_shot_path = Path('.github/workflows/patch-vertical-services-github-token-v4-once.yml')
+          text = workflow_path.read_text(encoding='utf-8')
+
+          job_start = text.index('  publish-vertical-flagships:\n')
+          job_end = text.index('\n  readiness-verdict:', job_start)
+          block = text[job_start:job_end]
+          token_expression = chr(36) + '{{ github.token }}'
+          marker = '      GITHUB_TOKEN: ' + token_expression
+
+          if marker not in block:
+              env_anchor = '    env:\n'
+              if env_anchor not in block:
+                  raise SystemExit('publish-vertical-flagships job-level env block was not found')
+              insertion = (
+                  env_anchor
+                  + '      # Required by the nested exact-source publisher when its default-branch-tip guard is enabled.\n'
+                  + marker
+                  + '\n'
+              )
+              block = block.replace(env_anchor, insertion, 1)
+              text = text[:job_start] + block + text[job_end:]
+              workflow_path.write_text(text, encoding='utf-8')
+
+          one_shot_path.unlink()
           PY
 
-      - name: Validate the exact YAML change
+      - name: Validate the exact scoped YAML change
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+
           text = Path('.github/workflows/hf-sync.yml').read_text(encoding='utf-8')
-          marker = 'GITHUB_TOKEN: ${{ github.token }}'
+          token_expression = chr(36) + '{{ github.token }}'
+          marker = 'GITHUB_TOKEN: ' + token_expression
+          top_level_marker = 'GH_TOKEN: ' + token_expression
+          job_start = text.index('  publish-vertical-flagships:\n')
+          job_end = text.index('\n  readiness-verdict:', job_start)
+          block = text[job_start:job_end]
+
           if text.count(marker) != 1:
-              raise SystemExit(f'expected exactly one scoped GITHUB_TOKEN marker, found {text.count(marker)}')
-          block = text.split('  publish-vertical-flagships:', 1)[1].split('\n  readiness-verdict:', 1)[0]
+              raise SystemExit(f'expected exactly one GITHUB_TOKEN marker, found {text.count(marker)}')
           if marker not in block:
-              raise SystemExit('GITHUB_TOKEN is not scoped to the vertical publisher job')
-          if 'GH_TOKEN: ${{ github.token }}' not in text:
-              raise SystemExit('existing top-level GitHub CLI token contract was lost')
+              raise SystemExit('GITHUB_TOKEN is not scoped to publish-vertical-flagships')
+          if top_level_marker not in text:
+              raise SystemExit('existing top-level GH_TOKEN contract was lost')
+          if Path('.github/workflows/patch-vertical-services-github-token-v4-once.yml').exists():
+              raise SystemExit('one-shot workflow was not removed')
           PY
           git diff --check
           git diff -- .github/workflows/hf-sync.yml
