@@ -58,7 +58,7 @@
     if (payload.state !== "SOURCE_BOUND_REVIEW_MEMORY") return false;
     if (payload.surface !== "A11OY_HOLOGRAPHIC_V7_BRAIN_FRONTIER") return false;
     if (!DIGEST.test(String(payload.snapshot_sha256 ?? ""))) return false;
-    if (!Array.isArray(payload.handles) || payload.handles.length > 64) return false;
+    if (!Array.isArray(payload.handles) || payload.handles.length > 72) return false;
     if (!payload.handles.every(validateHandle)) return false;
     if (payload.selected_handle_count !== payload.handles.length) return false;
     const brain = payload.sources?.second_brain;

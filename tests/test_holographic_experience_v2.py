@@ -2,6 +2,7 @@
 """Offline contracts for A11oy Holo-Constellation v2."""
 from __future__ import annotations
 
+import importlib.util
 import json
 import re
 import unittest
@@ -20,6 +21,12 @@ SOURCE_MANAGED = {
     "pages/integrations.html",
     "spaces/sda/index.html",
 }
+
+_BINDER_SPEC = importlib.util.spec_from_file_location("szl_holo_binder", BINDER_PATH)
+assert _BINDER_SPEC is not None and _BINDER_SPEC.loader is not None
+_BINDER_MODULE = importlib.util.module_from_spec(_BINDER_SPEC)
+_BINDER_SPEC.loader.exec_module(_BINDER_MODULE)
+is_bound = _BINDER_MODULE.is_bound
 
 
 class HolographicExperienceV2Contract(unittest.TestCase):
@@ -197,6 +204,24 @@ class HolographicExperienceV2Contract(unittest.TestCase):
             self.assertIn(relative, self.binder)
         for prohibited in ("requests.", "urllib", "subprocess", "os.environ", "force_push"):
             self.assertNotIn(prohibited, self.binder)
+
+    def test_binder_ties_each_asset_url_to_its_marked_element(self) -> None:
+        valid = (
+            '<link data-szl-holo-asset="style-v2" href="/assets/szl-holo-v2.css">'
+            '<script defer data-szl-holo-asset="script-v2" src="/assets/szl-holo-v2.js"></script>'
+        )
+        self.assertTrue(is_bound(valid))
+
+        decoy_style = valid.replace(
+            'href="/assets/szl-holo-v2.css"',
+            'href="/wrong.css" data-note="/assets/szl-holo-v2.css"',
+        )
+        decoy_script = valid.replace(
+            'src="/assets/szl-holo-v2.js"',
+            'src="/wrong.js" data-src="/assets/szl-holo-v2.js"',
+        )
+        self.assertFalse(is_bound(decoy_style))
+        self.assertFalse(is_bound(decoy_script))
 
     def test_rollout_state_enforces_exact_bindings_when_active(self) -> None:
         self.assertIn(self.state["state"], {"ASSETS_READY", "ROLLED_OUT"})

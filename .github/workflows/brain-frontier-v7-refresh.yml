@@ -114,26 +114,31 @@ jobs:
           git diff --cached --quiet && { echo "::error::Expected snapshot change is absent"; exit 4; }
           git commit -s -m "chore(holographic): refresh Brain Frontier ${digest:0:16}"
           git push origin "HEAD:$branch"
+          body_file="$(mktemp)"
+          trap 'rm -f "$body_file"' EXIT
+          cat >"$body_file" <<EOF
+          ## Source-bound handle refresh
+
+          This automated proposal updates only the deterministic metadata snapshot consumed by the existing A11oy Holographic v7 Brain Frontier instrument.
+
+          - Snapshot: \`${digest}\`
+          - Second Brain candidate set: \`${candidate_set}\`
+          - Public content access: \`HANDLES_ONLY\`
+          - Training authority: \`NONE\`
+          - Promotion authority: \`NONE\`
+          - Execution authority: \`NONE\`
+          - Provider mutation: \`NONE\`
+          - Human review required: \`true\`
+
+          The workflow verified every source, content and candidate-set digest and ran the focused source/UI tests. It cannot force-push an existing branch or merge this PR.
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+          EOF
           url="$(gh pr create \
             --base main \
             --head "$branch" \
             --title "chore(holographic): review Brain Frontier ${digest:0:16}" \
-            --body "## Source-bound handle refresh
-
-This automated proposal updates only the deterministic metadata snapshot consumed by the existing A11oy Holographic v7 Brain Frontier instrument.
-
-- Snapshot: \`${digest}\`
-- Second Brain candidate set: \`${candidate_set}\`
-- Public content access: \`HANDLES_ONLY\`
-- Training authority: \`NONE\`
-- Promotion authority: \`NONE\`
-- Execution authority: \`NONE\`
-- Provider mutation: \`NONE\`
-- Human review required: \`true\`
-
-The workflow verified every source, content and candidate-set digest and ran the focused source/UI tests. It cannot force-push an existing branch or merge this PR.
-
-Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>")"
+            --body-file "$body_file")"
           echo "state=NEW_REVIEW_PR" >> "$GITHUB_OUTPUT"
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
