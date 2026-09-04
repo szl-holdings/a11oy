@@ -64,6 +64,8 @@ _SURFACES = [
     ("/sovereign",      "\u26D3",     "Sovereign Ledger"),                  # khipu health+spend
     ("/nemo",           "\u25C6",     "SZL-Nemo"),                          # ◆
     ("/immune",         "\u2B21",     "IMMUNE"),                            # ⬡
+    ("/holographic",    "\u25C8",     "Holo"),                              # ◈
+    ("/frontier-now",   "\u25C7",     "Frontier NOW"),                      # ◇
     ("/lyte",           "\u2696",     "LYTE lattice"),                      # ⚖ BIND package, not flagship
     ("/five-space",     "\u25A6",     "Five-space operator"),               # ▦ BIND package, not /console
     ("/autoreview",     "\u2713",     "Auto-Review (Governed Autonomy)"),   # ✓
@@ -95,6 +97,8 @@ _SURFACE_GROUP_OF = {
     "/sovereign": "Sovereign & Agentic Core",
     "/nemo": "Sovereign & Agentic Core",
     "/immune": "Sovereign & Agentic Core",
+    "/holographic": "Sovereign & Agentic Core",
+    "/frontier-now": "Sovereign & Agentic Core",
     "/lyte": "Sovereign & Agentic Core",
     "/five-space": "Sovereign & Agentic Core",
     "/autoreview": "Sovereign & Agentic Core",
@@ -227,6 +231,8 @@ def _build_related_strip(current_path: str) -> bytes:
     rel = [
         ("/nemo", "SZL-Nemo"),
         ("/immune", "IMMUNE"),
+        ("/holographic", "Holo"),
+        ("/frontier-now", "Frontier NOW"),
         ("/lyte", "LYTE lattice"),
         ("/five-space", "Five-space operator"),
         ("/autoreview", "Auto-Review"),

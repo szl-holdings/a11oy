@@ -25,9 +25,11 @@ HONESTY = ("MEASURED", "REPORTED", "ROADMAP", "SOFTWARE", "UNAVAILABLE", "SIMULA
 def test_nav_is_flagships_not_surface_sprawl() -> None:
     nav = FRONT.split('<nav class="nav-links" id="site-nav">', 1)[1].split("</nav>", 1)[0]
     assert 'href="#products"' in nav
-    assert 'href="#catalog"' in nav
-    assert "https://a11oy.net" in nav
     assert 'href="/console"' in nav
+    assert 'href="/holographic"' in nav
+    assert 'href="/frontier-now"' in nav
+    assert 'href="/immune"' in nav
+    assert "https://a11oy.net" in nav
     for sprawl in ("/ecosystem", "/anatomy-v5", "/observability", "/console#arena", "#surfaces"):
         assert sprawl not in nav
 
