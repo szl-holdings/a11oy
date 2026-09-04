@@ -6,13 +6,14 @@ The established Domain Experience v4 implementation remains the renderer, but
 the entrypoint admits only the four independent public vertical Spaces. Sentra
 and Vessels are capability planes inside Killinchu and are filtered before any
 Hugging Face mutation. The same single-writer job then publishes and attests the
-combined six-engine frontier-v3 runtime from the exact merged vertical-services
-revision.
+combined six-engine Python 2.2 intelligence runtime from the exact merged
+vertical-services revision.
 
 This distinction is intentional: one public product surface does not require one
 undifferentiated code module. Sentra and maritime contracts remain independently
 testable engines inside the combined runtime while their public front door is
-Killinchu.
+Killinchu. Models propose, kernels constrain, Hatun reviews, and humans retain
+consequential authority.
 """
 from __future__ import annotations
 
@@ -25,7 +26,7 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 FLAGSHIP_IMPL = HERE / "hf_publish_vertical_flagships_v4_impl.py"
 BASE_COMBINED_IMPL = HERE / "hf_publish_vertical_services.py"
-COMBINED_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"
+COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 
@@ -143,7 +144,7 @@ def main() -> int:
     try:
         secret_reader = ensure_space_secret_reader()
         combined_code, combined_error, _ = run_publisher(
-            "szl_vertical_services_frontier_v3",
+            "szl_vertical_services_intelligence_v4",
             COMBINED_IMPL,
         )
     except Exception as exc:
@@ -166,7 +167,7 @@ def main() -> int:
 
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
-    flagship["estate_schema"] = "szl.hf-vertical-estate/v6"
+    flagship["estate_schema"] = "szl.hf-vertical-estate/v7"
     flagship["public_flagship_slugs"] = list(admitted or ())
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
     flagship["killinchu_space"] = KILLINCHU_SPACE

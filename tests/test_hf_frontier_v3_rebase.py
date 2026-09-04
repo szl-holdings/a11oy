@@ -1,4 +1,4 @@
-"""Regression locks for the rebased vertical frontier-v3 publisher."""
+"""Regression locks for the vertical frontier and intelligence publishers."""
 from __future__ import annotations
 
 import ast
@@ -6,7 +6,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 ENTRYPOINT = ROOT / "scripts" / "hf_publish_vertical_flagships_v4.py"
-WRAPPER = ROOT / "scripts" / "hf_publish_vertical_services_frontier_v3.py"
+INTELLIGENCE = ROOT / "scripts" / "hf_publish_vertical_services_intelligence_v4.py"
+FRONTIER = ROOT / "scripts" / "hf_publish_vertical_services_frontier_v3.py"
 BASE = ROOT / "scripts" / "hf_publish_vertical_services.py"
 
 
@@ -19,18 +20,31 @@ def function_names(path: Path) -> set[str]:
     }
 
 
-def test_all_three_publisher_units_parse_and_remain_reviewable() -> None:
-    for path in (ENTRYPOINT, WRAPPER, BASE):
+def test_all_four_publisher_units_parse_and_remain_reviewable() -> None:
+    for path in (ENTRYPOINT, INTELLIGENCE, FRONTIER, BASE):
         ast.parse(path.read_text(encoding="utf-8"))
-    assert {"load_module", "constrain_public_flagships", "run_publisher", "main"}.issubset(
-        function_names(ENTRYPOINT)
-    )
+    assert {
+        "load_module",
+        "constrain_public_flagships",
+        "run_publisher",
+        "main",
+    }.issubset(function_names(ENTRYPOINT))
+    assert {
+        "load_v3",
+        "request_text",
+        "verify_intelligence",
+        "configure_v4",
+        "main",
+    }.issubset(function_names(INTELLIGENCE))
     assert {"load_base", "verify_frontier", "configure", "main"}.issubset(
-        function_names(WRAPPER)
+        function_names(FRONTIER)
     )
-    assert {"request_json", "verify_contract", "deploy_with_controller", "main"}.issubset(
-        function_names(BASE)
-    )
+    assert {
+        "request_json",
+        "verify_contract",
+        "deploy_with_controller",
+        "main",
+    }.issubset(function_names(BASE))
 
 
 def test_current_four_space_topology_is_preserved() -> None:
@@ -41,22 +55,21 @@ def test_current_four_space_topology_is_preserved() -> None:
         'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
         "constrain_public_flagships",
         "retired Killinchu capability plane reached public writer",
-        'COMBINED_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"',
-        '"szl.hf-vertical-estate/v6"',
+        'COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"',
+        '"szl.hf-vertical-estate/v7"',
         'flagship["public_flagship_slugs"]',
         'flagship["folded_into_killinchu"]',
         'flagship["combined_runtime"]',
+        '"szl_vertical_services_intelligence_v4"',
     ):
         assert fragment in source
     assert "api.create_repo" not in source
 
 
-def test_wrapper_locks_exact_source_and_non_authority() -> None:
-    source = WRAPPER.read_text(encoding="utf-8")
+def test_frontier_v3_remains_the_reviewed_base() -> None:
+    source = FRONTIER.read_text(encoding="utf-8")
     for fragment in (
         'BASE_IMPL = HERE / "hf_publish_vertical_services.py"',
-        'SOURCE_REVISION = "e08231a110fd80f85a61fba82d72ab7f1fe23836"',
-        'EXPECTED_VERSION = "2.1.0"',
         '"aegis": "sentra"',
         '"immune": "sentra"',
         '"puriq": "finance"',
@@ -90,8 +103,46 @@ def test_wrapper_locks_exact_source_and_non_authority() -> None:
     assert "session_token_recorded\": True" not in source
 
 
-def test_wrapper_augments_base_verification_instead_of_replacing_it() -> None:
-    source = WRAPPER.read_text(encoding="utf-8")
+def test_intelligence_v4_locks_exact_source_models_kernels_and_non_authority() -> None:
+    source = INTELLIGENCE.read_text(encoding="utf-8")
+    for fragment in (
+        'V3_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"',
+        'SOURCE_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"',
+        'EXPECTED_VERSION = "2.2.0"',
+        '"sentra": "threat-shield"',
+        '"lyte": "service-lattice"',
+        '"killinchu": "voyage-radar"',
+        '"finance": "probability-orbit"',
+        '"terra": "parcel-grid"',
+        '"counsel": "authority-chain"',
+        '"khipu-1.5b": "SZLHOLDINGS/SZL-Khipu-1.5B"',
+        '"receipt-agent": "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2"',
+        '"a11oy-mini": "SZLHOLDINGS/A11OY-MINI"',
+        '"nemo-recipe": "SZLHOLDINGS/szl-nemo"',
+        '"kernel-suite": "SZLHOLDINGS/szl-kernels"',
+        '"lambda-gate": "SZLHOLDINGS/szl-lambda-gate"',
+        '"invariants": "SZLHOLDINGS/szl-invariants"',
+        '"blocked": "SZLHOLDINGS/szl-blocked"',
+        '"receipt-attn": "SZLHOLDINGS/szl-receipt-attn"',
+        '"block-kv": "SZLHOLDINGS/szl-block-kv"',
+        '"/api/intelligence"',
+        '"/intelligence/sentra"',
+        '"/intelligence/counsel"',
+        '"caller_supplied_endpoints_allowed": False',
+        '"effectors_enabled": False',
+        '"LAMBDA_BELOW_INFERENCE_FLOOR"',
+        '"raw_context_returned": False',
+        '"raw_context_stored": False',
+        '"szl.vertical-intelligence-live-proof/v4"',
+    ):
+        assert fragment in source
+    assert "delete_repo" not in source
+    assert "delete_space" not in source
+    assert "token_value_recorded\": True" not in source
+
+
+def test_v4_augments_v3_and_v3_augments_base() -> None:
+    frontier = FRONTIER.read_text(encoding="utf-8")
     for fragment in (
         "prior_verify = base.verify_contract",
         "result = prior_verify()",
@@ -100,4 +151,15 @@ def test_wrapper_augments_base_verification_instead_of_replacing_it() -> None:
         "base.verify_contract = verify_contract_v3",
         "return int(base.main())",
     ):
-        assert fragment in source
+        assert fragment in frontier
+
+    intelligence = INTELLIGENCE.read_text(encoding="utf-8")
+    for fragment in (
+        "prior_verify_frontier = v3.verify_frontier",
+        "result = prior_verify_frontier(base)",
+        "intelligence_result = verify_intelligence(base)",
+        'result["intelligence_v4"] = intelligence_result',
+        "v3.verify_frontier = verify_frontier_v4",
+        "return int(v3.main())",
+    ):
+        assert fragment in intelligence
