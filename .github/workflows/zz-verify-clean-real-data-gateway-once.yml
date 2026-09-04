@@ -1,0 +1,157 @@
+name: Verify and clean real-data gateway tree once
+
+on:
+  push:
+    branches:
+      - feat/real-data-gateway-v1
+    paths:
+      - .github/workflows/zz-verify-clean-real-data-gateway-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-clean-real-data-gateway
+  cancel-in-progress: false
+
+jobs:
+  verify-clean:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact feature branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/real-data-gateway-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Require the complete permanent source contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          required=(
+            routers/real_data_gateway.py
+            routers/frontier_reads.py
+            routers/__init__.py
+            console/3d/real-data-gateway.html
+            console/3d/real-data-gateway.mjs
+            scripts/verify_real_data_gateway_live.py
+            tests/test_real_data_gateway.py
+            tests/test_operational_route_contracts.py
+            docs/REAL_DATA_GATEWAY.md
+            docs/REAL_DATA_GATEWAY_ADMISSION.md
+            docs/REAL_DATA_GATEWAY_RELEASE_GATES.md
+            .github/workflows/real-data-gateway.yml
+            .github/workflows/real-data-gateway-promotion.yml
+            .github/workflows/real-data-gateway-initial-promotion.yml
+            .github/workflows/hf-sync.yml
+          )
+          for path in "${required[@]}"; do
+            test -f "$path"
+          done
+
+          python -m py_compile \
+            routers/real_data_gateway.py \
+            routers/frontier_reads.py \
+            scripts/verify_real_data_gateway_live.py \
+            tests/test_real_data_gateway.py \
+            tests/test_operational_route_contracts.py
+          node --check console/3d/real-data-gateway.mjs
+
+          python - <<'PY'
+          import ast
+          import json
+          import re
+          from pathlib import Path
+
+          source = Path('routers/real_data_gateway.py').read_text(encoding='utf-8')
+          ast.parse(source)
+          for marker in (
+              'cisa-kev',
+              'treasury-debt-to-penny',
+              'noaa-water-level',
+              'federal-register-documents',
+              'census-acs-median-home-value',
+              'github-status',
+              'external_writes',
+              'effectors',
+              'production_authorization',
+              'UNAVAILABLE',
+              'CACHED',
+              'LIVE',
+              'MAX_RESPONSE_BYTES',
+              '_validate_url',
+          ):
+              if marker not in source:
+                  raise SystemExit(f'missing gateway contract: {marker}')
+
+          html = Path('console/3d/real-data-gateway.html').read_text(encoding='utf-8')
+          for marker in (
+              'data-szl-public-experience-v3="true"',
+              'viewport-fit=cover',
+              '--touch:44px',
+              'pointer:coarse',
+              'prefers-reduced-motion',
+              'prefers-contrast',
+              'forced-colors',
+              'Developer probe',
+          ):
+              if marker not in html:
+                  raise SystemExit(f'missing mobile contract: {marker}')
+
+          sync = Path('.github/workflows/hf-sync.yml').read_text(encoding='utf-8')
+          match = re.search(r"^\s*smoke-paths:\s*'([^']+)'\s*$", sync, re.MULTILINE)
+          if match is None:
+              raise SystemExit('canonical smoke-paths contract is missing')
+          smoke = json.loads(match.group(1))
+          required_smoke = {
+              '/static/3d/real-data-gateway.html',
+              '/api/a11oy/v1/real-data/registry',
+              '/api/a11oy/v1/real-data/health',
+              '/api/a11oy/v1/real-data/vertical/lyte',
+          }
+          if not required_smoke.issubset(smoke) or len(smoke) != len(set(smoke)):
+              raise SystemExit('gateway first-smoke contract is incomplete or duplicated')
+
+          workflow = Path('.github/workflows/real-data-gateway.yml').read_text(encoding='utf-8')
+          for marker in (
+              'ref: main',
+              'Require deployed SHA to equal current protected main',
+              'github.event.workflow_run.repository.full_name == github.repository',
+              'verify_real_data_gateway_live.py',
+          ):
+              if marker not in workflow:
+                  raise SystemExit(f'missing source-trust contract: {marker}')
+          PY
+
+          python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest tests/test_real_data_gateway.py -q
+          git diff --check
+
+      - name: Remove all one-shot workflows and publish a clean branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/zz-materialize-real-data-gateway-once.yml \
+            .github/workflows/zz-harden-real-data-release-once.yml \
+            .github/workflows/zz-verify-clean-real-data-gateway-once.yml
+          git diff --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit \
+            -m 'chore(data): remove real-data gateway bootstraps' \
+            -m 'Retain only the permanent Python gateway, mobile surface, first-smoke, tests, source-bound live proof, and protected promotion contracts.' \
+            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:feat/real-data-gateway-v1
