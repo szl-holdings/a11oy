@@ -183,13 +183,13 @@
   .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--proof);animation:pulse 2.4s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,0.3)}70%{box-shadow:0 0 0 8px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
   @media(prefers-reduced-motion:reduce){.eyebrow .dot{animation:none}}
-  h1.title{font-size:clamp(2.4rem,5.8vw,4.3rem);line-height:1.03;margin:0 0 18px;
+  h1.title{font-size:var(--fs-9);line-height:1.03;margin:0 0 18px;
     font-weight:700;letter-spacing:-1.6px;color:var(--ink);
     text-shadow:0 2px 22px rgba(0,0,0,0.8),0 1px 4px rgba(0,0,0,0.6)}
   h1.title .grad{background:linear-gradient(110deg, var(--proof) 0%, var(--lattice) 100%);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
     filter:drop-shadow(0 1px 8px rgba(0,0,0,0.7))}
-  .lede{font-size:clamp(1.06rem,2vw,1.26rem);color:var(--sub);max-width:610px;margin:0 0 28px;
+  .lede{font-size:var(--fs-3);color:var(--sub);max-width:610px;margin:0 0 28px;
     text-shadow:0 1px 8px rgba(0,0,0,0.5)}
   .lede b{color:var(--ink);font-weight:600}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
@@ -209,7 +209,7 @@
 
   /* ---- generic section ---- */
   section.band{padding:88px 0;position:relative}
-  .band h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:700;letter-spacing:-.7px;margin:0 0 14px;line-height:1.1}
+  .band h2{font-size:var(--fs-6);font-weight:700;letter-spacing:-.7px;margin:0 0 14px;line-height:1.1}
   .band .kick{color:var(--proof);font-weight:600;font-size:13px;letter-spacing:1.7px;text-transform:uppercase;margin:0 0 12px;font-family:var(--mono)}
   .band p.intro{color:var(--sub);max-width:720px;font-size:1.08rem;margin:0 0 40px}
   .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
@@ -406,15 +406,17 @@
      ========================================================================== */
   :root{
     /* modular 1.25 (major third) from a 12px base: 12/15/19/24/30/37/46/58/72 */
-    --fs-1:clamp(11px,2.4vw,12px);
-    --fs-2:clamp(13px,3vw,15px);
-    --fs-3:clamp(15px,3.6vw,19px);
-    --fs-4:clamp(18px,4.4vw,24px);
-    --fs-5:clamp(21px,5vw,30px);
-    --fs-6:clamp(25px,5.6vw,37px);
-    --fs-7:clamp(29px,6vw,46px);
-    --fs-8:clamp(33px,6.4vw,58px);
-    --fs-9:clamp(36px,6.8vw,72px);
+    --fs-1:clamp(11px,.28vw + 10.1px,12px);
+    --fs-2:clamp(13px,.42vw + 11.7px,15px);
+    --fs-3:clamp(15px,.75vw + 13.1px,19px);
+    --fs-4:clamp(19px,1.05vw + 16.2px,24px);
+    --fs-5:clamp(22px,1.9vw + 17.1px,30px);
+    --fs-6:clamp(26px,2.9vw + 16.9px,37px);
+    --fs-7:clamp(30px,4.4vw + 13.5px,46px);
+    --fs-8:clamp(34px,6.2vw + 10.7px,58px);
+    --fs-9:clamp(38px,8.4vw + 6.5px,72px);
+    --f1:var(--fs-1);--f2:var(--fs-2);--f3:var(--fs-3);--f4:var(--fs-4);--f5:var(--fs-5);
+    --f6:var(--fs-6);--f7:var(--fs-7);--f8:var(--fs-8);--f9:var(--fs-9);
     --measure:68ch;
   }
   /* optical + numeric discipline (Nvidia "Elements": display/heading/body/label) */
