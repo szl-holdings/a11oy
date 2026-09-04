@@ -18,6 +18,23 @@ def function_names(path: Path) -> set[str]:
     }
 
 
+def module_constant(path: Path, name: str):
+    """Return one literal module-level assignment without matching comments/docs."""
+
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    matches = []
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            targets = [target.id for target in node.targets if isinstance(target, ast.Name)]
+            if name in targets:
+                matches.append(ast.literal_eval(node.value))
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            if node.target.id == name:
+                matches.append(ast.literal_eval(node.value))
+    assert len(matches) == 1, f"expected one literal assignment for {name}, found {len(matches)}"
+    return matches[0]
+
+
 def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> None:
     source = PUBLISHER.read_text(encoding="utf-8")
     ast.parse(source)
@@ -119,12 +136,27 @@ def test_estate_entrypoint_routes_lyte_away_from_generic_renderer() -> None:
 
 def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:
     source = ENTRYPOINT.read_text(encoding="utf-8")
-    assert 'FOLDED_INTO_KILLINCHU = ("vessels",)' in source
-    assert 'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")' in source
-    assert 'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")' in source
-    assert 'SENTRA_SPACE = "SZLHOLDINGS/sentra"' in source
-    assert 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")' not in source
-    assert 'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"' in source
+    ast.parse(source)
+
+    # Validate the active Python assignments instead of doing an unsafe substring
+    # search that can be tripped by historical documentation or migration notes.
+    assert module_constant(ENTRYPOINT, "FOLDED_INTO_KILLINCHU") == ("vessels",)
+    assert module_constant(ENTRYPOINT, "PUBLIC_FLAGSHIP_SLUGS") == (
+        "terra",
+        "sentra",
+        "counsel",
+        "finance",
+        "lyte",
+    )
+    assert module_constant(ENTRYPOINT, "GENERATED_FLAGSHIP_SLUGS") == (
+        "terra",
+        "sentra",
+        "counsel",
+        "finance",
+    )
+    assert module_constant(ENTRYPOINT, "SENTRA_SPACE") == "SZLHOLDINGS/sentra"
+    assert module_constant(ENTRYPOINT, "KILLINCHU_SPACE") == "SZLHOLDINGS/killinchu"
+
     assert 'COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"' in source
     assert "ensure_space_secret_reader" in source
     assert "api.create_repo" not in source
