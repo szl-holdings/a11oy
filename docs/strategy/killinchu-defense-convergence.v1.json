@@ -1,0 +1,59 @@
+{
+  "schema": "szl.killinchu-defense-convergence/v1",
+  "effective_date": "2026-09-03",
+  "canonical_product": {
+    "id": "killinchu",
+    "source": "szl-holdings/killinchu",
+    "product_surface": "https://huggingface.co/spaces/SZLHOLDINGS/killinchu",
+    "governance_surface": "https://a-11-oy.com",
+    "proof_surface": "https://a11oy.net"
+  },
+  "lobes": [
+    {
+      "id": "aegis",
+      "domain": "defensive_and_cyber_intelligence",
+      "compatibility_surface": "SZLHOLDINGS/sentra",
+      "standalone_product": false
+    },
+    {
+      "id": "vessels",
+      "domain": "maritime_intelligence",
+      "compatibility_surface": "SZLHOLDINGS/vessels",
+      "standalone_product": false
+    }
+  ],
+  "shared_contract": {
+    "formula_ids": [
+      "F1",
+      "F4",
+      "F7",
+      "F11",
+      "F12",
+      "F18",
+      "F19",
+      "F22"
+    ],
+    "lambda": "CONJECTURE_1_ADVISORY",
+    "pipeline": [
+      "INGEST",
+      "TRANSFORM",
+      "ANALYZE",
+      "DECIDE",
+      "APPROVE",
+      "EXECUTE",
+      "VERIFY",
+      "AUDIT",
+      "DELIVER"
+    ],
+    "consequential_actions": "HUMAN_AUTHORITY_REQUIRED",
+    "destructive_or_offensive_autonomy": false,
+    "effectors": "SIMULATED_UNLESS_INDEPENDENTLY_PROVED",
+    "receipt_required": true
+  },
+  "compatibility_policy": {
+    "delete_source": false,
+    "present_as_independent_flagship": false,
+    "link_to_canonical_product": true,
+    "preserve_source_and_receipts": true
+  }
+}
