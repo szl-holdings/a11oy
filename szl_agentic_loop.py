@@ -1328,6 +1328,39 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                         "the corresponding evidence."),
         }
 
+    def _hatun_mesh_contract() -> dict:
+        """REPORTED organ mesh. Routes only. No execution invented."""
+        catalog = _tool_catalog(ns)
+        return {
+            "schema": "szl.hatun.mesh.v1",
+            "truth": "REPORTED",
+            "get_mints_receipt": False,
+            "rule": "Hatun is the governed tool plane. Organs stay themselves.",
+            "mcp": {
+                "endpoint": "/mcp/",
+                "status": "RUNTIME_DECLARED",
+                "tool_count": len(catalog),
+                "tools": [row.get("name") for row in catalog],
+            },
+            "organs": [
+                {"id": "hatun", "job": "governed MCP tool plane", "href": "/hatun-mcp",
+                 "api": "/mcp/", "label": "RUNTIME_DECLARED"},
+                {"id": "second-brain", "job": "compound evidence memory + navigator",
+                 "href": "/ayllu#sec-organism",
+                 "api": "/api/a11oy/v1/ayllu/second-brain", "label": "LIVE_READ"},
+                {"id": "anatomy", "job": "living-systems map of organs and formulas",
+                 "href": "/living-anatomy", "api": "/anatomy-v5", "label": "LIVE_PAGE"},
+                {"id": "ouroboros", "job": "bounded loop-tax / converge-or-halt",
+                 "href": "/formulas", "api": "/api/a11oy/v1/ouroboros/run-all",
+                 "label": "POST_ONLY"},
+                {"id": "codex", "job": "formula composer / chakra binding",
+                 "href": "/formulas", "api": "/api/a11oy/v1/formulas", "label": "LIVE_READ"},
+            ],
+            "honesty": ("Labels are route presence, not proof a model answered. "
+                        "Second-brain readiness stays whatever that endpoint reports. "
+                        "Lambda remains Conjecture 1."),
+        }
+
     # ------------------------------------------------------------------ #
     # OUROBOROS CLOSED LOOP (ADDITIVE 2026-07-03, default-OFF, honest).
     # Wraps the single governed pass `_do_run` into a BOUNDED, WITNESSED,
@@ -1684,6 +1717,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse(_hatun_invocation_contract(),
                             headers={"Cache-Control": "no-store"})
 
+    async def _agent_mesh(request: Request):
+        return JSONResponse(_hatun_mesh_contract(),
+                            headers={"Cache-Control": "no-store"})
+
     async def _agent_governance_standards(request: Request):
         return JSONResponse(governance_standards_note())
 
@@ -1765,6 +1802,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                   name="hatun_evidence"),
             Route("/api/hatun/invocations", _agent_invocations, methods=["GET"],
                   name="hatun_invocations"),
+            Route("/api/hatun/mesh", _agent_mesh, methods=["GET"],
+                  name="hatun_mesh"),
+            Route("/api/%s/v1/hatun/mesh" % ns, _agent_mesh, methods=["GET"],
+                  name="hatun_mesh_ns"),
         ])
     # insert at position 0 so they win over the SPA catch-all (the known gotcha).
     for r in reversed(routes):
