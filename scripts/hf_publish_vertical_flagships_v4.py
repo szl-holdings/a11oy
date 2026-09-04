@@ -3,10 +3,11 @@
 """Canonical vertical estate publisher.
 
 The established Domain Experience v4 implementation remains the renderer, but
-the entrypoint now admits only the four independent public vertical Spaces.
-Sentra and Vessels are capability planes inside Killinchu and are filtered before
-any Hugging Face mutation. The same single-writer job then publishes and attests
-the combined six-engine runtime from the exact merged vertical-services revision.
+the entrypoint admits only the four independent public vertical Spaces. Sentra
+and Vessels are capability planes inside Killinchu and are filtered before any
+Hugging Face mutation. The same single-writer job then publishes and attests the
+combined six-engine frontier-v3 runtime from the exact merged vertical-services
+revision.
 
 This distinction is intentional: one public product surface does not require one
 undifferentiated code module. Sentra and maritime contracts remain independently
@@ -23,7 +24,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 FLAGSHIP_IMPL = HERE / "hf_publish_vertical_flagships_v4_impl.py"
-COMBINED_IMPL = HERE / "hf_publish_vertical_services.py"
+COMBINED_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 
@@ -70,7 +71,10 @@ def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
     return tuple(item["slug"] for item in admitted)
 
 
-def run_publisher(name: str, path: Path) -> tuple[int, str | None, tuple[str, ...] | None]:
+def run_publisher(
+    name: str,
+    path: Path,
+) -> tuple[int, str | None, tuple[str, ...] | None]:
     admitted: tuple[str, ...] | None = None
     try:
         module = load_module(name, path)
@@ -138,7 +142,7 @@ def main() -> int:
     try:
         secret_reader = ensure_space_secret_reader()
         combined_code, combined_error, _ = run_publisher(
-            "szl_vertical_services",
+            "szl_vertical_services_frontier_v3",
             COMBINED_IMPL,
         )
     except Exception as exc:
@@ -151,7 +155,7 @@ def main() -> int:
         "complete": False,
     }
     combined = read_receipt(COMBINED_RECEIPT) or {
-        "schema": "szl.hf-vertical-services-publication/v1",
+        "schema": "szl.hf-vertical-services-publication/v2",
         "complete": False,
     }
     if flagship_error:
@@ -170,7 +174,8 @@ def main() -> int:
     flagship["combined_exit_code"] = combined_code
     flagship["complete"] = bool(
         flagship.get("complete") is True
-        and tuple(flagship.get("public_flagship_slugs", ())) == PUBLIC_FLAGSHIP_SLUGS
+        and tuple(flagship.get("public_flagship_slugs", ()))
+        == PUBLIC_FLAGSHIP_SLUGS
         and combined.get("complete") is True
         and flagship_code == 0
         and combined_code == 0
