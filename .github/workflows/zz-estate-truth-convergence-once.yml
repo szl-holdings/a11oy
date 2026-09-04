@@ -32,6 +32,7 @@ jobs:
           ref: ${{ github.ref_name }}
           fetch-depth: 1
           persist-credentials: true
+          token: ${{ secrets.GH_TOKEN || github.token }}
 
       - name: Require exact branch identity
         shell: bash
