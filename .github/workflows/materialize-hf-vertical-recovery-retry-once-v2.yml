@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize HF vertical recovery retry once v2
+
+on:
+  push:
+    branches:
+      - ops/hf-vertical-recovery-current-main-20260904
+    paths:
+      - .github/workflows/materialize-hf-vertical-recovery-retry-once-v2.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: materialize-hf-vertical-recovery-retry-once-v2
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact retry branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/hf-vertical-recovery-current-main-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconcile current protected main without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse origin/main)"
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            git merge -X theirs --no-ff origin/main \
+              -m "chore(hf): reconcile protected main ${main_sha:0:12}" \
+              -m "Use the complete current A11oy lineage before re-entering the established free-tier vertical recovery workflow." \
+              -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git merge-base --is-ancestor "$main_sha" HEAD
+
+      - name: Locate, validate, stamp, and prove the canonical recovery workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t matches < <(grep -IlR --include='*.yml' --include='*.yaml' \
+            'name: Recover HF vertical estate on free tier' .github/workflows)
+          test "${#matches[@]}" -eq 1 || {
+            echo "::error::Expected one canonical free-tier recovery workflow; found ${#matches[@]}."
+            printf '%s\n' "${matches[@]}"
+            exit 60
+          }
+          export TARGET_WORKFLOW="${matches[0]}"
+          python - <<'PY'
+          import os, re
+          from pathlib import Path
+          target = Path(os.environ['TARGET_WORKFLOW'])
+          text = target.read_text(encoding='utf-8')
+          lowered = text.lower()
+          for marker in (
+              'recover hf vertical estate on free tier',
+              'szlholdings/vertical-services',
+              'szlholdings/terra',
+              'szlholdings/counsel',
+              'szlholdings/finance',
+              'szlholdings/lyte',
+              'human_approval_required',
+              'effectors_enabled',
+          ):
+              assert marker in lowered, marker
+          text = re.sub(r'^# Owner-authorized vertical recovery retry:.*\n', '', text, count=1, flags=re.M)
+          target.write_text(
+              '# Owner-authorized vertical recovery retry: 2026-09-04-current-main\n' + text,
+              encoding='utf-8', newline='\n'
+          )
+          PY
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "pytest==8.3.5" "pyyaml==6.0.2"
+          python - <<'PY'
+          import os, yaml
+          from pathlib import Path
+          target = Path(os.environ['TARGET_WORKFLOW'])
+          payload = yaml.safe_load(target.read_text(encoding='utf-8'))
+          assert isinstance(payload, dict) and payload.get('jobs')
+          PY
+          if [ -f tests/test_hf_free_tier_recovery.py ]; then
+            python -m pytest -q tests/test_hf_free_tier_recovery.py
+          fi
+          if [ -f tests/test_hf_free_tier_vertical_recovery.py ]; then
+            python -m pytest -q tests/test_hf_free_tier_vertical_recovery.py
+          fi
+          git diff --check
+
+      - name: Remove one-use workflows, push exact head, and request protected merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for path in \
+            .github/workflows/materialize-hf-vertical-recovery-retry-once.yml \
+            .github/workflows/materialize-hf-vertical-recovery-retry-once-v2.yml; do
+            if [ -e "$path" ]; then git rm -f "$path"; fi
+          done
+          git add -A
+          git diff --cached --check
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -s -m "chore(hf): re-enter vertical estate recovery from current main"
+          final_sha="$(git rev-parse HEAD)"
+          git push origin HEAD:ops/hf-vertical-recovery-current-main-20260904
+          url="$(gh pr list --repo szl-holdings/a11oy --head ops/hf-vertical-recovery-current-main-20260904 --state open --json url --jq '.[0].url // ""')"
+          if [ -z "$url" ]; then
+            url="$(gh pr create --repo szl-holdings/a11oy \
+              --base main \
+              --head ops/hf-vertical-recovery-current-main-20260904 \
+              --title "chore(hf): re-enter vertical estate recovery from current main" \
+              --body "## Current-main recovery re-entry\n\nRe-run the established one-person dynamic runtime plus five organization static-gateway recovery topology from the latest A11oy main. This source-only marker adds no credential, writer, paid allocation, authority widening, or false readiness claim. Exact runtime and gateway live proof remain mandatory.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>")"
+          fi
+          gh pr merge --repo szl-holdings/a11oy "$url" \
+            --auto --squash --match-head-commit "$final_sha"
