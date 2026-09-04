@@ -55,7 +55,7 @@ jobs:
           matrix = json.loads(Path('docs/ecosystem-stage-matrix.json').read_text(encoding='utf-8'))
           expected = {'models': 44, 'datasets': 33, 'spaces': 15}
           assert manifest['counts'] == expected
-          assert matrix['summary']['huggingFacePublic'] == expected
+          assert matrix['machineGeneratedCounts']['huggingFacePublic'] == expected
           assert matrix['observedAt'] == manifest['observedAt']
           PY
           git diff --check
