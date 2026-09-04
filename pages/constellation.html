@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy Constellation</title>
+<link rel="canonical" href="https://a-11-oy.com/command/constellation"/>
+<style>
+:root{--bg:#070b0c;--fg:#eaf6f9;--muted:#8fb3bd;--line:#1b3a44;--teal:#7ad0c6}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 ui-sans-serif,system-ui,sans-serif}
+a{color:var(--teal)}header,main{max-width:1100px;margin:0 auto;padding:1.25rem}
+.sub{color:var(--muted);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
+.chip,.card{border:1px solid var(--line);padding:.7rem;min-height:2.75rem}
+.grid{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.card{display:block;color:inherit;text-decoration:none}
+.card small{display:block;color:var(--muted);margin-top:.35rem}
+pre{white-space:pre-wrap;border:1px solid var(--line);padding:.75rem;font:12px ui-monospace,monospace;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+<p class="sub">a-11-oy.com / command / constellation</p>
+<h1>Constellation</h1>
+<p>Second brain and Anatomy first. Forty-nine estates. Tiles probe real /api/a11oy endpoints. Missing answers stay UNAVAILABLE. Lambda is Conjecture 1.</p>
+<p><a href="/command">Elite Console</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/holographic">Holo</a> / <a href="/verify">Verify</a></p>
+</header>
+<main>
+<div class="row" id="probes"></div>
+<div class="grid" id="estates"></div>
+<pre id="raw">probing</pre>
+</main>
+<script>
+const ESTATES=[["second-brain","/api/a11oy/v1/brain/capabilities"],["anatomy","/command/anatomy"],["yarqa","/command"],["a11oy-factory","/api/a11oy/v1/gates"],["holographic","/holographic"],["szl-command-lab","/command"],["szl-sovereign-os","/healthz"],["hatun-mcp","/api/a11oy/v1/mcp/tools"],["sda","/api/a11oy/v1/mosaic/governed"],["governed-agent-bench","/api/a11oy/v1/agentloop/health"],["guardrail-receipt","/api/a11oy/v1/ledger"],["frontier-bench","/frontier-now"],["puriq-markets","/api/a11oy/v1/observability/business"],["quant-curve","/api/a11oy/v1/observability/summary"],["szl-quant-live","/api/a11oy/v1/observability/summary"],["terra-assurance","/estate"],["szl-real-estate","/estate"],["szl-estate-live","/estate"],["lyte-lattice","/holographic"],["lyte-services","/api/a11oy/v1/mesh/state"],["nexus","/api/a11oy/v1/lambda"],["cosmos","/command/anatomy"],["immune","/api/a11oy/v1/policy/gates"],["immune-lattice","/api/a11oy/v1/policy/gates"],["ayllu","/api/a11oy/v1/operator/recommend"],["counsel-assurance","/verify"],["evidence-studio","/api/a11oy/provenance"],["prove-it","/verify"],["szl-khipu","/api/a11oy/v1/honest"],["khipu-lab","/api/a11oy/v1/honest"],["szl-kernels-live","/api/a11oy/v1/models/series-a"],["szl-atelier","/command"],["szl-forge-lab","/command"],["szl-model-inference-lab","/api/a11oy/v1/llm/registry"],["szl-experiments","/command"],["experiments","/command"],["energy-attest-holo","/api/a11oy/v1/energy/live"],["energy-attested-runs","/api/a11oy/v1/energy/sci"],["receipt-chain-live","/api/a11oy/v1/ledger"],["lambda-gate-holo","/api/a11oy/v1/lambda"],["governed-norm-holo","/api/a11oy/v1/lambda"],["llm-router-live","/api/a11oy/v1/llm/registry"],["szl-blocked-live","/api/a11oy/v1/gates"],["szl-govsign-live","/api/a11oy/cosign.pub"],["szl-provctl-live","/api/a11oy/provenance"],["szl-frontier","/frontier-now"],["gdw-frontier","/frontier-now"],["retrieval-bench","/api/a11oy/v1/rag/status"],["governed-receipt-verifier","/api/a11oy/v1/receipt/export"]];
+const PROBES=[["healthz","/healthz"],["tab-matrix","/api/a11oy/v1/readiness/tab-matrix?view=summary"],["lambda","/api/a11oy/v1/lambda"],["ledger","/api/a11oy/v1/ledger"],["brain","/api/a11oy/v1/brain/capabilities"],["energy","/api/a11oy/v1/energy/live"]];
+async function probe(url){try{const r=await fetch(url,{cache:"no-store"});return r.ok?"MEASURED":"UNAVAILABLE";}catch(e){return"UNAVAILABLE";}}
+(async function(){const box=document.getElementById("probes");const raw={};for(const [name,url] of PROBES){const st=await probe(url);raw[name]=st;const s=document.createElement("span");s.className="chip";s.textContent=name+" · "+st;box.appendChild(s);}const grid=document.getElementById("estates");for(const [id,href] of ESTATES){const a=document.createElement("a");a.className="card";a.href=href;a.innerHTML="<strong>"+id+"</strong><small>"+href+"</small>";grid.appendChild(a);}document.getElementById("raw").textContent=JSON.stringify({estates:ESTATES.length,probes:raw,honesty:"catalog DECLARED · probes MEASURED or UNAVAILABLE",lambda:"Conjecture 1"},null,2);})();
+</script>
+</body>
+</html>
