@@ -1,12 +1,15 @@
 as_of: "2026-09-04"
 state: APPLY
-policy_version: cyber-resilience-consolidation-v1
+policy_version: cyber-resilience-consolidation-v2
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
+organization_hub: https://huggingface.co/SZLHOLDINGS
 keep:
   - id: SZLHOLDINGS/a11oy
+    owner_class: organization
     role: command
   - id: SZLHOLDINGS/killinchu
+    owner_class: organization
     role: cyber_physical_resilience
     source: szl-holdings/killinchu
     capability_planes:
@@ -16,17 +19,24 @@ keep:
       - counter-uas
       - evidence
   - id: SZLHOLDINGS/terra
+    owner_class: organization
     role: real_estate
   - id: SZLHOLDINGS/counsel
+    owner_class: organization
     role: legal
   - id: SZLHOLDINGS/finance
+    owner_class: organization
     role: finance
   - id: SZLHOLDINGS/lyte
+    owner_class: organization
     role: business_observability
   - id: SZLHOLDINGS/david-leads
+    owner_class: organization
     role: insurance
-  - id: SZLHOLDINGS/anatomy
+  - id: betterwithage/anatomy
+    owner_class: creator_profile
     role: living_system_atlas
+    live_origin: https://betterwithage-anatomy.hf.space
     dest: https://a-11-oy.com/living-anatomy
     source: szl-holdings/anatomy
     dependencies:

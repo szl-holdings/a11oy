@@ -1,13 +1,15 @@
-as_of: "2026-09-04T01:50:00Z"
+as_of: "2026-09-04T03:55:00Z"
 state: APPLY
 action: pause_and_private_then_gated_delete
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 hub: https://huggingface.co/SZLHOLDINGS
 counts:
-  spaces_total_observed: 57
-  spaces_public_target: 8
-  spaces_private_target: 49
+  spaces_total_observed_org: 57
+  spaces_public_target_org: 7
+  spaces_private_target_org: 50
+  spaces_public_target_creator: 1
+  spaces_public_target_total: 8
 keep:
   - id: SZLHOLDINGS/a11oy
     role: command
@@ -32,8 +34,10 @@ keep:
     role: business_observability
   - id: SZLHOLDINGS/david-leads
     role: insurance
-  - id: SZLHOLDINGS/anatomy
+  - id: betterwithage/anatomy
+    owner_class: creator_profile
     role: living_system_atlas
+    live_origin: https://betterwithage-anatomy.hf.space
     dest: https://a-11-oy.com/living-anatomy
     source: szl-holdings/anatomy
     dependencies:
@@ -69,4 +73,4 @@ retirement_gate:
   - replacement_verified
   - no_unique_secret_dependency
   - secret_free_retirement_receipt
-note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Anatomy remains source-bound and public/running with a handles-only Second Brain projection."
+note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. The public estate keeps seven organization Spaces plus the creator-profile Living Anatomy Space. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Living Anatomy is source-bound to szl-holdings/anatomy, published at betterwithage/anatomy, and exposes only the handles-only public Second Brain projection."
