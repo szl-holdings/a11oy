@@ -54,7 +54,9 @@
         "/api/defend/status",
         "/api/defend/readyz",
         "/api/defend/source"
-      ]
+      ],
+      "source_repository_policy": "manifest-fixed-runtime-revision",
+      "hf_revision_policy": "provider-observed"
     },
     {
       "id": "lyte",

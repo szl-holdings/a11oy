@@ -33,6 +33,11 @@ MAX_RESPONSE_BYTES = 1_048_576
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA64 = re.compile(r"^[0-9a-f]{64}$")
 ALLOWED_REVISION_POLICIES = {"exact-default-branch", "declared-commit"}
+ALLOWED_SOURCE_REPOSITORY_POLICIES = {
+    "runtime-declared",
+    "manifest-fixed-runtime-revision",
+}
+ALLOWED_HF_REVISION_POLICIES = {"runtime-declared", "provider-observed"}
 ALLOWED_CAPABILITY_STATES = {
     "folded",
     "portfolio-label",
@@ -163,6 +168,28 @@ def validate_surface(
     require(policy in ALLOWED_REVISION_POLICIES, f"{surface_id} has unknown revision policy")
     if policy == "exact-default-branch":
         require_string(value.get("default_branch"), f"{surface_id}.default_branch")
+
+    source_policy = str(
+        value.get("source_repository_policy", "runtime-declared")
+    ).strip()
+    require(
+        source_policy in ALLOWED_SOURCE_REPOSITORY_POLICIES,
+        f"{surface_id} has unknown source-repository policy",
+    )
+    if source_policy == "manifest-fixed-runtime-revision":
+        require(
+            policy == "exact-default-branch",
+            f"{surface_id} manifest-fixed source policy requires exact-default-branch",
+        )
+    value["source_repository_policy"] = source_policy
+
+    hf_policy = str(value.get("hf_revision_policy", "runtime-declared")).strip()
+    require(
+        hf_policy in ALLOWED_HF_REVISION_POLICIES,
+        f"{surface_id} has unknown Hugging Face revision policy",
+    )
+    value["hf_revision_policy"] = hf_policy
+
     required_paths = require_string_list(
         value.get("required_paths"),
         f"{surface_id}.required_paths",
@@ -345,7 +372,55 @@ def selected_build_fields(payload: Mapping[str, Any]) -> dict[str, Any]:
             if value not in (None, ""):
                 selected[canonical] = value
                 break
+
+    # Killinchu's strict public route intentionally exposes build.revision rather
+    # than duplicating a repository claim inside the process. Normalize only this
+    # unambiguous nested runtime field; never treat an arbitrary deployment
+    # revision as source identity.
+    build = payload.get("build")
+    if "source_revision" not in selected and isinstance(build, dict):
+        revision = build.get("revision")
+        if revision not in (None, ""):
+            selected["source_revision"] = revision
     return selected
+
+
+def apply_source_repository_policy(
+    fields: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    surface: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Resolve a repository claim only under an explicit manifest policy.
+
+    ``manifest-fixed-runtime-revision`` is deliberately narrow: the fixed route
+    must identify the expected service, report an OBSERVED 40-hex revision, and
+    disclose that the revision came from the deployer's ``SZL_GIT_SHA``. The
+    manifest then supplies the immutable repository name. Missing or ambiguous
+    evidence fails closed.
+    """
+
+    result = dict(fields)
+    if result.get("source_repository"):
+        return result
+    if surface.get("source_repository_policy") != "manifest-fixed-runtime-revision":
+        return result
+
+    build = payload.get("build")
+    require(isinstance(build, dict), "manifest-fixed source policy requires build object")
+    require(
+        str(payload.get("service", "")) == str(surface.get("id", "")),
+        "manifest-fixed source policy service mismatch",
+    )
+    revision = str(result.get("source_revision", "")).lower()
+    require(bool(SHA40.fullmatch(revision)), "manifest-fixed source revision is invalid")
+    require(build.get("state") == "OBSERVED", "manifest-fixed source revision is not observed")
+    require(
+        build.get("revision_source") == "env:SZL_GIT_SHA",
+        "manifest-fixed source revision has an untrusted origin",
+    )
+    result["source_repository"] = str(surface["deployment_source_repository"])
+    result["source_repository_evidence"] = "MANIFEST_FIXED_RUNTIME_REVISION"
+    return result
 
 
 def github_token() -> str | None:
@@ -468,7 +543,11 @@ def observe_surface(
                 }
             )
 
-    fields = selected_build_fields(build_payload or {})
+    fields = apply_source_repository_policy(
+        selected_build_fields(build_payload or {}),
+        build_payload or {},
+        surface,
+    )
     expected_repository = str(surface["deployment_source_repository"])
     observed_repository = str(fields.get("source_repository", ""))
     observed_revision = str(fields.get("source_revision", "")).lower()
@@ -522,13 +601,21 @@ def observe_surface(
             str(surface["hf_repository"]),
             timeout=timeout,
         )
+        hf_revision_policy = str(surface["hf_revision_policy"])
         declared_hf_revision = str(fields.get("hf_revision", "")).lower()
         hf_proof = {
+            "policy": hf_revision_policy,
             "current_revision": current_hf_revision,
             "declared_revision": declared_hf_revision or None,
             "metadata": proof,
         }
-        if not SHA40.fullmatch(declared_hf_revision):
+        if hf_revision_policy == "provider-observed":
+            # Provider metadata is evidence of the current Space repository tip,
+            # not a claim that the running process can introspect that tip. Keep
+            # the two facts separate in the receipt.
+            fields["hf_revision_observed_by_witness"] = current_hf_revision
+            fields["hf_revision_evidence"] = "HUGGING_FACE_PROVIDER_API"
+        elif not SHA40.fullmatch(declared_hf_revision):
             failures.append("hf_revision: missing or invalid")
         elif declared_hf_revision != current_hf_revision:
             failures.append(
