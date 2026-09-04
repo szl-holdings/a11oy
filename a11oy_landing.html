@@ -555,7 +555,28 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
 @media(max-width:760px){.audience-path-grid{grid-template-columns:minmax(0,1fr)}.audience-paths a{min-block-size:112px!important}}
 @media(prefers-reduced-motion:reduce){.audience-paths a{transition:none!important}}
 @media(forced-colors:active){.audience-paths a{forced-color-adjust:auto}}
-</style></head>
+</style>
+<style id="szl-safe-area-contract-v4">
+/* Public Experience Frontier v4: notch, home-indicator and landscape safe areas. */
+@supports (padding: max(0px)) {
+  body {
+    padding-bottom: max(0px, env(safe-area-inset-bottom, 0px));
+  }
+  .wrap {
+    padding-left: max(24px, env(safe-area-inset-left, 0px));
+    padding-right: max(24px, env(safe-area-inset-right, 0px));
+  }
+}
+@media (max-width: 1100px) {
+  @supports (padding: max(0px)) {
+    .nav .wrap {
+      padding-left: max(14px, env(safe-area-inset-left, 0px));
+      padding-right: max(14px, env(safe-area-inset-right, 0px));
+    }
+  }
+}
+</style>
+</head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
 
