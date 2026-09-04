@@ -95,6 +95,11 @@ def test_kernel_panel_is_same_origin_and_never_auto_embeds() -> None:
     assert 'requestJSON(BASE + "/field")' in IMMUNE
     assert 'requestJSON(BASE + "/nexus")' in IMMUNE
     assert "GET /api/a11oy/v1/immune/nexus" in IMMUNE
+    assert 'id="lorenzKv"' in IMMUNE
+    assert 'id="lorenzBtn"' in IMMUNE
+    assert 'requestJSON(BASE + "/nexus/lorenz"' in IMMUNE
+    assert "Seal Lorenz OP" in IMMUNE
+    assert 'id="lorenzKv" aria-live="polite">CONNECTING<' in IMMUNE or 'id="lorenzKv" aria-live="polite"><span class="k">lorenz</span><span class="v">CONNECTING</span>' in IMMUNE
     assert "hunt / isolate / deceive" in IMMUNE
     assert "never strike people" in IMMUNE
     assert "not a second COP" in IMMUNE
