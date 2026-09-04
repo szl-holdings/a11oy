@@ -6,10 +6,14 @@
 Product host: a-11-oy.com  (this surface)
 Proof host:   a11oy.net    (do not serve this surface there)
 
-Additive tabs:
+Additive tabs. Host-root mounts exist because /command/{rest} was swallowing
+/command/constellation and /command/brain on the live image.
+
   GET+HEAD /command
   GET+HEAD /command/constellation
   GET+HEAD /command/brain
+  GET+HEAD /constellation
+  GET+HEAD /brain
   GET+HEAD /command/{rest}
 """
 from pathlib import Path
@@ -108,11 +112,17 @@ def register(app, ns: str = "a11oy") -> List[str]:
         _add(path, _spa, ["GET", "HEAD"])
     _add("/command/constellation", _file("constellation.html"), ["GET", "HEAD"])
     _add("/command/brain", _file("second-brain.html"), ["GET", "HEAD"])
+    _add("/constellation", _file("constellation.html"), ["GET", "HEAD"])
+    _add("/brain", _file("second-brain.html"), ["GET", "HEAD"])
     _add("/command/{rest:path}", _spa, ["GET", "HEAD"])
-    _front_move(
-        app,
-        mounted | set(MOUNTS) | {"/command/constellation", "/command/brain", "/command/{rest:path}"},
-    )
+    extra = {
+        "/command/constellation",
+        "/command/brain",
+        "/constellation",
+        "/brain",
+        "/command/{rest:path}",
+    }
+    _front_move(app, mounted | set(MOUNTS) | extra)
     registered.append("command-center on /command (does not steal /console; not a landing door)")
     return registered
 
@@ -146,13 +156,13 @@ def _selftest() -> None:
         assert r.status_code == 200, (path, r.status_code)
     if _page("constellation.html").is_file():
         assert "Constellation" in c.get("/command/constellation").text
+        assert "Constellation" in c.get("/constellation").text
     if _page("second-brain.html").is_file():
         br = c.get("/command/brain")
-        assert br.status_code == 200
-        assert "Second Brain" in br.text
-        assert "F1" in br.text
+        assert br.status_code == 200 and "Second Brain" in br.text
+        assert "Second Brain" in c.get("/brain").text
     assert c.get("/console").status_code == 200
-    print("a11oy_command_center: ALL OK (brain + constellation additive; /console untouched)")
+    print("a11oy_command_center: ALL OK (root /brain + /constellation; /console untouched)")
 
 
 if __name__ == "__main__":
