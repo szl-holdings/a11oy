@@ -1,22 +1,26 @@
-as_of: "2026-09-03"
+as_of: "2026-09-04"
 state: APPLY
+policy_version: cyber-resilience-consolidation-v1
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 keep:
   - id: SZLHOLDINGS/a11oy
     role: command
   - id: SZLHOLDINGS/killinchu
-    role: defense
+    role: cyber_physical_resilience
+    source: szl-holdings/killinchu
+    capability_planes:
+      - sentra
+      - immune
+      - vessels
+      - counter-uas
+      - evidence
   - id: SZLHOLDINGS/terra
     role: real_estate
-  - id: SZLHOLDINGS/sentra
-    role: cybersecurity
   - id: SZLHOLDINGS/counsel
     role: legal
   - id: SZLHOLDINGS/finance
     role: finance
-  - id: SZLHOLDINGS/vessels
-    role: maritime
   - id: SZLHOLDINGS/lyte
     role: business_observability
   - id: SZLHOLDINGS/david-leads
@@ -27,3 +31,14 @@ keep:
     source: szl-holdings/anatomy
     dependencies:
       - szl-holdings/szl-second-brain
+retire_into_killinchu:
+  - id: SZLHOLDINGS/vessels
+    state: REFERENCE_CLEANUP_REQUIRED
+  - id: SZLHOLDINGS/aegis-assurance
+    state: DELETE_READY_AFTER_REFERENCE_CLEANUP
+  - id: SZLHOLDINGS/sentra
+    state: MIGRATION_REQUIRED
+  - id: SZLHOLDINGS/immune
+    state: MIGRATION_REQUIRED
+  - id: SZLHOLDINGS/immune-lattice
+    state: PARITY_AUDIT_REQUIRED

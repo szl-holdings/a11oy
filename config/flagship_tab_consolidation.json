@@ -1,12 +1,14 @@
 {
-  "schema": "szl.flagship-tab-consolidation/v1",
-  "status": "PLANNED_NOT_YET_DEPLOYED",
+  "schema": "szl.flagship-tab-consolidation/v2",
+  "status": "OWNER_DECISION_ACCEPTED",
+  "effective_date": "2026-09-04",
   "canonical_product_origin": "https://a-11-oy.com",
   "canonical_proof_origin": "https://a11oy.net",
   "policy": {
     "source_of_truth": "GitHub repositories under szl-holdings",
-    "org_space_policy": "Keep public flagship Spaces only after build, health, route, and source-parity verification.",
-    "legacy_space_deletion": "FORBIDDEN until target tab is deployed, target health and route checks pass, source parity is recorded, and a rollback source is retained.",
+    "org_space_policy": "Keep public flagship Spaces only after build, health, route, source-parity, and product-boundary verification.",
+    "legacy_space_deletion": "PERMITTED only after source, product, evidence, publisher-removal, replacement-verification, and secret-dependency gates pass.",
+    "recreation_policy": "A retired Space id must be absent from every active publisher and keep-list before deletion.",
     "personal_space_policy": "Novelty and lab experiences may live under betterwithage only after a complete copied build passes its health check."
   },
   "flagships": [
@@ -52,8 +54,38 @@
       "id": "killinchu",
       "space": "SZLHOLDINGS/killinchu",
       "source_repo": "szl-holdings/killinchu",
-      "tabs": ["Airspace", "Detection", "Fusion", "ROE", "Evidence", "Simulation"],
-      "consolidates": ["sda"]
+      "positioning": "Cyber-Physical Resilience Command",
+      "internal_portfolio_name": "Aegis",
+      "tabs": [
+        "Resilience",
+        "Defend",
+        "Immune",
+        "Maritime",
+        "Airspace",
+        "Evidence",
+        "Simulation"
+      ],
+      "capability_sources": {
+        "sentra": "szl-holdings/szl-defensive-control-plane",
+        "immune": "szl-holdings/immune",
+        "vessels": "szl-holdings/killinchu",
+        "counter_uas": "szl-holdings/killinchu"
+      },
+      "consolidates": [
+        "sda",
+        "sentra",
+        "immune",
+        "immune-lattice",
+        "vessels",
+        "aegis-assurance"
+      ],
+      "legacy_space_retirement": {
+        "SZLHOLDINGS/vessels": "REFERENCE_CLEANUP_REQUIRED",
+        "SZLHOLDINGS/aegis-assurance": "DELETE_READY_AFTER_REFERENCE_CLEANUP",
+        "SZLHOLDINGS/sentra": "MIGRATION_REQUIRED",
+        "SZLHOLDINGS/immune": "MIGRATION_REQUIRED",
+        "SZLHOLDINGS/immune-lattice": "PARITY_AUDIT_REQUIRED"
+      }
     },
     {
       "id": "counsel",
@@ -70,25 +102,11 @@
       "consolidates": ["szl-real-estate", "terra-assurance"]
     },
     {
-      "id": "sentra",
-      "space": "SZLHOLDINGS/sentra",
-      "source_repo": "szl-holdings/szl-defensive-control-plane",
-      "tabs": ["Security posture", "Events", "Cases", "Controls", "Assurance"],
-      "consolidates": ["aegis-assurance", "guardrail-receipt"]
-    },
-    {
       "id": "finance",
       "space": "SZLHOLDINGS/finance",
       "source_repo": "szl-holdings/szl-quant",
       "tabs": ["Research", "Signals", "Portfolios", "Market evidence", "Risk limits"],
       "consolidates": ["puriq-markets", "szl-quant-live"]
-    },
-    {
-      "id": "vessels",
-      "space": "SZLHOLDINGS/vessels",
-      "source_repo": "szl-holdings/szl-fleet-overlay",
-      "tabs": ["Fleet", "Voyages", "Risk", "Maritime intelligence", "Evidence"],
-      "consolidates": []
     },
     {
       "id": "lyte",
@@ -117,11 +135,13 @@
   ],
   "delete_gate": [
     "GitHub source revision recorded",
-    "target flagship tab deployed",
+    "target capability route deployed",
     "target route returns successful response",
-    "target health endpoint passes",
-    "target Space public when designated flagship",
+    "target readiness contract passes",
+    "replacement Space is exact-source bound",
+    "active publishers and keep-lists cannot recreate legacy id",
     "rollback source retained",
-    "post-deploy verification receipt recorded"
+    "unique signing or secret dependency preserved",
+    "post-retirement receipt recorded"
   ]
 }
