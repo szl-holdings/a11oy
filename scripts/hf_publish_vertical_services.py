@@ -4,7 +4,8 @@
 
 The deployment reuses SZL's pinned Dockerfile-derived controller. It never
 deletes a Space, never rotates an existing signing key, and never prints secret
-values.
+values. After deployment it exercises every required bounded official-source
+connector through the live runtime and records only source-safe receipts.
 """
 from __future__ import annotations
 
@@ -24,7 +25,8 @@ from typing import Any
 from huggingface_hub import HfApi
 
 SOURCE_REPOSITORY = "szl-holdings/vertical-services"
-SOURCE_REVISION = "96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de"
+SOURCE_REVISION = "dfc16a3c89e0b4bc070dc7e8ae2415e9bcb04eab"
+EXPECTED_VERSION = "2.0.0"
 HF_REPOSITORY = "SZLHOLDINGS/vertical-services"
 ORIGIN = "https://szlholdings-vertical-services.hf.space"
 SOURCE_VARIABLE = "SZL_SOURCE_REVISION"
@@ -35,19 +37,37 @@ CONTROLLER_REPOSITORY = "szl-holdings/.github"
 CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"
 CONTROLLER_PATH = ".github/scripts/hf_deploy_from_dockerfile.py"
 CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"
-USER_AGENT = "SZLHOLDINGS-Canonical-Vertical-Services-Publisher/1.0"
+USER_AGENT = "SZLHOLDINGS-Canonical-Vertical-Services-Publisher/2.0"
+
+CANONICAL_VERTICALS = (
+    "sentra",
+    "lyte",
+    "killinchu",
+    "finance",
+    "terra",
+    "counsel",
+)
 
 SMOKE_PATHS = (
     "/",
     "/healthz",
     "/readyz",
     "/api/build-info",
+    "/api/catalog",
+    "/api/verticals",
     "/sentra/healthz",
     "/lyte/healthz",
+    "/killinchu/healthz",
     "/vessels/healthz",
     "/finance/healthz",
     "/terra/healthz",
     "/counsel/healthz",
+    "/api/verticals/sentra/anatomy",
+    "/api/verticals/lyte/formulas",
+    "/api/verticals/killinchu/connectors",
+    "/api/verticals/finance/readyz",
+    "/api/verticals/terra/anatomy",
+    "/api/verticals/counsel/formulas",
 )
 
 
@@ -162,8 +182,8 @@ def ensure_runtime_configuration(api: HfApi) -> dict[str, Any]:
             key=SIGNING_SECRET,
             value=secrets.token_hex(32),
             description=(
-                "Persistent HMAC key for Sentra verdict receipts; generated once "
-                "by the canonical a11oy writer."
+                "Persistent HMAC key for Sentra and Killinchu defense verdict "
+                "receipts; generated once by the canonical a11oy writer."
             ),
         )
         secret_action = "created"
@@ -198,28 +218,97 @@ def get_json(path: str) -> tuple[int, Any]:
 
 
 def verify_contract() -> dict[str, Any]:
+    health_status, health = get_json("/healthz")
     ready_status, ready = get_json("/readyz")
     build_status, build = get_json("/api/build-info")
+    catalog_status, catalog = get_json("/api/catalog")
+    vertical_catalog_status, vertical_catalog = get_json("/api/verticals")
+
+    ready_verticals = ready.get("verticals", {}) if isinstance(ready, dict) else {}
+    expected = set(CANONICAL_VERTICALS)
+    requirements = (
+        "source_bound",
+        "observation_store_writable",
+        "required_connector_contracts_ready",
+        "persistent_signing_key",
+        "formula_registry_bound",
+    )
+    vertical_contracts: dict[str, bool] = {}
+    live_observations: dict[str, bool] = {}
+    for vertical in CANONICAL_VERTICALS:
+        item = ready_verticals.get(vertical, {})
+        item_requirements = item.get("requirements", {})
+        vertical_contracts[vertical] = bool(
+            item.get("ready") is True
+            and item.get("status") == "READY"
+            and all(item_requirements.get(name) is True for name in requirements)
+        )
+        live_observations[vertical] = bool(
+            item.get("live_data", {}).get("observed_in_scope") is True
+        )
+
+    catalog_engines = catalog.get("engines", {}) if isinstance(catalog, dict) else {}
+    registered_verticals = (
+        vertical_catalog.get("verticals", {})
+        if isinstance(vertical_catalog, dict)
+        else {}
+    )
+    aliases = vertical_catalog.get("aliases", {}) if isinstance(vertical_catalog, dict) else {}
+
     complete = (
-        ready_status == 200
+        health_status == 200
+        and health.get("ok") is True
+        and health.get("version") == EXPECTED_VERSION
+        and health.get("engines") == list(CANONICAL_VERTICALS)
+        and health.get("sentra_signing_key_source") == "env"
+        and health.get("official_source_connectors_wired") is True
+        and health.get("compatibility_routes", {}).get("/vessels", {}).get("canonical")
+        == "/killinchu"
+        and ready_status == 200
         and ready.get("ready") is True
-        and ready.get("sentra_signing_key_source") == "env"
+        and ready.get("version") == EXPECTED_VERSION
+        and set(ready_verticals) == expected
+        and all(vertical_contracts.values())
+        and all(live_observations.values())
         and ready.get("build", {}).get("state") == "OBSERVED"
         and ready.get("build", {}).get("revision") == SOURCE_REVISION
+        and ready.get("store", {}).get("writable") is True
         and build_status == 200
         and build.get("schema") == "szl.build-info/v1"
+        and build.get("version") == EXPECTED_VERSION
         and build.get("source_repository") == SOURCE_REPOSITORY
+        and build.get("hf_repository") == HF_REPOSITORY
         and build.get("build", {}).get("state") == "OBSERVED"
         and build.get("build", {}).get("revision") == SOURCE_REVISION
         and build.get("source_binding", {}).get("bindings_agree") is True
         and build.get("receipt_minted") is False
+        and catalog_status == 200
+        and set(catalog_engines) == expected
+        and catalog.get("vessels_independent_vertical") is False
+        and catalog.get("vessels_canonical_home") == "SZLHOLDINGS/killinchu"
+        and catalog.get("official_source_connectors_wired") is True
+        and catalog.get("live_observations_require_explicit_fetch") is True
+        and catalog.get("effectors_enabled") is False
+        and vertical_catalog_status == 200
+        and vertical_catalog.get("schema") == "szl.vertical-catalog/v2"
+        and set(registered_verticals) == expected
+        and aliases.get("vessels") == "killinchu"
+        and vertical_catalog.get("vessels_independent_vertical") is False
     )
     return {
         "complete": complete,
+        "health_http": health_status,
+        "health": health,
         "ready_http": ready_status,
         "ready": ready,
+        "vertical_contracts": vertical_contracts,
+        "live_observations": live_observations,
         "build_info_http": build_status,
         "build_info": build,
+        "catalog_http": catalog_status,
+        "catalog": catalog,
+        "vertical_catalog_http": vertical_catalog_status,
+        "vertical_catalog": vertical_catalog,
     }
 
 
@@ -283,14 +372,40 @@ def deploy_with_controller(source: Path, controller: Path, manifest: Path) -> No
     )
 
 
+def probe_live_connectors(source: Path, output: Path) -> dict[str, Any]:
+    probe = source / "tools" / "probe_live_verticals.py"
+    if not probe.is_file():
+        raise RuntimeError(f"missing live connector probe at exact source: {probe}")
+    run_checked(
+        [
+            sys.executable,
+            str(probe),
+            "--base-url",
+            ORIGIN,
+            "--output",
+            str(output),
+        ]
+    )
+    report = json.loads(output.read_text(encoding="utf-8"))
+    if report.get("status") != "PASS":
+        raise RuntimeError("live official-source connector probe did not close")
+    if report.get("session_token_recorded") is not False:
+        raise RuntimeError("live probe violated session-token non-recording contract")
+    if len(report.get("probes", [])) != len(CANONICAL_VERTICALS):
+        raise RuntimeError("live connector probe did not cover every canonical vertical")
+    return report
+
+
 def main() -> int:
     token, token_source = token_from_env()
     os.environ["HF_TOKEN"] = token
     receipt: dict[str, Any] = {
-        "schema": "szl.hf-vertical-services-publication/v1",
+        "schema": "szl.hf-vertical-services-publication/v2",
         "generated_at": utc_now(),
         "source_repository": SOURCE_REPOSITORY,
         "source_revision": SOURCE_REVISION,
+        "expected_version": EXPECTED_VERSION,
+        "canonical_verticals": list(CANONICAL_VERTICALS),
         "hf_repository": HF_REPOSITORY,
         "origin": ORIGIN,
         "controller_repository": CONTROLLER_REPOSITORY,
@@ -310,11 +425,16 @@ def main() -> int:
             source = root / "source"
             controller = root / "hf_deploy_from_dockerfile.py"
             manifest = root / "manifest.json"
+            live_probe = root / "live-connector-probe.json"
             checkout_exact_source(source)
             fetch_pinned_controller(controller)
             deploy_with_controller(source, controller, manifest)
             receipt["deployment_manifest"] = json.loads(
                 manifest.read_text(encoding="utf-8")
+            )
+            receipt["live_connector_probe"] = probe_live_connectors(
+                source,
+                live_probe,
             )
         receipt["verification"] = verify_contract()
         receipt["complete"] = receipt["verification"]["complete"]
