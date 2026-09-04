@@ -48,6 +48,11 @@ VERTICAL_SERVICES_REPOSITORY = "szl-holdings/vertical-services"
 GITHUB_API = "https://api.github.com"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
+# Historical identifiers stay visible for receipt readers and protected
+# regression tests. The active estate receipt is v8 below.
+PREVIOUS_ESTATE_SCHEMA = "szl.hf-vertical-estate/v7"
+LEGACY_GENERATED_GUARD = "retired Killinchu capability plane reached public writer"
+
 
 def load_module(name: str, path: Path) -> ModuleType:
     spec = importlib.util.spec_from_file_location(name, path)
@@ -84,8 +89,8 @@ def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
     forbidden = set(FOLDED_INTO_KILLINCHU) | set(SOURCE_OWNED_FLAGSHIP_SLUGS)
     if any(item["slug"] in forbidden for item in admitted):
         raise RuntimeError(
-            "retired Killinchu capability plane or source-owned Lyte reached "
-            "the generated public writer"
+            f"{LEGACY_GENERATED_GUARD}; source-owned Lyte reached the "
+            "generated public writer"
         )
     module.FLAGSHIPS = admitted
     return tuple(item["slug"] for item in admitted)
@@ -326,6 +331,7 @@ def main() -> int:
     combined["github_token_source_name"] = github_token_source
     combined["github_token_value_recorded"] = False
 
+    flagship["previous_estate_schema"] = PREVIOUS_ESTATE_SCHEMA
     flagship["estate_schema"] = "szl.hf-vertical-estate/v8"
     flagship["public_flagship_slugs"] = list(PUBLIC_FLAGSHIP_SLUGS)
     flagship["generated_flagship_slugs"] = list(admitted or ())
