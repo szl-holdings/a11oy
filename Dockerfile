@@ -25,9 +25,8 @@
 ARG A11OY_REQUIRE_LOCAL_LLM=1
 FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS llama-build-1
 ARG LLAMA_CPP_WHEEL=llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
-ADD --checksum=sha256:d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596 \
-    https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl \
-    /wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+COPY scripts/fetch_owned_khipu_wheel.py /tmp/fetch_owned_khipu_wheel.py
+RUN python3 /tmp/fetch_owned_khipu_wheel.py && rm /tmp/fetch_owned_khipu_wheel.py
 RUN python3 <<'WHEELCHK'
 import hashlib, os, zipfile
 path = "/wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
