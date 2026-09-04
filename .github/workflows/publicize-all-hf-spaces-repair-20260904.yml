@@ -1,0 +1,401 @@
+name: Publicize and recover every SZLHOLDINGS Space v2
+
+on:
+  push:
+    branches:
+      - ops/public-all-hf-spaces-20260904
+    paths:
+      - .github/workflows/publicize-all-hf-spaces-repair-20260904.yml
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: szl-public-all-hf-spaces-20260904-v2
+  cancel-in-progress: false
+
+env:
+  HF_ORG: SZLHOLDINGS
+  REPORT_JSON: reports/hf-estate-public-operational-v2-20260904.json
+  REPORT_MD: reports/hf-estate-public-operational-v2-20260904.md
+  TRACKING_ISSUE: "1764"
+
+jobs:
+  converge:
+    name: Publicize, recover, and anonymously prove all Spaces
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_WRITE_TOKEN || secrets.HF_TOKEN || secrets.HUGGINGFACE_TOKEN || secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact controller revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact Hub client
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.23.0"
+          "requests==2.32.5"
+
+      - name: Apply public visibility and recover runtimes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import requests
+          from huggingface_hub import HfApi
+
+          ORG = os.environ["HF_ORG"]
+          TOKEN = (os.environ.get("HF_TOKEN") or "").strip()
+          REPORT_JSON = Path(os.environ["REPORT_JSON"])
+          REPORT_MD = Path(os.environ["REPORT_MD"])
+          REPORT_JSON.parent.mkdir(parents=True, exist_ok=True)
+          if not TOKEN:
+              raise SystemExit("No organization write token is configured.")
+
+          api = HfApi(token=TOKEN)
+          anonymous = HfApi(token=False)
+
+          def safe_error(exc: BaseException) -> str:
+              text = " ".join(str(exc).split())[:800]
+              return text.replace(TOKEN, "<redacted>") if TOKEN else text
+
+          def stage(runtime: Any) -> str | None:
+              value = getattr(runtime, "stage", None)
+              return str(value) if value is not None else None
+
+          def http_probe(url: str | None) -> dict[str, Any]:
+              if not url:
+                  return {"status": None, "error": "no-url"}
+              try:
+                  r = requests.get(
+                      url,
+                      timeout=35,
+                      allow_redirects=True,
+                      headers={
+                          "User-Agent": "SZL-HF-estate-public-proof/2.0",
+                          "Cache-Control": "no-cache, no-store",
+                          "Pragma": "no-cache",
+                      },
+                  )
+                  return {
+                      "status": r.status_code,
+                      "final_url": r.url,
+                      "content_type": r.headers.get("content-type"),
+                  }
+              except requests.RequestException as exc:
+                  return {"status": None, "error": type(exc).__name__}
+
+          listed = sorted(
+              list(api.list_spaces(author=ORG, full=True, token=TOKEN)),
+              key=lambda item: item.id.lower(),
+          )
+          if not listed:
+              raise SystemExit(f"Authenticated inventory returned zero Spaces for {ORG}.")
+
+          rows: dict[str, dict[str, Any]] = {}
+          dynamic: list[str] = []
+          for item in listed:
+              repo_id = item.id
+              row: dict[str, Any] = {
+                  "id": repo_id,
+                  "private_before": bool(getattr(item, "private", False)),
+                  "sdk": getattr(item, "sdk", None),
+                  "sha_before": getattr(item, "sha", None),
+                  "visibility_action": "pending",
+                  "runtime_action": "pending",
+                  "errors": [],
+              }
+              rows[repo_id] = row
+              try:
+                  # Current Hub API: force exact public visibility, including protected Spaces.
+                  api.update_repo_settings(
+                      repo_id=repo_id,
+                      repo_type="space",
+                      visibility="public",
+                      token=TOKEN,
+                  )
+                  row["visibility_action"] = "set-public"
+              except Exception as exc:
+                  row["visibility_action"] = "failed"
+                  row["errors"].append(f"visibility: {safe_error(exc)}")
+                  continue
+
+              try:
+                  current = api.space_info(repo_id, token=TOKEN)
+                  row["private_after_authenticated"] = bool(getattr(current, "private", True))
+                  row["sha_after"] = getattr(current, "sha", None)
+                  row["sdk"] = getattr(current, "sdk", row["sdk"])
+                  row["host"] = getattr(current, "host", None)
+                  row["subdomain"] = getattr(current, "subdomain", None)
+              except Exception as exc:
+                  row["private_after_authenticated"] = True
+                  row["errors"].append(f"authenticated-readback: {safe_error(exc)}")
+                  continue
+
+              if row["private_after_authenticated"]:
+                  row["errors"].append("authenticated readback remains private")
+                  continue
+
+              if str(row.get("sdk") or "").lower() == "static":
+                  row["stage_before"] = "STATIC"
+                  row["stage_after"] = "STATIC"
+                  row["runtime_action"] = "not-applicable-static"
+                  continue
+
+              dynamic.append(repo_id)
+              try:
+                  runtime = api.get_space_runtime(repo_id, token=TOKEN)
+                  before = stage(runtime)
+                  row["stage_before"] = before
+                  if before == "RUNNING":
+                      row["runtime_action"] = "already-running"
+                  elif before in {"BUILDING", "RUNNING_BUILDING", "APP_STARTING", "RUNNING_APP_STARTING"}:
+                      row["runtime_action"] = "wait-existing-transition"
+                  else:
+                      factory = before in {
+                          "BUILD_ERROR", "RUNTIME_ERROR", "CONFIG_ERROR", "NO_APP_FILE",
+                          "DELETED", "STOPPED", "STOPPED_BUILD_ERROR", "STOPPED_RUNTIME_ERROR",
+                      }
+                      api.restart_space(repo_id, token=TOKEN, factory_reboot=factory)
+                      row["runtime_action"] = "factory-reboot" if factory else "restart"
+                      time.sleep(0.5)
+              except Exception as exc:
+                  row["runtime_action"] = "failed"
+                  row["errors"].append(f"runtime-start: {safe_error(exc)}")
+
+          # One bounded global poll, rather than N serial 20-minute waits.
+          deadline = time.monotonic() + 3000
+          pending = {
+              repo_id for repo_id in dynamic
+              if rows[repo_id].get("runtime_action") != "failed"
+          }
+          terminal_failures = {
+              "BUILD_ERROR", "RUNTIME_ERROR", "CONFIG_ERROR", "NO_APP_FILE",
+              "STOPPED_BUILD_ERROR", "STOPPED_RUNTIME_ERROR",
+          }
+          while pending and time.monotonic() < deadline:
+              for repo_id in sorted(tuple(pending)):
+                  row = rows[repo_id]
+                  try:
+                      observed = stage(api.get_space_runtime(repo_id, token=TOKEN))
+                      row["stage_after"] = observed
+                      if observed == "RUNNING":
+                          pending.remove(repo_id)
+                      elif observed in terminal_failures:
+                          # One bounded factory recovery after a failed ordinary restart/build.
+                          if row.get("factory_retry") is not True:
+                              api.restart_space(repo_id, token=TOKEN, factory_reboot=True)
+                              row["factory_retry"] = True
+                              row["runtime_action"] = "factory-reboot-after-failure"
+                          else:
+                              pending.remove(repo_id)
+                              row["errors"].append(f"terminal runtime stage: {observed}")
+                  except Exception as exc:
+                      row["errors"].append(f"runtime-poll: {safe_error(exc)}")
+                      pending.remove(repo_id)
+                  time.sleep(0.15)
+              if pending:
+                  time.sleep(12)
+
+          for repo_id in pending:
+              rows[repo_id]["errors"].append("runtime did not become RUNNING before the global deadline")
+
+          for repo_id, row in rows.items():
+              try:
+                  public = anonymous.space_info(repo_id, token=False)
+                  row["private_after_anonymous"] = bool(getattr(public, "private", True))
+                  row["public_sha"] = getattr(public, "sha", None)
+                  row["host"] = getattr(public, "host", None) or row.get("host")
+                  row["subdomain"] = getattr(public, "subdomain", None) or row.get("subdomain")
+              except Exception as exc:
+                  row["private_after_anonymous"] = True
+                  row["errors"].append(f"anonymous-metadata: {safe_error(exc)}")
+
+              row["public_repo_probe"] = http_probe(f"https://huggingface.co/spaces/{repo_id}")
+              app_url = row.get("host")
+              if app_url and not str(app_url).startswith("http"):
+                  app_url = f"https://{app_url}"
+              if not app_url and row.get("subdomain"):
+                  app_url = f"https://{row['subdomain']}.hf.space"
+              row["app_url"] = app_url
+              row["public_app_probe"] = http_probe(app_url)
+
+              repo_status = row["public_repo_probe"].get("status")
+              app_status = row["public_app_probe"].get("status")
+              visibility_ok = (
+                  not row.get("private_after_authenticated", True)
+                  and not row.get("private_after_anonymous", True)
+              )
+              runtime_ok = (
+                  str(row.get("sdk") or "").lower() == "static"
+                  or row.get("stage_after") == "RUNNING"
+              )
+              repo_ok = repo_status == 200
+              app_ok = isinstance(app_status, int) and 200 <= app_status < 400
+              row["operational"] = bool(visibility_ok and runtime_ok and repo_ok and app_ok)
+
+          ordered = [rows[key] for key in sorted(rows, key=str.lower)]
+          report = {
+              "schema": "szl.hf-estate-public-operational/v2",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "organization": ORG,
+              "controller_repository": os.environ.get("GITHUB_REPOSITORY"),
+              "controller_sha": os.environ.get("GITHUB_SHA"),
+              "space_count": len(ordered),
+              "private_before_count": sum(bool(row.get("private_before")) for row in ordered),
+              "public_after_count": sum(
+                  not row.get("private_after_authenticated", True)
+                  and not row.get("private_after_anonymous", True)
+                  for row in ordered
+              ),
+              "running_or_static_count": sum(
+                  row.get("stage_after") in {"RUNNING", "STATIC"} for row in ordered
+              ),
+              "anonymous_repo_ok_count": sum(
+                  row.get("public_repo_probe", {}).get("status") == 200 for row in ordered
+              ),
+              "anonymous_app_ok_count": sum(
+                  isinstance(row.get("public_app_probe", {}).get("status"), int)
+                  and 200 <= row["public_app_probe"]["status"] < 400
+                  for row in ordered
+              ),
+              "operational_count": sum(bool(row.get("operational")) for row in ordered),
+              "all_public": all(
+                  not row.get("private_after_authenticated", True)
+                  and not row.get("private_after_anonymous", True)
+                  for row in ordered
+              ),
+              "all_operational": all(bool(row.get("operational")) for row in ordered),
+              "spaces": ordered,
+          }
+          report["success"] = bool(report["all_public"] and report["all_operational"])
+          canonical = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+          report["receipt_sha256"] = hashlib.sha256(canonical).hexdigest()
+          REPORT_JSON.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+          lines = [
+              "# SZLHOLDINGS public and operational estate receipt v2",
+              "",
+              f"- Controller: `{report['controller_sha']}`",
+              f"- Spaces: `{report['space_count']}`",
+              f"- Private before: `{report['private_before_count']}`",
+              f"- Public after: `{report['public_after_count']}`",
+              f"- Running/static: `{report['running_or_static_count']}`",
+              f"- Anonymous app OK: `{report['anonymous_app_ok_count']}`",
+              f"- Operational: `{report['operational_count']}`",
+              f"- Success: `{report['success']}`",
+              f"- Receipt: `{report['receipt_sha256']}`",
+              "",
+              "| Space | SDK | Runtime | Repo | App | Public | Operational |",
+              "|---|---|---|---:|---:|---:|---:|",
+          ]
+          for row in ordered:
+              public = not row.get("private_after_authenticated", True) and not row.get("private_after_anonymous", True)
+              lines.append(
+                  f"| `{row['id']}` | `{row.get('sdk')}` | `{row.get('stage_after') or row.get('stage_before')}` | "
+                  f"`{row.get('public_repo_probe', {}).get('status')}` | "
+                  f"`{row.get('public_app_probe', {}).get('status')}` | `{public}` | `{row.get('operational')}` |"
+              )
+          REPORT_MD.write_text("\n".join(lines) + "\n", encoding="utf-8")
+          print(json.dumps({k: report[k] for k in (
+              "space_count", "private_before_count", "public_after_count",
+              "running_or_static_count", "anonymous_repo_ok_count",
+              "anonymous_app_ok_count", "operational_count", "all_public",
+              "all_operational", "success", "receipt_sha256"
+          )}, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload immutable v2 receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-estate-public-operational-v2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.REPORT_JSON }}
+            ${{ env.REPORT_MD }}
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Publish exact result and repair queue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$REPORT_JSON" ]; then
+            printf '## HF estate v2 failed before receipt\n\nRun: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > /tmp/comment.md
+            gh issue comment "$TRACKING_ISSUE" --body-file /tmp/comment.md
+            exit 0
+          fi
+          python - <<'PY' > /tmp/comment.md
+          import json, os
+          r = json.load(open(os.environ["REPORT_JSON"], encoding="utf-8"))
+          print("## HF estate public + operational receipt v2")
+          print()
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          print(f"- Controller SHA: `{r['controller_sha']}`")
+          print(f"- Spaces: `{r['space_count']}`")
+          print(f"- Private before: `{r['private_before_count']}`")
+          print(f"- Public after: `{r['public_after_count']}`")
+          print(f"- Running/static: `{r['running_or_static_count']}`")
+          print(f"- Anonymous repo OK: `{r['anonymous_repo_ok_count']}`")
+          print(f"- Anonymous app OK: `{r['anonymous_app_ok_count']}`")
+          print(f"- Fully operational: `{r['operational_count']}`")
+          print(f"- Receipt SHA-256: `{r['receipt_sha256']}`")
+          print(f"- Verdict: `{'PASS' if r['success'] else 'REPAIR_REQUIRED'}`")
+          failed = [row for row in r["spaces"] if not row.get("operational")]
+          if failed:
+              print()
+              print("### Exact repair queue")
+              for row in failed:
+                  public = not row.get("private_after_authenticated", True) and not row.get("private_after_anonymous", True)
+                  errors = "; ".join(row.get("errors") or []) or "none"
+                  print(f"- `{row['id']}` — public `{public}`, runtime `{row.get('stage_after') or row.get('stage_before')}`, repo HTTP `{row.get('public_repo_probe', {}).get('status')}`, app HTTP `{row.get('public_app_probe', {}).get('status')}`, action `{row.get('runtime_action')}`, errors `{errors}`")
+          PY
+          gh issue comment "$TRACKING_ISSUE" --body-file /tmp/comment.md
+          if python -c 'import json,os; raise SystemExit(0 if json.load(open(os.environ["REPORT_JSON"]))["success"] else 1)'; then
+            gh issue close "$TRACKING_ISSUE" --reason completed
+          else
+            gh issue reopen "$TRACKING_ISSUE" || true
+          fi
+
+      - name: Enforce no private Space remains
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          r = json.load(open(os.environ["REPORT_JSON"], encoding="utf-8"))
+          if not r["all_public"]:
+              raise SystemExit(f"Public visibility incomplete: {r['public_after_count']}/{r['space_count']}")
+          if not r["all_operational"]:
+              raise SystemExit(f"Runtime repair remains: {r['operational_count']}/{r['space_count']}")
+          PY
