@@ -352,6 +352,12 @@ _PUBLIC_PAGE_ALIASES = (
     ("/hatun", None, "redirect", "/hatun-mcp"),
     ("/hatun/", None, "redirect", "/hatun-mcp"),
     ("/hatun-mcp/", None, "redirect", "/hatun-mcp"),
+    ("/anatomy", None, "redirect", "/living-anatomy"),
+    ("/anatomy/", None, "redirect", "/living-anatomy"),
+    ("/codex", None, "redirect", "/formulas"),
+    ("/codex/", None, "redirect", "/formulas"),
+    ("/ouroboros", None, "redirect", "/formulas"),
+    ("/ouroboros/", None, "redirect", "/formulas"),
 )
 
 
