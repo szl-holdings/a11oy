@@ -351,6 +351,7 @@ _PUBLIC_PAGE_ALIASES = (
     ("/products/", None, "redirect", "/#products"),
     ("/hatun", None, "redirect", "/hatun-mcp"),
     ("/hatun/", None, "redirect", "/hatun-mcp"),
+    ("/hatun-mcp/", None, "redirect", "/hatun-mcp"),
 )
 
 
