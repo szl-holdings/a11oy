@@ -1,5 +1,5 @@
 {
-  "examined_documents": 108,
+  "examined_documents": 107,
   "injected_documents": [
     "a11oy_landing.html",
     "cathedral_genius.html",
@@ -66,7 +66,6 @@
     "pages/wallpa.html",
     "pages/warhacker.html",
     "pages/wasi-rikuq.html",
-    "pages/wires.html",
     "spaces/orbital/index.html",
     "web/agent-loop.html",
     "web/agentic-gpu.html",
@@ -114,5 +113,11 @@
   "proof_origin": "https://a11oy.net",
   "rollout": "workflow_dispatch:.github/workflows/rollout-frontend-flow-shell.yml",
   "schema": "szl.frontend-flow-shell-state/v1",
+  "self_contained_documents": [
+    "pages/wires.html"
+  ],
+  "source_managed_documents": [
+    "pages/integrations.html"
+  ],
   "state": "ROLLED_OUT"
 }
