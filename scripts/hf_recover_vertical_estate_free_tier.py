@@ -28,9 +28,10 @@ RUNTIME_SOURCE_REVISION = "7a84e34a05c7342bd32b56f6519fe51ce240f577"
 RUNTIME_VERSION = "2.2.0"
 RUNTIME_SLUG = "szl-vertical-services-runtime"
 ORG = "SZLHOLDINGS"
+GATEWAY_SOURCE_REPOSITORY = "szl-holdings/a11oy"
 RECEIPT_PATH = Path("hf-free-tier-recovery-receipt.json")
 RUNTIME_RECEIPT_PATH = Path("hf-personal-vertical-runtime-receipt.json")
-USER_AGENT = "SZL-HF-Free-Tier-Recovery/1.0"
+USER_AGENT = "SZL-HF-Free-Tier-Recovery/1.1"
 TOKEN_NAMES = (
     "HF_ORG_TOKEN", "HF_WRITE_TOKEN", "HF_TOKEN",
     "HUGGINGFACE_TOKEN", "HUGGING_FACE_HUB_TOKEN",
@@ -45,10 +46,16 @@ STATIC_SPACES = {
 DELETE_DYNAMIC_FILES = (
     "Dockerfile", "Dockerfile.dockerignore", "app.py", "requirements.txt", "config.json",
 )
+REQUIRED_GATEWAY_PATHS = ("/", "/healthz", "/api/build-info", "/api/source")
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 
 def utc_now() -> str:
     return dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def canonical_json_bytes(value: Any) -> bytes:
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
 
 
 def token_from_env() -> tuple[str, str]:
@@ -151,25 +158,74 @@ small{{display:block;margin-top:24px;color:#7f8ba8;overflow-wrap:anywhere}}@medi
 <script type="application/json" id="szl-build-info">{build_json}</script></body></html>'''
 
 
-def anonymous_html(url: str, attempts: int = 30) -> tuple[int, str]:
+def anonymous_get(url: str, attempts: int = 30) -> tuple[int, bytes]:
     last_status = 0
     for attempt in range(attempts):
+        separator = "&" if "?" in url else "?"
         request = urllib.request.Request(
-            f"{url}?szl_static_verify={time.time_ns()}",
+            f"{url}{separator}szl_static_verify={time.time_ns()}",
             headers={"Cache-Control": "no-cache", "User-Agent": USER_AGENT},
         )
         try:
             with urllib.request.urlopen(request, timeout=30) as response:
-                text = response.read(1_000_000).decode("utf-8", "replace")
-                if response.status == 200 and 'data-szl-domain-experience-v4="true"' in text:
-                    return response.status, text
+                body = response.read(1_000_001)
+                if len(body) > 1_000_000:
+                    raise RuntimeError("gateway response exceeded one megabyte")
+                if response.status == 200:
+                    return response.status, body
                 last_status = response.status
         except urllib.error.HTTPError as exc:
             last_status = exc.code
         except urllib.error.URLError:
             last_status = 0
         time.sleep(min(20, 2 + attempt))
-    return last_status, ""
+    return last_status, b""
+
+
+def verify_gateway(origin: str, expected: dict[str, Any]) -> dict[str, Any]:
+    observations: dict[str, Any] = {}
+    failures: list[str] = []
+    for path in REQUIRED_GATEWAY_PATHS:
+        status, body = anonymous_get(origin.rstrip("/") + path)
+        row: dict[str, Any] = {
+            "path": path,
+            "http_status": status,
+            "body_sha256": hashlib.sha256(body).hexdigest() if body else None,
+        }
+        if status != 200:
+            failures.append(f"{path}: HTTP {status}")
+        elif path == "/":
+            text = body.decode("utf-8", "replace")
+            if 'data-szl-domain-experience-v4="true"' not in text:
+                failures.append("/: gateway marker missing")
+        else:
+            try:
+                payload = json.loads(body.decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                payload = None
+            row["json_object"] = isinstance(payload, dict)
+            if not isinstance(payload, dict):
+                failures.append(f"{path}: JSON object missing")
+            else:
+                if payload.get("source_repository") != GATEWAY_SOURCE_REPOSITORY:
+                    failures.append(f"{path}: gateway source repository mismatch")
+                if payload.get("source_revision") != expected["source_revision"]:
+                    failures.append(f"{path}: gateway source revision mismatch")
+                if payload.get("runtime_repository") != expected["runtime_repository"]:
+                    failures.append(f"{path}: runtime repository mismatch")
+                if payload.get("runtime_source_revision") != RUNTIME_SOURCE_REVISION:
+                    failures.append(f"{path}: runtime source revision mismatch")
+                if payload.get("effectors_enabled") is not False:
+                    failures.append(f"{path}: effector boundary drift")
+                if payload.get("human_approval_required") is not True:
+                    failures.append(f"{path}: human authority boundary drift")
+        observations[path] = row
+    return {
+        "required_paths": list(REQUIRED_GATEWAY_PATHS),
+        "observations": observations,
+        "failures": failures,
+        "complete": not failures,
+    }
 
 
 def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str, str], runtime: dict[str, Any]) -> dict[str, Any]:
@@ -182,12 +238,17 @@ def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str
         api.create_repo(repo_id=repo_id, repo_type="space", space_sdk="static", exist_ok=True, private=False, token=token)
         files = set()
     target = runtime["origin"].rstrip("/") + path
+    gateway_revision = (os.getenv("GITHUB_SHA") or "").strip().lower()
+    if SHA40.fullmatch(gateway_revision) is None:
+        raise RuntimeError("GITHUB_SHA is required to bind the static gateway source")
     build = {
-        "schema": "szl.static-runtime-gateway/v1",
+        "schema": "szl.static-runtime-gateway/v2",
         "generated_at": utc_now(),
+        "service": slug,
         "hf_repository": repo_id,
+        "source_repository": GATEWAY_SOURCE_REPOSITORY,
+        "source_revision": gateway_revision,
         "deployment_mode": "STATIC_ORG_GATEWAY_PERSONAL_DYNAMIC_RUNTIME",
-        "gateway_source_revision": os.getenv("GITHUB_SHA") or "UNAVAILABLE",
         "runtime_repository": runtime["repo_id"],
         "runtime_source_revision": runtime["source_revision"],
         "runtime_version": runtime["version"],
@@ -196,34 +257,53 @@ def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str
         "effectors_enabled": False,
         "human_approval_required": True,
     }
+    health = {
+        "schema": "szl.static-runtime-gateway-health/v1",
+        "status": "ok",
+        **build,
+    }
+    source = {
+        "schema": "szl.static-runtime-gateway-source/v1",
+        **build,
+    }
     payloads = {
         "README.md": static_card(title, description).encode(),
         "index.html": static_page(title, description, target, build).encode(),
-        "build-info.json": (json.dumps(build, indent=2) + "\n").encode(),
-        ".well-known/szl-source.json": (json.dumps(build, indent=2) + "\n").encode(),
+        "build-info.json": canonical_json_bytes(build),
+        ".well-known/szl-source.json": canonical_json_bytes(source),
+        "healthz": canonical_json_bytes(health),
+        "api/build-info": canonical_json_bytes(build),
+        "api/source": canonical_json_bytes(source),
     }
-    operations: list[Any] = [CommitOperationAdd(path_in_repo=path, path_or_fileobj=data) for path, data in payloads.items()]
-    operations.extend(CommitOperationDelete(path_in_repo=path) for path in DELETE_DYNAMIC_FILES if path in files)
+    operations: list[Any] = [CommitOperationAdd(path_in_repo=name, path_or_fileobj=data) for name, data in payloads.items()]
+    operations.extend(CommitOperationDelete(path_in_repo=name) for name in DELETE_DYNAMIC_FILES if name in files)
     commit = api.create_commit(
         repo_id=repo_id, repo_type="space", operations=operations,
         commit_message=f"ops: convert {slug} to source-bound static gateway", token=token,
     )
     origin = space_origin(repo_id)
-    status, _ = anonymous_html(origin)
+    live = verify_gateway(
+        origin,
+        {
+            "source_revision": gateway_revision,
+            "runtime_repository": runtime["repo_id"],
+        },
+    )
     return {
         "repo_id": repo_id,
         "origin": origin,
         "target": target,
         "commit": str(getattr(commit, "oid", "") or getattr(commit, "commit_url", "")),
-        "http_status": status,
-        "operational": status == 200,
-        "deleted_dynamic_files": sorted(path for path in DELETE_DYNAMIC_FILES if path in files),
+        "required_paths": list(REQUIRED_GATEWAY_PATHS),
+        "live_verification": live,
+        "operational": live["complete"],
+        "deleted_dynamic_files": sorted(name for name in DELETE_DYNAMIC_FILES if name in files),
     }
 
 
 def main() -> int:
     report: dict[str, Any] = {
-        "schema": "szl.hf-free-tier-recovery/v1",
+        "schema": "szl.hf-free-tier-recovery/v2",
         "started_at": utc_now(),
         "provider_constraint": "HF_ORG_DYNAMIC_REQUIRES_TEAM_OR_ENTERPRISE",
         "token_value_recorded": False,
