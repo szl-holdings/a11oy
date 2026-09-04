@@ -1,0 +1,952 @@
+{
+  "credential_values_recorded": false,
+  "default_branches": [
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33925691351,
+          "name": "Estate dead-man supervisor"
+        }
+      ],
+      "pending": [
+        {
+          "id": 33925667931,
+          "name": "CodeQL",
+          "status": "in_progress"
+        },
+        {
+          "id": 33925667537,
+          "name": "Code Quality: Push on main",
+          "status": "in_progress"
+        }
+      ],
+      "repo": "szl-holdings/.github",
+      "sha": "93e5ae07c447b240bbc2b0007872d505887b4976"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33925747635,
+          "name": "Repair Cloudflare Product Edge"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33925709820,
+          "name": "HF Space module-drift guard"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33925657545,
+          "name": "HF Ecosystem manifest drift"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33925657486,
+          "name": "Operational Validation"
+        }
+      ],
+      "pending": [
+        {
+          "id": 33925657642,
+          "name": "Container build + GHCR push",
+          "status": "in_progress"
+        },
+        {
+          "id": 33925657484,
+          "name": "Tests",
+          "status": "in_progress"
+        },
+        {
+          "id": 33925657651,
+          "name": "GHCR Build + Push (uds-v0.3.0)",
+          "status": "in_progress"
+        },
+        {
+          "id": 33925658034,
+          "name": "Sync and Relock Canonical Hugging Face Space",
+          "status": "in_progress"
+        },
+        {
+          "id": 33925657566,
+          "name": "CodeQL",
+          "status": "in_progress"
+        }
+      ],
+      "repo": "szl-holdings/a11oy",
+      "sha": "e24126eefc550f4888dfd5bf5e32ec767f1f4d32"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/david-leads",
+      "sha": "b23f6754bc91e7f4bdabd143425d407f77e62f1f"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-constellation",
+      "sha": "7d7b7d372b255b6d8fe6392fb54ec07061082374"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/lyte-services",
+      "sha": "b26e66f18f563f5e9a98f8bdcfa5f28527e3e195"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33924875720,
+          "name": "CI"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33924875792,
+          "name": "Verify central Hugging Face publication ownership"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/lyte-lattice",
+      "sha": "91586eac3c2518677f6ffc603c37538dbacdc910"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-forge",
+      "sha": "ae7a35d8c58c66c3a1a87296aa339141f995815b"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-brand",
+      "sha": "b38bbd739d98843a4540c8d70b3e06b020e795ab"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/ayllu-hf-space",
+      "sha": "45c7cd6f04b74a14e9019818e3f49babfcadb89e"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/ayllu",
+      "sha": "815f8c5e76af6ae74d6af413c21039102954321b"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33923107027,
+          "name": "npm_and_yarn in /. for fflate - Update #1558090291"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/platform",
+      "sha": "f8c7780b16a9d1e3e4089f5d3c77614c53608c5c"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-trust",
+      "sha": "06f1202b412c4d83519798401bdfb164ec125e6b"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-hf-frontier",
+      "sha": "baba301f2693ad6b155d1485453fe835501121c5"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/a11oy-net",
+      "sha": "18ccf1b9446dd31477b314434f95f036d7d8c32d"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/vertical-services",
+      "sha": "895c4de2e8c07236c4adeabc7376ca5367b2b835"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-ouroboros",
+      "sha": "371b611716d459ca7e96d1bde7630c813bfcdd83"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/immune",
+      "sha": "234472e742af6a39a5e77ff649ea6bf4653a031f"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/holographic-unify",
+      "sha": "c2e9fa21cf5591fb64936e847da07a34ef2e02c1"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-kernels",
+      "sha": "5e2cb4dbc7c2365f13c535816215c571b174027b"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-khipu",
+      "sha": "01ec801e24e86a348dc73e3988c84dca7ab84c52"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-frontier",
+      "sha": "9042439399565c821772f397b33c3e7ad2bf518f"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/the-grid",
+      "sha": "80bb9b402cf50253cd857db1f73288f9ca0dd73f"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/hatun-mcp",
+      "sha": "a97362eebcf6ae52da682fa3184b6a9427945406"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/nexus",
+      "sha": "04d5891c0b1a15e7e1145ff666feebec36cb3acf"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-block-kv",
+      "sha": "1570fcc9000899ceb1bd136fa6f3c8988c42f998"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-maskmod",
+      "sha": "491ee549031b2d971a616f4d4da75275f16ee3b7"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-receipt-attn",
+      "sha": "2aaaf29a85961b5a6dd4d80492646ebefffbccb7"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-invariants",
+      "sha": "53dc3ba6fcd22e5f045ad76551a08a326b67a7e8"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33898551713,
+          "name": "Hub joblib quarantine PR"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/szl-provctl",
+      "sha": "d6fe825baa549dff50d6404b861d1016138538b5"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-govsign",
+      "sha": "fde27bfb7f31bf5ec0a9dcbafb30547ce33dec2b"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33898550299,
+          "name": "Hub joblib quarantine PR"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/szl-blocked",
+      "sha": "10c0b0cffc8390d9482a7eae0adeeab8136a40f9"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33898552650,
+          "name": "Hub joblib quarantine PR"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/szl-formulas",
+      "sha": "d03536144d2f23ee2da35c356e2558abe5183779"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-nemo",
+      "sha": "430846f90763ee7d301df896096d2dcfe87a128d"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/YARQA-ATTN",
+      "sha": "373b61869278ddd041b03db0469b6a2fdb78f8d4"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-command-lab",
+      "sha": "5dcae25d90c63ea10a0c5b850d66f8895c0243b9"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33915838294,
+          "name": "Sync to HuggingFace Space"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/killinchu",
+      "sha": "4021afa6c09ef1b1d0a9c360d7294fbfa92057d1"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-holdings.github.io",
+      "sha": "e0bf5acd1885fb4d97838f25de918c51774514f8"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33925370306,
+          "name": "Sync Living Anatomy to creator profile"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33916243267,
+          "name": "Sync Living Anatomy to creator profile"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33906428255,
+          "name": "Holographic v7 live witness"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33906189027,
+          "name": "Sync Living Anatomy to creator profile"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33900490963,
+          "name": "Holographic v7 live witness"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33900490866,
+          "name": "Sync Living Anatomy to creator profile"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/anatomy",
+      "sha": "075a2484c1e520d4e5767c1a2780de9bd8827e6c"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33900018289,
+          "name": "Deploy to HuggingFace Space"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/yarqa",
+      "sha": "a5e74026ee0c24f45a0b0405ee849720ca520302"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-lambda-gate",
+      "sha": "9583c8bb9fc8baacf522b0eee05a56700f5ec1bc"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-second-brain",
+      "sha": "1d3960c69235f117b7ec2b5ea97472f81fb588f5"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-real-estate",
+      "sha": "4393da2390676c3062a3947825cf796c288b6120"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33925367983,
+          "name": "bench-suite-publisher"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33920910671,
+          "name": "bench-suite-publisher"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33916242515,
+          "name": "bench-suite-publisher"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33910722309,
+          "name": "bench-suite-publisher"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33906181896,
+          "name": "bench-suite-publisher"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33900500131,
+          "name": "bench-suite-publisher"
+        },
+        {
+          "conclusion": "failure",
+          "id": 33899521906,
+          "name": "bench-suite-publisher"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/frontier-bench",
+      "sha": "8b1a3ecb5b567b7836f1d9242694722d316e241c"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-pin",
+      "sha": "314b8b7a2b973f0a78239b18d6f4714402b96662"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-runbook-catalog",
+      "sha": "7f3f2daa1046afbe0bc6c53fce588aaa8e571070"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/quant-curve",
+      "sha": "3710a43d2566ea1bf820f5687aad07d3de8ea769"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/retrieval-bench",
+      "sha": "ca61ce3f294db1b6deca9e0734c5605e6f58a01b"
+    },
+    {
+      "failed": [],
+      "pending": [
+        {
+          "id": 33896159779,
+          "name": "Windows GPU bridge watchdog install",
+          "status": "pending"
+        }
+      ],
+      "repo": "szl-holdings/szl-gpu-bridge",
+      "sha": "ea875e775d3a6e9b23f3c87f7503e9f2b3773b77"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/governance-as-code",
+      "sha": "d8ba406e76a5b5c416999ff958d2549986cd3cf5"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/lutar-lean",
+      "sha": "3d3dfdbbb8e08d67b48ab06ce742a39662212f57"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-energy-attest",
+      "sha": "f0f4d5f556826d68ce8bf30b3c5cfd7df8f4dad3"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-calibration",
+      "sha": "3ce0bb0e076697e466e64d7a9f966895605b2d65"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-engine-bench",
+      "sha": "5eb93355fabaae45c17a51875807a1106290b0ba"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-ci-witness",
+      "sha": "0b198dc678bbeb9353b85281c4d57520ba448ba2"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-quant-bench",
+      "sha": "25daa8751abb4c1ed0733ffa0f841fd5393ae118"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-eclipse",
+      "sha": "84f59c9cabc682c5a4d04277584247398b4df488"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-crosscheck",
+      "sha": "7b724ffce318e0727c884fe1412f947ecb3f12ba"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-wave1-report",
+      "sha": "5d3c9819b9cdd706b685ca0614ce5c9ea273f6c4"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-vertical-forge",
+      "sha": "21add69ac287002d32862f5f46ec5f19a83c6264"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-retrieval-bench",
+      "sha": "280a94c204ce67ffbb995d99bd2e92a917f913d2"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/puriq-live",
+      "sha": "2d737e649778fa801652ae34e87df47125830680"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-serve",
+      "sha": "018867532780f3270c32f9fbbb9e16660cc6434d"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-sovereign-os",
+      "sha": "a18f76e9487568a2aa1d0c5375b543e1b228c91a"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-platform",
+      "sha": "8e76530f8379c385d2a8a233a9506fbd75184dad"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/khipu-x1",
+      "sha": "19f67acd83a1ca6be2b0ec634b98a4ac699477f6"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/a11oy-factory",
+      "sha": "10069f34e35d206c75ceaf2654ac86e4340eab2e"
+    },
+    {
+      "failed": [
+        {
+          "conclusion": "failure",
+          "id": 33659065327,
+          "name": "Deploy to Hugging Face Space"
+        }
+      ],
+      "pending": [],
+      "repo": "szl-holdings/sda",
+      "sha": "4a069e683e3402ae083a3cec0e34d1be791bbc67"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-gov",
+      "sha": "4572983d19f8d8b262c3762dd4e5bdbb250093be"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-evidence-litellm",
+      "sha": "6748ea22defdfd905ba21c5e68ea2318b32dbd56"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-receipt",
+      "sha": "25bc63d1059b7c0f427869e89d2522ade819fe1b"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/governed-receipt-spec",
+      "sha": "87264302da745e25402cdb04ad281109d6ad0f71"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-substrate",
+      "sha": "ad2e04374717ef79dbf7dbb91aea5a8480ed10c3"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-lake",
+      "sha": "b6e1a189b4337a2124689322c641d445eb765d6d"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/khipu-sda-core",
+      "sha": "cade2ab48a793e8cb9b4e9515c0dc6f08ff36c73"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/khipu-consensus",
+      "sha": "00baf8036db49c7c452f99575547c26ceff8237d"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-doctrine",
+      "sha": "c8114012f37dfdf87b2c25d8dbf244f792d27e00"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-quant",
+      "sha": "0a18eea4c0ced5543e0536bf84b3cb47b88ecc0f"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-papers",
+      "sha": "b96d4908a0cee573a7ab062a145307b78c0e282b"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-drift",
+      "sha": "ff7aef52f17add4e585194e5fd288c92f64356eb"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/evidence-doctrine",
+      "sha": "a0735738982f4e3e66d3a951c243c64ba7992dbf"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/evidence-studio",
+      "sha": "6098d598ee1e21170393abdc446691d8340100cc"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-quant-witness",
+      "sha": "40553f41a4b55e62bee0751ad7bb413855f204a1"
+    },
+    {
+      "failed": [],
+      "pending": [],
+      "repo": "szl-holdings/szl-guardrail-receipt",
+      "sha": "e7ef3d7940178e308b2bf0de38728d6bb66a85f4"
+    }
+  ],
+  "domain": {
+    "apex": {
+      "body": "<!doctype html>\n<!-- SPDX-License-Identifier: Apache-2.0\n     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->\n<!--\n  a11oy \u2014 front door (scroll narrative). Served at the Space root \"/\" by serve.py.\n  SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.\n  Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.\n  HONESTY DOCTRINE v11 LOCKED \u2014 every figure is fetched live and labelled honestly\n  (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. \u039b = Conjecture 1 (advisory, NOT a theorem,\n  never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.\n  The genome registry (144 entries) is grouped into 4 honesty tiers \u2014 a different, larger set.\n  Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.\n  DOM/sections owned by Dev 1. The #hero-canvas boot is now a dependency-free WebGL\n  GPU-particle flow field (particle state in a float texture, advected each frame by a\n  curl-noise fragment shader) \u2014 no library, 0 CDN. Three.js r160 stays vendored in-image\n  at /hero/vendor3d for the frontier 3D surfaces. Monochrome only. No purple. a-11-oy.com remains the\n  canonical governed-inference product; a11oy.net is a separately attested estate cockpit.\n  \u00a9 Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) \u00b7 Apache-2.0\n-->\n<html lang=\"en\" data-szl-public-experience-v3=\"true\" data-szl-space-holo-v2=\"true\" data-szl-living-command-fabric-v1=\"true\" data-szl-zoom-tier=\"normal\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n<title>a11oy \u2014 The Living Command Fabric</title>\n<meta name=\"description\" content=\"One governed intelligence fabric with five public domain bodies backed by six internal engines. A11oy connects Living Anatomy, the l",
+      "effective": "https://a-11-oy.com/",
+      "location": null,
+      "status": 200
+    },
+    "contract": {
+      "locked_formula_count": 8,
+      "organ": "a11oy"
+    },
+    "hf_origin": {
+      "body": "<!doctype html>\n<!-- SPDX-License-Identifier: Apache-2.0\n     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->\n<!--\n  a11oy \u2014 front door (scroll narrative). Served at the Space root \"/\" by serve.py.\n  SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.\n  Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.\n  HONESTY DOCTRINE v11 LOCKED \u2014 every figure is fetched live and labelled honestly\n  (REACHABLE / MEASURED / MODELED / SNAPSHOT / UNAVAILABLE). Nothing is fabricated. \u039b = Conjecture 1 (advisory, NOT a theorem,\n  never 1.0, NEVER green). Locked-proven Lean kernel = EXACTLY 8 {F1,F4,F7,F11,F12,F18,F19,F22}.\n  The genome registry (144 entries) is grouped into 4 honesty tiers \u2014 a different, larger set.\n  Receipt chain integrity and DSSE signing are separate. Signing is claimed only when persistent signer evidence is ACTIVE and verification passes. Read-only routes never mint receipts.\n  DOM/sections owned by Dev 1. The #hero-canvas boot is now a dependency-free WebGL\n  GPU-particle flow field (particle state in a float texture, advected each frame by a\n  curl-noise fragment shader) \u2014 no library, 0 CDN. Three.js r160 stays vendored in-image\n  at /hero/vendor3d for the frontier 3D surfaces. Monochrome only. No purple. a-11-oy.com remains the\n  canonical governed-inference product; a11oy.net is a separately attested estate cockpit.\n  \u00a9 Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) \u00b7 Apache-2.0\n-->\n<html lang=\"en\" data-szl-public-experience-v3=\"true\" data-szl-space-holo-v2=\"true\" data-szl-living-command-fabric-v1=\"true\" data-szl-zoom-tier=\"normal\">\n<head>\n<meta charset=\"utf-8\" />\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\" />\n<title>a11oy \u2014 The Living Command Fabric</title>\n<meta name=\"description\" content=\"One governed intelligence fabric with five public domain bodies backed by six internal engines. A11oy connects Living Anatomy, the l",
+      "effective": "https://szlholdings-a11oy.hf.space/",
+      "location": null,
+      "status": 200
+    },
+    "honest": {
+      "body": "{\"organ\":\"a11oy\",\"git_sha\":\"e24126eefc550f4888dfd5bf5e32ec767f1f4d32\",\"doctrine_lock\":{\"doctrine\":\"v11\",\"state\":\"LOCKED\",\"declarations\":749,\"axioms\":14,\"sorries\":163,\"commit\":\"c7c0ba17\",\"lambda\":\"Conjecture 1\",\"lambda_note\":\"\u039b-Aggregator Uniqueness \u2014 Conjecture 1, NOT a closed theorem.\",\"locked_formula_count\":8,\"locked_formula_ids\":[\"F1\",\"F4\",\"F7\",\"F11\",\"F12\",\"F18\",\"F19\",\"F22\"]},\"locked_formula_count\":8,\"locked_formula_ids\":[\"F1\",\"F4\",\"F7\",\"F11\",\"F12\",\"F18\",\"F19\",\"F22\"],\"footer\":\"Doctrine v11 LOCKED 749/14/163 @ c7c0ba17 \u00b7 \u039b = Conjecture 1\",\"honest_labels\":{\"lambda\":\"\u039b-Aggregator Uniqueness is Conjecture 1 \u2014 NOT a theorem.\",\"khipu_signatures\":\"Chain integrity is SHA3-256 hash-chain verified; DSSE signature is a separately-labelled cosign concern.\",\"persistence\":\"Khipu receipts persist via backend=sqlite (durable=True).\",\"principle\":\"HONESTY OVER CHECKLIST.\"}}",
+      "effective": "https://a-11-oy.com/api/a11oy/v1/honest",
+      "location": null,
+      "status": 200
+    },
+    "verified": false,
+    "www": {
+      "error": "URLError: <urlopen error [SSL: TLSV1_ALERT_ACCESS_DENIED] tlsv1 alert access denied (_ssl.c:1000)>",
+      "status": "UNAVAILABLE"
+    }
+  },
+  "errors": [],
+  "generated_at": "2026-09-04T22:31:00.162991+00:00",
+  "github_counts": {
+    "active": 83,
+    "archived": 34,
+    "total": 117
+  },
+  "hf": {
+    "counts": {
+      "datasets": 41,
+      "models": 44,
+      "spaces": 20
+    },
+    "errors": [],
+    "spaces": [
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/README",
+        "private": false,
+        "sha": "73887834be74e27e7fb7261f53c60860d97d3736"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/killinchu",
+        "private": false,
+        "sha": "89db92ea56106895f299441164cf20e91444418b"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/a11oy",
+        "private": false,
+        "sha": "5823178eaea85a2d77936819dba530711a258d91"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/counsel",
+        "private": false,
+        "sha": "dee953ecae2c8b9cda36ca9928df439f8b6aff8c"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/terra",
+        "private": false,
+        "sha": "14c1a78100eed9ba8e393e518c5df73a2aadd887"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/sentra",
+        "private": false,
+        "sha": "5963fe8c2ac86843637710bf1d499ef24f011f48"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/finance",
+        "private": false,
+        "sha": "a342073af0d12c325f60cfb6b16590d951413071"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/lyte",
+        "private": false,
+        "sha": "286bf5671271017b738a844ac77e59ae66da59fc"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/vertical-services",
+        "private": false,
+        "sha": "710950f7c8de115c3bae4a31a628fd5671eff270"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/szl-command-lab",
+        "private": false,
+        "sha": "4c0d0072504a0665c7818ea6282f6eddeb0ed64b"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/david-leads",
+        "private": false,
+        "sha": "6f80ab6c37cc9a6bcca4d44a926daca8b9468c56"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/szl-constellation",
+        "private": false,
+        "sha": "1255db7429cdd560516e3d232087aaba93b96145"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/terra-assurance",
+        "private": true,
+        "sha": "b596fcfc4635c12e65a185230fb2d0afebdb6fa2"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/puriq-markets",
+        "private": true,
+        "sha": "5681a5675b9fd6d53feb811553b63a04cd0b98c3"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/counsel-assurance",
+        "private": true,
+        "sha": "0e31460ae4740e2ffb7565c2f1e4c21155bc52a2"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/szl-frontier",
+        "private": false,
+        "sha": "e730a24b087ee31bcef19357636e048ca105e06a"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/szl-model-inference-lab",
+        "private": false,
+        "sha": "f50895266a1956d38a0b03326e8cfa28a88d6c1a"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/immune-lattice",
+        "private": false,
+        "sha": "6237ab5b88e71388ba161c22eff0e6f72e1951a8"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/immune",
+        "private": false,
+        "sha": "c53c49895ad86aacc045367086eafb19bfc4f10d"
+      },
+      {
+        "action": "NONE",
+        "before": "UNKNOWN",
+        "id": "SZLHOLDINGS/ayllu",
+        "private": false,
+        "sha": "2a22a689f04f7c158d7303540b88aeed6f9bcedc"
+      }
+    ],
+    "unsafe": []
+  },
+  "known_handoffs": [
+    {
+      "merge_sha": "8e76530f8379c385d2a8a233a9506fbd75184dad",
+      "merged": true,
+      "number": 9,
+      "repo": "szl-holdings/szl-platform",
+      "state": "closed",
+      "title": "docs: V14 payload closeout (BUILD_STATUS.md)"
+    },
+    {
+      "merge_sha": "51a04c61b2717567e1afbb88d4680e33ea293b1e",
+      "merged": true,
+      "number": 88,
+      "repo": "szl-holdings/szl-forge",
+      "state": "closed",
+      "title": "feat(operational): operational training, remediation & benchmark package"
+    },
+    {
+      "merge_sha": "d3a36de5106b78936f11d5c5142ed64c07278e63",
+      "merged": true,
+      "number": 375,
+      "repo": "szl-holdings/killinchu",
+      "state": "closed",
+      "title": "fix(test): re-bless estate contract to the KEEP-6 fold + single-process suite safety"
+    },
+    {
+      "merge_sha": "a73e734009ec96a6d3bebcb45066ee4da249797f",
+      "merged": true,
+      "number": 1617,
+      "repo": "szl-holdings/a11oy",
+      "state": "closed",
+      "title": "chore: allowlist synthetic Gitleaks fixture fingerprints from #1608"
+    },
+    {
+      "merge_sha": "991a6d8abc9f5458729b6f3f934b96c4c5273045",
+      "merged": true,
+      "number": 1618,
+      "repo": "szl-holdings/a11oy",
+      "state": "closed",
+      "title": "Add pricing page (launch pricing)"
+    },
+    {
+      "merge_sha": "050ad1e18fe0db9f4d4d7def23173218f99b22a0",
+      "merged": true,
+      "number": 1531,
+      "repo": "szl-holdings/a11oy",
+      "state": "closed",
+      "title": "feat(surfaces): upgrade structural-only surfaces to honest modeled/measured"
+    }
+  ],
+  "open_prs": [],
+  "passes": [
+    {
+      "actions": [],
+      "blocked": [],
+      "held": [],
+      "merged": [],
+      "observed": 0,
+      "pass": 1
+    }
+  ],
+  "schema": "szl.direct-agent-estate-convergence/v1",
+  "terminal": {
+    "complete": false,
+    "domain_verified": false,
+    "errors": 0,
+    "hf_errors": 0,
+    "nonheld_open_prs": 0,
+    "public_space_failures": 17,
+    "unhealthy_default_branches": 13,
+    "unsafe_serialization_findings": 0
+  }
+}
