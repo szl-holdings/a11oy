@@ -433,6 +433,55 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None,
     return result
 
 
+_READINESS_PUBLIC_FRESHNESS = frozenset({"live", "cached"})
+
+
+def _readiness_public_source(entry: Any) -> Any:
+    """Publish one DEV-A source wrapper under the readiness truth contract.
+
+    No-value failures remain explicit ``UNAVAILABLE`` evidence and carry the
+    instant at which the failure was observed. Last-good values may be served as
+    ``cached`` only when their original observation timestamp is retained.
+    """
+    normalized = entry
+    if _HAS_VF and hasattr(_vf, "_readiness_public_source"):
+        try:
+            normalized = _vf._readiness_public_source(entry)
+        except Exception:
+            normalized = entry
+    if not isinstance(normalized, dict):
+        return normalized
+    freshness = normalized.get("freshness")
+    if not isinstance(freshness, dict):
+        return normalized
+
+    out = dict(normalized)
+    public = dict(freshness)
+    status = str(public.get("status") or "").strip().lower()
+    if out.get("value") is None:
+        public["status"] = "UNAVAILABLE"
+        if public.get("fetched_at") is None:
+            public["fetched_at"] = datetime.now(timezone.utc).isoformat()
+        if not str(public.get("error") or "").strip():
+            public["error"] = "source returned no observed value"
+    elif status not in _READINESS_PUBLIC_FRESHNESS:
+        if public.get("fetched_at") is None:
+            age_s = public.get("age_s")
+            if (
+                isinstance(age_s, (int, float))
+                and not isinstance(age_s, bool)
+                and math.isfinite(float(age_s))
+            ):
+                observed = time.time() - max(0.0, float(age_s))
+                public["fetched_at"] = datetime.fromtimestamp(
+                    observed, tz=timezone.utc
+                ).isoformat()
+        if public.get("fetched_at") is not None:
+            public["status"] = "cached"
+    out["freshness"] = public
+    return out
+
+
 # ===========================================================================
 # GOVERNED TURN — delegate to the proven machinery in a11oy_vertical_feeds.
 # ===========================================================================
@@ -956,12 +1005,17 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_dob_violations, (60,), {}),
             (feed_treasury, (8,), {}),
         ])
-        return JSONResponse({"tab": "pulse", "hpd": hpd, "dob": dob, "rates": rates, "doctrine": DOCTRINE})
+        return JSONResponse({"tab": "pulse",
+                             "hpd": _readiness_public_source(hpd),
+                             "dob": _readiness_public_source(dob),
+                             "rates": rates, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/distress", include_in_schema=False)
     async def _re_distress(limit: Annotated[int, Query(ge=1, le=1000)] = 300):
         hpd = await _run_blocking(feed_hpd_violations, limit)
-        return JSONResponse({"tab": "distress", "hpd": hpd, "doctrine": DOCTRINE})
+        return JSONResponse({"tab": "distress",
+                             "hpd": _readiness_public_source(hpd),
+                             "doctrine": DOCTRINE})
 
     @app.get(base + "/re/ownership", include_in_schema=False)
     async def _re_ownership():
