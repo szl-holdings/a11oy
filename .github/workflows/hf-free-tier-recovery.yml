@@ -1,0 +1,135 @@
+# Copyright 2026 SZL Holdings — SPDX-License-Identifier: Apache-2.0
+name: Recover HF vertical estate on free tier
+
+on:
+  pull_request:
+    paths:
+      - "scripts/hf_recover_vertical_estate_free_tier.py"
+      - "tests/test_hf_recover_vertical_estate_free_tier.py"
+      - "docs/strategy/hf-free-tier-recovery.v1.json"
+      - ".github/workflows/hf-free-tier-recovery.yml"
+  push:
+    branches: [main]
+    paths:
+      - "scripts/hf_recover_vertical_estate_free_tier.py"
+      - "tests/test_hf_recover_vertical_estate_free_tier.py"
+      - "docs/strategy/hf-free-tier-recovery.v1.json"
+      - ".github/workflows/hf-free-tier-recovery.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: hf-free-tier-vertical-recovery
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Verify free-tier recovery contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install test runner
+        run: python -m pip install --disable-pip-version-check "pytest==8.4.2"
+      - name: Run network-free recovery tests
+        run: python -m pytest -q tests/test_hf_recover_vertical_estate_free_tier.py
+
+  recover:
+    name: Publish personal runtime and static organization gateways
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.20.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Require current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          git fetch --no-tags --depth=1 origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned Hugging Face client
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.29.0"
+      - name: Execute exact-source free-tier recovery
+        id: recovery
+        continue-on-error: true
+        run: python scripts/hf_recover_vertical_estate_free_tier.py
+      - name: Upload immutable recovery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-free-tier-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-free-tier-recovery-receipt.json
+            hf-personal-vertical-runtime-receipt.json
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Publish aggregate result to estate issue
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path("hf-free-tier-recovery-receipt.json")
+          if p.is_file():
+              r = json.loads(p.read_text())
+              runtime = r.get("runtime") or {}
+              body = [
+                  "## HF free-tier recovery receipt",
+                  "",
+                  f"- Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+                  f"- Complete: `{r.get('complete')}`",
+                  f"- Runtime: `{runtime.get('repo_id', 'UNAVAILABLE')}`",
+                  f"- Runtime source: `{runtime.get('source_revision', 'UNAVAILABLE')}`",
+                  f"- Static gateways: `{r.get('gateways_operational', 0)}/{r.get('gateways_total', 0)}`",
+                  f"- Provider constraint: `{r.get('provider_constraint')}`",
+                  f"- Token value recorded: `{r.get('token_value_recorded')}`",
+                  f"- Receipt SHA-256: `{r.get('receipt_sha256', 'UNAVAILABLE')}`",
+              ]
+              if r.get("error"):
+                  body += ["", "### Exact blocker", "", f"`{r['error']}`"]
+          else:
+              body = ["## HF free-tier recovery did not emit a receipt", "", f"Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"]
+          Path("/tmp/hf-recovery-comment.md").write_text("\n".join(body) + "\n")
+          PY
+          gh issue comment 1764 --repo "$GITHUB_REPOSITORY" --body-file /tmp/hf-recovery-comment.md
+      - name: Enforce terminal recovery verdict
+        if: always()
+        shell: bash
+        run: test "${{ steps.recovery.outcome }}" = success

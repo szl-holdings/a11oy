@@ -1,0 +1,43 @@
+{
+  "schema": "szl.hf-free-tier-recovery-plan/v1",
+  "issued_at": "2026-09-04T07:10:00Z",
+  "trigger": {
+    "provider": "Hugging Face",
+    "observed_http_status": 402,
+    "observed_constraint": "Organization Gradio and Docker Spaces on cpu-basic require a Team or Enterprise plan",
+    "source_run": 33846841792
+  },
+  "source": {
+    "repository": "szl-holdings/vertical-services",
+    "revision": "7a84e34a05c7342bd32b56f6519fe51ce240f577",
+    "runtime_version": "2.2.0",
+    "guard": "require-default-branch-tip"
+  },
+  "recovery": {
+    "dynamic_runtime": "personal public Docker Space derived from the write-token owner",
+    "organization_gateways": [
+      "SZLHOLDINGS/vertical-services",
+      "SZLHOLDINGS/terra",
+      "SZLHOLDINGS/counsel",
+      "SZLHOLDINGS/finance",
+      "SZLHOLDINGS/lyte"
+    ],
+    "gateway_sdk": "static",
+    "gateway_behavior": "accessible source-bound v4 entry surface redirecting to the exact governed runtime",
+    "single_writer": "szl-holdings/a11oy GitHub Actions",
+    "destructive_scope": "delete only obsolete Docker launcher files after the personal runtime passes exact-source live proof"
+  },
+  "authority": {
+    "effectors_enabled": false,
+    "human_approval_required": true,
+    "lambda": "CONJECTURE_1_ADVISORY",
+    "sample_substitution": false,
+    "secret_value_recorded": false
+  },
+  "non_claims": [
+    "This does not change the Hugging Face organization subscription.",
+    "Static gateway HTTP 200 is not dynamic-runtime readiness proof.",
+    "The organization gateway and personal runtime remain separately identified in every build record.",
+    "Killinchu is not converted or mutated by this recovery."
+  ]
+}
