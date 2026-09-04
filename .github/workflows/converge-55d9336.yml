@@ -1,0 +1,355 @@
+name: Converge canonical A11oy and vertical intelligence v4 — 55d9336
+
+on:
+  push:
+    branches:
+      - ops/converge-55d9336-20260904
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: converge-55d9336-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  TARGET_SHA: 55d9336fed3a23da5b1abfed4f7f38dcc5121a06
+  CANONICAL_SPACE: SZLHOLDINGS/a11oy
+  CANONICAL_ORIGIN: https://szlholdings-a11oy.hf.space
+  PRODUCT_ORIGIN: https://a-11-oy.com
+
+jobs:
+  wait-for-current-runtime-proof:
+    name: Let the active persistent-signer proof leave the canonical runtime cleanly
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      ACTIVE_JOB_ID: "100893093366"
+    steps:
+      - name: Wait for the active governed runtime transition to finish
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+
+          token = os.environ["GH_TOKEN"]
+          job_id = os.environ["ACTIVE_JOB_ID"]
+          url = f"https://api.github.com/repos/szl-holdings/a11oy/actions/jobs/{job_id}"
+          last = None
+          for attempt in range(120):
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Authorization": f"Bearer {token}",
+                      "Accept": "application/vnd.github+json",
+                      "X-GitHub-Api-Version": "2022-11-28",
+                      "User-Agent": "SZL-Canonical-Convergence/1.0",
+                  },
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  payload = json.loads(response.read().decode("utf-8"))
+              state = (payload.get("status"), payload.get("conclusion"))
+              if state != last:
+                  print(json.dumps({"job_id": job_id, "status": state[0], "conclusion": state[1]}, sort_keys=True))
+                  last = state
+              if state[0] == "completed":
+                  raise SystemExit(0)
+              time.sleep(5)
+          raise SystemExit("active runtime transition did not finish inside the bounded wait")
+          PY
+
+  deploy-canonical:
+    name: Publish and attest exact protected source 55d9336
+    needs: wait-for-current-runtime-proof
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: 55d9336fed3a23da5b1abfed4f7f38dcc5121a06
+      dockerfile-path: Dockerfile
+      include-readme: true
+      prune: true
+      wait-running: 1200
+      restart-space: true
+      source-revision-variable: SZL_GIT_SHA
+      source-revision-probe-path: /api/build-info
+      require-default-branch-tip: false
+      smoke-paths: '["/","/api/livez","/api/build-info","/console","/assets/szl-holo-v2.css","/assets/szl-holo-v2.js","/brain","/anatomy-v5","/living-anatomy","/hatun-mcp","/cockpit","/khipu","/immune","/lyte","/estate","/killinchu","/api/a11oy/v1/llm/sovereign/health","/api/a11oy/v1/vert/realestate/feed","/api/a11oy/v1/vert/legal/feed","/api/a11oy/v1/vert/finance/feed","/api/a11oy/v1/observability/summary"]'
+    secrets:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+
+  publish-vertical-intelligence:
+    name: Publish four public verticals and the combined six-engine intelligence fabric
+    needs: deploy-canonical
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Require exact source and governed publisher credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -n "${HF_ORG_TOKEN:-}${HF_WRITE_TOKEN:-}${HF_TOKEN:-}${HUGGINGFACE_TOKEN:-}${HUGGING_FACE_HUB_TOKEN:-}" || {
+            echo '::error::No supported Hugging Face writer credential is configured.'
+            exit 2
+          }
+
+      - name: Install pinned publisher and run offline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.10.1'
+          python tests/test_hf_publish_vertical_flagships_v4.py
+          python tests/test_hf_space_secret_reader_compat.py
+          python -m py_compile \
+            scripts/hf_publish_vertical_flagships_v4.py \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services_intelligence_v4.py
+
+      - name: Publish and live-verify the admitted estate
+        run: python scripts/hf_publish_vertical_flagships_v4.py
+
+      - name: Require complete four-surface plus six-engine receipts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          receipt = json.loads(Path("hf-vertical-flagships-receipt.json").read_text(encoding="utf-8"))
+          required = {
+              "complete": receipt.get("complete") is True,
+              "public_flagships": receipt.get("public_flagship_slugs") == ["terra", "counsel", "finance", "lyte"],
+              "folded_planes": receipt.get("folded_into_killinchu") == ["sentra", "vessels"],
+              "combined_complete": (receipt.get("combined_runtime") or {}).get("complete") is True,
+              "secret_values_unreadable": (receipt.get("combined_runtime") or {}).get("secret_values_readable") is False,
+          }
+          print(json.dumps(required, indent=2, sort_keys=True))
+          if not all(required.values()):
+              raise SystemExit(1)
+          PY
+
+      - name: Upload immutable estate receipts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vertical-intelligence-v4-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-vertical-flagships-receipt.json
+            hf-vertical-services-receipt.json
+          if-no-files-found: warn
+          retention-days: 180
+
+  public-proof:
+    name: Prove canonical source, fluid navigation, public verticals, and six intelligence rooms
+    if: always() && needs.deploy-canonical.result == 'success'
+    needs:
+      - deploy-canonical
+      - publish-vertical-intelligence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Execute independent cache-bypassed public proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          target = "55d9336fed3a23da5b1abfed4f7f38dcc5121a06"
+          origins = {
+              "canonical_hf": "https://szlholdings-a11oy.hf.space",
+              "product": "https://a-11-oy.com",
+              "terra": "https://szlholdings-terra.hf.space",
+              "counsel": "https://szlholdings-counsel.hf.space",
+              "finance": "https://szlholdings-finance.hf.space",
+              "lyte": "https://szlholdings-lyte.hf.space",
+              "vertical_services": "https://szlholdings-vertical-services.hf.space",
+              "killinchu": "https://szlholdings-killinchu.hf.space",
+          }
+
+          def get(url: str) -> dict[str, object]:
+              separator = "&" if "?" in url else "?"
+              request = urllib.request.Request(
+                  f"{url}{separator}proof={time.time_ns()}",
+                  headers={
+                      "Accept": "*/*",
+                      "Cache-Control": "no-cache, no-store",
+                      "Pragma": "no-cache",
+                      "User-Agent": "SZL-55d9336-Public-Proof/1.0",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=40) as response:
+                      return {
+                          "status": response.status,
+                          "body": response.read(),
+                          "final_url": response.geturl().split("?", 1)[0],
+                      }
+              except urllib.error.HTTPError as exc:
+                  return {
+                      "status": exc.code,
+                      "body": exc.read(),
+                      "final_url": exc.geturl().split("?", 1)[0],
+                  }
+              except Exception as exc:
+                  return {"status": None, "body": b"", "final_url": None, "error": f"{type(exc).__name__}: {exc}"}
+
+          proof: dict[str, object] = {
+              "schema": "szl.estate-public-proof/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "target_sha": target,
+              "canonical": {},
+              "assets": {},
+              "flagships": {},
+              "intelligence": {},
+              "provider_health": {},
+          }
+          failures: list[str] = []
+
+          for label in ("canonical_hf", "product"):
+              result = get(origins[label] + "/api/build-info")
+              text = result["body"].decode("utf-8", "replace")
+              matched = result["status"] == 200 and target in text
+              proof["canonical"][label] = {
+                  "status": result["status"],
+                  "matched": matched,
+                  "final_url": result["final_url"],
+              }
+              if not matched:
+                  failures.append(f"{label}: source identity mismatch")
+
+          css = get(origins["product"] + "/assets/szl-holo-v2.css")
+          js = get(origins["product"] + "/assets/szl-holo-v2.js")
+          css_text = css["body"].decode("utf-8", "replace")
+          js_text = js["body"].decode("utf-8", "replace")
+          assets = {
+              "css_http_200": css["status"] == 200,
+              "js_http_200": js["status"] == 200,
+              "fluid_rail_css": "SZL FLUID ESTATE RAIL V4" in css_text,
+              "fluid_rail_js": "SZL FLUID ESTATE RAIL V4" in js_text,
+              "cyan_primary": "--szl-holo-accent: #57ebff !important" in css_text,
+              "cyan_secondary": "--szl-holo-accent-2: #31e6d1 !important" in css_text,
+              "brain_anatomy_binding": 'dataset.szlBrainAnatomyNav = "bound"' in js_text,
+              "killinchu_tab": 'label: "KILLINCHU"' in js_text,
+              "hatun_tab": 'label: "HATUN"' in js_text,
+              "second_brain_tab": 'label: "SECOND BRAIN"' in js_text,
+          }
+          proof["assets"] = assets
+          for name, passed in assets.items():
+              if not passed:
+                  failures.append(f"asset contract: {name}")
+
+          for slug in ("terra", "counsel", "finance", "lyte"):
+              root = get(origins[slug] + "/")
+              health = get(origins[slug] + "/healthz")
+              build = get(origins[slug] + "/api/build-info")
+              root_text = root["body"].decode("utf-8", "replace")
+              build_text = build["body"].decode("utf-8", "replace")
+              row = {
+                  "root_status": root["status"],
+                  "health_status": health["status"],
+                  "build_status": build["status"],
+                  "experience_v4": 'data-szl-domain-experience-v4="true"' in root_text,
+                  "source_revision_bound": target in build_text,
+              }
+              proof["flagships"][slug] = row
+              if not all(value is True or value == 200 for value in row.values()):
+                  failures.append(f"flagship {slug}: public contract mismatch")
+
+          catalog = get(origins["vertical_services"] + "/api/intelligence")
+          try:
+              catalog_json = json.loads(catalog["body"].decode("utf-8", "replace"))
+          except json.JSONDecodeError:
+              catalog_json = None
+          proof["intelligence"]["catalog"] = {
+              "status": catalog["status"],
+              "json": isinstance(catalog_json, dict),
+              "verticals": sorted((catalog_json or {}).get("verticals", {}).keys()) if isinstance(catalog_json, dict) else [],
+              "effectors_enabled": (catalog_json or {}).get("effectors_enabled") if isinstance(catalog_json, dict) else None,
+          }
+          expected_verticals = ["counsel", "finance", "killinchu", "lyte", "sentra", "terra"]
+          if catalog["status"] != 200 or not isinstance(catalog_json, dict) or proof["intelligence"]["catalog"]["verticals"] != expected_verticals:
+              failures.append("vertical-services intelligence catalog mismatch")
+
+          for vertical in expected_verticals:
+              room = get(origins["vertical_services"] + f"/intelligence/{vertical}")
+              text = room["body"].decode("utf-8", "replace")
+              ok = room["status"] == 200 and f'data-vertical="{vertical}"' in text and "HUMAN BIND" in text
+              proof["intelligence"][vertical] = {"status": room["status"], "verified": ok, "bytes": len(room["body"])}
+              if not ok:
+                  failures.append(f"intelligence room {vertical} mismatch")
+
+          provider = get(origins["product"] + "/api/a11oy/v1/llm/sovereign/health")
+          try:
+              provider_json = json.loads(provider["body"].decode("utf-8", "replace"))
+          except json.JSONDecodeError:
+              provider_json = None
+          proof["provider_health"] = {
+              "status": provider["status"],
+              "json": isinstance(provider_json, dict),
+              "live": provider_json.get("live") if isinstance(provider_json, dict) else None,
+              "env_present": provider_json.get("env_present") if isinstance(provider_json, dict) else None,
+              "honest_stub": provider_json.get("honest_stub") if isinstance(provider_json, dict) else None,
+          }
+          if provider["status"] != 200 or not isinstance(provider_json, dict):
+              failures.append("sovereign provider health contract unavailable")
+
+          proof["complete"] = not failures
+          proof["failures"] = failures
+          Path("estate-public-proof.json").write_text(json.dumps(proof, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps(proof, indent=2, sort_keys=True))
+          if failures:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload immutable public proof
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: estate-public-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: estate-public-proof.json
+          if-no-files-found: error
+          retention-days: 180
