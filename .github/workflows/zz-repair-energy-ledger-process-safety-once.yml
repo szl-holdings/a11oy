@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Retry 4: expose the first fail-closed append reason before the full suite.
+# Retry 5: remove generated pathlib dependency before exercising the unchanged suite.
 name: Repair EnergyLedger rolling-restart safety once
 
 on:
@@ -44,6 +44,7 @@ jobs:
           set -euo pipefail
           python tools/patch_energy_ledger_process_safety.py
           python tools/patch_energy_ledger_rotation_compat.py
+          python tools/patch_energy_ledger_runtime_name.py
 
       - name: Install exact CI dependency closure
         run: >-
@@ -109,6 +110,7 @@ jobs:
               assert marker in source, marker
           assert 'szl_energy_ledger_recovery.py' in docker
           assert 'return get_ledger().summary()' in source
+          assert 'Path(self.path).name' not in source
           PY
           git diff --check
 
@@ -117,6 +119,7 @@ jobs:
           set -euo pipefail
           git rm tools/patch_energy_ledger_process_safety.py
           git rm tools/patch_energy_ledger_rotation_compat.py
+          git rm tools/patch_energy_ledger_runtime_name.py
           git rm .github/workflows/zz-repair-energy-ledger-process-safety-once.yml
           git add \
             szl_energy_ledger.py \
