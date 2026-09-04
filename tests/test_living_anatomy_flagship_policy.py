@@ -122,6 +122,39 @@ class LivingAnatomyFlagshipPolicyTest(unittest.TestCase):
         self.assertIn('const ANATOMY="https://betterwithage-anatomy.hf.space"', self.site)
         self.assertNotIn("https://szlholdings-anatomy.hf.space", self.site)
 
+    def test_site_defaults_to_same_origin_holo_brain(self) -> None:
+        self.assertIn('src="/holographic#brain"', self.site)
+        self.assertIn('const HOLO="/holographic#brain"', self.site)
+        self.assertIn('const A="/api/a11oy/v1"', self.site)
+        self.assertIn('A+"/second-brain"', self.site)
+        self.assertIn('A+"/brain"', self.site)
+        self.assertIn('A+"/formulas"', self.site)
+        self.assertIn('A+"/ouroboros"', self.site)
+        self.assertIn('A+"/codex"', self.site)
+        self.assertIn('id="c_brain"', self.site)
+        self.assertIn('id="c_formulas"', self.site)
+        self.assertIn('id="c_ouro"', self.site)
+        self.assertNotIn("Extra text starts", self.site)
+        self.assertIn("Λ = Conjecture 1", self.site)
+        self.assertIn("{F1,F4,F7,F11,F12,F18,F19,F22}", self.site)
+
+
+class LivingAnatomyBackendAliasContract(unittest.TestCase):
+    def test_serve_registers_honest_aliases(self) -> None:
+        serve = (ROOT / "serve.py").read_text(encoding="utf-8")
+        for route in (
+            '@app.get("/api/a11oy/v1/second-brain")',
+            '@app.get("/api/a11oy/v1/codex")',
+            '@app.get("/api/a11oy/v1/anatomy")',
+        ):
+            self.assertIn(route, serve)
+        self.assertIn('"alias_of": "/api/a11oy/v1/brain"', serve)
+        self.assertIn('"alias_of": "/api/a11oy/v1/formulas"', serve)
+        self.assertIn("This path is an alias, not a second index", serve)
+        self.assertIn("Locked-8 stays 8", serve)
+        self.assertIn("Does not claim the creator-profile anatomy Space is LIVE", serve)
+        self.assertIn("Lambda remains Conjecture 1", serve)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
