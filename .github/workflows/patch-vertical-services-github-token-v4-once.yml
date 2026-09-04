@@ -1,0 +1,96 @@
+name: Patch vertical-services GitHub token propagation once
+
+on:
+  push:
+    branches:
+      - fix/vertical-services-github-token-v4
+
+permissions:
+  contents: write
+
+concurrency:
+  group: patch-vertical-services-github-token-v4-once
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/vertical-services-github-token-v4
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Add the token name required by the guarded nested publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/hf-sync.yml')
+          text = path.read_text(encoding='utf-8')
+          anchor = '''  publish-vertical-flagships:
+            name: Publish and live-verify six domain-native flagship Spaces
+            needs: deploy
+            runs-on: ubuntu-latest
+            timeout-minutes: 50
+            env:
+              HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          '''
+          replacement = '''  publish-vertical-flagships:
+            name: Publish and live-verify six domain-native flagship Spaces
+            needs: deploy
+            runs-on: ubuntu-latest
+            timeout-minutes: 50
+            env:
+              # The nested exact-source deployer deliberately reads GITHUB_TOKEN
+              # when --require-default-branch-tip is enabled. Keep this scoped to
+              # the vertical publisher job rather than exporting it globally.
+              GITHUB_TOKEN: ${{ github.token }}
+              HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          '''
+          if replacement in text:
+              raise SystemExit('repair already materialized')
+          if anchor not in text:
+              raise SystemExit('expected publish-vertical-flagships anchor not found')
+          path.write_text(text.replace(anchor, replacement, 1), encoding='utf-8')
+          Path('.github/workflows/patch-vertical-services-github-token-v4-once.yml').unlink()
+          PY
+
+      - name: Validate the exact YAML change
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          text = Path('.github/workflows/hf-sync.yml').read_text(encoding='utf-8')
+          marker = 'GITHUB_TOKEN: ${{ github.token }}'
+          if text.count(marker) != 1:
+              raise SystemExit(f'expected exactly one scoped GITHUB_TOKEN marker, found {text.count(marker)}')
+          block = text.split('  publish-vertical-flagships:', 1)[1].split('\n  readiness-verdict:', 1)[0]
+          if marker not in block:
+              raise SystemExit('GITHUB_TOKEN is not scoped to the vertical publisher job')
+          if 'GH_TOKEN: ${{ github.token }}' not in text:
+              raise SystemExit('existing top-level GitHub CLI token contract was lost')
+          PY
+          git diff --check
+          git diff -- .github/workflows/hf-sync.yml
+
+      - name: Commit the permanent repair and remove this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git commit -s -m "fix(hf): pass GitHub token to guarded vertical publisher"
+          git push origin HEAD:fix/vertical-services-github-token-v4
