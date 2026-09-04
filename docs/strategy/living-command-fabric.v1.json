@@ -26,7 +26,16 @@
     },
     "lean_kernel": {
       "repository": "szl-holdings/lutar-lean",
-      "locked_proven_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+      "locked_proven_ids": [
+        "F1",
+        "F4",
+        "F7",
+        "F11",
+        "F12",
+        "F18",
+        "F19",
+        "F22"
+      ],
       "locked_proven_count": 8
     },
     "anatomy": {
@@ -46,8 +55,13 @@
     },
     "vertical_services": {
       "repository": "szl-holdings/vertical-services",
-      "revision": "1c6d941da172e2132d3c7818911bd8669ca28f00",
+      "revision": "e08231a110fd80f85a61fba82d72ab7f1fe23836",
       "role": "combined source for the six current domain service engines"
+    },
+    "killinchu": {
+      "repository": "szl-holdings/killinchu",
+      "revision": "928a6dace657f8f9e067773d23d5686fe3dcc716",
+      "role": "sole public cyber-physical resilience runtime; Aegis, Sentra/Defend, IMMUNE, Vessels/Maritime and Counter-UAS/Airspace are capability planes"
     }
   },
   "formula_contract": {
@@ -59,16 +73,59 @@
       "may_render_as_proven": false
     },
     "organs": [
-      {"organ": "BRAIN", "formula_ids": ["F1"], "role": "reasoning and evidence synthesis"},
-      {"organ": "HEART", "formula_ids": ["F4", "F11"], "role": "trust pulse and governed admission"},
-      {"organ": "CIRCULATION", "formula_ids": ["F7", "F22"], "role": "evidence and state transport"},
-      {"organ": "NERVOUS_SYSTEM", "formula_ids": ["F12"], "role": "signal routing and response"},
-      {"organ": "SKELETON", "formula_ids": ["F18", "F19"], "role": "integrity, parity and structural checks"}
+      {
+        "organ": "BRAIN",
+        "formula_ids": [
+          "F1"
+        ],
+        "role": "reasoning and evidence synthesis"
+      },
+      {
+        "organ": "HEART",
+        "formula_ids": [
+          "F4",
+          "F11"
+        ],
+        "role": "trust pulse and governed admission"
+      },
+      {
+        "organ": "CIRCULATION",
+        "formula_ids": [
+          "F7",
+          "F22"
+        ],
+        "role": "evidence and state transport"
+      },
+      {
+        "organ": "NERVOUS_SYSTEM",
+        "formula_ids": [
+          "F12"
+        ],
+        "role": "signal routing and response"
+      },
+      {
+        "organ": "SKELETON",
+        "formula_ids": [
+          "F18",
+          "F19"
+        ],
+        "role": "integrity, parity and structural checks"
+      }
     ],
     "veto": "Any required organ DOWN or WILLAY/policy veto blocks the body."
   },
   "shared_runtime_contract": {
-    "pipeline": ["INGEST", "TRANSFORM", "ANALYZE", "DECIDE", "APPROVE", "EXECUTE", "VERIFY", "AUDIT", "DELIVER"],
+    "pipeline": [
+      "INGEST",
+      "TRANSFORM",
+      "ANALYZE",
+      "DECIDE",
+      "APPROVE",
+      "EXECUTE",
+      "VERIFY",
+      "AUDIT",
+      "DELIVER"
+    ],
     "required_planes": [
       "Hatun policy and decision boundary",
       "Second Brain handle-only retrieval",
@@ -95,21 +152,64 @@
       "canonical_source": "szl-holdings/szl-real-estate",
       "service_source": "szl-holdings/vertical-services",
       "runtime": "https://szlholdings-terra.hf.space",
-      "workflow": ["DISCOVER", "OWNERSHIP", "UNDERWRITE", "APPROVE", "TRACK"],
-      "decision_surface": ["asset map", "ownership graph", "underwriting queue"],
+      "workflow": [
+        "DISCOVER",
+        "OWNERSHIP",
+        "UNDERWRITE",
+        "APPROVE",
+        "TRACK"
+      ],
+      "decision_surface": [
+        "asset map",
+        "ownership graph",
+        "underwriting queue"
+      ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy"
     },
     {
-      "slug": "sentra",
-      "brand": "Aegis / Sentra",
-      "domain": "cybersecurity_and_defensive_intelligence",
-      "canonical_source": "szl-holdings/szl-defensive-control-plane",
+      "slug": "killinchu",
+      "brand": "Killinchu",
+      "domain": "cyber_physical_resilience_intelligence",
+      "canonical_source": "szl-holdings/killinchu",
+      "canonical_revision": "928a6dace657f8f9e067773d23d5686fe3dcc716",
       "service_source": "szl-holdings/vertical-services",
-      "runtime": "https://szlholdings-sentra.hf.space",
-      "workflow": ["DETECT", "CORRELATE", "CONTAIN", "VERIFY", "RECEIPT"],
-      "decision_surface": ["entity graph", "attack paths", "response queue"],
+      "service_revision": "e08231a110fd80f85a61fba82d72ab7f1fe23836",
+      "runtime": "https://szlholdings-killinchu.hf.space",
+      "workflow": [
+        "DETECT",
+        "CORRELATE",
+        "TRACK",
+        "SCREEN",
+        "AUTHORIZE",
+        "VERIFY",
+        "RECEIPT"
+      ],
+      "decision_surface": [
+        "resilience operating picture",
+        "attack and mission paths",
+        "fleet and airspace watch",
+        "human authority queue",
+        "evidence ledger"
+      ],
+      "capability_planes": {
+        "aegis": "internal portfolio and assurance lens",
+        "sentra_defend": "defensive control-plane engine",
+        "immune": "admission, tripwires, signed authority and tamper-evident evidence",
+        "vessels_maritime": "fleet, sanctions, ownership, route and voyage intelligence",
+        "counter_uas_airspace": "counter-UAS and airspace mission pack"
+      },
+      "internal_engines": [
+        "sentra",
+        "killinchu"
+      ],
+      "aliases": [
+        "aegis",
+        "immune",
+        "vessels"
+      ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "brand_gap": "Resolve whether Aegis is the public umbrella and Sentra the cyber lobe; do not operate both as competing products."
+      "public_product_boundary": "sole_public_cyber_physical_resilience_runtime",
+      "effectors": "SIMULATED_OR_OPERATOR_OWNED_UNLESS_SEPARATELY_PROVED"
     },
     {
       "slug": "counsel",
@@ -118,8 +218,18 @@
       "canonical_source": "szl-holdings/a11oy/verticals/counsel",
       "service_source": "szl-holdings/vertical-services",
       "runtime": "https://szlholdings-counsel.hf.space",
-      "workflow": ["INTAKE", "RESEARCH", "ANALYZE", "DRAFT", "VERIFY"],
-      "decision_surface": ["matter file", "authority rail", "work-product queue"],
+      "workflow": [
+        "INTAKE",
+        "RESEARCH",
+        "ANALYZE",
+        "DRAFT",
+        "VERIFY"
+      ],
+      "decision_surface": [
+        "matter file",
+        "authority rail",
+        "work-product queue"
+      ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy"
     },
     {
@@ -129,21 +239,19 @@
       "canonical_source": "szl-holdings/puriq-live",
       "service_source": "szl-holdings/vertical-services",
       "runtime": "https://szlholdings-finance.hf.space",
-      "workflow": ["INGEST", "PRICE", "STRESS", "DECIDE", "AUDIT"],
-      "decision_surface": ["decision tape", "exposure matrix", "evidence ledger"],
+      "workflow": [
+        "INGEST",
+        "PRICE",
+        "STRESS",
+        "DECIDE",
+        "AUDIT"
+      ],
+      "decision_surface": [
+        "decision tape",
+        "exposure matrix",
+        "evidence ledger"
+      ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy"
-    },
-    {
-      "slug": "vessels",
-      "brand": "Vessels / Killinchu",
-      "domain": "maritime_and_mission_intelligence",
-      "canonical_source": "szl-holdings/killinchu",
-      "service_source": "szl-holdings/vertical-services",
-      "runtime": "https://szlholdings-vessels.hf.space",
-      "workflow": ["TRACK", "SCREEN", "ROUTE", "ECONOMICS", "VERIFY"],
-      "decision_surface": ["fleet chart", "voyage lanes", "risk watch"],
-      "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "consolidation": "Killinchu is the public product home; the Vessels surface remains a source-bound domain body and historical compatibility route."
     },
     {
       "slug": "lyte",
@@ -152,8 +260,18 @@
       "canonical_source": "szl-holdings/lyte-lattice",
       "service_source": "szl-holdings/vertical-services",
       "runtime": "https://szlholdings-lyte.hf.space",
-      "workflow": ["OBSERVE", "TRACE", "DIAGNOSE", "ACT", "VERIFY"],
-      "decision_surface": ["service graph", "trace timeline", "action queue"],
+      "workflow": [
+        "OBSERVE",
+        "TRACE",
+        "DIAGNOSE",
+        "ACT",
+        "VERIFY"
+      ],
+      "decision_surface": [
+        "service graph",
+        "trace timeline",
+        "action queue"
+      ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy"
     }
   ],
@@ -167,29 +285,128 @@
   "clean_room_inspiration": {
     "rule": "Study public information architecture, interaction patterns, workflow semantics and open standards. Do not copy proprietary source, assets, trade dress or text. Reuse code only when its license is compatible and attribution is preserved.",
     "patterns": [
-      {"source": "Palantir AIP / Foundry", "use": "ontology-backed objects, decision lineage and action rails", "reuse": "pattern_only"},
-      {"source": "Anduril Lattice", "use": "common operating picture, sensor fusion and mission workflow", "reuse": "pattern_only"},
-      {"source": "NVIDIA Omniverse / OpenUSD", "use": "spatial scene graph and digital-twin interoperability", "reuse": "open_standard_or_licensed_oss_only"},
-      {"source": "Grafana / OpenTelemetry", "use": "trace-first investigation, replay and evidence-grounded observability", "reuse": "open_source_with_attribution"},
-      {"source": "Windward / Spire / AISdb", "use": "ownership, behavior, AIS and all-source maritime fusion", "reuse": "pattern_or_licensed_api; AISdb/open components by license"},
-      {"source": "Harvey / CoCounsel / LegalBench", "use": "matter workspace, authority-grounded research and benchmarked legal reasoning", "reuse": "pattern_and_public_benchmarks"},
-      {"source": "Cherre", "use": "universal real-estate data model, knowledge graph and provenance", "reuse": "pattern_only"},
-      {"source": "BlackRock Aladdin", "use": "whole-portfolio exposure, scenario and exception workflow", "reuse": "pattern_only"},
-      {"source": "Guidewire", "use": "domain-grounded agent workflow and human approval", "reuse": "pattern_only"}
+      {
+        "source": "Palantir AIP / Foundry",
+        "use": "ontology-backed objects, decision lineage and action rails",
+        "reuse": "pattern_only"
+      },
+      {
+        "source": "Anduril Lattice",
+        "use": "common operating picture, sensor fusion and mission workflow",
+        "reuse": "pattern_only"
+      },
+      {
+        "source": "NVIDIA Omniverse / OpenUSD",
+        "use": "spatial scene graph and digital-twin interoperability",
+        "reuse": "open_standard_or_licensed_oss_only"
+      },
+      {
+        "source": "Grafana / OpenTelemetry",
+        "use": "trace-first investigation, replay and evidence-grounded observability",
+        "reuse": "open_source_with_attribution"
+      },
+      {
+        "source": "Windward / Spire / AISdb",
+        "use": "ownership, behavior, AIS and all-source maritime fusion",
+        "reuse": "pattern_or_licensed_api; AISdb/open components by license"
+      },
+      {
+        "source": "Harvey / CoCounsel / LegalBench",
+        "use": "matter workspace, authority-grounded research and benchmarked legal reasoning",
+        "reuse": "pattern_and_public_benchmarks"
+      },
+      {
+        "source": "Cherre",
+        "use": "universal real-estate data model, knowledge graph and provenance",
+        "reuse": "pattern_only"
+      },
+      {
+        "source": "BlackRock Aladdin",
+        "use": "whole-portfolio exposure, scenario and exception workflow",
+        "reuse": "pattern_only"
+      },
+      {
+        "source": "Guidewire",
+        "use": "domain-grounded agent workflow and human approval",
+        "reuse": "pattern_only"
+      }
     ]
   },
   "inference_roles": {
-    "governed_text_and_tool_proposals": ["Qwen3.5 family", "qualified open-weight text models"],
-    "embeddings_and_reranking": ["BGE-M3", "Qwen3 Embedding", "GTE", "ColBERT-style late interaction"],
-    "speech": ["Whisper", "Parakeet/Nemotron ASR class"],
-    "vision_and_geospatial": ["zero-shot object detection", "Depth Anything class", "MapAnything class"],
-    "time_series": ["Granite time-series class", "Zeus class"],
-    "serving_candidates": ["vLLM", "SGLang", "llama.cpp", "MLX"],
+    "governed_text_and_tool_proposals": [
+      "Qwen3.5 family",
+      "qualified open-weight text models"
+    ],
+    "embeddings_and_reranking": [
+      "BGE-M3",
+      "Qwen3 Embedding",
+      "GTE",
+      "ColBERT-style late interaction"
+    ],
+    "speech": [
+      "Whisper",
+      "Parakeet/Nemotron ASR class"
+    ],
+    "vision_and_geospatial": [
+      "zero-shot object detection",
+      "Depth Anything class",
+      "MapAnything class"
+    ],
+    "time_series": [
+      "Granite time-series class",
+      "Zeus class"
+    ],
+    "serving_candidates": [
+      "vLLM",
+      "SGLang",
+      "llama.cpp",
+      "MLX"
+    ],
     "selection_rule": "No universal winner. Forge benchmarks by hardware, latency, throughput, quality, energy and domain workload before promotion."
   },
   "wave_1": {
-    "site": "Expose Living Anatomy and six current domain bodies on the product front door while preserving the existing buyer hero and runtime evidence instrument.",
-    "publisher_repair": "Advance the vertical-services source pin from 96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de to 1c6d941da172e2132d3c7818911bd8669ca28f00.",
-    "next_vertical_order": ["lyte", "vessels_killinchu", "terra", "prism_counsel", "aegis_sentra", "puriq_finance", "carlota_jo_incubation"]
+    "site": "Expose Living Anatomy and five public domain bodies backed by six internal engines, while preserving the buyer hero and runtime evidence instrument.",
+    "publisher_repair": "Bind the frontier-v3 canonical writer to vertical-services@e08231a110fd80f85a61fba82d72ab7f1fe23836 and fold Aegis/Sentra/Immune/Vessels into Killinchu public authority.",
+    "next_vertical_order": [
+      "killinchu_resilience",
+      "lyte",
+      "terra",
+      "prism_counsel",
+      "puriq_finance",
+      "carlota_jo_incubation"
+    ]
+  },
+  "public_product_taxonomy": {
+    "public_domain_body_count": 5,
+    "public_domain_bodies": [
+      "terra",
+      "killinchu",
+      "counsel",
+      "finance",
+      "lyte"
+    ],
+    "internal_engine_count": 6,
+    "internal_engines": [
+      "sentra",
+      "lyte",
+      "killinchu",
+      "finance",
+      "terra",
+      "counsel"
+    ],
+    "independent_domain_spaces": [
+      "terra",
+      "counsel",
+      "finance",
+      "lyte"
+    ],
+    "resilience_product_space": "killinchu",
+    "folded_into_killinchu": [
+      "aegis",
+      "sentra",
+      "immune",
+      "vessels"
+    ],
+    "rule": "A capability alias or engine is not a separate public product authority."
   }
 }

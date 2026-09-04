@@ -10,12 +10,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = ROOT / "a11oy_landing.html"
 MANIFEST = ROOT / "docs" / "strategy" / "living-command-fabric.v1.json"
-PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services.py"
-PUBLISHER_TEST = ROOT / "tests" / "test_hf_publish_vertical_flagships_v4.py"
+PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services_frontier_v3.py"
+PUBLISHER_TEST = ROOT / "tests" / "test_hf_frontier_v3_rebase.py"
 
 LOCKED_EIGHT = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
-VERTICALS = ["terra", "sentra", "counsel", "finance", "vessels", "lyte"]
-VERTICAL_REVISION = "1c6d941da172e2132d3c7818911bd8669ca28f00"
+VERTICALS = ["terra", "killinchu", "counsel", "finance", "lyte"]
+VERTICAL_REVISION = "e08231a110fd80f85a61fba82d72ab7f1fe23836"
 
 
 class LivingCommandFabricContract(unittest.TestCase):
@@ -44,9 +44,9 @@ class LivingCommandFabricContract(unittest.TestCase):
             'data-szl-living-command-fabric-v1="true"',
             'id="anatomy"',
             'id="vertical-bodies"',
-            "One intelligence fabric. Six domain bodies. One evidence bloodstream.",
+            "One intelligence fabric. Five public domain bodies. Six internal engines. One evidence bloodstream.",
             "ONE FABRIC",
-            "SIX DOMAIN BODIES",
+            "FIVE PUBLIC DOMAIN BODIES",
             "EIGHT LOCKED FORMULA BINDINGS",
             "WILLAY/policy veto",
         ):
@@ -87,10 +87,10 @@ class LivingCommandFabricContract(unittest.TestCase):
         for formula_id in LOCKED_EIGHT:
             self.assertRegex(self.html, rf"\b{re.escape(formula_id)}\b")
 
-    def test_six_domain_bodies_match_the_machine_readable_manifest(self) -> None:
+    def test_five_public_bodies_match_six_internal_engines(self) -> None:
         observed = [row["slug"] for row in self.manifest["verticals"]]
         self.assertEqual(observed, VERTICALS)
-        self.assertEqual(self.html.count('class="body-card"'), 6)
+        self.assertEqual(self.html.count('class="body-card"'), 5)
         for slug in VERTICALS:
             with self.subTest(slug=slug):
                 self.assertIn(f'id="body-{slug}"', self.html)
@@ -102,6 +102,27 @@ class LivingCommandFabricContract(unittest.TestCase):
             self.assertGreaterEqual(len(vertical["workflow"]), 5)
             self.assertTrue(vertical["canonical_source"])
             self.assertTrue(vertical["service_source"])
+
+        taxonomy = self.manifest["public_product_taxonomy"]
+        self.assertEqual(taxonomy["public_domain_body_count"], 5)
+        self.assertEqual(taxonomy["public_domain_bodies"], VERTICALS)
+        self.assertEqual(taxonomy["internal_engine_count"], 6)
+        self.assertEqual(
+            taxonomy["internal_engines"],
+            ["sentra", "lyte", "killinchu", "finance", "terra", "counsel"],
+        )
+        self.assertEqual(
+            taxonomy["folded_into_killinchu"],
+            ["aegis", "sentra", "immune", "vessels"],
+        )
+        self.assertNotIn('id="body-sentra"', self.html)
+        self.assertNotIn('id="body-vessels"', self.html)
+        killinchu = next(row for row in self.manifest["verticals"] if row["slug"] == "killinchu")
+        self.assertEqual(killinchu["internal_engines"], ["sentra", "killinchu"])
+        self.assertEqual(
+            set(killinchu["capability_planes"]),
+            {"aegis", "sentra_defend", "immune", "vessels_maritime", "counter_uas_airspace"},
+        )
 
     def test_clean_room_policy_rejects_proprietary_source_copying(self) -> None:
         policy = self.manifest["clean_room_inspiration"]
