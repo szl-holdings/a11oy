@@ -44,13 +44,20 @@ jobs:
       - name: Materialize source changes
         run: python scripts/materialize_energy_ledger_transport_fix.py
 
-      - name: Run focused source and route tests
+      - name: Run the exact bounded-ledger contract
         run: |
           set -euo pipefail
           python -m py_compile szl_energy_ledger.py test_energy_ledger.py
           python -m pytest -q test_energy_ledger.py
           python szl_energy_ledger.py >/tmp/energy-ledger-selftest.json
-          python scripts/investor_smoke_gate.py --mode contract
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          body = json.loads(Path('/tmp/energy-ledger-selftest.json').read_text())
+          assert body['selftest'] == 'PASS', body
+          print(json.dumps(body, sort_keys=True))
+          PY
           git diff --check
 
       - name: Commit durable source diff and remove controller
