@@ -2,20 +2,18 @@
 # Copyright 2026 SZL Holdings
 # SPDX-License-Identifier: Apache-2.0
 #
-# parse-llama-pin.sh — single source of truth for extracting the pinned
-# llama-cpp-python version out of the root Dockerfile. The llama-cpp wheel guard
-# (.github/workflows/llama-wheel-guard.yml) calls this instead of inlining the
-# grep, so the parser the guard relies on is the EXACT same one the negative-
-# fixture self-test (parse-llama-pin.test.sh) validates. Without a shared script,
-# a reshape of the Dockerfile install line could quietly desynchronise the
-# guard's inline grep from reality and silently neuter the wheel guard.
+# parse-llama-pin.sh — single source of truth for extracting the exact
+# llama-cpp-python version from the root Dockerfile. The supported contracts are:
+#   1. a literal source/install pin: llama-cpp-python==<version>; or
+#   2. a literal official wheel asset: llama_cpp_python-<version>-...whl.
+#
+# Repeated references to the same wheel are allowed. Missing, indirect, ranged,
+# malformed, or conflicting versions fail closed.
 #
 # Usage:  parse-llama-pin.sh [DOCKERFILE]   (defaults to ./Dockerfile)
-# Prints: the bare pinned version (e.g. 0.3.19) to stdout on success.
-# Exits:  non-zero with a GitHub-annotated ::error:: when no 'llama-cpp-python==
-#         <ver>' pin can be found (install line missing or reshaped).
+# Prints: the one bare pinned version (for example 0.3.35) on success.
 #
-# Signed-off-by: Forge <forge@szlholdings.ai>
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 set -euo pipefail
 
 DOCKERFILE="${1:-Dockerfile}"
@@ -25,13 +23,44 @@ if [ ! -f "${DOCKERFILE}" ]; then
   exit 1
 fi
 
-# Match the pinned, version-equality install: llama-cpp-python==<ver>.
-# This is the exact contract the wheel guard re-builds from source.
-VER="$(grep -oE 'llama-cpp-python==[0-9][0-9.]*' "${DOCKERFILE}" | head -n1 | sed 's/.*==//')"
+python3 - "${DOCKERFILE}" <<'PY'
+from __future__ import annotations
 
-if [ -z "${VER}" ]; then
-  echo "::error::Could not parse the pinned 'llama-cpp-python==<ver>' install from '${DOCKERFILE}'. If the install line moved or changed shape, update this parser (scripts/parse-llama-pin.sh) in lockstep with the Dockerfile." >&2
-  exit 1
-fi
+import re
+import sys
+from pathlib import Path
 
-printf '%s\n' "${VER}"
+path = Path(sys.argv[1])
+try:
+    text = path.read_text(encoding="utf-8")
+except (OSError, UnicodeError) as exc:
+    print(
+        f"::error::parse-llama-pin: could not read '{path}': {type(exc).__name__}",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+version = r"[0-9]+(?:[.][0-9]+){1,2}"
+source_versions = set(
+    re.findall(rf"llama-cpp-python==({version})(?![0-9A-Za-z.+-])", text)
+)
+wheel_versions = set(
+    re.findall(
+        rf"llama_cpp_python-({version})-py3-none-manylinux2014_x86_64[.]manylinux_2_17_x86_64[.]whl",
+        text,
+    )
+)
+versions = source_versions | wheel_versions
+
+if len(versions) != 1:
+    detail = ",".join(sorted(versions)) if versions else "none"
+    print(
+        "::error::parse-llama-pin: expected exactly one literal exact "
+        f"llama-cpp-python version in '{path}', found {detail}. "
+        "Update the Dockerfile and parser tests in lockstep.",
+        file=sys.stderr,
+    )
+    raise SystemExit(1)
+
+print(next(iter(versions)))
+PY
