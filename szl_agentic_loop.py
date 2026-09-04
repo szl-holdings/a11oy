@@ -577,8 +577,26 @@ def governance_standards_note() -> dict:
 
 
 def _retrieve(query: str, top_k: int = 3):
-    """Real keyword + token-overlap retrieval over the in-image corpus.
-    Deterministic, dependency-free, always available. Returns scored chunks."""
+    """Prefer the org second-brain index when it is built. Else in-image corpus."""
+    try:
+        import a11oy_org_rag as _org_rag
+        hit = _org_rag.query(query or "", k=max(1, min(int(top_k or 3), 8)))
+        chunks = hit.get("chunks") or []
+        if hit.get("ok") and chunks and not hit.get("i_dont_know"):
+            out = []
+            for c in chunks[:top_k]:
+                out.append({
+                    "chunk_id": c.get("id") or c.get("chunk_id") or "org",
+                    "title": c.get("title") or c.get("path") or "org-rag",
+                    "source": c.get("source") or "org-rag",
+                    "relevance": c.get("lambda") or c.get("score") or 0,
+                    "text": (c.get("text") or "")[:800],
+                    "plane": "second-brain",
+                })
+            if out:
+                return out
+    except Exception:
+        pass
     q = (query or "").lower()
     q_tokens = set(t for t in ''.join(c if c.isalnum() else ' ' for c in q).split() if len(t) > 2)
     scored = []
@@ -1329,8 +1347,32 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         }
 
     def _hatun_mesh_contract() -> dict:
-        """REPORTED organ mesh. Routes only. No execution invented."""
+        """REPORTED organ mesh. Live second-brain/RAG/formulas when importable."""
         catalog = _tool_catalog(ns)
+        try:
+            import a11oy_org_rag as _org_rag
+            rag = _org_rag.status()
+        except Exception as exc:
+            rag = {"built": False, "state": "UNAVAILABLE", "honesty": type(exc).__name__}
+        try:
+            from ayllu.model_binding import second_brain_binding
+            brain = second_brain_binding(namespace=ns, rag_status=rag)
+        except Exception:
+            brain = {"state": rag.get("state") or "UNAVAILABLE",
+                     "ready_for_grounded_navigation": False}
+        formulas = []
+        try:
+            import szl_formulas as _sf
+            formulas = list(getattr(_sf, "FORMULA_NAMES", None) or [])
+        except Exception:
+            formulas = []
+        chakras = []
+        try:
+            from szl_anatomy_routes import CHAKRAS
+            chakras = [{"n": c.get("n"), "name": c.get("name"), "formula": c.get("formula")}
+                       for c in CHAKRAS]
+        except Exception:
+            chakras = []
         return {
             "schema": "szl.hatun.mesh.v1",
             "truth": "REPORTED",
@@ -1342,23 +1384,50 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 "tool_count": len(catalog),
                 "tools": [row.get("name") for row in catalog],
             },
+            "second_brain": {
+                "state": brain.get("state"),
+                "ready_for_grounded_navigation": bool(brain.get("ready_for_grounded_navigation")),
+                "index_built": bool(rag.get("built")),
+                "chunk_count": rag.get("chunk_count") or rag.get("corpus_chunk_count") or 0,
+                "href": "/ayllu#sec-organism",
+                "api": "/api/a11oy/v1/ayllu/second-brain",
+                "ask": "/api/a11oy/v1/rag/query",
+            },
+            "codex": {
+                "href": "/formulas",
+                "api": "/api/a11oy/v1/formulas",
+                "count": len(formulas),
+                "formulas": formulas,
+            },
+            "anatomy": {
+                "href": "/living-anatomy",
+                "chakras": chakras,
+            },
+            "ouroboros": {
+                "href": "/formulas",
+                "api": "/api/a11oy/v1/ouroboros/run-all",
+                "mode": "POST_ONLY",
+                "note": "Bounded converge-or-halt. Advisory only. Lambda remains Conjecture 1.",
+            },
             "organs": [
                 {"id": "hatun", "job": "governed MCP tool plane", "href": "/hatun-mcp",
                  "api": "/mcp/", "label": "RUNTIME_DECLARED"},
                 {"id": "second-brain", "job": "compound evidence memory + navigator",
                  "href": "/ayllu#sec-organism",
-                 "api": "/api/a11oy/v1/ayllu/second-brain", "label": "LIVE_READ"},
+                 "api": "/api/a11oy/v1/ayllu/second-brain",
+                 "label": brain.get("state") or "UNAVAILABLE"},
                 {"id": "anatomy", "job": "living-systems map of organs and formulas",
                  "href": "/living-anatomy", "api": "/anatomy-v5", "label": "LIVE_PAGE"},
                 {"id": "ouroboros", "job": "bounded loop-tax / converge-or-halt",
                  "href": "/formulas", "api": "/api/a11oy/v1/ouroboros/run-all",
                  "label": "POST_ONLY"},
                 {"id": "codex", "job": "formula composer / chakra binding",
-                 "href": "/formulas", "api": "/api/a11oy/v1/formulas", "label": "LIVE_READ"},
+                 "href": "/formulas", "api": "/api/a11oy/v1/formulas",
+                 "label": "LIVE_READ" if formulas else "UNAVAILABLE"},
             ],
-            "honesty": ("Labels are route presence, not proof a model answered. "
-                        "Second-brain readiness stays whatever that endpoint reports. "
-                        "Lambda remains Conjecture 1."),
+            "honesty": ("Second-brain ready flag is not upgraded. Formula names are the "
+                        "in-image registry. RAG citations exist only when the seed index "
+                        "is built. Lambda remains Conjecture 1."),
         }
 
     # ------------------------------------------------------------------ #
