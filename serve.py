@@ -1848,6 +1848,22 @@ try:
 except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- OWNED KHIPU GOVERNED CORTEX -- proposal-only CPU inference over the
+# exact SZLHOLDINGS/SZL-Khipu-1.5B-GGUF artifact. Registered after the
+# Brain API and before the SPA fallback; import failure leaves existing
+# routes available and is reported honestly.
+try:
+    import a11oy_governed_cortex as _a11oy_governed_cortex
+    print(
+        "[a11oy] " + _a11oy_governed_cortex.register(app, ns="a11oy"),
+        file=__import__("sys").stderr,
+    )
+except Exception as _a11oy_governed_cortex_e:  # pragma: no cover
+    print(
+        f"[a11oy] owned Khipu cortex NOT registered: {_a11oy_governed_cortex_e!r}",
+        file=__import__("sys").stderr,
+    )
+
 # -- BRAIN CAPABILITIES LEDGER -- exposes the honest capability contract that the
 # holographic brain must obey: OPERATIONAL / PARTIALLY OPERATIONAL / MODELED /
 # SIMULATED / EXPERIMENTAL / UNAVAILABLE. Pure read; never upgrades stubs into
