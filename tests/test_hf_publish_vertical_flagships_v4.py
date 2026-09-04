@@ -4,7 +4,9 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-SCRIPT = Path("scripts/hf_publish_vertical_flagships_v4.py")
+SCRIPT = Path("scripts/hf_publish_vertical_flagships_v4_impl.py")
+ENTRYPOINT = Path("scripts/hf_publish_vertical_flagships_v4.py")
+COMBINED = Path("scripts/hf_publish_vertical_services.py")
 WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
 SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
 
@@ -75,10 +77,10 @@ def test_build_info_is_census_compatible_and_revision_bound() -> None:
         '"hf_revision":hf_revision()',
         '"artifact_set_sha256":CFG["artifact_set_sha256"]',
         'DEPLOYMENT_SOURCE_REPOSITORY = "szl-holdings/a11oy"',
-        'GITHUB_RUN_ID',
-        'GITHUB_SHA',
-        '/api/build-info',
-        '/.well-known/szl-source.json',
+        "GITHUB_RUN_ID",
+        "GITHUB_SHA",
+        "/api/build-info",
+        "/.well-known/szl-source.json",
     )
     for fragment in required:
         assert fragment in text
@@ -114,3 +116,38 @@ def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
         "persist-credentials: false",
     ):
         assert fragment in sync
+
+
+def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
+    entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
+    combined = COMBINED.read_text(encoding="utf-8")
+    ast.parse(entrypoint)
+    ast.parse(combined)
+
+    for fragment in (
+        "hf_publish_vertical_flagships_v4_impl.py",
+        "hf_publish_vertical_services.py",
+        "combined_runtime",
+        "szl.hf-vertical-estate/v5",
+    ):
+        assert fragment in entrypoint
+
+    for fragment in (
+        'SOURCE_REPOSITORY = "szl-holdings/vertical-services"',
+        'SOURCE_REVISION = "96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de"',
+        'HF_REPOSITORY = "SZLHOLDINGS/vertical-services"',
+        'SIGNING_SECRET = "SENTRA_SIGNING_KEY"',
+        'CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"',
+        'CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"',
+        '"--require-default-branch-tip"',
+        '"--restart-space"',
+        '"--attest"',
+        '"/readyz"',
+        '"/api/build-info"',
+        '"OBSERVED"',
+        "vessels_space_retained",
+    ):
+        assert fragment in combined
+
+    assert "delete_repo" not in combined
+    assert "delete_space" not in combined
