@@ -183,3 +183,76 @@ def test_live_receipt_is_complete_only_when_every_surface_is_verified():
     )
     assert incomplete["complete"] is False
     assert incomplete["verified_surface_count"] == 5
+
+
+def test_killinchu_identity_policies_are_explicit_and_narrow():
+    manifest = witness.load_and_validate_manifest(MANIFEST)
+    killinchu = next(
+        item for item in manifest["public_products"] if item["id"] == "killinchu"
+    )
+    assert killinchu["source_repository_policy"] == "manifest-fixed-runtime-revision"
+    assert killinchu["hf_revision_policy"] == "provider-observed"
+    for item in manifest["platforms"] + manifest["public_products"]:
+        if item["id"] != "killinchu":
+            assert item["source_repository_policy"] == "runtime-declared"
+            assert item["hf_revision_policy"] == "runtime-declared"
+
+
+def test_killinchu_runtime_shape_requires_fixed_service_and_deployer_origin():
+    manifest = witness.load_and_validate_manifest(MANIFEST)
+    surface = next(
+        item for item in manifest["public_products"] if item["id"] == "killinchu"
+    )
+    payload = {
+        "status": "OBSERVED",
+        "service": "killinchu",
+        "build": {
+            "state": "OBSERVED",
+            "revision": "d" * 40,
+            "revision_source": "env:SZL_GIT_SHA",
+        },
+    }
+    fields = witness.apply_source_repository_policy(
+        witness.selected_build_fields(payload), payload, surface
+    )
+    assert fields["source_revision"] == "d" * 40
+    assert fields["source_repository"] == "szl-holdings/killinchu"
+    assert fields["source_repository_evidence"] == "MANIFEST_FIXED_RUNTIME_REVISION"
+
+    wrong_service = copy.deepcopy(payload)
+    wrong_service["service"] = "other"
+    with pytest.raises(witness.ContractError, match="service mismatch"):
+        witness.apply_source_repository_policy(
+            witness.selected_build_fields(wrong_service), wrong_service, surface
+        )
+
+    wrong_origin = copy.deepcopy(payload)
+    wrong_origin["build"]["revision_source"] = "request:caller"
+    with pytest.raises(witness.ContractError, match="untrusted origin"):
+        witness.apply_source_repository_policy(
+            witness.selected_build_fields(wrong_origin), wrong_origin, surface
+        )
+
+
+def test_manifest_rejects_unknown_identity_policies(tmp_path: Path):
+    value = raw_manifest()
+    value["public_products"][0]["source_repository_policy"] = "guess"
+    with pytest.raises(witness.ContractError, match="unknown source-repository policy"):
+        witness.load_and_validate_manifest(write_manifest(tmp_path, value))
+
+    value = raw_manifest()
+    value["public_products"][0]["hf_revision_policy"] = "trust-me"
+    with pytest.raises(witness.ContractError, match="unknown Hugging Face revision policy"):
+        witness.load_and_validate_manifest(write_manifest(tmp_path, value))
+
+
+def test_nested_build_revision_is_not_generic_source_identity():
+    payload = {
+        "service": "another-surface",
+        "build": {
+            "state": "OBSERVED",
+            "revision": "e" * 40,
+            "revision_source": "env:SZL_GIT_SHA",
+        },
+    }
+    assert "source_revision" not in witness.selected_build_fields(payload)
