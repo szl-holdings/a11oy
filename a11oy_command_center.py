@@ -10,7 +10,8 @@ Additive tabs:
   GET+HEAD /command
   GET+HEAD /command/constellation
   GET+HEAD /command/brain
-  GET+HEAD /constellation   (host-root; declared so SPA fallback cannot 404 it)
+  GET+HEAD /constellation
+  GET+HEAD /second-brain
   GET+HEAD /command/{rest}
 
 Host-root /brain is Hickok dual-stream. Do not steal it.
@@ -19,12 +20,12 @@ from pathlib import Path
 from typing import List
 
 MOUNTS = ("/command",)
-SPECIFIC = (
-    ("/command/constellation", "constellation.html"),
-    ("/command/brain", "second-brain.html"),
-    ("/constellation", "constellation.html"),
+SPECIFIC_PAGES = (
+    "/constellation",
+    "/second-brain",
+    "/command/constellation",
+    "/command/brain",
 )
-CATCHALL = "/command/{rest:path}"
 
 
 def _spa_path() -> Path:
@@ -58,24 +59,12 @@ def _existing_paths(app) -> set:
         return set()
 
 
-def _drop_paths(app, paths: set) -> None:
-    """Remove exact path registrations so we can replace SPA stubs."""
+def _front_move(app, paths: set) -> None:
     router = getattr(app, "router", app)
     routes = getattr(router, "routes", None)
     if not routes:
         return
-    keep = [r for r in list(routes) if getattr(r, "path", None) not in paths]
-    routes[:] = keep
-
-
-def _front_move(app, paths: list) -> None:
-    """Park exact routes at the front, in given order. Never include the catch-all."""
-    router = getattr(app, "router", app)
-    routes = getattr(router, "routes", None)
-    if not routes:
-        return
-    wanted = set(paths)
-    chosen = [r for r in routes if getattr(r, "path", None) in wanted]
+    chosen = [r for r in routes if getattr(r, "path", None) in paths]
     if not chosen:
         return
     for r in chosen:
@@ -83,8 +72,6 @@ def _front_move(app, paths: list) -> None:
             routes.remove(r)
         except ValueError:
             pass
-    order = {p: i for i, p in enumerate(paths)}
-    chosen.sort(key=lambda r: order.get(getattr(r, "path", ""), 99))
     for r in reversed(chosen):
         routes.insert(0, r)
 
@@ -96,7 +83,7 @@ def register(app, ns: str = "a11oy") -> List[str]:
     if not spa.is_file():
         return [f"command-center SPA missing at {spa}"]
 
-    from starlette.responses import FileResponse, JSONResponse
+    from starlette.responses import FileResponse
     from starlette.routing import Route
 
     async def _spa(_request=None, rest: str = ""):
@@ -108,24 +95,15 @@ def register(app, ns: str = "a11oy") -> List[str]:
             page = _page(name)
             if page.is_file():
                 return FileResponse(page, media_type="text/html; charset=utf-8")
-            return JSONResponse(
-                {
-                    "status": "NOT_FOUND",
-                    "reason": "constellation page missing from image",
-                    "page": name,
-                },
-                status_code=404,
-            )
+            return FileResponse(spa, media_type="text/html; charset=utf-8")
         return _handler
 
-    specific_paths = {path for path, _name in SPECIFIC}
-    _drop_paths(app, specific_paths)
     existing = _existing_paths(app)
     mounted: set = set()
     router = getattr(app, "router", app)
 
     def _add(path: str, handler, methods: List[str]) -> None:
-        if path in existing and path != CATCHALL:
+        if path in existing and path != "/command/{rest:path}":
             registered.append("%s already registered (skipped)" % path)
             return
         try:
@@ -138,11 +116,14 @@ def register(app, ns: str = "a11oy") -> List[str]:
 
     for path in MOUNTS:
         _add(path, _spa, ["GET", "HEAD"])
-    for path, name in SPECIFIC:
-        _add(path, _file(name), ["GET", "HEAD"])
-    _add(CATCHALL, _spa, ["GET", "HEAD"])
-    _front_move(app, [path for path, _name in SPECIFIC] + list(MOUNTS))
-    registered.append("command-center on /command (constellation/brain beat catch-all; /brain host-root untouched)")
+    _add("/command/{rest:path}", _spa, ["GET", "HEAD"])
+    _add("/command/constellation", _file("constellation.html"), ["GET", "HEAD"])
+    _add("/command/brain", _file("second-brain.html"), ["GET", "HEAD"])
+    _add("/constellation", _file("constellation.html"), ["GET", "HEAD"])
+    _add("/second-brain", _file("second-brain.html"), ["GET", "HEAD"])
+    # Specifics only. Never front-move the catch-all or it swallows the tabs.
+    _front_move(app, set(SPECIFIC_PAGES))
+    registered.append("command-center on /command (does not steal /console or /brain)")
     return registered
 
 
@@ -167,11 +148,16 @@ def _selftest() -> None:
         return HTMLResponse("<html><body>operator console</body></html>")
 
     async def _hickok(_req):
-        return HTMLResponse("<html><body>Hickok dual-stream</body></html>")
+        return HTMLResponse("<html><body>Hickok Dual-Stream</body></html>")
 
     app = Starlette(routes=[Route("/console", _console), Route("/brain", _hickok)])
     out = register(app, ns="a11oy")
     assert any("/command" in row for row in out), out
+    paths = [getattr(r, "path", None) for r in app.router.routes]
+    catch = paths.index("/command/{rest:path}")
+    assert paths.index("/command/constellation") < catch
+    assert paths.index("/command/brain") < catch
+    assert paths.index("/constellation") < catch
     c = TestClient(app)
     for path in ("/command", "/command/anatomy", "/command/honest"):
         r = c.get(path)
@@ -180,15 +166,16 @@ def _selftest() -> None:
         for path in ("/command/constellation", "/constellation"):
             body = c.get(path).text
             assert "Constellation" in body, path
-            assert "Control before capability" not in body
+            assert "second-brain" in body
     if _page("second-brain.html").is_file():
-        br = c.get("/command/brain")
-        assert br.status_code == 200
-        assert "Second Brain" in br.text
-        assert "F1" in br.text
-    assert "Hickok" in c.get("/brain").text
+        for path in ("/command/brain", "/second-brain"):
+            br = c.get(path)
+            assert br.status_code == 200, path
+            assert "Second Brain" in br.text
+            assert "F1" in br.text
     assert c.get("/console").status_code == 200
-    print("a11oy_command_center: ALL OK (constellation beats catch-all; /brain host-root untouched)")
+    assert "Hickok" in c.get("/brain").text
+    print("a11oy_command_center: ALL OK (constellation origin; /brain Hickok untouched)")
 
 
 if __name__ == "__main__":
