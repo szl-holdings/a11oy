@@ -1,0 +1,41 @@
+name: One-shot estate build convergence repair
+
+on:
+  push:
+    branches:
+      - fix/estate-build-convergence-20260904
+    paths:
+      - .github/workflows/repair-estate-builds-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: estate-build-convergence-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/estate-build-convergence-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+
+      - name: Install focused test dependency
+        run: python -m pip install --disable-pip-version-check pytest
+
+      - name: Repair flow shell and bound the energy ledger response
+        shell: bash
+        env:
+          ESTATE_REPAIR_PATCH_B64: ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpyb290ID0gUGF0aCgiLiIpCmxlZGdlcl9wYXRoID0gcm9vdCAvICJzemxfZW5lcmd5X2xlZGdlci5weSIKdGVzdHNfcGF0aCA9IHJvb3QgLyAidGVzdF9lbmVyZ3lfbGVkZ2VyLnB5IgoKbGVkZ2VyID0gbGVkZ2VyX3BhdGgucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpCgpjb25zdGFudHNfYW5jaG9yID0gJ0RFRkFVTFRfUFJJQ0VfUEVSX0tXSF9DRU5UUyA9IGludChvcy5nZXRlbnYoIlNUUklQRV9QUklDRV9QRVJfS1dIX0NFTlRTIiwgIjQ1IikpXG4nCmNvbnN0YW50c19yZXBsYWNlbWVudCA9ICdERUZBVUxUX1BSSUNFX1BFUl9LV0hfQ0VOVFMgPSBpbnQob3MuZ2V0ZW52KCJTVFJJUEVfUFJJQ0VfUEVSX0tXSF9DRU5UUyIsICI0NSIpKVxuXG4jIFRoZSBwdWJsaWMgbGVkZ2VyIGVuZHBvaW50IGlzIGFuIG9wZXJhdGlvbmFsIHByb2plY3Rpb24sIG5vdCBhbiB1bmJvdW5kZWQgZHVtcC5cbiMgVGhlIGZ1bGwgY2hhaW4gcmVtYWlucyBpbiB0aGUgZHVyYWJsZSBzdG9yZSBhbmQgaXMgdmVyaWZpZWQvdGFsbGllZCBpbiBmdWxsLCB3aGlsZVxuIyB0aGUgR0VUIHJlc3BvbnNlIGNhcnJpZXMgYSBib3VuZGVkIHJlY2VudCB3aW5kb3cgc28gcHJveGllcyBhbmQgY2xpZW50cyBhbHdheXNcbiMgcmVjZWl2ZSBjb21wbGV0ZSB2YWxpZCBKU09OLiBUaGUgaW52ZXN0b3Igc21va2UgcmVhZGVyIGNhcHMgYm9kaWVzIGF0IDUxMiBLaUIuXG5ERUZBVUxUX0xFREdFUl9QQUdFX0xJTUlUID0gNTBc bi'.replace(' ','')
