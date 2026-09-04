@@ -33,7 +33,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
   publish-vertical:
-    name: Publish and attest the current combined six-engine runtime
+    name: Publish and attest current combined six-engine runtime
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
@@ -49,15 +49,13 @@ jobs:
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
-
       - name: Checkout exact protected source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-
-      - name: Assert protected-main authority and current source pins
+      - name: Assert protected-main authority and immutable source pins
         shell: bash
         run: |
           set -euo pipefail
@@ -67,54 +65,36 @@ jobs:
           observed="$(git ls-remote https://github.com/szl-holdings/vertical-services.git refs/heads/main | awk '{print $1}')"
           test "$observed" = "b191c14bf7449a52f1ec3d5959722b396af7fddd"
           grep -Fq 'SOURCE_REVISION = "b191c14bf7449a52f1ec3d5959722b396af7fddd"' scripts/hf_publish_vertical_services.py
-
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-
-      - name: Install the exact governed Hub client
+      - name: Install exact governed Hub client
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
-          "huggingface_hub==1.10.1"
-          "pytest==8.4.2"
-
-      - name: Prove secret-reader compatibility and exact publisher contracts
+          "huggingface_hub==1.10.1" "pytest==8.4.2"
+      - name: Prove publisher and readiness-v2 contracts
         shell: bash
         run: |
           set -euo pipefail
           python -m py_compile scripts/hf_publish_vertical_flagships_v4.py scripts/hf_publish_vertical_services.py
-          python -m pytest -q tests/test_hf_space_secret_reader_compat.py tests/test_hf_publish_vertical_flagships_v4.py
-          python - <<'PY'
-          import runpy
-          from huggingface_hub import HfApi
-
-          entry = runpy.run_path("scripts/hf_publish_vertical_flagships_v4.py")
-          mode = entry["ensure_space_secret_reader"]()
-          assert mode in {"native", "backported-metadata-only"}, mode
-          assert callable(getattr(HfApi, "get_space_secrets", None))
-          PY
-
-      - name: Require an available write credential without printing it
+          python -m pytest -q \
+            tests/test_hf_space_secret_reader_compat.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            tests/test_hf_vertical_readiness_signer_contract_v2.py
+      - name: Publish, restart, attest, and verify combined runtime
         shell: bash
         run: |
           set -euo pipefail
           test -n "${HF_ORG_TOKEN:-}${HF_WRITE_TOKEN:-}${HF_TOKEN:-}${HUGGINGFACE_TOKEN:-}${HUGGING_FACE_HUB_TOKEN:-}"
-
-      - name: Publish, restart, attest, and live-verify combined runtime
-        shell: bash
-        run: |
-          set -euo pipefail
           python - <<'PY'
           import runpy
-
           entry = runpy.run_path("scripts/hf_publish_vertical_flagships_v4.py")
           mode = entry["ensure_space_secret_reader"]()
           assert mode in {"native", "backported-metadata-only"}, mode
           combined = runpy.run_path("scripts/hf_publish_vertical_services.py")
           raise SystemExit(combined["main"]())
           PY
-
       - name: Upload immutable combined-runtime receipt
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -125,11 +105,11 @@ jobs:
           retention-days: 180
 
   prove-live:
-    name: Prove the public domain, navigation, Brain/Anatomy binding, and six engines
+    name: Prove domain, rail, Brain/Anatomy, and six engines
     needs: [deploy-a11oy, publish-vertical]
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
     env:
       EXPECTED_A11OY_SHA: ${{ github.sha }}
       EXPECTED_VERTICAL_SHA: b191c14bf7449a52f1ec3d5959722b396af7fddd
@@ -140,16 +120,13 @@ jobs:
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
-
-      - name: Independently prove all live contracts
+      - name: Independently prove all public contracts
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           from __future__ import annotations
-
           import concurrent.futures
-          import hashlib
           import json
           import os
           import time
@@ -157,57 +134,28 @@ jobs:
           import urllib.request
           from pathlib import Path
 
-          A11OY_ORIGINS = (
-              "https://szlholdings-a11oy.hf.space",
-              "https://a-11-oy.com",
-          )
-          VERTICAL_ORIGIN = "https://szlholdings-vertical-services.hf.space"
-          EXPECTED_A11OY = os.environ["EXPECTED_A11OY_SHA"]
-          EXPECTED_VERTICAL = os.environ["EXPECTED_VERTICAL_SHA"]
-          ROUTES = (
-              "/console", "/killinchu", "/hatun-mcp", "/cockpit", "/brain",
-              "/anatomy-v5", "/living-anatomy", "/khipu", "/immune", "/lyte", "/estate",
-          )
-          VERTICAL_HEALTH = (
-              "/healthz", "/readyz", "/sentra/healthz", "/lyte/healthz",
-              "/vessels/healthz", "/finance/healthz", "/terra/healthz", "/counsel/healthz",
-          )
+          origins = ("https://szlholdings-a11oy.hf.space", "https://a-11-oy.com")
+          vertical_origin = "https://szlholdings-vertical-services.hf.space"
+          expected_a11oy = os.environ["EXPECTED_A11OY_SHA"]
+          expected_vertical = os.environ["EXPECTED_VERTICAL_SHA"]
+          routes = ("/console", "/killinchu", "/hatun-mcp", "/cockpit", "/brain", "/anatomy-v5", "/living-anatomy", "/khipu", "/immune", "/lyte", "/estate")
+          engines = ("sentra", "lyte", "killinchu", "finance", "terra", "counsel")
+          vertical_health = ("/healthz", "/readyz", "/sentra/healthz", "/lyte/healthz", "/vessels/healthz", "/finance/healthz", "/terra/healthz", "/counsel/healthz")
 
-          def request(url: str, *, timeout: int = 25) -> dict:
-              req = urllib.request.Request(
+          def get(url: str) -> dict:
+              request = urllib.request.Request(
                   url + ("&" if "?" in url else "?") + f"proof={time.time_ns()}",
-                  headers={
-                      "Accept": "*/*",
-                      "Cache-Control": "no-cache",
-                      "Pragma": "no-cache",
-                      "User-Agent": "SZL-Emergency-Live-Proof/1.0",
-                  },
+                  headers={"Accept": "*/*", "Cache-Control": "no-cache", "User-Agent": "SZL-Live-Proof/2"},
               )
               try:
-                  with urllib.request.urlopen(req, timeout=timeout) as response:
-                      body = response.read()
-                      return {
-                          "url": url,
-                          "status": response.status,
-                          "content_type": response.headers.get("content-type"),
-                          "body": body,
-                          "sha256": hashlib.sha256(body).hexdigest(),
-                          "final_url": response.geturl().split("?", 1)[0],
-                      }
+                  with urllib.request.urlopen(request, timeout=20) as response:
+                      return {"status": response.status, "body": response.read(), "final_url": response.geturl().split("?", 1)[0]}
               except urllib.error.HTTPError as exc:
-                  body = exc.read()
-                  return {
-                      "url": url,
-                      "status": exc.code,
-                      "content_type": exc.headers.get("content-type") if exc.headers else None,
-                      "body": body,
-                      "sha256": hashlib.sha256(body).hexdigest(),
-                      "final_url": exc.geturl().split("?", 1)[0],
-                  }
+                  return {"status": exc.code, "body": exc.read(), "final_url": exc.geturl().split("?", 1)[0]}
               except Exception as exc:
-                  return {"url": url, "status": None, "body": b"", "error": f"{type(exc).__name__}: {exc}"}
+                  return {"status": None, "body": b"", "error": f"{type(exc).__name__}: {exc}"}
 
-          def json_body(record: dict) -> dict:
+          def as_json(record: dict) -> dict:
               try:
                   value = json.loads(record.get("body", b"").decode("utf-8"))
               except Exception:
@@ -223,113 +171,110 @@ jobs:
                       return payload[key]
               return None
 
-          report: dict = {
-              "schema": "szl.emergency-live-convergence-proof/v1",
-              "expected_a11oy_sha": EXPECTED_A11OY,
-              "expected_vertical_sha": EXPECTED_VERTICAL,
-              "workflow_results": {
-                  "a11oy": os.environ.get("A11OY_DEPLOY_RESULT"),
-                  "vertical": os.environ.get("VERTICAL_DEPLOY_RESULT"),
-              },
+          report = {
+              "schema": "szl.emergency-live-convergence-proof/v2",
+              "expected_a11oy_sha": expected_a11oy,
+              "expected_vertical_sha": expected_vertical,
+              "workflow_results": {"a11oy": os.environ.get("A11OY_DEPLOY_RESULT"), "vertical": os.environ.get("VERTICAL_DEPLOY_RESULT")},
               "attempts": [],
               "credential_values_recorded": False,
           }
 
-          complete = False
-          for attempt in range(1, 41):
+          for attempt in range(1, 31):
               urls = []
-              for origin in A11OY_ORIGINS:
-                  urls.extend(origin + path for path in ("/", "/api/build-info", "/assets/szl-holo-v2.css", "/assets/szl-holo-v2.js", *ROUTES))
-              urls.extend(VERTICAL_ORIGIN + path for path in ("/api/build-info", *VERTICAL_HEALTH))
+              for origin in origins:
+                  urls.extend(origin + path for path in ("/", "/api/build-info", "/assets/szl-holo-v2.css", "/assets/szl-holo-v2.js", *routes))
+              urls.extend(vertical_origin + path for path in ("/api/build-info", *vertical_health))
               with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
-                  records = list(pool.map(request, urls))
-              indexed = {row["url"]: row for row in records}
+                  records = dict(zip(urls, pool.map(get, urls)))
 
               a11oy = {}
-              for origin in A11OY_ORIGINS:
-                  build_payload = json_body(indexed[origin + "/api/build-info"])
-                  css = indexed[origin + "/assets/szl-holo-v2.css"].get("body", b"").decode("utf-8", errors="replace")
-                  js = indexed[origin + "/assets/szl-holo-v2.js"].get("body", b"").decode("utf-8", errors="replace")
-                  route_status = {path: indexed[origin + path].get("status") for path in ROUTES}
-                  a11oy[origin] = {
-                      "root_http": indexed[origin + "/"].get("status"),
-                      "build_http": indexed[origin + "/api/build-info"].get("status"),
-                      "build_revision": revision(build_payload),
-                      "route_status": route_status,
-                      "routes_all_200": all(code == 200 for code in route_status.values()),
-                      "css_http": indexed[origin + "/assets/szl-holo-v2.css"].get("status"),
-                      "js_http": indexed[origin + "/assets/szl-holo-v2.js"].get("status"),
-                      "ui_contract": {
-                          "fluid_estate_v4_css": "SZL FLUID ESTATE RAIL V4" in css,
-                          "fluid_estate_v4_js": "SZL FLUID ESTATE RAIL V4" in js,
-                          "cyan_palette": "#57ebff" in css and "#31e6d1" in css,
-                          "left_right_controls": ".szl-estate-scroll" in css and "Scroll estate tabs left" in js and "Scroll estate tabs right" in js,
-                          "killinchu": "KILLINCHU" in js,
-                          "hatun": "HATUN" in js,
-                          "second_brain": "SECOND BRAIN" in js,
-                          "living_anatomy": "LIVING ANATOMY" in js,
-                          "brain_anatomy_bound": "szlBrainAnatomyNav" in js and 'brain-anatomy' in js,
-                      },
+              for origin in origins:
+                  css = records[origin + "/assets/szl-holo-v2.css"].get("body", b"").decode("utf-8", errors="replace")
+                  js = records[origin + "/assets/szl-holo-v2.js"].get("body", b"").decode("utf-8", errors="replace")
+                  route_status = {path: records[origin + path].get("status") for path in routes}
+                  contract = {
+                      "fluid_css": "SZL FLUID ESTATE RAIL V4" in css,
+                      "fluid_js": "SZL FLUID ESTATE RAIL V4" in js,
+                      "cyan": "#57ebff" in css and "#31e6d1" in css,
+                      "arrows": ".szl-estate-scroll" in css and "Scroll estate tabs left" in js and "Scroll estate tabs right" in js,
+                      "killinchu": "KILLINCHU" in js,
+                      "hatun": "HATUN" in js,
+                      "brain": "SECOND BRAIN" in js,
+                      "anatomy": "LIVING ANATOMY" in js and "szlBrainAnatomyNav" in js and "brain-anatomy" in js,
                   }
-                  a11oy[origin]["ui_contract_complete"] = all(a11oy[origin]["ui_contract"].values())
+                  a11oy[origin] = {
+                      "root_http": records[origin + "/"].get("status"),
+                      "build_http": records[origin + "/api/build-info"].get("status"),
+                      "build_revision": revision(as_json(records[origin + "/api/build-info"])),
+                      "css_http": records[origin + "/assets/szl-holo-v2.css"].get("status"),
+                      "js_http": records[origin + "/assets/szl-holo-v2.js"].get("status"),
+                      "routes": route_status,
+                      "routes_all_200": all(code == 200 for code in route_status.values()),
+                      "ui": contract,
+                      "ui_complete": all(contract.values()),
+                  }
 
-              vertical_build = json_body(indexed[VERTICAL_ORIGIN + "/api/build-info"])
-              vertical_ready = json_body(indexed[VERTICAL_ORIGIN + "/readyz"])
-              health_status = {path: indexed[VERTICAL_ORIGIN + path].get("status") for path in VERTICAL_HEALTH}
+              ready_record = records[vertical_origin + "/readyz"]
+              ready = as_json(ready_record)
+              build_record = records[vertical_origin + "/api/build-info"]
+              build = as_json(build_record)
+              verticals = ready.get("verticals") if isinstance(ready.get("verticals"), dict) else {}
+              persistent_signer_ready = set(verticals) == set(engines) and all(
+                  isinstance(row, dict)
+                  and row.get("ready") is True
+                  and row.get("status") == "READY"
+                  and isinstance(row.get("requirements"), dict)
+                  and row["requirements"].get("persistent_signing_key") is True
+                  for row in verticals.values()
+              )
+              health = {path: records[vertical_origin + path].get("status") for path in vertical_health}
               vertical = {
-                  "build_http": indexed[VERTICAL_ORIGIN + "/api/build-info"].get("status"),
-                  "build_revision": revision(vertical_build),
-                  "ready_http": indexed[VERTICAL_ORIGIN + "/readyz"].get("status"),
-                  "ready": vertical_ready.get("ready"),
-                  "signing_key_source": vertical_ready.get("sentra_signing_key_source"),
-                  "health_status": health_status,
-                  "health_all_200": all(code == 200 for code in health_status.values()),
-                  "bindings_agree": (vertical_build.get("source_binding") or {}).get("bindings_agree") if isinstance(vertical_build.get("source_binding"), dict) else None,
+                  "build_http": build_record.get("status"),
+                  "build_revision": revision(build),
+                  "ready_http": ready_record.get("status"),
+                  "ready": ready.get("ready"),
+                  "bindings_agree": (build.get("source_binding") or {}).get("bindings_agree") if isinstance(build.get("source_binding"), dict) else None,
+                  "persistent_signer_ready": persistent_signer_ready,
+                  "observed_verticals": sorted(verticals),
+                  "health": health,
+                  "health_all_200": all(code == 200 for code in health.values()),
               }
-
-              state = {
-                  "attempt": attempt,
-                  "observed_at_unix": int(time.time()),
-                  "a11oy": a11oy,
-                  "vertical": vertical,
-              }
+              state = {"attempt": attempt, "a11oy": a11oy, "vertical": vertical}
               report["attempts"].append(state)
-              a11oy_complete = all(
+              a11oy_ok = all(
                   row["root_http"] == 200
                   and row["build_http"] == 200
-                  and row["build_revision"] == EXPECTED_A11OY
-                  and row["routes_all_200"]
+                  and row["build_revision"] == expected_a11oy
                   and row["css_http"] == 200
                   and row["js_http"] == 200
-                  and row["ui_contract_complete"]
+                  and row["routes_all_200"]
+                  and row["ui_complete"]
                   for row in a11oy.values()
               )
-              vertical_complete = (
+              vertical_ok = (
                   vertical["build_http"] == 200
-                  and vertical["build_revision"] == EXPECTED_VERTICAL
+                  and vertical["build_revision"] == expected_vertical
                   and vertical["ready_http"] == 200
                   and vertical["ready"] is True
-                  and vertical["signing_key_source"] == "env"
                   and vertical["bindings_agree"] is True
+                  and vertical["persistent_signer_ready"] is True
                   and vertical["health_all_200"]
               )
-              complete = a11oy_complete and vertical_complete
-              if complete:
+              if a11oy_ok and vertical_ok:
+                  report["complete"] = True
                   break
-              if attempt < 40:
+              if attempt < 30:
                   time.sleep(15)
+          else:
+              report["complete"] = False
 
-          report["complete"] = complete
           report["final"] = report["attempts"][-1]
-          Path("emergency-live-convergence-proof.json").write_text(
-              json.dumps(report, indent=2, sort_keys=True) + "\n",
-              encoding="utf-8",
-          )
-          print(json.dumps({"complete": complete, "final": report["final"]}, indent=2, sort_keys=True))
-          if not complete:
+          Path("emergency-live-convergence-proof.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps({"complete": report["complete"], "final": report["final"]}, indent=2, sort_keys=True))
+          if not report["complete"]:
               raise SystemExit(1)
           PY
-
       - name: Upload immutable convergence proof
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
