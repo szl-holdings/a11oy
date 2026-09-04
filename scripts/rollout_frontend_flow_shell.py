@@ -31,12 +31,21 @@ GLOBS = (
 )
 EXCLUDE_PARTS = {"node_modules", "vendor", "archive", "archives", "fixtures", ".git"}
 SOURCE_MANAGED_PATHS = {"pages/integrations.html"}
+# The Hatun Wires document owns a compact local product-family navigation and is
+# already Holo-bound. Adding the global journey rail would recreate the stacked
+# navigation defect this convergence removes, so the exclusion is explicit and
+# machine-recorded rather than hidden behind a missing asset.
+SELF_CONTAINED_PATHS = {"pages/wires.html"}
 SOURCE_BOUNDARY_MARKERS = ("DO NOT EDIT HERE.", "VENDORED FROM ")
 
 
+def relative(path: Path) -> str:
+    return path.relative_to(ROOT).as_posix()
+
+
 def source_managed(path: Path) -> bool:
-    # Another source contract owns these HTML bytes.
-    rel = path.relative_to(ROOT).as_posix()
+    """Return True when another source contract owns the document bytes."""
+    rel = relative(path)
     if rel in SOURCE_MANAGED_PATHS:
         return True
     try:
@@ -46,11 +55,16 @@ def source_managed(path: Path) -> bool:
     return any(marker in head for marker in SOURCE_BOUNDARY_MARKERS)
 
 
+def self_contained(path: Path) -> bool:
+    """Return True for reviewed documents with their own non-duplicative shell."""
+    return relative(path) in SELF_CONTAINED_PATHS
+
+
 def candidates() -> list[Path]:
     found: set[Path] = set()
     for rel in EXACT:
         path = ROOT / rel
-        if path.is_file() and not source_managed(path):
+        if path.is_file() and not source_managed(path) and not self_contained(path):
             found.add(path)
     for pattern in GLOBS:
         for path in ROOT.glob(pattern):
@@ -58,6 +72,7 @@ def candidates() -> list[Path]:
                 path.is_file()
                 and not (set(path.relative_to(ROOT).parts) & EXCLUDE_PARTS)
                 and not source_managed(path)
+                and not self_contained(path)
             ):
                 found.add(path)
     return sorted(found)
@@ -96,6 +111,8 @@ def update_state(bound: list[str], examined: int) -> None:
     payload["state"] = "ROLLED_OUT"
     payload["examined_documents"] = examined
     payload["injected_documents"] = bound
+    payload["source_managed_documents"] = sorted(SOURCE_MANAGED_PATHS)
+    payload["self_contained_documents"] = sorted(SELF_CONTAINED_PATHS)
     STATE.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -136,6 +153,8 @@ def main() -> int:
         "examined": len(rows),
         "changed": len(changed),
         "bound": len(bound),
+        "source_managed": sorted(SOURCE_MANAGED_PATHS),
+        "self_contained": sorted(SELF_CONTAINED_PATHS),
         "rows": rows,
     }
     if args.report:
