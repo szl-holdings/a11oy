@@ -36,6 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
+          import re
           from pathlib import Path
 
           def swap(path, old, new, count=1):
@@ -62,39 +63,44 @@ jobs:
                '    flagship["sentra_space"] = SENTRA_SPACE\n',
                '    flagship["sentra_capability_home"] = SENTRA_PUBLIC_HOME\n')
 
-          test = "tests/test_hf_publish_lyte_enterprise.py"
-          swap(test,
-               '        \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")\',\n        \'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")\',\n',
-               '        \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")\',\n        \'GENERATED_FLAGSHIP_SLUGS = ("terra", "counsel", "finance")\',\n')
-          old = '''def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:
-              source = ENTRYPOINT.read_text(encoding="utf-8")
-              assert 'FOLDED_INTO_KILLINCHU = ("vessels",)' in source
-              assert 'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")' in source
-              assert 'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")' in source
-              assert 'SENTRA_SPACE = "SZLHOLDINGS/sentra"' in source
-              assert 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")' not in source
-              assert 'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"' in source
-          '''.replace("          ", "")
-          new = '''def test_source_owned_lyte_preserves_killinchu_capability_topology() -> None:
+          test_path = Path("tests/test_hf_publish_lyte_enterprise.py")
+          text = test_path.read_text(encoding="utf-8")
+          text = text.replace(
+              '        \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")\',\n        \'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")\',\n',
+              '        \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")\',\n        \'GENERATED_FLAGSHIP_SLUGS = ("terra", "counsel", "finance")\',\n',
+          )
+          replacement = '''def test_source_owned_lyte_preserves_killinchu_capability_topology() -> None:
               source = ENTRYPOINT.read_text(encoding="utf-8")
               tree = ast.parse(source)
               values = {}
+              names = {"PUBLIC_FLAGSHIP_SLUGS", "GENERATED_FLAGSHIP_SLUGS", "SOURCE_OWNED_FLAGSHIP_SLUGS", "FOLDED_INTO_KILLINCHU", "KILLINCHU_SPACE"}
               for node in tree.body:
-                  if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-                      if node.targets[0].id in {"PUBLIC_FLAGSHIP_SLUGS", "GENERATED_FLAGSHIP_SLUGS", "SOURCE_OWNED_FLAGSHIP_SLUGS", "FOLDED_INTO_KILLINCHU", "KILLINCHU_SPACE"}:
-                          values[node.targets[0].id] = ast.literal_eval(node.value)
+                  if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and node.targets[0].id in names:
+                      values[node.targets[0].id] = ast.literal_eval(node.value)
               assert values["PUBLIC_FLAGSHIP_SLUGS"] == ("terra", "counsel", "finance", "lyte")
               assert values["GENERATED_FLAGSHIP_SLUGS"] == ("terra", "counsel", "finance")
               assert values["SOURCE_OWNED_FLAGSHIP_SLUGS"] == ("lyte",)
               assert values["FOLDED_INTO_KILLINCHU"] == ("sentra", "vessels")
               assert values["KILLINCHU_SPACE"] == "SZLHOLDINGS/killinchu"
               assert 'SENTRA_PUBLIC_HOME = KILLINCHU_SPACE' in source
-          '''.replace("          ", "")
-          p = Path(test)
-          text = p.read_text(encoding="utf-8")
-          if text.count(old) != 1:
-              raise SystemExit("focused topology test anchor mismatch")
-          p.write_text(text.replace(old, new), encoding="utf-8")
+              assert 'flagship["sentra_capability_home"] = SENTRA_PUBLIC_HOME' in source
+              assert 'flagship["sentra_space"]' not in source
+              assert 'api.create_repo' not in source
+              assert 'delete_repo' not in source
+              assert 'delete_space' not in source
+
+
+'''.replace("          ", "")
+          text, count = re.subn(
+              r"def test_source_owned_lyte_does_not_change_other_vertical_authority\(\) -> None:\n.*?(?=def test_estate_receipt_binds_the_exact_lyte_source_revision)",
+              replacement,
+              text,
+              count=1,
+              flags=re.S,
+          )
+          if count != 1:
+              raise SystemExit(f"focused topology test replacement count={count}")
+          test_path.write_text(text, encoding="utf-8")
           PY
           python -m py_compile scripts/hf_publish_vertical_flagships_v4.py scripts/hf_publish_lyte_enterprise.py
           python -m pip install --disable-pip-version-check --no-cache-dir pytest==9.0.3
