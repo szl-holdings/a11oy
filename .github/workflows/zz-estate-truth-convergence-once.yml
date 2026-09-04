@@ -60,11 +60,11 @@ jobs:
           python scripts/audit_huggingface_ecosystem.py \
             --output docs/huggingface-ecosystem-manifest.json
           python scripts/build_ecosystem_stage_matrix.py \
-            --output docs/ecosystem-stage-matrix.json
+            --output "$PWD/docs/ecosystem-stage-matrix.json"
           python scripts/audit_huggingface_ecosystem.py \
             --output docs/huggingface-ecosystem-manifest.json --check
           python scripts/build_ecosystem_stage_matrix.py \
-            --output docs/ecosystem-stage-matrix.json --check
+            --output "$PWD/docs/ecosystem-stage-matrix.json" --check
 
       - name: Prove syntax, policy, publisher, front-door, and manifest contracts
         shell: bash
