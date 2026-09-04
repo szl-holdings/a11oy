@@ -1,8 +1,10 @@
 const RELAY_HOST = "ntfy.a11oy.net";
 const UPSTREAM_ORIGIN = "https://ntfy.sh";
 const MAX_JSON_BYTES = 64 * 1024;
+const TOPIC_HASH_HEX_LENGTH = 60;
 const ALLOWED_METHODS = new Set(["GET", "HEAD", "POST", "PUT", "OPTIONS"]);
 const BODYLESS_METHODS = new Set(["GET", "HEAD"]);
+const SUBSCRIPTION_SUFFIXES = new Set(["json", "sse", "raw", "ws"]);
 
 class PayloadTooLargeError extends Error {}
 
@@ -18,10 +20,42 @@ function jsonError(status, error) {
   );
 }
 
-export function toUpstreamUrl(requestUrl) {
+async function deriveTopic(pathname) {
+  const digest = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(pathname),
+  );
+  const hex = [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
+  return `szl_${hex.slice(0, TOPIC_HASH_HEX_LENGTH)}`;
+}
+
+function splitSubscriptionPath(pathname, method) {
+  if (!BODYLESS_METHODS.has(String(method).toUpperCase())) {
+    return { topicPath: pathname, suffix: "" };
+  }
+  const finalSlash = pathname.lastIndexOf("/");
+  if (finalSlash <= 0) {
+    return { topicPath: pathname, suffix: "" };
+  }
+  const candidate = pathname.slice(finalSlash + 1).toLowerCase();
+  if (!SUBSCRIPTION_SUFFIXES.has(candidate)) {
+    return { topicPath: pathname, suffix: "" };
+  }
+  return {
+    topicPath: pathname.slice(0, finalSlash),
+    suffix: `/${candidate}`,
+  };
+}
+
+export async function toUpstreamUrl(requestUrl, method = "POST") {
   const incoming = new URL(requestUrl);
   const upstream = new URL(UPSTREAM_ORIGIN);
-  upstream.pathname = incoming.pathname;
+  if (incoming.pathname !== "/") {
+    const { topicPath, suffix } = splitSubscriptionPath(incoming.pathname, method);
+    upstream.pathname = `/${await deriveTopic(topicPath)}${suffix}`;
+  }
   upstream.search = incoming.search;
   return upstream;
 }
@@ -154,7 +188,7 @@ export async function handleRequest(request, fetchImpl = fetch) {
     return jsonError(404, "topic_required");
   }
 
-  const upstream = toUpstreamUrl(request.url);
+  const upstream = await toUpstreamUrl(request.url, request.method);
   const outgoing = await buildUpstreamRequest(request, upstream);
   if (outgoing instanceof Response) {
     return outgoing;
