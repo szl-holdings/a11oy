@@ -94,13 +94,13 @@ def prove_local_controls(root: Path) -> dict[str, Any]:
     packet8 = packet8_path.read_text(encoding="utf-8")
 
     if not re.search(
-        r'PUBLIC_FLAGSHIP_SLUGS\s*=\s*\(\s*"terra",\s*"counsel",\s*"finance",\s*"lyte"\s*\)',
+        r'PUBLIC_FLAGSHIP_SLUGS\s*=\s*\(\s*"terra",\s*"sentra",\s*"counsel",\s*"finance",\s*"lyte"\s*\)',
         wrapper,
         re.S,
     ):
-        raise RetirementError("public flagship writer is not constrained to the four non-Killinchu verticals")
+        raise RetirementError("public flagship writer does not match the owner-authorized five-Space topology")
     if not re.search(
-        r'FOLDED_INTO_KILLINCHU\s*=\s*\(\s*"sentra",\s*"vessels"\s*\)',
+        r'FOLDED_INTO_KILLINCHU\s*=\s*\(\s*"vessels",?\s*\)',
         wrapper,
         re.S,
     ):

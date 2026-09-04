@@ -203,6 +203,115 @@ def root(): return INDEX
 def panels(): return PANELS
 '''
 
+SENTRA_PROXY_ROUTES = r'''
+from fastapi import Request as _SentraRequest
+from fastapi.responses import Response as _SentraResponse
+
+_SENTRA_ASSURANCE_BASE=CFG["assurance_upstream"].rstrip("/")
+_SENTRA_MAX_REQUEST_BYTES=1_000_000
+_SENTRA_MAX_RESPONSE_BYTES=1_000_000
+
+def _sentra_unavailable(source,response,reason):
+    return JSONResponse(status_code=502,content={
+        "status":"UNAVAILABLE",
+        "upstream_http_status":response.status_code,
+        "upstream_content_type":response.headers.get("content-type","").lower() or "UNAVAILABLE",
+        "upstream_json_status":reason,
+        "source":source,
+        "data":None,
+    })
+
+async def _sentra_proxy(method,path,payload=None):
+    source=_SENTRA_ASSURANCE_BASE+path
+    try:
+        async with httpx.AsyncClient(timeout=15,follow_redirects=False,headers={"User-Agent":"SZLHOLDINGS-Sentra-Assurance/5.0","Accept":"application/json"}) as client:
+            kwargs={"json":payload} if payload is not None else {}
+            async with client.stream(method,source,**kwargs) as response:
+                content_type=response.headers.get("content-type","").lower()
+                if not response.is_success or "json" not in content_type:
+                    return JSONResponse(status_code=502,content={"status":"UNAVAILABLE","upstream_http_status":response.status_code,"upstream_content_type":content_type or "UNAVAILABLE","source":source,"data":None})
+                raw=bytearray()
+                async for chunk in response.aiter_bytes():
+                    if len(raw)+len(chunk)>_SENTRA_MAX_RESPONSE_BYTES:
+                        return _sentra_unavailable(source,response,"RESPONSE_TOO_LARGE")
+                    raw.extend(chunk)
+    except httpx.RequestError as exc:
+        return JSONResponse(status_code=502,content={"status":"UNAVAILABLE","error":type(exc).__name__,"source":source,"data":None})
+    try:
+        decoded=json.loads(raw)
+    except ValueError:
+        return _sentra_unavailable(source,response,"INVALID")
+    if not isinstance(decoded,dict):
+        return _sentra_unavailable(source,response,"OBJECT_REQUIRED")
+    if path.endswith("/verdict") and (
+        decoded.get("decision") not in {"allow","deny"}
+        or decoded.get("fail_closed") is not True
+    ):
+        return _sentra_unavailable(source,response,"VERDICT_CONTRACT_INVALID")
+    if path.endswith("/verify") and not isinstance(decoded.get("chain_verified"),bool):
+        return _sentra_unavailable(source,response,"VERIFY_CONTRACT_INVALID")
+    return _SentraResponse(content=bytes(raw),status_code=response.status_code,media_type="application/json")
+
+async def _sentra_request_object(request):
+    declared=request.headers.get("content-length")
+    if declared is not None:
+        try:
+            declared_bytes=int(declared)
+        except ValueError:
+            return None,JSONResponse(status_code=400,content={"status":"BLOCKED","error":"INVALID_CONTENT_LENGTH","data":None})
+        if declared_bytes<0:
+            return None,JSONResponse(status_code=400,content={"status":"BLOCKED","error":"INVALID_CONTENT_LENGTH","data":None})
+        if declared_bytes>_SENTRA_MAX_REQUEST_BYTES:
+            return None,JSONResponse(status_code=413,content={"status":"BLOCKED","error":"REQUEST_TOO_LARGE","max_bytes":_SENTRA_MAX_REQUEST_BYTES,"data":None})
+    raw=bytearray()
+    try:
+        async for chunk in request.stream():
+            if len(raw)+len(chunk)>_SENTRA_MAX_REQUEST_BYTES:
+                return None,JSONResponse(status_code=413,content={"status":"BLOCKED","error":"REQUEST_TOO_LARGE","max_bytes":_SENTRA_MAX_REQUEST_BYTES,"data":None})
+            raw.extend(chunk)
+        body=json.loads(raw)
+    except (UnicodeDecodeError,ValueError,TypeError):
+        return None,JSONResponse(status_code=400,content={"status":"BLOCKED","error":"INVALID_JSON","data":None})
+    if not isinstance(body,dict):
+        return None,JSONResponse(status_code=400,content={"status":"BLOCKED","error":"JSON_OBJECT_REQUIRED","data":None})
+    return body,None
+
+@app.post("/api/sentra/gate")
+async def sentra_gate(request:_SentraRequest):
+    body,error=await _sentra_request_object(request)
+    if error is not None:
+        return error
+    action=body.get("action")
+    action_valid=(isinstance(action,dict) and bool(action)) or (isinstance(action,str) and bool(action.strip()))
+    if not action_valid:
+        return JSONResponse(status_code=400,content={"status":"BLOCKED","error":"ACTION_REQUIRED","data":None})
+    return await _sentra_proxy("POST","/api/a11oy/v1/immune/verdict",body)
+
+@app.post("/api/sentra/yawar/verify")
+async def sentra_yawar_verify():
+    return await _sentra_proxy("GET","/api/a11oy/v1/immune/verify")
+
+@app.get("/api/sentra/planes")
+def sentra_planes():
+    return {
+        "schema":"szl.sentra.planes/v1",
+        "state":"DECLARED",
+        "role":"sole-assurance-command",
+        "owner_directive":"owner-2026-09-04-sentra-assurance-command",
+        "planes":[
+            {"id":"gate","mode":"PROXY","route":"/api/sentra/gate","upstream":"/api/a11oy/v1/immune/verdict"},
+            {"id":"yawar","mode":"PROXY","route":"/api/sentra/yawar/verify","upstream":"/api/a11oy/v1/immune/verify"},
+            {"id":"evidence","mode":"PROXY","upstream":"/api/sentra/v1/audit-log"},
+        ],
+        "compatibility_routes":["/healthz","/api/live","/api/source","/api/build-info","/.well-known/szl-source.json"],
+    }
+'''
+
+
+def app_source(item: dict[str, Any]) -> str:
+    """Add assurance proxies only to the owner-designated Sentra Space."""
+    return APP + SENTRA_PROXY_ROUTES if item["slug"] == "sentra" else APP
+
 DOCKER = '''FROM python:3.12-slim\nENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY app.py config.json index.html panels.html ./\nEXPOSE 7860\nCMD ["uvicorn","app:app","--host","0.0.0.0","--port","7860"]\n'''
 REQ = "fastapi==0.116.1\nuvicorn[standard]==0.35.0\nhttpx==0.28.1\n"
 
@@ -491,6 +600,9 @@ def observation_passes(
 
 
 def main() -> int:
+    public_slugs=tuple(item.get("slug") for item in FLAGSHIPS if isinstance(item,dict))
+    if public_slugs != ("terra","sentra","counsel","finance","lyte"):
+        raise RuntimeError("flagship implementation must run through the constrained publisher")
     token, token_source = token_from_env()
     api = HfApi(token=token)
     source_revision = os.getenv("GITHUB_SHA", "").strip().lower()
@@ -505,6 +617,7 @@ def main() -> int:
     for item in FLAGSHIPS:
         slug = item["slug"]
         rid = f"{ORG}/{slug}"
+        runtime = app_source(item)
         panels = html(item)
         page = terra_page if slug == "terra" else panels
         forge = terra_forge if slug == "terra" else None
@@ -513,7 +626,7 @@ def main() -> int:
         forge_payload = json.dumps(forge, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
         landing_sha256 = hashlib.sha256(page.encode("utf-8")).hexdigest()
         panels_sha256 = hashlib.sha256(panels.encode("utf-8")).hexdigest()
-        artifacts = artifact_digest(APP, DOCKER, REQ, page, panels, card, forge_payload)
+        artifacts = artifact_digest(runtime, DOCKER, REQ, page, panels, card, forge_payload)
         config = json.dumps({
             "slug": slug,
             "title": item["title"],
@@ -528,13 +641,14 @@ def main() -> int:
             "panels_sha256": panels_sha256,
             "forge": forge,
             "upstream": item["upstream"],
+            "assurance_upstream": A11OY,
             "public_experience": PUBLIC_EXPERIENCE_VERSION,
         }, indent=2, sort_keys=True) + "\n"
         row: dict[str, Any] = {"id": rid, "slug": slug, "source": item["source"], "source_revision": source_revision, "workflow_run_id": int(workflow_run_id), "artifact_set_sha256": artifacts, "landing_sha256": landing_sha256, "panels_sha256": panels_sha256, "forge": forge, "root_marker": root_marker, "actions": []}
         try:
             api.create_repo(repo_id=rid, repo_type="space", space_sdk="docker", exist_ok=True, private=False)
             row["actions"].append("ensure_space")
-            for path, payload in (("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ), ("config.json", config), ("index.html", page), ("panels.html", panels), ("README.md", card)):
+            for path, payload in (("app.py", runtime), ("Dockerfile", DOCKER), ("requirements.txt", REQ), ("config.json", config), ("index.html", page), ("panels.html", panels), ("README.md", card)):
                 upload_text(api, rid, path, payload)
             row["actions"].append("publish_source")
             api.restart_space(rid)

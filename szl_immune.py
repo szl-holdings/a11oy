@@ -11,8 +11,11 @@ CANONICAL, honest surface wired to the SAME real inspection logic — fail-close
 deny-by-default — and signs a Khipu receipt per verdict into the SHARED
 szl_khipu chain.
 
-USER-VISIBLE ORGAN NAME: "Immune" (Quechua role "Hukulla"). This module NEVER
-emits a codename (sentra / amaru / rosie / jarvis) in any served string.
+USER-VISIBLE ORGAN NAME: "Immune" (Quechua role "Hukulla"). The canonical
+capability routes remain under /api/a11oy/v1/immune. Two exact Sentra assurance
+aliases are also registered when requested by serve.py, pursuant to owner
+directive owner-2026-09-04-sentra-assurance-command (#1825); no legacy prefix is
+restored wholesale.
 
 ENDPOINTS (dual-registered under /api/a11oy/v1/immune/* AND /v1/immune/*):
   GET  /healthz  -> liveness + organ identity.
@@ -190,15 +193,22 @@ def _build_verdict(body: dict) -> dict:
     rid = body.get("request_id") or body.get("actionId") or "unspecified"
     traceparent = body.get("traceparent")
 
+    action_valid = ((isinstance(action, dict) and bool(action))
+                    or (isinstance(action, str) and bool(action.strip())))
     packet = action if isinstance(action, dict) else {"value": action}
-    is_clean, signals = _run_inspection(packet)
+    if action_valid:
+        is_clean, signals = _run_inspection(packet)
+    else:
+        is_clean, signals = False, ["contract:action-required"]
     lam = _compute_lambda(axes, is_clean)
     lambda_tripped = axes is not None and lam < _LAMBDA_GATE_FLOOR
     if lambda_tripped:
         signals = signals + ["lambda-gate:min-axis-" + str(round(lam, 4))
                              + "-below-floor-" + str(_LAMBDA_GATE_FLOOR)]
     decision = "allow" if (is_clean and not lambda_tripped) else "deny"
-    if not is_clean:
+    if not action_valid:
+        reason = "immune organ rejected: a nonempty action object or string is required"
+    elif not is_clean:
         reason = "immune organ rejected: threat signature or size guard tripped"
     elif lambda_tripped:
         reason = ("immune organ rejected: Lambda-gate floor — MIN(axes)="
@@ -631,6 +641,43 @@ def register(app, ns: str = "a11oy") -> dict:
     print(f"[{ns}] szl_immune routes registered "
           f"(Immune (Hukulla) fail-closed egress gate, {len(routes)} routes)", flush=True)
     return {"ok": True, "ns": ns, "organ": _ORGAN_NAME, "routes": routes}
+
+
+def register_sentra_assurance(app) -> dict:
+    """Expose only the owner-authorized Sentra assurance read contracts.
+
+    Both handlers read the same in-process gate catalog and audit ring used by
+    the canonical Immune API. They do not fork verdict logic, mint receipts, or
+    introduce another state writer.
+    """
+    async def _sentra_gates():  # noqa: ANN202
+        return JSONResponse(_gates())
+
+    async def _sentra_audit_log(request: Request):  # noqa: ANN202
+        try:
+            limit = int(request.query_params.get("limit", "50"))
+        except (TypeError, ValueError):
+            limit = 50
+        limit = max(0, min(limit, 200))
+        feed = _feed(limit)
+        return JSONResponse({
+            "entries": feed["verdicts"],
+            "total_buffered": feed["total_buffered"],
+            "limit": limit,
+            "doctrine": feed["doctrine"],
+            "status": feed["status"],
+            "source": "/api/a11oy/v1/immune/feed",
+        })
+
+    routes = ["/api/sentra/v1/gates", "/api/sentra/v1/audit-log"]
+    app.add_api_route(routes[0], _sentra_gates, methods=["GET"], include_in_schema=True)
+    app.add_api_route(routes[1], _sentra_audit_log, methods=["GET"], include_in_schema=True)
+    return {
+        "ok": True,
+        "owner_directive": "owner-2026-09-04-sentra-assurance-command",
+        "routes": routes,
+        "writer_count": 0,
+    }
 
 
 # ---------------------------------------------------------------------------

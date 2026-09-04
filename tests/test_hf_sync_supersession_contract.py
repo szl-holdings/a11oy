@@ -7,7 +7,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "hf-sync.yml"
 HELPER = ROOT / "scripts" / "hf_exact_main_ownership.py"
-TARGET_JOB = "Publish and live-verify six domain-native flagship Spaces"
+TARGET_JOB = "Publish and live-verify five domain-native flagship Spaces"
 
 
 def indent(line: str) -> int:

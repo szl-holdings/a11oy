@@ -2,10 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 """Canonical vertical estate publisher.
 
-The established Domain Experience v4 implementation remains the renderer, but
-the entrypoint admits only the four independent public vertical Spaces. Sentra
-and Vessels are capability planes inside Killinchu and are filtered before any
-Hugging Face mutation. The same single-writer job then publishes and attests the
+The established Domain Experience v4 implementation remains the renderer. The
+entrypoint admits the four independent public vertical Spaces plus Sentra, the
+owner-designated sole Assurance Command. Vessels remains a capability plane
+inside Killinchu and is filtered before any Hugging Face mutation. The same
+single-writer job then publishes and attests the
 combined six-engine Python intelligence runtime from the exact tested
 vertical-services default-branch tip observed at deployment time.
 
@@ -22,6 +23,7 @@ consequential authority.
 """
 from __future__ import annotations
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -39,9 +41,15 @@ COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 
-PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")
-FOLDED_INTO_KILLINCHU = ("sentra", "vessels")
+PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")
+FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
+SENTRA_OWNER_DIRECTIVE = (
+    HERE.parent / "governance" / "owner-directives" / "2026-09-04-sentra.yaml"
+)
+SENTRA_OWNER_DIRECTIVE_ID = "owner-2026-09-04-sentra-assurance-command"
+SENTRA_OWNER_DIRECTIVE_MERGE = "6fa30dad05c2b2ad50cdb28f5db7e2d018a885de"
+SENTRA_OWNER_DIRECTIVE_SHA256 = "876d0dfb1496e63a77a3f2a2463710a41e709454fec4f0ac8ec4067bd2008c6d"
 VERTICAL_SERVICES_REPOSITORY = "szl-holdings/vertical-services"
 GITHUB_API = "https://api.github.com"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -54,6 +62,39 @@ def load_module(name: str, path: Path) -> ModuleType:
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
+
+
+def require_sentra_owner_directive() -> dict[str, str]:
+    """Fail closed unless the merged owner authority still admits Sentra."""
+    try:
+        content = SENTRA_OWNER_DIRECTIVE.read_bytes()
+        text = content.decode("utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise RuntimeError("Sentra owner directive is unavailable") from exc
+
+    content_sha256 = hashlib.sha256(content).hexdigest()
+    if content_sha256 != SENTRA_OWNER_DIRECTIVE_SHA256:
+        raise RuntimeError("Sentra owner directive content does not match merged authority")
+
+    required = (
+        f"id: {SENTRA_OWNER_DIRECTIVE_ID}",
+        "id: SZLHOLDINGS/sentra",
+        "state: FLAGSHIP_KEPT",
+        "role: sole-assurance-command",
+        "planes: [gate, yawar, evidence]",
+    )
+    missing = [fragment for fragment in required if fragment not in text]
+    if missing:
+        raise RuntimeError(
+            "Sentra owner directive no longer admits the assurance flagship: "
+            + json.dumps(missing)
+        )
+    return {
+        "id": SENTRA_OWNER_DIRECTIVE_ID,
+        "path": "governance/owner-directives/2026-09-04-sentra.yaml",
+        "merged_commit": SENTRA_OWNER_DIRECTIVE_MERGE,
+        "content_sha256": content_sha256,
+    }
 
 
 def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
@@ -80,7 +121,7 @@ def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
 
     admitted = tuple(by_slug[slug] for slug in PUBLIC_FLAGSHIP_SLUGS)
     if any(item["slug"] in FOLDED_INTO_KILLINCHU for item in admitted):
-        raise RuntimeError("retired Killinchu capability plane reached public writer")
+        raise RuntimeError("Killinchu capability plane reached public writer")
     module.FLAGSHIPS = admitted
     return tuple(item["slug"] for item in admitted)
 
@@ -265,6 +306,7 @@ def normalize_github_token_alias() -> str:
 
 
 def main() -> int:
+    sentra_owner_directive = require_sentra_owner_directive()
     github_token_source = normalize_github_token_alias()
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
@@ -312,6 +354,7 @@ def main() -> int:
     combined["github_token_source_name"] = github_token_source
     combined["github_token_value_recorded"] = False
     flagship["estate_schema"] = "szl.hf-vertical-estate/v7"
+    flagship["sentra_owner_directive"] = sentra_owner_directive
     flagship["public_flagship_slugs"] = list(admitted or ())
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
     flagship["killinchu_space"] = KILLINCHU_SPACE

@@ -1168,7 +1168,9 @@ except Exception as _szl_mat_e:  # pragma: no cover
 try:
     import szl_immune as _szl_immune
     _szl_immune.register(app, ns="a11oy")
+    _sentra_assurance_status = _szl_immune.register_sentra_assurance(app)
     print("[a11oy] Immune registered: /api/a11oy/v1/immune/{healthz,status,gates,threats,feed,verify,verdict}", file=__import__("sys").stderr)
+    print(f"[a11oy] Sentra assurance aliases registered: {_sentra_assurance_status}", file=__import__("sys").stderr)
 except Exception as _szl_im_e:  # pragma: no cover
     print(f"[a11oy] Immune NOT registered: {_szl_im_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 

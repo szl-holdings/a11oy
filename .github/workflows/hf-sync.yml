@@ -172,7 +172,7 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
   publish-vertical-flagships:
-    name: Publish and live-verify six domain-native flagship Spaces
+    name: Publish and live-verify five domain-native flagship Spaces
     needs: deploy
     runs-on: ubuntu-latest
     timeout-minutes: 50

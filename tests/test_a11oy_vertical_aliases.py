@@ -1,12 +1,14 @@
 """Canonical a11oy vertical and capability-route regression tests.
 
-Doctrine v11 removed the retired public organ codenames.  The supported API is
-now entirely under ``/api/a11oy``: friendly Memory/Sentinel/Operator routes plus
-neutral Policy/Reason/Operator capability routes.  These tests boot the real
-application in-process (no mocks) and prove both halves of that contract:
+Doctrine v11 removed the retired public organ codenames. Owner directive
+``owner-2026-09-04-sentra-assurance-command`` later restored two exact Sentra
+assurance read contracts without restoring a general legacy prefix. The
+supported capability API remains under ``/api/a11oy``. These tests boot the real
+application in-process (no mocks) and prove all parts of that contract:
 
 * supported routes execute successfully; and
-* retired names are absent from the explicit route table and fail closed.
+* the two owner-authorized Sentra routes use the live Immune data; and
+* all other retired names remain absent and fail closed.
 """
 
 import warnings
@@ -74,13 +76,48 @@ def test_neutral_capability_route_is_governed(client, method, path, payload):
     assert isinstance(body.get("fetchedAt"), str) and body["fetchedAt"]
 
 
-RETIRED_PREFIXES = ("/api/sentra", "/api/amaru", "/api/rosie")
+SENTRA_ASSURANCE_ROUTES = (
+    "/api/sentra/v1/gates",
+    "/api/sentra/v1/audit-log",
+)
+RETIRED_PREFIXES = ("/api/amaru", "/api/rosie")
 RETIRED_PROBES = [
-    ("GET", "/api/sentra/v1/gates", None),
     ("GET", "/api/amaru/v1/llm/tiers", None),
     ("POST", "/api/rosie/v1/jarvis/ask", {"question": "test"}),
     ("GET", "/api/rosie/v1/mesh/3d", None),
 ]
+
+
+def test_sentra_assurance_routes_are_exact_and_precede_spa_catch_all(client):
+    paths = [getattr(route, "path", "") for route in serve.app.routes]
+    sentra_paths = sorted(path for path in paths if path.startswith("/api/sentra"))
+    assert sentra_paths == sorted(SENTRA_ASSURANCE_ROUTES)
+    catch_all = paths.index("/{full_path:path}")
+    assert all(paths.index(path) < catch_all for path in SENTRA_ASSURANCE_ROUTES)
+
+    gates = client.get(SENTRA_ASSURANCE_ROUTES[0])
+    assert gates.status_code == 200
+    assert gates.json()["total"] == 8
+    assert len(gates.json()["gates"]) == 8
+
+    audit = client.get(SENTRA_ASSURANCE_ROUTES[1], params={"limit": 2})
+    assert audit.status_code == 200
+    body = audit.json()
+    assert body["status"] == "REAL"
+    assert body["source"] == "/api/a11oy/v1/immune/feed"
+    assert body["limit"] == 2
+    assert len(body["entries"]) <= 2
+
+
+@pytest.mark.parametrize("payload", [{}, {"action": None}, {"action": {}}, {"action": "  "}])
+def test_canonical_immune_verdict_receipts_default_deny_missing_action(client, payload):
+    response = client.post("/api/a11oy/v1/immune/verdict", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert body["decision"] == "deny"
+    assert body["fail_closed"] is True
+    assert body["signals"] == ["contract:action-required"]
+    assert body["khipu_receipt"]["digest"]
 
 
 def test_retired_names_are_absent_from_explicit_routes():

@@ -122,7 +122,7 @@ def test_flagship_runtime_exposes_landing_panels_readiness_and_receipt_routes() 
     ):
         assert fragment in module.APP
     assert "COPY app.py config.json index.html panels.html ./" in module.DOCKER
-    assert '(("app.py", APP)' in source()
+    assert '(("app.py", runtime)' in source()
     assert '("panels.html", panels)' in source()
 
 
@@ -185,6 +185,12 @@ def test_live_admission_requires_both_surfaces_and_matching_forge_receipt() -> N
         source_revision=source_revision,
         workflow_run_id=workflow_run_id,
     )
+
+
+def test_unconstrained_low_level_publisher_fails_before_provider_access() -> None:
+    module = load_implementation()
+    with pytest.raises(RuntimeError, match="constrained publisher"):
+        module.main()
 
 
 def test_demo_visuals_have_visible_illustrative_disclosures() -> None:
@@ -290,7 +296,7 @@ def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
     for fragment in (
         "publish-vertical-flagships:",
         "needs: deploy",
-        "Publish and live-verify six domain-native flagship Spaces",
+        "Publish and live-verify five domain-native flagship Spaces",
         "scripts/hf_publish_vertical_flagships_v4.py",
         "hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}",
         "huggingface_hub==1.10.1",
@@ -300,7 +306,7 @@ def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
         assert fragment in sync
 
 
-def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None:
+def test_entrypoint_publishes_five_spaces_and_folds_vessels_into_killinchu() -> None:
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
     intelligence = INTELLIGENCE.read_text(encoding="utf-8")
     combined = COMBINED.read_text(encoding="utf-8")
@@ -312,11 +318,15 @@ def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None
         "hf_publish_vertical_flagships_v4_impl.py",
         "hf_publish_vertical_services.py",
         "hf_publish_vertical_services_intelligence_v4.py",
-        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")',
-        'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")',
+        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
+        'FOLDED_INTO_KILLINCHU = ("vessels",)',
         'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
+        'SENTRA_OWNER_DIRECTIVE_ID = "owner-2026-09-04-sentra-assurance-command"',
+        'SENTRA_OWNER_DIRECTIVE_MERGE = "6fa30dad05c2b2ad50cdb28f5db7e2d018a885de"',
+        'SENTRA_OWNER_DIRECTIVE_SHA256 = "876d0dfb1496e63a77a3f2a2463710a41e709454fec4f0ac8ec4067bd2008c6d"',
+        "require_sentra_owner_directive",
         "constrain_public_flagships",
-        "retired Killinchu capability plane reached public writer",
+        "Killinchu capability plane reached public writer",
         '"szl.hf-vertical-estate/v7"',
         'flagship["public_flagship_slugs"]',
         'flagship["folded_into_killinchu"]',
@@ -327,8 +337,8 @@ def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None
     ):
         assert fragment in entrypoint
 
-    for retired in ("sentra", "vessels"):
-        assert retired in entrypoint
+    assert "sentra" in entrypoint
+    assert "vessels" in entrypoint
     assert "api.create_repo" not in entrypoint
 
     for fragment in (

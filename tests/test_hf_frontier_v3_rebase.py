@@ -47,14 +47,14 @@ def test_all_four_publisher_units_parse_and_remain_reviewable() -> None:
     }.issubset(function_names(BASE))
 
 
-def test_current_four_space_topology_is_preserved() -> None:
+def test_current_owner_authorized_five_space_topology_is_preserved() -> None:
     source = ENTRYPOINT.read_text(encoding="utf-8")
     for fragment in (
-        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")',
-        'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")',
+        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
+        'FOLDED_INTO_KILLINCHU = ("vessels",)',
         'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
         "constrain_public_flagships",
-        "retired Killinchu capability plane reached public writer",
+        "Killinchu capability plane reached public writer",
         'COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"',
         '"szl.hf-vertical-estate/v7"',
         'flagship["public_flagship_slugs"]',
