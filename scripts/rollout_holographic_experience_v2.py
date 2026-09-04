@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -72,9 +73,48 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
+class _AssetBindingParser(HTMLParser):
+    """Count markers and validate that each URL belongs to its marked element."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.style_markers = 0
+        self.script_markers = 0
+        self.style_bindings = 0
+        self.script_bindings = 0
+
+    def _observe(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = {name.lower(): value or "" for name, value in attrs}
+        if tag.lower() == "link" and values.get("data-szl-holo-asset") == "style-v2":
+            self.style_markers += 1
+            if values.get("href") == "/assets/szl-holo-v2.css":
+                self.style_bindings += 1
+        if tag.lower() == "script" and values.get("data-szl-holo-asset") == "script-v2":
+            self.script_markers += 1
+            if values.get("src") == "/assets/szl-holo-v2.js":
+                self.script_bindings += 1
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._observe(tag, attrs)
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        self._observe(tag, attrs)
+
+
+def binding_state(text: str) -> _AssetBindingParser:
+    parser = _AssetBindingParser()
+    parser.feed(text)
+    parser.close()
+    return parser
+
+
 def is_bound(text: str) -> bool:
-    """Accept one semantic marker regardless of harmless HTML attribute ordering."""
-    return text.count(STYLE_MARKER) == 1 and text.count(SCRIPT_MARKER) == 1
+    """Require each exact local URL on the same element as its unique marker."""
+    state = binding_state(text)
+    return (
+        state.style_markers == state.style_bindings == 1
+        and state.script_markers == state.script_bindings == 1
+    )
 
 
 def bind(path: Path) -> str:
@@ -87,8 +127,9 @@ def bind(path: Path) -> str:
     if "</head>" not in text.lower() or "</body>" not in text.lower():
         return "not-document"
 
-    style_count = text.count(STYLE_MARKER)
-    script_count = text.count(SCRIPT_MARKER)
+    state = binding_state(text)
+    style_count = state.style_markers
+    script_count = state.script_markers
     if style_count > 1 or script_count > 1:
         raise RuntimeError(f"duplicate Holo-Constellation marker in {relative}")
 
@@ -105,6 +146,8 @@ def bind(path: Path) -> str:
     if changed:
         path.write_text(text, encoding="utf-8", newline="\n")
         return "bound"
+    if not is_bound(text):
+        raise RuntimeError(f"invalid Holo-Constellation binding in {relative}")
     return "present"
 
 

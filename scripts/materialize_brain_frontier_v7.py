@@ -30,7 +30,7 @@ API_ORIGIN = "https://api.github.com"
 RAW_ORIGIN = "https://raw.githubusercontent.com"
 USER_AGENT = "a11oy-holographic-brain-frontier-v7/1.0"
 MAX_JSON_BYTES = 4 * 1024 * 1024
-MAX_HANDLES = 64
+MAX_HANDLES = 72
 HEX_40 = re.compile(r"^[0-9a-f]{40}$")
 HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 FRONTIER_ID = re.compile(r"^frontier:[0-9a-f]{32}$")
@@ -228,6 +228,8 @@ def validate_frontier(
 
 
 def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep all formula tissue, then reserve one handle per connected system."""
+
     ordered = sorted(
         rows,
         key=lambda row: (
@@ -236,8 +238,56 @@ def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             str(row["id"]),
         ),
     )
+    formula_kinds = {
+        "formula-authority",
+        "quant-domain",
+        "attributed-formula",
+        "executable-formula",
+    }
+    selected = [
+        row
+        for row in ordered
+        if str(row.get("source_kind") or "") in formula_kinds
+    ]
+    if len(selected) != 61:
+        raise MaterializationError("complete formula tissue must contain 61 handles")
+
+    selected_ids = {str(row["id"]) for row in selected}
+    reserve_repositories = (
+        "szl-holdings/anatomy",
+        "szl-holdings/ouroboros",
+        "szl-holdings/a11oy",
+        "szl-holdings/szl-forge",
+        "szl-holdings/szl-nemo",
+    )
+    for repository in reserve_repositories:
+        candidate = next(
+            (
+                row
+                for row in ordered
+                if str(row["id"]) not in selected_ids
+                and row.get("source_repository") == repository
+            ),
+            None,
+        )
+        if candidate is not None:
+            selected.append(candidate)
+            selected_ids.add(str(candidate["id"]))
+
+    for row in ordered:
+        if len(selected) >= MAX_HANDLES:
+            break
+        if str(row["id"]) in selected_ids:
+            continue
+        selected.append(row)
+        selected_ids.add(str(row["id"]))
+    if len(selected) < MAX_HANDLES:
+        raise MaterializationError(
+            f"frontier exposes {len(selected)} handles; {MAX_HANDLES} are required"
+        )
+
     handles: list[dict[str, Any]] = []
-    for row in ordered[:MAX_HANDLES]:
+    for row in selected[:MAX_HANDLES]:
         handle: dict[str, Any] = {
             "nodeId": row["id"],
             "title": str(row.get("title") or "")[:180],

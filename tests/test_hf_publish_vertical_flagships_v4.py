@@ -60,6 +60,15 @@ def test_demo_visuals_have_visible_illustrative_disclosures() -> None:
     assert 'class="panel waterfall">' + badge in templates["lyte"]
 
 
+def test_disclosures_remain_accessible_on_counsel_and_narrow_terra() -> None:
+    text = source()
+    assert '.illus{color:#5b3a12;border-color:#8b5e34}' in text
+    assert '@media(max-width:480px){.parcel-map{min-height:0;display:grid;' in text
+    assert 'grid-template-columns:repeat(2,minmax(0,1fr))' in text
+    assert '.parcel-map>.illus{grid-column:1/-1' in text
+    assert '.parcel{position:static;min-height:88px}' in text
+
+
 def test_every_vertical_template_preserves_mobile_accessibility_and_truth_contracts() -> None:
     text = source()
     required = (

@@ -17,7 +17,12 @@ from scripts.materialize_brain_frontier_v7 import (
 )
 
 
-def row(index: int, kind: str, domain: str | None = None) -> dict[str, Any]:
+def row(
+    index: int,
+    kind: str,
+    domain: str | None = None,
+    repository: str = "szl-holdings/szl-formulas",
+) -> dict[str, Any]:
     content = f"review candidate {index}; {kind}; no execution or promotion authority"
     result: dict[str, Any] = {
         "schema": "szl.second-brain.frontier-candidate/v1",
@@ -25,7 +30,7 @@ def row(index: int, kind: str, domain: str | None = None) -> dict[str, Any]:
         "title": f"Candidate {index}",
         "content": content,
         "content_sha256": hashlib.sha256(content.encode()).hexdigest(),
-        "source_repository": "szl-holdings/szl-formulas",
+        "source_repository": repository,
         "source_revision": "1" * 40,
         "source_path": "atlas/formula-atlas.v1.json",
         "source_kind": kind,
@@ -46,7 +51,16 @@ def fixture() -> tuple[bytes, bytes]:
         rows.append(row(index, "executable-formula"))
     for index in range(53, 62):
         rows.append(row(index, "quant-domain", f"domain-{index - 53}"))
-    for index in range(62, 72):
+    reserve_repositories = (
+        "szl-holdings/anatomy",
+        "szl-holdings/ouroboros",
+        "szl-holdings/a11oy",
+        "szl-holdings/szl-forge",
+        "szl-holdings/szl-nemo",
+    )
+    for index, repository in enumerate(reserve_repositories, start=62):
+        rows.append(row(index, "source-document", repository=repository))
+    for index in range(67, 82):
         rows.append(row(index, "source-document"))
     rows.sort(key=lambda item: item["id"])
     candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
@@ -87,7 +101,7 @@ def test_snapshot_is_handles_only_deterministic_and_exact() -> None:
     assert first == second
     assert first["schema"] == "szl.a11oy.brain-frontier-holographic-v7/v1"
     assert first["state"] == "SOURCE_BOUND_REVIEW_MEMORY"
-    assert first["selected_handle_count"] == len(first["handles"]) == 64
+    assert first["selected_handle_count"] == len(first["handles"]) == 72
     assert first["sources"]["second_brain"]["revision"] == "5" * 40
     assert len(first["sources"]["second_brain"]["candidate_set_sha256"]) == 64
     assert len(first["snapshot_sha256"]) == 64
@@ -117,6 +131,30 @@ def test_snapshot_is_handles_only_deterministic_and_exact() -> None:
     assert '"text"' not in serialized
     assert all(handle["contentAccess"] == "HANDLES_ONLY" for handle in first["handles"])
     assert all(handle["authority"] == "NONE" for handle in first["handles"])
+    assert {
+        "szl-holdings/szl-formulas",
+        "szl-holdings/anatomy",
+        "szl-holdings/ouroboros",
+        "szl-holdings/a11oy",
+        "szl-holdings/szl-forge",
+        "szl-holdings/szl-nemo",
+    } <= {handle["repository"] for handle in first["handles"]}
+
+
+def test_selection_fails_closed_when_72_handles_are_unavailable() -> None:
+    state_raw, candidates_raw = fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()][:-10]
+    shortened = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["candidate_count"] = len(rows)
+    state["candidate_set_sha256"] = hashlib.sha256(shortened).hexdigest()
+    with pytest.raises(MaterializationError, match="72 are required"):
+        build_snapshot(
+            "5" * 40,
+            json.dumps(state).encode(),
+            shortened,
+            dependencies(),
+        )
 
 
 def test_candidate_content_and_promotion_tampering_fail_closed() -> None:
