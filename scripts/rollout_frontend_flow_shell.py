@@ -5,6 +5,10 @@ The patch is deliberately source-native and idempotent. It changes no API,
 receipt, signer, policy, or DNS behavior. Assets live under console/assets,
 which the production Dockerfile already copies wholesale to /app/static and
 serves at /assets/*.
+
+A small number of documents own a complete, bespoke family shell. Those files
+must never receive a second generic shell; they are governed separately and
+remain bound to the shared Holo layer where declared.
 """
 from __future__ import annotations
 
@@ -30,12 +34,17 @@ GLOBS = (
     "spaces/*/index.html",
 )
 EXCLUDE_PARTS = {"node_modules", "vendor", "archive", "archives", "fixtures", ".git"}
-SOURCE_MANAGED_PATHS = {"pages/integrations.html"}
+SOURCE_MANAGED_PATHS = {
+    "pages/integrations.html",
+    # Hatun owns a complete source-native Obsidian Signal gateway shell. It is
+    # still governed by Holo v2, but must not receive a second Flow nav/runtime.
+    "pages/wires.html",
+}
 SOURCE_BOUNDARY_MARKERS = ("DO NOT EDIT HERE.", "VENDORED FROM ")
 
 
 def source_managed(path: Path) -> bool:
-    # Another source contract owns these HTML bytes.
+    # Another source contract or a complete bespoke shell owns these HTML bytes.
     rel = path.relative_to(ROOT).as_posix()
     if rel in SOURCE_MANAGED_PATHS:
         return True
@@ -96,6 +105,9 @@ def update_state(bound: list[str], examined: int) -> None:
     payload["state"] = "ROLLED_OUT"
     payload["examined_documents"] = examined
     payload["injected_documents"] = bound
+    payload["bespoke_shell_documents"] = sorted(
+        path for path in SOURCE_MANAGED_PATHS if path == "pages/wires.html"
+    )
     STATE.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
@@ -136,6 +148,9 @@ def main() -> int:
         "examined": len(rows),
         "changed": len(changed),
         "bound": len(bound),
+        "bespoke_shell_documents": sorted(
+            path for path in SOURCE_MANAGED_PATHS if path == "pages/wires.html"
+        ),
         "rows": rows,
     }
     if args.report:
