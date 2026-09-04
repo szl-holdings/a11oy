@@ -1,0 +1,72 @@
+name: Materialize bounded energy-ledger transport fix
+
+on:
+  push:
+    branches:
+      - fix/energy-ledger-transport-bound-20260904
+    paths:
+      - .github/workflows/materialize-energy-ledger-transport-fix.yml
+      - scripts/materialize_energy_ledger_transport_fix.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-energy-ledger-transport-fix
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Checkout exact scratch branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/energy-ledger-transport-bound-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+
+      - name: Install focused pinned runtime
+        run: |
+          python -m pip install --disable-pip-version-check \
+            pytest==9.0.2 \
+            fastapi==0.141.1 \
+            httpx==0.28.1 \
+            starlette==1.6.0
+
+      - name: Materialize source changes
+        run: python scripts/materialize_energy_ledger_transport_fix.py
+
+      - name: Run focused source and route tests
+        run: |
+          set -euo pipefail
+          python -m py_compile szl_energy_ledger.py test_energy_ledger.py
+          python -m pytest -q test_energy_ledger.py
+          python szl_energy_ledger.py >/tmp/energy-ledger-selftest.json
+          python scripts/investor_smoke_gate.py --mode contract
+          git diff --check
+
+      - name: Commit durable source diff and remove controller
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/materialize-energy-ledger-transport-fix.yml \
+            scripts/materialize_energy_ledger_transport_fix.py
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No durable source diff was produced."
+            exit 1
+          fi
+          git commit -s \
+            -m "fix(energy): bound the public ledger transport" \
+            -m "Keep full-chain verification and totals while returning a bounded, pageable, no-store receipt window that remains below the investor probe body cap."
+          git push origin HEAD:fix/energy-ledger-transport-bound-20260904
