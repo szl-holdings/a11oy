@@ -203,7 +203,10 @@ def test_killinchu_and_lyte_identity_policies_are_explicit_and_narrow():
             assert item["revision_policy"] == "exact-default-branch"
             assert "/api/source" not in item["required_paths"]
             assert "/readyz" in item["required_paths"]
-        elif item["id"] != "killinchu":
+        elif item["id"] in {"a11oy", "killinchu"}:
+            assert item["source_repository_policy"] == "manifest-fixed-runtime-revision"
+            assert item["hf_revision_policy"] == "provider-observed"
+        else:
             assert item["source_repository_policy"] == "runtime-declared"
             assert item["hf_revision_policy"] == "runtime-declared"
 
@@ -403,3 +406,25 @@ def test_partial_or_ambiguous_inventory_cannot_be_complete(alteration):
     receipt = witness.build_receipt(manifest, mode="live", observations=rows, attempt=1)
     assert receipt["complete"] is False
     assert receipt["inventory_complete"] is False
+
+
+def test_a11oy_runtime_shape_uses_observed_deployer_revision():
+    manifest = witness.load_and_validate_manifest(MANIFEST)
+    surface = manifest["platforms"][0]
+    # Runtime shape from source plus immutable relock artifact 9955879039.
+    payload = {
+        "status": "OBSERVED", "service": "a11oy", "receipt_minted": False,
+        "build": {"state": "OBSERVED", "revision": "a" * 40,
+                  "revision_source": "env:SZL_GIT_SHA"},
+    }
+    fields = witness.apply_source_repository_policy(
+        witness.selected_build_fields(payload), payload, surface
+    )
+    assert fields["source_repository"] == "szl-holdings/a11oy"
+    assert fields["source_revision"] == "a" * 40
+    assert "hf_revision" not in fields
+    payload["build"]["revision_source"] = "request:caller"
+    with pytest.raises(witness.ContractError, match="untrusted origin"):
+        witness.apply_source_repository_policy(
+            witness.selected_build_fields(payload), payload, surface
+        )

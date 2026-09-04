@@ -31,7 +31,9 @@
       "required_paths": [
         "/",
         "/api/build-info"
-      ]
+      ],
+      "source_repository_policy": "manifest-fixed-runtime-revision",
+      "hf_revision_policy": "provider-observed"
     }
   ],
   "public_products": [
