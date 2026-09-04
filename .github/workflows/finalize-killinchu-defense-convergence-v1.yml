@@ -8,23 +8,18 @@ on:
       - .github/workflows/finalize-killinchu-defense-convergence-v1.yml
 
 permissions:
-  actions: read
-  checks: read
   contents: write
-  pull-requests: write
-  statuses: read
 
 concurrency:
   group: finalize-killinchu-defense-convergence-v1
   cancel-in-progress: false
 
 jobs:
-  reconcile-and-merge:
-    name: Reconcile, prove, and merge normally
+  reconcile-and-clean:
+    name: Reconcile, prove, and remove temporary controllers
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     env:
-      GH_TOKEN: ${{ github.token }}
       BRANCH: feat/killinchu-aegis-convergence-v1
     steps:
       - name: Harden runner
@@ -32,23 +27,26 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Check out convergence branch with history
+      - name: Check out exact convergence branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ env.BRANCH }}
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Reconcile with protected main
+        shell: bash
         run: |
           set -euo pipefail
           test -f docs/strategy/killinchu-defense-convergence.v1.json
           test -f tests/test_killinchu_defense_convergence.py
           git fetch origin main
-          git config user.name "SZL Frontier Operator"
-          git config user.email "stephenlutar2@gmail.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git merge --no-edit origin/main
 
       - name: Prove focused convergence contracts
+        shell: bash
         run: |
           set -euo pipefail
           python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
@@ -64,102 +62,19 @@ jobs:
             tests/test_killinchu_defense_convergence.py \
             scripts/hf_publish_vertical_flagships_v4_impl.py
           node --check console/assets/szl-holo-v2.js
-          git diff --check
+          git diff --check HEAD
 
-      - name: Remove one-shot controller and push reconciled head
+      - name: Remove temporary controllers and push clean candidate
+        shell: bash
         run: |
           set -euo pipefail
-          git rm .github/workflows/finalize-killinchu-defense-convergence-v1.yml
-          if ! git diff --cached --quiet || ! git diff --quiet; then
-            git add -A
-            git commit -m "chore(killinchu): reconcile defense convergence with protected main" \
-              -m "Remove the one-shot finalizer after focused contracts pass." \
-              -m "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"
-          fi
+          git rm -f \
+            .github/workflows/finalize-killinchu-defense-convergence-v1.yml \
+            .github/workflows/apply-killinchu-aegis-convergence-v1.yml \
+            tools/apply_killinchu_aegis_convergence_v1.py
+          git diff --check HEAD
+          git add -A
+          git commit -m "chore(killinchu): remove convergence bootstrap controllers" \
+            -m "Keep only the tested five-body architecture, canonical Killinchu lobe contract, publisher configuration, and regression evidence." \
+            -m "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"
           git push origin "HEAD:${BRANCH}"
-          echo "CANDIDATE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-      - name: Find or create the protected-main pull request
-        id: pr
-        run: |
-          set -euo pipefail
-          pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
-          if [[ -z "$pr" ]]; then
-            url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --base main \
-              --title "feat(killinchu): consolidate Aegis and Vessels as governed defense lobes" \
-              --body-file - <<'EOF'
-          ## Outcome
-          Killinchu is the sole canonical defense product. Aegis is its defensive/cyber lobe and Vessels its maritime lobe. Compatibility surfaces preserve source and receipts without independent flagship authority.
-
-          ## Truth boundary
-          The complete locked-eight formula binding is preserved; Lambda remains advisory; consequential action requires human authority; destructive or offensive autonomy is false; effectors remain simulated unless independently proved.
-
-          Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
-          EOF
-            )"
-            pr="${url##*/}"
-          fi
-          echo "number=$pr" >> "$GITHUB_OUTPUT"
-          gh pr edit "$pr" --repo "$GITHUB_REPOSITORY" --add-label "architecture" 2>/dev/null || true
-
-      - name: Wait for normal candidate checks
-        env:
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          import subprocess
-          import time
-
-          repo = os.environ["GITHUB_REPOSITORY"]
-          sha = os.environ["CANDIDATE_SHA"]
-          pr = os.environ["PR_NUMBER"]
-          ignored = {
-              "Finalize Killinchu defense convergence v1 / Reconcile, prove, and merge normally",
-          }
-          bad = {"failure", "cancelled", "timed_out", "action_required", "startup_failure"}
-          allowed_terminal = {"success", "neutral", "skipped"}
-
-          def api(path: str):
-              out = subprocess.check_output(
-                  ["gh", "api", path, "-H", "Accept: application/vnd.github+json"],
-                  text=True,
-              )
-              return json.loads(out)
-
-          stable_rounds = 0
-          last_signature = None
-          for _ in range(150):
-              pr_data = api(f"repos/{repo}/pulls/{pr}")
-              if pr_data.get("head", {}).get("sha") != sha:
-                  raise SystemExit("PR head changed during convergence; refusing stale merge")
-              checks = api(f"repos/{repo}/commits/{sha}/check-runs?per_page=100").get("check_runs", [])
-              relevant = [c for c in checks if c.get("name") not in ignored]
-              failures = [c for c in relevant if c.get("conclusion") in bad]
-              if failures:
-                  names = ", ".join(f"{c.get('name')}={c.get('conclusion')}" for c in failures)
-                  raise SystemExit(f"candidate checks failed: {names}")
-              pending = [c for c in relevant if c.get("status") != "completed"]
-              signature = tuple(sorted((c.get("name"), c.get("status"), c.get("conclusion")) for c in relevant))
-              if relevant and not pending and all(c.get("conclusion") in allowed_terminal for c in relevant):
-                  stable_rounds = stable_rounds + 1 if signature == last_signature else 1
-                  if stable_rounds >= 2:
-                      break
-              else:
-                  stable_rounds = 0
-              last_signature = signature
-              time.sleep(10)
-          else:
-              raise SystemExit("candidate checks did not reach a stable terminal state")
-          PY
-
-      - name: Squash merge through normal repository policy
-        env:
-          PR_NUMBER: ${{ steps.pr.outputs.number }}
-        run: |
-          set -euo pipefail
-          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash \
-            --subject "feat(killinchu): consolidate Aegis and Vessels as governed defense lobes (#${PR_NUMBER})" \
-            --body "Make Killinchu the sole defense product authority; preserve Aegis and Vessels as source-bound lobes and compatibility surfaces; retain the exact locked-eight, advisory-Lambda, human-authority, and simulated-effector boundaries."
