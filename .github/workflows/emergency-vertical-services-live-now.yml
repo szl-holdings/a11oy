@@ -3,7 +3,7 @@ name: Emergency vertical-services exact-source publish
 on:
   push:
     branches:
-      - __disabled__/vertical-services-live-now
+      - fix/vertical-services-pin-dfc16a3-live-now
 
 permissions:
   contents: read
