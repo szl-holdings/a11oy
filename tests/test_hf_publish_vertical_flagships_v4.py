@@ -18,6 +18,19 @@ def source() -> str:
     return text
 
 
+def domain_html() -> dict[str, str]:
+    tree = ast.parse(source())
+    for node in tree.body:
+        if (
+            isinstance(node, ast.AnnAssign)
+            and isinstance(node.target, ast.Name)
+            and node.target.id == "DOMAIN_HTML"
+            and node.value is not None
+        ):
+            return ast.literal_eval(node.value)
+    raise AssertionError("DOMAIN_HTML assignment not found")
+
+
 def test_v4_renderer_retains_six_domain_templates() -> None:
     text = source()
     assert 'PUBLIC_EXPERIENCE_VERSION = "4.0.0"' in text
@@ -29,6 +42,22 @@ def test_v4_renderer_retains_six_domain_templates() -> None:
     assert '"vessels":' in text and "VOYAGE WATCH" in text and "maritime route chart" in text
     assert '"lyte":' in text and "SERVICE GRAPH" in text and "TRACE TIMELINE" in text
     assert text.count('app=FastAPI(title=CFG["title"]+" - SZL Holdings")') == 1
+
+
+def test_demo_visuals_have_visible_illustrative_disclosures() -> None:
+    templates = domain_html()
+    badge = '<span class="illus">Illustrative — schematic, not live data</span>'
+
+    assert templates["terra"].count(badge) == 1
+    assert templates["counsel"].count(badge) == 1
+    assert templates["finance"].count(badge) == 1
+    assert templates["lyte"].count(badge) == 2
+
+    assert 'class="panel parcel-map" aria-label=' in templates["terra"]
+    assert 'class="panel matter">' + badge in templates["counsel"]
+    assert 'class="tape" aria-label=' in templates["finance"]
+    assert 'class="panel services">' + badge in templates["lyte"]
+    assert 'class="panel waterfall">' + badge in templates["lyte"]
 
 
 def test_every_vertical_template_preserves_mobile_accessibility_and_truth_contracts() -> None:
