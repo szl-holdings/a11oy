@@ -4,7 +4,6 @@ policy_version: cyber-resilience-consolidation-v2
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 organization_hub: https://huggingface.co/SZLHOLDINGS
-creator_hub: https://huggingface.co/betterwithage
 keep:
   - id: SZLHOLDINGS/a11oy
     owner_class: organization
