@@ -1,0 +1,78 @@
+name: Advance Lyte source-owned publisher pin once
+
+on:
+  push:
+    branches:
+      - fix/lyte-source-owned-publisher
+    paths:
+      - .github/workflows/_advance_lyte_source_pin_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: advance-lyte-source-pin-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  advance:
+    name: Bind the current tested Lyte default-branch revision
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact publisher branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/lyte-source-owned-publisher
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Advance only the immutable source pin and its test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          old = "f5e85a57cd616c0d2b216e2c5f1686485b8c43e8"
+          new = "2131d2eb3611267bd62c134b6bba6b4cf7523127"
+          paths = (
+              Path("scripts/hf_publish_lyte_enterprise.py"),
+              Path("tests/test_hf_publish_lyte_enterprise.py"),
+          )
+          for path in paths:
+              text = path.read_text(encoding="utf-8")
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{path}: expected one old source pin, found {count}")
+              path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          python -m pip install --disable-pip-version-check --no-cache-dir pytest==8.4.2
+          python -m py_compile scripts/hf_publish_lyte_enterprise.py
+          python -m pytest \
+            tests/test_hf_publish_lyte_enterprise.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            -q
+          git diff --check
+          test "$(git status --porcelain | wc -l | tr -d ' ')" = '2'
+
+      - name: Commit source pin and remove this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- scripts/hf_publish_lyte_enterprise.py tests/test_hf_publish_lyte_enterprise.py
+          git rm -- .github/workflows/_advance_lyte_source_pin_once.yml
+          git commit -s -m 'fix(hf): bind Lyte publisher to current tested source'
+          git push origin HEAD:fix/lyte-source-owned-publisher
