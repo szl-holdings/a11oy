@@ -1,0 +1,67 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Fix topology test loader once
+
+"on":
+  push:
+    branches: [feat/estate-product-topology-v1-20260904]
+    paths:
+      - .github/workflows/zz-fix-topology-test-loader-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Repair importlib module registration exactly
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/test_estate_product_topology.py")
+          text = path.read_text(encoding="utf-8")
+          old_import = "import json\nfrom pathlib import Path\n"
+          new_import = "import json\nimport sys\nfrom pathlib import Path\n"
+          old_loader = (
+              '    module = importlib.util.module_from_spec(spec)\n'
+              '    spec.loader.exec_module(module)\n'
+          )
+          new_loader = (
+              '    module = importlib.util.module_from_spec(spec)\n'
+              '    sys.modules[spec.name] = module\n'
+              '    spec.loader.exec_module(module)\n'
+          )
+          if text.count(old_import) != 1 or text.count(old_loader) != 1:
+              raise SystemExit("topology test loader anchors drifted")
+          path.write_text(
+              text.replace(old_import, new_import, 1).replace(old_loader, new_loader, 1),
+              encoding="utf-8",
+          )
+          PY
+
+      - name: Prove deterministic contract tests
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.4.2"
+          python -m py_compile scripts/estate_product_topology.py tests/test_estate_product_topology.py
+          python -m pytest -q tests/test_estate_product_topology.py
+          git diff --check
+
+      - name: Remove one-shot and commit repair
+        run: |
+          rm .github/workflows/zz-fix-topology-test-loader-once.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit --signoff -m "test(topology): register dynamic witness module"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
