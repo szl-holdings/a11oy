@@ -1,5 +1,5 @@
 {
-  "examined_documents": 108,
+  "examined_documents": 110,
   "injected_documents": [
     "a11oy_landing.html",
     "cathedral_genius.html",
@@ -47,6 +47,7 @@
     "pages/landing.html",
     "pages/mesh.html",
     "pages/observability.html",
+    "pages/operator-pane.html",
     "pages/operator_organ.html",
     "pages/organs-integrity.html",
     "pages/pinn-console.html",
@@ -55,6 +56,7 @@
     "pages/pricing.html",
     "pages/run-all.html",
     "pages/sdk.html",
+    "pages/second-brain.html",
     "pages/security.html",
     "pages/sovereign.html",
     "pages/status.html",

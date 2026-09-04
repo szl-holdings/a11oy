@@ -1,0 +1,455 @@
+{
+  "bound": 110,
+  "changed": 3,
+  "examined": 110,
+  "mode": "APPLY",
+  "rows": [
+    {
+      "path": "a11oy_landing.html",
+      "result": "present"
+    },
+    {
+      "path": "cathedral_genius.html",
+      "result": "present"
+    },
+    {
+      "path": "console/index.html",
+      "result": "present"
+    },
+    {
+      "path": "console/static/viz/doctrine/index.html",
+      "result": "present"
+    },
+    {
+      "path": "console/static/viz/index.html",
+      "result": "present"
+    },
+    {
+      "path": "console/static/viz/khipu/index.html",
+      "result": "present"
+    },
+    {
+      "path": "console/static/viz/router/index.html",
+      "result": "present"
+    },
+    {
+      "path": "govern_showcase.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/anatomy-v5.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/api-keys.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/assurance.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/atelier.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/audit.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/ayni.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/benchmark.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/brain-dual.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/brain-jack.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/brain.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/chaski.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/cockpit.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/codex-kernel.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/command-center.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/company.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/compliance.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/console.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/constellation.html",
+      "result": "injected"
+    },
+    {
+      "path": "pages/counter-uas.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/cued-engagement.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/decision.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/demo.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/docs.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/ecosystem.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/energy-ops.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/estate.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/eu-ai-act.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/evaluations.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/evidence.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/fabric.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/gap-report.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/graph-operations.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/harvest.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/hatun-mcp.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/hub.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/landing.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/mesh.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/observability.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/operator-pane.html",
+      "result": "injected"
+    },
+    {
+      "path": "pages/operator_organ.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/organs-integrity.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/pinn-console.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/pinn.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/pnt.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/pricing.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/run-all.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/sdk.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/second-brain.html",
+      "result": "injected"
+    },
+    {
+      "path": "pages/security.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/sovereign.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/status.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/substrate.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/superpowers.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/throne-room.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/uds.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/upgrades.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/verify.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/wallpa.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/warhacker.html",
+      "result": "present"
+    },
+    {
+      "path": "pages/wasi-rikuq.html",
+      "result": "present"
+    },
+    {
+      "path": "spaces/orbital/index.html",
+      "result": "present"
+    },
+    {
+      "path": "web/agent-loop.html",
+      "result": "present"
+    },
+    {
+      "path": "web/agentic-gpu.html",
+      "result": "present"
+    },
+    {
+      "path": "web/autoreview.html",
+      "result": "present"
+    },
+    {
+      "path": "web/code.html",
+      "result": "present"
+    },
+    {
+      "path": "web/console.html",
+      "result": "present"
+    },
+    {
+      "path": "web/console_index.html",
+      "result": "present"
+    },
+    {
+      "path": "web/constitution.html",
+      "result": "present"
+    },
+    {
+      "path": "web/defense-readiness.html",
+      "result": "present"
+    },
+    {
+      "path": "web/determinacy.html",
+      "result": "present"
+    },
+    {
+      "path": "web/dns.html",
+      "result": "present"
+    },
+    {
+      "path": "web/elite_console.html",
+      "result": "present"
+    },
+    {
+      "path": "web/energy-3d.html",
+      "result": "present"
+    },
+    {
+      "path": "web/energy-harvest.html",
+      "result": "present"
+    },
+    {
+      "path": "web/energy-holographic.html",
+      "result": "present"
+    },
+    {
+      "path": "web/energy.html",
+      "result": "present"
+    },
+    {
+      "path": "web/estate-hologram.html",
+      "result": "present"
+    },
+    {
+      "path": "web/five-space.html",
+      "result": "present"
+    },
+    {
+      "path": "web/fleet-c2.html",
+      "result": "present"
+    },
+    {
+      "path": "web/formulas.html",
+      "result": "present"
+    },
+    {
+      "path": "web/governance.html",
+      "result": "present"
+    },
+    {
+      "path": "web/holo.html",
+      "result": "present"
+    },
+    {
+      "path": "web/hologram.html",
+      "result": "present"
+    },
+    {
+      "path": "web/immune.html",
+      "result": "present"
+    },
+    {
+      "path": "web/index.html",
+      "result": "present"
+    },
+    {
+      "path": "web/khipu.html",
+      "result": "present"
+    },
+    {
+      "path": "web/living-anatomy.html",
+      "result": "present"
+    },
+    {
+      "path": "web/lyte.html",
+      "result": "present"
+    },
+    {
+      "path": "web/m1-model.html",
+      "result": "present"
+    },
+    {
+      "path": "web/materials.html",
+      "result": "present"
+    },
+    {
+      "path": "web/nemo.html",
+      "result": "present"
+    },
+    {
+      "path": "web/nexus.html",
+      "result": "present"
+    },
+    {
+      "path": "web/operator.html",
+      "result": "present"
+    },
+    {
+      "path": "web/proof.html",
+      "result": "present"
+    },
+    {
+      "path": "web/quant.html",
+      "result": "present"
+    },
+    {
+      "path": "web/restraint-bench.html",
+      "result": "present"
+    },
+    {
+      "path": "web/restraint.html",
+      "result": "present"
+    },
+    {
+      "path": "web/sda.html",
+      "result": "present"
+    },
+    {
+      "path": "web/signature-is-not-proof.html",
+      "result": "present"
+    },
+    {
+      "path": "web/trust.html",
+      "result": "present"
+    },
+    {
+      "path": "web/v4_fleet_panel.html",
+      "result": "present"
+    },
+    {
+      "path": "web/verify-receipt.html",
+      "result": "present"
+    }
+  ],
+  "schema": "szl.frontend-flow-shell-rollout/v1",
+  "self_contained": [
+    "pages/wires.html"
+  ],
+  "source_managed": [
+    "pages/integrations.html"
+  ]
+}
