@@ -1,0 +1,60 @@
+name: Dispatch Cloudflare Product Edge — exact current main
+
+on:
+  push:
+    branches:
+      - ops/dispatch-cloudflare-edge-20260904
+    paths:
+      - .github/workflows/dispatch-cloudflare-edge-20260904.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Dispatch the governed production workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test -n "$current_main"
+          gh workflow run repair-cloudflare-product-edge-production.yml \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref main \
+            -f dry_run=false
+          echo "Dispatched governed Cloudflare production workflow for current main ${current_main}."
+
+      - name: Record the newly dispatched run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3 4 5; do
+            row="$(gh run list \
+              --repo "$GITHUB_REPOSITORY" \
+              --workflow repair-cloudflare-product-edge-production.yml \
+              --branch main \
+              --event workflow_dispatch \
+              --limit 1 \
+              --json databaseId,headSha,status,conclusion,url \
+              --jq '.[0] // empty')"
+            if [ -n "$row" ]; then
+              printf '%s\n' "$row"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::Dispatch was accepted but no workflow run became visible."
+          exit 1
