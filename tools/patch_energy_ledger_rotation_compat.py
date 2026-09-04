@@ -96,8 +96,8 @@ def main() -> int:
     )
     text = replace_once(
         text,
-        "            seq = len(self._entries)\n",
-        "            seq = (int(self._entries[-1].get(\"seq\", -1)) + 1) if self._entries else 0\n",
+        "        seq = len(self._entries)\n",
+        "        seq = (int(self._entries[-1].get(\"seq\", -1)) + 1) if self._entries else 0\n",
         "monotonic retained sequence",
     )
     text = replace_once(
