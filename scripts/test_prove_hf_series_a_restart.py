@@ -268,6 +268,16 @@ class MissingPreRestartReceiptSession(Session):
 class Api:
     def __init__(self) -> None:
         self.calls = []
+        self.pause_calls = []
+        self.runtime_calls = []
+
+    def pause_space(self, **kwargs):
+        self.pause_calls.append(kwargs)
+        return SimpleNamespace(stage=SimpleNamespace(value="PAUSING"))
+
+    def get_space_runtime(self, **kwargs):
+        self.runtime_calls.append(kwargs)
+        return SimpleNamespace(stage=SimpleNamespace(value="PAUSED"))
 
     def restart_space(self, **kwargs):
         self.calls.append(kwargs)
