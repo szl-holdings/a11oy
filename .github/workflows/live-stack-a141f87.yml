@@ -1,0 +1,419 @@
+name: Live-stack convergence — A11oy a141f87
+
+on:
+  push:
+    branches:
+      - ops/live-stack-a141f87-20260904
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-stack-a141f87-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  TARGET_SHA: a141f87a35e9a2199d45c895ff8827010bfe786a
+  CANONICAL_SPACE: SZLHOLDINGS/a11oy
+  HF_ORIGIN: https://szlholdings-a11oy.hf.space
+  PRODUCT_ORIGIN: https://a-11-oy.com
+
+jobs:
+  provider-config:
+    name: Converge OpenRouter and an explicitly configured sovereign node
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      SZL_LOCAL_LLM_URL: ${{ vars.SZL_LOCAL_LLM_URL || secrets.SZL_LOCAL_LLM_URL }}
+      SZL_LOCAL_LLM_MODEL: ${{ vars.SZL_LOCAL_LLM_MODEL || secrets.SZL_LOCAL_LLM_MODEL }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact provider control client
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.23.0"
+
+      - name: Validate and bind configured providers without exposing credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import ssl
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          from huggingface_hub import HfApi
+
+          repo_id = os.environ["CANONICAL_SPACE"]
+          hf_token = os.environ.get("HF_TOKEN", "").strip()
+          openrouter_key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+          local_url = os.environ.get("SZL_LOCAL_LLM_URL", "").strip().rstrip("/")
+          local_model = os.environ.get("SZL_LOCAL_LLM_MODEL", "").strip()
+          if not hf_token:
+              raise SystemExit("HF publisher credential is unavailable")
+
+          report: dict[str, object] = {
+              "schema": "szl.provider-convergence/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "repo_id": repo_id,
+              "openrouter_configured": bool(openrouter_key),
+              "openrouter_validated": False,
+              "openrouter_bound": False,
+              "local_url_configured": bool(local_url),
+              "local_model_configured": bool(local_model),
+              "local_validated": False,
+              "local_bound": False,
+              "local_host": None,
+              "space_restarted": False,
+              "secret_values_recorded": False,
+          }
+
+          api = HfApi(token=hf_token)
+          changed = False
+
+          if openrouter_key:
+              request = urllib.request.Request(
+                  "https://openrouter.ai/api/v1/models",
+                  headers={
+                      "Authorization": f"Bearer {openrouter_key}",
+                      "Accept": "application/json",
+                      "User-Agent": "SZL-A11oy-Provider-Convergence/1.0",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=30, context=ssl.create_default_context()) as response:
+                      payload = json.loads(response.read().decode("utf-8"))
+                      if response.status != 200 or not isinstance(payload.get("data"), list):
+                          raise RuntimeError("OpenRouter catalogue contract did not validate")
+              except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
+                  raise SystemExit(f"OpenRouter credential validation failed: {type(exc).__name__}") from exc
+              report["openrouter_validated"] = True
+              api.add_space_secret(repo_id=repo_id, key="OPENROUTER_API_KEY", value=openrouter_key)
+              report["openrouter_bound"] = True
+              changed = True
+
+          if bool(local_url) != bool(local_model):
+              raise SystemExit("Sovereign endpoint configuration is incomplete: URL and model must be supplied together")
+
+          if local_url and local_model:
+              parsed = urllib.parse.urlparse(local_url)
+              if parsed.scheme != "https" or not parsed.hostname:
+                  raise SystemExit("Sovereign endpoint must be an HTTPS origin")
+              report["local_host"] = parsed.hostname
+              probe_url = local_url + "/v1/models"
+              request = urllib.request.Request(
+                  probe_url,
+                  headers={"Accept": "application/json", "User-Agent": "SZL-A11oy-Sovereign-Probe/1.0"},
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=30, context=ssl.create_default_context()) as response:
+                      payload = json.loads(response.read().decode("utf-8"))
+                      serialized = json.dumps(payload, sort_keys=True)
+                      if response.status != 200 or local_model not in serialized:
+                          raise RuntimeError("configured model was not advertised by the sovereign endpoint")
+              except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, json.JSONDecodeError) as exc:
+                  raise SystemExit(f"Sovereign endpoint validation failed: {type(exc).__name__}") from exc
+              report["local_validated"] = True
+              api.add_space_variable(repo_id=repo_id, key="SZL_LOCAL_LLM_URL", value=local_url)
+              api.add_space_variable(repo_id=repo_id, key="SZL_LOCAL_LLM_MODEL", value=local_model)
+              api.add_space_variable(repo_id=repo_id, key="A11OY_JPT_GPU_URLS", value=local_url)
+              api.add_space_variable(repo_id=repo_id, key="A11OY_JPT_MODELS", value=local_model)
+              report["local_bound"] = True
+              changed = True
+
+          if changed:
+              api.restart_space(repo_id=repo_id)
+              report["space_restarted"] = True
+
+          Path("/tmp/provider-convergence.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload secret-free provider receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: provider-convergence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/provider-convergence.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  deploy-hf:
+    name: Publish and attest the exact current A11oy source
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: a141f87a35e9a2199d45c895ff8827010bfe786a
+      dockerfile-path: Dockerfile
+      include-readme: true
+      prune: true
+      wait-running: 1200
+      restart-space: true
+      source-revision-variable: SZL_GIT_SHA
+      source-revision-probe-path: /api/build-info
+      require-default-branch-tip: false
+      smoke-paths: '["/","/api/livez","/api/build-info","/console","/assets/szl-holo-v2.css","/assets/szl-holo-v2.js","/brain","/anatomy-v5","/living-anatomy","/hatun-mcp","/cockpit","/khipu","/immune","/lyte","/estate","/api/a11oy/v1/llm/sovereign/health"]'
+    secrets:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+
+  cloudflare-edge:
+    name: Converge bounded Cloudflare Worker and exact apex/www routing
+    needs: deploy-hf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    env:
+      EDGE_REPORT: /tmp/cloudflare-product-edge-v4.json
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prove bounded provider-controller and Worker contracts
+        run: |
+          python tests/test_cloudflare_product_edge.py -v
+          node --test tests/test_cloudflare_product_edge_worker.mjs
+          python -m py_compile scripts/repair_cloudflare_product_edge.py
+          node --check cloudflare/a11oy-product-root-worker.mjs
+
+      - name: Deploy, cut over exact DNS proxy state, and prove the public edge
+        run: python scripts/repair_cloudflare_product_edge.py --report "$EDGE_REPORT"
+
+      - name: Upload secret-free Cloudflare receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloudflare-product-edge-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.EDGE_REPORT }}
+          if-no-files-found: warn
+          retention-days: 30
+
+  live-proof:
+    name: Prove domain, fluid rail, Brain/Anatomy, routes, and source identity
+    if: always()
+    needs:
+      - deploy-hf
+      - cloudflare-edge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Independently verify all public contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import ssl
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          target = "a141f87a35e9a2199d45c895ff8827010bfe786a"
+          product = "https://a-11-oy.com"
+          hf_origin = "https://szlholdings-a11oy.hf.space"
+          context = ssl.create_default_context()
+
+          def get(url: str, *, follow: bool = True) -> dict[str, object]:
+              class NoRedirect(urllib.request.HTTPRedirectHandler):
+                  def redirect_request(self, req, fp, code, msg, headers, newurl):
+                      return None
+
+              opener = urllib.request.build_opener() if follow else urllib.request.build_opener(NoRedirect())
+              request = urllib.request.Request(
+                  url + ("&" if "?" in url else "?") + f"proof={time.time_ns()}",
+                  headers={
+                      "Accept": "*/*",
+                      "Cache-Control": "no-cache",
+                      "Pragma": "no-cache",
+                      "User-Agent": "SZL-A11oy-Live-Proof/1.0",
+                  },
+              )
+              try:
+                  with opener.open(request, timeout=35) as response:
+                      body = response.read()
+                      return {
+                          "status": response.status,
+                          "body": body,
+                          "final_url": response.geturl().split("?", 1)[0],
+                          "headers": dict(response.headers.items()),
+                      }
+              except urllib.error.HTTPError as exc:
+                  return {
+                      "status": exc.code,
+                      "body": exc.read(),
+                      "final_url": exc.geturl().split("?", 1)[0],
+                      "headers": dict(exc.headers.items()),
+                  }
+
+          failures: list[str] = []
+          evidence: dict[str, object] = {
+              "schema": "szl.a11oy-live-convergence/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "target_sha": target,
+              "routes": {},
+              "asset_contracts": {},
+              "source_identity": {},
+              "www_redirect": {},
+              "provider_health": {},
+          }
+
+          for label, base in (("hf", hf_origin), ("product", product)):
+              row = get(base + "/api/build-info")
+              body = row["body"].decode("utf-8", "replace")
+              matched = row["status"] == 200 and target in body
+              evidence["source_identity"][label] = {
+                  "status": row["status"],
+                  "matched": matched,
+                  "final_url": row["final_url"],
+              }
+              if not matched:
+                  failures.append(f"{label} build identity does not match {target}")
+
+          routes = [
+              "/",
+              "/console",
+              "/brain",
+              "/anatomy-v5",
+              "/living-anatomy",
+              "/hatun-mcp",
+              "/cockpit",
+              "/khipu",
+              "/immune",
+              "/lyte",
+              "/estate",
+              "/killinchu",
+          ]
+          for path in routes:
+              row = get(product + path, follow=True)
+              evidence["routes"][path] = {
+                  "status": row["status"],
+                  "bytes": len(row["body"]),
+                  "final_url": row["final_url"],
+              }
+              if row["status"] != 200 or len(row["body"]) == 0:
+                  failures.append(f"route {path} did not resolve to a non-empty HTTP 200")
+
+          css = get(product + "/assets/szl-holo-v2.css")
+          js = get(product + "/assets/szl-holo-v2.js")
+          css_text = css["body"].decode("utf-8", "replace")
+          js_text = js["body"].decode("utf-8", "replace")
+          contracts = {
+              "css_http_200": css["status"] == 200,
+              "js_http_200": js["status"] == 200,
+              "fluid_rail_css": "SZL FLUID ESTATE RAIL V4" in css_text,
+              "fluid_rail_js": "SZL FLUID ESTATE RAIL V4" in js_text,
+              "cyan_primary": "--szl-holo-accent: #57ebff !important" in css_text,
+              "cyan_secondary": "--szl-holo-accent-2: #31e6d1 !important" in css_text,
+              "brain_anatomy_binding": 'dataset.szlBrainAnatomyNav = "bound"' in js_text,
+              "killinchu_tab": 'label: "KILLINCHU"' in js_text,
+              "hatun_tab": 'label: "HATUN"' in js_text,
+              "second_brain_tab": 'label: "SECOND BRAIN"' in js_text,
+          }
+          evidence["asset_contracts"] = contracts
+          for name, passed in contracts.items():
+              if not passed:
+                  failures.append(f"asset contract failed: {name}")
+
+          www = get("https://www.a-11-oy.com/__szl_edge_probe__/path?contract=v4", follow=False)
+          location = str(www["headers"].get("Location") or www["headers"].get("location") or "")
+          www_ok = www["status"] in (301, 302, 307, 308) and location.startswith("https://a-11-oy.com/__szl_edge_probe__/path")
+          evidence["www_redirect"] = {
+              "status": www["status"],
+              "location": location,
+              "verified": www_ok,
+          }
+          if not www_ok:
+              failures.append("www redirect did not preserve the apex path")
+
+          proof = get("https://a11oy.net/", follow=True)
+          evidence["proof_domain"] = {
+              "status": proof["status"],
+              "bytes": len(proof["body"]),
+              "final_url": proof["final_url"],
+          }
+          if proof["status"] != 200 or len(proof["body"]) == 0:
+              failures.append("a11oy.net proof domain is not serving a non-empty HTTP 200")
+
+          health = get(product + "/api/a11oy/v1/llm/sovereign/health")
+          health_body = health["body"].decode("utf-8", "replace")
+          try:
+              health_json = json.loads(health_body)
+          except json.JSONDecodeError:
+              health_json = None
+          evidence["provider_health"] = {
+              "status": health["status"],
+              "json": isinstance(health_json, dict),
+              "live": health_json.get("live") if isinstance(health_json, dict) else None,
+              "env_present": health_json.get("env_present") if isinstance(health_json, dict) else None,
+              "honest_stub": health_json.get("honest_stub") if isinstance(health_json, dict) else None,
+          }
+          if health["status"] != 200 or not isinstance(health_json, dict):
+              failures.append("sovereign health contract is unavailable")
+
+          evidence["complete"] = not failures
+          evidence["failures"] = failures
+          Path("/tmp/a11oy-live-convergence.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          public = dict(evidence)
+          print(json.dumps(public, indent=2, sort_keys=True))
+          if failures:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload immutable live convergence proof
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11oy-live-convergence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/a11oy-live-convergence.json
+          if-no-files-found: error
+          retention-days: 90
