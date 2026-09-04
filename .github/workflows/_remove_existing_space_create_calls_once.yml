@@ -1,0 +1,154 @@
+name: Remove implicit creation from existing-Space publishers
+
+on:
+  push:
+    branches:
+      - fix/hf-existing-space-quota-20260904
+    paths:
+      - .github/workflows/_remove_existing_space_create_calls_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: remove-existing-space-create-calls-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Patch, test, commit, and self-remove
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-existing-space-quota-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Remove creation-endpoint calls for governed existing Spaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          flagship = Path('scripts/hf_publish_vertical_flagships_v4_impl.py')
+          text = flagship.read_text(encoding='utf-8')
+          old = '''            api.create_repo(repo_id=rid, repo_type="space", space_sdk="docker", exist_ok=True, private=False)
+            row["actions"].append("ensure_space")
+'''
+          new = '''            api.auth_check(repo_id=rid, repo_type="space", write=True)
+            row["actions"].append("verify_existing_space_write")
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'{flagship}: expected one existing-Space create block, found {text.count(old)}')
+          flagship.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          combined = Path('scripts/hf_publish_vertical_services.py')
+          text = combined.read_text(encoding='utf-8')
+          old = '''    api.create_repo(
+        repo_id=HF_REPOSITORY,
+        repo_type="space",
+        space_sdk="docker",
+        exist_ok=True,
+        private=False,
+    )
+    api.auth_check(repo_id=HF_REPOSITORY, repo_type="space", write=True)
+'''
+          new = '''    # The canonical Space is a governed, pre-existing estate asset.  Do not call
+    # create_repo(exist_ok=True): Hugging Face still counts that POST against the
+    # daily Space-creation quota.  Missing or unauthorized assets fail closed.
+    api.auth_check(repo_id=HF_REPOSITORY, repo_type="space", write=True)
+'''
+          if text.count(old) != 1:
+              raise SystemExit(f'{combined}: expected one existing-Space create block, found {text.count(old)}')
+          combined.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          test = Path('tests/test_hf_existing_space_publishers.py')
+          test.write_text('''# SPDX-License-Identifier: Apache-2.0
+"""Existing Hugging Face Spaces must never consume the creation endpoint."""
+from __future__ import annotations
+
+import ast
+from pathlib import Path
+
+
+PUBLISHERS = (
+    Path("scripts/hf_publish_vertical_flagships_v4_impl.py"),
+    Path("scripts/hf_publish_vertical_services.py"),
+)
+
+
+def called_attributes(path: Path) -> list[str]:
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    return [
+        node.func.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+    ]
+
+
+def test_existing_space_publishers_never_call_create_repo() -> None:
+    for path in PUBLISHERS:
+        calls = called_attributes(path)
+        assert "create_repo" not in calls, path
+        assert "auth_check" in calls, path
+
+
+def test_flagship_publisher_records_existing_space_authorization() -> None:
+    text = PUBLISHERS[0].read_text(encoding="utf-8")
+    assert 'api.auth_check(repo_id=rid, repo_type="space", write=True)' in text
+    assert 'row["actions"].append("verify_existing_space_write")' in text
+    assert 'row["actions"].append("ensure_space")' not in text
+
+
+def test_combined_runtime_fails_closed_when_existing_space_is_unwritable() -> None:
+    text = PUBLISHERS[1].read_text(encoding="utf-8")
+    assert 'api.auth_check(repo_id=HF_REPOSITORY, repo_type="space", write=True)' in text
+    prefix = text.split("def ensure_runtime_configuration", 1)[1].split("def request_json", 1)[0]
+    assert "create_repo" not in prefix
+    assert "daily Space-creation quota" in prefix
+''', encoding='utf-8')
+          PY
+
+      - name: Execute focused publisher contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir pytest==8.4.2
+          python -m py_compile \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services.py \
+            tests/test_hf_existing_space_publishers.py
+          python -m pytest \
+            tests/test_hf_existing_space_publishers.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            -q
+          git diff --check
+          test "$(git status --porcelain | wc -l | tr -d ' ')" = '3'
+
+      - name: Commit only the permanent repair and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services.py \
+            tests/test_hf_existing_space_publishers.py
+          git rm -- .github/workflows/_remove_existing_space_create_calls_once.yml
+          git commit -s -m 'fix(hf): require existing Spaces without consuming creation quota'
+          git push origin HEAD:fix/hf-existing-space-quota-20260904
