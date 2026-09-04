@@ -152,3 +152,5 @@ def test_combined_runtime_fails_closed_when_existing_space_is_unwritable() -> No
           git rm -- .github/workflows/_remove_existing_space_create_calls_once.yml
           git commit -s -m 'fix(hf): require existing Spaces without consuming creation quota'
           git push origin HEAD:fix/hf-existing-space-quota-20260904
+
+# Activation commit: this workflow is intentionally branch-only and self-removing.
