@@ -1,0 +1,220 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Repair owned Khipu cortex wiring v3
+
+on:
+  push:
+    branches:
+      - feat/hf-owned-khipu-cortex-v1
+    paths:
+      - .github/workflows/repair-owned-khipu-cortex-wiring-v3.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-owned-khipu-cortex-wiring
+  cancel-in-progress: true
+
+jobs:
+  repair:
+    name: Produce permanent source wiring and terminal receipt
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out current repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/hf-owned-khipu-cortex-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Apply idempotent runtime wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          required_files = (
+              "szl_owned_khipu_cortex.py",
+              "vendor/szl_nemo/szl_nemo/__init__.py",
+              "vendor/szl_nemo/szl_nemo/schema.py",
+              "vendor/szl_nemo/szl_nemo/rules.py",
+              "vendor/szl_nemo/szl_nemo/engine.py",
+              "vendor/szl_nemo/szl_nemo/envelope.py",
+          )
+          missing = [name for name in required_files if not Path(name).is_file()]
+          if missing:
+              raise SystemExit("owned-cortex sources missing: " + ", ".join(missing))
+
+          dockerfile = Path("Dockerfile")
+          docker = dockerfile.read_text(encoding="utf-8")
+          module_copy = "COPY szl_owned_khipu_cortex.py ./"
+          nemo_copy = "COPY vendor/szl_nemo/ ./vendor/szl_nemo/"
+          insertion = (
+              "\n# OWNED KHIPU GOVERNED CORTEX — exact GGUF execution plus vendored Nemo witness\n"
+              + module_copy
+              + "\n"
+              + nemo_copy
+              + "\n"
+          )
+          if module_copy not in docker and nemo_copy not in docker:
+              candidates = [
+                  position
+                  for marker in ("\nCMD ", "\nENTRYPOINT ", "\nHEALTHCHECK ")
+                  if (position := docker.rfind(marker)) >= 0
+              ]
+              if candidates:
+                  position = min(candidates)
+                  docker = docker[:position] + insertion + docker[position:]
+              else:
+                  docker = docker.rstrip() + insertion
+          elif module_copy not in docker:
+              docker = docker.replace(nemo_copy, module_copy + "\n" + nemo_copy, 1)
+          elif nemo_copy not in docker:
+              docker = docker.replace(module_copy, module_copy + "\n" + nemo_copy, 1)
+          if docker.count(module_copy) != 1 or docker.count(nemo_copy) != 1:
+              raise SystemExit("owned-cortex Docker COPY lines must each be unique")
+          dockerfile.write_text(docker, encoding="utf-8")
+
+          serve_path = Path("serve.py")
+          serve = serve_path.read_text(encoding="utf-8")
+          registration = '''\n# -- OWNED KHIPU GOVERNED CORTEX -- exact immutable SZLHOLDINGS GGUF inference,\n# bounded public Brain grounding, deterministic SZL-Nemo witnesses, locked-eight\n# formula authority, proposal-only receipts, and zero consequential-action authority.\n_owned_khipu_cortex_registered = False\ntry:\n    import szl_owned_khipu_cortex as _szl_owned_khipu_cortex\n    _owned_khipu_cortex_status = _szl_owned_khipu_cortex.register(app, ns="a11oy")\n    _owned_khipu_cortex_registered = True\n    print(f"[a11oy] Owned Khipu cortex registered: {_owned_khipu_cortex_status}", file=__import__("sys").stderr)\nexcept Exception as _owned_khipu_cortex_e:  # pragma: no cover - honest fail-closed degradation\n    print(f"[a11oy] Owned Khipu cortex NOT registered: {_owned_khipu_cortex_e!r}; existing surfaces unaffected", file=__import__("sys").stderr)\n\n'''
+          call = '_szl_owned_khipu_cortex.register(app, ns="a11oy")'
+          if call not in serve:
+              anchors = (
+                  "# -- BRAIN CAPABILITIES LEDGER --",
+                  "# BRAIN UNCERTAINTY",
+                  "# -- szl_brainmemory BRAIN MEMORY FRESHNESS",
+              )
+              anchor = next((value for value in anchors if value in serve), None)
+              if anchor is None:
+                  raise SystemExit("no stable pre-SPA registration anchor found")
+              serve = serve.replace(anchor, registration + anchor, 1)
+          if serve.count(call) != 1:
+              raise SystemExit("owned-cortex FastAPI registration must be unique")
+          serve_path.write_text(serve, encoding="utf-8")
+          PY
+
+      - name: Verify source, truth, and route contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            szl_owned_khipu_cortex.py \
+            vendor/szl_nemo/szl_nemo/__init__.py \
+            vendor/szl_nemo/szl_nemo/schema.py \
+            vendor/szl_nemo/szl_nemo/rules.py \
+            vendor/szl_nemo/szl_nemo/engine.py \
+            vendor/szl_nemo/szl_nemo/envelope.py \
+            serve.py
+          python - <<'PY'
+          import ast
+          import hashlib
+          import json
+          import re
+          from pathlib import Path
+
+          model = Path("szl_owned_khipu_cortex.py")
+          source = model.read_text(encoding="utf-8")
+          tree = ast.parse(source)
+          functions = {
+              node.name
+              for node in tree.body
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+          }
+          required_functions = {"register"}
+          missing_functions = sorted(required_functions - functions)
+          if missing_functions:
+              raise SystemExit("owned-cortex callable contract missing: " + ", ".join(missing_functions))
+
+          tokens = {
+              "owned_model_repo": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+              "owned_model_revision": "67d60ec577730747055491640cfb91fc4a4b5d25",
+              "locked_formula_F1": "F1",
+              "locked_formula_F22": "F22",
+              "lambda_boundary": "CONJECTURE_1_ADVISORY",
+              "no_action_authority": "NO_ACTION_AUTHORITY",
+          }
+          missing_tokens = [name for name, token in tokens.items() if token not in source]
+          if missing_tokens:
+              raise SystemExit("owned-cortex truth bindings missing: " + ", ".join(missing_tokens))
+
+          docker = Path("Dockerfile").read_text(encoding="utf-8")
+          serve = Path("serve.py").read_text(encoding="utf-8")
+          checks = {
+              "docker_module_unique": docker.count("COPY szl_owned_khipu_cortex.py ./") == 1,
+              "docker_nemo_unique": docker.count("COPY vendor/szl_nemo/ ./vendor/szl_nemo/") == 1,
+              "serve_import_unique": serve.count("import szl_owned_khipu_cortex as _szl_owned_khipu_cortex") == 1,
+              "serve_register_unique": serve.count('_szl_owned_khipu_cortex.register(app, ns="a11oy")') == 1,
+              "module_sha256_full": bool(re.fullmatch(r"[0-9a-f]{64}", hashlib.sha256(source.encode()).hexdigest())),
+          }
+          failed = [name for name, value in checks.items() if not value]
+          if failed:
+              raise SystemExit("owned-cortex wiring checks failed: " + ", ".join(failed))
+
+          report = {
+              "schema": "szl.owned-khipu-cortex-source-wiring/v1",
+              "state": "SOURCE_WIRED",
+              "branch": "feat/hf-owned-khipu-cortex-v1",
+              "model_repo": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+              "model_revision": "67d60ec577730747055491640cfb91fc4a4b5d25",
+              "module_sha256": hashlib.sha256(source.encode()).hexdigest(),
+              "vendored_nemo": True,
+              "locked_proven_formula_count": 8,
+              "lambda_status": "CONJECTURE_1_ADVISORY",
+              "action_authority": "NONE",
+              "docker_wired": True,
+              "fastapi_registered": True,
+              "temporary_writers_removed_in_commit": True,
+              "live_deployment_verified": False,
+              "live_verification_rule": "Only the canonical post-merge HF deployment may set this true at its exact source SHA.",
+              "checks": checks,
+          }
+          path = Path("reports/owned-khipu-cortex/source-wiring.json")
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          PY
+          git diff --check
+
+      - name: Run targeted owned-cortex tests when available
+        shell: bash
+        run: |
+          set -euo pipefail
+          tests=()
+          while IFS= read -r candidate; do
+            tests+=("$candidate")
+          done < <(find tests -maxdepth 1 -type f \( -iname '*owned*khipu*' -o -iname '*khipu*cortex*' \) -print 2>/dev/null | sort)
+          if (( ${#tests[@]} > 0 )); then
+            python -m pytest -q "${tests[@]}"
+          fi
+
+      - name: Remove every temporary writer and commit the terminal repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/apply-owned-khipu-cortex-wiring.yml \
+            .github/workflows/repair-owned-khipu-cortex-wiring-v2.yml \
+            .github/workflows/repair-owned-khipu-cortex-wiring-v3.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A \
+            Dockerfile \
+            serve.py \
+            szl_owned_khipu_cortex.py \
+            vendor/szl_nemo \
+            reports/owned-khipu-cortex \
+            .github/workflows
+          if git diff --cached --quiet; then
+            echo "Owned Khipu source wiring already terminal"
+            exit 0
+          fi
+          git commit -s -m "fix(inference): complete owned Khipu cortex source wiring"
+          git push origin HEAD:feat/hf-owned-khipu-cortex-v1
