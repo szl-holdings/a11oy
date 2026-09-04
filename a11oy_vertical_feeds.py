@@ -1890,8 +1890,10 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_nyc_dob, (30,), {}),
             (feed_treasury, (6,), {}),
         ])
-        return JSONResponse({"vertical": "realestate", "hpd_litigations": hpd,
-                             "dob_violations": dob, "rates": rates,
+        return JSONResponse({"vertical": "realestate",
+                             "hpd_litigations": _readiness_public_source(hpd),
+                             "dob_violations": _readiness_public_source(dob),
+                             "rates": rates,
                              "sources_cited": cited_leaders("realestate"), "doctrine": DOCTRINE})
 
     # ---- SHARED: governed turn, ledger, roi ----
