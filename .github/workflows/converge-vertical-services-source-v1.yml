@@ -1,0 +1,348 @@
+name: Converge vertical-services Killinchu source v1
+
+on:
+  push:
+    branches:
+      - feat/vertical-services-killinchu-pin-v1
+    paths:
+      - .github/workflows/converge-vertical-services-source-v1.yml
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: converge-vertical-services-killinchu-source-v1
+  cancel-in-progress: false
+
+jobs:
+  bind-merge-publish-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BRANCH: feat/vertical-services-killinchu-pin-v1
+      UPSTREAM_REPO: szl-holdings/vertical-services
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out source-binding branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.BRANCH }}
+          fetch-depth: 0
+
+      - name: Wait for both protected-main convergence contracts
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import base64
+          import json
+          import os
+          import subprocess
+          import time
+
+          own = os.environ["GITHUB_REPOSITORY"]
+          upstream = os.environ["UPSTREAM_REPO"]
+
+          def api(path: str):
+              raw = subprocess.check_output(
+                  ["gh", "api", path, "-H", "Accept: application/vnd.github+json"],
+                  text=True,
+              )
+              return json.loads(raw)
+
+          upstream_sha = None
+          for _ in range(240):
+              up = api(f"repos/{upstream}/branches/main")["commit"]["sha"]
+              try:
+                  item = api(
+                      f"repos/{upstream}/contents/contracts/killinchu-runtime-convergence.v1.json?ref={up}"
+                  )
+                  payload = json.loads(base64.b64decode(item["content"]).decode("utf-8"))
+                  upstream_ok = (
+                      payload.get("canonical_product") == "killinchu"
+                      and set(payload.get("lobes", {})) == {"aegis", "vessels"}
+                      and payload.get("destructive_or_offensive_autonomy") is False
+                  )
+              except subprocess.CalledProcessError:
+                  upstream_ok = False
+
+              own_main = api(f"repos/{own}/branches/main")["commit"]["sha"]
+              try:
+                  own_item = api(
+                      f"repos/{own}/contents/docs/strategy/killinchu-defense-convergence.v1.json?ref={own_main}"
+                  )
+                  own_payload = json.loads(base64.b64decode(own_item["content"]).decode("utf-8"))
+                  own_ok = own_payload.get("canonical_product", {}).get("id") == "killinchu"
+              except subprocess.CalledProcessError:
+                  own_ok = False
+
+              if upstream_ok and own_ok:
+                  upstream_sha = up
+                  break
+              time.sleep(10)
+          if not upstream_sha:
+              raise SystemExit("protected-main convergence contracts did not become available")
+          with open(os.environ["GITHUB_ENV"], "a", encoding="utf-8") as handle:
+              handle.write(f"UPSTREAM_SHA={upstream_sha}\n")
+          PY
+
+      - name: Reconcile branch with current A11oy main
+        run: |
+          set -euo pipefail
+          git config user.name "SZL Frontier Operator"
+          git config user.email "stephenlutar2@gmail.com"
+          git fetch origin main
+          git merge --no-edit origin/main
+
+      - name: Write exact source binding and network-free proof
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import re
+          from pathlib import Path
+
+          sha = os.environ["UPSTREAM_SHA"]
+          if not re.fullmatch(r"[0-9a-f]{40}", sha):
+              raise SystemExit("upstream SHA is not immutable")
+
+          publisher_path = Path("scripts/hf_publish_vertical_services.py")
+          publisher = publisher_path.read_text(encoding="utf-8")
+          pattern = r'SOURCE_REVISION = "[0-9a-f]{40}"'
+          if len(re.findall(pattern, publisher)) != 1:
+              raise SystemExit("publisher source-revision boundary changed")
+          publisher = re.sub(pattern, f'SOURCE_REVISION = "{sha}"', publisher, count=1)
+          publisher_path.write_text(publisher, encoding="utf-8")
+
+          existing_test = Path("tests/test_hf_publish_vertical_flagships_v4.py")
+          test_text = existing_test.read_text(encoding="utf-8")
+          test_pattern = r'SOURCE_REVISION = \\"[0-9a-f]{40}\\"'
+          if len(re.findall(test_pattern, test_text)) != 1:
+              raise SystemExit("publisher-test source-revision boundary changed")
+          test_text = re.sub(test_pattern, f'SOURCE_REVISION = \\"{sha}\\"', test_text, count=1)
+          existing_test.write_text(test_text, encoding="utf-8")
+
+          vision_path = Path("docs/strategy/living-command-fabric.v1.json")
+          vision = json.loads(vision_path.read_text(encoding="utf-8"))
+          vision["authorities"]["vertical_services"]["revision"] = sha
+          vision["authorities"]["vertical_services"]["convergence_contract"] = (
+              "contracts/killinchu-runtime-convergence.v1.json"
+          )
+          vision_path.write_text(json.dumps(vision, indent=2) + "\n", encoding="utf-8")
+
+          convergence_path = Path("docs/strategy/killinchu-defense-convergence.v1.json")
+          convergence = json.loads(convergence_path.read_text(encoding="utf-8"))
+          convergence["runtime_source"] = {
+              "repository": "szl-holdings/vertical-services",
+              "revision": sha,
+              "contract": "contracts/killinchu-runtime-convergence.v1.json",
+          }
+          convergence_path.write_text(json.dumps(convergence, indent=2) + "\n", encoding="utf-8")
+
+          binding = {
+              "schema": "szl.vertical-services-source-binding/v1",
+              "repository": "szl-holdings/vertical-services",
+              "revision": sha,
+              "required_contract": "contracts/killinchu-runtime-convergence.v1.json",
+              "canonical_product": "killinchu",
+              "lobes": ["aegis", "vessels"],
+              "publisher": "scripts/hf_publish_vertical_services.py",
+              "publication_authority": "protected a11oy main single writer",
+          }
+          binding_path = Path("docs/strategy/vertical-services-source-binding.v1.json")
+          binding_path.write_text(json.dumps(binding, indent=2) + "\n", encoding="utf-8")
+
+          test = f'''from __future__ import annotations\n\nimport json\nimport re\nimport unittest\nfrom pathlib import Path\n\nROOT=Path(__file__).resolve().parents[1]\nSHA={sha!r}\n\nclass VerticalServicesSourceBindingTest(unittest.TestCase):\n    def test_publisher_and_existing_contract_pin_exact_main(self):\n        publisher=(ROOT/"scripts"/"hf_publish_vertical_services.py").read_text(encoding="utf-8")\n        existing=(ROOT/"tests"/"test_hf_publish_vertical_flagships_v4.py").read_text(encoding="utf-8")\n        self.assertIn(f'SOURCE_REVISION = "{{SHA}}"',publisher)\n        self.assertIn(f'SOURCE_REVISION = \\"{{SHA}}\\"',existing)\n        self.assertEqual(len(re.findall(r'SOURCE_REVISION = "[0-9a-f]{{40}}"',publisher)),1)\n    def test_architecture_manifests_share_the_same_revision(self):\n        vision=json.loads((ROOT/"docs"/"strategy"/"living-command-fabric.v1.json").read_text())\n        convergence=json.loads((ROOT/"docs"/"strategy"/"killinchu-defense-convergence.v1.json").read_text())\n        binding=json.loads((ROOT/"docs"/"strategy"/"vertical-services-source-binding.v1.json").read_text())\n        self.assertEqual(vision["authorities"]["vertical_services"]["revision"],SHA)\n        self.assertEqual(convergence["runtime_source"]["revision"],SHA)\n        self.assertEqual(binding["revision"],SHA)\n        self.assertEqual(binding["canonical_product"],"killinchu")\n        self.assertEqual(binding["lobes"],["aegis","vessels"])\n\nif __name__=="__main__": unittest.main()\n'''
+          Path("tests/test_vertical_services_killinchu_source_binding.py").write_text(test, encoding="utf-8")
+          PY
+
+      - name: Verify source, formula, public and publisher contracts
+        run: |
+          set -euo pipefail
+          python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
+          python -m json.tool docs/strategy/killinchu-defense-convergence.v1.json >/dev/null
+          python -m json.tool docs/strategy/vertical-services-source-binding.v1.json >/dev/null
+          python -m unittest \
+            tests.test_living_command_fabric_frontdoor \
+            tests.test_killinchu_defense_convergence \
+            tests.test_vertical_services_killinchu_source_binding \
+            -v
+          python -m pytest -q tests/test_hf_publish_vertical_flagships_v4.py
+          python -m py_compile \
+            scripts/hf_publish_vertical_services.py \
+            tests/test_vertical_services_killinchu_source_binding.py
+          git diff --check
+
+      - name: Remove one-shot controller and push exact candidate
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/converge-vertical-services-source-v1.yml
+          git add -A
+          git commit -m "fix(hf): bind Killinchu convergence to exact vertical-services main" \
+            -m "Resolve and verify the protected vertical-services convergence contract, pin its immutable SHA in the canonical publisher and tests, and bind the A11oy architecture manifests to the same source." \
+            -m "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${BRANCH}"
+          echo "CANDIDATE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Find or create source-binding PR
+        id: pr
+        run: |
+          set -euo pipefail
+          pr="$(gh pr list --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --base main --state open --json number --jq '.[0].number // empty')"
+          if [[ -z "$pr" ]]; then
+            url="$(gh pr create --repo "$GITHUB_REPOSITORY" --head "$BRANCH" --base main \
+              --title "fix(hf): bind Killinchu convergence to exact vertical-services main" \
+              --body "Resolve the protected upstream SHA, verify its Killinchu/Aegis/Vessels contract, bind the canonical HF publisher and tests to that exact revision, and preserve the A11oy single-writer deployment authority.")"
+            pr="${url##*/}"
+          fi
+          echo "number=$pr" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for normal candidate checks
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, subprocess, time
+          repo=os.environ["GITHUB_REPOSITORY"]
+          sha=os.environ["CANDIDATE_SHA"]
+          pr=os.environ["PR_NUMBER"]
+          bad={"failure","cancelled","timed_out","action_required","startup_failure"}
+          good={"success","neutral","skipped"}
+          stable=0; previous=None
+          def api(path):
+              return json.loads(subprocess.check_output(["gh","api",path,"-H","Accept: application/vnd.github+json"],text=True))
+          for _ in range(180):
+              meta=api(f"repos/{repo}/pulls/{pr}")
+              if meta.get("head",{}).get("sha") != sha:
+                  raise SystemExit("source-binding PR head changed")
+              runs=api(f"repos/{repo}/commits/{sha}/check-runs?per_page=100").get("check_runs",[])
+              failures=[r for r in runs if r.get("conclusion") in bad]
+              if failures:
+                  raise SystemExit("checks failed: "+", ".join(f"{r.get('name')}={r.get('conclusion')}" for r in failures))
+              pending=[r for r in runs if r.get("status") != "completed"]
+              signature=tuple(sorted((r.get("name"),r.get("status"),r.get("conclusion")) for r in runs))
+              if runs and not pending and all(r.get("conclusion") in good for r in runs):
+                  stable=stable+1 if signature==previous else 1
+                  if stable>=2: break
+              else: stable=0
+              previous=signature
+              time.sleep(10)
+          else:
+              raise SystemExit("source-binding checks did not reach stable terminal state")
+          PY
+
+      - name: Squash merge through normal policy
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --squash \
+            --subject "fix(hf): bind Killinchu convergence to exact vertical-services main (#${PR_NUMBER})" \
+            --body "Pin and verify the immutable upstream convergence revision, then release it only through the protected A11oy single writer."
+          main_sha="$(gh api "repos/$GITHUB_REPOSITORY/branches/main" --jq .commit.sha)"
+          echo "MERGED_MAIN_SHA=$main_sha" >> "$GITHUB_ENV"
+
+      - name: Observe canonical single-writer publication
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          python - <<'PY'
+          import json, os, subprocess, time
+          repo=os.environ["GITHUB_REPOSITORY"]
+          sha=os.environ["MERGED_MAIN_SHA"]
+          result={"schema":"szl.killinchu-publication-observation/v1","source_revision":sha,"workflow":None}
+          def api(path):
+              return json.loads(subprocess.check_output(["gh","api",path,"-H","Accept: application/vnd.github+json"],text=True))
+          selected=None
+          for _ in range(240):
+              runs=api(f"repos/{repo}/actions/workflows/hf-sync.yml/runs?branch=main&per_page=30").get("workflow_runs",[])
+              selected=next((r for r in runs if r.get("head_sha")==sha and r.get("event")=="push"),None)
+              if selected and selected.get("status")=="completed":
+                  break
+              time.sleep(10)
+          if selected:
+              result["workflow"]={key:selected.get(key) for key in ("id","status","conclusion","html_url","head_sha")}
+          else:
+              result["workflow"]={"status":"UNAVAILABLE","conclusion":None}
+          with open("reports/killinchu-publication-observation.json","w",encoding="utf-8") as handle:
+              json.dump(result,handle,indent=2)
+          if not selected or selected.get("conclusion")!="success":
+              raise SystemExit("canonical hf-sync publication did not complete successfully")
+          PY
+
+      - name: Verify public product and combined runtime
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, time, urllib.request
+          from pathlib import Path
+
+          main_sha=os.environ["MERGED_MAIN_SHA"]
+          upstream_sha=os.environ["UPSTREAM_SHA"]
+          targets={
+              "product":"https://a-11-oy.com/",
+              "product_build":"https://a-11-oy.com/api/build-info",
+              "combined_build":"https://szlholdings-vertical-services.hf.space/api/build-info",
+              "combined_architecture":"https://szlholdings-vertical-services.hf.space/killinchu/architecture",
+              "killinchu":"https://szlholdings-killinchu.hf.space/healthz",
+              "aegis_compat":"https://szlholdings-sentra.hf.space/api/build-info",
+              "vessels_compat":"https://szlholdings-vessels.hf.space/api/build-info",
+          }
+          def read(url):
+              req=urllib.request.Request(url,headers={"User-Agent":"SZL-Public-Convergence-Verifier/1.0"})
+              with urllib.request.urlopen(req,timeout=20) as response:
+                  return response.status,response.headers.get("content-type",""),response.read()
+          final={"schema":"szl.killinchu-public-verification/v1","a11oy_source_revision":main_sha,"vertical_services_source_revision":upstream_sha,"targets":{}}
+          deadline=time.time()+1200
+          complete=False
+          while time.time()<deadline:
+              observed={}
+              try:
+                  status,ctype,body=read(targets["product"])
+                  text=body.decode("utf-8","replace")
+                  observed["product"]={"http_status":status,"living_fabric":"data-szl-living-command-fabric-v1" in text,"killinchu_body":'id="body-killinchu"' in text,"sentra_body":'id="body-sentra"' in text}
+              except Exception as exc:
+                  observed["product"]={"error":type(exc).__name__}
+              for key in ("product_build","combined_build","combined_architecture","killinchu","aegis_compat","vessels_compat"):
+                  try:
+                      status,ctype,body=read(targets[key])
+                      payload=json.loads(body.decode("utf-8")) if "json" in ctype else {"text":body.decode("utf-8","replace")[:600]}
+                      observed[key]={"http_status":status,"payload":payload}
+                  except Exception as exc:
+                      observed[key]={"error":type(exc).__name__}
+              product_ok=observed.get("product",{}).get("http_status")==200 and observed["product"].get("living_fabric") and observed["product"].get("killinchu_body") and not observed["product"].get("sentra_body")
+              combined=observed.get("combined_build",{}).get("payload",{})
+              combined_arch=observed.get("combined_architecture",{}).get("payload",{})
+              combined_ok=(observed.get("combined_build",{}).get("http_status")==200 and combined.get("source_revision")==upstream_sha and observed.get("combined_architecture",{}).get("http_status")==200 and combined_arch.get("canonical_product")=="killinchu" and set(combined_arch.get("lobes",{}))=={"aegis","vessels"})
+              if product_ok and combined_ok:
+                  final["targets"]=observed
+                  final["verdict"]="PASS"
+                  complete=True
+                  break
+              final["targets"]=observed
+              time.sleep(15)
+          if not complete:
+              final["verdict"]="FAIL_CLOSED"
+          Path("reports/killinchu-public-verification.json").write_text(json.dumps(final,indent=2)+"\n",encoding="utf-8")
+          if not complete:
+              raise SystemExit("public source/runtime convergence did not verify")
+          PY
+
+      - name: Upload publication and live-verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: killinchu-convergence-publication-${{ github.run_id }}
+          path: reports/*.json
+          if-no-files-found: warn
+          retention-days: 180
