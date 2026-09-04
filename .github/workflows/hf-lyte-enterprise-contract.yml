@@ -1,0 +1,52 @@
+name: HF Lyte Enterprise source-owned contract
+
+"on":
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_lyte_enterprise.py
+      - tests/test_hf_publish_lyte_enterprise.py
+      - .github/workflows/hf-lyte-enterprise-contract.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hf-lyte-enterprise-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Exact source, Docker closure, live proof, and non-authority
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Install exact test runner
+        run: python -m pip install --disable-pip-version-check --no-cache-dir pytest==8.4.2
+
+      - name: Compile source-owned publisher chain
+        run: >-
+          python -m py_compile
+          scripts/hf_publish_vertical_flagships_v4.py
+          scripts/hf_publish_lyte_enterprise.py
+
+      - name: Prove Lyte publication contract
+        run: python -m pytest tests/test_hf_publish_lyte_enterprise.py -q
