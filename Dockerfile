@@ -18,52 +18,35 @@
 # HF Space requirement: listen on PORT 7860.
 
 # ---------------------------------------------------------------------------
-# IMAGE-LEANNESS: multi-stage build. The CPU demo tier needs llama-cpp-python
-# compiled FROM SOURCE against glibc (see the long WHY note above the runtime
-# install far below). That compile pulls in a heavy build toolchain
-# (build-essential/cmake/ninja/git — hundreds of MB of apt .deb churn) plus
-# compile intermediates. Doing it in a THROWAWAY builder stage and copying only
-# the resulting prebuilt wheel keeps all of that OUT of the published runtime
-# image, shrinking the final image + its layer count (faster GHCR pulls) without
-# changing what the demo tier serves.
-#
-# CONDITIONAL COMPILE: a constrained builder (HF Spaces cpu-basic) sets
-# A11OY_REQUIRE_LOCAL_LLM=0 and must NOT pay the heavy compile (it OOM/timed-out
-# -> BUILD_ERROR). Select the builder by ARG: =1 -> llama-build-1 (real source
-# compile), else -> llama-build-0 (empty, no compile). BuildKit only builds the
-# stage actually referenced by the `llama-build` alias, so on the constrained
-# path the compile is skipped entirely. The strict GHCR build sets =1.
-ARG A11OY_REQUIRE_LOCAL_LLM=0
-
-# Real compile path (=1): build the pinned llama-cpp-python from source into a
-# prebuilt glibc wheel, then assert the bundled libllama.so links glibc
-# (NEEDs libc.so.6), not musl. set -eux => a bad compile fails the build LOUD.
+# OWNED KHIPU CPU RUNTIME: use the official universal manylinux wheel.
+# No source-build toolchain or compile intermediates enter either
+# the builder or the published runtime. The exact release asset is
+# pinned by SHA-256 and verified for size plus glibc linkage.
+ARG A11OY_REQUIRE_LOCAL_LLM=1
 FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS llama-build-1
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends build-essential cmake ninja-build git; \
-    CMAKE_ARGS="-DGGML_NATIVE=OFF" pip wheel --no-cache-dir --no-binary llama-cpp-python \
-        --wheel-dir=/wheels "llama-cpp-python==0.3.35"
-RUN python3 <<'GLIBCCHK'
-import glob, sys, zipfile
-whls = glob.glob("/wheels/llama_cpp_python-*.whl")
-assert whls, "no llama_cpp_python wheel produced by the source build"
-w = whls[0]
-z = zipfile.ZipFile(w)
-sos = [n for n in z.namelist() if n.endswith("libllama.so")]
-assert sos, "libllama.so not present inside the built wheel " + w
-data = z.read(sos[0])
-assert b"libc.so.6" in data and b"libc.musl-x86_64.so.1" not in data, \
-    "built libllama.so is not glibc-linked (would not load on python:3.12-slim): " + sos[0]
-print("[a11oy] built glibc wheel OK:", w, "->", sos[0])
-GLIBCCHK
+ARG LLAMA_CPP_WHEEL=llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+ADD --checksum=sha256:d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596 \
+    https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl \
+    /wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+RUN python3 <<'WHEELCHK'
+import hashlib, os, zipfile
+path = "/wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+assert os.path.getsize(path) == 23912624, os.path.getsize(path)
+digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
+assert digest == "d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596", digest
+with zipfile.ZipFile(path) as archive:
+    shared = [name for name in archive.namelist() if name.endswith("libllama.so")]
+    assert shared, "official wheel is missing libllama.so"
+    data = archive.read(shared[0])
+assert b"libc.so.6" in data
+assert b"libc.musl-x86_64.so.1" not in data
+print("[a11oy] verified official llama-cpp-python CPU wheel", path)
+WHEELCHK
 
-# Skip path (!=1): no compile; just an empty wheel dir so the runtime
-# COPY --from has a valid (empty) source on the constrained build.
+# Explicit opt-out remains available for diagnostic image builds.
 FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS llama-build-0
 RUN mkdir -p /wheels
 
-# Pick the builder the runtime stage actually copies from.
 FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build
 
 # ---------------------------------------------------------------------------
@@ -115,6 +98,12 @@ RUN pip install --no-cache-dir \
     "slowapi==0.1.10" \
     "defusedxml==0.7.1" \
     "numpy==2.5.2"
+
+# Canonical non-generative Nemo witness: exact immutable source revision,
+# zero action authority, and import-time doctrine identity verification.
+RUN pip install --no-cache-dir \
+    "https://github.com/szl-holdings/szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz" && \
+    python3 -c "import szl_nemo; assert szl_nemo.__version__ == '0.4.0'; assert tuple(szl_nemo.LOCKED_PROVEN_FORMULA_IDS) == ('F1','F4','F7','F11','F12','F18','F19','F22'); assert szl_nemo.ENVELOPE_RULE_VERSION == 'doctrine-v11/E1-E10'"
 
 # sqlite-vss removed from build: no pre-built wheel for python:3.12-slim;
 # szl_khipu_lmdb.py and szl_unay.py already have honest try/except fallback
@@ -293,6 +282,7 @@ COPY szl_quant_claims.py szl_formula_registry.py ./
 COPY formula_registry/formula-registry.v1.json ./formula_registry/formula-registry.v1.json
 COPY content_credentials.py ./
 COPY schemas/quant-claims/ ./schemas/quant-claims/
+COPY a11oy_governed_cortex.py ./a11oy_governed_cortex.py
 COPY knowledge.json szl_parity_gaps.py compliance_crosswalk.py szl_compliance_mesh.py a11oy_warhacker_obs.py serve.py szl_governed_api.py szl_demo_tier1.py szl_assurance.py govern_showcase.html a11oy_wireA_metrics.py cathedral.html a11oy_operator_organ.py a11oy_hf_assets.py szl_b2_secdata.py gates_manifest.json a11oy_code_orchestrator.py a11oy_agent_loop.py a11oy_org_rag.py a11oy_mcp_client.py szl_rag.py a11oy_code_ide.html wayra_serve.py wayra_snapshot.json wayra_digests_7d.json szl_khipu_os_routes.py szl_spaces_proxy.py szl_spaces_surface.py szl_khipu_consensus.py szl_puriq_formulas.py ayni_os_serve.py szl_live_wires.py live_wires.html live_wires_3d.js szl_intoto.py szl_intoto_routes.py szl_scitt.py szl_dsse.py szl_content_address.py szl_provenance.py szl_be_hardening.py szl_unay.py szl_khipu_lmdb.py szl_khipu_replicate.py szl_unay_routes.py szl_warhacker_aliases.py a11oy_v4_hickok.py szl_khipu.py szl_formulas.py a11oy_v4_formulas.py szl_anatomy_3d.py szl_anatomy_routes.py _vendor_blobs.py szl_v4_fleet.py operator_shell_v4.py szl_bridge.py szl_bridge_schemas.py agent.html a11oy_bridge_cli.py szl_ken.py a11oy_formula_endpoints.py a11oy_formula_registry_guard.py a11oy_formulas_page.py a11oy_frontier_patch.py a11oy_v4_agent.py szl_brain.py szl_wire.py szl_hub.py szl_rosie_companion.py szl_receipt_substrate.py szl_alloy_embed_fabric.py szl_ayni_quorum.py szl_agentic_loop.py szl_ltc_dynamics.py szl_sgh_scheduler.py szl_formula_wiring.py szl_formula_surfaces.py a11oy_code_engine.py a11oy_code_runloop.py a11oy_code.py a11oy_seismic.py szl_warhacker_real.py szl_warhacker_demos.py NOTICE_warhacker_demos.txt szl_llm_registry.py szl_elite_console.py szl_alloy_models.py szl_scaling.py szl_allodial.py szl_entanglement.py szl_neuroplasticity.py szl_neuromorphic.py szl_kan.py szl_titans.py szl_mor.py szl_ternary.py szl_agentmem.py szl_edgefusion.py szl_hybridssm.py szl_aigov.py szl_chain_of_title.py szl_sovereign_compute.py szl_a11oy_interpretability.py a11oy_active_flux_router.py szl_energy_budget.py szl_energy_sovereign.py szl_energy_provenance.py szl_heart_blood.py szl_engine_status.py szl_backend_hardening.py revenue_endpoints.py a11oy_harvest_endpoints.py szl_energy_measured.py joule_billing.py szl_durable_ledger.py szl_energy_ledger.py szl_energy_operator.py szl_energy_projection.py szl_cheapest_watt.py szl_energy_live.py szl_orbital_topology.py szl_orbital_projection.py a11oy_orbital_page.py a11oy_frontier_page.py szl_frontier_manifest.py szl_frontier_zkinfer.py szl_frontier_fmverif.py szl_frontier_supplychain.py a11oy_code_as_action.py a11oy_governed_kernel.py szl_lambda_tripwire.py szl_provenance_receipt.py szl_khipu_verify.py szl_public_verify.py szl_attest_stack.py szl_demo_sign.py szl_sda.py szl_fabric_surface.py szl_nemo_agents.py szl_kverify.py szl_specdec.py szl_immune.py szl_quant_qbio_holo.py szl_materials.py szl_materials_predict.py a11oy_factory.py a11oy_constitution.py a11oy_nav_wireup.py szl_mbse_cosim.py szl_mbse_nav.py szl_mbse.py szl_factory.py szl_willay_gateway.py a11oy_willay_nav.py szl_waqay.py a11oy_waqay_nav.py szl_yupay.py a11oy_yupay_nav.py a11oy_uds_portability_nav.py szl_pinn_bounds.py szl_pinn_residual.py physical_bounds_certificate.json agentic_decision_trail.json physical_bounds_certificate.dsse.json szl_pinn_inverse.py szl_governed_ipinn.py szl_calphad_inverse.py szl_pnt_mesh.py quantum_sensing_limits.py pnt_resilience.py nav_coasting.py fundamental_limits.py szl_counter_uas_proxy.py szl_gpu_quant.py szl_joules_truth.py revenue_model.py szl_prod_hardening.py szl_resilience.py szl_observability.py szl_corpus_publish.py szl_lake_store.py szl_lake_ingest.py szl_e8.py szl_trajectory_sign.py szl_nemotron_ingest.py szl_nemotron_corpus.py szl_nemo_verify.py a11oy_nemo_core.py szl_restraint.py szl_sapa.py szl_sapa_patch.py szl_restraint_energy.py a11oy_react_core.py szl_org_lambda.py a11oy_canonical_domain.py a11oy_formula_tiers.py szl_physical_bounds.py szl_kc_loop_forge.py szl_kc_loop_forge_metrics.py szl_kc_atlas.py szl_eval_arena.py szl_vqc.py szl_kc_jpt.py ./
 
 # Wave M / Dev 4: Sovereign Local Model panel — imported GUARDED by serve.py
@@ -373,7 +363,7 @@ COPY src/a11oy/harvest/__init__.py src/a11oy/harvest/wasted_energy_harvest.py sr
 
 # LIVE CPU demo tier: install llama.cpp + fetch ONE tiny Apache-2.0 GGUF
 # … (full rationale: docs/DOCKERFILE_NOTES.md §50)
-ARG A11OY_REQUIRE_LOCAL_LLM=0
+ARG A11OY_REQUIRE_LOCAL_LLM=1
 # The wheel is BIND-MOUNTED from the builder stage (not COPY'd) so it is
 # … (full rationale: docs/DOCKERFILE_NOTES.md §51)
 RUN --mount=type=bind,from=llama-build,source=/wheels,target=/wheels \
@@ -390,12 +380,12 @@ RUN --mount=type=bind,from=llama-build,source=/wheels,target=/wheels \
     fi
 # GGUF weight — RELIABLY PRESENT (pinned revision + retry + integrity verify), NOT best-effort.
 # … (full rationale: docs/DOCKERFILE_NOTES.md §52)
-ARG A11OY_ALLOY_GGUF_REPO=Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF
-ARG A11OY_ALLOY_GGUF_FILE=qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
-ARG A11OY_ALLOY_GGUF_REV=ebb2015119c907b064c512bf053e945850b5875f
-ARG A11OY_ALLOY_GGUF_SHA256=1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32
-ARG A11OY_ALLOY_GGUF_SIZE=491400064
-ARG A11OY_REQUIRE_LOCAL_LLM=0
+ARG A11OY_ALLOY_GGUF_REPO=SZLHOLDINGS/SZL-Khipu-1.5B-GGUF
+ARG A11OY_ALLOY_GGUF_FILE=SZL-Khipu-1.5B-Q4_K_M.gguf
+ARG A11OY_ALLOY_GGUF_REV=67d60ec577730747055491640cfb91fc4a4b5d25
+ARG A11OY_ALLOY_GGUF_SHA256=13c1a1993063e1dff92f7413ccf48eaca6d48efc8801ae9af35961ae3396623a
+ARG A11OY_ALLOY_GGUF_SIZE=986047904
+ARG A11OY_REQUIRE_LOCAL_LLM=1
 ENV A11OY_REQUIRE_LOCAL_LLM=${A11OY_REQUIRE_LOCAL_LLM}
 RUN python3 <<'GGUFPY'
 import hashlib, os, sys, time
@@ -459,7 +449,8 @@ sys.exit(0)
 GGUFPY
 # Drop transient download metadata; the real weight stays at /app/models/<file>.
 RUN rm -rf /app/models/.cache /root/.cache/huggingface 2>/dev/null || true
-ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf
+ENV A11OY_ALLOY_GGUF=/app/models/SZL-Khipu-1.5B-Q4_K_M.gguf \
+    A11OY_KHIPU_GGUF=/app/models/SZL-Khipu-1.5B-Q4_K_M.gguf
 
 # ── BUILD-TIME EXTERNAL-DOWNLOAD AUDIT ───────────────────────────────────────
 # … (full rationale: docs/DOCKERFILE_NOTES.md §54)
