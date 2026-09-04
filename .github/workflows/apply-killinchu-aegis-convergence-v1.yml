@@ -1,0 +1,82 @@
+name: Apply Killinchu defense convergence v1
+
+on:
+  push:
+    branches:
+      - feat/killinchu-aegis-convergence-v1
+    paths:
+      - .github/workflows/apply-killinchu-aegis-convergence-v1.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-killinchu-defense-convergence-v1
+  cancel-in-progress: false
+
+jobs:
+  transform:
+    name: Apply convergence and prove contracts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact convergence branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/killinchu-aegis-convergence-v1
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Apply fail-closed convergence
+        run: python tools/apply_killinchu_aegis_convergence_v1.py
+
+      - name: Prove public and source contracts
+        run: |
+          set -euo pipefail
+          python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
+          python -m json.tool docs/strategy/killinchu-defense-convergence.v1.json >/dev/null
+          python -m json.tool docs/holographic-experience-v2/theme-registry.json >/dev/null
+          python -m unittest \
+            tests.test_living_command_fabric_frontdoor \
+            tests.test_killinchu_defense_convergence \
+            -v
+          python -m pytest -q tests/test_hf_publish_vertical_flagships_v4.py
+          python -m py_compile \
+            tools/apply_killinchu_aegis_convergence_v1.py \
+            tests/test_living_command_fabric_frontdoor.py \
+            tests/test_killinchu_defense_convergence.py \
+            scripts/hf_publish_vertical_flagships_v4_impl.py
+          node --check console/assets/szl-holo-v2.js
+          git diff --check
+
+      - name: Commit only durable implementation
+        env:
+          BRANCH: feat/killinchu-aegis-convergence-v1
+        run: |
+          set -euo pipefail
+          git rm tools/apply_killinchu_aegis_convergence_v1.py
+          git rm .github/workflows/apply-killinchu-aegis-convergence-v1.yml
+          git add \
+            a11oy_landing.html \
+            console/assets/szl-holo-v2.js \
+            docs/holographic-experience-v2/theme-registry.json \
+            docs/strategy/living-command-fabric.v1.json \
+            docs/strategy/killinchu-defense-convergence.v1.json \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            tests/test_living_command_fabric_frontdoor.py \
+            tests/test_killinchu_defense_convergence.py
+          git config user.name "SZL Frontier Operator"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -m "feat(killinchu): consolidate Aegis and Vessels as defense lobes" \
+            -m "Make Killinchu the sole defense product authority, preserve Sentra and Vessels as source-bound compatibility lobes, canonicalize holographic identity, retain the exact locked-eight formula contract, and prohibit autonomous destructive action." \
+            -m "Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${BRANCH}"
