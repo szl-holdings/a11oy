@@ -1,0 +1,134 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Repair owned Khipu cortex wiring v2
+
+on:
+  push:
+    branches:
+      - feat/hf-owned-khipu-cortex-v1
+    paths:
+      - .github/workflows/repair-owned-khipu-cortex-v2.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-owned-khipu-cortex-v2
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/hf-owned-khipu-cortex-v1
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Apply deterministic Docker and route wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          docker = Path("Dockerfile")
+          docker_text = docker.read_text(encoding="utf-8")
+          anchor = "COPY console/ ./static/"
+          additions = [
+              "COPY a11oy_owned_cortex.py ./",
+              "COPY szl_nemo/ ./szl_nemo/",
+          ]
+          missing = [line for line in additions if line not in docker_text]
+          if missing:
+              if docker_text.count(anchor) != 1:
+                  raise SystemExit("Dockerfile static-copy anchor is missing or ambiguous")
+              docker_text = docker_text.replace(
+                  anchor,
+                  anchor + "\n" + "\n".join(missing),
+                  1,
+              )
+              docker.write_text(docker_text, encoding="utf-8")
+
+          serve = Path("serve.py")
+          serve_text = serve.read_text(encoding="utf-8")
+          marker = "# -- BRAIN CAPABILITIES LEDGER --"
+          registration = '''# -- OWNED KHIPU CORTEX -- governed in-process inference over the exact
+# SZL-owned Khipu GGUF. Public projection only; no tools or action authority.
+try:
+    import a11oy_owned_cortex as _a11oy_owned_cortex
+    print(
+        "[a11oy] " + _a11oy_owned_cortex.register(app, ns="a11oy"),
+        file=__import__("sys").stderr,
+    )
+except Exception as _owned_cortex_e:  # pragma: no cover
+    print(
+        f"[a11oy] Owned Khipu cortex NOT registered: {_owned_cortex_e!r}; app unaffected",
+        file=__import__("sys").stderr,
+    )
+
+'''
+          if "_a11oy_owned_cortex.register(app" not in serve_text:
+              if serve_text.count(marker) != 1:
+                  raise SystemExit("serve.py Brain-capabilities marker is missing or ambiguous")
+              serve_text = serve_text.replace(marker, registration + marker, 1)
+              serve.write_text(serve_text, encoding="utf-8")
+
+          for required in (
+              "a11oy_owned_cortex.py",
+              "szl_nemo/__init__.py",
+              "szl_nemo/engine.py",
+              "szl_nemo/envelope.py",
+              "szl_nemo/rules.py",
+              "szl_nemo/schema.py",
+              "tests/test_hf_owned_cortex.py",
+              "scripts/prove_hf_owned_cortex_live.py",
+          ):
+              if not Path(required).is_file():
+                  raise SystemExit(f"required owned-cortex source missing: {required}")
+          PY
+
+      - name: Prove import, policy, route, and Docker contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            a11oy_owned_cortex.py \
+            scripts/prove_hf_owned_cortex_live.py \
+            szl_nemo/__init__.py \
+            szl_nemo/engine.py \
+            szl_nemo/envelope.py \
+            szl_nemo/rules.py \
+            szl_nemo/schema.py
+          python -m unittest discover -s tests -p 'test_hf_owned_cortex.py' -v
+          grep -F 'COPY a11oy_owned_cortex.py ./' Dockerfile
+          grep -F 'COPY szl_nemo/ ./szl_nemo/' Dockerfile
+          grep -F '_a11oy_owned_cortex.register(app' serve.py
+          grep -F 'NO_ACTION_AUTHORITY' a11oy_owned_cortex.py
+          grep -F 'CONJECTURE_1_ADVISORY' a11oy_owned_cortex.py
+          grep -F 'served_by_this_runtime' a11oy_owned_cortex.py
+          git diff --check
+
+      - name: Commit exact repair and retire both one-shot writers
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/apply-owned-khipu-cortex-wiring.yml \
+            .github/workflows/repair-owned-khipu-cortex-v2.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            Dockerfile \
+            serve.py \
+            .github/workflows/apply-owned-khipu-cortex-wiring.yml \
+            .github/workflows/repair-owned-khipu-cortex-v2.yml
+          if git diff --cached --quiet; then
+            echo "Owned-cortex wiring is already converged."
+            exit 0
+          fi
+          git commit -s -m "fix(inference): complete owned Khipu cortex wiring"
+          git push origin HEAD:feat/hf-owned-khipu-cortex-v1
