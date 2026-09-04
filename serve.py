@@ -5832,6 +5832,32 @@ async def evidence() -> JSONResponse:
     })
 
 
+@app.get("/api/a11oy/v1/ouroboros")
+@app.get("/api/a11oy/v1/ouroboros/status")
+async def ouroboros_status() -> JSONResponse:
+    """Read-only loop/runner presence. GET never executes the 32-module suite."""
+    from pathlib import Path as _P
+    here = _P(__file__).resolve().parent
+    candidates = [
+        "/app/OUROBOROS_RUN_ALL.py",
+        "/app/ouroboros/OUROBOROS_RUN_ALL.py",
+        str(here / "OUROBOROS_RUN_ALL.py"),
+        str(here / "ouroboros" / "OUROBOROS_RUN_ALL.py"),
+    ]
+    found = next((c for c in candidates if _P(c).is_file()), None)
+    return JSONResponse({
+        "schema": "szl.ouroboros.status.v1",
+        "truth": "REPORTED",
+        "runner_present": bool(found),
+        "runner_path": found,
+        "run": "POST /api/a11oy/v1/ouroboros/run-all",
+        "cycle": "POST /api/a11oy/v1/agent/cycle {\"loop\": true, \"budget\": 2}",
+        "bound": 4,
+        "note": "Loop is bounded. Convergence is advisory. Lambda remains Conjecture 1.",
+        "doctrine": "v11",
+    })
+
+
 @app.post("/api/a11oy/v1/ouroboros/run-all")
 async def ouroboros_run_all() -> JSONResponse:
     """
@@ -5890,9 +5916,12 @@ async def ouroboros_run_all() -> JSONResponse:
 
     # Attempt to locate and execute OUROBOROS_RUN_ALL.py from known paths
     import subprocess, tempfile, os as _os
+    _here = __import__('pathlib').Path(__file__).resolve().parent
     _OUROBOROS_CANDIDATES = [
         "/app/OUROBOROS_RUN_ALL.py",
         "/app/ouroboros/OUROBOROS_RUN_ALL.py",
+        str(_here / "OUROBOROS_RUN_ALL.py"),
+        str(_here / "ouroboros" / "OUROBOROS_RUN_ALL.py"),
     ]
     ouroboros_path = None
     for _c in _OUROBOROS_CANDIDATES:

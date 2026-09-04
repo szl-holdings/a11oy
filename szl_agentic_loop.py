@@ -1848,22 +1848,34 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse(_verify_chain(run))
 
     async def _agent_cycle(request: Request):
-        # OUROBOROS closed loop (ADDITIVE, default-OFF). Gated at request time on
-        # env A11OY_OUROBOROS=1 so the surface exists but is inert by default;
-        # /agent/run is entirely untouched. Honest disabled note when off.
+        # Bounded loop. Env A11OY_OUROBOROS=1 OR body.loop=true with budget<=4.
+        # /agent/run stays single-pass. Convergence remains advisory.
         import os
-        if os.environ.get("A11OY_OUROBOROS") != "1":
-            return JSONResponse({
-                "cycle": False,
-                "enabled": False,
-                "note": ("Ouroboros closed loop is OFF. Set A11OY_OUROBOROS=1 to enable. "
-                         "The single-pass /agent/run path is unaffected."),
-                "doctrine": "v11",
-            }, status_code=200)
         try:
             b = await request.json()
         except Exception:
             b = {}
+        if not isinstance(b, dict):
+            b = {}
+        env_on = os.environ.get("A11OY_OUROBOROS") == "1"
+        loop_on = bool(b.get("loop")) or env_on
+        if request.method == "GET":
+            return JSONResponse({
+                "cycle": False,
+                "enabled": env_on,
+                "opt_in": "POST {\"loop\": true, \"budget\": 2}",
+                "bound": 4,
+                "note": "Loop is bounded and advisory. Lambda remains Conjecture 1.",
+                "doctrine": "v11",
+            })
+        if not loop_on:
+            return JSONResponse({
+                "cycle": False,
+                "enabled": False,
+                "note": ("Ouroboros closed loop is OFF. POST {\"loop\": true, \"budget\": 2} "
+                         "or set A11OY_OUROBOROS=1. /agent/run stays single-pass."),
+                "doctrine": "v11",
+            }, status_code=200)
         query = b.get("query") or b.get("goal") or "deploy a low-risk reversible change"
         action = b.get("action") or query
         severity = b.get("severity", "low")
@@ -1872,9 +1884,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
         approval_grant = b.get("approval_grant") or b.get("approval")
         try:
-            budget = int(b.get("budget", 4))
+            budget = int(b.get("budget", 2))
         except Exception:
-            budget = 4
+            budget = 2
+        budget = max(1, min(budget, 4))
         try:
             eps = float(b.get("eps", 0.01))
         except Exception:
@@ -1906,7 +1919,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         Route("/api/%s/v1/agent/governance-standards" % ns, _agent_governance_standards,
               methods=["GET"], name="%s_agent_gov_standards" % ns),
         Route("/api/%s/v1/agent/verify-chain" % ns, _agent_verify, methods=["POST"], name="%s_agent_verify" % ns),
-        Route("/api/%s/v1/agent/cycle" % ns, _agent_cycle, methods=["POST"], name="%s_agent_cycle" % ns),
+        Route("/api/%s/v1/agent/cycle" % ns, _agent_cycle, methods=["GET", "POST"], name="%s_agent_cycle" % ns),
         Route("/ask-and-act", _ask_and_act_ui, methods=["GET"], name="%s_ask_and_act" % ns),
         Route("/governed-run", _ask_and_act_ui, methods=["GET"], name="%s_governed_run" % ns),
     ]
