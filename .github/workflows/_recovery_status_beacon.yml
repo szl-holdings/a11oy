@@ -1,0 +1,158 @@
+name: Current recovery status beacon
+
+on:
+  push:
+    branches:
+      - ops/codex-perplexity-recovery-20260904-v1
+    paths:
+      - .github/workflows/_recovery_status_beacon.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  issues: read
+  pull-requests: read
+  statuses: read
+
+concurrency:
+  group: current-recovery-status-beacon
+  cancel-in-progress: true
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      GH_ADMIN_TOKEN: ${{ secrets.SZL_GITHUB_TOKEN || secrets.GH_ADMIN_TOKEN || secrets.GITHUB_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.GH_PAT || github.token }}
+      HF_ADMIN_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_ORG_TOKEN1 || secrets.HF_TOKEN || secrets.HF_WRITE_TOKEN || secrets.HUGGINGFACEHUB_API_TOKEN || secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/codex-perplexity-recovery-20260904-v1
+          fetch-depth: 0
+          persist-credentials: true
+      - name: Capture current status
+        env:
+          GH_TOKEN: ${{ env.GH_ADMIN_TOKEN }}
+          HF_TOKEN: ${{ env.HF_ADMIN_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/recovery-status
+          python - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import subprocess
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          def gh(path):
+              r = subprocess.run(['gh','api',path],text=True,capture_output=True)
+              if r.returncode: return {'_error': (r.stderr or r.stdout)[-500:]}
+              try: return json.loads(r.stdout)
+              except: return {'_raw': r.stdout[-500:]}
+
+          runs = gh('repos/szl-holdings/a11oy/actions/runs?branch=ops%2Fcodex-perplexity-recovery-20260904-v1&per_page=100')
+          workflows = []
+          for row in runs.get('workflow_runs', []) if isinstance(runs,dict) else []:
+              workflows.append({k: row.get(k) for k in ('id','name','status','conclusion','head_sha','run_attempt','created_at','updated_at','html_url')})
+
+          repos = gh('orgs/szl-holdings/repos?type=all&per_page=100')
+          open_prs=[]
+          if isinstance(repos,list):
+              for repo in repos:
+                  if repo.get('archived') or repo.get('disabled'): continue
+                  data=gh(f"repos/{repo['full_name']}/pulls?state=open&per_page=100")
+                  if isinstance(data,list):
+                      for pr in data:
+                          open_prs.append({
+                              'repo':repo['full_name'],'number':pr.get('number'),'title':pr.get('title'),
+                              'draft':pr.get('draft'),'head':(pr.get('head') or {}).get('ref'),
+                              'head_sha':(pr.get('head') or {}).get('sha'),'mergeable':pr.get('mergeable'),
+                              'mergeable_state':pr.get('mergeable_state'),'url':pr.get('html_url'),
+                          })
+
+          hf_spaces=[]
+          try:
+              req=urllib.request.Request('https://huggingface.co/api/spaces?author=SZLHOLDINGS&limit=100&full=true',headers={'User-Agent':'SZL-status-beacon/1.0','Authorization':f"Bearer {os.environ.get('HF_TOKEN','')}"} if os.environ.get('HF_TOKEN') else {'User-Agent':'SZL-status-beacon/1.0'})
+              with urllib.request.urlopen(req,timeout=30) as resp:
+                  values=json.load(resp)
+              for space in values:
+                  hf_spaces.append({'id':space.get('id'),'private':space.get('private'),'sha':space.get('sha'),'stage':(space.get('runtime') or {}).get('stage')})
+          except Exception as exc:
+              hf_spaces=[{'error':f'{type(exc).__name__}: {exc}'[:500]}]
+
+          def probe(url,follow=True):
+              class NoRedirect(urllib.request.HTTPRedirectHandler):
+                  def redirect_request(self,req,fp,code,msg,headers,newurl): return None
+              opener=urllib.request.build_opener() if follow else urllib.request.build_opener(NoRedirect)
+              try:
+                  with opener.open(urllib.request.Request(url,headers={'User-Agent':'SZL-status-beacon/1.0'}),timeout=25) as resp:
+                      return {'status':resp.status,'effective':resp.geturl(),'location':resp.headers.get('Location')}
+              except urllib.error.HTTPError as exc:
+                  return {'status':exc.code,'effective':exc.geturl(),'location':exc.headers.get('Location')}
+              except Exception as exc:
+                  return {'status':'UNAVAILABLE','error':f'{type(exc).__name__}: {exc}'[:500]}
+
+          issues={}
+          for repo,num in [('szl-holdings/a11oy',1497),('szl-holdings/a11oy',1282),('szl-holdings/a11oy',1326),('szl-holdings/.github',603)]:
+              value=gh(f'repos/{repo}/issues/{num}')
+              issues[f'{repo}#{num}']={'state':value.get('state'),'title':value.get('title')} if isinstance(value,dict) else {'state':'UNAVAILABLE'}
+
+          data={
+              'schema':'szl.recovery-status-beacon/v1',
+              'generated_at':dt.datetime.now(dt.timezone.utc).isoformat(),
+              'credential_values_recorded':False,
+              'workflows':workflows,
+              'open_prs':open_prs,
+              'hf_spaces':hf_spaces,
+              'issues':issues,
+              'domain':{
+                  'apex':probe('https://a-11-oy.com/'),
+                  'honest':probe('https://a-11-oy.com/api/a11oy/v1/honest'),
+                  'www':probe('https://www.a-11-oy.com/__szl_edge_probe__/path?contract=v3&preserve=yes',False),
+                  'hf_origin':probe('https://szlholdings-a11oy.hf.space/'),
+              },
+          }
+          Path('evidence/recovery-status/current.json').write_text(json.dumps(data,indent=2,sort_keys=True)+'\n')
+          active=[r for r in workflows if r.get('status') not in ('completed',)]
+          failed=[r for r in workflows if r.get('status')=='completed' and r.get('conclusion') not in ('success','neutral','skipped')]
+          public_bad=[r for r in hf_spaces if not r.get('private') and r.get('stage') not in ('RUNNING','RUNNING_APP_STARTING','RUNNING_BUILDING') and 'error' not in r]
+          summary={
+              'generated_at':data['generated_at'],
+              'workflow_total':len(workflows),'workflow_active':len(active),'workflow_failed':len(failed),
+              'open_prs':len(open_prs),'public_space_failures':len(public_bad),
+              'apex_status':data['domain']['apex'].get('status'),'www_status':data['domain']['www'].get('status'),
+              'hf_origin_status':data['domain']['hf_origin'].get('status'),'credential_values_recorded':False,
+          }
+          Path('evidence/recovery-status/summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+          Path('evidence/recovery-status/summary.md').write_text('\n'.join([
+              '# Current recovery status', '',
+              *[f'- {k}: **{v}**' for k,v in summary.items()], '',
+              '## Active workflows', '',
+              *([f"- `{r.get('name')}` run `{r.get('id')}` — `{r.get('status')}`" for r in active] or ['- None.']), '',
+              '## Failed recovery workflows', '',
+              *([f"- `{r.get('name')}` run `{r.get('id')}` — `{r.get('conclusion')}`" for r in failed] or ['- None.']), '',
+              '## Open PRs', '',
+              *([f"- `{r['repo']}#{r['number']}` — `{r.get('mergeable_state')}` — {r.get('title')}" for r in open_prs] or ['- None.']),
+          ])+'\n')
+          PY
+      - name: Commit checkpoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          git pull --rebase origin ops/codex-perplexity-recovery-20260904-v1
+          git add evidence/recovery-status
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if ! git diff --cached --quiet; then
+            git commit -s -m 'chore(evidence): refresh current recovery status'
+            git push origin HEAD:ops/codex-perplexity-recovery-20260904-v1
+          fi
