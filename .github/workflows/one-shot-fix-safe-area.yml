@@ -1,0 +1,74 @@
+# SPDX-License-Identifier: Apache-2.0
+name: One-shot safe-area repair
+
+on:
+  push:
+    branches: [ci/public-experience-frontier-v4]
+    paths:
+      - .github/workflows/one-shot-fix-safe-area.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Check out repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ci/public-experience-frontier-v4
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Add source-visible safe-area contract and remove one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          page = Path("a11oy_landing.html")
+          source = page.read_text(encoding="utf-8")
+          marker = 'id="szl-public-experience-v4-safe-area"'
+          if marker in source:
+              raise SystemExit("safe-area contract already present")
+          if "</head>" not in source:
+              raise SystemExit("a11oy_landing.html has no closing head")
+
+          contract = r'''<style id="szl-public-experience-v4-safe-area">
+          /* Public Experience Frontier v4: viewport-notch and installed-app safe areas. */
+          @supports (padding: max(0px)) {
+            :root {
+              --szl-safe-top: env(safe-area-inset-top, 0px);
+              --szl-safe-right: env(safe-area-inset-right, 0px);
+              --szl-safe-bottom: env(safe-area-inset-bottom, 0px);
+              --szl-safe-left: env(safe-area-inset-left, 0px);
+            }
+            header.nav { padding-top: var(--szl-safe-top); }
+            .wrap {
+              padding-left: max(24px, var(--szl-safe-left));
+              padding-right: max(24px, var(--szl-safe-right));
+            }
+            footer { padding-bottom: max(24px, var(--szl-safe-bottom)); }
+          }
+          @media (max-width: 1100px) {
+            @supports (padding: max(0px)) {
+              header.nav .wrap, .wrap {
+                padding-left: max(14px, env(safe-area-inset-left, 0px));
+                padding-right: max(14px, env(safe-area-inset-right, 0px));
+              }
+            }
+          }
+          </style>
+          '''
+          page.write_text(source.replace("</head>", contract + "</head>", 1), encoding="utf-8")
+          PY
+          rm .github/workflows/one-shot-fix-safe-area.yml
+          git diff --check
+          git config user.name "SZL Release Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add a11oy_landing.html .github/workflows/one-shot-fix-safe-area.yml
+          git commit -m "fix(ux): honor viewport safe areas"
+          git push origin HEAD:ci/public-experience-frontier-v4
