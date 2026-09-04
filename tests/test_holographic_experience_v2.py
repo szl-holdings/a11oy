@@ -127,6 +127,7 @@ class HolographicExperienceV2Contract(unittest.TestCase):
         for token in (
             "min-width:56px",
             "min-height:48px",
+            "height:48px",
             "border-radius:6px",
         ):
             self.assertIn(token, outer_contract)
