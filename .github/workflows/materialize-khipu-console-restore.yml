@@ -1,0 +1,67 @@
+name: Materialize Try Khipu console restoration
+
+on:
+  push:
+    branches:
+      - fix/restore-khipu-console-panel-20260904
+    paths:
+      - .github/workflows/materialize-khipu-console-restore.yml
+      - scripts/materialize_khipu_console_restore.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-khipu-console-restore
+  cancel-in-progress: false
+
+jobs:
+  restore:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact branch with full history
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: fix/restore-khipu-console-panel-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+
+      - name: Install focused test dependency
+        run: python -m pip install --disable-pip-version-check pytest==9.0.2
+
+      - name: Restore latest panel satisfying current contract
+        run: python scripts/materialize_khipu_console_restore.py
+
+      - name: Verify console and investor contracts
+        run: |
+          set -euo pipefail
+          python -m pytest -q \
+            tests/test_khipu_console_panel.py \
+            tests/test_atelier_console_lock.py
+          python scripts/investor_smoke_gate.py --mode contract
+          git diff --check
+
+      - name: Commit durable restoration and remove controller
+        run: |
+          set -euo pipefail
+          rm -f \
+            .github/workflows/materialize-khipu-console-restore.yml \
+            scripts/materialize_khipu_console_restore.py
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No durable restoration diff was produced."
+            exit 1
+          fi
+          git commit -s \
+            -m "fix(console): restore the source-backed Try Khipu panel" \
+            -m "Recover the newest historically valid panel that satisfies the current inference-lab, honesty, routing, and Investor Smoke contracts."
+          git push origin HEAD:fix/restore-khipu-console-panel-20260904
