@@ -576,6 +576,31 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
   }
 }
 </style>
+<style id="szl-public-experience-v4-safe-area">
+/* Public Experience Frontier v4: viewport-notch and installed-app safe areas. */
+@supports (padding: max(0px)) {
+  :root {
+    --szl-safe-top: env(safe-area-inset-top, 0px);
+    --szl-safe-right: env(safe-area-inset-right, 0px);
+    --szl-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --szl-safe-left: env(safe-area-inset-left, 0px);
+  }
+  header.nav { padding-top: var(--szl-safe-top); }
+  .wrap {
+    padding-left: max(24px, var(--szl-safe-left));
+    padding-right: max(24px, var(--szl-safe-right));
+  }
+  footer { padding-bottom: max(24px, var(--szl-safe-bottom)); }
+}
+@media (max-width: 1100px) {
+  @supports (padding: max(0px)) {
+    header.nav .wrap, .wrap {
+      padding-left: max(14px, env(safe-area-inset-left, 0px));
+      padding-right: max(14px, env(safe-area-inset-right, 0px));
+    }
+  }
+}
+</style>
 </head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
