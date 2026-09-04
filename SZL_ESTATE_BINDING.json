@@ -1,0 +1,14 @@
+{
+  "schema":"szl.estate.binding/v1",
+  "organ":"a11oy",
+  "role":"governed-fabric-and-public-front-door-runtime",
+  "canonical_contract":"https://github.com/szl-holdings/.github/blob/main/estate/alignment.v1.json",
+  "public_front_door":"https://a-11-oy.com",
+  "proof_registry":"https://a11oy.net",
+  "hub_surface":"SZLHOLDINGS/a11oy",
+  "inherits":["hatun-policy-veto","second-brain-memory","forge-inference-qualification","szl-serve","szl-kernels","szl-receipt","szl-formulas","anatomy","szl-frontier"],
+  "authority":"governance-and-proof",
+  "default_effect":"deny",
+  "model_authority":"proposal-only",
+  "production_requires":"live-runtime-evidence-and-receipt"
+}
