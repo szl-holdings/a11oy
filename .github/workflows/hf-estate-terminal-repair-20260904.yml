@@ -1,0 +1,334 @@
+name: Finish SZLHOLDINGS Space operational repair queue
+
+on:
+  push:
+    branches:
+      - ops/public-all-hf-spaces-20260904
+    paths:
+      - .github/workflows/hf-estate-terminal-repair-20260904.yml
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: szl-hf-estate-terminal-repair-20260904
+  cancel-in-progress: false
+
+env:
+  HF_ORG: SZLHOLDINGS
+  TRACKING_ISSUE: "1764"
+  REPORT_JSON: reports/hf-estate-terminal-repair-20260904.json
+
+jobs:
+  repair-and-prove:
+    name: Reconcile all 60 public Spaces to honest terminal state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 65
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_WRITE_TOKEN || secrets.HF_TOKEN || secrets.HUGGINGFACE_TOKEN || secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact control client
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.23.0"
+          "requests==2.32.5"
+
+      - name: Repair runtimes and prove public contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import os
+          import re
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from typing import Any
+
+          import requests
+          from huggingface_hub import HfApi
+
+          ORG = os.environ["HF_ORG"]
+          TOKEN = (os.environ.get("HF_TOKEN") or "").strip()
+          REPORT = Path(os.environ["REPORT_JSON"])
+          REPORT.parent.mkdir(parents=True, exist_ok=True)
+          if not TOKEN:
+              raise SystemExit("No write-capable Hugging Face token is configured.")
+
+          api = HfApi(token=TOKEN)
+          anon = HfApi(token=False)
+          session = requests.Session()
+          session.headers.update({
+              "User-Agent": "SZL-HF-estate-terminal-proof/1.0",
+              "Cache-Control": "no-cache, no-store",
+              "Pragma": "no-cache",
+          })
+
+          def safe_error(exc: BaseException) -> str:
+              text = " ".join(str(exc).split())[:700]
+              return text.replace(TOKEN, "<redacted>") if TOKEN else text
+
+          def stage(runtime: Any) -> str | None:
+              value = getattr(runtime, "stage", None)
+              return str(value) if value is not None else None
+
+          def slug(repo_id: str) -> str:
+              owner, name = repo_id.split("/", 1)
+              value = f"{owner}-{name}".lower()
+              return re.sub(r"[^a-z0-9-]+", "-", value).strip("-")
+
+          def probe(url: str, *, attempts: int = 6) -> dict[str, Any]:
+              last: dict[str, Any] = {"url": url, "status": None}
+              for attempt in range(1, attempts + 1):
+                  try:
+                      response = session.get(url, timeout=40, allow_redirects=True)
+                      last = {
+                          "url": url,
+                          "status": response.status_code,
+                          "final_url": response.url,
+                          "content_type": response.headers.get("content-type"),
+                          "www_authenticate": bool(response.headers.get("www-authenticate")),
+                          "attempt": attempt,
+                      }
+                      if response.status_code is not None:
+                          return last
+                  except requests.RequestException as exc:
+                      last = {"url": url, "status": None, "error": type(exc).__name__, "attempt": attempt}
+                  time.sleep(min(2 * attempt, 8))
+              return last
+
+          spaces = sorted(
+              list(api.list_spaces(author=ORG, full=True, token=TOKEN)),
+              key=lambda value: value.id.lower(),
+          )
+          if len(spaces) < 60:
+              raise SystemExit(f"Inventory regression: expected at least 60 Spaces, observed {len(spaces)}")
+
+          rows: dict[str, dict[str, Any]] = {}
+          dynamic: set[str] = set()
+          for listed in spaces:
+              repo_id = listed.id
+              row: dict[str, Any] = {
+                  "id": repo_id,
+                  "sdk": getattr(listed, "sdk", None),
+                  "sha": getattr(listed, "sha", None),
+                  "private_authenticated": bool(getattr(listed, "private", True)),
+                  "errors": [],
+                  "runtime_action": "none",
+              }
+              rows[repo_id] = row
+
+              # Re-assert the owner directive idempotently.
+              try:
+                  api.update_repo_settings(
+                      repo_id=repo_id,
+                      repo_type="space",
+                      visibility="public",
+                      token=TOKEN,
+                  )
+              except Exception as exc:
+                  row["errors"].append(f"visibility: {safe_error(exc)}")
+
+              if str(row.get("sdk") or "").lower() == "static":
+                  row["stage"] = "STATIC"
+                  row["runtime_action"] = "static"
+                  continue
+
+              dynamic.add(repo_id)
+              try:
+                  observed = stage(api.get_space_runtime(repo_id, token=TOKEN))
+                  row["stage_before"] = observed
+                  row["stage"] = observed
+                  if observed == "RUNNING":
+                      row["runtime_action"] = "already-running"
+                  elif observed in {"BUILDING", "RUNNING_BUILDING", "APP_STARTING", "RUNNING_APP_STARTING"}:
+                      row["runtime_action"] = "continue-transition"
+                  else:
+                      factory = observed in {
+                          "BUILD_ERROR", "RUNTIME_ERROR", "CONFIG_ERROR", "NO_APP_FILE",
+                          "STOPPED_BUILD_ERROR", "STOPPED_RUNTIME_ERROR", "STOPPED",
+                      }
+                      api.restart_space(repo_id, token=TOKEN, factory_reboot=factory)
+                      row["runtime_action"] = "factory-reboot" if factory else "restart"
+              except Exception as exc:
+                  row["errors"].append(f"runtime-initial: {safe_error(exc)}")
+
+          deadline = time.monotonic() + 3000
+          pending = {repo_id for repo_id in dynamic if rows[repo_id].get("stage") != "RUNNING"}
+          failed_stages = {
+              "BUILD_ERROR", "RUNTIME_ERROR", "CONFIG_ERROR", "NO_APP_FILE",
+              "STOPPED_BUILD_ERROR", "STOPPED_RUNTIME_ERROR",
+          }
+          while pending and time.monotonic() < deadline:
+              for repo_id in sorted(tuple(pending)):
+                  row = rows[repo_id]
+                  try:
+                      observed = stage(api.get_space_runtime(repo_id, token=TOKEN))
+                      row["stage"] = observed
+                      if observed == "RUNNING":
+                          pending.remove(repo_id)
+                      elif observed in failed_stages:
+                          if not row.get("factory_retry"):
+                              api.restart_space(repo_id, token=TOKEN, factory_reboot=True)
+                              row["factory_retry"] = True
+                              row["runtime_action"] = "factory-reboot-after-terminal-stage"
+                          else:
+                              row["errors"].append(f"terminal runtime stage: {observed}")
+                              pending.remove(repo_id)
+                  except Exception as exc:
+                      # Do not terminalize a transient Hub connection reset. The next poll is authoritative.
+                      row["last_runtime_poll_error"] = safe_error(exc)
+                  time.sleep(0.15)
+              if pending:
+                  time.sleep(12)
+          for repo_id in pending:
+              rows[repo_id]["errors"].append("runtime transition exceeded the 50-minute terminal deadline")
+
+          for repo_id, row in rows.items():
+              try:
+                  public = anon.space_info(repo_id, token=False)
+                  row["private_anonymous"] = bool(getattr(public, "private", True))
+                  row["public_sha"] = getattr(public, "sha", None)
+              except Exception as exc:
+                  row["private_anonymous"] = True
+                  row["errors"].append(f"anonymous-metadata: {safe_error(exc)}")
+
+              row["repo_probe"] = probe(f"https://huggingface.co/spaces/{repo_id}")
+              app_base = f"https://{slug(repo_id)}.hf.space"
+              row["app_url"] = app_base
+              root = probe(app_base + "/")
+              row["root_probe"] = root
+
+              # A service may correctly protect its root. It is operational only if a public
+              # liveness/readiness/docs contract independently proves the running application.
+              service_probe = None
+              if root.get("status") == 401:
+                  for path in ("/healthz", "/api/livez", "/livez", "/readyz", "/openapi.json", "/docs"):
+                      candidate = probe(app_base + path, attempts=3)
+                      if isinstance(candidate.get("status"), int) and 200 <= candidate["status"] < 400:
+                          service_probe = candidate
+                          break
+                  row["service_probe"] = service_probe or candidate
+
+              repo_ok = row["repo_probe"].get("status") == 200
+              root_status = root.get("status")
+              app_ok = isinstance(root_status, int) and 200 <= root_status < 400
+              auth_bound_ok = root_status == 401 and service_probe is not None
+              visibility_ok = not row.get("private_authenticated", True) and not row.get("private_anonymous", True)
+              runtime_ok = row.get("stage") in {"RUNNING", "STATIC"}
+              sha_ok = bool(row.get("sha") and row.get("public_sha") and row["sha"] == row["public_sha"])
+              row["auth_bound_service"] = bool(auth_bound_ok)
+              row["operational"] = bool(visibility_ok and runtime_ok and repo_ok and sha_ok and (app_ok or auth_bound_ok))
+
+          ordered = [rows[key] for key in sorted(rows, key=str.lower)]
+          report: dict[str, Any] = {
+              "schema": "szl.hf-estate-terminal-repair/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "controller_sha": os.environ.get("GITHUB_SHA"),
+              "space_count": len(ordered),
+              "public_count": sum(
+                  not row.get("private_authenticated", True) and not row.get("private_anonymous", True)
+                  for row in ordered
+              ),
+              "running_or_static_count": sum(row.get("stage") in {"RUNNING", "STATIC"} for row in ordered),
+              "operational_count": sum(bool(row.get("operational")) for row in ordered),
+              "auth_bound_operational_count": sum(bool(row.get("auth_bound_service")) for row in ordered),
+              "spaces": ordered,
+          }
+          report["all_public"] = report["public_count"] == report["space_count"]
+          report["all_operational"] = report["operational_count"] == report["space_count"]
+          report["success"] = bool(report["all_public"] and report["all_operational"])
+          canonical = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
+          report["receipt_sha256"] = hashlib.sha256(canonical).hexdigest()
+          REPORT.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps({key: report[key] for key in (
+              "space_count", "public_count", "running_or_static_count", "operational_count",
+              "auth_bound_operational_count", "all_public", "all_operational", "success", "receipt_sha256"
+          )}, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload terminal estate receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: hf-estate-terminal-repair-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_JSON }}
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Publish terminal verdict
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "$REPORT_JSON" ]; then
+            printf '## Terminal HF estate repair failed before receipt\n\nRun: %s/%s/actions/runs/%s\n' "$GITHUB_SERVER_URL" "$GITHUB_REPOSITORY" "$GITHUB_RUN_ID" > /tmp/comment.md
+            gh issue comment "$TRACKING_ISSUE" --body-file /tmp/comment.md
+            exit 0
+          fi
+          python - <<'PY' > /tmp/comment.md
+          import json, os
+          r = json.load(open(os.environ["REPORT_JSON"], encoding="utf-8"))
+          print("## Terminal HF estate repair receipt")
+          print()
+          print(f"- Run: {os.environ['GITHUB_SERVER_URL']}/{os.environ['GITHUB_REPOSITORY']}/actions/runs/{os.environ['GITHUB_RUN_ID']}")
+          print(f"- Controller SHA: `{r['controller_sha']}`")
+          print(f"- Spaces public: `{r['public_count']}/{r['space_count']}`")
+          print(f"- Running/static: `{r['running_or_static_count']}/{r['space_count']}`")
+          print(f"- Operational: `{r['operational_count']}/{r['space_count']}`")
+          print(f"- Auth-bound services proved by public health/docs: `{r['auth_bound_operational_count']}`")
+          print(f"- Receipt SHA-256: `{r['receipt_sha256']}`")
+          print(f"- Verdict: `{'PASS' if r['success'] else 'REPAIR_REQUIRED'}`")
+          failed = [row for row in r["spaces"] if not row.get("operational")]
+          if failed:
+              print()
+              print("### Remaining exact repair queue")
+              for row in failed:
+                  errors = "; ".join(row.get("errors") or []) or "none"
+                  print(f"- `{row['id']}` — stage `{row.get('stage')}`, repo `{row.get('repo_probe', {}).get('status')}`, root `{row.get('root_probe', {}).get('status')}`, service `{row.get('service_probe', {}).get('status') if row.get('service_probe') else None}`, SHA parity `{row.get('sha') == row.get('public_sha')}`, errors `{errors}`")
+          PY
+          gh issue comment "$TRACKING_ISSUE" --body-file /tmp/comment.md
+          if python -c 'import json,os; raise SystemExit(0 if json.load(open(os.environ["REPORT_JSON"]))["success"] else 1)'; then
+            gh issue close "$TRACKING_ISSUE" --reason completed
+          else
+            gh issue reopen "$TRACKING_ISSUE" || true
+          fi
+
+      - name: Enforce terminal estate
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          r = json.load(open(os.environ["REPORT_JSON"], encoding="utf-8"))
+          if not r["success"]:
+              raise SystemExit(
+                  f"HF estate remains non-terminal: public={r['public_count']}/{r['space_count']} "
+                  f"operational={r['operational_count']}/{r['space_count']}"
+              )
+          PY
