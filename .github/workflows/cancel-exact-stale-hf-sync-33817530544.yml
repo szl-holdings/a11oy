@@ -1,4 +1,4 @@
-name: Cancel exact stale HF sync 33817530544
+name: Force-cancel exact stale HF sync 33817530544
 
 on:
   push:
@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 jobs:
-  cancel-exact-obsolete-run:
+  force-cancel-exact-obsolete-run:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
@@ -19,7 +19,7 @@ jobs:
         with:
           egress-policy: audit
 
-      - name: Cancel only the proved obsolete writer
+      - name: Force-cancel only the proved obsolete writer
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_ID: "33817530544"
@@ -38,11 +38,11 @@ jobs:
 
           case "$status" in
             completed)
-              echo "Exact obsolete run already completed; no cancellation needed."
+              echo "Exact obsolete run already completed; no force-cancellation needed."
               ;;
             in_progress|queued|pending|waiting|requested)
-              gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/cancel"
-              echo "Cancelled exact obsolete run ${RUN_ID} at ${EXPECTED_SHA}; current main is ${current_main}."
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/force-cancel"
+              echo "Force-cancelled exact obsolete run ${RUN_ID} at ${EXPECTED_SHA}; current main is ${current_main}."
               ;;
             *)
               echo "::error::Refusing unexpected run status: $status"
