@@ -10,6 +10,14 @@
   const HANDLE_ID = /^frontier:[0-9a-f]{32}$/;
   const REVISION = /^[0-9a-f]{40}$/;
   const DIGEST = /^[0-9a-f]{64}$/;
+  const SOURCE_REPOSITORIES = new Set([
+    "szl-holdings/szl-formulas",
+    "szl-holdings/anatomy",
+    "szl-holdings/ouroboros",
+    "szl-holdings/a11oy",
+    "szl-holdings/szl-forge",
+    "szl-holdings/szl-nemo",
+  ]);
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
   const state = {
     open: false,
@@ -45,6 +53,7 @@
     if (!HANDLE_ID.test(String(handle.nodeId ?? ""))) return false;
     if (!DIGEST.test(String(handle.sha256 ?? ""))) return false;
     if (!REVISION.test(String(handle.revision ?? ""))) return false;
+    if (!SOURCE_REPOSITORIES.has(handle.repository)) return false;
     if (handle.candidateState !== "DISCOVERED_REVIEW_REQUIRED") return false;
     if (handle.contentAccess !== "HANDLES_ONLY") return false;
     if (handle.authority !== "NONE") return false;
@@ -58,8 +67,10 @@
     if (payload.state !== "SOURCE_BOUND_REVIEW_MEMORY") return false;
     if (payload.surface !== "A11OY_HOLOGRAPHIC_V7_BRAIN_FRONTIER") return false;
     if (!DIGEST.test(String(payload.snapshot_sha256 ?? ""))) return false;
-    if (!Array.isArray(payload.handles) || payload.handles.length > 72) return false;
+    if (!Array.isArray(payload.handles) || payload.handles.length !== 72) return false;
     if (!payload.handles.every(validateHandle)) return false;
+    const repositories = new Set(payload.handles.map((handle) => handle.repository));
+    if (![...SOURCE_REPOSITORIES].every((repository) => repositories.has(repository))) return false;
     if (payload.selected_handle_count !== payload.handles.length) return false;
     const brain = payload.sources?.second_brain;
     const anatomy = payload.sources?.anatomy;
