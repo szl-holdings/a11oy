@@ -1,10 +1,11 @@
 name: llama-cpp wheel guard
 
 # The canonical A11oy image consumes one exact official llama-cpp-python
-# manylinux CPU wheel. This workflow validates the literal Dockerfile contract,
-# downloads the same immutable asset, checks size and SHA-256, installs it on
-# CPython 3.12/glibc, imports it, and proves the bundled libllama.so links glibc
-# rather than musl. It never compiles an alternate artifact from mutable source.
+# manylinux CPU wheel. This workflow validates the source-owned fetch contract,
+# exercises that exact bounded downloader, checks size and SHA-256, installs the
+# wheel on CPython 3.12/glibc, imports it, and proves bundled libllama.so links
+# glibc rather than musl. It never compiles an alternate artifact from mutable
+# source and it never accepts an unpinned or off-host release asset.
 #
 # Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 
@@ -13,6 +14,8 @@ on:
     branches: [main]
     paths:
       - 'Dockerfile'
+      - 'scripts/fetch_owned_khipu_wheel.py'
+      - 'tests/test_owned_wheel_transport.py'
       - 'scripts/weight_guard_alert.sh'
       - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/llama-wheel-guard.yml'
@@ -22,6 +25,8 @@ on:
     branches: [main]
     paths:
       - 'Dockerfile'
+      - 'scripts/fetch_owned_khipu_wheel.py'
+      - 'tests/test_owned_wheel_transport.py'
       - 'scripts/weight_guard_alert.sh'
       - 'scripts/weight_guard_alert.test.sh'
       - '.github/workflows/llama-wheel-guard.yml'
@@ -65,7 +70,7 @@ jobs:
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
           printf 'Parsed exact llama-cpp-python version %s\n' "$version"
 
-      - name: Resolve the literal official wheel contract
+      - name: Resolve the source-owned official wheel contract
         id: contract
         shell: bash
         env:
@@ -75,56 +80,94 @@ jobs:
           python3 - <<'PY'
           from __future__ import annotations
 
+          import importlib.util
           import os
           import re
           from pathlib import Path
 
-          text = Path("Dockerfile").read_text(encoding="utf-8")
-          normalized = re.sub(r"\\\s*\n", " ", text)
+          script_path = Path("scripts/fetch_owned_khipu_wheel.py")
+          spec = importlib.util.spec_from_file_location("owned_wheel_contract", script_path)
+          if spec is None or spec.loader is None:
+              raise SystemExit("cannot load the source-owned wheel transport")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          expected = os.environ["EXPECTED_VERSION"]
           version_pattern = r"[0-9]+(?:[.][0-9]+){2}"
-          wheel_pattern = (
+          wheel_pattern = re.compile(
               r"llama_cpp_python-(?P<version>" + version_pattern + r")-"
               r"py3-none-manylinux2014_x86_64[.]manylinux_2_17_x86_64[.]whl"
           )
-          contract = re.compile(
-              r"ADD\s+--checksum=sha256:(?P<sha>[0-9a-f]{64})\s+"
-              r"(?P<url>https://github[.]com/abetlen/llama-cpp-python/releases/"
-              r"download/v(?P<release>" + version_pattern + r")/"
-              r"(?P<filename>" + wheel_pattern + r"))\s+"
-              r"/wheels/(?P=filename)"
-          )
-          matches = list(contract.finditer(normalized))
-          if len(matches) != 1:
+          match = wheel_pattern.fullmatch(module.WHEEL)
+          if match is None:
+              raise SystemExit(f"unexpected official wheel filename: {module.WHEEL!r}")
+          if match.group("version") != expected:
               raise SystemExit(
-                  f"expected exactly one official wheel ADD contract, found {len(matches)}"
+                  f"wheel version drift: helper={match.group('version')} docker={expected}"
               )
-          match = matches[0]
-          expected = os.environ["EXPECTED_VERSION"]
-          versions = {match.group("version"), match.group("release"), expected}
-          if len(versions) != 1:
-              raise SystemExit(f"wheel version drift: {sorted(versions)}")
 
-          sizes = set(
-              re.findall(r"assert\s+os[.]path[.]getsize[(]path[)]\s*==\s*([0-9]+)", text)
+          expected_url = (
+              "https://github.com/abetlen/llama-cpp-python/releases/download/"
+              f"v{expected}/{module.WHEEL}"
           )
-          if len(sizes) != 1:
-              raise SystemExit(f"expected one literal wheel-size assertion, found {sorted(sizes)}")
-          size = next(iter(sizes))
-          sha = match.group("sha")
-          if text.count(sha) < 2:
-              raise SystemExit("wheel SHA-256 is not independently rechecked in the Dockerfile")
+          if module.URL != expected_url:
+              raise SystemExit(f"official wheel URL drift: {module.URL!r}")
+          module.validate_url(module.URL)
+
+          allowed_hosts = frozenset(
+              {
+                  "github.com",
+                  "release-assets.githubusercontent.com",
+                  "objects.githubusercontent.com",
+              }
+          )
+          if module.ALLOWED_HOSTS != allowed_hosts:
+              raise SystemExit(
+                  f"wheel redirect allowlist drift: {sorted(module.ALLOWED_HOSTS)!r}"
+              )
+          if module.MAX_SECONDS != 120.0 or module.SOCKET_TIMEOUT != 20.0:
+              raise SystemExit("wheel transport timeout budget drift")
+          if not isinstance(module.EXPECTED_SIZE, int) or module.EXPECTED_SIZE <= 0:
+              raise SystemExit("wheel byte-size pin is invalid")
+          if re.fullmatch(r"[0-9a-f]{64}", module.EXPECTED_SHA256) is None:
+              raise SystemExit("wheel SHA-256 pin is invalid")
+
+          dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+          copy_line = (
+              "COPY scripts/fetch_owned_khipu_wheel.py "
+              "/tmp/fetch_owned_khipu_wheel.py"
+          )
+          run_line = (
+              "RUN python3 /tmp/fetch_owned_khipu_wheel.py "
+              "&& rm /tmp/fetch_owned_khipu_wheel.py"
+          )
+          if dockerfile.count(copy_line) != 1 or dockerfile.count(run_line) != 1:
+              raise SystemExit("Dockerfile does not execute exactly one owned-wheel transport")
+          if re.search(r"(?m)^ADD\s+--checksum=.*llama_cpp_python", dockerfile):
+              raise SystemExit("remote Docker ADD wheel transport is still present")
+
+          path_line = f'path = "/wheels/{module.WHEEL}"'
+          size_line = f"assert os.path.getsize(path) == {module.EXPECTED_SIZE}"
+          sha_line = f'assert digest == "{module.EXPECTED_SHA256}", digest'
+          for label, literal in (
+              ("wheel path", path_line),
+              ("independent size check", size_line),
+              ("independent SHA-256 check", sha_line),
+          ):
+              if dockerfile.count(literal) != 1:
+                  raise SystemExit(f"Dockerfile {label} is missing or duplicated")
 
           output = Path(os.environ["GITHUB_OUTPUT"])
           with output.open("a", encoding="utf-8") as handle:
-              handle.write(f"url={match.group('url')}\n")
-              handle.write(f"filename={match.group('filename')}\n")
-              handle.write(f"sha256={sha}\n")
-              handle.write(f"size={size}\n")
+              handle.write(f"url={module.URL}\n")
+              handle.write(f"filename={module.WHEEL}\n")
+              handle.write(f"sha256={module.EXPECTED_SHA256}\n")
+              handle.write(f"size={module.EXPECTED_SIZE}\n")
           print(
-              "Resolved official wheel contract:",
-              match.group("filename"),
-              "size", size,
-              "sha256", sha,
+              "Resolved source-owned official wheel contract:",
+              module.WHEEL,
+              "size", module.EXPECTED_SIZE,
+              "sha256", module.EXPECTED_SHA256,
           )
           PY
 
@@ -138,10 +181,41 @@ jobs:
           WHEEL_SIZE: ${{ steps.contract.outputs.size }}
         run: |
           set -euo pipefail
+          python3 - <<'PY'
+          from __future__ import annotations
+
+          import importlib.util
+          import os
+          from pathlib import Path
+
+          script_path = Path("scripts/fetch_owned_khipu_wheel.py")
+          spec = importlib.util.spec_from_file_location("owned_wheel_live", script_path)
+          if spec is None or spec.loader is None:
+              raise SystemExit("cannot load the source-owned wheel transport")
+          module = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(module)
+
+          expected = {
+              "url": os.environ["WHEEL_URL"],
+              "filename": os.environ["WHEEL_FILENAME"],
+              "sha256": os.environ["WHEEL_SHA256"],
+              "size": int(os.environ["WHEEL_SIZE"]),
+          }
+          actual = {
+              "url": module.URL,
+              "filename": module.WHEEL,
+              "sha256": module.EXPECTED_SHA256,
+              "size": module.EXPECTED_SIZE,
+          }
+          if actual != expected:
+              raise SystemExit(f"resolved wheel contract changed before download: {actual!r}")
+          path = module.fetch_wheel(Path(os.environ["RUNNER_TEMP"]))
+          if path != Path(os.environ["RUNNER_TEMP"]) / module.WHEEL:
+              raise SystemExit(f"owned-wheel transport returned an unexpected path: {path}")
+          print(f"Verified source-owned wheel transport: {path}")
+          PY
+
           wheel="$RUNNER_TEMP/$WHEEL_FILENAME"
-          curl --fail --location --silent --show-error \
-            --retry 5 --retry-all-errors --proto '=https' --tlsv1.2 \
-            "$WHEEL_URL" -o "$wheel"
           actual_size="$(stat -c '%s' "$wheel")"
           test "$actual_size" = "$WHEEL_SIZE"
           printf '%s  %s\n' "$WHEEL_SHA256" "$wheel" | sha256sum -c -
