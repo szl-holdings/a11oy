@@ -1,240 +1,144 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="en" data-theme="dark">
 <head>
-  <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>a11oy — Wires · The Constitution · SZL Holdings</title>
-  <meta name="description" content="The live cross-organ mesh: five wires (B/C/D/E/F) that bind the organs into one signed organism. Each row reads a real a11oy endpoint — no mock data."/>
-  <!-- SOVEREIGN: 0 runtime CDN. Fonts self-hosted in-image, served same-origin at
-     /vendor/fonts/*.woff2 (SAME pattern as the clean console). NO external font CDN. -->
-<style>
-@font-face{font-family:'Space Grotesk';font-style:normal;font-weight:300 700;font-display:swap;src:url('/vendor/fonts/SpaceGrotesk.woff2') format('woff2');}
-@font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;font-display:swap;src:url('/vendor/fonts/JetBrainsMono.woff2') format('woff2');}
-</style>
-<style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <title>Hatun Gateway · governed context mesh · A11oy</title>
+  <meta name="description" content="Hatun is the governed context gateway inside A11oy: inspect the live mesh, understand its contracts, build against its interfaces, and verify its evidence.">
+  <style>
+    @font-face{font-family:"Space Grotesk";font-style:normal;font-weight:300 700;font-display:swap;src:url("/vendor/fonts/SpaceGrotesk.woff2") format("woff2")}
+    @font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400 700;font-display:swap;src:url("/vendor/fonts/JetBrainsMono.woff2") format("woff2")}
     :root{
-      --ground:#0a0a0a; --panel:#0c0c0c; --panel2:#070707;
-      --gold:#c9b787; --gold-bright:#d6c69a;
-      --teal:#5fb3a3; --teal-soft:rgba(95,179,163,0.10);
-      --cream:#f5f5f5; --paragraph:#9a9a9a; --muted:#888; --dim:#555;
-      --gold-line:rgba(201,183,135,0.15); --gold-soft:rgba(201,183,135,0.04);
-      --teal-line:rgba(95,179,163,0.22);
-      --live:#5a8a6e; --err:#b06a5a;
-      --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
-      --display:'Space Grotesk',Georgia,serif;
+      --page:#03040a;--panel:#0c0f1c;--panel2:#11162a;--ink:#f1f3f6;--muted:#9aa5b7;
+      --faint:#667186;--line:rgba(232,238,255,.12);--violet:#9e9bff;--ice:#70dbff;
+      --signal:#e3b76e;--danger:#ef746f;--success:#65d9ae;
+      --display:"Space Grotesk",system-ui,-apple-system,"Segoe UI",sans-serif;
+      --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
     }
-    *{box-sizing:border-box;}
-    html,body{margin:0;padding:0;background:var(--ground);color:var(--cream);
-      font-family:var(--display);-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
-    .mono{font-family:var(--mono);}
-    a{color:inherit;}
-    :focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:3px;}
-    .ribbon{position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:1.25rem;
-      flex-wrap:wrap;padding:0.5rem 1.25rem;font-family:var(--mono);font-size:10px;
-      letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);
-      background:rgba(10,10,10,0.85);backdrop-filter:blur(10px);border-bottom:1px solid var(--gold-line);}
-    .ribbon .sep{color:var(--dim);} .ribbon .teal{color:var(--teal);}
-    .ribbon .live{display:inline-flex;align-items:center;gap:0.4rem;color:var(--cream);}
-    .ribbon a{margin-left:auto;color:var(--teal);text-decoration:none;}
-    .live-dot{width:6px;height:6px;border-radius:50%;background:var(--live);box-shadow:0 0 6px var(--live);animation:pulseDot 2.2s ease-in-out infinite;}
-    @keyframes pulseDot{0%,100%{opacity:1;}50%{opacity:.35;}}
-    .hero{position:relative;overflow:hidden;padding:3rem 1.5rem 2rem;text-align:center;}
-    .grid-bg{position:absolute;inset:0;pointer-events:none;
-      background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
-      background-size:56px 56px;-webkit-mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);mask-image:radial-gradient(ellipse at center,#000 30%,transparent 75%);}
-    .hero-inner{position:relative;z-index:2;max-width:64rem;margin:0 auto;}
-    .eyebrow{display:inline-flex;align-items:center;gap:.5rem;padding:.3rem .85rem;border-radius:999px;border:1px solid var(--gold-line);background:var(--gold-soft);margin-bottom:1.5rem;}
-    .eyebrow-dot{width:6px;height:6px;border-radius:50%;background:var(--gold);animation:pulseDot 2.2s ease-in-out infinite;}
-    .eyebrow-text{font-family:var(--mono);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold);}
-    .headline{font-size:clamp(2.2rem,5vw,4rem);font-weight:300;line-height:1.04;letter-spacing:-.035em;margin:0 0 1.1rem;color:var(--cream);}
-    .headline .accent{background:linear-gradient(120deg,var(--cream) 20%,var(--gold) 90%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;color:transparent;}
-    .support{font-size:16px;line-height:1.65;color:var(--paragraph);max-width:42rem;margin:0 auto 1.75rem;}
-    .stats{display:flex;flex-wrap:wrap;justify-content:center;gap:.75rem;max-width:60rem;margin:0 auto;}
-    .stat{flex:1 1 150px;min-width:140px;border:1px solid var(--gold-line);border-radius:8px;background:var(--panel);padding:.9rem 1rem;text-align:left;}
-    .stat .k{font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);}
-    .stat .v{font-size:1.35rem;font-weight:500;color:var(--gold);margin-top:.25rem;}
-    .stat .v.teal{color:var(--teal);}
-    .wrap{max-width:64rem;margin:1.5rem auto 3rem;padding:0 1.25rem;}
-    .controls{display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1.25rem;}
-    .r-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.5rem 1rem;font-size:11.5px;font-weight:500;font-family:var(--mono);
-      border-radius:6px;border:1px solid var(--gold-line);background:transparent;color:var(--gold);cursor:pointer;letter-spacing:.04em;transition:background .18s,border-color .18s;}
-    .r-btn:hover{background:rgba(201,183,135,.08);border-color:rgba(201,183,135,.35);}
-    .r-btn.primary{background:rgba(95,179,163,.10);border-color:var(--teal-line);color:var(--teal);}
-    .wire{border:1px solid var(--gold-line);border-radius:12px;background:var(--panel);padding:1.2rem 1.3rem;margin-bottom:1rem;}
-    .wire-head{display:flex;align-items:center;gap:.7rem;margin-bottom:.5rem;flex-wrap:wrap;}
-    .wire-id{font-family:var(--mono);font-size:12px;color:var(--teal);border:1px solid var(--teal-line);border-radius:5px;padding:.1rem .5rem;background:var(--teal-soft);}
-    .wire-edge{font-size:1.05rem;font-weight:500;color:var(--cream);}
-    .wire-status{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:.15rem .55rem;border-radius:999px;}
-    .st-live{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
-    .st-proc{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
-    .wire-detail{font-family:var(--mono);font-size:11.5px;color:var(--paragraph);line-height:1.6;}
-    .meta{font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:1rem;line-height:1.7;}
-    .honesty{max-width:64rem;margin:0 auto 2rem;padding:1.1rem 1.3rem;border:1px solid var(--gold-line);border-radius:10px;background:var(--gold-soft);
-      font-size:12px;color:var(--paragraph);line-height:1.7;}
-    .honesty b{color:var(--gold);}
-    .footer{padding:2rem 1.5rem 3rem;text-align:center;}
-    .footer .note{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);}
-    .const-wrap{max-width:64rem;margin:0 auto 2rem;padding:0 1.25rem;}
-.const-head{display:flex;align-items:baseline;gap:.8rem;flex-wrap:wrap;margin:0 0 .35rem;}
-.const-head h2{font-size:1.5rem;font-weight:300;letter-spacing:-.02em;color:var(--cream);margin:0;}
-.const-ver{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--teal);
-  border:1px solid var(--teal-line);border-radius:999px;padding:.2rem .7rem;background:var(--teal-soft);}
-.const-sub{font-size:13px;color:var(--paragraph);line-height:1.65;margin:0 0 1rem;}
-.rule{border:1px solid var(--gold-line);border-radius:10px;background:var(--panel);padding:.95rem 1.1rem;margin-bottom:.7rem;}
-.rule-head{display:flex;align-items:center;gap:.7rem;flex-wrap:wrap;}
-.rule-id{font-family:var(--mono);font-size:12px;color:var(--gold);border:1px solid var(--gold-line);border-radius:5px;padding:.1rem .5rem;background:var(--gold-soft);}
-.rule-st{font-size:.98rem;font-weight:500;color:var(--cream);}
-.rule-en{margin-left:auto;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:.15rem .55rem;border-radius:999px;}
-.en-live{color:var(--teal);border:1px solid var(--teal-line);background:var(--teal-soft);}
-.en-rec{color:var(--live);border:1px solid rgba(90,138,110,.4);background:rgba(90,138,110,.08);}
-.en-dec{color:var(--gold);border:1px solid var(--gold-line);background:var(--gold-soft);}
-.en-np{color:var(--err);border:1px solid rgba(176,106,90,.4);background:rgba(176,106,90,.08);}
-.rule-body{font-family:var(--mono);font-size:11.5px;color:var(--paragraph);line-height:1.6;margin-top:.4rem;}
-.rule-body a{color:var(--teal);text-decoration:none;}
-.const-cred{font-family:var(--mono);font-size:10.5px;color:var(--muted);line-height:1.8;margin-top:.9rem;}
-.const-cred a{color:var(--teal);text-decoration:none;}
-@media (max-width:560px){.wire-status{margin-left:0;}.rule-en{margin-left:0;}}
+    *{box-sizing:border-box}
+    html{background:var(--page);scroll-behavior:smooth}
+    body{margin:0;min-width:0;color:var(--ink);background:
+      radial-gradient(circle at 78% 12%,rgba(158,155,255,.13),transparent 28rem),
+      radial-gradient(circle at 16% 48%,rgba(112,219,255,.07),transparent 26rem),
+      var(--page);font-family:var(--display);line-height:1.55;overflow-x:clip}
+    a{color:inherit}.page{position:relative;z-index:1}.shell{width:min(1180px,calc(100% - 32px));margin-inline:auto}
+    .local-nav{display:flex;align-items:center;gap:14px;min-height:64px;border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:11px;min-width:0;text-decoration:none}
+    .brand-mark{width:28px;height:28px;display:grid;place-items:center;border:1px solid rgba(158,155,255,.35);border-radius:50%;box-shadow:0 0 22px rgba(158,155,255,.18)}
+    .brand-mark::before{width:8px;height:8px;border-radius:50%;background:var(--ice);box-shadow:0 0 14px var(--ice);content:""}
+    .brand-copy{display:grid;line-height:1.15}.brand-copy small{font:700 9px/1.2 var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--faint)}
+    .brand-copy strong{font-size:14px;letter-spacing:-.01em}
+    .family{margin-left:auto;display:flex;align-items:center;gap:4px;overflow-x:auto;overscroll-behavior-inline:contain;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+    .family::-webkit-scrollbar{display:none}.family a{min-height:44px;display:inline-flex;align-items:center;padding:8px 11px;border:1px solid transparent;border-radius:9px;color:var(--muted);font:700 10px/1.2 var(--mono);letter-spacing:.09em;text-decoration:none;text-transform:uppercase;white-space:nowrap}
+    .family a[aria-current="page"]{border-color:rgba(158,155,255,.32);color:var(--ink);background:rgba(158,155,255,.07)}
+    .hero{position:relative;min-height:min(760px,82vh);display:grid;align-items:center;padding:clamp(74px,11vw,150px) 0 clamp(64px,9vw,120px);border-bottom:1px solid var(--line);overflow:hidden}
+    .weave{position:absolute;inset:0;pointer-events:none;opacity:.66;mask-image:linear-gradient(to bottom,#000,transparent 94%)}
+    .weave::before,.weave::after{position:absolute;inset:-20%;content:"";background:repeating-linear-gradient(28deg,transparent 0 54px,rgba(158,155,255,.11) 55px 56px),repeating-linear-gradient(152deg,transparent 0 88px,rgba(112,219,255,.07) 89px 90px);transform:perspective(950px) rotateX(58deg) rotateZ(-8deg) scale(1.15)}
+    .weave::after{inset:15% 8%;filter:blur(28px);background:radial-gradient(circle,rgba(158,155,255,.15),transparent 66%);transform:none}
+    .hero-grid{position:relative;display:grid;grid-template-columns:minmax(0,1.12fr) minmax(320px,.88fr);gap:clamp(34px,7vw,92px);align-items:center}
+    .eyebrow{margin:0;color:var(--violet);font:700 10px/1.4 var(--mono);letter-spacing:.2em;text-transform:uppercase}
+    h1{max-width:780px;margin:16px 0 0;font-size:clamp(44px,7.7vw,104px);font-weight:520;line-height:.91;letter-spacing:-.065em;text-wrap:balance}h1 span{color:var(--ice)}
+    .lede{max-width:66ch;margin:26px 0 0;color:var(--muted);font-size:clamp(16px,1.6vw,20px);line-height:1.65;text-wrap:pretty}
+    .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:30px}.action{min-height:48px;display:inline-flex;align-items:center;justify-content:center;padding:11px 16px;border:1px solid var(--line);border-radius:10px;color:var(--ink);background:rgba(12,15,28,.72);font:700 11px/1.2 var(--mono);letter-spacing:.07em;text-decoration:none}
+    .action.primary{border-color:rgba(158,155,255,.45);background:linear-gradient(135deg,rgba(158,155,255,.18),rgba(112,219,255,.08))}.action:hover{border-color:rgba(112,219,255,.52);transform:translateY(-1px)}
+    .instrument{position:relative;min-height:420px;border:1px solid var(--line);border-radius:24px;background:rgba(8,10,20,.78);box-shadow:0 34px 100px rgba(0,0,0,.46);overflow:hidden;backdrop-filter:blur(18px)}
+    .instrument-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);font:700 10px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+    .instrument-head .pulse{width:7px;height:7px;border-radius:50%;background:var(--faint)}.instrument[data-state="LIVE"] .pulse{background:var(--success);box-shadow:0 0 14px var(--success)}
+    .instrument[data-state="DEGRADED"] .pulse{background:var(--signal);box-shadow:0 0 14px var(--signal)}.instrument[data-state="UNAVAILABLE"] .pulse{background:var(--danger)}
+    .mesh-field{position:relative;height:300px;overflow:hidden}.mesh-field::before{position:absolute;inset:0;background:linear-gradient(rgba(255,255,255,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.04) 1px,transparent 1px);background-size:38px 38px;content:""}
+    .mesh-nodes{position:absolute;inset:0}.mesh-node{position:absolute;width:10px;height:10px;border:1px solid currentColor;border-radius:50%;color:var(--violet);box-shadow:0 0 20px currentColor;transform:translate(-50%,-50%)}
+    .mesh-node::after{position:absolute;inset:3px;border-radius:50%;background:currentColor;content:""}.mesh-node:nth-child(1){left:17%;top:24%}.mesh-node:nth-child(2){left:48%;top:14%;color:var(--ice)}
+    .mesh-node:nth-child(3){left:78%;top:31%;color:var(--signal)}.mesh-node:nth-child(4){left:30%;top:68%;color:var(--ice)}.mesh-node:nth-child(5){left:68%;top:75%}
+    .mesh-lines{position:absolute;inset:0;width:100%;height:100%}.mesh-lines line{stroke:rgba(158,155,255,.3);stroke-width:.65}.mesh-lines line:nth-child(even){stroke:rgba(112,219,255,.23)}
+    .instrument-foot{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line)}.reading{min-width:0;padding:14px;border-right:1px solid var(--line)}.reading:last-child{border-right:0}
+    .reading small{display:block;color:var(--faint);font:700 9px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase}.reading strong{display:block;margin-top:6px;color:var(--ink);font:650 13px/1.3 var(--mono);overflow-wrap:anywhere}
+    .pathways{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border-bottom:1px solid var(--line)}
+    .pathway{min-height:180px;padding:clamp(24px,4vw,42px);background:var(--page);text-decoration:none}.pathway small{color:var(--faint);font:700 10px/1.2 var(--mono);letter-spacing:.15em;text-transform:uppercase}
+    .pathway h2{margin:14px 0 0;font-size:clamp(24px,3vw,38px);letter-spacing:-.04em}.pathway p{margin:10px 0 0;color:var(--muted);max-width:36ch}.pathway:hover h2{color:var(--ice)}
+    .section{padding:clamp(62px,8vw,112px) 0;border-bottom:1px solid var(--line)}.section-head{display:grid;grid-template-columns:.45fr 1fr;gap:28px;align-items:end;margin-bottom:32px}
+    .section-head h2{margin:0;font-size:clamp(34px,5vw,66px);font-weight:520;line-height:.98;letter-spacing:-.055em}.section-head p{margin:0;color:var(--muted);max-width:60ch}
+    .mesh-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.wire{position:relative;min-width:0;padding:22px;border:1px solid var(--line);border-radius:16px;background:linear-gradient(145deg,rgba(17,22,42,.82),rgba(7,9,17,.9))}
+    .wire-top{display:flex;align-items:flex-start;gap:12px}.wire-id{min-width:44px;color:var(--violet);font:700 11px/1.2 var(--mono);letter-spacing:.08em}.wire-title{margin:0;font-size:18px;letter-spacing:-.025em}
+    .wire-state{margin-left:auto;padding:4px 8px;border:1px solid currentColor;border-radius:999px;color:var(--muted);font:700 9px/1.2 var(--mono);letter-spacing:.08em}.wire[data-state="LIVE"] .wire-state,.wire[data-state="MEASURED"] .wire-state{color:var(--success)}
+    .wire[data-state="DEGRADED"] .wire-state,.wire[data-state="REPORTED"] .wire-state,.wire[data-state="DECLARED"] .wire-state{color:var(--signal)}.wire[data-state="UNAVAILABLE"] .wire-state{color:var(--danger)}
+    .wire-detail{margin:14px 0 0;color:var(--muted);font:500 12px/1.65 var(--mono)}.wire-evidence{margin:14px 0 0;padding-top:14px;border-top:1px solid var(--line);color:var(--faint);font:500 10px/1.55 var(--mono)}
+    .empty{grid-column:1/-1;padding:28px;border:1px dashed var(--line);border-radius:16px;color:var(--muted);font:600 12px/1.6 var(--mono)}
+    .disclosure{margin-top:22px;padding:18px 20px;border-left:2px solid var(--signal);background:rgba(227,183,110,.045);color:var(--muted);font:500 12px/1.7 var(--mono)}
+    .footer{padding:34px 0 calc(34px + env(safe-area-inset-bottom));color:var(--faint);font:600 10px/1.6 var(--mono);letter-spacing:.07em}.footer-row{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center}.footer a{text-decoration:none;color:var(--muted)}
+    :focus-visible{outline:2px solid var(--ice);outline-offset:3px}
+    @media(max-width:900px){.hero-grid{grid-template-columns:1fr}.instrument{min-height:360px}.pathways{grid-template-columns:1fr}.pathway{min-height:0}.section-head{grid-template-columns:1fr}.mesh-list{grid-template-columns:1fr}}
+    @media(max-width:620px){.shell{width:min(100% - 22px,1180px)}.local-nav{align-items:flex-start;flex-direction:column;padding-block:10px}.family{width:100%;margin-left:0}.hero{min-height:0}.instrument-foot{grid-template-columns:1fr}.reading{border-right:0;border-bottom:1px solid var(--line)}.reading:last-child{border-bottom:0}h1{font-size:clamp(42px,15vw,68px)}}
+    @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.action{transition:none}.action:hover{transform:none}}
+    @media(forced-colors:active){.instrument,.wire,.pathway,.action{border:1px solid CanvasText;background:Canvas}.weave{display:none}}
   </style>
-  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
-  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
+  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2">
 </head>
-<body>
-<div class="ribbon">
-  <span>SZL HOLDINGS</span><span class="sep">/</span>
-  <span class="teal">A11OY</span><span class="sep">/</span>
-  <span>WIRES · THE CONSTITUTION</span><span class="sep">/</span>
-  <span>DOCTRINE V11 · LOCKED</span><span class="sep">/</span>
-  <span class="live"><span class="live-dot"></span>LIVE · RT</span>
-  <a href="/superpowers">superpowers →</a>
+<body class="szl-hatun-gateway">
+<div class="page">
+  <div class="shell">
+    <nav class="local-nav" aria-label="SZL product family">
+      <a class="brand" href="/console" aria-label="Open A11oy command"><span class="brand-mark" aria-hidden="true"></span><span class="brand-copy"><small>SZL / Product family</small><strong>Hatun Gateway</strong></span></a>
+      <div class="family"><a href="/console">A11oy</a><a href="/killinchu">Killinchu</a><a href="/wires" aria-current="page">Hatun</a><a href="/living-anatomy">Living Anatomy</a></div>
+    </nav>
+  </div>
+
+  <main id="main">
+    <section class="hero">
+      <div class="weave" aria-hidden="true"></div>
+      <div class="shell hero-grid">
+        <div>
+          <p class="eyebrow">Governed context gateway · source-bound interfaces</p>
+          <h1>Context enters.<br><span>Evidence leaves.</span></h1>
+          <p class="lede">Hatun is the context and tool gateway inside A11oy. It binds agents, organs, policies, and receipts into one inspectable mesh. The page never invents a wire: every runtime state below is read from the A11oy mesh contract.</p>
+          <div class="actions"><a class="action primary" href="#mesh">Inspect the live mesh</a><a class="action" href="/api/a11oy/v1/mesh/state">Open the JSON contract</a><a class="action" href="https://github.com/szl-holdings/hatun-mcp" rel="noopener">Read the Hatun source</a></div>
+        </div>
+        <aside class="instrument" id="gateway-instrument" data-state="UNAVAILABLE" aria-label="Hatun gateway status">
+          <div class="instrument-head"><span class="pulse" aria-hidden="true"></span><span id="instrument-state">Reading mesh contract</span></div>
+          <div class="mesh-field" aria-hidden="true">
+            <svg class="mesh-lines" viewBox="0 0 100 100" preserveAspectRatio="none"><line x1="17" y1="24" x2="48" y2="14"></line><line x1="48" y1="14" x2="78" y2="31"></line><line x1="17" y1="24" x2="30" y2="68"></line><line x1="30" y1="68" x2="68" y2="75"></line><line x1="78" y1="31" x2="68" y2="75"></line><line x1="48" y1="14" x2="68" y2="75"></line></svg>
+            <div class="mesh-nodes"><i class="mesh-node"></i><i class="mesh-node"></i><i class="mesh-node"></i><i class="mesh-node"></i><i class="mesh-node"></i></div>
+          </div>
+          <div class="instrument-foot"><div class="reading"><small>Transport</small><strong id="read-transport">UNAVAILABLE</strong></div><div class="reading"><small>Wires observed</small><strong id="read-wires">UNAVAILABLE</strong></div><div class="reading"><small>Evidence</small><strong id="read-evidence">UNAVAILABLE</strong></div></div>
+        </aside>
+      </div>
+    </section>
+
+    <nav class="pathways" aria-label="Hatun pathways">
+      <a class="pathway" href="#understand"><small>01 · Understand</small><h2>Read the contract</h2><p>See the mesh, its authority boundary, and exactly what each wire reports.</p></a>
+      <a class="pathway" href="/code"><small>02 · Build</small><h2>Use the interfaces</h2><p>Move from product surface to source, schemas, and integration paths without changing visual grammar.</p></a>
+      <a class="pathway" href="/api/a11oy/v1/verify/receipt"><small>03 · Verify</small><h2>Follow the evidence</h2><p>Inspect receipt and verification surfaces rather than trusting a decorative status.</p></a>
+    </nav>
+
+    <section class="section" id="mesh"><div class="shell">
+      <div class="section-head"><div><p class="eyebrow">Live interface map</p><h2>One mesh.<br>Explicit states.</h2></div><p id="mesh-summary">Reading <span style="font-family:var(--mono)">/api/a11oy/v1/mesh/state</span>. Until that request succeeds, the gateway remains UNAVAILABLE.</p></div>
+      <div class="mesh-list" id="wire-list" aria-live="polite"><div class="empty">UNAVAILABLE — the mesh contract has not been read yet.</div></div>
+      <div class="disclosure" id="understand"><strong>Authority boundary.</strong> Hatun presents context and governed interfaces. A transport response is not correctness, a declared wire is not measured health, and Λ remains Conjecture 1—not a theorem. Missing evidence remains UNAVAILABLE.</div>
+    </div></section>
+  </main>
+
+  <footer class="footer"><div class="shell footer-row"><span>© SZL · Hatun Gateway</span><a href="/console">A11oy command</a><a href="/living-anatomy">Living Anatomy</a><a href="https://github.com/szl-holdings/hatun-mcp" rel="noopener">Hatun source</a><a href="/api/a11oy/v1/mesh/state">Mesh contract</a></div></footer>
 </div>
-
-<section class="hero">
-  <div class="grid-bg" aria-hidden="true"></div>
-  <div class="hero-inner">
-    <div class="eyebrow"><span class="eyebrow-dot"></span><span class="eyebrow-text">· five wires · one signed organism</span></div>
-    <h1 class="headline">Five organs. <span class="accent">One constitution.</span></h1>
-    <p class="support">The mesh is the constitution: five wires that bind the organs into one organism. Each row below reads the live
-      <span class="mono">/api/a11oy/v1/mesh/state</span> endpoint — real status, no mock. Honest labels distinguish a fully cross-Space
-      wire from an in-process one.</p>
-    <div class="stats">
-      <div class="stat"><div class="k">Wires</div><div class="v" id="s-wires">—</div></div>
-      <div class="stat"><div class="k">Doctrine</div><div class="v teal" id="s-doc">v11</div></div>
-      <div class="stat"><div class="k">Λ status</div><div class="v teal">Conjecture 1</div></div>
-      <div class="stat"><div class="k">SLSA</div><div class="v teal">Build L2</div></div>
-    </div>
-  </div>
-</section>
-
-<div class="wrap">
-  <div class="controls">
-    <button class="r-btn primary" onclick="loadWires()">▶ Refresh the mesh</button>
-    <button class="r-btn" onclick="window.location='/observability'">Observability →</button>
-    <button class="r-btn" onclick="document.getElementById('constitution').scrollIntoView({behavior:'smooth'})">The written constitution ↓</button>
-  </div>
-  <div id="wires"></div>
-  <div class="meta" id="meta"></div>
-</div>
-
-
-<section class="const-wrap" id="constitution">
-  <div class="const-head">
-    <h2>The written constitution</h2>
-    <span class="const-ver">W-CONST v1.0 &middot; 2026-07-09</span>
-  </div>
-  <p class="const-sub">The wires above are the live mesh; these are the <b style="color:var(--cream)">versioned, numbered rules</b> the
-    organism is wired to obey. Each rule links to where its enforcement can be observed &mdash; a live endpoint, a receipt surface, or an
-    honest DECLARED label when the property is build-time. One rule is special: it is <b style="color:var(--cream)">never provable</b>, and the
-    constitution says so.</p>
-
-  <div class="rule" id="W-1">
-    <div class="rule-head"><span class="rule-id">W-1</span><span class="rule-st">Never fabricate.</span><span class="rule-en en-live">LIVE-READ</span></div>
-    <div class="rule-body">Every surfaced number carries MEASURED / REPORTED / UNKNOWN / UNAVAILABLE. A missing read is shown as missing, never invented.
-      Enforcement: <a href="/api/a11oy/v1/honest">/api/a11oy/v1/honest</a> (doctrine lock, live).</div>
-  </div>
-  <div class="rule" id="W-2">
-    <div class="rule-head"><span class="rule-id">W-2</span><span class="rule-st">&Lambda; stays Conjecture 1 &mdash; forever open.</span><span class="rule-en en-np">NEVER-PROVABLE</span></div>
-    <div class="rule-body">&Lambda;-uniqueness is machine-checked FALSE as an unconditional statement; it may only ever be advisory. No release, page, or
-      agent may promote it to a theorem. This clause is enshrined precisely because it can never be discharged.
-      Reference: <a href="/api/a11oy/v1/honest">/api/a11oy/v1/honest</a>.</div>
-  </div>
-  <div class="rule" id="W-3">
-    <div class="rule-head"><span class="rule-id">W-3</span><span class="rule-st">Bounded loops only.</span><span class="rule-en en-rec">RECEIPTED</span></div>
-    <div class="rule-body">Every agentic run executes under the ouroboros loop-kernel with an explicit step budget; each receipt carries the
-      steps / maxBudget / exit trace. No unbounded autonomy. Observe it: run the <a href="/ayllu">/ayllu council</a> and read the loop block in the receipt.</div>
-  </div>
-  <div class="rule" id="W-4">
-    <div class="rule-head"><span class="rule-id">W-4</span><span class="rule-st">Metered actions emit signed receipts.</span><span class="rule-en en-rec">RECEIPTED</span></div>
-    <div class="rule-body">DSSE / ECDSA-P256 signed, hash-chained. A decision without a receipt is a bug, not a feature.
-      Verify offline at <a href="/verify">/verify</a>.</div>
-  </div>
-  <div class="rule" id="W-5">
-    <div class="rule-head"><span class="rule-id">W-5</span><span class="rule-st">Sovereign serving &mdash; 0 runtime CDN.</span><span class="rule-en en-dec">DECLARED</span></div>
-    <div class="rule-body">No third-party runtime fetches; fonts and scripts are served same-origin. Build-time property &mdash; labelled DECLARED
-      honestly (verifiable by inspecting this very page's network panel).</div>
-  </div>
-  <div class="rule" id="W-6">
-    <div class="rule-head"><span class="rule-id">W-6</span><span class="rule-st">Proved-count honesty.</span><span class="rule-en en-live">LIVE-READ</span></div>
-    <div class="rule-body">Exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22}; the experimental kernel-verified tier is reported
-      separately and never folded in. Registry: <a href="/formulas">/formulas</a>.</div>
-  </div>
-  <div class="rule" id="W-7">
-    <div class="rule-head"><span class="rule-id">W-7</span><span class="rule-st">No energy claims without a meter.</span><span class="rule-en en-live">LIVE-READ</span></div>
-    <div class="rule-body">When no live meter exists the energy panel says UNAVAILABLE &mdash; no perpetual-motion numbers, ever.
-      Enforcement: <a href="/api/a11oy/v1/energy/live">/api/a11oy/v1/energy/live</a>.</div>
-  </div>
-  <div class="rule" id="W-8">
-    <div class="rule-head"><span class="rule-id">W-8</span><span class="rule-st">Knowledge instilled &ne; weights trained.</span><span class="rule-en en-live">LIVE-READ</span></div>
-    <div class="rule-body">Personas carry cited, instilled knowledge in their system prompts; no claim of weight-training is ever made.
-      Enforcement: <a href="/api/a11oy/v1/ayllu/roster">/api/a11oy/v1/ayllu/roster</a> (<span class="mono">knowledge_instilled</span> flag).</div>
-  </div>
-
-  <div class="const-cred">
-    format after <a href="https://github.com/openai/model_spec" rel="noopener">openai/model_spec</a> (CC0-1.0 &mdash; structure mirrored; rules are our own) &middot;
-    pattern citations: Constitutional AI (<a href="https://arxiv.org/abs/2212.08073" rel="noopener">arXiv:2212.08073</a>),
-    principle granularity (<a href="https://arxiv.org/abs/2310.13798" rel="noopener">arXiv:2310.13798</a>) &middot;
-    enforcement labels: LIVE-READ = a real endpoint you can click &middot; RECEIPTED = signed evidence per run &middot;
-    DECLARED = build-time property, honestly labelled &middot; NEVER-PROVABLE = enshrined open conjecture
-  </div>
-</section>
-
-<div class="honesty">
-  <b>Honesty.</b> Statuses are read live from <span class="mono">/api/a11oy/v1/mesh/state</span>. <b>LIVE</b> = a real in-Space wire;
-  <b>LIVE_IN_PROCESS</b> = real W3C trace ids generated + propagated within each Space (the cross-Space distributed-trace broker is
-  NOT yet wired and is shown honestly). Λ is <b>Conjecture 1</b>, never a theorem. Proved formulas = <b>8</b> {F1,F4,F7,F11,F12,F18,F19,F22}.
-  SLSA <b>Build L2</b> on all 5 organ images. No L3 / FedRAMP / Iron Bank / CMMC.
-</div>
-
-<footer class="footer"><span class="note">a11oy · governance substrate · by SZL Holdings · Counsel-governed · A11oy-orchestrated</span></footer>
 
 <script>
-async function getJSON(path){ const r=await fetch(path); if(!r.ok) throw new Error('HTTP '+r.status); return r.json(); }
-function statusClass(s){ return (s||'').toUpperCase().includes('PROCESS') ? 'st-proc' : 'st-live'; }
-async function loadWires(){
-  const host=document.getElementById('wires');
-  host.innerHTML='<div class="wire-detail mono">loading live mesh…</div>';
-  try{
-    const d=await getJSON('/api/a11oy/v1/mesh/state');
-    const wires=d.wires||{};
-    const keys=Object.keys(wires);
-    document.getElementById('s-wires').textContent=keys.length;
-    document.getElementById('s-doc').textContent=d.doctrine||'v11';
-    host.innerHTML='';
-    keys.forEach(k=>{
-      const w=wires[k];
-      const el=document.createElement('div'); el.className='wire';
-      el.innerHTML=`<div class="wire-head"><span class="wire-id">Wire ${k}</span>
-        <span class="wire-edge">${(w.edge||'').replace(/</g,'&lt;')}</span>
-        <span class="wire-status ${statusClass(w.status)}">${w.status||'—'}</span></div>
-        <div class="wire-detail">${(w.detail||'').replace(/</g,'&lt;')}</div>`;
-      host.appendChild(el);
-    });
-    const m=document.getElementById('meta');
-    m.innerHTML=`khipu_root: ${d.khipu_root||'(empty — resets on restart)'}<br>${(d.honesty||'').replace(/</g,'&lt;')}`;
-  }catch(e){ host.innerHTML='<div class="wire-detail mono" style="color:var(--err)">mesh unreachable: '+e.message+' — retry in a moment (transient).</div>'; }
-}
-loadWires();
+(function(){
+  "use strict";
+  var ENDPOINT="/api/a11oy/v1/mesh/state";
+  var ALLOWED=["LIVE","MEASURED","REPORTED","DECLARED","DEGRADED","UNAVAILABLE"];
+  var list=document.getElementById("wire-list");var instrument=document.getElementById("gateway-instrument");
+  function text(value,fallback){return value===null||value===undefined||value===""?(fallback||"UNAVAILABLE"):String(value)}
+  function state(value){var normalized=text(value,"UNAVAILABLE").toUpperCase().replace(/[^A-Z_]/g,"_");return ALLOWED.indexOf(normalized)>=0?normalized:"UNAVAILABLE"}
+  function pick(row,names,fallback){for(var i=0;i<names.length;i+=1){if(row&&row[names[i]]!==undefined&&row[names[i]]!==null)return row[names[i]]}return fallback}
+  function rows(payload){var source=payload&&(payload.wires||payload.mesh||payload.edges||payload.connections);if(Array.isArray(source))return source;if(source&&typeof source==="object")return Object.keys(source).map(function(key){var value=source[key];return value&&typeof value==="object"?Object.assign({id:key},value):{id:key,state:value}});return []}
+  function setReading(id,value){var node=document.getElementById(id);if(node)node.textContent=text(value)}
+  function wireCard(row,index){var card=document.createElement("article");card.className="wire";var wireState=state(pick(row,["state","status","evidence_state","health"],"UNAVAILABLE"));card.dataset.state=wireState;var top=document.createElement("div");top.className="wire-top";var id=document.createElement("span");id.className="wire-id";id.textContent=text(pick(row,["id","wire_id","name","key"],"W"+(index+1)));var title=document.createElement("h3");title.className="wire-title";title.textContent=text(pick(row,["title","label","edge","purpose","name"],"Unnamed wire"));var badge=document.createElement("span");badge.className="wire-state";badge.textContent=wireState;top.append(id,title,badge);card.append(top);var detail=document.createElement("p");detail.className="wire-detail";detail.textContent=text(pick(row,["detail","description","note","summary","route"],"No descriptive field was returned by the contract."));card.append(detail);var evidence=document.createElement("p");evidence.className="wire-evidence";evidence.textContent="SOURCE · "+text(pick(row,["source","endpoint","evidence","provenance","receipt"],"UNAVAILABLE"));card.append(evidence);return card}
+  function render(payload){var observed=rows(payload);list.textContent="";if(!observed.length){var empty=document.createElement("div");empty.className="empty";empty.textContent="UNAVAILABLE — the response contained no readable wire collection. Nothing was fabricated.";list.append(empty)}else observed.forEach(function(row,index){list.append(wireCard(row,index))});var topState=state(pick(payload,["state","status","evidence_state"],observed.length?"REPORTED":"UNAVAILABLE"));instrument.dataset.state=topState;document.getElementById("instrument-state").textContent=topState+" · mesh contract read";setReading("read-transport",text(pick(payload,["transport_state","transport","protocol"],"REACHABLE")));setReading("read-wires",observed.length);setReading("read-evidence",text(pick(payload,["evidence_state","verification_state","state"],topState)));document.getElementById("mesh-summary").textContent=observed.length?observed.length+" wire record"+(observed.length===1?" was":"s were")+" read from the live mesh contract. Each card preserves the state and evidence fields the service returned.":"The mesh endpoint answered, but no readable wire collection was returned. The interface remains explicitly unavailable."}
+  function fail(error){instrument.dataset.state="UNAVAILABLE";document.getElementById("instrument-state").textContent="UNAVAILABLE · mesh contract not read";setReading("read-transport","UNAVAILABLE");setReading("read-wires","UNAVAILABLE");setReading("read-evidence","UNAVAILABLE");list.textContent="";var empty=document.createElement("div");empty.className="empty";empty.textContent="UNAVAILABLE — "+text(error&&error.message,"mesh request failed")+". No wire state was fabricated.";list.append(empty);document.getElementById("mesh-summary").textContent="The mesh contract could not be read in this request. This page does not promote cached decoration to live evidence."}
+  function load(){var controller=new AbortController();var timeout=setTimeout(function(){controller.abort()},6500);fetch(ENDPOINT,{cache:"no-store",headers:{accept:"application/json"},signal:controller.signal}).then(function(response){return response.json().then(function(body){if(!response.ok)throw new Error("HTTP "+response.status);return body})}).then(render).catch(fail).finally(function(){clearTimeout(timeout)})}
+  window.addEventListener("szl:holo-ready",function(){var label=document.querySelector(".szl-holo-label");if(label)label.textContent="Hatun Gateway";var identity=document.querySelector(".szl-holo-identity");if(identity)identity.setAttribute("aria-label","Open A11oy command — Hatun Gateway");document.documentElement.dataset.szlHoloMotif="gateway-weave"},{once:true});
+  load();
+})();
 </script>
-  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
-  <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
+<script src="/assets/szl-holo-v2.js" data-szl-holo-asset="script-v2" defer></script>
 </body>
 </html>
