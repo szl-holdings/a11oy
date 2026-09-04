@@ -125,9 +125,10 @@ class HolographicExperienceV2Contract(unittest.TestCase):
         self.assertIsNotNone(outer)
         outer_contract = outer.group(1)
         for token in (
-            "min-width:54px",
+            "min-width:56px",
             "min-height:48px",
-            "border-radius:10px",
+            "height:48px",
+            "border-radius:6px",
         ):
             self.assertIn(token, outer_contract)
 
@@ -139,7 +140,7 @@ class HolographicExperienceV2Contract(unittest.TestCase):
             return corner_x**2 + corner_y**2 <= radius**2
 
         self.assertTrue(contains_centered_square(48, 48, 6))
-        self.assertTrue(contains_centered_square(54, 48, 10))
+        self.assertTrue(contains_centered_square(56, 48, 6))
 
     def test_runtime_is_dependency_free_and_non_tracking(self) -> None:
         implementation = self.css + "\n" + self.javascript
