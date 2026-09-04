@@ -1,0 +1,197 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Brain Frontier v7 refresh
+
+on:
+  schedule:
+    - cron: "7 */2 * * *"
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: "Why this fixed-source handles-only refresh is running"
+        required: false
+        default: "manual Brain Frontier refresh"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: brain-frontier-v7-refresh
+  cancel-in-progress: true
+
+jobs:
+  refresh:
+    if: github.repository == 'szl-holdings/a11oy'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      RECEIPT: reports/brain-frontier-v7-refresh.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout protected main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Resolve the exact fixed-source handle snapshot
+        id: materialize
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          source_sha="$(git rev-parse HEAD)"
+          python scripts/materialize_brain_frontier_v7.py \
+            --output console/assets/brain-frontier-v7.json \
+            | tee reports/brain-frontier-v7-materialization.json
+          python -m py_compile scripts/materialize_brain_frontier_v7.py
+          node --check console/assets/brain-frontier-v7.js
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.3.5"
+          python -m pytest -q \
+            tests/test_brain_frontier_v7.py \
+            tests/test_brain_frontier_v7_surface.py
+          git diff --check
+          changed=false
+          if ! git diff --quiet -- console/assets/brain-frontier-v7.json; then
+            changed=true
+          fi
+          digest="$(python -c 'import json; print(json.load(open("console/assets/brain-frontier-v7.json"))["snapshot_sha256"])')"
+          candidate_set="$(python -c 'import json; print(json.load(open("console/assets/brain-frontier-v7.json"))["sources"]["second_brain"]["candidate_set_sha256"])')"
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$source_sha" >> "$GITHUB_OUTPUT"
+          echo "snapshot_digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "candidate_set=$candidate_set" >> "$GITHUB_OUTPUT"
+
+      - name: Recheck protected main at the write boundary
+        if: steps.materialize.outputs.changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse origin/main)" || {
+            echo "::error::Protected main moved; refusing a stale snapshot proposal."
+            exit 3
+          }
+
+      - name: Open one content-addressed review PR
+        id: proposal
+        if: steps.materialize.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          digest="${{ steps.materialize.outputs.snapshot_digest }}"
+          candidate_set="${{ steps.materialize.outputs.candidate_set }}"
+          branch="automation/brain-frontier-v7-${digest:0:16}"
+          existing="$(gh pr list --state open --head "$branch" --json url --jq '.[0].url // ""')"
+          if [ -n "$existing" ]; then
+            echo "state=EXISTING_REVIEW_PR" >> "$GITHUB_OUTPUT"
+            echo "url=$existing" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            echo "state=EXISTING_BRANCH_NO_FORCE" >> "$GITHUB_OUTPUT"
+            echo "url=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          git switch -c "$branch"
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add console/assets/brain-frontier-v7.json
+          git diff --cached --quiet && { echo "::error::Expected snapshot change is absent"; exit 4; }
+          git commit -s -m "chore(holographic): refresh Brain Frontier ${digest:0:16}"
+          git push origin "HEAD:$branch"
+          url="$(gh pr create \
+            --base main \
+            --head "$branch" \
+            --title "chore(holographic): review Brain Frontier ${digest:0:16}" \
+            --body "## Source-bound handle refresh
+
+This automated proposal updates only the deterministic metadata snapshot consumed by the existing A11oy Holographic v7 Brain Frontier instrument.
+
+- Snapshot: \`${digest}\`
+- Second Brain candidate set: \`${candidate_set}\`
+- Public content access: \`HANDLES_ONLY\`
+- Training authority: \`NONE\`
+- Promotion authority: \`NONE\`
+- Execution authority: \`NONE\`
+- Provider mutation: \`NONE\`
+- Human review required: \`true\`
+
+The workflow verified every source, content and candidate-set digest and ran the focused source/UI tests. It cannot force-push an existing branch or merge this PR.
+
+Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>")"
+          echo "state=NEW_REVIEW_PR" >> "$GITHUB_OUTPUT"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Write the secret-free refresh receipt
+        if: always()
+        env:
+          CHANGED: ${{ steps.materialize.outputs.changed || 'false' }}
+          SOURCE_SHA: ${{ steps.materialize.outputs.source_sha || github.sha }}
+          SNAPSHOT_DIGEST: ${{ steps.materialize.outputs.snapshot_digest || '' }}
+          CANDIDATE_SET: ${{ steps.materialize.outputs.candidate_set || '' }}
+          PROPOSAL_STATE: ${{ steps.proposal.outputs.state || 'NO_PROPOSAL' }}
+          PROPOSAL_URL: ${{ steps.proposal.outputs.url || '' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          receipt = {
+              "schema": "szl.a11oy.brain-frontier-v7-refresh/v1",
+              "run_id": os.environ["GITHUB_RUN_ID"],
+              "run_attempt": int(os.environ["GITHUB_RUN_ATTEMPT"]),
+              "source_repository": os.environ["GITHUB_REPOSITORY"],
+              "source_revision": os.environ.get("SOURCE_SHA") or os.environ["GITHUB_SHA"],
+              "changed": os.environ.get("CHANGED") == "true",
+              "snapshot_sha256": os.environ.get("SNAPSHOT_DIGEST") or None,
+              "candidate_set_sha256": os.environ.get("CANDIDATE_SET") or None,
+              "proposal": {
+                  "state": os.environ.get("PROPOSAL_STATE") or "NO_PROPOSAL",
+                  "url": os.environ.get("PROPOSAL_URL") or None,
+              },
+              "authority": {
+                  "content_access": "HANDLES_ONLY",
+                  "training": "NONE",
+                  "promotion": "NONE",
+                  "execution": "NONE",
+                  "merge": "NONE",
+                  "provider_mutation": "NONE",
+              },
+          }
+          canonical = json.dumps(receipt, sort_keys=True, separators=(",", ":")).encode()
+          receipt["receipt_sha256"] = hashlib.sha256(canonical).hexdigest()
+          path = Path(os.environ["RECEIPT"])
+          path.parent.mkdir(parents=True, exist_ok=True)
+          path.write_text(json.dumps(receipt, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+          print(json.dumps(receipt, sort_keys=True))
+          PY
+
+      - name: Retain the immutable refresh receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: brain-frontier-v7-refresh-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.RECEIPT }}
+            reports/brain-frontier-v7-materialization.json
+          if-no-files-found: error
+          retention-days: 90
