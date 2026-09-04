@@ -6,6 +6,7 @@ from pathlib import Path
 
 SCRIPT = Path("scripts/hf_publish_vertical_flagships_v4_impl.py")
 ENTRYPOINT = Path("scripts/hf_publish_vertical_flagships_v4.py")
+INTELLIGENCE = Path("scripts/hf_publish_vertical_services_intelligence_v4.py")
 COMBINED = Path("scripts/hf_publish_vertical_services.py")
 WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
 SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
@@ -120,19 +121,22 @@ def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
 
 def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None:
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
+    intelligence = INTELLIGENCE.read_text(encoding="utf-8")
     combined = COMBINED.read_text(encoding="utf-8")
     ast.parse(entrypoint)
+    ast.parse(intelligence)
     ast.parse(combined)
 
     for fragment in (
         "hf_publish_vertical_flagships_v4_impl.py",
         "hf_publish_vertical_services.py",
+        "hf_publish_vertical_services_intelligence_v4.py",
         'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")',
         'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")',
         'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
         "constrain_public_flagships",
         "retired Killinchu capability plane reached public writer",
-        '"szl.hf-vertical-estate/v6"',
+        '"szl.hf-vertical-estate/v7"',
         'flagship["public_flagship_slugs"]',
         'flagship["folded_into_killinchu"]',
         "combined_runtime",
@@ -145,6 +149,15 @@ def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None
     for retired in ("sentra", "vessels"):
         assert retired in entrypoint
     assert "api.create_repo" not in entrypoint
+
+    for fragment in (
+        'SOURCE_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"',
+        'EXPECTED_VERSION = "2.2.0"',
+        '"szl.vertical-intelligence-live-proof/v4"',
+        '"caller_supplied_endpoints_allowed": False',
+        '"effectors_enabled": False',
+    ):
+        assert fragment in intelligence
 
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/vertical-services"',
