@@ -106,19 +106,24 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
     <div class="card"><div class="lbl">Locked-proven</div><div class="big" style="color:var(--green)" id="c_locked">8</div><div class="sub">F1 F4 F7 F11 F12 F18 F19 F22 @ c7c0ba17</div></div>
     <div class="card"><div class="lbl">Λ (trust)</div><div class="big" style="color:var(--orange)">Conjecture 1</div><div class="sub">advisory · NOT a theorem</div></div>
     <div class="card"><div class="lbl">Consensus mesh</div><div class="big" id="c_mesh" style="color:var(--teal)">—</div><div class="sub">Byzantine = Conjecture 2 OPEN</div></div>
+    <div class="card"><div class="lbl">Second Brain</div><div class="big" id="c_brain" style="color:var(--teal)">—</div><div class="sub">same-origin /brain · fail-closed</div></div>
+    <div class="card"><div class="lbl">Formula registry</div><div class="big" id="c_formulas" style="color:var(--teal)">—</div><div class="sub">locked-8 spine · live /api/a11oy/v1/formulas</div></div>
+    <div class="card"><div class="lbl">Ouroboros</div><div class="big" id="c_ouro" style="color:var(--teal)">—</div><div class="sub">bounded loop · not convergence proof</div></div>
   </div>
   <div class="panel">
-    <h2>Living anatomy (live 3D) — opens zoomed OUT to the whole estate<span class="meta">betterwithage-anatomy.hf.space</span></h2>
+    <h2>Living anatomy (3D + holo) — same-origin first<span class="meta" id="scene_meta">probing scene…</span></h2>
     <div class="hud" style="margin:.15rem 0 .7rem">
-      <button class="chip active" data-view="estate" onclick="setView('estate',this)">⤢ Estate<span class="k">zoom-out</span></button>
+      <button class="chip active" data-view="holo" onclick="setView('holo',this)">◈ Same-origin holo</button>
+      <button class="chip" data-view="estate" onclick="setView('estate',this)">⤢ External estate</button>
       <button class="chip" data-view="council" onclick="setView('council',this)">◎ Ayllu council</button>
       <button class="chip" data-view="organism" onclick="setView('organism',this)">◉ Organism</button>
       <span style="flex:1"></span>
       <button class="iconbtn" onclick="goFs()">⛶ Fullscreen</button>
-      <a class="iconbtn" href="https://betterwithage-anatomy.hf.space#estate" target="_blank" rel="noopener">Open scene ↗</a>
+      <a class="iconbtn" href="/holographic">Open /holographic</a>
+      <a class="iconbtn" href="/brain">Open /brain</a>
     </div>
-    <div class="embed" id="embed"><iframe id="scene" src="https://betterwithage-anatomy.hf.space#estate" title="SZL Living Anatomy (a11oy + killinchu)" loading="lazy" referrerpolicy="no-referrer" allowfullscreen allow="fullscreen"></iframe></div>
-    <p class="hint">Opens on the <b style="color:var(--cream)">estate</b> zoom-out so the whole estate &amp; its wirings are visible at a glance. Inside the scene: drag to orbit · scroll to zoom · ⟲ resets · ▦ estate lens toggles the honesty panel.</p>
+    <div class="embed" id="embed"><iframe id="scene" src="/holographic#brain" title="a11oy same-origin holographic Second Brain" loading="lazy" referrerpolicy="no-referrer" allowfullscreen allow="fullscreen"></iframe></div>
+    <p class="hint">Default scene is same-origin <b style="color:var(--cream)">/holographic#brain</b> (Second Brain surface on this origin). Estate / council / organism chips load the creator-profile anatomy Space as a separate origin and may paint UNAVAILABLE. Inside the same-origin scene: drag to orbit · scroll to zoom · ⟲ resets · ▦ estate lens toggles the honesty panel.</p>
   </div>
   <div class="panel">
     <h2>Estate &amp; Ayllu views<span class="meta">v10 · camera presets</span></h2>
@@ -132,10 +137,14 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
   <div class="panel">
     <h2>The same organism — the other two surfaces<span class="meta">one anatomy, cross-linked</span></h2>
     <div class="links">
-      <a class="linkcard" href="https://betterwithage-anatomy.hf.space#estate" target="_blank" rel="noopener"><div class="lt">Standalone anatomy scene ↗</div><div class="ls">betterwithage-anatomy.hf.space · full-screen 3D (opens zoomed-out)</div></a>
-      <a class="linkcard" href="https://szlholdings-killinchu.hf.space" target="_blank" rel="noopener"><div class="lt">killinchu — the field-node body ↗</div><div class="ls">szlholdings-killinchu.hf.space · counter-UAS twin (same organism)</div></a>
-      <a class="linkcard" href="/formulas"><div class="lt">/formulas — the named-formula registry</div><div class="ls">23 addressable FormulaAgents · live proof-state reveal · honest Lean status</div></a>
-      <a class="linkcard" href="/wires#constitution"><div class="lt">/wires — the written constitution</div><div class="ls">W-CONST v1.0 · numbered rules wired to live enforcement evidence</div></a>
+      <a class="linkcard" href="/holographic"><div class="lt">/holographic — same-origin 3D holo</div><div class="ls">brain-frontier v7 · Second Brain handles on this origin</div></a>
+      <a class="linkcard" href="/brain"><div class="lt">/brain — Second Brain dual-stream</div><div class="ls">evidence handles · not a claim the index is a model</div></a>
+      <a class="linkcard" href="/formulas"><div class="lt">/formulas — named-formula registry / Codex</div><div class="ls">live /api/a11oy/v1/formulas · locked-8 spine stays 8</div></a>
+      <a class="linkcard" href="/ouroboros"><div class="lt">/ouroboros — bounded loop</div><div class="ls">aliases /formulas · runner present is not convergence</div></a>
+      <a class="linkcard" href="/hatun-mcp"><div class="lt">/hatun-mcp — tool plane</div><div class="ls">maps Hatun onto brain, anatomy, ouroboros, formula codex</div></a>
+      <a class="linkcard" href="https://betterwithage-anatomy.hf.space#estate" target="_blank" rel="noopener"><div class="lt">Standalone anatomy Space ↗</div><div class="ls">betterwithage-anatomy.hf.space · separate origin · may be UNAVAILABLE</div></a>
+      <a class="linkcard" href="https://szlholdings-killinchu.hf.space" target="_blank" rel="noopener"><div class="lt">killinchu — field-node body ↗</div><div class="ls">counter-UAS twin · same organism metaphor</div></a>
+      <a class="linkcard" href="/wires#constitution"><div class="lt">/wires — written constitution</div><div class="ls">W-CONST v1.0 · enforcement evidence, not a theorem</div></a>
     </div>
   </div>
   <div class="panel">
@@ -147,19 +156,28 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
       <div class="organ"><div class="nm">Nervous system — consensus mesh (both)</div><div class="tref">Khipu Conjecture 2 · Byzantine quorum safety</div><span class="mat" style="background:rgba(255,138,92,.12);color:var(--orange)">conjecture (OPEN)</span><div class="desc">The quorum is read live, but Byzantine safety is Conjecture 2 — OPEN. We surface the live quorum, not a proof.</div></div>
       <div class="organ"><div class="nm">Field node — counter-UAS body (killinchu)</div><div class="tref">CUT-2 conditional · threshold-policy · @ 044eb098</div><span class="mat" style="background:rgba(245,196,81,.12);color:var(--yellow)">conditional (CI-green)</span><div class="desc">The field organ runs governed interdiction; its threshold policy is conditional/experimental, CI-green on main — labeled, not locked.</div></div>
       <div class="organ"><div class="nm">Circulatory — signed receipt bus (both)</div><div class="tref">DSSE / ECDSA-P256 · hash-chain + Merkle audit (A5 measured)</div><span class="mat" style="background:rgba(91,200,255,.12);color:var(--blue)">measured</span><div class="desc">Every decision flows as a genuinely signed receipt. Deterministic replay is axiom A5 — measured, not a theorem.</div></div>
+      <div class="organ"><div class="nm">Second Brain — evidence handles</div><div class="tref">GET /brain · GET /api/a11oy/v1/brain · compound retrieval, not a fine-tune</div><span class="mat" id="m_brain" style="background:rgba(91,200,255,.12);color:var(--blue)">probing</span><div class="desc" id="d_brain">Same-origin Second Brain surface. Live label is whatever /api/a11oy/v1/brain returns this request. Missing endpoint stays UNAVAILABLE. No invented handles.</div></div>
+      <div class="organ"><div class="nm">Ouroboros — bounded cycle</div><div class="tref">GET /api/a11oy/v1/ouroboros · POST run-all is bounded</div><span class="mat" id="m_ouro" style="background:rgba(91,200,255,.12);color:var(--blue)">probing</span><div class="desc" id="d_ouro">Loop tax is bounded. Convergence is advisory. Λ stays Conjecture 1. A present runner is not a proof the cycle closed.</div></div>
+      <div class="organ"><div class="nm">Codex — formula invariants</div><div class="tref">GET /formulas · GET /api/a11oy/v1/formulas · locked-8 {F1,F4,F7,F11,F12,F18,F19,F22}</div><span class="mat" id="m_formulas" style="background:rgba(91,200,255,.12);color:var(--blue)">probing</span><div class="desc" id="d_formulas">Registry may list more named formulas than the locked-8 spine. Extra rows stay labelled. Locked-8 never inflates.</div></div>
     </div>
   </div>
   <div class="footnote">
-    <b>Honest by design.</b> Live embed of the creator-profile anatomy scene. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 (never inflated); CUT-2 conditional/experimental @ 044eb098; Byzantine quorum = Conjecture 2 (OPEN); A5 deterministic replay = measured. Mesh quorum is read live. 0 runtime CDN — Living Anatomy is source-bound from szl-holdings/anatomy and published to Stephen's public creator profile. Anatomical vocabulary (brain, heart, skeleton…) is an <b>engineering metaphor</b> for system organs — no medical-atlas or neuroscience claim is made or implied.
+    <b>Honest by design.</b> Same-origin /holographic is the default 3D/holo embed. The creator-profile anatomy Space is a separate origin and may be UNAVAILABLE. Labels: Λ = Conjecture 1 (machine-checked FALSE as unconditional); exactly 8 locked-proven formulas {F1,F4,F7,F11,F12,F18,F19,F22} @ c7c0ba17 (never inflated); CUT-2 conditional/experimental @ 044eb098; Byzantine quorum = Conjecture 2 (OPEN); A5 deterministic replay = measured. Mesh quorum is read live. 0 runtime CDN — Living Anatomy is source-bound from szl-holdings/anatomy and published to Stephen's public creator profile. Anatomical vocabulary (brain, heart, skeleton…) is an <b>engineering metaphor</b> for system organs — no medical-atlas or neuroscience claim is made or implied.
   </div>
 </div>
 <script>
-const A="/api/a11oy";
+const A="/api/a11oy/v1";
 const ANATOMY="https://betterwithage-anatomy.hf.space";
 const $=id=>document.getElementById(id);
+const HOLO="/holographic#brain";
+function paint(id, text, color){
+  var el=$(id); if(!el) return;
+  el.textContent=text;
+  if(color) el.style.color=color;
+}
 function setView(v,btn){
   var f=document.getElementById('scene'); if(!f) return;
-  f.src=ANATOMY+"#"+v;   // hash-only change = in-place camera move, no reload
+  if(v==='holo'){ f.src=HOLO; } else { f.src=ANATOMY+"#"+v; }
   var chips=document.querySelectorAll('.chip'); for(var i=0;i<chips.length;i++){ chips[i].classList.toggle('active', chips[i]===btn); }
 }
 function goFs(){
@@ -173,16 +191,30 @@ async function load(){
   const h=await getJSON("https://szlholdings-killinchu.hf.space/api/killinchu/uds/v1/healthz");
   if(h&&h.quorum&&h.quorum.healthy!=null){
     const q=h.quorum;
-    $('c_mesh').textContent=q.healthy+' / 4'+(q.healthy>=4?' (HOLDS)':'');
-    $('c_mesh').style.color='var(--teal)';
+    paint('c_mesh', q.healthy+' / 4'+(q.healthy>=4?' (HOLDS)':''), 'var(--teal)');
   }else{
     // honest: no live read => say so; never fake a quorum
-    $('c_mesh').textContent='UNREACHABLE';
-    $('c_mesh').style.color='var(--orange)';
+    paint('c_mesh', 'UNREACHABLE', 'var(--orange)');
   }
   // confirm a11oy live
-  const cl=await getJSON(A+"/code/healthz");
-  $('livelbl').textContent=(cl&&cl.mode==='live')?'LIVE · RT':'LIVE';
+  const honest=await getJSON(A+"/honest");
+  if(honest&&honest.locked_formula_count!=null){
+    paint('c_locked', String(honest.locked_formula_count), 'var(--green)');
+    $('livelbl').textContent='LIVE · '+String((honest.git_sha||'').slice(0,8)||'RT');
+  } else { $('livelbl').textContent='LIVE'; }
+  const brain=await getJSON(A+"/brain");
+  const second=await getJSON(A+"/second-brain");
+  if(brain||second){ paint('c_brain','REACHABLE','var(--teal)'); var mb=$('m_brain'); if(mb) mb.textContent=second?'ALIAS+BRAIN':'BRAIN'; }
+  else { paint('c_brain','UNAVAILABLE','var(--orange)'); var mb=$('m_brain'); if(mb) mb.textContent='UNAVAILABLE'; }
+  const formulas=await getJSON(A+"/formulas");
+  const codex=await getJSON(A+"/codex");
+  if(formulas&&typeof formulas.count==='number'){ paint('c_formulas', String(formulas.count)+' named','var(--teal)'); var mf=$('m_formulas'); if(mf) mf.textContent='REACHABLE · '+formulas.count+(codex?' · CODEX ALIAS':''); }
+  else if(codex&&typeof codex.count==='number'){ paint('c_formulas', String(codex.count)+' named','var(--teal)'); var mf=$('m_formulas'); if(mf) mf.textContent='CODEX ALIAS · '+codex.count; }
+  else { paint('c_formulas','UNAVAILABLE','var(--orange)'); var mf=$('m_formulas'); if(mf) mf.textContent='UNAVAILABLE'; }
+  const ouro=await getJSON(A+"/ouroboros");
+  if(ouro){ paint('c_ouro', ouro.runner_present ? 'RUNNER PRESENT' : 'REACHABLE','var(--teal)'); var mo=$('m_ouro'); if(mo) mo.textContent=(ouro.truth||'REPORTED'); }
+  else { paint('c_ouro','UNAVAILABLE','var(--orange)'); var mo=$('m_ouro'); if(mo) mo.textContent='UNAVAILABLE'; }
+  var meta=$('scene_meta'); if(meta) meta.textContent='default embed /holographic#brain · external Space separate origin';
 }
 load();
 setInterval(load,30000);

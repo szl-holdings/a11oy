@@ -7254,9 +7254,13 @@ async def _a11oy_pr_audit_log_v2(limit: int = 50):
 @app.get("/api/a11oy/v1/brain")
 async def _a11oy_pr_brain_route_v2():
     """Unified brain payload — a11oy brand-orchestration role. Doctrine v11 LOCKED."""
+    return JSONResponse(_a11oy_brain_body())
+
+
+def _a11oy_brain_body() -> dict:
     if _A11OY_BRAIN_OK:
-        return JSONResponse(_a11oy_pr_brain.brain_payload("a11oy"))
-    return JSONResponse({
+        return _a11oy_pr_brain.brain_payload("a11oy")
+    return {
         "space": "a11oy", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
@@ -7264,6 +7268,63 @@ async def _a11oy_pr_brain_route_v2():
         "role": "Brand Orchestration / gates",
         "lambda_floor": 0.90,
         "honesty": "szl_brain unavailable in this build; honest stub returned.",
+    }
+
+
+@app.get("/api/a11oy/v1/second-brain")
+async def _a11oy_second_brain_alias():
+    """Alias of GET /api/a11oy/v1/brain. Same-origin Second Brain, not a second corpus."""
+    return JSONResponse({
+        "schema": "szl.second-brain.alias.v1",
+        "truth": "REPORTED",
+        "alias_of": "/api/a11oy/v1/brain",
+        "surfaces": ["/brain", "/holographic#brain", "/living-anatomy"],
+        "note": "Second Brain on this origin is the same-origin /brain surface plus the holographic #brain slot. This path is an alias, not a second index and not a claim the external second-brain Space is LIVE.",
+        "doctrine": "v11",
+        "payload": _a11oy_brain_body(),
+    })
+
+
+@app.get("/api/a11oy/v1/codex")
+async def _a11oy_codex_alias():
+    """Alias envelope for the named-formula registry. Locked-8 stays 8."""
+    return JSONResponse({
+        "schema": "szl.codex.alias.v1",
+        "truth": "REPORTED",
+        "alias_of": "/api/a11oy/v1/formulas",
+        "surfaces": ["/formulas", "/ouroboros", "/living-anatomy"],
+        "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "lambda": "Conjecture 1",
+        "note": "Codex on this origin is the named-formula registry. Extra named rows are not locked-proven. Follow alias_of for the live list.",
+        "doctrine": "v11",
+        "formulas": "/api/a11oy/v1/formulas",
+    })
+
+
+@app.get("/api/a11oy/v1/anatomy")
+async def _a11oy_anatomy_index():
+    """Index only. Does not claim the creator-profile anatomy Space is LIVE."""
+    return JSONResponse({
+        "schema": "szl.anatomy.index.v1",
+        "truth": "REPORTED",
+        "product_surface": "/living-anatomy",
+        "holo": "/holographic",
+        "holo_brain": "/holographic#brain",
+        "loop": "/api/a11oy/v1/anatomy/loop",
+        "vitals": "/api/a11oy/v1/anatomy/vitals",
+        "brain": "/api/a11oy/v1/brain",
+        "second_brain": "/api/a11oy/v1/second-brain",
+        "formulas": "/api/a11oy/v1/formulas",
+        "codex": "/api/a11oy/v1/codex",
+        "ouroboros": "/api/a11oy/v1/ouroboros",
+        "external_estate": {
+            "origin": "https://betterwithage-anatomy.hf.space",
+            "label": "SEPARATE_ORIGIN",
+        },
+        "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "lambda": "Conjecture 1",
+        "note": "Index of same-origin anatomy wiring. External estate origin is labelled separately and is not this payload.",
+        "doctrine": "v11",
     })
 
 @app.get("/api/a11oy/v1/llm/tiers")
