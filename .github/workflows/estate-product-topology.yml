@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Estate Product Topology Witness
+
+"on":
+  pull_request:
+    paths:
+      - scripts/estate_product_topology.py
+      - tests/test_estate_product_topology.py
+      - docs/ESTATE_PRODUCT_TOPOLOGY_V1.md
+      - .github/workflows/estate-product-topology.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/estate_product_topology.py
+      - tests/test_estate_product_topology.py
+      - docs/ESTATE_PRODUCT_TOPOLOGY_V1.md
+      - .github/workflows/estate-product-topology.yml
+      - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_vertical_services_intelligence_v4.py
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: estate-product-topology-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Five-product topology contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Prove static topology and fail-closed exact-source logic
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.4.2"
+          python -m py_compile scripts/estate_product_topology.py
+          python -m pytest -q tests/test_estate_product_topology.py
+          git diff --check
+
+  live-witness:
+    name: Live exact-source and retirement witness
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 24
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Wait for exact deployed revisions and prove topology
+        run: >-
+          python scripts/estate_product_topology.py
+          --output estate-product-topology.json
+          --retry-seconds 1200
+          --interval-seconds 30
+
+      - name: Upload immutable topology receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: estate-product-topology-${{ github.run_id }}-${{ github.run_attempt }}
+          path: estate-product-topology.json
+          if-no-files-found: error
+          retention-days: 90
