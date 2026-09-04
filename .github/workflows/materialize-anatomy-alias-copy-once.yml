@@ -1,0 +1,82 @@
+name: Materialize Anatomy alias image copy once
+
+on:
+  push:
+    branches:
+      - fix/anatomy-alias-image-copy-20260904
+    paths:
+      - .github/workflows/materialize-anatomy-alias-copy-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-anatomy-alias-copy-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 2
+          persist-credentials: true
+
+      - name: Require exact protected-main parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD^)" = "bb5447180fc63184a6c6e02450477e02f9e46251"
+
+      - name: Add the imported Anatomy alias module to the image
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("Dockerfile")
+          text = path.read_text(encoding="utf-8")
+          alias = "szl_anatomy_alias_bind.py"
+          needle = "szl_anatomy_routes.py"
+          if text.count(alias) == 0:
+              if text.count(needle) != 1:
+                  raise SystemExit(
+                      f"expected exactly one {needle!r} in Dockerfile; found {text.count(needle)}"
+                  )
+              text = text.replace(needle, f"{needle} {alias}", 1)
+              path.write_text(text, encoding="utf-8")
+          if path.read_text(encoding="utf-8").count(alias) != 1:
+              raise SystemExit("Anatomy alias COPY token is missing or duplicated")
+          PY
+
+      - name: Prove import, image, and publisher lockstep
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m py_compile szl_anatomy_alias_bind.py serve.py
+          python3 tools/check_copy_sync_lockstep.py
+          python3 - <<'PY'
+          from pathlib import Path
+
+          dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
+          serve = Path("serve.py").read_text(encoding="utf-8")
+          assert dockerfile.count("szl_anatomy_alias_bind.py") == 1
+          assert "import szl_anatomy_alias_bind" in serve
+          assert Path("szl_anatomy_alias_bind.py").is_file()
+          PY
+          git diff --check
+
+      - name: Remove the one-use materializer and commit the durable repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-anatomy-alias-copy-once.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git commit -m "fix(anatomy): ship the alias binder in the HF image" -m "Add the serve.py-imported Anatomy alias module to the explicit Docker COPY set so the protected source cannot deploy a fallback stub." -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/anatomy-alias-image-copy-20260904
