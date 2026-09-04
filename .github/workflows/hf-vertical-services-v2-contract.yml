@@ -1,0 +1,56 @@
+# SPDX-License-Identifier: Apache-2.0
+name: HF Vertical Services v2 contract
+
+# Source-neutral trusted retrigger after the deterministic doctrine repair.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_vertical_services.py
+      - tests/test_hf_publish_vertical_flagships_v4.py
+      - .github/workflows/hf-vertical-services-v2-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_vertical_services.py
+      - tests/test_hf_publish_vertical_flagships_v4.py
+      - .github/workflows/hf-vertical-services-v2-contract.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  operational-v2-contract:
+    name: Lock exact v2 source, routes, and live-proof contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install hash-locked test closure
+        run: >-
+          python -m pip install --disable-pip-version-check
+          --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Compile canonical publishers
+        run: >-
+          python -m py_compile
+          scripts/hf_publish_vertical_flagships_v4.py
+          scripts/hf_publish_vertical_services.py
+
+      - name: Prove exact source and operational-v2 contracts
+        run: >-
+          python -m pytest
+          tests/test_hf_publish_vertical_flagships_v4.py -q

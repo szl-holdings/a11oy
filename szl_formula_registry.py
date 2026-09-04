@@ -37,8 +37,9 @@ EXPECTED_SIGNATURE_REASON = (
     "in this repository."
 )
 EXPECTED_COVERAGE_SCOPE = (
-    "Exact locked-eight authority plus the F23 Lambda non-authority boundary; "
-    "not an exhaustive inventory of every SZL formula or theorem."
+    "Exact locked-eight authority plus the F23 Lambda boundary, which "
+    "remains Conjecture 1 and is not a theorem; not an exhaustive "
+    "inventory of every SZL formula or formal result."
 )
 FORMAL_REPOSITORY = "szl-holdings/lutar-lean"
 FORMAL_COMMIT = "c497b4ed402249f23da7f290426f0e21c70ab926"

@@ -129,12 +129,16 @@ def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
         "hf_publish_vertical_services.py",
         "combined_runtime",
         "szl.hf-vertical-estate/v5",
+        "ensure_space_secret_reader",
+        "backported-metadata-only",
+        "secret_values_readable",
     ):
         assert fragment in entrypoint
 
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/vertical-services"',
         'SOURCE_REVISION = "b191c14bf7449a52f1ec3d5959722b396af7fddd"',
+        'EXPECTED_VERSION = "2.0.0"',
         'HF_REPOSITORY = "SZLHOLDINGS/vertical-services"',
         'SIGNING_SECRET = "SENTRA_SIGNING_KEY"',
         'CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"',
@@ -151,3 +155,54 @@ def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
 
     assert "delete_repo" not in combined
     assert "delete_space" not in combined
+
+
+def test_combined_runtime_v2_closes_operational_fabric_contract() -> None:
+    combined = COMBINED.read_text(encoding="utf-8")
+    required = (
+        "CANONICAL_VERTICALS",
+        '"killinchu"',
+        '"/killinchu/healthz"',
+        '"/vessels/healthz"',
+        '"/api/verticals"',
+        '"/api/verticals/sentra/anatomy"',
+        '"/api/verticals/lyte/formulas"',
+        '"/api/verticals/killinchu/connectors"',
+        '"source_bound"',
+        '"observation_store_writable"',
+        '"required_connector_contracts_ready"',
+        '"persistent_signing_key"',
+        '"formula_registry_bound"',
+        '"official_source_connectors_wired"',
+        '"vessels_canonical_home"',
+        '"SZLHOLDINGS/killinchu"',
+        '"effectors_enabled"',
+        '"receipt_minted"',
+        '"szl.vertical-catalog/v2"',
+        '"szl.hf-vertical-services-publication/v2"',
+    )
+    for fragment in required:
+        assert fragment in combined
+
+
+def test_combined_runtime_executes_six_bounded_live_source_probes() -> None:
+    combined = COMBINED.read_text(encoding="utf-8")
+    for fragment in (
+        '("sentra", "cisa-kev", {"limit": 3})',
+        '("lyte", "github-actions", {"repository": "vertical-services", "limit": 10})',
+        '("killinchu", "noaa-ais-2025", {})',
+        '("finance", "sec-submissions", {"cik": "320193", "limit": 3})',
+        '("terra", "nyc-pluto", {"borough": "MN", "limit": 1})',
+        '("counsel", "federal-register", {"limit": 3})',
+        '"force_refresh": True',
+        '"X-SZL-Session"',
+        '"session_token_recorded": False',
+        '"payload_sha256"',
+        '"receipt_id"',
+        '"live_connector_probe"',
+        '"live_observations"',
+    ):
+        assert fragment in combined
+
+    assert "caller_supplied_urls" not in combined
+    assert "session_token_recorded\": True" not in combined
