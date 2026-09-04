@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Finalize owned Khipu cortex
+
+on:
+  push:
+    branches:
+      - feat/hf-owned-khipu-cortex-v1
+    paths:
+      - scripts/finalize_owned_khipu_cortex.py
+      - .github/workflows/finalize-owned-khipu-cortex.yml
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: finalize-owned-khipu-cortex
+  cancel-in-progress: true
+
+jobs:
+  closeout:
+    name: Exact-head merge, HF sync, and live revision proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    env:
+      GH_EXTERNAL_TOKEN: ${{ secrets.GH_ORG_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.GH_ADMIN_TOKEN || secrets.GITHUB_ORG_TOKEN || secrets.GH_ORG_TOKEN || secrets.SZL_GITHUB_TOKEN || secrets.A11OY_GITHUB_TOKEN || secrets.GITHUB_PAT || secrets.GH_PAT || secrets.PAT_TOKEN || secrets.PERSONAL_ACCESS_TOKEN || secrets.ADMIN_TOKEN || secrets.REPO_TOKEN || secrets.REPOSITORY_ACCESS_TOKEN || secrets.AUTOMATION_TOKEN || secrets.BOT_TOKEN || secrets.GH_TOKEN }}
+      GITHUB_TOKEN: ${{ github.token }}
+      REPORT_PATH: ${{ runner.temp }}/owned-khipu-cortex-closeout.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact closeout source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Validate closeout controller
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/finalize_owned_khipu_cortex.py
+          git diff --check
+
+      - name: Merge exact source and prove the canonical live deployment
+        id: closeout
+        continue-on-error: true
+        run: |
+          set +e
+          python scripts/finalize_owned_khipu_cortex.py \
+            --report "$REPORT_PATH"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable secret-free closeout evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owned-khipu-cortex-closeout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Publish bounded summary and enforce terminal truth
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["REPORT_PATH"])
+          if not path.is_file():
+              raise SystemExit("owned-Khipu closeout report is missing")
+          report = json.loads(path.read_text(encoding="utf-8"))
+          merge = report.get("merge") or {}
+          live = report.get("live") or {}
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as stream:
+              stream.write("# Owned Khipu cortex closeout\n\n")
+              stream.write(f"- State: `{report.get('state')}`\n")
+              stream.write(f"- Source head: `{merge.get('source_head_sha') or (report.get('source') or {}).get('sha')}`\n")
+              stream.write(f"- Merge SHA: `{merge.get('merge_sha')}`\n")
+              stream.write(f"- HF source readback: `{live.get('source_revision')}`\n")
+              stream.write(f"- Live health path: `{(live.get('health') or {}).get('path')}`\n")
+              stream.write(f"- Live inference path: `{(live.get('inference') or {}).get('path')}`\n")
+              stream.write(f"- Evidence SHA-256: `{report.get('report_sha256')}`\n")
+          if report.get("state") != "VERIFIED_COMPLETE":
+              raise SystemExit(f"owned-Khipu closeout did not verify: {report.get('blocker')}")
+          PY
