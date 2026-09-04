@@ -21,7 +21,8 @@ from typing import Any, Callable
 from huggingface_hub import HfApi
 
 _MARKER = "__szl_existing_space_guard_v1__"
-_LOCK = Lock()
+_INSTALL_LOCK = Lock()
+_COUNTER_LOCK = Lock()
 
 
 class SpaceGuardError(RuntimeError):
@@ -53,6 +54,11 @@ def _repo_id(args: tuple[Any, ...], kwargs: dict[str, Any]) -> str:
     if not isinstance(value, str) or "/" not in value or value != value.strip():
         raise SpaceGuardError("repo_id must be an exact namespace/name string")
     return value
+
+
+def _increment(state: dict[str, Any], key: str) -> None:
+    with _COUNTER_LOCK:
+        state[key] += 1
 
 
 def _observe_existing_space(
@@ -91,7 +97,7 @@ def install_existing_space_guard(api_class: type[Any] = HfApi) -> dict[str, Any]
     ``exist_ok=False`` creation, and every other SDK method remain untouched.
     """
 
-    with _LOCK:
+    with _INSTALL_LOCK:
         current = api_class.create_repo
         if getattr(current, _MARKER, False):
             return guard_report(api_class)
@@ -112,7 +118,7 @@ def install_existing_space_guard(api_class: type[Any] = HfApi) -> dict[str, Any]
             repo_type = kwargs.get("repo_type")
             exist_ok = kwargs.get("exist_ok", False)
             if repo_type != "space" or exist_ok is not True:
-                state["non_space_or_strict_calls_delegated"] += 1
+                _increment(state, "non_space_or_strict_calls_delegated")
                 return original(self, *args, **kwargs)
 
             repo_id = _repo_id(args, kwargs)
@@ -123,10 +129,10 @@ def install_existing_space_guard(api_class: type[Any] = HfApi) -> dict[str, Any]
                 requested_private=kwargs.get("private"),
             )
             if info is not None:
-                state["existing_spaces_reused"] += 1
+                _increment(state, "existing_spaces_reused")
                 return info
 
-            state["missing_spaces_delegated_to_create"] += 1
+            _increment(state, "missing_spaces_delegated_to_create")
             return original(self, *args, **kwargs)
 
         setattr(guarded, _MARKER, True)
@@ -149,7 +155,8 @@ def guard_report(api_class: type[Any] = HfApi) -> dict[str, Any]:
             "absence_policy": "EXACT_HTTP_404_ONLY",
             "secret_values_recorded": False,
         }
-    return dict(state)
+    with _COUNTER_LOCK:
+        return dict(state)
 
 
 __all__ = [
