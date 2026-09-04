@@ -1,0 +1,25 @@
+{
+  "name": "@szl-holdings/a11oy-command-center",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "a11oy Command Center web surface. Product origin a-11-oy.com. Not a second flagship.",
+  "license": "Apache-2.0",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 5173",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 4173"
+  },
+  "dependencies": {
+    "lucide-react": "^0.510.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.3.0"
+  }
+}
