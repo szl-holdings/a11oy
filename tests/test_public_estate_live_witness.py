@@ -6,6 +6,7 @@ import copy
 import hashlib
 import importlib.util
 import json
+import sys
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ MANIFEST = ROOT / "governance" / "public-estate.v1.json"
 spec = importlib.util.spec_from_file_location("public_estate_live_witness", SCRIPT)
 assert spec is not None and spec.loader is not None
 witness = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = witness
 spec.loader.exec_module(witness)
 
 
