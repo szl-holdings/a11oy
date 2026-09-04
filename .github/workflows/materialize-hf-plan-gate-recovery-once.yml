@@ -1,0 +1,70 @@
+name: Materialize HF plan-gated recovery once
+
+on:
+  push:
+    branches:
+      - fix/hf-plan-gated-static-recovery-v2
+    paths:
+      - .github/workflows/materialize-hf-plan-gate-recovery-once.yml
+      - tools/hf-plan-gate-recovery-v2.tar.gz
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-hf-plan-gated-recovery-v2-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact successor branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-plan-gated-static-recovery-v2
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Materialize exact reviewed recovery package
+        shell: bash
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor 117243f3dce7ce4390453c60414136725719ee60 HEAD
+          test "$(sha256sum tools/hf-plan-gate-recovery-v2.tar.gz | cut -d' ' -f1)" = 19caf50f41bc386fd06b20b94f78872e3671c69a2ae0ee09e2fdd6a44a1fbd45
+          tar -xzf tools/hf-plan-gate-recovery-v2.tar.gz
+          python -B -m py_compile \
+            scripts/hf_recover_vertical_estate_free_tier.py \
+            tests/test_hf_recover_vertical_estate_free_tier.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          json.loads(Path('docs/strategy/hf-free-tier-recovery.v2.json').read_text(encoding='utf-8'))
+          PY
+          python -m pip install --disable-pip-version-check 'pytest==8.4.2'
+          python -m pytest -q tests/test_hf_recover_vertical_estate_free_tier.py
+          git diff --check HEAD
+
+      - name: Commit only permanent recovery controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm \
+            .github/workflows/materialize-hf-plan-gate-recovery-once.yml \
+            tools/hf-plan-gate-recovery-v2.tar.gz
+          git diff --check HEAD
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit \
+            -m 'fix(hf): recover plan-gated vertical estate through proven static gateways' \
+            -m 'Admit only an exact protected-main 402 plan-gate receipt, resolve the tested vertical-services tip dynamically, validate every credential independently, prove one personal PRO runtime before any organization mutation, and convert only the five approved organization entry Spaces to source-bound static gateways.' \
+            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/hf-plan-gated-static-recovery-v2
