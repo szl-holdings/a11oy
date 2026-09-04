@@ -1,37 +1,12 @@
 name: llama-cpp wheel guard
 
-# Catches a SILENT regression in the OPTIONAL local-model ("alloy") demo tier.
-# The root Dockerfile BUILDS llama-cpp-python FROM SOURCE against the glibc
-# python:3.12-slim base, because abetlen's prebuilt CPU wheel index ships the
-# recent, Qwen2.5-capable 0.3.x cp312 linux_x86_64 wheels built against MUSL
-# libc — their bundled libllama.so NEEDs libc.musl-x86_64.so.1 and CANNOT load
-# on glibc, so a prebuilt-wheel install would silently degrade the demo tier to
-# the honest tower-side label. The only glibc (manylinux) prebuilt cp312 wheels
-# on that index are 0.2.6x, far too old to load the Qwen2.5 GGUF architecture.
+# The canonical A11oy image consumes one exact official llama-cpp-python
+# manylinux CPU wheel. This workflow validates the literal Dockerfile contract,
+# downloads the same immutable asset, checks size and SHA-256, installs it on
+# CPython 3.12/glibc, imports it, and proves the bundled libllama.so links glibc
+# rather than musl. It never compiles an alternate artifact from mutable source.
 #
-# This guard re-builds the EXACT pinned llama-cpp-python version parsed from the
-# Dockerfile FROM SOURCE on the same platform the image targets (cp312 /
-# linux_x86_64) and asserts (a) it imports and (b) the resulting libllama.so is
-# glibc-linked (NEEDs libc.so.6) and NOT musl-linked. If a version bump silently
-# regresses the contract — the pinned version no longer compiles on glibc, or a
-# packaging change produces a non-glibc libllama.so — this turns the otherwise
-# silent demo-tier degrade into a RED CI failure. The ghcr-build-push workflow's
-# "Demo tier serves REAL local model" step is the end-to-end authority (it boots
-# the published image and proves genuine local generation); this guard is the
-# fast, source-only contract check that runs on Dockerfile edits and on a
-# schedule even when nobody touches the repo.
-#
-# The pinned version can stop compiling on glibc (toolchain/source drift) without
-# anyone editing the repo, in which case the push/PR-only triggers never fire.
-# The weekly `schedule:` re-verifies the source-build contract on a cadence; a
-# scheduled-run failure pages the team through the shared a11oy-uptime ntfy alert
-# path (the same SLACK_WEBHOOK_URL relay the other a11oy CI alert workflows use).
-# That relay lives in scripts/weight_guard_alert.sh, shared with
-# gguf-weight-guard.yml so the two weight guards' page logic can't drift apart.
-# PR failures are NOT paged — a red check already shows on the PR — mirroring the
-# receipts-pin-drift-guard convention.
-#
-# DCO: Signed-off-by: Yachay <yachay@szlholdings.ai>
+# Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
 
 on:
   push:
@@ -53,8 +28,6 @@ on:
       - 'scripts/parse-llama-pin.sh'
       - 'scripts/parse-llama-pin.test.sh'
   schedule:
-    # Weekly, Mondays 06:17 UTC — re-verify the pinned version still compiles
-    # from source on glibc even when nobody touches the Dockerfile.
     - cron: '17 6 * * 1'
   workflow_dispatch:
 
@@ -62,104 +35,149 @@ permissions:
   contents: read
 
 jobs:
-  # Prove the version parser still works on a representative Dockerfile AND fails
-  # loudly when the pin is absent/reshaped, before the guard job trusts it against
-  # the real Dockerfile. Without this, a refactor of the install line could
-  # silently desync the parser and neuter the wheel guard (it would error or, if
-  # someone "fixed" the parse to be lenient, wave a regression through).
   parser-self-test:
     name: Self-test the Dockerfile pin parser (negative fixtures)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Run negative-fixture self-test
         run: bash scripts/parse-llama-pin.test.sh
 
   wheel-guard:
-    # ubuntu-latest is linux_x86_64 — the same arch the published image ships on.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: parser-self-test
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          # cp312 — same interpreter family as the Dockerfile's python:3.12-slim base.
           python-version: '3.12'
 
       - name: Self-test the shared alert relay (offline)
-        # Prove the shared scheduled-failure relay (scripts/weight_guard_alert.sh,
-        # also used by gguf-weight-guard.yml) still never masks an already-red job
-        # and warns when it cannot page. Network-free.
         run: bash scripts/weight_guard_alert.test.sh
 
-      - name: Parse pinned llama-cpp-python version from Dockerfile
+      - name: Parse the exact llama-cpp-python version
         id: parse
+        shell: bash
         run: |
           set -euo pipefail
-          # Use the shared parser (scripts/parse-llama-pin.sh) so the version this
-          # guard rebuilds is extracted by the EXACT same code the negative-fixture
-          # self-test (parser-self-test job) validates. The parser exits non-zero
-          # with a ::error:: annotation if the pin is absent or reshaped.
-          VER="$(bash scripts/parse-llama-pin.sh Dockerfile)"
-          echo "version=${VER}" >> "${GITHUB_OUTPUT}"
-          echo "Parsed llama-cpp-python==${VER}"
+          version="$(bash scripts/parse-llama-pin.sh Dockerfile)"
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+          printf 'Parsed exact llama-cpp-python version %s\n' "$version"
 
-      - name: Install build toolchain (glibc source build)
+      - name: Resolve the literal official wheel contract
+        id: contract
+        shell: bash
+        env:
+          EXPECTED_VERSION: ${{ steps.parse.outputs.version }}
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build
+          python3 - <<'PY'
+          from __future__ import annotations
 
-      - name: Build pinned version from source and assert glibc-linked libllama.so
-        run: |
-          set -euo pipefail
-          VER="${{ steps.parse.outputs.version }}"
-          # Build FROM SOURCE (no prebuilt wheel) exactly as the Dockerfile does.
-          # A musl-only upstream wheel cannot satisfy this, and a glibc source
-          # build is what the published image actually relies on.
-          set +e
-          CMAKE_ARGS="-DGGML_NATIVE=OFF" pip install --no-cache-dir --no-binary llama-cpp-python \
-            "llama-cpp-python==${VER}" 2>&1 | tee pip.log
-          rc=${PIPESTATUS[0]}
-          set -e
-          if [ "${rc}" -ne 0 ]; then
-            echo "::error::Could NOT build llama-cpp-python==${VER} from source on cp312/glibc. The Dockerfile relies on this exact source build for the alloy demo tier; pick a version that compiles, or fix the toolchain pins."
-            exit 1
-          fi
-          python - <<'PY'
-          import llama_cpp, os, glob, sys
-          base = os.path.dirname(llama_cpp.__file__)
-          so = glob.glob(os.path.join(base, "**", "libllama.so"), recursive=True)
-          if not so:
-              print("::error::libllama.so not found under %s after the source build." % base)
-              sys.exit(1)
-          data = open(so[0], "rb").read()
-          glibc = b"libc.so.6" in data
-          musl = b"libc.musl-x86_64.so.1" in data
-          print("libllama.so=%s glibc=%s musl=%s" % (so[0], glibc, musl))
-          if musl or not glibc:
-              print("::error::libllama.so is not glibc-linked (glibc=%s musl=%s). It would fail to load on the python:3.12-slim (glibc) base and the demo tier would silently degrade." % (glibc, musl))
-              sys.exit(1)
-          print("import OK, version", getattr(llama_cpp, "__version__", "unknown"))
+          import os
+          import re
+          from pathlib import Path
+
+          text = Path("Dockerfile").read_text(encoding="utf-8")
+          normalized = re.sub(r"\\\s*\n", " ", text)
+          version_pattern = r"[0-9]+(?:[.][0-9]+){2}"
+          wheel_pattern = (
+              r"llama_cpp_python-(?P<version>" + version_pattern + r")-"
+              r"py3-none-manylinux2014_x86_64[.]manylinux_2_17_x86_64[.]whl"
+          )
+          contract = re.compile(
+              r"ADD\s+--checksum=sha256:(?P<sha>[0-9a-f]{64})\s+"
+              r"(?P<url>https://github[.]com/abetlen/llama-cpp-python/releases/"
+              r"download/v(?P<release>" + version_pattern + r")/"
+              r"(?P<filename>" + wheel_pattern + r"))\s+"
+              r"/wheels/(?P=filename)"
+          )
+          matches = list(contract.finditer(normalized))
+          if len(matches) != 1:
+              raise SystemExit(
+                  f"expected exactly one official wheel ADD contract, found {len(matches)}"
+              )
+          match = matches[0]
+          expected = os.environ["EXPECTED_VERSION"]
+          versions = {match.group("version"), match.group("release"), expected}
+          if len(versions) != 1:
+              raise SystemExit(f"wheel version drift: {sorted(versions)}")
+
+          sizes = set(
+              re.findall(r"assert\s+os[.]path[.]getsize[(]path[)]\s*==\s*([0-9]+)", text)
+          )
+          if len(sizes) != 1:
+              raise SystemExit(f"expected one literal wheel-size assertion, found {sorted(sizes)}")
+          size = next(iter(sizes))
+          sha = match.group("sha")
+          if text.count(sha) < 2:
+              raise SystemExit("wheel SHA-256 is not independently rechecked in the Dockerfile")
+
+          output = Path(os.environ["GITHUB_OUTPUT"])
+          with output.open("a", encoding="utf-8") as handle:
+              handle.write(f"url={match.group('url')}\n")
+              handle.write(f"filename={match.group('filename')}\n")
+              handle.write(f"sha256={sha}\n")
+              handle.write(f"size={size}\n")
+          print(
+              "Resolved official wheel contract:",
+              match.group("filename"),
+              "size", size,
+              "sha256", sha,
+          )
           PY
-          echo "OK: llama-cpp-python==${VER} builds from source on glibc and yields a glibc-linked, importable libllama.so."
 
-      - name: Page the team on scheduled-run failure (ntfy via relay)
-        # Fire ONLY on the unattended weekly scheduled run when a prior step
-        # failed — i.e. the pinned version stopped compiling on glibc with no
-        # repo change to trigger the push/PR paths. PR/push failures are not
-        # paged (the red check is already visible). Mirrors the
-        # receipts-pin-drift-guard alert convention. This step never masks the
-        # failure: the job is already red from the failing step above.
+      - name: Download and verify the exact official wheel
+        shell: bash
+        env:
+          VERSION: ${{ steps.parse.outputs.version }}
+          WHEEL_URL: ${{ steps.contract.outputs.url }}
+          WHEEL_FILENAME: ${{ steps.contract.outputs.filename }}
+          WHEEL_SHA256: ${{ steps.contract.outputs.sha256 }}
+          WHEEL_SIZE: ${{ steps.contract.outputs.size }}
+        run: |
+          set -euo pipefail
+          wheel="$RUNNER_TEMP/$WHEEL_FILENAME"
+          curl --fail --location --silent --show-error \
+            --retry 5 --retry-all-errors --proto '=https' --tlsv1.2 \
+            "$WHEEL_URL" -o "$wheel"
+          actual_size="$(stat -c '%s' "$wheel")"
+          test "$actual_size" = "$WHEEL_SIZE"
+          printf '%s  %s\n' "$WHEEL_SHA256" "$wheel" | sha256sum -c -
+          python -m pip install --disable-pip-version-check --no-cache-dir "$wheel"
+          python - <<'PY'
+          from __future__ import annotations
+
+          import glob
+          import os
+          from importlib.metadata import version
+
+          import llama_cpp
+
+          expected = os.environ["VERSION"]
+          installed = version("llama-cpp-python")
+          assert installed == expected, (installed, expected)
+          base = os.path.dirname(llama_cpp.__file__)
+          shared = glob.glob(os.path.join(base, "**", "libllama.so"), recursive=True)
+          assert shared, f"libllama.so not found under {base}"
+          data = open(shared[0], "rb").read()
+          assert b"libc.so.6" in data, "official wheel is not glibc-linked"
+          assert b"libc.musl-x86_64.so.1" not in data, "official wheel is musl-linked"
+          print(
+              "OK: exact official llama-cpp-python wheel imported on CPython 3.12/glibc:",
+              shared[0],
+              installed,
+          )
+          PY
+
+      - name: Page on unattended scheduled failure
         if: ${{ failure() && github.event_name == 'schedule' }}
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          VER: ${{ steps.parse.outputs.version }}
+          VERSION: ${{ steps.parse.outputs.version }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-        # The relay itself lives in scripts/weight_guard_alert.sh (shared with
-        # gguf-weight-guard.yml so the page logic can't drift between guards);
-        # this step only builds the human MSG and hands it off.
         run: |
           source scripts/managed_alert_env.sh &&
-          export MSG=":rotating_light: a11oy llama-cpp wheel guard FAILED on its weekly scheduled re-verification. The pinned llama-cpp-python==${VER:-?} no longer builds from source into a glibc-linked libllama.so on cp312/linux_x86_64, so the local-model demo tier would silently degrade behind the honest tower-side label. Run: ${RUN_URL} . Fix: pin a llama-cpp-python version that compiles from source on glibc (recent enough to load the Qwen2.5 GGUF)."
+          export MSG=":rotating_light: a11oy official llama-cpp wheel guard failed. The exact pinned llama-cpp-python==${VERSION:-?} asset is unavailable, changed bytes/size, cannot import on CPython 3.12/glibc, or no longer contains a glibc-linked libllama.so. Run: ${RUN_URL}" &&
           bash scripts/weight_guard_alert.sh
