@@ -61,7 +61,7 @@ jobs:
             tests/test_hf_recovery_workflow_definition.py
 
   recover:
-    name: Publish personal runtime and static organization gateways
+    name: Record org Docker 402 as UNAVAILABLE
     if: github.event_name != 'pull_request'
     needs: contract
     runs-on: ubuntu-24.04
@@ -101,7 +101,7 @@ jobs:
           python-version: "3.12"
       - name: Install pinned Hugging Face client
         run: python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.29.0"
-      - name: Execute exact-source free-tier recovery
+      - name: Record the org Docker 402 plan gate
         id: recovery
         continue-on-error: true
         run: python scripts/hf_recover_vertical_estate_free_tier.py

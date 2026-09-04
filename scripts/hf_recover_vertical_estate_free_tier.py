@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Recover the HF vertical estate when org Docker Spaces are plan-gated.
+"""Record the HF org Docker 402 plan gate. Do not open a personal runtime.
 
-One canonical GitHub workflow publishes the exact vertical-services source to a
-personal public Docker Space, then converts the five SZLHOLDINGS entry Spaces to
-free static gateways. No source, receipt, or authority check is weakened.
+Organization Gradio/Docker Spaces on cpu-basic require Team or Enterprise.
+Doctrine v7 §14 forbids laundering the product runtime through a personal
+Hugging Face owner. Historical helper functions remain for contract tests.
 """
 from __future__ import annotations
 
@@ -382,40 +382,36 @@ def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str
 
 def main() -> int:
     report: dict[str, Any] = {
-        "schema": "szl.hf-free-tier-recovery/v3",
+        "schema": "szl.hf-free-tier-recovery/v4",
         "started_at": utc_now(),
         "provider_constraint": "HF_ORG_DYNAMIC_REQUIRES_TEAM_OR_ENTERPRISE",
+        "observed_http_status": 402,
+        "observed_constraint": (
+            "Organization Gradio and Docker Spaces on cpu-basic "
+            "require a Team or Enterprise plan"
+        ),
+        "state": "UNAVAILABLE",
+        "truth_label": "UNAVAILABLE",
+        "personal_namespace_runtime": False,
+        "personal_owner": None,
+        "doctrine_v7_section_14": (
+            "product runtime does not live in a personal HF Space"
+        ),
+        "killinchu_mutated": False,
+        "organization_subscription_changed": False,
         "token_value_recorded": False,
         "complete": False,
+        "note": (
+            "HF 402 is a paid-plan constraint. Record UNAVAILABLE. "
+            "Do not launder through a personal owner."
+        ),
     }
-    exit_code = 1
-    try:
-        from huggingface_hub import HfApi
-        token, token_name = token_from_env()
-        api = HfApi(token=token)
-        owner = owner_from_identity(api.whoami(token=token))
-        runtime = deploy_personal_runtime(token, owner)
-        rows = [publish_static_gateway(api, token, slug, meta, runtime) for slug, meta in STATIC_SPACES.items()]
-        complete = all(row["operational"] for row in rows)
-        report.update({
-            "token_source_name": token_name,
-            "github_token_source_name": runtime["github_token_source_name"],
-            "personal_owner": owner,
-            "runtime": {key: runtime[key] for key in ("repo_id", "origin", "source_revision", "version")},
-            "gateways": rows,
-            "gateways_operational": sum(1 for row in rows if row["operational"]),
-            "gateways_total": len(rows),
-            "complete": complete,
-        })
-        exit_code = 0 if complete else 1
-    except Exception as exc:
-        report["error"] = f"{type(exc).__name__}: {str(exc)[:1000]}"
     report["finished_at"] = utc_now()
     canonical = json.dumps(report, sort_keys=True, separators=(",", ":")).encode()
     report["receipt_sha256"] = hashlib.sha256(canonical).hexdigest()
     RECEIPT_PATH.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(report, indent=2))
-    return exit_code
+    return 0
 
 
 if __name__ == "__main__":

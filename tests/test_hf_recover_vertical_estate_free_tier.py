@@ -323,6 +323,23 @@ def test_gateway_live_verification_rejects_wrong_source_schema_and_authority(
     assert any("effector boundary drift" in row for row in result["failures"])
 
 
+def test_main_records_402_without_personal_runtime(tmp_path, monkeypatch) -> None:
+    receipt = tmp_path / "hf-free-tier-recovery-receipt.json"
+    monkeypatch.setattr(module, "RECEIPT_PATH", receipt)
+    monkeypatch.setattr(module, "deploy_personal_runtime", lambda *a, **k: (_ for _ in ()).throw(AssertionError("personal runtime must not run")))
+    monkeypatch.setattr(module, "publish_static_gateway", lambda *a, **k: (_ for _ in ()).throw(AssertionError("gateway rewrite must not run")))
+    assert module.main() == 0
+    report = json.loads(receipt.read_text(encoding="utf-8"))
+    assert report["observed_http_status"] == 402
+    assert report["state"] == "UNAVAILABLE"
+    assert report["truth_label"] == "UNAVAILABLE"
+    assert report["personal_namespace_runtime"] is False
+    assert report["personal_owner"] is None
+    assert report["complete"] is False
+    assert report["killinchu_mutated"] is False
+    assert "receipt_sha256" in report
+
+
 def test_script_preserves_single_writer_and_secret_boundaries() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     for fragment in (
