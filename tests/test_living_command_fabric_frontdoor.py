@@ -31,7 +31,7 @@ class LivingCommandFabricContract(unittest.TestCase):
             'id="nv-signer"',
             'id="nv-verdict"',
             'id="hs-receipts"',
-            "SIGNER",
+            "signer state",
             "Λ = Conjecture 1",
             "locked_formula_count",
         ):
