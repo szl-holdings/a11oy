@@ -30,6 +30,9 @@ ORIGIN = "https://szlholdings-vertical-services.hf.space"
 SOURCE_VARIABLE = "SZL_SOURCE_REVISION"
 SIGNING_SECRET = "SENTRA_SIGNING_KEY"
 RECEIPT_PATH = Path("hf-vertical-services-receipt.json")
+EXPECTED_VERTICALS = frozenset(
+    {"sentra", "lyte", "killinchu", "finance", "terra", "counsel"}
+)
 
 CONTROLLER_REPOSITORY = "szl-holdings/.github"
 CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"
@@ -197,29 +200,57 @@ def get_json(path: str) -> tuple[int, Any]:
         return response.status, json.loads(response.read())
 
 
+def persistent_signer_ready(ready: dict[str, Any]) -> bool:
+    """Verify persistent signing through the public v2 readiness contract.
+
+    ``/readyz`` intentionally does not reveal the signer source or any secret
+    metadata at its top level. Each canonical engine instead publishes the
+    boolean ``requirements.persistent_signing_key`` readiness fact. Requiring
+    the exact engine inventory plus READY state for every row proves the signer
+    dependency without reading or exposing a secret value.
+    """
+
+    verticals = ready.get("verticals")
+    if not isinstance(verticals, dict) or set(verticals) != EXPECTED_VERTICALS:
+        return False
+    return all(
+        isinstance(row, dict)
+        and row.get("ready") is True
+        and row.get("status") == "READY"
+        and isinstance(row.get("requirements"), dict)
+        and row["requirements"].get("persistent_signing_key") is True
+        for row in verticals.values()
+    )
+
+
 def verify_contract() -> dict[str, Any]:
     ready_status, ready = get_json("/readyz")
     build_status, build = get_json("/api/build-info")
+    ready_object = ready if isinstance(ready, dict) else {}
+    build_object = build if isinstance(build, dict) else {}
+    signer_ready = persistent_signer_ready(ready_object)
     complete = (
         ready_status == 200
-        and ready.get("ready") is True
-        and ready.get("sentra_signing_key_source") == "env"
-        and ready.get("build", {}).get("state") == "OBSERVED"
-        and ready.get("build", {}).get("revision") == SOURCE_REVISION
+        and ready_object.get("ready") is True
+        and signer_ready
+        and ready_object.get("build", {}).get("state") == "OBSERVED"
+        and ready_object.get("build", {}).get("revision") == SOURCE_REVISION
         and build_status == 200
-        and build.get("schema") == "szl.build-info/v1"
-        and build.get("source_repository") == SOURCE_REPOSITORY
-        and build.get("build", {}).get("state") == "OBSERVED"
-        and build.get("build", {}).get("revision") == SOURCE_REVISION
-        and build.get("source_binding", {}).get("bindings_agree") is True
-        and build.get("receipt_minted") is False
+        and build_object.get("schema") == "szl.build-info/v1"
+        and build_object.get("source_repository") == SOURCE_REPOSITORY
+        and build_object.get("build", {}).get("state") == "OBSERVED"
+        and build_object.get("build", {}).get("revision") == SOURCE_REVISION
+        and build_object.get("source_binding", {}).get("bindings_agree") is True
+        and build_object.get("receipt_minted") is False
     )
     return {
         "complete": complete,
         "ready_http": ready_status,
-        "ready": ready,
+        "ready": ready_object,
+        "persistent_signer_ready": signer_ready,
+        "expected_verticals": sorted(EXPECTED_VERTICALS),
         "build_info_http": build_status,
-        "build_info": build,
+        "build_info": build_object,
     }
 
 
