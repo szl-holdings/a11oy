@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -99,6 +100,24 @@ def read_receipt(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def bridge_github_token_contract() -> str:
+    """Expose the existing runner token under the pinned controller contract.
+
+    GitHub Actions provides the same ephemeral credential as ``GH_TOKEN`` for
+    the GitHub CLI. The pinned Dockerfile publisher deliberately requires the
+    conventional ``GITHUB_TOKEN`` name to prove the exact default-branch tip.
+    Bridge only inside this process, preserve an explicit ``GITHUB_TOKEN``, and
+    never print or persist the credential value.
+    """
+    if os.getenv("GITHUB_TOKEN", "").strip():
+        return "GITHUB_TOKEN"
+    gh_token = os.getenv("GH_TOKEN", "").strip()
+    if not gh_token:
+        return "UNAVAILABLE"
+    os.environ["GITHUB_TOKEN"] = gh_token
+    return "GH_TOKEN"
+
+
 def ensure_space_secret_reader() -> str:
     """Backport metadata-only Space secret listing for pre-v1.14 Hub clients.
 
@@ -136,6 +155,7 @@ def ensure_space_secret_reader() -> str:
 
 
 def main() -> int:
+    github_token_source = bridge_github_token_contract()
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,
@@ -165,6 +185,11 @@ def main() -> int:
     if combined_error:
         combined["entrypoint_error"] = combined_error
 
+    combined["github_token_contract"] = {
+        "required_name": "GITHUB_TOKEN",
+        "source_name": github_token_source,
+        "token_value_recorded": False,
+    }
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
     flagship["estate_schema"] = "szl.hf-vertical-estate/v7"
