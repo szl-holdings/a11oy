@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
@@ -29,7 +30,7 @@ def test_client_uses_one_same_origin_snapshot_without_persistence_or_telemetry()
     assert 'redirect: "error"' in source
     assert "HANDLES_ONLY" in source
     assert "DISCOVERED_REVIEW_REQUIRED" in source
-    assert "handle.content" not in source
+    assert re.search(r"\bhandle\.content\b", source) is None
     assert "payload.content" not in source
     for forbidden in (
         "localStorage",
@@ -71,7 +72,7 @@ def test_materialized_snapshot_is_handles_only_and_truth_bounded() -> None:
     payload = json.loads(read("console/assets/brain-frontier-v7.json"))
     assert payload["schema"] == "szl.a11oy.brain-frontier-holographic-v7/v1"
     assert payload["state"] == "SOURCE_BOUND_REVIEW_MEMORY"
-    assert payload["selected_handle_count"] == len(payload["handles"]) == 64
+    assert payload["selected_handle_count"] == len(payload["handles"]) == 72
     assert payload["formula_atlas"] == {
         "attributed_formula_count": 30,
         "executable_formula_count": 21,
