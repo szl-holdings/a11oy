@@ -11,10 +11,14 @@ which is backed by real /api/a11oy/... endpoints through szl_elite_console.py.
 The older public command-center SPA remains an explicit fallback only if the
 Elite Console asset is absent from a constrained build.
 
+/command/constellation is an additive tab: 49 estates probing live /api/a11oy
+endpoints. It does not replace Elite Console and does not steal /console.
+
 Bound path only. Does not edit the landing door and does not steal /console,
 which remains the operator runtime. Mounts:
 
   GET+HEAD /command
+  GET+HEAD /command/constellation
   GET+HEAD /command/{rest}
 
 /command-center is 307'd onto /command by serve.py.
@@ -39,6 +43,17 @@ def _spa_path() -> Path:
         if cand.is_file():
             return cand
     return here / "web" / "elite_console.html"
+
+
+def _constellation_path() -> Path:
+    here = Path(__file__).resolve().parent
+    for cand in (
+        here / "pages" / "constellation.html",
+        Path("/app/pages/constellation.html"),
+    ):
+        if cand.is_file():
+            return cand
+    return here / "pages" / "constellation.html"
 
 
 def _existing_paths(app) -> set:
@@ -81,6 +96,12 @@ def register(app, ns: str = "a11oy") -> List[str]:
         del rest
         return FileResponse(spa, media_type="text/html; charset=utf-8")
 
+    async def _constellation(_request=None):
+        page = _constellation_path()
+        if page.is_file():
+            return FileResponse(page, media_type="text/html; charset=utf-8")
+        return FileResponse(spa, media_type="text/html; charset=utf-8")
+
     existing = _existing_paths(app)
     mounted: set = set()
     router = getattr(app, "router", app)
@@ -99,8 +120,12 @@ def register(app, ns: str = "a11oy") -> List[str]:
 
     for path in MOUNTS:
         _add(path, _spa, ["GET", "HEAD"])
+    _add("/command/constellation", _constellation, ["GET", "HEAD"])
     _add("/command/{rest:path}", _spa, ["GET", "HEAD"])
-    _front_move(app, mounted | set(MOUNTS) | {"/command/{rest:path}"})
+    _front_move(
+        app,
+        mounted | set(MOUNTS) | {"/command/constellation", "/command/{rest:path}"},
+    )
     flavor = "elite-20-tab" if spa.name == "elite_console.html" else "legacy-fallback"
     registered.append(
         f"command-center {flavor} on /command (does not steal /console; not a landing door)"
@@ -145,11 +170,17 @@ def _selftest() -> None:
         assert ("Elite Console" in r.text) or ("a11oy Command Center" in r.text)
         h = c.head(path)
         assert h.status_code == 200, (path, h.status_code)
+    page = _constellation_path()
+    if page.is_file():
+        cr = c.get("/command/constellation")
+        assert cr.status_code == 200, cr.status_code
+        assert "Constellation" in cr.text
+        assert "cdnjs" not in cr.text
     op = c.get("/console")
     assert op.status_code == 200 and "operator console" in op.text
     print(
         "a11oy_command_center: ALL OK "
-        f"({spa.name} on /command; /console untouched; 0 runtime CDN)"
+        f"({spa.name} on /command; constellation tab additive; /console untouched; 0 runtime CDN)"
     )
 
 
