@@ -26,8 +26,23 @@ RFC3339_UTC_RE = re.compile(
     r"^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])"
     r"T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|\+00:00)$"
 )
-RETRY_ATTEMPTS = 3
+RETRY_ATTEMPTS = 6
+MAX_RETRY_DELAY = 60.0
 RETRYABLE_HTTP_CODES = frozenset({429, 500, 502, 503, 504})
+
+
+def retry_delay(error: BaseException, attempt: int) -> float:
+    """Return a bounded provider-aware delay for one retry."""
+
+    delay = float(min(2**attempt, MAX_RETRY_DELAY))
+    if isinstance(error, urllib.error.HTTPError) and error.headers is not None:
+        raw = error.headers.get("Retry-After")
+        if raw:
+            try:
+                delay = max(delay, min(float(raw), MAX_RETRY_DELAY))
+            except (TypeError, ValueError):
+                pass
+    return delay
 
 
 def open_url_with_retry(
@@ -47,10 +62,12 @@ def open_url_with_retry(
         except urllib.error.HTTPError as exc:
             if exc.code not in RETRYABLE_HTTP_CODES or attempt + 1 == attempts:
                 raise
-        except (urllib.error.URLError, ConnectionError, TimeoutError):
+            retry_error: BaseException = exc
+        except (urllib.error.URLError, ConnectionError, TimeoutError) as exc:
             if attempt + 1 == attempts:
                 raise
-        sleep(float(2**attempt))
+            retry_error = exc
+        sleep(retry_delay(retry_error, attempt))
     raise RuntimeError("unreachable retry state")
 
 
