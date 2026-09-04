@@ -23,7 +23,7 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 V3_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"
 
-SOURCE_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
+SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
 EXPECTED_VERSION = "2.2.0"
 USER_AGENT = "SZLHOLDINGS-Vertical-Intelligence-v4-Publisher/1.0"
 
@@ -245,9 +245,6 @@ def verify_intelligence(base: ModuleType) -> dict[str, Any]:
             failures.append(f"alias/{alias}: intelligence identity mismatch")
         aliases.append(item)
 
-    # This proof does not require a model provider to be configured. A deliberately
-    # low evidence axis must always abstain before provider invocation and must not
-    # echo or persist the raw context.
     session = "live-intelligence-verifier-0123456789abcdef"
     raw_context = "bounded verifier context that must not be returned"
     plan_status, plan = base.request_json(
