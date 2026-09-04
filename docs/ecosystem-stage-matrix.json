@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-04T20:35:24Z",
+  "observedAt": "2026-09-04T20:54:32Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,7 +27,7 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 44,
-      "datasets": 32,
+      "datasets": 33,
       "spaces": 15
     },
     "huggingFaceScope": {
@@ -1249,6 +1249,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/datasets/SZLHOLDINGS/canonical-formulas-v1"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/david-leads-data",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/david-leads-data"
       ]
     },
     {
