@@ -1,0 +1,163 @@
+name: Harden governed real-data release once
+
+on:
+  push:
+    branches:
+      - feat/real-data-gateway-v1
+    paths:
+      - .github/workflows/zz-harden-real-data-release-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: harden-real-data-release-once
+  cancel-in-progress: false
+
+jobs:
+  harden:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact gateway branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/real-data-gateway-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Materialize permanent first-smoke and source-trust controls
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import re
+          from pathlib import Path
+
+          smoke_additions = [
+              "/static/3d/real-data-gateway.html",
+              "/api/a11oy/v1/real-data/registry",
+              "/api/a11oy/v1/real-data/health",
+              "/api/a11oy/v1/real-data/vertical/lyte",
+          ]
+
+          sync_path = Path(".github/workflows/hf-sync.yml")
+          sync = sync_path.read_text(encoding="utf-8")
+          pattern = re.compile(r"^(\s*)smoke-paths:\s*'([^']+)'\s*$", re.MULTILINE)
+          match = pattern.search(sync)
+          if match is None:
+              raise SystemExit("canonical smoke-paths contract not found")
+          paths = json.loads(match.group(2))
+          if not isinstance(paths, list) or not all(isinstance(item, str) for item in paths):
+              raise SystemExit("canonical smoke-paths contract is not a JSON string list")
+          for item in smoke_additions:
+              if item not in paths:
+                  paths.append(item)
+          replacement = f"{match.group(1)}smoke-paths: '{json.dumps(paths, separators=(',', ':'))}'"
+          sync = sync[: match.start()] + replacement + sync[match.end() :]
+          sync_path.write_text(sync, encoding="utf-8")
+
+          test_path = Path("tests/test_operational_route_contracts.py")
+          tests = test_path.read_text(encoding="utf-8")
+          required_anchor = '        "/api/a11oy/v1/atelier/frontier/evaluate",\n'
+          required_additions = (
+              '        "/static/3d/real-data-gateway.html",\n'
+              '        "/api/a11oy/v1/real-data/registry",\n'
+              '        "/api/a11oy/v1/real-data/health",\n'
+              '        "/api/a11oy/v1/real-data/vertical/lyte",\n'
+          )
+          if required_anchor not in tests:
+              raise SystemExit("required-route anchor not found")
+          if '        "/static/3d/real-data-gateway.html",\n' not in tests:
+              tests = tests.replace(required_anchor, required_anchor + required_additions, 1)
+
+          list_anchor = '        "/api/a11oy/v1/atelier/frontier/evaluate?safety=0",\n'
+          list_additions = "".join(f'        "{item}",\n' for item in smoke_additions)
+          if list_anchor not in tests:
+              raise SystemExit("expected smoke-list anchor not found")
+          if '        "/static/3d/real-data-gateway.html",\n' not in tests.split("expected_smoke_paths = [", 1)[1]:
+              tests = tests.replace(list_anchor, list_anchor + list_additions, 1)
+          test_path.write_text(tests, encoding="utf-8")
+
+          workflow_path = Path(".github/workflows/real-data-gateway.yml")
+          workflow = workflow_path.read_text(encoding="utf-8")
+          condition_old = """                github.event.workflow_run.conclusion == 'success' &&
+                github.event.workflow_run.head_branch == 'main'
+"""
+          condition_new = """                github.event.workflow_run.conclusion == 'success' &&
+                github.event.workflow_run.head_branch == 'main' &&
+                github.event.workflow_run.repository.full_name == github.repository
+"""
+          if condition_old in workflow:
+              workflow = workflow.replace(condition_old, condition_new, 1)
+          elif condition_new not in workflow:
+              raise SystemExit("workflow-run condition anchor not found")
+
+          checkout_old = """                - name: Checkout exact deployed source
+                  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                  with:
+                    ref: ${{ github.event.workflow_run.head_sha }}
+                    persist-credentials: false
+"""
+          checkout_new = """                - name: Checkout current protected main
+                  uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                  with:
+                    ref: main
+                    fetch-depth: 1
+                    persist-credentials: false
+                - name: Require deployed SHA to equal current protected main
+                  env:
+                    DEPLOYED_SHA: ${{ github.event.workflow_run.head_sha }}
+                  shell: bash
+                  run: |
+                    set -euo pipefail
+                    test "$(git rev-parse HEAD)" = "$DEPLOYED_SHA"
+"""
+          if checkout_old in workflow:
+              workflow = workflow.replace(checkout_old, checkout_new, 1)
+          elif "Require deployed SHA to equal current protected main" not in workflow:
+              raise SystemExit("workflow checkout anchor not found")
+          workflow_path.write_text(workflow, encoding="utf-8")
+          PY
+
+          rm -f .github/workflows/zz-harden-real-data-release-once.yml
+
+          python -m py_compile routers/real_data_gateway.py scripts/verify_real_data_gateway_live.py tests/test_real_data_gateway.py tests/test_operational_route_contracts.py
+          node --check console/3d/real-data-gateway.mjs
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+          source = Path('.github/workflows/hf-sync.yml').read_text(encoding='utf-8')
+          match = re.search(r"^\s*smoke-paths:\s*'([^']+)'\s*$", source, re.MULTILINE)
+          if match is None:
+              raise SystemExit('smoke-paths missing')
+          paths = json.loads(match.group(1))
+          required = {
+              '/static/3d/real-data-gateway.html',
+              '/api/a11oy/v1/real-data/registry',
+              '/api/a11oy/v1/real-data/health',
+              '/api/a11oy/v1/real-data/vertical/lyte',
+          }
+          if not required.issubset(paths) or len(paths) != len(set(paths)):
+              raise SystemExit('canonical gateway smoke paths are incomplete or duplicated')
+          PY
+          git diff --check
+
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit \
+            -m 'ci(data): bind real-data gateway to first deployment smoke' \
+            -m 'Require the canonical publisher to observe the mobile page, registry, health route, and one vertical envelope before runtime configuration; bind post-deploy proof to current protected main.' \
+            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:feat/real-data-gateway-v1
