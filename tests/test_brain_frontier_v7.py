@@ -181,6 +181,32 @@ def test_selection_fails_closed_when_a_reserved_repository_is_missing() -> None:
         )
 
 
+def test_selection_fails_closed_when_formula_repository_lineage_is_missing() -> None:
+    state_raw, candidates_raw = fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    for item in rows:
+        if item["source_repository"] == FORMULA_REPOSITORY:
+            item["source_repository"] = "szl-holdings/a11oy"
+    assert len(rows) >= 72
+    missing_formula_lineage = b"".join(
+        canonical_bytes(item) + b"\n" for item in rows
+    )
+    state = json.loads(state_raw)
+    state["candidate_set_sha256"] = hashlib.sha256(
+        missing_formula_lineage
+    ).hexdigest()
+    with pytest.raises(
+        MaterializationError,
+        match=f"reserved repository has no candidate: {FORMULA_REPOSITORY}",
+    ):
+        build_snapshot(
+            "5" * 40,
+            json.dumps(state).encode(),
+            missing_formula_lineage,
+            dependencies(),
+        )
+
+
 def test_formula_tissue_can_satisfy_a_reserved_repository() -> None:
     state_raw, candidates_raw = fixture()
     rows = [json.loads(line) for line in candidates_raw.splitlines()]
