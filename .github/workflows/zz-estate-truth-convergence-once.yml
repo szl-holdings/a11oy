@@ -56,6 +56,15 @@ jobs:
       - name: Apply exact source-truth transaction
         run: python scripts/apply_estate_truth_convergence.py
 
+      - name: Normalize remaining Anatomy display labels
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(grep -o 'szlholdings-anatomy\.hf\.space' web/living-anatomy.html | wc -l | tr -d ' ')"
+          test "$observed" -eq 2
+          sed -i 's/szlholdings-anatomy\.hf\.space/betterwithage-anatomy.hf.space/g' web/living-anatomy.html
+          ! grep -Fq 'szlholdings-anatomy.hf.space' web/living-anatomy.html
+
       - name: Refresh live public Hugging Face evidence
         run: |
           python scripts/audit_huggingface_ecosystem.py \
