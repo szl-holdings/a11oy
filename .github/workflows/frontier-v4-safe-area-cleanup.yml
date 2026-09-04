@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Remove one-shot A11oy safe-area repair
+
+on:
+  push:
+    branches: [ci/public-experience-frontier-v4]
+    paths:
+      - ".github/workflows/frontier-v4-safe-area-cleanup.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Check out active PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ci/public-experience-frontier-v4
+          fetch-depth: 0
+
+      - name: Wait for source repair, then remove one-shot automation
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=ci/public-experience-frontier-v4
+          ready=false
+          for _ in $(seq 1 30); do
+            git fetch origin "$branch"
+            git reset --hard "origin/$branch"
+            if grep -Fq 'id="szl-safe-area-contract-v4"' a11oy_landing.html; then
+              ready=true
+              break
+            fi
+            sleep 10
+          done
+          test "$ready" = true || {
+            echo "::error::Safe-area source repair did not converge."
+            exit 1
+          }
+          rm -f \
+            .github/workflows/frontier-v4-safe-area-repair.yml \
+            .github/workflows/frontier-v4-safe-area-cleanup.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(ci): remove one-shot safe-area repair"
+          git push origin HEAD:"$branch"
