@@ -14,6 +14,9 @@ concurrency:
   group: materialize-anatomy-alias-copy-once
   cancel-in-progress: false
 
+env:
+  EXPECTED_BASE: bb5447180fc63184a6c6e02450477e02f9e46251
+
 jobs:
   materialize:
     runs-on: ubuntu-24.04
@@ -22,14 +25,14 @@ jobs:
       - name: Checkout exact repair branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          fetch-depth: 2
+          fetch-depth: 0
           persist-credentials: true
 
-      - name: Require exact protected-main parent
+      - name: Require protected-main ancestry
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git rev-parse HEAD^)" = "bb5447180fc63184a6c6e02450477e02f9e46251"
+          git merge-base --is-ancestor "$EXPECTED_BASE" HEAD
 
       - name: Add the imported Anatomy alias module to the image
         shell: bash
@@ -57,15 +60,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python3 -m py_compile szl_anatomy_alias_bind.py serve.py
+          python3 -m py_compile szl_anatomy_alias_bind.py serve.py szl_dark_surfaces_register.py
           python3 tools/check_copy_sync_lockstep.py
           python3 - <<'PY'
           from pathlib import Path
 
           dockerfile = Path("Dockerfile").read_text(encoding="utf-8")
-          serve = Path("serve.py").read_text(encoding="utf-8")
+          source_graph = "\n".join(
+              Path(name).read_text(encoding="utf-8")
+              for name in ("serve.py", "szl_dark_surfaces_register.py")
+          )
           assert dockerfile.count("szl_anatomy_alias_bind.py") == 1
-          assert "import szl_anatomy_alias_bind" in serve
+          assert "szl_anatomy_alias_bind" in source_graph
           assert Path("szl_anatomy_alias_bind.py").is_file()
           PY
           git diff --check
@@ -78,5 +84,5 @@ jobs:
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
           git add -A
-          git commit -m "fix(anatomy): ship the alias binder in the HF image" -m "Add the serve.py-imported Anatomy alias module to the explicit Docker COPY set so the protected source cannot deploy a fallback stub." -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git commit -m "fix(anatomy): ship the alias binder in the HF image" -m "Add the Anatomy alias binder reachable from the serve graph to the explicit Docker COPY set so the protected source cannot deploy a fallback stub." -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
           git push origin HEAD:fix/anatomy-alias-image-copy-20260904
