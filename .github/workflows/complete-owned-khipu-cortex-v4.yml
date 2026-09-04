@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Complete owned Khipu cortex v4
+
+on:
+  push:
+    branches:
+      - feat/hf-owned-khipu-cortex-v1
+    paths:
+      - .github/workflows/complete-owned-khipu-cortex-v4.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: complete-owned-khipu-cortex-v4
+  cancel-in-progress: false
+
+jobs:
+  complete:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/hf-owned-khipu-cortex-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Materialize corrected permanent source from reviewed v3 controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          source_path = Path('.github/workflows/complete-owned-khipu-cortex-v3.yml')
+          source = source_path.read_text(encoding='utf-8')
+          stale = '# No compiler, cmake, ninja, or source-build intermediates enter either'
+          corrected = '# No source-build toolchain or compile intermediates enter either'
+          if stale not in source:
+              raise SystemExit('expected v3 comment anchor was not found')
+          source = source.replace(stale, corrected, 1)
+          lines = source.splitlines()
+          start = next(i + 1 for i, line in enumerate(lines) if line.strip() == "python - <<'PY'")
+          end = next(i for i in range(start, len(lines)) if lines[i].strip() == 'PY')
+          program = textwrap.dedent('\n'.join(lines[start:end])) + '\n'
+          Path('/tmp/materialize_owned_khipu.py').write_text(program, encoding='utf-8')
+          PY
+          python /tmp/materialize_owned_khipu.py
+          rm -f .github/workflows/complete-owned-khipu-cortex-v4.yml
+
+      - name: Verify durable owned-Khipu contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "fastapi==0.141.1" \
+            "httpx==0.28.1" \
+            "pytest==9.1.1" \
+            "https://github.com/szl-holdings/szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz"
+          python -m py_compile \
+            a11oy_governed_cortex.py \
+            scripts/verify_owned_khipu_cortex_live.py \
+            serve.py
+          python -m unittest tests.test_a11oy_governed_cortex -v
+          python -m pytest -q tests/test_owned_khipu_docker_contract.py
+          python .github/scripts/register_invocation.py \
+            --root . \
+            --entrypoints serve.py wayra_serve.py ayni_os_serve.py kipu_qillqaq_serve.py \
+            --allowlist .github/register-invocation-allowlist.txt
+          python - <<'PY'
+          from pathlib import Path
+
+          docker = Path('Dockerfile').read_text(encoding='utf-8')
+          serve = Path('serve.py').read_text(encoding='utf-8')
+          required = (
+              'ARG A11OY_REQUIRE_LOCAL_LLM=1',
+              'llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl',
+              'd172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596',
+              'SZLHOLDINGS/SZL-Khipu-1.5B-GGUF',
+              '67d60ec577730747055491640cfb91fc4a4b5d25',
+              '13c1a1993063e1dff92f7413ccf48eaca6d48efc8801ae9af35961ae3396623a',
+              'ARG A11OY_ALLOY_GGUF_SIZE=986047904',
+              'A11OY_KHIPU_GGUF=/app/models/SZL-Khipu-1.5B-Q4_K_M.gguf',
+              'szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz',
+              'COPY a11oy_governed_cortex.py ./a11oy_governed_cortex.py',
+          )
+          for token in required:
+              assert token in docker, token
+          assert 'pip wheel --no-cache-dir --no-binary llama-cpp-python' not in docker
+          builder = docker.split('FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build', 1)[0]
+          for forbidden in ('build-essential', 'cmake', 'ninja-build'):
+              assert forbidden not in builder, forbidden
+          assert 'import a11oy_governed_cortex as _a11oy_governed_cortex' in serve
+          assert '_a11oy_governed_cortex.register(app, ns="a11oy")' in serve
+          assert serve.index('import szl_brain_api as _szl_brain_api') < serve.index(
+              'import a11oy_governed_cortex as _a11oy_governed_cortex'
+          ) < serve.index('@app.get("/{full_path:path}")')
+          for temporary in (
+              '.github/workflows/apply-owned-khipu-cortex-wiring.yml',
+              '.github/workflows/repair-owned-khipu-cortex-v2.yml',
+              '.github/workflows/complete-owned-khipu-cortex-v3.yml',
+              '.github/workflows/complete-owned-khipu-cortex-v4.yml',
+          ):
+              assert not Path(temporary).exists(), temporary
+          PY
+          git diff --check
+
+      - name: Commit only permanent reviewed source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -s -m "feat(inference): complete owned Khipu cortex wiring"
+          git push origin HEAD:feat/hf-owned-khipu-cortex-v1
