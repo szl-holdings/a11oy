@@ -1,0 +1,340 @@
+name: Emergency exact-source live convergence
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: emergency-exact-source-live-convergence
+  cancel-in-progress: true
+
+jobs:
+  deploy-a11oy:
+    name: Deploy and attest exact protected A11oy source
+    uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@e3ec47ad2e99a535839afe0f30fefbd8973d52da
+    with:
+      hf-repo: SZLHOLDINGS/a11oy
+      ref: ${{ github.sha }}
+      dockerfile-path: Dockerfile
+      include-readme: true
+      prune: true
+      wait-running: 1200
+      restart-space: true
+      source-revision-variable: SZL_GIT_SHA
+      source-revision-probe-path: /api/build-info
+      smoke-paths: '["/","/api/livez","/api/build-info","/console","/assets/szl-holo-v2.css","/assets/szl-holo-v2.js","/killinchu","/hatun-mcp","/cockpit","/brain","/anatomy-v5","/living-anatomy","/khipu","/immune","/lyte","/estate"]'
+    secrets:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+
+  publish-vertical:
+    name: Publish and attest the current combined six-engine runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
+      HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+      HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+      HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Assert protected-main authority and current source pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          git fetch --no-tags --depth=1 origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+          observed="$(git ls-remote https://github.com/szl-holdings/vertical-services.git refs/heads/main | awk '{print $1}')"
+          test "$observed" = "b191c14bf7449a52f1ec3d5959722b396af7fddd"
+          grep -Fq 'SOURCE_REVISION = "b191c14bf7449a52f1ec3d5959722b396af7fddd"' scripts/hf_publish_vertical_services.py
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install the exact governed Hub client
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.10.1"
+          "pytest==8.4.2"
+
+      - name: Prove secret-reader compatibility and exact publisher contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/hf_publish_vertical_flagships_v4.py scripts/hf_publish_vertical_services.py
+          python -m pytest -q tests/test_hf_space_secret_reader_compat.py tests/test_hf_publish_vertical_flagships_v4.py
+          python - <<'PY'
+          import runpy
+          from huggingface_hub import HfApi
+
+          entry = runpy.run_path("scripts/hf_publish_vertical_flagships_v4.py")
+          mode = entry["ensure_space_secret_reader"]()
+          assert mode in {"native", "backported-metadata-only"}, mode
+          assert callable(getattr(HfApi, "get_space_secrets", None))
+          PY
+
+      - name: Require an available write credential without printing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HF_ORG_TOKEN:-}${HF_WRITE_TOKEN:-}${HF_TOKEN:-}${HUGGINGFACE_TOKEN:-}${HUGGING_FACE_HUB_TOKEN:-}"
+
+      - name: Publish, restart, attest, and live-verify combined runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import runpy
+
+          entry = runpy.run_path("scripts/hf_publish_vertical_flagships_v4.py")
+          mode = entry["ensure_space_secret_reader"]()
+          assert mode in {"native", "backported-metadata-only"}, mode
+          combined = runpy.run_path("scripts/hf_publish_vertical_services.py")
+          raise SystemExit(combined["main"]())
+          PY
+
+      - name: Upload immutable combined-runtime receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: emergency-vertical-services-${{ github.run_id }}-${{ github.run_attempt }}
+          path: hf-vertical-services-receipt.json
+          if-no-files-found: warn
+          retention-days: 180
+
+  prove-live:
+    name: Prove the public domain, navigation, Brain/Anatomy binding, and six engines
+    needs: [deploy-a11oy, publish-vertical]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_A11OY_SHA: ${{ github.sha }}
+      EXPECTED_VERTICAL_SHA: b191c14bf7449a52f1ec3d5959722b396af7fddd
+      A11OY_DEPLOY_RESULT: ${{ needs.deploy-a11oy.result }}
+      VERTICAL_DEPLOY_RESULT: ${{ needs.publish-vertical.result }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Independently prove all live contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import concurrent.futures
+          import hashlib
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          A11OY_ORIGINS = (
+              "https://szlholdings-a11oy.hf.space",
+              "https://a-11-oy.com",
+          )
+          VERTICAL_ORIGIN = "https://szlholdings-vertical-services.hf.space"
+          EXPECTED_A11OY = os.environ["EXPECTED_A11OY_SHA"]
+          EXPECTED_VERTICAL = os.environ["EXPECTED_VERTICAL_SHA"]
+          ROUTES = (
+              "/console", "/killinchu", "/hatun-mcp", "/cockpit", "/brain",
+              "/anatomy-v5", "/living-anatomy", "/khipu", "/immune", "/lyte", "/estate",
+          )
+          VERTICAL_HEALTH = (
+              "/healthz", "/readyz", "/sentra/healthz", "/lyte/healthz",
+              "/vessels/healthz", "/finance/healthz", "/terra/healthz", "/counsel/healthz",
+          )
+
+          def request(url: str, *, timeout: int = 25) -> dict:
+              req = urllib.request.Request(
+                  url + ("&" if "?" in url else "?") + f"proof={time.time_ns()}",
+                  headers={
+                      "Accept": "*/*",
+                      "Cache-Control": "no-cache",
+                      "Pragma": "no-cache",
+                      "User-Agent": "SZL-Emergency-Live-Proof/1.0",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=timeout) as response:
+                      body = response.read()
+                      return {
+                          "url": url,
+                          "status": response.status,
+                          "content_type": response.headers.get("content-type"),
+                          "body": body,
+                          "sha256": hashlib.sha256(body).hexdigest(),
+                          "final_url": response.geturl().split("?", 1)[0],
+                      }
+              except urllib.error.HTTPError as exc:
+                  body = exc.read()
+                  return {
+                      "url": url,
+                      "status": exc.code,
+                      "content_type": exc.headers.get("content-type") if exc.headers else None,
+                      "body": body,
+                      "sha256": hashlib.sha256(body).hexdigest(),
+                      "final_url": exc.geturl().split("?", 1)[0],
+                  }
+              except Exception as exc:
+                  return {"url": url, "status": None, "body": b"", "error": f"{type(exc).__name__}: {exc}"}
+
+          def json_body(record: dict) -> dict:
+              try:
+                  value = json.loads(record.get("body", b"").decode("utf-8"))
+              except Exception:
+                  return {}
+              return value if isinstance(value, dict) else {}
+
+          def revision(payload: dict) -> str | None:
+              build = payload.get("build")
+              if isinstance(build, dict) and isinstance(build.get("revision"), str):
+                  return build["revision"]
+              for key in ("source_revision", "git_sha", "revision"):
+                  if isinstance(payload.get(key), str):
+                      return payload[key]
+              return None
+
+          report: dict = {
+              "schema": "szl.emergency-live-convergence-proof/v1",
+              "expected_a11oy_sha": EXPECTED_A11OY,
+              "expected_vertical_sha": EXPECTED_VERTICAL,
+              "workflow_results": {
+                  "a11oy": os.environ.get("A11OY_DEPLOY_RESULT"),
+                  "vertical": os.environ.get("VERTICAL_DEPLOY_RESULT"),
+              },
+              "attempts": [],
+              "credential_values_recorded": False,
+          }
+
+          complete = False
+          for attempt in range(1, 41):
+              urls = []
+              for origin in A11OY_ORIGINS:
+                  urls.extend(origin + path for path in ("/", "/api/build-info", "/assets/szl-holo-v2.css", "/assets/szl-holo-v2.js", *ROUTES))
+              urls.extend(VERTICAL_ORIGIN + path for path in ("/api/build-info", *VERTICAL_HEALTH))
+              with concurrent.futures.ThreadPoolExecutor(max_workers=24) as pool:
+                  records = list(pool.map(request, urls))
+              indexed = {row["url"]: row for row in records}
+
+              a11oy = {}
+              for origin in A11OY_ORIGINS:
+                  build_payload = json_body(indexed[origin + "/api/build-info"])
+                  css = indexed[origin + "/assets/szl-holo-v2.css"].get("body", b"").decode("utf-8", errors="replace")
+                  js = indexed[origin + "/assets/szl-holo-v2.js"].get("body", b"").decode("utf-8", errors="replace")
+                  route_status = {path: indexed[origin + path].get("status") for path in ROUTES}
+                  a11oy[origin] = {
+                      "root_http": indexed[origin + "/"].get("status"),
+                      "build_http": indexed[origin + "/api/build-info"].get("status"),
+                      "build_revision": revision(build_payload),
+                      "route_status": route_status,
+                      "routes_all_200": all(code == 200 for code in route_status.values()),
+                      "css_http": indexed[origin + "/assets/szl-holo-v2.css"].get("status"),
+                      "js_http": indexed[origin + "/assets/szl-holo-v2.js"].get("status"),
+                      "ui_contract": {
+                          "fluid_estate_v4_css": "SZL FLUID ESTATE RAIL V4" in css,
+                          "fluid_estate_v4_js": "SZL FLUID ESTATE RAIL V4" in js,
+                          "cyan_palette": "#57ebff" in css and "#31e6d1" in css,
+                          "left_right_controls": ".szl-estate-scroll" in css and "Scroll estate tabs left" in js and "Scroll estate tabs right" in js,
+                          "killinchu": "KILLINCHU" in js,
+                          "hatun": "HATUN" in js,
+                          "second_brain": "SECOND BRAIN" in js,
+                          "living_anatomy": "LIVING ANATOMY" in js,
+                          "brain_anatomy_bound": "szlBrainAnatomyNav" in js and 'brain-anatomy' in js,
+                      },
+                  }
+                  a11oy[origin]["ui_contract_complete"] = all(a11oy[origin]["ui_contract"].values())
+
+              vertical_build = json_body(indexed[VERTICAL_ORIGIN + "/api/build-info"])
+              vertical_ready = json_body(indexed[VERTICAL_ORIGIN + "/readyz"])
+              health_status = {path: indexed[VERTICAL_ORIGIN + path].get("status") for path in VERTICAL_HEALTH}
+              vertical = {
+                  "build_http": indexed[VERTICAL_ORIGIN + "/api/build-info"].get("status"),
+                  "build_revision": revision(vertical_build),
+                  "ready_http": indexed[VERTICAL_ORIGIN + "/readyz"].get("status"),
+                  "ready": vertical_ready.get("ready"),
+                  "signing_key_source": vertical_ready.get("sentra_signing_key_source"),
+                  "health_status": health_status,
+                  "health_all_200": all(code == 200 for code in health_status.values()),
+                  "bindings_agree": (vertical_build.get("source_binding") or {}).get("bindings_agree") if isinstance(vertical_build.get("source_binding"), dict) else None,
+              }
+
+              state = {
+                  "attempt": attempt,
+                  "observed_at_unix": int(time.time()),
+                  "a11oy": a11oy,
+                  "vertical": vertical,
+              }
+              report["attempts"].append(state)
+              a11oy_complete = all(
+                  row["root_http"] == 200
+                  and row["build_http"] == 200
+                  and row["build_revision"] == EXPECTED_A11OY
+                  and row["routes_all_200"]
+                  and row["css_http"] == 200
+                  and row["js_http"] == 200
+                  and row["ui_contract_complete"]
+                  for row in a11oy.values()
+              )
+              vertical_complete = (
+                  vertical["build_http"] == 200
+                  and vertical["build_revision"] == EXPECTED_VERTICAL
+                  and vertical["ready_http"] == 200
+                  and vertical["ready"] is True
+                  and vertical["signing_key_source"] == "env"
+                  and vertical["bindings_agree"] is True
+                  and vertical["health_all_200"]
+              )
+              complete = a11oy_complete and vertical_complete
+              if complete:
+                  break
+              if attempt < 40:
+                  time.sleep(15)
+
+          report["complete"] = complete
+          report["final"] = report["attempts"][-1]
+          Path("emergency-live-convergence-proof.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps({"complete": complete, "final": report["final"]}, indent=2, sort_keys=True))
+          if not complete:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload immutable convergence proof
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: emergency-live-convergence-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: emergency-live-convergence-proof.json
+          if-no-files-found: error
+          retention-days: 180
