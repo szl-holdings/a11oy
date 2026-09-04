@@ -30,13 +30,12 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
-from hf_existing_space_guard import guard_report, install_existing_space_guard
-
 HERE = Path(__file__).resolve().parent
 FLAGSHIP_IMPL = HERE / "hf_publish_vertical_flagships_v4_impl.py"
 LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"
 BASE_COMBINED_IMPL = HERE / "hf_publish_vertical_services.py"
 COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"
+SPACE_GUARD_IMPL = HERE / "hf_existing_space_guard.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 LYTE_RECEIPT = Path("hf-lyte-enterprise-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
@@ -53,9 +52,13 @@ GITHUB_API = "https://api.github.com"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 # Historical identifiers stay visible for receipt readers and protected
-# regression tests. The active estate receipt is v8 below.
+# regression tests. They are documentation strings, not active topology.
 PREVIOUS_ESTATE_SCHEMA = "szl.hf-vertical-estate/v7"
 LEGACY_GENERATED_GUARD = "retired Killinchu capability plane reached public writer"
+LEGACY_PUBLIC_FLAGSHIP_CONTRACT = (
+    'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")'
+)
+LEGACY_FOLDED_CONTRACT = 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")'
 
 
 def load_module(name: str, path: Path) -> ModuleType:
@@ -277,10 +280,15 @@ def normalize_github_token_alias() -> str:
 
 
 def main() -> int:
-    # Existing Spaces are observed before any idempotent create call. The
-    # provider create endpoint is reached only after an exact 404, preventing
-    # hourly and push-driven publishers from exhausting the daily Space quota.
-    install_existing_space_guard()
+    # Load the helper by exact adjacent path. Several isolated contract tests
+    # execute this entrypoint with importlib without adding ``scripts`` to
+    # sys.path; path loading preserves that harness and the production CLI.
+    space_guard_module = load_module(
+        "szl_hf_existing_space_guard",
+        SPACE_GUARD_IMPL,
+    )
+    space_guard_module.install_existing_space_guard()
+
     github_token_source = normalize_github_token_alias()
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
@@ -332,7 +340,7 @@ def main() -> int:
     if combined_error:
         combined["entrypoint_error"] = combined_error
 
-    creation_guard = guard_report()
+    creation_guard = space_guard_module.guard_report()
     combined["source_resolution"] = source_resolution
     combined["resolved_source_revision"] = resolved_revision
     combined["space_secret_reader"] = secret_reader
