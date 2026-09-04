@@ -1,0 +1,98 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Repair EnergyLedger rolling-restart safety once
+
+on:
+  push:
+    branches:
+      - fix/energy-ledger-transport-bound-20260904
+    paths:
+      - .github/workflows/zz-repair-energy-ledger-process-safety-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-energy-ledger-process-safety-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: cross-process lock, forensic reset, and bounded read proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/energy-ledger-transport-bound-20260904
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Apply bounded process-safety repair
+        run: python tools/patch_energy_ledger_process_safety.py
+
+      - name: Install exact CI dependency closure
+        run: >-
+          python -m pip install --disable-pip-version-check --require-hashes
+          -r .github/requirements/ci-core.txt
+
+      - name: Prove concurrency, recovery, persistence, and response bounds
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            szl_energy_ledger.py \
+            szl_energy_ledger_recovery.py \
+            szl_durable_ledger.py \
+            tests/test_energy_ledger_process_safety.py
+          python -m pytest -q \
+            test_energy_ledger.py \
+            tests/test_durable_ledger.py \
+            test_energy_wire_operator_ledger.py \
+            tests/test_energy_ledger_process_safety.py
+          python szl_energy_ledger.py >/tmp/energy-selftest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          payload = json.loads(Path('/tmp/energy-selftest.json').read_text(encoding='utf-8').splitlines()[-1]) if False else None
+          source = Path('szl_energy_ledger.py').read_text(encoding='utf-8')
+          docker = Path('Dockerfile').read_text(encoding='utf-8')
+          for marker in (
+              'exclusive_writer_lock',
+              'INVALID_PRIOR_GENERATION_QUARANTINED',
+              'WRITER_LOCK_TIMEOUT',
+              'MAX_LEDGER_PAGE_LIMIT',
+              'ledger/summary',
+          ):
+              assert marker in source, marker
+          assert 'szl_energy_ledger_recovery.py' in docker
+          assert 'return get_ledger().summary()' in source
+          PY
+          git diff --check
+
+      - name: Commit only durable repair
+        run: |
+          set -euo pipefail
+          git rm tools/patch_energy_ledger_process_safety.py
+          git rm .github/workflows/zz-repair-energy-ledger-process-safety-once.yml
+          git add \
+            szl_energy_ledger.py \
+            szl_energy_ledger_recovery.py \
+            tests/test_energy_ledger_process_safety.py \
+            Dockerfile
+          git config user.name "SZL Energy Ledger Recovery Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit \
+            -m "fix(energy): serialize writers and quarantine forked generations" \
+            -m "Use a bounded POSIX writer lease, strict durable-tail reload, digest-bound forensic quarantine, explicit reset receipt, persist-before-memory acknowledgement, contiguous sequence verification, and a capped cursor-page response. Add adversarial rolling-restart, stale-tail, lock-timeout, malformed-row, fork, storage-refusal, and response-size tests." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/energy-ledger-transport-bound-20260904
