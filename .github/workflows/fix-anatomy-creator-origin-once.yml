@@ -35,6 +35,7 @@ jobs:
           from pathlib import Path
           import subprocess
 
+          workflow = ".github/workflows/fix-anatomy-creator-origin-once.yml"
           old = "https://szlholdings-anatomy.hf.space"
           new = "https://betterwithage-anatomy.hf.space"
           changed = []
@@ -45,7 +46,7 @@ jobs:
               if not raw:
                   continue
               path = Path(raw.decode("utf-8"))
-              if path.as_posix() == ".github/workflows/fix-anatomy-creator-origin-once.yml":
+              if path.as_posix() == workflow:
                   continue
               try:
                   text = path.read_text(encoding="utf-8")
@@ -63,7 +64,7 @@ jobs:
               print(path)
           PY
           git diff --check
-          test -z "$(git grep -l 'https://szlholdings-anatomy.hf.space' -- ':!archive/**' ':!archives/**' || true)"
+          test -z "$(git grep -l 'https://szlholdings-anatomy.hf.space' -- ':!archive/**' ':!archives/**' ':!.github/workflows/fix-anatomy-creator-origin-once.yml' || true)"
 
       - name: Commit the deterministic authority migration
         shell: bash
@@ -71,7 +72,7 @@ jobs:
           set -euo pipefail
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
-          git add --all -- ':!.github/workflows/fix-anatomy-creator-origin-once.yml'
+          git add --all
           git diff --cached --quiet && { echo "no migration changes"; exit 1; }
           git commit -s -m "fix(anatomy): replace the retired organization Space origin"
           git push origin HEAD:fix/anatomy-creator-authority-v1-20260904
