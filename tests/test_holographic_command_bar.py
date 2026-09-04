@@ -94,6 +94,16 @@ def test_public_header_is_command_and_proof_registry() -> None:
     assert "Proof registry ↗" in TRUST
 
 
+def test_command_bar_exposes_holo_and_frontier_tabs() -> None:
+    """Operator surfaces already served by Space SZLHOLDINGS/a11oy."""
+    assert "href: '/holographic'" in BAR_JS
+    assert "href: '/frontier-now'" in BAR_JS
+    assert "text: 'Holo'" in BAR_JS
+    assert "text: 'Frontier'" in BAR_JS
+    assert '<a href="/holographic">Holo</a>' in LANDING
+    assert '<a href="/frontier-now">Frontier</a>' in LANDING
+
+
 def test_no_investor_route_stub() -> None:
     assert 'href="/investor"' not in CONSOLE
     assert 'href="/investor"' not in LANDING

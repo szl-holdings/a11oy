@@ -32,6 +32,8 @@
     { label: 'Open diligence room', href: PROOF },
     { label: 'Proof registry', href: PROOF },
     { label: 'Command Center', href: '/console?view=command' },
+    { label: 'Holo', href: '/holographic' },
+    { label: 'Frontier', href: '/frontier-now' },
     { label: 'Models + Kernels', href: '/estate' },
     { label: 'Ask & Act', href: '/console?view=ask' },
     { label: 'Investor View', href: '/console?view=investor' },
@@ -170,7 +172,17 @@
       el('a', { class: 'flag', href: '/anatomy-v5', text: 'ANATOMY' })
     ]);
 
-    var origins = el('div', { class: 'szl-origins' }, [product, proof]);
+    var holo = el('a', {
+      class: 'szl-origin',
+      href: '/holographic',
+      text: 'Holo'
+    });
+    var frontier = el('a', {
+      class: 'szl-origin',
+      href: '/frontier-now',
+      text: 'Frontier'
+    });
+    var origins = el('div', { class: 'szl-origins' }, [product, holo, frontier, proof]);
     var sw = el('div', { class: 'szl-hbar-zone szl-hbar-switch', 'aria-label': 'Surface switcher' }, [
       origins, investor, cmdkBtn, opBtn, estate, overflow
     ]);
@@ -200,6 +212,8 @@
     function collectOverflow() {
       moreMenu.textContent = '';
       var extras = [
+        { label: 'Holo', href: '/holographic' },
+        { label: 'Frontier', href: '/frontier-now' },
         { label: 'Verify a receipt', href: '/verify' },
         { label: 'WILLAY', href: '/willay' },
         { label: 'Models + Kernels', href: '/estate' },
