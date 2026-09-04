@@ -1,0 +1,94 @@
+name: One-pass Codex and Perplexity estate recovery
+
+on:
+  push:
+    branches:
+      - ops/codex-perplexity-recovery-20260904-v1
+    paths:
+      - scripts/agent_estate_recovery_once.py
+      - .github/workflows/_agent_estate_recovery_once.yml
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  checks: read
+  contents: write
+  issues: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: codex-perplexity-estate-recovery-20260904
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Audit, recover, merge, restart, and verify the authorized estate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      RECOVERY_EXECUTE: "true"
+      GH_ADMIN_TOKEN: ${{ secrets.SZL_GITHUB_TOKEN || secrets.GH_ADMIN_TOKEN || secrets.GITHUB_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.GH_PAT || github.token }}
+      HF_ADMIN_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_ORG_TOKEN1 || secrets.HF_TOKEN || secrets.HF_WRITE_TOKEN || secrets.HUGGINGFACEHUB_API_TOKEN || secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out the isolated recovery controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/codex-perplexity-recovery-20260904-v1
+          persist-credentials: false
+
+      - name: Prove controller syntax and secret-handling invariants
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/agent_estate_recovery_once.py
+          ! grep -nE 'print\(.+(TOKEN|SECRET|PASSWORD)|credential_values_recorded[^F]' scripts/agent_estate_recovery_once.py
+          git diff --check
+
+      - name: Execute one bounded recovery pass
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/agent_estate_recovery_once.py
+
+      - name: Validate the secret-free receipt
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('artifacts/agent-recovery/estate-recovery.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          assert data['schema'] == 'szl.agent-estate-recovery/v1'
+          assert data['credential_values_recorded'] is False
+          assert isinstance(data['observed_prs'], list)
+          assert isinstance(data['hf_spaces'], list)
+          assert Path('artifacts/agent-recovery/estate-recovery.md').is_file()
+          print(json.dumps({
+              'github_repositories': data.get('github_repo_count'),
+              'open_prs_observed': len(data['observed_prs']),
+              'merged': sum(row.get('disposition') == 'MERGED' for row in data['observed_prs']),
+              'orphan_agent_branches': len(data['orphan_branches']),
+              'workflow_actions': len(data['workflow_actions']),
+              'hf_counts': data.get('hf_counts'),
+              'hf_restart_requests': sum(row.get('action') == 'RESTART_REQUESTED' for row in data['hf_spaces']),
+              'errors': len(data['errors']),
+              'credential_values_recorded': data['credential_values_recorded'],
+          }, sort_keys=True))
+          PY
+
+      - name: Upload immutable recovery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: codex-perplexity-estate-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: artifacts/agent-recovery
+          if-no-files-found: error
+          retention-days: 90
