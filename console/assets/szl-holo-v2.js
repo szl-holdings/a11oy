@@ -1,7 +1,8 @@
 /*
  * A11oy Holo-Constellation v2.0.0
- * Deterministic route identity, accessible estate navigation, and low-cost
- * progressive visual enhancement. No fetch, tracking, storage, or cookies.
+ * Experience convergence: one global navigation, contextual product controls,
+ * deterministic route identity, and bounded decorative motion.
+ * No fetch, tracking, storage, cookies, or copied design code.
  * SPDX-License-Identifier: Apache-2.0
  */
 (() => {
@@ -10,93 +11,101 @@
   if (window.__SZL_HOLO_V2__) return;
   window.__SZL_HOLO_V2__ = true;
 
-  const VERSION = "2.0.0";
+  const VERSION = "2.1.0";
   const PRODUCT = "https://a-11-oy.com";
   const PROOF = "https://a11oy.net";
   const REDUCE_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
   const FINE_POINTER = window.matchMedia("(pointer: fine)");
   const SAVE_DATA = Boolean(navigator.connection && navigator.connection.saveData);
 
+  const PRIMARY_NAV = [
+    ["Overview", `${PRODUCT}/`],
+    ["Platform", `${PRODUCT}/console`],
+    ["Portfolio", `${PRODUCT}/estate`],
+    ["Proof", `${PROOF}/record/`],
+    ["Investor", `${PRODUCT}/console?view=investor`],
+  ];
+
   const PALETTES = [
-    ["#07131a", "#102633", "#f2fbff", "#9ab4c2", "#64dcff", "#a88bff"],
-    ["#130a10", "#291522", "#fff6fb", "#c2a2b3", "#ff7bc3", "#ffb56b"],
-    ["#07140d", "#12281a", "#f5fff7", "#9db8a4", "#72efa0", "#5ad6ff"],
-    ["#130e06", "#2a1d0e", "#fffaf0", "#c2b297", "#ffc66d", "#ff7d73"],
-    ["#090a18", "#171932", "#f6f6ff", "#a6a8c4", "#878cff", "#54e4d7"],
-    ["#0f0715", "#24102f", "#fff6ff", "#bca6c5", "#d88cff", "#74c6ff"],
-    ["#061315", "#10272b", "#f1feff", "#9bb9bb", "#50e3d4", "#b4ed70"],
-    ["#140808", "#2d1414", "#fff6f4", "#c2a3a0", "#ff6c63", "#e9cf6f"],
-    ["#0a1115", "#16242c", "#f5fbff", "#a3b2bb", "#83c7ff", "#8df0bd"],
-    ["#111006", "#282512", "#fffef0", "#beb99b", "#e5f36b", "#e8a85f"],
-    ["#0b0714", "#1c122c", "#faf6ff", "#aea2c0", "#b697ff", "#ff82ad"],
-    ["#07120f", "#12251f", "#f2fff9", "#9db6aa", "#75e8b4", "#c1a0ff"],
+    ["#05080b", "#0b1218", "#f3f7f5", "#9bacb3", "#55e7df", "#79a8ff"],
+    ["#0b0709", "#171015", "#fff7f8", "#c1a6ac", "#ff86b6", "#ffc07a"],
+    ["#050b08", "#0c1712", "#f4fff8", "#a0b5a9", "#71e99d", "#5fd7ff"],
+    ["#0c0905", "#19130c", "#fffaf1", "#c0b29e", "#f0c36a", "#ff8878"],
+    ["#070812", "#111426", "#f7f7ff", "#a9abc4", "#8e93ff", "#59ded2"],
+    ["#0b0610", "#180d20", "#fff7ff", "#bda9c4", "#d99cff", "#77c9ff"],
+    ["#041012", "#0b191c", "#f3feff", "#9eb6b8", "#55ddd0", "#b9e879"],
+    ["#0d0606", "#1d1010", "#fff7f4", "#c2aaa5", "#ff746b", "#e9cb72"],
+    ["#071014", "#0f1a21", "#f5fbff", "#a4b2ba", "#8bc8ff", "#91e8bd"],
+    ["#0e0d06", "#1b1a0e", "#fffef2", "#beb99f", "#dce96e", "#e5aa65"],
+    ["#090611", "#161022", "#fbf7ff", "#afa4bc", "#bca2ff", "#ff91b5"],
+    ["#06100d", "#0e1b17", "#f3fff9", "#9fb5aa", "#7ce5b5", "#c3a7ff"],
   ];
 
   const CURATED = {
     a11oy: {
       label: "A11oy Command",
       motif: "command-constellation",
-      palette: ["#050806", "#0c1513", "#f3fff8", "#9fb7ad", "#b8ff45", "#31e6d1"],
+      palette: ["#040806", "#0a1311", "#f3faf7", "#9eb1aa", "#55e7df", "#7ca9ff"],
     },
     proof: {
       label: "A11oy Proof Network",
       motif: "evidence-vault",
-      palette: ["#060a10", "#101722", "#f1f5f8", "#9eabb6", "#76d8aa", "#e2bb6d"],
+      palette: ["#06090d", "#0e151e", "#f4f6f8", "#a4aeb7", "#6fd2a8", "#d8b86f"],
     },
     lyte: {
       label: "Lyte",
       motif: "signal-aurora",
-      palette: ["#03100f", "#0a211d", "#effffb", "#92bdb2", "#50ffd0", "#78a8ff"],
+      palette: ["#03100e", "#09201b", "#effffb", "#96bcb2", "#55f4cb", "#7da5ff"],
     },
     vessels: {
       label: "Vessels",
       motif: "bathymetric-radar",
-      palette: ["#020d18", "#09243a", "#effbff", "#8cb5c9", "#50ddff", "#2d7cff"],
+      palette: ["#020c16", "#082036", "#effaff", "#91b4c5", "#58d9f8", "#3b7cff"],
     },
     terra: {
       label: "Terra",
       motif: "topographic-parcels",
-      palette: ["#06110b", "#12271a", "#f5fff7", "#9db7a3", "#7bea98", "#d9a45c"],
+      palette: ["#061009", "#112419", "#f5fff7", "#a2b5a5", "#7ce39a", "#d4a55f"],
     },
     aegis: {
       label: "Aegis",
       motif: "threat-lattice",
-      palette: ["#120606", "#281010", "#fff4f2", "#c6a19c", "#ff625b", "#ffb34d"],
+      palette: ["#100606", "#231010", "#fff5f2", "#c3a39f", "#f56c64", "#efb04e"],
     },
     "prism-counsel": {
       label: "PRISM Counsel",
       motif: "case-facets",
-      palette: ["#070b18", "#141a31", "#f8f9ff", "#a8b0ca", "#7da8ff", "#d7c4ff"],
+      palette: ["#060a16", "#11182c", "#f8f9ff", "#abb2c7", "#82a9f7", "#d4c7ff"],
     },
     "carlota-jo": {
       label: "Carlota Jo",
       motif: "editorial-orbit",
-      palette: ["#140a17", "#2b1330", "#fff7ff", "#c6a8c7", "#e2a8ff", "#ef9b67"],
+      palette: ["#110914", "#241129", "#fff8ff", "#c4abc5", "#dda9f4", "#eb9e70"],
     },
     nexus: {
       label: "Nexus",
       motif: "connection-field",
-      palette: ["#070918", "#151831", "#f7f7ff", "#a5aac8", "#9a8cff", "#53e9ff"],
+      palette: ["#070817", "#12152b", "#f7f7ff", "#a7acc3", "#9c91f4", "#5bdff0"],
     },
     factory: {
       label: "A11oy Factory",
       motif: "assembly-circuit",
-      palette: ["#070c07", "#171f13", "#fafff5", "#abb9a4", "#c9ff5c", "#7e9cff"],
+      palette: ["#060b06", "#131b11", "#fbfff6", "#abb7a6", "#c7eb66", "#859df7"],
     },
     ouroboros: {
       label: "Ouroboros",
       motif: "recursive-ring",
-      palette: ["#100b05", "#24180b", "#fffaf0", "#c4b59b", "#ffd36e", "#c094ff"],
+      palette: ["#0d0905", "#1e150b", "#fffaf1", "#c0b49f", "#edc96d", "#bb9bea"],
     },
     khipu: {
       label: "KHIPU",
       motif: "woven-proof",
-      palette: ["#120b05", "#271a0e", "#fff9ee", "#c6b39b", "#e9c66e", "#c87945"],
+      palette: ["#100a05", "#21170d", "#fff9ef", "#c2b39f", "#dfbd70", "#bf7d4d"],
     },
     killinchu: {
       label: "Killinchu",
       motif: "agent-swarm",
-      palette: ["#100615", "#26102e", "#fff5ff", "#c5a4c9", "#ff74d4", "#68e8ff"],
+      palette: ["#0c0710", "#1e1124", "#fff6ff", "#c2a8c4", "#e982c8", "#70d8e9"],
     },
   };
 
@@ -127,14 +136,6 @@
     "recursive-ring",
     "woven-proof",
     "agent-swarm",
-  ];
-
-  const LINKS = [
-    ["Command", `${PRODUCT}/`],
-    ["Products", `${PRODUCT}/console`],
-    ["Proof", `${PROOF}/record/`],
-    ["Source", "https://github.com/szl-holdings"],
-    ["Spaces", "https://huggingface.co/SZLHOLDINGS"],
   ];
 
   function slug(value) {
@@ -184,7 +185,6 @@
     const title = document.title.toLowerCase();
     const bodyIdentity = `${document.body?.id || ""} ${document.body?.className || ""}`.toLowerCase();
     const haystack = `${host} ${hf} ${path} ${title} ${bodyIdentity}`;
-
     for (const [surface, hints] of ROUTE_HINTS) {
       if (hints.some((hint) => haystack.includes(hint))) return surface;
     }
@@ -196,14 +196,12 @@
     const id = surfaceCandidate();
     const curated = CURATED[id];
     if (curated) return { id, ...curated, source: "curated" };
-
     const seed = fnv1a(id);
-    const palette = PALETTES[seed % PALETTES.length];
     return {
       id,
       label: titleCase(id) || "A11oy Space",
       motif: MOTIFS[(seed >>> 8) % MOTIFS.length],
-      palette,
+      palette: PALETTES[seed % PALETTES.length],
       source: "deterministic",
     };
   }
@@ -238,27 +236,45 @@
 
   function addSkipLink() {
     if (document.querySelector(".szl-holo-skip, [data-szl-holo-skip]")) return;
-    const main = document.querySelector("main, [role='main']");
+    const main = document.querySelector("main, [role='main'], .content");
     if (!main) return;
     if (!main.id) main.id = "szl-holo-main";
-    const link = createElement("a", {
+    document.body.prepend(createElement("a", {
       className: "szl-holo-skip",
       href: `#${main.id}`,
       dataset: { szlHoloSkip: "true" },
-    }, "Skip to main content");
-    document.body.prepend(link);
+    }, "Skip to main content"));
   }
 
   function currentLink(href) {
     const target = new URL(href);
     const host = location.hostname.replace(/^www\./, "");
     if (target.hostname.replace(/^www\./, "") !== host) return false;
+    if (target.searchParams.get("view")) {
+      return new URLSearchParams(location.search).get("view") === target.searchParams.get("view");
+    }
     if (target.pathname === "/") return location.pathname === "/";
     return location.pathname.startsWith(target.pathname.replace(/\/$/, ""));
   }
 
+  function addPrimaryLinks(nav, className) {
+    for (const [label, href] of PRIMARY_NAV) {
+      const attributes = { className, href };
+      if (currentLink(href)) attributes["aria-current"] = "page";
+      nav.append(createElement("a", attributes, label));
+    }
+  }
+
+  function hasProductCommandBar() {
+    return Boolean(document.querySelector("[data-szl-command-bar], .szl-hbar"));
+  }
+
   function buildRail(theme) {
-    if (document.querySelector(".szl-holo-rail") || document.documentElement.hasAttribute("data-szl-holo-no-rail")) return;
+    if (
+      hasProductCommandBar() ||
+      document.querySelector(".szl-holo-rail") ||
+      document.documentElement.hasAttribute("data-szl-holo-no-rail")
+    ) return;
 
     const rail = createElement("header", {
       className: "szl-holo-rail",
@@ -267,11 +283,11 @@
     const identity = createElement("a", {
       className: "szl-holo-identity",
       href: `${PRODUCT}/`,
-      "aria-label": "Open the A11oy Command origin",
+      "aria-label": "Open the A11oy overview",
     });
     identity.append(createElement("span", { className: "szl-holo-mark", "aria-hidden": "true" }));
     const copy = createElement("span", { className: "szl-holo-copy" });
-    copy.append(createElement("span", { className: "szl-holo-eyebrow" }, "SZL · Holo-Constellation"));
+    copy.append(createElement("span", { className: "szl-holo-eyebrow" }, "SZL · GOVERNED AI"));
     copy.append(createElement("span", { className: "szl-holo-label" }, theme.label));
     identity.append(copy);
 
@@ -279,21 +295,17 @@
     const menu = createElement("button", {
       className: "szl-holo-menu",
       type: "button",
-      "aria-label": "Open ecosystem navigation",
+      "aria-label": "Open primary navigation",
       "aria-expanded": "false",
       "aria-controls": "szl-holo-nav",
     }, "Menu");
     const nav = createElement("nav", {
       className: "szl-holo-nav",
       id: "szl-holo-nav",
-      "aria-label": "A11oy ecosystem",
+      "aria-label": "Primary",
       dataset: { open: "false" },
     });
-    for (const [label, href] of LINKS) {
-      const attributes = { className: "szl-holo-link", href };
-      if (currentLink(href)) attributes["aria-current"] = "page";
-      nav.append(createElement("a", attributes, label));
-    }
+    addPrimaryLinks(nav, "szl-holo-link");
     controls.append(menu, nav);
     rail.append(identity, controls);
     document.body.prepend(rail);
@@ -301,16 +313,15 @@
     const close = ({ focus = false } = {}) => {
       nav.dataset.open = "false";
       menu.setAttribute("aria-expanded", "false");
-      menu.setAttribute("aria-label", "Open ecosystem navigation");
+      menu.setAttribute("aria-label", "Open primary navigation");
       menu.textContent = "Menu";
       if (focus) menu.focus();
     };
-
     menu.addEventListener("click", () => {
       const open = nav.dataset.open !== "true";
       nav.dataset.open = String(open);
       menu.setAttribute("aria-expanded", String(open));
-      menu.setAttribute("aria-label", open ? "Close ecosystem navigation" : "Open ecosystem navigation");
+      menu.setAttribute("aria-label", open ? "Close primary navigation" : "Open primary navigation");
       menu.textContent = open ? "Close" : "Menu";
     });
     document.addEventListener("keydown", (event) => {
@@ -323,12 +334,11 @@
 
   function addAmbient() {
     if (document.getElementById("szl-holo-ambient")) return;
-    const ambient = createElement("div", {
+    document.body.prepend(createElement("div", {
       id: "szl-holo-ambient",
       "aria-hidden": "true",
       dataset: { szlHoloDecorative: "true" },
-    });
-    document.body.prepend(ambient);
+    }));
   }
 
   function addProgress() {
@@ -343,13 +353,8 @@
   function enhancePanels() {
     if (document.documentElement.hasAttribute("data-szl-holo-no-auto-panels")) return;
     const selectors = [
-      "main .card",
-      "main .panel",
-      "main .metric-card",
-      "main .feature-card",
-      "main [class*='glass-card']",
-      "main [class*='holo-card']",
-      "main [data-panel]",
+      "main .card", "main .panel", "main .metric-card", "main .feature-card",
+      "main [class*='glass-card']", "main [class*='holo-card']", "main [data-panel]",
     ];
     const seen = new Set();
     for (const node of document.querySelectorAll(selectors.join(","))) {
@@ -372,21 +377,18 @@
       root.style.setProperty("--szl-holo-pointer-x", `${Math.round((lastX / Math.max(window.innerWidth, 1)) * 1000) / 10}%`);
       root.style.setProperty("--szl-holo-pointer-y", `${Math.round((lastY / Math.max(window.innerHeight, 1)) * 1000) / 10}%`);
     };
-
     const pointer = (event) => {
       if (REDUCE_MOTION.matches || !FINE_POINTER.matches || SAVE_DATA || document.hidden) return;
       lastX = event.clientX;
       lastY = event.clientY;
       if (!pointerFrame) pointerFrame = requestAnimationFrame(commitPointer);
     };
-
     const commitScroll = () => {
       scrollFrame = 0;
       const maximum = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
       const percentage = Math.max(0, Math.min(100, (window.scrollY / maximum) * 100));
       root.style.setProperty("--szl-holo-scroll", percentage.toFixed(2));
     };
-
     const scroll = () => {
       if (!scrollFrame) scrollFrame = requestAnimationFrame(commitScroll);
     };
@@ -442,7 +444,7 @@
   if (global.__SZL_FLUID_ESTATE_RAIL_V4__) return;
   global.__SZL_FLUID_ESTATE_RAIL_V4__ = true;
 
-  var VERSION = "4.0.0";
+  var VERSION = "5.0.0";
   var SURFACES = [
     { id: "a11oy", label: "A11OY", href: "/console", paths: ["/", "/console", "/command", "/command-center"] },
     { id: "killinchu", label: "KILLINCHU", href: "/killinchu", paths: ["/killinchu", "/counter-uas", "/vessels"] },
@@ -458,11 +460,11 @@
   ];
 
   var TOP_LINKS = [
-    { id: "killinchu", label: "Killinchu", href: "/killinchu" },
-    { id: "hatun", label: "Hatun", href: "/hatun-mcp" },
-    { id: "brain", label: "Brain", href: "/brain" },
-    { id: "anatomy", label: "Anatomy", href: "/anatomy-v5" },
-    { id: "estate", label: "Estate", href: "/estate" }
+    { id: "overview", label: "Overview", href: "/" },
+    { id: "platform", label: "Platform", href: "/console" },
+    { id: "portfolio", label: "Portfolio", href: "/estate" },
+    { id: "proof", label: "Proof", href: "https://a11oy.net/record/" },
+    { id: "investor", label: "Investor", href: "/console?view=investor" }
   ];
 
   function normalizedPath() {
@@ -477,7 +479,11 @@
   }
 
   function isCurrent(surface, path) {
-    return surface.paths.some(function (candidate) { return pathMatches(path, candidate); });
+    if (surface.id === "investor") {
+      try { return new URLSearchParams(global.location.search || "").get("view") === "investor"; }
+      catch (e) { return false; }
+    }
+    return (surface.paths || [surface.href]).some(function (candidate) { return pathMatches(path, candidate); });
   }
 
   function makeAnchor(surface, path) {
@@ -500,142 +506,123 @@
     return reducedMotion() ? "auto" : "smooth";
   }
 
+  /* Compatibility scroller for long contextual collections; primary nav does not invoke it. */
   function bindScroller(shell, nav, previous, next) {
     var links = Array.prototype.slice.call(nav.querySelectorAll("a.szl-estate-link"));
-
     function bounds() {
       var max = Math.max(0, nav.scrollWidth - nav.clientWidth);
-      return {
-        max: max,
-        start: nav.scrollLeft <= 2,
-        end: nav.scrollLeft >= max - 2
-      };
+      return { max: max, start: nav.scrollLeft <= 2, end: nav.scrollLeft >= max - 2 };
     }
-
     function update() {
       var state = bounds();
       shell.classList.toggle("can-left", state.max > 2 && !state.start);
       shell.classList.toggle("can-right", state.max > 2 && !state.end);
-      shell.dataset.overflow = state.max > 2 ? "true" : "false";
       previous.disabled = state.max <= 2 || state.start;
       next.disabled = state.max <= 2 || state.end;
     }
-
     function step(direction) {
-      var distance = Math.max(190, Math.round(nav.clientWidth * .72));
-      nav.scrollBy({ left: direction * distance, behavior: scrollBehavior() });
+      nav.scrollBy({ left: direction * Math.max(190, Math.round(nav.clientWidth * .72)), behavior: scrollBehavior() });
     }
-
+    previous.setAttribute("aria-label", "Scroll estate tabs left");
+    next.setAttribute("aria-label", "Scroll estate tabs right");
     previous.addEventListener("click", function () { step(-1); });
     next.addEventListener("click", function () { step(1); });
     nav.addEventListener("scroll", update, { passive: true });
-
     nav.addEventListener("wheel", function (event) {
-      var state = bounds();
-      if (state.max <= 2 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
-      if ((state.start && event.deltaY < 0) || (state.end && event.deltaY > 0)) return;
+      if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
       event.preventDefault();
       nav.scrollLeft += event.deltaY;
     }, { passive: false });
-
     nav.addEventListener("keydown", function (event) {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-      var active = document.activeElement;
-      var index = links.indexOf(active);
-      var target = null;
-      if (event.key === "Home") target = links[0];
-      else if (event.key === "End") target = links[links.length - 1];
-      else if (event.key === "ArrowLeft") target = links[Math.max(0, index < 0 ? 0 : index - 1)];
-      else target = links[Math.min(links.length - 1, index < 0 ? 0 : index + 1)];
+      var index = links.indexOf(document.activeElement);
+      var target = event.key === "Home" ? links[0]
+        : event.key === "End" ? links[links.length - 1]
+        : event.key === "ArrowLeft" ? links[Math.max(0, index - 1)]
+        : links[Math.min(links.length - 1, index + 1)];
       if (!target) return;
       event.preventDefault();
       target.focus();
       target.scrollIntoView({ block: "nearest", inline: "center", behavior: scrollBehavior() });
     });
-
-    nav.addEventListener("focusin", function (event) {
-      var target = event.target && event.target.closest ? event.target.closest("a.szl-estate-link") : null;
-      if (target) target.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
-    });
-
     if ("ResizeObserver" in global) {
       var observer = new global.ResizeObserver(update);
       observer.observe(nav);
       shell.__szlResizeObserver = observer;
-    } else {
-      global.addEventListener("resize", update, { passive: true });
     }
+    global.requestAnimationFrame(update);
+  }
 
-    global.requestAnimationFrame(function () {
-      var active = nav.querySelector('[aria-current="page"]');
-      if (active) active.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
-      update();
+  function primaryAnchor(item, path) {
+    var link = document.createElement("a");
+    link.className = "flag szl-estate-link szl-primary-link";
+    link.href = item.href;
+    link.textContent = item.label;
+    link.dataset.surface = item.id;
+    if (isCurrent(item, path)) link.setAttribute("aria-current", "page");
+    return link;
+  }
+
+  function addContextualMenu(menu) {
+    if (!menu || menu.dataset.szlPortfolioReady === "true") return;
+    var divider = document.createElement("span");
+    divider.className = "szl-overflow-label";
+    divider.textContent = "Product surfaces";
+    menu.appendChild(divider);
+    SURFACES.filter(function (surface) {
+      return !["a11oy", "estate"].includes(surface.id);
+    }).forEach(function (surface) {
+      menu.appendChild(makeAnchor(surface, normalizedPath()));
     });
+    menu.dataset.szlPortfolioReady = "true";
+  }
+
+  function simplifyScope(root) {
+    var crumb = root.querySelector(".szl-hbar-crumb");
+    if (!crumb || crumb.dataset.szlSimplified === "true") return;
+    var surface = root.getAttribute("data-surface") || "Command";
+    crumb.textContent = "";
+    var product = document.createElement("span");
+    product.className = "szl-command-product";
+    product.textContent = "A11oy";
+    var context = document.createElement("span");
+    context.className = "szl-command-context";
+    context.textContent = surface;
+    crumb.appendChild(product);
+    crumb.appendChild(context);
+    crumb.dataset.szlSimplified = "true";
   }
 
   function enhanceCommandBar() {
-    var nav = document.querySelector(".szl-hbar .szl-estate");
-    if (!nav || nav.dataset.szlFluidEstate === "v4") return false;
+    var root = document.querySelector(".szl-hbar");
+    var nav = root && root.querySelector(".szl-estate");
+    if (!root || !nav || nav.dataset.szlFluidEstate === "v5") return false;
 
     var path = normalizedPath();
-    nav.dataset.szlFluidEstate = "v4";
+    nav.dataset.szlFluidEstate = "v5";
     nav.dataset.version = VERSION;
-    nav.setAttribute("aria-label", "SZL product and intelligence estate");
-    nav.setAttribute("tabindex", "0");
+    nav.setAttribute("aria-label", "Primary");
     nav.textContent = "";
-    SURFACES.forEach(function (surface) { nav.appendChild(makeAnchor(surface, path)); });
+    TOP_LINKS.forEach(function (item) { nav.appendChild(primaryAnchor(item, path)); });
 
-    var shell = document.createElement("div");
-    shell.className = "szl-estate-shell";
-    shell.dataset.version = VERSION;
+    var origins = root.querySelector(".szl-origins");
+    var investor = root.querySelector("#inv-toggle");
+    if (origins) origins.hidden = true;
+    if (investor) investor.hidden = true;
 
-    var previous = document.createElement("button");
-    previous.className = "szl-estate-scroll szl-estate-scroll--previous";
-    previous.type = "button";
-    previous.textContent = "‹";
-    previous.setAttribute("aria-label", "Scroll estate tabs left");
-
-    var next = document.createElement("button");
-    next.className = "szl-estate-scroll szl-estate-scroll--next";
-    next.type = "button";
-    next.textContent = "›";
-    next.setAttribute("aria-label", "Scroll estate tabs right");
-
-    var parent = nav.parentNode;
-    var origins = parent && parent.querySelector ? parent.querySelector(".szl-origins") : null;
-    if (!parent) return false;
-    parent.insertBefore(shell, origins && origins.nextSibling ? origins.nextSibling : nav);
-    shell.appendChild(previous);
-    shell.appendChild(nav);
-    shell.appendChild(next);
-    bindScroller(shell, nav, previous, next);
+    simplifyScope(root);
+    addContextualMenu(root.querySelector(".szl-overflow-menu"));
+    root.dataset.szlNavigation = "converged";
     document.documentElement.dataset.szlBrainAnatomyNav = "bound";
+    document.documentElement.dataset.szlPrimaryNavigation = "five";
     return true;
   }
 
   function enhanceHoloNav() {
     var nav = document.querySelector(".szl-holo-nav");
-    if (!nav || nav.dataset.szlEstateLinks === "v4") return false;
-    var path = normalizedPath();
-    nav.dataset.szlEstateLinks = "v4";
-    nav.setAttribute("aria-label", "A11oy command and estate navigation");
-
-    TOP_LINKS.forEach(function (item) {
-      if (nav.querySelector('[data-szl-estate-top="' + item.id + '"]')) return;
-      var link = document.createElement("a");
-      link.className = "szl-holo-link szl-holo-link--estate";
-      link.href = item.href;
-      link.textContent = item.label;
-      link.dataset.szlEstateTop = item.id;
-      var surface = SURFACES.find(function (row) { return row.id === item.id; });
-      if (surface && isCurrent(surface, path)) link.setAttribute("aria-current", "page");
-      nav.appendChild(link);
-    });
-
-    global.requestAnimationFrame(function () {
-      var active = nav.querySelector('.szl-holo-link--estate[aria-current="page"]');
-      if (active) active.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
-    });
+    if (!nav || nav.dataset.szlEstateLinks === "v5") return false;
+    nav.dataset.szlEstateLinks = "v5";
+    nav.setAttribute("aria-label", "Primary");
     return true;
   }
 
@@ -644,12 +631,19 @@
     enhanceHoloNav();
 
     var observer = new MutationObserver(function () {
-      var commandReady = enhanceCommandBar() || Boolean(document.querySelector('.szl-estate[data-szl-fluid-estate="v4"]'));
-      var holoReady = enhanceHoloNav() || Boolean(document.querySelector('.szl-holo-nav[data-szl-estate-links="v4"]'));
-      if (commandReady && holoReady) observer.disconnect();
+      var commandReady = enhanceCommandBar() || Boolean(document.querySelector('.szl-estate[data-szl-fluid-estate="v5"]'));
+      var holoReady = enhanceHoloNav() || Boolean(document.querySelector('.szl-holo-nav[data-szl-estate-links="v5"]'));
+      if (commandReady || holoReady) observer.disconnect();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     global.setTimeout(function () { observer.disconnect(); }, 15000);
+
+    global.SZLNavigation = Object.freeze({
+      version: VERSION,
+      primary: TOP_LINKS.map(function (item) { return Object.freeze({ id: item.id, label: item.label, href: item.href }); }),
+      contextual: SURFACES.map(function (item) { return Object.freeze({ id: item.id, label: item.label, href: item.href }); }),
+      bindScroller: bindScroller
+    });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
