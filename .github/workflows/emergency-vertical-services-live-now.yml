@@ -14,6 +14,8 @@ concurrency:
 
 env:
   EXPECTED_VERTICAL_SERVICES_SHA: dfc16a3c89e0b4bc070dc7e8ae2415e9bcb04eab
+  GITHUB_TOKEN: ${{ github.token }}
+  GH_TOKEN: ${{ github.token }}
   HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
   HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
   HF_TOKEN: ${{ secrets.HF_TOKEN }}
