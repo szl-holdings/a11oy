@@ -1,112 +1,42 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Restore the latest historically valid Try Khipu panel into current console.
+"""Repair the Investor Smoke false negative for the live Try Khipu panel.
 
-The panel is a permanent source contract, but a later console rewrite dropped its
-HTML/JavaScript block while leaving the route and regression tests intact. Rather
-than reimplementing or hardcoding a stale copy, scan repository history for the
-newest panel that satisfies today's contract and insert that exact block before
-current ``</body>``. The one-shot controller removes this script after testing.
+The current console still contains the source-backed panel, but its DOM node is
+constructed by JavaScript rather than emitted as literal ``id=\"...\"`` markup.
+The smoke gate used that one serialization as its only proof and therefore
+reported a missing panel. Replace the brittle check with a fail-closed source
+contract and add a regression over the current console plus an incomplete fake.
+The one-shot workflow removes this materializer after verification.
 """
-from __future__ import annotations
-
-import subprocess
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CONSOLE = ROOT / "pages" / "console.html"
-PATH_IN_GIT = "pages/console.html"
-BEGIN = "/* try-khipu-panel"
-END = "/* end try-khipu-panel */"
-
-REQUIRED = (
-    "Try Khipu",
-    "/api/a11oy/v1/khipu/status",
-    "/api/a11oy/v1/khipu/chat",
-    "UNSIGNED",
-    "Conjecture 1",
-    "READY",
-    "FAILED",
-    "record_sha256",
-    "URLSearchParams",
-    "ROADMAP",
-    "SNAPSHOT",
-    "SIMULATED",
-    "MEASURED",
-    "not-a-secret",
-    "https://szlholdings-szl-model-inference-lab.hf.space/v1",
-    "not a trainer",
-    "not Serve Studio",
-    "8/8",
-    "not a live control plane",
-)
-FORBIDDEN = (
-    "tokens/s",
-    "tok/s",
-    "tokens_per_second",
-    "tokens per second",
-    "szl-forge-lab.hf.space",
-)
+GATE = ROOT / "scripts" / "investor_smoke_gate.py"
+TESTS = ROOT / "tests" / "test_investor_smoke_gate.py"
 
 
-def git(*args: str) -> str:
-    return subprocess.check_output(
-        ["git", *args], cwd=ROOT, text=True, encoding="utf-8", errors="strict"
-    )
+def replace_once(text: str, old: str, new: str, label: str) -> str:
+    count = text.count(old)
+    if count != 1:
+        raise SystemExit(f"{label}: expected one anchor, found {count}")
+    return text.replace(old, new, 1)
 
 
-def extract_panel(html: str) -> str | None:
-    marker = html.find(BEGIN)
-    end_marker = html.find(END, marker + 1)
-    if marker < 0 or end_marker <= marker:
-        return None
-    script_start = html.rfind("<script", 0, marker)
-    script_end = html.find("</script>", end_marker)
-    if script_start < 0 or script_end < 0:
-        return None
-    script_end += len("</script>")
-    block = html[script_start:script_end]
-    lowered = block.lower()
-    if any(value not in block for value in REQUIRED):
-        return None
-    if not ("V.command" in block or "command.render" in block):
-        return None
-    if not (
-        "currentView()!=='command'" in block
-        or 'currentView()!=="command"' in block
-    ):
-        return None
-    if not ("get('view')" in block or 'get("view")' in block):
-        return None
-    if any(value in lowered for value in FORBIDDEN):
-        return None
-    return block
+gate = GATE.read_text(encoding="utf-8")
+helper_anchor = '''\ndef static_s_verdicts(root: Path = ROOT) -> list[Verdict]:\n'''
+helper = '''\ndef has_try_khipu_panel_source(console: str) -> bool:\n    """Return true only for the complete source-backed Command Center panel.\n\n    The panel is injected by JavaScript, so literal HTML attribute quoting is not\n    a stable contract. Require both delimiters, both same-origin routes, the\n    Command-only/deep-link guards, and the honesty labels instead.\n    """\n    begin = console.find("/* try-khipu-panel")\n    end = console.find("/* end try-khipu-panel */", begin + 1)\n    if begin < 0 or end <= begin:\n        return False\n    panel = console[begin:end]\n    required = (\n        "Try Khipu",\n        "/api/a11oy/v1/khipu/status",\n        "/api/a11oy/v1/khipu/chat",\n        "UNSIGNED",\n        "Conjecture 1",\n        "READY",\n        "FAILED",\n        "record_sha256",\n        "URLSearchParams",\n        "currentView",\n        "V.command",\n        "ROADMAP",\n        "SNAPSHOT",\n        "SIMULATED",\n        "MEASURED",\n        "not-a-secret",\n    )\n    if not all(token in panel for token in required):\n        return False\n    view_guard = (\n        "currentView()!=='command'" in panel\n        or 'currentView()!=="command"' in panel\n    )\n    deep_link_guard = "get('view')" in panel or 'get("view")' in panel\n    return view_guard and deep_link_guard\n\n\ndef static_s_verdicts(root: Path = ROOT) -> list[Verdict]:\n'''
+gate = replace_once(gate, helper_anchor, helper, "helper insertion")
+old_check = '''    console = _read(root, "pages/console.html")\n    khipu_ok = 'id="try-khipu-panel"' in console and "Try Khipu" in console\n    # Console Try Khipu is source-backed after #1390; live HTML is re-probed in live mode.\n'''
+new_check = '''    console = _read(root, "pages/console.html")\n    khipu_ok = has_try_khipu_panel_source(console)\n    # Console Try Khipu is source-backed after #1390; live HTML is re-probed in live mode.\n'''
+gate = replace_once(gate, old_check, new_check, "Khipu source check")
+GATE.write_text(gate, encoding="utf-8", newline="\n")
 
 
-current = CONSOLE.read_text(encoding="utf-8")
-if BEGIN in current or END in current or 'id="try-khipu-panel"' in current:
-    raise SystemExit("Try Khipu panel already exists; refusing duplicate injection")
+tests = TESTS.read_text(encoding="utf-8")
+test_anchor = '''\nclass _FakeHttpResp:\n'''
+new_tests = '''\ndef test_try_khipu_source_contract_accepts_current_dynamic_dom_panel():\n    console = (ROOT / "pages" / "console.html").read_text(encoding="utf-8")\n    assert gate.has_try_khipu_panel_source(console) is True\n\n\ndef test_try_khipu_source_contract_rejects_marker_only_stub():\n    incomplete = """\n    /* try-khipu-panel */\n    Try Khipu /api/a11oy/v1/khipu/status /api/a11oy/v1/khipu/chat\n    /* end try-khipu-panel */\n    """\n    assert gate.has_try_khipu_panel_source(incomplete) is False\n\n\nclass _FakeHttpResp:\n'''
+tests = replace_once(tests, test_anchor, new_tests, "regression tests")
+TESTS.write_text(tests, encoding="utf-8", newline="\n")
 
-commits = git("log", "--all", "--date-order", "--format=%H", "--", PATH_IN_GIT).splitlines()
-selected_sha = ""
-selected_block: str | None = None
-for sha in commits:
-    try:
-        historical = git("show", f"{sha}:{PATH_IN_GIT}")
-    except subprocess.CalledProcessError:
-        continue
-    block = extract_panel(historical)
-    if block is not None:
-        selected_sha = sha
-        selected_block = block
-        break
-
-if selected_block is None:
-    raise SystemExit("no historical Try Khipu panel satisfies the current contract")
-
-closing = current.rfind("</body>")
-if closing < 0:
-    raise SystemExit("closing body tag not found")
-restored = current[:closing] + selected_block + "\n\n" + current[closing:]
-CONSOLE.write_text(restored, encoding="utf-8", newline="\n")
-print(f"restored Try Khipu panel from {selected_sha}")
+print("repaired Try Khipu Investor Smoke source contract")
