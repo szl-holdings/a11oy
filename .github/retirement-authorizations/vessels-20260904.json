@@ -1,0 +1,17 @@
+{
+  "schema": "szl.hf-space-retirement-authorization/v1",
+  "authorized_by": "stephenlutar2-hash",
+  "authorized_at": "2026-09-04T02:00:00Z",
+  "target": "SZLHOLDINGS/vessels",
+  "replacement": "SZLHOLDINGS/killinchu",
+  "confirmation": "RETIRE-SZLHOLDINGS-VESSELS",
+  "conditions": [
+    "source retained in GitHub",
+    "active publishers cannot recreate target",
+    "Killinchu maritime route returns HTTP 200",
+    "Killinchu Vessels health alias returns HTTP 200",
+    "Killinchu build identity is observable",
+    "secret-free retirement receipt is uploaded"
+  ],
+  "secret_values_recorded": false
+}
