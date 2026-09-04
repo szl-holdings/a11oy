@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>a11oy operator pane · MEASURED</title>
+  <meta name="description" content="Same-origin operator pane on a-11-oy.com. Probes healthz, honest, ledger, mesh. Lambda = Conjecture 1. Does not replace /console or /command."/>
+  <link rel="canonical" href="https://a-11-oy.com/operator-pane"/>
+  <meta name="theme-color" content="#080c14"/>
+  <style>
+    :root {
+      --void:#080c14; --panel:#0e1626; --panel-2:#0a1019;
+      --fg:#eef4fb; --muted:#aebccf; --dim:#7d8aa0;
+      --teal:#3af4c8; --gold:#d7b96b; --deny:#e8746e;
+      --line:rgba(215,185,107,.18); --teal-line:rgba(58,244,200,.22);
+      --sans: ui-sans-serif, system-ui, sans-serif;
+      --mono: ui-monospace, Menlo, Consolas, monospace;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; background:var(--void); color:var(--fg); font-family:var(--sans); min-height:100%; }
+    a { color:var(--teal); text-decoration:none; }
+    a:hover { text-decoration:underline; }
+    header {
+      position:sticky; top:0; z-index:20;
+      border-bottom:1px solid var(--line);
+      background:rgba(8,12,20,.88); backdrop-filter:blur(10px);
+    }
+    .wrap { width:min(1120px, calc(100% - 32px)); margin:0 auto; }
+    .brand { display:flex; align-items:center; gap:12px; padding:14px 0 8px; flex-wrap:wrap; }
+    .mark { width:28px; height:28px; flex:none; }
+    .kicker { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); }
+    nav { display:flex; gap:14px; flex-wrap:wrap; padding:0 0 12px; font-size:13px; }
+    nav a { color:var(--muted); }
+    nav a.active, nav a:hover { color:var(--fg); text-decoration:none; }
+    main { padding:28px 0 64px; }
+    h1 { font-size:clamp(1.8rem, 1.1rem + 2.4vw, 3rem); letter-spacing:-.03em; line-height:1.08; margin:8px 0 12px; font-weight:500; }
+    h2 { font-size:1.05rem; font-weight:500; margin:28px 0 12px; }
+    p { color:var(--muted); line-height:1.55; max-width:70ch; }
+    .row { display:grid; gap:12px; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); }
+    .panel { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:16px; }
+    .panel h3 { margin:0 0 6px; font-size:15px; font-weight:500; }
+    .panel p, .panel li { margin:0; font-size:13px; color:var(--muted); }
+    .stat { font-family:var(--mono); font-size:1.45rem; margin:8px 0 4px; font-variant-numeric:tabular-nums; }
+    .chip { display:inline-flex; align-items:center; border-radius:999px; padding:2px 8px; font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; border:1px solid transparent; }
+    .chip.ok { color:var(--teal); border-color:var(--teal-line); background:rgba(58,244,200,.08); }
+    .chip.warn { color:var(--gold); border-color:var(--line); background:rgba(215,185,107,.08); }
+    .chip.bad { color:var(--deny); border-color:rgba(232,116,110,.35); background:rgba(232,116,110,.08); }
+    .chip.mute { color:var(--dim); border-color:rgba(125,138,160,.25); }
+    .btn { border:0; border-radius:10px; padding:10px 14px; font:500 14px var(--sans); cursor:pointer; }
+    .btn.primary { background:var(--fg); color:var(--void); }
+    .btn.ghost { background:transparent; color:var(--fg); border:1px solid var(--line); }
+    .mono { font-family:var(--mono); font-size:12px; color:var(--dim); word-break:break-all; }
+    footer { border-top:1px solid var(--line); padding:18px 0 28px; }
+    ul { margin:8px 0 0; padding-left:18px; }
+    textarea { width:100%; min-height:88px; background:var(--panel-2); color:var(--fg); border:1px solid var(--line); border-radius:10px; padding:10px; font:13px var(--mono); }
+  </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
+  <link rel="stylesheet" href="/assets/szl-holo-v2.css" data-szl-holo-asset="style-v2" />
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="brand">
+        <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect x="8" y="7" width="3.2" height="18" fill="#eef4fb"/>
+          <rect x="20.8" y="7" width="3.2" height="18" fill="#eef4fb"/>
+          <rect x="7" y="7" width="18" height="1.6" fill="#3af4c8"/>
+        </svg>
+        <div>
+          <div class="kicker">SZL Holdings · operator pane</div>
+          <strong>a11oy</strong>
+          <span class="mono"> same-origin · does not replace /console</span>
+        </div>
+        <a class="btn primary" href="/console" style="margin-left:auto">Open live /console</a>
+      </div>
+      <nav aria-label="Estate">
+        <a href="/operator-pane" class="active">Ops pane</a>
+        <a href="/console">Console</a>
+        <a href="/command">Command</a>
+        <a href="/verify">Verify</a>
+        <a href="https://a11oy.net">Proof</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap">
+    <p class="kicker">MEASURED this session · Λ = Conjecture 1 · signer not assumed</p>
+    <h1>Control before action. Evidence after.</h1>
+    <p>This pane reads the product origin in the browser. A dead probe is UNAVAILABLE. Reachable HTTP is not a production certificate, not SIGNED, and not ATO.</p>
+
+    <h2>Origin probes</h2>
+    <div class="row" id="probes">
+      <div class="panel"><span class="chip mute">PROBING</span><h3>healthz</h3><p class="mono">waiting</p></div>
+    </div>
+
+    <h2>Pins</h2>
+    <div class="row">
+      <div class="panel"><div class="kicker">Doctrine</div><div class="stat" id="doctrine">—</div><p>LOCKED only if honest says so.</p></div>
+      <div class="panel"><div class="kicker">Locked formulas</div><div class="stat" id="locked">—</div><p>Must stay exactly eight.</p></div>
+      <div class="panel"><div class="kicker">Ledger count</div><div class="stat" id="ledger">—</div><p>mint / signed from the live ledger body.</p></div>
+      <div class="panel"><div class="kicker">Signer</div><div class="stat" id="signer">—</div><p>ABSENT stays ABSENT.</p></div>
+    </div>
+
+    <h2>Verticals</h2>
+    <div class="row">
+      <div class="panel"><h3>Counter-UAS / killinchu</h3><p>Detection governed at the edge. Public effector SIMULATED.</p><p class="mono"><a href="https://szlholdings-killinchu.hf.space">szlholdings-killinchu.hf.space</a></p></div>
+      <div class="panel"><h3>Maritime / Finance</h3><p>Sovereign inference with energy receipts. Energy UNAVAILABLE unless a probe returns joules.</p></div>
+      <div class="panel"><h3>Supply-chain / UDS</h3><p>Hash-chained audit traces, not log files.</p></div>
+      <div class="panel"><h3>Energy Harvest</h3><p>Honest joules only. No free energy.</p></div>
+    </div>
+
+    <h2>Locked-8</h2>
+    <div class="panel">
+      <span class="chip warn">REPORTED</span>
+      <p style="margin-top:10px">F1 · F4 · F7 · F11 · F12 · F18 · F19 · F22. Λ uniqueness is Conjecture 1 — gray, never a theorem, never 1.0.</p>
+    </div>
+
+    <h2>Local OBSERVE receipt</h2>
+    <div class="panel">
+      <p>SHA-256 UNSIGNED-honest in this browser. Not DSSE. Not a lake mint.</p>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin:12px 0">
+        <button class="btn primary" id="seal">Seal this refresh</button>
+        <span class="chip mute" id="seal-chip">EMPTY</span>
+      </div>
+      <p class="mono" id="seal-out">No local receipt yet.</p>
+    </div>
+
+    <h2>IMMUNE</h2>
+    <div class="panel">
+      <p>Fail-closed string scan. Hunt / isolate / deceive — never strike people.</p>
+      <textarea id="imm-in">{"action":{"cmd":"echo hello"}}</textarea>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="btn ghost" data-imm='{"action":{"cmd":"rm -rf /"}}'>rm -rf</button>
+        <button class="btn ghost" data-imm='{"query":"DROP TABLE users;"}'>DROP TABLE</button>
+        <button class="btn ghost" data-imm='{"html":"<script>alert(1)</script>"}'>XSS</button>
+        <button class="btn primary" id="imm-run">Evaluate</button>
+      </div>
+      <p class="mono" id="imm-out" style="margin-top:10px">No evaluation yet.</p>
+    </div>
+  </main>
+  <footer>
+    <div class="wrap">
+      <p class="mono">Doctrine v11 · Λ = Conjecture 1 · SLSA L1 honest · no FedRAMP / IL5 / ATO claimed · Apache-2.0</p>
+      <p class="mono"><a href="https://a-11-oy.com">a-11-oy.com</a> · <a href="https://a11oy.net">a11oy.net</a> · <a href="https://github.com/szl-holdings/a11oy">szl-holdings/a11oy</a></p>
+    </div>
+  </footer>
+  <script>
+    const ORIGIN = "";
+    const ENDPOINTS = [
+      { id: "healthz", label: "healthz", url: ORIGIN + "/healthz" },
+      { id: "honest", label: "honest", url: ORIGIN + "/api/a11oy/v1/honest" },
+      { id: "ledger", label: "ledger", url: ORIGIN + "/api/a11oy/v1/ledger" },
+      { id: "mesh", label: "mesh", url: ORIGIN + "/api/a11oy/v1/mesh/state" }
+    ];
+
+    function chipClass(h) {
+      if (h === "MEASURED") return "ok";
+      if (h === "UNAVAILABLE") return "bad";
+      return "warn";
+    }
+
+    async function probe(url) {
+      const t0 = performance.now();
+      try {
+        const r = await fetch(url, { cache: "no-store", headers: { "Accept": "application/json,text/plain" } });
+        const ms = Math.round(performance.now() - t0);
+        const text = await r.text();
+        let json = null;
+        try { json = JSON.parse(text); } catch (_) {}
+        return { honesty: r.ok ? "MEASURED" : "UNAVAILABLE", ms, status: r.status, json, text: text.slice(0, 240) };
+      } catch (err) {
+        return { honesty: "UNAVAILABLE", ms: Math.round(performance.now() - t0), status: 0, json: null, text: String(err) };
+      }
+    }
+
+    function renderProbes(rows) {
+      const root = document.getElementById("probes");
+      root.innerHTML = "";
+      rows.forEach((row) => {
+        const el = document.createElement("div");
+        el.className = "panel";
+        el.innerHTML = '<span class="chip ' + chipClass(row.honesty) + '">' + row.honesty + "</span>" +
+          "<h3>" + row.label + "</h3>" +
+          '<p class="mono">' + (row.status || "—") + " · " + row.ms + "ms</p>" +
+          "<p>" + (row.detail || row.text || "") + "</p>";
+        root.appendChild(el);
+      });
+    }
+
+    function detailFor(id, p) {
+      const j = p.json || {};
+      if (id === "healthz") {
+        return (j.status || j.organ || "ok/text") + " · signer " + ((j.signer && (j.signer.status || j.signer)) || "see body");
+      }
+      if (id === "honest") {
+        return "doctrine " + (j.doctrine || "?") + " · lambda " + (j.lambda || "?");
+      }
+      if (id === "ledger") {
+        return "count=" + String(j.count) + " · mint=" + String(j.mint) + " · signed=" + String(j.signed);
+      }
+      if (id === "mesh") {
+        return "see body — do not invent organ health";
+      }
+      return p.text || "";
+    }
+
+    async function boot() {
+      const rows = [];
+      const bag = {};
+      for (const ep of ENDPOINTS) {
+        const p = await probe(ep.url);
+        bag[ep.id] = p;
+        rows.push({ label: ep.label, honesty: p.honesty, status: p.status, ms: p.ms, text: p.text, detail: detailFor(ep.id, p) });
+      }
+      renderProbes(rows);
+      const honest = (bag.honest && bag.honest.json) || {};
+      const ledger = (bag.ledger && bag.ledger.json) || {};
+      const health = (bag.healthz && bag.healthz.json) || {};
+      document.getElementById("doctrine").textContent = honest.doctrine_lock && honest.doctrine_lock.state ? honest.doctrine_lock.state : (honest.doctrine || "UNAVAILABLE");
+      const n = honest.locked_formula_count || (honest.locked_formulas && honest.locked_formulas.length);
+      document.getElementById("locked").textContent = n == null ? "UNAVAILABLE" : String(n);
+      document.getElementById("ledger").textContent = ledger.count == null ? "UNAVAILABLE" : String(ledger.count);
+      const signer = (health.signer && (health.signer.status || health.signer.Status)) || (bag.healthz && bag.healthz.honesty === "MEASURED" ? "SEE BODY" : "UNAVAILABLE");
+      document.getElementById("signer").textContent = String(signer);
+    }
+
+    async function sha256Hex(s) {
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+      return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+
+    document.getElementById("seal").addEventListener("click", async () => {
+      const at = new Date().toISOString();
+      const canonical = ["szl.governed-c2-receipt/v1", "seq=1", "verdict=ADMIT", "action=OBSERVE", "doctrine=v11", "lambda=Conjecture 1", "at=" + at].join("\n");
+      const digest = await sha256Hex(canonical);
+      document.getElementById("seal-chip").textContent = "UNSIGNED-HONEST";
+      document.getElementById("seal-chip").className = "chip warn";
+      document.getElementById("seal-out").textContent = digest;
+    });
+
+    function evaluateImmune(payload) {
+      const threats = [
+        [/drop\s+table/i, "DROP TABLE"],
+        [/rm\s+-rf/i, "rm -rf"],
+        [/<script/i, "<script"],
+        [/eval\s*\(/i, "eval("],
+        [/\.\.\/|etc\/passwd/i, "path-traversal"],
+        [/weaponize|strike people|targeting civilians/i, "willay:strike"]
+      ];
+      const hits = threats.filter((t) => t[0].test(payload)).map((t) => t[1]);
+      if (/consent["']?\s*:\s*0/.test(payload)) return { verdict: "DENY", reason: "Zero-pinned consent. Λ = 0." };
+      if (hits.length) return { verdict: "DENY", reason: "Hukulla deny-by-default: " + hits.join(", ") };
+      return { verdict: "ALLOW", reason: "No threat signature. Admission is not a production certificate." };
+    }
+
+    function runImmune(payload) {
+      document.getElementById("imm-in").value = payload;
+      const d = evaluateImmune(payload);
+      document.getElementById("imm-out").textContent = d.verdict + " · " + d.reason;
+    }
+    document.getElementById("imm-run").addEventListener("click", () => runImmune(document.getElementById("imm-in").value));
+    document.querySelectorAll("[data-imm]").forEach((b) => b.addEventListener("click", () => runImmune(b.getAttribute("data-imm"))));
+    boot();
+  </script>
+</body>
+</html>

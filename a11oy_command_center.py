@@ -11,6 +11,8 @@ Additive tabs:
   GET+HEAD /command/constellation
   GET+HEAD /command/brain
   GET+HEAD /constellation   (host-root; declared so SPA fallback cannot 404 it)
+  GET+HEAD /command/ops
+  GET+HEAD /operator-pane
   GET+HEAD /command/{rest}
 
 Host-root /brain is Hickok dual-stream. Do not steal it.
@@ -22,6 +24,8 @@ MOUNTS = ("/command",)
 SPECIFIC = (
     ("/command/constellation", "constellation.html"),
     ("/command/brain", "second-brain.html"),
+    ("/command/ops", "operator-pane.html"),
+    ("/operator-pane", "operator-pane.html"),
     ("/constellation", "constellation.html"),
 )
 CATCHALL = "/command/{rest:path}"
@@ -142,7 +146,7 @@ def register(app, ns: str = "a11oy") -> List[str]:
         _add(path, _file(name), ["GET", "HEAD"])
     _add(CATCHALL, _spa, ["GET", "HEAD"])
     _front_move(app, [path for path, _name in SPECIFIC] + list(MOUNTS))
-    registered.append("command-center on /command (constellation/brain beat catch-all; /brain host-root untouched)")
+    registered.append("command-center on /command (constellation/brain/ops beat catch-all; /brain and /operator host-root untouched)")
     return registered
 
 
@@ -186,6 +190,13 @@ def _selftest() -> None:
         assert br.status_code == 200
         assert "Second Brain" in br.text
         assert "F1" in br.text
+    pane = _page("operator-pane.html")
+    if pane.is_file():
+        for path in ("/command/ops", "/operator-pane"):
+            body = c.get(path).text
+            assert "operator pane" in body.lower(), path
+            assert "Conjecture 1" in body
+            assert "cdnjs" not in body and "googleapis" not in body
     assert "Hickok" in c.get("/brain").text
     assert c.get("/console").status_code == 200
     print("a11oy_command_center: ALL OK (constellation beats catch-all; /brain host-root untouched)")
