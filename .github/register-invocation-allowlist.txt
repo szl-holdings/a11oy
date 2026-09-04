@@ -70,4 +70,3 @@ szl_a11oy_live_feeds        # imported by serve.py for feed helpers; feed surfac
 szl_contracting             # PRE-EXISTING unwired: /api/a11oy/v1/contracting not mounted in serve.py — backlog, wire-or-retire (follow-up)
 szl_nemotron_corpus         # PRE-EXISTING unwired: /api/a11oy/v1/nemo (corpus) not mounted in serve.py — backlog, wire-or-retire (follow-up)
 szl_sapa_patch              # PRE-EXISTING unwired: SAPA energy-per-goal surface not mounted in serve.py — backlog, wire-or-retire (follow-up)
-a11oy_khipu_chat            # PRE-EXISTING unwired: /api/a11oy/v1/khipu chat lab not mounted in serve.py — backlog, wire-or-retire (follow-up)
