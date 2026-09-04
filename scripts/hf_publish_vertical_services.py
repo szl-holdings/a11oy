@@ -24,7 +24,7 @@ from typing import Any
 from huggingface_hub import HfApi
 
 SOURCE_REPOSITORY = "szl-holdings/vertical-services"
-SOURCE_REVISION = "96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de"
+SOURCE_REVISION = "dfc16a3c89e0b4bc070dc7e8ae2415e9bcb04eab"
 HF_REPOSITORY = "SZLHOLDINGS/vertical-services"
 ORIGIN = "https://szlholdings-vertical-services.hf.space"
 SOURCE_VARIABLE = "SZL_SOURCE_REVISION"
