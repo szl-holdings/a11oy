@@ -341,6 +341,8 @@ _PUBLIC_PAGE_ALIASES = (
     ("/evidence", None, "redirect", "/trust"),
     ("/arena", None, "redirect", "/console"),
     ("/router", None, "redirect", "/console"),
+    ("/products", None, "redirect", "/#products"),
+    ("/products/", None, "redirect", "/#products"),
 )
 
 
