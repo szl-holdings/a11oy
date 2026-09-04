@@ -1,0 +1,66 @@
+:root {
+  color-scheme: dark;
+  --bg: #07080a;
+  --surface: #101216;
+  --surface-2: #171a20;
+  --fg: #e8eaed;
+  --muted: #8b919a;
+  --subtle: #6a7078;
+  --border: color-mix(in oklab, var(--fg) 12%, transparent);
+  --accent: #c5ccd6;
+  --accent-fg: #07080a;
+  --live: #7a9a7e;
+  --hold: #c4a36a;
+  --deny: #c27870;
+  --font-sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { margin: 0; min-height: 100%; background: var(--bg); color: var(--fg); }
+body { font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+button:not(:disabled), [role="button"]:not(:disabled) { cursor: pointer; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3 { text-wrap: balance; font-weight: 500; }
+p { text-wrap: pretty; }
+
+.shell { min-height: 100dvh; display: flex; flex-direction: column; }
+.header, .footer { border-color: var(--border); border-style: solid; }
+.header { position: sticky; top: 0; z-index: 20; border-bottom-width: 1px; background: color-mix(in oklab, var(--bg) 92%, transparent); backdrop-filter: blur(8px); }
+.footer { border-top-width: 1px; margin-top: auto; }
+.wrap { width: min(1120px, calc(100% - 32px)); margin: 0 auto; }
+.nav { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 10px 0 14px; }
+.nav a { color: var(--muted); font-size: 13px; }
+.nav a.active, .nav a:hover { color: var(--fg); text-decoration: none; }
+.brand { display: flex; align-items: center; gap: 12px; padding-top: 14px; }
+.mark { width: 32px; height: 32px; color: var(--accent); flex: none; }
+.kicker { font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+.hero { padding: 48px 0 24px; }
+.hero h1 { font-size: clamp(2rem, 1.2rem + 3vw, 3.6rem); letter-spacing: -0.03em; line-height: 1.08; margin: 10px 0 16px; }
+.lede { font-size: 1.05rem; color: var(--muted); max-width: 62ch; line-height: 1.55; }
+.row { display: grid; gap: 12px; }
+.stats { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
+.cards { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.panel h3 { margin: 0 0 6px; font-size: 1rem; }
+.panel p { margin: 0; color: var(--muted); font-size: 0.92rem; line-height: 1.45; }
+.stat-n { font-family: var(--font-mono); font-size: 1.6rem; font-variant-numeric: tabular-nums; margin: 8px 0 4px; }
+.chip { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; }
+.chip.live { background: color-mix(in oklab, var(--live) 18%, transparent); color: var(--live); }
+.chip.hold { background: color-mix(in oklab, var(--hold) 18%, transparent); color: var(--hold); }
+.chip.deny { background: color-mix(in oklab, var(--deny) 18%, transparent); color: var(--deny); }
+.chip.muted { background: var(--surface-2); color: var(--muted); }
+.btn { border: 0; border-radius: 10px; padding: 10px 14px; font: 500 14px var(--font-sans); }
+.btn.primary { background: var(--accent); color: var(--accent-fg); }
+.btn.ghost { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+.stack { display: flex; flex-direction: column; gap: 20px; padding: 24px 0 64px; }
+.mono { font-family: var(--font-mono); font-size: 12px; color: var(--subtle); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); }
+th { color: var(--subtle); font-weight: 500; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+textarea, input { width: 100%; background: var(--surface-2); color: var(--fg); border: 1px solid var(--border); border-radius: 10px; padding: 10px; font: 13px var(--font-mono); }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
