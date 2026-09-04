@@ -50,9 +50,55 @@ def read_receipt(path: Path) -> dict[str, Any] | None:
     return value if isinstance(value, dict) else None
 
 
+def ensure_space_secret_reader() -> str:
+    """Backport metadata-only Space secret listing for pre-v1.14 Hub clients.
+
+    Hugging Face secret values remain write-only. The endpoint returns only the
+    configured key names and metadata, which is sufficient to preserve an
+    existing SENTRA_SIGNING_KEY instead of rotating it.
+    """
+    from huggingface_hub import HfApi
+
+    if callable(getattr(HfApi, "get_space_secrets", None)):
+        return "native"
+
+    from huggingface_hub.utils import get_session, hf_raise_for_status
+
+    def get_space_secrets(
+        self: Any,
+        repo_id: str,
+        *,
+        token: bool | str | None = None,
+    ) -> dict[str, Any]:
+        response = get_session().get(
+            f"{self.endpoint}/api/spaces/{repo_id}/secrets",
+            headers=self._build_hf_headers(token=token),
+        )
+        hf_raise_for_status(response)
+        payload = response.json()
+        if not isinstance(payload, dict):
+            raise RuntimeError(
+                "Hugging Face Space secret metadata endpoint returned a non-object"
+            )
+        return payload
+
+    setattr(HfApi, "get_space_secrets", get_space_secrets)
+    return "backported-metadata-only"
+
+
 def main() -> int:
     flagship_code, flagship_error = run_publisher("szl_flagship_v4", FLAGSHIP_IMPL)
-    combined_code, combined_error = run_publisher("szl_vertical_services", COMBINED_IMPL)
+
+    try:
+        secret_reader = ensure_space_secret_reader()
+        combined_code, combined_error = run_publisher(
+            "szl_vertical_services",
+            COMBINED_IMPL,
+        )
+    except Exception as exc:
+        secret_reader = "unavailable"
+        combined_code = 1
+        combined_error = f"{type(exc).__name__}: {exc}"
 
     flagship = read_receipt(FLAGSHIP_RECEIPT) or {
         "schema": "szl.hf-vertical-flagships/v4",
@@ -67,6 +113,8 @@ def main() -> int:
     if combined_error:
         combined["entrypoint_error"] = combined_error
 
+    combined["space_secret_reader"] = secret_reader
+    combined["secret_values_readable"] = False
     flagship["estate_schema"] = "szl.hf-vertical-estate/v5"
     flagship["combined_runtime"] = combined
     flagship["flagship_exit_code"] = flagship_code
