@@ -361,6 +361,8 @@ def recover_orphan_agent_branches(repo: dict[str, Any], report: dict[str, Any]) 
         name = str(branch.get("name") or "")
         if not name or name == default:
             continue
+        if repo_full == f"{ORG}/a11oy" and name == "ops/codex-perplexity-recovery-20260904-v1":
+            continue
         sha = str((branch.get("commit") or {}).get("sha") or "")
         code, commit = gh(f"/repos/{repo_full}/commits/{sha}")
         if code != 200:
