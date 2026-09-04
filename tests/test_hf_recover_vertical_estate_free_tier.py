@@ -235,3 +235,11 @@ def test_script_preserves_single_writer_and_secret_boundaries() -> None:
     assert "print(token" not in text
     assert "delete_repo" not in text
     assert "force=True" not in text
+
+
+def test_workflow_exposes_exact_tip_token_contract_without_secret_expansion() -> None:
+    workflow = Path(".github/workflows/hf-free-tier-recovery.yml").read_text(encoding="utf-8")
+    recover = workflow.split("\n  recover:\n", 1)[1]
+    assert "GH_TOKEN: ${{ github.token }}" in recover
+    assert "GITHUB_TOKEN: ${{ github.token }}" in recover
+    assert "GITHUB_TOKEN: ${{ secrets." not in recover
