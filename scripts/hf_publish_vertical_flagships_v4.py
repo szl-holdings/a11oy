@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -135,7 +136,28 @@ def ensure_space_secret_reader() -> str:
     return "backported-metadata-only"
 
 
+def normalize_github_token_alias() -> str:
+    """Expose the ephemeral workflow token under the nested guard's name.
+
+    The canonical workflow exports ``GH_TOKEN`` for GitHub CLI operations while
+    the pinned exact-source deployment controller deliberately reads
+    ``GITHUB_TOKEN`` for its default-branch-tip proof. Values never leave the
+    current process and are never written to a receipt.
+    """
+    canonical = os.getenv("GITHUB_TOKEN", "").strip()
+    if canonical:
+        return "GITHUB_TOKEN"
+
+    cli_token = os.getenv("GH_TOKEN", "").strip()
+    if cli_token:
+        os.environ["GITHUB_TOKEN"] = cli_token
+        return "GH_TOKEN"
+
+    return "unavailable"
+
+
 def main() -> int:
+    github_token_source = normalize_github_token_alias()
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,
@@ -167,6 +189,8 @@ def main() -> int:
 
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
+    combined["github_token_source_name"] = github_token_source
+    combined["github_token_value_recorded"] = False
     flagship["estate_schema"] = "szl.hf-vertical-estate/v7"
     flagship["public_flagship_slugs"] = list(admitted or ())
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
