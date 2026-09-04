@@ -3,11 +3,11 @@
 """Canonical vertical estate publisher.
 
 The established Domain Experience v4 implementation remains the renderer for
-Terra, Counsel, and Finance. Lyte is no longer regenerated as a generic shell:
+Terra, Sentra, Counsel, and Finance. Lyte is no longer regenerated as a generic shell:
 the same A11oy single-writer job publishes the exact tested default-branch
 revision of ``szl-holdings/lyte-services`` through a dedicated source-owned
-publisher. Sentra and Vessels remain capability planes inside Killinchu and are
-filtered before any independent Hugging Face mutation.
+publisher. Sentra remains the sole Assurance Command. Vessels remains a
+capability plane inside Killinchu and is filtered before independent publication.
 
 The job then publishes and attests the combined six-engine Python intelligence
 runtime from the exact tested vertical-services default-branch tip observed at
@@ -39,11 +39,13 @@ FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 LYTE_RECEIPT = Path("hf-lyte-enterprise-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 
-PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")
-GENERATED_FLAGSHIP_SLUGS = ("terra", "counsel", "finance")
+PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")
+GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")
 SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)
-FOLDED_INTO_KILLINCHU = ("sentra", "vessels")
+FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
+SENTRA_SPACE = "SZLHOLDINGS/sentra"
+LYTE_SOURCE_REVISION = "2131d2eb3611267bd62c134b6bba6b4cf7523127"
 VERTICAL_SERVICES_REPOSITORY = "szl-holdings/vertical-services"
 GITHUB_API = "https://api.github.com"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
@@ -338,6 +340,7 @@ def main() -> int:
     flagship["source_owned_flagship_slugs"] = list(SOURCE_OWNED_FLAGSHIP_SLUGS)
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
     flagship["killinchu_space"] = KILLINCHU_SPACE
+    flagship["sentra_space"] = SENTRA_SPACE
     flagship["lyte_runtime"] = lyte
     flagship["combined_runtime"] = combined
     flagship["generated_flagship_exit_code"] = flagship_code
@@ -351,8 +354,7 @@ def main() -> int:
         and tuple(admitted or ()) == GENERATED_FLAGSHIP_SLUGS
         and lyte.get("complete") is True
         and lyte.get("source_repository") == "szl-holdings/lyte-services"
-        and lyte.get("source_revision")
-        == "f5e85a57cd616c0d2b216e2c5f1686485b8c43e8"
+        and lyte.get("source_revision") == LYTE_SOURCE_REVISION
         and combined.get("complete") is True
         and combined.get("resolved_source_revision") == resolved_revision
         and SHA40.fullmatch(resolved_revision) is not None

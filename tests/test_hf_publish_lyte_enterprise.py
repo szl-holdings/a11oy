@@ -100,8 +100,8 @@ def test_estate_entrypoint_routes_lyte_away_from_generic_renderer() -> None:
     for fragment in (
         'LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"',
         'LYTE_RECEIPT = Path("hf-lyte-enterprise-receipt.json")',
-        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")',
-        'GENERATED_FLAGSHIP_SLUGS = ("terra", "counsel", "finance")',
+        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
+        'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")',
         'SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)',
         'forbidden = set(FOLDED_INTO_KILLINCHU) | set(SOURCE_OWNED_FLAGSHIP_SLUGS)',
         '"szl_lyte_enterprise"',
@@ -119,10 +119,23 @@ def test_estate_entrypoint_routes_lyte_away_from_generic_renderer() -> None:
 
 def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:
     source = ENTRYPOINT.read_text(encoding="utf-8")
-    assert 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")' in source
+    assert 'FOLDED_INTO_KILLINCHU = ("vessels",)' in source
+    assert 'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")' in source
+    assert 'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")' in source
+    assert 'SENTRA_SPACE = "SZLHOLDINGS/sentra"' in source
+    assert 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")' not in source
     assert 'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"' in source
     assert 'COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"' in source
     assert "ensure_space_secret_reader" in source
     assert "api.create_repo" not in source
     assert "delete_repo" not in source
     assert "delete_space" not in source
+
+
+def test_estate_receipt_binds_the_exact_lyte_source_revision() -> None:
+    publisher = PUBLISHER.read_text(encoding="utf-8")
+    entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
+    expected = "2131d2eb3611267bd62c134b6bba6b4cf7523127"
+    assert f'SOURCE_REVISION = "{expected}"' in publisher
+    assert f'LYTE_SOURCE_REVISION = "{expected}"' in entrypoint
+    assert 'lyte.get("source_revision") == LYTE_SOURCE_REVISION' in entrypoint
