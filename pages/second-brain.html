@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>a11oy Second Brain</title>
+<link rel="canonical" href="https://a-11-oy.com/command/brain"/>
+<style>
+:root{--bg:#070b0c;--fg:#eaf6f9;--muted:#8fb3bd;--line:#1b3a44;--teal:#7ad0c6}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 ui-sans-serif,system-ui,sans-serif}
+a{color:var(--teal)}header,main{max-width:1100px;margin:0 auto;padding:1.25rem}
+.sub{color:var(--muted);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
+.row{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
+.chip{border:1px solid var(--line);padding:.7rem;min-height:2.75rem}
+canvas{display:block;width:100%;height:320px;border:1px solid var(--line);background:#070b0c}
+pre{white-space:pre-wrap;border:1px solid var(--line);padding:.75rem;font:12px ui-monospace,monospace;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+<p class="sub">a-11-oy.com / command / brain</p>
+<h1>Second Brain</h1>
+<p>Kernel formulas from /api/a11oy/v1/honest. Locked-proven is exactly 8. Capabilities from /api/a11oy/v1/brain/capabilities. Source: szl-holdings/szl-second-brain and szl-formulas. Lambda is Conjecture 1.</p>
+<p><a href="/command">Elite Console</a> / <a href="/command/constellation">Constellation</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/api/a11oy/v1/formulas/selftest">Formulas selftest</a></p>
+</header>
+<main>
+<canvas id="brain" width="1100" height="320" aria-label="Second brain"></canvas>
+<div class="row" id="chips"></div>
+<pre id="raw">probing Lean-8 and brain capabilities</pre>
+</main>
+<script>
+const LOCKED=["F1","F4","F7","F11","F12","F18","F19","F22"];
+async function load(url){
+  try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return {ok:false};return {ok:true,json:await r.json().catch(function(){return null})};}
+  catch(e){return {ok:false};}
+}
+(async function(){
+  const honest=await load("/api/a11oy/v1/honest");
+  const brain=await load("/api/a11oy/v1/brain/capabilities");
+  const formulas=await load("/api/a11oy/v1/formulas/selftest");
+  const box=document.getElementById("chips");
+  const ids=(honest.json&&honest.json.locked_formula_ids)||LOCKED;
+  const count=honest.json&&honest.json.locked_formula_count;
+  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"honest · "+(honest.ok?"MEASURED":"UNAVAILABLE")}));
+  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"brain · "+(brain.ok?"MEASURED":"UNAVAILABLE")}));
+  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"formulas · "+(formulas.ok?"MEASURED":"UNAVAILABLE")}));
+  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"locked_formula_count · "+(count===8?"8":"UNAVAILABLE")}));
+  ids.forEach(function(id){const s=document.createElement("span");s.className="chip";s.textContent=id;box.appendChild(s);});
+  document.getElementById("raw").textContent=JSON.stringify({
+    locked_formula_count:count||null,
+    locked_formula_ids:ids,
+    brain_ok:brain.ok,
+    formulas_ok:formulas.ok,
+    lambda:"Conjecture 1",
+    source:"szl-holdings/szl-formulas + szl-second-brain"
+  },null,2);
+})();
+const c=document.getElementById("brain");const x=c.getContext("2d");let t=0;
+function draw(){
+  t+=0.012;const w=c.width,h=c.height;
+  x.fillStyle="#070b0c";x.fillRect(0,0,w,h);
+  const cx=w*0.5,cy=h*0.5;
+  x.strokeStyle="rgba(122,208,198,0.4)";x.beginPath();x.ellipse(cx,cy,70,46,0,0,Math.PI*2);x.stroke();
+  LOCKED.forEach(function(id,i){
+    const ang=i*(Math.PI*2/LOCKED.length)+t;
+    const px=cx+Math.cos(ang)*120;const py=cy+Math.sin(ang)*70;
+    x.strokeStyle="rgba(122,208,198,0.2)";x.beginPath();x.moveTo(cx,cy);x.lineTo(px,py);x.stroke();
+    x.fillStyle="#7ad0c6";x.beginPath();x.arc(px,py,5,0,Math.PI*2);x.fill();
+    x.fillStyle="#eaf6f9";x.font="12px ui-monospace,monospace";x.fillText(id,px+8,py+4);
+  });
+  x.fillStyle="#7ad0c6";x.font="13px sans-serif";x.fillText("Second brain",cx-42,cy-58);
+  requestAnimationFrame(draw);
+}
+draw();
+</script>
+</body>
+</html>

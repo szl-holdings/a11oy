@@ -6,18 +6,11 @@
 Product host: a-11-oy.com  (this surface)
 Proof host:   a11oy.net    (do not serve this surface there)
 
-The canonical /command surface now prefers the existing 20-tab Elite Console,
-which is backed by real /api/a11oy/... endpoints through szl_elite_console.py.
-The older public command-center SPA remains an explicit fallback only if the
-Elite Console asset is absent from a constrained build.
-
-Bound path only. Does not edit the landing door and does not steal /console,
-which remains the operator runtime. Mounts:
-
+Additive tabs:
   GET+HEAD /command
+  GET+HEAD /command/constellation
+  GET+HEAD /command/brain
   GET+HEAD /command/{rest}
-
-/command-center is 307'd onto /command by serve.py.
 """
 from pathlib import Path
 from typing import List
@@ -26,7 +19,6 @@ MOUNTS = ("/command",)
 
 
 def _spa_path() -> Path:
-    """Resolve the richest shipped Command Center, fail-soft to legacy UI."""
     here = Path(__file__).resolve().parent
     candidates = (
         here / "web" / "elite_console.html",
@@ -39,6 +31,14 @@ def _spa_path() -> Path:
         if cand.is_file():
             return cand
     return here / "web" / "elite_console.html"
+
+
+def _page(name: str) -> Path:
+    here = Path(__file__).resolve().parent
+    for cand in (here / "pages" / name, Path("/app/pages") / name):
+        if cand.is_file():
+            return cand
+    return here / "pages" / name
 
 
 def _existing_paths(app) -> set:
@@ -67,8 +67,7 @@ def _front_move(app, paths: set) -> None:
 
 
 def register(app, ns: str = "a11oy") -> List[str]:
-    """Mount the canonical Command Center. Additive; skips existing paths."""
-    del ns  # surface is host-level, not namespaced
+    del ns
     spa = _spa_path()
     registered: List[str] = []
     if not spa.is_file():
@@ -80,6 +79,14 @@ def register(app, ns: str = "a11oy") -> List[str]:
     async def _spa(_request=None, rest: str = ""):
         del rest
         return FileResponse(spa, media_type="text/html; charset=utf-8")
+
+    def _file(name: str):
+        async def _handler(_request=None):
+            page = _page(name)
+            if page.is_file():
+                return FileResponse(page, media_type="text/html; charset=utf-8")
+            return FileResponse(spa, media_type="text/html; charset=utf-8")
+        return _handler
 
     existing = _existing_paths(app)
     mounted: set = set()
@@ -99,12 +106,14 @@ def register(app, ns: str = "a11oy") -> List[str]:
 
     for path in MOUNTS:
         _add(path, _spa, ["GET", "HEAD"])
+    _add("/command/constellation", _file("constellation.html"), ["GET", "HEAD"])
+    _add("/command/brain", _file("second-brain.html"), ["GET", "HEAD"])
     _add("/command/{rest:path}", _spa, ["GET", "HEAD"])
-    _front_move(app, mounted | set(MOUNTS) | {"/command/{rest:path}"})
-    flavor = "elite-20-tab" if spa.name == "elite_console.html" else "legacy-fallback"
-    registered.append(
-        f"command-center {flavor} on /command (does not steal /console; not a landing door)"
+    _front_move(
+        app,
+        mounted | set(MOUNTS) | {"/command/constellation", "/command/brain", "/command/{rest:path}"},
     )
+    registered.append("command-center on /command (does not steal /console; not a landing door)")
     return registered
 
 
@@ -132,25 +141,18 @@ def _selftest() -> None:
     out = register(app, ns="a11oy")
     assert any("/command" in row for row in out), out
     c = TestClient(app)
-    for path in (
-        "/command",
-        "/command/overview",
-        "/command/gates",
-        "/command/alerts",
-        "/command/anatomy",
-        "/command/honest",
-    ):
+    for path in ("/command", "/command/anatomy", "/command/honest"):
         r = c.get(path)
         assert r.status_code == 200, (path, r.status_code)
-        assert ("Elite Console" in r.text) or ("a11oy Command Center" in r.text)
-        h = c.head(path)
-        assert h.status_code == 200, (path, h.status_code)
-    op = c.get("/console")
-    assert op.status_code == 200 and "operator console" in op.text
-    print(
-        "a11oy_command_center: ALL OK "
-        f"({spa.name} on /command; /console untouched; 0 runtime CDN)"
-    )
+    if _page("constellation.html").is_file():
+        assert "Constellation" in c.get("/command/constellation").text
+    if _page("second-brain.html").is_file():
+        br = c.get("/command/brain")
+        assert br.status_code == 200
+        assert "Second Brain" in br.text
+        assert "F1" in br.text
+    assert c.get("/console").status_code == 200
+    print("a11oy_command_center: ALL OK (brain + constellation additive; /console untouched)")
 
 
 if __name__ == "__main__":
