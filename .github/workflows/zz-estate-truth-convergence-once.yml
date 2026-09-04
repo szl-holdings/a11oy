@@ -154,7 +154,7 @@ jobs:
           set -euo pipefail
           rm -rf .pytest_cache node_modules
           find . -type d -name __pycache__ -prune -exec rm -rf {} +
-          git rm \
+          git rm -f \
             scripts/apply_estate_truth_convergence.py \
             .github/workflows/zz-estate-truth-convergence-once.yml
           git config user.name "Lutar, Stephen P."
