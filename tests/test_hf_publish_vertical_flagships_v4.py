@@ -6,7 +6,8 @@ from pathlib import Path
 
 SCRIPT = Path("scripts/hf_publish_vertical_flagships_v4_impl.py")
 ENTRYPOINT = Path("scripts/hf_publish_vertical_flagships_v4.py")
-COMBINED = Path("scripts/hf_publish_vertical_services.py")
+BASE_COMBINED = Path("scripts/hf_publish_vertical_services.py")
+FRONTIER_COMBINED = Path("scripts/hf_publish_vertical_services_frontier_v3.py")
 WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
 SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
 
@@ -118,17 +119,19 @@ def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
         assert fragment in sync
 
 
-def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
+def test_single_writer_entrypoint_preserves_base_and_promotes_frontier_v3() -> None:
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
-    combined = COMBINED.read_text(encoding="utf-8")
+    base = BASE_COMBINED.read_text(encoding="utf-8")
+    frontier = FRONTIER_COMBINED.read_text(encoding="utf-8")
     ast.parse(entrypoint)
-    ast.parse(combined)
+    ast.parse(base)
+    ast.parse(frontier)
 
     for fragment in (
         "hf_publish_vertical_flagships_v4_impl.py",
-        "hf_publish_vertical_services.py",
+        "hf_publish_vertical_services_frontier_v3.py",
         "combined_runtime",
-        "szl.hf-vertical-estate/v5",
+        "szl.hf-vertical-estate/v6",
         "ensure_space_secret_reader",
         "backported-metadata-only",
         "secret_values_readable",
@@ -151,14 +154,31 @@ def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
         '"OBSERVED"',
         "vessels_space_retained",
     ):
-        assert fragment in combined
+        assert fragment in base
 
-    assert "delete_repo" not in combined
-    assert "delete_space" not in combined
+    for fragment in (
+        'SOURCE_REVISION = "e08231a110fd80f85a61fba82d72ab7f1fe23836"',
+        'EXPECTED_VERSION = "2.1.0"',
+        "BASE_IMPL",
+        "configure(load_base())",
+        "prior_verify",
+        "verify_frontier",
+        '"szl.vertical-frontier-live-proof/v3"',
+        '"trading_enabled": False',
+        '"custody_enabled": False',
+        '"person_level_real_estate_prospecting": False',
+        '"effectors_enabled": False',
+    ):
+        assert fragment in frontier
+
+    assert "delete_repo" not in base
+    assert "delete_space" not in base
+    assert "delete_repo" not in frontier
+    assert "delete_space" not in frontier
 
 
-def test_combined_runtime_v2_closes_operational_fabric_contract() -> None:
-    combined = COMBINED.read_text(encoding="utf-8")
+def test_combined_runtime_v2_base_retains_operational_fabric_contract() -> None:
+    combined = BASE_COMBINED.read_text(encoding="utf-8")
     required = (
         "CANONICAL_VERTICALS",
         '"killinchu"',
@@ -185,8 +205,8 @@ def test_combined_runtime_v2_closes_operational_fabric_contract() -> None:
         assert fragment in combined
 
 
-def test_combined_runtime_executes_six_bounded_live_source_probes() -> None:
-    combined = COMBINED.read_text(encoding="utf-8")
+def test_combined_runtime_base_executes_six_required_live_source_probes() -> None:
+    combined = BASE_COMBINED.read_text(encoding="utf-8")
     for fragment in (
         '("sentra", "cisa-kev", {"limit": 3})',
         '("lyte", "github-actions", {"repository": "vertical-services", "limit": 10})',
@@ -206,3 +226,39 @@ def test_combined_runtime_executes_six_bounded_live_source_probes() -> None:
 
     assert "caller_supplied_urls" not in combined
     assert "session_token_recorded\": True" not in combined
+
+
+def test_frontier_v3_closes_eleven_sources_eight_aliases_and_six_experiences() -> None:
+    frontier = FRONTIER_COMBINED.read_text(encoding="utf-8")
+    for fragment in (
+        '("finance", "polymarket-markets", {"limit": 5})',
+        '("finance", "coinbase-spot", {"base": "BTC", "currency": "USD"})',
+        '("finance", "treasury-average-rates", {"limit": 5})',
+        '("terra", "nyc-hpd-violations", {"limit": 5})',
+        '("terra", "nyc-dob-violations", {"limit": 5})',
+        '"aegis": "sentra"',
+        '"immune": "sentra"',
+        '"puriq": "finance"',
+        '"markets": "finance"',
+        '"real-estate": "terra"',
+        '"business-observability": "lyte"',
+        '"prism": "counsel"',
+        '"vessels": "killinchu"',
+        '"Aegis Immune Cell"',
+        '"Lyte Signal Lattice"',
+        '"Killinchu Voyage Radar"',
+        '"PURIQ Market Chamber"',
+        '"Terra Parcel Loom"',
+        '"PRISM Authority Chain"',
+        '"/api/verticals/puriq/second-brain"',
+        '"/api/verticals/puriq/hatun/evaluate"',
+        '"decision") != "REVIEW"',
+        '"Conjecture 1"',
+        '"source_revision"] != SOURCE_REVISION',
+        'len(experience_hashes) != len(EXPERIENCES)',
+    ):
+        assert fragment in frontier
+
+    assert frontier.count("trading_enabled") >= 2
+    assert frontier.count("effectors_enabled") >= 4
+    assert "session_token_recorded\": True" not in frontier
