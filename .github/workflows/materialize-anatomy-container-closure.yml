@@ -1,0 +1,65 @@
+name: Materialize anatomy container closure repair
+on:
+  push:
+    branches: [fix/anatomy-alias-container-closure]
+    paths: [.github/workflows/materialize-anatomy-container-closure.yml]
+permissions:
+  contents: write
+concurrency:
+  group: materialize-anatomy-container-closure
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/anatomy-alias-container-closure' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Add only the missing runtime COPY to the exact reviewed Dockerfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          from pathlib import Path
+          path = Path('Dockerfile')
+          before = path.read_bytes()
+          blob = hashlib.sha1(('blob ' + str(len(before)) + '\0').encode() + before).hexdigest()
+          if blob != '985ec28fa96f5c4d53e207ddfb1eaced045601cb':
+              raise SystemExit('Dockerfile changed: refusing to patch unreviewed bytes')
+          module = Path('szl_anatomy_alias_bind.py').read_bytes()
+          module_blob = hashlib.sha1(('blob ' + str(len(module)) + '\0').encode() + module).hexdigest()
+          if module_blob != '369cd8ab47a3ef60e7578f87311dfaab2c81e47c':
+              raise SystemExit('Anatomy alias module changed: refusing unreviewed inclusion')
+          addition = b'\n# Runtime dependency for the existing anatomy alias binding.\nCOPY szl_anatomy_alias_bind.py /app/szl_anatomy_alias_bind.py\n'
+          if b'COPY szl_anatomy_alias_bind.py' in before:
+              raise SystemExit('Module is already explicitly copied')
+          path.write_bytes(before + addition)
+          assert path.read_bytes()[:-len(addition)] == before
+          print('Added exactly one runtime COPY; every existing Dockerfile byte retained.')
+          PY
+          git diff --check
+      - name: Prove real container/import lockstep and alias behavior
+        run: >-
+          python -m unittest tools/test_check_copy_sync_lockstep.py
+          tests/test_copy_sync_lockstep_source_derived.py
+          tests/test_anatomy_alias_container_closure.py -v
+      - name: Commit only the verified Dockerfile on this repair branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/fix/anatomy-alias-container-closure
+          test "$(git ls-remote origin "$GITHUB_REF" | cut -f1)" = "$GITHUB_SHA"
+          test "$(git diff --name-only)" = Dockerfile
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- Dockerfile
+          git commit -s -m 'fix(build): include the existing anatomy alias runtime binding'
+          git push origin HEAD:refs/heads/fix/anatomy-alias-container-closure
