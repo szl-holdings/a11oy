@@ -1,0 +1,198 @@
+name: Cloudflare edge live convergence — 32973f1
+
+on:
+  push:
+    branches:
+      - ops/cloudflare-edge-live-32973f1-20260904
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-edge-live-32973f1-${{ github.run_id }}
+  cancel-in-progress: false
+
+env:
+  TARGET_SHA: 32973f1ac1b82bbb5339df910b28fedd3fa62fd3
+  EDGE_REPORT: /tmp/cloudflare-product-edge-v4.json
+  TLS_REPORT: /tmp/cloudflare-tls-proof.json
+
+jobs:
+  converge:
+    name: Deploy bounded Worker, proxy exact DNS, and prove apex plus www
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected-main controller and Worker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prove exact source and bounded mutation contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || {
+            echo '::error::No supported Cloudflare API token is available in the production environment or repository secrets.'
+            exit 2
+          }
+          python tests/test_cloudflare_product_edge.py -v
+          node --test tests/test_cloudflare_product_edge_worker.mjs
+          python -m py_compile scripts/repair_cloudflare_product_edge.py
+          node --check cloudflare/a11oy-product-root-worker.mjs
+
+      - name: Deploy Worker, converge exact apex and www routes, and prove public contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/repair_cloudflare_product_edge.py --report "$EDGE_REPORT"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          path = Path(os.environ["EDGE_REPORT"])
+          report = json.loads(path.read_text(encoding="utf-8"))
+          if report.get("status") != "LIVE":
+              raise SystemExit(f"Cloudflare controller ended in {report.get('status')!r}")
+          print(json.dumps({
+              "schema": report.get("schema"),
+              "status": report.get("status"),
+              "zone": report.get("zone"),
+              "root_verified": (report.get("probe") or {}).get("root_verified"),
+              "honest_verified": (report.get("probe") or {}).get("honest_verified"),
+              "www_verified": (report.get("probe") or {}).get("www_verified"),
+              "token_recorded": report.get("token_recorded"),
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Independently prove TLS and cache-bypassed routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import ssl
+          import time
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          def probe(url: str, *, follow: bool = True) -> dict[str, object]:
+              opener = urllib.request.build_opener() if follow else urllib.request.build_opener(NoRedirect())
+              separator = "&" if "?" in url else "?"
+              req = urllib.request.Request(
+                  f"{url}{separator}edge_proof={time.time_ns()}",
+                  headers={
+                      "Accept": "*/*",
+                      "Cache-Control": "no-cache, no-store",
+                      "Pragma": "no-cache",
+                      "User-Agent": "SZL-Cloudflare-Edge-Proof/1.0",
+                  },
+              )
+              try:
+                  with opener.open(req, timeout=35) as response:
+                      body = response.read(262144)
+                      return {
+                          "status": response.status,
+                          "bytes": len(body),
+                          "final_url": response.geturl().split("?", 1)[0],
+                          "location": response.headers.get("location"),
+                          "edge": response.headers.get("x-szl-edge"),
+                          "server": response.headers.get("server"),
+                          "error": None,
+                      }
+              except urllib.error.HTTPError as exc:
+                  body = exc.read(262144)
+                  return {
+                      "status": exc.code,
+                      "bytes": len(body),
+                      "final_url": exc.geturl().split("?", 1)[0],
+                      "location": exc.headers.get("location"),
+                      "edge": exc.headers.get("x-szl-edge"),
+                      "server": exc.headers.get("server"),
+                      "error": None,
+                  }
+              except (urllib.error.URLError, TimeoutError, OSError, ssl.SSLError) as exc:
+                  return {
+                      "status": None,
+                      "bytes": 0,
+                      "final_url": None,
+                      "location": None,
+                      "edge": None,
+                      "server": None,
+                      "error": f"{type(exc).__name__}: {exc}",
+                  }
+
+          checks = {
+              "apex_root": probe("https://a-11-oy.com/"),
+              "apex_build": probe("https://a-11-oy.com/api/build-info"),
+              "apex_console": probe("https://a-11-oy.com/console"),
+              "apex_brain": probe("https://a-11-oy.com/brain"),
+              "apex_anatomy": probe("https://a-11-oy.com/living-anatomy"),
+              "apex_killinchu": probe("https://a-11-oy.com/killinchu"),
+              "www_redirect": probe("https://www.a-11-oy.com/__szl_edge_probe__/path?contract=v3&preserve=yes", follow=False),
+          }
+          failures = []
+          for name, row in checks.items():
+              if name == "www_redirect":
+                  expected = "https://a-11-oy.com/__szl_edge_probe__/path?contract=v3&preserve=yes"
+                  ok = row.get("status") == 301 and row.get("location") == expected and row.get("edge") == "a11oy-product-edge-v3"
+              else:
+                  ok = row.get("status") == 200 and int(row.get("bytes") or 0) > 0 and row.get("edge") == "a11oy-product-edge-v3"
+              row["verified"] = ok
+              if not ok:
+                  failures.append(name)
+
+          report = {
+              "schema": "szl.cloudflare-tls-and-route-proof/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "checks": checks,
+              "complete": not failures,
+              "failures": failures,
+              "credential_values_recorded": False,
+          }
+          Path(os.environ["TLS_REPORT"]).write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+          if failures:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload immutable secret-free edge evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloudflare-edge-live-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/cloudflare-product-edge-v4.json
+            /tmp/cloudflare-tls-proof.json
+          if-no-files-found: warn
+          retention-days: 90
