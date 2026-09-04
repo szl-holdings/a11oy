@@ -1,88 +1,211 @@
-"""Authoritative, digest-verified dispute-relevant maturity crosswalk.
+"""Canonical SZL formula authority.
 
-This registry reconciles the local lutar-lean snapshot with Doctrine v11.  A
-deterministic SHA-256 digest is exposed as a receipt basis; it is deliberately
-UNSIGNED until an approved signing key is available.  It is intentionally not
-an exhaustive inventory of the estate's roughly 200 formula/theorem artifacts.
+The transport filename is retained for deployed-image compatibility, but the
+embedded schema is ``szl.formula-authority.v2``.  The v2 record supersedes the
+former dispute-scoped locked-five crosswalk.
+
+Authority boundaries:
+- ``lutar-lean`` owns formal F-ID maturity and the exact locked count.
+- ``szl-formulas`` owns 21 callable software functions.
+- no F-ID-to-callable mapping is asserted without a proved binding artifact.
+- formulas constrain only after an evidence-bound applicability decision.
+- no formula independently authorizes a consequential action.
+- F23/Lambda remains Conjecture 1 advisory.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
+import re
 from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parent
+# Legacy transport path retained because existing container publishers copy it.
 REGISTRY_PATH = ROOT / "formula_registry" / "formula-registry.v1.json"
-EXPECTED_CANONICALIZATION = "SZL deterministic JSON for this restricted integer/string/boolean/array/object payload: UTF-8, object keys sorted, separators ',', ':', ensure_ascii=false"
-EXPECTED_UNSIGNED_REASON = "No approved signing key was available for this reconciliation wave. The deterministic digest is not a signature."
-EXPECTED_COVERAGE_SCOPE = "Dispute-relevant maturity crosswalk for the Doctrine-v11 locked baseline, the challenged F4/F7/F22 classifications, and F23 status; this is not an inventory of the full estate."
-EXPECTED_POLICY = {
-    "locked_set_rule": "Only the five formulas named by the canonical Doctrine-v11 locked-kernel report are LOCKED_PROVEN.",
-    "experimental_rule": "A source declaration or CI-green experimental theorem does not promote a formula into the locked set.",
-    "lambda_rule": "F23 unconditional uniqueness remains Conjecture 1; conditional theorems do not promote it, and maxAgg_ne_Lambda refutes the bare A1-A5 uniqueness claim.",
-    "signing_rule": "No signature is emitted without an approved signing key.",
-}
-EXPECTED_LOCKED_IDS = ("F1", "F11", "F12", "F18", "F19")
-EXPECTED_EXPERIMENTAL_IDS = ("F4", "F7", "F22")
-EXPECTED_COVERED_IDS = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22", "F23")
-EXPECTED_SOURCE_PATHS = (
+
+SCHEMA_VERSION = "szl.formula-authority.v2"
+EXPECTED_CANONICALIZATION = (
+    "UTF-8 JSON; object keys sorted; separators ',', ':'; "
+    "ensure_ascii=false; digest scope=payload"
+)
+EXPECTED_SIGNATURE_STATUS = "UNSIGNED"
+EXPECTED_SIGNATURE_REASON = (
+    "The SHA-256 digest and immutable Git commit/blob pins provide integrity "
+    "and lineage, not signer identity; no approved online signing key is stored "
+    "in this repository."
+)
+EXPECTED_COVERAGE_SCOPE = (
+    "Exact locked-eight authority plus the F23 Lambda non-authority boundary; "
+    "not an exhaustive inventory of every SZL formula or theorem."
+)
+FORMAL_REPOSITORY = "szl-holdings/lutar-lean"
+FORMAL_COMMIT = "c497b4ed402249f23da7f290426f0e21c70ab926"
+FORMULA_KERNEL_REPOSITORY = "szl-holdings/szl-formulas"
+FORMULA_KERNEL_COMMIT = "46cfa948367e8133eaa8dd6bcfb781b19165b9bb"
+LOCKED_COUNT_THEOREM = "Lutar.Wave8.AxiomDisclosure.locked_count_eight"
+CALLABLE_FORMULA_COUNT = 21
+F_ID_TO_CALLABLE_MAPPING = "UNKNOWN_NOT_ASSERTED"
+
+EXPECTED_LOCKED_IDS = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")
+EXPECTED_COVERED_IDS = (*EXPECTED_LOCKED_IDS, "F23")
+EXPECTED_HISTORICAL_NON_AUTHORITIES = (
+    "static/thesis.json",
     "corpus/formulas/lutar-lean__PROVEN_FORMULAS.md",
-    "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-    "proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean",
-    "proofs/lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean",
+    "proofs/lutar-lean/**",
+    "knowledge.json",
 )
 EXPECTED_SOURCE_ASSETS = (
-    (EXPECTED_SOURCE_PATHS[0], "authoritative maturity and locked-set report", "9692d973c443fb46fa9031a92bf1f6587d5a03ab0abf1e62feec6fce7b01b8d9"),
-    (EXPECTED_SOURCE_PATHS[1], "local Lean theorem source snapshot", "0a7ea54762a96b335d3e6e082835542dbd0a22c1ea08db8d7315f77adb1dd8ea"),
-    (EXPECTED_SOURCE_PATHS[2], "local compact Lean theorem source snapshot", "847d2e332017a5bfe3e7823092acf0245840f6b20f3d6f1544f723fd1607612e"),
-    (EXPECTED_SOURCE_PATHS[3], "Lambda conditional results and unconditional counterexample source", "ea7667f8c20deb469396d822273ede4577e53d5ce0f273dee590a4928b617525"),
+    {
+        "id": "locked-count",
+        "repository": FORMAL_REPOSITORY,
+        "commit": FORMAL_COMMIT,
+        "path": "Lutar/Wave8/AxiomDisclosure.lean",
+        "blob_sha": "bbf5deac32e1558eecf13115ea954393788d0e35",
+        "role": "machine-enforced exact locked-eight disclosure",
+    },
+    {
+        "id": "proved-formulas",
+        "repository": FORMAL_REPOSITORY,
+        "commit": FORMAL_COMMIT,
+        "path": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "blob_sha": "727115c587e8977428abe76d1313b171bcb23ff2",
+        "role": "zero-sorry locked formula theorem source",
+    },
+    {
+        "id": "lambda-boundary",
+        "repository": FORMAL_REPOSITORY,
+        "commit": FORMAL_COMMIT,
+        "path": "Lutar/Round13/Lambda_Uniqueness.lean",
+        "blob_sha": "b0f2c24d8b7fd4c9c87ad24eb2ed115a75288504",
+        "role": "conditional Lambda theorem and unconditional counterexample source",
+    },
 )
 EXPECTED_FORMULA_SEMANTICS = {
-    "F1": ("LOCKED_PROVEN", True, ("f1_replay_hash_determinism", "f1_replay_trace_stable"), EXPECTED_SOURCE_PATHS[1], "LEAN_CORE_ONLY", "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"),
-    "F4": ("EXPERIMENTAL", False, ("f4_khipu_no_self_loop", "f4_khipu_acyclic_irrefl", "f4_khipu_reach_strictly_smaller", "f4_khipu_dag_acyclic"), EXPECTED_SOURCE_PATHS[1], "NOT_REEVALUATED_BY_THIS_REGISTRY", "SOURCE_PRESENT_EXPERIMENTAL_NOT_LOCKED"),
-    "F7": ("EXPERIMENTAL", False, ("f7_chaski_enqueue_preserves_prefix", "f7_chaski_head_is_oldest", "f7_chaski_fifo", "f7_chaski_take_drop_roundtrip"), EXPECTED_SOURCE_PATHS[1], "NOT_REEVALUATED_BY_THIS_REGISTRY", "SOURCE_PRESENT_EXPERIMENTAL_NOT_LOCKED"),
-    "F11": ("LOCKED_PROVEN", True, ("f11_ayni_reciprocity_conservation", "f11_tit_for_tat_parity"), EXPECTED_SOURCE_PATHS[1], "LEAN_CORE_ONLY", "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"),
-    "F12": ("LOCKED_PROVEN_LIMITED_FRAGMENT", True, ("f12_kuramoto_additive",), EXPECTED_SOURCE_PATHS[1], "LEAN_CORE_ONLY", "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"),
-    "F18": ("LOCKED_PROVEN", True, ("f18_reed_solomon_parity_count", "f18_erasure_tolerance"), EXPECTED_SOURCE_PATHS[1], "LEAN_CORE_ONLY", "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"),
-    "F19": ("LOCKED_PROVEN_LIMITED_FRAGMENT", True, ("f19_bekenstein_additive", "f19_budget_monotone"), EXPECTED_SOURCE_PATHS[1], "LEAN_CORE_ONLY", "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"),
-    "F22": ("EXPERIMENTAL", False, ("f22_emit_appends_length", "f22_emit_strictly_greater", "f22_khipu_emit_monotone"), EXPECTED_SOURCE_PATHS[1], "NOT_REEVALUATED_BY_THIS_REGISTRY", "SOURCE_PRESENT_EXPERIMENTAL_NOT_LOCKED"),
-    "F23": ("CONJECTURE_1_ADVISORY", False, ("lambda_unique_of_factors", "maxAgg_ne_Lambda"), EXPECTED_SOURCE_PATHS[3], "CONDITIONAL_RESULTS_ONLY", "UNCONDITIONAL_CLAIM_REFUTED_BY_COUNTEREXAMPLE"),
+    "F1": (
+        "LOCKED_PROVEN",
+        True,
+        ("f1_replay_hash_determinism", "f1_replay_trace_stable"),
+        "proved-formulas",
+        True,
+    ),
+    "F4": (
+        "LOCKED_PROVEN",
+        True,
+        (
+            "f4_khipu_reach_decreases",
+            "f4_khipu_no_cycle",
+            "f4_khipu_dag_acyclic_preserved",
+        ),
+        "proved-formulas",
+        True,
+    ),
+    "F7": (
+        "LOCKED_PROVEN",
+        True,
+        (
+            "f7_chaski_enqueue_preserves_prefix",
+            "f7_chaski_head_is_oldest",
+            "f7_chaski_fifo_order",
+            "f7_chaski_fifo_positional",
+        ),
+        "proved-formulas",
+        True,
+    ),
+    "F11": (
+        "LOCKED_PROVEN",
+        True,
+        ("f11_ayni_reciprocity_conservation",),
+        "proved-formulas",
+        True,
+    ),
+    "F12": (
+        "LOCKED_PROVEN_LIMITED_FRAGMENT",
+        True,
+        ("f12_kuramoto_additive",),
+        "proved-formulas",
+        True,
+    ),
+    "F18": (
+        "LOCKED_PROVEN",
+        True,
+        ("f18_reed_solomon_parity_count", "f18_erasure_tolerance"),
+        "proved-formulas",
+        True,
+    ),
+    "F19": (
+        "LOCKED_PROVEN_LIMITED_FRAGMENT",
+        True,
+        ("f19_bekenstein_additive", "f19_budget_monotone"),
+        "proved-formulas",
+        True,
+    ),
+    "F22": (
+        "LOCKED_PROVEN",
+        True,
+        (
+            "f22_emit_appends_length",
+            "f22_emit_strictly_greater",
+            "f22_khipu_emit_monotone",
+        ),
+        "proved-formulas",
+        True,
+    ),
+    "F23": (
+        "CONJECTURE_1_ADVISORY",
+        False,
+        ("lambda_unique_of_factors", "maxAgg_ne_Lambda"),
+        "lambda-boundary",
+        False,
+    ),
 }
-EXPECTED_FORMULA_NAMES = {
-    "F1": "Replay-Hash Determinism",
-    "F4": "Khipu DAG Acyclicity",
-    "F7": "Chaski FIFO Ordering",
-    "F11": "Ayni Reciprocity Conservation",
-    "F12": "Kuramoto Additive Fragment",
-    "F18": "Reed-Solomon RS(10,6) Recovery Arithmetic",
-    "F19": "Bekenstein Additive Scaffolding",
-    "F22": "Khipu Emit Monotonicity",
-    "F23": "Lambda Aggregator Uniqueness",
-}
-EXPECTED_FORMULA_CAVEATS = {
-    "F12": "Additive fragment only; not nonlinear Kuramoto synchronization.",
-    "F19": "Additive/monotone scaffolding only; not the full physical Bekenstein bound.",
-    "F23": "Never promote conditional uniqueness results to unconditional theorem status.",
-}
-TOP_LEVEL_KEYS = frozenset(("schema_version", "registry_digest", "signature", "payload"))
-DIGEST_KEYS = frozenset(("algorithm", "canonicalization", "scope", "value"))
-SIGNATURE_KEYS = frozenset(("status", "reason"))
-PAYLOAD_KEYS = frozenset((
-    "registry_version", "doctrine_version", "coverage_scope", "exhaustive",
-    "covered_formula_ids", "source_repository", "locked_kernel_commit_prefix",
-    "experimental_scope_commit_prefix", "locked_proven_count", "locked_proven_ids",
-    "lambda_status", "policy", "source_assets", "formulas",
-))
-FORMULA_KEYS = frozenset((
-    "id", "name", "maturity", "locked_proven", "theorem_refs", "source_path",
-    "axiom_status", "evidence_status",
-))
+
+TOP_LEVEL_KEYS = frozenset(
+    {"schema_version", "registry_digest", "signature", "payload"}
+)
+DIGEST_KEYS = frozenset({"algorithm", "canonicalization", "scope", "value"})
+SIGNATURE_KEYS = frozenset({"status", "reason"})
+PAYLOAD_KEYS = frozenset(
+    {
+        "registry_version",
+        "doctrine_version",
+        "authority",
+        "coverage_scope",
+        "exhaustive",
+        "covered_formula_ids",
+        "formal_source",
+        "kernel_source",
+        "locked_proven_count",
+        "locked_proven_ids",
+        "lambda",
+        "policy",
+        "source_assets",
+        "formulas",
+        "historical_non_authorities",
+    }
+)
+FORMULA_KEYS = frozenset(
+    {
+        "id",
+        "name",
+        "maturity",
+        "locked_proven",
+        "theorem_refs",
+        "source_asset",
+        "scope",
+        "caveat",
+        "applicability_required",
+        "can_constrain_execution",
+        "can_authorize_action",
+    }
+)
+PIN_RE = re.compile(r"^[0-9a-f]{40}$")
 
 
-def _canonical_bytes(payload: dict[str, Any]) -> bytes:
+def _canonical_bytes(value: Any) -> bytes:
     return json.dumps(
-        payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
     ).encode("utf-8")
 
 
@@ -90,193 +213,187 @@ def compute_payload_digest(payload: dict[str, Any]) -> str:
     return hashlib.sha256(_canonical_bytes(payload)).hexdigest()
 
 
-def _confined_source(root: Path, source_path: str) -> Path:
-    relative = Path(source_path)
-    if relative.is_absolute() or not source_path or "\\" in source_path:
-        raise ValueError(f"formula source path is not a confined POSIX-relative path: {source_path!r}")
-    resolved_root = root.resolve()
-    candidate = (resolved_root / relative).resolve()
-    try:
-        candidate.relative_to(resolved_root)
-    except ValueError as exc:
-        raise ValueError(f"formula source path escapes registry root: {source_path!r}") from exc
-    return candidate
+def _assert_exact_keys(value: Any, expected: frozenset[str], label: str) -> dict[str, Any]:
+    if not isinstance(value, dict) or set(value) != expected:
+        raise ValueError(f"{label} key set drift")
+    return value
 
 
 def validate_registry_document(
-    document: dict[str, Any], *, root: Path = ROOT, verify_source_hashes: bool = True
+    document: dict[str, Any],
+    *,
+    root: Path = ROOT,
+    verify_source_hashes: bool = True,
 ) -> None:
-    """Fail-closed semantic validation independent of optional jsonschema tooling."""
-    if not isinstance(document, dict) or set(document) != TOP_LEVEL_KEYS:
-        raise ValueError("formula registry top-level key set drift")
-    if document.get("schema_version") != "szl.formula-registry.v1":
-        raise ValueError("unsupported formula registry schema_version")
-    digest = document.get("registry_digest")
-    if not isinstance(digest, dict) or set(digest) != DIGEST_KEYS:
-        raise ValueError("formula registry digest metadata key set drift")
+    """Validate the authority record without network access.
+
+    ``root`` and ``verify_source_hashes`` are retained for caller compatibility.
+    v2 source verification is an immutable Git identity check: repository,
+    full commit, path and Git blob SHA must all match the reviewed record.
+    """
+    del root
+    _assert_exact_keys(document, TOP_LEVEL_KEYS, "formula authority top-level")
+    if document.get("schema_version") != SCHEMA_VERSION:
+        raise ValueError("unsupported formula authority schema_version")
+
+    digest = _assert_exact_keys(
+        document.get("registry_digest"), DIGEST_KEYS, "formula authority digest"
+    )
     if (
         digest.get("algorithm") != "sha256"
         or digest.get("canonicalization") != EXPECTED_CANONICALIZATION
         or digest.get("scope") != "payload"
     ):
-        raise ValueError("formula registry digest contract must be sha256 over payload")
-    signature = document.get("signature")
-    if not isinstance(signature, dict) or set(signature) != SIGNATURE_KEYS:
-        raise ValueError("formula registry signature metadata key set drift")
-    if signature.get("status") != "UNSIGNED":
-        raise ValueError("formula registry must remain UNSIGNED without an approved key")
-    if signature.get("reason") != EXPECTED_UNSIGNED_REASON:
-        raise ValueError("formula registry UNSIGNED reason drift")
+        raise ValueError("formula authority digest contract drift")
 
-    payload = document.get("payload")
-    if not isinstance(payload, dict) or set(payload) != PAYLOAD_KEYS:
-        raise ValueError("formula registry payload key set drift")
-    expected_digest = digest.get("value")
+    signature = _assert_exact_keys(
+        document.get("signature"), SIGNATURE_KEYS, "formula authority signature"
+    )
+    if signature.get("status") != EXPECTED_SIGNATURE_STATUS:
+        raise ValueError("formula authority must remain honestly UNSIGNED")
+    if signature.get("reason") != EXPECTED_SIGNATURE_REASON:
+        raise ValueError("formula authority unsigned reason drift")
+
+    payload = _assert_exact_keys(
+        document.get("payload"), PAYLOAD_KEYS, "formula authority payload"
+    )
     actual_digest = compute_payload_digest(payload)
-    if expected_digest != actual_digest:
-        raise ValueError(f"formula registry digest mismatch: {expected_digest} != {actual_digest}")
+    if digest.get("value") != actual_digest:
+        raise ValueError(
+            f"formula authority digest mismatch: {digest.get('value')} != {actual_digest}"
+        )
 
-    fixed_payload_metadata = {
-        "registry_version": "1.0.0",
+    fixed = {
+        "registry_version": "2.0.0",
         "doctrine_version": "v11",
+        "authority": "FORMAL_SOURCE_PINNED",
         "coverage_scope": EXPECTED_COVERAGE_SCOPE,
         "exhaustive": False,
-        "source_repository": "https://github.com/szl-holdings/lutar-lean",
-        "locked_kernel_commit_prefix": "c7c0ba17",
-        "experimental_scope_commit_prefix": "7885fd9",
     }
-    for key, expected in fixed_payload_metadata.items():
+    for key, expected in fixed.items():
         if payload.get(key) != expected:
-            raise ValueError(f"formula registry {key} drift")
-    if payload.get("exhaustive") is not False:
-        raise ValueError("formula registry is a non-exhaustive maturity crosswalk")
-    if tuple(payload.get("covered_formula_ids", ())) != EXPECTED_COVERED_IDS:
-        raise ValueError("formula registry covered_formula_ids drift")
-    if tuple(payload.get("locked_proven_ids", ())) != EXPECTED_LOCKED_IDS:
-        raise ValueError("formula registry locked set drift")
+            raise ValueError(f"formula authority {key} drift")
+
+    if tuple(payload.get("covered_formula_ids") or ()) != EXPECTED_COVERED_IDS:
+        raise ValueError("formula authority covered formula IDs drift")
+    if tuple(payload.get("locked_proven_ids") or ()) != EXPECTED_LOCKED_IDS:
+        raise ValueError("formula authority locked set must be the exact formal eight")
     if payload.get("locked_proven_count") != len(EXPECTED_LOCKED_IDS):
-        raise ValueError("formula registry locked count/list mismatch")
-    if payload.get("lambda_status") != "CONJECTURE_1_ADVISORY":
-        raise ValueError("Lambda must remain Conjecture 1/advisory")
+        raise ValueError("formula authority locked count/list mismatch")
+
+    formal = payload.get("formal_source")
+    if not isinstance(formal, dict) or formal != {
+        "repository": FORMAL_REPOSITORY,
+        "commit": FORMAL_COMMIT,
+        "locked_count_theorem": LOCKED_COUNT_THEOREM,
+        "locked_count_source_asset": "locked-count",
+    }:
+        raise ValueError("formal source binding drift")
+    if not PIN_RE.fullmatch(str(formal.get("commit") or "")):
+        raise ValueError("formal source commit must be a full Git SHA")
+
+    kernel = payload.get("kernel_source")
+    if not isinstance(kernel, dict) or kernel != {
+        "repository": FORMULA_KERNEL_REPOSITORY,
+        "commit": FORMULA_KERNEL_COMMIT,
+        "callable_formula_count": CALLABLE_FORMULA_COUNT,
+        "f_id_to_callable_mapping": F_ID_TO_CALLABLE_MAPPING,
+    }:
+        raise ValueError("callable formula kernel binding drift")
+    if not PIN_RE.fullmatch(str(kernel.get("commit") or "")):
+        raise ValueError("formula kernel commit must be a full Git SHA")
+    if kernel["f_id_to_callable_mapping"] != "UNKNOWN_NOT_ASSERTED":
+        raise ValueError("an unproved F-ID-to-callable mapping may not be asserted")
+
+    lambda_rule = payload.get("lambda")
+    if lambda_rule != {
+        "formula_id": "F23",
+        "status": "CONJECTURE_1_ADVISORY",
+        "can_authorize": False,
+        "can_be_sole_allow_basis": False,
+    }:
+        raise ValueError("F23 Lambda must remain Conjecture 1 and non-authorizing")
+
     policy = payload.get("policy")
-    if not isinstance(policy, dict) or policy != EXPECTED_POLICY:
-        raise ValueError("formula registry policy drift")
+    if not isinstance(policy, dict) or set(policy) != {
+        "identity_rule",
+        "applicability_rule",
+        "namespace_rule",
+        "authorization_rule",
+        "lambda_rule",
+        "training_rule",
+    }:
+        raise ValueError("formula authority policy drift")
+    if any(not isinstance(value, str) or len(value) < 40 for value in policy.values()):
+        raise ValueError("formula authority policy statements are incomplete")
+
+    assets = payload.get("source_assets")
+    if not isinstance(assets, list) or assets != list(EXPECTED_SOURCE_ASSETS):
+        raise ValueError("formula authority source asset identity drift")
+    if verify_source_hashes:
+        for asset in assets:
+            if not (
+                PIN_RE.fullmatch(asset["commit"])
+                and PIN_RE.fullmatch(asset["blob_sha"])
+                and asset["repository"] == FORMAL_REPOSITORY
+            ):
+                raise ValueError("formula authority source pin is not immutable")
+    asset_ids = {asset["id"] for asset in assets}
 
     formulas = payload.get("formulas")
     if not isinstance(formulas, list) or len(formulas) != len(EXPECTED_COVERED_IDS):
-        raise ValueError("formula registry formula coverage drift")
+        raise ValueError("formula authority coverage drift")
     ids = [entry.get("id") for entry in formulas if isinstance(entry, dict)]
-    if len(ids) != len(formulas) or len(set(ids)) != len(ids):
-        raise ValueError("formula registry contains duplicate or malformed formula IDs")
-    if tuple(ids) != EXPECTED_COVERED_IDS:
-        raise ValueError("formula registry formula order/coverage drift")
-    by_id = {entry["id"]: entry for entry in formulas}
-    for formula_id, entry in by_id.items():
-        expected_keys = FORMULA_KEYS | ({"caveat"} if formula_id in EXPECTED_FORMULA_CAVEATS else set())
-        if set(entry) != expected_keys:
-            raise ValueError(f"{formula_id} formula metadata key set drift")
-        if entry.get("name") != EXPECTED_FORMULA_NAMES[formula_id]:
-            raise ValueError(f"{formula_id} formula name drift")
-        if formula_id in EXPECTED_FORMULA_CAVEATS:
-            if entry.get("caveat") != EXPECTED_FORMULA_CAVEATS[formula_id]:
-                raise ValueError(f"{formula_id} caveat drift")
-    flagged_locked = tuple(entry["id"] for entry in formulas if entry.get("locked_proven") is True)
-    if flagged_locked != EXPECTED_LOCKED_IDS:
-        raise ValueError("only the exact Doctrine-v11 locked five may be locked_proven")
-    for formula_id in EXPECTED_LOCKED_IDS:
-        if not str(by_id[formula_id].get("maturity", "")).startswith("LOCKED_PROVEN"):
-            raise ValueError(f"{formula_id} locked maturity drift")
-    for formula_id in EXPECTED_EXPERIMENTAL_IDS:
-        entry = by_id[formula_id]
-        if entry.get("maturity") != "EXPERIMENTAL" or entry.get("locked_proven") is not False:
-            raise ValueError(f"{formula_id} must remain EXPERIMENTAL and unlocked")
-        if entry.get("evidence_status") != "SOURCE_PRESENT_EXPERIMENTAL_NOT_LOCKED":
-            raise ValueError(f"{formula_id} evidence status drift")
-    lambda_entry = by_id["F23"]
-    if lambda_entry.get("maturity") != "CONJECTURE_1_ADVISORY" or lambda_entry.get("locked_proven") is not False:
-        raise ValueError("F23 must remain Conjecture 1/advisory and unlocked")
-    if "maxAgg_ne_Lambda" not in lambda_entry.get("theorem_refs", []):
-        raise ValueError("F23 must retain the unconditional counterexample reference")
+    if tuple(ids) != EXPECTED_COVERED_IDS or len(ids) != len(set(ids)):
+        raise ValueError("formula authority formula order, identity, or uniqueness drift")
 
-    global_theorem_refs: list[str] = []
     for entry in formulas:
-        refs = entry.get("theorem_refs")
-        if not isinstance(refs, list) or not refs or any(not isinstance(ref, str) or not ref for ref in refs):
-            raise ValueError(f"{entry['id']} theorem_refs must be a non-empty string list")
-        if len(refs) != len(set(refs)):
-            raise ValueError(f"{entry['id']} contains duplicate theorem_refs")
-        global_theorem_refs.extend(refs)
-    if len(global_theorem_refs) != len(set(global_theorem_refs)):
-        raise ValueError("formula registry theorem_refs must be globally unique")
-
-    semantic_fields = (
-        "maturity", "locked_proven", "theorem_refs", "source_path", "axiom_status", "evidence_status"
-    )
-    for formula_id, expected in EXPECTED_FORMULA_SEMANTICS.items():
-        entry = by_id[formula_id]
+        _assert_exact_keys(entry, FORMULA_KEYS, f"{entry.get('id')} formula")
+        formula_id = entry["id"]
+        expected = EXPECTED_FORMULA_SEMANTICS[formula_id]
         actual = (
-            entry.get("maturity"), entry.get("locked_proven"), tuple(entry.get("theorem_refs", ())),
-            entry.get("source_path"), entry.get("axiom_status"), entry.get("evidence_status"),
+            entry.get("maturity"),
+            entry.get("locked_proven"),
+            tuple(entry.get("theorem_refs") or ()),
+            entry.get("source_asset"),
+            entry.get("can_constrain_execution"),
         )
         if actual != expected:
-            drift = ", ".join(
-                field for field, observed, wanted in zip(semantic_fields, actual, expected)
-                if observed != wanted
-            )
-            raise ValueError(f"{formula_id} semantic drift: {drift}")
+            raise ValueError(f"{formula_id} semantic drift")
+        if entry["source_asset"] not in asset_ids:
+            raise ValueError(f"{formula_id} source asset is not pinned")
+        if entry.get("applicability_required") is not True:
+            raise ValueError(f"{formula_id} must require an applicability decision")
+        if entry.get("can_authorize_action") is not False:
+            raise ValueError(f"{formula_id} may not independently authorize an action")
+        if not entry.get("scope") or not entry.get("caveat"):
+            raise ValueError(f"{formula_id} scope/caveat must be explicit")
 
-    source_assets = payload.get("source_assets")
-    if not isinstance(source_assets, list) or not source_assets:
-        raise ValueError("formula registry requires pinned source assets")
-    if any(not isinstance(source, dict) or set(source) != {"path", "role", "sha256"} for source in source_assets):
-        raise ValueError("formula registry source asset metadata key set drift")
-    source_paths = [source.get("path") for source in source_assets if isinstance(source, dict)]
-    if (
-        len(source_paths) != len(source_assets)
-        or any(not isinstance(path, str) or not path for path in source_paths)
-        or len(set(source_paths)) != len(source_paths)
-    ):
-        raise ValueError("formula registry contains duplicate or malformed source paths")
-    confined_sources = {path: _confined_source(root, path) for path in source_paths}
-    if tuple(source_paths) != EXPECTED_SOURCE_PATHS:
-        raise ValueError("formula registry source asset coverage/order drift")
-    actual_asset_metadata = tuple(
-        (source.get("path"), source.get("role"), source.get("sha256")) for source in source_assets
+    flagged = tuple(
+        entry["id"] for entry in formulas if entry.get("locked_proven") is True
     )
-    if actual_asset_metadata != EXPECTED_SOURCE_ASSETS:
-        raise ValueError("formula registry source asset metadata/digest drift")
-    source_files: dict[str, Path] = {}
-    for source in source_assets:
-        path = source["path"]
-        candidate = confined_sources[path]
-        expected_source_digest = source.get("sha256")
-        if not isinstance(expected_source_digest, str) or len(expected_source_digest) != 64:
-            raise ValueError(f"invalid source digest for {path}")
-        if verify_source_hashes:
-            if not candidate.is_file():
-                raise ValueError(f"formula source asset missing: {path}")
-            actual_source = hashlib.sha256(candidate.read_bytes()).hexdigest()
-            if actual_source != expected_source_digest:
-                raise ValueError(
-                    f"formula source digest mismatch for {path}: "
-                    f"{expected_source_digest} != {actual_source}"
-                )
-        source_files[path] = candidate
-    for entry in formulas:
-        source_path = entry.get("source_path")
-        if source_path not in source_files:
-            raise ValueError(f"{entry['id']} source_path is not a pinned source asset")
-        if verify_source_hashes:
-            text = source_files[source_path].read_text(encoding="utf-8")
-            missing = [ref for ref in entry["theorem_refs"] if ref not in text]
-            if missing:
-                raise ValueError(f"{entry['id']} theorem refs absent from pinned source: {missing}")
+    if flagged != EXPECTED_LOCKED_IDS:
+        raise ValueError("only the exact formal eight may be locked_proven")
+    if any(
+        entry["id"] == "F23" and entry["can_constrain_execution"]
+        for entry in formulas
+    ):
+        raise ValueError("F23 Lambda cannot constrain or authorize execution")
+
+    historical = tuple(payload.get("historical_non_authorities") or ())
+    if historical != EXPECTED_HISTORICAL_NON_AUTHORITIES:
+        raise ValueError("historical non-authority quarantine list drift")
+    source_paths = {asset["path"] for asset in assets}
+    if source_paths & set(historical):
+        raise ValueError("historical snapshots cannot re-enter the authority source set")
 
 
-def load_registry(*, verify: bool = True, path: Path = REGISTRY_PATH) -> dict[str, Any]:
+def load_registry(
+    *, verify: bool = True, path: Path = REGISTRY_PATH
+) -> dict[str, Any]:
     document = json.loads(path.read_text(encoding="utf-8"))
     if verify:
-        validate_registry_document(document, root=ROOT, verify_source_hashes=True)
+        validate_registry_document(document)
     return document
 
 
@@ -286,26 +403,90 @@ LOCKED_PROVEN_IDS = tuple(PAYLOAD["locked_proven_ids"])
 LOCKED_PROVEN_COUNT = PAYLOAD["locked_proven_count"]
 FORMULA_REGISTRY_DIGEST = REGISTRY["registry_digest"]["value"]
 FORMULA_REGISTRY_SIGNATURE_STATUS = REGISTRY["signature"]["status"]
-LAMBDA_STATUS = PAYLOAD["lambda_status"]
+LAMBDA_STATUS = PAYLOAD["lambda"]["status"]
 
 
 def formula(formula_id: str) -> dict[str, Any]:
     for entry in PAYLOAD["formulas"]:
         if entry["id"] == formula_id:
-            return entry
+            return copy.deepcopy(entry)
     raise KeyError(formula_id)
 
 
-def receipt_basis() -> dict[str, Any]:
-    """Return a non-signing basis future Pool receipts can bind to."""
+def applicability_basis(
+    formula_id: str,
+    *,
+    applicability: str,
+    basis_sha256: str,
+) -> dict[str, Any]:
+    """Build a strict runtime applicability binding for Forge/Nemo envelopes."""
+    entry = formula(formula_id)
+    if applicability != "APPLIES":
+        raise ValueError("only explicit APPLIES may enter a runtime formula binding")
+    if not re.fullmatch(r"^[0-9a-f]{64}$", basis_sha256):
+        raise ValueError("basis_sha256 must be 64 lowercase hex characters")
     return {
-        "schema_version": REGISTRY["schema_version"],
+        "formula_id": formula_id,
+        "maturity": entry["maturity"],
+        "applicability": applicability,
+        "basis_sha256": basis_sha256,
+        "authority_digest": FORMULA_REGISTRY_DIGEST,
+        "formal_source_commit": FORMAL_COMMIT,
+        "can_constrain_execution": entry["can_constrain_execution"],
+        "can_authorize_action": False,
+    }
+
+
+def receipt_basis() -> dict[str, Any]:
+    """Return the non-signing formula authority fields bound into receipts."""
+    return {
+        "schema_version": SCHEMA_VERSION,
         "registry_version": PAYLOAD["registry_version"],
+        "authority": PAYLOAD["authority"],
+        "authority_for_locked8": True,
         "coverage_scope": PAYLOAD["coverage_scope"],
         "exhaustive": PAYLOAD["exhaustive"],
         "formula_registry_digest": FORMULA_REGISTRY_DIGEST,
         "digest_algorithm": REGISTRY["registry_digest"]["algorithm"],
         "signature_status": FORMULA_REGISTRY_SIGNATURE_STATUS,
+        "formal_source_repository": FORMAL_REPOSITORY,
+        "formal_source_commit": FORMAL_COMMIT,
+        "locked_count_theorem": LOCKED_COUNT_THEOREM,
+        "locked_proven_count": LOCKED_PROVEN_COUNT,
         "locked_proven_ids": list(LOCKED_PROVEN_IDS),
+        "formula_kernel_repository": FORMULA_KERNEL_REPOSITORY,
+        "formula_kernel_commit": FORMULA_KERNEL_COMMIT,
+        "callable_formula_count": CALLABLE_FORMULA_COUNT,
+        "f_id_to_callable_mapping": F_ID_TO_CALLABLE_MAPPING,
         "lambda_status": LAMBDA_STATUS,
+        "lambda_can_authorize": False,
+        "historical_non_authorities": list(EXPECTED_HISTORICAL_NON_AUTHORITIES),
     }
+
+
+__all__ = [
+    "CALLABLE_FORMULA_COUNT",
+    "EXPECTED_COVERED_IDS",
+    "EXPECTED_HISTORICAL_NON_AUTHORITIES",
+    "EXPECTED_LOCKED_IDS",
+    "FORMAL_COMMIT",
+    "FORMAL_REPOSITORY",
+    "FORMULA_KERNEL_COMMIT",
+    "FORMULA_KERNEL_REPOSITORY",
+    "FORMULA_REGISTRY_DIGEST",
+    "FORMULA_REGISTRY_SIGNATURE_STATUS",
+    "F_ID_TO_CALLABLE_MAPPING",
+    "LAMBDA_STATUS",
+    "LOCKED_COUNT_THEOREM",
+    "LOCKED_PROVEN_COUNT",
+    "LOCKED_PROVEN_IDS",
+    "PAYLOAD",
+    "REGISTRY",
+    "SCHEMA_VERSION",
+    "applicability_basis",
+    "compute_payload_digest",
+    "formula",
+    "load_registry",
+    "receipt_basis",
+    "validate_registry_document",
+]
