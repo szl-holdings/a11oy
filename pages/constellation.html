@@ -8,35 +8,140 @@
 <style>
 :root{--bg:#070b0c;--fg:#eaf6f9;--muted:#8fb3bd;--line:#1b3a44;--teal:#7ad0c6}
 *{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 ui-sans-serif,system-ui,sans-serif}
-a{color:var(--teal)}header,main{max-width:1100px;margin:0 auto;padding:1.25rem}
+a{color:var(--teal)}header,main{max-width:1200px;margin:0 auto;padding:1.25rem}
 .sub{color:var(--muted);font-size:.8rem;letter-spacing:.14em;text-transform:uppercase}
 .row{display:flex;flex-wrap:wrap;gap:.5rem;margin:1rem 0}
 .chip,.card{border:1px solid var(--line);padding:.7rem;min-height:2.75rem}
 .grid{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
 .card{display:block;color:inherit;text-decoration:none}
 .card small{display:block;color:var(--muted);margin-top:.35rem}
+canvas{display:block;width:100%;height:280px;border:1px solid var(--line);background:#070b0c;margin:1rem 0}
 pre{white-space:pre-wrap;border:1px solid var(--line);padding:.75rem;font:12px ui-monospace,monospace;color:var(--muted)}
 </style>
-  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <header>
 <p class="sub">a-11-oy.com / command / constellation</p>
 <h1>Constellation</h1>
-<p>Second brain and Anatomy first. Forty-nine estates. Tiles probe real /api/a11oy endpoints. Missing answers stay UNAVAILABLE. Lambda is Conjecture 1.</p>
-<p><a href="/command">Elite Console</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/holographic">Holo</a> / <a href="/verify">Verify</a></p>
+<p>Published on the product origin. Proof stays on a11oy.net. Locked-proven kernel is exactly 8: F1 F4 F7 F11 F12 F18 F19 F22. Lambda is Conjecture 1. Energy is MEASURED or UNAVAILABLE.</p>
+<p><a href="/command">Elite Console</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/holographic">Holo</a> / <a href="/verify">Verify</a> / <a href="/api/a11oy/v1/honest">Honest</a> / <a href="/api/a11oy/v1/formulas/selftest">Formulas</a></p>
 </header>
 <main>
+<canvas id="brain" width="1200" height="280" aria-label="Second brain"></canvas>
 <div class="row" id="probes"></div>
+<div class="row" id="formulas"></div>
 <div class="grid" id="estates"></div>
 <pre id="raw">probing</pre>
 </main>
 <script>
-const ESTATES=[["second-brain","/api/a11oy/v1/brain/capabilities"],["anatomy","/command/anatomy"],["yarqa","/command"],["a11oy-factory","/api/a11oy/v1/gates"],["holographic","/holographic"],["szl-command-lab","/command"],["szl-sovereign-os","/healthz"],["hatun-mcp","/api/a11oy/v1/mcp/tools"],["sda","/api/a11oy/v1/mosaic/governed"],["governed-agent-bench","/api/a11oy/v1/agentloop/health"],["guardrail-receipt","/api/a11oy/v1/ledger"],["frontier-bench","/frontier-now"],["puriq-markets","/api/a11oy/v1/observability/business"],["quant-curve","/api/a11oy/v1/observability/summary"],["szl-quant-live","/api/a11oy/v1/observability/summary"],["terra-assurance","/estate"],["szl-real-estate","/estate"],["szl-estate-live","/estate"],["lyte-lattice","/holographic"],["lyte-services","/api/a11oy/v1/mesh/state"],["nexus","/api/a11oy/v1/lambda"],["cosmos","/command/anatomy"],["immune","/api/a11oy/v1/policy/gates"],["immune-lattice","/api/a11oy/v1/policy/gates"],["ayllu","/api/a11oy/v1/operator/recommend"],["counsel-assurance","/verify"],["evidence-studio","/api/a11oy/provenance"],["prove-it","/verify"],["szl-khipu","/api/a11oy/v1/honest"],["khipu-lab","/api/a11oy/v1/honest"],["szl-kernels-live","/api/a11oy/v1/models/series-a"],["szl-atelier","/command"],["szl-forge-lab","/command"],["szl-model-inference-lab","/api/a11oy/v1/llm/registry"],["szl-experiments","/command"],["experiments","/command"],["energy-attest-holo","/api/a11oy/v1/energy/live"],["energy-attested-runs","/api/a11oy/v1/energy/sci"],["receipt-chain-live","/api/a11oy/v1/ledger"],["lambda-gate-holo","/api/a11oy/v1/lambda"],["governed-norm-holo","/api/a11oy/v1/lambda"],["llm-router-live","/api/a11oy/v1/llm/registry"],["szl-blocked-live","/api/a11oy/v1/gates"],["szl-govsign-live","/api/a11oy/cosign.pub"],["szl-provctl-live","/api/a11oy/provenance"],["szl-frontier","/frontier-now"],["gdw-frontier","/frontier-now"],["retrieval-bench","/api/a11oy/v1/rag/status"],["governed-receipt-verifier","/api/a11oy/v1/receipt/export"]];
-const PROBES=[["healthz","/healthz"],["tab-matrix","/api/a11oy/v1/readiness/tab-matrix?view=summary"],["lambda","/api/a11oy/v1/lambda"],["ledger","/api/a11oy/v1/ledger"],["brain","/api/a11oy/v1/brain/capabilities"],["energy","/api/a11oy/v1/energy/live"]];
-async function probe(url){try{const r=await fetch(url,{cache:"no-store"});return r.ok?"MEASURED":"UNAVAILABLE";}catch(e){return"UNAVAILABLE";}}
-(async function(){const box=document.getElementById("probes");const raw={};for(const [name,url] of PROBES){const st=await probe(url);raw[name]=st;const s=document.createElement("span");s.className="chip";s.textContent=name+" · "+st;box.appendChild(s);}const grid=document.getElementById("estates");for(const [id,href] of ESTATES){const a=document.createElement("a");a.className="card";a.href=href;a.innerHTML="<strong>"+id+"</strong><small>"+href+"</small>";grid.appendChild(a);}document.getElementById("raw").textContent=JSON.stringify({estates:ESTATES.length,probes:raw,honesty:"catalog DECLARED · probes MEASURED or UNAVAILABLE",lambda:"Conjecture 1"},null,2);})();
+const LOCKED=["F1","F4","F7","F11","F12","F18","F19","F22"];
+const ESTATES=[
+["second-brain","/api/a11oy/v1/brain/capabilities","F18"],
+["anatomy","/command/anatomy","F1"],
+["yarqa","/command","F12"],
+["a11oy-factory","/api/a11oy/v1/gates","F1"],
+["holographic","/holographic","F18"],
+["szl-command-lab","/command","F1"],
+["szl-sovereign-os","/healthz","F1"],
+["hatun-mcp","/api/a11oy/v1/mcp/tools","F11"],
+["sda","/api/a11oy/v1/mosaic/governed","F4"],
+["governed-agent-bench","/api/a11oy/v1/agentloop/health","F19"],
+["guardrail-receipt","/api/a11oy/v1/ledger","F22"],
+["frontier-bench","/frontier-now","F19"],
+["puriq-markets","/api/a11oy/v1/observability/business","F12"],
+["quant-curve","/api/a11oy/v1/observability/summary","F12"],
+["szl-quant-live","/api/a11oy/v1/observability/summary","F12"],
+["terra-assurance","/estate","F7"],
+["szl-real-estate","/estate","F7"],
+["szl-estate-live","/estate","F7"],
+["lyte-lattice","/holographic","F18"],
+["lyte-services","/api/a11oy/v1/mesh/state","F18"],
+["nexus","/api/a11oy/v1/lambda","F11"],
+["cosmos","/command/anatomy","F1"],
+["immune","/api/a11oy/v1/policy/gates","F1"],
+["immune-lattice","/api/a11oy/v1/policy/gates","F1"],
+["ayllu","/api/a11oy/v1/operator/recommend","F7"],
+["counsel-assurance","/verify","F22"],
+["evidence-studio","/api/a11oy/provenance","F22"],
+["prove-it","/verify","F22"],
+["szl-khipu","/api/a11oy/v1/honest","F4"],
+["khipu-lab","/api/a11oy/v1/honest","F4"],
+["szl-kernels-live","/api/a11oy/v1/models/series-a","F11"],
+["szl-atelier","/command","F12"],
+["szl-forge-lab","/command","F12"],
+["szl-model-inference-lab","/api/a11oy/v1/llm/registry","F11"],
+["szl-experiments","/command","F19"],
+["experiments","/command","F19"],
+["energy-attest-holo","/api/a11oy/v1/energy/live","F19"],
+["energy-attested-runs","/api/a11oy/v1/energy/sci","F19"],
+["receipt-chain-live","/api/a11oy/v1/ledger","F22"],
+["lambda-gate-holo","/api/a11oy/v1/lambda","F11"],
+["governed-norm-holo","/api/a11oy/v1/lambda","F11"],
+["llm-router-live","/api/a11oy/v1/llm/registry","F11"],
+["szl-blocked-live","/api/a11oy/v1/gates","F1"],
+["szl-govsign-live","/api/a11oy/cosign.pub","F22"],
+["szl-provctl-live","/api/a11oy/provenance","F22"],
+["szl-frontier","/frontier-now","F19"],
+["gdw-frontier","/frontier-now","F19"],
+["retrieval-bench","/api/a11oy/v1/rag/status","F7"],
+["governed-receipt-verifier","/api/a11oy/v1/receipt/export","F22"]
+];
+const PROBES=[
+["healthz","/healthz"],
+["tab-matrix","/api/a11oy/v1/readiness/tab-matrix?view=summary"],
+["lambda","/api/a11oy/v1/lambda"],
+["ledger","/api/a11oy/v1/ledger"],
+["brain","/api/a11oy/v1/brain/capabilities"],
+["energy","/api/a11oy/v1/energy/live"],
+["honest","/api/a11oy/v1/honest"],
+["formulas","/api/a11oy/v1/formulas/selftest"]
+];
+async function probe(url){try{const r=await fetch(url,{cache:"no-store"});return {ok:r.ok,status:r.status,body:r.ok?await r.json().catch(function(){return null}):null};}catch(e){return {ok:false,status:0,body:null};}}
+(async function(){
+  const box=document.getElementById("probes");
+  const raw={estates:ESTATES.length,locked:LOCKED,lambda:"Conjecture 1"};
+  for (const [name,url] of PROBES){
+    const p=await probe(url);
+    raw[name]=p.ok?"MEASURED":"UNAVAILABLE";
+    const s=document.createElement("span");s.className="chip";
+    s.textContent=name+" · "+(p.ok?"MEASURED":"UNAVAILABLE");
+    box.appendChild(s);
+    if(name==="honest" && p.body){
+      raw.locked_formula_count=p.body.locked_formula_count;
+      raw.locked_formula_ids=p.body.locked_formula_ids;
+    }
+  }
+  const frow=document.getElementById("formulas");
+  LOCKED.forEach(function(id){
+    const s=document.createElement("span");s.className="chip";s.textContent=id+" · LOCKED";frow.appendChild(s);
+  });
+  const grid=document.getElementById("estates");
+  ESTATES.forEach(function(row){
+    const a=document.createElement("a");a.className="card";a.href=row[1];
+    a.innerHTML="<strong>"+row[0]+"</strong><small>"+row[2]+" · "+row[1]+"</small>";
+    grid.appendChild(a);
+  });
+  document.getElementById("raw").textContent=JSON.stringify(raw,null,2);
+})();
+const c=document.getElementById("brain");const x=c.getContext("2d");let t=0;
+function draw(){
+  t+=0.01;const w=c.width,h=c.height;
+  x.fillStyle="#070b0c";x.fillRect(0,0,w,h);
+  const b={x:w*0.38,y:h*0.5}, a={x:w*0.62,y:h*0.52};
+  x.strokeStyle="rgba(122,208,198,0.35)";x.beginPath();x.ellipse(b.x,b.y,36,24,0,0,Math.PI*2);x.stroke();
+  x.strokeStyle="rgba(143,179,189,0.4)";x.beginPath();x.ellipse(a.x,a.y,32,22,0,0,Math.PI*2);x.stroke();
+  ESTATES.forEach(function(row,i){
+    const core=row[0]==="anatomy"||row[0]==="a11oy-factory"?a:b;
+    const R=58+(i%5)*18;const ang=i*2.39996+t*0.2;
+    const px=core.x+Math.cos(ang)*R;const py=core.y+Math.sin(ang)*R*0.55;
+    x.strokeStyle="rgba(122,208,198,0.12)";x.beginPath();x.moveTo(core.x,core.y);x.lineTo(px,py);x.stroke();
+    x.fillStyle="#eaf6f9";x.beginPath();x.arc(px,py,2,0,Math.PI*2);x.fill();
+  });
+  x.fillStyle="#7ad0c6";x.font="12px sans-serif";x.fillText("Second brain",b.x-34,b.y-36);
+  x.fillStyle="#8fb3bd";x.fillText("Anatomy",a.x-22,a.y+40);
+  requestAnimationFrame(draw);
+}
+draw();
 </script>
-  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>
