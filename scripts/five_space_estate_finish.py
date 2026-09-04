@@ -7,7 +7,6 @@ Usage:
 
 Never prints LIVE / RUNNING / PASS unless a probe actually returned it.
 Never writes the Hub without HF_TOKEN, and even then refuses a silent push.
-Never mints SZLHOLDINGS/five-space.
 """
 from __future__ import annotations
 
@@ -46,7 +45,6 @@ DONE = [
     "a11oy#1887 anatomy 302 + source_count 7 allowlist",
     "a11oy#1888 Bound-packages cite restore",
     "a11oy-net#76 RECORD honesty BIND",
-    "a11oy-net#133 stalled cut",
     "szl-ouroboros#18 Codex source_count=7",
 ]
 
@@ -82,15 +80,14 @@ def check() -> dict:
     token = bool(os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN"))
     probes = {name: probe(url) for name, url in PROBES}
     status = (probes.get("product_status") or {}).get("json") or {}
+    honesty = status.get("honesty") if isinstance(status.get("honesty"), dict) else {}
+    product = status.get("product") if isinstance(status.get("product"), dict) else {}
     home = probes.get("product_home") or {}
     page = probes.get("product_five_space") or {}
-    honesty = status.get("honesty") or {}
-    product = status.get("product") or {}
     accept = {
         "five_space_http_200": probes["product_five_space"].get("http") == 200,
         "status_bind": status.get("state") == "BIND",
-        "not_certified": honesty.get("certified") is False
-        or product.get("certified") is False,
+        "not_certified": honesty.get("certified") is False or product.get("certified") is False or status.get("certified") is False,
         "proof_200": probes["proof_five_space"].get("http") == 200,
         "home_cites_package": bool(home.get("cites_five_space")),
         "no_honesty_live": home.get("honesty_live") is not True,
@@ -104,12 +101,6 @@ def check() -> dict:
         "proven_trust": False,
         "product_certified": False,
         "hub_write": False,
-        "placement": {
-            "product": f"{PRODUCT}/five-space",
-            "proof": f"{PROOF}/five-space/",
-            "hub": "SZLHOLDINGS/a11oy",
-            "new_space_refused": "SZLHOLDINGS/five-space",
-        },
         "hf_token_present": token,
         "never_origin": NEVER,
         "probes": probes,
@@ -119,8 +110,7 @@ def check() -> dict:
         "still_open_blocked_external": OPEN_BLOCKED,
         "publish": "UNAVAILABLE" if not token else "TOKEN_PRESENT_NOT_PUBLISHED",
         "next": (
-            "Jobs 1–4 on GitHub. Job 5 only if hf_token_present. "
-            "Do not create SZLHOLDINGS/five-space. "
+            "Product BIND is the operating state. Job 5 Hub write only if hf_token_present. "
             "Do not close blocked-external issues without a token or owner decision."
         ),
     }
@@ -133,7 +123,6 @@ def publish() -> dict:
             "ok": False,
             "state": "UNAVAILABLE",
             "reason": "HF_TOKEN missing. Hub write refused. Space not mocked as RUNNING.",
-            "refused_space": "SZLHOLDINGS/five-space",
         }
     return {
         "ok": False,
@@ -141,13 +130,10 @@ def publish() -> dict:
         "reason": (
             "Protected publisher only. Refuse a silent Hub write even with a token. "
             "Hand the exact git tip to Sync and Relock Canonical Hugging Face Space "
-            "and wait for commit readback before saying RUNNING. "
-            "Target SZLHOLDINGS/a11oy only. Never create SZLHOLDINGS/five-space."
+            "and wait for commit readback before saying RUNNING."
         ),
         "space": "SZLHOLDINGS/a11oy",
         "source": "szl-holdings/a11oy",
-        "cite": "SZLHOLDINGS/lyte-lattice stays UNAVAILABLE if Hub listing is 401.",
-        "refused_space": "SZLHOLDINGS/five-space",
     }
 
 
