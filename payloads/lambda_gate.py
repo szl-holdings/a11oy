@@ -1,16 +1,5 @@
 #!/usr/bin/env python3
-"""a11oy lambda_gate payload — operational, fail-closed, stdlib only.
-
-Reads one JSON object on stdin:
-  { "intent": str, "kernel": str | null, "energy_available": false }
-
-Writes one JSON object on stdout. Never invents joules, signatures, or
-a proven Λ. Uniqueness stays Conjecture 1.
-
-Bind as an a11oy package. Not a second flagship.
-Product origin: https://a-11-oy.com
-Proof origin: https://a11oy.net
-"""
+"""a11oy lambda_gate — operational, fail-closed, stdlib only."""
 from __future__ import annotations
 
 import hashlib
