@@ -1,0 +1,281 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply HF existing-Space idempotency repair
+
+on:
+  push:
+    branches:
+      - fix/hf-existing-space-idempotency-v1
+    paths:
+      - .github/workflows/apply-hf-existing-space-idempotency.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-hf-existing-space-idempotency
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-existing-space-idempotency-v1
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Repair existing-Space publication paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          flagship = Path("scripts/hf_publish_vertical_flagships_v4_impl.py")
+          text = flagship.read_text(encoding="utf-8")
+          marker = "\ndef main() -> int:\n"
+          helper = '''
+          def ensure_space_repository(api: HfApi, repo_id: str) -> str:
+              """Create only a genuinely absent Space, then prove target write access.
+
+              Hugging Face counts ``create_repo(exist_ok=True)`` against the daily
+              Space-creation limit even when the repository already exists.  A
+              read failure is therefore not treated as absence: the publisher
+              fails closed instead of consuming creation quota or masking an
+              authorization problem.
+              """
+
+              try:
+                  exists = bool(api.repo_exists(repo_id=repo_id, repo_type="space"))
+              except Exception as exc:
+                  raise RuntimeError(
+                      f"unable to determine whether target Space exists: {repo_id}"
+                  ) from exc
+              if exists:
+                  action = "space_existing"
+              else:
+                  api.create_repo(
+                      repo_id=repo_id,
+                      repo_type="space",
+                      space_sdk="docker",
+                      exist_ok=True,
+                      private=False,
+                  )
+                  action = "space_created"
+              api.auth_check(repo_id=repo_id, repo_type="space", write=True)
+              return action
+
+
+          def main() -> int:
+          '''.replace("          ", "")
+          if text.count(marker) != 1:
+              raise SystemExit("flagship main marker missing or ambiguous")
+          text = text.replace(marker, "\n" + helper, 1)
+          old = '''            api.create_repo(repo_id=rid, repo_type="space", space_sdk="docker", exist_ok=True, private=False)
+                      row["actions"].append("ensure_space")
+          '''.replace("          ", "")
+          new = '''            row["actions"].append(ensure_space_repository(api, rid))
+          '''.replace("          ", "")
+          if text.count(old) != 1:
+              raise SystemExit("flagship create target missing or ambiguous")
+          flagship.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          combined = Path("scripts/hf_publish_vertical_services.py")
+          text = combined.read_text(encoding="utf-8")
+          marker = "\ndef ensure_runtime_configuration(api: HfApi) -> dict[str, Any]:\n"
+          helper = '''
+          def ensure_space_repository(api: HfApi, repo_id: str) -> str:
+              """Avoid creation POSTs for an existing Space and prove write access."""
+
+              try:
+                  exists = bool(api.repo_exists(repo_id=repo_id, repo_type="space"))
+              except Exception as exc:
+                  raise RuntimeError(
+                      f"unable to determine whether target Space exists: {repo_id}"
+                  ) from exc
+              if exists:
+                  action = "space_existing"
+              else:
+                  api.create_repo(
+                      repo_id=repo_id,
+                      repo_type="space",
+                      space_sdk="docker",
+                      exist_ok=True,
+                      private=False,
+                  )
+                  action = "space_created"
+              api.auth_check(repo_id=repo_id, repo_type="space", write=True)
+              return action
+
+
+          def ensure_runtime_configuration(api: HfApi) -> dict[str, Any]:
+          '''.replace("          ", "")
+          if text.count(marker) != 1:
+              raise SystemExit("combined configuration marker missing or ambiguous")
+          text = text.replace(marker, "\n" + helper, 1)
+          old = '''    api.create_repo(
+                  repo_id=HF_REPOSITORY,
+                  repo_type="space",
+                  space_sdk="docker",
+                  exist_ok=True,
+                  private=False,
+              )
+              api.auth_check(repo_id=HF_REPOSITORY, repo_type="space", write=True)
+          '''.replace("          ", "")
+          new = '''    space_action = ensure_space_repository(api, HF_REPOSITORY)
+          '''.replace("          ", "")
+          if text.count(old) != 1:
+              raise SystemExit("combined create target missing or ambiguous")
+          text = text.replace(old, new, 1)
+          old_return = '''    return {
+                  "secret": SIGNING_SECRET,
+          '''.replace("          ", "")
+          new_return = '''    return {
+                  "space_action": space_action,
+                  "secret": SIGNING_SECRET,
+          '''.replace("          ", "")
+          if text.count(old_return) != 1:
+              raise SystemExit("combined return target missing or ambiguous")
+          combined.write_text(text.replace(old_return, new_return, 1), encoding="utf-8")
+
+          test = Path("tests/test_hf_existing_space_idempotency.py")
+          test.write_text('''# SPDX-License-Identifier: Apache-2.0
+          from __future__ import annotations
+
+          import importlib.util
+          import sys
+          from pathlib import Path
+          from types import ModuleType
+
+          import pytest
+
+
+          def load_module(path: str, name: str):
+              spec = importlib.util.spec_from_file_location(name, Path(path))
+              assert spec is not None and spec.loader is not None
+              module = importlib.util.module_from_spec(spec)
+              fake_hub = ModuleType("huggingface_hub")
+              fake_hub.HfApi = type("HfApi", (), {})
+              previous = sys.modules.get("huggingface_hub")
+              sys.modules["huggingface_hub"] = fake_hub
+              try:
+                  spec.loader.exec_module(module)
+              finally:
+                  if previous is None:
+                      sys.modules.pop("huggingface_hub", None)
+                  else:
+                      sys.modules["huggingface_hub"] = previous
+              return module
+
+
+          class FakeApi:
+              def __init__(self, exists: bool = True, probe_error: Exception | None = None):
+                  self.exists = exists
+                  self.probe_error = probe_error
+                  self.created = []
+                  self.authorized = []
+
+              def repo_exists(self, *, repo_id: str, repo_type: str) -> bool:
+                  assert repo_type == "space"
+                  if self.probe_error is not None:
+                      raise self.probe_error
+                  return self.exists
+
+              def create_repo(self, **kwargs):
+                  self.created.append(kwargs)
+
+              def auth_check(self, **kwargs):
+                  self.authorized.append(kwargs)
+
+
+          @pytest.mark.parametrize(
+              "path,name",
+              [
+                  ("scripts/hf_publish_vertical_flagships_v4_impl.py", "flagship_idempotency"),
+                  ("scripts/hf_publish_vertical_services.py", "combined_idempotency"),
+              ],
+          )
+          def test_existing_space_never_consumes_creation_quota(path: str, name: str) -> None:
+              module = load_module(path, name)
+              api = FakeApi(exists=True)
+              action = module.ensure_space_repository(api, "SZLHOLDINGS/lyte")
+              assert action == "space_existing"
+              assert api.created == []
+              assert api.authorized == [
+                  {
+                      "repo_id": "SZLHOLDINGS/lyte",
+                      "repo_type": "space",
+                      "write": True,
+                  }
+              ]
+
+
+          @pytest.mark.parametrize(
+              "path,name",
+              [
+                  ("scripts/hf_publish_vertical_flagships_v4_impl.py", "flagship_create"),
+                  ("scripts/hf_publish_vertical_services.py", "combined_create"),
+              ],
+          )
+          def test_missing_space_is_created_once(path: str, name: str) -> None:
+              module = load_module(path, name)
+              api = FakeApi(exists=False)
+              action = module.ensure_space_repository(api, "SZLHOLDINGS/new-space")
+              assert action == "space_created"
+              assert len(api.created) == 1
+              assert api.created[0]["repo_id"] == "SZLHOLDINGS/new-space"
+              assert api.created[0]["repo_type"] == "space"
+              assert api.created[0]["space_sdk"] == "docker"
+              assert api.created[0]["exist_ok"] is True
+              assert api.created[0]["private"] is False
+              assert len(api.authorized) == 1
+
+
+          @pytest.mark.parametrize(
+              "path,name",
+              [
+                  ("scripts/hf_publish_vertical_flagships_v4_impl.py", "flagship_fail_closed"),
+                  ("scripts/hf_publish_vertical_services.py", "combined_fail_closed"),
+              ],
+          )
+          def test_probe_failure_does_not_fall_through_to_creation(path: str, name: str) -> None:
+              module = load_module(path, name)
+              api = FakeApi(probe_error=RuntimeError("provider unavailable"))
+              with pytest.raises(RuntimeError, match="unable to determine"):
+                  module.ensure_space_repository(api, "SZLHOLDINGS/lyte")
+              assert api.created == []
+              assert api.authorized == []
+          '''.replace("          ", ""), encoding="utf-8")
+
+          Path(".github/workflows/apply-hf-existing-space-idempotency.yml").unlink()
+          PY
+
+      - name: Verify focused publisher contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services.py
+          python -m pytest \
+            tests/test_hf_existing_space_idempotency.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            -q
+          git diff --check
+
+      - name: Commit exact repair and remove one-shot writer
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services.py \
+            tests/test_hf_existing_space_idempotency.py \
+            .github/workflows/apply-hf-existing-space-idempotency.yml
+          git commit -s -m "fix(hf): avoid creation quota for existing Spaces"
+          git push origin HEAD:fix/hf-existing-space-idempotency-v1
