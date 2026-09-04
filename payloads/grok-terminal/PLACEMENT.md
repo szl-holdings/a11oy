@@ -15,3 +15,6 @@ Joule and occupancy stay UNAVAILABLE unless an instrument reads.
 halt_drone stays BLOCKED.
 
 Λ uniqueness remains Conjecture 1.
+
+Live probe 2026-09-04T22:57Z: /healthz /console /lyte /honest and Space /healthz all HTTP 200.
+See OPERATIONAL.md.
