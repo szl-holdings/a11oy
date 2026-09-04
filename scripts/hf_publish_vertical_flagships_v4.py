@@ -24,6 +24,7 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 FLAGSHIP_IMPL = HERE / "hf_publish_vertical_flagships_v4_impl.py"
+BASE_COMBINED_IMPL = HERE / "hf_publish_vertical_services.py"
 COMBINED_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
