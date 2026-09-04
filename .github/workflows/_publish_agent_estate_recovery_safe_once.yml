@@ -1,0 +1,162 @@
+name: Publish corrected Codex and Perplexity recovery receipt once
+
+on:
+  push:
+    branches:
+      - ops/codex-perplexity-recovery-20260904-v1
+    paths:
+      - .github/workflows/_publish_agent_estate_recovery_safe_once.yml
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: publish-corrected-agent-estate-recovery-20260904
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Retain the latest successful corrected recovery receipt
+    runs-on: ubuntu-24.04
+    timeout-minutes: 130
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out controller branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/codex-perplexity-recovery-20260904-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Wait for the latest successful corrected recovery pass
+        id: locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='ops/codex-perplexity-recovery-20260904-v1'
+          for _ in $(seq 1 240); do
+            run="$(gh api "repos/szl-holdings/a11oy/actions/runs?branch=${branch}&per_page=100" \
+              --jq '.workflow_runs | map(select(.name == "One-pass Codex and Perplexity estate recovery" and .status == "completed" and .conclusion == "success")) | sort_by(.created_at) | last')"
+            run_id="$(printf '%s' "$run" | jq -r '.id // empty')"
+            if [ -n "$run_id" ]; then
+              created="$(printf '%s' "$run" | jq -r .created_at)"
+              if [[ "$created" > '2026-09-04T00:00:00Z' ]]; then
+                echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+                echo "head_sha=$(printf '%s' "$run" | jq -r .head_sha)" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            sleep 30
+          done
+          echo '::error::No successful corrected recovery pass became available'
+          exit 1
+
+      - name: Download and retain the exact secret-free artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.locate.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="$(gh api "repos/szl-holdings/a11oy/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts | map(select(.name | startswith("codex-perplexity-estate-recovery-"))) | sort_by(.created_at) | last')"
+          artifact_id="$(printf '%s' "$artifact" | jq -r '.id // empty')"
+          digest="$(printf '%s' "$artifact" | jq -r '.digest // empty')"
+          test -n "$artifact_id"
+          gh api "repos/szl-holdings/a11oy/actions/artifacts/${artifact_id}/zip" > /tmp/recovery.zip
+          rm -rf /tmp/recovery && mkdir -p /tmp/recovery
+          unzip -q /tmp/recovery.zip -d /tmp/recovery
+          json_path="$(find /tmp/recovery -type f -name estate-recovery.json -print -quit)"
+          md_path="$(find /tmp/recovery -type f -name estate-recovery.md -print -quit)"
+          test -f "$json_path" && test -f "$md_path"
+          mkdir -p evidence/agent-recovery/2026-09-04
+          cp "$json_path" evidence/agent-recovery/2026-09-04/estate-recovery.json
+          cp "$md_path" evidence/agent-recovery/2026-09-04/estate-recovery.md
+          printf '%s\n' "$digest" > evidence/agent-recovery/2026-09-04/actions-artifact-digest.txt
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('evidence/agent-recovery/2026-09-04/estate-recovery.json').read_text(encoding='utf-8'))
+          assert data['schema'] == 'szl.agent-estate-recovery/v1'
+          assert data['credential_values_recorded'] is False
+          summary = {
+              'schema': 'szl.agent-estate-recovery-public-summary/v1',
+              'generated_at': data['generated_at'],
+              'github_repo_count': data.get('github_repo_count'),
+              'github_active_repo_count': data.get('github_active_repo_count'),
+              'open_prs_observed': len(data['observed_prs']),
+              'merged_prs': sum(row.get('disposition') == 'MERGED' for row in data['observed_prs']),
+              'closed_identical_prs': sum(row.get('disposition') == 'CLOSED_IDENTICAL' for row in data['observed_prs']),
+              'blocked_or_held_prs': sum(row.get('disposition') not in {'MERGED', 'CLOSED_IDENTICAL'} for row in data['observed_prs']),
+              'orphan_agent_branches': len(data['orphan_branches']),
+              'workflow_actions': len(data['workflow_actions']),
+              'default_branch_findings': len(data['default_branch_findings']),
+              'agent_issues': len(data['agent_issues']),
+              'hf_counts': data.get('hf_counts', {}),
+              'hf_restart_requests': sum(row.get('action') == 'RESTART_REQUESTED' for row in data['hf_spaces']),
+              'unsafe_serialization_findings': len(data.get('hf_unsafe_serialization', [])),
+              'errors': len(data['errors']),
+              'credential_values_recorded': False,
+          }
+          Path('evidence/agent-recovery/2026-09-04/public-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+
+      - name: Close any controller self-PR and retire all one-shot executables
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api 'repos/szl-holdings/a11oy/pulls?state=open&head=szl-holdings%3Aops%2Fcodex-perplexity-recovery-20260904-v1' \
+            --jq '.[].number' | while read -r number; do
+              [ -n "$number" ] || continue
+              gh api --method POST "repos/szl-holdings/a11oy/issues/${number}/comments" \
+                -f body='Closing unmerged: isolated recovery controller/evidence branch, never a product candidate.' >/dev/null
+              gh api --method PATCH "repos/szl-holdings/a11oy/pulls/${number}" -f state=closed >/dev/null
+            done
+          git rm --ignore-unmatch \
+            scripts/agent_estate_recovery_once.py \
+            .github/workflows/_agent_estate_recovery_once.yml \
+            .github/workflows/_publish_agent_estate_recovery_once.yml \
+            .github/workflows/_publish_agent_estate_recovery_safe_once.yml \
+            .github/workflows/_restart_agent_recovery_safe_once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence/agent-recovery/2026-09-04
+          git diff --cached --check
+          git commit -s -m "chore(evidence): retain corrected Codex and Perplexity recovery receipt"
+          git push origin HEAD:ops/codex-perplexity-recovery-20260904-v1
+
+      - name: Post the terminal public summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.locate.outputs.run_id }}
+          SOURCE_SHA: ${{ steps.locate.outputs.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          summary="$(cat evidence/agent-recovery/2026-09-04/public-summary.json)"
+          cat > /tmp/comment.md <<EOF
+          ## Corrected terminal Codex / Perplexity recovery evidence
+
+          - Recovery run: https://github.com/szl-holdings/a11oy/actions/runs/${RUN_ID}
+          - Controller source: \`${SOURCE_SHA}\`
+          - Retained evidence: \`ops/codex-perplexity-recovery-20260904-v1:evidence/agent-recovery/2026-09-04/\`
+
+          \`\`\`json
+          ${summary}
+          \`\`\`
+
+          The recovery controller explicitly excluded its own evidence branch and removed all one-shot executable files after retaining the receipt. Remaining blockers are enumerated rather than converted into success.
+          EOF
+          gh issue comment 1326 --repo szl-holdings/a11oy --body-file /tmp/comment.md
