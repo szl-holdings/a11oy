@@ -8,6 +8,7 @@ name: HF Vertical Frontier v3 contract
       - scripts/hf_publish_vertical_services.py
       - scripts/hf_publish_vertical_services_frontier_v3.py
       - tests/test_hf_publish_vertical_flagships_v4.py
+      - tests/test_hf_frontier_v3_pr_trigger.py
       - .github/workflows/hf-frontier-v3.yml
   workflow_dispatch: {}
 
@@ -51,4 +52,8 @@ jobs:
           scripts/hf_publish_vertical_services_frontier_v3.py
 
       - name: Prove frontier-v3 publication contract
-        run: python -m pytest tests/test_hf_publish_vertical_flagships_v4.py -q
+        run: >-
+          python -m pytest
+          tests/test_hf_publish_vertical_flagships_v4.py
+          tests/test_hf_frontier_v3_pr_trigger.py
+          -q
