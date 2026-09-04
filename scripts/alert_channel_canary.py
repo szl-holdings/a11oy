@@ -5,6 +5,10 @@
 The endpoint value is consumed only from the process environment. Receipts record
 scheme, hostname, port, protocol mode, status, and error class; they never record
 the URL path, query, webhook token, response body, or secret value.
+
+The exact legacy a11oy.net host is canonicalized in memory to the managed ntfy
+relay. The static proof registry is never contacted, and no generic host rewrite
+is permitted.
 """
 from __future__ import annotations
 
@@ -22,10 +26,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 VALID_MODES = {"auto", "slack", "ntfy", "generic-json"}
-NTFY_RELAY_HOSTS = {"ntfy.sh", "ntfy.a11oy.net"}
-NON_RECEIVING_ALERT_HOSTS = {
-    "a11oy.net": "a11oy.net is a static proof registry and cannot receive alert-channel POST requests",
-}
+MANAGED_NTFY_RELAY_HOST = "ntfy.a11oy.net"
+LEGACY_NTFY_RELAY_HOSTS = {"a11oy.net": MANAGED_NTFY_RELAY_HOST}
+NTFY_RELAY_HOSTS = {"ntfy.sh", MANAGED_NTFY_RELAY_HOST}
 FAILURE_STATES = {
     "MISSING",
     "INVALID_CONFIGURATION",
@@ -101,12 +104,14 @@ def validate_endpoint(
     if not parsed.hostname:
         raise EndpointContractError("alert endpoint has no hostname")
     hostname = parsed.hostname.lower()
-    if hostname in NON_RECEIVING_ALERT_HOSTS:
-        raise EndpointContractError(NON_RECEIVING_ALERT_HOSTS[hostname])
     if parsed.username or parsed.password:
         raise EndpointContractError("embedded URL credentials are forbidden")
     if parsed.fragment:
         raise EndpointContractError("URL fragments are forbidden")
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise EndpointContractError("alert endpoint has an invalid port") from exc
     if parsed.scheme != "https":
         loopback = False
         if allow_insecure_loopback:
@@ -120,6 +125,22 @@ def validate_endpoint(
         if not loopback:
             raise EndpointContractError("production alert endpoint must use HTTPS")
 
+    managed_host = LEGACY_NTFY_RELAY_HOSTS.get(hostname)
+    if managed_host:
+        if parsed.path in {"", "/"}:
+            raise EndpointContractError(
+                "a11oy.net is a static proof registry; the managed ntfy relay "
+                "requires a topic path"
+            )
+        if port not in {None, 443}:
+            raise EndpointContractError(
+                "legacy alert endpoint must use the default HTTPS port"
+            )
+        parsed = parsed._replace(netloc=managed_host)
+        normalized = urllib.parse.urlunsplit(parsed)
+        hostname = managed_host
+        port = None
+
     selected = (requested_mode or "auto").strip().lower()
     if selected not in VALID_MODES:
         raise EndpointContractError(f"unsupported alert mode: {selected}")
@@ -128,8 +149,8 @@ def validate_endpoint(
 
     return normalized, EndpointIdentity(
         scheme=parsed.scheme,
-        hostname=parsed.hostname.lower(),
-        port=parsed.port,
+        hostname=hostname,
+        port=port,
         mode=selected,
     )
 
