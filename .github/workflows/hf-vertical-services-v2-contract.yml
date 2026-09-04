@@ -7,14 +7,18 @@ on:
     branches: [main]
     paths:
       - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_vertical_flagships_v4_impl.py
       - scripts/hf_publish_vertical_services.py
+      - deployments/vertical-forge/terra/**
       - tests/test_hf_publish_vertical_flagships_v4.py
       - .github/workflows/hf-vertical-services-v2-contract.yml
   push:
     branches: [main]
     paths:
       - scripts/hf_publish_vertical_flagships_v4.py
+      - scripts/hf_publish_vertical_flagships_v4_impl.py
       - scripts/hf_publish_vertical_services.py
+      - deployments/vertical-forge/terra/**
       - tests/test_hf_publish_vertical_flagships_v4.py
       - .github/workflows/hf-vertical-services-v2-contract.yml
   workflow_dispatch:
@@ -48,6 +52,7 @@ jobs:
         run: >-
           python -m py_compile
           scripts/hf_publish_vertical_flagships_v4.py
+          scripts/hf_publish_vertical_flagships_v4_impl.py
           scripts/hf_publish_vertical_services.py
 
       - name: Prove exact source and operational-v2 contracts

@@ -28,6 +28,11 @@ PUBLIC_EXPERIENCE_VERSION = "4.0.0"
 PUBLIC_EXPERIENCE_MARKER = 'data-szl-domain-experience-v4="true"'
 DEPLOYMENT_SOURCE_REPOSITORY = "szl-holdings/a11oy"
 USER_AGENT = "SZLHOLDINGS-Vertical-Publisher/4.0"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+TERRA_FORGE_BUNDLE = REPOSITORY_ROOT / "deployments" / "vertical-forge" / "terra"
+TERRA_FORGE_MARKER = 'data-szl-vertical-forge="0.2.1"'
+TERRA_FORGE_SOURCE_REPOSITORY = "szl-holdings/szl-vertical-forge"
+TERRA_FORGE_GENERATOR = "szl-vertical-forge/0.2.1"
 
 FLAGSHIPS: tuple[dict[str, Any], ...] = (
     {
@@ -98,14 +103,26 @@ FLAGSHIPS: tuple[dict[str, Any], ...] = (
     },
 )
 
-APP = r'''import json,time,urllib.request
+APP = r'''import hashlib,json,time,urllib.request
 from pathlib import Path
 import httpx
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
-CFG=json.loads(Path("config.json").read_text())
-INDEX=Path("index.html").read_text()
+CFG=json.loads(Path("config.json").read_text(encoding="utf-8"))
+INDEX=Path("index.html").read_text(encoding="utf-8")
+PANELS=Path("panels.html").read_text(encoding="utf-8")
 app=FastAPI(title=CFG["title"]+" - SZL Holdings")
+
+def sha256_text(value):
+    return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+def local_integrity():
+    checks={
+        "landing_sha256":sha256_text(INDEX)==CFG["landing_sha256"],
+        "panels_sha256":sha256_text(PANELS)==CFG["panels_sha256"],
+    }
+    ready=all(checks.values())
+    return {"schema":"szl.vertical-shell-readiness/v1","ready":ready,"state":"MEASURED" if ready else "INVALID","checks":checks,"routes":{"landing":"/","panels":"/panels","live":"/api/live","receipt":"/build-receipt.json"}}
 
 def probe():
     started=time.time()
@@ -130,6 +147,11 @@ def hf_revision():
 def healthz():
     return {"ok":True,"product":CFG["title"],"source":CFG["product_source"],"public_experience":CFG["public_experience"],"domain":CFG["slug"]}
 
+@app.get("/readyz")
+def readyz():
+    status=local_integrity()
+    return JSONResponse(status,status_code=200 if status["ready"] else 503)
+
 @app.get("/api/live")
 def live(): return probe()
 
@@ -149,16 +171,39 @@ def build_info():
         "artifact_set_sha256":CFG["artifact_set_sha256"],
         "public_experience":CFG["public_experience"],
         "product_source":CFG["product_source"],
+        "forge":CFG.get("forge"),
+        "routes":{"landing":"/","panels":"/panels","live":"/api/live","receipt":"/build-receipt.json"},
     })
+
+@app.get("/build-receipt.json")
+def build_receipt():
+    integrity=local_integrity()
+    return JSONResponse({
+        "schema":"szl.vertical-shell-deployment/v1",
+        "state":"VERIFIED_RUNTIME_ARTIFACTS" if integrity["ready"] else "INVALID",
+        "source_repository":CFG["source_repository"],
+        "source_revision":CFG["source_revision"],
+        "workflow_run_id":CFG["workflow_run_id"],
+        "hf_repository":CFG["hf_repository"],
+        "hf_revision":hf_revision(),
+        "artifact_set_sha256":CFG["artifact_set_sha256"],
+        "landing_sha256":CFG["landing_sha256"],
+        "panels_sha256":CFG["panels_sha256"],
+        "forge":CFG.get("forge"),
+        "integrity":integrity,
+    },status_code=200 if integrity["ready"] else 503)
 
 @app.get("/.well-known/szl-source.json")
 def source_document(): return build_info()
 
 @app.get("/",response_class=HTMLResponse)
 def root(): return INDEX
+
+@app.get("/panels",response_class=HTMLResponse)
+def panels(): return PANELS
 '''
 
-DOCKER = '''FROM python:3.12-slim\nENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY app.py config.json index.html ./\nEXPOSE 7860\nCMD ["uvicorn","app:app","--host","0.0.0.0","--port","7860"]\n'''
+DOCKER = '''FROM python:3.12-slim\nENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1\nWORKDIR /app\nCOPY requirements.txt .\nRUN pip install --no-cache-dir -r requirements.txt\nCOPY app.py config.json index.html panels.html ./\nEXPOSE 7860\nCMD ["uvicorn","app:app","--host","0.0.0.0","--port","7860"]\n'''
 REQ = "fastapi==0.116.1\nuvicorn[standard]==0.35.0\nhttpx==0.28.1\n"
 
 BASE_CSS = r'''
@@ -204,6 +249,116 @@ def artifact_digest(*payloads: str) -> str:
     return digest.hexdigest()
 
 
+def canonical_json(value: Any) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+
+
+def read_json_object(path: Path) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"invalid Terra forge bundle file: {path}") from exc
+    if not isinstance(value, dict):
+        raise RuntimeError(f"Terra forge bundle is not a JSON object: {path}")
+    return value
+
+
+def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
+    """Load and independently verify the exact merged forge artifact."""
+    page_path = TERRA_FORGE_BUNDLE / "index.html"
+    artifact_path = TERRA_FORGE_BUNDLE / "build-receipt.json"
+    fleet_path = TERRA_FORGE_BUNDLE / "fleet-receipt.json"
+    lock_path = TERRA_FORGE_BUNDLE / "source-lock.json"
+    try:
+        page = page_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"missing Terra forge artifact: {page_path}") from exc
+    artifact = read_json_object(artifact_path)
+    fleet = read_json_object(fleet_path)
+    source_lock = read_json_object(lock_path)
+
+    if TERRA_FORGE_MARKER not in page:
+        raise RuntimeError("Terra landing lacks the pinned forge marker")
+    for route in ('href="/panels"', 'href="/build-receipt.json"', 'const EP="/api/live"'):
+        if route not in page:
+            raise RuntimeError(f"Terra landing lacks required runtime wiring: {route}")
+    if fleet.get("schema") != "szl.vertical-forge.receipt/v3":
+        raise RuntimeError("Terra fleet receipt schema mismatch")
+    if artifact.get("schema") != "szl.vertical-forge.artifact/v1":
+        raise RuntimeError("Terra artifact receipt schema mismatch")
+    if source_lock.get("schema") != "szl.vertical-shell.source-lock/v1":
+        raise RuntimeError("Terra source lock schema mismatch")
+    if fleet.get("generator") != TERRA_FORGE_GENERATOR:
+        raise RuntimeError("Terra fleet receipt generator mismatch")
+    if artifact.get("generator") != TERRA_FORGE_GENERATOR:
+        raise RuntimeError("Terra artifact receipt generator mismatch")
+    if source_lock.get("generator") != TERRA_FORGE_GENERATOR:
+        raise RuntimeError("Terra source lock generator mismatch")
+    if source_lock.get("source_repository") != TERRA_FORGE_SOURCE_REPOSITORY:
+        raise RuntimeError("Terra source repository mismatch")
+    source_revision = str(source_lock.get("source_revision") or "")
+    if len(source_revision) != 40 or any(ch not in "0123456789abcdef" for ch in source_revision):
+        raise RuntimeError("Terra forge source revision is not an exact Git SHA")
+
+    genesis = "0" * 64
+    if fleet.get("genesis") != genesis:
+        raise RuntimeError("Terra fleet receipt genesis mismatch")
+    events = fleet.get("events")
+    if not isinstance(events, list) or len(events) != fleet.get("vertical_count"):
+        raise RuntimeError("Terra fleet receipt event count mismatch")
+    previous = genesis
+    terra_event: dict[str, Any] | None = None
+    for position, event in enumerate(events):
+        if not isinstance(event, dict) or event.get("prev_hash") != previous:
+            raise RuntimeError(f"Terra fleet receipt link mismatch at event {position}")
+        candidate = {key: value for key, value in event.items() if key != "chain_hash"}
+        calculated = hashlib.sha256(canonical_json(candidate)).hexdigest()
+        if event.get("chain_hash") != calculated:
+            raise RuntimeError(f"Terra fleet receipt hash mismatch at event {position}")
+        previous = calculated
+        if event.get("path") == "terra/index.html":
+            terra_event = event
+    if previous != fleet.get("master_hash"):
+        raise RuntimeError("Terra fleet master hash mismatch")
+    if terra_event is None or artifact.get("chain_event") != terra_event:
+        raise RuntimeError("Terra artifact receipt is not bound into the fleet chain")
+
+    page_hash = hashlib.sha256(page.encode("utf-8")).hexdigest()
+    expected_values = {
+        "artifact_sha256": page_hash,
+        "fleet_master_hash": fleet.get("master_hash"),
+        "generator": fleet.get("generator"),
+    }
+    for field, expected in expected_values.items():
+        if source_lock.get(field) != expected:
+            raise RuntimeError(f"Terra source lock {field} mismatch")
+    if terra_event.get("artifact_sha256") != page_hash:
+        raise RuntimeError("Terra landing bytes do not match the chained artifact hash")
+    if artifact.get("fleet_master_hash") != fleet.get("master_hash"):
+        raise RuntimeError("Terra artifact receipt master hash mismatch")
+    if artifact.get("vertical") != "terra":
+        raise RuntimeError("Terra artifact receipt vertical mismatch")
+
+    forge = {
+        "schema": "szl.vertical-forge.deployment-source/v1",
+        "generator": TERRA_FORGE_GENERATOR,
+        "source_repository": TERRA_FORGE_SOURCE_REPOSITORY,
+        "source_revision": source_revision,
+        "source_pull_request": source_lock.get("source_pull_request"),
+        "fleet_master_hash": fleet["master_hash"],
+        "fleet_config_sha256": artifact.get("fleet_config_sha256"),
+        "vertical_config_sha256": artifact.get("config_sha256"),
+        "artifact_sha256": page_hash,
+        "chain_hash": terra_event["chain_hash"],
+    }
+    return page, forge
+
+
 def html(item: dict[str, Any]) -> str:
     flow = "".join(f"<span>{step}</span>" for step in item["workflow"])
     labels = item["labels"]
@@ -214,6 +369,9 @@ def html(item: dict[str, Any]) -> str:
 
 
 def readme(item: dict[str, Any]) -> str:
+    forge_note = ""
+    if item["slug"] == "terra":
+        forge_note = f'''\nLanding shell: `{TERRA_FORGE_GENERATOR}` from [{TERRA_FORGE_SOURCE_REPOSITORY}](https://github.com/{TERRA_FORGE_SOURCE_REPOSITORY}). The existing Domain Experience v4 workbench remains available at `/panels`; `/build-receipt.json` exposes the source-bound runtime receipt.\n'''
     return f'''---
 title: {item['title']}
 emoji: 🛰️
@@ -235,6 +393,7 @@ tags:
 {item['vertical']} flagship for SZL Holdings.
 
 This Space uses **Domain Experience v4**: an original, domain-specific interface over the shared governed vertical runtime. Runtime claims fail closed to `UNAVAILABLE`; evidence states are never collapsed.
+{forge_note}
 
 Canonical product source: {item['source']}
 
@@ -259,17 +418,76 @@ def get_json(url: str, *, timeout: int = 20) -> tuple[int | None, Any]:
         return None, {"error": f"{type(exc).__name__}: {exc}"}
 
 
-def probe_root(slug: str, *, timeout: int = 20) -> dict[str, Any]:
-    url = f"https://szlholdings-{slug}.hf.space/"
+def probe_html(slug: str, path: str, marker: str, *, timeout: int = 20) -> dict[str, Any]:
+    url = f"https://szlholdings-{slug}.hf.space{path}"
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Cache-Control": "no-cache"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             body = response.read().decode("utf-8", errors="replace")
-            return {"url": url, "http_status": response.status, "v4_marker": PUBLIC_EXPERIENCE_MARKER in body}
+            return {"url": url, "http_status": response.status, "marker_present": marker in body}
     except urllib.error.HTTPError as exc:
-        return {"url": url, "http_status": exc.code, "v4_marker": False}
+        return {"url": url, "http_status": exc.code, "marker_present": False}
     except Exception as exc:
-        return {"url": url, "http_status": None, "v4_marker": False, "error": f"{type(exc).__name__}: {exc}"}
+        return {"url": url, "http_status": None, "marker_present": False, "error": f"{type(exc).__name__}: {exc}"}
+
+
+def observe_flagship(row: dict[str, Any]) -> None:
+    slug = row["slug"]
+    origin = f"https://szlholdings-{slug}.hf.space"
+    row["root"] = probe_html(slug, "/", row["root_marker"])
+    row["panels"] = probe_html(slug, "/panels", PUBLIC_EXPERIENCE_MARKER)
+    for name, path in (
+        ("build_info", "/api/build-info"),
+        ("readyz", "/readyz"),
+        ("deployment_receipt", "/build-receipt.json"),
+    ):
+        status, payload = get_json(origin + path)
+        row[f"{name}_http"] = status
+        row[name] = payload
+
+
+def observation_passes(
+    row: dict[str, Any],
+    *,
+    source_revision: str,
+    workflow_run_id: str,
+) -> bool:
+    root = row.get("root")
+    panels = row.get("panels")
+    build = row.get("build_info")
+    ready = row.get("readyz")
+    deployment = row.get("deployment_receipt")
+    if not all(isinstance(value, dict) for value in (root, panels, build, ready, deployment)):
+        return False
+    hf_revision = str(build.get("hf_revision") or "")
+    return bool(
+        root.get("http_status") == 200
+        and root.get("marker_present") is True
+        and panels.get("http_status") == 200
+        and panels.get("marker_present") is True
+        and row.get("build_info_http") == 200
+        and build.get("schema") == "szl.build-info/v1"
+        and build.get("source_repository") == DEPLOYMENT_SOURCE_REPOSITORY
+        and build.get("source_revision") == source_revision
+        and str(build.get("workflow_run_id")) == workflow_run_id
+        and build.get("artifact_set_sha256") == row["artifact_set_sha256"]
+        and build.get("forge") == row["forge"]
+        and len(hf_revision) == 40
+        and all(ch in "0123456789abcdef" for ch in hf_revision)
+        and row.get("readyz_http") == 200
+        and ready.get("schema") == "szl.vertical-shell-readiness/v1"
+        and ready.get("ready") is True
+        and ready.get("state") == "MEASURED"
+        and row.get("deployment_receipt_http") == 200
+        and deployment.get("schema") == "szl.vertical-shell-deployment/v1"
+        and deployment.get("state") == "VERIFIED_RUNTIME_ARTIFACTS"
+        and deployment.get("source_revision") == source_revision
+        and str(deployment.get("workflow_run_id")) == workflow_run_id
+        and deployment.get("artifact_set_sha256") == row["artifact_set_sha256"]
+        and deployment.get("landing_sha256") == row["landing_sha256"]
+        and deployment.get("panels_sha256") == row["panels_sha256"]
+        and deployment.get("forge") == row["forge"]
+    )
 
 
 def main() -> int:
@@ -282,13 +500,20 @@ def main() -> int:
     if not workflow_run_id.isdigit() or int(workflow_run_id) <= 0:
         raise RuntimeError("publisher requires a positive GITHUB_RUN_ID")
 
+    terra_page, terra_forge = load_terra_forge_bundle()
     rows: list[dict[str, Any]] = []
     for item in FLAGSHIPS:
         slug = item["slug"]
         rid = f"{ORG}/{slug}"
-        page = html(item)
+        panels = html(item)
+        page = terra_page if slug == "terra" else panels
+        forge = terra_forge if slug == "terra" else None
+        root_marker = TERRA_FORGE_MARKER if slug == "terra" else PUBLIC_EXPERIENCE_MARKER
         card = readme(item)
-        artifacts = artifact_digest(APP, DOCKER, REQ, page, card)
+        forge_payload = json.dumps(forge, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+        landing_sha256 = hashlib.sha256(page.encode("utf-8")).hexdigest()
+        panels_sha256 = hashlib.sha256(panels.encode("utf-8")).hexdigest()
+        artifacts = artifact_digest(APP, DOCKER, REQ, page, panels, card, forge_payload)
         config = json.dumps({
             "slug": slug,
             "title": item["title"],
@@ -299,14 +524,17 @@ def main() -> int:
             "workflow_run_id": int(workflow_run_id),
             "hf_repository": rid,
             "artifact_set_sha256": artifacts,
+            "landing_sha256": landing_sha256,
+            "panels_sha256": panels_sha256,
+            "forge": forge,
             "upstream": item["upstream"],
             "public_experience": PUBLIC_EXPERIENCE_VERSION,
         }, indent=2, sort_keys=True) + "\n"
-        row: dict[str, Any] = {"id": rid, "source": item["source"], "source_revision": source_revision, "workflow_run_id": int(workflow_run_id), "artifact_set_sha256": artifacts, "actions": []}
+        row: dict[str, Any] = {"id": rid, "slug": slug, "source": item["source"], "source_revision": source_revision, "workflow_run_id": int(workflow_run_id), "artifact_set_sha256": artifacts, "landing_sha256": landing_sha256, "panels_sha256": panels_sha256, "forge": forge, "root_marker": root_marker, "actions": []}
         try:
             api.create_repo(repo_id=rid, repo_type="space", space_sdk="docker", exist_ok=True, private=False)
             row["actions"].append("ensure_space")
-            for path, payload in (("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ), ("config.json", config), ("index.html", page), ("README.md", card)):
+            for path, payload in (("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ), ("config.json", config), ("index.html", page), ("panels.html", panels), ("README.md", card)):
                 upload_text(api, rid, path, payload)
             row["actions"].append("publish_source")
             api.restart_space(rid)
@@ -319,40 +547,23 @@ def main() -> int:
     pending = {row["id"].split("/", 1)[1] for row in rows if "error" not in row}
     while pending and time.time() < deadline:
         for slug in tuple(pending):
-            root = probe_root(slug)
-            build_status, build = get_json(f"https://szlholdings-{slug}.hf.space/api/build-info")
             row = next(value for value in rows if value["id"].endswith("/" + slug))
-            row["root"] = root
-            row["build_info_http"] = build_status
-            row["build_info"] = build
-            source_ok = isinstance(build, dict) and build.get("source_revision") == source_revision and str(build.get("workflow_run_id")) == workflow_run_id and build.get("artifact_set_sha256") == row["artifact_set_sha256"]
-            hf_revision = str(build.get("hf_revision") or "") if isinstance(build, dict) else ""
-            if root.get("http_status") == 200 and root.get("v4_marker") is True and build_status == 200 and source_ok and len(hf_revision) == 40:
+            observe_flagship(row)
+            if observation_passes(row, source_revision=source_revision, workflow_run_id=workflow_run_id):
                 pending.remove(slug)
         if pending:
             time.sleep(15)
 
     complete = True
     for row in rows:
-        slug = row["id"].split("/", 1)[1]
-        root = row.get("root") or probe_root(slug)
-        build_status, build = get_json(f"https://szlholdings-{slug}.hf.space/api/build-info")
-        row["root"] = root
-        row["build_info_http"] = build_status
-        row["build_info"] = build
+        observe_flagship(row)
         ok = (
             "error" not in row
-            and root.get("http_status") == 200
-            and root.get("v4_marker") is True
-            and build_status == 200
-            and isinstance(build, dict)
-            and build.get("schema") == "szl.build-info/v1"
-            and build.get("source_repository") == DEPLOYMENT_SOURCE_REPOSITORY
-            and build.get("source_revision") == source_revision
-            and str(build.get("workflow_run_id")) == workflow_run_id
-            and build.get("artifact_set_sha256") == row["artifact_set_sha256"]
-            and isinstance(build.get("hf_revision"), str)
-            and len(build["hf_revision"]) == 40
+            and observation_passes(
+                row,
+                source_revision=source_revision,
+                workflow_run_id=workflow_run_id,
+            )
         )
         row["operational"] = ok
         complete = complete and ok
