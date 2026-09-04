@@ -311,7 +311,7 @@ def main() -> int:
     combined["secret_values_readable"] = False
     combined["github_token_source_name"] = github_token_source
     combined["github_token_value_recorded"] = False
-    flagship["estate_schema"] = "szl.hf-vertical-estate/v8"
+    flagship["estate_schema"] = "szl.hf-vertical-estate/v7"
     flagship["public_flagship_slugs"] = list(admitted or ())
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
     flagship["killinchu_space"] = KILLINCHU_SPACE
