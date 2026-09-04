@@ -1,0 +1,152 @@
+name: Publish Codex and Perplexity recovery receipt once
+
+on:
+  push:
+    branches:
+      - ops/codex-perplexity-recovery-20260904-v1
+    paths:
+      - .github/workflows/_publish_agent_estate_recovery_once.yml
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+
+concurrency:
+  group: publish-codex-perplexity-recovery-20260904
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Wait for recovery, retain evidence, and retire the one-shot controller
+    runs-on: ubuntu-24.04
+    timeout-minutes: 130
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out recovery branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/codex-perplexity-recovery-20260904-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Wait for the bounded recovery controller
+        id: locate
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch='ops/codex-perplexity-recovery-20260904-v1'
+          selected=''
+          for _ in $(seq 1 240); do
+            selected="$(gh api \
+              "repos/szl-holdings/a11oy/actions/runs?branch=${branch}&per_page=100" \
+              --jq '.workflow_runs | map(select(.name == "One-pass Codex and Perplexity estate recovery")) | sort_by(.created_at) | last | @base64' || true)"
+            if [ -n "$selected" ] && [ "$selected" != 'null' ]; then
+              status="$(printf '%s' "$selected" | base64 -d | jq -r .status)"
+              run_id="$(printf '%s' "$selected" | base64 -d | jq -r .id)"
+              if [ "$status" = 'completed' ]; then
+                conclusion="$(printf '%s' "$selected" | base64 -d | jq -r .conclusion)"
+                echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+                echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+                test "$conclusion" = 'success'
+                exit 0
+              fi
+            fi
+            sleep 30
+          done
+          echo '::error::Recovery controller did not reach a successful terminal state'
+          exit 1
+
+      - name: Download and validate immutable recovery evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.locate.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          artifact="$(gh api "repos/szl-holdings/a11oy/actions/runs/${RUN_ID}/artifacts" --jq '.artifacts | map(select(.name | startswith("codex-perplexity-estate-recovery-"))) | sort_by(.created_at) | last')"
+          artifact_id="$(printf '%s' "$artifact" | jq -r .id)"
+          artifact_digest="$(printf '%s' "$artifact" | jq -r .digest)"
+          test "$artifact_id" != null
+          gh api "repos/szl-holdings/a11oy/actions/artifacts/${artifact_id}/zip" > /tmp/recovery.zip
+          rm -rf /tmp/recovery && mkdir -p /tmp/recovery
+          unzip -q /tmp/recovery.zip -d /tmp/recovery
+          json_path="$(find /tmp/recovery -type f -name estate-recovery.json -print -quit)"
+          md_path="$(find /tmp/recovery -type f -name estate-recovery.md -print -quit)"
+          test -f "$json_path"
+          test -f "$md_path"
+          mkdir -p evidence/agent-recovery/2026-09-04
+          cp "$json_path" evidence/agent-recovery/2026-09-04/estate-recovery.json
+          cp "$md_path" evidence/agent-recovery/2026-09-04/estate-recovery.md
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evidence/agent-recovery/2026-09-04/estate-recovery.json')
+          data = json.loads(path.read_text(encoding='utf-8'))
+          assert data['schema'] == 'szl.agent-estate-recovery/v1'
+          assert data['credential_values_recorded'] is False
+          summary = {
+              'schema': 'szl.agent-estate-recovery-public-summary/v1',
+              'generated_at': data['generated_at'],
+              'github_repo_count': data.get('github_repo_count'),
+              'github_active_repo_count': data.get('github_active_repo_count'),
+              'open_prs_observed': len(data['observed_prs']),
+              'merged_prs': sum(row.get('disposition') == 'MERGED' for row in data['observed_prs']),
+              'blocked_or_held_prs': sum(row.get('disposition') not in {'MERGED', 'CLOSED_IDENTICAL'} for row in data['observed_prs']),
+              'orphan_agent_branches': len(data['orphan_branches']),
+              'workflow_actions': len(data['workflow_actions']),
+              'hf_counts': data.get('hf_counts', {}),
+              'hf_restart_requests': sum(row.get('action') == 'RESTART_REQUESTED' for row in data['hf_spaces']),
+              'unsafe_serialization_findings': len(data.get('hf_unsafe_serialization', [])),
+              'errors': len(data['errors']),
+              'credential_values_recorded': False,
+          }
+          Path('evidence/agent-recovery/2026-09-04/public-summary.json').write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + '\n', encoding='utf-8'
+          )
+          PY
+          printf '%s\n' "$artifact_digest" > evidence/agent-recovery/2026-09-04/actions-artifact-digest.txt
+
+      - name: Retire one-shot executable controller and commit evidence only
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm --ignore-unmatch \
+            scripts/agent_estate_recovery_once.py \
+            .github/workflows/_agent_estate_recovery_once.yml \
+            .github/workflows/_publish_agent_estate_recovery_once.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add evidence/agent-recovery/2026-09-04
+          git diff --cached --check
+          git commit -s -m "chore(evidence): retain Codex and Perplexity recovery receipt"
+          git push origin HEAD:ops/codex-perplexity-recovery-20260904-v1
+
+      - name: Add terminal receipt link to the solo-estate ledger
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ steps.locate.outputs.run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          summary="$(cat evidence/agent-recovery/2026-09-04/public-summary.json)"
+          cat > /tmp/comment.md <<EOF
+          ## Terminal Codex / Perplexity recovery evidence
+
+          - Recovery run: https://github.com/szl-holdings/a11oy/actions/runs/${RUN_ID}
+          - Evidence branch: \`ops/codex-perplexity-recovery-20260904-v1\`
+          - Retained paths: \`evidence/agent-recovery/2026-09-04/\`
+
+          \`\`\`json
+          ${summary}
+          \`\`\`
+
+          The executable one-shot controller removed itself after retaining the secret-free receipt. Unresolved items remain explicitly blocked in the detailed ledger; no check, protection, hardware, visibility, domain, storage, billing, or credential boundary was weakened.
+          EOF
+          gh issue comment 1326 --repo szl-holdings/a11oy --body-file /tmp/comment.md
