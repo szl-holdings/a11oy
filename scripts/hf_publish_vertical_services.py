@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
@@ -46,6 +47,15 @@ CANONICAL_VERTICALS = (
     "finance",
     "terra",
     "counsel",
+)
+
+LIVE_PROBES: tuple[tuple[str, str, dict[str, Any]], ...] = (
+    ("sentra", "cisa-kev", {"limit": 3}),
+    ("lyte", "github-actions", {"repository": "vertical-services", "limit": 10}),
+    ("killinchu", "noaa-ais-2025", {}),
+    ("finance", "sec-submissions", {"cik": "320193", "limit": 3}),
+    ("terra", "nyc-pluto", {"borough": "MN", "limit": 1}),
+    ("counsel", "federal-register", {"limit": 3}),
 )
 
 SMOKE_PATHS = (
@@ -203,18 +213,153 @@ def ensure_runtime_configuration(api: HfApi) -> dict[str, Any]:
     }
 
 
-def get_json(path: str) -> tuple[int, Any]:
+def request_json(
+    path: str,
+    *,
+    method: str = "GET",
+    payload: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
+    attempts: int = 3,
+) -> tuple[int, Any]:
     separator = "&" if "?" in path else "?"
-    request = urllib.request.Request(
-        f"{ORIGIN}{path}{separator}szl_verify={time.time_ns()}",
-        headers={
-            "Accept": "application/json",
-            "Cache-Control": "no-cache",
-            "User-Agent": USER_AGENT,
-        },
+    url = f"{ORIGIN}{path}{separator}szl_verify={time.time_ns()}"
+    body = None if payload is None else json.dumps(payload).encode("utf-8")
+    request_headers = {
+        "Accept": "application/json",
+        "Cache-Control": "no-cache",
+        "User-Agent": USER_AGENT,
+        **(headers or {}),
+    }
+    if body is not None:
+        request_headers["Content-Type"] = "application/json"
+
+    last_error: Exception | None = None
+    for attempt in range(1, attempts + 1):
+        request = urllib.request.Request(
+            url,
+            data=body,
+            method=method,
+            headers=request_headers,
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=75) as response:
+                return response.status, json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            response_body = exc.read().decode("utf-8", errors="replace")
+            if exc.code < 500:
+                try:
+                    parsed: Any = json.loads(response_body)
+                except json.JSONDecodeError:
+                    parsed = {"body_excerpt": response_body[:500]}
+                return exc.code, parsed
+            last_error = exc
+        except Exception as exc:
+            last_error = exc
+        if attempt < attempts:
+            time.sleep(2 ** (attempt - 1))
+    raise RuntimeError(
+        f"live request did not converge: {method} {path}: "
+        f"{type(last_error).__name__ if last_error else 'UnknownError'}"
     )
-    with urllib.request.urlopen(request, timeout=30) as response:
-        return response.status, json.loads(response.read())
+
+
+def get_json(path: str) -> tuple[int, Any]:
+    return request_json(path)
+
+
+def probe_live_connectors() -> dict[str, Any]:
+    session = secrets.token_urlsafe(32)
+    headers = {"X-SZL-Session": session}
+    report: dict[str, Any] = {
+        "schema": "szl.live-connector-probe/v2",
+        "base_url": ORIGIN,
+        "observed_at": time.time(),
+        "probes": [],
+        "session_token_recorded": False,
+        "truth_label": "MEASURED",
+    }
+    failures: list[str] = []
+
+    for vertical, connector, parameters in LIVE_PROBES:
+        path = f"/api/verticals/{vertical}/connectors/{connector}/fetch"
+        status, body = request_json(
+            path,
+            method="POST",
+            payload={"parameters": parameters, "force_refresh": True},
+            headers=headers,
+        )
+        item: dict[str, Any] = {
+            "vertical": vertical,
+            "connector": connector,
+            "path": path,
+            "http_status": status,
+        }
+        if status != 200 or not isinstance(body, dict):
+            item["state"] = "FAILED"
+            item["body_excerpt"] = str(body)[:500]
+            failures.append(f"{vertical}/{connector}: HTTP {status}")
+        else:
+            receipt = body.get("receipt", {})
+            item.update(
+                {
+                    "state": receipt.get("state"),
+                    "receipt_id": receipt.get("receipt_id"),
+                    "payload_sha256": receipt.get("payload_sha256"),
+                    "source_url": receipt.get("source_url"),
+                    "signal": body.get("signal"),
+                    "cache": body.get("cache"),
+                }
+            )
+            if (
+                item["state"] != "OBSERVED"
+                or not isinstance(item["receipt_id"], str)
+                or len(item["receipt_id"]) != 64
+                or not isinstance(item["payload_sha256"], str)
+                or len(item["payload_sha256"]) != 64
+            ):
+                failures.append(f"{vertical}/{connector}: invalid observation receipt")
+        report["probes"].append(item)
+
+    vertical_readiness: dict[str, Any] = {}
+    for vertical in CANONICAL_VERTICALS:
+        status, body = request_json(
+            f"/api/verticals/{vertical}/readyz",
+            headers=headers,
+        )
+        if status != 200 or not isinstance(body, dict):
+            failures.append(f"{vertical}: readiness HTTP {status}")
+            vertical_readiness[vertical] = {
+                "http_status": status,
+                "body_excerpt": str(body)[:500],
+            }
+            continue
+        vertical_readiness[vertical] = {
+            "http_status": status,
+            "ready": body.get("ready"),
+            "status": body.get("status"),
+            "live_data": body.get("live_data"),
+            "build": body.get("build"),
+            "lambda_advisory": body.get("lambda_advisory"),
+        }
+        if body.get("ready") is not True:
+            failures.append(f"{vertical}: readiness did not close")
+        if not body.get("live_data", {}).get("observed_in_scope"):
+            failures.append(f"{vertical}: required live observation not visible")
+
+    root_status, root = request_json("/readyz", headers=headers)
+    report["vertical_readiness"] = vertical_readiness
+    report["root_readiness"] = {
+        "http_status": root_status,
+        "body": root,
+    }
+    if root_status != 200 or not isinstance(root, dict) or root.get("ready") is not True:
+        failures.append(f"root readiness: HTTP {root_status}")
+
+    report["status"] = "PASS" if not failures else "FAIL"
+    report["failures"] = failures
+    if failures:
+        raise RuntimeError("live official-source connector probe did not close: " + "; ".join(failures))
+    return report
 
 
 def verify_contract() -> dict[str, Any]:
@@ -372,30 +517,6 @@ def deploy_with_controller(source: Path, controller: Path, manifest: Path) -> No
     )
 
 
-def probe_live_connectors(source: Path, output: Path) -> dict[str, Any]:
-    probe = source / "tools" / "probe_live_verticals.py"
-    if not probe.is_file():
-        raise RuntimeError(f"missing live connector probe at exact source: {probe}")
-    run_checked(
-        [
-            sys.executable,
-            str(probe),
-            "--base-url",
-            ORIGIN,
-            "--output",
-            str(output),
-        ]
-    )
-    report = json.loads(output.read_text(encoding="utf-8"))
-    if report.get("status") != "PASS":
-        raise RuntimeError("live official-source connector probe did not close")
-    if report.get("session_token_recorded") is not False:
-        raise RuntimeError("live probe violated session-token non-recording contract")
-    if len(report.get("probes", [])) != len(CANONICAL_VERTICALS):
-        raise RuntimeError("live connector probe did not cover every canonical vertical")
-    return report
-
-
 def main() -> int:
     token, token_source = token_from_env()
     os.environ["HF_TOKEN"] = token
@@ -425,17 +546,13 @@ def main() -> int:
             source = root / "source"
             controller = root / "hf_deploy_from_dockerfile.py"
             manifest = root / "manifest.json"
-            live_probe = root / "live-connector-probe.json"
             checkout_exact_source(source)
             fetch_pinned_controller(controller)
             deploy_with_controller(source, controller, manifest)
             receipt["deployment_manifest"] = json.loads(
                 manifest.read_text(encoding="utf-8")
             )
-            receipt["live_connector_probe"] = probe_live_connectors(
-                source,
-                live_probe,
-            )
+        receipt["live_connector_probe"] = probe_live_connectors()
         receipt["verification"] = verify_contract()
         receipt["complete"] = receipt["verification"]["complete"]
     except Exception as exc:
