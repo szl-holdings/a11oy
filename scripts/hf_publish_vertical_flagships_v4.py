@@ -6,8 +6,13 @@ The established Domain Experience v4 implementation remains the renderer, but
 the entrypoint admits only the four independent public vertical Spaces. Sentra
 and Vessels are capability planes inside Killinchu and are filtered before any
 Hugging Face mutation. The same single-writer job then publishes and attests the
-combined six-engine Python 2.2 intelligence runtime from the exact merged
-vertical-services revision.
+combined six-engine Python intelligence runtime from the exact tested
+vertical-services default-branch tip observed at deployment time.
+
+The observed source revision is immutable for the run and the downstream
+publisher still requires that revision to remain the repository default-branch
+tip. If source advances during publication, the existing default-tip guard fails
+closed rather than deploying a stale or mixed build.
 
 This distinction is intentional: one public product surface does not require one
 undifferentiated code module. Sentra and maritime contracts remain independently
@@ -20,6 +25,9 @@ from __future__ import annotations
 import importlib.util
 import json
 import os
+import re
+import urllib.error
+import urllib.request
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -34,6 +42,9 @@ COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")
 FOLDED_INTO_KILLINCHU = ("sentra", "vessels")
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
+VERTICAL_SERVICES_REPOSITORY = "szl-holdings/vertical-services"
+GITHUB_API = "https://api.github.com"
+SHA40 = re.compile(r"^[0-9a-f]{40}$")
 
 
 def load_module(name: str, path: Path) -> ModuleType:
@@ -74,15 +85,112 @@ def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
     return tuple(item["slug"] for item in admitted)
 
 
+def _github_json(path: str, *, token: str | None = None) -> dict[str, Any]:
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "User-Agent": "SZLHOLDINGS-Vertical-Source-Resolver/1.0",
+        "Cache-Control": "no-cache",
+    }
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    request = urllib.request.Request(f"{GITHUB_API}{path}", headers=headers)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            payload = json.loads(response.read())
+    except urllib.error.HTTPError as exc:
+        if token and exc.code in {401, 403}:
+            return _github_json(path, token=None)
+        raise RuntimeError(f"GitHub source resolution failed: HTTP {exc.code}") from exc
+    except (OSError, TimeoutError, json.JSONDecodeError) as exc:
+        raise RuntimeError(
+            f"GitHub source resolution failed: {type(exc).__name__}"
+        ) from exc
+    if not isinstance(payload, dict):
+        raise RuntimeError("GitHub source resolution returned a non-object")
+    return payload
+
+
+def resolve_tested_vertical_services_tip() -> tuple[str, dict[str, Any]]:
+    """Resolve one immutable source SHA and require its Python contract to pass.
+
+    The live ``healthz`` workflow is deliberately not used as an admission gate
+    here: it measures the previously deployed Space and is expected to be red
+    when this publisher is repairing source drift. The source commit itself must
+    have a successful terminal ``Python contract suite`` check.
+    """
+    token = os.getenv("GITHUB_TOKEN", "").strip() or os.getenv("GH_TOKEN", "").strip()
+    ref = _github_json(
+        f"/repos/{VERTICAL_SERVICES_REPOSITORY}/git/ref/heads/main",
+        token=token or None,
+    )
+    revision = str(ref.get("object", {}).get("sha", "")).lower()
+    if SHA40.fullmatch(revision) is None:
+        raise RuntimeError("vertical-services main did not resolve to a full Git SHA")
+
+    checks = _github_json(
+        f"/repos/{VERTICAL_SERVICES_REPOSITORY}/commits/{revision}/check-runs?per_page=100",
+        token=token or None,
+    )
+    runs = checks.get("check_runs", [])
+    if not isinstance(runs, list):
+        raise RuntimeError("vertical-services check-run payload is invalid")
+    contract_runs = [
+        row
+        for row in runs
+        if isinstance(row, dict)
+        and row.get("name") == "Python contract suite"
+        and row.get("head_sha") == revision
+    ]
+    accepted = [
+        row
+        for row in contract_runs
+        if row.get("status") == "completed" and row.get("conclusion") == "success"
+    ]
+    if not accepted:
+        state = [
+            {
+                "status": row.get("status"),
+                "conclusion": row.get("conclusion"),
+            }
+            for row in contract_runs
+        ]
+        raise RuntimeError(
+            "vertical-services main lacks a successful Python contract suite: "
+            + json.dumps(state, sort_keys=True)
+        )
+
+    return revision, {
+        "schema": "szl.vertical-source-resolution/v1",
+        "repository": VERTICAL_SERVICES_REPOSITORY,
+        "branch": "main",
+        "revision": revision,
+        "python_contract_suite": "success",
+        "check_run_count": len(runs),
+        "live_health_check_used_as_source_gate": False,
+        "default_branch_tip_rechecked_by_deployer": True,
+        "token_value_recorded": False,
+        "truth_label": "MEASURED",
+    }
+
+
 def run_publisher(
     name: str,
     path: Path,
+    *,
+    source_revision_override: str | None = None,
 ) -> tuple[int, str | None, tuple[str, ...] | None]:
     admitted: tuple[str, ...] | None = None
     try:
         module = load_module(name, path)
         if name == "szl_flagship_v4":
             admitted = constrain_public_flagships(module)
+        if source_revision_override is not None:
+            if SHA40.fullmatch(source_revision_override) is None:
+                raise RuntimeError("source revision override is not a full Git SHA")
+            if not hasattr(module, "SOURCE_REVISION"):
+                raise RuntimeError("combined publisher has no SOURCE_REVISION contract")
+            module.SOURCE_REVISION = source_revision_override
         result = int(module.main())
         return result, None, admitted
     except SystemExit as exc:
@@ -163,16 +271,26 @@ def main() -> int:
         FLAGSHIP_IMPL,
     )
 
+    resolved_revision = "UNAVAILABLE"
+    source_resolution: dict[str, Any] = {
+        "schema": "szl.vertical-source-resolution/v1",
+        "state": "UNAVAILABLE",
+        "token_value_recorded": False,
+        "truth_label": "UNAVAILABLE",
+    }
     try:
+        resolved_revision, source_resolution = resolve_tested_vertical_services_tip()
         secret_reader = ensure_space_secret_reader()
         combined_code, combined_error, _ = run_publisher(
             "szl_vertical_services_intelligence_v4",
             COMBINED_IMPL,
+            source_revision_override=resolved_revision,
         )
     except Exception as exc:
         secret_reader = "unavailable"
         combined_code = 1
         combined_error = f"{type(exc).__name__}: {exc}"
+        source_resolution["error"] = combined_error
 
     flagship = read_receipt(FLAGSHIP_RECEIPT) or {
         "schema": "szl.hf-vertical-flagships/v4",
@@ -187,6 +305,8 @@ def main() -> int:
     if combined_error:
         combined["entrypoint_error"] = combined_error
 
+    combined["source_resolution"] = source_resolution
+    combined["resolved_source_revision"] = resolved_revision
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
     combined["github_token_source_name"] = github_token_source
@@ -203,6 +323,8 @@ def main() -> int:
         and tuple(flagship.get("public_flagship_slugs", ()))
         == PUBLIC_FLAGSHIP_SLUGS
         and combined.get("complete") is True
+        and combined.get("resolved_source_revision") == resolved_revision
+        and SHA40.fullmatch(resolved_revision) is not None
         and flagship_code == 0
         and combined_code == 0
     )
