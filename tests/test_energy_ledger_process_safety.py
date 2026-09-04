@@ -199,4 +199,19 @@ def test_sequence_field_is_part_of_chain_validity(tmp_path: Path) -> None:
     )
     verdict = ledger.verify()
     assert verdict["ok"] is False
-    assert verdict["first_break"]["reason"] == "seq is not contiguous and zero-based"
+    assert verdict["first_break"]["reason"] == "seq is not contiguous within the retained generation"
+
+def test_rotated_retention_uses_explicit_external_anchor(tmp_path: Path) -> None:
+    path = str(tmp_path / "energy.jsonl")
+    ledger = EnergyLedger(path=path)
+    ledger._store.max_bytes = 2048
+    ledger._store.backup_count = 2
+    ledger._store.fsync = False
+    for index in range(200):
+        assert ledger.append_job(job(index), now=NOW)["appended"] is True
+    verdict = ledger.verify()
+    assert verdict["ok"] is True, verdict
+    assert verdict["retention_anchor"] is not None
+    assert verdict["retention_anchor"]["evidence"] == "ROTATED_SEGMENTS_PRESENT"
+    assert ledger._store._counters.rotations > 0
+    assert ledger._store.total_bytes() <= ledger._store.max_total_bytes()
