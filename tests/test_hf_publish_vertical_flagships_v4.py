@@ -181,6 +181,23 @@ def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None
     assert "delete_space" not in combined
 
 
+def test_controller_token_alias_is_bound_without_secret_receipt() -> None:
+    entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
+    for fragment in (
+        "import os",
+        "def bind_controller_github_token()",
+        'for name in ("GITHUB_TOKEN", "GH_TOKEN")',
+        'os.environ["GITHUB_TOKEN"] = value',
+        "github_token_source = bind_controller_github_token()",
+        'combined["github_token_source_name"] = github_token_source',
+        'combined["github_token_value_recorded"] = False',
+        "GitHub token unavailable for exact default-branch-tip verification",
+    ):
+        assert fragment in entrypoint
+    assert 'combined["github_token_value_recorded"] = True' not in entrypoint
+    assert "print(value)" not in entrypoint
+
+
 def test_combined_runtime_v2_closes_operational_fabric_contract() -> None:
     combined = COMBINED.read_text(encoding="utf-8")
     required = (
