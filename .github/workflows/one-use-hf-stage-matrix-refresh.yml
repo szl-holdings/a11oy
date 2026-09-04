@@ -1,0 +1,54 @@
+name: One-use HF ecosystem stage matrix refresh
+
+on:
+  push:
+    branches:
+      - fix/hf-stage-matrix-20260904
+    paths:
+      - .github/workflows/one-use-hf-stage-matrix-refresh.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-use-hf-ecosystem-stage-matrix-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-stage-matrix-20260904
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Regenerate deterministic downstream matrix
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/build_ecosystem_stage_matrix.py
+          python scripts/build_ecosystem_stage_matrix.py
+          python scripts/build_ecosystem_stage_matrix.py --check
+
+      - name: Commit generated matrix only
+        run: |
+          set -euo pipefail
+          git config user.name 'Stephen Lutar'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add docs/ecosystem-stage-matrix.json
+          git diff --cached --quiet && {
+            echo 'Stage matrix already current.'
+            exit 0
+          }
+          git commit -s -m 'fix(hf): refresh ecosystem stage matrix'
+          git push origin HEAD:fix/hf-stage-matrix-20260904
