@@ -40,6 +40,10 @@ ENDPOINTS (dual-registered under /api/a11oy/v1/immune/* AND /v1/immune/*):
                     REACHABLE vs UNAVAILABLE only; never LIVE or PASS.
                     Actuation is SIMULATED. This flagship does not become a
                     second COP.
+  GET  /nexus    -> same-origin probe of Channel A NEXUS status
+                    (SZLHOLDINGS/immune /api/immune/nexus/status).
+                    EXECUTABLE software simulation. Energy UNAVAILABLE.
+                    Lambda = Conjecture 1 OPEN. Never LIVE or PASS.
 
 INSPECTION LOGIC (byte-identical to serve.py's embedded immune block):
   _THREAT_SIGNATURES = ["DROP TABLE","rm -rf","<script","eval(","subprocess","../../etc"]
@@ -114,6 +118,7 @@ _KERNEL_UA = (
 )
 _KERNEL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 _FIELD_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
+_NEXUS_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 
 # ---------------------------------------------------------------------------
 # REAL inspection logic — byte-identical to serve.py's embedded immune block.
@@ -573,6 +578,57 @@ def _field(now: Optional[float] = None, probe=_probe_json) -> dict:
 # leave the `request: Request` annotation unresolved and FastAPI would wrongly
 # treat `request` as a required query param (HTTP 422).
 # ---------------------------------------------------------------------------
+
+def _nexus(now: Optional[float] = None, probe=_probe_json) -> dict:
+    """Same-origin NEXUS probe. REACHABLE / UNAVAILABLE only — never LIVE or PASS."""
+    ts = time.time() if now is None else float(now)
+    cached = _NEXUS_CACHE.get("payload")
+    cached_at = float(_NEXUS_CACHE.get("at") or 0)
+    if cached and (ts - cached_at) < _KERNEL_CACHE_TTL:
+        out = dict(cached)
+        out["cached"] = True
+        return out
+
+    status, data, err = probe(_KERNEL_SPACE_URL + "/api/immune/nexus/status")
+    body = data if isinstance(data, dict) else {}
+    reachable = status == 200 and isinstance(data, dict)
+    programs = body.get("programs") if reachable else None
+    truth = body.get("truth") if isinstance(body.get("truth"), dict) else {}
+    payload = {
+        "ok": reachable,
+        "reachability": "REACHABLE" if reachable else "UNAVAILABLE",
+        "state": body.get("state") if reachable else None,
+        "role": body.get("role") if reachable else None,
+        "programs": programs if isinstance(programs, list) else None,
+        "program_count": len(programs) if isinstance(programs, list) else None,
+        "energy": truth.get("energy") if reachable else None,
+        "uniqueness": truth.get("uniqueness") if reachable else None,
+        "execution": truth.get("execution") if reachable else None,
+        "ui": body.get("ui") if reachable else None,
+        "upstream_http": status,
+        "error": None if reachable else (err or "nexus unobserved"),
+        "channel": "A",
+        "space": "SZLHOLDINGS/immune",
+        "contract": "/api/immune/nexus/status",
+        "url": _KERNEL_SPACE_URL + "/api/immune/nexus/status",
+        "product_tab": "/immune",
+        "honesty": {
+            "lambda": "Conjecture 1 OPEN (NOT a theorem)",
+            "never_fabricate": ["LIVE", "PASS"],
+            "first_paint": "CONNECTING",
+            "failed_probe": "UNAVAILABLE",
+            "energy": "UNAVAILABLE",
+            "execution": "MEASURED_SOFTWARE_SIMULATION",
+        },
+        "organ": _ORGAN_NAME,
+        "cached": False,
+    }
+    enveloped = _gov(payload, status="REAL" if reachable else "DEGRADED")
+    _NEXUS_CACHE["at"] = ts
+    _NEXUS_CACHE["payload"] = enveloped
+    return enveloped
+
+
 def register(app, ns: str = "a11oy") -> dict:
     async def _h_healthz():  # noqa: ANN202
         return JSONResponse(_healthz())
@@ -613,6 +669,9 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _h_field():  # noqa: ANN202
         return JSONResponse(_field())
 
+    async def _h_nexus():  # noqa: ANN202
+        return JSONResponse(_nexus())
+
     prefixes = [f"/api/{ns}/v1/immune", "/v1/immune"]
     routes: list[str] = []
     for p in prefixes:
@@ -625,8 +684,9 @@ def register(app, ns: str = "a11oy") -> dict:
         app.add_api_route(f"{p}/verify", _h_verify, methods=["GET"], include_in_schema=True)
         app.add_api_route(f"{p}/kernel", _h_kernel, methods=["GET", "HEAD"], include_in_schema=True)
         app.add_api_route(f"{p}/field", _h_field, methods=["GET", "HEAD"], include_in_schema=True)
+        app.add_api_route(f"{p}/nexus", _h_nexus, methods=["GET", "HEAD"], include_in_schema=True)
         routes.extend([f"{p}/healthz", f"{p}/status", f"{p}/gates", f"{p}/threats",
-                       f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel", f"{p}/field"])
+                       f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel", f"{p}/field", f"{p}/nexus"])
 
     print(f"[{ns}] szl_immune routes registered "
           f"(Immune (Hukulla) fail-closed egress gate, {len(routes)} routes)", flush=True)

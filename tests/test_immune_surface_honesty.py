@@ -93,6 +93,8 @@ def test_kernel_panel_is_same_origin_and_never_auto_embeds() -> None:
     assert 'id="fReach">CONNECTING<' in IMMUNE
     assert "async function loadField()" in IMMUNE
     assert 'requestJSON(BASE + "/field")' in IMMUNE
+    assert 'requestJSON(BASE + "/nexus")' in IMMUNE
+    assert "GET /api/a11oy/v1/immune/nexus" in IMMUNE
     assert "hunt / isolate / deceive" in IMMUNE
     assert "never strike people" in IMMUNE
     assert "not a second COP" in IMMUNE

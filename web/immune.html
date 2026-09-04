@@ -244,6 +244,29 @@ body{
     <div id="kernelFrameHost"></div>
   </div>
 
+
+  <div class="panel" id="nexusPanel">
+    <h2>NEXUS plane <span class="meta">GET /api/a11oy/v1/immune/nexus → Channel A /api/immune/nexus/status</span></h2>
+    <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
+      Bounded software simulation inside IMMUNE. Six programs. Energy is
+      <b>UNAVAILABLE</b>. Λ is <b>Conjecture 1 OPEN</b>. A sealed run stores
+      input/output hashes only — floats never enter YAWAR. First paint is
+      <b>CONNECTING</b>. A failed probe is <b>UNAVAILABLE</b>. EXECUTABLE is
+      not LIVE.
+    </p>
+    <div class="cards">
+      <div class="card"><div class="lbl">Reachability</div><div class="big" id="nReach">CONNECTING</div><div class="sub" id="nReachSub">first paint — not UNAVAILABLE</div></div>
+      <div class="card"><div class="lbl">State</div><div class="big" id="nState">—</div><div class="sub" id="nExec">measured software only</div></div>
+      <div class="card"><div class="lbl">Energy</div><div class="big" id="nEnergy">—</div><div class="sub">never invented joules</div></div>
+      <div class="card"><div class="lbl">Programs</div><div class="big" id="nProg">—</div><div class="sub" id="nUniq">Conjecture 1 OPEN</div></div>
+    </div>
+    <div class="kv" id="nexusKv" aria-live="polite"><span class="k">status</span><span class="v">CONNECTING</span></div>
+    <div class="kernel-actions">
+      <a class="flag" href="https://szlholdings-immune.hf.space/nexus.html" target="_blank" rel="noopener">Open NEXUS plane</a>
+      <a class="flag" href="https://szlholdings-immune-lattice.hf.space/nexus.html" target="_blank" rel="noopener">Channel B NEXUS</a>
+    </div>
+  </div>
+
   <div class="panel" id="fieldPanel">
     <h2>Field lattice <span class="meta">GET /api/a11oy/v1/immune/field → Channel B /api/field</span></h2>
     <p class="lede" style="margin:.2rem 0 .6rem;font-size:.86rem;">
@@ -515,6 +538,30 @@ document.getElementById("embedBtn").addEventListener("click",function(){
   host.appendChild(f);
   this.textContent="Kernel embedded";
 });
+
+
+async function loadNexus(){
+  const result = await requestJSON(BASE + "/nexus");
+  const kv = document.getElementById("nexusKv");
+  const s = result.data||{};
+  const reach = result.ok && s.reachability==="REACHABLE" ? "REACHABLE" : "UNAVAILABLE";
+  document.getElementById("nReach").textContent = reach;
+  document.getElementById("nReachSub").textContent = reach==="REACHABLE" ? "Channel A /api/immune/nexus/status answered JSON" : requestFailure(result);
+  document.getElementById("nState").textContent = present(s.state)?String(s.state):"—";
+  document.getElementById("nExec").textContent = present(s.execution)?String(s.execution):"measured software only";
+  document.getElementById("nEnergy").textContent = present(s.energy)?String(s.energy):"—";
+  document.getElementById("nProg").textContent = typeof s.program_count==="number"?String(s.program_count):"—";
+  document.getElementById("nUniq").textContent = present(s.uniqueness)?String(s.uniqueness):"Conjecture 1 OPEN";
+  kv.innerHTML =
+    row("reachability",reach)+
+    row("state",s.state)+
+    row("energy",s.energy)+
+    row("uniqueness",s.uniqueness)+
+    row("programs",Array.isArray(s.programs)?s.programs.join(", "):null)+
+    row("ui",s.ui)+
+    row("error",s.error||(!result.ok?requestFailure(result):null))+
+    '<div><span class="k">nexus</span><span class="pill '+(reach==="REACHABLE"?"green":"red")+'">'+esc(reach)+'</span></div>';
+}
 
 async function loadField(){
   const result = await requestJSON(BASE + "/field");
@@ -797,11 +844,12 @@ document.getElementById("embedFieldBtn").addEventListener("click",function(){
 })();
 
 
-async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed(),loadKernel(),loadField()]); }
+async function loadAll(){ await Promise.all([loadStatus(),loadGates(),loadFeed(),loadKernel(),loadField(),loadNexus()]); }
 loadAll();
 setInterval(loadStatus, 8000);
 setInterval(loadKernel, 8000);
 setInterval(loadField, 8000);
+setInterval(loadNexus, 8000);
 
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>

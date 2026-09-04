@@ -10,6 +10,8 @@ def setup_function() -> None:
     immune._KERNEL_CACHE["payload"] = None
     immune._FIELD_CACHE["at"] = 0.0
     immune._FIELD_CACHE["payload"] = None
+    immune._NEXUS_CACHE["at"] = 0.0
+    immune._NEXUS_CACHE["payload"] = None
 
 
 def test_reachable_write_ready_is_not_live_or_pass() -> None:
@@ -99,3 +101,37 @@ def test_field_failed_probe_does_not_invent_cells() -> None:
     assert out["cell_count"] is None
     assert out["status"] == "DEGRADED"
     assert out["error"] == "TimeoutError"
+
+
+def test_nexus_reachable_is_not_live_or_pass() -> None:
+    def probe(url: str):
+        assert url.endswith("/api/immune/nexus/status")
+        return 200, {
+            "schema": "szl.immune-nexus-status/v1",
+            "state": "EXECUTABLE",
+            "programs": ["lorenz", "harmonic", "vanderpol", "duffing", "lotka", "nemo"],
+            "truth": {
+                "execution": "MEASURED_SOFTWARE_SIMULATION",
+                "energy": "UNAVAILABLE",
+                "uniqueness": "Conjecture 1 OPEN",
+            },
+            "ui": "/nexus.html",
+        }, None
+
+    out = immune._nexus(now=1.0, probe=probe)
+    assert out["reachability"] == "REACHABLE"
+    assert out["state"] == "EXECUTABLE"
+    assert out["energy"] == "UNAVAILABLE"
+    assert out["program_count"] == 6
+    assert out["reachability"] != "LIVE"
+    assert out["honesty"]["never_fabricate"] == ["LIVE", "PASS"]
+
+
+def test_nexus_failed_probe_is_unavailable() -> None:
+    def probe(_url: str):
+        return 404, None, "HTTP 404"
+
+    out = immune._nexus(now=1.0, probe=probe)
+    assert out["reachability"] == "UNAVAILABLE"
+    assert out["ok"] is False
+    assert out["state"] is None
