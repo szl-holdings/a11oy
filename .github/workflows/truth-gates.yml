@@ -19,7 +19,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: fix/unify-flock-runtime-wiring
-          fetch-depth: 4
+          fetch-depth: 1
           persist-credentials: true
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
@@ -33,13 +33,11 @@ jobs:
           python -m pytest tests/test_unify_flock_runtime_wiring.py -q
           python .github/scripts/register_invocation.py --root . --entrypoints serve.py wayra_serve.py ayni_os_serve.py kipu_qillqaq_serve.py --allowlist .github/register-invocation-allowlist.txt
           git diff --check
-      - name: Publish permanent files only
+      - name: Publish only permanent source and tests
         run: |
           set -euo pipefail
-          git show HEAD~3:.github/workflows/truth-gates.yml > .github/workflows/truth-gates.yml
-          rm tools/_unify_wiring_materializer.py
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
-          git add -A
+          git add serve.py .github/register-invocation-allowlist.txt tests/test_unify_flock_runtime_wiring.py
           git commit --signoff -m "fix(runtime): wire the Unify flock ledger"
           git push origin HEAD:fix/unify-flock-runtime-wiring
