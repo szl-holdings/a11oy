@@ -4757,7 +4757,13 @@ try:
     from fastapi import FastAPI as _AnatFA
     import szl_anatomy_routes as _anat_mod
     _anat_html_app = _AnatFA()
+    from fastapi.responses import RedirectResponse as _AnatRedirect
     _anat_paths = _anat_mod.register(app, ns="a11oy", api_app=None, html_app=_anat_html_app)
+    # Mount steals exact GET /anatomy from the living-anatomy alias. Put the
+    # 302 on the sub-app root so /anatomy and /anatomy/ both reach the page.
+    async def _anat_mount_root():
+        return _AnatRedirect("/living-anatomy", status_code=302)
+    _anat_html_app.add_api_route("/", _anat_mount_root, methods=["GET"], include_in_schema=False)
     app.mount("/anatomy", _anat_html_app)
     print(f"[a11oy] anatomy run-engine wired ({len(_anat_paths)} routes; HTML at /anatomy/*): {_anat_paths}", file=sys.stderr)
 except Exception as _anat_e:  # additive: never break the Space
