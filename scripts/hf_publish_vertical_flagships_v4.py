@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -135,14 +136,36 @@ def ensure_space_secret_reader() -> str:
     return "backported-metadata-only"
 
 
+def bind_controller_github_token() -> str:
+    """Expose the workflow token under the exact controller variable name.
+
+    GitHub Actions commonly supplies the repository token to this job as
+    ``GH_TOKEN`` for ``gh`` compatibility, while the pinned deployment
+    controller intentionally requires ``GITHUB_TOKEN`` before it will verify the
+    protected default-branch tip. The value remains in process memory only and is
+    never printed or written to a receipt.
+    """
+
+    for name in ("GITHUB_TOKEN", "GH_TOKEN"):
+        value = os.environ.get(name, "").strip()
+        if value:
+            os.environ["GITHUB_TOKEN"] = value
+            return name
+    raise RuntimeError(
+        "GitHub token unavailable for exact default-branch-tip verification"
+    )
+
+
 def main() -> int:
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,
     )
 
+    github_token_source = "unavailable"
     try:
         secret_reader = ensure_space_secret_reader()
+        github_token_source = bind_controller_github_token()
         combined_code, combined_error, _ = run_publisher(
             "szl_vertical_services_intelligence_v4",
             COMBINED_IMPL,
@@ -167,6 +190,8 @@ def main() -> int:
 
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
+    combined["github_token_source_name"] = github_token_source
+    combined["github_token_value_recorded"] = False
     flagship["estate_schema"] = "szl.hf-vertical-estate/v7"
     flagship["public_flagship_slugs"] = list(admitted or ())
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
