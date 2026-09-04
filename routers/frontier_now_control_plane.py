@@ -12,6 +12,8 @@ until an exact source-to-runtime binding is observed elsewhere.
 
 import hashlib
 import json
+import os
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Mapping
@@ -24,6 +26,8 @@ SCHEMA_INVENTORY = "szl.frontier-now-inventory/v1"
 OPERATING_MODE = "OBSERVE_ONLY"
 MAX_INVENTORY_LIMIT = 50
 PROVIDERS = {"all", "github", "huggingface", "runtime", "web"}
+GITHUB_DEFAULT_BRANCH_URL = "https://api.github.com/repos/szl-holdings/a11oy/commits/main"
+GITHUB_OBSERVE_TIMEOUT_S = 2.0
 NO_STORE_HEADERS = {
     "cache-control": "no-store",
     "x-content-type-options": "nosniff",
@@ -282,6 +286,71 @@ def _receipt_projection(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return projected
 
 
+def _observe_github_default_branch() -> str | None:
+    """Public GitHub tip only. No token. Timeout fails closed to None."""
+    if os.environ.get("A11OY_OBSERVE_GITHUB_MAIN", "1").strip().lower() in {
+        "0",
+        "false",
+        "off",
+        "no",
+    }:
+        return None
+    request = urllib.request.Request(
+        GITHUB_DEFAULT_BRANCH_URL,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "a11oy-frontier-now/1.0 (governed-read; no-secret)",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=GITHUB_OBSERVE_TIMEOUT_S) as response:
+            if int(getattr(response, "status", 0) or 0) != 200:
+                return None
+            payload = json.loads(response.read(65536).decode("utf-8"))
+    except Exception:
+        return None
+    sha = payload.get("sha") if isinstance(payload, dict) else None
+    if not isinstance(sha, str) or len(sha) < 7:
+        return None
+    return sha
+
+
+def _normalize_revision(value: Any) -> str:
+    return str(value or "").strip().lower()
+
+
+def _source_parity(runtime: Any, github: Any) -> tuple[str, str, str]:
+    github_sha = _normalize_revision(github)
+    runtime_sha = _normalize_revision(runtime)
+    if not github_sha:
+        return (
+            "UNAVAILABLE",
+            "UNAVAILABLE",
+            "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT",
+        )
+    if not runtime_sha:
+        return (
+            "UNAVAILABLE",
+            "UNAVAILABLE",
+            "RUNTIME_SOURCE_REVISION_UNAVAILABLE",
+        )
+    width = min(len(github_sha), len(runtime_sha))
+    matched = github_sha == runtime_sha or (
+        width >= 7 and github_sha[:width] == runtime_sha[:width]
+    )
+    if matched:
+        return (
+            "UNAVAILABLE",
+            "MATCH",
+            "GITHUB_MAIN_MATCHES_RUNTIME_HF_OVERLAY_AND_ARTIFACT_DIGEST_UNAVAILABLE",
+        )
+    return (
+        "DRIFT",
+        "DRIFT",
+        "GITHUB_DEFAULT_BRANCH_DRIFTS_FROM_RUNTIME_REPORTED_REVISION",
+    )
+
+
 def build_summary(app: FastAPI) -> dict[str, Any]:
     status, manifest, receipts, digest, proof_state = _snapshot(_service(app))
     state = str(status.get("state") or "UNAVAILABLE")
@@ -296,6 +365,10 @@ def build_summary(app: FastAPI) -> dict[str, Any]:
         raw_counts
         if state == "OBSERVED" and not critical_failures
         else {key: None for key in raw_counts}
+    )
+    github_revision = _observe_github_default_branch()
+    equivalence_state, parity_state, identity_reason = _source_parity(
+        source_revision, github_revision
     )
 
     return {
@@ -324,11 +397,11 @@ def build_summary(app: FastAPI) -> dict[str, Any]:
         },
         "identity": {
             "runtime_reported_source_revision": source_revision,
-            "github_default_branch_revision": None,
+            "github_default_branch_revision": github_revision,
             "huggingface_repository_revision": None,
             "runtime_artifact_digest": None,
-            "equivalence_state": "UNAVAILABLE",
-            "reason": "ESTATE_MANIFEST_DOES_NOT_BIND_SOURCE_TO_HF_OVERLAY_AND_RUNTIME_ARTIFACT",
+            "equivalence_state": equivalence_state,
+            "reason": identity_reason,
         },
         "counts": current_counts,
         "last_known_counts": {
@@ -351,8 +424,12 @@ def build_summary(app: FastAPI) -> dict[str, Any]:
             {
                 "id": "source-runtime-parity",
                 "label": "Source to runtime parity",
-                "state": "UNAVAILABLE",
-                "source": "binding-not-observed",
+                "state": parity_state,
+                "source": (
+                    "public-github-main"
+                    if github_revision
+                    else "binding-not-observed"
+                ),
             },
             {
                 "id": "defensive-activation",
