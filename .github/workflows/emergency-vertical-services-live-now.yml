@@ -1,0 +1,160 @@
+name: Emergency vertical-services exact-source publish
+
+on:
+  push:
+    branches:
+      - fix/vertical-services-pin-dfc16a3-live-now
+
+permissions:
+  contents: read
+
+concurrency:
+  group: emergency-vertical-services-live-now
+  cancel-in-progress: false
+
+env:
+  EXPECTED_VERTICAL_SERVICES_SHA: dfc16a3c89e0b4bc070dc7e8ae2415e9bcb04eab
+  HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+  HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+  HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
+  HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+
+jobs:
+  publish:
+    name: Publish and independently prove combined vertical runtime
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact recovery source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Require current external source tip and exact local pin
+        shell: bash
+        run: |
+          set -euo pipefail
+          observed="$(git ls-remote https://github.com/szl-holdings/vertical-services.git refs/heads/main | awk '{print $1}')"
+          test "$observed" = "$EXPECTED_VERTICAL_SERVICES_SHA"
+          grep -Fq "SOURCE_REVISION = \"$EXPECTED_VERTICAL_SERVICES_SHA\"" scripts/hf_publish_vertical_services.py
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact legacy client and test runner
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.10.1"
+          "pytest==8.4.2"
+
+      - name: Prove compatibility and publisher contracts offline
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/hf_publish_vertical_flagships_v4.py scripts/hf_publish_vertical_services.py
+          python -m pytest -q tests/test_hf_space_secret_reader_compat.py tests/test_hf_publish_vertical_flagships_v4.py
+          python - <<'PY'
+          import runpy
+          from huggingface_hub import HfApi
+
+          entry = runpy.run_path("scripts/hf_publish_vertical_flagships_v4.py")
+          mode = entry["ensure_space_secret_reader"]()
+          assert mode == "backported-metadata-only", mode
+          assert callable(getattr(HfApi, "get_space_secrets", None))
+          PY
+
+      - name: Require a configured canonical Hugging Face writer credential
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${HF_ORG_TOKEN:-}${HF_WRITE_TOKEN:-}${HF_TOKEN:-}${HUGGINGFACE_TOKEN:-}${HUGGING_FACE_HUB_TOKEN:-}"
+
+      - name: Publish only the combined six-engine runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import runpy
+
+          entry = runpy.run_path("scripts/hf_publish_vertical_flagships_v4.py")
+          mode = entry["ensure_space_secret_reader"]()
+          assert mode in {"native", "backported-metadata-only"}, mode
+          combined = runpy.run_path("scripts/hf_publish_vertical_services.py")
+          raise SystemExit(combined["main"]())
+          PY
+
+      - name: Independently prove live readiness and exact source binding
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          origin = "https://szlholdings-vertical-services.hf.space"
+          expected = os.environ["EXPECTED_VERTICAL_SERVICES_SHA"]
+
+          def get(path):
+              request = urllib.request.Request(
+                  f"{origin}{path}?proof={time.time_ns()}",
+                  headers={"Accept": "application/json", "Cache-Control": "no-cache"},
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  return response.status, json.loads(response.read().decode("utf-8"))
+
+          ready_http, ready = get("/readyz")
+          build_http, build = get("/api/build-info")
+          proof = {
+              "schema": "szl.vertical-services-live-proof/v1",
+              "origin": origin,
+              "expected_source_revision": expected,
+              "ready_http": ready_http,
+              "build_info_http": build_http,
+              "ready": ready.get("ready"),
+              "signing_key_source": ready.get("sentra_signing_key_source"),
+              "ready_revision": (ready.get("build") or {}).get("revision"),
+              "build_revision": (build.get("build") or {}).get("revision"),
+              "bindings_agree": (build.get("source_binding") or {}).get("bindings_agree"),
+              "credential_value_recorded": False,
+          }
+          proof["complete"] = bool(
+              ready_http == 200
+              and build_http == 200
+              and proof["ready"] is True
+              and proof["signing_key_source"] == "env"
+              and proof["ready_revision"] == expected
+              and proof["build_revision"] == expected
+              and proof["bindings_agree"] is True
+          )
+          Path("vertical-services-live-proof.json").write_text(
+              json.dumps(proof, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(proof, indent=2, sort_keys=True))
+          if not proof["complete"]:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload immutable recovery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vertical-services-live-now-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-vertical-services-receipt.json
+            vertical-services-live-proof.json
+          if-no-files-found: warn
+          retention-days: 180
