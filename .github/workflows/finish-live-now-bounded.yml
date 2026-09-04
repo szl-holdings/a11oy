@@ -1,0 +1,438 @@
+name: Finish current A11oy production convergence now
+
+on:
+  push:
+    branches:
+      - ops/finish-live-now-20260904-v1
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: finish-current-a11oy-production-convergence
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    name: Re-run bounded current-main gates, deploy, and independently prove live state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PRODUCT_ORIGIN: https://a-11-oy.com
+      HF_ORIGIN: https://szlholdings-a11oy.hf.space
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out inert controller branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/finish-live-now-20260904-v1
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Re-run or dispatch only the explicit current-main production allowlist
+        id: converge
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+          from typing import Any
+
+          REPOSITORY = os.environ["GITHUB_REPOSITORY"]
+          TOKEN = os.environ["GH_TOKEN"]
+          ALLOWLIST = {
+              "Sync and Relock Canonical Hugging Face Space",
+              "HF Ecosystem manifest drift",
+              "Operational Validation",
+              "Investor smoke gate (S1–S12)",
+              "HF Space module-drift guard",
+              "Public estate live witness",
+              "Live A11oy frontend contract",
+              "A11oy holographic experience v2",
+              "A11oy Holographic Experience v2",
+          }
+          SUCCESS = {"success", "neutral", "skipped"}
+          RETRYABLE = {"failure", "cancelled", "timed_out", "startup_failure", "stale"}
+          ACTIVE = {"queued", "in_progress", "waiting", "pending", "requested"}
+          USER_AGENT = "SZL-Bounded-Production-Convergence/1.0"
+
+          def api(method: str, path: str, payload: dict[str, Any] | None = None) -> tuple[int, Any]:
+              url = "https://api.github.com" + path
+              headers = {
+                  "Accept": "application/vnd.github+json",
+                  "Authorization": f"Bearer {TOKEN}",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "User-Agent": USER_AGENT,
+              }
+              data = None
+              if payload is not None:
+                  data = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+                  headers["Content-Type"] = "application/json"
+              request = urllib.request.Request(url, data=data, headers=headers, method=method)
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      body = response.read(4_000_000)
+                      parsed = json.loads(body.decode("utf-8")) if body else None
+                      return response.status, parsed
+              except urllib.error.HTTPError as exc:
+                  body = exc.read(1_000_000)
+                  try:
+                      parsed = json.loads(body.decode("utf-8")) if body else None
+                  except Exception:
+                      parsed = None
+                  return exc.code, parsed
+
+          _, repository = api("GET", f"/repos/{REPOSITORY}")
+          default_branch = str(repository["default_branch"])
+          _, branch = api(
+              "GET",
+              f"/repos/{REPOSITORY}/branches/{urllib.parse.quote(default_branch, safe='')}",
+          )
+          target_sha = str(branch["commit"]["sha"])
+          verification = (((branch.get("commit") or {}).get("commit") or {}).get("verification") or {})
+          if verification.get("verified") is not True:
+              raise SystemExit("protected default-branch tip is not cryptographically verified")
+
+          _, workflow_payload = api("GET", f"/repos/{REPOSITORY}/actions/workflows?per_page=100")
+          workflows = [
+              row for row in (workflow_payload or {}).get("workflows", [])
+              if isinstance(row, dict)
+              and row.get("state") == "active"
+              and str(row.get("name")) in ALLOWLIST
+          ]
+          actions: list[dict[str, Any]] = []
+          tracked: dict[int, dict[str, Any]] = {}
+
+          for workflow in workflows:
+              workflow_id = int(workflow["id"])
+              encoded_branch = urllib.parse.quote(default_branch, safe="")
+              _, runs_payload = api(
+                  "GET",
+                  f"/repos/{REPOSITORY}/actions/workflows/{workflow_id}/runs"
+                  f"?branch={encoded_branch}&per_page=30",
+              )
+              runs = [
+                  row for row in (runs_payload or {}).get("workflow_runs", [])
+                  if isinstance(row, dict) and row.get("head_sha") == target_sha
+              ]
+              current = runs[0] if runs else None
+              action = {
+                  "workflow_id": workflow_id,
+                  "name": workflow.get("name"),
+                  "path": workflow.get("path"),
+                  "target_sha": target_sha,
+                  "before_run_id": current.get("id") if current else None,
+                  "before_status": current.get("status") if current else None,
+                  "before_conclusion": current.get("conclusion") if current else None,
+                  "operation": "observe",
+                  "operation_http": None,
+              }
+
+              if current and str(current.get("status")) in ACTIVE:
+                  tracked[int(current["id"])] = action
+              elif current and str(current.get("conclusion")) in RETRYABLE:
+                  status, _ = api(
+                      "POST",
+                      f"/repos/{REPOSITORY}/actions/runs/{int(current['id'])}/rerun-failed-jobs",
+                  )
+                  if status not in {201, 202}:
+                      status, _ = api(
+                          "POST",
+                          f"/repos/{REPOSITORY}/actions/runs/{int(current['id'])}/rerun",
+                      )
+                  action["operation"] = "rerun-current-main"
+                  action["operation_http"] = status
+                  tracked[int(current["id"])] = action
+              elif current and str(current.get("conclusion")) in SUCCESS:
+                  action["operation"] = "already-green"
+                  tracked[int(current["id"])] = action
+              else:
+                  status, _ = api(
+                      "POST",
+                      f"/repos/{REPOSITORY}/actions/workflows/{workflow_id}/dispatches",
+                      {"ref": default_branch},
+                  )
+                  action["operation"] = "dispatch-current-main"
+                  action["operation_http"] = status
+              actions.append(action)
+
+          # Allow dispatches to materialize and then resolve a current-main run for each workflow.
+          time.sleep(12)
+          deadline = time.monotonic() + 30 * 60
+          final_rows: list[dict[str, Any]] = []
+          while True:
+              final_rows = []
+              any_active = False
+              for workflow in workflows:
+                  workflow_id = int(workflow["id"])
+                  encoded_branch = urllib.parse.quote(default_branch, safe="")
+                  _, runs_payload = api(
+                      "GET",
+                      f"/repos/{REPOSITORY}/actions/workflows/{workflow_id}/runs"
+                      f"?branch={encoded_branch}&per_page=30",
+                  )
+                  current_runs = [
+                      row for row in (runs_payload or {}).get("workflow_runs", [])
+                      if isinstance(row, dict) and row.get("head_sha") == target_sha
+                  ]
+                  current = current_runs[0] if current_runs else None
+                  row = {
+                      "workflow_id": workflow_id,
+                      "name": workflow.get("name"),
+                      "path": workflow.get("path"),
+                      "run_id": current.get("id") if current else None,
+                      "status": current.get("status") if current else "NOT_CREATED",
+                      "conclusion": current.get("conclusion") if current else None,
+                      "html_url": current.get("html_url") if current else None,
+                      "head_sha": current.get("head_sha") if current else None,
+                  }
+                  if current and str(current.get("status")) in ACTIVE:
+                      any_active = True
+                  final_rows.append(row)
+              if not any_active or time.monotonic() >= deadline:
+                  break
+              time.sleep(20)
+
+          report = {
+              "schema": "szl.current-main-convergence/v1",
+              "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+              "repository": REPOSITORY,
+              "default_branch": default_branch,
+              "target_sha": target_sha,
+              "target_verified": True,
+              "allowlist": sorted(ALLOWLIST),
+              "actions": actions,
+              "runs": final_rows,
+              "secret_values_recorded": False,
+              "source_mutation_performed": False,
+              "merge_performed": False,
+              "dns_mutation_performed": False,
+          }
+          terminal_red = [
+              row for row in final_rows
+              if row["status"] == "completed" and row["conclusion"] not in SUCCESS
+          ]
+          active = [row for row in final_rows if row["status"] in ACTIVE]
+          report["terminal_red"] = terminal_red
+          report["still_active"] = active
+          report["all_terminal_green"] = bool(final_rows) and not terminal_red and not active
+          Path("reports/current-main-convergence.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+          Path("reports/target-sha.txt").write_text(target_sha + "\n", encoding="ascii")
+          PY
+
+      - name: Independently probe the exact public and Hugging Face surfaces
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import hashlib
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+          from typing import Any
+
+          target_path = Path("reports/target-sha.txt")
+          target_sha = target_path.read_text(encoding="ascii").strip() if target_path.exists() else None
+          product = os.environ["PRODUCT_ORIGIN"].rstrip("/")
+          hf = os.environ["HF_ORIGIN"].rstrip("/")
+          routes = [
+              "/",
+              "/console",
+              "/api/livez",
+              "/api/build-info",
+              "/brain",
+              "/anatomy-v5",
+              "/living-anatomy",
+              "/hatun-mcp",
+              "/cockpit",
+              "/khipu",
+              "/immune",
+              "/lyte",
+              "/estate",
+              "/killinchu",
+              "/assets/szl-holo-v2.css",
+              "/assets/szl-holo-v2.js",
+          ]
+          markers = {
+              "/assets/szl-holo-v2.css": [
+                  "SZL FLUID ESTATE RAIL V4",
+                  "--szl-holo-accent: #57ebff",
+                  "--szl-holo-accent-2: #31e6d1",
+                  "prefers-reduced-motion",
+                  "forced-colors",
+              ],
+              "/assets/szl-holo-v2.js": [
+                  "SZL FLUID ESTATE RAIL V4",
+                  'label: "KILLINCHU"',
+                  'label: "HATUN"',
+                  'label: "SECOND BRAIN"',
+                  'label: "ANATOMY"',
+                  'dataset.szlBrainAnatomyNav = "bound"',
+              ],
+          }
+
+          def get(url: str) -> dict[str, Any]:
+              separator = "&" if "?" in url else "?"
+              request = urllib.request.Request(
+                  f"{url}{separator}proof={time.time_ns()}",
+                  headers={
+                      "Accept": "*/*",
+                      "Cache-Control": "no-cache, no-store",
+                      "Pragma": "no-cache",
+                      "User-Agent": "SZL-Independent-Live-Convergence-Proof/1.0",
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(request, timeout=35) as response:
+                      body = response.read(2_000_000)
+                      return {
+                          "status": response.status,
+                          "final_url": response.geturl().split("?", 1)[0],
+                          "body": body,
+                          "content_type": response.headers.get("content-type"),
+                      }
+              except urllib.error.HTTPError as exc:
+                  return {
+                      "status": exc.code,
+                      "final_url": exc.geturl().split("?", 1)[0],
+                      "body": exc.read(2_000_000),
+                      "content_type": exc.headers.get("content-type"),
+                  }
+              except Exception as exc:
+                  return {
+                      "status": None,
+                      "final_url": None,
+                      "body": b"",
+                      "content_type": None,
+                      "error_type": type(exc).__name__,
+                  }
+
+          evidence: dict[str, Any] = {
+              "schema": "szl.a11oy-public-live-proof/v1",
+              "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+              "target_sha": target_sha,
+              "origins": {},
+              "complete": False,
+              "failures": [],
+              "secret_values_recorded": False,
+              "private_addresses_recorded": False,
+          }
+          failures: list[str] = []
+          for label, base in (("product", product), ("hf", hf)):
+              rows: dict[str, Any] = {}
+              for path in routes:
+                  result = get(base + path)
+                  body = result.pop("body")
+                  text = body.decode("utf-8", "replace")
+                  row = {
+                      **result,
+                      "bytes": len(body),
+                      "sha256": hashlib.sha256(body).hexdigest() if body else None,
+                      "markers": {
+                          marker: marker in text for marker in markers.get(path, [])
+                      },
+                  }
+                  rows[path] = row
+                  if row["status"] != 200 or row["bytes"] == 0:
+                      failures.append(f"{label}{path}: expected non-empty HTTP 200")
+                  for marker, present in row["markers"].items():
+                      if not present:
+                          failures.append(f"{label}{path}: missing marker {marker}")
+              build_text_result = get(base + "/api/build-info")
+              build_text = build_text_result["body"].decode("utf-8", "replace")
+              source_match = bool(target_sha and target_sha in build_text)
+              if not source_match:
+                  failures.append(f"{label}: build-info does not contain exact protected-main SHA")
+              evidence["origins"][label] = {
+                  "base": base,
+                  "source_match": source_match,
+                  "routes": rows,
+              }
+
+          proof = get("https://a11oy.net/")
+          proof_body = proof.pop("body")
+          evidence["proof_domain"] = {
+              **proof,
+              "bytes": len(proof_body),
+              "sha256": hashlib.sha256(proof_body).hexdigest() if proof_body else None,
+          }
+          if evidence["proof_domain"]["status"] != 200 or not proof_body:
+              failures.append("a11oy.net: expected non-empty HTTP 200")
+
+          evidence["failures"] = failures
+          evidence["complete"] = not failures
+          Path("reports/a11oy-public-live-proof.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(evidence, indent=2, sort_keys=True))
+          if failures:
+              raise SystemExit(1)
+          PY
+
+      - name: Write exact operator summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          convergence_path = Path("reports/current-main-convergence.json")
+          live_path = Path("reports/a11oy-public-live-proof.json")
+          convergence = json.loads(convergence_path.read_text()) if convergence_path.exists() else {}
+          live = json.loads(live_path.read_text()) if live_path.exists() else {}
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as stream:
+              stream.write("# A11oy production convergence\n\n")
+              stream.write(f"- Protected-main SHA: `{convergence.get('target_sha', 'UNAVAILABLE')}`\n")
+              stream.write(f"- Main cryptographically verified: `{convergence.get('target_verified', False)}`\n")
+              stream.write(f"- Allowlisted workflows terminal green: `{convergence.get('all_terminal_green', False)}`\n")
+              stream.write(f"- Public and HF exact-source proof complete: `{live.get('complete', False)}`\n")
+              stream.write(f"- Live-proof failures: `{len(live.get('failures', []))}`\n\n")
+              stream.write("| Workflow | Status | Conclusion | Run |\n")
+              stream.write("|---|---|---|---|\n")
+              for row in convergence.get("runs", []):
+                  stream.write(
+                      f"| {row.get('name')} | {row.get('status')} | "
+                      f"{row.get('conclusion') or '—'} | {row.get('run_id') or '—'} |\n"
+                  )
+          PY
+
+      - name: Upload immutable secret-free convergence evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finish-current-a11oy-production-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/*.json
+          if-no-files-found: error
+          retention-days: 90
