@@ -1,0 +1,25 @@
+{
+  "credential_values_recorded": false,
+  "generated_at": "2026-09-04T21:54:43.355868+00:00",
+  "provider_mutation_authority": "PROTECTED_MAIN_WORKFLOWS_ONLY",
+  "runs": [
+    {
+      "conclusion": "TIMEOUT",
+      "dispatch_http": 204,
+      "run_id": 33923222408,
+      "status": "in_progress",
+      "url": "https://github.com/szl-holdings/a11oy/actions/runs/33923222408",
+      "workflow": "repair-hf-product-domain.yml"
+    },
+    {
+      "conclusion": "TIMEOUT",
+      "dispatch_http": 204,
+      "run_id": 33925747635,
+      "status": "in_progress",
+      "url": "https://github.com/szl-holdings/a11oy/actions/runs/33925747635",
+      "workflow": "repair-cloudflare-product-edge.yml"
+    }
+  ],
+  "schema": "szl.production-domain-controller-replay/v1",
+  "source_mutated": false
+}

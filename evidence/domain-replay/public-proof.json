@@ -1,0 +1,31 @@
+{
+  "apex": {
+    "error": "TimeoutError: The read operation timed out",
+    "status": "UNAVAILABLE"
+  },
+  "credential_values_recorded": false,
+  "hf_origin": {
+    "body_prefix": "<!doctype html>\n<!-- SPDX-License-Identifier: Apache-2.0\n     (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173 -->\n<!--\n  a11oy \u2014 front door (scroll narrative). Served at the Space root \"/\" by serve.py.\n  SOVEREIGN: Three.js r160 (MIT) vendored in-image at /hero/vendor3d. 0 runtime CDN.\n  Fonts (Space Grotesk / JetBrains Mono) vendored at /vendor/fonts/*.woff2.\n  HONESTY DOCTRINE v11 LOCKED \u2014 every figure is fetched live and labelled honestly\n  (REACHABLE / MEASURED / MO",
+    "content_type": "text/html; charset=utf-8",
+    "effective_url": "https://szlholdings-a11oy.hf.space/",
+    "location": null,
+    "status": 200
+  },
+  "honest": {
+    "body_prefix": "{\"organ\":\"a11oy\",\"git_sha\":\"dfe49d77e89440501eb4e499e4da12fe5412c113\",\"doctrine_lock\":{\"doctrine\":\"v11\",\"state\":\"LOCKED\",\"declarations\":749,\"axioms\":14,\"sorries\":163,\"commit\":\"c7c0ba17\",\"lambda\":\"Conjecture 1\",\"lambda_note\":\"\u039b-Aggregator Uniqueness \u2014 Conjecture 1, NOT a closed theorem.\",\"locked_formula_count\":8,\"locked_formula_ids\":[\"F1\",\"F4\",\"F7\",\"F11\",\"F12\",\"F18\",\"F19\",\"F22\"]},\"locked_formula_count\":8,\"locked_formula_ids\":[\"F1\",\"F4\",\"F7\",\"F11\",\"F12\",\"F18\",\"F19\",\"F22\"],\"footer\":\"Doctrine v11",
+    "content_type": "application/json",
+    "effective_url": "https://a-11-oy.com/api/a11oy/v1/honest",
+    "location": null,
+    "status": 200
+  },
+  "honest_contract": {
+    "locked_formula_count": null,
+    "organ": null
+  },
+  "schema": "szl.production-domain-public-proof/v1",
+  "verified": false,
+  "www": {
+    "error": "URLError: <urlopen error [SSL: TLSV1_ALERT_ACCESS_DENIED] tlsv1 alert access denied (_ssl.c:1000)>",
+    "status": "UNAVAILABLE"
+  }
+}
