@@ -17,7 +17,9 @@
     "a11oy": {
       "repository": "szl-holdings/a11oy",
       "revision_before_wave": "d22da22c5ef069b20865b5ac13a5744fb1e391c0",
-      "role": "governed action admission, product front door, receipts and vertical routing"
+      "role": "governed action admission, product front door, receipts and vertical routing",
+      "public_taxonomy_revision": "a50b1970bae4383f9760f7146436d424d5101fd3",
+      "intelligence_publisher_revision": "55d9336fed3a23da5b1abfed4f7f38dcc5121a06"
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
@@ -55,8 +57,11 @@
     },
     "vertical_services": {
       "repository": "szl-holdings/vertical-services",
-      "revision": "e08231a110fd80f85a61fba82d72ab7f1fe23836",
-      "role": "combined source for the six current domain service engines"
+      "revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "role": "combined Python intelligence fabric for six internal domain engines; published through the protected-main single writer",
+      "runtime_version": "2.2.0",
+      "publisher": "scripts/hf_publish_vertical_services_intelligence_v4.py",
+      "publisher_merge_revision": "55d9336fed3a23da5b1abfed4f7f38dcc5121a06"
     },
     "killinchu": {
       "repository": "szl-holdings/killinchu",
@@ -164,7 +169,9 @@
         "ownership graph",
         "underwriting queue"
       ],
-      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+      "formula_binding": "complete_locked_eight_via_shared_anatomy",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_runtime_version": "2.2.0"
     },
     {
       "slug": "killinchu",
@@ -173,7 +180,7 @@
       "canonical_source": "szl-holdings/killinchu",
       "canonical_revision": "928a6dace657f8f9e067773d23d5686fe3dcc716",
       "service_source": "szl-holdings/vertical-services",
-      "service_revision": "e08231a110fd80f85a61fba82d72ab7f1fe23836",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
       "runtime": "https://szlholdings-killinchu.hf.space",
       "workflow": [
         "DETECT",
@@ -209,7 +216,8 @@
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
       "public_product_boundary": "sole_public_cyber_physical_resilience_runtime",
-      "effectors": "SIMULATED_OR_OPERATOR_OWNED_UNLESS_SEPARATELY_PROVED"
+      "effectors": "SIMULATED_OR_OPERATOR_OWNED_UNLESS_SEPARATELY_PROVED",
+      "service_runtime_version": "2.2.0"
     },
     {
       "slug": "counsel",
@@ -230,7 +238,9 @@
         "authority rail",
         "work-product queue"
       ],
-      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+      "formula_binding": "complete_locked_eight_via_shared_anatomy",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_runtime_version": "2.2.0"
     },
     {
       "slug": "finance",
@@ -251,7 +261,9 @@
         "exposure matrix",
         "evidence ledger"
       ],
-      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+      "formula_binding": "complete_locked_eight_via_shared_anatomy",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_runtime_version": "2.2.0"
     },
     {
       "slug": "lyte",
@@ -272,7 +284,9 @@
         "trace timeline",
         "action queue"
       ],
-      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+      "formula_binding": "complete_locked_eight_via_shared_anatomy",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_runtime_version": "2.2.0"
     }
   ],
   "incubation": [
@@ -366,7 +380,7 @@
   },
   "wave_1": {
     "site": "Expose Living Anatomy and five public domain bodies backed by six internal engines, while preserving the buyer hero and runtime evidence instrument.",
-    "publisher_repair": "Bind the frontier-v3 canonical writer to vertical-services@e08231a110fd80f85a61fba82d72ab7f1fe23836 and fold Aegis/Sentra/Immune/Vessels into Killinchu public authority.",
+    "publisher_repair": "Bind the canonical single writer to vertical-services@83edba5c5e730c91d8f5f0a6531213fb860677af / runtime 2.2.0 through the intelligence-v4 composition layer; keep Aegis/Sentra/Immune/Vessels inside Killinchu public authority.",
     "next_vertical_order": [
       "killinchu_resilience",
       "lyte",
@@ -407,6 +421,58 @@
       "immune",
       "vessels"
     ],
-    "rule": "A capability alias or engine is not a separate public product authority."
+    "rule": "A capability alias or engine is not a separate public product authority.",
+    "vertical_services_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+    "vertical_services_runtime_version": "2.2.0"
+  },
+  "intelligence_fabric": {
+    "schema": "szl.vertical-intelligence-live-proof/v4",
+    "runtime_version": "2.2.0",
+    "source_repository": "szl-holdings/vertical-services",
+    "source_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+    "publisher_repository": "szl-holdings/a11oy",
+    "publisher_revision": "55d9336fed3a23da5b1abfed4f7f38dcc5121a06",
+    "public_flagship_spaces": [
+      "terra",
+      "counsel",
+      "finance",
+      "lyte"
+    ],
+    "internal_engines": [
+      "sentra",
+      "lyte",
+      "killinchu",
+      "finance",
+      "terra",
+      "counsel"
+    ],
+    "killinchu_capability_aliases": {
+      "aegis": "sentra",
+      "immune": "sentra",
+      "vessels": "killinchu"
+    },
+    "inference_assets": [
+      "SZLHOLDINGS/SZL-Khipu-1.5B",
+      "SZLHOLDINGS/szl-receiptagent-qwen35-0.8b-v2",
+      "SZLHOLDINGS/A11OY-MINI"
+    ],
+    "non_invokable_recipe_record": "SZLHOLDINGS/szl-nemo",
+    "kernel_assets": [
+      "SZLHOLDINGS/szl-kernels",
+      "SZLHOLDINGS/szl-lambda-gate",
+      "SZLHOLDINGS/szl-invariants",
+      "SZLHOLDINGS/szl-blocked",
+      "SZLHOLDINGS/szl-receipt-attn",
+      "SZLHOLDINGS/szl-block-kv"
+    ],
+    "authority": {
+      "caller_supplied_model_endpoints": false,
+      "hatun_can_authorize": false,
+      "finance_can_trade_or_hold_custody": false,
+      "terra_person_level_prospecting": false,
+      "killinchu_effectors": "SIMULATED_OR_OPERATOR_OWNED_UNLESS_SEPARATELY_PROVED",
+      "lambda": "CONJECTURE_1_ADVISORY"
+    },
+    "readiness_rule": "A published artifact or reachable route is not current until exact source-revision, route, connector, authority, and receipt checks pass."
   }
 }

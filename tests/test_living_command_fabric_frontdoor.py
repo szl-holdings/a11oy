@@ -10,12 +10,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = ROOT / "a11oy_landing.html"
 MANIFEST = ROOT / "docs" / "strategy" / "living-command-fabric.v1.json"
-PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services_frontier_v3.py"
-PUBLISHER_TEST = ROOT / "tests" / "test_hf_frontier_v3_rebase.py"
+PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services_intelligence_v4.py"
+PUBLISHER_TEST = ROOT / "tests" / "test_hf_publish_vertical_flagships_v4.py"
 
 LOCKED_EIGHT = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 VERTICALS = ["terra", "killinchu", "counsel", "finance", "lyte"]
-VERTICAL_REVISION = "e08231a110fd80f85a61fba82d72ab7f1fe23836"
+VERTICAL_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
 
 
 class LivingCommandFabricContract(unittest.TestCase):
@@ -146,6 +146,19 @@ class LivingCommandFabricContract(unittest.TestCase):
         stale = "96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de"
         self.assertNotIn(stale, publisher)
         self.assertNotIn(stale, contract_test)
+        intelligence = self.manifest["intelligence_fabric"]
+        self.assertEqual(intelligence["runtime_version"], "2.2.0")
+        self.assertEqual(intelligence["source_revision"], VERTICAL_REVISION)
+        self.assertEqual(
+            intelligence["internal_engines"],
+            ["sentra", "lyte", "killinchu", "finance", "terra", "counsel"],
+        )
+        self.assertEqual(
+            intelligence["killinchu_capability_aliases"],
+            {"aegis": "sentra", "immune": "sentra", "vessels": "killinchu"},
+        )
+        self.assertFalse(intelligence["authority"]["hatun_can_authorize"])
+        self.assertFalse(intelligence["authority"]["caller_supplied_model_endpoints"])
 
     def test_no_new_runtime_cdn_or_embedded_vendor_source_is_introduced(self) -> None:
         section = self.html.split(
