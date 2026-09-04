@@ -58,7 +58,7 @@
     },
     "vertical_services": {
       "repository": "szl-holdings/vertical-services",
-      "revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
+      "revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
       "role": "combined Python intelligence fabric for six internal domain engines; published through the protected-main single writer",
       "runtime_version": "2.2.0",
       "publisher": "scripts/hf_publish_vertical_services_intelligence_v4.py",
@@ -67,7 +67,14 @@
     "killinchu": {
       "repository": "szl-holdings/killinchu",
       "revision": "d66c1aa6316aff655a005b2ddd06c45c8e190286",
-      "role": "sole public cyber-physical resilience runtime; Aegis, Sentra/Defend, IMMUNE, Vessels/Maritime and Counter-UAS/Airspace are capability planes"
+      "role": "sole public cyber-physical resilience runtime; Vessels/Maritime and Counter-UAS/Airspace are capability planes; assurance is owned by Sentra"
+    },
+    "sentra": {
+      "repository": "szl-holdings/a11oy",
+      "owner_directive": "governance/owner-directives/2026-09-04-sentra.yaml",
+      "role": "sole public Assurance Command for GATE admission, YAWAR authority, evidence verification and the IMMUNE engine library",
+      "aegis_state": "DECOMMISSIONED",
+      "aegis_mission_routes_to": "SZLHOLDINGS/sentra"
     },
     "lyte": {
       "repository": "szl-holdings/lyte-services",
@@ -177,7 +184,7 @@
         "underwriting queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -187,7 +194,7 @@
       "canonical_source": "szl-holdings/killinchu",
       "canonical_revision": "d66c1aa6316aff655a005b2ddd06c45c8e190286",
       "service_source": "szl-holdings/vertical-services",
-      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
       "runtime": "https://szlholdings-killinchu.hf.space",
       "workflow": [
         "DETECT",
@@ -206,24 +213,55 @@
         "evidence ledger"
       ],
       "capability_planes": {
-        "aegis": "internal portfolio and assurance lens",
-        "sentra_defend": "defensive control-plane engine",
-        "immune": "admission, tripwires, signed authority and tamper-evident evidence",
         "vessels_maritime": "fleet, sanctions, ownership, route and voyage intelligence",
         "counter_uas_airspace": "counter-UAS and airspace mission pack"
       },
       "internal_engines": [
-        "sentra",
         "killinchu"
       ],
       "aliases": [
-        "aegis",
-        "immune",
         "vessels"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
       "public_product_boundary": "sole_public_cyber_physical_resilience_runtime",
       "effectors": "SIMULATED_OR_OPERATOR_OWNED_UNLESS_SEPARATELY_PROVED",
+      "service_runtime_version": "2.2.0"
+    },
+    {
+      "slug": "sentra",
+      "brand": "Sentra",
+      "domain": "assurance_command",
+      "canonical_source": "szl-holdings/a11oy",
+      "service_source": "szl-holdings/vertical-services",
+      "runtime": "https://szlholdings-sentra.hf.space",
+      "workflow": [
+        "ADMIT",
+        "GATE",
+        "REVIEW",
+        "VERIFY",
+        "RECEIPT"
+      ],
+      "decision_surface": [
+        "GATE admission queue",
+        "YAWAR human authority rail",
+        "evidence verification ledger",
+        "IMMUNE tripwire state"
+      ],
+      "capability_planes": {
+        "gate": "deny-by-default action admission",
+        "yawar": "human authority and bounded approval",
+        "evidence": "source, decision, verifier and receipt lineage",
+        "immune": "engine library for tripwires and tamper-evident assurance"
+      },
+      "engine_libraries": [
+        "immune"
+      ],
+      "decommissioned_history": {
+        "aegis": "DECOMMISSIONED; mission routes to Sentra"
+      },
+      "formula_binding": "complete_locked_eight_via_shared_anatomy",
+      "public_product_boundary": "sole_public_assurance_command",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -246,7 +284,7 @@
         "work-product queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -269,7 +307,7 @@
         "evidence ledger"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
+      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -386,10 +424,11 @@
     "selection_rule": "No universal winner. Forge benchmarks by hardware, latency, throughput, quality, energy and domain workload before promotion."
   },
   "wave_1": {
-    "site": "Expose Living Anatomy and five public domain bodies backed by six internal engines, while preserving the buyer hero and runtime evidence instrument.",
-    "publisher_repair": "A11oy remains the single Hugging Face writer. Terra, Counsel and Finance use vertical-services; Killinchu owns the folded resilience planes; Lyte publishes its exact tested lyte-services runtime. Every target requires source-tip, runtime revision and live route agreement.",
+    "site": "Expose Living Anatomy and six public domain bodies backed by six internal engines, while preserving the buyer hero and runtime evidence instrument.",
+    "publisher_repair": "A11oy remains the single Hugging Face writer. Terra, Counsel, Finance and Sentra use the vertical-services composition layer; Killinchu owns only the folded resilience planes; Lyte publishes its exact tested lyte-services runtime. Every target requires source-tip, runtime revision and live route agreement.",
     "next_vertical_order": [
       "killinchu_resilience",
+      "sentra_assurance",
       "lyte",
       "terra",
       "prism_counsel",
@@ -398,10 +437,11 @@
     ]
   },
   "public_product_taxonomy": {
-    "public_domain_body_count": 5,
+    "public_domain_body_count": 6,
     "public_domain_bodies": [
       "terra",
       "killinchu",
+      "sentra",
       "counsel",
       "finance",
       "lyte"
@@ -417,18 +457,27 @@
     ],
     "independent_domain_spaces": [
       "terra",
+      "killinchu",
+      "sentra",
       "counsel",
       "finance",
       "lyte"
     ],
     "resilience_product_space": "killinchu",
+    "assurance_product_space": "sentra",
     "folded_into_killinchu": [
-      "aegis",
-      "sentra",
-      "immune",
       "vessels"
     ],
-    "rule": "A capability alias or engine is not a separate public product authority.",
+    "engine_libraries_under_sentra": [
+      "immune"
+    ],
+    "decommissioned_surfaces": {
+      "aegis": {
+        "state": "DECOMMISSIONED",
+        "mission_routes_to": "sentra"
+      }
+    },
+    "rule": "A folded capability, engine library or decommissioned historical surface is not a separate public product authority.",
     "vertical_services_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
     "vertical_services_runtime_version": "2.2.0",
     "commercial_flagship_count": 3,
@@ -450,6 +499,7 @@
     "publisher_revision": "55d9336fed3a23da5b1abfed4f7f38dcc5121a06",
     "public_flagship_spaces": [
       "terra",
+      "sentra",
       "counsel",
       "finance",
       "lyte"
@@ -462,10 +512,14 @@
       "terra",
       "counsel"
     ],
-    "killinchu_capability_aliases": {
-      "aegis": "sentra",
-      "immune": "sentra",
+    "folded_capability_placement": {
       "vessels": "killinchu"
+    },
+    "engine_library_placement": {
+      "immune": "sentra"
+    },
+    "decommissioned_surface_routes": {
+      "aegis": "sentra"
     },
     "inference_assets": [
       "SZLHOLDINGS/SZL-Khipu-1.5B",

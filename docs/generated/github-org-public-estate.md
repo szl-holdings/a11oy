@@ -4,15 +4,16 @@
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
 **Measured Hub inventory:** 17 public Spaces · 45 models · 34 datasets as of `2026-09-06T15:15:28Z`.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
+16 topology-bound Spaces are present in the measured Hub inventory; inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
-### Five public domain bodies
+### Six public domain bodies
 
-- **Killinchu** — cyber-physical resilience intelligence · [`szl-holdings/killinchu`](https://github.com/szl-holdings/killinchu) · `SZLHOLDINGS/killinchu`
+- **Killinchu** — cyber-physical and maritime resilience command · [`szl-holdings/killinchu`](https://github.com/szl-holdings/killinchu) · `SZLHOLDINGS/killinchu`
+- **Sentra Assurance Command** — assurance, GATE, YAWAR, evidence, and IMMUNE workflows · [`szl-holdings/szl-defensive-control-plane`](https://github.com/szl-holdings/szl-defensive-control-plane) · `SZLHOLDINGS/sentra`
 - **Lyte** — business observability · [`szl-holdings/lyte-services`](https://github.com/szl-holdings/lyte-services) · `SZLHOLDINGS/lyte`
+- **PURIQ Finance** — financial intelligence · [`szl-holdings/puriq-live`](https://github.com/szl-holdings/puriq-live) · `SZLHOLDINGS/finance`
 - **Terra** — real-estate intelligence · [`szl-holdings/szl-real-estate`](https://github.com/szl-holdings/szl-real-estate) · `SZLHOLDINGS/terra`
 - **PRISM Counsel** — legal matter intelligence · [`szl-holdings/a11oy`](https://github.com/szl-holdings/a11oy) · `SZLHOLDINGS/counsel`
-- **PURIQ Finance** — financial intelligence · [`szl-holdings/puriq-live`](https://github.com/szl-holdings/puriq-live) · `SZLHOLDINGS/finance`
 
 ### Six internal engines
 
@@ -25,5 +26,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `fec1c77f964ef83979fe1f9ebfcd4fa82a7c0acbb6fe629e0f2e2799a26ff1f8`.
+Alignment receipt: `67ede194755577c68f2c7486097178f578809771cae3ce7ce0abc5bc4d33cfb6`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->

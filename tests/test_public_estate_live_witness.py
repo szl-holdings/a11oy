@@ -58,22 +58,21 @@ def test_capability_planes_cannot_reappear_as_public_products():
     assert not public_ids.intersection(planes)
     assert "sentra" in public_ids
     assert planes["vessels"]["runtime"] == "killinchu"
-    assert planes["aegis"]["status"] == "portfolio-label"
-    assert planes["aegis"]["runtime"] == "sentra"
-    assert planes["immune"]["status"] == "migration-required"
-    assert planes["immune"]["runtime"] is None
-    assert planes["immune"]["target_runtime"] == "sentra"
+    assert planes["aegis"]["status"] == "decommissioned"
+    assert planes["aegis"]["runtime"] == "sentra:absorbed-history"
+    assert planes["immune"]["status"] == "engine-library"
+    assert planes["immune"]["runtime"] == "sentra"
     assert all(
         plane["independent_public_space_allowed"] is False
         for plane in planes.values()
     )
 
 
-def test_manifest_rejects_silent_immune_runtime(tmp_path: Path):
+def test_manifest_rejects_immune_outside_sentra(tmp_path: Path):
     value = raw_manifest()
     immune = next(item for item in value["capability_planes"] if item["id"] == "immune")
-    immune["runtime"] = "sentra"
-    with pytest.raises(witness.ContractError, match="IMMUNE cannot silently alias"):
+    immune["runtime"] = "killinchu"
+    with pytest.raises(witness.ContractError, match="IMMUNE must resolve to Sentra"):
         witness.load_and_validate_manifest(write_manifest(tmp_path, value))
 
 
@@ -92,6 +91,28 @@ def test_manifest_rejects_folded_plane_as_seventh_product(tmp_path: Path):
     value["public_products"].append(duplicate)
     value["public_vertical_product_count"] = 7
     with pytest.raises(witness.ContractError, match="exactly six"):
+        witness.load_and_validate_manifest(write_manifest(tmp_path, value))
+
+
+def test_manifest_rejects_sentra_as_retirement_candidate(tmp_path: Path):
+    value = raw_manifest()
+    value["retirement_candidates"] = [
+        {
+            "hf_repository": "SZLHOLDINGS/sentra",
+            "state": "evidence-gated",
+            "retire_only_after": ["replacement-verified"],
+        }
+    ]
+    with pytest.raises(witness.ContractError, match="Sentra cannot be a retirement"):
+        witness.load_and_validate_manifest(write_manifest(tmp_path, value))
+
+
+def test_manifest_rejects_aegis_successor_outside_sentra(tmp_path: Path):
+    value = raw_manifest()
+    value["decommissioned_surfaces"][0]["mission_routes_to"] = (
+        "SZLHOLDINGS/killinchu"
+    )
+    with pytest.raises(witness.ContractError, match="Aegis mission must route to Sentra"):
         witness.load_and_validate_manifest(write_manifest(tmp_path, value))
 
 
@@ -186,8 +207,6 @@ def test_live_receipt_is_complete_only_when_every_surface_is_verified():
     )
     assert incomplete["complete"] is False
     assert incomplete["verified_surface_count"] == 6
-
-
 def test_killinchu_and_lyte_identity_policies_are_explicit_and_narrow():
     manifest = witness.load_and_validate_manifest(MANIFEST)
     killinchu = next(
@@ -348,7 +367,7 @@ def test_kept_sentra_cannot_return_to_retirement_candidates(tmp_path):
         "state": "evidence-gated",
         "retire_only_after": ["source-snapshot-recorded"],
     })
-    with pytest.raises(witness.ContractError, match="kept public Space"):
+    with pytest.raises(witness.ContractError, match="Sentra cannot be a retirement"):
         witness.load_and_validate_manifest(write_manifest(tmp_path, manifest))
 
 

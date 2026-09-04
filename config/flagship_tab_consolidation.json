@@ -55,35 +55,52 @@
       "space": "SZLHOLDINGS/killinchu",
       "source_repo": "szl-holdings/killinchu",
       "positioning": "Cyber-Physical Resilience Command",
-      "internal_portfolio_name": "Aegis",
       "tabs": [
         "Resilience",
-        "Defend",
-        "Immune",
         "Maritime",
         "Airspace",
         "Evidence",
         "Simulation"
       ],
       "capability_sources": {
-        "sentra": "szl-holdings/szl-defensive-control-plane",
-        "immune": "szl-holdings/immune",
         "vessels": "szl-holdings/killinchu",
         "counter_uas": "szl-holdings/killinchu"
       },
       "consolidates": [
         "sda",
-        "sentra",
-        "immune",
-        "immune-lattice",
-        "vessels",
-        "aegis-assurance"
+        "vessels"
       ],
       "legacy_space_retirement": {
-        "SZLHOLDINGS/vessels": "REFERENCE_CLEANUP_REQUIRED",
-        "SZLHOLDINGS/aegis-assurance": "DELETE_READY_AFTER_REFERENCE_CLEANUP",
-        "SZLHOLDINGS/sentra": "MIGRATION_REQUIRED",
-        "SZLHOLDINGS/immune": "MIGRATION_REQUIRED",
+        "SZLHOLDINGS/vessels": "REFERENCE_CLEANUP_REQUIRED"
+      }
+    },
+    {
+      "id": "sentra",
+      "space": "SZLHOLDINGS/sentra",
+      "source_repo": "szl-holdings/szl-defensive-control-plane",
+      "deployment_source_repo": "szl-holdings/a11oy",
+      "positioning": "Assurance Command",
+      "tabs": [
+        "GATE admission",
+        "YAWAR verification",
+        "Control graph",
+        "Evidence",
+        "Assurance queue",
+        "History"
+      ],
+      "capability_sources": {
+        "gate": "szl-holdings/szl-defensive-control-plane",
+        "yawar": "szl-holdings/a11oy",
+        "immune": "szl-holdings/immune"
+      },
+      "consolidates": [
+        "aegis-assurance",
+        "immune",
+        "immune-lattice"
+      ],
+      "legacy_space_retirement": {
+        "SZLHOLDINGS/aegis-assurance": "DECOMMISSIONED_TO_SENTRA",
+        "SZLHOLDINGS/immune": "ENGINE_MIGRATION_REQUIRED",
         "SZLHOLDINGS/immune-lattice": "PARITY_AUDIT_REQUIRED"
       }
     },

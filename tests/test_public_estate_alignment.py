@@ -45,29 +45,46 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.manifest = alignment.load_json(alignment.HF_MANIFEST)
         self.evidence = alignment.validate(self.contract, self.manifest)
 
-    def test_contract_has_one_fabric_five_bodies_and_six_engines(self) -> None:
+    def test_contract_has_one_fabric_six_bodies_and_six_engines(self) -> None:
         self.assertEqual(self.contract["fabric"]["id"], "a11oy")
-        self.assertEqual(len(self.contract["publicDomainBodies"]), 5)
+        self.assertEqual(len(self.contract["publicDomainBodies"]), 6)
         self.assertEqual(len(self.contract["internalEngines"]), 6)
         self.assertEqual(
             [row["id"] for row in self.contract["publicDomainBodies"]],
-            ["killinchu", "lyte", "terra", "counsel", "finance"],
+            ["killinchu", "sentra", "lyte", "finance", "terra", "counsel"],
         )
+
+    def test_owner_directive_role_boundaries_are_materialized(self) -> None:
+        body_ids = {row["id"] for row in self.contract["publicDomainBodies"]}
+        self.assertIn("sentra", body_ids)
+        self.assertIn("killinchu", body_ids)
+        self.assertNotIn("immune", body_ids)
+        immune = next(
+            row
+            for row in self.contract["supportingSystems"]
+            if row["id"] == "immune"
+        )
+        self.assertEqual(immune["classification"], "ENGINE_LIBRARY_UNDER_SENTRA")
+        ayllu = next(
+            row
+            for row in self.contract["supportingSystems"]
+            if row["id"] == "ayllu"
+        )
+        self.assertEqual(
+            ayllu["classification"], "NON_PRODUCT_SUPPORT_SURFACE"
+        )
+        self.assertNotIn("ayllu", body_ids)
+        historical = {
+            row["id"]: row["state"] for row in self.contract["historicalBindings"]
+        }
+        self.assertEqual(historical, {"vessels": "FOLDED_INTO_KILLINCHU"})
 
     def test_declared_hub_classifications_equal_measured_public_inventory(self) -> None:
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 13)
-        self.assertEqual(
-            inventory_only,
-            [
-                "SZLHOLDINGS/ayllu",
-                "SZLHOLDINGS/immune",
-                "SZLHOLDINGS/immune-lattice",
-                "SZLHOLDINGS/yarqa",
-            ],
-        )
+        self.assertEqual(len(topology), 16)
+        self.assertEqual(inventory_only, ["SZLHOLDINGS/yarqa"])
         self.assertEqual(
             sorted(topology + inventory_only, key=str.casefold),
             observed,
@@ -83,47 +100,46 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertEqual(killinchu["truth"], "SOURCE_OWNED_RUNTIME")
         self.assertIn("SZLHOLDINGS/killinchu", alignment.governed_keep_spaces())
 
-    def test_immune_spaces_are_inventory_only_folded_into_killinchu(self) -> None:
-        rows = {
-            row["id"]: row
-            for row in self.contract["inventoryOnlyHuggingFaceRepositories"]
-        }
-        for space in ("SZLHOLDINGS/immune", "SZLHOLDINGS/immune-lattice"):
-            with self.subTest(space=space):
-                self.assertEqual(rows[space]["classification"], "INVENTORY_ONLY")
-                self.assertFalse(rows[space]["governedKeep"])
-                self.assertEqual(rows[space]["disposition"], "FOLD")
-                self.assertEqual(
-                    rows[space]["policySource"],
-                    "docs/series-a/hf-space-keep-list.yaml",
-                )
-                self.assertNotIn(space, alignment.topology_spaces(self.contract))
-                self.assertNotIn(space, alignment.governed_keep_spaces())
-        historical = {
-            row["id"]: row["state"] for row in self.contract["historicalBindings"]
-        }
-        self.assertEqual(historical["immune"], "FOLDING_INTO_KILLINCHU")
-
-    def test_ayllu_is_inventory_only_fold_not_a_governed_keeper(self) -> None:
-        ayllu = [row for row in self.contract["inventoryOnlyHuggingFaceRepositories"] if row["id"] == "SZLHOLDINGS/ayllu"]
-        self.assertEqual(
-            ayllu,
-            [
-                {
-                    "id": "SZLHOLDINGS/ayllu",
-                    "classification": "INVENTORY_ONLY",
-                    "governedKeep": False,
-                    "disposition": "FOLD",
-                    "policySource": "docs/series-a/hf-space-keep-list.yaml",
-                }
-            ],
+    def test_immune_spaces_are_supporting_engine_surfaces_under_sentra(self) -> None:
+        immune = next(
+            row
+            for row in self.contract["supportingSystems"]
+            if row["id"] == "immune"
         )
+        self.assertEqual(immune["classification"], "ENGINE_LIBRARY_UNDER_SENTRA")
+        self.assertEqual(
+            immune["huggingFaceRepositories"],
+            ["SZLHOLDINGS/immune", "SZLHOLDINGS/immune-lattice"],
+        )
+        topology = alignment.topology_spaces(self.contract)
+        governed = alignment.governed_keep_spaces()
+        for space in immune["huggingFaceRepositories"]:
+            with self.subTest(space=space):
+                self.assertIn(space, topology)
+                self.assertNotIn(space, governed)
+                self.assertNotIn(
+                    space, alignment.inventory_only_spaces(self.contract)
+                )
+
+    def test_ayllu_is_non_product_support_not_a_governed_keeper(self) -> None:
+        ayllu = next(
+            row
+            for row in self.contract["supportingSystems"]
+            if row["id"] == "ayllu"
+        )
+        self.assertEqual(ayllu["classification"], "NON_PRODUCT_SUPPORT_SURFACE")
+        self.assertEqual(ayllu["huggingFaceRepositories"], ["SZLHOLDINGS/ayllu"])
+        self.assertNotIn(
+            "ayllu", {row["id"] for row in self.contract["publicDomainBodies"]}
+        )
+        self.assertIn("SZLHOLDINGS/ayllu", alignment.topology_spaces(self.contract))
         governed = alignment.governed_keep_spaces()
         organization_keepers = [
             item for item in governed if item.startswith("SZLHOLDINGS/")
         ]
-        self.assertEqual(len(organization_keepers), 7)
+        self.assertEqual(len(organization_keepers), 8)
         self.assertNotIn("SZLHOLDINGS/ayllu", governed)
+        self.assertIn("SZLHOLDINGS/sentra", governed)
         self.assertEqual(governed, load_keep_ids(alignment.KEEP_POLICY))
         self.assertEqual(
             self.evidence["governedKeepPolicySource"],
@@ -146,7 +162,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertNotIn(yarqa["id"], alignment.topology_spaces(self.contract))
         removed = copy.deepcopy(self.contract)
         removed["inventoryOnlyHuggingFaceRepositories"] = [row for row in rows if row["id"] != yarqa["id"]]
-        with self.assertRaisesRegex(alignment.ContractError, "undeclared=.*yarqa"):
+        with self.assertRaisesRegex(
+            alignment.ContractError, "Yarqa must remain the sole inventory-only Space"
+        ):
             alignment.validate(removed, self.manifest)
         promoted = copy.deepcopy(self.contract)
         promoted_yarqa = next(
@@ -171,22 +189,22 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                     alignment.validate(changed, self.manifest)
 
         overlap = copy.deepcopy(self.contract)
-        overlap["laboratorySurfaces"].append("SZLHOLDINGS/ayllu")
+        overlap["laboratorySurfaces"].append("SZLHOLDINGS/yarqa")
         with self.assertRaisesRegex(alignment.ContractError, "cannot be topology bindings"):
             alignment.validate(overlap, self.manifest)
 
     def test_quoted_keeper_ids_are_normalized_before_overlap_checks(self) -> None:
         policy = alignment.KEEP_POLICY.read_text(encoding="utf-8").replace(
             "  - id: SZLHOLDINGS/a11oy",
-            '  - id: "SZLHOLDINGS/ayllu"',
+            '  - id: "SZLHOLDINGS/yarqa"',
         )
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "keep.yaml"
             path.write_text(policy, encoding="utf-8")
             keepers = alignment.governed_keep_spaces(path)
 
-        self.assertIn("SZLHOLDINGS/ayllu", keepers)
-        self.assertNotIn('"SZLHOLDINGS/ayllu"', keepers)
+        self.assertIn("SZLHOLDINGS/yarqa", keepers)
+        self.assertNotIn('"SZLHOLDINGS/yarqa"', keepers)
         self.assertTrue(
             set(alignment.inventory_only_spaces(self.contract)) & set(keepers)
         )
@@ -254,7 +272,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertIn("governed = load_keep_ids(path)", operator)
         self.assertNotIn("re.finditer", operator)
         governed = load_keep_ids(alignment.KEEP_POLICY)
-        self.assertNotIn("SZLHOLDINGS/sentra", governed)
+        self.assertIn("SZLHOLDINGS/sentra", governed)
         self.assertNotIn("SZLHOLDINGS/ayllu", governed)
 
     def test_unknown_inventory_space_still_fails_closed(self) -> None:
@@ -294,10 +312,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn(self.evidence["alignmentSha256"], content)
             self.assertIn("inventory is observational", content)
             self.assertIn("Inventory-only / FOLD", content)
-            self.assertIn("`SZLHOLDINGS/ayllu`", content)
-            self.assertIn("`SZLHOLDINGS/immune`", content)
-            self.assertIn("`SZLHOLDINGS/immune-lattice`", content)
+            self.assertIn("16 topology-bound Spaces", content)
             self.assertIn("`SZLHOLDINGS/yarqa`", content)
+            self.assertIn("Sentra Assurance Command", content)
 
     def test_product_front_door_names_canonical_origins(self) -> None:
         landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")

@@ -1,12 +1,13 @@
-"""Regression coverage for the public KEEP-6 Hub Spaces inventory.
+"""Regression coverage for the seven-product Hub Spaces inventory.
 
 These tests are deliberately offline: runtime health remains the responsibility of the
 honest probe endpoint, while this suite locks identity, destinations, and the
 canonical-origin isolation boundary. Folded Spaces are not public Hub applications.
-Atlas keep-7 at 18:05Z is a prior snapshot and is not rewritten here.
+Supporting Spaces remain addressable but never count as products.
 """
 
 from pathlib import Path
+import re
 
 import szl_spaces_proxy as proxy
 import szl_spaces_surface as surface
@@ -16,14 +17,19 @@ EXPECTED = [
     ("a11oy", "a11oy", "a11oy — Command Center", "docker", "https://a-11-oy.com"),
     ("killinchu", "killinchu", "killinchu — Andean Drone Intelligence", "docker",
      "https://szlholdings-killinchu.hf.space/elite"),
-    ("immune", "immune", "IMMUNE — Verifiable AI Defense Matrix", "docker",
-     "https://a-11-oy.com/immune"),
-    ("szl-khipu", "szl-khipu", "szl-khipu", "docker", "https://a-11-oy.com/khipu"),
-    ("szl-atelier", "szl-atelier", "SZL Atelier — forty-model walk", "static",
-     "https://a11oy.net/atelier/"),
-    ("governed-receipt-verifier", "governed-receipt-verifier", "Governed Receipt Verifier", "static",
-     "https://a11oy.net/record/"),
+    ("sentra", "sentra", "Sentra — Assurance Command", "docker",
+     "https://szlholdings-sentra.hf.space"),
+    ("lyte", "lyte", "Lyte — Science Operations", "docker",
+     "https://szlholdings-lyte.hf.space"),
+    ("finance", "finance", "Finance — Finance Operations", "docker",
+     "https://szlholdings-finance.hf.space"),
+    ("terra", "terra", "Terra — Earth Systems Operations", "docker",
+     "https://szlholdings-terra.hf.space"),
+    ("counsel", "counsel", "Counsel — Legal Research Operations", "docker",
+     "https://szlholdings-counsel.hf.space"),
 ]
+
+SUPPORTING = {"immune", "szl-khipu", "szl-atelier", "governed-receipt-verifier"}
 
 FOLDED_PII = ("david-leads", "anatomy", "szl-real-estate")
 
@@ -33,13 +39,15 @@ def _rows(records):
 
 
 def test_audited_inventory_is_exact_and_in_lockstep():
-    assert len(EXPECTED) == 6
-    assert surface.KEEP_TARGET == 6
+    assert len(EXPECTED) == 7
+    assert surface.KEEP_TARGET == 7
     assert _rows(surface.SPACES) == EXPECTED
     assert _rows(proxy.SPACE_INVENTORY) == EXPECTED
     assert proxy.SPACE_INVENTORY is not surface.SPACES
-    assert len({row[0] for row in EXPECTED}) == 6
-    assert len({row[1] for row in EXPECTED}) == 6
+    assert len({row[0] for row in EXPECTED}) == 7
+    assert len({row[1] for row in EXPECTED}) == 7
+    assert {sp["name"] for sp in surface.SUPPORTING_SPACES} == SUPPORTING
+    assert SUPPORTING.isdisjoint({row[0] for row in EXPECTED})
     assert not {"cathedral", "energy", "khipu-constellation"} & set(proxy.ALL_SPACES)
     assert "governed-agent-bench" not in {row[0] for row in EXPECTED}
     assert "cosmos" not in {row[0] for row in EXPECTED}
@@ -69,7 +77,9 @@ def test_every_audited_shortcut_hands_off_to_an_isolated_origin():
     expected_slugs = {row[1] for row in EXPECTED}
     assert set(proxy.ALL_SPACES) == expected_slugs
     assert expected_slugs <= set(proxy.HANDOFF_SPACES)
-    assert len(proxy.HANDOFF_SPACES) == 6 + len(proxy.FOLD_INVENTORY)
+    assert len(proxy.HANDOFF_SPACES) == (
+        7 + len(proxy.SUPPORT_INVENTORY) + len(proxy.FOLD_INVENTORY)
+    )
     for name, _slug, _title, _sdk, dest in EXPECTED:
         assert surface.canonical_url(name) == dest
         assert surface.proxy_url(name) == dest
@@ -112,8 +122,11 @@ def test_tiles_and_fallback_render_every_audited_title_without_runtime_claims():
         assert dest in tiles
         assert title in fallback
         assert name in fallback
-    assert "Public Hub cut is 6 KEEP" in tiles
-    assert "Public Hub cut is 6 KEEP" in fallback
+    assert "Canonical product cut is 7 KEEP" in tiles
+    assert "Public Hub cut is 7 KEEP" in fallback
+    assert "NOT A PUBLIC PRODUCT" in tiles
+    for support in SUPPORTING:
+        assert f'data-support="{support}"' in tiles
     assert "/verify is not cloned" in tiles
     assert "all RUNNING" not in fallback
     assert "Open destination" in tiles
@@ -161,6 +174,9 @@ def test_registered_shortcuts_redirect_without_proxying_content():
     assert client.get("/spaces/a11oy").headers["location"] == "https://a-11-oy.com"
     assert client.get("/spaces/killinchu").headers["location"] == (
         "https://szlholdings-killinchu.hf.space/elite"
+    )
+    assert client.get("/spaces/sentra").headers["location"] == (
+        "https://szlholdings-sentra.hf.space"
     )
     assert client.get("/spaces/szl-khipu").headers["location"] == (
         "https://a-11-oy.com/khipu"
@@ -228,9 +244,9 @@ def test_sda_vendored_widget_is_locked_to_the_canonical_verifier_contract():
     if not widget_path.exists():
         return
     widget = widget_path.read_text(encoding="utf-8")
-    assert widget.startswith(
-        "// VENDORED FROM szl-holdings/platform@9798feff9af3d6b0d8737abd70f71a1db1755a65"
-    )
+    assert re.match(
+        r"// VENDORED FROM szl-holdings/platform@[0-9a-f]{40}\b", widget
+    ), "vendored widget must carry an immutable source commit"
     assert "VERIFY_PATH  = '/api/a11oy/v1/verify/receipt'" in widget
     assert "/api/a11oy/v1/verify?url=" not in widget
     assert "p = pull(u, {method:'GET'})" in widget
@@ -288,6 +304,9 @@ def test_inventory_set_equality_detects_missing_and_unexpected_spaces():
     exact_with_profile = asyncio.run(
         surface._probe_inventory(Client(canonical + ["README"]))
     )
+    exact_with_support = asyncio.run(
+        surface._probe_inventory(Client(canonical + sorted(SUPPORTING)))
+    )
     drift = asyncio.run(
         surface._probe_inventory(Client(canonical[1:] + ["README", "rogue-space"]))
     )
@@ -296,6 +315,10 @@ def test_inventory_set_equality_detects_missing_and_unexpected_spaces():
     assert exact_with_profile["state"] == "LIVE"
     assert exact_with_profile["observed_count"] == len(canonical)
     assert exact_with_profile["missing"] == exact_with_profile["unexpected"] == []
+    assert exact_with_support["state"] == "LIVE"
+    assert exact_with_support["observed_product_count"] == len(canonical)
+    assert exact_with_support["supporting"] == sorted(SUPPORTING)
+    assert exact_with_support["unexpected"] == []
     assert drift["state"] == "DEGRADED"
     assert drift["missing"] == [canonical[0]]
     assert drift["unexpected"] == ["rogue-space"]

@@ -15,8 +15,10 @@ deployment time. Each source revision is immutable for the run and guarded
 against default-branch drift before mutation.
 
 One public product surface does not require one undifferentiated code module.
-Models propose, kernels constrain, Hatun reviews, and humans retain
-consequential authority.
+Sentra and maritime contracts remain independently
+testable engines inside the combined runtime while Sentra has its own assurance
+front door and maritime remains under Killinchu. Models propose, kernels
+constrain, Hatun reviews, and humans retain consequential authority.
 """
 from __future__ import annotations
 
@@ -54,7 +56,7 @@ SHA40 = re.compile(r"^[0-9a-f]{40}$")
 # Historical identifiers stay visible for receipt readers and protected
 # regression tests. They are documentation strings, not active topology.
 PREVIOUS_ESTATE_SCHEMA = "szl.hf-vertical-estate/v7"
-LEGACY_GENERATED_GUARD = "retired Killinchu capability plane reached public writer"
+LEGACY_GENERATED_GUARD = "folded Killinchu capability plane reached public writer"
 LEGACY_PUBLIC_FLAGSHIP_CONTRACT = (
     'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")'
 )
@@ -100,6 +102,7 @@ def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
             "generated public writer"
         )
     module.FLAGSHIPS = admitted
+    module.CANONICAL_ENTRYPOINT_ADMITTED = True
     return tuple(item["slug"] for item in admitted)
 
 
@@ -357,6 +360,7 @@ def main() -> int:
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
     flagship["killinchu_space"] = KILLINCHU_SPACE
     flagship["sentra_space"] = SENTRA_SPACE
+    flagship["sentra_role"] = "sole-assurance-command"
     flagship["lyte_runtime"] = lyte
     flagship["combined_runtime"] = combined
     flagship["existing_space_guard"] = creation_guard

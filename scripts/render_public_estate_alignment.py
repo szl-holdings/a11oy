@@ -91,7 +91,7 @@ def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
             raise ContractError("inventory-only Space cannot be a governed keeper")
         if row.get("disposition") != "FOLD":
             raise ContractError("inventory-only Space must retain its FOLD disposition")
-        if row.get("policySource") != str(KEEP_POLICY.relative_to(ROOT)):
+        if row.get("policySource") != KEEP_POLICY.relative_to(ROOT).as_posix():
             raise ContractError("inventory-only Space must cite the canonical keep policy")
         ids.append(row.get("id"))
     return sorted(_unique(ids, "inventory-only Hub Spaces"), key=str.casefold)
@@ -137,14 +137,54 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
 
     bodies = contract.get("publicDomainBodies")
     engines = contract.get("internalEngines")
-    if not isinstance(bodies, list) or not isinstance(engines, list):
-        raise ContractError("public bodies or internal engines are missing")
-    if [row.get("id") for row in bodies] != ["killinchu", "lyte", "terra", "counsel", "finance"]:
-        raise ContractError("five-domain-body contract drifted")
+    supporting = contract.get("supportingSystems")
+    if (
+        not isinstance(bodies, list)
+        or not isinstance(engines, list)
+        or not isinstance(supporting, list)
+    ):
+        raise ContractError("public bodies, internal engines, or supporting systems are missing")
+    if [row.get("id") for row in bodies] != [
+        "killinchu",
+        "sentra",
+        "lyte",
+        "finance",
+        "terra",
+        "counsel",
+    ]:
+        raise ContractError("six-domain-body contract drifted")
     if len(engines) != 6:
         raise ContractError("exactly six internal engines are required")
     _unique([row.get("id") for row in bodies], "public body ids")
     _unique([row.get("id") for row in engines], "engine ids")
+
+    if [row.get("id") for row in supporting] != [
+        "immune",
+        "ayllu",
+        "vertical-services",
+    ]:
+        raise ContractError("supporting-system contract drifted")
+    immune = supporting[0]
+    if immune != {
+        "id": "immune",
+        "name": "IMMUNE engine library",
+        "githubRepository": "szl-holdings/immune",
+        "huggingFaceRepositories": [
+            "SZLHOLDINGS/immune",
+            "SZLHOLDINGS/immune-lattice",
+        ],
+        "classification": "ENGINE_LIBRARY_UNDER_SENTRA",
+    }:
+        raise ContractError("IMMUNE must remain an engine library under Sentra")
+    ayllu = supporting[1]
+    if ayllu != {
+        "id": "ayllu",
+        "name": "Ayllu council support surface",
+        "githubRepository": "szl-holdings/ayllu",
+        "huggingFaceRepositories": ["SZLHOLDINGS/ayllu"],
+        "classification": "NON_PRODUCT_SUPPORT_SURFACE",
+    }:
+        raise ContractError("Ayllu must remain a non-product support surface")
 
     formula = next((row for row in engines if row.get("id") == "formula-kernel"), None)
     if not isinstance(formula, dict):
@@ -168,11 +208,15 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
     inventory_only = inventory_only_spaces(contract)
     governed_keep = governed_keep_spaces()
     observed = measured_spaces(manifest)
+    if inventory_only != ["SZLHOLDINGS/yarqa"]:
+        raise ContractError("Yarqa must remain the sole inventory-only Space")
     overlap = sorted(set(topology) & set(inventory_only), key=str.casefold)
     if overlap:
         raise ContractError(
             f"inventory-only Spaces cannot be topology bindings; overlap={overlap}"
         )
+    if len(topology) != 16:
+        raise ContractError("exactly sixteen measured Spaces must have topology bindings")
     governed_overlap = sorted(
         set(inventory_only) & set(governed_keep), key=str.casefold
     )
@@ -180,6 +224,33 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         raise ContractError(
             "inventory-only Spaces cannot be governed keepers; "
             f"overlap={governed_overlap}"
+        )
+    required_product_keepers = {
+        contract["fabric"]["huggingFaceRepository"],
+        *(repo for row in bodies for repo in row["huggingFaceRepositories"]),
+    }
+    missing_product_keepers = sorted(
+        required_product_keepers - set(governed_keep), key=str.casefold
+    )
+    if missing_product_keepers:
+        raise ContractError(
+            "canonical product Spaces must be governed keepers; "
+            f"missing={missing_product_keepers}"
+        )
+    non_product_keepers = sorted(
+        {
+            "SZLHOLDINGS/ayllu",
+            "SZLHOLDINGS/immune",
+            "SZLHOLDINGS/immune-lattice",
+            "SZLHOLDINGS/yarqa",
+        }
+        & set(governed_keep),
+        key=str.casefold,
+    )
+    if non_product_keepers:
+        raise ContractError(
+            "non-product support and inventory-only Spaces cannot be governed keepers; "
+            f"overlap={non_product_keepers}"
         )
     declared = sorted(topology + inventory_only, key=str.casefold)
     if declared != observed:
@@ -212,7 +283,7 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         "huggingFaceTopologyBindings": topology,
         "huggingFaceInventoryOnly": inventory_only,
         "governedKeepSet": governed_keep,
-        "governedKeepPolicySource": str(KEEP_POLICY.relative_to(ROOT)),
+        "governedKeepPolicySource": KEEP_POLICY.relative_to(ROOT).as_posix(),
         "keepPolicySha256": hashlib.sha256(KEEP_POLICY.read_bytes()).hexdigest(),
         "huggingFaceCounts": counts,
         "huggingFaceObservedAt": manifest.get("observedAt"),
@@ -239,7 +310,8 @@ def _inventory_policy_line(evidence: dict[str, Any]) -> str:
         f"`{space}`" for space in evidence["huggingFaceInventoryOnly"]
     )
     return (
-        "Measured Hub inventory is observational and is not the governed keep-list. "
+        f"{len(evidence['huggingFaceTopologyBindings'])} topology-bound Spaces are present "
+        "in the measured Hub inventory; inventory is observational and is not the governed keep-list. "
         f"Inventory-only / FOLD (not governed keepers): {inventory_only}. "
         "Canonical keep policy: "
         f"`{evidence['governedKeepPolicySource']}`."
@@ -261,7 +333,7 @@ def render_github(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
         f"as of `{evidence['huggingFaceObservedAt']}`.",
         _inventory_policy_line(evidence),
         "",
-        "### Five public domain bodies",
+        "### Six public domain bodies",
         "",
         *_body_lines(contract),
         "",

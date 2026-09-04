@@ -3,9 +3,9 @@
 
 Uses the org token from GitHub Actions (HF_ORG_TOKEN || HF_TOKEN).
 
-Aegis is no longer a separate Space target: it is the internal portfolio name
-for Killinchu's cyber-resilience capability family. The historical adapter
-source stays in Git, but this publisher must never recreate
+Aegis is no longer a separate Space target: it is decommissioned, retained
+history whose assurance mission routes to Sentra. The historical adapter source
+stays in Git, but this publisher must never recreate
 ``SZLHOLDINGS/aegis-assurance``.
 
 Does not wait for RUNNING. Does not stamp LIVE. Writes evidence JSON only.
@@ -205,7 +205,7 @@ def main() -> int:
         "runtime_claimed": False,
         "note": (
             "Private adapters uploaded when the Space already existed or create "
-            "succeeded. Aegis is internal to Killinchu and cannot be recreated. "
+            "succeeded. Aegis is absorbed history under Sentra and cannot be recreated. "
             "Do not claim RUNNING or LIVE without Hub runtime readback."
         ),
     }

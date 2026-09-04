@@ -245,11 +245,17 @@ def _readiness(app: Any) -> tuple[dict[str, Any], int]:
     }
     blockers = [name for name, value in components.items() if value.get("blocking")]
     ready = not blockers
+    degraded = [
+        name for name, value in components.items()
+        if not value.get("blocking")
+        and str(value.get("state", "UNKNOWN")).upper() not in {"LIVE", "READY"}
+    ]
     body = {
-        "status": "READY" if ready else "NOT_READY",
+        "status": "DEGRADED" if ready and degraded else "READY" if ready else "NOT_READY",
         "ready": ready,
         "components": components,
         "blocking_components": blockers,
+        "degraded_components": degraded,
         "receipt_minted": False,
     }
     return body, 200 if ready else 503

@@ -68,6 +68,23 @@ def test_readyz_checks_chain(client):
     assert body["khipu_backend"] == "sqlite"
 
 
+def test_readyz_fails_closed_when_chain_is_intact_but_store_is_memory(client):
+    store = client.app.state.be_khipu
+    original_backend = store.backend
+    store.backend = "memory"
+    try:
+        response = client.get(f"/api/{ORGAN}/v1/readyz")
+    finally:
+        store.backend = original_backend
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "degraded"
+    assert body["khipu_chain_ok"] is True
+    assert body["khipu_durable"] is False
+    assert body["blocking_reasons"] == ["khipu-store-not-durable"]
+
+
 # ---- 1: real input validation (pydantic) -----------------------------------
 def test_echo_valid(client):
     r = client.post(f"/api/{ORGAN}/v1/be/echo", json={"message": "hi"})

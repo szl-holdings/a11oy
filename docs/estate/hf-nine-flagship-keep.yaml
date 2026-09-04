@@ -1,6 +1,6 @@
 as_of: "2026-09-04"
 state: APPLY
-policy_version: cyber-resilience-consolidation-v2
+policy_version: assurance-command-split-v3
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 organization_hub: https://huggingface.co/SZLHOLDINGS
@@ -13,11 +13,18 @@ keep:
     role: cyber_physical_resilience
     source: szl-holdings/killinchu
     capability_planes:
-      - sentra
-      - immune
       - vessels
       - counter-uas
       - evidence
+  - id: SZLHOLDINGS/sentra
+    owner_class: organization
+    role: sole_assurance_command
+    source: szl-holdings/szl-defensive-control-plane
+    capability_planes:
+      - gate
+      - yawar
+      - evidence
+      - immune
   - id: SZLHOLDINGS/terra
     owner_class: organization
     role: real_estate
@@ -44,11 +51,15 @@ keep:
 retire_into_killinchu:
   - id: SZLHOLDINGS/vessels
     state: REFERENCE_CLEANUP_REQUIRED
+decommissioned:
   - id: SZLHOLDINGS/aegis-assurance
-    state: DELETE_READY_AFTER_REFERENCE_CLEANUP
-  - id: SZLHOLDINGS/sentra
-    state: MIGRATION_REQUIRED
+    state: DECOMMISSIONED
+    mission_routes_to: SZLHOLDINGS/sentra
+    history_preserved: true
+engine_migrations:
   - id: SZLHOLDINGS/immune
     state: MIGRATION_REQUIRED
+    target_role: SZLHOLDINGS/sentra#engine-library
   - id: SZLHOLDINGS/immune-lattice
     state: PARITY_AUDIT_REQUIRED
+    target_role: SZLHOLDINGS/sentra#engine-library

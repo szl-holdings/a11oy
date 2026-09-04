@@ -6,10 +6,10 @@ proof: https://a11oy.net
 hub: https://huggingface.co/SZLHOLDINGS
 counts:
   spaces_total_observed_org: 57
-  spaces_public_target_org: 7
+  spaces_public_target_org: 8
   spaces_private_target_org: 50
   spaces_public_target_creator: 1
-  spaces_public_target_total: 8
+  spaces_public_target_total: 9
 keep:
   - id: SZLHOLDINGS/a11oy
     role: command
@@ -19,11 +19,18 @@ keep:
     dest: https://szlholdings-killinchu.hf.space
     source: szl-holdings/killinchu
     capability_planes:
-      - sentra
-      - immune
       - vessels
       - counter-uas
       - evidence
+  - id: SZLHOLDINGS/sentra
+    role: sole_assurance_command
+    dest: https://szlholdings-sentra.hf.space
+    source: szl-holdings/szl-defensive-control-plane
+    capability_planes:
+      - gate
+      - yawar
+      - evidence
+      - immune
   - id: SZLHOLDINGS/terra
     role: real_estate
   - id: SZLHOLDINGS/counsel
@@ -46,18 +53,18 @@ retire_into_killinchu:
   - id: SZLHOLDINGS/vessels
     state: REFERENCE_CLEANUP_REQUIRED
     target_route: https://szlholdings-killinchu.hf.space/vessels
+decommissioned:
   - id: SZLHOLDINGS/aegis-assurance
-    state: DELETE_READY_AFTER_REFERENCE_CLEANUP
-    target_route: https://szlholdings-killinchu.hf.space/resilience
-  - id: SZLHOLDINGS/sentra
-    state: MIGRATION_REQUIRED
-    target_route: https://szlholdings-killinchu.hf.space/defend
+    state: DECOMMISSIONED
+    mission_routes_to: https://szlholdings-sentra.hf.space
+    history_preserved: true
+engine_migrations:
   - id: SZLHOLDINGS/immune
     state: MIGRATION_REQUIRED
-    target_route: https://szlholdings-killinchu.hf.space/immune
+    target_role: SZLHOLDINGS/sentra#engine-library
   - id: SZLHOLDINGS/immune-lattice
     state: PARITY_AUDIT_REQUIRED
-    target_route: https://szlholdings-killinchu.hf.space/immune
+    target_role: SZLHOLDINGS/sentra#engine-library
 org_card: SZLHOLDINGS/README
 previous_execution:
   workflow_run: 33687884541
@@ -73,4 +80,4 @@ retirement_gate:
   - replacement_verified
   - no_unique_secret_dependency
   - secret_free_retirement_receipt
-note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. The public estate keeps seven organization Spaces plus the creator-profile Living Anatomy Space. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Living Anatomy is source-bound to szl-holdings/anatomy, published at betterwithage/anatomy, and exposes only the handles-only public Second Brain projection."
+note: "Owner decision 2026-09-04: Killinchu is the sole Cyber-Physical Resilience Command and retains Vessels. Sentra is the sole Assurance Command, absorbs Aegis, and owns IMMUNE as an engine/library. The public estate keeps eight organization Spaces, including the separate David Leads workflow, plus the creator-profile Living Anatomy Space. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Living Anatomy is source-bound to szl-holdings/anatomy, published at betterwithage/anatomy, and exposes only the handles-only public Second Brain projection."

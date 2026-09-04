@@ -670,11 +670,19 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get("/readyz", tags=["health"])
     async def _readyz():
         ok, depth, brk = store.verify()
-        body = {"status": "ready" if ok else "degraded", "organ": organ,
-                "khipu_backend": store.backend, "khipu_durable": store.backend in ("sqlite", "json"),
+        durable = store.backend in ("sqlite", "json")
+        ready = bool(ok) and durable
+        body = {"status": "ready" if ready else "degraded", "organ": organ,
+                "khipu_backend": store.backend, "khipu_durable": durable,
                 "khipu_depth": depth, "khipu_chain_ok": ok,
+                "blocking_reasons": ([] if ready else [
+                    reason for reason, blocked in (
+                        ("khipu-chain-invalid", not bool(ok)),
+                        ("khipu-store-not-durable", not durable),
+                    ) if blocked
+                ]),
                 "khipu_first_break_seq": brk, "doctrine": DOCTRINE}
-        return JSONResponse(body, status_code=200 if ok else 503)
+        return JSONResponse(body, status_code=200 if ready else 503)
 
     _health_head_paths = {
         "/healthz", f"{base}/healthz", "/readyz", f"{base}/readyz",

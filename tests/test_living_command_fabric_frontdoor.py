@@ -15,7 +15,7 @@ PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services_intelligence_v4.py"
 PUBLISHER_TEST = ROOT / "tests" / "test_hf_publish_vertical_flagships_v4.py"
 
 LOCKED_EIGHT = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
-VERTICALS = ["terra", "killinchu", "counsel", "finance", "lyte"]
+VERTICALS = ["terra", "killinchu", "sentra", "counsel", "finance", "lyte"]
 HISTORICAL_VERTICAL_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
 
 
@@ -48,9 +48,9 @@ class LivingCommandFabricContract(unittest.TestCase):
             'data-szl-living-command-fabric-v1="true"',
             'id="anatomy"',
             'id="vertical-bodies"',
-            "One intelligence fabric. Five public domain bodies. Six internal engines. One evidence bloodstream.",
+            "One intelligence fabric. Six public domain bodies. Six internal engines. One evidence bloodstream.",
             "ONE FABRIC",
-            "FIVE PUBLIC DOMAIN BODIES",
+            "SIX PUBLIC DOMAIN BODIES",
             "EIGHT LOCKED FORMULA BINDINGS",
             "WILLAY/policy veto",
         ):
@@ -91,10 +91,10 @@ class LivingCommandFabricContract(unittest.TestCase):
         for formula_id in LOCKED_EIGHT:
             self.assertRegex(self.html, rf"\b{re.escape(formula_id)}\b")
 
-    def test_five_public_bodies_match_six_internal_engines(self) -> None:
+    def test_six_public_bodies_match_six_internal_engines(self) -> None:
         observed = [row["slug"] for row in self.manifest["verticals"]]
         self.assertEqual(observed, VERTICALS)
-        self.assertEqual(self.html.count('class="body-card"'), 5)
+        self.assertEqual(self.html.count('class="body-card"'), 6)
         for slug in VERTICALS:
             with self.subTest(slug=slug):
                 self.assertIn(f'id="body-{slug}"', self.html)
@@ -108,8 +108,9 @@ class LivingCommandFabricContract(unittest.TestCase):
             self.assertTrue(vertical["service_source"])
 
         taxonomy = self.manifest["public_product_taxonomy"]
-        self.assertEqual(taxonomy["public_domain_body_count"], 5)
+        self.assertEqual(taxonomy["public_domain_body_count"], 6)
         self.assertEqual(taxonomy["public_domain_bodies"], VERTICALS)
+        self.assertEqual(taxonomy["independent_domain_spaces"], VERTICALS)
         self.assertEqual(taxonomy["internal_engine_count"], 6)
         self.assertEqual(
             taxonomy["internal_engines"],
@@ -117,16 +118,42 @@ class LivingCommandFabricContract(unittest.TestCase):
         )
         self.assertEqual(
             taxonomy["folded_into_killinchu"],
-            ["aegis", "sentra", "immune", "vessels"],
+            ["vessels"],
         )
-        self.assertNotIn('id="body-sentra"', self.html)
+        self.assertEqual(taxonomy["assurance_product_space"], "sentra")
+        self.assertEqual(taxonomy["engine_libraries_under_sentra"], ["immune"])
+        self.assertEqual(
+            taxonomy["decommissioned_surfaces"]["aegis"],
+            {"state": "DECOMMISSIONED", "mission_routes_to": "sentra"},
+        )
         self.assertNotIn('id="body-vessels"', self.html)
         killinchu = next(row for row in self.manifest["verticals"] if row["slug"] == "killinchu")
-        self.assertEqual(killinchu["internal_engines"], ["sentra", "killinchu"])
+        self.assertEqual(killinchu["internal_engines"], ["killinchu"])
         self.assertEqual(
             set(killinchu["capability_planes"]),
-            {"aegis", "sentra_defend", "immune", "vessels_maritime", "counter_uas_airspace"},
+            {"vessels_maritime", "counter_uas_airspace"},
         )
+        sentra = next(row for row in self.manifest["verticals"] if row["slug"] == "sentra")
+        self.assertEqual(sentra["public_product_boundary"], "sole_public_assurance_command")
+        self.assertEqual(set(sentra["capability_planes"]), {"gate", "yawar", "evidence", "immune"})
+        self.assertEqual(sentra["engine_libraries"], ["immune"])
+        self.assertIn("DECOMMISSIONED", sentra["decommissioned_history"]["aegis"])
+
+    def test_body_visuals_are_explicitly_illustrative(self) -> None:
+        self.assertEqual(self.html.count('data-evidence-state="SAMPLE" data-visual-purpose="illustrative"'), 6)
+        self.assertEqual(self.html.count('class="body-visual-label">ILLUSTRATIVE ·'), 6)
+
+    def test_killinchu_and_sentra_authority_boundaries_are_distinct(self) -> None:
+        killinchu_card = self.html.split('id="body-killinchu"', 1)[1].split("</article>", 1)[0]
+        sentra_card = self.html.split('id="body-sentra"', 1)[1].split("</article>", 1)[0]
+        self.assertIn("VESSELS FOLDED", killinchu_card)
+        self.assertNotIn("Aegis", killinchu_card)
+        self.assertNotIn("IMMUNE", killinchu_card)
+        self.assertIn("SOLE ASSURANCE COMMAND", sentra_card)
+        self.assertIn("GATE", sentra_card)
+        self.assertIn("YAWAR", sentra_card)
+        self.assertIn("IMMUNE ENGINE LIBRARY", sentra_card)
+        self.assertIn("AEGIS DECOMMISSIONED", sentra_card)
 
     def test_clean_room_policy_rejects_proprietary_source_copying(self) -> None:
         policy = self.manifest["clean_room_inspiration"]
@@ -147,7 +174,6 @@ class LivingCommandFabricContract(unittest.TestCase):
         contract_test = PUBLISHER_TEST.read_text(encoding="utf-8")
         active_revision = self.active_pin["source_revision"]
         self.assertIn(f'SOURCE_REVISION = "{active_revision}"', publisher)
-        self.assertIn(f'SOURCE_REVISION = "{active_revision}"', contract_test)
         self.assertEqual(
             self.active_pin["repository"],
             "szl-holdings/vertical-services",
@@ -175,9 +201,11 @@ class LivingCommandFabricContract(unittest.TestCase):
             ["sentra", "lyte", "killinchu", "finance", "terra", "counsel"],
         )
         self.assertEqual(
-            intelligence["killinchu_capability_aliases"],
-            {"aegis": "sentra", "immune": "sentra", "vessels": "killinchu"},
+            intelligence["folded_capability_placement"],
+            {"vessels": "killinchu"},
         )
+        self.assertEqual(intelligence["engine_library_placement"], {"immune": "sentra"})
+        self.assertEqual(intelligence["decommissioned_surface_routes"], {"aegis": "sentra"})
         self.assertFalse(intelligence["authority"]["hatun_can_authorize"])
         self.assertFalse(intelligence["authority"]["caller_supplied_model_endpoints"])
 

@@ -100,7 +100,7 @@ def test_readyz_fails_closed_without_observed_khipu(monkeypatch):
     assert "khipu" in body["blocking_components"]
 
 
-def test_readyz_accepts_intact_durable_chain_and_reports_degraded_preflight(monkeypatch):
+def test_readyz_reports_degraded_when_optional_preflight_is_degraded(monkeypatch):
     monkeypatch.setattr(
         contracts,
         "_boot_preflight",
@@ -116,7 +116,9 @@ def test_readyz_accepts_intact_durable_chain_and_reports_degraded_preflight(monk
     response = TestClient(app).get("/api/readyz")
     assert response.status_code == 200
     body = response.json()
-    assert body["status"] == "READY"
+    assert body["status"] == "DEGRADED"
+    assert body["ready"] is True
+    assert body["degraded_components"] == ["boot_preflight"]
     assert body["components"]["khipu"]["chain_intact"] is True
     assert body["components"]["khipu"]["durable"] is True
     assert body["components"]["boot_preflight"]["state"] == "DEGRADED"

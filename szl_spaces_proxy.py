@@ -34,6 +34,7 @@ from urllib.parse import quote
 
 from szl_spaces_surface import FOLD_SPACES as _FOLD_SPACES
 from szl_spaces_surface import SPACES as _CANONICAL_SPACES
+from szl_spaces_surface import SUPPORTING_SPACES as _SUPPORTING_SPACES
 from szl_spaces_surface import canonical_url as _destination_url
 
 _ORG_PREFIX = "szlholdings-"
@@ -43,8 +44,11 @@ SPACE_HANDOFF_MODE = "canonical-redirect-only/v1"
 # Runtime state is deliberately absent here. Copy records so this compatibility
 # surface cannot mutate the canonical registry by accident.
 SPACE_INVENTORY: list[dict[str, str]] = [dict(record) for record in _CANONICAL_SPACES]
+SUPPORT_INVENTORY: list[dict[str, str]] = [dict(record) for record in _SUPPORTING_SPACES]
 FOLD_INVENTORY: list[dict[str, str]] = [dict(record) for record in _FOLD_SPACES]
-HANDOFF_INVENTORY: list[dict[str, str]] = SPACE_INVENTORY + FOLD_INVENTORY
+HANDOFF_INVENTORY: list[dict[str, str]] = (
+    SPACE_INVENTORY + SUPPORT_INVENTORY + FOLD_INVENTORY
+)
 _SPACE_BY_NAME = {sp["name"]: sp for sp in HANDOFF_INVENTORY}
 _SPACE_BY_SLUG = {sp["slug"]: sp for sp in HANDOFF_INVENTORY}
 
@@ -253,8 +257,8 @@ if __name__ == "__main__":
     assert "client." + "request(" not in source
     assert "upstream." + "content" not in source
 
-    assert len(ALL_SPACES) == 6
-    assert len(HANDOFF_SPACES) == 6 + len(FOLD_INVENTORY)
+    assert len(ALL_SPACES) == 7
+    assert len(HANDOFF_SPACES) == 7 + len(SUPPORT_INVENTORY) + len(FOLD_INVENTORY)
     assert hf_url("governed-agent-bench") == "https://szlholdings-governed-agent-bench.hf.space"
     assert hf_url("immune") == "https://szlholdings-immune.hf.space"
     assert _canonical_target("immune") == "https://a-11-oy.com/immune"
@@ -318,6 +322,6 @@ if __name__ == "__main__":
     assert cosmos.headers["location"] == "https://a-11-oy.com/living-anatomy"
 
     print(
-        "szl_spaces_proxy: ALL OK (6 KEEP + fold dest handoffs; "
+        "szl_spaces_proxy: ALL OK (7 products + support/fold destination handoffs; "
         "path/query preserved; no-store; no upstream bytes/Set-Cookie)"
     )

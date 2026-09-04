@@ -41,8 +41,8 @@ ALLOWED_SOURCE_REPOSITORY_POLICIES = {
 ALLOWED_HF_REVISION_POLICIES = {"runtime-declared", "provider-observed"}
 ALLOWED_CAPABILITY_STATES = {
     "folded",
-    "portfolio-label",
-    "migration-required",
+    "decommissioned",
+    "engine-library",
 }
 
 
@@ -259,7 +259,11 @@ def load_and_validate_manifest(path: Path) -> dict[str, Any]:
     require(len(surface_ids) == len(set(surface_ids)), "public surface IDs must be unique")
     require(len(hf_repositories) == len(set(hf_repositories)), "public HF repositories must be unique")
     require(len(base_urls) == len(set(base_urls)), "public origins must be unique")
-    require({item["id"] for item in products} == {"killinchu", "sentra", "lyte", "finance", "terra", "counsel"}, "public product identity drift")
+    require(
+        {item["id"] for item in products}
+        == {"killinchu", "sentra", "lyte", "finance", "terra", "counsel"},
+        "public product identity drift",
+    )
 
     planes = manifest.get("capability_planes")
     require(isinstance(planes, list), "capability_planes must be a list")
@@ -279,19 +283,41 @@ def load_and_validate_manifest(path: Path) -> dict[str, Any]:
     require(set(plane_by_id) == {"vessels", "aegis", "immune"}, "capability-plane inventory drift")
     require(not set(plane_by_id).intersection(surface_ids), "capability plane leaked into public surfaces")
     require(plane_by_id["vessels"].get("runtime") == "killinchu", "Vessels must resolve to Killinchu")
-    require(plane_by_id["aegis"].get("status") == "portfolio-label", "Aegis must remain a label")
-    require(plane_by_id["aegis"].get("runtime") == "sentra", "Aegis must resolve to Sentra")
-    require(plane_by_id["immune"].get("status") == "migration-required", "IMMUNE must remain migration-gated")
-    require(plane_by_id["immune"].get("runtime") is None, "IMMUNE cannot silently alias to a runtime")
-    require(plane_by_id["immune"].get("target_runtime") == "sentra", "IMMUNE migration target must be Sentra")
+    require(plane_by_id["aegis"].get("status") == "decommissioned", "Aegis must remain decommissioned")
+    require(plane_by_id["aegis"].get("runtime") == "sentra:absorbed-history", "Aegis history must resolve to Sentra")
+    require(plane_by_id["immune"].get("status") == "engine-library", "IMMUNE must remain an engine/library")
+    require(plane_by_id["immune"].get("runtime") == "sentra", "IMMUNE must resolve to Sentra")
 
     retirement = manifest.get("retirement_candidates")
     require(isinstance(retirement, list), "retirement_candidates must be a list")
     for candidate in retirement:
         require(isinstance(candidate, dict), "retirement candidate must be an object")
+        require(
+            candidate.get("hf_repository") != "SZLHOLDINGS/sentra",
+            "Sentra cannot be a retirement candidate",
+        )
         require(candidate.get("hf_repository") not in hf_repositories, "kept public Space cannot be a retirement candidate")
         require(candidate.get("state") == "evidence-gated", "retirement must remain evidence-gated")
         require_string_list(candidate.get("retire_only_after"), "retire_only_after")
+
+    decommissioned = manifest.get("decommissioned_surfaces")
+    require(isinstance(decommissioned, list), "decommissioned_surfaces must be a list")
+    aegis_history = next(
+        (
+            item
+            for item in decommissioned
+            if isinstance(item, dict)
+            and item.get("hf_repository") == "SZLHOLDINGS/aegis-assurance"
+        ),
+        None,
+    )
+    require(isinstance(aegis_history, dict), "Aegis decommissioned history is required")
+    require(aegis_history.get("state") == "DECOMMISSIONED", "Aegis history state drift")
+    require(
+        aegis_history.get("mission_routes_to") == "SZLHOLDINGS/sentra",
+        "Aegis mission must route to Sentra",
+    )
+    require(aegis_history.get("history_preserved") is True, "Aegis history must be preserved")
 
     result = dict(manifest)
     result["allowed_hosts"] = sorted(allowed_hosts)

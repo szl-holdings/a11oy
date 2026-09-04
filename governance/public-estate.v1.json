@@ -30,6 +30,9 @@
       "build_info_path": "/api/build-info",
       "required_paths": [
         "/",
+        "/healthz",
+        "/api/livez",
+        "/api/readyz",
         "/api/build-info"
       ],
       "source_repository_policy": "manifest-fixed-runtime-revision",
@@ -74,8 +77,16 @@
       "required_paths": [
         "/",
         "/healthz",
+        "/livez",
+        "/readyz",
         "/api/build-info",
-        "/api/source"
+        "/api/source",
+        "/api/live",
+        "/api/capabilities",
+        "/api/data-sources",
+        "/api/doctrine",
+        "/api/demo",
+        "/api/provenance/verify"
       ]
     },
     {
@@ -115,8 +126,16 @@
       "required_paths": [
         "/",
         "/healthz",
+        "/livez",
+        "/readyz",
         "/api/build-info",
-        "/api/source"
+        "/api/source",
+        "/api/live",
+        "/api/capabilities",
+        "/api/data-sources",
+        "/api/doctrine",
+        "/api/demo",
+        "/api/provenance/verify"
       ]
     },
     {
@@ -132,8 +151,16 @@
       "required_paths": [
         "/",
         "/healthz",
+        "/livez",
+        "/readyz",
         "/api/build-info",
-        "/api/source"
+        "/api/source",
+        "/api/live",
+        "/api/capabilities",
+        "/api/data-sources",
+        "/api/doctrine",
+        "/api/demo",
+        "/api/provenance/verify"
       ]
     },
     {
@@ -149,8 +176,16 @@
       "required_paths": [
         "/",
         "/healthz",
+        "/livez",
+        "/readyz",
         "/api/build-info",
-        "/api/source"
+        "/api/source",
+        "/api/live",
+        "/api/capabilities",
+        "/api/data-sources",
+        "/api/doctrine",
+        "/api/demo",
+        "/api/provenance/verify"
       ]
     }
   ],
@@ -165,18 +200,18 @@
     },
     {
       "id": "aegis",
-      "status": "portfolio-label",
-      "runtime": "sentra",
+      "status": "decommissioned",
+      "runtime": "sentra:absorbed-history",
       "public_route": "https://szlholdings-sentra.hf.space/",
       "independent_public_space_allowed": false,
-      "reason": "Assurance label under Sentra, as directed by owner-2026-09-04-sentra-assurance-command; not a competing runtime."
+      "reason": "Decommissioned assurance product whose mission and retained history route to Sentra."
     },
     {
       "id": "immune",
-      "status": "migration-required",
-      "runtime": null,
+      "status": "engine-library",
+      "runtime": "sentra",
       "target_runtime": "sentra",
-      "public_route": null,
+      "public_route": "https://szlholdings-sentra.hf.space/",
       "independent_public_space_allowed": false,
       "required_before_admission": [
         "unique-admission-contract",
@@ -185,7 +220,8 @@
         "rollback-receipt-contract",
         "parity-gated-live-witness"
       ],
-      "reason": "Engine/library under Sentra by owner directive; runtime migration remains unverified until unique contracts are imported and proven."
+      "deployment_evidence": "UNVERIFIED",
+      "reason": "Engine/library authority belongs to Sentra; this placement does not itself prove that migration or admission contracts are live."
     }
   ],
   "internal_surfaces": [
@@ -197,12 +233,16 @@
     }
   ],
   "retirement_candidates": [],
-  "non_product_review_queue": [
+  "decommissioned_surfaces": [
     {
       "hf_repository": "SZLHOLDINGS/aegis-assurance",
-      "state": "decommissioned-by-owner-directive",
-      "decision_rule": "Assurance mission routes to Sentra under owner-2026-09-04-sentra-assurance-command; no provider deletion is performed by this witness."
-    },
+      "state": "DECOMMISSIONED",
+      "mission_routes_to": "SZLHOLDINGS/sentra",
+      "history_preserved": true,
+      "effective": "2026-09-04"
+    }
+  ],
+  "non_product_review_queue": [
     {
       "hf_repository": "SZLHOLDINGS/david-leads",
       "state": "classify-before-placement",

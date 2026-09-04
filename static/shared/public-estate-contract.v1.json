@@ -20,10 +20,19 @@
     {
       "id": "killinchu",
       "name": "Killinchu",
-      "domain": "cyber-physical resilience intelligence",
+      "domain": "cyber-physical and maritime resilience command",
       "productPath": "/killinchu",
       "githubRepository": "szl-holdings/killinchu",
       "huggingFaceRepositories": ["SZLHOLDINGS/killinchu"],
+      "truth": "SOURCE_OWNED_RUNTIME"
+    },
+    {
+      "id": "sentra",
+      "name": "Sentra Assurance Command",
+      "domain": "assurance, GATE, YAWAR, evidence, and IMMUNE workflows",
+      "productPath": "/sentra",
+      "githubRepository": "szl-holdings/szl-defensive-control-plane",
+      "huggingFaceRepositories": ["SZLHOLDINGS/sentra"],
       "truth": "SOURCE_OWNED_RUNTIME"
     },
     {
@@ -34,6 +43,15 @@
       "githubRepository": "szl-holdings/lyte-services",
       "huggingFaceRepositories": ["SZLHOLDINGS/lyte"],
       "truth": "SOURCE_OWNED_RUNTIME"
+    },
+    {
+      "id": "finance",
+      "name": "PURIQ Finance",
+      "domain": "financial intelligence",
+      "productPath": "/finance",
+      "githubRepository": "szl-holdings/puriq-live",
+      "huggingFaceRepositories": ["SZLHOLDINGS/finance"],
+      "truth": "PUBLIC_SOURCE_EVIDENCE"
     },
     {
       "id": "terra",
@@ -52,15 +70,6 @@
       "githubRepository": "szl-holdings/a11oy",
       "githubPath": "verticals/counsel",
       "huggingFaceRepositories": ["SZLHOLDINGS/counsel"],
-      "truth": "PUBLIC_SOURCE_EVIDENCE"
-    },
-    {
-      "id": "finance",
-      "name": "PURIQ Finance",
-      "domain": "financial intelligence",
-      "productPath": "/finance",
-      "githubRepository": "szl-holdings/puriq-live",
-      "huggingFaceRepositories": ["SZLHOLDINGS/finance"],
       "truth": "PUBLIC_SOURCE_EVIDENCE"
     }
   ],
@@ -101,11 +110,18 @@
   ],
   "supportingSystems": [
     {
-      "id": "sentra",
-      "name": "Sentra Assurance Command",
-      "githubRepository": "szl-holdings/szl-defensive-control-plane",
-      "huggingFaceRepositories": ["SZLHOLDINGS/sentra"],
-      "classification": "CONTROL_PLANE"
+      "id": "immune",
+      "name": "IMMUNE engine library",
+      "githubRepository": "szl-holdings/immune",
+      "huggingFaceRepositories": ["SZLHOLDINGS/immune", "SZLHOLDINGS/immune-lattice"],
+      "classification": "ENGINE_LIBRARY_UNDER_SENTRA"
+    },
+    {
+      "id": "ayllu",
+      "name": "Ayllu council support surface",
+      "githubRepository": "szl-holdings/ayllu",
+      "huggingFaceRepositories": ["SZLHOLDINGS/ayllu"],
+      "classification": "NON_PRODUCT_SUPPORT_SURFACE"
     },
     {
       "id": "vertical-services",
@@ -124,27 +140,6 @@
   ],
   "inventoryOnlyHuggingFaceRepositories": [
     {
-      "id": "SZLHOLDINGS/ayllu",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/immune",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
-      "id": "SZLHOLDINGS/immune-lattice",
-      "classification": "INVENTORY_ONLY",
-      "governedKeep": false,
-      "disposition": "FOLD",
-      "policySource": "docs/series-a/hf-space-keep-list.yaml"
-    },
-    {
       "id": "SZLHOLDINGS/yarqa",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -156,11 +151,6 @@
     {
       "id": "vessels",
       "state": "FOLDED_INTO_KILLINCHU",
-      "retirementPolicy": "PRESERVE_UNTIL_SOURCE_BINDING_AND_ROLLBACK_RECEIPTS_EXIST"
-    },
-    {
-      "id": "immune",
-      "state": "FOLDING_INTO_KILLINCHU",
       "retirementPolicy": "PRESERVE_UNTIL_SOURCE_BINDING_AND_ROLLBACK_RECEIPTS_EXIST"
     }
   ],
