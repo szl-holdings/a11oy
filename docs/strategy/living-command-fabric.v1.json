@@ -1,0 +1,195 @@
+{
+  "schema": "szl.living-command-fabric/v1",
+  "generated_at": "2026-09-03",
+  "estate": {
+    "github_organization": "szl-holdings",
+    "repository_count": 112,
+    "active_repository_count": 77,
+    "archived_repository_count": 35,
+    "public_repository_count": 106,
+    "private_repository_count": 6,
+    "census_method": "Authenticated GitHub organization search, pages 1-3; pages 1-2 returned 112 unique repositories and page 3 was empty.",
+    "product_surface": "https://a-11-oy.com",
+    "proof_surface": "https://a11oy.net",
+    "artifact_organization": "SZLHOLDINGS"
+  },
+  "authorities": {
+    "a11oy": {
+      "repository": "szl-holdings/a11oy",
+      "revision_before_wave": "d22da22c5ef069b20865b5ac13a5744fb1e391c0",
+      "role": "governed action admission, product front door, receipts and vertical routing"
+    },
+    "formulas": {
+      "repository": "szl-holdings/szl-formulas",
+      "revision": "46cfa948367e8133eaa8dd6bcfb781b19165b9bb",
+      "role": "typed callable formula authority; maturity labels are never inferred"
+    },
+    "lean_kernel": {
+      "repository": "szl-holdings/lutar-lean",
+      "locked_proven_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+      "locked_proven_count": 8
+    },
+    "anatomy": {
+      "repository": "szl-holdings/anatomy",
+      "revision": "f8be4e148092ee9eabba1ed1d1c5179809233b39",
+      "role": "shared embeddable living-system visualization; not an independent governance console"
+    },
+    "second_brain": {
+      "repository": "szl-holdings/szl-second-brain",
+      "revision": "ff03b116a83f2b5302999ab4167d51e35aba3b5e",
+      "role": "public retrieval projection that returns evidence handles, not private memory content"
+    },
+    "forge": {
+      "repository": "szl-holdings/szl-forge",
+      "revision": "965f4a4daaf323535f4e742351b896aab4c61560",
+      "role": "model lifecycle, qualification, proof-carrying inference and Nemo witness integration"
+    },
+    "vertical_services": {
+      "repository": "szl-holdings/vertical-services",
+      "revision": "1c6d941da172e2132d3c7818911bd8669ca28f00",
+      "role": "combined source for the six current domain service engines"
+    }
+  },
+  "formula_contract": {
+    "policy": "Every promoted vertical inherits the complete locked-eight kernel through the shared Anatomy organ map. Domain teams may add evidence-backed measurements but may not invent a new F-number meaning or promote an unproved formula.",
+    "lambda": {
+      "symbol": "Λ",
+      "status": "CONJECTURE_1_ADVISORY",
+      "authorizes_actions": false,
+      "may_render_as_proven": false
+    },
+    "organs": [
+      {"organ": "BRAIN", "formula_ids": ["F1"], "role": "reasoning and evidence synthesis"},
+      {"organ": "HEART", "formula_ids": ["F4", "F11"], "role": "trust pulse and governed admission"},
+      {"organ": "CIRCULATION", "formula_ids": ["F7", "F22"], "role": "evidence and state transport"},
+      {"organ": "NERVOUS_SYSTEM", "formula_ids": ["F12"], "role": "signal routing and response"},
+      {"organ": "SKELETON", "formula_ids": ["F18", "F19"], "role": "integrity, parity and structural checks"}
+    ],
+    "veto": "Any required organ DOWN or WILLAY/policy veto blocks the body."
+  },
+  "shared_runtime_contract": {
+    "pipeline": ["INGEST", "TRANSFORM", "ANALYZE", "DECIDE", "APPROVE", "EXECUTE", "VERIFY", "AUDIT", "DELIVER"],
+    "required_planes": [
+      "Hatun policy and decision boundary",
+      "Second Brain handle-only retrieval",
+      "Forge-qualified inference",
+      "A11oy proposal and action admission",
+      "Anatomy observation",
+      "DSSE or explicitly UNSIGNED receipt state",
+      "source/runtime revision proof"
+    ],
+    "graduation_gate": [
+      "canonical source declared",
+      "runtime source revision matches canonical source",
+      "health and domain smoke routes pass",
+      "claims carry an honesty label",
+      "mobile, keyboard, reduced-motion and overflow contracts pass",
+      "consequential actions remain deny-by-default"
+    ]
+  },
+  "verticals": [
+    {
+      "slug": "terra",
+      "brand": "Terra",
+      "domain": "real_estate_intelligence",
+      "canonical_source": "szl-holdings/szl-real-estate",
+      "service_source": "szl-holdings/vertical-services",
+      "runtime": "https://szlholdings-terra.hf.space",
+      "workflow": ["DISCOVER", "OWNERSHIP", "UNDERWRITE", "APPROVE", "TRACK"],
+      "decision_surface": ["asset map", "ownership graph", "underwriting queue"],
+      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+    },
+    {
+      "slug": "sentra",
+      "brand": "Aegis / Sentra",
+      "domain": "cybersecurity_and_defensive_intelligence",
+      "canonical_source": "szl-holdings/szl-defensive-control-plane",
+      "service_source": "szl-holdings/vertical-services",
+      "runtime": "https://szlholdings-sentra.hf.space",
+      "workflow": ["DETECT", "CORRELATE", "CONTAIN", "VERIFY", "RECEIPT"],
+      "decision_surface": ["entity graph", "attack paths", "response queue"],
+      "formula_binding": "complete_locked_eight_via_shared_anatomy",
+      "brand_gap": "Resolve whether Aegis is the public umbrella and Sentra the cyber lobe; do not operate both as competing products."
+    },
+    {
+      "slug": "counsel",
+      "brand": "PRISM Counsel",
+      "domain": "legal_matter_intelligence",
+      "canonical_source": "szl-holdings/a11oy/verticals/counsel",
+      "service_source": "szl-holdings/vertical-services",
+      "runtime": "https://szlholdings-counsel.hf.space",
+      "workflow": ["INTAKE", "RESEARCH", "ANALYZE", "DRAFT", "VERIFY"],
+      "decision_surface": ["matter file", "authority rail", "work-product queue"],
+      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+    },
+    {
+      "slug": "finance",
+      "brand": "PURIQ Finance",
+      "domain": "financial_intelligence",
+      "canonical_source": "szl-holdings/puriq-live",
+      "service_source": "szl-holdings/vertical-services",
+      "runtime": "https://szlholdings-finance.hf.space",
+      "workflow": ["INGEST", "PRICE", "STRESS", "DECIDE", "AUDIT"],
+      "decision_surface": ["decision tape", "exposure matrix", "evidence ledger"],
+      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+    },
+    {
+      "slug": "vessels",
+      "brand": "Vessels / Killinchu",
+      "domain": "maritime_and_mission_intelligence",
+      "canonical_source": "szl-holdings/killinchu",
+      "service_source": "szl-holdings/vertical-services",
+      "runtime": "https://szlholdings-vessels.hf.space",
+      "workflow": ["TRACK", "SCREEN", "ROUTE", "ECONOMICS", "VERIFY"],
+      "decision_surface": ["fleet chart", "voyage lanes", "risk watch"],
+      "formula_binding": "complete_locked_eight_via_shared_anatomy",
+      "consolidation": "Killinchu is the public product home; the Vessels surface remains a source-bound domain body and historical compatibility route."
+    },
+    {
+      "slug": "lyte",
+      "brand": "Lyte",
+      "domain": "business_and_agent_observability",
+      "canonical_source": "szl-holdings/lyte-lattice",
+      "service_source": "szl-holdings/vertical-services",
+      "runtime": "https://szlholdings-lyte.hf.space",
+      "workflow": ["OBSERVE", "TRACE", "DIAGNOSE", "ACT", "VERIFY"],
+      "decision_surface": ["service graph", "trace timeline", "action queue"],
+      "formula_binding": "complete_locked_eight_via_shared_anatomy"
+    }
+  ],
+  "incubation": [
+    {
+      "brand": "Carlota Jo",
+      "status": "INCUBATING",
+      "gap": "No current canonical source/runtime authority appears in the six-engine vertical-services publisher. Promote only after that authority is explicit."
+    }
+  ],
+  "clean_room_inspiration": {
+    "rule": "Study public information architecture, interaction patterns, workflow semantics and open standards. Do not copy proprietary source, assets, trade dress or text. Reuse code only when its license is compatible and attribution is preserved.",
+    "patterns": [
+      {"source": "Palantir AIP / Foundry", "use": "ontology-backed objects, decision lineage and action rails", "reuse": "pattern_only"},
+      {"source": "Anduril Lattice", "use": "common operating picture, sensor fusion and mission workflow", "reuse": "pattern_only"},
+      {"source": "NVIDIA Omniverse / OpenUSD", "use": "spatial scene graph and digital-twin interoperability", "reuse": "open_standard_or_licensed_oss_only"},
+      {"source": "Grafana / OpenTelemetry", "use": "trace-first investigation, replay and evidence-grounded observability", "reuse": "open_source_with_attribution"},
+      {"source": "Windward / Spire / AISdb", "use": "ownership, behavior, AIS and all-source maritime fusion", "reuse": "pattern_or_licensed_api; AISdb/open components by license"},
+      {"source": "Harvey / CoCounsel / LegalBench", "use": "matter workspace, authority-grounded research and benchmarked legal reasoning", "reuse": "pattern_and_public_benchmarks"},
+      {"source": "Cherre", "use": "universal real-estate data model, knowledge graph and provenance", "reuse": "pattern_only"},
+      {"source": "BlackRock Aladdin", "use": "whole-portfolio exposure, scenario and exception workflow", "reuse": "pattern_only"},
+      {"source": "Guidewire", "use": "domain-grounded agent workflow and human approval", "reuse": "pattern_only"}
+    ]
+  },
+  "inference_roles": {
+    "governed_text_and_tool_proposals": ["Qwen3.5 family", "qualified open-weight text models"],
+    "embeddings_and_reranking": ["BGE-M3", "Qwen3 Embedding", "GTE", "ColBERT-style late interaction"],
+    "speech": ["Whisper", "Parakeet/Nemotron ASR class"],
+    "vision_and_geospatial": ["zero-shot object detection", "Depth Anything class", "MapAnything class"],
+    "time_series": ["Granite time-series class", "Zeus class"],
+    "serving_candidates": ["vLLM", "SGLang", "llama.cpp", "MLX"],
+    "selection_rule": "No universal winner. Forge benchmarks by hardware, latency, throughput, quality, energy and domain workload before promotion."
+  },
+  "wave_1": {
+    "site": "Expose Living Anatomy and six current domain bodies on the product front door while preserving the existing buyer hero and runtime evidence instrument.",
+    "publisher_repair": "Advance the vertical-services source pin from 96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de to 1c6d941da172e2132d3c7818911bd8669ca28f00.",
+    "next_vertical_order": ["lyte", "vessels_killinchu", "terra", "prism_counsel", "aegis_sentra", "puriq_finance", "carlota_jo_incubation"]
+  }
+}
