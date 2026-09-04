@@ -37,6 +37,7 @@ jobs:
 
           excluded = {
               ".github/workflows/fix-anatomy-creator-origin-once.yml",
+              ".github/workflows/smoke-monitor.yml",
               "tests/test_living_anatomy_flagship_policy.py",
           }
           old = "https://szlholdings-anatomy.hf.space"
@@ -67,7 +68,7 @@ jobs:
               print(path)
           PY
           git diff --check
-          test -z "$(git grep -l 'https://szlholdings-anatomy.hf.space' -- ':!archive/**' ':!archives/**' ':!.github/workflows/fix-anatomy-creator-origin-once.yml' ':!tests/test_living_anatomy_flagship_policy.py' || true)"
+          test -z "$(git grep -l 'https://szlholdings-anatomy.hf.space' -- ':!archive/**' ':!archives/**' ':!.github/workflows/fix-anatomy-creator-origin-once.yml' ':!.github/workflows/smoke-monitor.yml' ':!tests/test_living_anatomy_flagship_policy.py' || true)"
 
       - name: Commit the deterministic authority migration
         shell: bash
