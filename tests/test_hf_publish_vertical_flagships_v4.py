@@ -2,7 +2,13 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
+import shutil
+import sys
 from pathlib import Path
+from types import ModuleType
+
+import pytest
 
 SCRIPT = Path("scripts/hf_publish_vertical_flagships_v4_impl.py")
 ENTRYPOINT = Path("scripts/hf_publish_vertical_flagships_v4.py")
@@ -10,12 +16,31 @@ INTELLIGENCE = Path("scripts/hf_publish_vertical_services_intelligence_v4.py")
 COMBINED = Path("scripts/hf_publish_vertical_services.py")
 WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
 SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
+TERRA_BUNDLE = Path("deployments/vertical-forge/terra")
 
 
 def source() -> str:
     text = SCRIPT.read_text(encoding="utf-8")
     ast.parse(text)
     return text
+
+
+def load_implementation():
+    spec = importlib.util.spec_from_file_location("szl_hf_flagship_v4_impl_test", SCRIPT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    fake_hub = ModuleType("huggingface_hub")
+    fake_hub.HfApi = type("HfApi", (), {})
+    previous = sys.modules.get("huggingface_hub")
+    sys.modules["huggingface_hub"] = fake_hub
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        if previous is None:
+            sys.modules.pop("huggingface_hub", None)
+        else:
+            sys.modules["huggingface_hub"] = previous
+    return module
 
 
 def domain_html() -> dict[str, str]:
@@ -42,6 +67,124 @@ def test_v4_renderer_retains_six_domain_templates() -> None:
     assert '"vessels":' in text and "VOYAGE WATCH" in text and "maritime route chart" in text
     assert '"lyte":' in text and "SERVICE GRAPH" in text and "TRACE TIMELINE" in text
     assert text.count('app=FastAPI(title=CFG["title"]+" - SZL Holdings")') == 1
+
+
+def test_terra_forge_bundle_is_chained_to_exact_merged_source() -> None:
+    module = load_implementation()
+    page, forge = module.load_terra_forge_bundle()
+
+    assert 'data-szl-vertical-forge="0.2.1"' in page
+    assert 'href="/panels"' in page
+    assert 'href="/build-receipt.json"' in page
+    assert 'const EP="/api/live"' in page
+    assert forge == {
+        "schema": "szl.vertical-forge.deployment-source/v1",
+        "generator": "szl-vertical-forge/0.2.1",
+        "source_repository": "szl-holdings/szl-vertical-forge",
+        "source_revision": "5febe88a571cd001cdc5e9d7c5073373dd6d480c",
+        "source_pull_request": "https://github.com/szl-holdings/szl-vertical-forge/pull/1",
+        "fleet_master_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
+        "fleet_config_sha256": "4b85cb67e7003cee620119835c91a92e954f3c863fc2faa505b07aeb4a1c2a46",
+        "vertical_config_sha256": "c6ba3bd447dafd2bb8dff96d1762718ad392fff121cf04fd64057db5ddac378c",
+        "artifact_sha256": "37876f7fef0f1bc18b65b508b2f5c5c78376403435843a6c3edfb63be0c5fd92",
+        "chain_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
+    }
+
+
+def test_terra_forge_bundle_fails_closed_after_byte_tampering(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_implementation()
+    target = tmp_path / "terra"
+    shutil.copytree(TERRA_BUNDLE, target)
+    index = target / "index.html"
+    index.write_text(index.read_text(encoding="utf-8") + "\nTAMPERED\n", encoding="utf-8")
+    monkeypatch.setattr(module, "TERRA_FORGE_BUNDLE", target)
+
+    with pytest.raises(RuntimeError, match="artifact_sha256 mismatch"):
+        module.load_terra_forge_bundle()
+
+
+def test_flagship_runtime_exposes_landing_panels_readiness_and_receipt_routes() -> None:
+    module = load_implementation()
+    ast.parse(module.APP)
+    for fragment in (
+        'Path("panels.html").read_text(encoding="utf-8")',
+        '@app.get("/readyz")',
+        '@app.get("/build-receipt.json")',
+        '@app.get("/panels",response_class=HTMLResponse)',
+        '"schema":"szl.vertical-shell-readiness/v1"',
+        '"schema":"szl.vertical-shell-deployment/v1"',
+        '"state":"VERIFIED_RUNTIME_ARTIFACTS"',
+        'sha256_text(INDEX)==CFG["landing_sha256"]',
+        'sha256_text(PANELS)==CFG["panels_sha256"]',
+    ):
+        assert fragment in module.APP
+    assert "COPY app.py config.json index.html panels.html ./" in module.DOCKER
+    assert '(("app.py", APP)' in source()
+    assert '("panels.html", panels)' in source()
+
+
+def test_live_admission_requires_both_surfaces_and_matching_forge_receipt() -> None:
+    module = load_implementation()
+    source_revision = "a" * 40
+    workflow_run_id = "12345"
+    forge = {"fleet_master_hash": "b" * 64}
+    row = {
+        "artifact_set_sha256": "c" * 64,
+        "landing_sha256": "d" * 64,
+        "panels_sha256": "e" * 64,
+        "forge": forge,
+        "root": {"http_status": 200, "marker_present": True},
+        "panels": {"http_status": 200, "marker_present": True},
+        "build_info_http": 200,
+        "build_info": {
+            "schema": "szl.build-info/v1",
+            "source_repository": "szl-holdings/a11oy",
+            "source_revision": source_revision,
+            "workflow_run_id": int(workflow_run_id),
+            "artifact_set_sha256": "c" * 64,
+            "hf_revision": "f" * 40,
+            "forge": forge,
+        },
+        "readyz_http": 200,
+        "readyz": {
+            "schema": "szl.vertical-shell-readiness/v1",
+            "ready": True,
+            "state": "MEASURED",
+        },
+        "deployment_receipt_http": 200,
+        "deployment_receipt": {
+            "schema": "szl.vertical-shell-deployment/v1",
+            "state": "VERIFIED_RUNTIME_ARTIFACTS",
+            "source_revision": source_revision,
+            "workflow_run_id": int(workflow_run_id),
+            "artifact_set_sha256": "c" * 64,
+            "landing_sha256": "d" * 64,
+            "panels_sha256": "e" * 64,
+            "forge": forge,
+        },
+    }
+
+    assert module.observation_passes(
+        row,
+        source_revision=source_revision,
+        workflow_run_id=workflow_run_id,
+    )
+    row["panels"]["marker_present"] = False
+    assert not module.observation_passes(
+        row,
+        source_revision=source_revision,
+        workflow_run_id=workflow_run_id,
+    )
+    row["panels"]["marker_present"] = True
+    row["deployment_receipt"]["forge"] = None
+    assert not module.observation_passes(
+        row,
+        source_revision=source_revision,
+        workflow_run_id=workflow_run_id,
+    )
 
 
 def test_demo_visuals_have_visible_illustrative_disclosures() -> None:
