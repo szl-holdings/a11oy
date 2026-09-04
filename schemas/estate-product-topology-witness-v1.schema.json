@@ -1,0 +1,158 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/estate-product-topology-witness-v1.schema.json",
+  "title": "SZL Estate Product Topology Witness v1",
+  "description": "Fail-closed exact-source and public-product topology receipt.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema",
+    "generated_at",
+    "started_at",
+    "complete",
+    "truth_label",
+    "authority",
+    "static_contract",
+    "products",
+    "internal_services",
+    "folded_spaces",
+    "observations"
+  ],
+  "properties": {
+    "schema": {
+      "const": "szl.estate-product-topology-witness/v1"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "complete": {
+      "type": "boolean"
+    },
+    "truth_label": {
+      "enum": ["MEASURED", "BLOCKED"]
+    },
+    "attempts": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "authority": {
+      "type": "object",
+      "required": [
+        "method",
+        "third_party_writes",
+        "deployment_authority",
+        "effectors_enabled",
+        "remote_response_bodies_recorded"
+      ],
+      "properties": {
+        "method": {
+          "const": "FIXED_ORIGIN_GET_ONLY"
+        },
+        "third_party_writes": {
+          "const": false
+        },
+        "deployment_authority": {
+          "const": false
+        },
+        "effectors_enabled": {
+          "const": false
+        },
+        "remote_response_bodies_recorded": {
+          "const": false
+        }
+      }
+    },
+    "static_contract": {
+      "type": "object",
+      "required": [
+        "public_product_count",
+        "public_product_slugs",
+        "folded_capability_planes",
+        "portfolio_labels",
+        "migration_gated",
+        "pass"
+      ],
+      "properties": {
+        "public_product_count": {
+          "const": 5
+        },
+        "public_product_slugs": {
+          "const": ["killinchu", "terra", "counsel", "finance", "lyte"]
+        },
+        "folded_capability_planes": {
+          "const": ["sentra", "vessels"]
+        },
+        "portfolio_labels": {
+          "const": ["aegis"]
+        },
+        "migration_gated": {
+          "const": ["immune"]
+        },
+        "pass": {
+          "type": "boolean"
+        }
+      }
+    },
+    "products": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/result"
+      }
+    },
+    "internal_services": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/result"
+      }
+    },
+    "folded_spaces": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": ["space", "state", "pass"],
+        "properties": {
+          "space": {
+            "enum": ["SZLHOLDINGS/sentra", "SZLHOLDINGS/vessels"]
+          },
+          "state": {
+            "enum": ["ABSENT", "TOMBSTONED", "RETIREMENT_REQUIRED"]
+          },
+          "pass": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    }
+  },
+  "$defs": {
+    "result": {
+      "type": "object",
+      "required": ["slug", "pass"],
+      "properties": {
+        "slug": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pass": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
