@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize owned Khipu live proof
+
+on:
+  push:
+    branches:
+      - fix/hf-owned-khipu-live-proof-v1
+    paths:
+      - .github/workflows/materialize-owned-khipu-live-proof.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-owned-khipu-live-proof-v1
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-owned-khipu-live-proof-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Add exact owned-runtime smoke and real-inference proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('.github/workflows/hf-sync.yml')
+          text = path.read_text(encoding='utf-8')
+
+          old_smoke = '''      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/static/3d/holographic.html","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
+          '''
+          new_smoke = '''      smoke-paths: '["/","/api/livez","/api/build-info","/api/v2/governed-health","/api/v2/governed-contract","/.well-known/szl-governed-inference-contract.json","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/static/3d/holographic.html","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
+          '''
+          if new_smoke not in text:
+              if text.count(old_smoke) != 1:
+                  raise SystemExit('canonical smoke-path anchor missing or ambiguous')
+              text = text.replace(old_smoke, new_smoke, 1)
+
+          job = '''  owned-khipu-live-proof:
+            name: Execute real owned-Khipu inference and Anatomy receipt proof
+            needs: readiness-verdict
+            runs-on: ubuntu-latest
+            timeout-minutes: 25
+            env:
+              OWNED_KHIPU_REPORT: /tmp/owned-khipu-live-proof.json
+            steps:
+              - name: Checkout exact protected source
+                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                with:
+                  ref: ${{ github.sha }}
+                  persist-credentials: false
+                  fetch-depth: 1
+
+              - name: Set up Python
+                uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+                with:
+                  python-version: "3.12"
+
+              - name: Prove exact owned model, real bounded inference, Nemo review, and Anatomy binding
+                run: >-
+                  python scripts/verify_owned_khipu_cortex_live.py
+                  --base-url "$CANONICAL_ORIGIN"
+                  --expected-source "${{ github.sha }}"
+                  --report "$OWNED_KHIPU_REPORT"
+
+              - name: Upload secret-free owned-runtime proof
+                if: always()
+                uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+                with:
+                  name: owned-khipu-live-proof-${{ github.run_id }}-${{ github.run_attempt }}
+                  path: ${{ env.OWNED_KHIPU_REPORT }}
+                  if-no-files-found: error
+                  retention-days: 180
+
+          '''
+          if '  owned-khipu-live-proof:\n' not in text:
+              marker = '  relock:\n'
+              if text.count(marker) != 1:
+                  raise SystemExit('relock insertion anchor missing or ambiguous')
+              text = text.replace(marker, job + marker, 1)
+
+          old_needs = '    needs: [runtime-config, readiness-verdict]\n'
+          new_needs = '    needs: [runtime-config, readiness-verdict, owned-khipu-live-proof]\n'
+          relock = text.split('  relock:\n', 1)[1]
+          if new_needs not in relock:
+              if old_needs not in relock:
+                  raise SystemExit('relock needs anchor missing')
+              relock = relock.replace(old_needs, new_needs, 1)
+              text = text.split('  relock:\n', 1)[0] + '  relock:\n' + relock
+
+          path.write_text(text, encoding='utf-8')
+          Path('.github/workflows/materialize-owned-khipu-live-proof.yml').unlink()
+          PY
+
+      - name: Validate permanent workflow and live verifier contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --quiet 'PyYAML==6.0.3'
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          import yaml
+
+          path = Path('.github/workflows/hf-sync.yml')
+          source = path.read_text(encoding='utf-8')
+          parsed = yaml.safe_load(source)
+          jobs = parsed.get('jobs') or {}
+          assert 'owned-khipu-live-proof' in jobs
+          assert jobs['owned-khipu-live-proof']['needs'] == 'readiness-verdict'
+          assert 'owned-khipu-live-proof' in jobs['relock']['needs']
+          assert source.count('/api/v2/governed-health') == 1
+          assert source.count('/api/v2/governed-contract') == 1
+          assert source.count('/.well-known/szl-governed-inference-contract.json') == 1
+          assert source.count('scripts/verify_owned_khipu_cortex_live.py') == 1
+          assert not Path('.github/workflows/materialize-owned-khipu-live-proof.yml').exists()
+          PY
+          python -m py_compile scripts/verify_owned_khipu_cortex_live.py
+          git diff --check
+
+      - name: Commit permanent deployment proof and remove temporary controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -s -m "feat(deploy): require owned Khipu real-inference proof"
+          git push origin HEAD:fix/hf-owned-khipu-live-proof-v1
