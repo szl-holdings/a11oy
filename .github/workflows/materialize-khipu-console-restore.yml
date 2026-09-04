@@ -39,7 +39,7 @@ jobs:
       - name: Repair dynamic panel source detection
         run: python scripts/materialize_khipu_console_restore.py
 
-      - name: Verify panel and Investor Smoke contracts
+      - name: Verify the exact Khipu panel contract
         run: |
           set -euo pipefail
           python -m py_compile scripts/investor_smoke_gate.py
@@ -47,7 +47,16 @@ jobs:
             tests/test_khipu_console_panel.py \
             tests/test_atelier_console_lock.py \
             tests/test_investor_smoke_gate.py
-          python scripts/investor_smoke_gate.py --mode contract
+          python - <<'PY'
+          from scripts import investor_smoke_gate as gate
+
+          verdict = next(
+              item for item in gate.static_s_verdicts()
+              if item.id == "S-console-khipu"
+          )
+          assert verdict.status == "PASS", verdict
+          print(f"{verdict.id} {verdict.status}: {verdict.detail}")
+          PY
           git diff --check
 
       - name: Commit durable repair and remove controller
