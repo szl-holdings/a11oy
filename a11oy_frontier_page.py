@@ -217,7 +217,7 @@ def _page_html(ns: str) -> str:
     surfaces_ep = _SURFACES_EP.format(ns=ns)
     return f"""<!doctype html>
 <html lang="en"><head>
-<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>A11oy — SZL Frontier (Unified Ecosystem Showcase)</title>
 <!-- Sovereign importmap: ONLY vendored local files. 0 runtime CDN. Doctrine v11. -->
 <script type="importmap">
@@ -264,6 +264,14 @@ def _page_html(ns: str) -> str:
   .sub {{ color:var(--muted); max-width:70ch; line-height:1.55; font-size:.9rem; margin:.45rem 0 0; }}
   #rollup {{ display:flex; gap:.7rem; flex-wrap:wrap; margin:1.1rem 0 .3rem;
              font-family:ui-monospace,monospace; font-size:.72rem; }}
+  #fashion-grid {{ display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));
+                   gap:.7rem; margin:.8rem 0 1.4rem; }}
+  .fashion-card {{ background:rgba(16,26,46,.82); border:1px solid #21304d; border-radius:12px;
+                   padding:.85rem .95rem; min-height:8rem; }}
+  .fashion-card b {{ display:block; margin-bottom:.35rem; }}
+  .fashion-card .job,.fashion-card .tweak {{ color:var(--muted); font-size:.86rem; line-height:1.45; }}
+  .fashion-card .leader {{ color:var(--amber); font-family:ui-monospace,monospace; font-size:.72rem;
+                           margin:.35rem 0; }}
   .chip {{ background:rgba(16,26,46,.8); border:1px solid #21304d; border-radius:999px;
            padding:.3rem .7rem; color:var(--muted); }}
   .chip b {{ color:var(--ink); }}
@@ -439,8 +447,8 @@ def _page_html(ns: str) -> str:
     <div class="plaque">SZL HOLDINGS / A11OY / DOCTRINE <b>V11 · LOCKED</b> / Λ = CONJECTURE 1</div>
     <h1>The whole stack, <span class="accent">honestly</span> labeled.</h1>
     <p class="sub" id="subline">Every capability we run, on one screen — live from
-       <code>/frontier/manifest</code>. Each tile is tagged with how real it is and links
-       straight to the proof.</p>
+       <code>{manifest_ep}</code>. Each tile is tagged with how real it is and links
+       straight to the proof. Fashion lineage is a separate REPORTED contract.</p>
     <div id="legend">
       <span class="lg measured">MEASURED — live, measured now</span>
       <span class="lg modeled">MODELED — derived from real data</span>
@@ -448,6 +456,13 @@ def _page_html(ns: str) -> str:
       <span class="lg sample">SAMPLE — illustrative only</span>
     </div>
     <div id="rollup"></div>
+
+    <section id="fashion-section" aria-labelledby="fashion-h">
+      <div class="plaque">Fashion lineage / REPORTED</div>
+      <h2 id="fashion-h">Stolen jobs. SZL tweaks. No borrowed chrome.</h2>
+      <p class="sub">Live read of the vertical-services fashion contract. If the contract does not answer, this band stays UNAVAILABLE.</p>
+      <div id="fashion-grid">Loading fashion lineage…</div>
+    </section>
 
     <section id="brain-section" aria-labelledby="brain-h">
       <div class="brain-shell">
@@ -533,9 +548,34 @@ import * as THREE from 'three';
 import {{ OrbitControls }} from 'three/addons/OrbitControls.js';
 
 const MANIFEST_EP = {manifest_ep!r};
+const FASHION_EP = 'https://szlholdings-vertical-services.hf.space/api/fashion';
 const BRAIN_STATS_EP = '/api/a11oy/v1/brain/stats';
 const BRAIN_CORPUS_EP = '/api/a11oy/v1/brain/health/corpus-sources';
 const BRAIN_ASK_EP = '/api/a11oy/v1/brain/ask';
+(async function loadFashion() {{
+  const grid = document.getElementById('fashion-grid');
+  if (!grid) return;
+  try {{
+    const response = await fetch(FASHION_EP, {{headers:{{Accept:'application/json'}}, cache:'no-store'}});
+    if (!response.ok) throw new Error('HTTP ' + response.status);
+    const data = await response.json();
+    const lanes = Array.isArray(data.lanes) ? data.lanes : [];
+    if (!lanes.length) throw new Error('empty lanes');
+    grid.replaceChildren();
+    lanes.forEach(lane => {{
+      const card = document.createElement('article');
+      card.className = 'fashion-card';
+      card.innerHTML = '<b>' + (lane.id || 'lane') + '</b>'
+        + '<div class="job">' + (lane.job || 'UNAVAILABLE') + '</div>'
+        + '<div class="leader">' + (lane.leader || 'UNAVAILABLE') + '</div>'
+        + '<div class="tweak">' + (lane.tweak || 'UNAVAILABLE') + '</div>';
+      grid.appendChild(card);
+    }});
+  }} catch (error) {{
+    grid.textContent = 'Fashion lineage UNAVAILABLE — ' + error + '. No leader chrome is fabricated.';
+  }}
+}})();
+
 const banner = document.getElementById('honest-banner');
 function syncBannerOffset() {{
   const height = banner ? Math.ceil(banner.getBoundingClientRect().height) : 0;
