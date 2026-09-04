@@ -13,9 +13,12 @@ JS = ROOT / "console" / "assets" / "szl-flow.js"
 REGISTRY = ROOT / "docs" / "frontend-theme-registry-v1.json"
 STATE = ROOT / "docs" / "frontend-flow-shell-state.json"
 LANDING = ROOT / "a11oy_landing.html"
+HATUN = ROOT / "pages" / "wires.html"
 DOCKER = ROOT / "Dockerfile"
 STYLE_MARKER = 'data-szl-flow-asset="style"'
 SCRIPT_MARKER = 'data-szl-flow-asset="script"'
+HOLO_STYLE_MARKER = 'data-szl-holo-asset="style-v2"'
+HOLO_SCRIPT_MARKER = 'data-szl-holo-asset="script-v2"'
 
 
 class FrontendFlowShellContract(unittest.TestCase):
@@ -69,6 +72,18 @@ class FrontendFlowShellContract(unittest.TestCase):
                 text = (ROOT / rel).read_text(encoding="utf-8")
                 self.assertEqual(text.count(STYLE_MARKER), 1, rel)
                 self.assertEqual(text.count(SCRIPT_MARKER), 1, rel)
+
+    def test_hatun_owns_one_bespoke_shell_without_double_injection(self) -> None:
+        rel = "pages/wires.html"
+        self.assertEqual(self.state.get("bespoke_shell_documents"), [rel])
+        self.assertNotIn(rel, self.state.get("injected_documents", []))
+        text = HATUN.read_text(encoding="utf-8")
+        self.assertEqual(text.count(STYLE_MARKER), 0)
+        self.assertEqual(text.count(SCRIPT_MARKER), 0)
+        self.assertEqual(text.count(HOLO_STYLE_MARKER), 1)
+        self.assertEqual(text.count(HOLO_SCRIPT_MARKER), 1)
+        self.assertIn('class="szl-hatun-gateway"', text)
+        self.assertIn("/api/a11oy/v1/mesh/state", text)
 
     def test_css_is_balanced_and_no_reserved_hue_literal_is_added(self) -> None:
         self.assertEqual(self.css.count("{"), self.css.count("}"))
