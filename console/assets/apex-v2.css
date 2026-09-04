@@ -11,5 +11,7 @@ footer{padding-bottom:env(safe-area-inset-bottom,0px)!important;border-top-color
 html[data-szl-holo="v2"] body[data-szl-flow] .menu-toggle{width:48px;height:48px;min-width:48px;min-height:48px;border-radius:6px}
 html[data-szl-holo="v2"] .szl-holo-rail .szl-holo-link,
 html[data-szl-holo="v2"] .szl-holo-rail .szl-holo-menu{min-width:56px;min-height:48px;height:48px;border-radius:6px;box-sizing:border-box;padding:0 12px}
+.menu-toggle,.szl-flow-toggle,button.szl-holo-menu,.szl-holo-menu{height:48px!important;min-height:48px!important;min-width:48px!important;border-radius:6px!important;box-sizing:border-box}
+.menu-toggle{width:48px!important}
 @media(max-width:760px){.hero{min-height:auto!important}.hero .wrap{padding-top:58px!important;padding-bottom:calc(62px + env(safe-area-inset-bottom,0px))!important}.hero h1{font-size:clamp(44px,13vw,68px)!important}.hero-scrim{background:linear-gradient(180deg,rgba(3,7,12,.58),rgba(3,7,12,.90) 78%)!important}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
