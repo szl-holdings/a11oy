@@ -1,0 +1,203 @@
+{
+  "schema": "szl.public-estate/v1",
+  "estate": "SZL Holdings public command estate",
+  "source_repository": "szl-holdings/a11oy",
+  "truth_policy": "exact-source-or-unverified",
+  "public_vertical_product_count": 5,
+  "platform_count": 1,
+  "allowed_hosts": [
+    "api.github.com",
+    "huggingface.co",
+    "szlholdings-a11oy.hf.space",
+    "szlholdings-killinchu.hf.space",
+    "szlholdings-lyte.hf.space",
+    "szlholdings-finance.hf.space",
+    "szlholdings-terra.hf.space",
+    "szlholdings-counsel.hf.space"
+  ],
+  "platforms": [
+    {
+      "id": "a11oy",
+      "title": "A11oy Command Fabric",
+      "class": "platform",
+      "public": true,
+      "hf_repository": "SZLHOLDINGS/a11oy",
+      "base_url": "https://szlholdings-a11oy.hf.space",
+      "deployment_source_repository": "szl-holdings/a11oy",
+      "revision_policy": "exact-default-branch",
+      "default_branch": "main",
+      "build_info_path": "/api/build-info",
+      "required_paths": [
+        "/",
+        "/api/build-info"
+      ]
+    }
+  ],
+  "public_products": [
+    {
+      "id": "killinchu",
+      "title": "Killinchu",
+      "class": "cyber-physical-resilience-and-maritime-command",
+      "public": true,
+      "hf_repository": "SZLHOLDINGS/killinchu",
+      "base_url": "https://szlholdings-killinchu.hf.space",
+      "deployment_source_repository": "szl-holdings/killinchu",
+      "revision_policy": "exact-default-branch",
+      "default_branch": "main",
+      "build_info_path": "/api/build-info",
+      "required_paths": [
+        "/",
+        "/api/killinchu/healthz",
+        "/api/build-info",
+        "/defend",
+        "/resilience",
+        "/api/defend/status",
+        "/api/defend/readyz",
+        "/api/defend/source"
+      ]
+    },
+    {
+      "id": "lyte",
+      "title": "Lyte",
+      "class": "business-observability",
+      "public": true,
+      "hf_repository": "SZLHOLDINGS/lyte",
+      "base_url": "https://szlholdings-lyte.hf.space",
+      "deployment_source_repository": "szl-holdings/a11oy",
+      "revision_policy": "declared-commit",
+      "build_info_path": "/api/build-info",
+      "required_paths": [
+        "/",
+        "/healthz",
+        "/api/build-info",
+        "/api/source"
+      ]
+    },
+    {
+      "id": "finance",
+      "title": "PURIQ Finance",
+      "class": "financial-intelligence",
+      "public": true,
+      "hf_repository": "SZLHOLDINGS/finance",
+      "base_url": "https://szlholdings-finance.hf.space",
+      "deployment_source_repository": "szl-holdings/a11oy",
+      "revision_policy": "declared-commit",
+      "build_info_path": "/api/build-info",
+      "required_paths": [
+        "/",
+        "/healthz",
+        "/api/build-info",
+        "/api/source"
+      ]
+    },
+    {
+      "id": "terra",
+      "title": "Terra",
+      "class": "real-estate-intelligence",
+      "public": true,
+      "hf_repository": "SZLHOLDINGS/terra",
+      "base_url": "https://szlholdings-terra.hf.space",
+      "deployment_source_repository": "szl-holdings/a11oy",
+      "revision_policy": "declared-commit",
+      "build_info_path": "/api/build-info",
+      "required_paths": [
+        "/",
+        "/healthz",
+        "/api/build-info",
+        "/api/source"
+      ]
+    },
+    {
+      "id": "counsel",
+      "title": "PRISM Counsel",
+      "class": "legal-matter-intelligence",
+      "public": true,
+      "hf_repository": "SZLHOLDINGS/counsel",
+      "base_url": "https://szlholdings-counsel.hf.space",
+      "deployment_source_repository": "szl-holdings/a11oy",
+      "revision_policy": "declared-commit",
+      "build_info_path": "/api/build-info",
+      "required_paths": [
+        "/",
+        "/healthz",
+        "/api/build-info",
+        "/api/source"
+      ]
+    }
+  ],
+  "capability_planes": [
+    {
+      "id": "sentra",
+      "status": "folded",
+      "runtime": "killinchu",
+      "public_route": "https://szlholdings-killinchu.hf.space/defend",
+      "independent_public_space_allowed": false,
+      "reason": "Independently testable defensive-control capability behind Killinchu."
+    },
+    {
+      "id": "vessels",
+      "status": "folded",
+      "runtime": "killinchu",
+      "public_route": "https://szlholdings-killinchu.hf.space/",
+      "independent_public_space_allowed": false,
+      "reason": "Maritime capability consolidated into the sole Killinchu product."
+    },
+    {
+      "id": "aegis",
+      "status": "portfolio-label",
+      "runtime": "killinchu:defend",
+      "public_route": "https://szlholdings-killinchu.hf.space/defend",
+      "independent_public_space_allowed": false,
+      "reason": "Portfolio and enterprise-experience label, not a competing runtime."
+    },
+    {
+      "id": "immune",
+      "status": "migration-required",
+      "runtime": null,
+      "public_route": null,
+      "independent_public_space_allowed": false,
+      "required_before_admission": [
+        "unique-admission-contract",
+        "signed-authority-boundary",
+        "tripwire-contract",
+        "rollback-receipt-contract",
+        "parity-gated-live-witness"
+      ],
+      "reason": "No silent alias or completion claim before unique contracts are imported and proven."
+    }
+  ],
+  "internal_surfaces": [
+    {
+      "id": "vertical-services",
+      "hf_repository": "SZLHOLDINGS/vertical-services",
+      "role": "combined-six-engine-operational-runtime",
+      "public_product": false
+    }
+  ],
+  "retirement_candidates": [
+    {
+      "hf_repository": "SZLHOLDINGS/sentra",
+      "replacement": "SZLHOLDINGS/killinchu#defend",
+      "state": "evidence-gated",
+      "retire_only_after": [
+        "killinchu-exact-main-live",
+        "defend-required-routes-live",
+        "source-snapshot-recorded",
+        "secret-key-names-inventoried-without-reading-values",
+        "rollback-window-recorded"
+      ]
+    }
+  ],
+  "non_product_review_queue": [
+    {
+      "hf_repository": "SZLHOLDINGS/aegis-assurance",
+      "state": "classify-before-retirement",
+      "decision_rule": "Keep only when it proves a distinct assurance contract not already served by A11oy or Killinchu."
+    },
+    {
+      "hf_repository": "SZLHOLDINGS/david-leads",
+      "state": "classify-before-placement",
+      "decision_rule": "Move outside the flagship estate unless it is an explicitly owned commercial workflow."
+    }
+  ]
+}
