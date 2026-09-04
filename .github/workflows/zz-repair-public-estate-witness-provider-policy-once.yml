@@ -38,7 +38,14 @@ jobs:
           python-version: "3.12.10"
 
       - name: Apply bounded identity-policy repair
-        run: python tools/patch_public_estate_witness_provider_policy.py
+        run: |
+          set -euo pipefail
+          python tools/patch_public_estate_witness_provider_policy.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("tests/test_public_estate_live_witness.py")
+          path.write_text(path.read_text(encoding="utf-8").rstrip() + "\n", encoding="utf-8")
+          PY
 
       - name: Prove fixed-origin and fail-closed contracts
         run: |
