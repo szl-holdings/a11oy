@@ -640,6 +640,12 @@ def _trust_score(axes: dict) -> float:
 def _tool_catalog(ns: str):
     field = "drone/vessel field operations" if ns == "killinchu" else "governed AI operations"
     tools = [
+        {"name": "search_tools",
+         "title": "Search tools",
+         "description": "Progressive discovery: filter the declared Hatun catalog by query. Does not execute tools.",
+         "inputSchema": {"type": "object", "properties": {
+             "query": {"type": "string"}},
+             "required": ["query"]}},
         {"name": "retrieve_context",
          "title": "Retrieve context",
          "description": f"Search the in-image governance corpus for {field} guidance.",
@@ -1675,6 +1681,15 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                              "error": {"code": -32601, "message": "Method not found: %s" % method}})
 
     def _mcp_tool_call(name, args):
+        if name == "search_tools":
+            q = str(args.get("query") or "").lower()
+            hits = []
+            for row in _tool_catalog(ns):
+                blob = " ".join(str(row.get(k) or "") for k in ("name", "title", "description"))
+                if not q or q in blob.lower():
+                    hits.append({"name": row.get("name"), "title": row.get("title")})
+            return {"query": args.get("query"), "matches": hits, "count": len(hits),
+                    "evidence": "RUNTIME_DECLARED"}
         if name == "retrieve_context":
             return {"chunks": _retrieve(args.get("query", ""), int(args.get("top_k", 3)))}
         if name == "policy_check":

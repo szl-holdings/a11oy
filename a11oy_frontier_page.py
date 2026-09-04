@@ -1049,6 +1049,7 @@ def register(app, ns: str = "a11oy") -> str:
         return JSONResponse(build_surfaces_manifest(ns))
 
     @app.get(f"/api/{ns}/v1/fashion")
+    @app.get("/api/fashion", include_in_schema=False)
     async def frontier_fashion():  # noqa: ANN202
         """REPORTED fashion lineage. Same-origin. GET never signs."""
         return JSONResponse(_FASHION_CONTRACT)
