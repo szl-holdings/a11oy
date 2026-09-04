@@ -10,12 +10,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 LANDING = ROOT / "a11oy_landing.html"
 MANIFEST = ROOT / "docs" / "strategy" / "living-command-fabric.v1.json"
+ACTIVE_PIN = ROOT / "docs" / "strategy" / "vertical-services-active-pin.v1.json"
 PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services_intelligence_v4.py"
 PUBLISHER_TEST = ROOT / "tests" / "test_hf_publish_vertical_flagships_v4.py"
 
 LOCKED_EIGHT = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 VERTICALS = ["terra", "killinchu", "counsel", "finance", "lyte"]
-VERTICAL_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
+HISTORICAL_VERTICAL_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
 
 
 class LivingCommandFabricContract(unittest.TestCase):
@@ -23,6 +24,7 @@ class LivingCommandFabricContract(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.html = LANDING.read_text(encoding="utf-8")
         cls.manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+        cls.active_pin = json.loads(ACTIVE_PIN.read_text(encoding="utf-8"))
 
     def test_existing_buyer_and_runtime_truth_contracts_are_preserved(self) -> None:
         for literal in (
@@ -141,14 +143,31 @@ class LivingCommandFabricContract(unittest.TestCase):
     def test_vertical_publisher_pin_matches_current_declared_source(self) -> None:
         publisher = PUBLISHER.read_text(encoding="utf-8")
         contract_test = PUBLISHER_TEST.read_text(encoding="utf-8")
-        self.assertIn(f'SOURCE_REVISION = "{VERTICAL_REVISION}"', publisher)
-        self.assertIn(f'SOURCE_REVISION = "{VERTICAL_REVISION}"', contract_test)
+        active_revision = self.active_pin["source_revision"]
+        self.assertIn(f'SOURCE_REVISION = "{active_revision}"', publisher)
+        self.assertIn(f'SOURCE_REVISION = "{active_revision}"', contract_test)
+        self.assertEqual(
+            self.active_pin["repository"],
+            "szl-holdings/vertical-services",
+        )
+        self.assertEqual(self.active_pin["runtime_version"], "2.2.0")
+        self.assertEqual(
+            self.active_pin["predecessor_revision"],
+            HISTORICAL_VERTICAL_REVISION,
+        )
+        self.assertEqual(self.active_pin["guard"], "require-default-branch-tip")
+        self.assertFalse(self.active_pin["historical_strategy_manifest_rewritten"])
+        self.assertFalse(self.active_pin["authority"]["effectors_enabled"])
+        self.assertTrue(self.active_pin["authority"]["human_approval_required"])
         stale = "96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de"
         self.assertNotIn(stale, publisher)
         self.assertNotIn(stale, contract_test)
         intelligence = self.manifest["intelligence_fabric"]
         self.assertEqual(intelligence["runtime_version"], "2.2.0")
-        self.assertEqual(intelligence["source_revision"], VERTICAL_REVISION)
+        self.assertEqual(
+            intelligence["source_revision"],
+            HISTORICAL_VERTICAL_REVISION,
+        )
         self.assertEqual(
             intelligence["internal_engines"],
             ["sentra", "lyte", "killinchu", "finance", "terra", "counsel"],
