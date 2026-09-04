@@ -157,6 +157,30 @@ def test_selection_fails_closed_when_72_handles_are_unavailable() -> None:
         )
 
 
+def test_selection_fails_closed_when_a_reserved_repository_is_missing() -> None:
+    state_raw, candidates_raw = fixture()
+    rows = [
+        json.loads(line)
+        for line in candidates_raw.splitlines()
+        if json.loads(line)["source_repository"] != "szl-holdings/anatomy"
+    ]
+    assert len(rows) >= 72
+    missing_reserve = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["candidate_count"] = len(rows)
+    state["candidate_set_sha256"] = hashlib.sha256(missing_reserve).hexdigest()
+    with pytest.raises(
+        MaterializationError,
+        match="reserved repository has no candidate: szl-holdings/anatomy",
+    ):
+        build_snapshot(
+            "5" * 40,
+            json.dumps(state).encode(),
+            missing_reserve,
+            dependencies(),
+        )
+
+
 def test_candidate_content_and_promotion_tampering_fail_closed() -> None:
     state_raw, candidates_raw = fixture()
     rows = [json.loads(line) for line in candidates_raw.splitlines()]

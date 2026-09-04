@@ -270,9 +270,12 @@ def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             ),
             None,
         )
-        if candidate is not None:
-            selected.append(candidate)
-            selected_ids.add(str(candidate["id"]))
+        if candidate is None:
+            raise MaterializationError(
+                f"reserved repository has no candidate: {repository}"
+            )
+        selected.append(candidate)
+        selected_ids.add(str(candidate["id"]))
 
     for row in ordered:
         if len(selected) >= MAX_HANDLES:

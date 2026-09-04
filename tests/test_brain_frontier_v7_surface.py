@@ -30,6 +30,7 @@ def test_client_uses_one_same_origin_snapshot_without_persistence_or_telemetry()
     assert 'redirect: "error"' in source
     assert "HANDLES_ONLY" in source
     assert "DISCOVERED_REVIEW_REQUIRED" in source
+    assert "payload.handles.length !== 72" in source
     assert re.search(r"\bhandle\.content\b", source) is None
     assert "payload.content" not in source
     for forbidden in (
