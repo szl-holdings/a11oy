@@ -40,6 +40,12 @@ from __future__ import annotations
 import sys
 from typing import Any, Callable, List, Tuple
 
+try:
+    from szl_anatomy_alias_bind import bind_ptg_redirect
+    bind_ptg_redirect()
+except Exception:
+    pass
+
 # Doctrine echo block — same shape the other szl_* surfaces emit, so any response
 # that reuses this constant stays honesty-clean under the doctrine guards.
 DOCTRINE = {
@@ -81,7 +87,6 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
     """
     status: List[str] = []
 
-    # (module_name, label, expected_primary_route) for the register(app, ns) surfaces.
     fn_surfaces: List[Tuple[str, str, str]] = [
         ("szl_energy_budget",       "Energy-budget receipt", f"/api/{ns}/v1/energy/budget"),
         ("szl_engine_status",       "Unified engine status", f"/api/{ns}/v1/engine/status"),
@@ -95,33 +100,17 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
         try:
             line, _ = _register_via_fn(app, ns, module_name, label, expect)
             status.append(line)
-        except Exception as exc:  # additive: one missing module never blocks the rest
+        except Exception as exc:
             line = f"[a11oy:dark] {label} NOT registered ({module_name}): {exc!r}"
             _stderr(line)
             status.append(line)
 
-    # AYNI-OS is a self-contained APIRouter whose routes declare bare paths
-    # (/v1/ayni, /v1/replay, /v1/tinkuy). The DOCUMENTED, dashboard-facing contract
-    # is /api/<ns>/v1/ayni (the same /api/<ns>/v1/* shape every other dark surface
-    # uses); mounting the router WITHOUT a prefix left it at /v1/ayni, so the
-    # documented /api/<ns>/v1/ayni 404'd (it fell through to the Node proxy, which
-    # answered {"error":"not found","path":"/v1/ayni"}). FIX: include the router under
-    # prefix=/api/<ns> so the documented /api/<ns>/v1/ayni path resolves LOCALLY and
-    # wins ordering (registered here, before the SPA catch-all / Node proxy). We ALSO
-    # keep the legacy bare /v1/ayni mount for back-compat — purely additive, so any
-    # existing caller of the old path is never broken. NOT register(app, ns) — own
-    # try/except below so AYNI absent never blocks the other six surfaces.
     try:
         from ayni_os_serve import router as _ayni_router  # type: ignore
         included = False
         include_router = getattr(app, "include_router", None)
         if callable(include_router):
-            # Documented path: /api/<ns>/v1/ayni (+ /replay, /tinkuy). Resolves LOCALLY.
             app.include_router(_ayni_router, prefix=f"/api/{ns}")
-            # Legacy paths: current FastAPI versions de-duplicate a second inclusion
-            # of the same APIRouter object, even when its prefix differs.  Append the
-            # original APIRoute objects instead so the claimed bare /v1/* contract is
-            # actually present while the prefixed clones remain untouched.
             existing_paths = {
                 getattr(route, "path", None) for route in app.router.routes
             }
@@ -131,8 +120,6 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
                     existing_paths.add(getattr(route, "path", None))
             included = True
         else:
-            # Bare Starlette fallback: splice the router's routes onto app.router at
-            # BOTH the documented /api/<ns> prefix and the legacy bare path.
             from starlette.routing import Route as _Route
             for _r in getattr(_ayni_router, "routes", []):
                 _path = getattr(_r, "path", None)
@@ -146,7 +133,7 @@ def register(app: Any, ns: str = "a11oy") -> List[str]:
             line = f"[a11oy:dark] AYNI-OS mounted: /api/{ns}/v1/ayni + /api/{ns}/v1/replay + /api/{ns}/v1/tinkuy (legacy /v1/ayni kept)"
             _stderr(line)
             status.append(line)
-    except Exception as exc:  # additive: AYNI absent never blocks the other six
+    except Exception as exc:
         line = f"[a11oy:dark] AYNI-OS NOT mounted (ayni_os_serve): {exc!r}"
         _stderr(line)
         status.append(line)
