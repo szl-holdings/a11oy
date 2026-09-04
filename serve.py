@@ -1181,6 +1181,14 @@ try:
 except Exception as _szl_lyte_e:  # pragma: no cover
     print(f"[a11oy] LYTE lattice BIND NOT registered: {_szl_lyte_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- UNIFY flock ledger — one A11oy package surface, not a separate product Space. --
+try:
+    import szl_unify_flock as _szl_unify_flock
+    _szl_unify_flock.register(app, ns="a11oy")
+    print("[a11oy] Unify flock registered: /unify and /api/a11oy/v1/unify/status", file=__import__("sys").stderr)
+except Exception as _szl_unify_e:  # pragma: no cover
+    print(f"[a11oy] Unify flock NOT registered: {_szl_unify_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
+
 # -- KHIPU product organ — original cuts, duals Ari=GreenLight / Kay Pacha=Anatomy.
 # GET /khipu HTML is exact. /khipu/{hash} stays the receipt API. CUDA UNAVAILABLE.
 # API is /api/a11oy/v1/khipu-organ/* so the receipt DAG at /api/a11oy/v1/khipu/* is
