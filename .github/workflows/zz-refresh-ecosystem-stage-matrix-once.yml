@@ -1,0 +1,63 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Refresh ecosystem stage matrix once
+
+"on":
+  push:
+    branches: [fix/hf-ecosystem-manifest-20260904-v8]
+    paths:
+      - .github/workflows/zz-refresh-ecosystem-stage-matrix-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-ecosystem-stage-matrix-once-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Require exact branch identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = fix/hf-ecosystem-manifest-20260904-v8
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Regenerate and verify the derived stage matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 scripts/build_ecosystem_stage_matrix.py
+          python3 scripts/build_ecosystem_stage_matrix.py --check
+          node scripts/test_validate_huggingface_ecosystem_schema.mjs
+          node scripts/validate_huggingface_ecosystem_schema.mjs
+          git diff --check
+
+      - name: Commit only the derived matrix and remove this one-shot control
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add docs/ecosystem-stage-matrix.json
+          git rm .github/workflows/zz-refresh-ecosystem-stage-matrix-once.yml
+          git diff --cached --check
+          git commit --signoff -m "fix(hf): refresh derived ecosystem stage matrix"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
