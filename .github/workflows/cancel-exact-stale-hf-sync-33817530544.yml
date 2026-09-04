@@ -1,0 +1,51 @@
+name: Cancel exact stale HF sync 33817530544
+
+on:
+  push:
+    branches:
+      - ops/cancel-stale-hf-sync-33817530544
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cancel-exact-obsolete-run:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Cancel only the proved obsolete writer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: "33817530544"
+          EXPECTED_SHA: b86626f3be5dfd32c979ec01ed7c2b5c5168eb5b
+          EXPECTED_WORKFLOW: Sync and Relock Canonical Hugging Face Space
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}")"
+          test "$(jq -r .head_sha <<<"$run_json")" = "$EXPECTED_SHA"
+          test "$(jq -r .name <<<"$run_json")" = "$EXPECTED_WORKFLOW"
+          test "$(jq -r .path <<<"$run_json")" = ".github/workflows/hf-sync.yml"
+          status="$(jq -r .status <<<"$run_json")"
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$current_main" != "$EXPECTED_SHA"
+
+          case "$status" in
+            completed)
+              echo "Exact obsolete run already completed; no cancellation needed."
+              ;;
+            in_progress|queued|pending|waiting|requested)
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/runs/${RUN_ID}/cancel"
+              echo "Cancelled exact obsolete run ${RUN_ID} at ${EXPECTED_SHA}; current main is ${current_main}."
+              ;;
+            *)
+              echo "::error::Refusing unexpected run status: $status"
+              exit 1
+              ;;
+          esac
