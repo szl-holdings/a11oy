@@ -23,7 +23,7 @@ jobs:
   refresh:
     if: github.event_name != 'pull_request' || github.head_ref == 'fix/hf-ecosystem-manifest-20260904-v8'
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 15
     env:
       TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
       EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -46,6 +46,21 @@ jobs:
           set -euo pipefail
           test "$TARGET_BRANCH" = fix/hf-ecosystem-manifest-20260904-v8
           test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+
+      - name: Set up pinned JavaScript toolchain
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v4.3.0
+        with:
+          version: 10.33.3
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: "22"
+          cache: pnpm
+
+      - name: Install exact dependency graph
+        run: pnpm install --frozen-lockfile
 
       - name: Regenerate and verify the derived stage matrix
         shell: bash
