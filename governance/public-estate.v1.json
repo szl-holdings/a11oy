@@ -3,13 +3,14 @@
   "estate": "SZL Holdings public command estate",
   "source_repository": "szl-holdings/a11oy",
   "truth_policy": "exact-source-or-unverified",
-  "public_vertical_product_count": 5,
+  "public_vertical_product_count": 6,
   "platform_count": 1,
   "allowed_hosts": [
     "api.github.com",
     "huggingface.co",
     "szlholdings-a11oy.hf.space",
     "szlholdings-killinchu.hf.space",
+    "szlholdings-sentra.hf.space",
     "szlholdings-lyte.hf.space",
     "szlholdings-finance.hf.space",
     "szlholdings-terra.hf.space",
@@ -30,7 +31,9 @@
       "required_paths": [
         "/",
         "/api/build-info"
-      ]
+      ],
+      "source_repository_policy": "manifest-fixed-runtime-revision",
+      "hf_revision_policy": "provider-observed"
     }
   ],
   "public_products": [
@@ -59,12 +62,12 @@
       "hf_revision_policy": "provider-observed"
     },
     {
-      "id": "lyte",
-      "title": "Lyte",
-      "class": "business-observability",
+      "id": "sentra",
+      "title": "Sentra",
+      "class": "assurance-command",
       "public": true,
-      "hf_repository": "SZLHOLDINGS/lyte",
-      "base_url": "https://szlholdings-lyte.hf.space",
+      "hf_repository": "SZLHOLDINGS/sentra",
+      "base_url": "https://szlholdings-sentra.hf.space",
       "deployment_source_repository": "szl-holdings/a11oy",
       "revision_policy": "declared-commit",
       "build_info_path": "/api/build-info",
@@ -73,6 +76,30 @@
         "/healthz",
         "/api/build-info",
         "/api/source"
+      ]
+    },
+    {
+      "id": "lyte",
+      "title": "Lyte",
+      "class": "business-observability",
+      "public": true,
+      "hf_repository": "SZLHOLDINGS/lyte",
+      "base_url": "https://szlholdings-lyte.hf.space",
+      "deployment_source_repository": "szl-holdings/lyte-services",
+      "revision_policy": "exact-default-branch",
+      "default_branch": "main",
+      "source_repository_policy": "lyte-source-bound-build",
+      "hf_revision_policy": "provider-observed",
+      "build_info_path": "/api/build-info",
+      "required_paths": [
+        "/",
+        "/healthz",
+        "/readyz",
+        "/api/build-info",
+        "/.well-known/szl-source.json",
+        "/api/lyte/v3/catalog",
+        "/api/lyte/v3/capabilities",
+        "/api/lyte/v3/formulas"
       ]
     },
     {
@@ -129,14 +156,6 @@
   ],
   "capability_planes": [
     {
-      "id": "sentra",
-      "status": "folded",
-      "runtime": "killinchu",
-      "public_route": "https://szlholdings-killinchu.hf.space/defend",
-      "independent_public_space_allowed": false,
-      "reason": "Independently testable defensive-control capability behind Killinchu."
-    },
-    {
       "id": "vessels",
       "status": "folded",
       "runtime": "killinchu",
@@ -147,15 +166,16 @@
     {
       "id": "aegis",
       "status": "portfolio-label",
-      "runtime": "killinchu:defend",
-      "public_route": "https://szlholdings-killinchu.hf.space/defend",
+      "runtime": "sentra",
+      "public_route": "https://szlholdings-sentra.hf.space/",
       "independent_public_space_allowed": false,
-      "reason": "Portfolio and enterprise-experience label, not a competing runtime."
+      "reason": "Assurance label under Sentra, as directed by owner-2026-09-04-sentra-assurance-command; not a competing runtime."
     },
     {
       "id": "immune",
       "status": "migration-required",
       "runtime": null,
+      "target_runtime": "sentra",
       "public_route": null,
       "independent_public_space_allowed": false,
       "required_before_admission": [
@@ -165,7 +185,7 @@
         "rollback-receipt-contract",
         "parity-gated-live-witness"
       ],
-      "reason": "No silent alias or completion claim before unique contracts are imported and proven."
+      "reason": "Engine/library under Sentra by owner directive; runtime migration remains unverified until unique contracts are imported and proven."
     }
   ],
   "internal_surfaces": [
@@ -176,25 +196,12 @@
       "public_product": false
     }
   ],
-  "retirement_candidates": [
-    {
-      "hf_repository": "SZLHOLDINGS/sentra",
-      "replacement": "SZLHOLDINGS/killinchu#defend",
-      "state": "evidence-gated",
-      "retire_only_after": [
-        "killinchu-exact-main-live",
-        "defend-required-routes-live",
-        "source-snapshot-recorded",
-        "secret-key-names-inventoried-without-reading-values",
-        "rollback-window-recorded"
-      ]
-    }
-  ],
+  "retirement_candidates": [],
   "non_product_review_queue": [
     {
       "hf_repository": "SZLHOLDINGS/aegis-assurance",
-      "state": "classify-before-retirement",
-      "decision_rule": "Keep only when it proves a distinct assurance contract not already served by A11oy or Killinchu."
+      "state": "decommissioned-by-owner-directive",
+      "decision_rule": "Assurance mission routes to Sentra under owner-2026-09-04-sentra-assurance-command; no provider deletion is performed by this witness."
     },
     {
       "hf_repository": "SZLHOLDINGS/david-leads",
