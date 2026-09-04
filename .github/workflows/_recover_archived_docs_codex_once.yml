@@ -1,0 +1,302 @@
+name: Recover archived Codex documentation workcell once
+
+on:
+  push:
+    branches:
+      - ops/codex-perplexity-recovery-20260904-v1
+    paths:
+      - .github/workflows/_recover_archived_docs_codex_once.yml
+
+permissions:
+  actions: read
+  contents: write
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: recover-archived-docs-codex-pr68-20260904
+  cancel-in-progress: false
+
+jobs:
+  recover:
+    name: Build archived PR 68 and promote a provider-neutral static successor
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      GH_ADMIN_TOKEN: ${{ secrets.SZL_GITHUB_TOKEN || secrets.GH_ADMIN_TOKEN || secrets.GITHUB_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.GH_PAT || github.token }}
+      SOURCE_REPO: szl-holdings/docs-site
+      SOURCE_PR: "68"
+      DEST_REPO: szl-holdings/szl-holdings.github.io
+      DEST_BRANCH: recover/docs-site-pr68-20260904
+      DEST_PATH: investor-developer
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out isolated controller
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/codex-perplexity-recovery-20260904-v1
+          persist-credentials: false
+
+      - name: Fetch and classify the exact archived workcell
+        id: source
+        env:
+          GH_TOKEN: ${{ env.GH_ADMIN_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/archived-docs-codex
+          pr="$(gh api "repos/${SOURCE_REPO}/pulls/${SOURCE_PR}")"
+          printf '%s\n' "$pr" > evidence/archived-docs-codex/source-pr.json
+          head_sha="$(printf '%s' "$pr" | jq -r .head.sha)"
+          base_sha="$(printf '%s' "$pr" | jq -r .base.sha)"
+          echo "head_sha=$head_sha" >> "$GITHUB_OUTPUT"
+          echo "base_sha=$base_sha" >> "$GITHUB_OUTPUT"
+          git clone --filter=blob:none "https://x-access-token:${GH_TOKEN}@github.com/${SOURCE_REPO}.git" /tmp/docs-source
+          git -C /tmp/docs-source fetch --no-tags origin "pull/${SOURCE_PR}/head:refs/heads/recovered-pr-${SOURCE_PR}"
+          git -C /tmp/docs-source switch "recovered-pr-${SOURCE_PR}"
+          git -C /tmp/docs-source diff --name-status "$base_sha" "$head_sha" > evidence/archived-docs-codex/source-diff.txt
+          python - <<'PY'
+          from pathlib import Path
+          prohibited = {'.env', '.env.local', 'id_rsa', 'credentials.json'}
+          rows = Path('evidence/archived-docs-codex/source-diff.txt').read_text(encoding='utf-8').splitlines()
+          paths = [row.split('\t')[-1] for row in rows if row.strip()]
+          bad = [path for path in paths if Path(path).name.lower() in prohibited or path.startswith('.github/workflows/')]
+          if bad:
+              raise SystemExit(f'archived candidate contains prohibited deployment/credential paths: {bad}')
+          PY
+
+      - name: Build and test the archived candidate exactly
+        shell: bash
+        working-directory: /tmp/docs-source
+        run: |
+          set -euo pipefail
+          if [ -f package.json ]; then
+            corepack enable
+            if [ -f pnpm-lock.yaml ]; then
+              pnpm install --frozen-lockfile
+              pnpm run lint --if-present
+              pnpm run test --if-present
+              pnpm run build --if-present
+            elif [ -f package-lock.json ]; then
+              npm ci
+              npm run lint --if-present
+              npm test --if-present -- --runInBand || npm test --if-present
+              npm run build --if-present
+            elif [ -f yarn.lock ]; then
+              yarn install --immutable || yarn install --frozen-lockfile
+              yarn run lint || true
+              yarn run test || true
+              yarn run build
+            else
+              echo '::error::JavaScript project has no immutable lockfile'
+              exit 1
+            fi
+          fi
+          if [ -f requirements.txt ]; then
+            python -m pip install --disable-pip-version-check -r requirements.txt
+            python -m pytest -q
+          fi
+
+      - name: Select and normalize a static provider-neutral output
+        id: output
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/static-output
+          mkdir -p /tmp/static-output
+          selected=''
+          for candidate in out dist build site _site public; do
+            if [ -f "/tmp/docs-source/${candidate}/index.html" ]; then
+              selected="$candidate"
+              break
+            fi
+          done
+          if [ -z "$selected" ] && [ -f /tmp/docs-source/index.html ]; then
+            selected='.'
+          fi
+          if [ -z "$selected" ]; then
+            echo '::error::Archived candidate produced no static index.html output'
+            exit 1
+          fi
+          echo "selected=$selected" >> "$GITHUB_OUTPUT"
+          rsync -a --delete \
+            --exclude='.git' --exclude='node_modules' --exclude='.env*' \
+            --exclude='*.map' "/tmp/docs-source/${selected}/" /tmp/static-output/
+          test -f /tmp/static-output/index.html
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('/tmp/static-output')
+          for path in root.rglob('*.html'):
+              text = path.read_text(encoding='utf-8')
+              text = re.sub(r'(?P<attr>(?:src|href)=["\'])/(?!/)', rf'\g<attr>/{Path("investor-developer").as_posix()}/', text)
+              path.write_text(text, encoding='utf-8')
+          total = sum(path.stat().st_size for path in root.rglob('*') if path.is_file())
+          if total > 50 * 1024 * 1024:
+              raise SystemExit(f'static successor exceeds 50 MiB: {total}')
+          external = []
+          for path in root.rglob('*.html'):
+              text = path.read_text(encoding='utf-8', errors='replace')
+              external += re.findall(r'<script[^>]+src=["\']https?://[^"\']+', text, re.I)
+          if external:
+              raise SystemExit(f'provider-neutral successor contains external runtime scripts: {external[:5]}')
+          PY
+
+      - name: Create exact destination branch and PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ env.GH_ADMIN_TOKEN }}
+          SOURCE_HEAD: ${{ steps.source.outputs.head_sha }}
+          SOURCE_BASE: ${{ steps.source.outputs.base_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git clone "https://x-access-token:${GH_TOKEN}@github.com/${DEST_REPO}.git" /tmp/docs-dest
+          git -C /tmp/docs-dest fetch --no-tags origin main
+          git -C /tmp/docs-dest switch -C "$DEST_BRANCH" origin/main
+          rm -rf "/tmp/docs-dest/${DEST_PATH}"
+          mkdir -p "/tmp/docs-dest/${DEST_PATH}"
+          rsync -a /tmp/static-output/ "/tmp/docs-dest/${DEST_PATH}/"
+          cat > "/tmp/docs-dest/${DEST_PATH}/PROVENANCE.md" <<EOF
+          # Archived docs-site Codex successor provenance
+
+          - Archived source: \`${SOURCE_REPO}#${SOURCE_PR}\`
+          - Exact source base: \`${SOURCE_BASE}\`
+          - Exact source head: \`${SOURCE_HEAD}\`
+          - Recovered on: \`2026-09-04\`
+          - Deployment model: provider-neutral static output under \`/${DEST_PATH}/\`
+          - Runtime CDN: prohibited by the recovery gate
+          - Source repository remains archived and unchanged
+
+          This directory is a built successor artifact, not evidence that customer traction, production adoption, or third-party endorsement exists.
+          EOF
+          git -C /tmp/docs-dest config user.name 'github-actions[bot]'
+          git -C /tmp/docs-dest config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git -C /tmp/docs-dest add "$DEST_PATH"
+          git -C /tmp/docs-dest diff --cached --check
+          git -C /tmp/docs-dest commit -s -m 'feat(docs): recover provider-neutral investor and developer portal'
+          git -C /tmp/docs-dest push --force-with-lease origin HEAD:"$DEST_BRANCH"
+          number="$(gh api "repos/${DEST_REPO}/pulls?state=open&head=szl-holdings%3Arecover%2Fdocs-site-pr68-20260904" --jq '.[0].number // empty')"
+          body=$(cat <<EOF
+          ## Recovered Codex workcell
+
+          This successor builds the exact archived \`${SOURCE_REPO}#${SOURCE_PR}\` candidate and publishes the resulting provider-neutral static portal under \`/${DEST_PATH}/\` in the active corporate site.
+
+          - Source base: \`${SOURCE_BASE}\`
+          - Source head: \`${SOURCE_HEAD}\`
+          - Archived source remains unchanged.
+          - No Replit, Vercel, external runtime script, credential, DNS, domain, branch-protection, or provider mutation.
+          - The destination repository's own exact-head checks remain authoritative.
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>
+          EOF
+          )
+          if [ -z "$number" ]; then
+            number="$(gh api --method POST "repos/${DEST_REPO}/pulls" \
+              -f title='feat(docs): recover provider-neutral investor and developer portal' \
+              -f head="$DEST_BRANCH" -f base=main -f body="$body" \
+              -F maintainer_can_modify=true --jq .number)"
+          else
+            gh api --method PATCH "repos/${DEST_REPO}/pulls/${number}" -f body="$body" -f state=open >/dev/null
+          fi
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "head=$(git -C /tmp/docs-dest rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for destination checks and merge through protection
+        env:
+          GH_TOKEN: ${{ env.GH_ADMIN_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+          HEAD_SHA: ${{ steps.pr.outputs.head }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 120); do
+            pr="$(gh api "repos/${DEST_REPO}/pulls/${PR_NUMBER}")"
+            current="$(printf '%s' "$pr" | jq -r .head.sha)"
+            state="$(printf '%s' "$pr" | jq -r .mergeable_state)"
+            test "$current" = "$HEAD_SHA"
+            if [ "$state" = behind ]; then
+              gh api --method PUT "repos/${DEST_REPO}/pulls/${PR_NUMBER}/update-branch" -f expected_head_sha="$HEAD_SHA" >/dev/null
+              sleep 20
+              HEAD_SHA="$(gh api "repos/${DEST_REPO}/pulls/${PR_NUMBER}" --jq .head.sha)"
+              continue
+            fi
+            checks="$(gh api "repos/${DEST_REPO}/commits/${HEAD_SHA}/check-runs?per_page=100")"
+            count="$(printf '%s' "$checks" | jq '.check_runs | length')"
+            pending="$(printf '%s' "$checks" | jq '[.check_runs[] | select(.status != "completed")] | length')"
+            failed="$(printf '%s' "$checks" | jq '[.check_runs[] | select(.status == "completed" and (.conclusion | IN("success", "neutral", "skipped") | not))] | length')"
+            if [ "$count" -gt 0 ] && [ "$pending" -eq 0 ]; then
+              test "$failed" -eq 0
+              gh api --method PUT "repos/${DEST_REPO}/pulls/${PR_NUMBER}/merge" \
+                -f sha="$HEAD_SHA" -f merge_method=squash \
+                -f commit_title="feat(docs): recover provider-neutral investor and developer portal (#${PR_NUMBER})" \
+                -f commit_message=$'Promote the tested static output from archived docs-site PR 68 into the active corporate Pages source without external runtime dependencies.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>' \
+                --jq '{merged, message, sha}'
+              exit 0
+            fi
+            sleep 20
+          done
+          echo '::error::Destination documentation PR did not reach green exact-head checks'
+          exit 1
+
+      - name: Verify live successor and retain evidence
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          import time
+          import urllib.request
+          from pathlib import Path
+
+          url = 'https://szl-holdings.github.io/investor-developer/'
+          observed = None
+          for _ in range(30):
+              try:
+                  with urllib.request.urlopen(urllib.request.Request(url, headers={'User-Agent': 'SZL-docs-successor-proof/1.0'}), timeout=20) as response:
+                      body = response.read(5 * 1024 * 1024)
+                      observed = {'status': response.status, 'url': response.geturl(), 'sha256': hashlib.sha256(body).hexdigest(), 'bytes': len(body)}
+                      if response.status == 200 and body:
+                          break
+              except Exception as exc:
+                  observed = {'status': 'UNAVAILABLE', 'error': f'{type(exc).__name__}: {exc}'[:500]}
+              time.sleep(10)
+          proof = {'schema': 'szl.archived-docs-codex-successor/v1', 'source_repo': 'szl-holdings/docs-site', 'source_pr': 68, 'destination': url, 'observation': observed, 'credential_values_recorded': False}
+          Path('evidence/archived-docs-codex/live-proof.json').write_text(json.dumps(proof, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          if not observed or observed.get('status') != 200:
+              raise SystemExit('static successor did not become live')
+          PY
+
+      - name: Upload retained recovery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: archived-docs-codex-recovery-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/archived-docs-codex
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Retire this one-shot controller
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin ops/codex-perplexity-recovery-20260904-v1
+          git switch -C ops/codex-perplexity-recovery-20260904-v1 origin/ops/codex-perplexity-recovery-20260904-v1
+          git rm --ignore-unmatch .github/workflows/_recover_archived_docs_codex_once.yml
+          mkdir -p evidence/archived-docs-codex
+          cp -a "$GITHUB_WORKSPACE/evidence/archived-docs-codex/." evidence/archived-docs-codex/ 2>/dev/null || true
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add evidence/archived-docs-codex || true
+          if ! git diff --cached --quiet; then
+            git commit -s -m 'chore(evidence): retain archived Codex docs recovery'
+            git push origin HEAD:ops/codex-perplexity-recovery-20260904-v1
+          fi
