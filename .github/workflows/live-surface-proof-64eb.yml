@@ -1,0 +1,220 @@
+name: Live surface proof 64eb
+
+on:
+  push:
+    branches:
+      - ops/live-surface-proof-64eb
+
+permissions:
+  contents: read
+
+concurrency:
+  group: live-surface-proof-64eb
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Probe exact public surfaces without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          EXPECTED_MAIN = "64ebbeaa388ba3b2523bade32fbd804731c0f708"
+          EXPECTED_VERTICAL = "b191c14bf7449a52f1ec3d5959722b396af7fddd"
+          A11OY_HF = "https://szlholdings-a11oy.hf.space"
+          A11OY_WEB = "https://a-11-oy.com"
+          VERTICAL = "https://szlholdings-vertical-services.hf.space"
+
+          targets = []
+          for origin in (A11OY_HF, A11OY_WEB):
+              for path in (
+                  "/",
+                  "/console",
+                  "/api/build-info",
+                  "/api/livez",
+                  "/api/a11oy/healthz",
+                  "/console/assets/szl-holo-v2.css",
+                  "/console/assets/szl-holo-v2.js",
+                  "/killinchu",
+                  "/hatun-mcp",
+                  "/cockpit",
+                  "/brain",
+                  "/anatomy-v5",
+                  "/living-anatomy",
+                  "/khipu",
+                  "/immune",
+                  "/lyte",
+                  "/estate",
+              ):
+                  targets.append((origin, path))
+          for path in (
+              "/",
+              "/healthz",
+              "/readyz",
+              "/api/build-info",
+              "/sentra/healthz",
+              "/lyte/healthz",
+              "/vessels/healthz",
+              "/finance/healthz",
+              "/terra/healthz",
+              "/counsel/healthz",
+          ):
+              targets.append((VERTICAL, path))
+
+          def fetch(origin: str, path: str) -> dict:
+              url = origin + path
+              last = None
+              for attempt in range(1, 4):
+                  request = urllib.request.Request(
+                      url + ("&" if "?" in url else "?") + f"proof={time.time_ns()}",
+                      headers={
+                          "Accept": "*/*",
+                          "Cache-Control": "no-cache",
+                          "Pragma": "no-cache",
+                          "User-Agent": "SZL-Live-Surface-Proof/1.0",
+                      },
+                  )
+                  try:
+                      with urllib.request.urlopen(request, timeout=25) as response:
+                          body = response.read()
+                          record = {
+                              "url": url,
+                              "status": response.status,
+                              "final_url": response.geturl().split("?", 1)[0],
+                              "content_type": response.headers.get("content-type"),
+                              "content_length": len(body),
+                              "sha256": hashlib.sha256(body).hexdigest(),
+                              "server": response.headers.get("server"),
+                              "x_sourced_sha": response.headers.get("x-szl-source-revision"),
+                          }
+                          text = body.decode("utf-8", errors="replace")
+                          if path.endswith("szl-holo-v2.css"):
+                              record["ui_contract"] = {
+                                  "fluid_estate_v4": "SZL FLUID ESTATE RAIL V4" in text,
+                                  "cyan_palette": "#57ebff" in text and "#31e6d1" in text,
+                                  "arrow_controls": ".szl-estate-scroll" in text,
+                                  "responsive_760": "max-width: 760px" in text,
+                              }
+                          elif path.endswith("szl-holo-v2.js"):
+                              record["ui_contract"] = {
+                                  "fluid_estate_v4": "SZL FLUID ESTATE RAIL V4" in text,
+                                  "killinchu": "KILLINCHU" in text,
+                                  "hatun": "HATUN" in text,
+                                  "second_brain": "SECOND BRAIN" in text,
+                                  "living_anatomy": "LIVING ANATOMY" in text,
+                                  "brain_anatomy_bound": "szlBrainAnatomyNav" in text,
+                              }
+                          elif "json" in str(record["content_type"]).lower() or path.endswith("build-info") or path.endswith("healthz") or path.endswith("readyz") or path.endswith("livez"):
+                              try:
+                                  payload = json.loads(text)
+                              except Exception:
+                                  record["json"] = None
+                                  record["body_preview"] = text[:600]
+                              else:
+                                  record["json"] = payload
+                          else:
+                              record["html_contract"] = {
+                                  "fluid_estate_marker": "SZL FLUID ESTATE RAIL V4" in text,
+                                  "holo_css_reference": "szl-holo-v2.css" in text,
+                                  "holo_js_reference": "szl-holo-v2.js" in text,
+                                  "killinchu_text": "KILLINCHU" in text.upper(),
+                                  "hatun_text": "HATUN" in text.upper(),
+                              }
+                          return record
+                  except urllib.error.HTTPError as exc:
+                      body = exc.read()
+                      last = {
+                          "url": url,
+                          "status": exc.code,
+                          "final_url": exc.geturl().split("?", 1)[0],
+                          "content_type": exc.headers.get("content-type") if exc.headers else None,
+                          "content_length": len(body),
+                          "sha256": hashlib.sha256(body).hexdigest(),
+                          "body_preview": body.decode("utf-8", errors="replace")[:600],
+                      }
+                  except Exception as exc:
+                      last = {
+                          "url": url,
+                          "status": None,
+                          "error": f"{type(exc).__name__}: {exc}",
+                      }
+                  if attempt < 3:
+                      time.sleep(attempt * 2)
+              return last or {"url": url, "status": None, "error": "unknown"}
+
+          observations = [fetch(origin, path) for origin, path in targets]
+          indexed = {row["url"]: row for row in observations}
+
+          def json_at(origin: str, path: str):
+              row = indexed.get(origin + path, {})
+              return row.get("json") if isinstance(row.get("json"), dict) else {}
+
+          a11oy_build = json_at(A11OY_HF, "/api/build-info")
+          vertical_build = json_at(VERTICAL, "/api/build-info")
+          vertical_ready = json_at(VERTICAL, "/readyz")
+          css = indexed.get(A11OY_HF + "/console/assets/szl-holo-v2.css", {})
+          js = indexed.get(A11OY_HF + "/console/assets/szl-holo-v2.js", {})
+
+          route_paths = (
+              "/console", "/killinchu", "/hatun-mcp", "/cockpit", "/brain",
+              "/anatomy-v5", "/living-anatomy", "/khipu", "/immune", "/lyte", "/estate",
+          )
+          route_matrix = {
+              origin: {
+                  path: indexed.get(origin + path, {}).get("status")
+                  for path in route_paths
+              }
+              for origin in (A11OY_HF, A11OY_WEB)
+          }
+
+          report = {
+              "schema": "szl.live-surface-proof/v1",
+              "expected_main": EXPECTED_MAIN,
+              "expected_vertical": EXPECTED_VERTICAL,
+              "a11oy_build": a11oy_build,
+              "vertical_build": vertical_build,
+              "vertical_ready": vertical_ready,
+              "ui_css_contract": css.get("ui_contract"),
+              "ui_js_contract": js.get("ui_contract"),
+              "route_matrix": route_matrix,
+              "observations": observations,
+          }
+          report["summary"] = {
+              "a11oy_origin_reachable": indexed.get(A11OY_HF + "/", {}).get("status") == 200,
+              "a11oy_web_reachable": indexed.get(A11OY_WEB + "/", {}).get("status") == 200,
+              "ui_assets_current": all((css.get("ui_contract") or {}).values()) and all((js.get("ui_contract") or {}).values()),
+              "all_hf_routes_answer": all(code == 200 for code in route_matrix[A11OY_HF].values()),
+              "all_web_routes_answer": all(code == 200 for code in route_matrix[A11OY_WEB].values()),
+              "vertical_all_health_200": all(indexed.get(VERTICAL + path, {}).get("status") == 200 for path in ("/healthz", "/readyz", "/sentra/healthz", "/lyte/healthz", "/vessels/healthz", "/finance/healthz", "/terra/healthz", "/counsel/healthz")),
+          }
+          Path("live-surface-proof.json").write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          print(json.dumps(report["summary"], indent=2, sort_keys=True))
+          print(json.dumps(route_matrix, indent=2, sort_keys=True))
+          print(json.dumps({"a11oy_build": a11oy_build, "vertical_build": vertical_build, "vertical_ready": vertical_ready, "ui_css_contract": report["ui_css_contract"], "ui_js_contract": report["ui_js_contract"]}, indent=2, sort_keys=True))
+          PY
+
+      - name: Upload immutable live evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: live-surface-proof-64eb-${{ github.run_id }}-${{ github.run_attempt }}
+          path: live-surface-proof.json
+          if-no-files-found: error
+          retention-days: 30
