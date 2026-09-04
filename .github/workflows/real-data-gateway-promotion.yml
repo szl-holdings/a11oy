@@ -1,0 +1,125 @@
+name: Governed Real Data Gateway Promotion
+
+on:
+  push:
+    branches:
+      - 'feat/real-data-gateway-*'
+    paths:
+      - routers/real_data_gateway.py
+      - routers/frontier_reads.py
+      - routers/__init__.py
+      - console/3d/real-data-gateway.html
+      - console/3d/real-data-gateway.mjs
+      - scripts/verify_real_data_gateway_live.py
+      - tests/test_real_data_gateway.py
+      - docs/REAL_DATA_GATEWAY.md
+      - docs/REAL_DATA_GATEWAY_ADMISSION.md
+      - .github/workflows/real-data-gateway.yml
+      - .github/workflows/real-data-gateway-promotion.yml
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: real-data-gateway-promotion-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  promote:
+    name: Promote exact green gateway head
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      EXPECTED_HEAD: ${{ github.sha }}
+      BRANCH: ${{ github.ref_name }}
+      SELF_CHECK: Promote exact green gateway head
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Resolve the unique open pull request
+        id: pr
+        shell: bash
+        run: |
+          set -euo pipefail
+          payload="$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --head "$BRANCH" --json number,headRefOid,baseRefName,isDraft,url)"
+          count="$(jq 'length' <<<"$payload")"
+          test "$count" -eq 1
+          number="$(jq -r '.[0].number' <<<"$payload")"
+          head="$(jq -r '.[0].headRefOid' <<<"$payload")"
+          base="$(jq -r '.[0].baseRefName' <<<"$payload")"
+          draft="$(jq -r '.[0].isDraft' <<<"$payload")"
+          test "$head" = "$EXPECTED_HEAD"
+          test "$base" = main
+          test "$draft" = false
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+          echo "url=$(jq -r '.[0].url' <<<"$payload")" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for the exact-head admission matrix
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          accepted='["success","neutral","skipped"]'
+          for attempt in $(seq 1 150); do
+            current="$(gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" --json headRefOid,isDraft,reviewDecision)"
+            test "$(jq -r '.headRefOid' <<<"$current")" = "$EXPECTED_HEAD"
+            test "$(jq -r '.isDraft' <<<"$current")" = false
+            test "$(jq -r '.reviewDecision // ""' <<<"$current")" != CHANGES_REQUESTED
+
+            checks="$(gh api -H 'Accept: application/vnd.github+json' "/repos/$GITHUB_REPOSITORY/commits/$EXPECTED_HEAD/check-runs?per_page=100")"
+            total="$(jq --arg self "$SELF_CHECK" '[.check_runs[] | select(.name != $self)] | length' <<<"$checks")"
+            pending="$(jq --arg self "$SELF_CHECK" '[.check_runs[] | select(.name != $self and .status != "completed")] | length' <<<"$checks")"
+            failed="$(jq --arg self "$SELF_CHECK" --argjson accepted "$accepted" '[.check_runs[] | select(.name != $self and .status == "completed" and ((.conclusion as $c | $accepted | index($c)) == null))] | length' <<<"$checks")"
+
+            if [ "$failed" -ne 0 ]; then
+              jq --arg self "$SELF_CHECK" --argjson accepted "$accepted" -r '.check_runs[] | select(.name != $self and .status == "completed" and ((.conclusion as $c | $accepted | index($c)) == null)) | "failed: \(.name) / \(.conclusion)"' <<<"$checks"
+              exit 1
+            fi
+            if [ "$total" -ge 10 ] && [ "$pending" -eq 0 ]; then
+              echo "Exact head has $total terminal accepted checks."
+              break
+            fi
+            if [ "$attempt" -eq 150 ]; then
+              echo "Timed out: total=$total pending=$pending" >&2
+              exit 1
+            fi
+            sleep 15
+          done
+
+      - name: Require zero unresolved review threads
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          owner="${GITHUB_REPOSITORY%/*}"
+          repo="${GITHUB_REPOSITORY#*/}"
+          unresolved="$(gh api graphql \
+            -f query='query($owner:String!,$repo:String!,$number:Int!){repository(owner:$owner,name:$repo){pullRequest(number:$number){reviewThreads(first:100){nodes{isResolved}}}}}' \
+            -f owner="$owner" \
+            -f repo="$repo" \
+            -F number="$PR_NUMBER" \
+            --jq '[.data.repository.pullRequest.reviewThreads.nodes[] | select(.isResolved == false)] | length')"
+          test "$unresolved" -eq 0
+
+      - name: Perform normal protected squash merge
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        run: |
+          set -euo pipefail
+          gh pr merge "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --squash \
+            --match-head-commit "$EXPECTED_HEAD" \
+            --delete-branch
