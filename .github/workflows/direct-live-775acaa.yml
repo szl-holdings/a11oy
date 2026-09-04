@@ -1,0 +1,410 @@
+name: Direct exact-source live convergence — 775acaa
+
+on:
+  push:
+    branches:
+      - ops/direct-live-775acaa-20260904
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+env:
+  TARGET_SHA: 775acaa54724ab206b0c5477d754fbd6ed36e5f7
+  TOOLS_SHA: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+  HF_REPO: SZLHOLDINGS/a11oy
+  HF_ORIGIN: https://szlholdings-a11oy.hf.space
+  PRODUCT_ORIGIN: https://a-11-oy.com
+
+concurrency:
+  group: direct-live-775acaa-${{ github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  direct-hf:
+    name: Directly publish, source-bind, restart, and attest exact protected source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected A11oy source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          path: caller
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check out exact governed publisher tools
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/.github
+          ref: ${{ env.TOOLS_SHA }}
+          path: tools
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove exact source and tool authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C caller rev-parse HEAD)" = "$TARGET_SHA"
+          test "$(git -C tools rev-parse HEAD)" = "$TOOLS_SHA"
+          test -f caller/Dockerfile
+          test -f tools/.github/scripts/hf_deploy_from_dockerfile.py
+          test -f tools/.github/scripts/hf_space_source_binding.py
+          test -f tools/requirements/hf-publisher.lock
+          test -n "${HF_TOKEN:-}"
+
+      - name: Set up exact publisher Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Create isolated hash-locked publisher
+        shell: bash
+        run: |
+          set -euo pipefail
+          VENV="$RUNNER_TEMP/hf-publisher-venv"
+          test ! -e "$VENV"
+          python3 -m venv "$VENV"
+          test "$("$VENV/bin/python" -I -P -c 'import platform; print(platform.python_version())')" = "3.12.10"
+          "$VENV/bin/python" -I -P -m pip install \
+            --disable-pip-version-check \
+            --require-hashes \
+            --only-binary=:all: \
+            --ignore-installed \
+            -r tools/requirements/hf-publisher.lock
+
+      - name: Publish Dockerfile-derived exact source set
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SMOKE_PATHS: '["/","/api/livez","/api/build-info","/console","/assets/szl-holo-v2.css","/assets/szl-holo-v2.js","/brain","/anatomy-v5","/living-anatomy","/hatun-mcp","/cockpit","/khipu","/immune","/lyte","/estate","/api/a11oy/v1/llm/sovereign/health"]'
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/hf-publisher-venv/bin/python" -I -P \
+            tools/.github/scripts/hf_deploy_from_dockerfile.py \
+            --repo-root caller \
+            --github-repo "$GITHUB_REPOSITORY" \
+            --hf-repo "$HF_REPO" \
+            --ref "$TARGET_SHA" \
+            --source-sha "$TARGET_SHA" \
+            --dockerfile-path Dockerfile \
+            --include-readme true \
+            --smoke-paths "$SMOKE_PATHS" \
+            --prune \
+            --manifest-out hf-deploy-manifest.json
+
+      - name: Bind exact protected source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/hf-publisher-venv/bin/python" -I -P \
+            tools/.github/scripts/hf_space_source_binding.py \
+            --mode bind \
+            --repo-id "$HF_REPO" \
+            --variable SZL_GIT_SHA \
+            --revision "$TARGET_SHA" \
+            --probe-path /api/build-info \
+            --output hf-source-binding-bind.json
+
+      - name: Restart the canonical Space
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/hf-publisher-venv/bin/python" -I -P \
+            tools/.github/scripts/hf_deploy_from_dockerfile.py \
+            --restart-space \
+            --manifest hf-deploy-manifest.json \
+            --hf-repo "$HF_REPO"
+
+      - name: Attest exact running commit, bytes, and declared smoke routes
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/hf-publisher-venv/bin/python" -I -P \
+            tools/.github/scripts/hf_deploy_from_dockerfile.py \
+            --attest \
+            --manifest hf-deploy-manifest.json \
+            --hf-repo "$HF_REPO" \
+            --wait-running 1200
+
+      - name: Verify runtime source identity through build-info
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$RUNNER_TEMP/hf-publisher-venv/bin/python" -I -P \
+            tools/.github/scripts/hf_space_source_binding.py \
+            --mode verify \
+            --repo-id "$HF_REPO" \
+            --variable SZL_GIT_SHA \
+            --revision "$TARGET_SHA" \
+            --probe-path /api/build-info \
+            --timeout-seconds 180 \
+            --interval-seconds 5 \
+            --output hf-source-binding-verify.json
+
+      - name: Upload immutable exact-source deployment evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: direct-hf-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            hf-deploy-manifest.json
+            hf-source-binding-bind.json
+            hf-source-binding-verify.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  cloudflare-edge:
+    name: Converge bounded Cloudflare product edge from exact source
+    needs: direct-hf
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+      EDGE_REPORT: /tmp/cloudflare-product-edge-v4.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TARGET_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Require a governed Cloudflare credential without printing it
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "${CLOUDFLARE_API_TOKEN:-}" || {
+            echo '::error::No Cloudflare API token is available in the production environment or repository secrets.'
+            exit 2
+          }
+
+      - name: Prove bounded Worker and provider-controller contracts
+        run: |
+          python tests/test_cloudflare_product_edge.py -v
+          node --test tests/test_cloudflare_product_edge_worker.mjs
+          python -m py_compile scripts/repair_cloudflare_product_edge.py
+          node --check cloudflare/a11oy-product-root-worker.mjs
+
+      - name: Deploy Worker, converge exact apex/www proxy state, and prove public routing
+        run: python scripts/repair_cloudflare_product_edge.py --report "$EDGE_REPORT"
+
+      - name: Upload secret-free edge receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloudflare-edge-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.EDGE_REPORT }}
+          if-no-files-found: warn
+          retention-days: 90
+
+  public-proof:
+    name: Independently prove public domain, source identity, navigation, and inference truth
+    if: always()
+    needs:
+      - direct-hf
+      - cloudflare-edge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Execute cache-bypassed public convergence proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          TARGET = "775acaa54724ab206b0c5477d754fbd6ed36e5f7"
+          PRODUCT = "https://a-11-oy.com"
+          HF = "https://szlholdings-a11oy.hf.space"
+
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self, req, fp, code, msg, headers, newurl):
+                  return None
+
+          def request(url: str, *, follow: bool = True) -> dict[str, object]:
+              opener = urllib.request.build_opener() if follow else urllib.request.build_opener(NoRedirect())
+              separator = "&" if "?" in url else "?"
+              req = urllib.request.Request(
+                  f"{url}{separator}proof={time.time_ns()}",
+                  headers={
+                      "Accept": "*/*",
+                      "Cache-Control": "no-cache",
+                      "Pragma": "no-cache",
+                      "User-Agent": "SZL-Direct-Live-Proof/1.0",
+                  },
+              )
+              try:
+                  with opener.open(req, timeout=40) as response:
+                      return {
+                          "status": response.status,
+                          "body": response.read(),
+                          "final_url": response.geturl().split("?", 1)[0],
+                          "headers": dict(response.headers.items()),
+                      }
+              except urllib.error.HTTPError as exc:
+                  return {
+                      "status": exc.code,
+                      "body": exc.read(),
+                      "final_url": exc.geturl().split("?", 1)[0],
+                      "headers": dict(exc.headers.items()),
+                  }
+
+          evidence: dict[str, object] = {
+              "schema": "szl.direct-live-proof/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "target_sha": TARGET,
+              "source_identity": {},
+              "routes": {},
+              "assets": {},
+              "redirects": {},
+              "provider_health": {},
+          }
+          failures: list[str] = []
+
+          for label, base in (("hf", HF), ("product", PRODUCT)):
+              result = request(base + "/api/build-info")
+              text = result["body"].decode("utf-8", "replace")
+              matched = result["status"] == 200 and TARGET in text
+              evidence["source_identity"][label] = {
+                  "status": result["status"],
+                  "matched": matched,
+                  "final_url": result["final_url"],
+              }
+              if not matched:
+                  failures.append(f"{label} source identity mismatch")
+
+          for path in (
+              "/",
+              "/console",
+              "/brain",
+              "/anatomy-v5",
+              "/living-anatomy",
+              "/hatun-mcp",
+              "/cockpit",
+              "/khipu",
+              "/immune",
+              "/lyte",
+              "/estate",
+              "/killinchu",
+          ):
+              result = request(PRODUCT + path, follow=True)
+              row = {
+                  "status": result["status"],
+                  "bytes": len(result["body"]),
+                  "final_url": result["final_url"],
+              }
+              evidence["routes"][path] = row
+              if row["status"] != 200 or row["bytes"] == 0:
+                  failures.append(f"route {path} is not a non-empty HTTP 200 after redirects")
+
+          css = request(PRODUCT + "/assets/szl-holo-v2.css")
+          js = request(PRODUCT + "/assets/szl-holo-v2.js")
+          css_text = css["body"].decode("utf-8", "replace")
+          js_text = js["body"].decode("utf-8", "replace")
+          assets = {
+              "css_http_200": css["status"] == 200,
+              "js_http_200": js["status"] == 200,
+              "fluid_rail_css": "SZL FLUID ESTATE RAIL V4" in css_text,
+              "fluid_rail_js": "SZL FLUID ESTATE RAIL V4" in js_text,
+              "cyan_primary": "--szl-holo-accent: #57ebff !important" in css_text,
+              "cyan_secondary": "--szl-holo-accent-2: #31e6d1 !important" in css_text,
+              "brain_anatomy_binding": 'dataset.szlBrainAnatomyNav = "bound"' in js_text,
+              "killinchu_tab": 'label: "KILLINCHU"' in js_text,
+              "hatun_tab": 'label: "HATUN"' in js_text,
+              "second_brain_tab": 'label: "SECOND BRAIN"' in js_text,
+              "anatomy_tab": 'label: "ANATOMY"' in js_text,
+          }
+          evidence["assets"] = assets
+          for name, value in assets.items():
+              if not value:
+                  failures.append(f"asset contract failed: {name}")
+
+          www = request("https://www.a-11-oy.com/__szl_edge_probe__/path?contract=v4&preserve=yes", follow=False)
+          location = str(www["headers"].get("Location") or www["headers"].get("location") or "")
+          redirect_ok = www["status"] in (301, 302, 307, 308) and location.startswith(
+              "https://a-11-oy.com/__szl_edge_probe__/path"
+          )
+          evidence["redirects"]["www_to_apex"] = {
+              "status": www["status"],
+              "location": location,
+              "verified": redirect_ok,
+          }
+          if not redirect_ok:
+              failures.append("www-to-apex redirect contract failed")
+
+          proof = request("https://a11oy.net/", follow=True)
+          evidence["proof_domain"] = {
+              "status": proof["status"],
+              "bytes": len(proof["body"]),
+              "final_url": proof["final_url"],
+          }
+          if proof["status"] != 200 or len(proof["body"]) == 0:
+              failures.append("a11oy.net proof domain is not a non-empty HTTP 200")
+
+          health = request(PRODUCT + "/api/a11oy/v1/llm/sovereign/health")
+          try:
+              health_json = json.loads(health["body"].decode("utf-8", "replace"))
+          except json.JSONDecodeError:
+              health_json = None
+          evidence["provider_health"] = {
+              "status": health["status"],
+              "json": isinstance(health_json, dict),
+              "live": health_json.get("live") if isinstance(health_json, dict) else None,
+              "env_present": health_json.get("env_present") if isinstance(health_json, dict) else None,
+              "honest_stub": health_json.get("honest_stub") if isinstance(health_json, dict) else None,
+          }
+          if health["status"] != 200 or not isinstance(health_json, dict):
+              failures.append("sovereign health contract is unavailable")
+
+          evidence["complete"] = not failures
+          evidence["failures"] = failures
+          Path("/tmp/direct-live-proof.json").write_text(
+              json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(evidence, indent=2, sort_keys=True))
+          if failures:
+              raise SystemExit(1)
+          PY
+
+      - name: Upload immutable public proof
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: direct-live-proof-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/direct-live-proof.json
+          if-no-files-found: error
+          retention-days: 90
