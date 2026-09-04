@@ -1,0 +1,75 @@
+name: Complete fluid estate rail repair
+
+on:
+  push:
+    branches:
+      - fix/fluid-estate-rail-v4
+
+permissions:
+  contents: write
+
+concurrency:
+  group: complete-fluid-estate-rail-v4-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  complete:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/fluid-estate-rail-v4
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Materialize corrected canonical patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import textwrap
+
+          workflow = Path('.github/workflows/patch-fluid-estate-rail-v4.yml')
+          source = workflow.read_text(encoding='utf-8')
+          old = 'A11oy Holographic Experience v2'
+          new = 'A11oy Holo-Constellation v2.0.0'
+          if old not in source:
+              raise SystemExit('expected stale contract label was not found')
+          source = source.replace(old, new)
+
+          lines = source.splitlines()
+          start = next(i + 1 for i, line in enumerate(lines) if line.strip() == "python - <<'PY'")
+          end = next(i for i in range(start, len(lines)) if lines[i].strip() == 'PY')
+          program = textwrap.dedent('\n'.join(lines[start:end])) + '\n'
+          Path('/tmp/materialize_fluid_estate.py').write_text(program, encoding='utf-8')
+          PY
+          python /tmp/materialize_fluid_estate.py
+
+      - name: Validate JavaScript and offline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check console/assets/szl-holo-v2.js
+          python tests/test_holographic_experience_v2.py
+          python tests/test_holographic_command_bar.py
+          python tests/test_fluid_estate_rail_v4.py
+
+      - name: Commit verified repair and remove temporary workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/complete-fluid-estate-rail-v4.yml
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -s -m "fix(ui): restore fluid estate rail and bind Brain + Anatomy"
+          git push origin HEAD:fix/fluid-estate-rail-v4
