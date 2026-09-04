@@ -17,6 +17,56 @@ def load_entrypoint():
     return module
 
 
+def test_pinned_legacy_client_receives_metadata_only_backport(monkeypatch) -> None:
+    """Exercise the exact Hub client pinned by the production publisher."""
+    from huggingface_hub import HfApi, __version__
+    from huggingface_hub import utils as hub_utils
+
+    assert __version__ == "1.10.1"
+    assert not callable(getattr(HfApi, "get_space_secrets", None))
+
+    calls: dict[str, object] = {}
+
+    class Response:
+        def json(self) -> dict[str, dict[str, object]]:
+            return {
+                "SENTRA_SIGNING_KEY": {
+                    "description": "persistent signer",
+                    "updatedAt": "2026-09-04T00:00:00Z",
+                }
+            }
+
+    class Session:
+        def get(self, url: str, *, headers: dict[str, str]) -> Response:
+            calls["url"] = url
+            calls["headers"] = headers
+            return Response()
+
+    def hf_raise_for_status(response: Response) -> None:
+        calls["status_checked"] = response
+
+    monkeypatch.setattr(hub_utils, "get_session", lambda: Session())
+    monkeypatch.setattr(hub_utils, "hf_raise_for_status", hf_raise_for_status)
+
+    module = load_entrypoint()
+    try:
+        assert module.ensure_space_secret_reader() == "backported-metadata-only"
+        api = HfApi(endpoint="https://huggingface.example")
+        metadata = api.get_space_secrets(
+            "SZLHOLDINGS/vertical-services",
+            token="masked-test-token",
+        )
+        assert set(metadata) == {"SENTRA_SIGNING_KEY"}
+        assert calls["url"] == (
+            "https://huggingface.example/api/spaces/"
+            "SZLHOLDINGS/vertical-services/secrets"
+        )
+        assert calls["status_checked"] is not None
+        assert isinstance(calls["headers"], dict)
+    finally:
+        delattr(HfApi, "get_space_secrets")
+
+
 def test_native_space_secret_reader_is_left_untouched(monkeypatch) -> None:
     fake_hub = ModuleType("huggingface_hub")
 
