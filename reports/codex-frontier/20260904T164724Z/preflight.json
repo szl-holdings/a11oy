@@ -1,0 +1,262 @@
+{
+  "acceptance_scope": "LOCAL_CONTROLLER_GATE",
+  "base": "origin/main",
+  "complete": true,
+  "execution_evidence": {
+    "command_count": 1,
+    "credential_handling": "VALUES_REDACTED_AND_CHILD_ENV_ALLOWLISTED",
+    "declared_network_access": [
+      "GIT_REMOTE_READ"
+    ],
+    "declared_possible_local_mutations": [
+      "FETCH_HEAD",
+      "git_remote_tracking_refs"
+    ],
+    "git_ref_mutation_evidence": "FETCH_SUCCEEDED_REF_CHANGE_NOT_COMPARED",
+    "live_witness_executed": false,
+    "provider_mutation": "UNVERIFIED_NO_PROVIDER_WRITE_DECLARED",
+    "provider_mutation_note": "No before/after provider-state comparison is performed. Child-process effects cannot be inferred beyond their declared command metadata."
+  },
+  "generated_at": "2026-09-04T16:47:24.791286Z",
+  "operational_claim": "NOT_ESTABLISHED_BY_THIS_CONTROLLER_ALONE",
+  "phase": "preflight",
+  "repository": "szl-holdings/a11oy",
+  "required_failures": [],
+  "results": [
+    {
+      "detail": {
+        "argv": [
+          "git",
+          "fetch",
+          "--prune",
+          "origin",
+          "+refs/heads/main:refs/remotes/origin/main"
+        ],
+        "duration_s": 0.938,
+        "local_mutations": [
+          "git_remote_tracking_refs",
+          "FETCH_HEAD"
+        ],
+        "network_access": "GIT_REMOTE_READ",
+        "output_tail": "",
+        "output_truncated": false,
+        "returncode": 0,
+        "sensitive_environment_names_removed": [
+          "ALLUSERSPROFILE",
+          "APPDATA",
+          "CODEX_APP_TOOLS_PIPE_PATH",
+          "CODEX_CI",
+          "CODEX_INTERNAL_ORIGINATOR_OVERRIDE",
+          "CODEX_MCP_NODE_PATH",
+          "CODEX_PERMISSION_PROFILE",
+          "CODEX_SAGE_BACKFILL_TRACKER_TAB_REUSE",
+          "CODEX_SESSION_ID",
+          "CODEX_SHELL",
+          "CODEX_THREAD_ID",
+          "COLORTERM",
+          "COMMONPROGRAMFILES",
+          "COMMONPROGRAMFILES(X86)",
+          "COMMONPROGRAMW6432",
+          "COMPUTERNAME",
+          "DISABLE_AUTO_UPDATE",
+          "DRIVERDATA",
+          "GH_PAGER",
+          "GIT_PAGER",
+          "HOMEDRIVE",
+          "HOMEPATH",
+          "LC_CTYPE",
+          "LOCALAPPDATA",
+          "LOGONSERVER",
+          "LOG_FORMAT",
+          "NODE_REPL_TRUSTED_BROWSER_CLIENT_SHA256S",
+          "NO_COLOR",
+          "NUMBER_OF_PROCESSORS",
+          "OLLAMA_HOST",
+          "OLLAMA_ORIGINS",
+          "OMEN_ENGINE_NAME",
+          "ONEDRIVE",
+          "ONEDRIVECONSUMER",
+          "OS",
+          "PAGER",
+          "PROCESSOR_ARCHITECTURE",
+          "PROCESSOR_IDENTIFIER",
+          "PROCESSOR_LEVEL",
+          "PROCESSOR_REVISION",
+          "PROGRAMDATA",
+          "PROGRAMFILES",
+          "PROGRAMFILES(X86)",
+          "PROGRAMW6432",
+          "PSMODULEPATH",
+          "PUBLIC",
+          "RUST_LOG",
+          "SHELL",
+          "SZL_LITELLM_KEY",
+          "TERM",
+          "USERDOMAIN",
+          "USERDOMAIN_ROAMINGPROFILE",
+          "USERNAME",
+          "USERPROFILE",
+          "ZSH_TMUX_AUTOSTART",
+          "ZSH_TMUX_AUTOSTARTED"
+        ]
+      },
+      "name": "fetch_origin_main",
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "detail": {
+        "expected": "szl-holdings/a11oy",
+        "observed": "szl-holdings/a11oy",
+        "origin": "https://github.com/szl-holdings/a11oy.git"
+      },
+      "name": "repository_identity",
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "detail": {
+        "base": "origin/main",
+        "base_is_ancestor": true,
+        "base_sha": "9b3b4836ccba8cdbfa0c792339e83f72107b6260",
+        "branch": "codex/frontier-convergence-20260904-153701",
+        "dirty": false,
+        "errors": {},
+        "head": "94d34bea1bc5edccf9078f9eccc56382c9b6f466",
+        "merge_base": "9b3b4836ccba8cdbfa0c792339e83f72107b6260",
+        "rules": {
+          "base_must_resolve_to_ancestor": true,
+          "detached_dirty_worktree_forbidden": true,
+          "dirty_changes_on_main_forbidden": true,
+          "terminal_requires_clean_worktree": false
+        },
+        "source_identity": "HEAD_CLEAN",
+        "status": []
+      },
+      "name": "git_state",
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "detail": {
+        "locked_formulas_expected": [
+          "F1",
+          "F11",
+          "F12",
+          "F18",
+          "F19",
+          "F22",
+          "F4",
+          "F7"
+        ],
+        "locked_formulas_observed": [
+          "F1",
+          "F11",
+          "F12",
+          "F18",
+          "F19",
+          "F22",
+          "F4",
+          "F7"
+        ],
+        "missing_doctrine_phrases": []
+      },
+      "name": "agent_law",
+      "required": true,
+      "status": "PASS"
+    },
+    {
+      "detail": {
+        "categories": {
+          "committed": [
+            ".github/scripts/publish_packet8_vertical_spaces.py",
+            ".github/scripts/retire_vessels_space.py",
+            ".github/workflows/hf-sync.yml",
+            "a11oy_landing.html",
+            "config/flagship_tab_consolidation.json",
+            "docs/estate/HF_FLAGSHIP_MIGRATION.md",
+            "docs/estate/PRODUCT_SURFACE_POLICY.json",
+            "docs/estate/hf-nine-flagship-keep.yaml",
+            "docs/series-a/hf-space-keep-list.yaml",
+            "docs/strategy/living-command-fabric.v1.json",
+            "governance/public-estate.v1.json",
+            "scripts/hf_publish_vertical_flagships_v4.py",
+            "scripts/hf_publish_vertical_flagships_v4_impl.py",
+            "scripts/public_estate_live_witness.py",
+            "szl_be_hardening.py",
+            "szl_runtime_contracts.py",
+            "szl_spaces_proxy.py",
+            "szl_spaces_surface.py",
+            "tests/test_be_hardening.py",
+            "tests/test_codex_frontier_controller.py",
+            "tests/test_hf_frontier_v3_rebase.py",
+            "tests/test_hf_publish_vertical_flagships_v4.py",
+            "tests/test_living_anatomy_flagship_policy.py",
+            "tests/test_living_command_fabric_frontdoor.py",
+            "tests/test_public_estate_live_witness.py",
+            "tests/test_runtime_contracts.py",
+            "tests/test_sentra_owner_directive_convergence.py",
+            "tests/test_szl_spaces_inventory.py",
+            "tools/codex_frontier_controller.py"
+          ],
+          "staged": [],
+          "unstaged": [],
+          "untracked": []
+        },
+        "count": 29,
+        "coverage": [
+          "committed",
+          "staged",
+          "unstaged",
+          "untracked"
+        ],
+        "errors": {},
+        "files": [
+          ".github/scripts/publish_packet8_vertical_spaces.py",
+          ".github/scripts/retire_vessels_space.py",
+          ".github/workflows/hf-sync.yml",
+          "a11oy_landing.html",
+          "config/flagship_tab_consolidation.json",
+          "docs/estate/HF_FLAGSHIP_MIGRATION.md",
+          "docs/estate/PRODUCT_SURFACE_POLICY.json",
+          "docs/estate/hf-nine-flagship-keep.yaml",
+          "docs/series-a/hf-space-keep-list.yaml",
+          "docs/strategy/living-command-fabric.v1.json",
+          "governance/public-estate.v1.json",
+          "scripts/hf_publish_vertical_flagships_v4.py",
+          "scripts/hf_publish_vertical_flagships_v4_impl.py",
+          "scripts/public_estate_live_witness.py",
+          "szl_be_hardening.py",
+          "szl_runtime_contracts.py",
+          "szl_spaces_proxy.py",
+          "szl_spaces_surface.py",
+          "tests/test_be_hardening.py",
+          "tests/test_codex_frontier_controller.py",
+          "tests/test_hf_frontier_v3_rebase.py",
+          "tests/test_hf_publish_vertical_flagships_v4.py",
+          "tests/test_living_anatomy_flagship_policy.py",
+          "tests/test_living_command_fabric_frontdoor.py",
+          "tests/test_public_estate_live_witness.py",
+          "tests/test_runtime_contracts.py",
+          "tests/test_sentra_owner_directive_convergence.py",
+          "tests/test_szl_spaces_inventory.py",
+          "tools/codex_frontier_controller.py"
+        ],
+        "invalid_paths": [],
+        "snapshot_scope": "category inventory plus present worktree bytes",
+        "worktree_snapshot_sha256": "c6164808deaabccc32dd387685e1e5791cd67b1edb0f84fe1e798948dd4239e0"
+      },
+      "name": "changed_file_inventory",
+      "required": true,
+      "status": "PASS"
+    }
+  ],
+  "schema": "szl.codex-frontier-controller/v2",
+  "scope_limits": [
+    "No CI completion or protected merge is inferred from local success.",
+    "No provider deployment or revision convergence is inferred from HTTP 200.",
+    "Public probes witness only their recorded response contracts and source identity."
+  ],
+  "terminal": false,
+  "terminal_status": "PREFLIGHT_PASS"
+}
