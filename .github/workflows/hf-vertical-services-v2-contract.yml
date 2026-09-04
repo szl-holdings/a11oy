@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 name: HF Vertical Services v2 contract
 
+# Source-neutral trusted retrigger after the deterministic doctrine repair.
 on:
   pull_request:
     branches: [main]
