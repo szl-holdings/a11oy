@@ -65,6 +65,23 @@ class FrontendSourceBoundaryContract(unittest.TestCase):
         self.assertIn("min-height: 48px", body)
         self.assertIn("border-radius: 6px", body)
 
+        applied_bodies = re.findall(
+            r"(?m)^body\[data-szl-flow\][ ]+[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",
+            css,
+            re.S,
+        )
+        applied = next(
+            (candidate for candidate in applied_bodies if "min-height: 48px" in candidate),
+            None,
+        )
+        self.assertIsNotNone(applied)
+        self.assertIn("min-width: 48px", applied)
+        self.assertIn("min-height: 48px", applied)
+        self.assertIn("border-radius: 6px", applied)
+        # A centered 44px square must remain inside all four 6px rounded corners.
+        inset = (48 - 44) / 2
+        self.assertLessEqual(2 * (6 - inset) ** 2, 6 ** 2)
+
         landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
         self.assertIn(
             ".cta-row .btn{width:100%;min-height:52px;border-radius:6px;"
