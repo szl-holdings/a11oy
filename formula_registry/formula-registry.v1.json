@@ -1,155 +1,248 @@
 {
-  "schema_version": "szl.formula-registry.v1",
-  "registry_digest": {
-    "algorithm": "sha256",
-    "canonicalization": "SZL deterministic JSON for this restricted integer/string/boolean/array/object payload: UTF-8, object keys sorted, separators ',', ':', ensure_ascii=false",
-    "scope": "payload",
-    "value": "87c77ac42251da0e7b28d743877c4888628d4b49cbca4d5d8618d04f921a23d9"
-  },
-  "signature": {
-    "status": "UNSIGNED",
-    "reason": "No approved signing key was available for this reconciliation wave. The deterministic digest is not a signature."
-  },
   "payload": {
-    "registry_version": "1.0.0",
-    "doctrine_version": "v11",
-    "coverage_scope": "Dispute-relevant maturity crosswalk for the Doctrine-v11 locked baseline, the challenged F4/F7/F22 classifications, and F23 status; this is not an inventory of the full estate.",
-    "exhaustive": false,
-    "covered_formula_ids": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22", "F23"],
-    "source_repository": "https://github.com/szl-holdings/lutar-lean",
-    "locked_kernel_commit_prefix": "c7c0ba17",
-    "experimental_scope_commit_prefix": "7885fd9",
-    "locked_proven_count": 5,
-    "locked_proven_ids": [
+    "authority": "FORMAL_SOURCE_PINNED",
+    "coverage_scope": "Exact locked-eight authority plus the F23 Lambda non-authority boundary; not an exhaustive inventory of every SZL formula or theorem.",
+    "covered_formula_ids": [
       "F1",
+      "F4",
+      "F7",
       "F11",
       "F12",
       "F18",
-      "F19"
+      "F19",
+      "F22",
+      "F23"
     ],
-    "lambda_status": "CONJECTURE_1_ADVISORY",
-    "policy": {
-      "locked_set_rule": "Only the five formulas named by the canonical Doctrine-v11 locked-kernel report are LOCKED_PROVEN.",
-      "experimental_rule": "A source declaration or CI-green experimental theorem does not promote a formula into the locked set.",
-      "lambda_rule": "F23 unconditional uniqueness remains Conjecture 1; conditional theorems do not promote it, and maxAgg_ne_Lambda refutes the bare A1-A5 uniqueness claim.",
-      "signing_rule": "No signature is emitted without an approved signing key."
+    "doctrine_version": "v11",
+    "exhaustive": false,
+    "formal_source": {
+      "commit": "c497b4ed402249f23da7f290426f0e21c70ab926",
+      "locked_count_source_asset": "locked-count",
+      "locked_count_theorem": "Lutar.Wave8.AxiomDisclosure.locked_count_eight",
+      "repository": "szl-holdings/lutar-lean"
     },
-    "source_assets": [
-      {
-        "path": "corpus/formulas/lutar-lean__PROVEN_FORMULAS.md",
-        "role": "authoritative maturity and locked-set report",
-        "sha256": "9692d973c443fb46fa9031a92bf1f6587d5a03ab0abf1e62feec6fce7b01b8d9"
-      },
-      {
-        "path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "role": "local Lean theorem source snapshot",
-        "sha256": "0a7ea54762a96b335d3e6e082835542dbd0a22c1ea08db8d7315f77adb1dd8ea"
-      },
-      {
-        "path": "proofs/lutar-lean/Lutar/Puriq/Formulas/ProvedFormulas.lean",
-        "role": "local compact Lean theorem source snapshot",
-        "sha256": "847d2e332017a5bfe3e7823092acf0245840f6b20f3d6f1544f723fd1607612e"
-      },
-      {
-        "path": "proofs/lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean",
-        "role": "Lambda conditional results and unconditional counterexample source",
-        "sha256": "ea7667f8c20deb469396d822273ede4577e53d5ce0f273dee590a4928b617525"
-      }
-    ],
     "formulas": [
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "Does not prove correctness of the replayed function or the truth of its inputs.",
         "id": "F1",
+        "locked_proven": true,
+        "maturity": "LOCKED_PROVEN",
         "name": "Replay-Hash Determinism",
-        "maturity": "LOCKED_PROVEN",
-        "locked_proven": true,
-        "theorem_refs": ["f1_replay_hash_determinism", "f1_replay_trace_stable"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "LEAN_CORE_ONLY",
-        "evidence_status": "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"
+        "scope": "Pure deterministic replay stability for identical function and input/trace.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f1_replay_hash_determinism",
+          "f1_replay_trace_stable"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "The proof applies only when every admitted edge satisfies the encoded invariant.",
         "id": "F4",
+        "locked_proven": true,
+        "maturity": "LOCKED_PROVEN",
         "name": "Khipu DAG Acyclicity",
-        "maturity": "EXPERIMENTAL",
-        "locked_proven": false,
-        "theorem_refs": ["f4_khipu_no_self_loop", "f4_khipu_acyclic_irrefl", "f4_khipu_reach_strictly_smaller", "f4_khipu_dag_acyclic"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "NOT_REEVALUATED_BY_THIS_REGISTRY",
-        "evidence_status": "SOURCE_PRESENT_EXPERIMENTAL_NOT_LOCKED"
+        "scope": "Append-only Khipu graphs satisfying the strict backward-edge invariant.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f4_khipu_reach_decreases",
+          "f4_khipu_no_cycle",
+          "f4_khipu_dag_acyclic_preserved"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "Does not by itself prove delivery, durability, or ordering of an external transport.",
         "id": "F7",
+        "locked_proven": true,
+        "maturity": "LOCKED_PROVEN",
         "name": "Chaski FIFO Ordering",
-        "maturity": "EXPERIMENTAL",
-        "locked_proven": false,
-        "theorem_refs": ["f7_chaski_enqueue_preserves_prefix", "f7_chaski_head_is_oldest", "f7_chaski_fifo", "f7_chaski_take_drop_roundtrip"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "NOT_REEVALUATED_BY_THIS_REGISTRY",
-        "evidence_status": "SOURCE_PRESENT_EXPERIMENTAL_NOT_LOCKED"
+        "scope": "The encoded append-at-back, drain-from-front Chaski queue model.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f7_chaski_enqueue_preserves_prefix",
+          "f7_chaski_head_is_oldest",
+          "f7_chaski_fifo_order",
+          "f7_chaski_fifo_positional"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "Does not prove fairness or conservation for arbitrary economic or social systems.",
         "id": "F11",
+        "locked_proven": true,
+        "maturity": "LOCKED_PROVEN",
         "name": "Ayni Reciprocity Conservation",
-        "maturity": "LOCKED_PROVEN",
-        "locked_proven": true,
-        "theorem_refs": ["f11_ayni_reciprocity_conservation", "f11_tit_for_tat_parity"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "LEAN_CORE_ONLY",
-        "evidence_status": "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"
+        "scope": "The encoded additive credit-then-equal-debit balance identity.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f11_ayni_reciprocity_conservation"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "Additive fragment only; not nonlinear Kuramoto synchronization.",
         "id": "F12",
+        "locked_proven": true,
+        "maturity": "LOCKED_PROVEN_LIMITED_FRAGMENT",
         "name": "Kuramoto Additive Fragment",
-        "maturity": "LOCKED_PROVEN_LIMITED_FRAGMENT",
-        "locked_proven": true,
-        "theorem_refs": ["f12_kuramoto_additive"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "LEAN_CORE_ONLY",
-        "evidence_status": "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT",
-        "caveat": "Additive fragment only; not nonlinear Kuramoto synchronization."
+        "scope": "Additive distributive coupling fragment over natural-number terms.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f12_kuramoto_additive"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "Does not implement or prove a specific encoder, decoder, storage system, or corruption model.",
         "id": "F18",
-        "name": "Reed-Solomon RS(10,6) Recovery Arithmetic",
+        "locked_proven": true,
         "maturity": "LOCKED_PROVEN",
-        "locked_proven": true,
-        "theorem_refs": ["f18_reed_solomon_parity_count", "f18_erasure_tolerance"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "LEAN_CORE_ONLY",
-        "evidence_status": "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT"
+        "name": "Reed-Solomon RS(10,6) Recovery Arithmetic",
+        "scope": "Arithmetic for 10 total shards, 6 required data shards, and up to 4 erasures.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f18_reed_solomon_parity_count",
+          "f18_erasure_tolerance"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "Additive/monotone scaffolding only; not the full physical Bekenstein bound.",
         "id": "F19",
-        "name": "Bekenstein Additive Scaffolding",
-        "maturity": "LOCKED_PROVEN_LIMITED_FRAGMENT",
         "locked_proven": true,
-        "theorem_refs": ["f19_bekenstein_additive", "f19_budget_monotone"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "LEAN_CORE_ONLY",
-        "evidence_status": "LOCKED_KERNEL_REPORT_AND_SOURCE_PRESENT",
-        "caveat": "Additive/monotone scaffolding only; not the full physical Bekenstein bound."
+        "maturity": "LOCKED_PROVEN_LIMITED_FRAGMENT",
+        "name": "Bekenstein Additive Scaffolding",
+        "scope": "Additive and monotone natural-number budget scaffolding.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f19_bekenstein_additive",
+          "f19_budget_monotone"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": true,
+        "caveat": "Does not prove monotonicity of an external clock, database sequence, or distributed transport.",
         "id": "F22",
+        "locked_proven": true,
+        "maturity": "LOCKED_PROVEN",
         "name": "Khipu Emit Monotonicity",
-        "maturity": "EXPERIMENTAL",
-        "locked_proven": false,
-        "theorem_refs": ["f22_emit_appends_length", "f22_emit_strictly_greater", "f22_khipu_emit_monotone"],
-        "source_path": "proofs/lutar-lean/Lutar/Puriq/Formulas/PuriqFormulaLean.lean",
-        "axiom_status": "NOT_REEVALUATED_BY_THIS_REGISTRY",
-        "evidence_status": "SOURCE_PRESENT_EXPERIMENTAL_NOT_LOCKED"
+        "scope": "The encoded List.range sequence-log and append-next-index emit model.",
+        "source_asset": "proved-formulas",
+        "theorem_refs": [
+          "f22_emit_appends_length",
+          "f22_emit_strictly_greater",
+          "f22_khipu_emit_monotone"
+        ]
       },
       {
+        "applicability_required": true,
+        "can_authorize_action": false,
+        "can_constrain_execution": false,
+        "caveat": "Unconditional uniqueness is open/false under the bare encoded A1-A5 assumptions; Lambda is advisory.",
         "id": "F23",
-        "name": "Lambda Aggregator Uniqueness",
-        "maturity": "CONJECTURE_1_ADVISORY",
         "locked_proven": false,
-        "theorem_refs": ["lambda_unique_of_factors", "maxAgg_ne_Lambda"],
-        "source_path": "proofs/lutar-lean/Lutar/Round13/Lambda_Uniqueness.lean",
-        "axiom_status": "CONDITIONAL_RESULTS_ONLY",
-        "evidence_status": "UNCONDITIONAL_CLAIM_REFUTED_BY_COUNTEREXAMPLE",
-        "caveat": "Never promote conditional uniqueness results to unconditional theorem status."
+        "maturity": "CONJECTURE_1_ADVISORY",
+        "name": "Lambda Aggregator Uniqueness",
+        "scope": "Conditional factorized uniqueness theorem plus an unconditional counterexample boundary.",
+        "source_asset": "lambda-boundary",
+        "theorem_refs": [
+          "lambda_unique_of_factors",
+          "maxAgg_ne_Lambda"
+        ]
+      }
+    ],
+    "historical_non_authorities": [
+      "static/thesis.json",
+      "corpus/formulas/lutar-lean__PROVEN_FORMULAS.md",
+      "proofs/lutar-lean/**",
+      "knowledge.json"
+    ],
+    "kernel_source": {
+      "callable_formula_count": 21,
+      "commit": "46cfa948367e8133eaa8dd6bcfb781b19165b9bb",
+      "f_id_to_callable_mapping": "UNKNOWN_NOT_ASSERTED",
+      "repository": "szl-holdings/szl-formulas"
+    },
+    "lambda": {
+      "can_authorize": false,
+      "can_be_sole_allow_basis": false,
+      "formula_id": "F23",
+      "status": "CONJECTURE_1_ADVISORY"
+    },
+    "locked_proven_count": 8,
+    "locked_proven_ids": [
+      "F1",
+      "F4",
+      "F7",
+      "F11",
+      "F12",
+      "F18",
+      "F19",
+      "F22"
+    ],
+    "policy": {
+      "applicability_rule": "A locked proof constrains execution only after an explicit, evidence-bound applicability decision.",
+      "authorization_rule": "No formula, including a locked-proven formula, independently authorizes a consequential action.",
+      "identity_rule": "Formula identity and maturity are read only from this digest-bound, commit-pinned authority record.",
+      "lambda_rule": "F23 Lambda remains Conjecture 1 advisory and is excluded from every action authorization basis.",
+      "namespace_rule": "Formal F-identifiers and the 21 callable szl-formulas functions remain separate namespaces until a proved mapping exists.",
+      "training_rule": "Training may teach formula use and abstention, but runtime authority is always re-established from this record."
+    },
+    "registry_version": "2.0.0",
+    "source_assets": [
+      {
+        "blob_sha": "bbf5deac32e1558eecf13115ea954393788d0e35",
+        "commit": "c497b4ed402249f23da7f290426f0e21c70ab926",
+        "id": "locked-count",
+        "path": "Lutar/Wave8/AxiomDisclosure.lean",
+        "repository": "szl-holdings/lutar-lean",
+        "role": "machine-enforced exact locked-eight disclosure"
+      },
+      {
+        "blob_sha": "727115c587e8977428abe76d1313b171bcb23ff2",
+        "commit": "c497b4ed402249f23da7f290426f0e21c70ab926",
+        "id": "proved-formulas",
+        "path": "Lutar/Puriq/Formulas/ProvedFormulas.lean",
+        "repository": "szl-holdings/lutar-lean",
+        "role": "zero-sorry locked formula theorem source"
+      },
+      {
+        "blob_sha": "b0f2c24d8b7fd4c9c87ad24eb2ed115a75288504",
+        "commit": "c497b4ed402249f23da7f290426f0e21c70ab926",
+        "id": "lambda-boundary",
+        "path": "Lutar/Round13/Lambda_Uniqueness.lean",
+        "repository": "szl-holdings/lutar-lean",
+        "role": "conditional Lambda theorem and unconditional counterexample source"
       }
     ]
+  },
+  "registry_digest": {
+    "algorithm": "sha256",
+    "canonicalization": "UTF-8 JSON; object keys sorted; separators ',', ':'; ensure_ascii=false; digest scope=payload",
+    "scope": "payload",
+    "value": "b6f20fb5897520ea31b5a2bd558b25a1551b521e9f78c6524a889e07f4762e06"
+  },
+  "schema_version": "szl.formula-authority.v2",
+  "signature": {
+    "reason": "The SHA-256 digest and immutable Git commit/blob pins provide integrity and lineage, not signer identity; no approved online signing key is stored in this repository.",
+    "status": "UNSIGNED"
   }
 }
