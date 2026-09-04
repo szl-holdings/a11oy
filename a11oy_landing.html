@@ -110,12 +110,12 @@
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     background:linear-gradient(180deg,rgba(0,0,0,0.94),rgba(0,0,0,0.74));
     border-bottom:1px solid var(--border)}
-  .nav .wrap{display:flex;align-items:center;flex-wrap:wrap;gap:18px;min-height:64px;height:auto}
+  .nav .wrap{display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:64px;height:64px}
   .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
   .brand svg{display:block}
   .brand .sub{color:var(--ghost);font-weight:500;font-size:var(--fs-1);letter-spacing:2px;text-transform:uppercase;font-family:var(--sans)}
-  .nav nav{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .nav nav a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;height:auto;padding:10px 14px;border-radius:10px;color:var(--sub);font-size:var(--fs-2);font-weight:500;transition:.15s;position:relative;z-index:1;pointer-events:auto;touch-action:manipulation}
+  .nav nav{margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:nowrap}
+  .nav nav a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;height:auto;padding:8px 11px;border-radius:10px;color:var(--sub);font-size:var(--fs-2);font-weight:500;transition:.15s;position:relative;z-index:1;pointer-events:auto;touch-action:manipulation;white-space:nowrap}
   .nav nav a:hover{color:var(--ink);background:rgba(255,255,255,0.06)}
   .menu-toggle{display:none;align-items:center;justify-content:center;width:48px;height:48px;min-width:48px;min-height:48px;padding:0;margin-left:auto;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--ink);cursor:pointer;font-size:20px;line-height:1}
   @media(max-width:1100px){
@@ -642,7 +642,7 @@
   #body-finance .body-signal:nth-of-type(1){left:23%;top:35%}#body-finance .body-signal:nth-of-type(2){right:23%;top:62%}
   #body-finance .body-signal:nth-of-type(3){left:50%;top:49%}
 
-  /* Lyte / service lattice */
+  /* LYTE / service lattice */
   #body-lyte .body-visual{background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),
     linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:34px 34px}
   #body-lyte .body-visual::before{left:18%;right:18%;top:50%;height:1px;background:linear-gradient(90deg,transparent,#fff,transparent);transform:rotate(-7deg)}
@@ -709,16 +709,14 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
     </a>
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">☰</button>
     <nav class="nav-links" id="site-nav">
-      <a class="hide-sm" href="#anatomy">Anatomy</a>
-      <a class="hide-sm" href="#vertical-bodies">Domain bodies</a>
       <a class="hide-sm" href="#products">Products</a>
-      <a href="/console">Command</a>
+      <a class="hide-sm" href="/lyte">LYTE</a>
       <a href="/holographic">Holo</a>
       <a href="/frontier-now">Frontier</a>
       <a href="/immune">IMMUNE</a>
-      <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
-      <a href="/trust">Evidence</a>
-      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
+      <a class="hide-sm" href="/trust">Evidence</a>
+      <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof ↗</a>
+      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Command</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
   </div>
 </header>
@@ -887,7 +885,7 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
     </article>
     <article class="body-card" id="body-lyte" data-index="05" data-vertical="lyte" data-motif="service-lattice">
       <div class="body-visual" aria-hidden="true"><span class="body-visual-label">TRACE · DECISION · BUSINESS OUTCOME</span><i class="body-signal"></i><i class="body-signal"></i><i class="body-signal"></i></div>
-      <div class="body-card-copy"><p class="body-domain">Business and agent observability</p><h3>Lyte</h3><p>A business-causality braid linking services, traces, agents, tool calls, customer journeys, cost, risk, decisions and measurable outcomes.</p><p class="body-edge"><b>Unserved job:</b> prove whether technical recovery actually restored the customer journey and business result.</p><div class="body-stack-grid"><div><span>Model route</span><strong>Khipu 1.5B · A11OY-MINI · ReceiptAgent</strong></div><div><span>Kernel route</span><strong>kernel-suite · receipt-attn · block-kv</strong></div></div><div class="body-flow"><span>OBSERVE</span><span>TRACE</span><span>DIAGNOSE</span><span>REPLAY</span><span>VERIFY</span></div><div class="body-truth"><span>OTEL-NATIVE DIRECTION</span><span>OUTCOME RECEIPTS</span><span>HUMAN BIND</span></div><div class="body-links"><a href="https://szlholdings-vertical-services.hf.space/intelligence/lyte" rel="noopener">Enter Lyte intelligence →</a><a href="https://szlholdings-lyte.hf.space/" rel="noopener">Open flagship surface ↗</a></div></div>
+      <div class="body-card-copy"><p class="body-domain">Business and agent observability</p><h3>LYTE</h3><p>A business-causality braid linking services, traces, agents, tool calls, customer journeys, cost, risk, decisions and measurable outcomes.</p><p class="body-edge"><b>Unserved job:</b> prove whether technical recovery actually restored the customer journey and business result.</p><div class="body-stack-grid"><div><span>Model route</span><strong>Khipu 1.5B · A11OY-MINI · ReceiptAgent</strong></div><div><span>Kernel route</span><strong>kernel-suite · receipt-attn · block-kv</strong></div></div><div class="body-flow"><span>OBSERVE</span><span>TRACE</span><span>DIAGNOSE</span><span>REPLAY</span><span>VERIFY</span></div><div class="body-truth"><span>OTEL-NATIVE DIRECTION</span><span>OUTCOME RECEIPTS</span><span>HUMAN BIND</span></div><div class="body-links"><a href="https://szlholdings-vertical-services.hf.space/intelligence/lyte" rel="noopener">Enter LYTE intelligence →</a><a href="https://szlholdings-lyte.hf.space/" rel="noopener">Open flagship surface ↗</a></div></div>
     </article>
   </div>
   <p class="fabric-note"><b>Carlota Jo remains an incubation lane.</b> The visual system recognizes the brand, but the current six-engine publisher does not expose a canonical source/runtime authority for it. It will not be promoted as operational until that authority, domain object and measurable workflow are explicit.</p>
