@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Retry 6: the retained predecessor uses the canonical sha256:<64hex> format.
+# Retry 7: all 53 contracts passed; normalize the generated test EOF before diff checks.
 name: Repair EnergyLedger rolling-restart safety once
 
 on:
@@ -46,6 +46,11 @@ jobs:
           python tools/patch_energy_ledger_rotation_compat.py
           python tools/patch_energy_ledger_runtime_name.py
           python tools/patch_energy_ledger_digest_shape.py
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("tests/test_energy_ledger_process_safety.py")
+          path.write_text(path.read_text(encoding="utf-8").rstrip() + "\n", encoding="utf-8")
+          PY
 
       - name: Install exact CI dependency closure
         run: >-
