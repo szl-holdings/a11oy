@@ -3,7 +3,7 @@ name: Emergency vertical-services exact-source publish
 on:
   push:
     branches:
-      - fix/vertical-services-pin-dfc16a3-live-now
+      - __disabled__/vertical-services-live-now
 
 permissions:
   contents: read
@@ -13,7 +13,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  EXPECTED_VERTICAL_SERVICES_SHA: dfc16a3c89e0b4bc070dc7e8ae2415e9bcb04eab
+  EXPECTED_VERTICAL_SERVICES_SHA: b191c14bf7449a52f1ec3d5959722b396af7fddd
   GITHUB_TOKEN: ${{ github.token }}
   GH_TOKEN: ${{ github.token }}
   HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
