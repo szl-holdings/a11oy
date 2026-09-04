@@ -1,77 +1,57 @@
-# Public research brief for external analysts
+# Public research brief — Perplexity / external analyst
 
-Use this brief with Perplexity or any external analyst to validate the SZL
-Holdings public substrate. The goal is evidence collection, not marketing copy.
+Evidence collection. Not marketing. Doctrine v11.
 
-## Research question
+## Question
 
-Validate that SZL Holdings has a public, GitHub-backed governed-AI substrate
-centered on A11oy, with UDS/Zarf packaging, receipt-chain audit evidence,
-formal-methods references, and a generated Hugging Face diligence mirror.
+Validate the public SZL Holdings substrate as of 2026-09-04. Product door is IMMUNE. NEXUS is an analog organ. Proof origin is a11oy.net. Do not treat June 2026 Forge↔Perplexity memos in `platform/replit-sync/` as current runtime.
 
-## Repositories to inspect
+## Origins (only two)
 
-Active showcase:
+- Product: https://a-11-oy.com  · desk https://a-11-oy.com/immune
+- Proof: https://a11oy.net · estate.json / models.json / spaces.json / immune-desk.json
+- Never a11oy.com (foreign storefront)
 
-- <https://github.com/szl-holdings/a11oy>
-- <https://github.com/szl-holdings/platform>
-- <https://github.com/szl-holdings/ouroboros>
-- <https://github.com/szl-holdings/lutar-lean>
-- <https://github.com/szl-holdings/uds-mesh>
-- <https://github.com/szl-holdings/vsp-otel>
-- <https://github.com/szl-holdings/szl-trust>
-- <https://github.com/szl-holdings/szl-brand>
-- <https://github.com/szl-holdings/szl-cookbook>
-- <https://github.com/szl-holdings/.github>
+## Repos that matter now
 
-Excluded from active-demo claims until funded:
+- https://github.com/szl-holdings/immune — admission surface + HF Space SZLHOLDINGS/immune
+- https://github.com/szl-holdings/nexus — analog organ source, runtime inside IMMUNE
+- https://github.com/szl-holdings/a11oy — command center, not a second flagship Space
+- https://github.com/szl-holdings/a11oy-net — proof RECORD
+- https://github.com/szl-holdings/szl-khipu — kernels / silhouettes
+- https://github.com/szl-holdings/lutar-lean — Lean citations, Conjecture 1 OPEN
+- https://github.com/szl-holdings/szl-energy-attest — joules MEASURED or null
+- https://github.com/szl-holdings/.github — org profile
 
+## KEEP-6 Spaces (public applications)
 
-## Canonical evidence to request
+a11oy · killinchu · immune · szl-khipu · szl-atelier · governed-receipt-verifier
 
-1. A11oy current README and `docs/PROVENANCE.md`.
-2. A11oy `docs/ecosystem-readiness-report.json`.
-3. A11oy GitHub Actions runs for Doctrine Build, Operational Validation, SBOM,
-   CodeQL, and Hugging Face publish.
-4. A11oy releases `v1.0.1` and `uds-v0.2.0`.
-5. Amaru, Sentra, Rosie, Vessels, and UDS Mesh UDS releases.
-6. Thesis DOI `10.5281/zenodo.20434276`.
-7. Lean proof substrate DOI `10.5281/zenodo.20434308`.
-8. Hugging Face target `https://huggingface.co/SZLHOLDINGS/a11oy-v19-substrate`.
-9. `huggingface/DEMO_RECEIPT_SAMPLE.jsonl` for a schema-aligned receipt-chain
-   demo of evidence retrieval, policy blocking, unsupported-claim correction,
-   and chain summary.
-10. `docs/SERIES_A_MARKET_EVIDENCE.md` for external standards mapped to shipped
-    artifacts and guarded production gaps.
-11. `docs/SUBSTRATE_REALITY_MAP.md` for the screenshot substrate spine, four
-    quadrants, anatomy map, GHAS posture, and SLSA/proof claims with evidence
-    status labels.
+Fold-38 are organs. Pause+private, never delete. Do not unprivate them for a demo.
 
-## Guardrails for the analyst
+## What is OPERATIONAL vs MODELED
 
-- Do not use `KORA`, `LUMINA`, `PARAGON`, or active `Lyte` framing.
-- Do not report Counsel, Terra, or Carlota Jo as operational demo surfaces.
-- Do not claim Defense Unicorns endorsement or UDS catalog acceptance.
-- Do not claim every thesis statement is formally closed unless current
-  `lutar-lean` CI and theorem reports prove that exact claim.
-- Treat Hugging Face as a generated mirror; GitHub releases, CI, manifests, and
-  DOI records are canonical.
-  proof report verifies more.
-- Treat A11oy main as seven live policy gate files plus ten theorem-runtime
-  manifest entries; larger gate totals require merged PR evidence.
-- Treat A11oy `uds-v0.3.0` as SBOM-only and Vessels `uds-v0.3.0` as empty until
-  signed binary assets and/or GHCR package pushes are visible.
+- OPERATIONAL: SENTRA admit/hold, YAWAR tape, HUKLLA T01–T10, locked-8 @ c7c0ba17, Λ A1–A4 selfcheck, Hub cycle `{actor,intent}`, this desk proof-carrying receipts.
+- MODELED: frontier silhouette, MESH 3-of-4, energy on hypervisor hosts.
+- UNAVAILABLE: RAPL/NVML on hosts without sysfs/nvidia-smi. Do not invent joules.
 
-## Suggested external prompt
+## Stalled / half-built — do not report as done
+
+- `platform/replit-sync/forge-perplexity-update-*` — June 2026 handoff theater. Historical.
+- Hub Space receipt schema still `{seq,ts,hash,prevHash,payload}`. Desk has estate/poorest/energyClass. Drift MEASURED, aligned false.
+- `szl-hf-frontier` open P0s: ReceiptAgent hidden GMB, Khipu abstention bench, Chaski held-out gate (#8 #9 #10 + umbrella #1).
+- `holographic-unify` description says ARCHIVED but repo is not archived. Canonical is a11oy. Treat as hologram.
+- Energy: probe exists (`GET /api/immune/energy`). MEASURED only on RAPL/NVML silicon.
+
+## Guardrails
+
+- No KORA / LUMINA / PARAGON / Lyte as live products.
+- No Defense Unicorns endorsement claim.
+- Λ is Conjecture 1 OPEN. Trust ceiling 0.97.
+- Hugging Face is a publish mirror. GitHub + a11oy.net are canonical.
+
+## Prompt to paste into Perplexity
 
 ```text
-Deeply validate the public SZL Holdings governed-AI substrate. Focus on the
-GitHub repositories and releases listed below. Determine what is actually
-implemented, what is packaged for UDS/Zarf, what has CI/release evidence, what
-has formal-methods or DOI evidence, and what is explicitly roadmap or scaffold.
-Do not use stale product names KORA, LUMINA, PARAGON, or Lyte. Exclude Counsel,
-Terra, and Carlota Jo from active-demo claims until funded. Produce an
-evidence-cited report with a claim/status table and links to exact GitHub files,
-releases, workflows, DOI pages, and Hugging Face mirror files.
+Validate SZL Holdings as of 2026-09-04. Product https://a-11-oy.com/immune Proof https://a11oy.net GitHub org szl-holdings Hub org SZLHOLDINGS. Confirm KEEP-6 vs fold-38. Confirm Hub cycle works without `mode` and that Hub receipts lack estate/poorest/energyClass. Confirm energy is UNAVAILABLE unless RAPL/NVML exists. Do not treat platform/replit-sync forge-perplexity memos as current. Cite exact URLs.
 ```
-
