@@ -51,43 +51,54 @@ jobs:
                   raise SystemExit('canonical smoke-path anchor missing or ambiguous')
               text = text.replace(old_smoke, new_smoke, 1)
 
-          job = '''  owned-khipu-live-proof:
-            name: Execute real owned-Khipu inference and Anatomy receipt proof
-            needs: readiness-verdict
-            runs-on: ubuntu-latest
-            timeout-minutes: 25
-            env:
-              OWNED_KHIPU_REPORT: /tmp/owned-khipu-live-proof.json
-            steps:
-              - name: Checkout exact protected source
-                uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-                with:
-                  ref: ${{ github.sha }}
-                  persist-credentials: false
-                  fetch-depth: 1
+          expr = {
+              '__SHA__': chr(36) + '{{ github.sha }}',
+              '__RUN_ID__': chr(36) + '{{ github.run_id }}',
+              '__RUN_ATTEMPT__': chr(36) + '{{ github.run_attempt }}',
+              '__REPORT_EXPR__': chr(36) + '{{ env.OWNED_KHIPU_REPORT }}',
+          }
+          job_lines = [
+              '  owned-khipu-live-proof:',
+              '    name: Execute real owned-Khipu inference and Anatomy receipt proof',
+              '    needs: readiness-verdict',
+              '    runs-on: ubuntu-latest',
+              '    timeout-minutes: 25',
+              '    env:',
+              '      OWNED_KHIPU_REPORT: /tmp/owned-khipu-live-proof.json',
+              '    steps:',
+              '      - name: Checkout exact protected source',
+              '        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1',
+              '        with:',
+              '          ref: __SHA__',
+              '          persist-credentials: false',
+              '          fetch-depth: 1',
+              '',
+              '      - name: Set up Python',
+              '        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0',
+              '        with:',
+              '          python-version: "3.12"',
+              '',
+              '      - name: Prove exact owned model, real bounded inference, Nemo review, and Anatomy binding',
+              '        run: >-',
+              '          python scripts/verify_owned_khipu_cortex_live.py',
+              '          --base-url "$CANONICAL_ORIGIN"',
+              '          --expected-source "__SHA__"',
+              '          --report "$OWNED_KHIPU_REPORT"',
+              '',
+              '      - name: Upload secret-free owned-runtime proof',
+              '        if: always()',
+              '        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1',
+              '        with:',
+              '          name: owned-khipu-live-proof-__RUN_ID__-__RUN_ATTEMPT__',
+              '          path: __REPORT_EXPR__',
+              '          if-no-files-found: error',
+              '          retention-days: 180',
+              '',
+          ]
+          job = '\n'.join(job_lines) + '\n'
+          for placeholder, value in expr.items():
+              job = job.replace(placeholder, value)
 
-              - name: Set up Python
-                uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-                with:
-                  python-version: "3.12"
-
-              - name: Prove exact owned model, real bounded inference, Nemo review, and Anatomy binding
-                run: >-
-                  python scripts/verify_owned_khipu_cortex_live.py
-                  --base-url "$CANONICAL_ORIGIN"
-                  --expected-source "${{ github.sha }}"
-                  --report "$OWNED_KHIPU_REPORT"
-
-              - name: Upload secret-free owned-runtime proof
-                if: always()
-                uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-                with:
-                  name: owned-khipu-live-proof-${{ github.run_id }}-${{ github.run_attempt }}
-                  path: ${{ env.OWNED_KHIPU_REPORT }}
-                  if-no-files-found: error
-                  retention-days: 180
-
-          '''
           if '  owned-khipu-live-proof:\n' not in text:
               marker = '  relock:\n'
               if text.count(marker) != 1:
@@ -96,12 +107,12 @@ jobs:
 
           old_needs = '    needs: [runtime-config, readiness-verdict]\n'
           new_needs = '    needs: [runtime-config, readiness-verdict, owned-khipu-live-proof]\n'
-          relock = text.split('  relock:\n', 1)[1]
+          prefix, relock = text.split('  relock:\n', 1)
           if new_needs not in relock:
-              if old_needs not in relock:
-                  raise SystemExit('relock needs anchor missing')
+              if relock.count(old_needs) != 1:
+                  raise SystemExit('relock needs anchor missing or ambiguous')
               relock = relock.replace(old_needs, new_needs, 1)
-              text = text.split('  relock:\n', 1)[0] + '  relock:\n' + relock
+              text = prefix + '  relock:\n' + relock
 
           path.write_text(text, encoding='utf-8')
           Path('.github/workflows/materialize-owned-khipu-live-proof.yml').unlink()
@@ -113,7 +124,6 @@ jobs:
           set -euo pipefail
           python -m pip install --disable-pip-version-check --quiet 'PyYAML==6.0.3'
           python - <<'PY'
-          import json
           from pathlib import Path
           import yaml
 
@@ -121,13 +131,17 @@ jobs:
           source = path.read_text(encoding='utf-8')
           parsed = yaml.safe_load(source)
           jobs = parsed.get('jobs') or {}
-          assert 'owned-khipu-live-proof' in jobs
-          assert jobs['owned-khipu-live-proof']['needs'] == 'readiness-verdict'
-          assert 'owned-khipu-live-proof' in jobs['relock']['needs']
+          owned = jobs.get('owned-khipu-live-proof') or {}
+          relock = jobs.get('relock') or {}
+          assert owned.get('needs') == 'readiness-verdict', owned
+          assert 'owned-khipu-live-proof' in (relock.get('needs') or []), relock
           assert source.count('/api/v2/governed-health') == 1
           assert source.count('/api/v2/governed-contract') == 1
           assert source.count('/.well-known/szl-governed-inference-contract.json') == 1
           assert source.count('scripts/verify_owned_khipu_cortex_live.py') == 1
+          assert '${{ github.sha }}' in source
+          assert '${{ github.run_id }}' in source
+          assert '${{ env.OWNED_KHIPU_REPORT }}' in source
           assert not Path('.github/workflows/materialize-owned-khipu-live-proof.yml').exists()
           PY
           python -m py_compile scripts/verify_owned_khipu_cortex_live.py
