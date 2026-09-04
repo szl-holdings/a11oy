@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-name: Forge governed inference release recovery
+name: Forge governed inference operator runtime
 
 on:
   push:
@@ -13,7 +13,7 @@ permissions:
   id-token: write
 
 concurrency:
-  group: forge-governed-inference-release-recovery
+  group: forge-governed-inference-operator-runtime
   cancel-in-progress: false
 
 jobs:
@@ -24,9 +24,8 @@ jobs:
     environment: production
     env:
       FORGE_REVISION: 9b1f8ae75da2075d5a45997b9a19b17b799e1f65
-      SPACE_REPO: SZLHOLDINGS/szl-model-inference-lab
-      MODEL_REPO: SZLHOLDINGS/SZL-Khipu-1.5B-GGUF
-      SPACE_ORIGIN: https://szlholdings-szl-model-inference-lab.hf.space
+      SPACE_REPO: betterwithage/szl-model-inference-lab
+      SPACE_ORIGIN: https://betterwithage-szl-model-inference-lab.hf.space
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -46,8 +45,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          observed="$(git -C forge rev-parse HEAD)"
-          test "$observed" = "$FORGE_REVISION"
+          test "$(git -C forge rev-parse HEAD)" = "$FORGE_REVISION"
           test "$(git -C forge status --porcelain)" = ""
 
       - name: Set up Python
@@ -61,7 +59,6 @@ jobs:
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface-hub==1.23.0"
           "requests==2.32.5"
-          "cryptography==49.0.0"
           "pytest==9.1.1"
 
       - name: Re-run canonical offline publication contracts
@@ -70,18 +67,16 @@ jobs:
           set -euo pipefail
           cd forge
           PYTHONPATH=tools python tools/test_publish_hf_space.py
-          PYTHONPATH=tools python tools/test_publish_model_source_bindings.py
           python -m pytest -q \
             tests/test_acquire_hf_publisher_token.py \
             tests/test_governed_live_verifier_entrypoint.py
           python -m py_compile \
             tools/acquire_hf_publisher_token.py \
             tools/publish_hf_space.py \
-            tools/publish_model_source_bindings.py \
             tools/run_governed_live_verifier.py \
             spaces/szl-model-inference-lab/verify_governed_live.py
 
-      - name: Acquire actively validated Space publisher credential
+      - name: Acquire actively validated operator-Space credential
         shell: bash
         env:
           HF_ORG_TOKEN_CANDIDATE: ${{ secrets.HF_ORG_TOKEN }}
@@ -95,7 +90,6 @@ jobs:
           python forge/tools/acquire_hf_publisher_token.py \
             --target-repo "$SPACE_REPO" \
             --target-type space \
-            --oidc-resource "spaces/$SPACE_REPO" \
             --allow-create \
             --github-env "$GITHUB_ENV" \
             --report forge/reports/hf-space-publisher-credential.json
@@ -133,34 +127,7 @@ jobs:
             --expected-source-revision "$FORGE_REVISION" \
             --report reports/governed-space-live-verification.json
 
-      - name: Acquire actively validated model publisher credential
-        shell: bash
-        env:
-          HF_ORG_TOKEN_CANDIDATE: ${{ secrets.HF_ORG_TOKEN }}
-          HF_WRITE_TOKEN_CANDIDATE: ${{ secrets.HF_WRITE_TOKEN }}
-          HF_TOKEN_CANDIDATE: ${{ secrets.HF_TOKEN }}
-          HUGGINGFACE_TOKEN_CANDIDATE: ${{ secrets.HUGGINGFACE_TOKEN }}
-          HUGGING_FACE_HUB_TOKEN_CANDIDATE: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          python forge/tools/acquire_hf_publisher_token.py \
-            --target-repo "$MODEL_REPO" \
-            --target-type model \
-            --github-env "$GITHUB_ENV" \
-            --report forge/reports/hf-model-publisher-credential.json
-
-      - name: Publish and read back exact model-source bindings
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd forge
-          python tools/publish_model_source_bindings.py \
-            --source-revision "$FORGE_REVISION" \
-            --expected-runtime-source-revision "$FORGE_REVISION" \
-            --publish \
-            --report reports/model-source-bindings.json
-
-      - name: Print secret-free release proof summary
+      - name: Prove operator/runtime and organization/authority separation
         shell: bash
         run: |
           set -euo pipefail
@@ -175,44 +142,42 @@ jobs:
           live = json.loads(
               (root / "governed-space-live-verification.json").read_text()
           )
-          bindings = json.loads(
-              (root / "model-source-bindings.json").read_text()
+          assert publication["repo_id"] == "betterwithage/szl-model-inference-lab"
+          assert publication["live"]["source_revision"] == (
+              "9b1f8ae75da2075d5a45997b9a19b17b799e1f65"
           )
-          print(
-              json.dumps(
-                  {
-                      "space_repository_state": publication[
-                          "repository_reconciliation"
-                      ]["state"],
-                      "space_runtime_stage": publication["live"][
-                          "runtime_stage"
-                      ],
-                      "source_revision": publication["live"][
-                          "source_revision"
-                      ],
-                      "governed_live_state": live["state"],
-                      "receipt_sha256": live["evidence"]["receipt_sha256"],
-                      "claims_sha256": live["evidence"]["claims_sha256"],
-                      "citations_sha256": live["evidence"][
-                          "citations_sha256"
-                      ],
-                      "model_bindings_ok": bindings["ok"],
-                  },
-                  sort_keys=True,
-              )
+          assert publication["live"]["runtime_stage"] == "RUNNING"
+          assert live["state"] == "VERIFIED"
+          summary = {
+              "runtime_operator": "betterwithage",
+              "runtime_repository": publication["repo_id"],
+              "source_authority": "szl-holdings/szl-forge",
+              "model_authority": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+              "formula_authority": "szl-holdings/lutar-lean",
+              "action_authority": "szl-holdings/a11oy",
+              "source_revision": publication["live"]["source_revision"],
+              "hf_commit": publication["live"]["hf_commit"],
+              "runtime_stage": publication["live"]["runtime_stage"],
+              "live_verification": live["state"],
+              "receipt_sha256": live["evidence"]["receipt_sha256"],
+              "claims_sha256": live["evidence"]["claims_sha256"],
+              "citations_sha256": live["evidence"]["citations_sha256"],
+          }
+          (root / "operator-runtime-authority.json").write_text(
+              json.dumps(summary, indent=2, sort_keys=True) + "\n"
           )
+          print(json.dumps(summary, sort_keys=True))
           PY
 
       - name: Upload immutable secret-free release evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: forge-governed-inference-release-${{ github.run_id }}-${{ github.run_attempt }}
+          name: forge-governed-operator-runtime-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             forge/reports/hf-space-publisher-credential.json
             forge/reports/model-inference-lab-publication.json
             forge/reports/governed-space-live-verification.json
-            forge/reports/hf-model-publisher-credential.json
-            forge/reports/model-source-bindings.json
+            forge/reports/operator-runtime-authority.json
           if-no-files-found: warn
-          retention-days: 180
+          retention-days: 90
