@@ -1,20 +1,18 @@
 {
-  "schema": "szl.hf-free-tier-recovery-plan/v1",
-  "issued_at": "2026-09-04T07:10:00Z",
+  "schema": "szl.hf-free-tier-recovery-plan/v2",
+  "issued_at": "2026-09-04T16:35:00Z",
   "trigger": {
     "provider": "Hugging Face",
     "observed_http_status": 402,
     "observed_constraint": "Organization Gradio and Docker Spaces on cpu-basic require a Team or Enterprise plan",
-    "source_run": 33846841792
-  },
-  "source": {
-    "repository": "szl-holdings/vertical-services",
-    "revision": "7a84e34a05c7342bd32b56f6519fe51ce240f577",
-    "runtime_version": "2.2.0",
-    "guard": "require-default-branch-tip"
+    "source_run": 33846841792,
+    "state": "UNAVAILABLE",
+    "truth_label": "UNAVAILABLE"
   },
   "recovery": {
-    "dynamic_runtime": "personal public Docker Space derived from the write-token owner",
+    "dynamic_runtime": "UNAVAILABLE",
+    "personal_namespace_runtime": false,
+    "organization_docker_cpu_basic": "UNAVAILABLE until Team or Enterprise",
     "organization_gateways": [
       "SZLHOLDINGS/vertical-services",
       "SZLHOLDINGS/terra",
@@ -22,10 +20,8 @@
       "SZLHOLDINGS/finance",
       "SZLHOLDINGS/lyte"
     ],
-    "gateway_sdk": "static",
-    "gateway_behavior": "accessible source-bound v4 entry surface redirecting to the exact governed runtime",
     "single_writer": "szl-holdings/a11oy GitHub Actions",
-    "destructive_scope": "delete only obsolete Docker launcher files after the personal runtime passes exact-source live proof"
+    "destructive_scope": "none"
   },
   "authority": {
     "effectors_enabled": false,
@@ -36,8 +32,9 @@
   },
   "non_claims": [
     "This does not change the Hugging Face organization subscription.",
-    "Static gateway HTTP 200 is not dynamic-runtime readiness proof.",
-    "The organization gateway and personal runtime remain separately identified in every build record.",
-    "Killinchu is not converted or mutated by this recovery."
+    "HF 402 is a paid-plan constraint, not a parser defect.",
+    "Product runtime does not live in a personal Hugging Face Space (Doctrine v7 §14).",
+    "Killinchu is not converted or mutated by this record.",
+    "Static gateway HTTP 200 is not dynamic-runtime readiness proof."
   ]
 }
