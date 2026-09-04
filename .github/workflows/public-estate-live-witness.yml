@@ -106,12 +106,13 @@ jobs:
         run: |
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
           path = Path("public-estate-live-witness.json")
           if not path.exists():
               raise SystemExit("public-estate-live-witness.json was not produced")
           receipt = json.loads(path.read_text())
-          with Path("$GITHUB_STEP_SUMMARY").open("a", encoding="utf-8") as stream:
+          with Path(os.environ["GITHUB_STEP_SUMMARY"]).open("a", encoding="utf-8") as stream:
               stream.write("# SZL public estate witness\n\n")
               stream.write(f"- Complete: `{receipt.get('complete')}`\n")
               stream.write(f"- Verified: `{receipt.get('verified_surface_count', 0)}/{receipt.get('public_surface_count', 0)}`\n")
