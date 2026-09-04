@@ -684,3 +684,6 @@ CMD ["python", "gdw_runtime.py"]
 
 # Build cache-bust 2026-06-06T09:00Z (model-integration squad, Opus 4.8):
 # … (full rationale: docs/DOCKERFILE_NOTES.md §99)
+
+# Runtime dependency for the existing anatomy alias binding.
+COPY szl_anatomy_alias_bind.py /app/szl_anatomy_alias_bind.py
