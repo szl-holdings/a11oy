@@ -30,6 +30,8 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from hf_existing_space_guard import guard_report, install_existing_space_guard
+
 HERE = Path(__file__).resolve().parent
 FLAGSHIP_IMPL = HERE / "hf_publish_vertical_flagships_v4_impl.py"
 LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"
@@ -275,6 +277,10 @@ def normalize_github_token_alias() -> str:
 
 
 def main() -> int:
+    # Existing Spaces are observed before any idempotent create call. The
+    # provider create endpoint is reached only after an exact 404, preventing
+    # hourly and push-driven publishers from exhausting the daily Space quota.
+    install_existing_space_guard()
     github_token_source = normalize_github_token_alias()
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
@@ -326,12 +332,14 @@ def main() -> int:
     if combined_error:
         combined["entrypoint_error"] = combined_error
 
+    creation_guard = guard_report()
     combined["source_resolution"] = source_resolution
     combined["resolved_source_revision"] = resolved_revision
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
     combined["github_token_source_name"] = github_token_source
     combined["github_token_value_recorded"] = False
+    combined["existing_space_guard"] = creation_guard
 
     flagship["previous_estate_schema"] = PREVIOUS_ESTATE_SCHEMA
     flagship["estate_schema"] = "szl.hf-vertical-estate/v8"
@@ -343,6 +351,7 @@ def main() -> int:
     flagship["sentra_space"] = SENTRA_SPACE
     flagship["lyte_runtime"] = lyte
     flagship["combined_runtime"] = combined
+    flagship["existing_space_guard"] = creation_guard
     flagship["generated_flagship_exit_code"] = flagship_code
     flagship["lyte_exit_code"] = lyte_code
     flagship["combined_exit_code"] = combined_code
