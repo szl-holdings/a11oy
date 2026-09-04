@@ -12,7 +12,6 @@ on:
   push:
     branches:
       - main
-      - feat/cloudflare-governed-inference-v1
     paths:
       - "cloudflare/a11oy-governed-inference-worker.mjs"
       - "scripts/deploy_cloudflare_governed_inference.py"
@@ -84,6 +83,7 @@ jobs:
     environment: production
     env:
       REPORT: /tmp/cloudflare-governed-inference-v1.json
+      AUTHORITY_REPORT: /tmp/cloudflare-governed-inference-source-authority-v1.json
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -97,22 +97,116 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Require exact protected-main authority
+      - name: Prove protected source authority without deployment starvation
+        id: authority
         shell: bash
         run: |
-          set -euo pipefail
-          test "$GITHUB_REF" = "refs/heads/main"
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          git fetch --no-tags --depth=1 origin main
-          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
-          test "$(git status --porcelain)" = ""
+          set +e
+          ok=false
+          state="PREFLIGHT_BLOCKED"
+          error=""
+          tip=""
+          drift=()
+          drift_file="$(mktemp)"
+
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            error="event is not protected main"
+          elif [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            error="checkout does not match the release event SHA"
+          elif [ -n "$(git status --porcelain)" ]; then
+            error="checkout is not clean"
+          elif ! git fetch --no-tags --prune --depth=256 \
+            origin main:refs/remotes/origin/main; then
+            error="unable to fetch protected main"
+          else
+            tip="$(git rev-parse refs/remotes/origin/main)"
+            if ! git merge-base --is-ancestor "$GITHUB_SHA" "$tip"; then
+              error="release event SHA is not an ancestor of protected main"
+            elif ! git diff --name-only "$GITHUB_SHA" "$tip" -- \
+              cloudflare/a11oy-governed-inference-worker.mjs \
+              scripts/deploy_cloudflare_governed_inference.py \
+              tests/test_cloudflare_governed_inference_worker.mjs \
+              tests/test_cloudflare_governed_inference_deploy.py \
+              .github/workflows/deploy-cloudflare-governed-inference.yml \
+              > "$drift_file"; then
+              error="unable to compare governed inference source with protected main"
+            else
+              mapfile -t drift < "$drift_file"
+              if [ "${#drift[@]}" -ne 0 ]; then
+                error="governed inference source changed after the release event"
+              elif [ "$tip" = "$GITHUB_SHA" ]; then
+                state="EXACT_PROTECTED_MAIN"
+                ok=true
+              else
+                state="VERIFIED_SUPERSEDED_PATH_EQUIVALENT"
+                ok=true
+              fi
+            fi
+          fi
+          rm -f "$drift_file"
+
+          export SOURCE_AUTHORITY_OK="$ok"
+          export SOURCE_AUTHORITY_STATE="$state"
+          export SOURCE_AUTHORITY_ERROR="$error"
+          export PROTECTED_MAIN_TIP="$tip"
+          export SOURCE_DRIFT_PATHS="$(printf '%s\n' "${drift[@]}")"
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          ok = os.environ["SOURCE_AUTHORITY_OK"] == "true"
+          drift = [
+              value
+              for value in os.environ.get("SOURCE_DRIFT_PATHS", "").splitlines()
+              if value
+          ]
+          report = {
+              "schema": "szl.cloudflare-governed-inference-deployment/v1",
+              "status": "PREFLIGHT_ACCEPTED" if ok else "PREFLIGHT_BLOCKED",
+              "zone": "a-11-oy.com",
+              "route_pattern": "a-11-oy.com/api/v2/*",
+              "source_revision": os.environ["GITHUB_SHA"],
+              "worker_source": "cloudflare/a11oy-governed-inference-worker.mjs",
+              "token_source": None,
+              "token_recorded": False,
+              "complete_provider_ids_recorded": False,
+              "dns_mutated": False,
+              "root_product_worker_mutated": False,
+              "ai_binding_requested": True,
+              "rollback": {"state": "NOT_REQUIRED"},
+              "source_authority": {
+                  "state": os.environ["SOURCE_AUTHORITY_STATE"],
+                  "deployment_allowed": ok,
+                  "event_sha": os.environ["GITHUB_SHA"],
+                  "protected_main_tip": os.environ.get("PROTECTED_MAIN_TIP") or None,
+                  "event_is_protected_main_ancestor": ok,
+                  "governed_path_drift": drift,
+              },
+          }
+          error = os.environ.get("SOURCE_AUTHORITY_ERROR")
+          if error:
+              report["error"] = error
+          path = Path(os.environ["AUTHORITY_REPORT"])
+          path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+          Path(os.environ["REPORT"]).write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          echo "ok=$ok" >> "$GITHUB_OUTPUT"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          exit 0
 
       - name: Set up Python
+        if: steps.authority.outputs.ok == 'true'
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
       - name: Deploy bounded Workers AI route
+        if: steps.authority.outputs.ok == 'true'
         id: deploy
         shell: bash
         env:
@@ -128,6 +222,34 @@ jobs:
           fi
           python scripts/deploy_cloudflare_governed_inference.py "${args[@]}"
           code=$?
+
+          DEPLOY_EXIT_CODE="$code" python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report_path = Path(os.environ["REPORT"])
+          authority = json.loads(
+              Path(os.environ["AUTHORITY_REPORT"]).read_text(encoding="utf-8")
+          )
+          if report_path.is_file():
+              report = json.loads(report_path.read_text(encoding="utf-8"))
+          else:
+              report = dict(authority)
+              report["status"] = "FAILED"
+              report["error"] = "deployment controller emitted no report"
+          report["source_authority"] = authority["source_authority"]
+          report["protected_main_tip"] = authority["source_authority"].get(
+              "protected_main_tip"
+          )
+          if int(os.environ["DEPLOY_EXIT_CODE"]) != 0 and not report.get("error"):
+              report["error"] = "deployment controller returned a nonzero exit code"
+          report_path.write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
           echo "exit_code=$code" >> "$GITHUB_OUTPUT"
           exit 0
 
@@ -136,7 +258,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: cloudflare-governed-inference-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.REPORT }}
+          path: |
+            ${{ env.REPORT }}
+            ${{ env.AUTHORITY_REPORT }}
           if-no-files-found: error
           retention-days: 90
 
@@ -145,17 +269,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python - <<'PY'
+          python3 - <<'PY'
           import json
           import os
 
           report = json.load(open(os.environ["REPORT"], encoding="utf-8"))
           probe = report.get("probe") or {}
+          authority = report.get("source_authority") or {}
           lines = [
               "## Cloudflare governed inference",
               "",
               f"- Status: `{report.get('status')}`",
               f"- Source: `{report.get('source_revision')}`",
+              f"- Source authority: `{authority.get('state')}`",
               f"- Route: `{report.get('route_pattern')}`",
               f"- Target script: `{report.get('target_script')}`",
               f"- DNS mutated: `{report.get('dns_mutated')}`",
@@ -178,9 +304,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "${{ steps.authority.outputs.ok }}" != "true" ]; then
+            echo "::error::Protected-source authority was not established."
+            exit 2
+          fi
           code="${{ steps.deploy.outputs.exit_code }}"
           test -n "$code"
-          status="$(python -c 'import json,os; print(json.load(open(os.environ["REPORT"]))["status"])')"
+          status="$(python3 -c 'import json,os; print(json.load(open(os.environ["REPORT"]))["status"])')"
           if [ "$code" -ne 0 ]; then
             echo "::error::Cloudflare governed inference did not reach a proved terminal state."
             exit "$code"
