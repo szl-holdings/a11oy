@@ -1,0 +1,37 @@
+name: Dispatch exact-main A11oy HF sync d0362
+
+on:
+  push:
+    branches:
+      - ops/dispatch-hf-sync-d0362
+    paths:
+      - .github/workflows/dispatch-exact-main-hf-sync-d0362.yml
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch:
+    name: Verify exact protected main and dispatch canonical writer
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Dispatch only hf-sync.yml at the exact main revision
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_MAIN: d0362e08e8eeb1ff18ae99b7165235183014b041
+        shell: bash
+        run: |
+          set -euo pipefail
+          current_main="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$current_main" = "$EXPECTED_MAIN"
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/actions/workflows/hf-sync.yml/dispatches" \
+            -f ref=main
+          echo "Dispatched canonical hf-sync.yml at ${current_main}."
