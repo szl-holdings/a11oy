@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Align Lyte source-owned topology once
+
+"on":
+  push:
+    branches: [fix/lyte-source-owned-publisher]
+    paths:
+      - .github/workflows/zz-align-lyte-source-owned-topology-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: align-lyte-source-owned-topology-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  align:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+          persist-credentials: true
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+      - name: Preserve Killinchu capability topology while source-owning Lyte
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def swap(path, old, new, count=1):
+              p = Path(path)
+              text = p.read_text(encoding="utf-8")
+              if text.count(old) != count:
+                  raise SystemExit(f"{path}: expected {count} exact anchor(s): {old!r}")
+              p.write_text(text.replace(old, new, count), encoding="utf-8")
+
+          entry = "scripts/hf_publish_vertical_flagships_v4.py"
+          swap(entry,
+               "The established Domain Experience v4 implementation remains the renderer for\nTerra, Sentra, Counsel, and Finance. Lyte is no longer regenerated as a generic shell:\n",
+               "The established Domain Experience v4 implementation remains the renderer for\nTerra, Counsel, and Finance. Lyte is no longer regenerated as a generic shell:\n")
+          swap(entry,
+               "publisher. Sentra remains the sole Assurance Command. Vessels remains a\ncapability plane inside Killinchu and is filtered before independent publication.\n",
+               "publisher. Sentra and Vessels remain independently testable capability planes\ninside Killinchu and are filtered before independent publication.\n")
+          swap(entry,
+               'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")\nGENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")\nSOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)\nFOLDED_INTO_KILLINCHU = ("vessels",)\nKILLINCHU_SPACE = "SZLHOLDINGS/killinchu"\nSENTRA_SPACE = "SZLHOLDINGS/sentra"\n',
+               'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")\nGENERATED_FLAGSHIP_SLUGS = ("terra", "counsel", "finance")\nSOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)\nFOLDED_INTO_KILLINCHU = ("sentra", "vessels")\nKILLINCHU_SPACE = "SZLHOLDINGS/killinchu"\nSENTRA_PUBLIC_HOME = KILLINCHU_SPACE\n')
+          swap(entry,
+               'LEGACY_PUBLIC_FLAGSHIP_CONTRACT = (\n    \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")\'\n)\nLEGACY_FOLDED_CONTRACT = \'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")\'\n',
+               'LEGACY_PUBLIC_FLAGSHIP_CONTRACT = (\n    \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")\'\n)\nLEGACY_FOLDED_CONTRACT = \'FOLDED_INTO_KILLINCHU = ("vessels",)\'\n')
+          swap(entry,
+               '    flagship["sentra_space"] = SENTRA_SPACE\n',
+               '    flagship["sentra_capability_home"] = SENTRA_PUBLIC_HOME\n')
+
+          test = "tests/test_hf_publish_lyte_enterprise.py"
+          swap(test,
+               '        \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")\',\n        \'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")\',\n',
+               '        \'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")\',\n        \'GENERATED_FLAGSHIP_SLUGS = ("terra", "counsel", "finance")\',\n')
+          old = '''def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:
+              source = ENTRYPOINT.read_text(encoding="utf-8")
+              assert 'FOLDED_INTO_KILLINCHU = ("vessels",)' in source
+              assert 'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")' in source
+              assert 'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")' in source
+              assert 'SENTRA_SPACE = "SZLHOLDINGS/sentra"' in source
+              assert 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")' not in source
+              assert 'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"' in source
+          '''.replace("          ", "")
+          new = '''def test_source_owned_lyte_preserves_killinchu_capability_topology() -> None:
+              source = ENTRYPOINT.read_text(encoding="utf-8")
+              tree = ast.parse(source)
+              values = {}
+              for node in tree.body:
+                  if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
+                      if node.targets[0].id in {"PUBLIC_FLAGSHIP_SLUGS", "GENERATED_FLAGSHIP_SLUGS", "SOURCE_OWNED_FLAGSHIP_SLUGS", "FOLDED_INTO_KILLINCHU", "KILLINCHU_SPACE"}:
+                          values[node.targets[0].id] = ast.literal_eval(node.value)
+              assert values["PUBLIC_FLAGSHIP_SLUGS"] == ("terra", "counsel", "finance", "lyte")
+              assert values["GENERATED_FLAGSHIP_SLUGS"] == ("terra", "counsel", "finance")
+              assert values["SOURCE_OWNED_FLAGSHIP_SLUGS"] == ("lyte",)
+              assert values["FOLDED_INTO_KILLINCHU"] == ("sentra", "vessels")
+              assert values["KILLINCHU_SPACE"] == "SZLHOLDINGS/killinchu"
+              assert 'SENTRA_PUBLIC_HOME = KILLINCHU_SPACE' in source
+          '''.replace("          ", "")
+          p = Path(test)
+          text = p.read_text(encoding="utf-8")
+          if text.count(old) != 1:
+              raise SystemExit("focused topology test anchor mismatch")
+          p.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+          python -m py_compile scripts/hf_publish_vertical_flagships_v4.py scripts/hf_publish_lyte_enterprise.py
+          python -m pip install --disable-pip-version-check --no-cache-dir pytest==9.0.3
+          python -m pytest tests/test_hf_publish_lyte_enterprise.py -q
+          git diff --check
+      - name: Commit exact topology repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add scripts/hf_publish_vertical_flagships_v4.py tests/test_hf_publish_lyte_enterprise.py
+          git commit --signoff -m "fix(hf): keep Sentra folded while source-owning Lyte"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
