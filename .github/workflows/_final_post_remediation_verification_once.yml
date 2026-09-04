@@ -1,0 +1,400 @@
+name: Final post-remediation estate verification once
+
+on:
+  push:
+    branches:
+      - ops/codex-perplexity-recovery-20260904-v1
+    paths:
+      - .github/workflows/_final_post_remediation_verification_once.yml
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  issues: write
+  pull-requests: read
+  statuses: read
+
+concurrency:
+  group: final-post-remediation-estate-verification-20260904
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Re-read GitHub, Hugging Face, and production origins from scratch
+    runs-on: ubuntu-24.04
+    timeout-minutes: 170
+    env:
+      GH_ADMIN_TOKEN: ${{ secrets.SZL_GITHUB_TOKEN || secrets.GH_ADMIN_TOKEN || secrets.GITHUB_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.GH_PAT || github.token }}
+      HF_ADMIN_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_ORG_TOKEN1 || secrets.HF_TOKEN || secrets.HF_WRITE_TOKEN || secrets.HUGGINGFACEHUB_API_TOKEN || secrets.HUGGING_FACE_HUB_TOKEN }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out isolated evidence branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/codex-perplexity-recovery-20260904-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Wait for terminal and deterministic remediation lanes
+        env:
+          GH_TOKEN: ${{ env.GH_ADMIN_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in $(seq 1 300); do
+            git fetch --no-tags origin ops/codex-perplexity-recovery-20260904-v1
+            terminal=false
+            remediation=false
+            git show origin/ops/codex-perplexity-recovery-20260904-v1:evidence/agent-recovery/2026-09-04/final/terminal-convergence.json >/tmp/pre-terminal.json 2>/dev/null && terminal=true || true
+            git show origin/ops/codex-perplexity-recovery-20260904-v1:evidence/agent-recovery/2026-09-04/remediation/deterministic-remediation.json >/tmp/remediation.json 2>/dev/null && remediation=true || true
+            if [ "$terminal" = true ] && [ "$remediation" = true ]; then
+              exit 0
+            fi
+            sleep 30
+          done
+          echo '::error::Prerequisite terminal/remediation receipts did not materialize'
+          exit 1
+
+      - name: Execute independent final readback
+        env:
+          GH_TOKEN: ${{ env.GH_ADMIN_TOKEN }}
+          HF_TOKEN: ${{ env.HF_ADMIN_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/agent-recovery/2026-09-04/closeout
+          cat > /tmp/final_verify.py <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import os
+          import re
+          import subprocess
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+          from typing import Any
+
+          ORG = 'szl-holdings'
+          HF_ORG = 'SZLHOLDINGS'
+          TOKEN = os.environ.get('HF_TOKEN', '').strip()
+          HOLD = re.compile(r'(?:do not merge|\bhold\b|evidence[- ]only|terminal disposition|owner click|manual approval|isolated recovery controller)', re.I)
+          GOOD = {'success', 'neutral', 'skipped'}
+          out: dict[str, Any] = {
+              'schema': 'szl.agent-estate-final-closeout/v1',
+              'generated_at': dt.datetime.now(dt.timezone.utc).isoformat(),
+              'credential_values_recorded': False,
+              'github': {'repositories': [], 'open_prs': [], 'default_branch_failures': [], 'default_branch_pending': [], 'errors': []},
+              'hf': {'counts': {}, 'spaces': [], 'unsafe_serialization': [], 'errors': []},
+              'domain': {},
+              'known_handoffs': [],
+              'issue_states': {},
+              'errors': [],
+          }
+
+          def run(args, check=False, timeout=180):
+              result = subprocess.run(args, text=True, capture_output=True, timeout=timeout)
+              if check and result.returncode:
+                  raise RuntimeError(result.stderr.strip() or result.stdout.strip())
+              return result
+
+          def gh(path: str, check=False):
+              result = run(['gh', 'api', path], check=check)
+              if not result.stdout.strip(): return None
+              try: return json.loads(result.stdout)
+              except json.JSONDecodeError: return result.stdout
+
+          def paged(path: str, key: str | None = None, max_pages=30):
+              rows = []
+              sep = '&' if '?' in path else '?'
+              for page in range(1, max_pages + 1):
+                  data = gh(f'{path}{sep}per_page=100&page={page}', check=True)
+                  batch = data.get(key, []) if key else data
+                  if not isinstance(batch, list): raise RuntimeError('unexpected GitHub pagination shape')
+                  rows.extend(batch)
+                  if len(batch) < 100: break
+              return rows
+
+          def http_json(url: str, token: str = ''):
+              headers = {'User-Agent': 'SZL-final-estate-verifier/1.0'}
+              if token: headers['Authorization'] = f'Bearer {token}'
+              request = urllib.request.Request(url, headers=headers)
+              try:
+                  with urllib.request.urlopen(request, timeout=35) as response:
+                      payload = response.read()
+                      return response.status, json.loads(payload) if payload else None
+              except urllib.error.HTTPError as exc:
+                  payload = exc.read().decode('utf-8', 'replace')
+                  try: data = json.loads(payload)
+                  except json.JSONDecodeError: data = {'message': payload}
+                  return exc.code, data
+              except Exception as exc:
+                  return 0, {'message': f'{type(exc).__name__}: {exc}'[:500]}
+
+          try:
+              repos = paged(f'orgs/{ORG}/repos?type=all&sort=updated')
+          except Exception as exc:
+              repos = []
+              out['github']['errors'].append({'family': 'repositories', 'error': f'{type(exc).__name__}: {exc}'[:1000]})
+          active = [repo for repo in repos if not repo.get('archived') and not repo.get('disabled')]
+          out['github']['counts'] = {'total': len(repos), 'active': len(active), 'archived': sum(bool(repo.get('archived')) for repo in repos)}
+
+          for repo in active:
+              full = repo['full_name']
+              default = repo.get('default_branch') or 'main'
+              record = {'repo': full, 'default_branch': default}
+              branch = gh(f'repos/{full}/branches/{urllib.parse.quote(default, safe="")}', check=False)
+              if not isinstance(branch, dict) or 'commit' not in branch:
+                  record['state'] = 'UNAVAILABLE'
+                  out['github']['errors'].append({'family': 'default_branch', 'repo': full})
+                  out['github']['repositories'].append(record)
+                  continue
+              sha = str((branch.get('commit') or {}).get('sha') or '')
+              record['sha'] = sha
+              runs = gh(f'repos/{full}/actions/runs?head_sha={sha}&per_page=100', check=False) or {}
+              workflow_rows = runs.get('workflow_runs', []) if isinstance(runs, dict) else []
+              failed = [
+                  {'id': row.get('id'), 'name': row.get('name'), 'conclusion': row.get('conclusion'), 'attempt': row.get('run_attempt')}
+                  for row in workflow_rows if row.get('status') == 'completed' and row.get('conclusion') not in GOOD
+              ]
+              pending = [
+                  {'id': row.get('id'), 'name': row.get('name'), 'status': row.get('status')}
+                  for row in workflow_rows if row.get('status') != 'completed'
+              ]
+              record['workflow_runs'] = len(workflow_rows)
+              record['failed'] = failed
+              record['pending'] = pending
+              if failed: out['github']['default_branch_failures'].append({'repo': full, 'sha': sha, 'runs': failed})
+              if pending: out['github']['default_branch_pending'].append({'repo': full, 'sha': sha, 'runs': pending})
+              pulls = gh(f'repos/{full}/pulls?state=open&per_page=100', check=False)
+              if isinstance(pulls, list):
+                  for pr in pulls:
+                      text = str(pr.get('title') or '') + '\n' + str(pr.get('body') or '')
+                      item = {
+                          'repo': full, 'number': pr.get('number'), 'title': pr.get('title'), 'url': pr.get('html_url'),
+                          'draft': bool(pr.get('draft')), 'head': (pr.get('head') or {}).get('ref'),
+                          'head_sha': (pr.get('head') or {}).get('sha'), 'mergeable': pr.get('mergeable'),
+                          'mergeable_state': pr.get('mergeable_state'), 'explicit_hold': bool(HOLD.search(text)),
+                      }
+                      checks = gh(f"repos/{full}/commits/{item['head_sha']}/check-runs?per_page=100", check=False) or {}
+                      rows = checks.get('check_runs', []) if isinstance(checks, dict) else []
+                      item['failed_checks'] = [row.get('name') for row in rows if row.get('status') == 'completed' and row.get('conclusion') not in GOOD]
+                      item['pending_checks'] = [row.get('name') for row in rows if row.get('status') != 'completed']
+                      item['check_count'] = len(rows)
+                      out['github']['open_prs'].append(item)
+              out['github']['repositories'].append(record)
+
+          # Known Perplexity-correlated handoffs.
+          for repo, number in [
+              ('szl-holdings/szl-platform', 9), ('szl-holdings/szl-forge', 88), ('szl-holdings/killinchu', 375),
+              ('szl-holdings/a11oy', 1617), ('szl-holdings/a11oy', 1618), ('szl-holdings/a11oy', 1531),
+          ]:
+              pr = gh(f'repos/{repo}/pulls/{number}', check=False)
+              out['known_handoffs'].append({
+                  'repo': repo, 'number': number,
+                  'state': pr.get('state') if isinstance(pr, dict) else 'UNAVAILABLE',
+                  'merged': bool(pr.get('merged')) if isinstance(pr, dict) else False,
+                  'merge_sha': pr.get('merge_commit_sha') if isinstance(pr, dict) else None,
+                  'title': pr.get('title') if isinstance(pr, dict) else None,
+              })
+
+          # HF public/authenticated inventory.
+          for family in ('models', 'datasets', 'spaces'):
+              code, data = http_json(f'https://huggingface.co/api/{family}?author={HF_ORG}&limit=100&full=true', TOKEN)
+              if code == 200 and isinstance(data, list):
+                  out['hf']['counts'][family] = len(data)
+                  if family == 'models':
+                      for model in data:
+                          flagged = sorted(str(row.get('rfilename') or '') for row in model.get('siblings', []) if str(row.get('rfilename') or '').lower().endswith(('.joblib', '.pkl', '.pickle', '.dill')))
+                          if flagged: out['hf']['unsafe_serialization'].append({'model': model.get('id'), 'files': flagged})
+                  if family == 'spaces':
+                      for space in data:
+                          runtime = space.get('runtime') or {}
+                          hardware = runtime.get('hardware') or {}
+                          out['hf']['spaces'].append({
+                              'id': space.get('id'), 'private': bool(space.get('private')), 'sha': space.get('sha'),
+                              'stage': runtime.get('stage') or 'UNKNOWN',
+                              'hardware': hardware.get('current') if isinstance(hardware, dict) else None,
+                          })
+              else:
+                  out['hf']['counts'][family] = None
+                  out['hf']['errors'].append({'family': family, 'http': code, 'detail': data})
+          for family, url in [
+              ('collections', f'https://huggingface.co/api/collections?owner={HF_ORG}&limit=100'),
+              ('kernels', f'https://huggingface.co/api/kernels?author={HF_ORG}&limit=100'),
+              ('buckets', f'https://huggingface.co/api/buckets?author={HF_ORG}&limit=100'),
+          ]:
+              code, data = http_json(url, TOKEN)
+              if code == 200:
+                  rows = data if isinstance(data, list) else data.get('items', data.get(family, [])) if isinstance(data, dict) else []
+                  out['hf']['counts'][family] = len(rows) if isinstance(rows, list) else None
+              else:
+                  out['hf']['counts'][family] = None
+                  out['hf']['errors'].append({'family': family, 'http': code, 'detail': data})
+
+          # Domain proof without following www redirect.
+          def probe(url: str, follow=True):
+              class NoRedirect(urllib.request.HTTPRedirectHandler):
+                  def redirect_request(self, req, fp, code, msg, headers, newurl): return None
+              opener = urllib.request.build_opener() if follow else urllib.request.build_opener(NoRedirect)
+              req = urllib.request.Request(url, headers={'User-Agent': 'SZL-final-estate-domain-proof/1.0'})
+              try:
+                  with opener.open(req, timeout=30) as response:
+                      body = response.read(131072)
+                      return {'status': response.status, 'effective_url': response.geturl(), 'location': response.headers.get('Location'), 'body': body[:2000].decode('utf-8', 'replace')}
+              except urllib.error.HTTPError as exc:
+                  return {'status': exc.code, 'effective_url': exc.geturl(), 'location': exc.headers.get('Location'), 'body': exc.read(131072)[:2000].decode('utf-8', 'replace')}
+              except Exception as exc:
+                  return {'status': 'UNAVAILABLE', 'error': f'{type(exc).__name__}: {exc}'[:500]}
+          out['domain']['apex'] = probe('https://a-11-oy.com/')
+          out['domain']['honest'] = probe('https://a-11-oy.com/api/a11oy/v1/honest')
+          out['domain']['www'] = probe('https://www.a-11-oy.com/__szl_edge_probe__/path?contract=v3&preserve=yes', follow=False)
+          out['domain']['hf_origin'] = probe('https://szlholdings-a11oy.hf.space/')
+          try: contract = json.loads(out['domain']['honest'].get('body') or '{}')
+          except json.JSONDecodeError: contract = {}
+          expected = 'https://a-11-oy.com/__szl_edge_probe__/path?contract=v3&preserve=yes'
+          out['domain']['honest_contract'] = {'organ': contract.get('organ'), 'locked_formula_count': contract.get('locked_formula_count')}
+          out['domain']['verified'] = bool(
+              out['domain']['apex'].get('status') == 200
+              and out['domain']['honest'].get('status') == 200
+              and contract.get('organ') == 'a11oy'
+              and contract.get('locked_formula_count') == 8
+              and out['domain']['www'].get('status') in {301, 308}
+              and out['domain']['www'].get('location') == expected
+              and out['domain']['hf_origin'].get('status') == 200
+          )
+
+          for repo, number in [('szl-holdings/a11oy', 1497), ('szl-holdings/a11oy', 1282), ('szl-holdings/a11oy', 1326), ('szl-holdings/.github', 603)]:
+              issue = gh(f'repos/{repo}/issues/{number}', check=False)
+              out['issue_states'][f'{repo}#{number}'] = {'state': issue.get('state') if isinstance(issue, dict) else 'UNAVAILABLE', 'title': issue.get('title') if isinstance(issue, dict) else None}
+
+          nonheld = [row for row in out['github']['open_prs'] if not row['draft'] and not row['explicit_hold'] and row['head'] != 'ops/codex-perplexity-recovery-20260904-v1']
+          public_bad = [row for row in out['hf']['spaces'] if not row['private'] and str(row['stage']) not in {'RUNNING', 'RUNNING_APP_STARTING', 'RUNNING_BUILDING'}]
+          out['terminal'] = {
+              'nonheld_open_prs': len(nonheld),
+              'current_default_branch_failures': len(out['github']['default_branch_failures']),
+              'current_default_branch_pending': len(out['github']['default_branch_pending']),
+              'public_space_failures': len(public_bad),
+              'unsafe_serialization_findings': len(out['hf']['unsafe_serialization']),
+              'domain_verified': out['domain']['verified'],
+              'github_errors': len(out['github']['errors']),
+              'hf_errors': len(out['hf']['errors']),
+              'controller_errors': len(out['errors']),
+          }
+          out['terminal']['complete'] = bool(
+              out['terminal']['nonheld_open_prs'] == 0
+              and out['terminal']['current_default_branch_failures'] == 0
+              and out['terminal']['current_default_branch_pending'] == 0
+              and out['terminal']['public_space_failures'] == 0
+              and out['terminal']['unsafe_serialization_findings'] == 0
+              and out['terminal']['domain_verified'] is True
+              and out['terminal']['github_errors'] == 0
+              and out['terminal']['hf_errors'] == 0
+              and out['terminal']['controller_errors'] == 0
+          )
+          Path('evidence/agent-recovery/2026-09-04/closeout/final-closeout.json').write_text(json.dumps(out, indent=2, sort_keys=True) + '\n', encoding='utf-8')
+          PY
+          python /tmp/final_verify.py
+
+      - name: Render final closeout ledger
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path('evidence/agent-recovery/2026-09-04/closeout/final-closeout.json').read_text(encoding='utf-8'))
+          t = data['terminal']
+          lines = [
+              '# SZL Codex / Perplexity / Hugging Face operational closeout', '',
+              f"Generated: `{data['generated_at']}`", '',
+              f"Overall: **{'COMPLETE' if t['complete'] else 'BLOCKED'}**", '',
+              '## Final independent readback', '',
+              f"- GitHub repositories: **{data['github']['counts']['total']}** total / **{data['github']['counts']['active']}** active / **{data['github']['counts']['archived']}** archived",
+              f"- Non-held open pull requests: **{t['nonheld_open_prs']}**",
+              f"- Current default-branch failed workflow subjects: **{t['current_default_branch_failures']}**",
+              f"- Current default-branch pending workflow subjects: **{t['current_default_branch_pending']}**",
+              f"- Public Hugging Face Space failures: **{t['public_space_failures']}**",
+              f"- Unsafe serialized model findings: **{t['unsafe_serialization_findings']}**",
+              f"- Canonical domain proof: **{t['domain_verified']}**",
+              f"- GitHub/HF/controller read errors: **{t['github_errors'] + t['hf_errors'] + t['controller_errors']}**", '',
+              '## Hugging Face inventory', '',
+          ]
+          for key, value in sorted(data['hf']['counts'].items()): lines.append(f'- {key}: **{value}**')
+          lines += ['', '## Known Perplexity-correlated handoffs', '']
+          for row in data['known_handoffs']:
+              lines.append(f"- `{row['repo']}#{row['number']}` — merged `{row['merged']}` — state `{row['state']}` — {row.get('title') or ''}")
+          if data['github']['open_prs']:
+              lines += ['', '## Remaining open PRs', '']
+              for row in data['github']['open_prs']:
+                  lines.append(f"- `{row['repo']}#{row['number']}` — draft `{row['draft']}` — hold `{row['explicit_hold']}` — failed `{row['failed_checks']}` — pending `{row['pending_checks']}` — {row['title']}")
+          if data['github']['default_branch_failures'] or data['github']['default_branch_pending']:
+              lines += ['', '## Current default-branch blockers', '']
+              for row in data['github']['default_branch_failures']:
+                  lines.append(f"- `{row['repo']}` @ `{row['sha']}` failed `{[x['name'] for x in row['runs']]}`")
+              for row in data['github']['default_branch_pending']:
+                  lines.append(f"- `{row['repo']}` @ `{row['sha']}` pending `{[x['name'] for x in row['runs']]}`")
+          bad = [row for row in data['hf']['spaces'] if not row['private'] and str(row['stage']) not in {'RUNNING', 'RUNNING_APP_STARTING', 'RUNNING_BUILDING'}]
+          if bad:
+              lines += ['', '## Public Space blockers', '']
+              for row in bad: lines.append(f"- `{row['id']}` — `{row['stage']}` — `{row.get('sha')}`")
+          if data['hf']['unsafe_serialization']:
+              lines += ['', '## Unsafe model artifacts', '']
+              for row in data['hf']['unsafe_serialization']: lines.append(f"- `{row['model']}` — `{', '.join(row['files'])}`")
+          lines += ['', '## Canonical public origin', '',
+              f"- Apex: `{data['domain']['apex'].get('status')}`",
+              f"- Honesty API: `{data['domain']['honest'].get('status')}` / `{data['domain']['honest_contract']}`",
+              f"- www: `{data['domain']['www'].get('status')}` → `{data['domain']['www'].get('location')}`",
+              f"- Direct HF origin: `{data['domain']['hf_origin'].get('status')}`",
+              f"- Complete proof: `{data['domain']['verified']}`", '',
+              '## Truth boundary', '',
+              '- This report uses fresh current-head/current-runtime readback; historical failures remain preserved but are not counted as current failures.',
+              '- Draft or explicitly held/evidence-only PRs are listed but excluded from automatic merge eligibility.',
+              '- No credential value, visibility, hardware allocation, storage, billing, branch protection, or provider setting is fabricated or hidden.',
+          ]
+          Path('evidence/agent-recovery/2026-09-04/closeout/final-closeout.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')
+          print(json.dumps(t, sort_keys=True))
+          PY
+
+      - name: Upload immutable final closeout
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: szl-agent-estate-final-closeout-${{ github.run_id }}-${{ github.run_attempt }}
+          path: evidence/agent-recovery/2026-09-04/closeout
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Reconcile solo-estate ledger from final truth
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -f evidence/agent-recovery/2026-09-04/closeout/final-closeout.md ]; then
+            gh issue comment 1326 --repo szl-holdings/a11oy --body-file evidence/agent-recovery/2026-09-04/closeout/final-closeout.md
+          fi
+
+      - name: Retire verifier and retain the final receipt
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          git pull --rebase origin ops/codex-perplexity-recovery-20260904-v1
+          git rm --ignore-unmatch .github/workflows/_final_post_remediation_verification_once.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add evidence/agent-recovery/2026-09-04/closeout || true
+          if ! git diff --cached --quiet; then
+            git commit -s -m 'chore(evidence): retain final agent estate closeout'
+            git push origin HEAD:ops/codex-perplexity-recovery-20260904-v1
+          fi
