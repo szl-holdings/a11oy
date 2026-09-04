@@ -1,0 +1,178 @@
+name: Materialize reviewed HF deployer and image closure once
+
+on:
+  push:
+    branches:
+      - fix/hf-deployer-pin-image-closure-20260904
+    paths:
+      - .github/workflows/materialize-hf-deployer-image-closure-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-hf-deployer-image-closure-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-deployer-pin-image-closure-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Apply exact publisher pin and image closure
+        shell: bash
+        env:
+          OLD_PIN: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          NEW_PIN: 03f1aa3110ee172ba6710317a53c7e276b4d103d
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          import subprocess
+          from pathlib import Path
+
+          old = os.environ["OLD_PIN"]
+          new = os.environ["NEW_PIN"]
+          transport = ".github/workflows/materialize-hf-deployer-image-closure-once.yml"
+          expected = {
+              ".github/workflows/hf-sync.yml",
+              "audit/workflow-action-pins.json",
+              "tests/test_canonical_a11oy_relock.py",
+              "tests/test_copy_sync_lockstep_source_derived.py",
+              "tests/test_operational_route_contracts.py",
+              "tools/check_copy_sync_lockstep.py",
+          }
+
+          grep = subprocess.run(
+              ["git", "grep", "-l", old, "--"],
+              check=False,
+              text=True,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.PIPE,
+          )
+          if grep.returncode not in (0, 1):
+              raise SystemExit(grep.stderr)
+          observed = {line for line in grep.stdout.splitlines() if line}
+          permanent = observed - {transport}
+          if permanent != expected:
+              raise SystemExit(
+                  "reviewed pin closure drifted: "
+                  f"expected={sorted(expected)} observed={sorted(permanent)}"
+              )
+          for relative in sorted(permanent):
+              path = Path(relative)
+              text = path.read_text(encoding="utf-8")
+              if old not in text:
+                  raise SystemExit(f"obsolete pin absent in {relative}")
+              path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+
+          dockerfile = Path("Dockerfile")
+          docker = dockerfile.read_text(encoding="utf-8")
+          before = "serve.py szl_governed_api.py"
+          after = "serve.py szl_anatomy_alias_bind.py szl_governed_api.py"
+          if docker.count(before) != 1:
+              raise SystemExit(
+                  "canonical grouped COPY anchor drifted: "
+                  f"count={docker.count(before)}"
+              )
+          if after in docker:
+              raise SystemExit("Anatomy alias module is already in the grouped COPY set")
+          dockerfile.write_text(
+              docker.replace(before, after, 1),
+              encoding="utf-8",
+              newline="\n",
+          )
+
+          residual = subprocess.run(
+              ["git", "grep", "-n", old, "--"],
+              check=False,
+              text=True,
+              stdout=subprocess.PIPE,
+              stderr=subprocess.PIPE,
+          )
+          if residual.returncode not in (0, 1):
+              raise SystemExit(residual.stderr)
+          remaining = [
+              line
+              for line in residual.stdout.splitlines()
+              if line and not line.startswith(transport + ":")
+          ]
+          if remaining:
+              raise SystemExit("obsolete permanent pin remains:\n" + "\n".join(remaining))
+          PY
+
+      - name: Prove source-derived publication and complete image import closure
+        shell: bash
+        env:
+          NEW_PIN: 03f1aa3110ee172ba6710317a53c7e276b4d103d
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.3.5"
+          python -m py_compile \
+            szl_anatomy_alias_bind.py \
+            tools/check_copy_sync_lockstep.py \
+            tests/test_canonical_a11oy_relock.py \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py
+          python tools/check_copy_sync_lockstep.py
+          python -m pytest -q \
+            tests/test_canonical_a11oy_relock.py \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py
+          python -m json.tool audit/workflow-action-pins.json >/dev/null
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          pin = os.environ["NEW_PIN"]
+          old = "e3ec47ad2e99a535839afe0f30fefbd8973d52da"
+          workflow = Path(".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
+          assert workflow.count(
+              "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@" + pin
+          ) == 1
+          audit = json.loads(Path("audit/workflow-action-pins.json").read_text(encoding="utf-8"))
+          assert pin in json.dumps(audit, sort_keys=True)
+          assert old not in json.dumps(audit, sort_keys=True)
+          docker = Path("Dockerfile").read_text(encoding="utf-8")
+          assert docker.count("serve.py szl_anatomy_alias_bind.py szl_governed_api.py") == 1
+          assert docker.count("szl_anatomy_alias_bind.py") == 1
+          PY
+          git diff --check
+
+      - name: Remove transport and push clean exact head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/materialize-hf-deployer-image-closure-once.yml
+          git add \
+            Dockerfile \
+            .github/workflows/hf-sync.yml \
+            audit/workflow-action-pins.json \
+            tests/test_canonical_a11oy_relock.py \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py \
+            tools/check_copy_sync_lockstep.py
+          git diff --cached --check
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -s -m "fix(hf): bind reviewed deployer and complete image imports" \
+            -m "Pin canonical publication to szl-holdings/.github@03f1aa3110ee172ba6710317a53c7e276b4d103d and include the source-owned Anatomy alias module imported by the runtime. This preserves strict source-derived publishing and prevents a merged-but-not-live fallback stub."
+          git push origin HEAD:fix/hf-deployer-pin-image-closure-20260904
