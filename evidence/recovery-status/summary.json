@@ -1,0 +1,12 @@
+{
+  "apex_status": 200,
+  "credential_values_recorded": false,
+  "generated_at": "2026-09-04T22:21:27.931232+00:00",
+  "hf_origin_status": 200,
+  "open_prs": 1,
+  "public_space_failures": 17,
+  "workflow_active": 6,
+  "workflow_failed": 4,
+  "workflow_total": 46,
+  "www_status": "UNAVAILABLE"
+}

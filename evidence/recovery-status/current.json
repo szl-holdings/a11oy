@@ -1,0 +1,687 @@
+{
+  "credential_values_recorded": false,
+  "domain": {
+    "apex": {
+      "effective": "https://a-11-oy.com/",
+      "location": null,
+      "status": 200
+    },
+    "hf_origin": {
+      "effective": "https://szlholdings-a11oy.hf.space/",
+      "location": null,
+      "status": 200
+    },
+    "honest": {
+      "effective": "https://a-11-oy.com/api/a11oy/v1/honest",
+      "location": null,
+      "status": 200
+    },
+    "www": {
+      "error": "URLError: <urlopen error [SSL: TLSV1_ALERT_ACCESS_DENIED] tlsv1 alert access denied (_ssl.c:1000)>",
+      "status": "UNAVAILABLE"
+    }
+  },
+  "generated_at": "2026-09-04T22:21:27.931232+00:00",
+  "hf_spaces": [
+    {
+      "id": "SZLHOLDINGS/README",
+      "private": false,
+      "sha": "73887834be74e27e7fb7261f53c60860d97d3736",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/killinchu",
+      "private": false,
+      "sha": "89db92ea56106895f299441164cf20e91444418b",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/a11oy",
+      "private": false,
+      "sha": "e108eb6b54fede572183ae5795d5e266b5359539",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/counsel",
+      "private": false,
+      "sha": "dee953ecae2c8b9cda36ca9928df439f8b6aff8c",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/terra",
+      "private": false,
+      "sha": "14c1a78100eed9ba8e393e518c5df73a2aadd887",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/sentra",
+      "private": false,
+      "sha": "5963fe8c2ac86843637710bf1d499ef24f011f48",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/finance",
+      "private": false,
+      "sha": "a342073af0d12c325f60cfb6b16590d951413071",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/lyte",
+      "private": false,
+      "sha": "286bf5671271017b738a844ac77e59ae66da59fc",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/vertical-services",
+      "private": false,
+      "sha": "710950f7c8de115c3bae4a31a628fd5671eff270",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/szl-command-lab",
+      "private": false,
+      "sha": "4c0d0072504a0665c7818ea6282f6eddeb0ed64b",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/david-leads",
+      "private": false,
+      "sha": "6f80ab6c37cc9a6bcca4d44a926daca8b9468c56",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/szl-constellation",
+      "private": false,
+      "sha": "b975f47cc82821060af4338456f3b17c9077e692",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/terra-assurance",
+      "private": true,
+      "sha": "b596fcfc4635c12e65a185230fb2d0afebdb6fa2",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/puriq-markets",
+      "private": true,
+      "sha": "5681a5675b9fd6d53feb811553b63a04cd0b98c3",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/counsel-assurance",
+      "private": true,
+      "sha": "0e31460ae4740e2ffb7565c2f1e4c21155bc52a2",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/szl-frontier",
+      "private": false,
+      "sha": "e730a24b087ee31bcef19357636e048ca105e06a",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/szl-model-inference-lab",
+      "private": false,
+      "sha": "f50895266a1956d38a0b03326e8cfa28a88d6c1a",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/immune-lattice",
+      "private": false,
+      "sha": "6237ab5b88e71388ba161c22eff0e6f72e1951a8",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/immune",
+      "private": false,
+      "sha": "c53c49895ad86aacc045367086eafb19bfc4f10d",
+      "stage": null
+    },
+    {
+      "id": "SZLHOLDINGS/ayllu",
+      "private": false,
+      "sha": "2a22a689f04f7c158d7303540b88aeed6f9bcedc",
+      "stage": null
+    }
+  ],
+  "issues": {
+    "szl-holdings/.github#603": {
+      "state": "open",
+      "title": "[runtime] Canonical public-origin route gaps \u2014 current tracker"
+    },
+    "szl-holdings/a11oy#1282": {
+      "state": "open",
+      "title": "[HF-ECOSYSTEM-DRIFT] Public manifest is stale"
+    },
+    "szl-holdings/a11oy#1326": {
+      "state": "open",
+      "title": "[SOLO-ESTATE] Security, issues, and Hugging Face closure"
+    },
+    "szl-holdings/a11oy#1497": {
+      "state": "open",
+      "title": "INC-05: apex serves; HF READY and www canonical redirect remain unproved"
+    }
+  },
+  "open_prs": [
+    {
+      "draft": false,
+      "head": "chore/retire-completed-recovery-controls",
+      "head_sha": "d2303786a8b588a4ab7a34c6a70d0e946bf3063d",
+      "mergeable": null,
+      "mergeable_state": null,
+      "number": 664,
+      "repo": "szl-holdings/.github",
+      "title": "chore(recovery): retire completed one-shot controls",
+      "url": "https://github.com/szl-holdings/.github/pull/664"
+    }
+  ],
+  "schema": "szl.recovery-status-beacon/v1",
+  "workflows": [
+    {
+      "conclusion": null,
+      "created_at": "2026-09-04T22:20:44Z",
+      "head_sha": "6f5fb1fa5cfd4020657906c42de767531a090e7d",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33925107671",
+      "id": 33925107671,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "in_progress",
+      "updated_at": "2026-09-04T22:20:48Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-09-04T22:20:44Z",
+      "head_sha": "6f5fb1fa5cfd4020657906c42de767531a090e7d",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33925107692",
+      "id": 33925107692,
+      "name": "Current recovery status beacon",
+      "run_attempt": 1,
+      "status": "in_progress",
+      "updated_at": "2026-09-04T22:20:49Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:20:44Z",
+      "head_sha": "6f5fb1fa5cfd4020657906c42de767531a090e7d",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33925107698",
+      "id": 33925107698,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:20:52Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:20:44Z",
+      "head_sha": "6f5fb1fa5cfd4020657906c42de767531a090e7d",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33925107598",
+      "id": 33925107598,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:21:01Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:16:42Z",
+      "head_sha": "bc151d7dd7cb3bccd5b6970023d0da7b3e6e8c06",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924820526",
+      "id": 33924820526,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:16:55Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:16:42Z",
+      "head_sha": "bc151d7dd7cb3bccd5b6970023d0da7b3e6e8c06",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924820506",
+      "id": 33924820506,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:16:49Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-09-04T22:16:42Z",
+      "head_sha": "bc151d7dd7cb3bccd5b6970023d0da7b3e6e8c06",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924820547",
+      "id": 33924820547,
+      "name": "Final post-remediation estate verification once",
+      "run_attempt": 1,
+      "status": "in_progress",
+      "updated_at": "2026-09-04T22:16:46Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:16:42Z",
+      "head_sha": "bc151d7dd7cb3bccd5b6970023d0da7b3e6e8c06",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924820508",
+      "id": 33924820508,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:17:30Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:13:36Z",
+      "head_sha": "556efe601163bdf7332a1fe6961672f75d8268d4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924595722",
+      "id": 33924595722,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:13:44Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-09-04T22:13:36Z",
+      "head_sha": "556efe601163bdf7332a1fe6961672f75d8268d4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924595854",
+      "id": 33924595854,
+      "name": "Repair terminal agent blockers once",
+      "run_attempt": 1,
+      "status": "in_progress",
+      "updated_at": "2026-09-04T22:13:40Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:13:36Z",
+      "head_sha": "556efe601163bdf7332a1fe6961672f75d8268d4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924595627",
+      "id": 33924595627,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:13:53Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:13:36Z",
+      "head_sha": "556efe601163bdf7332a1fe6961672f75d8268d4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924595803",
+      "id": 33924595803,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:14:23Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:06:47Z",
+      "head_sha": "0b2f4e7b073ac458e3db79bd7a91816b88ecb3e0",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924100528",
+      "id": 33924100528,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:06:55Z"
+    },
+    {
+      "conclusion": "failure",
+      "created_at": "2026-09-04T22:06:47Z",
+      "head_sha": "0b2f4e7b073ac458e3db79bd7a91816b88ecb3e0",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924100527",
+      "id": 33924100527,
+      "name": "Recover archived Codex documentation workcell once",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:07:14Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:06:47Z",
+      "head_sha": "0b2f4e7b073ac458e3db79bd7a91816b88ecb3e0",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924100502",
+      "id": 33924100502,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:07:38Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T22:06:47Z",
+      "head_sha": "0b2f4e7b073ac458e3db79bd7a91816b88ecb3e0",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33924100514",
+      "id": 33924100514,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T22:07:07Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:57:32Z",
+      "head_sha": "3614f198c3a780fdcf912a3ff66f95b961a7fee7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923422764",
+      "id": 33923422764,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:57:49Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:57:32Z",
+      "head_sha": "3614f198c3a780fdcf912a3ff66f95b961a7fee7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923422718",
+      "id": 33923422718,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:57:40Z"
+    },
+    {
+      "conclusion": "failure",
+      "created_at": "2026-09-04T21:57:32Z",
+      "head_sha": "3614f198c3a780fdcf912a3ff66f95b961a7fee7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923422660",
+      "id": 33923422660,
+      "name": "Refresh current Hugging Face ecosystem evidence once",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:58:15Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:57:32Z",
+      "head_sha": "3614f198c3a780fdcf912a3ff66f95b961a7fee7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923422639",
+      "id": 33923422639,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:58:18Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:54:27Z",
+      "head_sha": "dfb388584d253591b2f2188ba8f4361e3a2366c4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923201778",
+      "id": 33923201778,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:54:35Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-09-04T21:54:27Z",
+      "head_sha": "dfb388584d253591b2f2188ba8f4361e3a2366c4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923201835",
+      "id": 33923201835,
+      "name": "Replay protected production-domain controllers once",
+      "run_attempt": 1,
+      "status": "in_progress",
+      "updated_at": "2026-09-04T21:54:31Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:54:27Z",
+      "head_sha": "dfb388584d253591b2f2188ba8f4361e3a2366c4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923201763",
+      "id": 33923201763,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:54:42Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:54:27Z",
+      "head_sha": "dfb388584d253591b2f2188ba8f4361e3a2366c4",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923201770",
+      "id": 33923201770,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:55:19Z"
+    },
+    {
+      "conclusion": null,
+      "created_at": "2026-09-04T21:51:43Z",
+      "head_sha": "630e0f05b81137a1cccf6ca43f9d8a48e9bafa02",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923006088",
+      "id": 33923006088,
+      "name": "Publish corrected Codex and Perplexity recovery receipt once",
+      "run_attempt": 1,
+      "status": "in_progress",
+      "updated_at": "2026-09-04T21:51:47Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:51:43Z",
+      "head_sha": "630e0f05b81137a1cccf6ca43f9d8a48e9bafa02",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923006131",
+      "id": 33923006131,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:52:01Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:51:43Z",
+      "head_sha": "630e0f05b81137a1cccf6ca43f9d8a48e9bafa02",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923006097",
+      "id": 33923006097,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:51:52Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:51:43Z",
+      "head_sha": "630e0f05b81137a1cccf6ca43f9d8a48e9bafa02",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33923006013",
+      "id": 33923006013,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:52:36Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:50:32Z",
+      "head_sha": "2d0f5982fbc54203819cdaf7b60fdad1deec45b5",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922918381",
+      "id": 33922918381,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:50:47Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:50:31Z",
+      "head_sha": "2d0f5982fbc54203819cdaf7b60fdad1deec45b5",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922918185",
+      "id": 33922918185,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:50:37Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:50:31Z",
+      "head_sha": "2d0f5982fbc54203819cdaf7b60fdad1deec45b5",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922918309",
+      "id": 33922918309,
+      "name": "Restart agent recovery with self-branch exclusion",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:50:54Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:50:31Z",
+      "head_sha": "2d0f5982fbc54203819cdaf7b60fdad1deec45b5",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922918230",
+      "id": 33922918230,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:51:16Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:46:02Z",
+      "head_sha": "00ca4e658c0aa9a43ed0696b20bac99b1f8668b7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922584944",
+      "id": 33922584944,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:46:10Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:46:02Z",
+      "head_sha": "00ca4e658c0aa9a43ed0696b20bac99b1f8668b7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922584899",
+      "id": 33922584899,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:46:20Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:46:02Z",
+      "head_sha": "00ca4e658c0aa9a43ed0696b20bac99b1f8668b7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922584991",
+      "id": 33922584991,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:46:50Z"
+    },
+    {
+      "conclusion": "failure",
+      "created_at": "2026-09-04T21:46:02Z",
+      "head_sha": "00ca4e658c0aa9a43ed0696b20bac99b1f8668b7",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922584961",
+      "id": 33922584961,
+      "name": "Publish Codex and Perplexity recovery receipt once",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:51:31Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:44:27Z",
+      "head_sha": "09514615435dbdffa1c13cbf2e6f324e81781605",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922466141",
+      "id": 33922466141,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:44:45Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:44:27Z",
+      "head_sha": "09514615435dbdffa1c13cbf2e6f324e81781605",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922466113",
+      "id": 33922466113,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:44:33Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:44:27Z",
+      "head_sha": "09514615435dbdffa1c13cbf2e6f324e81781605",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922466149",
+      "id": 33922466149,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:45:54Z"
+    },
+    {
+      "conclusion": "cancelled",
+      "created_at": "2026-09-04T21:44:27Z",
+      "head_sha": "09514615435dbdffa1c13cbf2e6f324e81781605",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922466208",
+      "id": 33922466208,
+      "name": "One-pass Codex and Perplexity estate recovery",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:51:05Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:43:56Z",
+      "head_sha": "f0a3133e7afa361365176baf1760a7c85e91e1c3",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922428677",
+      "id": 33922428677,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:44:44Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:43:56Z",
+      "head_sha": "f0a3133e7afa361365176baf1760a7c85e91e1c3",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922428626",
+      "id": 33922428626,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:44:03Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:43:56Z",
+      "head_sha": "f0a3133e7afa361365176baf1760a7c85e91e1c3",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922428720",
+      "id": 33922428720,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:44:11Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:41:37Z",
+      "head_sha": "bd231d24776428aefd14c670c31be835bf499a1c",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922254428",
+      "id": 33922254428,
+      "name": "demo-freeze",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:41:44Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:41:37Z",
+      "head_sha": "bd231d24776428aefd14c670c31be835bf499a1c",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922254419",
+      "id": 33922254419,
+      "name": "truth-gates",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:41:55Z"
+    },
+    {
+      "conclusion": "success",
+      "created_at": "2026-09-04T21:41:37Z",
+      "head_sha": "bd231d24776428aefd14c670c31be835bf499a1c",
+      "html_url": "https://github.com/szl-holdings/a11oy/actions/runs/33922254448",
+      "id": 33922254448,
+      "name": "Secret Scanning (Gitleaks)",
+      "run_attempt": 1,
+      "status": "completed",
+      "updated_at": "2026-09-04T21:42:31Z"
+    }
+  ]
+}
