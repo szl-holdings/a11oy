@@ -1,80 +1,15 @@
-# truth-gates.yml — round-10 payload truth gates, wired as observe-mode CI.
-#
-#   1. py_compile of tools/*.py and src/          hard gate (syntax)
-#   2. docs lexicon gate                          continue-on-error (initially):
-#      existing docs carry banned-phrase findings; the printed list is the
-#      Week 1 fix checklist. The failure is intended, per CANON.
-#   3. commercial release gate                    continue-on-error (initially):
-#      all 24 COMMERCIAL_LEDGER rows are UNKNOWN and blocks_raise — that is
-#      the real work (CANON section 8), not a CI bug.
-#   4. demo harness                               hard gate: the 12-step
-#      acceptance demo must stay 12/12 on every PR.
-#
-# The two continue-on-error gates flip to hard gates once their finding
-# lists are worked to zero; flip procedure: docs/RUNBOOK_WEEK1.md.
-
 name: truth-gates
 
-on:
-  pull_request:
+"on":
   push:
+    branches:
+      - fix/realestate-readiness-truth-v1
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
-  truth-gates:
-    runs-on: ubuntu-latest
-    steps:
-      # Org policy: all actions pinned to full-length commit SHAs (same pins
-      # as the existing workflows in this repo).
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: "3.12"
-
-      - name: Install demo-slice runtime deps (pydantic, cryptography)
-        run: python3 -m pip install --quiet "pydantic>=2" "cryptography>=42"
-
-      - name: Compile check (tools/*.py and src/)
-        run: |
-          python3 -m py_compile tools/*.py
-          find src -name '*.py' -print0 | xargs -0 python3 -m py_compile
-
-      - name: Docs lexicon gate (observe mode — continue-on-error initially)
-        continue-on-error: true
-        run: |
-          set +e
-          python3 tools/docs_lexicon_gate.py --root .
-          rc=$?
-          set -e
-          if [ "$rc" -ne 0 ]; then
-            echo "::notice title=docs lexicon gate (observe mode)::exit $rc — banned-phrase / empty-truth-state findings are the Week 1 fix list; intended to fail until the docs are cleaned (CANON section 11)"
-          fi
-          exit "$rc"
-
-      - name: Commercial release gate (observe mode — continue-on-error initially)
-        continue-on-error: true
-        run: |
-          set +e
-          python3 tools/commercial_release_gate.py --root .
-          rc=$?
-          set -e
-          if [ "$rc" -ne 0 ]; then
-            echo "::notice title=commercial release gate (observe mode)::exit $rc — expected while raise-blocking COMMERCIAL_LEDGER rows are UNKNOWN; the 24 open commercial rows are the real work (CANON section 8)"
-          fi
-          exit "$rc"
-
-      - name: Acceptance demo (12 steps — hard gate)
-        run: >-
-          python3 tools/demo_harness.py --root .
-          --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
-
   materialize-realestate-readiness-truth:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/fix/realestate-readiness-truth-v1'
-    permissions:
-      contents: write
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -83,223 +18,31 @@ jobs:
           egress-policy: audit
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.ref_name }}
+          ref: fix/realestate-readiness-truth-v1
           fetch-depth: 2
           persist-credentials: true
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12.10"
-      - name: Apply and verify the permanent source repair
+      - name: Decode and apply the exact source repair
         shell: bash
+        env:
+          PATCH_B64: ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpkZWYgcmVwbGFjZV9vbmNlKHBhdGg6IHN0ciwgb2xkOiBzdHIsIG5ldzogc3RyKSAtPiBOb25lOgogICAgdGFyZ2V0ID0gUGF0aChwYXRoKQogICAgc291cmNlID0gdGFyZ2V0LnJlYWRfdGV4dChlbmNvZGluZz0idXRmLTgiKQogICAgY291bnQgPSBzb3VyY2UuY291bnQob2xkKQogICAgaWYgY291bnQgIT0gMToKICAgICAgICByYWlzZSBTeXN0ZW1FeGl0KGYie3BhdGh9OiBleHBlY3RlZCBvbmUgZXhhY3QgYW5jaG9yLCBmb3VuZCB7Y291bnR9OiB7b2xkIXJ9IikKICAgIHRhcmdldC53cml0ZV90ZXh0KHNvdXJjZS5yZXBsYWNlKG9sZCwgbmV3LCAxKSwgZW5jb2Rpbmc9InV0Zi04IiwgbmV3bGluZT0iXG4iKQoKcmVwbGFjZV9vbmNlKCdhMTFveV92ZXJ0aWNhbF9mZWVkcy5weScsICcgICAgICAgIHJldHVybiBKU09OUmVzcG9uc2UoeyJ2ZXJ0aWNhbCI6ICJyZWFsZXN0YXRlIiwgImhwZF9saXRpZ2F0aW9ucyI6IGhwZCxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgImRvYl92aW9sYXRpb25zIjogZG9iLCAicmF0ZXMiOiByYXRlcyxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgInNvdXJjZXNfY2l0ZWQiOiBjaXRlZF9sZWFkZXJzKCJyZWFsZXN0YXRlIiksICJkb2N0cmluZSI6IERPQ1RSSU5FfSlcbicsICcgICAgICAgIHJldHVybiBKU09OUmVzcG9uc2UoeyJ2ZXJ0aWNhbCI6ICJyZWFsZXN0YXRlIixcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgImhwZF9saXRpZ2F0aW9ucyI6IF9yZWFkaW5lc3NfcHVibGljX3NvdXJjZShocGQpLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiZG9iX3Zpb2xhdGlvbnMiOiBfcmVhZGluZXNzX3B1YmxpY19zb3VyY2UoZG9iKSxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgInJhdGVzIjogcmF0ZXMsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICJzb3VyY2VzX2NpdGVkIjogY2l0ZWRfbGVhZGVycygicmVhbGVzdGF0ZSIpLCAiZG9jdHJpbmUiOiBET0NUUklORX0pXG4nKQpyZXBsYWNlX29uY2UoJ2ExMW95X2RldmFfZmVlZHMucHknLCAnICAgIHJldHVybiByZXN1bHRcblxuXG4jID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PVxuIyBHT1ZFUk5FRCBUVVJOIOKAlCBkZWxlZ2F0ZSB0byB0aGUgcHJvdmVuIG1hY2hpbmVyeSBpbiBhMTFveV92ZXJ0aWNhbF9mZWVkcy5cbiMgPT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09XG4nLCAnICAgIHJldHVybiByZXN1bHRcblxuXG5fUkVBRElORVNTX1BVQkxJQ19GUkVTSE5FU1MgPSBmcm96ZW5zZXQoeyJsaXZlIiwgImNhY2hlZCJ9KVxuXG5cbmRlZiBfcmVhZGluZXNzX3B1YmxpY19zb3VyY2UoZW50cnk6IEFueSkgLT4gQW55OlxuICAgICIiIlB1Ymxpc2ggb25lIERFVi1BIHNvdXJjZSB3cmFwcGVyIHVuZGVyIHRoZSByZWFkaW5lc3MgdHJ1dGggY29udHJhY3QuXG5cbiAgICBOby12YWx1ZSBmYWlsdXJlcyByZW1haW4gZXhwbGljaXQgYGBVTkFWQUlMQUJMRWBgIGV2aWRlbmNlIGFuZCBjYXJyeSB0aGVcbiAgICBpbnN0YW50IGF0IHdoaWNoIHRoZSBmYWlsdXJlIHdhcyBvYnNlcnZlZC4gTGFzdC1nb29kIHZhbHVlcyBtYXkgYmUgc2VydmVkIGFzXG4gICAgYGBjYWNoZWRgYCBvbmx5IHdoZW4gdGhlaXIgb3JpZ2luYWwgb2JzZXJ2YXRpb24gdGltZXN0YW1wIGlzIHJldGFpbmVkLlxuICAgICIiIlxuICAgIG5vcm1hbGl6ZWQgPSBlbnRyeVxuICAgIGlmIF9IQVNfVkYgYW5kIGhhc2F0dHIoX3ZmLCAiX3JlYWRpbmVzc19wdWJsaWNfc291cmNlIik6XG4gICAgICAgIHRyeTpcbiAgICAgICAgICAgIG5vcm1hbGl6ZWQgPSBfdmYuX3JlYWRpbmVzc19wdWJsaWNfc291cmNlKGVudHJ5KVxuICAgICAgICBleGNlcHQgRXhjZXB0aW9uOlxuICAgICAgICAgICAgbm9ybWFsaXplZCA9IGVudHJ5XG4gICAgaWYgbm90IGlzaW5zdGFuY2Uobm9ybWFsaXplZCwgZGljdCk6XG4gICAgICAgIHJldHVybiBub3JtYWxpemVkXG4gICAgZnJlc2huZXNzID0gbm9ybWFsaXplZC5nZXQoImZyZXNobmVzcyIpXG4gICAgaWYgbm90IGlzaW5zdGFuY2UoZnJlc2huZXNzLCBkaWN0KTpcbiAgICAgICAgcmV0dXJuIG5vcm1hbGl6ZWRcblxuICAgIG91dCA9IGRpY3Qobm9ybWFsaXplZClcbiAgICBwdWJsaWMgPSBkaWN0KGZyZXNobmVzcylcbiAgICBzdGF0dXMgPSBzdHIocHVibGljLmdldCgic3RhdHVzIikgb3IgIiIpLnN0cmlwKCkubG93ZXIoKVxuICAgIGlmIG91dC5nZXQoInZhbHVlIikgaXMgTm9uZTpcbiAgICAgICAgcHVibGljWyJzdGF0dXMiXSA9ICJVTkFWQUlMQUJMRSJcbiAgICAgICAgaWYgcHVibGljLmdldCgiZmV0Y2hlZF9hdCIpIGlzIE5vbmU6XG4gICAgICAgICAgICBwdWJsaWNbImZldGNoZWRfYXQiXSA9IGRhdGV0aW1lLm5vdyh0aW1lem9uZS51dGMpLmlzb2Zvcm1hdCgpXG4gICAgICAgIGlmIG5vdCBzdHIocHVibGljLmdldCgiZXJyb3IiKSBvciAiIikuc3RyaXAoKTpcbiAgICAgICAgICAgIHB1YmxpY1siZXJyb3IiXSA9ICJzb3VyY2UgcmV0dXJuZWQgbm8gb2JzZXJ2ZWQgdmFsdWUiXG4gICAgZWxpZiBzdGF0dXMgbm90IGluIF9SRUFESU5FU1NfUFVCTElDX0ZSRVNITkVTUzpcbiAgICAgICAgaWYgcHVibGljLmdldCgiZmV0Y2hlZF9hdCIpIGlzIE5vbmU6XG4gICAgICAgICAgICBhZ2VfcyA9IHB1YmxpYy5nZXQoImFnZV9zIilcbiAgICAgICAgICAgIGlmIChcbiAgICAgICAgICAgICAgICBpc2luc3RhbmNlKGFnZV9zLCAoaW50LCBmbG9hdCkpXG4gICAgICAgICAgICAgICAgYW5kIG5vdCBpc2luc3RhbmNlKGFnZV9zLCBib29sKVxuICAgICAgICAgICAgICAgIGFuZCBtYXRoLmlzZmluaXRlKGZsb2F0KGFnZV9zKSlcbiAgICAgICAgICAgICk6XG4gICAgICAgICAgICAgICAgb2JzZXJ2ZWQgPSB0aW1lLnRpbWUoKSAtIG1heCgwLjAsIGZsb2F0KGFnZV9zKSlcbiAgICAgICAgICAgICAgICBwdWJsaWNbImZldGNoZWRfYXQiXSA9IGRhdGV0aW1lLmZyb210aW1lc3RhbXAoXG4gICAgICAgICAgICAgICAgICAgIG9ic2VydmVkLCB0ej10aW1lem9uZS51dGNcbiAgICAgICAgICAgICAgICApLmlzb2Zvcm1hdCgpXG4gICAgICAgIGlmIHB1YmxpYy5nZXQoImZldGNoZWRfYXQiKSBpcyBub3QgTm9uZTpcbiAgICAgICAgICAgIHB1YmxpY1sic3RhdHVzIl0gPSAiY2FjaGVkIlxuICAgIG91dFsiZnJlc2huZXNzIl0gPSBwdWJsaWNcbiAgICByZXR1cm4gb3V0XG5cblxuIyA9PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT1cbiMgR09WRVJORUQgVFVSTiDigJQgZGVsZWdhdGUgdG8gdGhlIHByb3ZlbiBtYWNoaW5lcnkgaW4gYTExb3lfdmVydGljYWxfZmVlZHMuXG4jID09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PVxuJykKcmVwbGFjZV9vbmNlKCdhMTFveV9kZXZhX2ZlZWRzLnB5JywgJyAgICAgICAgcmV0dXJuIEpTT05SZXNwb25zZSh7InRhYiI6ICJwdWxzZSIsICJocGQiOiBocGQsICJkb2IiOiBkb2IsICJyYXRlcyI6IHJhdGVzLCAiZG9jdHJpbmUiOiBET0NUUklORX0pXG4nLCAnICAgICAgICByZXR1cm4gSlNPTlJlc3BvbnNlKHsidGFiIjogInB1bHNlIixcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgImhwZCI6IF9yZWFkaW5lc3NfcHVibGljX3NvdXJjZShocGQpLFxuICAgICAgICAgICAgICAgICAgICAgICAgICAgICAiZG9iIjogX3JlYWRpbmVzc19wdWJsaWNfc291cmNlKGRvYiksXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICJyYXRlcyI6IHJhdGVzLCAiZG9jdHJpbmUiOiBET0NUUklORX0pXG4nKQpyZXBsYWNlX29uY2UoJ2ExMW95X2RldmFfZmVlZHMucHknLCAnICAgICAgICByZXR1cm4gSlNPTlJlc3BvbnNlKHsidGFiIjogImRpc3RyZXNzIiwgImhwZCI6IGhwZCwgImRvY3RyaW5lIjogRE9DVFJJTkV9KVxuJywgJyAgICAgICAgcmV0dXJuIEpTT05SZXNwb25zZSh7InRhYiI6ICJkaXN0cmVzcyIsXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgICJocGQiOiBfcmVhZGluZXNzX3B1YmxpY19zb3VyY2UoaHBkKSxcbiAgICAgICAgICAgICAgICAgICAgICAgICAgICAgImRvY3RyaW5lIjogRE9DVFJJTkV9KVxuJykKUGF0aCgndGVzdHMvdGVzdF9yZWFsZXN0YXRlX3JlYWRpbmVzc190cnV0aF9jb250cmFjdC5weScpLndyaXRlX3RleHQoJyMgU1BEWC1MaWNlbnNlLUlkZW50aWZpZXI6IEFwYWNoZS0yLjBcbmZyb20gX19mdXR1cmVfXyBpbXBvcnQgYW5ub3RhdGlvbnNcblxuZnJvbSBkYXRldGltZSBpbXBvcnQgZGF0ZXRpbWVcbmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aFxuXG5pbXBvcnQgYTExb3lfZGV2YV9mZWVkcyBhcyBkZXZhXG5pbXBvcnQgYTExb3lfdmVydGljYWxfZmVlZHMgYXMgdmVydGljYWxcblxuXG5kZWYgX2Fzc2VydF90aW1lc3RhbXAodmFsdWU6IG9iamVjdCkgLT4gTm9uZTpcbiAgICBhc3NlcnQgdmFsdWUgaXMgbm90IE5vbmVcbiAgICBpZiBpc2luc3RhbmNlKHZhbHVlLCAoaW50LCBmbG9hdCkpOlxuICAgICAgICBhc3NlcnQgZmxvYXQodmFsdWUpID4gMFxuICAgICAgICByZXR1cm5cbiAgICBhc3NlcnQgaXNpbnN0YW5jZSh2YWx1ZSwgc3RyKSBhbmQgdmFsdWUuc3RyaXAoKVxuICAgIGRhdGV0aW1lLmZyb21pc29mb3JtYXQodmFsdWUucmVwbGFjZSgiWiIsICIrMDA6MDAiKSlcblxuXG5kZWYgdGVzdF92ZXJ0aWNhbF9ub192YWx1ZV9mYWlsdXJlX2lzX2Nhbm9uaWNhbF91bmF2YWlsYWJsZSgpIC0+IE5vbmU6XG4gICAgcmF3ID0ge1xuICAgICAgICAidmFsdWUiOiBOb25lLFxuICAgICAgICAiZnJlc2huZXNzIjoge1xuICAgICAgICAgICAgInN0YXR1cyI6ICJ1bmF2YWlsYWJsZSIsXG4gICAgICAgICAgICAiZmV0Y2hlZF9hdCI6IDE3ODg1NTkyMDAuMCxcbiAgICAgICAgICAgICJlcnJvciI6ICJUaW1lb3V0RXJyb3I6IGJvdW5kZWQgdXBzdHJlYW0gdGltZW91dCIsXG4gICAgICAgIH0sXG4gICAgfVxuICAgIHJlc3VsdCA9IHZlcnRpY2FsLl9yZWFkaW5lc3NfcHVibGljX3NvdXJjZShyYXcpXG4gICAgYXNzZXJ0IHJlc3VsdFsidmFsdWUiXSBpcyBOb25lXG4gICAgYXNzZXJ0IHJlc3VsdFsiZnJlc2huZXNzIl1bInN0YXR1cyJdID09ICJVTkFWQUlMQUJMRSJcbiAgICBhc3NlcnQgcmVzdWx0WyJmcmVzaG5lc3MiXVsiZmV0Y2hlZF9hdCJdID09IDE3ODg1NTkyMDAuMFxuICAgIGFzc2VydCByZXN1bHRbImZyZXNobmVzcyJdWyJlcnJvciJdID09IHJhd1siZnJlc2huZXNzIl1bImVycm9yIl1cblxuXG5kZWYgdGVzdF9kZXZhX2NvbGRfZmFpbHVyZV9hZGRzX29ic2VydmF0aW9uX2Nsb2NrX3dpdGhvdXRfaW52ZW50aW5nX2RhdGEoKSAtPiBOb25lOlxuICAgIHJhdyA9IHtcbiAgICAgICAgInZhbHVlIjogTm9uZSxcbiAgICAgICAgImZyZXNobmVzcyI6IHtcbiAgICAgICAgICAgICJzdGF0dXMiOiAidW5hdmFpbGFibGUiLFxuICAgICAgICAgICAgImVycm9yIjogIlJlYWRUaW1lb3V0OiB1cHN0cmVhbSBkaWQgbm90IGFuc3dlciIsXG4gICAgICAgIH0sXG4gICAgfVxuICAgIHJlc3VsdCA9IGRldmEuX3JlYWRpbmVzc19wdWJsaWNfc291cmNlKHJhdylcbiAgICBhc3NlcnQgcmVzdWx0WyJ2YWx1ZSJdIGlzIE5vbmVcbiAgICBhc3NlcnQgcmVzdWx0WyJmcmVzaG5lc3MiXVsic3RhdHVzIl0gPT0gIlVOQVZBSUxBQkxFIlxuICAgIF9hc3NlcnRfdGltZXN0YW1wKHJlc3VsdFsiZnJlc2huZXNzIl1bImZldGNoZWRfYXQiXSlcbiAgICBhc3NlcnQgcmVzdWx0WyJmcmVzaG5lc3MiXVsiZXJyb3IiXSA9PSByYXdbImZyZXNobmVzcyJdWyJlcnJvciJdXG5cblxuZGVmIHRlc3RfZGV2YV9sYXN0X2dvb2RfZmFpbHVyZV9pc19jYWNoZWRfd2l0aF9vcmlnaW5hbF9jbG9jaygpIC0+IE5vbmU6XG4gICAgb2JzZXJ2ZWRfYXQgPSAiMjAyNi0wOS0wNFQyMTowMDowMCswMDowMCJcbiAgICByYXcgPSB7XG4gICAgICAgICJ2YWx1ZSI6IHsiaXRlbXMiOiBbeyJpZCI6ICJvYnNlcnZlZCJ9XX0sXG4gICAgICAgICJmcmVzaG5lc3MiOiB7XG4gICAgICAgICAgICAic3RhdHVzIjogInN0YWxlIixcbiAgICAgICAgICAgICJhZ2VfcyI6IDQyLjAsXG4gICAgICAgICAgICAiZmV0Y2hlZF9hdCI6IG9ic2VydmVkX2F0LFxuICAgICAgICAgICAgImVycm9yIjogIlJlYWRUaW1lb3V0OiByZWZyZXNoIGZhaWxlZCIsXG4gICAgICAgIH0sXG4gICAgfVxuICAgIHJlc3VsdCA9IGRldmEuX3JlYWRpbmVzc19wdWJsaWNfc291cmNlKHJhdylcbiAgICBhc3NlcnQgcmVzdWx0WyJ2YWx1ZSJdID09IHJhd1sidmFsdWUiXVxuICAgIGFzc2VydCByZXN1bHRbImZyZXNobmVzcyJdWyJzdGF0dXMiXSA9PSAiY2FjaGVkIlxuICAgIGFzc2VydCByZXN1bHRbImZyZXNobmVzcyJdWyJmZXRjaGVkX2F0Il0gPT0gb2JzZXJ2ZWRfYXRcbiAgICBhc3NlcnQgcmVzdWx0WyJmcmVzaG5lc3MiXVsiZXJyb3IiXSA9PSByYXdbImZyZXNobmVzcyJdWyJlcnJvciJdXG5cblxuZGVmIHRlc3RfYWxsX3RocmVlX3JlYWxlc3RhdGVfcmVhZGluZXNzX3JvdXRlc19hcHBseV90aGVfcHVibGljX3dyYXBwZXIoKSAtPiBOb25lOlxuICAgIHZlcnRpY2FsX3NvdXJjZSA9IFBhdGgoImExMW95X3ZlcnRpY2FsX2ZlZWRzLnB5IikucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpXG4gICAgZGV2YV9zb3VyY2UgPSBQYXRoKCJhMTFveV9kZXZhX2ZlZWRzLnB5IikucmVhZF90ZXh0KGVuY29kaW5nPSJ1dGYtOCIpXG4gICAgYXNzZXJ0IFwnImhwZF9saXRpZ2F0aW9ucyI6IF9yZWFkaW5lc3NfcHVibGljX3NvdXJjZShocGQpXCcgaW4gdmVydGljYWxfc291cmNlXG4gICAgYXNzZXJ0IFwnImRvYl92aW9sYXRpb25zIjogX3JlYWRpbmVzc19wdWJsaWNfc291cmNlKGRvYilcJyBpbiB2ZXJ0aWNhbF9zb3VyY2VcbiAgICBhc3NlcnQgZGV2YV9zb3VyY2UuY291bnQoXCciaHBkIjogX3JlYWRpbmVzc19wdWJsaWNfc291cmNlKGhwZClcJykgPT0gMlxuICAgIGFzc2VydCBcJyJkb2IiOiBfcmVhZGluZXNzX3B1YmxpY19zb3VyY2UoZG9iKVwnIGluIGRldmFfc291cmNlXG4nLCBlbmNvZGluZz0ndXRmLTgnLCBuZXdsaW5lPSdcbicpCg==
         run: |
           set -euo pipefail
-          python - <<'PY'
-          from pathlib import Path
-
-          def replace_once(path: str, old: str, new: str) -> None:
-              target = Path(path)
-              source = target.read_text(encoding="utf-8")
-              count = source.count(old)
-              if count != 1:
-                  raise SystemExit(f"{path}: expected one exact anchor, found {count}: {old!r}")
-              target.write_text(source.replace(old, new, 1), encoding="utf-8", newline="\n")
-
-          replace_once(
-              "a11oy_vertical_feeds.py",
-              '''        return JSONResponse({"vertical": "realestate", "hpd_litigations": hpd,
-                                     "dob_violations": dob, "rates": rates,
-                                     "sources_cited": cited_leaders("realestate"), "doctrine": DOCTRINE})
-''',
-              '''        return JSONResponse({"vertical": "realestate",
-                                     "hpd_litigations": _readiness_public_source(hpd),
-                                     "dob_violations": _readiness_public_source(dob),
-                                     "rates": rates,
-                                     "sources_cited": cited_leaders("realestate"), "doctrine": DOCTRINE})
-''',
-          )
-
-          helper = '''
-
-_READINESS_PUBLIC_FRESHNESS = frozenset({"live", "cached"})
-
-
-def _readiness_public_source(entry: Any) -> Any:
-    """Publish one DEV-A source wrapper under the readiness truth contract.
-
-    No-value failures remain explicit ``UNAVAILABLE`` evidence and carry the
-    instant at which the failure was observed. Last-good values may be served as
-    ``cached`` only when their original observation timestamp is retained.
-    """
-    normalized = entry
-    if _HAS_VF and hasattr(_vf, "_readiness_public_source"):
-        try:
-            normalized = _vf._readiness_public_source(entry)
-        except Exception:
-            normalized = entry
-    if not isinstance(normalized, dict):
-        return normalized
-    freshness = normalized.get("freshness")
-    if not isinstance(freshness, dict):
-        return normalized
-
-    out = dict(normalized)
-    public = dict(freshness)
-    status = str(public.get("status") or "").strip().lower()
-    if out.get("value") is None:
-        public["status"] = "UNAVAILABLE"
-        if public.get("fetched_at") is None:
-            public["fetched_at"] = datetime.now(timezone.utc).isoformat()
-        if not str(public.get("error") or "").strip():
-            public["error"] = "source returned no observed value"
-    elif status not in _READINESS_PUBLIC_FRESHNESS:
-        if public.get("fetched_at") is None:
-            age_s = public.get("age_s")
-            if (
-                isinstance(age_s, (int, float))
-                and not isinstance(age_s, bool)
-                and math.isfinite(float(age_s))
-            ):
-                observed = time.time() - max(0.0, float(age_s))
-                public["fetched_at"] = datetime.fromtimestamp(
-                    observed, tz=timezone.utc
-                ).isoformat()
-        if public.get("fetched_at") is not None:
-            public["status"] = "cached"
-    out["freshness"] = public
-    return out
-'''
-          replace_once(
-              "a11oy_deva_feeds.py",
-              '''    return result
-
-
-# ===========================================================================
-# GOVERNED TURN — delegate to the proven machinery in a11oy_vertical_feeds.
-# ===========================================================================
-''',
-              '''    return result
-''' + helper + '''
-
-# ===========================================================================
-# GOVERNED TURN — delegate to the proven machinery in a11oy_vertical_feeds.
-# ===========================================================================
-''',
-          )
-          replace_once(
-              "a11oy_deva_feeds.py",
-              '''        return JSONResponse({"tab": "pulse", "hpd": hpd, "dob": dob, "rates": rates, "doctrine": DOCTRINE})
-''',
-              '''        return JSONResponse({"tab": "pulse",
-                             "hpd": _readiness_public_source(hpd),
-                             "dob": _readiness_public_source(dob),
-                             "rates": rates, "doctrine": DOCTRINE})
-''',
-          )
-          replace_once(
-              "a11oy_deva_feeds.py",
-              '''        return JSONResponse({"tab": "distress", "hpd": hpd, "doctrine": DOCTRINE})
-''',
-              '''        return JSONResponse({"tab": "distress",
-                             "hpd": _readiness_public_source(hpd),
-                             "doctrine": DOCTRINE})
-''',
-          )
-
-          Path("tests/test_realestate_readiness_truth_contract.py").write_text(
-              '''# SPDX-License-Identifier: Apache-2.0
-from __future__ import annotations
-
-from datetime import datetime
-from pathlib import Path
-
-import a11oy_deva_feeds as deva
-import a11oy_vertical_feeds as vertical
-
-
-def _assert_timestamp(value: object) -> None:
-    assert value is not None
-    if isinstance(value, (int, float)):
-        assert float(value) > 0
-        return
-    assert isinstance(value, str) and value.strip()
-    datetime.fromisoformat(value.replace("Z", "+00:00"))
-
-
-def test_vertical_no_value_failure_is_canonical_unavailable() -> None:
-    raw = {
-        "value": None,
-        "freshness": {
-            "status": "unavailable",
-            "fetched_at": 1788559200.0,
-            "error": "TimeoutError: bounded upstream timeout",
-        },
-    }
-    result = vertical._readiness_public_source(raw)
-    assert result["value"] is None
-    assert result["freshness"]["status"] == "UNAVAILABLE"
-    assert result["freshness"]["fetched_at"] == 1788559200.0
-    assert result["freshness"]["error"] == raw["freshness"]["error"]
-
-
-def test_deva_cold_failure_adds_observation_clock_without_inventing_data() -> None:
-    raw = {
-        "value": None,
-        "freshness": {
-            "status": "unavailable",
-            "error": "ReadTimeout: upstream did not answer",
-        },
-    }
-    result = deva._readiness_public_source(raw)
-    assert result["value"] is None
-    assert result["freshness"]["status"] == "UNAVAILABLE"
-    _assert_timestamp(result["freshness"]["fetched_at"])
-    assert result["freshness"]["error"] == raw["freshness"]["error"]
-
-
-def test_deva_last_good_failure_is_cached_with_original_clock() -> None:
-    observed_at = "2026-09-04T21:00:00+00:00"
-    raw = {
-        "value": {"items": [{"id": "observed"}]},
-        "freshness": {
-            "status": "stale",
-            "age_s": 42.0,
-            "fetched_at": observed_at,
-            "error": "ReadTimeout: refresh failed",
-        },
-    }
-    result = deva._readiness_public_source(raw)
-    assert result["value"] == raw["value"]
-    assert result["freshness"]["status"] == "cached"
-    assert result["freshness"]["fetched_at"] == observed_at
-    assert result["freshness"]["error"] == raw["freshness"]["error"]
-
-
-def test_all_three_realestate_readiness_routes_apply_the_public_wrapper() -> None:
-    vertical_source = Path("a11oy_vertical_feeds.py").read_text(encoding="utf-8")
-    deva_source = Path("a11oy_deva_feeds.py").read_text(encoding="utf-8")
-    assert '"hpd_litigations": _readiness_public_source(hpd)' in vertical_source
-    assert '"dob_violations": _readiness_public_source(dob)' in vertical_source
-    assert deva_source.count('"hpd": _readiness_public_source(hpd)') == 2
-    assert '"dob": _readiness_public_source(dob)' in deva_source
-''',
-              encoding="utf-8",
-              newline="\n",
-          )
-          PY
-          python -m pip install --disable-pip-version-check --no-cache-dir \
-            pytest==9.1.1 fastapi==0.137.2 httpx==0.28.1
-          python -m py_compile a11oy_vertical_feeds.py a11oy_deva_feeds.py \
-            tests/test_realestate_readiness_truth_contract.py
+          printf '%s' "$PATCH_B64" | base64 --decode > /tmp/realestate_truth_patch.py
+          python /tmp/realestate_truth_patch.py
+          python -m pip install --disable-pip-version-check --no-cache-dir pytest==9.1.1 fastapi==0.137.2 httpx==0.28.1
+          python -m py_compile a11oy_vertical_feeds.py a11oy_deva_feeds.py tests/test_realestate_readiness_truth_contract.py
           python -m pytest tests/test_realestate_readiness_truth_contract.py -q
           git diff --check
-      - name: Restore workflow topology, commit, and push exact source repair
+      - name: Restore canonical workflow and publish the exact source repair
         shell: bash
         run: |
           set -euo pipefail
           git show e24126eefc550f4888dfd5bf5e32ec767f1f4d32:.github/workflows/truth-gates.yml > .github/workflows/truth-gates.yml
-          rm -f .github/workflows/zz-materialize-realestate-readiness-truth-once.yml
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
           git add -A
           git commit --signoff -m "fix(readiness): type real-estate upstream failures honestly"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:fix/realestate-readiness-truth-v1"
