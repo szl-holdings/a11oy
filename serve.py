@@ -5832,6 +5832,9 @@ async def evidence() -> JSONResponse:
     })
 
 
+@app.get("/api/a11oy/v1/ouroboros")
+@app.get("/api/a11oy/v1/ouroboros/status")
+@app.get("/api/a11oy/v1/ouroboros/run-all")
 @app.post("/api/a11oy/v1/ouroboros/run-all")
 async def ouroboros_run_all() -> JSONResponse:
     """
@@ -5890,9 +5893,12 @@ async def ouroboros_run_all() -> JSONResponse:
 
     # Attempt to locate and execute OUROBOROS_RUN_ALL.py from known paths
     import subprocess, tempfile, os as _os
+    _here = __import__('pathlib').Path(__file__).resolve().parent
     _OUROBOROS_CANDIDATES = [
         "/app/OUROBOROS_RUN_ALL.py",
         "/app/ouroboros/OUROBOROS_RUN_ALL.py",
+        str(_here / "OUROBOROS_RUN_ALL.py"),
+        str(_here / "ouroboros" / "OUROBOROS_RUN_ALL.py"),
     ]
     ouroboros_path = None
     for _c in _OUROBOROS_CANDIDATES:
