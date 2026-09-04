@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Retry 5: remove generated pathlib dependency before exercising the unchanged suite.
+# Retry 6: the retained predecessor uses the canonical sha256:<64hex> format.
 name: Repair EnergyLedger rolling-restart safety once
 
 on:
@@ -45,6 +45,7 @@ jobs:
           python tools/patch_energy_ledger_process_safety.py
           python tools/patch_energy_ledger_rotation_compat.py
           python tools/patch_energy_ledger_runtime_name.py
+          python tools/patch_energy_ledger_digest_shape.py
 
       - name: Install exact CI dependency closure
         run: >-
@@ -106,6 +107,7 @@ jobs:
               'ledger/summary',
               'ROTATED_SEGMENTS_PRESENT',
               'retention_anchor',
+              'first_prev.startswith("sha256:")',
           ):
               assert marker in source, marker
           assert 'szl_energy_ledger_recovery.py' in docker
@@ -120,6 +122,7 @@ jobs:
           git rm tools/patch_energy_ledger_process_safety.py
           git rm tools/patch_energy_ledger_rotation_compat.py
           git rm tools/patch_energy_ledger_runtime_name.py
+          git rm tools/patch_energy_ledger_digest_shape.py
           git rm .github/workflows/zz-repair-energy-ledger-process-safety-once.yml
           git add \
             szl_energy_ledger.py \
