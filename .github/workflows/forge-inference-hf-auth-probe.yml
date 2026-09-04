@@ -1,0 +1,117 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Forge inference HF auth probe
+
+on:
+  push:
+    branches:
+      - ops/forge-inference-hf-auth-probe-20260904
+    paths:
+      - .github/workflows/forge-inference-hf-auth-probe.yml
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: forge-inference-hf-auth-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: Validate A11oy production publisher authority for exact Forge targets
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: production
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact governed Forge source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/szl-forge
+          ref: 30e102186da4b8429a38a59a21ffeb68b9105480
+          path: forge
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prove exact source identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git -C forge rev-parse HEAD)" = \
+            "30e102186da4b8429a38a59a21ffeb68b9105480"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact Hub client
+        shell: bash
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface-hub==1.23.0"
+
+      - name: Validate credential selector before provider access
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile forge/tools/acquire_hf_publisher_token.py
+          PYTHONPATH=forge python -m unittest -q \
+            forge/tests/test_acquire_hf_publisher_token.py
+
+      - name: Probe exact Space and model write authority
+        id: auth
+        shell: bash
+        env:
+          HF_ORG_TOKEN_CANDIDATE: ${{ secrets.HF_ORG_TOKEN }}
+          HF_WRITE_TOKEN_CANDIDATE: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN_CANDIDATE: ${{ secrets.HF_TOKEN }}
+          HUGGINGFACE_TOKEN_CANDIDATE: ${{ secrets.HUGGINGFACE_TOKEN }}
+          HUGGING_FACE_HUB_TOKEN_CANDIDATE: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
+        run: |
+          set +e
+          mkdir -p /tmp/forge-hf-auth
+          chmod 700 /tmp/forge-hf-auth
+
+          python forge/tools/acquire_hf_publisher_token.py \
+            --target-repo SZLHOLDINGS/szl-model-inference-lab \
+            --target-type space \
+            --oidc-resource spaces/SZLHOLDINGS/szl-model-inference-lab \
+            --allow-create \
+            --github-env /tmp/forge-hf-auth/space.env \
+            --report /tmp/forge-hf-auth/space.json
+          space_code=$?
+          rm -f /tmp/forge-hf-auth/space.env
+
+          python forge/tools/acquire_hf_publisher_token.py \
+            --target-repo SZLHOLDINGS/SZL-Khipu-1.5B-GGUF \
+            --target-type model \
+            --github-env /tmp/forge-hf-auth/model.env \
+            --report /tmp/forge-hf-auth/model.json
+          model_code=$?
+          rm -f /tmp/forge-hf-auth/model.env
+
+          echo "space_code=${space_code}" >> "$GITHUB_OUTPUT"
+          echo "model_code=${model_code}" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload secret-free authority evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: forge-inference-hf-auth-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/forge-hf-auth/*.json
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Enforce valid authority for both exact targets
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test '${{ steps.auth.outputs.space_code }}' = '0'
+          test '${{ steps.auth.outputs.model_code }}' = '0'
