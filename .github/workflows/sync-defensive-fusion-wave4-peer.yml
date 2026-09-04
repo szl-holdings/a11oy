@@ -1,0 +1,125 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Sync Defensive Fusion Wave 4 Peer
+
+on:
+  push:
+    branches:
+      - feat/defensive-fusion-wave4-peer-20260904
+    paths:
+      - .github/workflows/sync-defensive-fusion-wave4-peer.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-defensive-fusion-wave4-peer
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out reciprocal branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/defensive-fusion-wave4-peer-20260904
+          fetch-depth: 0
+
+      - name: Fetch exact reviewed shared bytes
+        shell: bash
+        env:
+          KILLINCHU_REVISION: caaff414d1d1da2c03d8a45f111dc7dfad564637
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          revision = os.environ["KILLINCHU_REVISION"]
+          paths = (
+              "szl_connectors/bindings.py",
+              "szl_connectors/data_sources/security.py",
+          )
+          for relative in paths:
+              url = (
+                  "https://raw.githubusercontent.com/szl-holdings/killinchu/"
+                  + revision
+                  + "/"
+                  + relative
+              )
+              request = urllib.request.Request(
+                  url,
+                  headers={
+                      "Accept": "text/plain",
+                      "User-Agent": "szl-shared-peer-sync/1.0",
+                  },
+                  method="GET",
+              )
+              with urllib.request.urlopen(request, timeout=30) as response:
+                  body = response.read(200_001)
+              if not body or len(body) > 200_000:
+                  raise RuntimeError(f"invalid bounded shared file: {relative}")
+              Path(relative).write_bytes(body)
+              digest = hashlib.sha256(body).hexdigest()
+              print(f"SHARED_SHA256 {relative} {digest}")
+
+          security = Path(paths[1]).read_text(encoding="utf-8")
+          bindings = Path(paths[0]).read_text(encoding="utf-8")
+          required = (
+              'class DefensiveFusionConnector(Connector):',
+              'id = "defensive_fusion"',
+              '"action_authority": "DEFENSIVE_PRIORITIZATION_ONLY"',
+              '"exploit_content_included": False',
+              '"asset_scanning_performed": False',
+              'if measured > 0 and not exact_evidence_observed:',
+          )
+          for marker in required:
+              if marker not in security:
+                  raise RuntimeError(f"missing shared security marker: {marker}")
+          if '"defensive_fusion"' not in bindings:
+              raise RuntimeError("defensive fusion is absent from shared bindings")
+          PY
+
+      - name: Validate reciprocal shared files
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            szl_connectors/bindings.py \
+            szl_connectors/data_sources/security.py
+          python - <<'PY'
+          import ast
+          from pathlib import Path
+
+          for path in (
+              Path("szl_connectors/bindings.py"),
+              Path("szl_connectors/data_sources/security.py"),
+          ):
+              ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+          PY
+          git diff --check
+
+      - name: Commit exact shared peer revision
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            szl_connectors/bindings.py \
+            szl_connectors/data_sources/security.py
+          git commit -m "feat(defend): sync exact-CVE defensive fusion peer" \
+            -m "Carry the byte-identical shared connector and binding changes from Killinchu Wave 4 so cross-repository drift remains closed." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:feat/defensive-fusion-wave4-peer-20260904
