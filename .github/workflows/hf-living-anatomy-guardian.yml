@@ -29,8 +29,8 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
-      SPACE_ID: SZLHOLDINGS/anatomy
-      SPACE_ORIGIN: https://szlholdings-anatomy.hf.space
+      SPACE_ID: betterwithage/anatomy
+      SPACE_ORIGIN: https://betterwithage-anatomy.hf.space
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -65,11 +65,11 @@ jobs:
           ORIGIN = os.environ["SPACE_ORIGIN"].rstrip("/")
           RECEIPT = Path("living-anatomy-guardian-receipt.json")
           TOKEN_KEYS = (
-              "HF_ORG_TOKEN",
-              "HF_WRITE_TOKEN",
               "HF_TOKEN",
               "HUGGINGFACE_TOKEN",
               "HUGGING_FACE_HUB_TOKEN",
+              "HF_WRITE_TOKEN",
+              "HF_ORG_TOKEN",
           )
           token = next(
               (os.environ.get(key, "").strip() for key in TOKEN_KEYS if os.environ.get(key, "").strip()),
@@ -95,7 +95,7 @@ jobs:
                   headers={
                       "Accept": "application/json",
                       "Cache-Control": "no-cache",
-                      "User-Agent": "szl-living-anatomy-guardian/1.0",
+                      "User-Agent": "szl-living-anatomy-guardian/2.0",
                   },
               )
               with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -105,7 +105,7 @@ jobs:
               return payload
 
           receipt = {
-              "schema": "szl.hf-living-anatomy-guardian/v1",
+              "schema": "szl.hf-living-anatomy-guardian/v2",
               "space": SPACE,
               "origin": ORIGIN,
               "started_at": now(),
