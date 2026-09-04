@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Owned Khipu cortex contract
+
+on:
+  pull_request:
+    paths:
+      - szl_owned_khipu_cortex.py
+      - vendor/szl_nemo/**
+      - Dockerfile
+      - serve.py
+      - reports/owned-khipu-cortex/**
+      - .github/workflows/owned-khipu-cortex-contract.yml
+      - .github/workflows/*owned-khipu*cortex*wiring*.yml
+  push:
+    branches:
+      - main
+      - feat/hf-owned-khipu-cortex-v1
+    paths:
+      - szl_owned_khipu_cortex.py
+      - vendor/szl_nemo/**
+      - Dockerfile
+      - serve.py
+      - reports/owned-khipu-cortex/**
+      - .github/workflows/owned-khipu-cortex-contract.yml
+      - .github/workflows/*owned-khipu*cortex*wiring*.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owned-khipu-cortex-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Source, route, model, witness, and authority contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Validate Python sources
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            szl_owned_khipu_cortex.py \
+            vendor/szl_nemo/szl_nemo/__init__.py \
+            vendor/szl_nemo/szl_nemo/schema.py \
+            vendor/szl_nemo/szl_nemo/rules.py \
+            vendor/szl_nemo/szl_nemo/engine.py \
+            vendor/szl_nemo/szl_nemo/envelope.py \
+            serve.py
+
+      - name: Enforce permanent runtime wiring and truth boundaries
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import ast
+          import json
+          import re
+          from pathlib import Path
+
+          module_path = Path("szl_owned_khipu_cortex.py")
+          module = module_path.read_text(encoding="utf-8")
+          docker = Path("Dockerfile").read_text(encoding="utf-8")
+          serve = Path("serve.py").read_text(encoding="utf-8")
+          tree = ast.parse(module)
+          functions = {
+              node.name
+              for node in tree.body
+              if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+          }
+          checks = {
+              "register_callable": "register" in functions,
+              "docker_module_unique": docker.count("COPY szl_owned_khipu_cortex.py ./") == 1,
+              "docker_nemo_unique": docker.count("COPY vendor/szl_nemo/ ./vendor/szl_nemo/") == 1,
+              "serve_import_unique": serve.count("import szl_owned_khipu_cortex as _szl_owned_khipu_cortex") == 1,
+              "serve_register_unique": serve.count('_szl_owned_khipu_cortex.register(app, ns="a11oy")') == 1,
+              "owned_repo_bound": "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF" in module,
+              "owned_revision_bound": "67d60ec577730747055491640cfb91fc4a4b5d25" in module,
+              "lambda_non_authorizing": "CONJECTURE_1_ADVISORY" in module,
+              "no_action_authority": "NO_ACTION_AUTHORITY" in module,
+              "nemo_pre_generation": "PRE_GENERATION" in module,
+              "nemo_post_generation": "POST_GENERATION" in module,
+          }
+          failed = [name for name, value in checks.items() if not value]
+          if failed:
+              raise SystemExit("owned Khipu contract failed: " + ", ".join(failed))
+
+          temporary = sorted(
+              str(path)
+              for path in Path(".github/workflows").glob("*owned-khipu*cortex*wiring*.yml")
+          )
+          if temporary:
+              raise SystemExit("temporary owned-Khipu writers remain: " + ", ".join(temporary))
+
+          report_path = Path("reports/owned-khipu-cortex/source-wiring.json")
+          if not report_path.is_file():
+              raise SystemExit("source-wiring receipt is missing")
+          report = json.loads(report_path.read_text(encoding="utf-8"))
+          if report.get("state") != "SOURCE_WIRED":
+              raise SystemExit("source-wiring receipt is not terminal")
+          if report.get("live_deployment_verified") is not False:
+              raise SystemExit("source receipt must not pre-claim live deployment")
+          if report.get("action_authority") != "NONE":
+              raise SystemExit("source receipt action-authority drift")
+          if report.get("locked_proven_formula_count") != 8:
+              raise SystemExit("locked formula count drift")
+          if report.get("lambda_status") != "CONJECTURE_1_ADVISORY":
+              raise SystemExit("Lambda truth-label drift")
+          PY
+
+      - name: Run targeted tests when present
+        run: |
+          set -euo pipefail
+          tests=()
+          while IFS= read -r candidate; do
+            tests+=("$candidate")
+          done < <(find tests -maxdepth 1 -type f \( -iname '*owned*khipu*' -o -iname '*khipu*cortex*' \) -print 2>/dev/null | sort)
+          if (( ${#tests[@]} > 0 )); then
+            python -m pytest -q "${tests[@]}"
+          fi
+          git diff --check
