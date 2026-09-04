@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-name: Living Anatomy lifecycle guardian
+name: Creator-profile Living Anatomy lifecycle guardian
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     paths:
       - docs/series-a/hf-space-keep-list.yaml
       - docs/estate/hf-nine-flagship-keep.yaml
+      - tests/test_living_anatomy_flagship_policy.py
       - .github/workflows/hf-living-anatomy-guardian.yml
   schedule:
     - cron: "*/30 * * * *"
@@ -29,8 +30,10 @@ jobs:
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
       HUGGINGFACE_TOKEN: ${{ secrets.HUGGINGFACE_TOKEN }}
       HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
-      SPACE_ID: SZLHOLDINGS/anatomy
-      SPACE_ORIGIN: https://szlholdings-anatomy.hf.space
+      GITHUB_TOKEN: ${{ github.token }}
+      SPACE_ID: betterwithage/anatomy
+      SPACE_ORIGIN: https://betterwithage-anatomy.hf.space
+      SOURCE_REPOSITORY: szl-holdings/anatomy
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -45,7 +48,8 @@ jobs:
       - name: Install pinned Hugging Face client
         run: python -m pip install --disable-pip-version-check --no-cache-dir "huggingface_hub==1.23.0"
 
-      - name: Reconcile visibility, runtime, sleep policy, and live contract
+      - name: Reconcile creator Space and prove exact source-bound readiness
+        shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -54,7 +58,6 @@ jobs:
           import json
           import os
           import time
-          import urllib.error
           import urllib.request
           from datetime import datetime, timezone
           from pathlib import Path
@@ -63,6 +66,8 @@ jobs:
 
           SPACE = os.environ["SPACE_ID"]
           ORIGIN = os.environ["SPACE_ORIGIN"].rstrip("/")
+          SOURCE_REPOSITORY = os.environ["SOURCE_REPOSITORY"]
+          GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN", "").strip()
           RECEIPT = Path("living-anatomy-guardian-receipt.json")
           TOKEN_KEYS = (
               "HF_ORG_TOKEN",
@@ -72,12 +77,21 @@ jobs:
               "HUGGING_FACE_HUB_TOKEN",
           )
           token = next(
-              (os.environ.get(key, "").strip() for key in TOKEN_KEYS if os.environ.get(key, "").strip()),
+              (
+                  os.environ.get(key, "").strip()
+                  for key in TOKEN_KEYS
+                  if os.environ.get(key, "").strip()
+              ),
               "",
           )
 
           def now() -> str:
-              return datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
+              return (
+                  datetime.now(timezone.utc)
+                  .replace(microsecond=0)
+                  .isoformat()
+                  .replace("+00:00", "Z")
+              )
 
           def enum_value(value) -> str:
               raw = getattr(value, "value", value)
@@ -89,25 +103,27 @@ jobs:
           def hardware(runtime) -> str:
               return enum_value(getattr(runtime, "hardware", None)).lower()
 
-          def get_json(path: str, timeout: int = 20) -> dict:
-              request = urllib.request.Request(
-                  ORIGIN + path,
-                  headers={
-                      "Accept": "application/json",
-                      "Cache-Control": "no-cache",
-                      "User-Agent": "szl-living-anatomy-guardian/1.0",
-                  },
-              )
+          def get_json(url: str, timeout: int = 20) -> dict:
+              headers = {
+                  "Accept": "application/json",
+                  "Cache-Control": "no-cache",
+                  "User-Agent": "szl-living-anatomy-guardian/2.0",
+              }
+              if url.startswith("https://api.github.com/") and GITHUB_TOKEN:
+                  headers["Authorization"] = f"Bearer {GITHUB_TOKEN}"
+                  headers["X-GitHub-Api-Version"] = "2022-11-28"
+              request = urllib.request.Request(url, headers=headers)
               with urllib.request.urlopen(request, timeout=timeout) as response:
                   payload = json.load(response)
               if not isinstance(payload, dict):
-                  raise RuntimeError(f"non-object JSON from {path}")
+                  raise RuntimeError(f"non-object JSON from {url}")
               return payload
 
           receipt = {
-              "schema": "szl.hf-living-anatomy-guardian/v1",
+              "schema": "szl.hf-living-anatomy-guardian/v2",
               "space": SPACE,
               "origin": ORIGIN,
+              "source_repository": SOURCE_REPOSITORY,
               "started_at": now(),
               "status": "FAIL",
               "authority": "LIFECYCLE_ONLY",
@@ -117,6 +133,15 @@ jobs:
           try:
               if not token:
                   raise RuntimeError("no Hugging Face write token is configured")
+              source_main = str(
+                  get_json(
+                      f"https://api.github.com/repos/{SOURCE_REPOSITORY}/commits/main"
+                  ).get("sha")
+                  or ""
+              ).lower()
+              if len(source_main) != 40:
+                  raise RuntimeError("source repository main is not an exact Git revision")
+
               api = HfApi(token=token)
               info = api.space_info(SPACE)
               runtime = api.get_space_runtime(SPACE)
@@ -137,7 +162,11 @@ jobs:
                   actions.append("visibility:private->public")
 
               current_hardware = hardware(runtime)
-              if current_hardware and current_hardware not in {"unknown", "none", "cpu-basic"}:
+              if current_hardware and current_hardware not in {
+                  "unknown",
+                  "none",
+                  "cpu-basic",
+              }:
                   api.set_space_sleep_time(repo_id=SPACE, sleep_time=-1)
                   sleep_policy = "NEVER_SLEEP_UPGRADED_HARDWARE"
                   actions.append("sleep_time:-1")
@@ -146,7 +175,6 @@ jobs:
               else:
                   sleep_policy = "UNAVAILABLE_HARDWARE_STATE"
 
-              current_stage = stage(runtime)
               restartable = {
                   "PAUSED",
                   "SLEEPING",
@@ -155,14 +183,12 @@ jobs:
                   "BUILD_ERROR",
                   "CONFIG_ERROR",
               }
+              current_stage = stage(runtime)
               if current_stage in restartable:
                   api.restart_space(
                       repo_id=SPACE,
-                      factory_reboot=current_stage in {
-                          "RUNTIME_ERROR",
-                          "BUILD_ERROR",
-                          "CONFIG_ERROR",
-                      },
+                      factory_reboot=current_stage
+                      in {"RUNTIME_ERROR", "BUILD_ERROR", "CONFIG_ERROR"},
                   )
                   actions.append(f"restart:{current_stage}")
 
@@ -179,28 +205,39 @@ jobs:
                           private=False,
                       )
                       actions.append("visibility:reconciled-public")
-                  if last_stage == "RUNNING" and not bool(getattr(info, "private", False)):
+                  if last_stage == "RUNNING" and not bool(
+                      getattr(info, "private", False)
+                  ):
                       break
-                  if last_stage in restartable:
-                      api.restart_space(
-                          repo_id=SPACE,
-                          factory_reboot=last_stage in {
-                              "RUNTIME_ERROR",
-                              "BUILD_ERROR",
-                              "CONFIG_ERROR",
-                          },
-                      )
-                      actions.append(f"restart-retry:{last_stage}")
                   time.sleep(15)
               else:
-                  raise TimeoutError(f"Space did not become public/RUNNING; last stage={last_stage}")
+                  raise TimeoutError(
+                      f"Space did not become public/RUNNING; last stage={last_stage}"
+                  )
 
               live_error = None
               for attempt in range(12):
                   try:
-                      living = get_json("/api/anatomy/v1/living-health?refresh=1")
-                      brain = get_json("/api/anatomy/v1/brain/health?refresh=1")
-                      source = get_json("/.well-known/szl-source.json?refresh=1")
+                      living = get_json(
+                          ORIGIN + "/api/anatomy/v1/living-health?refresh=1"
+                      )
+                      brain = get_json(
+                          ORIGIN + "/api/anatomy/v1/brain/health?refresh=1"
+                      )
+                      source = get_json(
+                          ORIGIN + "/.well-known/szl-source.json?refresh=1"
+                      )
+                      anatomy_revision = str(
+                          source.get("source", {}).get("commit") or ""
+                      ).lower()
+                      brain_revision = str(brain.get("source_revision") or "")
+                      deployed_hf_revision = str(
+                          source.get("deployment", {}).get("hf_revision") or ""
+                      )
+                      current_hf_revision = str(
+                          getattr(api.space_info(SPACE), "sha", "") or ""
+                      )
+
                       if living.get("ready") is not True:
                           raise RuntimeError("combined Living Anatomy readiness is false")
                       if brain.get("ready") is not True:
@@ -211,12 +248,18 @@ jobs:
                           raise RuntimeError("public Space reports private graph nodes loaded")
                       if brain.get("content_access") != "HANDLES_ONLY":
                           raise RuntimeError("public Space is not handles-only")
-                      anatomy_revision = str(
-                          source.get("source", {}).get("commit") or ""
-                      )
-                      brain_revision = str(brain.get("source_revision") or "")
-                      if len(anatomy_revision) != 40 or len(brain_revision) != 40:
-                          raise RuntimeError("live source binding lacks exact Git revisions")
+                      if source.get("alignment_state") != "SOURCE_BOUND_DEPLOYMENT":
+                          raise RuntimeError("Space does not report source-bound deployment")
+                      if source.get("source", {}).get("repository") != SOURCE_REPOSITORY:
+                          raise RuntimeError("Space reports an unexpected source repository")
+                      if anatomy_revision != source_main:
+                          raise RuntimeError(
+                              f"Space source {anatomy_revision} != current main {source_main}"
+                          )
+                      if deployed_hf_revision != current_hf_revision:
+                          raise RuntimeError("live source receipt does not match the HF head")
+                      if len(brain_revision) != 40:
+                          raise RuntimeError("Second Brain lacks an exact source revision")
                       live_error = None
                       break
                   except Exception as error:
@@ -244,6 +287,7 @@ jobs:
                       "live_contract": {
                           "ready": True,
                           "anatomy_source_revision": anatomy_revision,
+                          "expected_anatomy_source_revision": source_main,
                           "second_brain_source_revision": brain_revision,
                           "second_brain_public_chunks": 575,
                           "content_access": "HANDLES_ONLY",
