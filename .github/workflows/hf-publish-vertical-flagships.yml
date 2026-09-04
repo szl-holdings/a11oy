@@ -53,7 +53,7 @@ jobs:
       - name: Install pinned publisher
         run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.10.1'
 
-      - name: Publish and live-verify six domain-native flagship Spaces
+      - name: Publish four independent vertical Spaces and the shared six-engine runtime
         run: python scripts/hf_publish_vertical_flagships_v4.py
 
       - name: Upload immutable receipt
