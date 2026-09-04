@@ -1,0 +1,26 @@
+{
+  "schema": "szl.vertical-services-active-pin/v1",
+  "updated_at": "2026-09-04T03:51:08Z",
+  "repository": "szl-holdings/vertical-services",
+  "source_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
+  "runtime_version": "2.2.0",
+  "predecessor_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+  "reason": "The signed default branch advanced by two reviewed commits: Vertical Frontier Fabric and the Killinchu Defend taxonomy correction.",
+  "publisher": "scripts/hf_publish_vertical_services_intelligence_v4.py",
+  "guard": "require-default-branch-tip",
+  "historical_strategy_manifest_rewritten": false,
+  "authority": {
+    "canonical_engines": [
+      "sentra",
+      "lyte",
+      "killinchu",
+      "finance",
+      "terra",
+      "counsel"
+    ],
+    "sentra_public_home": "SZLHOLDINGS/killinchu/defend",
+    "vessels_public_home": "SZLHOLDINGS/killinchu",
+    "effectors_enabled": false,
+    "human_approval_required": true
+  }
+}
