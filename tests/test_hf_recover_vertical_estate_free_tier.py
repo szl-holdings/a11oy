@@ -19,6 +19,12 @@ def test_runtime_source_and_topology_are_exact() -> None:
     assert set(module.STATIC_SPACES) == {"vertical-services", "terra", "counsel", "finance", "lyte"}
     assert module.STATIC_SPACES["finance"][2] == "/experience/puriq"
     assert module.STATIC_SPACES["counsel"][2] == "/experience/prism"
+    assert module.REQUIRED_GATEWAY_PATHS == (
+        "/",
+        "/healthz",
+        "/api/build-info",
+        "/api/source",
+    )
 
 
 def test_personal_owner_is_validated_and_org_owner_is_rejected() -> None:
@@ -121,6 +127,94 @@ def test_personal_runtime_rebinds_wrapper_before_configuration(
     assert result["repo_id"] == "stephen-lutar/szl-vertical-services-runtime"
 
 
+def gateway_json(source_revision: str, runtime_repository: str) -> bytes:
+    return module.canonical_json_bytes(
+        {
+            "source_repository": module.GATEWAY_SOURCE_REPOSITORY,
+            "source_revision": source_revision,
+            "runtime_repository": runtime_repository,
+            "runtime_source_revision": module.RUNTIME_SOURCE_REVISION,
+            "effectors_enabled": False,
+            "human_approval_required": True,
+        }
+    )
+
+
+def test_gateway_live_verification_requires_route_parity_and_source_binding(
+    monkeypatch,
+) -> None:
+    gateway_revision = "c" * 40
+    runtime_repository = "stephen-lutar/szl-vertical-services-runtime"
+    responses = {
+        "/": (200, b'<html data-szl-domain-experience-v4="true"></html>'),
+        "/healthz": (200, gateway_json(gateway_revision, runtime_repository)),
+        "/api/build-info": (200, gateway_json(gateway_revision, runtime_repository)),
+        "/api/source": (200, gateway_json(gateway_revision, runtime_repository)),
+    }
+
+    def anonymous_get(url: str, attempts: int = 30) -> tuple[int, bytes]:
+        del attempts
+        path = "/" + url.split("/", 3)[-1] if url.count("/") >= 3 else "/"
+        return responses[path]
+
+    monkeypatch.setattr(module, "anonymous_get", anonymous_get)
+    result = module.verify_gateway(
+        "https://szlholdings-terra.hf.space",
+        {
+            "source_revision": gateway_revision,
+            "runtime_repository": runtime_repository,
+        },
+    )
+    assert result["complete"] is True
+    assert result["failures"] == []
+    assert set(result["observations"]) == set(module.REQUIRED_GATEWAY_PATHS)
+
+    responses["/api/source"] = (404, b"")
+    failed = module.verify_gateway(
+        "https://szlholdings-terra.hf.space",
+        {
+            "source_revision": gateway_revision,
+            "runtime_repository": runtime_repository,
+        },
+    )
+    assert failed["complete"] is False
+    assert "/api/source: HTTP 404" in failed["failures"]
+
+
+def test_gateway_live_verification_rejects_wrong_source_and_authority(
+    monkeypatch,
+) -> None:
+    gateway_revision = "d" * 40
+    runtime_repository = "stephen-lutar/szl-vertical-services-runtime"
+    bad = {
+        "source_repository": "other/repository",
+        "source_revision": "e" * 40,
+        "runtime_repository": "other/runtime",
+        "runtime_source_revision": "f" * 40,
+        "effectors_enabled": True,
+        "human_approval_required": False,
+    }
+
+    def anonymous_get(url: str, attempts: int = 30) -> tuple[int, bytes]:
+        del attempts
+        if url.endswith("/"):
+            return 200, b'<html data-szl-domain-experience-v4="true"></html>'
+        return 200, module.canonical_json_bytes(bad)
+
+    monkeypatch.setattr(module, "anonymous_get", anonymous_get)
+    result = module.verify_gateway(
+        "https://szlholdings-terra.hf.space",
+        {
+            "source_revision": gateway_revision,
+            "runtime_repository": runtime_repository,
+        },
+    )
+    assert result["complete"] is False
+    assert len(result["failures"]) >= 6
+    assert any("gateway source repository mismatch" in row for row in result["failures"])
+    assert any("effector boundary drift" in row for row in result["failures"])
+
+
 def test_script_preserves_single_writer_and_secret_boundaries() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     for fragment in (
@@ -129,6 +223,9 @@ def test_script_preserves_single_writer_and_secret_boundaries() -> None:
         "publisher.HF_REPOSITORY = repo_id",
         "publisher.ORIGIN = origin",
         "publisher.RECEIPT_PATH = RUNTIME_RECEIPT_PATH",
+        '"healthz": canonical_json_bytes(health)',
+        '"api/build-info": canonical_json_bytes(build)',
+        '"api/source": canonical_json_bytes(source)',
         "token_value_recorded\": False",
         "HF_ORG_DYNAMIC_REQUIRES_TEAM_OR_ENTERPRISE",
         "CommitOperationDelete",
