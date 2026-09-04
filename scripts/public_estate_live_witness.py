@@ -373,15 +373,6 @@ def selected_build_fields(payload: Mapping[str, Any]) -> dict[str, Any]:
                 selected[canonical] = value
                 break
 
-    # Killinchu's strict public route intentionally exposes build.revision rather
-    # than duplicating a repository claim inside the process. Normalize only this
-    # unambiguous nested runtime field; never treat an arbitrary deployment
-    # revision as source identity.
-    build = payload.get("build")
-    if "source_revision" not in selected and isinstance(build, dict):
-        revision = build.get("revision")
-        if revision not in (None, ""):
-            selected["source_revision"] = revision
     return selected
 
 
@@ -411,13 +402,14 @@ def apply_source_repository_policy(
         str(payload.get("service", "")) == str(surface.get("id", "")),
         "manifest-fixed source policy service mismatch",
     )
-    revision = str(result.get("source_revision", "")).lower()
+    revision = str(build.get("revision", "")).lower()
     require(bool(SHA40.fullmatch(revision)), "manifest-fixed source revision is invalid")
     require(build.get("state") == "OBSERVED", "manifest-fixed source revision is not observed")
     require(
         build.get("revision_source") == "env:SZL_GIT_SHA",
         "manifest-fixed source revision has an untrusted origin",
     )
+    result["source_revision"] = revision
     result["source_repository"] = str(surface["deployment_source_repository"])
     result["source_repository_evidence"] = "MANIFEST_FIXED_RUNTIME_REVISION"
     return result

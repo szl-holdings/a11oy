@@ -244,3 +244,15 @@ def test_manifest_rejects_unknown_identity_policies(tmp_path: Path):
     value["public_products"][0]["hf_revision_policy"] = "trust-me"
     with pytest.raises(witness.ContractError, match="unknown Hugging Face revision policy"):
         witness.load_and_validate_manifest(write_manifest(tmp_path, value))
+
+
+def test_nested_build_revision_is_not_generic_source_identity():
+    payload = {
+        "service": "another-surface",
+        "build": {
+            "state": "OBSERVED",
+            "revision": "e" * 40,
+            "revision_source": "env:SZL_GIT_SHA",
+        },
+    }
+    assert "source_revision" not in witness.selected_build_fields(payload)
