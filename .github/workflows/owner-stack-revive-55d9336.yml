@@ -1,0 +1,194 @@
+name: Owner stack revive — Ollama, Tailscale, existing Cloudflare tunnel
+
+on:
+  push:
+    branches:
+      - ops/owner-stack-recovery-55d9336
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: owner-stack-revive-55d9336
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: 55d9336fed3a23da5b1abfed4f7f38dcc5121a06
+
+jobs:
+  revive:
+    name: Revive and prove the bounded owner node
+    if: >-
+      github.actor == 'stephenlutar2-hash' &&
+      github.triggering_actor == 'stephenlutar2-hash'
+    runs-on: [self-hosted, Windows, X64, szl-owner-gpu]
+    timeout-minutes: 60
+    steps:
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.SOURCE_SHA }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Prove exact source
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -cne $env:SOURCE_SHA) { throw 'Exact source mismatch.' }
+          foreach ($path in @(
+            'box-scripts\SZL_MESH_RESTART.ps1',
+            'box-scripts\ollama_energy_probe.py'
+          )) {
+            if (-not (Test-Path -LiteralPath (Join-Path $env:GITHUB_WORKSPACE $path) -PathType Leaf)) {
+              throw "Required exact-source file missing: $path"
+            }
+          }
+
+      - name: Ensure Cloudflare tunnel client is installed
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $cloudflared = Get-Command cloudflared.exe -ErrorAction SilentlyContinue
+          if (-not $cloudflared) {
+            $candidate = "$env:ProgramFiles\cloudflared\cloudflared.exe"
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) { $cloudflared = Get-Item $candidate }
+          }
+          if (-not $cloudflared) {
+            $winget = Get-Command winget.exe -ErrorAction SilentlyContinue
+            if ($winget) {
+              & $winget.Source install --id Cloudflare.cloudflared --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity
+              $candidate = "$env:ProgramFiles\cloudflared\cloudflared.exe"
+              if (Test-Path -LiteralPath $candidate -PathType Leaf) { $cloudflared = Get-Item $candidate }
+            }
+          }
+          if (-not $cloudflared) { throw 'cloudflared remains unavailable after the bounded install attempt.' }
+          (Split-Path -Parent $cloudflared.FullName) | Add-Content -LiteralPath $env:GITHUB_PATH
+          Write-Host 'cloudflared is installed.'
+
+      - name: Start Tailscale and existing durable stack tasks
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $service = Get-Service -Name Tailscale -ErrorAction SilentlyContinue
+          if ($service -and $service.Status -ne 'Running') { Start-Service -Name Tailscale -ErrorAction SilentlyContinue }
+          foreach ($pattern in @('Laptop *','*Ollama*','*Tunnel*','*cloudflared*','*LiteLLM*','*Joule*')) {
+            foreach ($task in @(Get-ScheduledTask -TaskName $pattern -ErrorAction SilentlyContinue)) {
+              if ($task.State -ne 'Running') { Start-ScheduledTask -TaskName $task.TaskName -ErrorAction SilentlyContinue }
+            }
+          }
+          & powershell.exe -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File (Join-Path $env:GITHUB_WORKSPACE 'box-scripts\SZL_MESH_RESTART.ps1')
+
+      - name: Ensure Ollama is answering and select an installed model
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ollama = Get-Command ollama.exe -ErrorAction SilentlyContinue
+          if (-not $ollama) {
+            $candidate = "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) { $ollama = Get-Item $candidate }
+          }
+          if (-not $ollama) { throw 'Ollama is not installed on the owner runner.' }
+          function Read-Tags {
+            try { return Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/tags' -TimeoutSec 5 } catch { return $null }
+          }
+          $tags = Read-Tags
+          if (-not $tags) {
+            Start-Process -FilePath $ollama.FullName -ArgumentList @('serve') -WindowStyle Hidden
+            for ($i=0; $i -lt 30; $i++) {
+              Start-Sleep -Seconds 2
+              $tags = Read-Tags
+              if ($tags) { break }
+            }
+          }
+          if (-not $tags) { throw 'Ollama did not answer on loopback.' }
+          $models = @($tags.models | ForEach-Object { [string]$_.name } | Where-Object { $_ })
+          if ($models.Count -eq 0) {
+            & $ollama.FullName pull 'qwen2.5:3b'
+            if ($LASTEXITCODE -ne 0) { throw 'Fallback model pull failed.' }
+            $tags = Read-Tags
+            $models = @($tags.models | ForEach-Object { [string]$_.name } | Where-Object { $_ })
+          }
+          if ($models.Count -eq 0) { throw 'No Ollama model is available.' }
+          $priority = @('glm-4.7-flash:latest','glm-4.7-flash','llama3-szl-finetuned-q4:latest','llama3-szl-finetuned-q4','llama3.1:8b','qwen2.5:3b')
+          $selected = $null
+          foreach ($candidate in $priority) {
+            $match = $models | Where-Object { $_ -eq $candidate -or $_ -like ($candidate + ':*') } | Select-Object -First 1
+            if ($match) { $selected = [string]$match; break }
+          }
+          if (-not $selected) { $selected = [string]$models[0] }
+          "SZL_SELECTED_MODEL=$selected" | Add-Content -LiteralPath $env:GITHUB_ENV
+          "SZL_MODEL_COUNT=$($models.Count)" | Add-Content -LiteralPath $env:GITHUB_ENV
+          Write-Host ("Ollama is live with {0} installed model(s); selected={1}" -f $models.Count,$selected)
+
+      - name: Prove a real local generation
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $body = @{
+            model = $env:SZL_SELECTED_MODEL
+            prompt = 'Return exactly: SZL_LOCAL_OK'
+            stream = $false
+            options = @{ temperature = 0; num_predict = 16 }
+          } | ConvertTo-Json -Depth 5
+          $response = Invoke-RestMethod -Uri 'http://127.0.0.1:11434/api/generate' -Method Post -ContentType 'application/json' -Body $body -TimeoutSec 180
+          if ([string]::IsNullOrWhiteSpace([string]$response.response)) { throw 'Ollama returned no generated text.' }
+          Write-Host 'A real local Ollama generation completed.'
+
+      - name: Produce a redacted network and public-route proof
+        shell: powershell -NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command ". '{0}'"
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $tailRunning = $false
+          $tailBackend = 'UNAVAILABLE'
+          $tailPeers = 0
+          $tailscale = Get-Command tailscale.exe -ErrorAction SilentlyContinue
+          if ($tailscale) {
+            try {
+              $status = (& $tailscale.Source status --json 2>$null | Out-String) | ConvertFrom-Json
+              $tailBackend = [string]$status.BackendState
+              $tailRunning = $tailBackend -eq 'Running'
+              if ($status.Peer) { $tailPeers = @($status.Peer.PSObject.Properties).Count }
+            } catch {}
+          }
+          $cfConfig = Test-Path -LiteralPath (Join-Path $env:USERPROFILE '.cloudflared\config.yml') -PathType Leaf
+          $cfRunning = [bool](Get-Process cloudflared -ErrorAction SilentlyContinue)
+          $routes = @{}
+          foreach ($hostName in @('gateway.a-11-oy.com','gpu2.a-11-oy.com','meter2.a-11-oy.com','a-11-oy.com','www.a-11-oy.com','a11oy.net')) {
+            $code = $null
+            try {
+              $code = [int](& curl.exe -sS -o NUL -w '%{http_code}' --max-time 15 ('https://' + $hostName))
+            } catch {}
+            $routes[$hostName] = $code
+          }
+          $receipt = [ordered]@{
+            schema = 'szl.owner-stack-revive/v1'
+            source_sha = $env:SOURCE_SHA
+            ollama_live = $true
+            ollama_model_count = [int]$env:SZL_MODEL_COUNT
+            selected_model = $env:SZL_SELECTED_MODEL
+            real_generation_completed = $true
+            tailscale_present = [bool]$tailscale
+            tailscale_running = $tailRunning
+            tailscale_backend = $tailBackend
+            tailscale_peer_count = $tailPeers
+            cloudflared_config_present = $cfConfig
+            cloudflared_process_running = $cfRunning
+            public_route_status = $routes
+            private_addresses_recorded = $false
+            machine_name_recorded = $false
+            credential_values_recorded = $false
+          }
+          $receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'owner-stack-revive-receipt.json') -Encoding UTF8
+          Write-Host ("Tailscale running={0}; peers={1}; cloudflared running={2}; config={3}" -f $tailRunning,$tailPeers,$cfRunning,$cfConfig)
+          foreach ($entry in $routes.GetEnumerator() | Sort-Object Name) { Write-Host ("route {0} -> {1}" -f $entry.Name,$entry.Value) }
+
+      - name: Upload redacted owner-stack proof
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: owner-stack-revive-${{ github.run_id }}-${{ github.run_attempt }}
+          path: owner-stack-revive-receipt.json
+          if-no-files-found: warn
+          retention-days: 30
