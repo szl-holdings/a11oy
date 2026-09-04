@@ -5,14 +5,18 @@ on:
   pull_request:
     paths:
       - "scripts/hf_recover_vertical_estate_free_tier.py"
+      - "scripts/hf_recover_vertical_estate_personal_runtime.py"
       - "tests/test_hf_recover_vertical_estate_free_tier.py"
+      - "tests/test_hf_personal_runtime_target_binding.py"
       - "docs/strategy/hf-free-tier-recovery.v1.json"
       - ".github/workflows/hf-free-tier-recovery.yml"
   push:
     branches: [main]
     paths:
       - "scripts/hf_recover_vertical_estate_free_tier.py"
+      - "scripts/hf_recover_vertical_estate_personal_runtime.py"
       - "tests/test_hf_recover_vertical_estate_free_tier.py"
+      - "tests/test_hf_personal_runtime_target_binding.py"
       - "docs/strategy/hf-free-tier-recovery.v1.json"
       - ".github/workflows/hf-free-tier-recovery.yml"
   workflow_dispatch: {}
@@ -46,7 +50,10 @@ jobs:
       - name: Install test runner
         run: python -m pip install --disable-pip-version-check "pytest==8.4.2"
       - name: Run network-free recovery tests
-        run: python -m pytest -q tests/test_hf_recover_vertical_estate_free_tier.py
+        run: >-
+          python -m pytest -q
+          tests/test_hf_recover_vertical_estate_free_tier.py
+          tests/test_hf_personal_runtime_target_binding.py
 
   recover:
     name: Publish personal runtime and static organization gateways
@@ -89,7 +96,7 @@ jobs:
       - name: Execute exact-source free-tier recovery
         id: recovery
         continue-on-error: true
-        run: python scripts/hf_recover_vertical_estate_free_tier.py
+        run: python scripts/hf_recover_vertical_estate_personal_runtime.py
       - name: Upload immutable recovery evidence
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
