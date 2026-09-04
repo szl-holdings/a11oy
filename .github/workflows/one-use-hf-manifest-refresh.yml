@@ -1,0 +1,67 @@
+name: One-use HF ecosystem manifest refresh
+
+on:
+  push:
+    branches:
+      - fix/hf-ecosystem-manifest-20260904
+    paths:
+      - .github/workflows/one-use-hf-manifest-refresh.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-use-hf-ecosystem-manifest-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-ecosystem-manifest-20260904
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Prove collector contracts
+        run: |
+          set -euo pipefail
+          python scripts/test_audit_huggingface_ecosystem.py
+          python -m py_compile scripts/audit_huggingface_ecosystem.py
+
+      - name: Generate and recheck current public inventory
+        run: |
+          set -euo pipefail
+          python scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+          python scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+
+      - name: Commit measured manifest only
+        run: |
+          set -euo pipefail
+          git config user.name 'Stephen Lutar'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add docs/huggingface-ecosystem-manifest.json
+          if git diff --cached --quiet; then
+            echo 'Manifest already current; no content commit required.'
+            exit 0
+          fi
+          git commit -s -m 'fix(hf): refresh measured public ecosystem manifest'
+          git push origin HEAD:fix/hf-ecosystem-manifest-20260904
