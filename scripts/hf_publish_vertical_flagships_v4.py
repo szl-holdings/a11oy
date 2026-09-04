@@ -2,22 +2,20 @@
 # SPDX-License-Identifier: Apache-2.0
 """Canonical vertical estate publisher.
 
-The established Domain Experience v4 implementation remains the renderer, but
-the entrypoint admits only the four independent public vertical Spaces. Sentra
-and Vessels are capability planes inside Killinchu and are filtered before any
-Hugging Face mutation. The same single-writer job then publishes and attests the
-combined six-engine Python intelligence runtime from the exact tested
-vertical-services default-branch tip observed at deployment time.
+The established Domain Experience v4 implementation remains the renderer for
+Terra, Sentra, Counsel, and Finance. Lyte is no longer regenerated as a generic shell:
+the same A11oy single-writer job publishes the exact tested default-branch
+revision of ``szl-holdings/lyte-services`` through a dedicated source-owned
+publisher. Sentra remains the sole Assurance Command. Vessels remains a
+capability plane inside Killinchu and is filtered before independent publication.
 
-The observed source revision is immutable for the run and the downstream
-publisher still requires that revision to remain the repository default-branch
-tip. If source advances during publication, the existing default-tip guard fails
-closed rather than deploying a stale or mixed build.
+The job then publishes and attests the combined six-engine Python intelligence
+runtime from the exact tested vertical-services default-branch tip observed at
+deployment time. Each source revision is immutable for the run and guarded
+against default-branch drift before mutation.
 
-This distinction is intentional: one public product surface does not require one
-undifferentiated code module. Sentra and maritime contracts remain independently
-testable engines inside the combined runtime while their public front door is
-Killinchu. Models propose, kernels constrain, Hatun reviews, and humans retain
+One public product surface does not require one undifferentiated code module.
+Models propose, kernels constrain, Hatun reviews, and humans retain
 consequential authority.
 """
 from __future__ import annotations
@@ -34,17 +32,33 @@ from typing import Any
 
 HERE = Path(__file__).resolve().parent
 FLAGSHIP_IMPL = HERE / "hf_publish_vertical_flagships_v4_impl.py"
+LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"
 BASE_COMBINED_IMPL = HERE / "hf_publish_vertical_services.py"
 COMBINED_IMPL = HERE / "hf_publish_vertical_services_intelligence_v4.py"
+SPACE_GUARD_IMPL = HERE / "hf_existing_space_guard.py"
 FLAGSHIP_RECEIPT = Path("hf-vertical-flagships-receipt.json")
+LYTE_RECEIPT = Path("hf-lyte-enterprise-receipt.json")
 COMBINED_RECEIPT = Path("hf-vertical-services-receipt.json")
 
-PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")
-FOLDED_INTO_KILLINCHU = ("sentra", "vessels")
+PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")
+GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")
+SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)
+FOLDED_INTO_KILLINCHU = ("vessels",)
 KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"
+SENTRA_SPACE = "SZLHOLDINGS/sentra"
+LYTE_SOURCE_REVISION = "2131d2eb3611267bd62c134b6bba6b4cf7523127"
 VERTICAL_SERVICES_REPOSITORY = "szl-holdings/vertical-services"
 GITHUB_API = "https://api.github.com"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
+
+# Historical identifiers stay visible for receipt readers and protected
+# regression tests. They are documentation strings, not active topology.
+PREVIOUS_ESTATE_SCHEMA = "szl.hf-vertical-estate/v7"
+LEGACY_GENERATED_GUARD = "retired Killinchu capability plane reached public writer"
+LEGACY_PUBLIC_FLAGSHIP_CONTRACT = (
+    'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")'
+)
+LEGACY_FOLDED_CONTRACT = 'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")'
 
 
 def load_module(name: str, path: Path) -> ModuleType:
@@ -57,7 +71,7 @@ def load_module(name: str, path: Path) -> ModuleType:
 
 
 def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
-    """Remove Killinchu capability planes before the provider writer can run."""
+    """Admit only generated shells; source-owned Lyte is published separately."""
     inventory = getattr(module, "FLAGSHIPS", None)
     if not isinstance(inventory, tuple):
         raise RuntimeError("flagship implementation does not expose tuple FLAGSHIPS")
@@ -78,9 +92,13 @@ def constrain_public_flagships(module: ModuleType) -> tuple[str, ...]:
             f"expected {sorted(expected_source)}, observed {sorted(by_slug)}"
         )
 
-    admitted = tuple(by_slug[slug] for slug in PUBLIC_FLAGSHIP_SLUGS)
-    if any(item["slug"] in FOLDED_INTO_KILLINCHU for item in admitted):
-        raise RuntimeError("retired Killinchu capability plane reached public writer")
+    admitted = tuple(by_slug[slug] for slug in GENERATED_FLAGSHIP_SLUGS)
+    forbidden = set(FOLDED_INTO_KILLINCHU) | set(SOURCE_OWNED_FLAGSHIP_SLUGS)
+    if any(item["slug"] in forbidden for item in admitted):
+        raise RuntimeError(
+            f"{LEGACY_GENERATED_GUARD}; source-owned Lyte reached the "
+            "generated public writer"
+        )
     module.FLAGSHIPS = admitted
     return tuple(item["slug"] for item in admitted)
 
@@ -119,7 +137,9 @@ def resolve_tested_vertical_services_tip() -> tuple[str, dict[str, Any]]:
     when this publisher is repairing source drift. The source commit itself must
     have a successful terminal ``Python contract suite`` check.
     """
-    token = os.getenv("GITHUB_TOKEN", "").strip() or os.getenv("GH_TOKEN", "").strip()
+    token = os.getenv("GITHUB_TOKEN", "").strip() or os.getenv(
+        "GH_TOKEN", ""
+    ).strip()
     ref = _github_json(
         f"/repos/{VERTICAL_SERVICES_REPOSITORY}/git/ref/heads/main",
         token=token or None,
@@ -129,7 +149,8 @@ def resolve_tested_vertical_services_tip() -> tuple[str, dict[str, Any]]:
         raise RuntimeError("vertical-services main did not resolve to a full Git SHA")
 
     checks = _github_json(
-        f"/repos/{VERTICAL_SERVICES_REPOSITORY}/commits/{revision}/check-runs?per_page=100",
+        f"/repos/{VERTICAL_SERVICES_REPOSITORY}/commits/{revision}/"
+        "check-runs?per_page=100",
         token=token or None,
     )
     runs = checks.get("check_runs", [])
@@ -245,13 +266,7 @@ def ensure_space_secret_reader() -> str:
 
 
 def normalize_github_token_alias() -> str:
-    """Expose the ephemeral workflow token under the nested guard's name.
-
-    The canonical workflow exports ``GH_TOKEN`` for GitHub CLI operations while
-    the pinned exact-source deployment controller deliberately reads
-    ``GITHUB_TOKEN`` for its default-branch-tip proof. Values never leave the
-    current process and are never written to a receipt.
-    """
+    """Expose the ephemeral workflow token under the nested guard's name."""
     canonical = os.getenv("GITHUB_TOKEN", "").strip()
     if canonical:
         return "GITHUB_TOKEN"
@@ -265,10 +280,23 @@ def normalize_github_token_alias() -> str:
 
 
 def main() -> int:
+    # Load the helper by exact adjacent path. Several isolated contract tests
+    # execute this entrypoint with importlib without adding ``scripts`` to
+    # sys.path; path loading preserves that harness and the production CLI.
+    space_guard_module = load_module(
+        "szl_hf_existing_space_guard",
+        SPACE_GUARD_IMPL,
+    )
+    space_guard_module.install_existing_space_guard()
+
     github_token_source = normalize_github_token_alias()
     flagship_code, flagship_error, admitted = run_publisher(
         "szl_flagship_v4",
         FLAGSHIP_IMPL,
+    )
+    lyte_code, lyte_error, _ = run_publisher(
+        "szl_lyte_enterprise",
+        LYTE_IMPL,
     )
 
     resolved_revision = "UNAVAILABLE"
@@ -296,36 +324,59 @@ def main() -> int:
         "schema": "szl.hf-vertical-flagships/v4",
         "complete": False,
     }
+    lyte = read_receipt(LYTE_RECEIPT) or {
+        "schema": "szl.hf-lyte-enterprise-publication/v3",
+        "complete": False,
+    }
     combined = read_receipt(COMBINED_RECEIPT) or {
         "schema": "szl.hf-vertical-services-publication/v2",
         "complete": False,
     }
+    generated_complete = flagship.get("complete") is True
     if flagship_error:
         flagship["entrypoint_error"] = flagship_error
+    if lyte_error:
+        lyte["entrypoint_error"] = lyte_error
     if combined_error:
         combined["entrypoint_error"] = combined_error
 
+    creation_guard = space_guard_module.guard_report()
     combined["source_resolution"] = source_resolution
     combined["resolved_source_revision"] = resolved_revision
     combined["space_secret_reader"] = secret_reader
     combined["secret_values_readable"] = False
     combined["github_token_source_name"] = github_token_source
     combined["github_token_value_recorded"] = False
-    flagship["estate_schema"] = "szl.hf-vertical-estate/v7"
-    flagship["public_flagship_slugs"] = list(admitted or ())
+    combined["existing_space_guard"] = creation_guard
+
+    flagship["previous_estate_schema"] = PREVIOUS_ESTATE_SCHEMA
+    flagship["estate_schema"] = "szl.hf-vertical-estate/v8"
+    flagship["public_flagship_slugs"] = list(PUBLIC_FLAGSHIP_SLUGS)
+    flagship["generated_flagship_slugs"] = list(admitted or ())
+    flagship["source_owned_flagship_slugs"] = list(SOURCE_OWNED_FLAGSHIP_SLUGS)
     flagship["folded_into_killinchu"] = list(FOLDED_INTO_KILLINCHU)
     flagship["killinchu_space"] = KILLINCHU_SPACE
+    flagship["sentra_space"] = SENTRA_SPACE
+    flagship["lyte_runtime"] = lyte
     flagship["combined_runtime"] = combined
-    flagship["flagship_exit_code"] = flagship_code
+    flagship["existing_space_guard"] = creation_guard
+    flagship["generated_flagship_exit_code"] = flagship_code
+    flagship["lyte_exit_code"] = lyte_code
     flagship["combined_exit_code"] = combined_code
+    flagship["secret_values_recorded"] = False
+    flagship["sentra_signing_key_rotated"] = False
+    flagship["delete_operations"] = 0
     flagship["complete"] = bool(
-        flagship.get("complete") is True
-        and tuple(flagship.get("public_flagship_slugs", ()))
-        == PUBLIC_FLAGSHIP_SLUGS
+        generated_complete
+        and tuple(admitted or ()) == GENERATED_FLAGSHIP_SLUGS
+        and lyte.get("complete") is True
+        and lyte.get("source_repository") == "szl-holdings/lyte-services"
+        and lyte.get("source_revision") == LYTE_SOURCE_REVISION
         and combined.get("complete") is True
         and combined.get("resolved_source_revision") == resolved_revision
         and SHA40.fullmatch(resolved_revision) is not None
         and flagship_code == 0
+        and lyte_code == 0
         and combined_code == 0
     )
     FLAGSHIP_RECEIPT.write_text(

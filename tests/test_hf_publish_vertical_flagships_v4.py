@@ -300,7 +300,7 @@ def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
         assert fragment in sync
 
 
-def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None:
+def test_entrypoint_publishes_source_owned_lyte_and_folds_vessels() -> None:
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
     intelligence = INTELLIGENCE.read_text(encoding="utf-8")
     combined = COMBINED.read_text(encoding="utf-8")
@@ -312,8 +312,16 @@ def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None
         "hf_publish_vertical_flagships_v4_impl.py",
         "hf_publish_vertical_services.py",
         "hf_publish_vertical_services_intelligence_v4.py",
-        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")',
-        'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")',
+        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
+        'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")',
+        'SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)',
+        'LYTE_SOURCE_REVISION = "2131d2eb3611267bd62c134b6bba6b4cf7523127"',
+        'SENTRA_SPACE = "SZLHOLDINGS/sentra"',
+        'LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"',
+        'install_existing_space_guard()',
+        '"szl.hf-vertical-estate/v8"',
+        'flagship["lyte_runtime"]',
+        'FOLDED_INTO_KILLINCHU = ("vessels",)',
         'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
         "constrain_public_flagships",
         "retired Killinchu capability plane reached public writer",
@@ -327,7 +335,7 @@ def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None
     ):
         assert fragment in entrypoint
 
-    for retired in ("sentra", "vessels"):
+    for retired in ("vessels",):
         assert retired in entrypoint
     assert "api.create_repo" not in entrypoint
 
