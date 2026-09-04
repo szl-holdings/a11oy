@@ -1,0 +1,253 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Complete owned Khipu cortex v3
+
+on:
+  push:
+    branches:
+      - feat/hf-owned-khipu-cortex-v1
+    paths:
+      - .github/workflows/complete-owned-khipu-cortex-v3.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: complete-owned-khipu-cortex-v3
+  cancel-in-progress: false
+
+jobs:
+  complete:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/hf-owned-khipu-cortex-v1
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Materialize the permanent Docker and FastAPI wiring
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import re
+          import textwrap
+          from pathlib import Path
+
+          docker_path = Path("Dockerfile")
+          serve_path = Path("serve.py")
+          docker = docker_path.read_text(encoding="utf-8")
+          serve = serve_path.read_text(encoding="utf-8")
+
+          image_block = re.compile(
+              r"# ---------------------------------------------------------------------------\n"
+              r"# IMAGE-LEANNESS:.*?"
+              r"FROM llama-build-\$\{A11OY_REQUIRE_LOCAL_LLM\} AS llama-build",
+              re.S,
+          )
+          replacement = r'''# ---------------------------------------------------------------------------
+          # OWNED KHIPU CPU RUNTIME: use the official universal manylinux wheel.
+          # No compiler, cmake, ninja, or source-build intermediates enter either
+          # the builder or the published runtime. The exact release asset is
+          # pinned by SHA-256 and verified for size plus glibc linkage.
+          ARG A11OY_REQUIRE_LOCAL_LLM=1
+          FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS llama-build-1
+          ARG LLAMA_CPP_WHEEL=llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+          ADD --checksum=sha256:d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596 \
+              https://github.com/abetlen/llama-cpp-python/releases/download/v0.3.35/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl \
+              /wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl
+          RUN python3 <<'WHEELCHK'
+          import hashlib, os, zipfile
+          path = "/wheels/llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl"
+          assert os.path.getsize(path) == 23912624, os.path.getsize(path)
+          digest = hashlib.sha256(open(path, "rb").read()).hexdigest()
+          assert digest == "d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596", digest
+          with zipfile.ZipFile(path) as archive:
+              shared = [name for name in archive.namelist() if name.endswith("libllama.so")]
+              assert shared, "official wheel is missing libllama.so"
+              data = archive.read(shared[0])
+          assert b"libc.so.6" in data
+          assert b"libc.musl-x86_64.so.1" not in data
+          print("[a11oy] verified official llama-cpp-python CPU wheel", path)
+          WHEELCHK
+
+          # Explicit opt-out remains available for diagnostic image builds.
+          FROM python:3.12-slim@sha256:423ed6ab25b1921a477529254bfeeabf5855151dc2c3141699a1bfc852199fbf AS llama-build-0
+          RUN mkdir -p /wheels
+
+          FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build'''
+
+          if "d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596" not in docker:
+              docker, changed = image_block.subn(textwrap.dedent(replacement), docker, count=1)
+              if changed != 1:
+                  raise SystemExit(f"expected exactly one legacy llama builder block, changed {changed}")
+
+          docker = docker.replace(
+              "ARG A11OY_REQUIRE_LOCAL_LLM=0",
+              "ARG A11OY_REQUIRE_LOCAL_LLM=1",
+          )
+
+          replacements = {
+              "ARG A11OY_ALLOY_GGUF_REPO=Qwen/Qwen2.5-Coder-0.5B-Instruct-GGUF":
+                  "ARG A11OY_ALLOY_GGUF_REPO=SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+              "ARG A11OY_ALLOY_GGUF_FILE=qwen2.5-coder-0.5b-instruct-q4_k_m.gguf":
+                  "ARG A11OY_ALLOY_GGUF_FILE=SZL-Khipu-1.5B-Q4_K_M.gguf",
+              "ARG A11OY_ALLOY_GGUF_REV=ebb2015119c907b064c512bf053e945850b5875f":
+                  "ARG A11OY_ALLOY_GGUF_REV=67d60ec577730747055491640cfb91fc4a4b5d25",
+              "ARG A11OY_ALLOY_GGUF_SHA256=1d9614638d18024d0fbb36575a15f1302a3adf044df10345688ec4f6e1c4ff32":
+                  "ARG A11OY_ALLOY_GGUF_SHA256=13c1a1993063e1dff92f7413ccf48eaca6d48efc8801ae9af35961ae3396623a",
+              "ARG A11OY_ALLOY_GGUF_SIZE=491400064":
+                  "ARG A11OY_ALLOY_GGUF_SIZE=986047904",
+              "ENV A11OY_ALLOY_GGUF=/app/models/qwen2.5-coder-0.5b-instruct-q4_k_m.gguf":
+                  "ENV A11OY_ALLOY_GGUF=/app/models/SZL-Khipu-1.5B-Q4_K_M.gguf \\\n    A11OY_KHIPU_GGUF=/app/models/SZL-Khipu-1.5B-Q4_K_M.gguf",
+          }
+          for old, new in replacements.items():
+              if old in docker:
+                  docker = docker.replace(old, new, 1)
+              elif new not in docker:
+                  raise SystemExit(f"missing Docker replacement anchor: {old}")
+
+          nemo_url = "https://github.com/szl-holdings/szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz"
+          if nemo_url not in docker:
+              dependency_anchor = '    "numpy==2.5.2"\n'
+              if docker.count(dependency_anchor) != 1:
+                  raise SystemExit("numpy dependency insertion anchor is missing or ambiguous")
+              nemo_install = r'''    "numpy==2.5.2"
+
+          # Canonical non-generative Nemo witness: exact immutable source revision,
+          # zero action authority, and import-time doctrine identity verification.
+          RUN pip install --no-cache-dir \
+              "https://github.com/szl-holdings/szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz" && \
+              python3 -c "import szl_nemo; assert szl_nemo.__version__ == '0.4.0'; assert tuple(szl_nemo.LOCKED_PROVEN_FORMULA_IDS) == ('F1','F4','F7','F11','F12','F18','F19','F22'); assert szl_nemo.ENVELOPE_RULE_VERSION == 'doctrine-v11/E1-E10'"
+          '''
+              docker = docker.replace(
+                  dependency_anchor,
+                  textwrap.dedent(nemo_install),
+                  1,
+              )
+
+          cortex_copy = "COPY a11oy_governed_cortex.py ./a11oy_governed_cortex.py"
+          if cortex_copy not in docker:
+              lines = docker.splitlines()
+              insertion_index = next(
+                  (
+                      index
+                      for index, line in enumerate(lines)
+                      if line.startswith("COPY ") and "serve.py" in line
+                  ),
+                  None,
+              )
+              if insertion_index is None:
+                  raise SystemExit("could not locate the root serve.py COPY anchor")
+              lines.insert(insertion_index, cortex_copy)
+              docker = "\n".join(lines) + ("\n" if docker.endswith("\n") else "")
+
+          registration = '''# -- OWNED KHIPU GOVERNED CORTEX -- proposal-only CPU inference over the
+          # exact SZLHOLDINGS/SZL-Khipu-1.5B-GGUF artifact. Registered after the
+          # Brain API and before the SPA fallback; import failure leaves existing
+          # routes available and is reported honestly.
+          try:
+              import a11oy_governed_cortex as _a11oy_governed_cortex
+              print(
+                  "[a11oy] " + _a11oy_governed_cortex.register(app, ns="a11oy"),
+                  file=__import__("sys").stderr,
+              )
+          except Exception as _a11oy_governed_cortex_e:  # pragma: no cover
+              print(
+                  f"[a11oy] owned Khipu cortex NOT registered: {_a11oy_governed_cortex_e!r}",
+                  file=__import__("sys").stderr,
+              )
+
+          '''
+          if "import a11oy_governed_cortex as _a11oy_governed_cortex" not in serve:
+              marker = "# -- BRAIN CAPABILITIES LEDGER --"
+              if serve.count(marker) != 1:
+                  raise SystemExit("Brain capabilities insertion marker is missing or ambiguous")
+              serve = serve.replace(marker, textwrap.dedent(registration) + marker, 1)
+
+          docker_path.write_text(docker, encoding="utf-8")
+          serve_path.write_text(serve, encoding="utf-8")
+
+          for temporary in (
+              ".github/workflows/apply-owned-khipu-cortex-wiring.yml",
+              ".github/workflows/repair-owned-khipu-cortex-v2.yml",
+              ".github/workflows/complete-owned-khipu-cortex-v3.yml",
+          ):
+              Path(temporary).unlink(missing_ok=True)
+          PY
+
+      - name: Verify durable owned-Khipu contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "fastapi==0.141.1" \
+            "httpx==0.28.1" \
+            "pytest==9.1.1" \
+            "https://github.com/szl-holdings/szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz"
+          python -m py_compile \
+            a11oy_governed_cortex.py \
+            scripts/verify_owned_khipu_cortex_live.py \
+            serve.py
+          python -m unittest tests.test_a11oy_governed_cortex -v
+          python -m pytest -q tests/test_owned_khipu_docker_contract.py
+          python .github/scripts/register_invocation.py \
+            --root . \
+            --entrypoints serve.py wayra_serve.py ayni_os_serve.py kipu_qillqaq_serve.py \
+            --allowlist .github/register-invocation-allowlist.txt
+          python - <<'PY'
+          from pathlib import Path
+
+          docker = Path("Dockerfile").read_text(encoding="utf-8")
+          serve = Path("serve.py").read_text(encoding="utf-8")
+          required = (
+              "ARG A11OY_REQUIRE_LOCAL_LLM=1",
+              "llama_cpp_python-0.3.35-py3-none-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+              "d172f3d3c8cdd194c3c47c71cb077ed6e61354a2d0f939ceeac0c8fd29999596",
+              "SZLHOLDINGS/SZL-Khipu-1.5B-GGUF",
+              "67d60ec577730747055491640cfb91fc4a4b5d25",
+              "13c1a1993063e1dff92f7413ccf48eaca6d48efc8801ae9af35961ae3396623a",
+              "ARG A11OY_ALLOY_GGUF_SIZE=986047904",
+              "A11OY_KHIPU_GGUF=/app/models/SZL-Khipu-1.5B-Q4_K_M.gguf",
+              "szl-nemo/archive/810231a531188bb569e3faa17396386eb0a5e260.tar.gz",
+              "COPY a11oy_governed_cortex.py ./a11oy_governed_cortex.py",
+          )
+          for token in required:
+              assert token in docker, token
+          assert "pip wheel --no-cache-dir --no-binary llama-cpp-python" not in docker
+          builder = docker.split("FROM llama-build-${A11OY_REQUIRE_LOCAL_LLM} AS llama-build", 1)[0]
+          for forbidden in ("build-essential", "cmake", "ninja-build"):
+              assert forbidden not in builder, forbidden
+          assert "import a11oy_governed_cortex as _a11oy_governed_cortex" in serve
+          assert '_a11oy_governed_cortex.register(app, ns="a11oy")' in serve
+          assert serve.index("import szl_brain_api as _szl_brain_api") < serve.index(
+              "import a11oy_governed_cortex as _a11oy_governed_cortex"
+          ) < serve.index('@app.get("/{full_path:path}")')
+          for temporary in (
+              ".github/workflows/apply-owned-khipu-cortex-wiring.yml",
+              ".github/workflows/repair-owned-khipu-cortex-v2.yml",
+              ".github/workflows/complete-owned-khipu-cortex-v3.yml",
+          ):
+              assert not Path(temporary).exists(), temporary
+          PY
+          git diff --check
+
+      - name: Commit only permanent reviewed source
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          git commit -s -m "feat(inference): complete owned Khipu cortex wiring"
+          git push origin HEAD:feat/hf-owned-khipu-cortex-v1
