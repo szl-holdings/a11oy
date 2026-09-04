@@ -1,0 +1,780 @@
+name: One-shot fluid estate rail repair
+
+on:
+  push:
+    branches:
+      - fix/fluid-estate-rail-v4
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fluid-estate-rail-v4-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/fluid-estate-rail-v4
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Patch canonical Holo assets and add contract tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          root = Path.cwd()
+          css_path = root / "console/assets/szl-holo-v2.css"
+          js_path = root / "console/assets/szl-holo-v2.js"
+          test_path = root / "tests/test_fluid_estate_rail_v4.py"
+          workflow_path = root / ".github/workflows/patch-fluid-estate-rail-v4.yml"
+
+          css_marker = "/* SZL FLUID ESTATE RAIL V4 */"
+          js_marker = "/* SZL FLUID ESTATE RAIL V4 */"
+
+          css_extension = r'''
+          /* SZL FLUID ESTATE RAIL V4 */
+          /* Founder-requested restoration: cyan A11oy palette, fluid all-screen
+             navigation, and a keyboard/touch/wheel-scrollable estate strip. */
+          html[data-szl-holo-surface="a11oy"] {
+            --szl-holo-accent: #57ebff !important;
+            --szl-holo-accent-2: #31e6d1 !important;
+            --szl-holo-glow: rgb(87 235 255 / .19) !important;
+            --szl-holo-glow-2: rgb(49 230 209 / .13) !important;
+            --gold: #8fa5b8 !important;
+            --warn: #8fa5b8 !important;
+          }
+
+          html[data-szl-holo-surface="a11oy"] :where(.chip.roadmap, .badge.ROADMAP) {
+            color: #a2b3c4 !important;
+            border-color: rgb(87 235 255 / .18) !important;
+            background: rgb(87 235 255 / .035) !important;
+          }
+
+          html[data-szl-holo="v2"] .szl-holo-nav {
+            min-width: 0;
+            max-width: min(72vw, 1080px);
+            overflow-x: auto;
+            overflow-y: hidden;
+            justify-content: flex-start;
+            overscroll-behavior-inline: contain;
+            scroll-behavior: smooth;
+            scroll-snap-type: x proximity;
+            scrollbar-width: thin;
+            scrollbar-color: rgb(87 235 255 / .38) transparent;
+            touch-action: pan-x;
+          }
+
+          html[data-szl-holo="v2"] .szl-holo-nav::-webkit-scrollbar,
+          html[data-szl-holo="v2"] .szl-estate::-webkit-scrollbar,
+          html[data-szl-holo="v2"] .szl-hbar-live::-webkit-scrollbar {
+            height: 5px;
+          }
+
+          html[data-szl-holo="v2"] .szl-holo-nav::-webkit-scrollbar-thumb,
+          html[data-szl-holo="v2"] .szl-estate::-webkit-scrollbar-thumb,
+          html[data-szl-holo="v2"] .szl-hbar-live::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            background: rgb(87 235 255 / .35);
+          }
+
+          html[data-szl-holo="v2"] .szl-holo-nav .szl-holo-link {
+            flex: 0 0 auto;
+            scroll-snap-align: start;
+          }
+
+          html[data-szl-holo="v2"] .szl-holo-link--estate::before {
+            width: 5px;
+            height: 5px;
+            flex: 0 0 auto;
+            border-radius: 50%;
+            background: currentColor;
+            box-shadow: 0 0 10px currentColor;
+            content: "";
+            opacity: .72;
+          }
+
+          html[data-szl-holo="v2"] .szl-hbar {
+            width: 100% !important;
+            max-width: 100% !important;
+            overflow: hidden !important;
+            flex-wrap: nowrap !important;
+          }
+
+          html[data-szl-holo="v2"] .szl-hbar > * {
+            min-width: 0 !important;
+          }
+
+          html[data-szl-holo="v2"] .szl-hbar-scope {
+            flex: 0 1 320px !important;
+            max-width: 320px !important;
+            overflow: hidden !important;
+          }
+
+          html[data-szl-holo="v2"] .szl-hbar-live {
+            flex: 0 1 540px !important;
+            min-width: 220px !important;
+            justify-content: flex-start !important;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            overscroll-behavior-inline: contain;
+            scrollbar-width: thin;
+            scrollbar-color: rgb(87 235 255 / .32) transparent;
+            touch-action: pan-x;
+          }
+
+          html[data-szl-holo="v2"] .szl-hbar-live > * {
+            flex: 0 0 auto !important;
+          }
+
+          html[data-szl-holo="v2"] .szl-hbar-switch {
+            flex: 1 1 720px !important;
+            min-width: 360px !important;
+            max-width: none !important;
+            overflow: hidden !important;
+            gap: 7px !important;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-shell {
+            position: relative;
+            order: 2;
+            min-width: 190px;
+            flex: 1 1 420px;
+            display: grid;
+            grid-template-columns: 42px minmax(0, 1fr) 42px;
+            align-items: center;
+            gap: 4px;
+            overflow: hidden;
+            isolation: isolate;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-shell::before,
+          html[data-szl-holo="v2"] .szl-estate-shell::after {
+            position: absolute;
+            z-index: 2;
+            top: 0;
+            bottom: 5px;
+            width: 24px;
+            pointer-events: none;
+            content: "";
+            opacity: 0;
+            transition: opacity .16s ease;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-shell::before {
+            left: 42px;
+            background: linear-gradient(90deg, var(--szl-holo-bg), transparent);
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-shell::after {
+            right: 42px;
+            background: linear-gradient(270deg, var(--szl-holo-bg), transparent);
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-shell.can-left::before,
+          html[data-szl-holo="v2"] .szl-estate-shell.can-right::after {
+            opacity: .94;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-scroll {
+            position: relative;
+            z-index: 3;
+            width: 42px;
+            min-width: 42px;
+            height: 44px;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+            border: 1px solid rgb(87 235 255 / .18);
+            border-radius: 10px;
+            color: #9bb0c4;
+            background: rgb(3 7 12 / .84);
+            font: 760 18px/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            cursor: pointer;
+            touch-action: manipulation;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-scroll:hover,
+          html[data-szl-holo="v2"] .szl-estate-scroll:focus-visible {
+            border-color: rgb(87 235 255 / .52);
+            color: #eaffff;
+            background: rgb(87 235 255 / .075);
+          }
+
+          html[data-szl-holo="v2"] .szl-estate-scroll:disabled {
+            opacity: .28;
+            cursor: default;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate {
+            position: relative;
+            z-index: 1;
+            min-width: 0 !important;
+            width: 100%;
+            display: flex !important;
+            align-items: center;
+            gap: 6px;
+            overflow-x: auto !important;
+            overflow-y: hidden !important;
+            padding: 2px 2px 7px;
+            overscroll-behavior-inline: contain;
+            scroll-behavior: smooth;
+            scroll-padding-inline: 10px;
+            scroll-snap-type: x proximity;
+            scrollbar-width: thin;
+            scrollbar-color: rgb(87 235 255 / .36) transparent;
+            touch-action: pan-x;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate .szl-estate-link {
+            min-width: max-content;
+            min-height: 44px;
+            flex: 0 0 auto;
+            display: inline-flex !important;
+            align-items: center;
+            justify-content: center;
+            gap: 7px;
+            padding: 8px 13px;
+            border: 1px solid rgb(87 235 255 / .15);
+            border-radius: 10px;
+            color: #91a7b8;
+            background: rgb(255 255 255 / .018);
+            font: 720 11px/1.1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+            letter-spacing: .08em;
+            text-decoration: none;
+            white-space: nowrap;
+            scroll-snap-align: center;
+            touch-action: manipulation;
+          }
+
+          html[data-szl-holo="v2"] .szl-estate .szl-estate-link:hover,
+          html[data-szl-holo="v2"] .szl-estate .szl-estate-link:focus-visible {
+            border-color: rgb(87 235 255 / .44);
+            color: #eaffff;
+            background: rgb(87 235 255 / .07);
+          }
+
+          html[data-szl-holo="v2"] .szl-estate .szl-estate-link[aria-current="page"] {
+            border-color: rgb(87 235 255 / .62);
+            color: #eaffff;
+            background: linear-gradient(180deg, rgb(87 235 255 / .13), rgb(49 230 209 / .045));
+            box-shadow: inset 0 1px 0 rgb(255 255 255 / .055), 0 0 22px rgb(87 235 255 / .07);
+          }
+
+          html[data-szl-holo="v2"] .szl-estate .szl-estate-link[data-bind="brain-anatomy"]::before {
+            width: 6px;
+            height: 6px;
+            flex: 0 0 auto;
+            border-radius: 50%;
+            background: #31e6d1;
+            box-shadow: 0 0 11px rgb(49 230 209 / .72);
+            content: "";
+          }
+
+          html[data-szl-holo="v2"]:not([data-operator="1"]) body .szl-hbar .szl-estate,
+          html[data-szl-holo="v2"]:not([data-operator="1"]) body .szl-hbar .szl-estate.extlinks,
+          html[data-szl-holo="v2"]:not([data-operator="1"]) body .szl-hbar .szl-estate a.szl-estate-link,
+          html[data-szl-holo="v2"]:not([data-operator="1"]) body .szl-hbar .szl-estate a.szl-estate-link[href*="killinchu"] {
+            display: flex !important;
+          }
+
+          @media (max-width: 1380px) {
+            html[data-szl-holo="v2"] .szl-hbar {
+              height: auto !important;
+              min-height: 0 !important;
+              flex-wrap: wrap !important;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-scope {
+              flex: 1 1 300px !important;
+              max-width: 46% !important;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-live {
+              flex: 1 1 48% !important;
+              max-width: none !important;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-switch {
+              flex: 1 1 100% !important;
+              width: 100% !important;
+              min-width: 0 !important;
+              padding-top: 6px;
+              border-top: 1px solid rgb(87 235 255 / .09);
+              border-left: 0 !important;
+            }
+          }
+
+          @media (max-width: 760px) {
+            html[data-szl-holo="v2"] .szl-holo-nav {
+              max-width: min(320px, calc(100vw - 16px));
+              overflow-x: hidden;
+              overflow-y: auto;
+              scroll-snap-type: none;
+              touch-action: pan-y;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-scope {
+              flex: 1 1 calc(100% - 52px) !important;
+              max-width: calc(100% - 52px) !important;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-live {
+              order: 3;
+              flex: 1 1 100% !important;
+              width: 100% !important;
+              min-width: 0 !important;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-switch {
+              order: 4;
+              flex-wrap: wrap !important;
+              align-items: center !important;
+            }
+
+            html[data-szl-holo="v2"] .szl-estate-shell {
+              order: 10;
+              min-width: 0;
+              width: 100%;
+              flex: 1 1 100%;
+              grid-template-columns: 44px minmax(0, 1fr) 44px;
+            }
+          }
+
+          @media (max-width: 430px) {
+            html[data-szl-holo="v2"] .szl-hbar-switch .szl-cmdk,
+            html[data-szl-holo="v2"] .szl-hbar-switch .szl-op-toggle {
+              min-width: 44px;
+              padding-inline: 9px;
+              font-size: 0;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-switch .szl-cmdk::after {
+              content: "⌘";
+              font-size: 15px;
+            }
+
+            html[data-szl-holo="v2"] .szl-hbar-switch .szl-op-toggle::after {
+              content: "OP";
+              font-size: 10px;
+            }
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            html[data-szl-holo="v2"] .szl-holo-nav,
+            html[data-szl-holo="v2"] .szl-estate,
+            html[data-szl-holo="v2"] .szl-hbar-live {
+              scroll-behavior: auto;
+            }
+
+            html[data-szl-holo="v2"] .szl-estate-shell::before,
+            html[data-szl-holo="v2"] .szl-estate-shell::after {
+              transition: none;
+            }
+          }
+
+          @media (forced-colors: active) {
+            html[data-szl-holo="v2"] .szl-estate-scroll,
+            html[data-szl-holo="v2"] .szl-estate .szl-estate-link {
+              border: 1px solid CanvasText;
+              color: CanvasText;
+              background: Canvas;
+              box-shadow: none;
+            }
+
+            html[data-szl-holo="v2"] .szl-estate .szl-estate-link[aria-current="page"] {
+              color: HighlightText;
+              background: Highlight;
+            }
+          }
+          '''.strip()
+
+          js_extension = r'''
+          /* SZL FLUID ESTATE RAIL V4 */
+          (function (global) {
+            "use strict";
+
+            if (global.__SZL_FLUID_ESTATE_RAIL_V4__) return;
+            global.__SZL_FLUID_ESTATE_RAIL_V4__ = true;
+
+            var VERSION = "4.0.0";
+            var SURFACES = [
+              { id: "a11oy", label: "A11OY", href: "/console", paths: ["/", "/console", "/command", "/command-center"] },
+              { id: "killinchu", label: "KILLINCHU", href: "/killinchu", paths: ["/killinchu", "/counter-uas", "/vessels"] },
+              { id: "hatun", label: "HATUN", href: "/hatun-mcp", paths: ["/hatun-mcp", "/mcp"] },
+              { id: "cockpit", label: "COCKPIT", href: "/cockpit", paths: ["/cockpit"] },
+              { id: "brain", label: "SECOND BRAIN", href: "/brain", paths: ["/brain", "/brain-dual", "/brain-jack"], bind: "brain-anatomy", title: "Canonical second-brain knowledge surface" },
+              { id: "anatomy", label: "ANATOMY", href: "/anatomy-v5", paths: ["/anatomy-v5", "/anatomy"], bind: "brain-anatomy", title: "Evidence-labelled digital twin wired to Brain pulse" },
+              { id: "living-anatomy", label: "LIVING ANATOMY", href: "/living-anatomy", paths: ["/living-anatomy"], bind: "brain-anatomy", title: "Living organism view for A11oy and Killinchu" },
+              { id: "khipu", label: "KHIPU", href: "/khipu", paths: ["/khipu", "/sovereign"] },
+              { id: "immune", label: "IMMUNE", href: "/immune", paths: ["/immune"] },
+              { id: "lyte", label: "LYTE", href: "/lyte", paths: ["/lyte", "/observability"] },
+              { id: "estate", label: "ESTATE", href: "/estate", paths: ["/estate", "/spaces"] }
+            ];
+
+            var TOP_LINKS = [
+              { id: "killinchu", label: "Killinchu", href: "/killinchu" },
+              { id: "hatun", label: "Hatun", href: "/hatun-mcp" },
+              { id: "brain", label: "Brain", href: "/brain" },
+              { id: "anatomy", label: "Anatomy", href: "/anatomy-v5" },
+              { id: "estate", label: "Estate", href: "/estate" }
+            ];
+
+            function normalizedPath() {
+              var path = global.location && global.location.pathname ? global.location.pathname : "/";
+              if (path.length > 1) path = path.replace(/\/+$/, "");
+              return path || "/";
+            }
+
+            function pathMatches(path, candidate) {
+              if (candidate === "/") return path === "/";
+              return path === candidate || path.indexOf(candidate + "/") === 0;
+            }
+
+            function isCurrent(surface, path) {
+              return surface.paths.some(function (candidate) { return pathMatches(path, candidate); });
+            }
+
+            function makeAnchor(surface, path) {
+              var link = document.createElement("a");
+              link.className = "flag szl-estate-link";
+              link.href = surface.href;
+              link.textContent = surface.label;
+              link.dataset.surface = surface.id;
+              if (surface.bind) link.dataset.bind = surface.bind;
+              if (surface.title) link.title = surface.title;
+              if (isCurrent(surface, path)) link.setAttribute("aria-current", "page");
+              return link;
+            }
+
+            function reducedMotion() {
+              return Boolean(global.matchMedia && global.matchMedia("(prefers-reduced-motion: reduce)").matches);
+            }
+
+            function scrollBehavior() {
+              return reducedMotion() ? "auto" : "smooth";
+            }
+
+            function bindScroller(shell, nav, previous, next) {
+              var links = Array.prototype.slice.call(nav.querySelectorAll("a.szl-estate-link"));
+
+              function bounds() {
+                var max = Math.max(0, nav.scrollWidth - nav.clientWidth);
+                return {
+                  max: max,
+                  start: nav.scrollLeft <= 2,
+                  end: nav.scrollLeft >= max - 2
+                };
+              }
+
+              function update() {
+                var state = bounds();
+                shell.classList.toggle("can-left", state.max > 2 && !state.start);
+                shell.classList.toggle("can-right", state.max > 2 && !state.end);
+                shell.dataset.overflow = state.max > 2 ? "true" : "false";
+                previous.disabled = state.max <= 2 || state.start;
+                next.disabled = state.max <= 2 || state.end;
+              }
+
+              function step(direction) {
+                var distance = Math.max(190, Math.round(nav.clientWidth * .72));
+                nav.scrollBy({ left: direction * distance, behavior: scrollBehavior() });
+              }
+
+              previous.addEventListener("click", function () { step(-1); });
+              next.addEventListener("click", function () { step(1); });
+              nav.addEventListener("scroll", update, { passive: true });
+
+              nav.addEventListener("wheel", function (event) {
+                var state = bounds();
+                if (state.max <= 2 || Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+                if ((state.start && event.deltaY < 0) || (state.end && event.deltaY > 0)) return;
+                event.preventDefault();
+                nav.scrollLeft += event.deltaY;
+              }, { passive: false });
+
+              nav.addEventListener("keydown", function (event) {
+                if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+                var active = document.activeElement;
+                var index = links.indexOf(active);
+                var target = null;
+                if (event.key === "Home") target = links[0];
+                else if (event.key === "End") target = links[links.length - 1];
+                else if (event.key === "ArrowLeft") target = links[Math.max(0, index < 0 ? 0 : index - 1)];
+                else target = links[Math.min(links.length - 1, index < 0 ? 0 : index + 1)];
+                if (!target) return;
+                event.preventDefault();
+                target.focus();
+                target.scrollIntoView({ block: "nearest", inline: "center", behavior: scrollBehavior() });
+              });
+
+              nav.addEventListener("focusin", function (event) {
+                var target = event.target && event.target.closest ? event.target.closest("a.szl-estate-link") : null;
+                if (target) target.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+              });
+
+              if ("ResizeObserver" in global) {
+                var observer = new global.ResizeObserver(update);
+                observer.observe(nav);
+                shell.__szlResizeObserver = observer;
+              } else {
+                global.addEventListener("resize", update, { passive: true });
+              }
+
+              global.requestAnimationFrame(function () {
+                var active = nav.querySelector('[aria-current="page"]');
+                if (active) active.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+                update();
+              });
+            }
+
+            function enhanceCommandBar() {
+              var nav = document.querySelector(".szl-hbar .szl-estate");
+              if (!nav || nav.dataset.szlFluidEstate === "v4") return false;
+
+              var path = normalizedPath();
+              nav.dataset.szlFluidEstate = "v4";
+              nav.dataset.version = VERSION;
+              nav.setAttribute("aria-label", "SZL product and intelligence estate");
+              nav.setAttribute("tabindex", "0");
+              nav.textContent = "";
+              SURFACES.forEach(function (surface) { nav.appendChild(makeAnchor(surface, path)); });
+
+              var shell = document.createElement("div");
+              shell.className = "szl-estate-shell";
+              shell.dataset.version = VERSION;
+
+              var previous = document.createElement("button");
+              previous.className = "szl-estate-scroll szl-estate-scroll--previous";
+              previous.type = "button";
+              previous.textContent = "‹";
+              previous.setAttribute("aria-label", "Scroll estate tabs left");
+
+              var next = document.createElement("button");
+              next.className = "szl-estate-scroll szl-estate-scroll--next";
+              next.type = "button";
+              next.textContent = "›";
+              next.setAttribute("aria-label", "Scroll estate tabs right");
+
+              var parent = nav.parentNode;
+              var origins = parent && parent.querySelector ? parent.querySelector(".szl-origins") : null;
+              if (!parent) return false;
+              parent.insertBefore(shell, origins && origins.nextSibling ? origins.nextSibling : nav);
+              shell.appendChild(previous);
+              shell.appendChild(nav);
+              shell.appendChild(next);
+              bindScroller(shell, nav, previous, next);
+              document.documentElement.dataset.szlBrainAnatomyNav = "bound";
+              return true;
+            }
+
+            function enhanceHoloNav() {
+              var nav = document.querySelector(".szl-holo-nav");
+              if (!nav || nav.dataset.szlEstateLinks === "v4") return false;
+              var path = normalizedPath();
+              nav.dataset.szlEstateLinks = "v4";
+              nav.setAttribute("aria-label", "A11oy command and estate navigation");
+
+              TOP_LINKS.forEach(function (item) {
+                if (nav.querySelector('[data-szl-estate-top="' + item.id + '"]')) return;
+                var link = document.createElement("a");
+                link.className = "szl-holo-link szl-holo-link--estate";
+                link.href = item.href;
+                link.textContent = item.label;
+                link.dataset.szlEstateTop = item.id;
+                var surface = SURFACES.find(function (row) { return row.id === item.id; });
+                if (surface && isCurrent(surface, path)) link.setAttribute("aria-current", "page");
+                nav.appendChild(link);
+              });
+
+              global.requestAnimationFrame(function () {
+                var active = nav.querySelector('.szl-holo-link--estate[aria-current="page"]');
+                if (active) active.scrollIntoView({ block: "nearest", inline: "center", behavior: "auto" });
+              });
+              return true;
+            }
+
+            function boot() {
+              enhanceCommandBar();
+              enhanceHoloNav();
+
+              var observer = new MutationObserver(function () {
+                var commandReady = enhanceCommandBar() || Boolean(document.querySelector('.szl-estate[data-szl-fluid-estate="v4"]'));
+                var holoReady = enhanceHoloNav() || Boolean(document.querySelector('.szl-holo-nav[data-szl-estate-links="v4"]'));
+                if (commandReady && holoReady) observer.disconnect();
+              });
+              observer.observe(document.documentElement, { childList: true, subtree: true });
+              global.setTimeout(function () { observer.disconnect(); }, 15000);
+            }
+
+            if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
+            else boot();
+          })(window);
+          '''.strip()
+
+          test_source = r'''#!/usr/bin/env python3
+          """Offline contract for the founder-requested fluid estate rail v4."""
+          from __future__ import annotations
+
+          import re
+          import unittest
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          CSS_PATH = ROOT / "console" / "assets" / "szl-holo-v2.css"
+          JS_PATH = ROOT / "console" / "assets" / "szl-holo-v2.js"
+          CSS_MARKER = "/* SZL FLUID ESTATE RAIL V4 */"
+          JS_MARKER = "/* SZL FLUID ESTATE RAIL V4 */"
+
+
+          class FluidEstateRailV4Contract(unittest.TestCase):
+              @classmethod
+              def setUpClass(cls) -> None:
+                  cls.css = CSS_PATH.read_text(encoding="utf-8")
+                  cls.javascript = JS_PATH.read_text(encoding="utf-8")
+                  cls.css_extension = cls.css.split(CSS_MARKER, 1)[1]
+                  cls.js_extension = cls.javascript.split(JS_MARKER, 1)[1]
+
+              def test_extension_is_single_and_preserves_holo_core(self) -> None:
+                  self.assertEqual(self.css.count(CSS_MARKER), 1)
+                  self.assertEqual(self.javascript.count(JS_MARKER), 1)
+                  self.assertIn("A11oy Holographic Experience v2", self.css)
+                  self.assertIn("A11oy Holographic Experience v2", self.javascript)
+                  self.assertIn("0x811c9dc5", self.javascript)
+
+              def test_all_requested_estate_tabs_are_real_local_routes(self) -> None:
+                  expected = {
+                      "A11OY": "/console",
+                      "KILLINCHU": "/killinchu",
+                      "HATUN": "/hatun-mcp",
+                      "COCKPIT": "/cockpit",
+                      "SECOND BRAIN": "/brain",
+                      "ANATOMY": "/anatomy-v5",
+                      "LIVING ANATOMY": "/living-anatomy",
+                      "KHIPU": "/khipu",
+                      "IMMUNE": "/immune",
+                      "LYTE": "/lyte",
+                      "ESTATE": "/estate",
+                  }
+                  for label, href in expected.items():
+                      self.assertIn(f'label: "{label}"', self.js_extension)
+                      self.assertIn(f'href: "{href}"', self.js_extension)
+                  self.assertNotIn("huggingface.co", self.js_extension)
+                  self.assertNotIn("hf.space", self.js_extension)
+
+              def test_second_brain_and_anatomy_are_explicitly_bound(self) -> None:
+                  self.assertGreaterEqual(self.js_extension.count('bind: "brain-anatomy"'), 3)
+                  self.assertIn('dataset.szlBrainAnatomyNav = "bound"', self.js_extension)
+                  self.assertIn('[data-bind="brain-anatomy"]::before', self.css_extension)
+
+              def test_scroller_supports_touch_wheel_keyboard_and_arrows(self) -> None:
+                  for token in (
+                      "scrollBy",
+                      "scrollIntoView",
+                      '"wheel"',
+                      '"ArrowLeft"',
+                      '"ArrowRight"',
+                      '"Home"',
+                      '"End"',
+                      "ResizeObserver",
+                      "Scroll estate tabs left",
+                      "Scroll estate tabs right",
+                  ):
+                      self.assertIn(token, self.js_extension)
+                  for token in (
+                      "overflow-x: auto !important",
+                      "touch-action: pan-x",
+                      "scroll-snap-type: x proximity",
+                      "overscroll-behavior-inline: contain",
+                      "-webkit-overflow-scrolling: touch",
+                  ):
+                      self.assertIn(token, self.css_extension)
+
+              def test_public_mode_cannot_hide_killinchu_or_estate(self) -> None:
+                  self.assertIn(':not([data-operator="1"])', self.css_extension)
+                  self.assertIn('a.szl-estate-link[href*="killinchu"]', self.css_extension)
+                  self.assertIn("display: flex !important", self.css_extension)
+
+              def test_a11oy_front_door_uses_cyan_not_lime_or_gold(self) -> None:
+                  self.assertIn("--szl-holo-accent: #57ebff !important", self.css_extension)
+                  self.assertIn("--szl-holo-accent-2: #31e6d1 !important", self.css_extension)
+                  self.assertIn("--gold: #8fa5b8 !important", self.css_extension)
+                  self.assertIn("--warn: #8fa5b8 !important", self.css_extension)
+
+              def test_all_screen_accessibility_contract(self) -> None:
+                  for token in (
+                      "max-width: 1380px",
+                      "max-width: 760px",
+                      "max-width: 430px",
+                      "prefers-reduced-motion",
+                      "forced-colors",
+                      "focus-visible",
+                      "min-height: 44px",
+                  ):
+                      self.assertIn(token, self.css_extension)
+                  without_comments = re.sub(r"/\*.*?\*/", "", self.css_extension, flags=re.DOTALL)
+                  self.assertEqual(without_comments.count("{"), without_comments.count("}"))
+
+              def test_navigation_extension_is_passive_and_local(self) -> None:
+                  for prohibited in (
+                      "fetch(",
+                      "XMLHttpRequest",
+                      "sendBeacon",
+                      "localStorage",
+                      "sessionStorage",
+                      "document.cookie",
+                      "setInterval",
+                  ):
+                      self.assertNotIn(prohibited, self.js_extension)
+
+
+          if __name__ == "__main__":
+              unittest.main(verbosity=2)
+          '''
+
+          import textwrap
+
+          css = css_path.read_text(encoding="utf-8")
+          js = js_path.read_text(encoding="utf-8")
+          if css_marker not in css:
+              css_path.write_text(css.rstrip() + "\n\n" + textwrap.dedent(css_extension) + "\n", encoding="utf-8")
+          if js_marker not in js:
+              js_path.write_text(js.rstrip() + "\n\n" + textwrap.dedent(js_extension) + "\n", encoding="utf-8")
+          test_path.write_text(textwrap.dedent(test_source), encoding="utf-8")
+          workflow_path.unlink()
+          PY
+
+      - name: Validate JavaScript and offline contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check console/assets/szl-holo-v2.js
+          python tests/test_holographic_experience_v2.py
+          python tests/test_holographic_command_bar.py
+          python tests/test_fluid_estate_rail_v4.py
+
+      - name: Commit the repair and remove the one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Stephen Lutar"
+          git config user.email "stephenlutar2@gmail.com"
+          git add console/assets/szl-holo-v2.css console/assets/szl-holo-v2.js tests/test_fluid_estate_rail_v4.py .github/workflows/patch-fluid-estate-rail-v4.yml
+          git commit -s -m "fix(ui): restore fluid estate rail and bind Brain + Anatomy"
+          git push origin HEAD:fix/fluid-estate-rail-v4
