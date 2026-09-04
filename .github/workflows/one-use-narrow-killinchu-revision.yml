@@ -33,6 +33,11 @@ jobs:
           fetch-depth: 1
           persist-credentials: true
 
+      - name: Install exact focused test runtime
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "pytest==8.3.5"
+
       - name: Narrow nested revision extraction and add regression
         shell: bash
         run: |
