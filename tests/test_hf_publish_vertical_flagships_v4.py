@@ -17,7 +17,7 @@ def source() -> str:
     return text
 
 
-def test_v4_keeps_one_runtime_but_six_distinct_domain_interfaces() -> None:
+def test_v4_renderer_retains_six_domain_templates() -> None:
     text = source()
     assert 'PUBLIC_EXPERIENCE_VERSION = "4.0.0"' in text
     assert 'data-szl-domain-experience-v4="true"' in text
@@ -30,7 +30,7 @@ def test_v4_keeps_one_runtime_but_six_distinct_domain_interfaces() -> None:
     assert text.count('app=FastAPI(title=CFG["title"]+" - SZL Holdings")') == 1
 
 
-def test_every_vertical_preserves_mobile_accessibility_and_truth_contracts() -> None:
+def test_every_vertical_template_preserves_mobile_accessibility_and_truth_contracts() -> None:
     text = source()
     required = (
         "viewport-fit=cover",
@@ -118,7 +118,7 @@ def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
         assert fragment in sync
 
 
-def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
+def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None:
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
     combined = COMBINED.read_text(encoding="utf-8")
     ast.parse(entrypoint)
@@ -127,13 +127,24 @@ def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
     for fragment in (
         "hf_publish_vertical_flagships_v4_impl.py",
         "hf_publish_vertical_services.py",
+        'PUBLIC_FLAGSHIP_SLUGS = ("terra", "counsel", "finance", "lyte")',
+        'FOLDED_INTO_KILLINCHU = ("sentra", "vessels")',
+        'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
+        "constrain_public_flagships",
+        "retired Killinchu capability plane reached public writer",
+        '"szl.hf-vertical-estate/v6"',
+        'flagship["public_flagship_slugs"]',
+        'flagship["folded_into_killinchu"]',
         "combined_runtime",
-        "szl.hf-vertical-estate/v5",
         "ensure_space_secret_reader",
         "backported-metadata-only",
         "secret_values_readable",
     ):
         assert fragment in entrypoint
+
+    for retired in ("sentra", "vessels"):
+        assert retired in entrypoint
+    assert "api.create_repo" not in entrypoint
 
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/vertical-services"',
