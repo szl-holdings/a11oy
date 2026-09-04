@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 50
     env:
+      GITHUB_TOKEN: ${{ github.token }}
+      GH_TOKEN: ${{ github.token }}
       HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
       HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
       HF_TOKEN: ${{ secrets.HF_TOKEN }}
