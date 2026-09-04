@@ -134,7 +134,7 @@ def test_single_writer_entrypoint_adds_source_bound_combined_runtime() -> None:
 
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/vertical-services"',
-        'SOURCE_REVISION = "e0f1bf29d1d338bb76ff7c48578425ee5ac70279"',
+        'SOURCE_REVISION = "96c4ffa8b9a8948c9ba84dc57c0c45885feaf5de"',
         'HF_REPOSITORY = "SZLHOLDINGS/vertical-services"',
         'SIGNING_SECRET = "SENTRA_SIGNING_KEY"',
         'CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"',
