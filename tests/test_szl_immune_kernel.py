@@ -12,6 +12,8 @@ def setup_function() -> None:
     immune._FIELD_CACHE["payload"] = None
     immune._NEXUS_CACHE["at"] = 0.0
     immune._NEXUS_CACHE["payload"] = None
+    immune._LORENZ_CACHE["at"] = 0.0
+    immune._LORENZ_CACHE["payload"] = None
 
 
 def test_reachable_write_ready_is_not_live_or_pass() -> None:
@@ -135,3 +137,63 @@ def test_nexus_failed_probe_is_unavailable() -> None:
     assert out["reachability"] == "UNAVAILABLE"
     assert out["ok"] is False
     assert out["state"] is None
+
+
+def test_lorenz_seal_is_not_live_or_pass() -> None:
+    def post(url: str, body: dict):
+        assert url.endswith("/api/immune/nexus/run")
+        assert body["program"] == "lorenz"
+        assert body["mode"] == "OP"
+        assert body["steps"] == 320
+        return 201, {
+            "requestId": body["requestId"],
+            "governed": {
+                "pass": True,
+                "receipt": {
+                    "payload": {
+                        "agent": {
+                            "nexus": {
+                                "inputHash": "c5fcc5029392a5e4f7cd65a655d5379cd65d8f915b2ee96a1db5d44e35ea2358",
+                                "outputHash": "4071a2f2faca744907747cb2cc82a9d841e125fa287240505f9f9a8454a399ac",
+                                "invariantsHold": True,
+                                "energy": "UNAVAILABLE",
+                                "uniqueness": "Conjecture 1 OPEN",
+                            }
+                        }
+                    }
+                },
+            },
+            "result": {
+                "execution": {
+                    "stepsExecuted": 320,
+                    "truth": "MEASURED_SOFTWARE_SIMULATION",
+                    "energy": "UNAVAILABLE",
+                    "uniqueness": "Conjecture 1 OPEN",
+                },
+                "coefficients": {"label": "σ 10 · ρ 27.9 · β 2.67"},
+                "finalState": {"x": -7.707920173353, "y": -10.567955419679, "z": 21.305498529338},
+            },
+        }, None
+
+    out = immune._nexus_lorenz(now=1.0, post=post)
+    assert out["reachability"] == "REACHABLE"
+    assert out["sealed"] is True
+    assert out["inputHash"].startswith("c5fcc502")
+    assert out["outputHash"].startswith("4071a2f2")
+    assert out["energy"] == "UNAVAILABLE"
+    assert out["reachability"] != "LIVE"
+    assert out["honesty"]["never_fabricate"] == ["LIVE", "PASS"]
+    assert out["reference"]["outputHash"].startswith("4071a2f2")
+
+
+def test_lorenz_failed_seal_is_unavailable_and_keeps_reference() -> None:
+    def post(_url: str, _body: dict):
+        return 409, {"error": "NEXUS_GOVERNANCE_REJECTED"}, "HTTP 409"
+
+    out = immune._nexus_lorenz(now=1.0, post=post)
+    assert out["reachability"] == "UNAVAILABLE"
+    assert out["ok"] is False
+    assert out["sealed"] is False
+    assert out["inputHash"] is None
+    assert out["reference"]["program"] == "lorenz"
+    assert out["honesty"]["reference_is_not_this_run"] is True
