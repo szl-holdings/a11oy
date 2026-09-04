@@ -6,19 +6,27 @@ name: Refresh ecosystem stage matrix once
     branches: [fix/hf-ecosystem-manifest-20260904-v8]
     paths:
       - .github/workflows/zz-refresh-ecosystem-stage-matrix-once.yml
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/zz-refresh-ecosystem-stage-matrix-once.yml
   workflow_dispatch: {}
 
 permissions:
   contents: write
 
 concurrency:
-  group: refresh-ecosystem-stage-matrix-once-${{ github.ref }}
+  group: refresh-ecosystem-stage-matrix-once-${{ github.event.pull_request.head.ref || github.ref }}
   cancel-in-progress: false
 
 jobs:
   refresh:
+    if: github.event_name != 'pull_request' || github.head_ref == 'fix/hf-ecosystem-manifest-20260904-v8'
     runs-on: ubuntu-24.04
     timeout-minutes: 12
+    env:
+      TARGET_BRANCH: ${{ github.head_ref || github.ref_name }}
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -28,7 +36,7 @@ jobs:
       - name: Checkout exact repair branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.ref_name }}
+          ref: ${{ github.head_ref || github.ref_name }}
           fetch-depth: 1
           persist-credentials: true
 
@@ -36,8 +44,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF_NAME" = fix/hf-ecosystem-manifest-20260904-v8
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$TARGET_BRANCH" = fix/hf-ecosystem-manifest-20260904-v8
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
 
       - name: Regenerate and verify the derived stage matrix
         shell: bash
@@ -60,4 +68,4 @@ jobs:
           git rm .github/workflows/zz-refresh-ecosystem-stage-matrix-once.yml
           git diff --cached --check
           git commit --signoff -m "fix(hf): refresh derived ecosystem stage matrix"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:${TARGET_BRANCH}"
