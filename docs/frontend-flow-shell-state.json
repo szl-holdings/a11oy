@@ -1,5 +1,8 @@
 {
-  "examined_documents": 108,
+  "bespoke_shell_documents": [
+    "pages/wires.html"
+  ],
+  "examined_documents": 107,
   "injected_documents": [
     "a11oy_landing.html",
     "cathedral_genius.html",
@@ -66,7 +69,6 @@
     "pages/wallpa.html",
     "pages/warhacker.html",
     "pages/wasi-rikuq.html",
-    "pages/wires.html",
     "spaces/orbital/index.html",
     "web/agent-loop.html",
     "web/agentic-gpu.html",
