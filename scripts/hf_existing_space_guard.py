@@ -8,6 +8,8 @@ the daily create limit even when every target already exists. This process-local
 guard observes the exact Space first, returns the existing repository metadata
 when present, and delegates to the original SDK method only after an exact 404.
 
+The observation is an admission gate, not a readiness claim: successful repository
+lookup does not prove that the Space is running, current, healthy, or source-bound.
 It never treats authentication, rate-limit, transport, or server errors as
 absence. It does not change visibility, hardware, storage, variables, secrets,
 or repository contents.
