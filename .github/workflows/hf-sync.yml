@@ -196,29 +196,44 @@ jobs:
           persist-credentials: false
 
       - name: Assert the workflow owns exact protected main
-        if: github.event_name == 'push'
+        id: exact_main_owner
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          test "$GITHUB_REF" = refs/heads/main
-          git fetch --no-tags --depth=1 origin main
-          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+          python3 -B scripts/hf_exact_main_ownership.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --expected-sha "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/hf-main-ownership.json" \
+            --github-output "$GITHUB_OUTPUT"
 
+      - name: Upload exact-main ownership receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # pinned
+        with:
+          name: hf-main-ownership-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/hf-main-ownership.json
+          if-no-files-found: error
+          retention-days: 90
       - name: Set up Python
+        if: ${{ steps.exact_main_owner.outputs.publish == 'true' }}
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
 
       - name: Install pinned vertical publisher
+        if: ${{ steps.exact_main_owner.outputs.publish == 'true' }}
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
           "huggingface_hub==1.10.1"
 
       - name: Publish and verify the v4 vertical estate
+        if: ${{ steps.exact_main_owner.outputs.publish == 'true' }}
         run: python scripts/hf_publish_vertical_flagships_v4.py
 
       - name: Upload immutable vertical publication receipt
-        if: always()
+        if: ${{ always() && steps.exact_main_owner.outputs.publish == 'true' }}
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: hf-vertical-flagships-${{ github.run_id }}-${{ github.run_attempt }}
