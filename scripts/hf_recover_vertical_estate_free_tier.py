@@ -24,7 +24,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 INTELLIGENCE_PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services_intelligence_v4.py"
-RUNTIME_SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
+RUNTIME_SOURCE_REVISION = "7a84e34a05c7342bd32b56f6519fe51ce240f577"
 RUNTIME_VERSION = "2.2.0"
 RUNTIME_SLUG = "szl-vertical-services-runtime"
 ORG = "SZLHOLDINGS"

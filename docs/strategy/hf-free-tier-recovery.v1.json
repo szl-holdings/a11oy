@@ -9,7 +9,7 @@
   },
   "source": {
     "repository": "szl-holdings/vertical-services",
-    "revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
+    "revision": "7a84e34a05c7342bd32b56f6519fe51ce240f577",
     "runtime_version": "2.2.0",
     "guard": "require-default-branch-tip"
   },

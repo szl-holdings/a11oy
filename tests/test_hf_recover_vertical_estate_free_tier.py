@@ -13,7 +13,7 @@ spec.loader.exec_module(module)
 
 
 def test_runtime_source_and_topology_are_exact() -> None:
-    assert module.RUNTIME_SOURCE_REVISION == "c24ef61716f173e48d95dad61408d9fa065f0204"
+    assert module.RUNTIME_SOURCE_REVISION == "7a84e34a05c7342bd32b56f6519fe51ce240f577"
     assert module.RUNTIME_VERSION == "2.2.0"
     assert set(module.STATIC_SPACES) == {"vertical-services", "terra", "counsel", "finance", "lyte"}
     assert module.STATIC_SPACES["finance"][2] == "/experience/puriq"
