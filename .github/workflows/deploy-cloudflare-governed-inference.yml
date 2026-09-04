@@ -1,0 +1,194 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Deploy Cloudflare Governed Inference
+
+on:
+  pull_request:
+    paths:
+      - "cloudflare/a11oy-governed-inference-worker.mjs"
+      - "scripts/deploy_cloudflare_governed_inference.py"
+      - "tests/test_cloudflare_governed_inference_worker.mjs"
+      - "tests/test_cloudflare_governed_inference_deploy.py"
+      - ".github/workflows/deploy-cloudflare-governed-inference.yml"
+  push:
+    branches:
+      - main
+      - feat/cloudflare-governed-inference-v1
+    paths:
+      - "cloudflare/a11oy-governed-inference-worker.mjs"
+      - "scripts/deploy_cloudflare_governed_inference.py"
+      - "tests/test_cloudflare_governed_inference_worker.mjs"
+      - "tests/test_cloudflare_governed_inference_deploy.py"
+      - ".github/workflows/deploy-cloudflare-governed-inference.yml"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Inspect exact Cloudflare state without applying mutations"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-governed-inference-v1
+  cancel-in-progress: false
+
+jobs:
+  contract:
+    name: Prove bounded Workers AI runtime and rollback controller
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Prove exact checkout identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git status --porcelain)" = ""
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Execute network-free runtime and deployment contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --check cloudflare/a11oy-governed-inference-worker.mjs
+          node --test tests/test_cloudflare_governed_inference_worker.mjs
+          python -m py_compile scripts/deploy_cloudflare_governed_inference.py
+          python -m unittest tests.test_cloudflare_governed_inference_deploy -v
+          git diff --check
+
+  deploy:
+    name: Deploy exact source and prove live governed inference
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == 'refs/heads/main'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: production
+    env:
+      REPORT: /tmp/cloudflare-governed-inference-v1.json
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Require exact protected-main authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = "refs/heads/main"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git fetch --no-tags --depth=1 origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+          test "$(git status --porcelain)" = ""
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Deploy bounded Workers AI route
+        id: deploy
+        shell: bash
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN || secrets.CF_API_TOKEN || secrets.CLOUDFLARE_TOKEN || secrets.CF_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_DNS_API_TOKEN || secrets.CLOUDFLARE_ZONE_API_TOKEN || secrets.CLOUDFLARE_WORKER_API_TOKEN || secrets.CF_WORKERS_API_TOKEN || secrets.CF_ZONE_API_TOKEN }}
+        run: |
+          set +e
+          args=(
+            --source-revision "$GITHUB_SHA"
+            --report "$REPORT"
+          )
+          if [ "${{ inputs.dry_run || false }}" = "true" ]; then
+            args+=(--dry-run)
+          fi
+          python scripts/deploy_cloudflare_governed_inference.py "${args[@]}"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable secret-free deployment evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: cloudflare-governed-inference-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT }}
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Print bounded release summary
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+
+          report = json.load(open(os.environ["REPORT"], encoding="utf-8"))
+          probe = report.get("probe") or {}
+          lines = [
+              "## Cloudflare governed inference",
+              "",
+              f"- Status: `{report.get('status')}`",
+              f"- Source: `{report.get('source_revision')}`",
+              f"- Route: `{report.get('route_pattern')}`",
+              f"- Target script: `{report.get('target_script')}`",
+              f"- DNS mutated: `{report.get('dns_mutated')}`",
+              f"- Root Worker mutated: `{report.get('root_product_worker_mutated')}`",
+              f"- Model candidate: `{probe.get('model_candidate')}`",
+              f"- Receipt: `{probe.get('receipt_sha256')}`",
+              f"- Second Brain state: `{probe.get('second_brain_state')}`",
+              f"- Tool execution: `{probe.get('tool_execution')}`",
+              f"- Action authority: `{probe.get('action_authority')}`",
+          ]
+          if report.get("error"):
+              lines.append(f"- Blocker: `{report.get('error')}`")
+          print("\n".join(lines))
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write("\n" + "\n".join(lines) + "\n")
+          PY
+
+      - name: Enforce proved terminal state
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          code="${{ steps.deploy.outputs.exit_code }}"
+          test -n "$code"
+          status="$(python -c 'import json,os; print(json.load(open(os.environ["REPORT"]))["status"])')"
+          if [ "$code" -ne 0 ]; then
+            echo "::error::Cloudflare governed inference did not reach a proved terminal state."
+            exit "$code"
+          fi
+          case "$status" in
+            LIVE|LIVE_NOOP|DRY_RUN_VERIFIED) ;;
+            *)
+              echo "::error::Unexpected terminal state: $status"
+              exit 1
+              ;;
+          esac
