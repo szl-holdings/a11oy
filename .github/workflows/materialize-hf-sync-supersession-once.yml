@@ -1,0 +1,75 @@
+name: Materialize HF sync supersession semantics once
+
+on:
+  push:
+    branches:
+      - fix/hf-sync-supersession-receipt-v4
+    paths:
+      - .github/workflows/materialize-hf-sync-supersession-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-hf-sync-supersession-receipt-v4
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-sync-supersession-receipt-v4
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+          check-latest: false
+
+      - name: Materialize and prove the permanent candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git branch --show-current)" = "fix/hf-sync-supersession-receipt-v4"
+          python -B -m py_compile \
+            scripts/hf_exact_main_ownership.py \
+            scripts/test_hf_exact_main_ownership.py \
+            tests/test_hf_sync_supersession_contract.py \
+            tools/materialize_hf_sync_supersession.py
+          python -B tools/materialize_hf_sync_supersession.py
+          python -B scripts/test_hf_exact_main_ownership.py
+          python -B tests/test_hf_sync_supersession_contract.py
+          git diff --check HEAD
+          grep -F "id: exact_main_owner" .github/workflows/hf-sync.yml
+          grep -F "SUPERSEDED_BY_NEWER_MAIN" scripts/hf_exact_main_ownership.py
+
+      - name: Remove temporary machinery and push clean branch head
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm -f \
+            .github/workflows/materialize-hf-sync-supersession-once.yml \
+            tools/materialize_hf_sync_supersession.py
+          test ! -e .github/workflows/materialize-hf-sync-supersession-once.yml
+          test ! -e tools/materialize_hf_sync_supersession.py
+          git add -A
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit \
+            -m 'fix(hf): make verified supersession a receipted no-write outcome' \
+            -m 'Gate the optional vertical publisher on authenticated exact-main ownership. Neutralize a stale run only when GitHub proves its source is an ancestor of the current main tip; preserve hard failure for divergence, authentication, schema, and transport uncertainty.' \
+            -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/hf-sync-supersession-receipt-v4
