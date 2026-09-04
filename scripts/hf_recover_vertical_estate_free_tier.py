@@ -20,7 +20,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from types import ModuleType
-from typing import Any
+from typing import Any, MutableMapping
 
 ROOT = Path(__file__).resolve().parents[1]
 INTELLIGENCE_PUBLISHER = ROOT / "scripts" / "hf_publish_vertical_services_intelligence_v4.py"
@@ -31,7 +31,7 @@ ORG = "SZLHOLDINGS"
 GATEWAY_SOURCE_REPOSITORY = "szl-holdings/a11oy"
 RECEIPT_PATH = Path("hf-free-tier-recovery-receipt.json")
 RUNTIME_RECEIPT_PATH = Path("hf-personal-vertical-runtime-receipt.json")
-USER_AGENT = "SZL-HF-Free-Tier-Recovery/1.1"
+USER_AGENT = "SZL-HF-Free-Tier-Recovery/1.2"
 TOKEN_NAMES = (
     "HF_ORG_TOKEN", "HF_WRITE_TOKEN", "HF_TOKEN",
     "HUGGINGFACE_TOKEN", "HUGGING_FACE_HUB_TOKEN",
@@ -66,6 +66,28 @@ def token_from_env() -> tuple[str, str]:
     raise RuntimeError("no Hugging Face write token available")
 
 
+def bind_github_token_alias(
+    environ: MutableMapping[str, str] | None = None,
+) -> str:
+    """Expose the Actions token under the exact name required by the publisher.
+
+    The pinned Dockerfile publisher deliberately requires ``GITHUB_TOKEN`` for
+    default-branch-tip verification. GitHub CLI conventionally uses ``GH_TOKEN``.
+    Accept either name, copy only in-process, and return the source variable name
+    so receipts can prove authority without exposing its value.
+    """
+
+    target = os.environ if environ is None else environ
+    github_token = str(target.get("GITHUB_TOKEN") or "").strip()
+    if github_token:
+        return "GITHUB_TOKEN"
+    gh_token = str(target.get("GH_TOKEN") or "").strip()
+    if gh_token:
+        target["GITHUB_TOKEN"] = gh_token
+        return "GH_TOKEN"
+    raise RuntimeError("GITHUB_TOKEN or GH_TOKEN is required for exact source-tip proof")
+
+
 def owner_from_identity(identity: Any) -> str:
     if not isinstance(identity, dict):
         raise RuntimeError("Hugging Face identity response was not an object")
@@ -92,36 +114,63 @@ def load_module(path: Path, name: str) -> ModuleType:
     return module
 
 
-def deploy_personal_runtime(token: str, owner: str) -> dict[str, Any]:
+def configure_personal_publisher(owner: str) -> tuple[ModuleType, str, str]:
+    """Return the deepest publisher module with the personal target bound.
+
+    The v4 and v3 wrappers each configure a nested module. Calling the wrapper's
+    ``main`` would construct another base publisher and silently restore the
+    organization target. This function walks the full configuration chain and
+    applies the target to the exact module whose ``main`` performs the write.
+    """
+
     wrapper = load_module(INTELLIGENCE_PUBLISHER, "szl_hf_intelligence_v4_recovery")
-    # configure_v4 closes over these module globals. Override them before
-    # configuration so every nested source guard, health assertion, and receipt
-    # binds to the same tested vertical-services revision.
     wrapper.SOURCE_REVISION = RUNTIME_SOURCE_REVISION
     wrapper.EXPECTED_VERSION = RUNTIME_VERSION
-    publisher = wrapper.configure_v4(wrapper.load_v3())
+    v3 = wrapper.configure_v4(wrapper.load_v3())
+    if v3.SOURCE_REVISION != RUNTIME_SOURCE_REVISION:
+        raise RuntimeError("v4 wrapper retained a stale source revision")
+    if v3.EXPECTED_VERSION != RUNTIME_VERSION:
+        raise RuntimeError("v4 wrapper retained a stale runtime version")
+
+    publisher = v3.configure(v3.load_base())
     if publisher.SOURCE_REVISION != RUNTIME_SOURCE_REVISION:
-        raise RuntimeError("configured publisher retained a stale source revision")
+        raise RuntimeError("configured base publisher retained a stale source revision")
     if publisher.EXPECTED_VERSION != RUNTIME_VERSION:
-        raise RuntimeError("configured publisher retained a stale runtime version")
+        raise RuntimeError("configured base publisher retained a stale runtime version")
+
     repo_id = f"{owner}/{RUNTIME_SLUG}"
     origin = space_origin(repo_id)
     publisher.HF_REPOSITORY = repo_id
     publisher.ORIGIN = origin
     publisher.RECEIPT_PATH = RUNTIME_RECEIPT_PATH
     publisher.USER_AGENT = USER_AGENT
+    if publisher.HF_REPOSITORY != repo_id or publisher.ORIGIN != origin:
+        raise RuntimeError("personal runtime target binding did not reach the canonical writer")
+    return publisher, repo_id, origin
+
+
+def deploy_personal_runtime(token: str, owner: str) -> dict[str, Any]:
+    github_token_source = bind_github_token_alias()
+    publisher, repo_id, origin = configure_personal_publisher(owner)
     exit_code = int(publisher.main())
+    if not RUNTIME_RECEIPT_PATH.is_file():
+        raise RuntimeError("personal runtime publisher did not emit its receipt")
     receipt = json.loads(RUNTIME_RECEIPT_PATH.read_text(encoding="utf-8"))
     complete = bool(receipt.get("complete") is True and exit_code == 0)
     if not complete:
         raise RuntimeError("personal vertical runtime did not pass exact-source live proof")
     if receipt.get("source_revision") != RUNTIME_SOURCE_REVISION:
         raise RuntimeError("personal runtime receipt names the wrong source revision")
+    if receipt.get("hf_repository") != repo_id:
+        raise RuntimeError("personal runtime receipt names the wrong Hugging Face repository")
+    if receipt.get("origin") != origin:
+        raise RuntimeError("personal runtime receipt names the wrong public origin")
     return {
         "repo_id": repo_id,
         "origin": origin,
         "source_revision": RUNTIME_SOURCE_REVISION,
         "version": RUNTIME_VERSION,
+        "github_token_source_name": github_token_source,
         "receipt": receipt,
     }
 
@@ -185,6 +234,11 @@ def anonymous_get(url: str, attempts: int = 30) -> tuple[int, bytes]:
 def verify_gateway(origin: str, expected: dict[str, Any]) -> dict[str, Any]:
     observations: dict[str, Any] = {}
     failures: list[str] = []
+    expected_schemas = {
+        "/healthz": "szl.static-runtime-gateway-health/v1",
+        "/api/build-info": "szl.static-runtime-gateway/v2",
+        "/api/source": "szl.static-runtime-gateway-source/v1",
+    }
     for path in REQUIRED_GATEWAY_PATHS:
         status, body = anonymous_get(origin.rstrip("/") + path)
         row: dict[str, Any] = {
@@ -207,6 +261,9 @@ def verify_gateway(origin: str, expected: dict[str, Any]) -> dict[str, Any]:
             if not isinstance(payload, dict):
                 failures.append(f"{path}: JSON object missing")
             else:
+                row["schema"] = payload.get("schema")
+                if payload.get("schema") != expected_schemas[path]:
+                    failures.append(f"{path}: schema mismatch")
                 if payload.get("source_repository") != GATEWAY_SOURCE_REPOSITORY:
                     failures.append(f"{path}: gateway source repository mismatch")
                 if payload.get("source_revision") != expected["source_revision"]:
@@ -228,19 +285,16 @@ def verify_gateway(origin: str, expected: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str, str], runtime: dict[str, Any]) -> dict[str, Any]:
-    from huggingface_hub import CommitOperationAdd, CommitOperationDelete
-    title, description, path = meta
-    repo_id = f"{ORG}/{slug}"
-    try:
-        files = set(api.list_repo_files(repo_id=repo_id, repo_type="space", token=token))
-    except Exception:
-        api.create_repo(repo_id=repo_id, repo_type="space", space_sdk="static", exist_ok=True, private=False, token=token)
-        files = set()
-    target = runtime["origin"].rstrip("/") + path
-    gateway_revision = (os.getenv("GITHUB_SHA") or "").strip().lower()
-    if SHA40.fullmatch(gateway_revision) is None:
-        raise RuntimeError("GITHUB_SHA is required to bind the static gateway source")
+def gateway_documents(
+    *,
+    slug: str,
+    repo_id: str,
+    title: str,
+    description: str,
+    target: str,
+    runtime: dict[str, Any],
+    gateway_revision: str,
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, bytes]]:
     build = {
         "schema": "szl.static-runtime-gateway/v2",
         "generated_at": utc_now(),
@@ -258,13 +312,13 @@ def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str
         "human_approval_required": True,
     }
     health = {
+        **build,
         "schema": "szl.static-runtime-gateway-health/v1",
         "status": "ok",
-        **build,
     }
     source = {
-        "schema": "szl.static-runtime-gateway-source/v1",
         **build,
+        "schema": "szl.static-runtime-gateway-source/v1",
     }
     payloads = {
         "README.md": static_card(title, description).encode(),
@@ -275,6 +329,31 @@ def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str
         "api/build-info": canonical_json_bytes(build),
         "api/source": canonical_json_bytes(source),
     }
+    return build, health, source, payloads
+
+
+def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str, str], runtime: dict[str, Any]) -> dict[str, Any]:
+    from huggingface_hub import CommitOperationAdd, CommitOperationDelete
+    title, description, path = meta
+    repo_id = f"{ORG}/{slug}"
+    try:
+        files = set(api.list_repo_files(repo_id=repo_id, repo_type="space", token=token))
+    except Exception:
+        api.create_repo(repo_id=repo_id, repo_type="space", space_sdk="static", exist_ok=True, private=False, token=token)
+        files = set()
+    target = runtime["origin"].rstrip("/") + path
+    gateway_revision = (os.getenv("GITHUB_SHA") or "").strip().lower()
+    if SHA40.fullmatch(gateway_revision) is None:
+        raise RuntimeError("GITHUB_SHA is required to bind the static gateway source")
+    _, _, _, payloads = gateway_documents(
+        slug=slug,
+        repo_id=repo_id,
+        title=title,
+        description=description,
+        target=target,
+        runtime=runtime,
+        gateway_revision=gateway_revision,
+    )
     operations: list[Any] = [CommitOperationAdd(path_in_repo=name, path_or_fileobj=data) for name, data in payloads.items()]
     operations.extend(CommitOperationDelete(path_in_repo=name) for name in DELETE_DYNAMIC_FILES if name in files)
     commit = api.create_commit(
@@ -303,7 +382,7 @@ def publish_static_gateway(api: Any, token: str, slug: str, meta: tuple[str, str
 
 def main() -> int:
     report: dict[str, Any] = {
-        "schema": "szl.hf-free-tier-recovery/v2",
+        "schema": "szl.hf-free-tier-recovery/v3",
         "started_at": utc_now(),
         "provider_constraint": "HF_ORG_DYNAMIC_REQUIRES_TEAM_OR_ENTERPRISE",
         "token_value_recorded": False,
@@ -320,6 +399,7 @@ def main() -> int:
         complete = all(row["operational"] for row in rows)
         report.update({
             "token_source_name": token_name,
+            "github_token_source_name": runtime["github_token_source_name"],
             "personal_owner": owner,
             "runtime": {key: runtime[key] for key in ("repo_id", "origin", "source_revision", "version")},
             "gateways": rows,
