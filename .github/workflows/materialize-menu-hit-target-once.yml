@@ -64,35 +64,33 @@ jobs:
 
           test_path = Path("tests/test_frontend_source_boundaries.py")
           test = test_path.read_text(encoding="utf-8")
-          anchor = '''        self.assertIn("border-radius: 6px", body)
-
-          landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
-          '''
-          replacement = '''        self.assertIn("border-radius: 6px", body)
-
-          applied_bodies = re.findall(
-              r"(?m)^body\\[data-szl-flow\\][ ]+[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",
-              css,
-              re.S,
+          marker = '        self.assertIn("border-radius: 6px", body)\n'
+          inserted_marker = "        applied_bodies = re.findall(\n"
+          i1 = " " * 8
+          i2 = " " * 12
+          block = (
+              "\n"
+              + i1 + "applied_bodies = re.findall(\n"
+              + i2 + 'r"(?m)^body\\[data-szl-flow\\][ ]+[.]szl-flow-toggle[ ]*[{](?P<body>[^}]*)[}]",\n'
+              + i2 + "css,\n"
+              + i2 + "re.S,\n"
+              + i1 + ")\n"
+              + i1 + "applied = next(\n"
+              + i2 + '(candidate for candidate in applied_bodies if "min-height: 48px" in candidate),\n'
+              + i2 + "None,\n"
+              + i1 + ")\n"
+              + i1 + "self.assertIsNotNone(applied)\n"
+              + i1 + 'self.assertIn("min-width: 48px", applied)\n'
+              + i1 + 'self.assertIn("min-height: 48px", applied)\n'
+              + i1 + 'self.assertIn("border-radius: 6px", applied)\n'
+              + i1 + "# A centered 44px square must remain inside all four 6px rounded corners.\n"
+              + i1 + "inset = (48 - 44) / 2\n"
+              + i1 + "self.assertLessEqual(2 * (6 - inset) ** 2, 6 ** 2)\n"
           )
-          applied = next(
-              (candidate for candidate in applied_bodies if "min-height: 48px" in candidate),
-              None,
-          )
-          self.assertIsNotNone(applied)
-          self.assertIn("min-width: 48px", applied)
-          self.assertIn("min-height: 48px", applied)
-          self.assertIn("border-radius: 6px", applied)
-          # A centered 44px square must remain inside all four 6px rounded corners.
-          inset = (48 - 44) / 2
-          self.assertLessEqual(2 * (6 - inset) ** 2, 6 ** 2)
-
-          landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
-          '''
-          if replacement not in test:
-              if test.count(anchor) != 1:
+          if inserted_marker not in test:
+              if test.count(marker) != 1:
                   raise SystemExit("frontend geometry test anchor drifted")
-              test = test.replace(anchor, replacement, 1)
+              test = test.replace(marker, marker + block, 1)
               test_path.write_text(test, encoding="utf-8")
           PY
 
