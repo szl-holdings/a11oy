@@ -9,6 +9,7 @@ on:
       - "scripts/hf_publish_vertical_services_frontier_v3.py"
       - "scripts/hf_publish_vertical_services_intelligence_v4.py"
       - "tests/test_hf_recover_vertical_estate_free_tier.py"
+      - "tests/test_hf_recovery_workflow_definition.py"
       - "docs/strategy/hf-free-tier-recovery.v1.json"
       - ".github/workflows/hf-free-tier-recovery.yml"
   push:
@@ -19,6 +20,7 @@ on:
       - "scripts/hf_publish_vertical_services_frontier_v3.py"
       - "scripts/hf_publish_vertical_services_intelligence_v4.py"
       - "tests/test_hf_recover_vertical_estate_free_tier.py"
+      - "tests/test_hf_recovery_workflow_definition.py"
       - "docs/strategy/hf-free-tier-recovery.v1.json"
       - ".github/workflows/hf-free-tier-recovery.yml"
   workflow_dispatch: {}
@@ -28,7 +30,7 @@ permissions:
   issues: write
 
 concurrency:
-  group: hf-free-tier-vertical-recovery
+  group: hf-free-tier-recovery-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -50,11 +52,13 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install test runner
-        run: python -m pip install --disable-pip-version-check "pytest==8.4.2"
+        run: python -m pip install --disable-pip-version-check "pytest==8.4.2" "PyYAML==6.0.3"
       - name: Run network-free recovery tests
         run: |
           python -m py_compile scripts/hf_recover_vertical_estate_free_tier.py
-          python -m pytest -q tests/test_hf_recover_vertical_estate_free_tier.py
+          python -m pytest -q \
+            tests/test_hf_recover_vertical_estate_free_tier.py \
+            tests/test_hf_recovery_workflow_definition.py
 
   recover:
     name: Publish personal runtime and static organization gateways
@@ -62,6 +66,9 @@ jobs:
     needs: contract
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    concurrency:
+      group: sync-relock-canonical-a11oy
+      cancel-in-progress: false
     env:
       HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
       HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
@@ -70,7 +77,6 @@ jobs:
       HUGGING_FACE_HUB_TOKEN: ${{ secrets.HUGGING_FACE_HUB_TOKEN }}
       GITHUB_TOKEN: ${{ github.token }}
       GH_TOKEN: ${{ github.token }}
-      GITHUB_TOKEN: ${{ github.token }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.20.0
