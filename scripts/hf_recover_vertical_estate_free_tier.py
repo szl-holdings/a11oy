@@ -87,7 +87,16 @@ def load_module(path: Path, name: str) -> ModuleType:
 
 def deploy_personal_runtime(token: str, owner: str) -> dict[str, Any]:
     wrapper = load_module(INTELLIGENCE_PUBLISHER, "szl_hf_intelligence_v4_recovery")
+    # configure_v4 closes over these module globals. Override them before
+    # configuration so every nested source guard, health assertion, and receipt
+    # binds to the same tested vertical-services revision.
+    wrapper.SOURCE_REVISION = RUNTIME_SOURCE_REVISION
+    wrapper.EXPECTED_VERSION = RUNTIME_VERSION
     publisher = wrapper.configure_v4(wrapper.load_v3())
+    if publisher.SOURCE_REVISION != RUNTIME_SOURCE_REVISION:
+        raise RuntimeError("configured publisher retained a stale source revision")
+    if publisher.EXPECTED_VERSION != RUNTIME_VERSION:
+        raise RuntimeError("configured publisher retained a stale runtime version")
     repo_id = f"{owner}/{RUNTIME_SLUG}"
     origin = space_origin(repo_id)
     publisher.HF_REPOSITORY = repo_id
