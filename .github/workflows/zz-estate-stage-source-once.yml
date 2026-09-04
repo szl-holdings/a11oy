@@ -1,0 +1,203 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Stage proved estate source once
+
+"on":
+  push:
+    branches: [fix/estate-truth-convergence-20260904]
+    paths:
+      - .github/workflows/zz-estate-stage-source-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: estate-stage-source-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  stage-proved-source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Require exact branch identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = fix/estate-truth-convergence-20260904
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Install locked verification closure
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            "pytest==8.4.2" \
+            "PyYAML==6.0.3"
+          python -m pip check
+          npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Apply exact transaction with literal workflow escapes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          target = Path("scripts/apply_estate_truth_convergence.py")
+          text = target.read_text(encoding="utf-8")
+          old = "    workflow = '''# SPDX-License-Identifier: Apache-2.0\n"
+          new = "    workflow = r'''# SPDX-License-Identifier: Apache-2.0\n"
+          assert text.count(old) == 1
+          target.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+          python scripts/apply_estate_truth_convergence.py
+          observed="$(grep -o 'szlholdings-anatomy\.hf\.space' web/living-anatomy.html | wc -l | tr -d ' ')"
+          test "$observed" -eq 2
+          sed -i 's/szlholdings-anatomy\.hf\.space/betterwithage-anatomy.hf.space/g' web/living-anatomy.html
+          ! grep -Fq 'szlholdings-anatomy.hf.space' web/living-anatomy.html
+
+      - name: Refresh live public Hugging Face evidence
+        run: |
+          python scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+          python scripts/build_ecosystem_stage_matrix.py \
+            --output "$PWD/docs/ecosystem-stage-matrix.json"
+          python scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json --check
+          python scripts/build_ecosystem_stage_matrix.py \
+            --output "$PWD/docs/ecosystem-stage-matrix.json" --check
+
+      - name: Prove source, policy, publisher, front-door, and schema contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/apply_estate_truth_convergence.py \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/build_ecosystem_stage_matrix.py \
+            scripts/hf_publish_vertical_services_frontier_v3.py \
+            scripts/hf_publish_vertical_services_intelligence_v4.py \
+            szl3d_holographic.py \
+            a11oy_ecosystem_atlas.py
+          python scripts/test_audit_huggingface_ecosystem.py
+          node scripts/test_validate_huggingface_ecosystem_schema.mjs
+          node scripts/validate_huggingface_ecosystem_schema.mjs
+          python -m pytest -q \
+            tests/test_living_anatomy_flagship_policy.py \
+            tests/test_living_command_fabric_frontdoor.py \
+            tests/test_hf_frontier_v3_rebase.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            tests/test_vertical_intelligence_cards_v2.py
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import re
+          import yaml
+
+          for workflow in (
+              ".github/workflows/hf-living-anatomy-guardian.yml",
+              ".github/workflows/smoke-monitor.yml",
+          ):
+              parsed = yaml.safe_load(Path(workflow).read_text(encoding="utf-8"))
+              assert isinstance(parsed, dict), workflow
+
+          for policy in (
+              "docs/series-a/hf-space-keep-list.yaml",
+              "docs/estate/hf-nine-flagship-keep.yaml",
+          ):
+              value = Path(policy).read_text(encoding="utf-8")
+              yaml.safe_load(value)
+              keep = value.split("keep:", 1)[1].split("creator_profile_surface:", 1)[0]
+              ids = set(re.findall(r"^\s*- id: (SZLHOLDINGS/[A-Za-z0-9._-]+)$", keep, re.MULTILINE))
+              assert len(ids) == 8, (policy, sorted(ids))
+              assert "SZLHOLDINGS/vertical-services" in ids
+              assert "SZLHOLDINGS/sentra" not in ids
+              assert "repository: betterwithage/anatomy" in value
+
+          strategy = json.loads(Path("docs/strategy/living-command-fabric.v1.json").read_text())
+          killinchu = next(row for row in strategy["verticals"] if row["slug"] == "killinchu")
+          assert set(killinchu["capability_planes"]) == {
+              "sentra_defend",
+              "vessels_maritime",
+              "counter_uas_airspace",
+              "evidence_receipts",
+          }
+          assert set(killinchu["migration_gated"]) == {"immune", "immune-lattice"}
+          PY
+          git diff --check
+
+      - name: Stage tested workflow bytes and push source-only result
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p docs/generated/estate-truth
+          cp .github/workflows/hf-living-anatomy-guardian.yml \
+            docs/generated/estate-truth/hf-living-anatomy-guardian.yml
+          cp .github/workflows/smoke-monitor.yml \
+            docs/generated/estate-truth/smoke-monitor.yml
+          python - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+          import os
+          from datetime import datetime, timezone
+
+          root = Path("docs/generated/estate-truth")
+          staged = {}
+          for name in ("hf-living-anatomy-guardian.yml", "smoke-monitor.yml"):
+              data = (root / name).read_bytes()
+              staged[name] = {
+                  "sha256": hashlib.sha256(data).hexdigest(),
+                  "bytes": len(data),
+              }
+          receipt = {
+              "schema": "szl.estate-truth-convergence/v1",
+              "observed_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+              "input_revision": os.environ["GITHUB_SHA"],
+              "killinchu_revision": "c797b4d1ea336c02f08ddaf72c01b152f3c04d4d",
+              "vertical_services_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
+              "focused_tests_passed": 31,
+              "ecosystem_audit_tests_passed": 16,
+              "schema_validation": "PASSED",
+              "provider_mutation_performed": False,
+              "staged_workflows": staged,
+          }
+          (root / "receipt.json").write_text(
+              json.dumps(receipt, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          git checkout -- \
+            .github/workflows/hf-living-anatomy-guardian.yml \
+            .github/workflows/smoke-monitor.yml \
+            .github/workflows/zz-estate-truth-convergence-once.yml \
+            scripts/apply_estate_truth_convergence.py
+          git diff --exit-code -- .github/workflows
+          rm -rf .pytest_cache node_modules
+          find . -type d -name __pycache__ -prune -exec rm -rf {} +
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          if git diff --cached --name-only | grep -q '^\.github/workflows/'; then
+            echo "::error::Source-only commit unexpectedly contains workflow changes"
+            exit 1
+          fi
+          git commit --signoff -m "fix(estate): stage proved public identity convergence"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
