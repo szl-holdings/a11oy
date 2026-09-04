@@ -1,0 +1,220 @@
+# SPDX-License-Identifier: Apache-2.0
+name: HF organization recovery sweep
+
+on:
+  push:
+    branches: [ops/hf-recovery-sweep-2026-09-04]
+    paths:
+      - ".github/workflows/hf-org-recovery-sweep.yml"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  recover:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c
+        with:
+          egress-policy: audit
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: "3.12"
+
+      - name: Audit, restart, and verify every SZLHOLDINGS Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_ORG: SZLHOLDINGS
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check \
+            "huggingface_hub==1.19.0" "requests==2.32.5"
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import time
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          from huggingface_hub import HfApi
+
+          org = os.environ["HF_ORG"]
+          token = os.environ.get("HF_TOKEN", "").rstrip("\r\n")
+          if not token:
+              raise SystemExit("HF_TOKEN is not configured in this repository")
+
+          api = HfApi(token=token)
+
+          def stage_value(runtime) -> str:
+              stage = getattr(runtime, "stage", None)
+              return str(getattr(stage, "value", stage or "UNKNOWN")).upper()
+
+          def runtime_snapshot(space_id: str) -> dict:
+              try:
+                  runtime = api.get_space_runtime(space_id, token=token)
+              except Exception as exc:
+                  return {
+                      "space": space_id,
+                      "stage": "API_ERROR",
+                      "error": type(exc).__name__,
+                  }
+              hardware = getattr(runtime, "hardware", None)
+              requested = getattr(runtime, "requested_hardware", None)
+              return {
+                  "space": space_id,
+                  "stage": stage_value(runtime),
+                  "hardware": str(getattr(hardware, "value", hardware or "UNSPECIFIED")),
+                  "requested_hardware": str(
+                      getattr(requested, "value", requested or "UNSPECIFIED")
+                  ),
+                  "sleep_time": getattr(runtime, "sleep_time", None),
+              }
+
+          spaces = sorted(
+              [space.id for space in api.list_spaces(author=org, full=True, token=token)],
+              key=str.casefold,
+          )
+          models = sorted(
+              [model.id for model in api.list_models(author=org, full=True, token=token)],
+              key=str.casefold,
+          )
+          datasets = sorted(
+              [dataset.id for dataset in api.list_datasets(author=org, full=True, token=token)],
+              key=str.casefold,
+          )
+
+          restartable = {
+              "PAUSED",
+              "STOPPED",
+              "SLEEPING",
+              "BUILD_ERROR",
+              "RUNTIME_ERROR",
+              "CONFIG_ERROR",
+              "NO_APP_FILE",
+          }
+          terminal_bad = {
+              "PAUSED",
+              "STOPPED",
+              "BUILD_ERROR",
+              "RUNTIME_ERROR",
+              "CONFIG_ERROR",
+              "NO_APP_FILE",
+              "API_ERROR",
+          }
+
+          before = [runtime_snapshot(space_id) for space_id in spaces]
+          attempted: list[str] = []
+          restart_errors: list[dict] = []
+          for item in before:
+              if item["stage"] not in restartable:
+                  continue
+              space_id = item["space"]
+              attempted.append(space_id)
+              try:
+                  api.restart_space(space_id, token=token)
+              except Exception as exc:
+                  restart_errors.append(
+                      {
+                          "space": space_id,
+                          "stage": item["stage"],
+                          "error": type(exc).__name__,
+                      }
+                  )
+
+          deadline = time.monotonic() + 20 * 60
+          after = before
+          while attempted and time.monotonic() < deadline:
+              after = [runtime_snapshot(space_id) for space_id in spaces]
+              states = {item["space"]: item["stage"] for item in after}
+              unresolved = [
+                  space_id
+                  for space_id in attempted
+                  if states.get(space_id, "API_ERROR") in terminal_bad
+              ]
+              if not unresolved:
+                  break
+              time.sleep(20)
+
+          after = [runtime_snapshot(space_id) for space_id in spaces]
+          unresolved = [item for item in after if item["stage"] in terminal_bad]
+          report = {
+              "schema": "szl.hf-organization-recovery-sweep/v1",
+              "generated_at": datetime.now(timezone.utc).isoformat(),
+              "organization": org,
+              "counts": {
+                  "spaces": len(spaces),
+                  "models": len(models),
+                  "datasets": len(datasets),
+                  "restart_attempts": len(attempted),
+                  "restart_errors": len(restart_errors),
+                  "unresolved_spaces": len(unresolved),
+              },
+              "before": before,
+              "after": after,
+              "restart_attempted": attempted,
+              "restart_errors": restart_errors,
+              "unresolved": unresolved,
+              "models": models,
+              "datasets": datasets,
+          }
+          Path("hf-recovery-sweep.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+
+          lines = [
+              "# SZLHOLDINGS Hugging Face recovery sweep",
+              "",
+              f"Generated: {report['generated_at']}",
+              "",
+              f"Spaces: {len(spaces)} · Models: {len(models)} · Datasets: {len(datasets)}",
+              f"Restart attempts: {len(attempted)} · Unresolved Spaces: {len(unresolved)}",
+              "",
+              "## Final Space state",
+              "",
+              "| Space | Stage | Hardware |",
+              "|---|---|---|",
+          ]
+          for item in after:
+              lines.append(
+                  f"| `{item['space']}` | {item['stage']} | {item.get('hardware', 'UNSPECIFIED')} |"
+              )
+          if restart_errors:
+              lines.extend(["", "## Restart errors", ""])
+              for item in restart_errors:
+                  lines.append(
+                      f"- `{item['space']}`: {item['stage']} → {item['error']}"
+                  )
+          Path("hf-recovery-sweep.md").write_text(
+              "\n".join(lines) + "\n", encoding="utf-8"
+          )
+
+          print(json.dumps(report["counts"], sort_keys=True))
+          for item in after:
+              print(f"{item['space']}\t{item['stage']}")
+
+          if unresolved or restart_errors:
+              raise SystemExit(
+                  f"HF recovery is incomplete: unresolved={len(unresolved)} "
+                  f"restart_errors={len(restart_errors)}"
+              )
+          PY
+
+      - name: Upload recovery evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: hf-org-recovery-sweep
+          path: |
+            hf-recovery-sweep.json
+            hf-recovery-sweep.md
+          if-no-files-found: error
+          retention-days: 90
