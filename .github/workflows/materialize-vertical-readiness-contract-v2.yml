@@ -35,64 +35,85 @@ jobs:
           set -euo pipefail
           python - <<'PY'
           from pathlib import Path
+          import textwrap
 
           target = Path('.github/workflows/emergency-live-convergence-v1.yml')
           temporary = Path('.github/workflows/materialize-vertical-readiness-contract-v2.yml')
           source = target.read_text(encoding='utf-8')
 
-          vertical_anchor = '''              vertical = {
-          '''
-          signer_probe = '''              verticals = vertical_ready.get("verticals")
-              verticals = verticals if isinstance(verticals, dict) else {}
-              expected_verticals = {
-                  "sentra", "lyte", "killinchu", "finance", "terra", "counsel"
-              }
-              persistent_signer_ready = (
-                  set(verticals) == expected_verticals
-                  and all(
-                      isinstance(row, dict)
-                      and row.get("ready") is True
-                      and row.get("status") == "READY"
-                      and isinstance(row.get("requirements"), dict)
-                      and row["requirements"].get("persistent_signing_key") is True
-                      for row in verticals.values()
-                  )
+          old_body = textwrap.dedent('''
+          vertical_build = json_body(indexed[VERTICAL_ORIGIN + "/api/build-info"])
+          vertical_ready = json_body(indexed[VERTICAL_ORIGIN + "/readyz"])
+          health_status = {path: indexed[VERTICAL_ORIGIN + path].get("status") for path in VERTICAL_HEALTH}
+          vertical = {
+              "build_http": indexed[VERTICAL_ORIGIN + "/api/build-info"].get("status"),
+              "build_revision": revision(vertical_build),
+              "ready_http": indexed[VERTICAL_ORIGIN + "/readyz"].get("status"),
+              "ready": vertical_ready.get("ready"),
+              "signing_key_source": vertical_ready.get("sentra_signing_key_source"),
+              "health_status": health_status,
+              "health_all_200": all(code == 200 for code in health_status.values()),
+              "bindings_agree": (vertical_build.get("source_binding") or {}).get("bindings_agree") if isinstance(vertical_build.get("source_binding"), dict) else None,
+          }
+          ''').lstrip()
+          new_body = textwrap.dedent('''
+          vertical_build = json_body(indexed[VERTICAL_ORIGIN + "/api/build-info"])
+          vertical_ready = json_body(indexed[VERTICAL_ORIGIN + "/readyz"])
+          health_status = {path: indexed[VERTICAL_ORIGIN + path].get("status") for path in VERTICAL_HEALTH}
+          verticals = vertical_ready.get("verticals")
+          verticals = verticals if isinstance(verticals, dict) else {}
+          expected_verticals = {
+              "sentra", "lyte", "killinchu", "finance", "terra", "counsel"
+          }
+          persistent_signer_ready = (
+              set(verticals) == expected_verticals
+              and all(
+                  isinstance(row, dict)
+                  and row.get("ready") is True
+                  and row.get("status") == "READY"
+                  and isinstance(row.get("requirements"), dict)
+                  and row["requirements"].get("persistent_signing_key") is True
+                  for row in verticals.values()
               )
-              vertical = {
-          '''
-          if source.count(vertical_anchor) != 1:
+          )
+          vertical = {
+              "build_http": indexed[VERTICAL_ORIGIN + "/api/build-info"].get("status"),
+              "build_revision": revision(vertical_build),
+              "ready_http": indexed[VERTICAL_ORIGIN + "/readyz"].get("status"),
+              "ready": vertical_ready.get("ready"),
+              "persistent_signer_ready": persistent_signer_ready,
+              "expected_verticals": sorted(expected_verticals),
+              "observed_verticals": sorted(verticals),
+              "health_status": health_status,
+              "health_all_200": all(code == 200 for code in health_status.values()),
+              "bindings_agree": (vertical_build.get("source_binding") or {}).get("bindings_agree") if isinstance(vertical_build.get("source_binding"), dict) else None,
+          }
+          ''').lstrip()
+          prefix = '              '
+          old_block = textwrap.indent(old_body, prefix)
+          new_block = textwrap.indent(new_body, prefix)
+          if source.count(old_block) != 1:
               raise SystemExit(
-                  f'expected one vertical proof anchor, found {source.count(vertical_anchor)}'
+                  f'expected one exact vertical proof block, found {source.count(old_block)}'
               )
-          source = source.replace(vertical_anchor, signer_probe, 1)
+          source = source.replace(old_block, new_block, 1)
 
-          old_field = '''                  "signing_key_source": vertical_ready.get("sentra_signing_key_source"),
-          '''
-          new_field = '''                  "persistent_signer_ready": persistent_signer_ready,
-                  "expected_verticals": sorted(expected_verticals),
-                  "observed_verticals": sorted(verticals),
-          '''
-          if source.count(old_field) != 1:
-              raise SystemExit(
-                  f'expected one obsolete signer field, found {source.count(old_field)}'
-              )
-          source = source.replace(old_field, new_field, 1)
-
-          old_gate = '''                  and vertical["signing_key_source"] == "env"
-          '''
-          new_gate = '''                  and vertical["persistent_signer_ready"] is True
-          '''
+          old_gate = '                  and vertical["signing_key_source"] == "env"\n'
+          new_gate = '                  and vertical["persistent_signer_ready"] is True\n'
           if source.count(old_gate) != 1:
               raise SystemExit(
                   f'expected one obsolete signer gate, found {source.count(old_gate)}'
               )
           source = source.replace(old_gate, new_gate, 1)
 
-          source = source.replace(
-              '"schema": "szl.emergency-live-convergence-proof/v1"',
-              '"schema": "szl.emergency-live-convergence-proof/v2"',
-              1,
-          )
+          old_schema = '"schema": "szl.emergency-live-convergence-proof/v1"'
+          new_schema = '"schema": "szl.emergency-live-convergence-proof/v2"'
+          if source.count(old_schema) != 1:
+              raise SystemExit(
+                  f'expected one v1 proof schema, found {source.count(old_schema)}'
+              )
+          source = source.replace(old_schema, new_schema, 1)
+
           target.write_text(source, encoding='utf-8')
           temporary.unlink()
           PY
