@@ -1,0 +1,117 @@
+name: Retire legacy Vessels Space
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type RETIRE-SZLHOLDINGS-VESSELS"
+        required: true
+        type: string
+      dry_run:
+        description: "Prove every gate without deleting the Space"
+        required: false
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: retire-szlholdings-vessels
+  cancel-in-progress: false
+
+jobs:
+  retire:
+    name: Prove Killinchu replacement and retire Vessels
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+
+      - name: Assert exact protected-main authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          git fetch --no-tags --depth=1 origin main
+          test "$(git rev-parse HEAD)" = "$(git rev-parse FETCH_HEAD)"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Install exact Hugging Face client
+        shell: bash
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          "huggingface_hub==1.10.1"
+
+      - name: Validate retirement controller before provider access
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile .github/scripts/retire_vessels_space.py
+          python -m unittest tests.test_retire_vessels_space -v
+          git diff --check
+
+      - name: Execute bounded retirement
+        id: retirement
+        shell: bash
+        env:
+          HF_ORG_TOKEN: ${{ secrets.HF_ORG_TOKEN }}
+          HF_WRITE_TOKEN: ${{ secrets.HF_WRITE_TOKEN }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          set +e
+          args=(
+            --repo-root .
+            --report /tmp/vessels-space-retirement.json
+            --confirm '${{ inputs.confirm }}'
+          )
+          if [ '${{ inputs.dry_run }}' = 'true' ]; then
+            args+=(--dry-run)
+          fi
+          python .github/scripts/retire_vessels_space.py "${args[@]}"
+          code=$?
+          echo "exit_code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Upload immutable secret-free retirement receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: vessels-space-retirement-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/vessels-space-retirement.json
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Enforce proved terminal state
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          code='${{ steps.retirement.outputs.exit_code }}'
+          test -n "$code"
+          test "$code" -eq 0
+          python - <<'PY'
+          import json
+          report = json.load(open('/tmp/vessels-space-retirement.json', encoding='utf-8'))
+          allowed = {'VALIDATED', 'RETIRED_VERIFIED', 'ALREADY_ABSENT'}
+          assert report.get('status') in allowed, report
+          assert report.get('token_recorded') is False
+          assert report.get('secret_values_read') is False
+          if not report.get('dry_run'):
+              assert report.get('target_after_exists') is False, report
+          PY
