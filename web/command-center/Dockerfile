@@ -1,10 +1,14 @@
-# Replica-only Command Center surface.
-# Does NOT replace SZLHOLDINGS/a11oy (Python runtime) or a-11-oy.com DNS.
+# Not a Space image. Do not deploy this folder to Hugging Face.
+# Inv6 forbids COPY . . hologram runtimes. Explicit paths only.
+# Local run remains: npm install && npm run dev
 FROM node:22-alpine
 WORKDIR /app
 COPY package.json ./
-RUN npm install
-COPY . .
-RUN npm run build
-EXPOSE 7860
-CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "7860"]
+COPY tsconfig.json ./
+COPY vite.config.ts ./
+COPY index.html ./
+COPY public ./public
+COPY src ./src
+RUN npm install && npm run build
+EXPOSE 4173
+CMD ["npx", "vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
