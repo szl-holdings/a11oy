@@ -1,0 +1,120 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize current-main Cloudflare reconciliation once
+
+on:
+  push:
+    branches:
+      - ops/cloudflare-reconcile-current-main-20260904
+    paths:
+      - .github/workflows/materialize-cloudflare-current-main-retry-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: materialize-cloudflare-current-main-retry-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact execution branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ops/cloudflare-reconcile-current-main-20260904
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Reconcile current protected main without force
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          main_sha="$(git rev-parse origin/main)"
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          if ! git merge-base --is-ancestor origin/main HEAD; then
+            git merge -X theirs --no-ff origin/main \
+              -m "chore(edge): reconcile protected main ${main_sha:0:12}" \
+              -m "Take current protected-main application and controller bytes before issuing a bounded production-edge reconciliation trigger." \
+              -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          fi
+          test -z "$(git diff --name-only --diff-filter=U)"
+          git merge-base --is-ancestor "$main_sha" HEAD
+
+      - name: Re-prove bounded Cloudflare controller contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          target=.github/workflows/repair-cloudflare-product-edge-production.yml
+          test -s "$target"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          target = Path('.github/workflows/repair-cloudflare-product-edge-production.yml')
+          text = target.read_text(encoding='utf-8')
+          required = (
+              'production',
+              'CLOUDFLARE',
+              'cloudflare',
+              'rollback',
+              'a-11-oy.com',
+          )
+          lowered = text.lower()
+          for marker in required:
+              assert marker.lower() in lowered, marker
+          # Replace an existing owner-execution marker or prepend one. This is a
+          # source-only trigger; provider authority remains in the canonical job.
+          marker = '# Owner-authorized production reconciliation: 2026-09-04-current-main'
+          text = re.sub(
+              r'^# Owner-authorized production (?:execution|reconciliation):.*\n',
+              '',
+              text,
+              count=1,
+              flags=re.M,
+          )
+          target.write_text(marker + '\n' + text, encoding='utf-8', newline='\n')
+          PY
+          python -m py_compile ops/cloudflare/*.py 2>/dev/null || true
+          if [ -f tests/test_cloudflare_product_edge_controller.py ]; then
+            python -m unittest -v tests.test_cloudflare_product_edge_controller
+          fi
+          if [ -f tests/test_cloudflare_product_edge_worker.mjs ]; then
+            node --test tests/test_cloudflare_product_edge_worker.mjs
+          fi
+          node --check cloudflare/a11oy-product-root-worker.mjs
+          git diff --check
+
+      - name: Remove one-use workflow, push exact head, and open protected merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/materialize-cloudflare-current-main-retry-once.yml
+          git add -A
+          git diff --cached --check
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -s -m "chore(edge): reconcile Cloudflare product edge from current main"
+          final_sha="$(git rev-parse HEAD)"
+          git push origin HEAD:ops/cloudflare-reconcile-current-main-20260904
+          url="$(gh pr list --repo szl-holdings/a11oy --head ops/cloudflare-reconcile-current-main-20260904 --state open --json url --jq '.[0].url // ""')"
+          if [ -z "$url" ]; then
+            url="$(gh pr create --repo szl-holdings/a11oy \
+              --base main \
+              --head ops/cloudflare-reconcile-current-main-20260904 \
+              --title "chore(edge): reconcile Cloudflare product edge from current main" \
+              --body "## Current-main production re-entry\n\nRe-enter the existing protected, bounded, rollback-capable Cloudflare controller from the latest A11oy main lineage. No credential, provider ID, DNS content, or token is committed. The existing production environment and public proof remain authoritative.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>")"
+          fi
+          gh pr merge --repo szl-holdings/a11oy "$url" \
+            --auto --squash --match-head-commit "$final_sha"
