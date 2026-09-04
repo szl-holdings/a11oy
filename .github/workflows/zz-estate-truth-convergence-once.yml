@@ -53,6 +53,21 @@ jobs:
           python -m pip check
           npm ci --ignore-scripts --no-audit --no-fund
 
+      - name: Preserve embedded shell escapes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          target = Path("scripts/apply_estate_truth_convergence.py")
+          text = target.read_text(encoding="utf-8")
+          old = "    workflow = '''# SPDX-License-Identifier: Apache-2.0\n"
+          new = "    workflow = r'''# SPDX-License-Identifier: Apache-2.0\n"
+          assert text.count(old) == 1
+          target.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
       - name: Apply exact source-truth transaction
         run: python scripts/apply_estate_truth_convergence.py
 
