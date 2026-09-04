@@ -17,6 +17,7 @@ a{color:var(--teal)}header,main{max-width:1100px;margin:0 auto;padding:1.25rem}
 .card small{display:block;color:var(--muted);margin-top:.35rem}
 pre{white-space:pre-wrap;border:1px solid var(--line);padding:.75rem;font:12px ui-monospace,monospace;color:var(--muted)}
 </style>
+  <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
 <body>
 <header>
@@ -36,5 +37,6 @@ const PROBES=[["healthz","/healthz"],["tab-matrix","/api/a11oy/v1/readiness/tab-
 async function probe(url){try{const r=await fetch(url,{cache:"no-store"});return r.ok?"MEASURED":"UNAVAILABLE";}catch(e){return"UNAVAILABLE";}}
 (async function(){const box=document.getElementById("probes");const raw={};for(const [name,url] of PROBES){const st=await probe(url);raw[name]=st;const s=document.createElement("span");s.className="chip";s.textContent=name+" · "+st;box.appendChild(s);}const grid=document.getElementById("estates");for(const [id,href] of ESTATES){const a=document.createElement("a");a.className="card";a.href=href;a.innerHTML="<strong>"+id+"</strong><small>"+href+"</small>";grid.appendChild(a);}document.getElementById("raw").textContent=JSON.stringify({estates:ESTATES.length,probes:raw,honesty:"catalog DECLARED · probes MEASURED or UNAVAILABLE",lambda:"Conjecture 1"},null,2);})();
 </script>
+  <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
 </body>
 </html>
