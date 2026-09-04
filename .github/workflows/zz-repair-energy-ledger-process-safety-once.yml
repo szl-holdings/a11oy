@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-# Retry 3: exact dedented sequence marker is now corrected.
+# Retry 4: expose the first fail-closed append reason before the full suite.
 name: Repair EnergyLedger rolling-restart safety once
 
 on:
@@ -49,6 +49,35 @@ jobs:
         run: >-
           python -m pip install --disable-pip-version-check --require-hashes
           -r .github/requirements/ci-core.txt
+
+      - name: Expose first append contract
+        run: |
+          python - <<'PY'
+          import json
+          import tempfile
+          from datetime import datetime, timezone
+          from pathlib import Path
+          from szl_energy_ledger import EnergyLedger, JobRecord
+
+          with tempfile.TemporaryDirectory() as directory:
+              path = str(Path(directory) / "energy.jsonl")
+              now = 1_000_000.0
+              job = JobRecord(
+                  node="diagnostic",
+                  joules_measured=1000.0,
+                  joules_label="measured",
+                  tokens=10,
+                  wall_s=1.0,
+                  ts=datetime.fromtimestamp(now - 1.0, tz=timezone.utc).isoformat(),
+                  model="diagnostic",
+                  nvml_age_s=1.0,
+              )
+              ledger = EnergyLedger(path=path)
+              result = ledger.append_job(job, now=now)
+              print(json.dumps(result, indent=2, sort_keys=True, default=str))
+              if not result.get("appended"):
+                  raise SystemExit("first append failed closed: " + str(result.get("message") or result.get("error")))
+          PY
 
       - name: Prove concurrency, recovery, persistence, and response bounds
         run: |
