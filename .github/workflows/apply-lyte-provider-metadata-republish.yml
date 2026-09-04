@@ -1,0 +1,88 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply exact Lyte provider-metadata repair pin
+
+on:
+  push:
+    branches:
+      - fix/lyte-provider-metadata-republish
+    paths:
+      - .github/workflows/apply-lyte-provider-metadata-republish.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-lyte-provider-metadata-republish
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/lyte-provider-metadata-republish
+          fetch-depth: 1
+
+      - name: Advance the exact source-owned Lyte revision
+        shell: bash
+        env:
+          OLD_SHA: 2131d2eb3611267bd62c134b6bba6b4cf7523127
+          NEW_SHA: b26e66f18f563f5e9a98f8bdcfa5f28527e3e195
+        run: |
+          set -euo pipefail
+          files=(
+            scripts/hf_publish_lyte_enterprise.py
+            scripts/hf_publish_vertical_flagships_v4.py
+            tests/test_hf_publish_lyte_enterprise.py
+            tests/test_hf_publish_vertical_flagships_v4.py
+          )
+          for file in "${files[@]}"; do
+            test -f "$file"
+            grep -Fq "$OLD_SHA" "$file"
+            python3 - "$file" "$OLD_SHA" "$NEW_SHA" <<'PY'
+          from pathlib import Path
+          import sys
+
+          path = Path(sys.argv[1])
+          old = sys.argv[2]
+          new = sys.argv[3]
+          text = path.read_text(encoding="utf-8")
+          count = text.count(old)
+          if count < 1:
+              raise SystemExit(f"{path}: expected old revision was absent")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          print(f"{path}: replaced {count} exact revision occurrence(s)")
+          PY
+            test "$(grep -Foc "$NEW_SHA" "$file")" -ge 1
+            ! grep -Fq "$OLD_SHA" "$file"
+          done
+          python3 -m py_compile \
+            scripts/hf_publish_lyte_enterprise.py \
+            scripts/hf_publish_vertical_flagships_v4.py \
+            tests/test_hf_publish_lyte_enterprise.py \
+            tests/test_hf_publish_vertical_flagships_v4.py
+          git diff --check
+
+      - name: Commit the permanent source pin and retire this one-shot workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/apply-lyte-provider-metadata-republish.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            scripts/hf_publish_lyte_enterprise.py \
+            scripts/hf_publish_vertical_flagships_v4.py \
+            tests/test_hf_publish_lyte_enterprise.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            .github/workflows/apply-lyte-provider-metadata-republish.yml
+          git commit -s -m "fix(hf): advance source-owned Lyte to validated metadata"
+          git push origin HEAD:fix/lyte-provider-metadata-republish
