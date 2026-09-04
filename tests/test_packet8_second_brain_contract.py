@@ -5,12 +5,14 @@ import py_compile
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SPACES = ("terra-assurance", "aegis-assurance", "puriq-markets", "counsel-assurance")
+SPACES = ("terra-assurance", "puriq-markets", "counsel-assurance")
+RETIRED = ("aegis-assurance",)
 SUBSTRATE_SHA = "ad2e04374717ef79dbf7dbb91aea5a8480ed10c3"
 LOCKED = ("F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22")
+PUBLISHER = ROOT / ".github" / "scripts" / "publish_packet8_vertical_spaces.py"
 
 
-def test_all_packet8_adapters_install_same_pinned_substrate_and_brain() -> None:
+def test_active_packet8_adapters_install_same_pinned_substrate_and_brain() -> None:
     canonical_app = None
     canonical_brain = None
     for name in SPACES:
@@ -45,3 +47,13 @@ def test_packet8_second_brain_never_claims_production_or_formula_authority() -> 
         assert '"proven_trust":False' in brain or '"proven_trust": False' in brain
         assert 'formula authority NONE' in app
         assert 'status":"OPEN"' in brain or '"status": "OPEN"' in brain
+
+
+def test_aegis_source_is_preserved_but_cannot_be_republished() -> None:
+    for name in RETIRED:
+        assert (ROOT / "huggingface" / "spaces" / name).is_dir()
+    publisher = PUBLISHER.read_text(encoding="utf-8")
+    assert 'RETIRED_SPACE_IDS = frozenset({"SZLHOLDINGS/aegis-assurance"})' in publisher
+    assert '"space_id": "SZLHOLDINGS/aegis-assurance"' not in publisher.split("SPACES = [", 1)[1]
+    assert "retired Space reached Packet 8 publisher" in publisher
+    py_compile.compile(str(PUBLISHER), doraise=True)
