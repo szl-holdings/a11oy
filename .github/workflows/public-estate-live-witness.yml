@@ -1,0 +1,133 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Public estate live witness
+
+"on":
+  pull_request:
+    paths:
+      - governance/public-estate.v1.json
+      - scripts/public_estate_live_witness.py
+      - tests/test_public_estate_live_witness.py
+      - .github/workflows/public-estate-live-witness.yml
+  push:
+    branches: [main]
+    paths:
+      - governance/public-estate.v1.json
+      - scripts/public_estate_live_witness.py
+      - tests/test_public_estate_live_witness.py
+      - .github/workflows/public-estate-live-witness.yml
+  schedule:
+    - cron: "41 */6 * * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-estate-live-witness-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Manifest and fixed-origin witness contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Prove topology, bounded origins, and fail-closed truth labels
+        run: |
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.3.5"
+          python -m pytest -q tests/test_public_estate_live_witness.py
+          python scripts/public_estate_live_witness.py \
+            --offline-contract-only \
+            --output public-estate-contract.json
+          python -m py_compile scripts/public_estate_live_witness.py
+          git diff --check
+
+      - name: Upload contract receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-estate-contract-${{ github.run_id }}-${{ github.run_attempt }}
+          path: public-estate-contract.json
+          if-no-files-found: error
+          retention-days: 90
+
+  live:
+    name: Exact-source and route witness
+    if: github.event_name != 'pull_request'
+    needs: contract
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout protected main
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Verify all public products from fixed origins
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python scripts/public_estate_live_witness.py \
+            --output public-estate-live-witness.json \
+            --timeout 20 \
+            --retry-seconds 1200 \
+            --retry-interval 30
+
+      - name: Write operator summary
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("public-estate-live-witness.json")
+          if not path.exists():
+              raise SystemExit("public-estate-live-witness.json was not produced")
+          receipt = json.loads(path.read_text())
+          with Path("$GITHUB_STEP_SUMMARY").open("a", encoding="utf-8") as stream:
+              stream.write("# SZL public estate witness\n\n")
+              stream.write(f"- Complete: `{receipt.get('complete')}`\n")
+              stream.write(f"- Verified: `{receipt.get('verified_surface_count', 0)}/{receipt.get('public_surface_count', 0)}`\n")
+              stream.write(f"- Manifest: `{receipt.get('manifest_sha256', 'UNAVAILABLE')}`\n")
+              stream.write(f"- Receipt: `{receipt.get('receipt_sha256', 'UNAVAILABLE')}`\n\n")
+              stream.write("| Surface | Verified | Failures |\n|---|---:|---|\n")
+              for row in receipt.get("surfaces", []):
+                  failures = "; ".join(row.get("failures", [])) or "—"
+                  stream.write(f"| {row.get('id')} | {row.get('verified')} | {failures} |\n")
+          PY
+
+      - name: Upload immutable live receipt
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-estate-live-witness-${{ github.run_id }}-${{ github.run_attempt }}
+          path: public-estate-live-witness.json
+          if-no-files-found: error
+          retention-days: 90
