@@ -8,17 +8,20 @@ Proof host:   a11oy.net    (do not serve this surface there)
 
 Additive tabs:
   GET+HEAD /command
+  GET+HEAD /command-v2
   GET+HEAD /command/constellation
   GET+HEAD /command/brain
   GET+HEAD /constellation   (host-root; declared so SPA fallback cannot 404 it)
   GET+HEAD /command/{rest}
 
 Host-root /brain is Hickok dual-stream. Do not steal it.
+/command stays on elite_console.html until an explicit flag flips it.
 """
 from pathlib import Path
 from typing import List
 
 MOUNTS = ("/command",)
+V2_MOUNTS = ("/command-v2",)
 SPECIFIC = (
     ("/command/constellation", "constellation.html"),
     ("/command/brain", "second-brain.html"),
@@ -40,6 +43,18 @@ def _spa_path() -> Path:
         if cand.is_file():
             return cand
     return here / "web" / "elite_console.html"
+
+
+def _v2_path() -> Path:
+    here = Path(__file__).resolve().parent
+    candidates = (
+        here / "web" / "command_v2.html",
+        Path("/app/web/command_v2.html"),
+    )
+    for cand in candidates:
+        if cand.is_file():
+            return cand
+    return here / "web" / "command_v2.html"
 
 
 def _page(name: str) -> Path:
@@ -103,6 +118,19 @@ def register(app, ns: str = "a11oy") -> List[str]:
         del rest
         return FileResponse(spa, media_type="text/html; charset=utf-8")
 
+    async def _v2(_request=None):
+        page = _v2_path()
+        if page.is_file():
+            return FileResponse(page, media_type="text/html; charset=utf-8")
+        return JSONResponse(
+            {
+                "status": "UNAVAILABLE",
+                "reason": "command_v2.html missing from image — add COPY web/command_v2.html",
+                "page": "web/command_v2.html",
+            },
+            status_code=200,
+        )
+
     def _file(name: str):
         async def _handler(_request=None):
             page = _page(name)
@@ -119,7 +147,7 @@ def register(app, ns: str = "a11oy") -> List[str]:
         return _handler
 
     specific_paths = {path for path, _name in SPECIFIC}
-    _drop_paths(app, specific_paths)
+    _drop_paths(app, specific_paths | set(V2_MOUNTS))
     existing = _existing_paths(app)
     mounted: set = set()
     router = getattr(app, "router", app)
@@ -138,11 +166,13 @@ def register(app, ns: str = "a11oy") -> List[str]:
 
     for path in MOUNTS:
         _add(path, _spa, ["GET", "HEAD"])
+    for path in V2_MOUNTS:
+        _add(path, _v2, ["GET", "HEAD"])
     for path, name in SPECIFIC:
         _add(path, _file(name), ["GET", "HEAD"])
     _add(CATCHALL, _spa, ["GET", "HEAD"])
-    _front_move(app, [path for path, _name in SPECIFIC] + list(MOUNTS))
-    registered.append("command-center on /command (constellation/brain beat catch-all; /brain host-root untouched)")
+    _front_move(app, list(V2_MOUNTS) + [path for path, _name in SPECIFIC] + list(MOUNTS))
+    registered.append("command-center on /command; /command-v2 additive; constellation/brain beat catch-all; /brain host-root untouched")
     return registered
 
 
@@ -172,10 +202,16 @@ def _selftest() -> None:
     app = Starlette(routes=[Route("/console", _console), Route("/brain", _hickok)])
     out = register(app, ns="a11oy")
     assert any("/command" in row for row in out), out
+    assert any("/command-v2" in row for row in out), out
     c = TestClient(app)
     for path in ("/command", "/command/anatomy", "/command/honest"):
         r = c.get(path)
         assert r.status_code == 200, (path, r.status_code)
+    v2 = c.get("/command-v2")
+    assert v2.status_code == 200, ("/command-v2", v2.status_code)
+    if _v2_path().is_file():
+        assert "Command" in v2.text or "a11oy" in v2.text.lower()
+        assert "cdnjs" not in v2.text and "googleapis" not in v2.text
     if _page("constellation.html").is_file():
         for path in ("/command/constellation", "/constellation"):
             body = c.get(path).text
@@ -188,7 +224,7 @@ def _selftest() -> None:
         assert "F1" in br.text
     assert "Hickok" in c.get("/brain").text
     assert c.get("/console").status_code == 200
-    print("a11oy_command_center: ALL OK (constellation beats catch-all; /brain host-root untouched)")
+    print("a11oy_command_center: ALL OK (v2 additive; constellation beats catch-all; /brain host-root untouched)")
 
 
 if __name__ == "__main__":
