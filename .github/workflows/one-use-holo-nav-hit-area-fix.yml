@@ -1,0 +1,113 @@
+name: One-use Holo navigation hit-area repair
+
+on:
+  push:
+    branches:
+      - fix/holo-nav-hit-area-20260904
+    paths:
+      - .github/workflows/one-use-holo-nav-hit-area-fix.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: one-use-holo-navigation-hit-area-repair
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/holo-nav-hit-area-20260904
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Apply deterministic rounded-control geometry repair
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('a11oy_landing.html')
+          text = path.read_text(encoding='utf-8')
+          old = 'min-width:44px;min-height:44px;height:auto;padding:8px 11px;border-radius:10px'
+          new = 'min-width:50px;min-height:50px;height:auto;padding:8px 11px;border-radius:10px'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f'expected one canonical nav geometry rule, found {count}')
+          path.write_text(text.replace(old, new), encoding='utf-8', newline='\n')
+
+          test = Path('tests/test_landing_nav_hit_area_geometry.py')
+          test.write_text('''from __future__ import annotations
+
+import math
+from pathlib import Path
+import re
+import unittest
+
+
+LANDING = Path(__file__).resolve().parents[1] / "a11oy_landing.html"
+RULE_RE = re.compile(r"[.]nav nav a[{](?P<body>[^}]*)[}]")
+
+
+class LandingNavigationHitAreaGeometryTests(unittest.TestCase):
+    def test_rounded_nav_control_contains_a_44px_square(self) -> None:
+        source = LANDING.read_text(encoding="utf-8")
+        match = RULE_RE.search(source)
+        self.assertIsNotNone(match, "canonical navigation anchor rule is missing")
+        body = match.group("body")
+
+        def pixels(name: str) -> float:
+            value = re.search(rf"{re.escape(name)}:([0-9]+(?:[.][0-9]+)?)px", body)
+            self.assertIsNotNone(value, f"{name} is not fixed in pixels")
+            return float(value.group(1))
+
+        width = pixels("min-width")
+        height = pixels("min-height")
+        radius = pixels("border-radius")
+        required_box = 44.0 + 2.0 * radius * (1.0 - 1.0 / math.sqrt(2.0))
+        self.assertGreaterEqual(width, required_box)
+        self.assertGreaterEqual(height, required_box)
+        self.assertIn("pointer-events:auto", body)
+        self.assertIn("touch-action:manipulation", body)
+
+    def test_holographic_primary_navigation_target_remains_present(self) -> None:
+        source = LANDING.read_text(encoding="utf-8")
+        self.assertEqual(source.count('<a href="/holographic">Holo</a>'), 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
+''', encoding='utf-8', newline='\n')
+          PY
+
+      - name: Prove focused contract and source hygiene
+        run: |
+          set -euo pipefail
+          python -m unittest -v tests.test_landing_nav_hit_area_geometry
+          python -m py_compile tests/test_landing_nav_hit_area_geometry.py
+          git diff --check
+
+      - name: Commit product repair only
+        run: |
+          set -euo pipefail
+          git config user.name 'Stephen Lutar'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add a11oy_landing.html tests/test_landing_nav_hit_area_geometry.py
+          git diff --cached --quiet && {
+            echo 'Holo navigation geometry already repaired.'
+            exit 0
+          }
+          git commit -s -m 'fix(frontend): guarantee Holo 44px hit area'
+          git push origin HEAD:fix/holo-nav-hit-area-20260904
