@@ -71,14 +71,14 @@ def test_frontier_v3_remains_the_reviewed_base() -> None:
     for fragment in (
         'BASE_IMPL = HERE / "hf_publish_vertical_services.py"',
         '"aegis": "sentra"',
-        '"immune": "sentra"',
+        '"defend": "sentra"',
         '"puriq": "finance"',
         '"markets": "finance"',
         '"real-estate": "terra"',
         '"business-observability": "lyte"',
         '"prism": "counsel"',
         '"vessels": "killinchu"',
-        '"Aegis Immune Cell"',
+        '"Killinchu Defend Plane"',
         '"Lyte Signal Lattice"',
         '"Killinchu Voyage Radar"',
         '"PURIQ Market Chamber"',
@@ -107,7 +107,7 @@ def test_intelligence_v4_locks_exact_source_models_kernels_and_non_authority() -
     source = INTELLIGENCE.read_text(encoding="utf-8")
     for fragment in (
         'V3_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"',
-        'SOURCE_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"',
+        'SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"',
         'EXPECTED_VERSION = "2.2.0"',
         '"sentra": "threat-shield"',
         '"lyte": "service-lattice"',

@@ -75,7 +75,7 @@
     "source_commit": "c4bc67a4a0da76ca78eee2598618ab001eed1189",
     "source_commit_subject": "v6 ratchet: alive-proof layer — DSSE-verified harness runs on the map (#40)",
     "github_state": "MERGED_MAIN_CI_GREEN",
-    "live_url": "https://szlholdings-anatomy.hf.space/",
+    "live_url": "https://betterwithage-anatomy.hf.space/",
     "live_routes": [
       {
         "path": "/",

@@ -85,9 +85,9 @@ CURATED_SURFACES: dict[str, list[dict[str, str]]] = {
     ],
     "anatomy": [
         {
-            "id": "SZLHOLDINGS/anatomy",
+            "id": "betterwithage/anatomy",
             "kind": "space",
-            "href": "https://huggingface.co/spaces/SZLHOLDINGS/anatomy",
+            "href": "https://huggingface.co/spaces/betterwithage/anatomy",
             "owner": "szl-holdings/anatomy",
         },
         {

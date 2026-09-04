@@ -15,7 +15,7 @@ PUBLISHER_TEST = ROOT / "tests" / "test_hf_publish_vertical_flagships_v4.py"
 
 LOCKED_EIGHT = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 VERTICALS = ["terra", "killinchu", "counsel", "finance", "lyte"]
-VERTICAL_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
+VERTICAL_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
 
 
 class LivingCommandFabricContract(unittest.TestCase):
@@ -113,7 +113,7 @@ class LivingCommandFabricContract(unittest.TestCase):
         )
         self.assertEqual(
             taxonomy["folded_into_killinchu"],
-            ["aegis", "sentra", "immune", "vessels"],
+            ["aegis", "sentra", "vessels"],
         )
         self.assertNotIn('id="body-sentra"', self.html)
         self.assertNotIn('id="body-vessels"', self.html)
@@ -121,8 +121,13 @@ class LivingCommandFabricContract(unittest.TestCase):
         self.assertEqual(killinchu["internal_engines"], ["sentra", "killinchu"])
         self.assertEqual(
             set(killinchu["capability_planes"]),
-            {"aegis", "sentra_defend", "immune", "vessels_maritime", "counter_uas_airspace"},
+            {"sentra_defend", "vessels_maritime", "counter_uas_airspace", "evidence_receipts"},
         )
+        self.assertEqual(set(killinchu["migration_gated"]), {"immune", "immune-lattice"})
+        self.assertEqual(set(killinchu["portfolio_labels"]), {"aegis"})
+        self.assertIn("IMMUNE MIGRATION-GATED", self.html)
+        self.assertIn("https://szlholdings-killinchu.hf.space/defend", self.html)
+        self.assertNotIn("FIVE CAPABILITY PLANES", self.html)
 
     def test_clean_room_policy_rejects_proprietary_source_copying(self) -> None:
         policy = self.manifest["clean_room_inspiration"]
@@ -155,7 +160,7 @@ class LivingCommandFabricContract(unittest.TestCase):
         )
         self.assertEqual(
             intelligence["killinchu_capability_aliases"],
-            {"aegis": "sentra", "immune": "sentra", "vessels": "killinchu"},
+            {"aegis": "sentra", "defend": "sentra", "vessels": "killinchu"},
         )
         self.assertFalse(intelligence["authority"]["hatun_can_authorize"])
         self.assertFalse(intelligence["authority"]["caller_supplied_model_endpoints"])

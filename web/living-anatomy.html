@@ -108,16 +108,16 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
     <div class="card"><div class="lbl">Consensus mesh</div><div class="big" id="c_mesh" style="color:var(--teal)">—</div><div class="sub">Byzantine = Conjecture 2 OPEN</div></div>
   </div>
   <div class="panel">
-    <h2>Living anatomy (live 3D) — opens zoomed OUT to the whole estate<span class="meta">szlholdings-anatomy.hf.space</span></h2>
+    <h2>Living anatomy (live 3D) — opens zoomed OUT to the whole estate<span class="meta">betterwithage-anatomy.hf.space</span></h2>
     <div class="hud" style="margin:.15rem 0 .7rem">
       <button class="chip active" data-view="estate" onclick="setView('estate',this)">⤢ Estate<span class="k">zoom-out</span></button>
       <button class="chip" data-view="council" onclick="setView('council',this)">◎ Ayllu council</button>
       <button class="chip" data-view="organism" onclick="setView('organism',this)">◉ Organism</button>
       <span style="flex:1"></span>
       <button class="iconbtn" onclick="goFs()">⛶ Fullscreen</button>
-      <a class="iconbtn" href="https://szlholdings-anatomy.hf.space#estate" target="_blank" rel="noopener">Open scene ↗</a>
+      <a class="iconbtn" href="https://betterwithage-anatomy.hf.space#estate" target="_blank" rel="noopener">Open scene ↗</a>
     </div>
-    <div class="embed" id="embed"><iframe id="scene" src="https://szlholdings-anatomy.hf.space#estate" title="SZL Living Anatomy (a11oy + killinchu)" loading="lazy" referrerpolicy="no-referrer" allowfullscreen allow="fullscreen"></iframe></div>
+    <div class="embed" id="embed"><iframe id="scene" src="https://betterwithage-anatomy.hf.space#estate" title="SZL Living Anatomy (a11oy + killinchu)" loading="lazy" referrerpolicy="no-referrer" allowfullscreen allow="fullscreen"></iframe></div>
     <p class="hint">Opens on the <b style="color:var(--cream)">estate</b> zoom-out so the whole estate &amp; its wirings are visible at a glance. Inside the scene: drag to orbit · scroll to zoom · ⟲ resets · ▦ estate lens toggles the honesty panel.</p>
   </div>
   <div class="panel">
@@ -132,7 +132,7 @@ h1{font-size:1.7rem;font-weight:600;margin:.2rem 0 .3rem;letter-spacing:-.01em;}
   <div class="panel">
     <h2>The same organism — the other two surfaces<span class="meta">one anatomy, cross-linked</span></h2>
     <div class="links">
-      <a class="linkcard" href="https://szlholdings-anatomy.hf.space#estate" target="_blank" rel="noopener"><div class="lt">Standalone anatomy scene ↗</div><div class="ls">szlholdings-anatomy.hf.space · full-screen 3D (opens zoomed-out)</div></a>
+      <a class="linkcard" href="https://betterwithage-anatomy.hf.space#estate" target="_blank" rel="noopener"><div class="lt">Standalone anatomy scene ↗</div><div class="ls">betterwithage-anatomy.hf.space · full-screen 3D (opens zoomed-out)</div></a>
       <a class="linkcard" href="https://szlholdings-killinchu.hf.space" target="_blank" rel="noopener"><div class="lt">killinchu — the field-node body ↗</div><div class="ls">szlholdings-killinchu.hf.space · counter-UAS twin (same organism)</div></a>
       <a class="linkcard" href="/formulas"><div class="lt">/formulas — the named-formula registry</div><div class="ls">23 addressable FormulaAgents · live proof-state reveal · honest Lean status</div></a>
       <a class="linkcard" href="/wires#constitution"><div class="lt">/wires — the written constitution</div><div class="ls">W-CONST v1.0 · numbered rules wired to live enforcement evidence</div></a>
@@ -158,7 +158,7 @@ const A="/api/a11oy";
 const $=id=>document.getElementById(id);
 function setView(v,btn){
   var f=document.getElementById('scene'); if(!f) return;
-  f.src="https://szlholdings-anatomy.hf.space#"+v;   // hash-only change = in-place camera move, no reload
+  f.src="https://betterwithage-anatomy.hf.space#"+v;   // hash-only change = in-place camera move, no reload
   var chips=document.querySelectorAll('.chip'); for(var i=0;i<chips.length;i++){ chips[i].classList.toggle('active', chips[i]===btn); }
 }
 function goFs(){

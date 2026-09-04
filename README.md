@@ -260,7 +260,7 @@ One sovereign substrate, many organs — every decision carries a signed, checka
 [🛡️ a11oy](https://huggingface.co/spaces/SZLHOLDINGS/a11oy) ·
 [🧬 IMMUNE](https://huggingface.co/spaces/SZLHOLDINGS/immune) ·
 [🦅 killinchu](https://huggingface.co/spaces/SZLHOLDINGS/killinchu) ·
-[🫀 anatomy](https://huggingface.co/spaces/SZLHOLDINGS/anatomy) ·
+[🫀 anatomy](https://huggingface.co/spaces/betterwithage/anatomy) ·
 [🌌 cosmos](https://huggingface.co/spaces/SZLHOLDINGS/cosmos) ·
 [🛰️ SDA](https://huggingface.co/spaces/SZLHOLDINGS/sda) ·
 [🌊 yarqa](https://huggingface.co/spaces/SZLHOLDINGS/yarqa) ·

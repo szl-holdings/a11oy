@@ -433,7 +433,7 @@ def item_summary(item: dict[str, Any], repo_type: str) -> dict[str, Any]:
 def unsafe_flags(item_id: str, repo_type: str, tags: list[Any], card: dict[str, Any]) -> list[str]:
     flags: list[str] = []
     text = json.dumps({"id": item_id, "tags": tags, "card": card}, sort_keys=True).lower()
-    if any(name in text for name in ["kora", "lumina", "paragon", "lyte"]):
+    if any(name in text for name in ["kora", "lumina", "paragon"]):
         flags.append("stale-product-name-review")
     if item_id in {
         "SZLHOLDINGS/counsel-source",
@@ -486,8 +486,9 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
         ],
         "counts": counts,
         "guardrails": [
-            "Do not present Counsel, Terra, or Carlota Jo as active demo surfaces.",
-            "Do not use KORA, LUMINA, PARAGON, or active Lyte framing.",
+            "Present a public product as operational only when live readiness and exact-source proof pass.",
+            "Aegis is a portfolio label; Sentra/Defend and Vessels/Maritime live inside Killinchu; IMMUNE remains migration-gated.",
+            "Carlota Jo remains incubation until canonical source, runtime authority, and measurable workflow are explicit.",
             "Do not claim zero-sorry or all-green Lean proof status without current machine-readable proof evidence.",
             "Do not claim signed UDS release assets exist unless tarball, signature, sha256, and public key assets are present and verify.",
         ],

@@ -1,0 +1,21 @@
+{
+  "ecosystem_audit_tests_passed": 16,
+  "focused_tests_passed": 31,
+  "input_revision": "d50032a80da270851e3a1c05750e0460c34c94f8",
+  "killinchu_revision": "c797b4d1ea336c02f08ddaf72c01b152f3c04d4d",
+  "observed_at": "2026-09-04T04:24:49.703433Z",
+  "provider_mutation_performed": false,
+  "schema": "szl.estate-truth-convergence/v1",
+  "schema_validation": "PASSED",
+  "staged_workflows": {
+    "hf-living-anatomy-guardian.yml": {
+      "bytes": 11116,
+      "sha256": "e63ff568cfc489280ff54e0db97f4aef2d2e7e049c4cb4ea21d26acc6c2dbf2d"
+    },
+    "smoke-monitor.yml": {
+      "bytes": 3624,
+      "sha256": "3a77458f23891d3a22ec297094fea0fda6e42d06f00885355f543e329d63a0b4"
+    }
+  },
+  "vertical_services_revision": "c24ef61716f173e48d95dad61408d9fa065f0204"
+}

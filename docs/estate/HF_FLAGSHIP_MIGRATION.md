@@ -17,7 +17,7 @@ Canonical public Space set:
 | Finance | PURIQ Finance | `SZLHOLDINGS/finance` | `szl-holdings/puriq-live` |
 | Observability | Lyte | `SZLHOLDINGS/lyte` | `szl-holdings/lyte-lattice` |
 | Insurance | David Leads | `SZLHOLDINGS/david-leads` | `szl-holdings/david-leads` |
-| Living system atlas | Living Anatomy | `SZLHOLDINGS/anatomy` | `szl-holdings/anatomy` + handles-only `szl-holdings/szl-second-brain` projection |
+| Living system atlas | Living Anatomy | `betterwithage/anatomy` | `szl-holdings/anatomy` + handles-only `szl-holdings/szl-second-brain` projection |
 
 ## Killinchu product boundary
 

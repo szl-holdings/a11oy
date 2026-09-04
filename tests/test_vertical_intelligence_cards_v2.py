@@ -61,6 +61,10 @@ def test_cards_expose_model_kernel_and_authority_boundaries() -> None:
         "NO FILING AUTHORITY",
         "NO PERSON PROSPECTING",
         "HUMAN BIND",
+        "4 OPERATIONAL PLANES",
+        "IMMUNE MIGRATION-GATED",
+        "ONE PUBLIC RUNTIME",
+        "https://szlholdings-killinchu.hf.space/defend",
     ):
         assert fragment in section
 

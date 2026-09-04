@@ -24,8 +24,8 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 BASE_IMPL = HERE / "hf_publish_vertical_services.py"
 
-SOURCE_REVISION = "e08231a110fd80f85a61fba82d72ab7f1fe23836"
-EXPECTED_VERSION = "2.1.0"
+SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
+EXPECTED_VERSION = "2.2.0"
 USER_AGENT = "SZLHOLDINGS-Vertical-Frontier-v3-Publisher/1.0"
 
 CANONICAL_VERTICALS = (
@@ -66,14 +66,14 @@ SMOKE_PATHS = (
     "/terra/healthz",
     "/counsel/healthz",
     "/api/verticals/aegis/frontier",
-    "/api/verticals/immune/frontier",
+    "/api/verticals/defend/frontier",
     "/api/verticals/puriq/frontier",
     "/api/verticals/markets/frontier",
     "/api/verticals/real-estate/frontier",
     "/api/verticals/business-observability/frontier",
     "/api/verticals/prism/frontier",
     "/api/verticals/vessels/frontier",
-    "/experience/aegis",
+    "/experience/defend",
     "/experience/lyte",
     "/experience/killinchu",
     "/experience/puriq",
@@ -89,7 +89,7 @@ SMOKE_PATHS = (
 
 ALIASES = {
     "aegis": "sentra",
-    "immune": "sentra",
+    "defend": "sentra",
     "puriq": "finance",
     "markets": "finance",
     "real-estate": "terra",
@@ -99,7 +99,7 @@ ALIASES = {
 }
 
 EXPERIENCES = {
-    "aegis": ("Aegis Immune Cell", "threat-shield"),
+    "defend": ("Killinchu Defend Plane", "threat-shield"),
     "lyte": ("Lyte Signal Lattice", "service-lattice"),
     "killinchu": ("Killinchu Voyage Radar", "voyage-radar"),
     "puriq": ("PURIQ Market Chamber", "probability-orbit"),

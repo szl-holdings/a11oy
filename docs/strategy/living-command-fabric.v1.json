@@ -43,7 +43,9 @@
     "anatomy": {
       "repository": "szl-holdings/anatomy",
       "revision": "f8be4e148092ee9eabba1ed1d1c5179809233b39",
-      "role": "shared embeddable living-system visualization; not an independent governance console"
+      "role": "shared embeddable living-system visualization; not an independent governance console",
+      "space_repository": "betterwithage/anatomy",
+      "runtime": "https://betterwithage-anatomy.hf.space"
     },
     "second_brain": {
       "repository": "szl-holdings/szl-second-brain",
@@ -57,22 +59,22 @@
     },
     "vertical_services": {
       "repository": "szl-holdings/vertical-services",
-      "revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
       "role": "combined Python intelligence fabric for six internal domain engines; published through the protected-main single writer",
       "runtime_version": "2.2.0",
       "publisher": "scripts/hf_publish_vertical_services_intelligence_v4.py",
-      "publisher_merge_revision": "55d9336fed3a23da5b1abfed4f7f38dcc5121a06"
+      "publisher_source_binding": "runtime /.well-known/szl-source.json plus hf-vertical-services receipt"
     },
     "killinchu": {
       "repository": "szl-holdings/killinchu",
-      "revision": "928a6dace657f8f9e067773d23d5686fe3dcc716",
-      "role": "sole public cyber-physical resilience runtime; Aegis, Sentra/Defend, IMMUNE, Vessels/Maritime and Counter-UAS/Airspace are capability planes"
+      "revision": "c797b4d1ea336c02f08ddaf72c01b152f3c04d4d",
+      "role": "sole public cyber-physical resilience runtime; Aegis is a portfolio label; Defend/Sentra, Maritime/Vessels, Counter-UAS/Airspace and Evidence/receipts are operational capability planes; IMMUNE is migration-gated"
     }
   },
   "formula_contract": {
     "policy": "Every promoted vertical inherits the complete locked-eight kernel through the shared Anatomy organ map. Domain teams may add evidence-backed measurements but may not invent a new F-number meaning or promote an unproved formula.",
     "lambda": {
-      "symbol": "Λ",
+      "symbol": "\u039b",
       "status": "CONJECTURE_1_ADVISORY",
       "authorizes_actions": false,
       "may_render_as_proven": false
@@ -170,7 +172,7 @@
         "underwriting queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -178,9 +180,9 @@
       "brand": "Killinchu",
       "domain": "cyber_physical_resilience_intelligence",
       "canonical_source": "szl-holdings/killinchu",
-      "canonical_revision": "928a6dace657f8f9e067773d23d5686fe3dcc716",
+      "canonical_revision": "c797b4d1ea336c02f08ddaf72c01b152f3c04d4d",
       "service_source": "szl-holdings/vertical-services",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
       "runtime": "https://szlholdings-killinchu.hf.space",
       "workflow": [
         "DETECT",
@@ -199,11 +201,10 @@
         "evidence ledger"
       ],
       "capability_planes": {
-        "aegis": "internal portfolio and assurance lens",
-        "sentra_defend": "defensive control-plane engine",
-        "immune": "admission, tripwires, signed authority and tamper-evident evidence",
-        "vessels_maritime": "fleet, sanctions, ownership, route and voyage intelligence",
-        "counter_uas_airspace": "counter-UAS and airspace mission pack"
+        "sentra_defend": "operational defensive analysis, approval, simulation and receipts",
+        "vessels_maritime": "operational fleet, voyage, sanctions and ownership intelligence",
+        "counter_uas_airspace": "operational mission-pack and airspace command surface",
+        "evidence_receipts": "operational evidence, verification and immutable receipt plane"
       },
       "internal_engines": [
         "sentra",
@@ -211,13 +212,21 @@
       ],
       "aliases": [
         "aegis",
-        "immune",
+        "defend",
         "vessels"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
       "public_product_boundary": "sole_public_cyber_physical_resilience_runtime",
       "effectors": "SIMULATED_OR_OPERATOR_OWNED_UNLESS_SEPARATELY_PROVED",
-      "service_runtime_version": "2.2.0"
+      "service_runtime_version": "2.2.0",
+      "role": "sole public cyber-physical resilience product",
+      "portfolio_labels": {
+        "aegis": "portfolio and assurance lens; not a separate runtime"
+      },
+      "migration_gated": {
+        "immune": "distinct admission, tripwire and signed-authority parity required",
+        "immune-lattice": "parity audit required before consolidation"
+      }
     },
     {
       "slug": "counsel",
@@ -239,7 +248,7 @@
         "work-product queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -262,7 +271,7 @@
         "evidence ledger"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -285,7 +294,7 @@
         "action queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
       "service_runtime_version": "2.2.0"
     }
   ],
@@ -379,8 +388,8 @@
     "selection_rule": "No universal winner. Forge benchmarks by hardware, latency, throughput, quality, energy and domain workload before promotion."
   },
   "wave_1": {
-    "site": "Expose Living Anatomy and five public domain bodies backed by six internal engines, while preserving the buyer hero and runtime evidence instrument.",
-    "publisher_repair": "Bind the canonical single writer to vertical-services@83edba5c5e730c91d8f5f0a6531213fb860677af / runtime 2.2.0 through the intelligence-v4 composition layer; keep Aegis/Sentra/Immune/Vessels inside Killinchu public authority.",
+    "site": "Expose Living Anatomy and five public domain bodies backed by six internal engines; show four operational Killinchu planes and IMMUNE as migration-gated.",
+    "publisher_repair": "Bind the canonical single writer to vertical-services@c24ef61716f173e48d95dad61408d9fa065f0204 / runtime 2.2.0; keep Aegis as a portfolio label, Defend and Maritime inside Killinchu, and IMMUNE migration-gated until parity is proven.",
     "next_vertical_order": [
       "killinchu_resilience",
       "lyte",
@@ -418,18 +427,30 @@
     "folded_into_killinchu": [
       "aegis",
       "sentra",
-      "immune",
       "vessels"
     ],
     "rule": "A capability alias or engine is not a separate public product authority.",
     "vertical_services_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
-    "vertical_services_runtime_version": "2.2.0"
+    "vertical_services_runtime_version": "2.2.0",
+    "operational_capability_planes": [
+      "defend",
+      "maritime",
+      "counter-uas",
+      "evidence"
+    ],
+    "migration_gated": [
+      "immune",
+      "immune-lattice"
+    ],
+    "portfolio_labels": [
+      "aegis"
+    ]
   },
   "intelligence_fabric": {
     "schema": "szl.vertical-intelligence-live-proof/v4",
     "runtime_version": "2.2.0",
     "source_repository": "szl-holdings/vertical-services",
-    "source_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+    "source_revision": "c24ef61716f173e48d95dad61408d9fa065f0204",
     "publisher_repository": "szl-holdings/a11oy",
     "publisher_revision": "55d9336fed3a23da5b1abfed4f7f38dcc5121a06",
     "public_flagship_spaces": [
@@ -448,7 +469,7 @@
     ],
     "killinchu_capability_aliases": {
       "aegis": "sentra",
-      "immune": "sentra",
+      "defend": "sentra",
       "vessels": "killinchu"
     },
     "inference_assets": [
@@ -473,6 +494,10 @@
       "killinchu_effectors": "SIMULATED_OR_OPERATOR_OWNED_UNLESS_SEPARATELY_PROVED",
       "lambda": "CONJECTURE_1_ADVISORY"
     },
-    "readiness_rule": "A published artifact or reachable route is not current until exact source-revision, route, connector, authority, and receipt checks pass."
+    "readiness_rule": "A published artifact or reachable route is not current until exact source-revision, route, connector, authority, and receipt checks pass.",
+    "migration_gated": [
+      "immune",
+      "immune-lattice"
+    ]
   }
 }

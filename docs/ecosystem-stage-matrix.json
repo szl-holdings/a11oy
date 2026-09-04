@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-03T11:16:39Z",
+  "observedAt": "2026-09-04T04:24:43Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -28,7 +28,7 @@
     "huggingFacePublic": {
       "models": 44,
       "datasets": 31,
-      "spaces": 9
+      "spaces": 11
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1576,9 +1576,7 @@
       "repoType": "space",
       "stage": "inventory",
       "private": false,
-      "unsafeFlags": [
-        "stale-product-name-review"
-      ],
+      "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/lyte"
       ]
@@ -1594,6 +1592,26 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-command-lab",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-command-lab"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-constellation",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-constellation"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/terra",
       "repoType": "space",
       "stage": "inventory",
@@ -1604,13 +1622,13 @@
       ]
     },
     {
-      "id": "SZLHOLDINGS/vessels",
+      "id": "SZLHOLDINGS/vertical-services",
       "repoType": "space",
       "stage": "inventory",
       "private": false,
       "unsafeFlags": [],
       "evidenceUrls": [
-        "https://huggingface.co/spaces/SZLHOLDINGS/vessels"
+        "https://huggingface.co/spaces/SZLHOLDINGS/vertical-services"
       ]
     }
   ],

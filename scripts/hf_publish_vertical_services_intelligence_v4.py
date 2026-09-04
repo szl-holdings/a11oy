@@ -23,7 +23,7 @@ from typing import Any
 HERE = Path(__file__).resolve().parent
 V3_IMPL = HERE / "hf_publish_vertical_services_frontier_v3.py"
 
-SOURCE_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
+SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
 EXPECTED_VERSION = "2.2.0"
 USER_AGENT = "SZLHOLDINGS-Vertical-Intelligence-v4-Publisher/1.0"
 
@@ -47,7 +47,7 @@ INTELLIGENCE_ROOMS = {
 
 INTELLIGENCE_ALIASES = {
     "aegis": "sentra",
-    "immune": "sentra",
+    "defend": "sentra",
     "business-observability": "lyte",
     "vessels": "killinchu",
     "puriq": "finance",
@@ -75,12 +75,14 @@ KERNEL_ASSETS = {
 INTELLIGENCE_SMOKE_PATHS = (
     "/api/intelligence",
     "/intelligence/sentra",
+    "/intelligence/defend",
     "/intelligence/lyte",
     "/intelligence/killinchu",
     "/intelligence/finance",
     "/intelligence/terra",
     "/intelligence/counsel",
     "/api/verticals/sentra/intelligence",
+    "/api/verticals/defend/intelligence",
     "/api/verticals/lyte/intelligence",
     "/api/verticals/killinchu/intelligence",
     "/api/verticals/finance/intelligence",

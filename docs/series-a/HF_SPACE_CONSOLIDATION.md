@@ -21,7 +21,7 @@ Unauthenticated Hub author-list. Org README is a profile card, not one of the se
 | SZLHOLDINGS/a11oy | Product Command Center | a-11-oy.com |
 | SZLHOLDINGS/killinchu | Defense vertical | Hub Space |
 | SZLHOLDINGS/david-leads | Insurance vertical | Hub Space |
-| SZLHOLDINGS/anatomy | Living map | a-11-oy.com/anatomy-v5 |
+| betterwithage/anatomy | Living map | a-11-oy.com/anatomy-v5 |
 | SZLHOLDINGS/immune | Safety kernel | a-11-oy.com/immune |
 | SZLHOLDINGS/szl-real-estate | Public-records underwriting | Hub Space |
 | SZLHOLDINGS/szl-atelier | Artifact walk | a11oy.net/atelier/ |

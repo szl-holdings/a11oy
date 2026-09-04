@@ -1,4 +1,4 @@
-as_of: "2026-09-04T01:50:00Z"
+as_of: "2026-09-04T03:45:00Z"
 state: APPLY
 action: pause_and_private_then_gated_delete
 product: https://a-11-oy.com/products/
@@ -16,12 +16,16 @@ keep:
     role: cyber_physical_resilience
     dest: https://szlholdings-killinchu.hf.space
     source: szl-holdings/killinchu
-    capability_planes:
-      - sentra
-      - immune
-      - vessels
+    portfolio_labels:
+      - aegis
+    operational_capability_planes:
+      - defend
+      - maritime
       - counter-uas
       - evidence
+    migration_gated:
+      - immune
+      - immune-lattice
   - id: SZLHOLDINGS/terra
     role: real_estate
   - id: SZLHOLDINGS/counsel
@@ -32,21 +36,27 @@ keep:
     role: business_observability
   - id: SZLHOLDINGS/david-leads
     role: insurance
-  - id: SZLHOLDINGS/anatomy
-    role: living_system_atlas
-    dest: https://a-11-oy.com/living-anatomy
-    source: szl-holdings/anatomy
-    dependencies:
-      - szl-holdings/szl-second-brain
+  - id: SZLHOLDINGS/vertical-services
+    role: shared_vertical_runtime
+    dest: https://szlholdings-vertical-services.hf.space
+    source: szl-holdings/vertical-services
+creator_profile_surface:
+  repository: betterwithage/anatomy
+  role: living_system_atlas
+  dest: https://a-11-oy.com/living-anatomy
+  runtime: https://betterwithage-anatomy.hf.space
+  source: szl-holdings/anatomy
+  dependencies:
+    - szl-holdings/szl-second-brain
 retire_into_killinchu:
   - id: SZLHOLDINGS/vessels
-    state: REFERENCE_CLEANUP_REQUIRED
+    state: RETIRED_VERIFIED
     target_route: https://szlholdings-killinchu.hf.space/vessels
   - id: SZLHOLDINGS/aegis-assurance
-    state: DELETE_READY_AFTER_REFERENCE_CLEANUP
+    state: RETIRED_VERIFIED
     target_route: https://szlholdings-killinchu.hf.space/resilience
   - id: SZLHOLDINGS/sentra
-    state: MIGRATION_REQUIRED
+    state: FOLD_PRIVATE_PAUSED_AFTER_LIVE_DEFEND_GATE
     target_route: https://szlholdings-killinchu.hf.space/defend
   - id: SZLHOLDINGS/immune
     state: MIGRATION_REQUIRED
@@ -69,4 +79,4 @@ retirement_gate:
   - replacement_verified
   - no_unique_secret_dependency
   - secret_free_retirement_receipt
-note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-resilience runtime. Sentra, IMMUNE, Vessels and Aegis are capability planes, not separate flagships. Non-keepers are first paused/private; named legacy Spaces may then be irreversibly deleted only after every retirement gate passes and no active publisher can recreate them. Anatomy remains source-bound and public/running with a handles-only Second Brain projection."
+note: "Owner decision 2026-09-04: Killinchu is the sole public cyber-physical resilience product. Aegis is a portfolio label. Defend/Sentra, Maritime/Vessels, Counter-UAS/Airspace, and Evidence/receipts are operational capability planes. IMMUNE remains migration-gated until its distinct admission, tripwire, and signed-authority contracts pass parity. The creator-profile Living Anatomy surface remains source-bound and public/running with a handles-only Second Brain projection."

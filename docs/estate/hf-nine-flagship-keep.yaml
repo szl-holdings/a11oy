@@ -1,6 +1,6 @@
 as_of: "2026-09-04"
 state: APPLY
-policy_version: cyber-resilience-consolidation-v1
+policy_version: cyber-resilience-consolidation-v2
 product: https://a-11-oy.com/products/
 proof: https://a11oy.net
 keep:
@@ -9,12 +9,16 @@ keep:
   - id: SZLHOLDINGS/killinchu
     role: cyber_physical_resilience
     source: szl-holdings/killinchu
-    capability_planes:
-      - sentra
-      - immune
-      - vessels
+    portfolio_labels:
+      - aegis
+    operational_capability_planes:
+      - defend
+      - maritime
       - counter-uas
       - evidence
+    migration_gated:
+      - immune
+      - immune-lattice
   - id: SZLHOLDINGS/terra
     role: real_estate
   - id: SZLHOLDINGS/counsel
@@ -25,19 +29,24 @@ keep:
     role: business_observability
   - id: SZLHOLDINGS/david-leads
     role: insurance
-  - id: SZLHOLDINGS/anatomy
-    role: living_system_atlas
-    dest: https://a-11-oy.com/living-anatomy
-    source: szl-holdings/anatomy
-    dependencies:
-      - szl-holdings/szl-second-brain
+  - id: SZLHOLDINGS/vertical-services
+    role: shared_vertical_runtime
+    source: szl-holdings/vertical-services
+creator_profile_surface:
+  repository: betterwithage/anatomy
+  role: living_system_atlas
+  dest: https://a-11-oy.com/living-anatomy
+  runtime: https://betterwithage-anatomy.hf.space
+  source: szl-holdings/anatomy
+  dependencies:
+    - szl-holdings/szl-second-brain
 retire_into_killinchu:
   - id: SZLHOLDINGS/vessels
-    state: REFERENCE_CLEANUP_REQUIRED
+    state: RETIRED_VERIFIED
   - id: SZLHOLDINGS/aegis-assurance
-    state: DELETE_READY_AFTER_REFERENCE_CLEANUP
+    state: RETIRED_VERIFIED
   - id: SZLHOLDINGS/sentra
-    state: MIGRATION_REQUIRED
+    state: FOLD_PRIVATE_PAUSED_AFTER_LIVE_DEFEND_GATE
   - id: SZLHOLDINGS/immune
     state: MIGRATION_REQUIRED
   - id: SZLHOLDINGS/immune-lattice

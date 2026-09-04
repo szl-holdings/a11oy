@@ -151,7 +151,7 @@ def test_entrypoint_publishes_four_spaces_and_folds_two_into_killinchu() -> None
     assert "api.create_repo" not in entrypoint
 
     for fragment in (
-        'SOURCE_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"',
+        'SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"',
         'EXPECTED_VERSION = "2.2.0"',
         '"szl.vertical-intelligence-live-proof/v4"',
         '"caller_supplied_endpoints_allowed": False',
