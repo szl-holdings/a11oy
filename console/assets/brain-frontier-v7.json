@@ -858,12 +858,12 @@
       "candidateState": "DISCOVERED_REVIEW_REQUIRED",
       "contentAccess": "HANDLES_ONLY",
       "kind": "source-document",
-      "nodeId": "frontier:2400e6eeb1096daf6c4408b350dedff5",
+      "nodeId": "frontier:0496b555a1c6096f645c095a54a520e4",
       "path": "README.md",
       "repository": "szl-holdings/anatomy",
-      "revision": "3c8aab384383314e284b19b24961ae976f01c44b",
-      "sha256": "0eb0ee280e428e95fbd1c12750fd020780cb4eff2d86233dcdd4348de43ecd19",
-      "title": "Living Anatomy · v7 — YACHAY Neural Quant brain"
+      "revision": "6422274e284c443f640c3899fc4dbb7947bd5b30",
+      "sha256": "140dfc00d2963fc95aa63751ea082ebbd6dca804bb2bb73fb2cd9f48ebeccf6b",
+      "title": "Living Anatomy · What's new in v4 — dissection tools"
     },
     {
       "admission": "DISCOVERED_REVIEW_REQUIRED",
@@ -871,12 +871,12 @@
       "candidateState": "DISCOVERED_REVIEW_REQUIRED",
       "contentAccess": "HANDLES_ONLY",
       "kind": "source-document",
-      "nodeId": "frontier:1619fc20c09f72750b5184231d7522c3",
+      "nodeId": "frontier:045f25cf150ad87033dfb108dfa82a0d",
       "path": "README.md",
-      "repository": "szl-holdings/ouroboros",
-      "revision": "62e9779edddb21694d27c1a7c2c8ccc74157949f",
-      "sha256": "551bcd8902903024117d834a808e1580bf03f75e201170f0895ae44aaa7db8bb",
-      "title": "Ouroboros Runtime · ▶️ Live demo"
+      "repository": "szl-holdings/szl-ouroboros",
+      "revision": "cd8a451ca2be19f71653dcb4ef50e15e6836e697",
+      "sha256": "5cc957baf65a8ca1a800824c68de6f683c3868d9cbbe511c4d39d9647a1bd74d",
+      "title": "Ouroboros Runtime · Continuous Codex frontier loop"
     },
     {
       "admission": "REFERENCE_ONLY_NO_PROVIDER_MUTATION",
@@ -916,6 +916,19 @@
       "revision": "810231a531188bb569e3faa17396386eb0a5e260",
       "sha256": "e4a5db4dd4999f9fff034f6206503e9193177ce93a5ed16c22b2f7809f343d59",
       "title": "Nemo Witness · R1–R5 prompt/answer contract"
+    },
+    {
+      "admission": "DISCOVERED_REVIEW_REQUIRED",
+      "authority": "NONE",
+      "candidateState": "DISCOVERED_REVIEW_REQUIRED",
+      "contentAccess": "HANDLES_ONLY",
+      "kind": "source-document",
+      "nodeId": "frontier:01e71648eb1b513c4c8cede0232e2a9f",
+      "path": "README.md",
+      "repository": "szl-holdings/szl-kernels",
+      "revision": "45a56d0b132945e06a2d88a104f26c4840abebe2",
+      "sha256": "116e0b8e0097aed00e3c88c775bb1cebc73e047842ecfd38350dba36182e8483",
+      "title": "Governed Kernel Suite · Cookbook"
     },
     {
       "admission": "REFERENCE_ONLY_EXECUTION_AUTHORITY_NONE",
@@ -981,19 +994,6 @@
       "revision": "b37fa90cc48921f15883c23932cc6ded9152f9f1",
       "sha256": "f95df366bed6374733cb3f30ed9fff7d8a8912bc251039ee9a892bc82d2d4445",
       "title": "Public estate · PURIQ Finance"
-    },
-    {
-      "admission": "REFERENCE_ONLY_NO_PROVIDER_MUTATION",
-      "authority": "NONE",
-      "candidateState": "DISCOVERED_REVIEW_REQUIRED",
-      "contentAccess": "HANDLES_ONLY",
-      "kind": "estate-surface",
-      "nodeId": "frontier:35674d65c290943ac3dd4e32b6d79dbf",
-      "path": "governance/public-estate.v1.json",
-      "repository": "szl-holdings/a11oy",
-      "revision": "b37fa90cc48921f15883c23932cc6ded9152f9f1",
-      "sha256": "7180e76d943ebca11753704dad3f1480c559572dcdbd985c443809dadac1b49a",
-      "title": "Public estate · Lyte"
     }
   ],
   "loop": [
@@ -1005,13 +1005,13 @@
   ],
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "a7fb19262db48f2b63c25e4c85718f6c3bb63fc08b565b7f9057ee5f45bb69d3",
+  "snapshot_sha256": "49dc09761bb722fcba344ff18e23b2e2c9b450c61dbf222f012d63eefa82b3e1",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
       "live_origin": "https://betterwithage-anatomy.hf.space",
       "repository": "szl-holdings/anatomy",
-      "revision": "3c8aab384383314e284b19b24961ae976f01c44b"
+      "revision": "075a2484c1e520d4e5767c1a2780de9bd8827e6c"
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
@@ -1020,15 +1020,15 @@
     "ouroboros": {
       "repository": "szl-holdings/szl-ouroboros",
       "review_workflow": ".github/workflows/codex-frontier-review.yml",
-      "revision": "baea67498d625d388fc12de0e1fa987185887a15"
+      "revision": "67bf1de0286dd05484fd33adcbbed77f4e3f3992"
     },
     "second_brain": {
-      "candidate_count": 123,
-      "candidate_file_sha256": "550343d1856832de87c45339a49ac831fa459e78f3919d0a72ae2ade5f2f7adb",
-      "candidate_set_sha256": "550343d1856832de87c45339a49ac831fa459e78f3919d0a72ae2ade5f2f7adb",
+      "candidate_count": 129,
+      "candidate_file_sha256": "fb15e2d2822a9afb445c3eae7e077a7c250a59565fdd395a9e11f2247b12a884",
+      "candidate_set_sha256": "fb15e2d2822a9afb445c3eae7e077a7c250a59565fdd395a9e11f2247b12a884",
       "repository": "szl-holdings/szl-second-brain",
-      "revision": "5d77a5b4705401e8d318b164a3076b4163f357e9",
-      "state_sha256": "cd96ca8f27cbfeccfdc1568e62c0f07e8adc4d5687d5fb288f6894419432e5fa"
+      "revision": "1d3960c69235f117b7ec2b5ea97472f81fb588f5",
+      "state_sha256": "ffafd9d7259aa3281fb00f40f13ff3fc4443cded40b026276414d09a6be61a39"
     }
   },
   "state": "SOURCE_BOUND_REVIEW_MEMORY",
