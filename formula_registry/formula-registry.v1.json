@@ -1,7 +1,7 @@
 {
   "payload": {
     "authority": "FORMAL_SOURCE_PINNED",
-    "coverage_scope": "Exact locked-eight authority plus the F23 Lambda non-authority boundary; not an exhaustive inventory of every SZL formula or theorem.",
+    "coverage_scope": "Exact locked-eight authority plus the F23 Lambda boundary, which remains Conjecture 1 and is not a theorem; not an exhaustive inventory of every SZL formula or formal result.",
     "covered_formula_ids": [
       "F1",
       "F4",
@@ -238,7 +238,7 @@
     "algorithm": "sha256",
     "canonicalization": "UTF-8 JSON; object keys sorted; separators ',', ':'; ensure_ascii=false; digest scope=payload",
     "scope": "payload",
-    "value": "b6f20fb5897520ea31b5a2bd558b25a1551b521e9f78c6524a889e07f4762e06"
+    "value": "ec1d9e1aa6c6bcb1fb70731c86d46374a6aeed6d311c2bf5e315b12c87ec6b08"
   },
   "schema_version": "szl.formula-authority.v2",
   "signature": {
