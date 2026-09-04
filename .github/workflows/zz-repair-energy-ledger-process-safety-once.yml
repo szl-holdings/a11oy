@@ -39,7 +39,10 @@ jobs:
           python-version: "3.12.10"
 
       - name: Apply bounded process-safety repair
-        run: python tools/patch_energy_ledger_process_safety.py
+        run: |
+          set -euo pipefail
+          python tools/patch_energy_ledger_process_safety.py
+          python tools/patch_energy_ledger_rotation_compat.py
 
       - name: Install exact CI dependency closure
         run: >-
@@ -61,9 +64,7 @@ jobs:
             tests/test_energy_ledger_process_safety.py
           python szl_energy_ledger.py >/tmp/energy-selftest.json
           python - <<'PY'
-          import json
           from pathlib import Path
-          payload = json.loads(Path('/tmp/energy-selftest.json').read_text(encoding='utf-8').splitlines()[-1]) if False else None
           source = Path('szl_energy_ledger.py').read_text(encoding='utf-8')
           docker = Path('Dockerfile').read_text(encoding='utf-8')
           for marker in (
@@ -72,6 +73,8 @@ jobs:
               'WRITER_LOCK_TIMEOUT',
               'MAX_LEDGER_PAGE_LIMIT',
               'ledger/summary',
+              'ROTATED_SEGMENTS_PRESENT',
+              'retention_anchor',
           ):
               assert marker in source, marker
           assert 'szl_energy_ledger_recovery.py' in docker
@@ -83,6 +86,7 @@ jobs:
         run: |
           set -euo pipefail
           git rm tools/patch_energy_ledger_process_safety.py
+          git rm tools/patch_energy_ledger_rotation_compat.py
           git rm .github/workflows/zz-repair-energy-ledger-process-safety-once.yml
           git add \
             szl_energy_ledger.py \
@@ -93,6 +97,6 @@ jobs:
           git config user.email "stephenlutar2@gmail.com"
           git commit \
             -m "fix(energy): serialize writers and quarantine forked generations" \
-            -m "Use a bounded POSIX writer lease, strict durable-tail reload, digest-bound forensic quarantine, explicit reset receipt, persist-before-memory acknowledgement, contiguous sequence verification, and a capped cursor-page response. Add adversarial rolling-restart, stale-tail, lock-timeout, malformed-row, fork, storage-refusal, and response-size tests." \
+            -m "Use a bounded POSIX writer lease, strict durable-tail reload, explicit retained-generation anchors, digest-bound forensic quarantine, reset receipts, persist-before-memory acknowledgement, and capped cursor pages. Preserve the bounded rotating store and fail closed on unavailable storage." \
             -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
           git push origin HEAD:fix/energy-ledger-transport-bound-20260904
