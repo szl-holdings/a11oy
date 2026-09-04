@@ -1,0 +1,335 @@
+name: Finish A11oy live convergence after exact repairs
+
+on:
+  push:
+    branches:
+      - ops/finish-live-now-20260904-v1
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+  issues: write
+
+concurrency:
+  group: finish-a11oy-live-after-exact-repairs
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    name: Wait for repair merges, converge current protected main, and prove live state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Wait for the three exact repair PRs to reach a merged terminal state
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          targets = [
+              ("szl-holdings", ".github", 651),
+              ("szl-holdings", "a11oy", 1897),
+              ("szl-holdings", "a11oy", 1900),
+          ]
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "User-Agent": "SZL-Post-Repair-Convergence/2.0",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+
+          def get(owner: str, repo: str, number: int) -> dict:
+              req = urllib.request.Request(
+                  f"https://api.github.com/repos/{owner}/{repo}/pulls/{number}",
+                  headers=headers,
+              )
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  return json.loads(response.read().decode("utf-8"))
+
+          deadline = time.monotonic() + 35 * 60
+          observations = []
+          while True:
+              observations = []
+              all_merged = True
+              terminal_unmerged = False
+              for owner, repo, number in targets:
+                  row = get(owner, repo, number)
+                  observed = {
+                      "repository": f"{owner}/{repo}",
+                      "number": number,
+                      "state": row.get("state"),
+                      "merged": row.get("merged") is True,
+                      "merged_at": row.get("merged_at"),
+                      "head_sha": (row.get("head") or {}).get("sha"),
+                      "base_sha": (row.get("base") or {}).get("sha"),
+                  }
+                  observations.append(observed)
+                  if not observed["merged"]:
+                      all_merged = False
+                      if observed["state"] == "closed":
+                          terminal_unmerged = True
+              if all_merged or terminal_unmerged or time.monotonic() >= deadline:
+                  break
+              time.sleep(20)
+
+          report = {
+              "schema": "szl.repair-merge-precondition/v1",
+              "generated_at": dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00", "Z"),
+              "targets": observations,
+              "all_merged": all(row["merged"] for row in observations),
+              "secret_values_recorded": False,
+          }
+          Path("reports/repair-merge-precondition.json").write_text(
+              json.dumps(report, indent=2, sort_keys=True) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(report, indent=2, sort_keys=True))
+          if not report["all_merged"]:
+              raise SystemExit(1)
+          PY
+
+      - name: Resolve and verify the current protected-main tip after repairs
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          token = os.environ["GH_TOKEN"]
+          repository = os.environ["GITHUB_REPOSITORY"]
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "User-Agent": "SZL-Post-Repair-Convergence/2.0",
+              "X-GitHub-Api-Version": "2022-11-28",
+          }
+          def get(path):
+              req=urllib.request.Request("https://api.github.com"+path,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r:
+                  return json.loads(r.read().decode())
+          repo=get(f"/repos/{repository}")
+          branch_name=repo["default_branch"]
+          branch=get(f"/repos/{repository}/branches/{urllib.parse.quote(branch_name,safe='')}")
+          sha=branch["commit"]["sha"]
+          verification=branch["commit"]["commit"]["verification"]
+          if verification.get("verified") is not True:
+              raise SystemExit("current protected-main tip is not cryptographically verified")
+          Path("reports/current-main-source.json").write_text(json.dumps({
+              "repository":repository,
+              "branch":branch_name,
+              "sha":sha,
+              "verified":True,
+          },indent=2,sort_keys=True)+"\n")
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:
+              f.write(f"branch={branch_name}\nsha={sha}\n")
+          print(sha)
+          PY
+
+      - name: Converge only the existing canonical validation and deploy workflows
+        shell: bash
+        env:
+          TARGET_BRANCH: ${{ steps.source.outputs.branch }}
+          TARGET_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+          from typing import Any
+
+          repo=os.environ["GITHUB_REPOSITORY"]
+          token=os.environ["GH_TOKEN"]
+          branch=os.environ["TARGET_BRANCH"]
+          sha=os.environ["TARGET_SHA"]
+          allowed={
+              "Sync and Relock Canonical Hugging Face Space",
+              "HF Ecosystem manifest drift",
+              "Operational Validation",
+              "Investor smoke gate (S1–S12)",
+              "HF Space module-drift guard",
+              "Public estate live witness",
+              "Live A11oy frontend contract",
+              "A11oy holographic experience v2",
+              "A11oy Holographic Experience v2",
+          }
+          success={"success","neutral","skipped"}
+          retryable={"failure","cancelled","timed_out","startup_failure","stale","action_required"}
+          active={"queued","in_progress","waiting","pending","requested"}
+
+          def api(method:str,path:str,payload:dict[str,Any]|None=None):
+              headers={
+                  "Accept":"application/vnd.github+json",
+                  "Authorization":f"Bearer {token}",
+                  "X-GitHub-Api-Version":"2022-11-28",
+                  "User-Agent":"SZL-Post-Repair-Convergence/2.0",
+              }
+              data=None
+              if payload is not None:
+                  data=json.dumps(payload,separators=(",",":")).encode()
+                  headers["Content-Type"]="application/json"
+              req=urllib.request.Request("https://api.github.com"+path,data=data,headers=headers,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read(4000000)
+                      return r.status,json.loads(b.decode()) if b else None
+              except urllib.error.HTTPError as e:
+                  b=e.read(1000000)
+                  try: parsed=json.loads(b.decode()) if b else None
+                  except Exception: parsed=None
+                  return e.code,parsed
+
+          _,payload=api("GET",f"/repos/{repo}/actions/workflows?per_page=100")
+          workflows=[w for w in (payload or {}).get("workflows",[]) if w.get("state")=="active" and w.get("name") in allowed]
+          actions=[]
+          for wf in workflows:
+              wid=int(wf["id"])
+              _,rp=api("GET",f"/repos/{repo}/actions/workflows/{wid}/runs?branch={urllib.parse.quote(branch,safe='')}&per_page=50")
+              runs=[r for r in (rp or {}).get("workflow_runs",[]) if r.get("head_sha")==sha]
+              current=runs[0] if runs else None
+              item={"workflow_id":wid,"name":wf.get("name"),"path":wf.get("path"),"before":current}
+              if current and current.get("status") in active:
+                  item["operation"]="observe-active"
+              elif current and current.get("conclusion") in retryable:
+                  status,_=api("POST",f"/repos/{repo}/actions/runs/{current['id']}/rerun-failed-jobs")
+                  if status not in {201,202}:
+                      status,_=api("POST",f"/repos/{repo}/actions/runs/{current['id']}/rerun")
+                  item.update(operation="rerun-exact-main",operation_http=status)
+              elif current and current.get("conclusion") in success:
+                  item["operation"]="already-green"
+              else:
+                  status,_=api("POST",f"/repos/{repo}/actions/workflows/{wid}/dispatches",{"ref":branch})
+                  item.update(operation="dispatch-exact-main",operation_http=status)
+              actions.append(item)
+
+          time.sleep(15)
+          deadline=time.monotonic()+35*60
+          final=[]
+          while True:
+              final=[]
+              any_active=False
+              for wf in workflows:
+                  wid=int(wf["id"])
+                  _,rp=api("GET",f"/repos/{repo}/actions/workflows/{wid}/runs?branch={urllib.parse.quote(branch,safe='')}&per_page=50")
+                  runs=[r for r in (rp or {}).get("workflow_runs",[]) if r.get("head_sha")==sha]
+                  r=runs[0] if runs else None
+                  row={
+                      "workflow_id":wid,"name":wf.get("name"),"path":wf.get("path"),
+                      "run_id":r.get("id") if r else None,"status":r.get("status") if r else "NOT_CREATED",
+                      "conclusion":r.get("conclusion") if r else None,"html_url":r.get("html_url") if r else None,
+                      "head_sha":r.get("head_sha") if r else None,
+                  }
+                  if r and r.get("status") in active: any_active=True
+                  final.append(row)
+              if not any_active or time.monotonic()>=deadline: break
+              time.sleep(20)
+          red=[r for r in final if r["status"]=="completed" and r["conclusion"] not in success]
+          unresolved=[r for r in final if r["status"] in active or r["status"]=="NOT_CREATED"]
+          report={
+              "schema":"szl.post-repair-workflow-convergence/v2",
+              "generated_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),
+              "repository":repo,"branch":branch,"target_sha":sha,
+              "actions":actions,"runs":final,"terminal_red":red,"unresolved":unresolved,
+              "complete":bool(final) and not red and not unresolved,
+              "source_mutation_performed":False,"merge_performed":False,"dns_mutation_performed":False,
+              "secret_values_recorded":False,
+          }
+          Path("reports/post-repair-workflow-convergence.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(report,indent=2,sort_keys=True))
+          if red or unresolved: raise SystemExit(1)
+          PY
+
+      - name: Independently prove current protected source on public and Hugging Face origins
+        if: always()
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import hashlib
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+
+          expected=os.environ.get("EXPECTED_SHA","")
+          origins={"product":"https://a-11-oy.com","hf":"https://szlholdings-a11oy.hf.space"}
+          paths=["/","/console","/api/livez","/api/build-info","/brain","/anatomy-v5","/living-anatomy","/hatun-mcp","/cockpit","/khipu","/immune","/lyte","/estate","/killinchu","/assets/szl-holo-v2.css","/assets/szl-holo-v2.js"]
+          asset_markers={
+              "/assets/szl-holo-v2.css":["SZL FLUID ESTATE RAIL V4","--szl-holo-accent: #57ebff","--szl-holo-accent-2: #31e6d1","prefers-reduced-motion","forced-colors"],
+              "/assets/szl-holo-v2.js":["SZL FLUID ESTATE RAIL V4",'label: "KILLINCHU"','label: "HATUN"','label: "SECOND BRAIN"','label: "ANATOMY"','dataset.szlBrainAnatomyNav = "bound"'],
+          }
+          def get(url):
+              req=urllib.request.Request(url+("&" if "?" in url else "?")+f"proof={time.time_ns()}",headers={"User-Agent":"SZL-Post-Repair-Live-Proof/2.0","Cache-Control":"no-cache, no-store","Pragma":"no-cache","Accept":"*/*"})
+              try:
+                  with urllib.request.urlopen(req,timeout=40) as r:
+                      return r.status,r.geturl().split("?",1)[0],r.read(2000000),r.headers.get("content-type"),None
+              except urllib.error.HTTPError as e:
+                  return e.code,e.geturl().split("?",1)[0],e.read(2000000),e.headers.get("content-type"),"HTTPError"
+              except Exception as e:
+                  return None,None,b"",None,type(e).__name__
+          failures=[]; evidence={}
+          for label,base in origins.items():
+              rows={}
+              for path in paths:
+                  status,final,body,ctype,error=get(base+path)
+                  text=body.decode("utf-8","replace")
+                  markers={m:m in text for m in asset_markers.get(path,[])}
+                  rows[path]={"status":status,"final_url":final,"bytes":len(body),"sha256":hashlib.sha256(body).hexdigest() if body else None,"content_type":ctype,"error_type":error,"markers":markers}
+                  if status!=200 or not body: failures.append(f"{label}{path}: not a non-empty 200")
+                  failures.extend(f"{label}{path}: missing {m}" for m,present in markers.items() if not present)
+              _,_,build,_,_=get(base+"/api/build-info")
+              match=bool(expected and expected in build.decode("utf-8","replace"))
+              if not match: failures.append(f"{label}: build-info source mismatch")
+              evidence[label]={"base":base,"source_match":match,"routes":rows}
+          status,final,body,ctype,error=get("https://a11oy.net/")
+          proof={"status":status,"final_url":final,"bytes":len(body),"sha256":hashlib.sha256(body).hexdigest() if body else None,"content_type":ctype,"error_type":error}
+          if status!=200 or not body: failures.append("a11oy.net: not a non-empty 200")
+          report={"schema":"szl.post-repair-public-proof/v2","generated_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),"expected_sha":expected,"origins":evidence,"proof_domain":proof,"failures":failures,"complete":not failures,"secret_values_recorded":False,"private_addresses_recorded":False}
+          Path("reports/post-repair-public-proof.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(report,indent=2,sort_keys=True))
+          if failures: raise SystemExit(1)
+          PY
+
+      - name: Upload immutable post-repair convergence evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finish-a11oy-after-repairs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/*.json
+          if-no-files-found: error
+          retention-days: 90
