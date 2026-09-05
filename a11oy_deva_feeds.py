@@ -843,18 +843,89 @@ def feed_hpd_violations(limit: int = 200) -> dict[str, Any]:
 
 
 def feed_dob_violations(limit: int = 60) -> dict[str, Any]:
+    """Fetch the newest valid source-reported issue dates, not an unordered sample.
+
+    The DOB field is text and contains malformed values. Provider-side bounds
+    remove non-date prefixes and future-looking values; calendar validation
+    remains local. A recent fetch never proves that a violation is still open.
+    """
     limit = _bounded_limit(limit, 60, 1000)
-    url = "https://data.cityofnewyork.us/resource/3h2n-5cm9.json?%24limit=" + str(limit)
-    def parse(d):
-        return {"items": [{"id": r.get("isn_dob_bis_viol"), "type": r.get("violation_type"),
-                           "category": r.get("violation_category"),
-                           "boro": r.get("boro"), "block": r.get("block"), "lot": r.get("lot"),
-                           "street": (str(r.get("house_number", "")) + " " + str(r.get("street", ""))).strip(),
-                           "issued": r.get("issue_date"),
-                           "desc": (r.get("description") or "")[:120]}
-                          for r in (d if isinstance(d, list) else [])]}
-    return _cached_fetch(_variant_cache_key("dob_viol", limit=limit),
-                         url, ttl=1800, parser=parse)
+    as_of = datetime.now(timezone.utc).date()
+    upper = as_of.strftime("%Y%m%d")
+    order = "issue_date DESC, isn_dob_bis_viol DESC"
+    # Bounded oversampling leaves room to reject invalid calendar dates while
+    # retaining the established maximum of 1,000 upstream rows.
+    fetch_limit = min(1000, limit * 3)
+    url = (
+        "https://data.cityofnewyork.us/resource/3h2n-5cm9.json?%24limit="
+        + str(fetch_limit)
+        + "&%24select=isn_dob_bis_viol,violation_type,house_number,street,boro,issue_date,violation_category,block,lot,description"
+        + "&%24where=issue_date%20between%20%2700010101%27%20and%20%27"
+        + upper
+        + "%27&%24order=issue_date%20DESC%2C%20isn_dob_bis_viol%20DESC"
+    )
+
+    def parse(data):
+        if not isinstance(data, list):
+            raise ValueError("DOB source must return a JSON array")
+        valid = []
+        rejected_dates = 0
+        rejected_rows = 0
+        for row in data[:fetch_limit]:
+            if not isinstance(row, dict):
+                rejected_rows += 1
+                continue
+            issued = row.get("issue_date")
+            if not isinstance(issued, str) or re.fullmatch(r"[0-9]{8}", issued) is None:
+                rejected_dates += 1
+                continue
+            try:
+                issued_date = datetime.strptime(issued, "%Y%m%d").date()
+            except ValueError:
+                rejected_dates += 1
+                continue
+            if issued_date > as_of:
+                rejected_dates += 1
+                continue
+            # Preserve source values; no inference about an open/closed case.
+            valid.append({
+                "id": row.get("isn_dob_bis_viol"),
+                "type": row.get("violation_type"),
+                "street": (
+                    str(row.get("house_number") or "")
+                    + " " + str(row.get("street") or "")
+                ).strip(),
+                "boro": row.get("boro"),
+                "category": row.get("violation_category"),
+                "block": row.get("block"),
+                "lot": row.get("lot"),
+                "desc": str(row.get("description") or "")[:120],
+                "issued": issued,
+            })
+        # Provider order is requested above; repeat it locally to prevent an
+        # unordered/partially cached response from becoming the newest-first UI.
+        valid.sort(key=lambda item: (item["issued"], str(item["id"] or "")), reverse=True)
+        items = valid[:limit]
+        return {
+            "items": items,
+            "selection": {
+                "order": order,
+                "as_of_date": as_of.isoformat(),
+                "upstream_limit": fetch_limit,
+                "rows_observed": min(len(data), fetch_limit),
+                "rows_returned": len(items),
+                "invalid_dates_rejected": rejected_dates,
+                "invalid_rows_rejected": rejected_rows,
+                "source_dates_are_not_case_status": True,
+                "requested_count_met": len(items) == limit,
+            },
+        }
+
+    return _cached_fetch(
+        _variant_cache_key("dob_viol", limit=limit, order=order,
+                           as_of=upper, upstream_limit=fetch_limit),
+        url, ttl=1800, parser=parse,
+    )
 
 
 def feed_sec_realestate(limit: int = 12) -> dict[str, Any]:
