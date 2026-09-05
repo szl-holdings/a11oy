@@ -1,0 +1,201 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Sync runtime boundary attribution v3 once
+
+"on":
+  push:
+    branches:
+      - fix/runtime-boundary-postmerge-review-20260905
+    paths:
+      - .github/workflows/_sync_runtime_boundary_attribution_v3_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-runtime-boundary-attribution-a11oy-v3-once
+  cancel-in-progress: false
+
+jobs:
+  synchronize:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/runtime-boundary-postmerge-review-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      TEST_B64: IyBTUERYLUxpY2Vuc2UtSWRlbnRpZmllcjogQXBhY2hlLTIuMAoiIiJSZWdyZXNzaW9uIGNvdmVyYWdlIGZvciBJTU1VTkUgRmllbGQgZmFsbGJhY2sgc291cmNlIGF0dHJpYnV0aW9uLiIiIgpmcm9tIF9fZnV0dXJlX18gaW1wb3J0IGFubm90YXRpb25zCgppbXBvcnQgc3psX2ltbXVuZSBhcyBpbW11bmUKCgpkZWYgX2NsZWFyX2NhY2hlKCkgLT4gTm9uZToKICAgIGltbXVuZS5fRklFTERfQ0FDSEUuY2xlYXIoKQoKCmRlZiB0ZXN0X3ByaW1hcnlfZmllbGRfcmVzcG9uc2Vfc3RheXNfY2hhbm5lbF9iKCkgLT4gTm9uZToKICAgIF9jbGVhcl9jYWNoZSgpCgogICAgZGVmIHByb2JlKHVybDogc3RyKToKICAgICAgICBhc3NlcnQgdXJsLmVuZHN3aXRoKCIvYXBpL2ZpZWxkIikKICAgICAgICByZXR1cm4gMjAwLCB7CiAgICAgICAgICAgICJsYW1iZGFfc3RhdHVzIjogIkNvbmplY3R1cmUgMSAoTk9UIGEgdGhlb3JlbSkiLAogICAgICAgICAgICAiYWN0dWF0aW9uIjogIlNJTVVMQVRFRCIsCiAgICAgICAgICAgICJydWxlIjogIm9ic2VydmUgb25seSIsCiAgICAgICAgICAgICJjZWxscyI6IFtdLAogICAgICAgICAgICAiaHVudHMiOiBbXSwKICAgICAgICB9LCBOb25lCgogICAgcmVzdWx0ID0gaW1tdW5lLl9maWVsZChub3c9MTBfMDAwLjAsIHByb2JlPXByb2JlKQogICAgYXNzZXJ0IHJlc3VsdFsiY2hhbm5lbCJdID09ICJCIgogICAgYXNzZXJ0IHJlc3VsdFsic3BhY2UiXSA9PSAiU1pMSE9MRElOR1MvaW1tdW5lLWxhdHRpY2UiCiAgICBhc3NlcnQgcmVzdWx0WyJjb250cmFjdCJdID09ICIvYXBpL2ZpZWxkIgogICAgYXNzZXJ0IHJlc3VsdFsiZmFsbGJhY2tfZnJvbSJdIGlzIE5vbmUKICAgIF9jbGVhcl9jYWNoZSgpCgoKZGVmIHRlc3RfZmFsbGJhY2tfcmVwb3J0c19jaGFubmVsX2FfYW5kX3ByZXNlcnZlc19wcmltYXJ5X2ZhaWx1cmUoKSAtPiBOb25lOgogICAgX2NsZWFyX2NhY2hlKCkKICAgIGNhbGxzOiBsaXN0W3N0cl0gPSBbXQoKICAgIGRlZiBwcm9iZSh1cmw6IHN0cik6CiAgICAgICAgY2FsbHMuYXBwZW5kKHVybCkKICAgICAgICBpZiB1cmwuZW5kc3dpdGgoIi9hcGkvZmllbGQiKToKICAgICAgICAgICAgcmV0dXJuIDUwMywgTm9uZSwgImZpZWxkIG92ZXJsYXkgdW5hdmFpbGFibGUiCiAgICAgICAgYXNzZXJ0IHVybC5lbmRzd2l0aCgiL2FwaS9pbW11bmUvc3RhdGUiKQogICAgICAgIHJldHVybiAyMDAsIHsKICAgICAgICAgICAgImVzdGF0ZSI6IFsKICAgICAgICAgICAgICAgIHsiaWQiOiAiY2VsbC0xIiwgInRpdGxlIjogIk9ic2VydmVkIGNlbGwiLCAicm9sZSI6ICJzZW5zb3IifQogICAgICAgICAgICBdLAogICAgICAgICAgICAibGVkZ2VyIjogeyJjb3VudCI6IDd9LAogICAgICAgICAgICAicmVhZGluZXNzIjogIk9CU0VSVkVEIiwKICAgICAgICAgICAgIm1lc2giOiAiREVHUkFERUQiLAogICAgICAgIH0sIE5vbmUKCiAgICByZXN1bHQgPSBpbW11bmUuX2ZpZWxkKG5vdz0yMF8wMDAuMCwgcHJvYmU9cHJvYmUpCiAgICBhc3NlcnQgbGVuKGNhbGxzKSA9PSAyCiAgICBhc3NlcnQgcmVzdWx0WyJvayJdIGlzIFRydWUKICAgIGFzc2VydCByZXN1bHRbImNoYW5uZWwiXSA9PSAiQSIKICAgIGFzc2VydCByZXN1bHRbInNwYWNlIl0gPT0gIlNaTEhPTERJTkdTL2ltbXVuZSIKICAgIGFzc2VydCByZXN1bHRbImNvbnRyYWN0Il0gPT0gIi9hcGkvaW1tdW5lL3N0YXRlIgogICAgYXNzZXJ0IHJlc3VsdFsidXJsIl0uZW5kc3dpdGgoIi9hcGkvaW1tdW5lL3N0YXRlIikKICAgIGFzc2VydCByZXN1bHRbImNlbGxfY291bnQiXSA9PSAxCiAgICBhc3NlcnQgcmVzdWx0WyJsZWRnZXIiXSA9PSB7ImNvdW50IjogN30KICAgIGFzc2VydCByZXN1bHRbImZhbGxiYWNrX2Zyb20iXSA9PSB7CiAgICAgICAgImNoYW5uZWwiOiAiQiIsCiAgICAgICAgInNwYWNlIjogIlNaTEhPTERJTkdTL2ltbXVuZS1sYXR0aWNlIiwKICAgICAgICAiY29udHJhY3QiOiAiL2FwaS9maWVsZCIsCiAgICAgICAgInVybCI6IGNhbGxzWzBdLAogICAgICAgICJ1cHN0cmVhbV9odHRwIjogNTAzLAogICAgICAgICJlcnJvciI6ICJmaWVsZCBvdmVybGF5IHVuYXZhaWxhYmxlIiwKICAgIH0KICAgIF9jbGVhcl9jYWNoZSgpCg==
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/runtime-boundary-postmerge-review-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+
+      - name: Reconcile current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin main
+          git merge --no-edit origin/main
+
+      - name: Apply source-accurate fallback attribution
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import base64
+          import hashlib
+          import json
+          import os
+          from pathlib import Path
+
+          source_path = Path('szl_immune.py')
+          source = source_path.read_text(encoding='utf-8')
+          start = source.index('def _field(')
+          end = source.index('\n\n# ---------------------------------------------------------------------------\n# Registration', start)
+          block = source[start:end]
+
+          if '    primary_status = status\n' not in block:
+              old = (
+                  '    status, data, err = probe(field_url)\n'
+                  '    body = data if isinstance(data, dict) else {}\n'
+                  '    reachable = status == 200 and isinstance(data, dict)\n'
+                  '    fallback_state = False\n'
+              )
+              new = (
+                  '    status, data, err = probe(field_url)\n'
+                  '    primary_status = status\n'
+                  '    primary_error = err\n'
+                  '    body = data if isinstance(data, dict) else {}\n'
+                  '    reachable = status == 200 and isinstance(data, dict)\n'
+                  '    fallback_state = False\n'
+              )
+              if block.count(old) != 1:
+                  raise SystemExit('field probe attribution anchor changed')
+              block = block.replace(old, new, 1)
+
+          if '        "fallback_from": (' not in block:
+              old = (
+                  '        "upstream_http": status,\n'
+                  '        "error": None if reachable else (err or "field unobserved"),\n'
+                  '        "channel": "B",\n'
+                  '        "space": "SZLHOLDINGS/immune-lattice",\n'
+                  '        "contract": "/api/immune/state" if fallback_state else "/api/field",\n'
+              )
+              new = (
+                  '        "upstream_http": status,\n'
+                  '        "error": None if reachable else (err or "field unobserved"),\n'
+                  '        "fallback_from": (\n'
+                  '            {\n'
+                  '                "channel": "B",\n'
+                  '                "space": "SZLHOLDINGS/immune-lattice",\n'
+                  '                "contract": "/api/field",\n'
+                  '                "url": field_url,\n'
+                  '                "upstream_http": primary_status,\n'
+                  '                "error": primary_error or "field unobserved",\n'
+                  '            }\n'
+                  '            if fallback_state\n'
+                  '            else None\n'
+                  '        ),\n'
+                  '        "channel": "A" if fallback_state else "B",\n'
+                  '        "space": "SZLHOLDINGS/immune" if fallback_state else "SZLHOLDINGS/immune-lattice",\n'
+                  '        "contract": "/api/immune/state" if fallback_state else "/api/field",\n'
+              )
+              if block.count(old) != 1:
+                  raise SystemExit('field payload attribution anchor changed')
+              block = block.replace(old, new, 1)
+
+          source_path.write_text(source[:start] + block + source[end:], encoding='utf-8')
+          Path('tests/test_runtime_boundary_fallback_attribution.py').write_bytes(
+              base64.b64decode(os.environ['TEST_B64'], validate=True)
+          )
+
+          files = {
+              name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
+              for name in ('szl_agentic_loop.py', 'szl_immune.py')
+          }
+          manifest = {
+              'files': dict(sorted(files.items())),
+              'payload_id': 'runtime-boundary-1994-v2',
+              'schema': 'szl-shared-source-payload/v1',
+          }
+          Path('.github/shared-source-payload-manifest.json').write_text(
+              json.dumps(manifest, separators=(',', ':'), ensure_ascii=True) + '\n',
+              encoding='utf-8',
+          )
+
+          audit_path = Path('audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md')
+          audit = audit_path.read_text(encoding='utf-8')
+          if '## Fallback attribution correction\n' not in audit:
+              audit = audit.rstrip() + '''
+
+## Fallback attribution correction
+
+The compatibility fallback from the IMMUNE Field overlay to
+`/api/immune/state` now identifies the actual Channel A source and retains the
+failed Channel B probe as bounded evidence. Primary `/api/field` responses
+remain Channel B. Both behaviors have focused network-free regressions and the
+shared payload manifest is refreshed.
+'''
+              audit_path.write_text(audit, encoding='utf-8')
+          PY
+
+      - name: Prove focused runtime boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            'fastapi==0.116.1' 'httpx==0.28.1' 'pytest==9.0.2' \
+            'cryptography==46.0.3' 'ruff==0.16.6'
+          python -m py_compile \
+            szl_agentic_loop.py \
+            szl_immune.py \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py
+          ruff check \
+            szl_agentic_loop.py \
+            szl_immune.py \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py \
+            --select E9,F
+          python -m pytest -q \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py \
+            tests/test_main_runtime_mutation_boundaries.py \
+            tests/test_dsse_real_signing.py
+          python .github/validate-shared-payload.py . . \
+            --expected-manifest-sha256="$(sha256sum .github/shared-source-payload-manifest.json | cut -d' ' -f1)"
+          git diff --check
+
+      - name: Commit permanent synchronized files and retire controllers
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/runtime-boundary-postmerge-review-20260905
+          git rm -- \
+            .github/workflows/_sync_runtime_boundary_attribution_once.yml \
+            .github/workflows/_sync_runtime_boundary_attribution_v2_once.yml \
+            .github/workflows/_sync_runtime_boundary_attribution_v3_once.yml
+          git add -- \
+            .github/shared-source-payload-manifest.json \
+            audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md \
+            szl_immune.py \
+            tests/test_runtime_boundary_fallback_attribution.py
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'fix(runtime): attribute IMMUNE fallback to its actual source'
+          git push origin "HEAD:refs/heads/$branch"
