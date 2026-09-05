@@ -44,199 +44,23 @@ jobs:
           set -euo pipefail
           git fetch --no-tags origin main
           git merge --no-edit origin/main
-
           python - <<'PY'
-          from __future__ import annotations
-
-          import hashlib
-          import json
+          import base64
+          import zlib
           from pathlib import Path
 
-          source_path = Path("szl_immune.py")
-          source = source_path.read_text(encoding="utf-8")
-          start = source.index("def _field(")
-          end = source.index(
-              "\n\n# ---------------------------------------------------------------------------\n"
-              "# Registration",
-              start,
-          )
-          block = source[start:end]
-
-          if "    primary_status = status\n" not in block:
-              old_probe = (
-                  "    status, data, err = probe(field_url)\n"
-                  "    body = data if isinstance(data, dict) else {}\n"
-                  "    reachable = status == 200 and isinstance(data, dict)\n"
-                  "    fallback_state = False\n"
-              )
-              new_probe = (
-                  "    status, data, err = probe(field_url)\n"
-                  "    primary_status = status\n"
-                  "    primary_error = err\n"
-                  "    body = data if isinstance(data, dict) else {}\n"
-                  "    reachable = status == 200 and isinstance(data, dict)\n"
-                  "    fallback_state = False\n"
-              )
-              if block.count(old_probe) != 1:
-                  raise SystemExit("field probe attribution anchor changed")
-              block = block.replace(old_probe, new_probe, 1)
-
-          if '        "fallback_from": (' not in block:
-              old_payload = (
-                  '        "upstream_http": status,\n'
-                  '        "error": None if reachable else (err or "field unobserved"),\n'
-                  '        "channel": "B",\n'
-                  '        "space": "SZLHOLDINGS/immune-lattice",\n'
-                  '        "contract": "/api/immune/state" if fallback_state else "/api/field",\n'
-              )
-              new_payload = (
-                  '        "upstream_http": status,\n'
-                  '        "error": None if reachable else (err or "field unobserved"),\n'
-                  '        "fallback_from": (\n'
-                  '            {\n'
-                  '                "channel": "B",\n'
-                  '                "space": "SZLHOLDINGS/immune-lattice",\n'
-                  '                "contract": "/api/field",\n'
-                  '                "url": field_url,\n'
-                  '                "upstream_http": primary_status,\n'
-                  '                "error": primary_error or "field unobserved",\n'
-                  '            }\n'
-                  '            if fallback_state\n'
-                  '            else None\n'
-                  '        ),\n'
-                  '        "channel": "A" if fallback_state else "B",\n'
-                  '        "space": (\n'
-                  '            "SZLHOLDINGS/immune"\n'
-                  '            if fallback_state\n'
-                  '            else "SZLHOLDINGS/immune-lattice"\n'
-                  '        ),\n'
-                  '        "contract": "/api/immune/state" if fallback_state else "/api/field",\n'
-              )
-              if block.count(old_payload) != 1:
-                  raise SystemExit("field payload attribution anchor changed")
-              block = block.replace(old_payload, new_payload, 1)
-
-          required = (
-              '        "channel": "A" if fallback_state else "B",',
-              '"SZLHOLDINGS/immune"',
-              '        "fallback_from": (',
-              '"upstream_http": primary_status,',
-          )
-          for marker in required:
-              if marker not in block:
-                  raise SystemExit(f"permanent attribution marker missing: {marker}")
-
-          source_path.write_text(
-              source[:start] + block + source[end:],
-              encoding="utf-8",
-          )
-
-          test_path = Path("tests/test_runtime_fallback_source_attribution.py")
-          test_path.parent.mkdir(parents=True, exist_ok=True)
-          test_path.write_text(
-              '''# SPDX-License-Identifier: Apache-2.0
-"""Regress exact source attribution for the bounded IMMUNE fallback."""
-from __future__ import annotations
-
-import szl_immune as immune
-
-
-def _clear_cache() -> None:
-    immune._FIELD_CACHE.clear()
-
-
-def test_primary_field_response_remains_channel_b() -> None:
-    _clear_cache()
-
-    def probe(url: str):
-        assert url.endswith("/api/field")
-        return 200, {
-            "lambda_status": "Conjecture 1 (NOT a theorem)",
-            "actuation": "SIMULATED",
-            "rule": "observe only",
-            "cells": [],
-            "hunts": [],
-        }, None
-
-    result = immune._field(now=10_000.0, probe=probe)
-
-    assert result["channel"] == "B"
-    assert result["space"] == "SZLHOLDINGS/immune-lattice"
-    assert result["contract"] == "/api/field"
-    assert result["fallback_from"] is None
-    _clear_cache()
-
-
-def test_state_fallback_reports_channel_a_and_primary_failure() -> None:
-    _clear_cache()
-    calls: list[str] = []
-
-    def probe(url: str):
-        calls.append(url)
-        if url.endswith("/api/field"):
-            return 503, None, "field overlay unavailable"
-        assert url.endswith("/api/immune/state")
-        return 200, {
-            "estate": [],
-            "ledger": {"count": 7},
-            "readiness": {"ready": True},
-            "mesh": {"status": "observed"},
-        }, None
-
-    result = immune._field(now=20_000.0, probe=probe)
-
-    assert calls[0].endswith("/api/field")
-    assert calls[1].endswith("/api/immune/state")
-    assert result["channel"] == "A"
-    assert result["space"] == "SZLHOLDINGS/immune"
-    assert result["contract"] == "/api/immune/state"
-    assert result["upstream_http"] == 200
-    assert result["fallback_from"] == {
-        "channel": "B",
-        "space": "SZLHOLDINGS/immune-lattice",
-        "contract": "/api/field",
-        "url": immune._KERNEL_LATTICE_URL + "/api/field",
-        "upstream_http": 503,
-        "error": "field overlay unavailable",
-    }
-    _clear_cache()
-''',
-              encoding="utf-8",
-          )
-
-          files = {
-              name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
-              for name in ("szl_agentic_loop.py", "szl_immune.py")
-          }
-          manifest = {
-              "files": dict(sorted(files.items())),
-              "payload_id": "runtime-boundary-1994-v2",
-              "schema": "szl-shared-source-payload/v1",
-          }
-          Path(".github/shared-source-payload-manifest.json").write_text(
-              json.dumps(
-                  manifest,
-                  ensure_ascii=True,
-                  separators=(",", ":"),
-              )
-              + "\n",
-              encoding="utf-8",
+          payload = "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"
+          Path("/tmp/materialize.py").write_bytes(
+              zlib.decompress(base64.b64decode(payload, validate=True))
           )
           PY
-
-          python -m py_compile \
-            szl_immune.py \
-            tests/test_runtime_fallback_source_attribution.py
+          python /tmp/materialize.py
+          python -m py_compile szl_immune.py tests/test_runtime_fallback_source_attribution.py
           git diff --check
-
           rm -f -- .github/workflows/_materialize_runtime_fallback_attribution_once.yml
-
-          git add \
-            .github/shared-source-payload-manifest.json \
-            .github/workflows/_materialize_runtime_fallback_attribution_once.yml \
-            szl_immune.py \
-            tests/test_runtime_fallback_source_attribution.py
-
+          git add .github/shared-source-payload-manifest.json
+          git add .github/workflows/_materialize_runtime_fallback_attribution_once.yml
+          git add szl_immune.py tests/test_runtime_fallback_source_attribution.py
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -s -m "fix(runtime): report bounded fallback source exactly"
