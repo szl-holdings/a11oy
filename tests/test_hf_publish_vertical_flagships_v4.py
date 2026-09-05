@@ -16,6 +16,7 @@ INTELLIGENCE = Path("scripts/hf_publish_vertical_services_intelligence_v4.py")
 COMBINED = Path("scripts/hf_publish_vertical_services.py")
 WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
 SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
+PUBLIC_VERIFY = Path("szl_public_verify.py")
 TERRA_BUNDLE = Path("deployments/vertical-forge/terra")
 
 
@@ -61,7 +62,7 @@ def test_v4_renderer_retains_six_domain_templates() -> None:
     assert 'PUBLIC_EXPERIENCE_VERSION = "4.0.0"' in text
     assert 'data-szl-domain-experience-v4="true"' in text
     assert '"terra":' in text and "parcel-map" in text and "UNDERWRITING QUEUE" in text
-    assert '"sentra":' in text and "assurance admission graph" in text and "ASSURANCE EVIDENCE QUEUE" in text
+    assert '"sentra":' in text and "receipt verification graph" in text and "VERIFICATION EVIDENCE QUEUE" in text
     assert '"counsel":' in text and "AUTHORITY RAIL" in text and "MATTER / WORK PRODUCT" in text
     assert '"finance":' in text and "DECISION TAPE" in text and "STRESS LANES" in text
     assert '"vessels":' in text and "VOYAGE WATCH" in text and "maritime route chart" in text
@@ -205,6 +206,36 @@ def test_demo_visuals_have_visible_illustrative_disclosures() -> None:
     assert 'class="panel waterfall">' + badge in templates["lyte"]
 
 
+def test_sentra_binds_to_the_read_only_public_verifier_contract() -> None:
+    module = load_implementation()
+    sentra = next(row for row in module.FLAGSHIPS if row["slug"] == "sentra")
+    verifier = PUBLIC_VERIFY.read_text(encoding="utf-8")
+
+    assert sentra["upstream"] == (
+        "https://szlholdings-a11oy.hf.space/api/a11oy/v1/verify/receipt"
+    )
+    assert sentra["workflow"] == (
+        "RECEIPT",
+        "SIGNATURE",
+        "DIGEST",
+        "CHAIN",
+        "VERDICT",
+    )
+    assert sentra["lens"] == "receipt"
+    assert sentra["labels"] == (
+        "Verifier contract",
+        "Integrity checks",
+        "Evidence verdict",
+    )
+    assert 'app.add_api_route(f"{p}/receipt", _verify_manifest, methods=["GET"]' in verifier
+    assert '"schema": "szl.public-receipt-verifier/manifest/v1"' in verifier
+    assert "vert/cyber/feed" not in sentra["upstream"]
+
+    panel = domain_html()["sentra"]
+    assert "performs no admission or approval" in panel
+    assert "PASS requires an actual caller-supplied receipt" in panel
+
+
 def test_disclosures_remain_accessible_on_counsel_and_narrow_terra() -> None:
     text = source()
     assert '.illus{color:#5b3a12;border-color:#8b5e34}' in text
@@ -240,7 +271,7 @@ def test_cards_are_license_complete_and_short_descriptions_are_bounded() -> None
     assert "tags:" in text
     for phrase in (
         "Parcel-to-portfolio real estate decision intelligence",
-        "Admission, receipt verification, and evidence assurance",
+        "Public receipt verification and assurance evidence",
         "Matter workspace for research, drafting, and verification",
         "Provenance-first financial signal and decision console",
         "Fleet route, risk, and voyage intelligence with receipts",
