@@ -1,0 +1,183 @@
+name: Finish bounded Cloudflare product edge after repairs
+
+on:
+  push:
+    branches:
+      - ops/finish-live-now-20260904-v1
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: finish-bounded-cloudflare-edge-after-repairs
+  cancel-in-progress: false
+
+jobs:
+  converge:
+    name: Dispatch canonical edge repair from current verified main and prove the public edge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      GH_TOKEN: ${{ github.token }}
+      WORKFLOW_PATH: .github/workflows/repair-cloudflare-product-edge.yml
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Wait for required source repairs and dispatch the canonical main workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+          from typing import Any
+
+          repository=os.environ["GITHUB_REPOSITORY"]
+          token=os.environ["GH_TOKEN"]
+          workflow_path=os.environ["WORKFLOW_PATH"]
+          repair_prs=[("szl-holdings/.github",651),(repository,1897),(repository,1900)]
+          headers={"Accept":"application/vnd.github+json","Authorization":f"Bearer {token}","X-GitHub-Api-Version":"2022-11-28","User-Agent":"SZL-Cloudflare-Post-Repair/1.0"}
+
+          def api(method:str,path:str,payload:dict[str,Any]|None=None)->tuple[int,Any]:
+              data=None;h=dict(headers)
+              if payload is not None:
+                  data=json.dumps(payload,separators=(",",":")).encode();h["Content-Type"]="application/json"
+              req=urllib.request.Request("https://api.github.com"+path,data=data,headers=h,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read(4000000);return r.status,json.loads(b.decode()) if b else None
+              except urllib.error.HTTPError as e:
+                  b=e.read(1000000)
+                  try:p=json.loads(b.decode()) if b else None
+                  except Exception:p=None
+                  return e.code,p
+
+          deadline=time.monotonic()+35*60
+          pr_state=[]
+          while True:
+              pr_state=[]
+              for full,n in repair_prs:
+                  s,p=api("GET",f"/repos/{full}/pulls/{n}")
+                  if s!=200 or not isinstance(p,dict):
+                      pr_state.append({"repository":full,"number":n,"read_http":s,"merged":False})
+                  else:
+                      pr_state.append({"repository":full,"number":n,"state":p.get("state"),"merged":p.get("merged") is True,"merged_at":p.get("merged_at")})
+              if all(r.get("merged") for r in pr_state) or time.monotonic()>=deadline:break
+              if any(r.get("state")=="closed" and not r.get("merged") for r in pr_state):break
+              time.sleep(20)
+          if not all(r.get("merged") for r in pr_state):
+              Path("reports/cloudflare-edge-convergence.json").write_text(json.dumps({"schema":"szl.cloudflare-post-repair/v1","repair_prs":pr_state,"complete":False,"reason":"REPAIR_MERGES_NOT_COMPLETE","secret_values_recorded":False},indent=2,sort_keys=True)+"\n")
+              raise SystemExit(1)
+
+          _,repo=api("GET",f"/repos/{repository}")
+          branch_name=repo["default_branch"]
+          _,branch=api("GET",f"/repos/{repository}/branches/{urllib.parse.quote(branch_name,safe='')}")
+          sha=branch["commit"]["sha"]
+          verified=branch["commit"]["commit"]["verification"].get("verified") is True
+          if not verified:raise SystemExit("current protected-main tip is not verified")
+
+          encoded=urllib.parse.quote(workflow_path,safe='')
+          before_status,before=api("GET",f"/repos/{repository}/actions/workflows/{encoded}/runs?branch={urllib.parse.quote(branch_name,safe='')}&event=workflow_dispatch&per_page=20")
+          before_ids={int(r["id"]) for r in (before or {}).get("workflow_runs",[]) if isinstance(r,dict)} if before_status==200 else set()
+          dispatch_http,dispatch_payload=api("POST",f"/repos/{repository}/actions/workflows/{encoded}/dispatches",{"ref":branch_name})
+          if dispatch_http not in {201,204}:
+              Path("reports/cloudflare-edge-convergence.json").write_text(json.dumps({"schema":"szl.cloudflare-post-repair/v1","repair_prs":pr_state,"target_sha":sha,"dispatch_http":dispatch_http,"dispatch_response":dispatch_payload,"complete":False,"reason":"DISPATCH_REJECTED","secret_values_recorded":False},indent=2,sort_keys=True)+"\n")
+              raise SystemExit(1)
+
+          run=None
+          for _ in range(120):
+              time.sleep(5)
+              s,p=api("GET",f"/repos/{repository}/actions/workflows/{encoded}/runs?branch={urllib.parse.quote(branch_name,safe='')}&event=workflow_dispatch&per_page=20")
+              candidates=[r for r in (p or {}).get("workflow_runs",[]) if isinstance(r,dict) and int(r.get("id",0)) not in before_ids and r.get("head_sha")==sha]
+              if candidates:
+                  run=candidates[0];break
+          if run is None:raise SystemExit("canonical Cloudflare workflow run did not materialize")
+
+          run_id=int(run["id"])
+          deadline=time.monotonic()+15*60
+          while run.get("status")!="completed" and time.monotonic()<deadline:
+              time.sleep(15)
+              _,run=api("GET",f"/repos/{repository}/actions/runs/{run_id}")
+          complete=run.get("status")=="completed" and run.get("conclusion") in {"success","neutral","skipped"}
+          report={"schema":"szl.cloudflare-post-repair/v1","generated_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),"repair_prs":pr_state,"target_branch":branch_name,"target_sha":sha,"target_verified":verified,"workflow_path":workflow_path,"dispatch_http":dispatch_http,"run_id":run_id,"run_status":run.get("status"),"run_conclusion":run.get("conclusion"),"run_url":run.get("html_url"),"complete":complete,"secret_values_recorded":False,"dns_mutation_authority":"canonical-workflow-only"}
+          Path("reports/cloudflare-edge-convergence.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(report,indent=2,sort_keys=True))
+          if not complete:raise SystemExit(1)
+          PY
+
+      - name: Prove apex, path-preserving www redirect, proof domain, and current build identity
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib,json,time,urllib.error,urllib.request
+          from pathlib import Path
+
+          convergence_path=Path("reports/cloudflare-edge-convergence.json")
+          convergence=json.loads(convergence_path.read_text()) if convergence_path.exists() else {}
+          expected=convergence.get("target_sha")
+          class NoRedirect(urllib.request.HTTPRedirectHandler):
+              def redirect_request(self,req,fp,code,msg,headers,newurl):return None
+          def get(url,follow=True):
+              opener=urllib.request.build_opener() if follow else urllib.request.build_opener(NoRedirect())
+              req=urllib.request.Request(url+("&" if "?" in url else "?")+f"edge_proof={time.time_ns()}",headers={"User-Agent":"SZL-Cloudflare-Independent-Proof/1.0","Cache-Control":"no-cache, no-store","Pragma":"no-cache"})
+              try:
+                  with opener.open(req,timeout=40) as r:return {"status":r.status,"final_url":r.geturl().split("?",1)[0],"headers":dict(r.headers.items()),"body":r.read(2000000)}
+              except urllib.error.HTTPError as e:return {"status":e.code,"final_url":e.geturl().split("?",1)[0],"headers":dict(e.headers.items()),"body":e.read(2000000)}
+              except Exception as e:return {"status":None,"final_url":None,"headers":{},"body":b"","error_type":type(e).__name__}
+          checks={
+              "apex":get("https://a-11-oy.com/"),
+              "build":get("https://a-11-oy.com/api/build-info"),
+              "console":get("https://a-11-oy.com/console"),
+              "brain":get("https://a-11-oy.com/brain"),
+              "anatomy":get("https://a-11-oy.com/living-anatomy"),
+              "killinchu":get("https://a-11-oy.com/killinchu"),
+              "proof":get("https://a11oy.net/"),
+              "www":get("https://www.a-11-oy.com/__szl_edge_probe__/path?contract=post-repair&preserve=yes",follow=False),
+          }
+          failures=[];public={}
+          for name,row in checks.items():
+              body=row.pop("body");headers=row.pop("headers");lower={str(k).lower():v for k,v in headers.items()}
+              public[name]={**row,"bytes":len(body),"sha256":hashlib.sha256(body).hexdigest() if body else None,"location":lower.get("location"),"edge":lower.get("x-szl-edge"),"server":lower.get("server")}
+              if name=="www":
+                  location=str(lower.get("location") or "")
+                  ok=row.get("status") in {301,302,307,308} and location.startswith("https://a-11-oy.com/__szl_edge_probe__/path") and "preserve=yes" in location
+              else:ok=row.get("status")==200 and len(body)>0
+              public[name]["verified"]=ok
+              if not ok:failures.append(name)
+          source_match=bool(expected and expected in checks["build"].get("body",b"").decode("utf-8","replace")) if "body" in checks["build"] else False
+          # body was removed above, so issue a dedicated cache-bypassed build probe.
+          build_again=get("https://a-11-oy.com/api/build-info")
+          source_match=bool(expected and expected in build_again.get("body",b"").decode("utf-8","replace"))
+          if not source_match:failures.append("build-source-match")
+          report={"schema":"szl.cloudflare-independent-public-proof/v1","expected_sha":expected,"checks":public,"source_match":source_match,"failures":failures,"complete":not failures,"secret_values_recorded":False,"private_addresses_recorded":False}
+          Path("reports/cloudflare-independent-public-proof.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(report,indent=2,sort_keys=True))
+          if failures:raise SystemExit(1)
+          PY
+
+      - name: Upload bounded edge evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: finish-cloudflare-edge-after-repairs-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/*.json
+          if-no-files-found: error
+          retention-days: 90
