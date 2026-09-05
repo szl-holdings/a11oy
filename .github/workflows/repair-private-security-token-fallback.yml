@@ -1,0 +1,428 @@
+name: Repair private security credential fallback
+
+on:
+  push:
+    branches:
+      - fix/security-posture-token-fallback-20260905
+    paths:
+      - .github/workflows/repair-private-security-token-fallback.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  actions: read
+  security-events: read
+
+concurrency:
+  group: repair-private-security-token-fallback
+  cancel-in-progress: false
+
+env:
+  TARGET_REVISION: 9fbae997b48db45a9e890f79692e94acf14425a3
+  REPORT_PATH: private-security-posture-fallback.json
+
+jobs:
+  repair:
+    name: Add per-family credential fallback and prove the privacy boundary
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SZL_SECURITY_TOKEN_1: ${{ secrets.SZL_ORG_ADMIN_TOKEN }}
+      SZL_SECURITY_TOKEN_2: ${{ secrets.ORG_ADMIN_TOKEN }}
+      SZL_SECURITY_TOKEN_3: ${{ secrets.SZL_GITHUB_TOKEN }}
+      SZL_SECURITY_TOKEN_4: ${{ secrets.GH_PAT }}
+      SZL_SECURITY_TOKEN_5: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Patch the controller, canonical workflow, and regression suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          script_path = Path('.github/scripts/private_security_posture.py')
+          script = script_path.read_text(encoding='utf-8')
+
+          token_marker = '\n\ndef utc_now() -> str:\n'
+          if script.count(token_marker) != 1:
+              raise SystemExit(f'unexpected token insertion marker count: {script.count(token_marker)}')
+          token_support = '''
+
+SECURITY_TOKEN_ENV_NAMES = (
+    "SZL_SECURITY_TOKEN",
+    "SZL_SECURITY_TOKEN_1",
+    "SZL_SECURITY_TOKEN_2",
+    "SZL_SECURITY_TOKEN_3",
+    "SZL_SECURITY_TOKEN_4",
+    "SZL_SECURITY_TOKEN_5",
+    "SZL_SECURITY_TOKEN_6",
+    "GITHUB_TOKEN",
+)
+
+
+def security_token_candidates(
+    environ: Mapping[str, str] | None = None,
+) -> list[str]:
+    """Return distinct nonempty credentials in declared priority order.
+
+    Credentials and their source names remain process-local and are never added
+    to receipts, logs, issues, or artifacts. Digest-based deduplication prevents
+    retrying aliases that resolve to the same underlying token.
+    """
+    source = os.environ if environ is None else environ
+    tokens: list[str] = []
+    fingerprints: set[bytes] = set()
+    for name in SECURITY_TOKEN_ENV_NAMES:
+        token = str(source.get(name) or "").strip()
+        if not token:
+            continue
+        fingerprint = hashlib.sha256(token.encode("utf-8")).digest()
+        if fingerprint in fingerprints:
+            continue
+        fingerprints.add(fingerprint)
+        tokens.append(token)
+    return tokens
+'''
+          script = script.replace(token_marker, token_support + token_marker, 1)
+
+          fallback_marker = '\n\ndef build_receipt(\n'
+          if script.count(fallback_marker) != 1:
+              raise SystemExit(f'unexpected fallback insertion marker count: {script.count(fallback_marker)}')
+          fallback_support = '''
+
+
+def collect_family_with_fallback(
+    clients: Iterable[Any], repository: str, spec: FamilySpec
+) -> dict[str, Any]:
+    """Use the first credential that can observe this alert family."""
+    fallback: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+        "http_status": None,
+        "open_count": None,
+        "severity": None,
+        "pages_observed": 0,
+    }
+    for client in clients:
+        result = collect_family(client, repository, spec)
+        fallback = result
+        if result.get("status") == "OBSERVED":
+            return result
+    return fallback
+
+
+def collect_status_with_fallback(
+    clients: Iterable[Any], collector: Any, *args: Any
+) -> dict[str, Any]:
+    """Retry a status-style collector without exposing credential identity."""
+    fallback: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+    }
+    for client in clients:
+        result = collector(client, *args)
+        fallback = result
+        if result.get("status") == "OBSERVED":
+            return result
+    return fallback
+
+
+def collect_governance_with_fallback(
+    clients: Iterable[Any], repository: str, default_branch: str
+) -> dict[str, Any]:
+    """Merge independently observable governance subfamilies across credentials."""
+    branch: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+    }
+    rulesets: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+        "count": None,
+    }
+    for client in clients:
+        result = collect_governance(client, repository, default_branch)
+        candidate_branch = result.get("branch_protection")
+        if branch.get("status") != "OBSERVED" and isinstance(candidate_branch, Mapping):
+            branch = dict(candidate_branch)
+        candidate_rulesets = result.get("rulesets")
+        if rulesets.get("status") != "OBSERVED" and isinstance(candidate_rulesets, Mapping):
+            rulesets = dict(candidate_rulesets)
+        if branch.get("status") == "OBSERVED" and rulesets.get("status") == "OBSERVED":
+            break
+    return {
+        "default_branch": default_branch,
+        "branch_protection": branch,
+        "rulesets": rulesets,
+    }
+'''
+          script = script.replace(fallback_marker, fallback_support + fallback_marker, 1)
+
+          main_start = '    token = os.environ.get("SZL_SECURITY_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""\n'
+          main_end = '    if args.apply:\n'
+          start = script.find(main_start)
+          end = script.find(main_end, start)
+          if start < 0 or end < 0:
+              raise SystemExit('could not locate the single-token main block')
+          replacement = '''    tokens = security_token_candidates()
+    if not tokens:
+        raise SystemExit("security posture credential unavailable")
+    clients = [GitHubClient(token) for token in tokens]
+    family_results = {
+        spec.name: collect_family_with_fallback(clients, repository, spec)
+        for spec in FAMILIES
+    }
+    receipt = build_receipt(
+        repository=repository,
+        revision=revision,
+        default_branch=args.default_branch,
+        families=family_results,
+        features=collect_status_with_fallback(
+            clients, collect_repository_features, repository
+        ),
+        governance=collect_governance_with_fallback(
+            clients, repository, args.default_branch
+        ),
+        workflows=collect_status_with_fallback(
+            clients, collect_workflow_evidence, repository
+        ),
+    )
+'''
+          script = script[:start] + replacement + script[end:]
+          script_path.write_text(script, encoding='utf-8')
+
+          workflow_path = Path('.github/workflows/private-security-posture.yml')
+          workflow = workflow_path.read_text(encoding='utf-8')
+          old_env = '      SZL_SECURITY_TOKEN: ${{ secrets.SZL_ORG_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.SZL_GITHUB_TOKEN || secrets.GH_PAT || github.token }}\n'
+          new_env = '''      SZL_SECURITY_TOKEN_1: ${{ secrets.SZL_ORG_ADMIN_TOKEN }}
+      SZL_SECURITY_TOKEN_2: ${{ secrets.ORG_ADMIN_TOKEN }}
+      SZL_SECURITY_TOKEN_3: ${{ secrets.SZL_GITHUB_TOKEN }}
+      SZL_SECURITY_TOKEN_4: ${{ secrets.GH_PAT }}
+      SZL_SECURITY_TOKEN_5: ${{ github.token }}
+'''
+          if workflow.count(old_env) != 1:
+              raise SystemExit(f'unexpected collapsed credential block count: {workflow.count(old_env)}')
+          workflow_path.write_text(workflow.replace(old_env, new_env, 1), encoding='utf-8')
+
+          tests_path = Path('tests/test_private_security_posture.py')
+          tests = tests_path.read_text(encoding='utf-8')
+          class_marker = '\n\nclass ReceiptBoundaryTests(unittest.TestCase):\n'
+          if tests.count(class_marker) != 1:
+              raise SystemExit(f'unexpected family-test insertion marker count: {tests.count(class_marker)}')
+          fallback_tests = '''
+
+    def test_token_candidates_preserve_priority_and_deduplicate_aliases(self):
+        candidates = posture.security_token_candidates(
+            {
+                "SZL_SECURITY_TOKEN_1": " alpha ",
+                "SZL_SECURITY_TOKEN_2": "alpha",
+                "SZL_SECURITY_TOKEN_4": "beta",
+                "GITHUB_TOKEN": "beta",
+            }
+        )
+        self.assertEqual(candidates, ["alpha", "beta"])
+
+    def test_family_fallback_retries_after_an_under_scoped_credential(self):
+        endpoint = "/repos/szl-holdings/a11oy/code-scanning/alerts?state=open"
+        denied = FakeClient(
+            pages={endpoint: posture.PostureError("HTTP_403", status=403)}
+        )
+        observed = FakeClient(
+            pages={endpoint: [[{"rule": {"security_severity_level": "critical"}}]]}
+        )
+        result = posture.collect_family_with_fallback(
+            [denied, observed], "szl-holdings/a11oy", posture.FAMILIES[1]
+        )
+        self.assertEqual(result["status"], "OBSERVED")
+        self.assertEqual(result["open_count"], 1)
+        self.assertEqual(result["severity"]["critical"], 1)
+        self.assertEqual(len(denied.calls), 1)
+        self.assertEqual(len(observed.calls), 1)
+
+    def test_status_fallback_uses_a_later_authorized_credential(self):
+        endpoint = ("GET", "/repos/szl-holdings/a11oy")
+        denied = FakeClient(
+            requests={endpoint: posture.PostureError("HTTP_403", status=403)}
+        )
+        observed = FakeClient(
+            requests={
+                endpoint: {
+                    "security_and_analysis": {
+                        "advanced_security": {"status": "enabled"}
+                    }
+                }
+            }
+        )
+        result = posture.collect_status_with_fallback(
+            [denied, observed],
+            posture.collect_repository_features,
+            "szl-holdings/a11oy",
+        )
+        self.assertEqual(result["status"], "OBSERVED")
+        self.assertEqual(result["features"], {"advanced_security": "enabled"})
+
+    def test_governance_fallback_merges_independently_visible_subfamilies(self):
+        branch_path = "/repos/szl-holdings/a11oy/branches/main/protection"
+        ruleset_path = "/repos/szl-holdings/a11oy/rulesets?includes_parents=true"
+        ruleset_only = FakeClient(
+            requests={
+                ("GET", branch_path): posture.PostureError("HTTP_403", status=403),
+                ("GET", ruleset_path): [
+                    {
+                        "id": 42,
+                        "name": "protected-main",
+                        "enforcement": "active",
+                        "target": "branch",
+                        "source_type": "Organization",
+                    }
+                ],
+            }
+        )
+        branch_only = FakeClient(
+            requests={
+                ("GET", branch_path): {
+                    "required_status_checks": {"contexts": ["ci"]},
+                    "required_pull_request_reviews": {
+                        "required_approving_review_count": 0
+                    },
+                },
+                ("GET", ruleset_path): posture.PostureError("HTTP_403", status=403),
+            }
+        )
+        result = posture.collect_governance_with_fallback(
+            [ruleset_only, branch_only], "szl-holdings/a11oy", "main"
+        )
+        self.assertEqual(result["branch_protection"]["status"], "OBSERVED")
+        self.assertEqual(result["rulesets"]["status"], "OBSERVED")
+        self.assertEqual(result["rulesets"]["count"], 1)
+'''
+          tests = tests.replace(class_marker, fallback_tests + class_marker, 1)
+
+          required_anchor = '            "secrets.SZL_GITHUB_TOKEN",\n'
+          required_addition = '''            "secrets.SZL_GITHUB_TOKEN",
+            "secrets.SZL_ORG_ADMIN_TOKEN",
+            "secrets.ORG_ADMIN_TOKEN",
+            "secrets.GH_PAT",
+            "SZL_SECURITY_TOKEN_1",
+            "SZL_SECURITY_TOKEN_5",
+'''
+          if tests.count(required_anchor) != 1:
+              raise SystemExit(f'unexpected workflow required anchor count: {tests.count(required_anchor)}')
+          tests = tests.replace(required_anchor, required_addition, 1)
+
+          forbidden_anchor = '            "branches-ignore",\n'
+          forbidden_addition = '''            "branches-ignore",
+            "SZL_SECURITY_TOKEN: ${{",
+'''
+          if tests.count(forbidden_anchor) != 1:
+              raise SystemExit(f'unexpected workflow forbidden anchor count: {tests.count(forbidden_anchor)}')
+          tests = tests.replace(forbidden_anchor, forbidden_addition, 1)
+          tests_path.write_text(tests, encoding='utf-8')
+          PY
+          git diff --check
+
+      - name: Run the complete privacy and fallback regression suite
+        run: |
+          set -euo pipefail
+          python -m unittest -v tests.test_private_security_posture
+          python -m py_compile .github/scripts/private_security_posture.py
+
+      - name: Exercise all configured credentials against the live aggregate APIs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python .github/scripts/private_security_posture.py \
+            --repository "$GITHUB_REPOSITORY" \
+            --revision "$TARGET_REVISION" \
+            --default-branch main \
+            --report "$REPORT_PATH"
+          python - <<'PY'
+          import importlib.util
+          import json
+          import sys
+          from pathlib import Path
+
+          module_path = Path('.github/scripts/private_security_posture.py')
+          spec = importlib.util.spec_from_file_location('private_security_posture', module_path)
+          if spec is None or spec.loader is None:
+              raise SystemExit('could not load patched controller')
+          module = importlib.util.module_from_spec(spec)
+          sys.modules[spec.name] = module
+          spec.loader.exec_module(module)
+          receipt = json.loads(Path('private-security-posture-fallback.json').read_text(encoding='utf-8'))
+          if receipt.get('incident_action') != 'DRY_RUN':
+              raise SystemExit('live fallback proof attempted incident mutation')
+          if module.public_receipt_errors(receipt):
+              raise SystemExit('private data crossed the public persistence boundary')
+          print(json.dumps({
+              'source_revision': receipt['source_revision'],
+              'summary_digest': receipt['summary_digest'],
+              'families': receipt['families'],
+              'attention': receipt['attention'],
+              'security_and_analysis': receipt['security_and_analysis'],
+              'governance': receipt['governance'],
+              'incident_action': receipt['incident_action'],
+          }, indent=2, sort_keys=True))
+          PY
+
+      - name: Enforce the exact permanent repair boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          python - <<'PY'
+          import subprocess
+
+          changed = set(
+              subprocess.check_output(['git', 'diff', '--name-only'], text=True).splitlines()
+          )
+          expected = {
+              '.github/scripts/private_security_posture.py',
+              '.github/workflows/private-security-posture.yml',
+              'tests/test_private_security_posture.py',
+          }
+          if changed != expected:
+              raise SystemExit(
+                  f'repair boundary mismatch: changed={sorted(changed)} expected={sorted(expected)}'
+              )
+          PY
+
+      - name: Commit the verified permanent repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            .github/scripts/private_security_posture.py \
+            .github/workflows/private-security-posture.yml \
+            tests/test_private_security_posture.py
+          git commit -m "fix(security): retry private posture credentials per family
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
+
+      - name: Upload the aggregate-only fallback proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: private-security-token-fallback-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT_PATH }}
+          if-no-files-found: error
+          retention-days: 30
