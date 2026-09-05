@@ -44,9 +44,10 @@ Run the original 17 regressions and the 14 access-boundary regressions:
 python -S scripts/test_audit_huggingface_ecosystem.py
 python -S scripts/test_hf_gated_public_inventory.py
 python scripts/audit_huggingface_ecosystem.py --check
+python scripts/build_ecosystem_stage_matrix.py --check
 node scripts/validate_huggingface_ecosystem_schema.mjs
 ```
 
-Only the last two commands observe the existing manifest or public services; the two Python test suites use offline fixtures. The permanent `Public Hub inventory access contract` CI job requests no secrets and needs no package installation.
+Only the last three commands inspect the tracked snapshot or derived evidence; the two Python test suites use offline fixtures. The permanent `Public Hub inventory access contract` CI job requests no secrets and needs no package installation. The stage matrix must carry the same `observedAt` value and Hugging Face public counts as the manifest, so schema migration and inventory refreshes cannot leave operational evidence stale.
 
-Generation is an explicit source update. Commit the generated snapshot through the normal reviewed workflow; never generate over a tracked manifest during a `--check` invocation. A successful public-inventory check does not authorize deployment or use of restricted model files.
+Generation is an explicit source update. Commit the generated snapshot and its derived stage matrix through the normal reviewed workflow; never generate over a tracked manifest during a `--check` invocation. A successful public-inventory check does not authorize deployment or use of restricted model files.
