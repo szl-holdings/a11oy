@@ -1,0 +1,95 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Apply HF resolve transport v2 once
+
+on:
+  push:
+    branches:
+      - fix/hf-resolve-transport-schema-v2-20260905
+    paths:
+      - .github/workflows/zz-apply-hf-resolve-transport-v2-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-hf-resolve-transport-v2-once
+  cancel-in-progress: false
+
+jobs:
+  apply:
+    name: patch, prove, and retain only schema-v2 source changes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-resolve-transport-schema-v2-20260905
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Apply the exact transport-only source change
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/audit_huggingface_ecosystem.py")
+          text = path.read_text(encoding="utf-8")
+          old = 'f"https://huggingface.co/{prefix}{encoded_id}/raw/"'
+          new = 'f"https://huggingface.co/{prefix}{encoded_id}/resolve/"'
+          if text.count(old) != 1:
+              raise SystemExit(
+                  f"transport anchor changed: expected one occurrence, observed {text.count(old)}"
+              )
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+      - name: Prove schema-v2 access and transport boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/test_audit_huggingface_ecosystem.py \
+            scripts/test_hf_gated_public_inventory.py \
+            scripts/test_hf_resolve_transport_schema_v2.py
+          python scripts/test_audit_huggingface_ecosystem.py
+          python scripts/test_hf_gated_public_inventory.py
+          python scripts/test_hf_resolve_transport_schema_v2.py
+          python scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+          git diff --check
+
+      - name: Commit permanent files and retire the bounded controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/zz-apply-hf-resolve-transport-v2-once.yml
+          git add \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/test_hf_resolve_transport_schema_v2.py
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/test_hf_resolve_transport_schema_v2.py | sort)"
+          test "$changed" = "$expected"
+          git config user.name "SZL Public Evidence Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit \
+            -m "fix(hf): use exact resolve transport under schema v2" \
+            -m "Read ungated public cards through immutable resolve revisions while preserving schema-v2 restricted-metadata evidence: gated cards never enter file transport, 404 alone maps to an empty card, and unexpected access errors remain fail closed." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/hf-resolve-transport-schema-v2-20260905
