@@ -7,6 +7,7 @@ on:
       - scripts/audit_huggingface_ecosystem.py
       - scripts/test_audit_huggingface_ecosystem.py
       - scripts/test_hf_gated_public_inventory.py
+      - scripts/test_hf_resolve_transport_schema_v2.py
       - docs/huggingface-ecosystem-manifest.schema.json
       - .github/workflows/hf-public-inventory-contract.yml
   push:
@@ -15,6 +16,7 @@ on:
       - scripts/audit_huggingface_ecosystem.py
       - scripts/test_audit_huggingface_ecosystem.py
       - scripts/test_hf_gated_public_inventory.py
+      - scripts/test_hf_resolve_transport_schema_v2.py
       - docs/huggingface-ecosystem-manifest.schema.json
       - .github/workflows/hf-public-inventory-contract.yml
 
@@ -27,7 +29,7 @@ concurrency:
 
 jobs:
   contract:
-    name: Public and restricted inventory evidence
+    name: Public, restricted, and immutable transport evidence
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -37,8 +39,9 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
-      - name: Run original and gated-access regressions without network or packages
+      - name: Run all inventory evidence regressions without network or packages
         run: |
           python -S scripts/test_audit_huggingface_ecosystem.py
           python -S scripts/test_hf_gated_public_inventory.py
+          python -S scripts/test_hf_resolve_transport_schema_v2.py
           python -S -m py_compile scripts/audit_huggingface_ecosystem.py
