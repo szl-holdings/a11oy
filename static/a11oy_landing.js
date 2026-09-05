@@ -1,360 +1,578 @@
-/* ============================================================================
- * a11oy_landing.js — the living-proof hero for the a11oy front door (v2).
- *
- * THE MOTIF (NVIDIA technical-sublime + True Anomaly operational COP, restrained
- * like Anthropic): a holographic PROOF LATTICE / signed-receipt constellation.
- * It encodes REAL state, not decorative noise:
- *   • NODES   = the recent receipts from GET /api/a11oy/v1/ledger. Each instanced
- *               node is one real receipt {seq, action, receipt_id}; the newest
- *               (chain head) sits innermost and brightest.
- *   • EDGES   = the SHA3-256 hash-chain links between consecutive receipts —
- *               the append-only ledger drawn as a lattice.
- *   • PULSE   = a token traveling the chain (genesis → head). When the live lake
- *               (GET /api/lake/v1/health.total_receipts) actually GROWS between
- *               polls, a brighter pulse fires to the head — a genuinely fresh
- *               signed receipt. No growth → only the ambient chain traversal of
- *               the receipts that already exist. We never fake a "new signature".
- *   • GLOW    = the governance core's intensity is tied to the advisory Λ from
- *               GET /api/a11oy/v1/lambda/org. Λ is Conjecture 1 (advisory bound),
- *               so the glow is a mood, never a pass/fail oracle.
- *
- * HONEST DEGRADE: if the ledger is unreachable we do NOT invent receipts or a
- * fake flow. The scene falls back to a calm, still lattice (dim wireframe core +
- * sparse static dust), reports dataState:"unreachable", and emits no pulses.
- *
- * SOVEREIGN: Three.js r160 (MIT) only, vendored in-image under /hero/vendor3d
- * (importmap in a11oy_landing.html). 0 runtime CDN. Bloom is faked with additive
- * fresnel + a layered halo sprite (no postprocessing dependency = GPU-light).
- *
- * KANCHAY palette: --void #080c14, --proof #3af4c8, --lattice #5b8dee. Calm and
- * deep-near-black; the lattice whispers, it never floods. Purple is banned.
- *
- * PERF: instanced nodes (one draw call), capped DPR, <13ms/frame target. Honors
- * prefers-reduced-motion (one static frame, no polling) and pauses when the hero
- * scrolls out of view (IntersectionObserver). Live figures are also fetched and
- * labelled by a11oy_landing.html — this module owns only the canvas.
- *
- * Doctrine v11: Λ = Conjecture 1 (advisory, NOT a theorem). locked-proven = 8.
- * Nothing here fabricates a number; every visual quantity is real or honestly off.
- * ========================================================================== */
-import * as THREE from "three";
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 Stephen P. Lutar Jr. and SZL Holdings
+//
+// Thin event-driven renderer adapter for the A11oy public experience.
+//
+// This module owns pixels only. It performs no fetch, polling, session control,
+// approval, verification, or truth inference. The semantic controller passes
+// ordered API state to update(), and this adapter renders that exact projection.
+import { boot } from "/static/3d/szl3d/szl3d_boot.js";
 
-const REDUCED = window.matchMedia &&
-  window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const MOBILE = Math.min(window.innerWidth, window.innerHeight) < 720 ||
-  /Mobi|Android/i.test(navigator.userAgent);
+const LIFECYCLE = Object.freeze([
+  "PROPOSE",
+  "EVIDENCE",
+  "POLICY",
+  "APPROVAL",
+  "EXECUTE",
+  "VERIFY",
+  "RECEIPT",
+]);
 
-// KANCHAY palette, held at restrained brightness so the deep void dominates.
-const VOID    = 0x080c14;
-const PROOF   = new THREE.Color(0x3af4c8); // --proof  : freshest receipt / head
-const LATTICE = new THREE.Color(0x5b8dee); // --lattice: older receipts / chain
-const DUSK    = new THREE.Color(0x101a2e); // near-void: ambient dust, denied glow
+const STAGE_TO_STEP = Object.freeze({
+  CREATED: "PROPOSE",
+  PROPOSED: "PROPOSE",
+  EVIDENCE_BOUND: "EVIDENCE",
+  QUALIFIED: "EVIDENCE",
+  POLICY_EVALUATED: "POLICY",
+  POLICY_DENIED: "POLICY",
+  BLOCKED: "POLICY",
+  APPROVAL_REQUIRED: "APPROVAL",
+  APPROVED: "APPROVAL",
+  EXECUTING: "EXECUTE",
+  VERIFIED: "VERIFY",
+  VERIFICATION_FAILED: "VERIFY",
+  RECOVERY_REQUIRED: "VERIFY",
+  UNAVAILABLE: "VERIFY",
+  RECEIPTED: "RECEIPT",
+});
 
-const LEDGER_URL = "/api/a11oy/v1/ledger";
-const LAMBDA_URL = "/api/a11oy/v1/lambda/org";
-const LAKE_URL   = "/api/lake/v1/health";
+const FAILURE_STAGES = new Set([
+  "POLICY_DENIED",
+  "BLOCKED",
+  "VERIFICATION_FAILED",
+  "RECOVERY_REQUIRED",
+]);
 
-// Λ (Conjecture 1) → glow factor. Below the 0.80 advisory band the core is dim;
-// near 1.0 it is at full restrained glow. Never implies a "pass".
-function lambdaGlow(L) {
-  if (typeof L !== "number" || !isFinite(L)) return 0.45; // neutral, no claim
-  return Math.max(0.25, Math.min(1.0, (L - 0.80) / 0.20));
+const COLORS = Object.freeze({
+  void: 0x080c14,
+  proof: 0x5fb3a3,
+  lattice: 0xc9b787,
+  advisory: 0xc9b787,
+  denied: 0xf06464,
+  unavailable: 0x85909a,
+  snapshot: 0xd7e4e7,
+  dormant: 0x263448,
+});
+
+const mountedCanvases = new WeakMap();
+const mountAttempts = new WeakMap();
+
+function nowMs() {
+  return typeof performance !== "undefined" && typeof performance.now === "function"
+    ? performance.now()
+    : Date.now();
 }
 
-async function getJSON(url, ms = 3500) {
-  const ctl = new AbortController();
-  const to = setTimeout(() => ctl.abort(), ms);
-  try {
-    const r = await fetch(url, { cache: "no-store", signal: ctl.signal });
-    if (!r.ok) return null;
-    return await r.json();
-  } catch (_e) {
-    return null;
-  } finally {
-    clearTimeout(to);
-  }
+function stepIndex(stage) {
+  const step = STAGE_TO_STEP[String(stage || "").toUpperCase()] || "PROPOSE";
+  return Math.max(0, LIFECYCLE.indexOf(step));
 }
 
-export function mountHero(canvas) {
-  let renderer;
-  try {
-    renderer = new THREE.WebGLRenderer({
-      canvas, antialias: !MOBILE, alpha: true, powerPreference: "high-performance",
-    });
-  } catch (e) {
-    return { ok: false, reason: String(e) };
+function stateColor(THREE, dataState) {
+  const value = String(dataState || "").toUpperCase();
+  if (value === "LIVE" || value === "MEASURED") return new THREE.Color(COLORS.proof);
+  if (value === "SIMULATION") return new THREE.Color(COLORS.lattice);
+  if (value === "SNAPSHOT") return new THREE.Color(COLORS.snapshot);
+  if (value === "MODELED") return new THREE.Color(COLORS.advisory);
+  return new THREE.Color(COLORS.unavailable);
+}
+
+function stageColor(THREE, stage, dataState) {
+  const value = String(stage || "").toUpperCase();
+  if (FAILURE_STAGES.has(value)) return new THREE.Color(COLORS.denied);
+  if (value === "APPROVAL_REQUIRED") return new THREE.Color(COLORS.advisory);
+  if (value === "UNAVAILABLE") return new THREE.Color(COLORS.unavailable);
+  return stateColor(THREE, dataState);
+}
+
+function deterministicAngle(value) {
+  const text = String(value || "");
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
   }
-  if (!renderer.getContext()) return { ok: false, reason: "no-webgl" };
+  return ((hash >>> 0) / 4294967295) * Math.PI * 2;
+}
 
-  const DPR = Math.min(window.devicePixelRatio || 1, MOBILE ? 1.5 : 2);
-  renderer.setPixelRatio(DPR);
-  renderer.setClearColor(VOID, 0); // transparent — the page's deep void shows through
-
-  const scene = new THREE.Scene();
-  const camera = new THREE.PerspectiveCamera(46, 1, 0.1, 100);
-  camera.position.set(0, 0, 8.4);
-
-  const root = new THREE.Group();
-  scene.add(root);
-
-  // ---- Governance core: fresnel glass icosahedron, glow tied to Λ ------------
-  const coreMat = new THREE.ShaderMaterial({
-    transparent: true, blending: THREE.AdditiveBlending, depthWrite: false,
-    uniforms: {
-      uTime: { value: 0 },
-      uGlow: { value: 0.45 },  // set from real Λ once fetched
-      uProof: { value: new THREE.Vector3(PROOF.r, PROOF.g, PROOF.b) },
-      uLattice: { value: new THREE.Vector3(LATTICE.r, LATTICE.g, LATTICE.b) },
-    },
-    vertexShader: /* glsl */`
-      varying vec3 vN; varying vec3 vView; uniform float uTime;
-      void main(){
-        vN = normalize(normalMatrix * normal);
-        vec3 p = position;
-        float w = sin(uTime*0.8 + position.y*2.0)*0.03
-                + sin(uTime*1.3 + position.x*3.0)*0.02;
-        p += normal * w;
-        vec4 mv = modelViewMatrix * vec4(p,1.0);
-        vView = normalize(-mv.xyz);
-        gl_Position = projectionMatrix * mv;
-      }`,
-    fragmentShader: /* glsl */`
-      precision highp float;
-      varying vec3 vN; varying vec3 vView;
-      uniform float uTime; uniform float uGlow; uniform vec3 uProof; uniform vec3 uLattice;
-      void main(){
-        float fres = pow(1.0 - max(dot(normalize(vN), normalize(vView)), 0.0), 2.4);
-        float breathe = 0.5 + 0.5*sin(uTime*1.4);
-        float glow = fres * (0.22 + 0.16*breathe) * uGlow;
-        vec3 col = mix(uLattice, uProof, fres);
-        gl_FragColor = vec4(col * glow, clamp(glow, 0.0, 0.42));
-      }`,
+function disposeObject(object) {
+  if (!object) return;
+  object.traverse((child) => {
+    if (child.geometry && typeof child.geometry.dispose === "function") {
+      child.geometry.dispose();
+    }
+    if (Array.isArray(child.material)) {
+      child.material.forEach((material) => {
+        if (material && typeof material.dispose === "function") material.dispose();
+      });
+    } else if (child.material && typeof child.material.dispose === "function") {
+      child.material.dispose();
+    }
   });
-  const core = new THREE.Mesh(new THREE.IcosahedronGeometry(1.35, MOBILE ? 2 : 4), coreMat);
-  root.add(core);
+}
 
-  // deny-by-default cage — dim hairlines over the core
+export async function mountExperienceRenderer(canvas, options = {}) {
+  if (!canvas) return { ok: false, reason: "canvas-unavailable" };
+  if (options.signal && options.signal.aborted) return { ok: false, reason: "cancelled" };
+  const previous = mountedCanvases.get(canvas);
+  if (previous && typeof previous.destroy === "function") previous.destroy();
+  const attempt = {};
+  mountAttempts.set(canvas, attempt);
+
+  const reducedMotion = options.reducedMotion === true;
+  const stage = await boot(canvas, {
+    webgpu: options.forcedColors !== true,
+    forceWebGL: options.forceWebGL === true,
+    bloom: false,
+    background: null,
+    cameraFov: 46,
+    cameraNear: 0.1,
+    cameraFar: 100,
+    cameraPos: [0, 0.4, 10.8],
+    orbit: false,
+    alpha: true,
+    antialias: true,
+    pixelRatioCap: Math.min(2, options.pixelRatioCap || 2),
+  });
+  if (mountAttempts.get(canvas) !== attempt || (options.signal && options.signal.aborted)) {
+    stage.dispose();
+    return { ok: false, reason: "cancelled" };
+  }
+  const ownerDocument = canvas.ownerDocument;
+  const THREE = stage.THREE;
+  const sceneRoot = new THREE.Group();
+  sceneRoot.name = "a11oy-public-experience-v1";
+  stage.scene.add(sceneRoot);
+
+  const coreMaterial = new THREE.MeshBasicMaterial({
+    color: COLORS.lattice,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.18,
+    depthWrite: false,
+  });
+  const core = new THREE.Mesh(
+    new THREE.IcosahedronGeometry(1.08, 2),
+    coreMaterial
+  );
+  core.position.set(0, 0.25, -0.8);
+  sceneRoot.add(core);
+
+  const cageMaterial = new THREE.LineBasicMaterial({
+    color: COLORS.dormant,
+    transparent: true,
+    opacity: 0.35,
+  });
   const cage = new THREE.LineSegments(
-    new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.42, 1)),
-    new THREE.LineBasicMaterial({ color: 0x274063, transparent: true, opacity: 0.16 })
+    new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(1.55, 1)),
+    cageMaterial
   );
-  root.add(cage);
+  cage.position.copy(core.position);
+  sceneRoot.add(cage);
 
-  // ---- Ambient dust (pure decoration, clearly NOT data) ----------------------
-  // Sparse, very dim, static-ish depth field. Never labelled as receipts.
-  const dustN = REDUCED ? 350 : (MOBILE ? 600 : 1100);
-  const dpos = new Float32Array(dustN * 3);
-  for (let i = 0; i < dustN; i++) {
-    const t = i / dustN, phi = Math.acos(1 - 2 * t);
-    const theta = Math.PI * (1 + Math.sqrt(5)) * i, r = 4.5 + Math.random() * 4.0;
-    dpos[i*3+0] = Math.sin(phi) * Math.cos(theta) * r;
-    dpos[i*3+1] = Math.cos(phi) * r;
-    dpos[i*3+2] = Math.sin(phi) * Math.sin(theta) * r;
+  const nodePositions = [];
+  const nodes = [];
+  const nodeGeometry = new THREE.SphereGeometry(0.115, 18, 12);
+  const ringGeometry = new THREE.TorusGeometry(0.22, 0.012, 8, 36);
+
+  LIFECYCLE.forEach((name, index) => {
+    const fraction = index / (LIFECYCLE.length - 1);
+    const angle = -Math.PI * 0.82 + fraction * Math.PI * 1.64;
+    const radius = 3.35;
+    const position = new THREE.Vector3(
+      Math.cos(angle) * radius,
+      Math.sin(angle) * 2.05 + 0.15,
+      Math.sin(fraction * Math.PI) * 0.52
+    );
+    nodePositions.push(position);
+
+    const material = new THREE.MeshBasicMaterial({
+      color: COLORS.dormant,
+      transparent: true,
+      opacity: 0.32,
+      depthWrite: false,
+    });
+    const mesh = new THREE.Mesh(nodeGeometry, material);
+    mesh.position.copy(position);
+    mesh.userData.lifecycleStep = name;
+    sceneRoot.add(mesh);
+
+    const ringMaterial = new THREE.MeshBasicMaterial({
+      color: COLORS.dormant,
+      transparent: true,
+      opacity: 0.12,
+      depthWrite: false,
+    });
+    const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+    ring.position.copy(position);
+    ring.lookAt(stage.camera.position);
+    sceneRoot.add(ring);
+    nodes.push({ mesh, ring, material, ringMaterial });
+  });
+
+  const edgePositions = [];
+  for (let index = 0; index < nodePositions.length - 1; index += 1) {
+    edgePositions.push(
+      nodePositions[index].x,
+      nodePositions[index].y,
+      nodePositions[index].z,
+      nodePositions[index + 1].x,
+      nodePositions[index + 1].y,
+      nodePositions[index + 1].z
+    );
   }
-  const dustGeo = new THREE.BufferGeometry();
-  dustGeo.setAttribute("position", new THREE.BufferAttribute(dpos, 3));
-  const dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
-    color: DUSK, size: 0.6 * DPR, sizeAttenuation: false,
-    transparent: true, opacity: 0.22, depthWrite: false, blending: THREE.AdditiveBlending,
-  }));
-  root.add(dust);
-
-  // ---- Receipt constellation (instanced nodes + chain edges + pulse) ---------
-  // Built only from REAL ledger data. Empty until/unless the ledger is reachable.
-  const MAX_NODES = 24;
-  const nodeGeo = new THREE.SphereGeometry(0.06, 10, 10);
-  const nodeMat = new THREE.MeshBasicMaterial({
-    transparent: true, opacity: 0.92, blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const nodes = new THREE.InstancedMesh(nodeGeo, nodeMat, MAX_NODES);
-  nodes.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
-  nodes.count = 0; // nothing claimed until real receipts arrive
-  nodes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_NODES * 3), 3);
-  root.add(nodes);
-
-  const edgeMat = new THREE.LineBasicMaterial({
-    color: 0x5b8dee, transparent: true, opacity: 0.0, // raised once edges exist
-    blending: THREE.AdditiveBlending, depthWrite: false,
-  });
-  const edges = new THREE.Line(new THREE.BufferGeometry(), edgeMat);
-  root.add(edges);
-
-  const pulse = new THREE.Mesh(
-    new THREE.SphereGeometry(0.11, 12, 12),
-    new THREE.MeshBasicMaterial({ color: PROOF, transparent: true, opacity: 0.0,
-      blending: THREE.AdditiveBlending, depthWrite: false })
+  const edgeGeometry = new THREE.BufferGeometry();
+  edgeGeometry.setAttribute(
+    "position",
+    new THREE.Float32BufferAttribute(edgePositions, 3)
   );
-  root.add(pulse);
+  const edgeMaterial = new THREE.LineBasicMaterial({
+    color: COLORS.lattice,
+    transparent: true,
+    opacity: 0.18,
+  });
+  const edges = new THREE.LineSegments(edgeGeometry, edgeMaterial);
+  sceneRoot.add(edges);
 
-  const _m = new THREE.Matrix4();
-  const _v = new THREE.Vector3();
-  let chainCurve = null;          // CatmullRom through node positions (genesis→head)
-  let nodePositions = [];         // Vector3[]
-  let pulseT = 0;                 // 0..1 along the chain
-  let pulseBoost = 0;             // brief extra brightness on a genuinely fresh receipt
-  let receiptCount = 0;           // honest count actually rendered
+  const transitionMaterial = new THREE.MeshBasicMaterial({
+    color: COLORS.proof,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const transitionPulse = new THREE.Mesh(
+    new THREE.SphereGeometry(0.075, 12, 8),
+    transitionMaterial
+  );
+  sceneRoot.add(transitionPulse);
 
-  // Lay out N receipts on a gentle helix around the core: genesis outer/low,
-  // head inner/high (append-only growth climbs toward the governed core).
-  function layout(n) {
-    nodePositions = [];
-    for (let i = 0; i < n; i++) {
-      const f = n > 1 ? i / (n - 1) : 0;          // 0 genesis → 1 head
-      const ang = f * Math.PI * 4.0;               // two turns of the helix
-      const rad = 3.4 - f * 1.4;                   // spirals inward to the core
-      const y = (f - 0.5) * 3.6;                   // climbs upward
-      nodePositions.push(new THREE.Vector3(Math.cos(ang) * rad, y, Math.sin(ang) * rad));
+  const receiptMaterial = new THREE.MeshBasicMaterial({
+    color: COLORS.proof,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const receiptSeal = new THREE.Mesh(
+    new THREE.TorusGeometry(0.72, 0.035, 12, 72),
+    receiptMaterial
+  );
+  receiptSeal.position.copy(nodePositions[LIFECYCLE.length - 1]);
+  receiptSeal.lookAt(stage.camera.position);
+  receiptSeal.visible = false;
+  sceneRoot.add(receiptSeal);
+
+  const focusMaterial = new THREE.MeshBasicMaterial({
+    color: COLORS.lattice,
+    wireframe: true,
+    transparent: true,
+    opacity: 0,
+    depthWrite: false,
+  });
+  const focusObject = new THREE.Mesh(
+    new THREE.OctahedronGeometry(0.42, 1),
+    focusMaterial
+  );
+  focusObject.visible = false;
+  sceneRoot.add(focusObject);
+
+  const evidenceGroup = new THREE.Group();
+  evidenceGroup.name = "evidence-handles";
+  sceneRoot.add(evidenceGroup);
+
+  let destroyed = false;
+  let visible = true;
+  let manuallyPaused = false;
+  let loopRunning = false;
+  let transitionStart = 0;
+  let transitionEnd = 0;
+  let transitionFrom = 0;
+  let transitionTo = 0;
+  let currentIndex = 0;
+  let currentStage = "CREATED";
+  let currentDataState = "UNAVAILABLE";
+  let lastSequence = -1;
+  let pointerX = 0;
+  let pointerY = 0;
+  let intersectionObserver = null;
+
+  function canRender() {
+    return !destroyed && visible && !manuallyPaused &&
+      (!ownerDocument || ownerDocument.visibilityState !== "hidden");
+  }
+
+  function clearEvidence() {
+    while (evidenceGroup.children.length) {
+      const child = evidenceGroup.children[evidenceGroup.children.length - 1];
+      evidenceGroup.remove(child);
+      disposeObject(child);
     }
-    chainCurve = nodePositions.length > 1
-      ? new THREE.CatmullRomCurve3(nodePositions, false, "catmullrom", 0.4) : null;
   }
 
-  // Apply REAL receipts to the constellation. `list` = [{seq,action,receipt_id}].
-  function applyReceipts(list) {
-    const n = Math.min(MAX_NODES, list.length);
-    receiptCount = n;
-    layout(n);
-    for (let i = 0; i < n; i++) {
-      const f = n > 1 ? i / (n - 1) : 1;
-      _m.makeScale(0.7 + f * 0.9, 0.7 + f * 0.9, 0.7 + f * 0.9); // head a touch larger
-      _m.setPosition(nodePositions[i]);
-      nodes.setMatrixAt(i, _m);
-      const c = LATTICE.clone().lerp(PROOF, f); // older=lattice blue, head=proof teal
-      nodes.setColorAt(i, c);
-    }
-    nodes.count = n;
-    nodes.instanceMatrix.needsUpdate = true;
-    if (nodes.instanceColor) nodes.instanceColor.needsUpdate = true;
-
-    if (n > 1) {
-      const pts = chainCurve.getPoints(Math.max(32, n * 4));
-      edges.geometry.dispose();
-      edges.geometry = new THREE.BufferGeometry().setFromPoints(pts);
-      edgeMat.opacity = 0.20;
-      pulse.material.opacity = 0.0; // animated in the frame loop
-    } else {
-      edgeMat.opacity = 0.0;
-    }
+  function renderEvidence(evidence) {
+    clearEvidence();
+    const handles = Array.isArray(evidence) ? evidence.slice(0, 10) : [];
+    if (!handles.length) return;
+    const center = nodePositions[1];
+    handles.forEach((handle, index) => {
+      const fraction = index / Math.max(1, handles.length);
+      const angle = fraction * Math.PI * 2 + deterministicAngle(handle && handle.id) * 0.18;
+      const radius = 0.48 + (index % 3) * 0.14;
+      const color = stateColor(THREE, handle && (handle.sourceClass || handle.source_class));
+      const material = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0.62,
+        depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.045, 10, 7),
+        material
+      );
+      mesh.position.set(
+        center.x + Math.cos(angle) * radius,
+        center.y + Math.sin(angle) * radius,
+        center.z + Math.sin(angle * 2) * 0.12
+      );
+      evidenceGroup.add(mesh);
+    });
   }
 
-  // Calm, still, honestly-empty state — no receipts invented, no flow faked.
-  function showUnreachable() {
-    receiptCount = 0;
-    nodes.count = 0;
-    edgeMat.opacity = 0.0;
-    pulse.material.opacity = 0.0;
-    chainCurve = null;
-    cage.material.opacity = 0.22; // the lattice cage carries the quiet, honest mood
-  }
-
-  // ---- resize ---------------------------------------------------------------
-  function resize() {
-    const r = canvas.getBoundingClientRect();
-    const w = Math.max(1, r.width), h = Math.max(1, r.height);
-    renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
-  }
-  resize();
-  window.addEventListener("resize", resize, { passive: true });
-
-  // ---- pointer parallax -----------------------------------------------------
-  let px = 0, py = 0, tx = 0, ty = 0;
-  if (!REDUCED) {
-    window.addEventListener("pointermove", (e) => {
-      tx = (e.clientX / window.innerWidth - 0.5);
-      ty = (e.clientY / window.innerHeight - 0.5);
-    }, { passive: true });
-  }
-
-  const hero = {
-    ok: true, renderer, dataState: "loading", receiptCount: 0, lambda: null,
-    setLambda(v) {
-      hero.lambda = (typeof v === "number") ? v : null;
-      coreMat.uniforms.uGlow.value = lambdaGlow(v);
-    },
-    setReceipts(list) {
-      if (Array.isArray(list) && list.length) {
-        applyReceipts(list);
-        hero.dataState = "live"; hero.receiptCount = receiptCount;
+  function paint(view) {
+    const activeColor = stageColor(THREE, currentStage, currentDataState);
+    const stepStates = view && view.stepStates && typeof view.stepStates === "object"
+      ? view.stepStates
+      : {};
+    nodes.forEach((node, index) => {
+      const status = String(stepStates[LIFECYCLE[index]] || "pending");
+      if (status === "complete") {
+        node.material.color.set(COLORS.proof);
+        node.material.opacity = 0.64;
+        node.ringMaterial.color.set(COLORS.proof);
+        node.ringMaterial.opacity = 0.22;
+        node.mesh.scale.setScalar(1);
+      } else if (index === currentIndex &&
+                 ["active", "blocked", "failed", "unavailable"].includes(status)) {
+        node.material.color.copy(activeColor);
+        node.material.opacity = 0.96;
+        node.ringMaterial.color.copy(activeColor);
+        node.ringMaterial.opacity = 0.7;
+        node.mesh.scale.setScalar(1.22);
       } else {
-        showUnreachable(); hero.dataState = "unreachable"; hero.receiptCount = 0;
+        node.material.color.set(COLORS.dormant);
+        node.material.opacity = 0.28;
+        node.ringMaterial.color.set(COLORS.dormant);
+        node.ringMaterial.opacity = 0.1;
+        node.mesh.scale.setScalar(0.88);
       }
-    },
-    fireFreshReceipt() { pulseT = 0; pulseBoost = 1.0; }, // genuine new signed receipt
-  };
+    });
+    edgeMaterial.color.copy(stateColor(THREE, currentDataState));
+    edgeMaterial.opacity = currentDataState === "UNAVAILABLE" ? 0.1 : 0.25;
+    coreMaterial.color.copy(activeColor);
+    coreMaterial.opacity = currentStage === "CREATED" ? 0.16 : 0.3;
+    cageMaterial.opacity = currentStage === "BLOCKED" ? 0.7 : 0.3;
+    receiptSeal.visible = Boolean(view && view.receiptId);
+    receiptMaterial.color.copy(activeColor);
+    receiptMaterial.opacity = receiptSeal.visible ? 0.82 : 0;
+  }
 
-  // ---- render loop ----------------------------------------------------------
-  const clock = new THREE.Clock();
-  let raf = 0, running = true;
-
-  function render(t) {
-    coreMat.uniforms.uTime.value = t;
-    px += (tx - px) * 0.04; py += (ty - py) * 0.04;
-    root.rotation.y = t * 0.10 + px * 0.6;
-    root.rotation.x = py * 0.35;
-    cage.rotation.y = -t * 0.04;
-    dust.rotation.y = t * 0.015;
-
-    // signed-receipt pulse traverses the real chain (only when we have one)
-    if (chainCurve) {
-      pulseT += 0.0016 + 0.004 * pulseBoost; // fresh receipts travel faster + brighter
-      if (pulseT >= 1) { pulseT = 0; pulseBoost = 0; }
-      chainCurve.getPointAt(pulseT, _v);
-      pulse.position.copy(_v);
-      const base = 0.45 + 0.25 * Math.sin(t * 3.0);
-      pulse.material.opacity = Math.min(1.0, base + pulseBoost * 0.5);
-      const s = 1.0 + pulseBoost * 0.8;
-      pulse.scale.setScalar(s);
+  function animateFrame() {
+    if (!loopRunning) return;
+    if (!canRender()) {
+      loopRunning = false;
+      stage.stop();
+      return;
     }
-    renderer.render(scene, camera);
-  }
-
-  function frame() {
-    if (!running) return;
-    render(clock.getElapsedTime());
-    raf = requestAnimationFrame(frame);
-  }
-
-  // ---- live data: fetch real receipts + Λ; poll lake for genuine growth ------
-  async function boot() {
-    const [ledger, lam] = await Promise.all([getJSON(LEDGER_URL), getJSON(LAMBDA_URL)]);
-    if (lam && typeof lam.lambda_org === "number") hero.setLambda(lam.lambda_org);
-    if (ledger && Array.isArray(ledger.receipts) && ledger.receipts.length) {
-      hero.setReceipts(ledger.receipts);
-    } else {
-      hero.setReceipts(null); // honest still state — no fabricated receipts
+    const now = nowMs();
+    const duration = Math.max(1, transitionEnd - transitionStart);
+    const progress = Math.max(0, Math.min(1, (now - transitionStart) / duration));
+    const eased = 1 - Math.pow(1 - progress, 3);
+    const from = nodePositions[transitionFrom] || nodePositions[0];
+    const to = nodePositions[transitionTo] || from;
+    transitionPulse.position.lerpVectors(from, to, eased);
+    transitionMaterial.opacity = Math.sin(progress * Math.PI) * 0.9;
+    transitionPulse.scale.setScalar(0.9 + Math.sin(progress * Math.PI) * 0.8);
+    const active = nodes[currentIndex];
+    if (active) {
+      const pulse = 1.18 + Math.sin(progress * Math.PI) * 0.28;
+      active.mesh.scale.setScalar(pulse);
+      active.ring.rotation.z = progress * Math.PI;
+    }
+    core.rotation.y = pointerX * 0.18 + eased * 0.08;
+    core.rotation.x = pointerY * 0.12;
+    cage.rotation.y = -eased * 0.06;
+    focusObject.rotation.y = eased * Math.PI * 0.25;
+    if (progress >= 1) {
+      transitionMaterial.opacity = 0;
+      loopRunning = false;
+      stage.stop();
     }
   }
 
-  let lastLakeTotal = null;
-  async function pollLake() {
-    const h = await getJSON(LAKE_URL);
-    const total = h && typeof h.total_receipts === "number" ? h.total_receipts : null;
-    if (total !== null && lastLakeTotal !== null && total > lastLakeTotal) {
-      hero.fireFreshReceipt(); // a real new receipt landed in the lake
+  stage.onFrame(animateFrame);
+
+  function beginTransition(fromIndex, toIndex) {
+    transitionFrom = Math.max(0, Math.min(LIFECYCLE.length - 1, fromIndex));
+    transitionTo = Math.max(0, Math.min(LIFECYCLE.length - 1, toIndex));
+    transitionStart = nowMs();
+    transitionEnd = transitionStart + 620;
+    if (reducedMotion || !canRender()) {
+      transitionMaterial.opacity = 0;
+      if (canRender()) stage.render();
+      return;
     }
-    if (total !== null) lastLakeTotal = total;
+    if (!loopRunning) {
+      loopRunning = true;
+      stage.start();
+    }
   }
 
-  if (REDUCED) {
-    // Static, dignified single frame. Still fetch real data (no animation/polling).
-    boot().then(() => render(1.2));
-    render(1.2);
-  } else {
-    boot();
-    const io = new IntersectionObserver((ents) => {
-      for (const en of ents) {
-        if (en.isIntersecting && !running) { running = true; clock.start(); frame(); }
-        else if (!en.isIntersecting && running) { running = false; cancelAnimationFrame(raf); }
-      }
+  function applyFocus(asset, animate) {
+    if (!asset || !asset.id) {
+      focusObject.visible = false;
+      focusMaterial.opacity = 0;
+      if (canRender()) stage.render();
+      return;
+    }
+    const angle = deterministicAngle(asset.id);
+    focusObject.position.set(
+      Math.cos(angle) * 1.9,
+      Math.sin(angle) * 1.15 + 0.25,
+      0.2
+    );
+    focusMaterial.color.copy(stateColor(THREE, asset.dataState || asset.data_state));
+    focusMaterial.opacity = 0.72;
+    focusObject.visible = true;
+    if (animate) beginTransition(currentIndex, currentIndex);
+    else if (canRender()) stage.render();
+  }
+
+  function update(view) {
+    if (destroyed || !view || typeof view !== "object") return;
+    const nextStage = String(view.stage || "CREATED").toUpperCase();
+    const declaredStep = String(view.currentStep || "").toUpperCase();
+    const nextIndex = LIFECYCLE.includes(declaredStep)
+      ? LIFECYCLE.indexOf(declaredStep)
+      : stepIndex(nextStage);
+    const nextSequence = Number.isInteger(view.sequence) ? view.sequence : lastSequence;
+    const shouldAnimate = nextSequence > lastSequence || nextStage !== currentStage;
+    const priorIndex = currentIndex;
+    currentIndex = nextIndex;
+    currentStage = nextStage;
+    currentDataState = String(view.dataState || "UNAVAILABLE").toUpperCase();
+    lastSequence = Math.max(lastSequence, nextSequence);
+    paint(view);
+    renderEvidence(view.evidence);
+    applyFocus(view.focus, false);
+    if (shouldAnimate) beginTransition(priorIndex, nextIndex);
+    else if (canRender()) stage.render();
+  }
+
+  function setFocus(asset) {
+    if (destroyed) return;
+    applyFocus(asset, true);
+  }
+
+  function onPointerMove(event) {
+    if (!canRender() || reducedMotion) return;
+    const rect = canvas.getBoundingClientRect();
+    pointerX = rect.width ? ((event.clientX - rect.left) / rect.width - 0.5) : 0;
+    pointerY = rect.height ? ((event.clientY - rect.top) / rect.height - 0.5) : 0;
+    sceneRoot.rotation.y = pointerX * 0.07;
+    sceneRoot.rotation.x = -pointerY * 0.045;
+    stage.render();
+  }
+
+  function onPointerLeave() {
+    if (destroyed) return;
+    pointerX = 0;
+    pointerY = 0;
+    sceneRoot.rotation.set(0, 0, 0);
+    if (canRender()) stage.render();
+  }
+
+  canvas.addEventListener("pointermove", onPointerMove, { passive: true });
+  canvas.addEventListener("pointerleave", onPointerLeave, { passive: true });
+
+  if (typeof IntersectionObserver !== "undefined") {
+    intersectionObserver = new IntersectionObserver((entries) => {
+      if (destroyed) return;
+      entries.forEach((entry) => {
+        visible = entry.isIntersecting;
+        syncVisibility();
+      });
     }, { threshold: 0.01 });
-    io.observe(canvas);
-    frame();
-    // poll the lake every 15s for genuine receipt growth (honest fresh pulse)
-    const poll = setInterval(() => { if (running) pollLake(); }, 15000);
-    hero._stopPoll = () => clearInterval(poll);
+    intersectionObserver.observe(canvas);
   }
 
-  return hero;
+  function pause() {
+    manuallyPaused = true;
+    loopRunning = false;
+    stage.stop();
+  }
+
+  function resume() {
+    if (destroyed) return;
+    manuallyPaused = false;
+    syncVisibility();
+  }
+
+  function syncVisibility() {
+    if (destroyed) return;
+    if (!canRender()) {
+      loopRunning = false;
+      stage.stop();
+    } else if (!reducedMotion && transitionEnd > nowMs()) {
+      if (!loopRunning) {
+        loopRunning = true;
+        stage.start();
+      }
+    } else {
+      transitionMaterial.opacity = 0;
+      stage.render();
+    }
+  }
+
+  function destroy() {
+    if (destroyed) return;
+    destroyed = true;
+    loopRunning = false;
+    if (intersectionObserver) intersectionObserver.disconnect();
+    if (ownerDocument) ownerDocument.removeEventListener("visibilitychange", syncVisibility);
+    if (options.signal) options.signal.removeEventListener("abort", destroy);
+    canvas.removeEventListener("pointermove", onPointerMove);
+    canvas.removeEventListener("pointerleave", onPointerLeave);
+    stage.stop();
+    stage.scene.remove(sceneRoot);
+    disposeObject(sceneRoot);
+    stage.dispose();
+    if (mountedCanvases.get(canvas) === handle) mountedCanvases.delete(canvas);
+    if (mountAttempts.get(canvas) === attempt) mountAttempts.delete(canvas);
+  }
+
+  const handle = Object.freeze({
+    ok: true,
+    backend: stage.backend,
+    update,
+    setFocus,
+    pause,
+    resume,
+    destroy,
+  });
+  mountedCanvases.set(canvas, handle);
+  if (ownerDocument) ownerDocument.addEventListener("visibilitychange", syncVisibility);
+  if (options.signal) options.signal.addEventListener("abort", destroy, { once: true });
+  paint({ stages: [], receiptId: "" });
+  if (canRender()) stage.render();
+  return handle;
 }
+
+// Compatibility name for the existing landing import. It intentionally has the
+// same state-only contract and does not boot data access.
+export function mountHero(canvas, options = {}) {
+  return mountExperienceRenderer(canvas, options);
+}
+
+export default Object.freeze({
+  mountExperienceRenderer,
+  mountHero,
+});
