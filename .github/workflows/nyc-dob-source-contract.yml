@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 name: NYC DOB source contract
 
 on:
@@ -30,13 +31,13 @@ jobs:
     timeout-minutes: 3
     steps:
       - name: Checkout the candidate
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version: "3.12"
       - name: Compile the real source modules
         run: python -S -m py_compile a11oy_vertical_feeds.py a11oy_deva_feeds.py
       - name: Exercise both source functions with offline provider fixtures
