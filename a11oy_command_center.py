@@ -33,6 +33,7 @@ SPECIFIC = (
     ("/constellation", "constellation.html"),
 )
 CATCHALL = "/command/{rest:path}"
+REQUIRED_PAGES = {"command-v2.html"}
 
 
 def _spa_path() -> Path:
@@ -113,13 +114,18 @@ def register(app, ns: str = "a11oy") -> List[str]:
             page = _page(name)
             if page.is_file():
                 return FileResponse(page, media_type="text/html; charset=utf-8")
+            required = name in REQUIRED_PAGES
             return JSONResponse(
                 {
-                    "status": "NOT_FOUND",
-                    "reason": f"{name} missing from image",
+                    "status": "UNAVAILABLE" if required else "NOT_FOUND",
+                    "reason": (
+                        f"{name} missing from deployed pages closure"
+                        if required
+                        else f"{name} missing from image"
+                    ),
                     "page": name,
                 },
-                status_code=404,
+                status_code=503 if required else 404,
             )
 
         return _handler
