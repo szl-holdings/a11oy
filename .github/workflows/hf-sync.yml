@@ -167,9 +167,42 @@ jobs:
       restart-space: true
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/static/3d/holographic.html","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
+      smoke-paths: '["/","/api/livez","/api/build-info","/api/experience/v1/health","/api/experience/v1/estate","/api/experience/v1/scenarios","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/static/3d/holographic.html","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
     secrets:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
+
+  public-experience-live:
+    name: Exercise and attest five bounded public simulations
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Prove all five public lifecycles against the deployed origin
+        run: >-
+          python scripts/verify_public_experience.py
+          --repo .
+          --base-url "$CANONICAL_ORIGIN"
+          --exercise-simulation
+          --strict
+          --output reports/public-experience-live-v1.json
+      - name: Upload bounded public-experience evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: public-experience-live-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/public-experience-live-v1.json
+          if-no-files-found: error
+          retention-days: 90
 
   publish-vertical-flagships:
     name: Publish and live-verify six domain-native flagship Spaces
@@ -301,7 +334,7 @@ jobs:
 
   relock:
     name: Prove exact live source, runtime, routes, and singleton state
-    needs: [runtime-config, readiness-verdict]
+    needs: [runtime-config, readiness-verdict, public-experience-live]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
