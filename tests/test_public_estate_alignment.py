@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import importlib.util
+import copy
+from html.parser import HTMLParser
 import json
 from pathlib import Path
 import unittest
@@ -11,6 +13,26 @@ SPEC = importlib.util.spec_from_file_location("public_estate_alignment", SCRIPT)
 assert SPEC and SPEC.loader
 alignment = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(alignment)
+
+
+class BrandingText(HTMLParser):
+    """Read heading/link text, never identifiers, attributes, scripts or CSS."""
+    def __init__(self) -> None:
+        super().__init__()
+        self.stack = []
+        self.text = []
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {"h1", "h2", "h3", "h4", "a", "script", "style"}:
+            self.stack.append(tag)
+
+    def handle_endtag(self, tag):
+        if tag in self.stack:
+            del self.stack[self.stack.index(tag):]
+
+    def handle_data(self, data):
+        if self.stack and not any(tag in self.stack for tag in ("script", "style")):
+            self.text.append(data.strip())
 
 
 class PublicEstateAlignmentTests(unittest.TestCase):
@@ -31,7 +53,8 @@ class PublicEstateAlignmentTests(unittest.TestCase):
     def test_declared_hub_keep_set_equals_measured_public_inventory(self) -> None:
         expected = alignment.expected_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(expected), 15)
+        self.assertEqual(len(expected), 16)
+        self.assertIn("SZLHOLDINGS/ayllu", self.contract["laboratorySurfaces"])
         self.assertEqual(expected, observed)
 
     def test_truth_and_authority_cannot_be_promoted_by_rendering(self) -> None:
@@ -60,12 +83,33 @@ class PublicEstateAlignmentTests(unittest.TestCase):
 
     def test_product_front_door_names_canonical_origins(self) -> None:
         landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
+        branding = BrandingText()
+        branding.feed(landing)
+        words = " ".join(branding.text).casefold().split()
         for value in self.contract["canonical"].values():
             if value.startswith("https://"):
                 host = value.removeprefix("https://").split("/", 1)[0]
                 self.assertIn(host, landing)
         for body in self.contract["publicDomainBodies"]:
-            self.assertIn(body["name"].split()[0], landing)
+            name = body["name"].split()[0]
+            self.assertIn(name.casefold(), words, f"Missing heading/link body name: {name}")
+
+    def test_identifiers_and_source_code_are_not_visible_branding(self) -> None:
+        branding = BrandingText()
+        branding.feed('<style>.lyte{}</style><script>const name="Lyte"</script>'
+                      '<!-- Lyte --><a href="/lyte" id="body-lyte">Open</a>')
+        self.assertEqual(branding.text, ["Open"])
+        branding.feed('<h3>LYTE</h3>')
+        self.assertIn("LYTE", branding.text)
+
+    def test_receipt_binds_mapping_truth_and_authority(self) -> None:
+        for section, field in (("publicDomainBodies", "githubRepository"),
+                               ("publicDomainBodies", "truth"),
+                               ("internalEngines", "authority")):
+            changed = copy.deepcopy(self.contract)
+            changed[section][0][field] += "_CHANGED"
+            evidence = alignment.validate(changed, self.manifest)
+            self.assertNotEqual(evidence["alignmentSha256"], self.evidence["alignmentSha256"])
 
     def test_contract_json_is_deterministic_and_strict(self) -> None:
         source = alignment.CONTRACT.read_text(encoding="utf-8")
