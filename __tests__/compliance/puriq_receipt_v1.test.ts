@@ -236,6 +236,24 @@ describe("PurIQ receipt payload v1", () => {
     expect(accepted.results[0].signature_state).toBe("VERIFIED");
   });
 
+  test("unsupported signature algorithms never reach the verifier or look verified", async () => {
+    const receipts = clone(vector("single_receipt_session").receipts);
+    receipts[0].signature = {
+      algorithm: "Ed25519",
+      key_id: "unsupported-reference-key",
+      value: "b".repeat(64)
+    };
+    const verifySignature = jest.fn(async () => true);
+
+    const verdict = await receiptV1.verifySession(receipts, { verifySignature });
+
+    expect(verdict.valid).toBe(false);
+    expect(verdict.results[0].errors).toContain("signature_algorithm");
+    expect(verdict.results[0].signature_valid).toBe(false);
+    expect(verdict.results[0].signature_state).toBe("INVALID");
+    expect(verifySignature).not.toHaveBeenCalled();
+  });
+
   test("payload_hash excludes signature but includes every field through gate", async () => {
     const original = clone(vector("single_receipt_session").receipts[0]);
     const changedSignature = clone(original);

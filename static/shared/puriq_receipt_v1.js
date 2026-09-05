@@ -413,6 +413,7 @@
             signatureValid = null;
             signatureState = receipt.signature.algorithm === "HMAC-SHA256" ? "UNSIGNED" : "INVALID";
           } else if (
+            receipt.signature.algorithm === "HMAC-SHA256" &&
             SHA256_HEX.test(receipt.signature.value || "") &&
             typeof receipt.signature.key_id === "string" &&
             receipt.signature.key_id.length > 0
