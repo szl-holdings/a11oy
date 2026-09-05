@@ -1005,7 +1005,7 @@
   ],
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "e8f600fad7b9bdc4d316e41946f78f89bb754bf193fd6613e3f9cfd4cc36f417",
+  "snapshot_sha256": "6286ccd4bdf2595e1c2ec35c6a5b716d812de318761e590c534b6b5cc7ede81c",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
@@ -1020,7 +1020,7 @@
     "ouroboros": {
       "repository": "szl-holdings/szl-ouroboros",
       "review_workflow": ".github/workflows/codex-frontier-review.yml",
-      "revision": "371b611716d459ca7e96d1bde7630c813bfcdd83"
+      "revision": "b6f70624057b7b8554ca1e7b77a27431ecabbbda"
     },
     "second_brain": {
       "candidate_count": 129,
