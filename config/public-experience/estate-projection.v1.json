@@ -1,0 +1,128 @@
+{
+  "_spdx_license": "Apache-2.0",
+  "_copyright": "(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema": "a11oy.public-experience.estate-projection/v1",
+  "version": "1.0.0",
+  "source_manifest": "governance/public-estate.v1.json",
+  "assets": [
+    {
+      "id": "a11oy",
+      "title": "A11oy Command Fabric",
+      "summary": "Governed execution with inspectable evidence and simulation receipts.",
+      "kind": "platform",
+      "vertical": "fabric",
+      "public": true,
+      "active": true,
+      "visual_mode": "receipt-lattice",
+      "scenario_ids": [
+        "investigate-outage",
+        "screen-vessel",
+        "review-property",
+        "review-contract",
+        "route-inference"
+      ],
+      "tags": [
+        "governance",
+        "receipts",
+        "agents"
+      ],
+      "evidence_path": "/verify"
+    },
+    {
+      "id": "killinchu",
+      "title": "Killinchu",
+      "summary": "Public cyber-physical resilience and maritime command surface.",
+      "kind": "flagship",
+      "vertical": "resilience",
+      "public": true,
+      "active": true,
+      "visual_mode": "defense-constellation",
+      "scenario_ids": [
+        "investigate-outage",
+        "screen-vessel"
+      ],
+      "tags": [
+        "resilience",
+        "maritime",
+        "defensive"
+      ],
+      "evidence_path": "/api/build-info"
+    },
+    {
+      "id": "lyte",
+      "title": "Lyte",
+      "summary": "Public business-observability surface with source-bound runtime status.",
+      "kind": "flagship",
+      "vertical": "observability",
+      "public": true,
+      "active": true,
+      "visual_mode": "causality-braid",
+      "scenario_ids": [
+        "investigate-outage"
+      ],
+      "tags": [
+        "observability",
+        "traces",
+        "outcomes"
+      ],
+      "evidence_path": "/api/source"
+    },
+    {
+      "id": "finance",
+      "title": "PURIQ Finance",
+      "summary": "Public financial-intelligence surface with explicit evidence boundaries.",
+      "kind": "flagship",
+      "vertical": "finance",
+      "public": true,
+      "active": true,
+      "visual_mode": "risk-field",
+      "scenario_ids": [
+        "route-inference"
+      ],
+      "tags": [
+        "finance",
+        "evidence",
+        "review"
+      ],
+      "evidence_path": "/api/source"
+    },
+    {
+      "id": "terra",
+      "title": "Terra",
+      "summary": "Public property-intelligence surface for bounded evidence review.",
+      "kind": "flagship",
+      "vertical": "property",
+      "public": true,
+      "active": true,
+      "visual_mode": "parcel-twin",
+      "scenario_ids": [
+        "review-property"
+      ],
+      "tags": [
+        "property",
+        "evidence",
+        "diligence"
+      ],
+      "evidence_path": "/api/source"
+    },
+    {
+      "id": "counsel",
+      "title": "PRISM Counsel",
+      "summary": "Public legal-matter surface for attorney-led evidence review.",
+      "kind": "flagship",
+      "vertical": "legal",
+      "public": true,
+      "active": true,
+      "visual_mode": "authority-prism",
+      "scenario_ids": [
+        "review-contract"
+      ],
+      "tags": [
+        "legal",
+        "authority",
+        "review"
+      ],
+      "evidence_path": "/api/source"
+    }
+  ]
+}

@@ -1,0 +1,154 @@
+{
+  "_spdx_license": "Apache-2.0",
+  "_copyright": "(c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
+  "schema": "a11oy.public-experience.scenarios/v1",
+  "version": "1.0.0",
+  "policy_revision": "public-simulation-policy/v1",
+  "scenarios": [
+    {
+      "id": "investigate-outage",
+      "version": "1.0.0",
+      "title": "Investigate an outage",
+      "prompt": "Investigate an outage",
+      "description": "Trace a bounded diagnostic query through evidence, policy, approval, verification, and a simulation receipt.",
+      "domain": "service-reliability",
+      "action": "simulate.diagnostic-query",
+      "data_state": "SIMULATION",
+      "approval_required": true,
+      "approval_scope": "Approve this simulated diagnostic query",
+      "seed": 1101,
+      "outcome": "RECEIPTED",
+      "model_revision": null,
+      "evidence": [
+        {
+          "id": "outage-snapshot-1",
+          "title": "Synthetic service dependency snapshot",
+          "source_class": "SIMULATION",
+          "uri": null
+        },
+        {
+          "id": "outage-snapshot-2",
+          "title": "Synthetic latency trace",
+          "source_class": "SIMULATION",
+          "uri": null
+        }
+      ]
+    },
+    {
+      "id": "screen-vessel",
+      "version": "1.0.0",
+      "title": "Screen a vessel",
+      "prompt": "Screen a vessel",
+      "description": "Demonstrate a policy denial when a simulated screening request lacks bounded public evidence.",
+      "domain": "maritime-review",
+      "action": "simulate.vessel-screening",
+      "data_state": "SIMULATION",
+      "approval_required": false,
+      "approval_scope": null,
+      "seed": 2202,
+      "outcome": "POLICY_DENIED",
+      "model_revision": null,
+      "evidence": [
+        {
+          "id": "vessel-snapshot-1",
+          "title": "Synthetic vessel identity record",
+          "source_class": "SIMULATION",
+          "uri": null
+        },
+        {
+          "id": "vessel-authority-unavailable",
+          "title": "External screening authority",
+          "source_class": "UNAVAILABLE",
+          "uri": null
+        }
+      ]
+    },
+    {
+      "id": "review-property",
+      "version": "1.0.0",
+      "title": "Review a property",
+      "prompt": "Review a property",
+      "description": "Show a scoped simulated review whose verification fails instead of being forced to success.",
+      "domain": "property-review",
+      "action": "simulate.property-evidence-review",
+      "data_state": "SIMULATION",
+      "approval_required": true,
+      "approval_scope": "Approve this simulated property evidence review",
+      "seed": 3303,
+      "outcome": "VERIFICATION_FAILED",
+      "model_revision": null,
+      "evidence": [
+        {
+          "id": "property-snapshot-1",
+          "title": "Synthetic parcel evidence bundle",
+          "source_class": "SIMULATION",
+          "uri": null
+        },
+        {
+          "id": "property-snapshot-2",
+          "title": "Synthetic title consistency check",
+          "source_class": "SIMULATION",
+          "uri": null
+        }
+      ]
+    },
+    {
+      "id": "review-contract",
+      "version": "1.0.0",
+      "title": "Review a contract",
+      "prompt": "Review a contract",
+      "description": "Route a bounded simulated clause review to recovery when its evidence set is incomplete.",
+      "domain": "legal-review",
+      "action": "simulate.contract-review",
+      "data_state": "SIMULATION",
+      "approval_required": false,
+      "approval_scope": null,
+      "seed": 4404,
+      "outcome": "RECOVERY_REQUIRED",
+      "model_revision": null,
+      "evidence": [
+        {
+          "id": "contract-snapshot-1",
+          "title": "Synthetic contract clause set",
+          "source_class": "SIMULATION",
+          "uri": null
+        },
+        {
+          "id": "contract-authority-unavailable",
+          "title": "External legal authority",
+          "source_class": "UNAVAILABLE",
+          "uri": null
+        }
+      ]
+    },
+    {
+      "id": "route-inference",
+      "version": "1.0.0",
+      "title": "Route an inference request",
+      "prompt": "Route an inference request",
+      "description": "Expose an unavailable external model route without inventing output, energy, or receipt-signing authority.",
+      "domain": "inference-routing",
+      "action": "simulate.inference-route",
+      "data_state": "SIMULATION",
+      "approval_required": false,
+      "approval_scope": null,
+      "seed": 5505,
+      "outcome": "UNAVAILABLE",
+      "model_revision": null,
+      "evidence": [
+        {
+          "id": "inference-route-snapshot-1",
+          "title": "Synthetic routing request",
+          "source_class": "SIMULATION",
+          "uri": null
+        },
+        {
+          "id": "inference-authority-unavailable",
+          "title": "External inference authority",
+          "source_class": "UNAVAILABLE",
+          "uri": null
+        }
+      ]
+    }
+  ]
+}

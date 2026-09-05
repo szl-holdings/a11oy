@@ -29,6 +29,9 @@ warnings.filterwarnings("ignore")
 pytest.importorskip("starlette.testclient")
 
 import serve  # noqa: E402
+from fastapi import FastAPI  # noqa: E402
+from fastapi.responses import JSONResponse  # noqa: E402
+from fastapi.testclient import TestClient  # noqa: E402
 
 
 # The demo-critical surfaces. Each entry is a substring that MUST appear in some
@@ -84,6 +87,11 @@ DEMO_CRITICAL_ROUTES = [
     "/api/a11oy/v1/five-space/status",         # honest BIND status — never fabricated LIVE
     "/nexus",                                  # NEXUS analog vanity path (not a flagship, not a landing door)
     "/api/a11oy/v1/nexus/status",              # honest BIND status — never fabricated LIVE
+    "/api/experience/v1/health",               # public governed-action experience readiness
+    "/api/experience/v1/estate",               # public-only allowlisted estate projection
+    "/api/experience/v1/scenarios",            # five harmless deterministic scenarios
+    "/api/experience/v1/sessions",             # lifecycle + approval/event subroutes
+    "/api/experience/v1/receipts/",            # simulated receipt read/verify subroutes
 ]
 
 
@@ -109,6 +117,34 @@ def test_assembled_route_table_is_nonempty():
     """Sanity: the app booted and assembled a non-trivial route table."""
     paths = _assembled_paths()
     assert len(paths) > 50, f"route table suspiciously small ({len(paths)} paths) — app boot likely broke"
+
+
+def test_public_experience_failed_registration_shadows_foreign_exact_route():
+    """A partial/foreign collision must resolve to explicit JSON UNAVAILABLE."""
+    isolated = FastAPI()
+
+    @isolated.get("/api/experience/v1/health")
+    async def foreign_health():
+        return {"status": "foreign"}
+
+    async def unavailable():
+        return JSONResponse(
+            {"status": "UNAVAILABLE", "data_state": "UNAVAILABLE"},
+            status_code=503,
+        )
+
+    serve._front_install_public_experience_fallbacks(
+        isolated,
+        unavailable,
+        (("/api/experience/v1/health", ("GET",)),),
+    )
+    response = TestClient(isolated).get("/api/experience/v1/health")
+    assert response.status_code == 503
+    assert response.headers["content-type"].startswith("application/json")
+    assert response.json() == {
+        "status": "UNAVAILABLE",
+        "data_state": "UNAVAILABLE",
+    }
 
 
 @pytest.mark.parametrize("expected", DEMO_CRITICAL_ROUTES)

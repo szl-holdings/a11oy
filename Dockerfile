@@ -210,6 +210,12 @@ COPY static/vendor3d/three.module.min.js static/vendor3d/OrbitControls.js static
 # … (full rationale: docs/DOCKERFILE_NOTES.md §14)
 COPY szl3d_holographic.py szl_mesh_orchestrator.py cathedral_genius.html a11oy_landing.html ./
 COPY static/a11oy_cathedral.js static/a11oy_operator_organ.js static/cathedral_app.js static/a11oy_landing.js static/energy_3d.js ./static/
+# Canonical public governed-action experience. Keep the root service and its
+# declarative allowlists explicit because this image intentionally has no
+# catch-all source copy instruction.
+COPY a11oy_public_experience.py ./
+COPY config/public-experience/ ./config/public-experience/
+COPY governance/public-estate.v1.json ./governance/public-estate.v1.json
 # ADDITIVE: batch-2 sovereign security data module (imported by serve.py; try/except-guarded).
 # … (full rationale: docs/DOCKERFILE_NOTES.md §15)
 COPY corpus/ ./corpus/

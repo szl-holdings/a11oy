@@ -11167,6 +11167,90 @@ except Exception as _fr_e:  # pragma: no cover — guarded; never take down the 
           file=sys.stderr)
 
 
+# -- A11oy PUBLIC EXPERIENCE v1 ---------------------------------------------
+# A bounded, deterministic SIMULATION of the governed-action lifecycle used by
+# the canonical public front door. This service never calls production
+# effectors and never appends to the operational Series-A or Khipu chains.
+# Registration remains guarded and precedes both API and SPA catch-alls; the
+# module also front-moves its exact routes when mounted in isolated tests.
+def _front_install_public_experience_fallbacks(target_app, endpoint, routes):
+    """Make exact 503 routes win even after a foreign partial registration."""
+    for path, methods in routes:
+        target_app.add_api_route(
+            path,
+            endpoint,
+            methods=list(methods),
+            include_in_schema=False,
+            name="public_experience_unavailable_"
+            + path.strip("/").replace("/", "_").replace("{", "").replace("}", ""),
+        )
+        fallback_route = target_app.router.routes.pop()
+        target_app.router.routes.insert(0, fallback_route)
+
+
+try:
+    import a11oy_public_experience as _public_experience
+
+    def _public_experience_verify(envelope):
+        """Resolve the shared verifier lazily after the governed loop mounts."""
+        verifier = getattr(app.state, "szl_verify_receipt", None)
+        if not callable(verifier):
+            return {
+                "verified": False,
+                "detail": "shared receipt verifier is unavailable",
+            }
+        return verifier(envelope)
+
+    _public_experience_reg = _public_experience.register(
+        app,
+        verify_fn=_public_experience_verify,
+    )
+    print(f"[a11oy] public experience v1 registered: {_public_experience_reg}",
+          file=sys.stderr)
+except Exception as _public_experience_e:  # pragma: no cover — additive surface
+    print(f"[a11oy] public experience v1 NOT registered: {_public_experience_e!r}; "
+          "installing exact fail-closed routes", file=sys.stderr)
+
+    async def _public_experience_unavailable(request: Request) -> JSONResponse:
+        del request
+        return JSONResponse(
+            {
+                "schema": "a11oy.public-experience.unavailable.v1",
+                "status": "UNAVAILABLE",
+                "data_state": "UNAVAILABLE",
+                "code": "PUBLIC_EXPERIENCE_INITIALIZATION_FAILED",
+                "message": "The bounded public experience is unavailable.",
+            },
+            status_code=503,
+            headers={
+                "Cache-Control": "no-store",
+                "X-Content-Type-Options": "nosniff",
+                "Referrer-Policy": "no-referrer",
+            },
+        )
+
+    _public_experience_fallbacks = (
+        ("/api/experience/v1/health", ("GET",)),
+        ("/api/experience/v1/estate", ("GET",)),
+        ("/api/experience/v1/scenarios", ("GET",)),
+        ("/api/experience/v1/sessions", ("POST",)),
+        ("/api/experience/v1/sessions/{session_id}", ("GET",)),
+        ("/api/experience/v1/sessions/{session_id}/events", ("GET",)),
+        ("/api/experience/v1/sessions/{session_id}/approve", ("POST",)),
+        ("/api/experience/v1/receipts/{receipt_id}", ("GET",)),
+        ("/api/experience/v1/receipts/{receipt_id}/verify", ("POST",)),
+    )
+    # A registration failure may follow a foreign or partial exact-route
+    # collision. Put every 503 fallback ahead of that route as well as the
+    # generic API/SPA catch-alls; merely skipping a colliding path would leave
+    # an unowned handler live after the service failed closed.
+    _front_install_public_experience_fallbacks(
+        app,
+        _public_experience_unavailable,
+        _public_experience_fallbacks,
+    )
+
+
 
 
 # ============================================================================
