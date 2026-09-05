@@ -5,6 +5,7 @@
 /command remains the canonical 20-tab Elite Console. /command-v2 is an
 additive, source-controlled instrument. /console remains the operator runtime.
 """
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -14,6 +15,8 @@ ELITE_SPA = ROOT / "web" / "elite_console.html"
 MOD = ROOT / "a11oy_command_center.py"
 SERVE = ROOT / "serve.py"
 DOCKER = ROOT / "Dockerfile"
+FLOW_ROLLOUT = ROOT / "scripts" / "rollout_frontend_flow_shell.py"
+FLOW_STATE = ROOT / "docs" / "frontend-flow-shell-state.json"
 
 
 def test_elite_command_center_is_real_api_bound_surface() -> None:
@@ -40,6 +43,25 @@ def test_command_v2_is_accessible_honest_and_dependency_free() -> None:
     assert "The interface will not invent missing values." in html
     assert "ms.tabs||141" not in html
     assert "cdnjs" not in html and "googleapis" not in html and "jsdelivr" not in html
+
+
+def test_command_v2_owns_one_reviewed_nonduplicative_navigation_shell() -> None:
+    html = COMMAND_V2.read_text(encoding="utf-8")
+    rollout = FLOW_ROLLOUT.read_text(encoding="utf-8")
+    state = json.loads(FLOW_STATE.read_text(encoding="utf-8"))
+
+    assert 'SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}' in rollout
+    assert "pages/command-v2.html" in state["self_contained_documents"]
+    assert "pages/command-v2.html" not in state["injected_documents"]
+    assert 'data-szl-flow-asset="style"' not in html
+    assert 'data-szl-flow-asset="script"' not in html
+    for marker in (
+        'aria-label="Command rooms"',
+        'aria-label="Mobile command rooms"',
+        'role="dialog"',
+        "openPalette",
+    ):
+        assert marker in html
 
 
 def test_legacy_public_spa_remains_available_as_fallback() -> None:
