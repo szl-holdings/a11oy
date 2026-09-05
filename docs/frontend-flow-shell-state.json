@@ -117,6 +117,7 @@
   "rollout": "workflow_dispatch:.github/workflows/rollout-frontend-flow-shell.yml",
   "schema": "szl.frontend-flow-shell-state/v1",
   "self_contained_documents": [
+    "pages/command-v2.html",
     "pages/wires.html"
   ],
   "source_managed_documents": [
