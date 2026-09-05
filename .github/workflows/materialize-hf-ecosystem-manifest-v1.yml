@@ -1,0 +1,90 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize current Hugging Face ecosystem manifest v1
+
+on:
+  push:
+    branches:
+      - fix/hf-ecosystem-manifest-current-20260905
+    paths:
+      - .github/workflows/materialize-hf-ecosystem-manifest-v1.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-hf-ecosystem-manifest-v1
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact refresh branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-ecosystem-manifest-current-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Generate and re-verify exact public Hub evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 -m py_compile scripts/audit_huggingface_ecosystem.py
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('docs/huggingface-ecosystem-manifest.json')
+          manifest = json.loads(path.read_text(encoding='utf-8'))
+          assert manifest['org'] == 'SZLHOLDINGS'
+          assert manifest['inventoryScope']['visibility'] == 'public-only'
+          assert manifest['inventoryScope']['authenticated'] is False
+          assert manifest['inventoryScope']['privateAssetsIncluded'] is False
+          counts = manifest['counts']
+          inventory = manifest['inventory']
+          assert counts['models'] == len(inventory['models'])
+          assert counts['datasets'] == len(inventory['datasets'])
+          assert counts['spaces'] == len(inventory['spaces'])
+          assert all(item.get('sha') and item.get('cardSemanticSha256') for kind in ('models','datasets','spaces') for item in inventory[kind])
+          PY
+          git diff --check
+
+      - name: Commit only the current manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f .github/workflows/materialize-hf-ecosystem-manifest-v1.yml
+          unexpected=$(git status --porcelain | awk '{print $2}' | grep -v '^docs/huggingface-ecosystem-manifest.json$' || true)
+          if [ -n "$unexpected" ]; then
+            echo "Unexpected generated paths:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add -A
+          git diff --cached --check
+          if git diff --cached --quiet; then
+            echo "Tracked manifest is already current."
+            exit 0
+          fi
+          git commit -s -m "fix(hf): refresh the public ecosystem manifest"
+          git push origin HEAD:fix/hf-ecosystem-manifest-current-20260905
