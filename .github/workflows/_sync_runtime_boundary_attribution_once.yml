@@ -1,0 +1,241 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Sync runtime boundary attribution once
+
+on:
+  push:
+    branches:
+      - fix/runtime-boundary-postmerge-review-20260905
+    paths:
+      - .github/workflows/_sync_runtime_boundary_attribution_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-runtime-boundary-attribution-a11oy-once
+  cancel-in-progress: false
+
+jobs:
+  synchronize:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/runtime-boundary-postmerge-review-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/runtime-boundary-postmerge-review-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+
+      - name: Reconcile current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge --no-edit origin/main
+
+      - name: Attribute the fallback to its actual source and retain primary failure evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          from pathlib import Path
+
+          source_path = Path('szl_immune.py')
+          source = source_path.read_text(encoding='utf-8')
+
+          old = '''    status, data, err = probe(field_url)
+          body = data if isinstance(data, dict) else {}
+          reachable = status == 200 and isinstance(data, dict)
+          fallback_state = False
+          '''.replace('          ', '')
+          new = '''    status, data, err = probe(field_url)
+          primary_status = status
+          primary_error = err
+          body = data if isinstance(data, dict) else {}
+          reachable = status == 200 and isinstance(data, dict)
+          fallback_state = False
+          '''.replace('          ', '')
+          if source.count(old) != 1:
+              raise SystemExit('field probe attribution anchor changed')
+          source = source.replace(old, new, 1)
+
+          old = '''        "upstream_http": status,
+          "error": None if reachable else (err or "field unobserved"),
+          "channel": "B",
+          "space": "SZLHOLDINGS/immune-lattice",
+          "contract": "/api/immune/state" if fallback_state else "/api/field",
+          '''.replace('          ', '')
+          new = '''        "upstream_http": status,
+          "error": None if reachable else (err or "field unobserved"),
+          "fallback_from": (
+              {
+                  "channel": "B",
+                  "space": "SZLHOLDINGS/immune-lattice",
+                  "contract": "/api/field",
+                  "url": field_url,
+                  "upstream_http": primary_status,
+                  "error": primary_error or "field unobserved",
+              }
+              if fallback_state
+              else None
+          ),
+          "channel": "A" if fallback_state else "B",
+          "space": "SZLHOLDINGS/immune" if fallback_state else "SZLHOLDINGS/immune-lattice",
+          "contract": "/api/immune/state" if fallback_state else "/api/field",
+          '''.replace('          ', '')
+          if source.count(old) != 1:
+              raise SystemExit('field payload attribution anchor changed')
+          source_path.write_text(source.replace(old, new, 1), encoding='utf-8')
+
+          test_path = Path('tests/test_runtime_boundary_fallback_attribution.py')
+          test_path.write_text('''# SPDX-License-Identifier: Apache-2.0
+          """Regression coverage for IMMUNE Field fallback source attribution."""
+          from __future__ import annotations
+
+          import szl_immune as immune
+
+
+          def _clear_cache() -> None:
+              immune._FIELD_CACHE.clear()
+
+
+          def test_primary_field_response_stays_channel_b() -> None:
+              _clear_cache()
+
+              def probe(url: str):
+                  assert url.endswith("/api/field")
+                  return 200, {
+                      "lambda_status": "Conjecture 1 (NOT a theorem)",
+                      "actuation": "SIMULATED",
+                      "rule": "observe only",
+                      "cells": [],
+                      "hunts": [],
+                  }, None
+
+              result = immune._field(now=10_000.0, probe=probe)
+              assert result["channel"] == "B"
+              assert result["space"] == "SZLHOLDINGS/immune-lattice"
+              assert result["contract"] == "/api/field"
+              assert result["fallback_from"] is None
+              _clear_cache()
+
+
+          def test_fallback_reports_channel_a_and_preserves_primary_failure() -> None:
+              _clear_cache()
+              calls: list[str] = []
+
+              def probe(url: str):
+                  calls.append(url)
+                  if url.endswith("/api/field"):
+                      return 503, None, "field overlay unavailable"
+                  assert url.endswith("/api/immune/state")
+                  return 200, {
+                      "estate": [
+                          {"id": "cell-1", "title": "Observed cell", "role": "sensor"}
+                      ],
+                      "ledger": {"count": 7},
+                      "readiness": "OBSERVED",
+                      "mesh": "DEGRADED",
+                  }, None
+
+              result = immune._field(now=20_000.0, probe=probe)
+              assert len(calls) == 2
+              assert result["ok"] is True
+              assert result["channel"] == "A"
+              assert result["space"] == "SZLHOLDINGS/immune"
+              assert result["contract"] == "/api/immune/state"
+              assert result["url"].endswith("/api/immune/state")
+              assert result["cell_count"] == 1
+              assert result["ledger"] == {"count": 7}
+              assert result["fallback_from"] == {
+                  "channel": "B",
+                  "space": "SZLHOLDINGS/immune-lattice",
+                  "contract": "/api/field",
+                  "url": calls[0],
+                  "upstream_http": 503,
+                  "error": "field overlay unavailable",
+              }
+              _clear_cache()
+          '''.replace('          ', ''), encoding='utf-8')
+
+          files = {
+              name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
+              for name in ('szl_agentic_loop.py', 'szl_immune.py')
+          }
+          manifest = {
+              'files': dict(sorted(files.items())),
+              'payload_id': 'runtime-boundary-1994-v2',
+              'schema': 'szl-shared-source-payload/v1',
+          }
+          raw = (json.dumps(manifest, separators=(',', ':'), ensure_ascii=True) + '\n').encode()
+          Path('.github/shared-source-payload-manifest.json').write_bytes(raw)
+
+          audit_path = Path('audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md')
+          audit = audit_path.read_text(encoding='utf-8')
+          marker = '## Fallback attribution correction\n'
+          if marker not in audit:
+              audit += '''
+
+          ## Fallback attribution correction
+
+          The compatibility fallback from the IMMUNE Field overlay to
+          `/api/immune/state` now identifies the actual Channel A source and
+          retains the failed Channel B probe as bounded evidence. Primary
+          `/api/field` responses remain Channel B. Both behaviors have focused
+          network-free regressions and the shared payload manifest is refreshed.
+          '''.replace('          ', '')
+              audit_path.write_text(audit, encoding='utf-8')
+          PY
+
+      - name: Prove focused runtime boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            'fastapi==0.116.1' 'httpx==0.28.1' 'pytest==9.0.2' 'cryptography==46.0.3'
+          python -m py_compile \
+            szl_agentic_loop.py \
+            szl_immune.py \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py
+          python -m pytest -q \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py \
+            tests/test_main_runtime_mutation_boundaries.py \
+            tests/test_dsse_real_signing.py
+          python .github/validate-shared-payload.py . . \
+            --expected-manifest-sha256="$(sha256sum .github/shared-source-payload-manifest.json | cut -d' ' -f1)"
+          git diff --check
+
+      - name: Commit permanent synchronized files and retire controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/runtime-boundary-postmerge-review-20260905
+          git rm -- .github/workflows/_sync_runtime_boundary_attribution_once.yml
+          git add -- \
+            .github/shared-source-payload-manifest.json \
+            audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md \
+            szl_immune.py \
+            tests/test_runtime_boundary_fallback_attribution.py
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'fix(runtime): attribute IMMUNE fallback to its actual source'
+          git push origin "HEAD:refs/heads/$branch"
