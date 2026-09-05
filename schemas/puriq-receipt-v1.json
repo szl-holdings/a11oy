@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/puriq-receipt-v1.json",
+  "title": "PurIQ receipt payload v1",
+  "description": "Exact receipt payload contract for one governed scoring event. payload_hash binds the canonical JSON object containing receipt_version through gate; payload_hash and signature are not part of that hash material.",
+  "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings. Canonical JSON uses ECMAScript number/string spelling and UTF-16 code-unit key ordering, rejects lone surrogates, and does not normalize Unicode. Runtime validation additionally requires confidence.low <= confidence.high and valid session linkage. UNSIGNED is a valid receipt state, not a verified signature.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "receipt_version",
+    "receipt_id",
+    "issued_at",
+    "session_id",
+    "sequence",
+    "prev_receipt_hash",
+    "subject",
+    "ranking_inputs",
+    "gate",
+    "payload_hash",
+    "signature"
+  ],
+  "properties": {
+    "receipt_version": {
+      "const": 1
+    },
+    "receipt_id": {
+      "$ref": "#/$defs/uuid_v4"
+    },
+    "issued_at": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(?:\\.[0-9]+)?Z$"
+    },
+    "session_id": {
+      "$ref": "#/$defs/uuid_v4"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "prev_receipt_hash": {
+      "oneOf": [
+        {
+          "const": "GENESIS"
+        },
+        {
+          "$ref": "#/$defs/sha256_hex"
+        }
+      ]
+    },
+    "subject": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "normalized_record_hash",
+        "source_record_id",
+        "parser_version"
+      ],
+      "properties": {
+        "normalized_record_hash": {
+          "$ref": "#/$defs/sha256_hex"
+        },
+        "source_record_id": {
+          "type": "string"
+        },
+        "parser_version": {
+          "type": "string",
+          "pattern": "^(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?(?:\\+[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$"
+        }
+      }
+    },
+    "ranking_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_path",
+        "reasons",
+        "confidence",
+        "caveats"
+      ],
+      "properties": {
+        "source_path": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reasons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "code",
+              "direction",
+              "weight",
+              "detail"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "direction": {
+                "enum": [
+                  "up",
+                  "down"
+                ]
+              },
+              "weight": {
+                "type": "number"
+              },
+              "detail": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "confidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "low",
+            "high"
+          ],
+          "properties": {
+            "low": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "high": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        },
+        "caveats": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "result",
+        "failures"
+      ],
+      "properties": {
+        "name": {
+          "const": "yuyay-13"
+        },
+        "result": {
+          "enum": [
+            "pass",
+            "fail"
+          ]
+        },
+        "failures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "result": {
+                "const": "pass"
+              }
+            },
+            "required": [
+              "result"
+            ]
+          },
+          "then": {
+            "properties": {
+              "failures": {
+                "type": "array",
+                "maxItems": 0
+              }
+            }
+          },
+          "else": {
+            "properties": {
+              "failures": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        }
+      ]
+    },
+    "payload_hash": {
+      "$ref": "#/$defs/sha256_hex"
+    },
+    "signature": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "key_id",
+        "value"
+      ],
+      "properties": {
+        "algorithm": {
+          "const": "HMAC-SHA256"
+        },
+        "key_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "value": {
+          "oneOf": [
+            {
+              "const": "UNSIGNED"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        }
+      },
+      "oneOf": [
+        {
+          "properties": {
+            "key_id": {
+              "const": null
+            },
+            "value": {
+              "const": "UNSIGNED"
+            }
+          }
+        },
+        {
+          "properties": {
+            "key_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "value": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "sha256_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "uuid_v4": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+    }
+  }
+}

@@ -1,0 +1,4792 @@
+{
+  "license": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings",
+  "vector_version": 1,
+  "canonical_vectors": [
+    {
+      "value": {
+        "": "private-use",
+        "😀": "astral",
+        "values": [
+          0,
+          1,
+          1e-7,
+          0.000001,
+          100000000000000000000,
+          1e+21
+        ],
+        "unicode": "café\n\"\\ "
+      },
+      "canonical": "{\"unicode\":\"café\\n\\\"\\\\ \",\"values\":[0,1,1e-7,0.000001,100000000000000000000,1e+21],\"😀\":\"astral\",\"\":\"private-use\"}",
+      "sha256": "7518ee2cf79c0c6c31207333b92e53aea3a22b87ae87d37c51e93523177998e6"
+    }
+  ],
+  "vectors": [
+    {
+      "name": "empty_session",
+      "receipts": [],
+      "expected": {
+        "valid": true,
+        "receipt_count": 0,
+        "first_failure_receipt_id": null
+      }
+    },
+    {
+      "name": "single_receipt_session",
+      "receipts": [
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000000001",
+          "issued_at": "2026-09-04T16:00:00.000Z",
+          "session_id": "10000000-0000-4000-8000-000000000001",
+          "sequence": 0,
+          "prev_receipt_hash": "GENESIS",
+          "subject": {
+            "normalized_record_hash": "a9ade9a2bc67461ac270c5f2da26ea2ab7fe814bdfb9d71006562ad1c4f20665",
+            "source_record_id": "official-record-1",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "2451a0145d0d774affcf88228c727effd73fe622d56d48a64cd1143c39690ad3",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        }
+      ],
+      "expected": {
+        "valid": true,
+        "receipt_count": 1,
+        "first_failure_receipt_id": null
+      }
+    },
+    {
+      "name": "hundred_receipt_session",
+      "receipts": [
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001000",
+          "issued_at": "2026-09-04T16:00:00.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 0,
+          "prev_receipt_hash": "GENESIS",
+          "subject": {
+            "normalized_record_hash": "08cd3dbf530482eda93653f79b6bc40966439735e559fd9a96c2dc8370adb8f3",
+            "source_record_id": "official-record-1000",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ca041d2cc3ed0889fa6a8f322965c7f79e8e118d1f702abde3dc728121772141",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001001",
+          "issued_at": "2026-09-04T16:00:01.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 1,
+          "prev_receipt_hash": "ca041d2cc3ed0889fa6a8f322965c7f79e8e118d1f702abde3dc728121772141",
+          "subject": {
+            "normalized_record_hash": "ccd50bd1319399d4165b5c664ab0ed08d9ac66b8d6310352c8244d930158029b",
+            "source_record_id": "official-record-1001",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "98c620ed2b9551ccf920cf92a74c606f802db969db49f429687e9084cc5c2649",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001002",
+          "issued_at": "2026-09-04T16:00:02.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 2,
+          "prev_receipt_hash": "98c620ed2b9551ccf920cf92a74c606f802db969db49f429687e9084cc5c2649",
+          "subject": {
+            "normalized_record_hash": "100e6a76453b3e2a276bce494b0f071c9c3d86f78ce366de1feb622becdedd4f",
+            "source_record_id": "official-record-1002",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "10af2a22ead48aad52634983965ff29ffdb0752c086c2200b42fcf379ae0848d",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001003",
+          "issued_at": "2026-09-04T16:00:03.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 3,
+          "prev_receipt_hash": "10af2a22ead48aad52634983965ff29ffdb0752c086c2200b42fcf379ae0848d",
+          "subject": {
+            "normalized_record_hash": "7ec18deb275808792097a9256772609137033cfab5f67c555611060c555080dd",
+            "source_record_id": "official-record-1003",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "0a073f8793aa95e68794d62d621e698cc833a7c7f97ddbad97d467979e31d959",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001004",
+          "issued_at": "2026-09-04T16:00:04.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 4,
+          "prev_receipt_hash": "0a073f8793aa95e68794d62d621e698cc833a7c7f97ddbad97d467979e31d959",
+          "subject": {
+            "normalized_record_hash": "12ce6c3b082c1341ebcbde1850ec1190cdfab9efa6d1a01dba20277446068069",
+            "source_record_id": "official-record-1004",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "2c8b8389161816c4ac244d082d013fc29807c28accc5067a36ead8e3f9b22671",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001005",
+          "issued_at": "2026-09-04T16:00:05.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 5,
+          "prev_receipt_hash": "2c8b8389161816c4ac244d082d013fc29807c28accc5067a36ead8e3f9b22671",
+          "subject": {
+            "normalized_record_hash": "d3afc69e985030e1bd93e171665ae358683786dd5d8fbb7cec5ff775b9e0eb09",
+            "source_record_id": "official-record-1005",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "27ccf752f50c67b426e1b011e09474277a92ad4edd977676c003ae0b0b0bfbd2",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001006",
+          "issued_at": "2026-09-04T16:00:06.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 6,
+          "prev_receipt_hash": "27ccf752f50c67b426e1b011e09474277a92ad4edd977676c003ae0b0b0bfbd2",
+          "subject": {
+            "normalized_record_hash": "8878f0c3f10a48b86a60090dc359c9d3f4cc1293063ea3c45b7425653dbf221b",
+            "source_record_id": "official-record-1006",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "d8fdd80f9cce6a11233fbf29365c09f929e47a29ec5e2fe1ddc309d40b13a170",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001007",
+          "issued_at": "2026-09-04T16:00:07.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 7,
+          "prev_receipt_hash": "d8fdd80f9cce6a11233fbf29365c09f929e47a29ec5e2fe1ddc309d40b13a170",
+          "subject": {
+            "normalized_record_hash": "2dd0fb7044e9089d0a17168573c7e711c8ceb1b537809834240f52f7c6d89572",
+            "source_record_id": "official-record-1007",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "0b4c2a043657f1871b378c6e3bb1b0ca0b6052fb1e8607b4b5d2b10db4518abe",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001008",
+          "issued_at": "2026-09-04T16:00:08.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 8,
+          "prev_receipt_hash": "0b4c2a043657f1871b378c6e3bb1b0ca0b6052fb1e8607b4b5d2b10db4518abe",
+          "subject": {
+            "normalized_record_hash": "5bb503d018cf7c10ef90eddc62f2872356c2dcbc5dc596ba90a5624093f7ff14",
+            "source_record_id": "official-record-1008",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "7a07bbaa30cf878f63bd6db5014d368a9b2eca3bf51d9c3086834548ca75d06d",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001009",
+          "issued_at": "2026-09-04T16:00:09.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 9,
+          "prev_receipt_hash": "7a07bbaa30cf878f63bd6db5014d368a9b2eca3bf51d9c3086834548ca75d06d",
+          "subject": {
+            "normalized_record_hash": "d4ba687be2ec7b090c64be9714fc4af5cb7169fa7c09c447424c6cb48e2b22cc",
+            "source_record_id": "official-record-1009",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "87bbf22c997243b13994fe4995a5a56c43a0b89c11c37f959874c05d4b5dec65",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001010",
+          "issued_at": "2026-09-04T16:00:10.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 10,
+          "prev_receipt_hash": "87bbf22c997243b13994fe4995a5a56c43a0b89c11c37f959874c05d4b5dec65",
+          "subject": {
+            "normalized_record_hash": "661919561966c4bd77ab753814b04d6d4898f6aa66861fb5806bb3e0b47541cb",
+            "source_record_id": "official-record-1010",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "963ba6c03654ee5ca1bb475126c5a4baf78ed0484b60cd30cbc0a17a50321557",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001011",
+          "issued_at": "2026-09-04T16:00:11.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 11,
+          "prev_receipt_hash": "963ba6c03654ee5ca1bb475126c5a4baf78ed0484b60cd30cbc0a17a50321557",
+          "subject": {
+            "normalized_record_hash": "4092405eec136f5b1dccbc40e13c0b421c44aab559fa8d6a4ff9c089679b31cf",
+            "source_record_id": "official-record-1011",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "17233c2b86b67563a675c0b0b1f2450b66771a1ebde26c0067844a43a46f93f1",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001012",
+          "issued_at": "2026-09-04T16:00:12.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 12,
+          "prev_receipt_hash": "17233c2b86b67563a675c0b0b1f2450b66771a1ebde26c0067844a43a46f93f1",
+          "subject": {
+            "normalized_record_hash": "46e3a1330421a928fdff2d09a8f32d9330f5dd3a36d8587b6e9b859d722c383c",
+            "source_record_id": "official-record-1012",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "7964ec10ac494f02308b72d03bd118f32977960d3ab4b218a7bf20c466b88df4",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001013",
+          "issued_at": "2026-09-04T16:00:13.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 13,
+          "prev_receipt_hash": "7964ec10ac494f02308b72d03bd118f32977960d3ab4b218a7bf20c466b88df4",
+          "subject": {
+            "normalized_record_hash": "9f4b12345d9d20b6421d99ad43ecbb96023ab75feeb4667dca6b971a4a01d1f9",
+            "source_record_id": "official-record-1013",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "1a1687ad5b59528cb7119c17f8f21aaa01d9906dbdfc59a59b3691abbe2490a4",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001014",
+          "issued_at": "2026-09-04T16:00:14.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 14,
+          "prev_receipt_hash": "1a1687ad5b59528cb7119c17f8f21aaa01d9906dbdfc59a59b3691abbe2490a4",
+          "subject": {
+            "normalized_record_hash": "75b1edff41ac2c59be74b24ec28087619cad7a6edb9c7950e794d922690c4905",
+            "source_record_id": "official-record-1014",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "7a0d1f09120ea1a999490499af109ece29507c131244ffcd547e1243e74f786f",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001015",
+          "issued_at": "2026-09-04T16:00:15.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 15,
+          "prev_receipt_hash": "7a0d1f09120ea1a999490499af109ece29507c131244ffcd547e1243e74f786f",
+          "subject": {
+            "normalized_record_hash": "ff7ecd1061399548bb0f68db65969c73991a50202db7dac63a6041d0238b0eb4",
+            "source_record_id": "official-record-1015",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ba352924b51adceae7b2d92d1580ee9943330ff8d6840fcfd4e6b5a677f828e5",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001016",
+          "issued_at": "2026-09-04T16:00:16.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 16,
+          "prev_receipt_hash": "ba352924b51adceae7b2d92d1580ee9943330ff8d6840fcfd4e6b5a677f828e5",
+          "subject": {
+            "normalized_record_hash": "76f367443d30870ff47049683d49f851fc657c83f3ccd4b23e144684949f05d7",
+            "source_record_id": "official-record-1016",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "a40d4a475f5903311061b29df44316801413846c46002ef57210c59c9c7ef4bc",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001017",
+          "issued_at": "2026-09-04T16:00:17.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 17,
+          "prev_receipt_hash": "a40d4a475f5903311061b29df44316801413846c46002ef57210c59c9c7ef4bc",
+          "subject": {
+            "normalized_record_hash": "bff05d4191da08d660ccc3cb664d71634e3f38991b6f3b823cfa9da894f9607a",
+            "source_record_id": "official-record-1017",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "87bb523fe44561509fafad85dca3188c999399b76475d27625bea8eff1806e75",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001018",
+          "issued_at": "2026-09-04T16:00:18.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 18,
+          "prev_receipt_hash": "87bb523fe44561509fafad85dca3188c999399b76475d27625bea8eff1806e75",
+          "subject": {
+            "normalized_record_hash": "3206693e6b3eb358bafd6d5e3a2ab0604318b6c8f764b9a93b21735a9d0458de",
+            "source_record_id": "official-record-1018",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "7ddc8657369e70a1e111a3041bdf5d63ee7c0fede35caab71c190c58d02f5939",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001019",
+          "issued_at": "2026-09-04T16:00:19.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 19,
+          "prev_receipt_hash": "7ddc8657369e70a1e111a3041bdf5d63ee7c0fede35caab71c190c58d02f5939",
+          "subject": {
+            "normalized_record_hash": "32379d1d9c8fd9aeadbd0da83bf1d397bcb4b6fb6f209848c222ae968c596672",
+            "source_record_id": "official-record-1019",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "80febbd174a2e31910cfa9ea176229d0fe22b848b104a015129e20f66e74086b",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001020",
+          "issued_at": "2026-09-04T16:00:20.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 20,
+          "prev_receipt_hash": "80febbd174a2e31910cfa9ea176229d0fe22b848b104a015129e20f66e74086b",
+          "subject": {
+            "normalized_record_hash": "74954aa1b2189f6ec287cb04de0114c8c77130bece53c06720b48766c9022e01",
+            "source_record_id": "official-record-1020",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "3d785568ae22d74ebec04c48a02668f2aca13f997ddaa6a519460193b6d4e614",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001021",
+          "issued_at": "2026-09-04T16:00:21.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 21,
+          "prev_receipt_hash": "3d785568ae22d74ebec04c48a02668f2aca13f997ddaa6a519460193b6d4e614",
+          "subject": {
+            "normalized_record_hash": "2ad6c87458fc783001445a9acb9d72c890bbbd6b5981a8fc25bd9a5bcba53941",
+            "source_record_id": "official-record-1021",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "e884f33c8729d8e98c8b528c6e2c16f8fb60929ddaa4bc45f44158d4d56975fd",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001022",
+          "issued_at": "2026-09-04T16:00:22.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 22,
+          "prev_receipt_hash": "e884f33c8729d8e98c8b528c6e2c16f8fb60929ddaa4bc45f44158d4d56975fd",
+          "subject": {
+            "normalized_record_hash": "820666cb75bbbedf7afd43db3496ea1a3ee05059e2f0d0f21627a28d34afbb35",
+            "source_record_id": "official-record-1022",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "3869fc7f4946f5ccc5c9e0ab0139e175ef7e8bffe5cf0db938cd11125edfaf0e",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001023",
+          "issued_at": "2026-09-04T16:00:23.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 23,
+          "prev_receipt_hash": "3869fc7f4946f5ccc5c9e0ab0139e175ef7e8bffe5cf0db938cd11125edfaf0e",
+          "subject": {
+            "normalized_record_hash": "cef151c580925266d14b8542abd192ed922b2cb166b2c98de206df4cce255d4c",
+            "source_record_id": "official-record-1023",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "dde55586d656c317b0c9eb978812e7d23372ea1573df1e91a50a9d5091d94c53",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001024",
+          "issued_at": "2026-09-04T16:00:24.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 24,
+          "prev_receipt_hash": "dde55586d656c317b0c9eb978812e7d23372ea1573df1e91a50a9d5091d94c53",
+          "subject": {
+            "normalized_record_hash": "b97f595774e964a7aebac452522e01954fc4e07408ab0b00f38f0e32a77becc3",
+            "source_record_id": "official-record-1024",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "c1a683b355867a85d87707f0309d909fc0a877c28764454d5289c115768f0fba",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001025",
+          "issued_at": "2026-09-04T16:00:25.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 25,
+          "prev_receipt_hash": "c1a683b355867a85d87707f0309d909fc0a877c28764454d5289c115768f0fba",
+          "subject": {
+            "normalized_record_hash": "4b9808a0b95e96cf2557d3833761fee355549034537813785266c90e9ced61a2",
+            "source_record_id": "official-record-1025",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "592946646b84a38eece15ed50e908e0be7b180337f405bbd3d5dd3a76190d448",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001026",
+          "issued_at": "2026-09-04T16:00:26.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 26,
+          "prev_receipt_hash": "592946646b84a38eece15ed50e908e0be7b180337f405bbd3d5dd3a76190d448",
+          "subject": {
+            "normalized_record_hash": "cdfdcbc2374744cef6692f8e89595ec9ed7c7015a196ff693db21f31d8b82f01",
+            "source_record_id": "official-record-1026",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "cf5d8de8f0ca0e5f3a6ad37a340aa9e684d9e3211e63da9f28eca75d1d6e2237",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001027",
+          "issued_at": "2026-09-04T16:00:27.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 27,
+          "prev_receipt_hash": "cf5d8de8f0ca0e5f3a6ad37a340aa9e684d9e3211e63da9f28eca75d1d6e2237",
+          "subject": {
+            "normalized_record_hash": "738498dede0d234b89d96b2ddc3062ebdf6abe026990178f6d6e85f57857cce2",
+            "source_record_id": "official-record-1027",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "5c771aa26db1491ecff3a4f97e5d43cf3a9a140de4f6c3552275ee174bb2a771",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001028",
+          "issued_at": "2026-09-04T16:00:28.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 28,
+          "prev_receipt_hash": "5c771aa26db1491ecff3a4f97e5d43cf3a9a140de4f6c3552275ee174bb2a771",
+          "subject": {
+            "normalized_record_hash": "f80c54135fd667f355a3731f1d9133cd602be3cdfd74efe49489bf3a7b007a26",
+            "source_record_id": "official-record-1028",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "50fae4ab6089757174bdf954dbe71ba107727e8c9c150acc4b96b5e366f918ae",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001029",
+          "issued_at": "2026-09-04T16:00:29.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 29,
+          "prev_receipt_hash": "50fae4ab6089757174bdf954dbe71ba107727e8c9c150acc4b96b5e366f918ae",
+          "subject": {
+            "normalized_record_hash": "1c6e477fb15971a1786a01291d158be54bb1523a74b516836964943c28b37550",
+            "source_record_id": "official-record-1029",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "71c333c457ebbb26e4190827bace60326ef9564375977d03effdbfe0b9986933",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001030",
+          "issued_at": "2026-09-04T16:00:30.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 30,
+          "prev_receipt_hash": "71c333c457ebbb26e4190827bace60326ef9564375977d03effdbfe0b9986933",
+          "subject": {
+            "normalized_record_hash": "14595b2a82752cf24976f56770ae5abb994ff2626b89533b052ff397c68896bc",
+            "source_record_id": "official-record-1030",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "baeaf6e96a4e4f4b5ce55bbfcfb1f13824472b49ddec848263164112adf91799",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001031",
+          "issued_at": "2026-09-04T16:00:31.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 31,
+          "prev_receipt_hash": "baeaf6e96a4e4f4b5ce55bbfcfb1f13824472b49ddec848263164112adf91799",
+          "subject": {
+            "normalized_record_hash": "fb3e03e8f87435a75cdb8d4e5c85c969cfb395fd3cbb510d7e503ce975a9e389",
+            "source_record_id": "official-record-1031",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "f61bc0eb0876067201bcec2a71f88c8356bbe9eed0be2f8ae327d5ddbc532691",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001032",
+          "issued_at": "2026-09-04T16:00:32.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 32,
+          "prev_receipt_hash": "f61bc0eb0876067201bcec2a71f88c8356bbe9eed0be2f8ae327d5ddbc532691",
+          "subject": {
+            "normalized_record_hash": "6501eef3c5c1428e82e85d38375b4025065a07f50129a060ef8ecc9cb22c7414",
+            "source_record_id": "official-record-1032",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "3150dc45dc9d9ebea1d83fab395e120291f3a6976f7aabf5d67a15cdf91d513a",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001033",
+          "issued_at": "2026-09-04T16:00:33.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 33,
+          "prev_receipt_hash": "3150dc45dc9d9ebea1d83fab395e120291f3a6976f7aabf5d67a15cdf91d513a",
+          "subject": {
+            "normalized_record_hash": "a118c7a3a494836c69a340c36fad3f77d63001f19798099024cf9f601cb08ea2",
+            "source_record_id": "official-record-1033",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "c936a595860c872aa1d60ea8331cc4495578990dd6439832ed03bf934cc4f129",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001034",
+          "issued_at": "2026-09-04T16:00:34.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 34,
+          "prev_receipt_hash": "c936a595860c872aa1d60ea8331cc4495578990dd6439832ed03bf934cc4f129",
+          "subject": {
+            "normalized_record_hash": "717141621da2cd8766878b434d914d4597969eef75b051a24aed2dfc23f66536",
+            "source_record_id": "official-record-1034",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "85ce3e69677966f485a9f778fd81d1e209cae26a5d7e6ef8c899eb155db8bcd3",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001035",
+          "issued_at": "2026-09-04T16:00:35.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 35,
+          "prev_receipt_hash": "85ce3e69677966f485a9f778fd81d1e209cae26a5d7e6ef8c899eb155db8bcd3",
+          "subject": {
+            "normalized_record_hash": "e4d20b67d86bac83db64f318dc0505ce65a2b41cb4012578e8f2b5df38993f2b",
+            "source_record_id": "official-record-1035",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "b837c646152b7b1628e3c0336bbe162a8ca228c584298dba41abe0b42a6821ee",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001036",
+          "issued_at": "2026-09-04T16:00:36.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 36,
+          "prev_receipt_hash": "b837c646152b7b1628e3c0336bbe162a8ca228c584298dba41abe0b42a6821ee",
+          "subject": {
+            "normalized_record_hash": "bb04ebc335a3514756840e2008af7f5988175dd5cc88d161d07a34b063a33ae6",
+            "source_record_id": "official-record-1036",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ebe0f33c00089b9e2874d2acb749f0e915a2ca029f453111b047d570347b4c3b",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001037",
+          "issued_at": "2026-09-04T16:00:37.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 37,
+          "prev_receipt_hash": "ebe0f33c00089b9e2874d2acb749f0e915a2ca029f453111b047d570347b4c3b",
+          "subject": {
+            "normalized_record_hash": "5bb71c268ca6f19abf151c8796f81f44d4f443d4c94aedb62b2277cdbcaaa9be",
+            "source_record_id": "official-record-1037",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ce4a8ccf85802fed4dafeda30a9693347eec22611454eecc55e9254a529056ff",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001038",
+          "issued_at": "2026-09-04T16:00:38.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 38,
+          "prev_receipt_hash": "ce4a8ccf85802fed4dafeda30a9693347eec22611454eecc55e9254a529056ff",
+          "subject": {
+            "normalized_record_hash": "b13ec8c3089d1a79d7d19de0ba6e6dd31ac6347870545318ca2bcab81bcb25ce",
+            "source_record_id": "official-record-1038",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ac5efda88540d6f04fdaebc8e180ac1837c43f20a73599554b519590b9b3beb0",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001039",
+          "issued_at": "2026-09-04T16:00:39.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 39,
+          "prev_receipt_hash": "ac5efda88540d6f04fdaebc8e180ac1837c43f20a73599554b519590b9b3beb0",
+          "subject": {
+            "normalized_record_hash": "45d4962785fa11b81ba797c2c207155a7342cc8dc83e1fb3cb8884ca739d0b6e",
+            "source_record_id": "official-record-1039",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ebf4938a35df3f70168a565741fb9165508651f96499b4a2988704efc7b8d1e7",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001040",
+          "issued_at": "2026-09-04T16:00:40.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 40,
+          "prev_receipt_hash": "ebf4938a35df3f70168a565741fb9165508651f96499b4a2988704efc7b8d1e7",
+          "subject": {
+            "normalized_record_hash": "ad720d8950fa9f689f4f1f9fc6997dd972fa8cf7115cdaf2c11ead67c8dfa0e8",
+            "source_record_id": "official-record-1040",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "31042d5b8b775e95f9f33373dda643ebe1ec1ed9df8b4757de31950f77541d5e",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001041",
+          "issued_at": "2026-09-04T16:00:41.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 41,
+          "prev_receipt_hash": "31042d5b8b775e95f9f33373dda643ebe1ec1ed9df8b4757de31950f77541d5e",
+          "subject": {
+            "normalized_record_hash": "d2c77bfb15b92a393f44a89fd0bc546463735cdf837149acfc600c9b73bd3c8d",
+            "source_record_id": "official-record-1041",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ccf3f0d22b51acd6ec8dac7ec991f00655143a5e76ef347189c6ae09cf9a5218",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001042",
+          "issued_at": "2026-09-04T16:00:42.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 42,
+          "prev_receipt_hash": "ccf3f0d22b51acd6ec8dac7ec991f00655143a5e76ef347189c6ae09cf9a5218",
+          "subject": {
+            "normalized_record_hash": "e4298cf0f69fa4e03bb333efa346d0d982341a5edd76a52c86ed15a86b325530",
+            "source_record_id": "official-record-1042",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "72408d4a62517aa47fa284654fa935b8af6226382b3d5830786dfd6daf9d19db",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001043",
+          "issued_at": "2026-09-04T16:00:43.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 43,
+          "prev_receipt_hash": "72408d4a62517aa47fa284654fa935b8af6226382b3d5830786dfd6daf9d19db",
+          "subject": {
+            "normalized_record_hash": "33f8bf56dcd7940d763ed407e2990b0928bc86674e75e421b6de76a7a6c6ff73",
+            "source_record_id": "official-record-1043",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "8ef9f34ddaa7a243dee43a2401f5c8ae635513d3dc7ac59e2ce81f50c70971a1",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001044",
+          "issued_at": "2026-09-04T16:00:44.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 44,
+          "prev_receipt_hash": "8ef9f34ddaa7a243dee43a2401f5c8ae635513d3dc7ac59e2ce81f50c70971a1",
+          "subject": {
+            "normalized_record_hash": "fb4de6ae4c67c5190ab881652766709ca58bb0d7b2c49ba5adba04227d011c7d",
+            "source_record_id": "official-record-1044",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "e7d00de824abb3fc9bc4c0614b54ac9ef0f25fe2d64069d6588df7711d19ff7f",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001045",
+          "issued_at": "2026-09-04T16:00:45.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 45,
+          "prev_receipt_hash": "e7d00de824abb3fc9bc4c0614b54ac9ef0f25fe2d64069d6588df7711d19ff7f",
+          "subject": {
+            "normalized_record_hash": "9ba446214f6006d033b8007d25dea887dc1e271994707ec5314600c9d8501a35",
+            "source_record_id": "official-record-1045",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "5e916c7e8562d99cc4bd868cc695f453f02f6fd7e9abafa6dd6bdb8b3686e486",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001046",
+          "issued_at": "2026-09-04T16:00:46.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 46,
+          "prev_receipt_hash": "5e916c7e8562d99cc4bd868cc695f453f02f6fd7e9abafa6dd6bdb8b3686e486",
+          "subject": {
+            "normalized_record_hash": "2f2fd42ba3f48e7ef81aa71ce40ea2a92270522f3f6d3c7db1106a57f8ea2c62",
+            "source_record_id": "official-record-1046",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "26650b47b75f2b923e8a474470c30069734ee62531c7887ca6b9625efd68e719",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001047",
+          "issued_at": "2026-09-04T16:00:47.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 47,
+          "prev_receipt_hash": "26650b47b75f2b923e8a474470c30069734ee62531c7887ca6b9625efd68e719",
+          "subject": {
+            "normalized_record_hash": "fdfca133d825f487be1ce4bc389a2f5baf10c9377c1e636b6e29289ce6691eb0",
+            "source_record_id": "official-record-1047",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "b6f0922c4d5ab6ac90324af247c96caea3e55565d6df805a32638e89f7584936",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001048",
+          "issued_at": "2026-09-04T16:00:48.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 48,
+          "prev_receipt_hash": "b6f0922c4d5ab6ac90324af247c96caea3e55565d6df805a32638e89f7584936",
+          "subject": {
+            "normalized_record_hash": "3c0bb9079328d1658c0267f8db3d9626948b05ebb411e568db8341e358410620",
+            "source_record_id": "official-record-1048",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "0e2452571e65d88c10077a00976f6c9546f5aac755da67f15e57ff7312710e94",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001049",
+          "issued_at": "2026-09-04T16:00:49.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 49,
+          "prev_receipt_hash": "0e2452571e65d88c10077a00976f6c9546f5aac755da67f15e57ff7312710e94",
+          "subject": {
+            "normalized_record_hash": "268e594bcd4b1a44f60216b9d4413426d6a5830faae6f941b939b450d9f9fb9e",
+            "source_record_id": "official-record-1049",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "f549bca43471d7a79935664d7558308f28867ef7eea8345b1867502acc6ff906",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001050",
+          "issued_at": "2026-09-04T16:00:50.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 50,
+          "prev_receipt_hash": "f549bca43471d7a79935664d7558308f28867ef7eea8345b1867502acc6ff906",
+          "subject": {
+            "normalized_record_hash": "0614a5db517671ffe1c45318e01dc7f7823776474b2d8c359e453cac5355d3e6",
+            "source_record_id": "official-record-1050",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "09ed4074c825c0830e769f68a76ee9c4d75756313cd90ff7cb09cd42b449b35b",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001051",
+          "issued_at": "2026-09-04T16:00:51.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 51,
+          "prev_receipt_hash": "09ed4074c825c0830e769f68a76ee9c4d75756313cd90ff7cb09cd42b449b35b",
+          "subject": {
+            "normalized_record_hash": "97206419fd8190cbd7fdcc4dfa6e7e7c9d3da380ee83dcb76514f77d392df122",
+            "source_record_id": "official-record-1051",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "8b9c5c51241310f5236b4b1ebba3f599b46da9b86da1e53710e47884a02d4b86",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001052",
+          "issued_at": "2026-09-04T16:00:52.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 52,
+          "prev_receipt_hash": "8b9c5c51241310f5236b4b1ebba3f599b46da9b86da1e53710e47884a02d4b86",
+          "subject": {
+            "normalized_record_hash": "a9995f2db87ad16efe35d171ce3c7f17b773ca9876653c47a14b83b542a1121c",
+            "source_record_id": "official-record-1052",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "3e322abc579b82a7cf018839bdf108816d01c8a7e022822d03c0e0915d72dd5b",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001053",
+          "issued_at": "2026-09-04T16:00:53.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 53,
+          "prev_receipt_hash": "3e322abc579b82a7cf018839bdf108816d01c8a7e022822d03c0e0915d72dd5b",
+          "subject": {
+            "normalized_record_hash": "d31173858a8410252542d3dafed6c8114cfda65c148343b1498250ae17dacc08",
+            "source_record_id": "official-record-1053",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "b06db79d386699e4dca11c954292647f64df0ceffd378d1ef0a5a85e44ec0f85",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001054",
+          "issued_at": "2026-09-04T16:00:54.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 54,
+          "prev_receipt_hash": "b06db79d386699e4dca11c954292647f64df0ceffd378d1ef0a5a85e44ec0f85",
+          "subject": {
+            "normalized_record_hash": "d3a4b0c1e9be3102e4de78cdb75c01defa6771e03db686eb519098c549cf8b80",
+            "source_record_id": "official-record-1054",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "184d6ce130a41ad1ad6b9fc9bf0974ec98198e5bb4e3327c0387c07c6c87358e",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001055",
+          "issued_at": "2026-09-04T16:00:55.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 55,
+          "prev_receipt_hash": "184d6ce130a41ad1ad6b9fc9bf0974ec98198e5bb4e3327c0387c07c6c87358e",
+          "subject": {
+            "normalized_record_hash": "c67ddf6c98445adf7e1088db70ce15576c6fabb099b0eb3392087b284c1c25ff",
+            "source_record_id": "official-record-1055",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "46b61cfd09985086c67a3d2cae5edd520db6f8d785828eabcc27da3440705861",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001056",
+          "issued_at": "2026-09-04T16:00:56.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 56,
+          "prev_receipt_hash": "46b61cfd09985086c67a3d2cae5edd520db6f8d785828eabcc27da3440705861",
+          "subject": {
+            "normalized_record_hash": "c5c05472c284d75bb2c94167eb5eede83ac6c4dd65262a765aa0f8837a8fbc7d",
+            "source_record_id": "official-record-1056",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "d041f22c5a3d1364054b142560a4e75e0e5d515c4d210788ad4e4d7e635ec6e9",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001057",
+          "issued_at": "2026-09-04T16:00:57.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 57,
+          "prev_receipt_hash": "d041f22c5a3d1364054b142560a4e75e0e5d515c4d210788ad4e4d7e635ec6e9",
+          "subject": {
+            "normalized_record_hash": "d461e4d116ad8d87466b57687adee0f3402c1e526b6fa9b95d93384aa4bd5abe",
+            "source_record_id": "official-record-1057",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "901bf1294a4025aa9ccc63723247a24e28c0845e3bbd02f10cf03ddc7cc84455",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001058",
+          "issued_at": "2026-09-04T16:00:58.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 58,
+          "prev_receipt_hash": "901bf1294a4025aa9ccc63723247a24e28c0845e3bbd02f10cf03ddc7cc84455",
+          "subject": {
+            "normalized_record_hash": "ea55e51a64aebb1f78ccff5d76d31a2cd4047d4c351978694eadb898805a5db2",
+            "source_record_id": "official-record-1058",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "044046879c620edd0470e35c213d38293d4f469b6fc607068a0f3f006dc70c86",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001059",
+          "issued_at": "2026-09-04T16:00:59.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 59,
+          "prev_receipt_hash": "044046879c620edd0470e35c213d38293d4f469b6fc607068a0f3f006dc70c86",
+          "subject": {
+            "normalized_record_hash": "b54c67eb262b38d864b4fa62e9ddd10a5ed6a0f942a05235ca4ec551ce2e296d",
+            "source_record_id": "official-record-1059",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "cbdc5330ede066adbc251ea4f6a8efa8df2eac0c2b979927b04911ccf7f65158",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001060",
+          "issued_at": "2026-09-04T16:01:00.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 60,
+          "prev_receipt_hash": "cbdc5330ede066adbc251ea4f6a8efa8df2eac0c2b979927b04911ccf7f65158",
+          "subject": {
+            "normalized_record_hash": "cf87865e997ddc71d66b76a98183504baa2f8dc72c88f705ce165a08f45727f2",
+            "source_record_id": "official-record-1060",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "b6ffaf78a075144ede857425f46001ffb006703176d1763731bbab73987036f0",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001061",
+          "issued_at": "2026-09-04T16:01:01.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 61,
+          "prev_receipt_hash": "b6ffaf78a075144ede857425f46001ffb006703176d1763731bbab73987036f0",
+          "subject": {
+            "normalized_record_hash": "894f90889cbfe468db3df720a8833a6dc3b04509b61bbfb77e75eefefb996c24",
+            "source_record_id": "official-record-1061",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "c4b3bd1f8a835a1eaa49ede314dbb2c7113adb82affe9a3a9472ba8b0e028a99",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001062",
+          "issued_at": "2026-09-04T16:01:02.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 62,
+          "prev_receipt_hash": "c4b3bd1f8a835a1eaa49ede314dbb2c7113adb82affe9a3a9472ba8b0e028a99",
+          "subject": {
+            "normalized_record_hash": "7e5d9c21268b4898c867c869d22a96dfcdd4c985981cd320481baf4d982e562b",
+            "source_record_id": "official-record-1062",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "9941e1583c08abe2179fabd7167c7de87286bb6846733f6426f4e7dc82d4e659",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001063",
+          "issued_at": "2026-09-04T16:01:03.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 63,
+          "prev_receipt_hash": "9941e1583c08abe2179fabd7167c7de87286bb6846733f6426f4e7dc82d4e659",
+          "subject": {
+            "normalized_record_hash": "5baeba9c96ee3f96b38e29312ac12393f50eb792b21400599debf11e003cf883",
+            "source_record_id": "official-record-1063",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "90c4eb920c64d3ebe18560a8be8fe8a3f48ac086bd7d43d259b124799f3265f1",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001064",
+          "issued_at": "2026-09-04T16:01:04.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 64,
+          "prev_receipt_hash": "90c4eb920c64d3ebe18560a8be8fe8a3f48ac086bd7d43d259b124799f3265f1",
+          "subject": {
+            "normalized_record_hash": "f7dfd271e7e439ede89ddfd1729756c16913cd99db31813ceff1245784a9224d",
+            "source_record_id": "official-record-1064",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "151f0c53d5aeb80a289dc0ef734d61863ed5368033120075d18c33c54a62fec9",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001065",
+          "issued_at": "2026-09-04T16:01:05.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 65,
+          "prev_receipt_hash": "151f0c53d5aeb80a289dc0ef734d61863ed5368033120075d18c33c54a62fec9",
+          "subject": {
+            "normalized_record_hash": "1812836740ac06262bbde07f7995cebbee0708c39d5133a4838253e6b15359bc",
+            "source_record_id": "official-record-1065",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "4aaf1bb544b117592d504b23b82a6caa37c3c9edd7580c6828796a4d2903684a",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001066",
+          "issued_at": "2026-09-04T16:01:06.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 66,
+          "prev_receipt_hash": "4aaf1bb544b117592d504b23b82a6caa37c3c9edd7580c6828796a4d2903684a",
+          "subject": {
+            "normalized_record_hash": "21f0367f9d21163f8114c36117a6f89ff7927e8bb4586dd64edf22b7a6aca808",
+            "source_record_id": "official-record-1066",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "eb86ff3f25e4de2326d32e3a4a0eb944fdc686b307a94e4acca4f1c5716387ad",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001067",
+          "issued_at": "2026-09-04T16:01:07.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 67,
+          "prev_receipt_hash": "eb86ff3f25e4de2326d32e3a4a0eb944fdc686b307a94e4acca4f1c5716387ad",
+          "subject": {
+            "normalized_record_hash": "b3a1e99adc3b5b67169273df2112055aac3508cf17adfcf3f6f758a87546ff05",
+            "source_record_id": "official-record-1067",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "6c9a8bb159b53a61f54644f617a1e6eec090aae44a4cfcea873faba9496d230a",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001068",
+          "issued_at": "2026-09-04T16:01:08.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 68,
+          "prev_receipt_hash": "6c9a8bb159b53a61f54644f617a1e6eec090aae44a4cfcea873faba9496d230a",
+          "subject": {
+            "normalized_record_hash": "e8753e14da92471ccdc3aa79b7050e501c04987fff964074c4ed289f28dd865d",
+            "source_record_id": "official-record-1068",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "7d15b86a93c59941671c877492ea2b2a7a376a23b98d1ee4fdc53663f55ee9e3",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001069",
+          "issued_at": "2026-09-04T16:01:09.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 69,
+          "prev_receipt_hash": "7d15b86a93c59941671c877492ea2b2a7a376a23b98d1ee4fdc53663f55ee9e3",
+          "subject": {
+            "normalized_record_hash": "046e6ce5521fe81294b21800a2a1fb4e5020d468b95588e3d6bf818288394694",
+            "source_record_id": "official-record-1069",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ee9f204a966826b7b190ff1c1fe246010efe6ba91301c14aef3540adc240e9b6",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001070",
+          "issued_at": "2026-09-04T16:01:10.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 70,
+          "prev_receipt_hash": "ee9f204a966826b7b190ff1c1fe246010efe6ba91301c14aef3540adc240e9b6",
+          "subject": {
+            "normalized_record_hash": "52853c293ce2fffc05fb9991c192e08e2d09d7c4310b97a642869928f218ffae",
+            "source_record_id": "official-record-1070",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "1d1934506afa8fb32174c49ed38fac88b65c92b4d4c5d65ae76f2af0f8b0a614",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001071",
+          "issued_at": "2026-09-04T16:01:11.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 71,
+          "prev_receipt_hash": "1d1934506afa8fb32174c49ed38fac88b65c92b4d4c5d65ae76f2af0f8b0a614",
+          "subject": {
+            "normalized_record_hash": "260766c8562bb9fc7bb95707a4e85c49f2a937a1b7d75406a7db17e7006fc115",
+            "source_record_id": "official-record-1071",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "d17ea4d195b55425c21425c4dfae9b91d55ce62e4ee48a818ba00482cd858aa2",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001072",
+          "issued_at": "2026-09-04T16:01:12.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 72,
+          "prev_receipt_hash": "d17ea4d195b55425c21425c4dfae9b91d55ce62e4ee48a818ba00482cd858aa2",
+          "subject": {
+            "normalized_record_hash": "41037790b7476de700afd25eec4c2fa8fbf719d0520c9826d20fd6b9a45897db",
+            "source_record_id": "official-record-1072",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "7c86ddf57cf409986976f261df5333be4e3ac4ee91c8b5eda761419007402d56",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001073",
+          "issued_at": "2026-09-04T16:01:13.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 73,
+          "prev_receipt_hash": "7c86ddf57cf409986976f261df5333be4e3ac4ee91c8b5eda761419007402d56",
+          "subject": {
+            "normalized_record_hash": "3c11adafa4b2c5e00c740ded249678d476631e919d88a0f00b1a764cfdcf81f4",
+            "source_record_id": "official-record-1073",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "494d52daa23c698768a76c6ed1eadced5372d39562d332e3f0d14f54b5721e94",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001074",
+          "issued_at": "2026-09-04T16:01:14.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 74,
+          "prev_receipt_hash": "494d52daa23c698768a76c6ed1eadced5372d39562d332e3f0d14f54b5721e94",
+          "subject": {
+            "normalized_record_hash": "0ff10feb0a50d0a312533627749d7addcf7b58a26deb72d6625636c7af713089",
+            "source_record_id": "official-record-1074",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "59e57f988413a48d71f7e8ed47320f6502aa742f72bc6e22125fc5852911993d",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001075",
+          "issued_at": "2026-09-04T16:01:15.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 75,
+          "prev_receipt_hash": "59e57f988413a48d71f7e8ed47320f6502aa742f72bc6e22125fc5852911993d",
+          "subject": {
+            "normalized_record_hash": "ecfaffac0af421189f780a29b42348cedb68b6c790345ca3e2eab48ebf5f89c7",
+            "source_record_id": "official-record-1075",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "97eed99869781131a7829f8fff75073d2b6a7383666a07d8a3427874612c491f",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001076",
+          "issued_at": "2026-09-04T16:01:16.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 76,
+          "prev_receipt_hash": "97eed99869781131a7829f8fff75073d2b6a7383666a07d8a3427874612c491f",
+          "subject": {
+            "normalized_record_hash": "8d9d762e366f01b28ca03a8ae56998b2c53d193572db31b4178613f8d9f22530",
+            "source_record_id": "official-record-1076",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "5c9d2323caec9ed7e727ab971f7e9ebbc4d5093253efba8d75bee7c36ee61dbf",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001077",
+          "issued_at": "2026-09-04T16:01:17.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 77,
+          "prev_receipt_hash": "5c9d2323caec9ed7e727ab971f7e9ebbc4d5093253efba8d75bee7c36ee61dbf",
+          "subject": {
+            "normalized_record_hash": "fc0d176ca1851aeab04983ad47964f0a6d40a86885f14f9fa680b3012d1e403b",
+            "source_record_id": "official-record-1077",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "2e52207cd5416255be1af2ed19a8ca8b20252671b2a66984ef0cb2f686554de5",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001078",
+          "issued_at": "2026-09-04T16:01:18.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 78,
+          "prev_receipt_hash": "2e52207cd5416255be1af2ed19a8ca8b20252671b2a66984ef0cb2f686554de5",
+          "subject": {
+            "normalized_record_hash": "cef5488010aa6c1698b07df4d8f744ff53947c2768d5144290d68ef5f856a8a9",
+            "source_record_id": "official-record-1078",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "106a467b40c0a0110ebc266830d1a59ce956baae1be0efd07039a771dd2b34f7",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001079",
+          "issued_at": "2026-09-04T16:01:19.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 79,
+          "prev_receipt_hash": "106a467b40c0a0110ebc266830d1a59ce956baae1be0efd07039a771dd2b34f7",
+          "subject": {
+            "normalized_record_hash": "7aaa0b816a348a9a9d705504083117ce0f6cfa57358129404620fb8619804f9e",
+            "source_record_id": "official-record-1079",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "b320b7254d591effcaf57dc9056745e281eb458bfda679615aeb1648583edd01",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001080",
+          "issued_at": "2026-09-04T16:01:20.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 80,
+          "prev_receipt_hash": "b320b7254d591effcaf57dc9056745e281eb458bfda679615aeb1648583edd01",
+          "subject": {
+            "normalized_record_hash": "60b931a4bf9ad71a5d9225bd9d47de2273e57318681a52a334e68f18859414f7",
+            "source_record_id": "official-record-1080",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "17f5429fedd14228d0665463513c274ab78c2f616f0d9ac9ef3c92a5c533a685",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001081",
+          "issued_at": "2026-09-04T16:01:21.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 81,
+          "prev_receipt_hash": "17f5429fedd14228d0665463513c274ab78c2f616f0d9ac9ef3c92a5c533a685",
+          "subject": {
+            "normalized_record_hash": "6255f37a3385a07858890f6b045de3264d03364aca8e15a182788195e890933f",
+            "source_record_id": "official-record-1081",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "299c1ebabb7ba7e10f2d8607c41179d5fdb53f5c087bd44aa2f551ac9c78c194",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001082",
+          "issued_at": "2026-09-04T16:01:22.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 82,
+          "prev_receipt_hash": "299c1ebabb7ba7e10f2d8607c41179d5fdb53f5c087bd44aa2f551ac9c78c194",
+          "subject": {
+            "normalized_record_hash": "70dabe8e6c153215e9db1c02d0d6baba87cdff17a60f6030cfeed5d76f2d8ac0",
+            "source_record_id": "official-record-1082",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "d02b65c467f982fb189e3bd0a4f866e774744c11f81ebc5d4e25edcf74af3a71",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001083",
+          "issued_at": "2026-09-04T16:01:23.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 83,
+          "prev_receipt_hash": "d02b65c467f982fb189e3bd0a4f866e774744c11f81ebc5d4e25edcf74af3a71",
+          "subject": {
+            "normalized_record_hash": "9248e87995ee3647d63cd11a41814bc1d1435f2607996b22d32b8e59af1de385",
+            "source_record_id": "official-record-1083",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "beffe274560c9fb64b10097f2eb42b0f26bd1f5cfba4458b717f5e17218712e5",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001084",
+          "issued_at": "2026-09-04T16:01:24.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 84,
+          "prev_receipt_hash": "beffe274560c9fb64b10097f2eb42b0f26bd1f5cfba4458b717f5e17218712e5",
+          "subject": {
+            "normalized_record_hash": "af3b0daa8c7194bf962bf979a3c0ff5f3cbe63d44697431b1ff055d6af414444",
+            "source_record_id": "official-record-1084",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "bde2504f7440e53cd751024cce117eaba7827329c571b6c02b54fe489e58c1f3",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001085",
+          "issued_at": "2026-09-04T16:01:25.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 85,
+          "prev_receipt_hash": "bde2504f7440e53cd751024cce117eaba7827329c571b6c02b54fe489e58c1f3",
+          "subject": {
+            "normalized_record_hash": "14846bd48fa6bbb06ccaa7bb3ce2aad52eb90dcbb2a9f47c427f7ba32c1656e3",
+            "source_record_id": "official-record-1085",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "739063eecc7642cf03328015d1b59fc89907bd684755d94f535d270af8ae4608",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001086",
+          "issued_at": "2026-09-04T16:01:26.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 86,
+          "prev_receipt_hash": "739063eecc7642cf03328015d1b59fc89907bd684755d94f535d270af8ae4608",
+          "subject": {
+            "normalized_record_hash": "eab35e257fb2590c6ce0e2135fcb357a74f22d70c25d8b0728c772afef2d3af9",
+            "source_record_id": "official-record-1086",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "606d3321697b7be05bd85376046fa519522f0250432948795802adb417442959",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001087",
+          "issued_at": "2026-09-04T16:01:27.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 87,
+          "prev_receipt_hash": "606d3321697b7be05bd85376046fa519522f0250432948795802adb417442959",
+          "subject": {
+            "normalized_record_hash": "de7133374c7d3b18d7eb387bb7126d63765656c259600e1b480fd8f44eefaf4f",
+            "source_record_id": "official-record-1087",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "6af2bec769698e01ca7a8695178775ff879d98a9a018fddcc1cde60c1f6893ac",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001088",
+          "issued_at": "2026-09-04T16:01:28.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 88,
+          "prev_receipt_hash": "6af2bec769698e01ca7a8695178775ff879d98a9a018fddcc1cde60c1f6893ac",
+          "subject": {
+            "normalized_record_hash": "8dc65f7b15d43ea5b1c4d7f5340539ba6a4fb91c7c75e4676182ac33144417b4",
+            "source_record_id": "official-record-1088",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "f052c10f5b0e3e267a837ceb3f06e505be5a8e1148cb8efde18a4258db1cada2",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001089",
+          "issued_at": "2026-09-04T16:01:29.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 89,
+          "prev_receipt_hash": "f052c10f5b0e3e267a837ceb3f06e505be5a8e1148cb8efde18a4258db1cada2",
+          "subject": {
+            "normalized_record_hash": "1eea8e8e6748f6de51e7d6a45c13a03e03e139083b83b088c720349d2687136f",
+            "source_record_id": "official-record-1089",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "bf19115378d02418db0ae24016aae8ecbe69fa492b477e9dd5bb1a443d7a0541",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001090",
+          "issued_at": "2026-09-04T16:01:30.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 90,
+          "prev_receipt_hash": "bf19115378d02418db0ae24016aae8ecbe69fa492b477e9dd5bb1a443d7a0541",
+          "subject": {
+            "normalized_record_hash": "f30c58cf4bc11e3dead4ea2fac6846b74bb99f787a868d4c56625a7bf0c72e86",
+            "source_record_id": "official-record-1090",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "35c5db6ac9ae7300115232815d24acafa735d388d8c5a29e31c8002000335183",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001091",
+          "issued_at": "2026-09-04T16:01:31.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 91,
+          "prev_receipt_hash": "35c5db6ac9ae7300115232815d24acafa735d388d8c5a29e31c8002000335183",
+          "subject": {
+            "normalized_record_hash": "0c95067bc972e1c4549959d221e4242c0752eced55c7b08b8615416456d0ffc4",
+            "source_record_id": "official-record-1091",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "6781612802f90b55112243bb340c9eee38eca93fbf7e6fb94e745fdced75c40c",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001092",
+          "issued_at": "2026-09-04T16:01:32.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 92,
+          "prev_receipt_hash": "6781612802f90b55112243bb340c9eee38eca93fbf7e6fb94e745fdced75c40c",
+          "subject": {
+            "normalized_record_hash": "72283a261aafbd567d6de470ed7e9dc9f57809d0f33f05794f364151daf5667f",
+            "source_record_id": "official-record-1092",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "86685334afba73d32900afac93f32a042507c7112b08240d1f1478d8a73a9f56",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001093",
+          "issued_at": "2026-09-04T16:01:33.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 93,
+          "prev_receipt_hash": "86685334afba73d32900afac93f32a042507c7112b08240d1f1478d8a73a9f56",
+          "subject": {
+            "normalized_record_hash": "7e094963b674bc963bd002c6510213f08b114f30d302dc8ea2a315aef51cb294",
+            "source_record_id": "official-record-1093",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "55b706ffe648982050469a22fd9ab8823fd33896a78ddd77cc22d95989c32510",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001094",
+          "issued_at": "2026-09-04T16:01:34.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 94,
+          "prev_receipt_hash": "55b706ffe648982050469a22fd9ab8823fd33896a78ddd77cc22d95989c32510",
+          "subject": {
+            "normalized_record_hash": "9cc41c9b7218c36ddb29c5f11399d03a21dd722022d9dc253c710c27a2e7d239",
+            "source_record_id": "official-record-1094",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "98be1292dac6cfdf5ba4854fa9a980ceb3e24f91cbcaa5b94eb747fa72a52ab7",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001095",
+          "issued_at": "2026-09-04T16:01:35.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 95,
+          "prev_receipt_hash": "98be1292dac6cfdf5ba4854fa9a980ceb3e24f91cbcaa5b94eb747fa72a52ab7",
+          "subject": {
+            "normalized_record_hash": "af269c047918bcaab300b097d85f5b6849cc8ea2eb3bdee28b982ed9bd493f25",
+            "source_record_id": "official-record-1095",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "9d1b3d7304352fa1a403147fcbaedaff5fe53ce2f5f10a755877f208e2253be6",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001096",
+          "issued_at": "2026-09-04T16:01:36.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 96,
+          "prev_receipt_hash": "9d1b3d7304352fa1a403147fcbaedaff5fe53ce2f5f10a755877f208e2253be6",
+          "subject": {
+            "normalized_record_hash": "c7b0766069cfe82181ed5b25bb7e6aa6ee972205ae465461814f7f468636d90b",
+            "source_record_id": "official-record-1096",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "1e0954508b410d161ed451fa3652789fc5a31e146bbb48d9384039f7e4f9cea8",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001097",
+          "issued_at": "2026-09-04T16:01:37.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 97,
+          "prev_receipt_hash": "1e0954508b410d161ed451fa3652789fc5a31e146bbb48d9384039f7e4f9cea8",
+          "subject": {
+            "normalized_record_hash": "1cfeaf8561fef33ef7ef57c37569ce84d0a8cc337aedf4c8c733c193cbe039a7",
+            "source_record_id": "official-record-1097",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "10b8f8ea26292069863b92c1973221009290145bf793330f5a6fde783e033a91",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001098",
+          "issued_at": "2026-09-04T16:01:38.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 98,
+          "prev_receipt_hash": "10b8f8ea26292069863b92c1973221009290145bf793330f5a6fde783e033a91",
+          "subject": {
+            "normalized_record_hash": "a8aa065eb9561e7932f86e093824b7b442e84287bf72dbf577168631ab90a3aa",
+            "source_record_id": "official-record-1098",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "92666fe98cfab3f71e99bf9524e78a0f9dd6199bb90e58c0b874346677dfb494",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000001099",
+          "issued_at": "2026-09-04T16:01:39.000Z",
+          "session_id": "20000000-0000-4000-8000-000000000002",
+          "sequence": 99,
+          "prev_receipt_hash": "92666fe98cfab3f71e99bf9524e78a0f9dd6199bb90e58c0b874346677dfb494",
+          "subject": {
+            "normalized_record_hash": "da691d903e52bf5ed2ec04fe199e5fb429e270ba5792bbbdcc70844daba1376a",
+            "source_record_id": "official-record-1099",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ced409b22b0c4d515ef1fa92526cfd4050da83a181a9e0e77c36fe249480fd76",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        }
+      ],
+      "expected": {
+        "valid": true,
+        "receipt_count": 100,
+        "first_failure_receipt_id": null
+      }
+    },
+    {
+      "name": "chain_broken_session",
+      "receipts": [
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000002000",
+          "issued_at": "2026-09-04T16:00:00.000Z",
+          "session_id": "30000000-0000-4000-8000-000000000003",
+          "sequence": 0,
+          "prev_receipt_hash": "GENESIS",
+          "subject": {
+            "normalized_record_hash": "dce49f93ace0b9f744feddedbb95edd0e7839346b2413e8886cae6baa018364b",
+            "source_record_id": "official-record-2000",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "323f29caf0e00c535514df04a53010f9baf2d942c740c62628106d909b611f94",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000002001",
+          "issued_at": "2026-09-04T16:00:01.000Z",
+          "session_id": "30000000-0000-4000-8000-000000000003",
+          "sequence": 1,
+          "prev_receipt_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+          "subject": {
+            "normalized_record_hash": "8c983004f0764b22884455e4b14df7ea82df4e2c927522e5d73a966fc9df8fc6",
+            "source_record_id": "official-record-2001",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "41e33ac27f4781d15543a2f5870b186f5677698a834bc29fefa601581f5e7fb9",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000002002",
+          "issued_at": "2026-09-04T16:00:02.000Z",
+          "session_id": "30000000-0000-4000-8000-000000000003",
+          "sequence": 2,
+          "prev_receipt_hash": "41e33ac27f4781d15543a2f5870b186f5677698a834bc29fefa601581f5e7fb9",
+          "subject": {
+            "normalized_record_hash": "46a4b41d9f33ac727a9236c9c72bed17972fd9fc74d78cd2c5f0e7bfef0097d8",
+            "source_record_id": "official-record-2002",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "ac2b0b80e43b75adc9be22a9562667275cffde034d2be02a4a0ffd80b7035980",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        }
+      ],
+      "expected": {
+        "valid": false,
+        "receipt_count": 3,
+        "first_failure_receipt_id": "00000000-0000-4000-8000-000000002001"
+      }
+    },
+    {
+      "name": "unsigned_session",
+      "receipts": [
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000003000",
+          "issued_at": "2026-09-04T16:00:00.000Z",
+          "session_id": "40000000-0000-4000-8000-000000000004",
+          "sequence": 0,
+          "prev_receipt_hash": "GENESIS",
+          "subject": {
+            "normalized_record_hash": "efac4d271d411789836596c5f6accc3088ea2eae9644dc2ca00acd7108eb43ba",
+            "source_record_id": "official-record-3000",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "8dd6fee29a80aa95e39732c701ae33dc3cbcee602c2a9d10efabcbe69d62a7e4",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        },
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000003001",
+          "issued_at": "2026-09-04T16:00:01.000Z",
+          "session_id": "40000000-0000-4000-8000-000000000004",
+          "sequence": 1,
+          "prev_receipt_hash": "8dd6fee29a80aa95e39732c701ae33dc3cbcee602c2a9d10efabcbe69d62a7e4",
+          "subject": {
+            "normalized_record_hash": "958c50f035e016c4587157b8b885e62852e00fc162fe3948849fab5792d93f8c",
+            "source_record_id": "official-record-3001",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "down",
+                "weight": 0.5,
+                "detail": "Deterministic conformance vector"
+              }
+            ],
+            "confidence": {
+              "low": 0.5,
+              "high": 0.9
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "e027aec4b6a1adfc3b339ee4ebfdf435e223d4c222d6412e2b1ea1ee6914f96b",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        }
+      ],
+      "expected": {
+        "valid": true,
+        "receipt_count": 2,
+        "first_failure_receipt_id": null
+      }
+    },
+    {
+      "name": "unicode_numeric_session",
+      "receipts": [
+        {
+          "receipt_version": 1,
+          "receipt_id": "00000000-0000-4000-8000-000000004000",
+          "issued_at": "2026-09-04T16:00:00.000Z",
+          "session_id": "50000000-0000-4000-8000-000000000005",
+          "sequence": 0,
+          "prev_receipt_hash": "GENESIS",
+          "subject": {
+            "normalized_record_hash": "8757636143ade1c2c82516d2bbc34145934eca43a58dd0c064c8c7b3a826c214",
+            "source_record_id": "official-record-4000",
+            "parser_version": "1.0.0"
+          },
+          "ranking_inputs": {
+            "source_path": [
+              "official-records:reference"
+            ],
+            "reasons": [
+              {
+                "code": "reference-signal",
+                "direction": "up",
+                "weight": 1e-7,
+                "detail": "Unicode: café, 😀, ; no normalization"
+              }
+            ],
+            "confidence": {
+              "low": 0.000001,
+              "high": 1
+            },
+            "caveats": [
+              "Reference data only"
+            ]
+          },
+          "gate": {
+            "name": "yuyay-13",
+            "result": "pass",
+            "failures": []
+          },
+          "payload_hash": "7f21e429804e3baf35e9a4db32fb720f4621d571018e70121136c635560985cc",
+          "signature": {
+            "algorithm": "HMAC-SHA256",
+            "key_id": null,
+            "value": "UNSIGNED"
+          }
+        }
+      ],
+      "expected": {
+        "valid": true,
+        "receipt_count": 1,
+        "first_failure_receipt_id": null
+      }
+    }
+  ]
+}
