@@ -1,0 +1,108 @@
+name: Refresh observed Hub inventory on isolated branch
+
+on:
+  push:
+    branches: [fix/observed-hf-inventory-refresh-20260905]
+    paths: [.github/workflows/_refresh_observed_hf_inventory_20260905.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: observed-hf-inventory-refresh-20260905
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.ref == 'refs/heads/fix/observed-hf-inventory-refresh-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - name: Checkout exact isolated source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Preserve old evidence and prove existing collector contracts
+        run: |
+          set -euo pipefail
+          cp docs/huggingface-ecosystem-manifest.json /tmp/before-inventory.json
+          python -S scripts/test_audit_huggingface_ecosystem.py
+          python -S scripts/test_hf_gated_public_inventory.py
+          python -S -m py_compile scripts/audit_huggingface_ecosystem.py scripts/build_ecosystem_stage_matrix.py
+      - name: Generate and independently recheck public-only observation
+        run: |
+          set -euo pipefail
+          python -S scripts/audit_huggingface_ecosystem.py
+          python -S scripts/audit_huggingface_ecosystem.py --check
+          python -S scripts/build_ecosystem_stage_matrix.py
+          python -S scripts/build_ecosystem_stage_matrix.py --check
+          git diff --check
+      - name: Validate unchanged schema and describe every semantic delta
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+          python - <<'PY'
+          import importlib.util, json
+          from pathlib import Path
+          from jsonschema import Draft202012Validator, FormatChecker
+          before = json.loads(Path('/tmp/before-inventory.json').read_text())
+          after = json.loads(Path('docs/huggingface-ecosystem-manifest.json').read_text())
+          schema = json.loads(Path('docs/huggingface-ecosystem-manifest.schema.json').read_text())
+          Draft202012Validator.check_schema(schema)
+          Draft202012Validator(schema, format_checker=FormatChecker()).validate(after)
+          assert after['schemaVersion'] == before['schemaVersion'] == 2
+          assert after['inventoryScope']['authenticated'] is False
+          assert after['inventoryScope']['privateAssetsIncluded'] is False
+          spec = importlib.util.spec_from_file_location('audit', 'scripts/audit_huggingface_ecosystem.py')
+          audit = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(audit)
+          old = audit.semantic_manifest(before)['inventory']
+          new = audit.semantic_manifest(after)['inventory']
+          delta = {}
+          for kind in ('models', 'datasets', 'spaces'):
+              a = {row['id']: row for row in old[kind]}
+              b = {row['id']: row for row in new[kind]}
+              delta[kind] = {
+                  'added': sorted(b.keys() - a.keys()),
+                  'removed': sorted(a.keys() - b.keys()),
+                  'changed': {key: sorted(field for field in a[key].keys() | b[key].keys() if a[key].get(field) != b[key].get(field)) for key in sorted(a.keys() & b.keys()) if a[key] != b[key]},
+              }
+          report = {'schema': 'szl.observed-inventory-refresh/v1', 'before_observed_at': before['observedAt'], 'after_observed_at': after['observedAt'], 'before_counts': before['counts'], 'after_counts': after['counts'], 'semantic_delta': delta, 'provider_mutation': False, 'keeper_policy_changed': False, 'model_execution': False}
+          Path('reports').mkdir(exist_ok=True)
+          Path('reports/observed-inventory-refresh.json').write_text(json.dumps(report, indent=2, sort_keys=True) + '\n')
+          print(json.dumps(report, indent=2, sort_keys=True))
+          PY
+      - name: Preserve generated evidence for review
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: observed-inventory-refresh-${{ github.run_id }}
+          path: |
+            reports/observed-inventory-refresh.json
+            docs/huggingface-ecosystem-manifest.json
+            docs/ecosystem-stage-matrix.json
+          if-no-files-found: error
+          retention-days: 90
+      - name: Fast-forward only the two observation files on this isolated branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          branch=fix/observed-hf-inventory-refresh-20260905
+          observed="$(git ls-remote origin "refs/heads/$branch" | cut -f1)"
+          test "$observed" = "$EXPECTED_HEAD"
+          git add -- docs/huggingface-ecosystem-manifest.json docs/ecosystem-stage-matrix.json
+          test "$(git diff --cached --name-only | wc -l)" -eq 2
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'fix(hf): refresh observed inventory and derived stage matrix'
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "HEAD:refs/heads/$branch"
