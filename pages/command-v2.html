@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     A11oy Command v2 — additive eight-room operator instrument.
+     Live API values remain visibly unavailable until observed.
+     Lambda remains Conjecture 1. No action authority is granted here.
+     © 2026 SZL Holdings -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#070b0e">
+<meta name="color-scheme" content="dark">
+<title>A11oy Command v2</title>
+<style>
+:root{
+  --bg:#070b0e;--surface:#0b1116;--surface-2:#101922;--ink:#eef8f7;
+  --dim:#a9b9bb;--mute:#687b80;--rule:#213139;--cyan:#74e8ff;--teal:#53e6c6;
+  --danger:#ff9b9b;--rail:224px;--top:52px;--dock:60px;
+  --sans:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --mono:"SFMono-Regular",Consolas,"Liberation Mono",monospace
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 var(--sans)}
+button,input{font:inherit;color:inherit}
+button,a{touch-action:manipulation}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+:focus-visible{outline:2px solid var(--cyan);outline-offset:3px}
+.sr-only{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+.app{display:grid;grid-template:var(--top) minmax(0,1fr)/var(--rail) minmax(0,1fr);min-height:100dvh}
+.top{grid-column:1/-1;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--rule);background:rgba(7,11,14,.92);backdrop-filter:blur(14px);position:sticky;top:0;z-index:20}
+.brand{display:flex;align-items:baseline;gap:8px;min-width:0}
+.brand strong{font-size:15px;letter-spacing:-.03em}
+.brand span,.eyebrow,.chip,.section-label{font:10px/1.2 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.brand span,.eyebrow,.section-label{color:var(--mute)}
+.command-button,.chip{border:1px solid var(--rule);background:var(--surface);min-height:32px}
+.command-button{padding:6px 10px;border-radius:5px}
+.chips{display:flex;gap:6px;margin-left:auto;min-width:0;overflow:auto;scrollbar-width:none}
+.chip{display:inline-flex;align-items:center;padding:6px 8px;white-space:nowrap;color:var(--dim)}
+.chip[data-state="ready"]{border-color:color-mix(in srgb,var(--teal) 60%,var(--rule));color:var(--teal)}
+.chip[data-state="error"]{border-color:color-mix(in srgb,var(--danger) 60%,var(--rule));color:var(--danger)}
+.rail{border-right:1px solid var(--rule);padding:14px 10px 80px;overflow:auto;background:var(--bg)}
+.section-label{padding:14px 10px 7px}
+.room{display:block;width:100%;border:0;border-radius:6px;background:transparent;color:var(--dim);padding:9px 10px;text-align:left;min-height:48px}
+.room:hover,.room[aria-current="page"]{background:var(--surface-2);color:var(--ink)}
+.room small{display:block;color:var(--mute);font:10px/1.35 var(--mono);margin-top:3px}
+.canvas{position:relative;overflow:auto;padding:clamp(20px,4vw,46px) clamp(16px,4vw,54px) 100px;min-width:0;isolation:isolate}
+.field{position:fixed;inset:var(--top) 0 0 var(--rail);width:calc(100% - var(--rail));height:calc(100% - var(--top));pointer-events:none;opacity:.45;z-index:-1}
+.content{max-width:1160px;position:relative}
+h1{font-size:clamp(32px,5vw,62px);line-height:.98;letter-spacing:-.055em;font-weight:550;max-width:15ch;margin:10px 0 16px}
+.lede{max-width:64ch;color:var(--dim);font-size:clamp(14px,1.5vw,17px);margin:0 0 24px}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 24px}
+.action{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 14px;border:1px solid var(--rule);border-radius:6px;background:rgba(11,17,22,.86)}
+.action.primary{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.action:hover{border-color:var(--cyan)}
+.grid{display:grid;gap:12px;margin:16px 0 26px}
+.grid.four{grid-template-columns:repeat(4,minmax(0,1fr))}
+.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}
+.card{min-width:0;padding:16px;border:1px solid var(--rule);border-radius:8px;background:rgba(11,17,22,.88);backdrop-filter:blur(10px)}
+.card .label{font:10px/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--mute)}
+.card .value{font:clamp(22px,3vw,34px)/1.08 var(--mono);letter-spacing:-.045em;margin:9px 0 7px;overflow-wrap:anywhere}
+.card .detail{color:var(--mute);font-size:12px;overflow-wrap:anywhere}
+.panel{border:1px solid var(--rule);border-radius:8px;background:rgba(11,17,22,.88);padding:16px;margin:12px 0}
+.table-wrap{overflow:auto;border:1px solid var(--rule);border-radius:8px;background:rgba(11,17,22,.88)}
+table{width:100%;border-collapse:collapse;font:12px/1.45 var(--mono)}
+th,td{padding:10px;text-align:left;border-bottom:1px solid var(--rule);vertical-align:top;overflow-wrap:anywhere}
+th{color:var(--mute);font-weight:500;text-transform:uppercase;letter-spacing:.08em;font-size:10px}
+.empty{padding:22px;border:1px dashed var(--rule);border-radius:8px;color:var(--mute);background:rgba(11,17,22,.72)}
+.note{max-width:72ch;color:var(--mute);font-size:12px}
+.axis{display:grid;grid-template-columns:110px minmax(80px,1fr) 50px;align-items:center;gap:10px;margin:9px 0}
+.axis-name{color:var(--dim);font-size:12px;overflow:hidden;text-overflow:ellipsis}
+.bar{height:4px;background:var(--rule);overflow:hidden}
+.bar span{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--cyan))}
+.axis-value{text-align:right;color:var(--mute);font:12px/1 var(--mono)}
+.palette{position:fixed;inset:0;display:none;align-items:flex-start;justify-content:center;padding:12vh 16px;background:rgba(0,0,0,.76);z-index:50}
+.palette[data-open="true"]{display:flex}
+.palette-box{width:min(680px,100%);border:1px solid var(--rule);border-radius:10px;background:var(--surface);box-shadow:0 28px 100px rgba(0,0,0,.55);overflow:hidden}
+.palette input{display:block;width:100%;padding:15px 16px;border:0;border-bottom:1px solid var(--rule);background:transparent;outline:0}
+.hit{display:flex;justify-content:space-between;gap:16px;width:100%;min-height:44px;padding:11px 16px;border:0;border-bottom:1px solid var(--rule);background:transparent;text-align:left;color:var(--dim)}
+.hit:hover,.hit[aria-selected="true"]{background:var(--surface-2);color:var(--ink)}
+.hit small{color:var(--mute)}
+.dock{display:none;position:fixed;left:0;right:0;bottom:0;height:var(--dock);border-top:1px solid var(--rule);background:rgba(7,11,14,.96);backdrop-filter:blur(14px);z-index:30}
+.dock button{flex:1;border:0;background:transparent;color:var(--mute);font:10px/1.15 var(--mono);text-transform:uppercase;letter-spacing:.06em;min-width:44px}
+.dock button[aria-current="page"]{color:var(--cyan)}
+@media(max-width:960px){
+  .app{grid-template-columns:1fr}.rail{display:none}.field{left:0;width:100%}.canvas{padding-bottom:88px}
+  .grid.four,.grid.three{grid-template-columns:repeat(2,minmax(0,1fr))}.dock{display:flex}
+}
+@media(max-width:580px){
+  .top{padding:0 10px}.brand span{display:none}.command-button{min-width:44px}
+  .chips .chip:nth-child(n+3){display:none}.grid.four,.grid.three,.grid.two{grid-template-columns:1fr}
+  .axis{grid-template-columns:84px minmax(70px,1fr) 44px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;animation:none!important;transition:none!important}}
+@media(forced-colors:active){.bar span{background:CanvasText}.card,.panel,.table-wrap,.empty,.action,.chip,.command-button{forced-color-adjust:auto}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <div class="brand"><strong>a11oy</strong><span>command v2</span></div>
+    <button class="command-button" id="palette-open" type="button" aria-haspopup="dialog" aria-controls="palette">⌘K</button>
+    <div class="chips" aria-label="Live command status">
+      <span class="chip" id="chip-release">CANDIDATE</span>
+      <span class="chip" id="chip-lambda">Λ —</span>
+      <span class="chip" id="chip-signer">SIGNER —</span>
+      <span class="chip" id="chip-receipts">RECEIPTS —</span>
+    </div>
+  </header>
+  <nav class="rail" id="rail" aria-label="Command rooms"></nav>
+  <main class="canvas" id="canvas" tabindex="-1">
+    <canvas class="field" id="field" aria-hidden="true"></canvas>
+    <div class="content" id="content"></div>
+  </main>
+</div>
+<nav class="dock" id="dock" aria-label="Mobile command rooms"></nav>
+<div class="palette" id="palette" role="dialog" aria-modal="true" aria-labelledby="palette-title" data-open="false">
+  <div class="palette-box">
+    <h2 class="sr-only" id="palette-title">Open a command room or product surface</h2>
+    <input id="palette-query" aria-label="Search command rooms and product surfaces" placeholder="Open a room or surface…" autocomplete="off">
+    <div id="palette-hits" role="listbox"></div>
+  </div>
+</div>
+<script>
+"use strict";
+
+const ORIGIN = (location.hostname.endsWith("a-11-oy.com") || location.hostname.includes("hf.space"))
+  ? ""
+  : "https://a-11-oy.com";
+
+const ROOMS = [
+  {id:"command",label:"Command",blurb:"readiness · decisions",dock:true},
+  {id:"evidence",label:"Evidence",blurb:"receipts · verify",dock:true},
+  {id:"governance",label:"Governance",blurb:"Hatun · admission",dock:false},
+  {id:"telemetry",label:"Telemetry",blurb:"mesh · energy",dock:false},
+  {id:"defense",label:"Defense",blurb:"Killinchu · boundary",dock:true},
+  {id:"markets",label:"Markets",blurb:"Finance · Terra · Counsel",dock:true},
+  {id:"models",label:"Models",blurb:"registry · kernels",dock:false},
+  {id:"diligence",label:"Diligence",blurb:"proof · release",dock:false}
+];
+
+const SURFACES = [
+  {label:"Legacy console",detail:"/console",href:"/console"},
+  {label:"Receipt verifier",detail:"/verify",href:"/verify"},
+  {label:"Second Brain",detail:"/brain",href:"/brain"},
+  {label:"Living Anatomy",detail:"/living-anatomy",href:"/living-anatomy"},
+  {label:"Hatun MCP",detail:"/hatun-mcp",href:"/hatun-mcp"},
+  {label:"Killinchu",detail:"/killinchu",href:"/killinchu"},
+  {label:"Terra",detail:"/estate",href:"/estate"},
+  {label:"Proof registry",detail:"a11oy.net",href:"https://a11oy.net"}
+];
+
+const state = {room:"command",data:{},loading:true,lastFocus:null};
+
+function esc(value){
+  return String(value ?? "").replace(/[&<>"']/g, character => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"
+  })[character]);
+}
+function finite(value){
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+function display(value,fallback="—"){
+  return value === null || value === undefined || value === "" ? fallback : String(value);
+}
+function statusText(result){
+  if (!result) return "—";
+  return result.ok ? "READY" : (result.status ? `HTTP ${result.status}` : "UNAVAILABLE");
+}
+function kpi(label,value,detail=""){
+  return `<article class="card"><div class="label">${esc(label)}</div><div class="value">${esc(display(value))}</div><div class="detail">${esc(detail)}</div></article>`;
+}
+function link(href,label,primary=false,external=false){
+  const url = href.startsWith("http") ? href : ORIGIN + href;
+  return `<a class="action${primary ? " primary" : ""}" href="${esc(url)}"${external ? ' target="_blank" rel="noopener noreferrer"' : ""}>${esc(label)}</a>`;
+}
+async function get(path){
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(),9000);
+  try{
+    const response = await fetch(ORIGIN + path,{
+      signal:controller.signal,
+      cache:"no-store",
+      headers:{accept:"application/json"}
+    });
+    const text = await response.text();
+    let json = null;
+    try{json = JSON.parse(text)}catch(_error){}
+    return {ok:response.ok,status:response.status,json};
+  }catch(error){
+    return {ok:false,status:0,json:null,error:error && error.name ? error.name : "Error"};
+  }finally{
+    clearTimeout(timeout);
+  }
+}
+
+function renderRail(){
+  const rail = document.getElementById("rail");
+  rail.innerHTML = '<div class="section-label">Operate</div>';
+  for (const room of ROOMS){
+    const button = document.createElement("button");
+    button.className = "room";
+    button.type = "button";
+    button.dataset.room = room.id;
+    button.setAttribute("aria-current",state.room === room.id ? "page" : "false");
+    button.innerHTML = `${esc(room.label)}<small>${esc(room.blurb)}</small>`;
+    button.addEventListener("click",() => openRoom(room.id));
+    rail.append(button);
+  }
+}
+function renderDock(){
+  const dock = document.getElementById("dock");
+  const items = [...ROOMS.filter(room => room.dock),{id:"more",label:"More"}];
+  dock.replaceChildren();
+  for (const item of items){
+    const button = document.createElement("button");
+    button.type = "button";
+    const moreSelected = item.id === "more" && ["governance","telemetry","models","diligence"].includes(state.room);
+    button.setAttribute("aria-current",state.room === item.id || moreSelected ? "page" : "false");
+    button.textContent = item.label;
+    button.addEventListener("click",() => openRoom(item.id === "more" ? "governance" : item.id));
+    dock.append(button);
+  }
+}
+function openRoom(id,{focus=false}={}){
+  if (!ROOMS.some(room => room.id === id)) id = "command";
+  state.room = id;
+  history.replaceState(null,"","#" + id);
+  renderRail();
+  renderDock();
+  paint();
+  if (focus) document.getElementById("canvas").focus();
+}
+
+function commandRoom(data){
+  const lambda = data.lambda?.json || {};
+  const version = data.version?.json || {};
+  const ledger = data.ledger?.json || {};
+  const signing = data.signing?.json || {};
+  const readiness = data.readiness?.json || {};
+  const matrix = readiness.matrix_summary || {};
+  const verdict = readiness.verdict_summary || {};
+  const lambdaValue = finite(lambda.lambda);
+  const floorValue = finite(lambda.lambda_floor);
+  const axes = Array.isArray(lambda.axes) ? lambda.axes : [];
+  const axisMarkup = axes.map(axis => {
+    const score = finite(axis && axis.score);
+    const width = score === null ? 0 : Math.max(0,Math.min(100,Math.round(score * 100)));
+    return `<div class="axis"><span class="axis-name">${esc(axis && axis.name)}</span><span class="bar"><span style="width:${width}%"></span></span><span class="axis-value">${esc(score === null ? "—" : score.toFixed(3))}</span></div>`;
+  }).join("");
+  const tabs = matrix.tabs ?? matrix.total_tabs ?? null;
+  const staticTabs = matrix.staticTabs ?? matrix.static_tabs ?? null;
+  const readyDetail = [
+    staticTabs === null ? null : `${staticTabs} static`,
+    verdict.ok === undefined ? null : `${verdict.ok} OK`,
+    verdict.lies === undefined ? null : `${verdict.lies} lies`
+  ].filter(Boolean).join(" · ");
+
+  return `
+    <div class="eyebrow">Command · observed state</div>
+    <h1>Governed AI you can inspect.</h1>
+    <p class="lede">Signal, evidence, policy, proposal, approval and receipt—without hiding an unavailable dependency. Λ remains Conjecture 1.</p>
+    <div class="actions">
+      ${link("/verify","Verify a receipt",true)}
+      ${link("https://a11oy.net","Open proof registry",false,true)}
+      ${link("/console","Legacy console")}
+    </div>
+    <section class="grid four" aria-label="Command metrics">
+      ${kpi("Λ trust",lambdaValue === null ? "—" : lambdaValue.toFixed(3),floorValue === null ? "floor unavailable" : `floor ${floorValue.toFixed(3)} · conjecture`)}
+      ${kpi("Receipts",ledger.count ?? "—",display(ledger.signature_state,"signature unavailable"))}
+      ${kpi("Signer",signing.non_repudiation === false ? "PARTIAL" : (signing.key_persistent === true ? "PERSISTENT" : "—"),display(signing.hmac_layer,"no observed layer"))}
+      ${kpi("Release",display(version.release_state),version.version ? `v${version.version}` : "version unavailable")}
+    </section>
+    <section class="grid two" aria-label="Readiness and health">
+      ${kpi("Readiness",tabs === null ? "—" : `${tabs} tabs`,readyDetail || "summary unavailable")}
+      ${kpi("Runtime",statusText(data.livez),`mesh ${statusText(data.mesh)}`)}
+    </section>
+    <div class="eyebrow">Λ axes</div>
+    <div class="panel">${axisMarkup || '<div class="empty">No axis observation is available.</div>'}</div>`;
+}
+function evidenceRoom(data){
+  const ledger = data.ledger?.json || {};
+  const count = ledger.count;
+  const empty = count === 0
+    ? "The operator ledger is empty for this observed session. Historical stores are separate evidence books."
+    : "Use the verifier to inspect a receipt. This surface does not treat a count as proof of validity.";
+  return `
+    <div class="eyebrow">Evidence</div><h1>One verification workspace.</h1>
+    <section class="grid three">
+      ${kpi("Minted",count ?? "—","observed ledger")}
+      ${kpi("Signature",display(ledger.signature_state),"")}
+      ${kpi("Chain",ledger.chain_verified === true ? "VERIFIED" : "—","")}
+    </section>
+    <p class="empty">${esc(empty)}</p>
+    <div class="actions">${link("/verify","Open verifier",true)}${link("/receipts","Receipt surface")}</div>`;
+}
+function governanceRoom(data){
+  const hatun = data.hatun?.json || {};
+  const runtime = hatun.runtime || {};
+  const catalog = hatun.tool_catalog || {};
+  const invocations = hatun.invocations || {};
+  return `
+    <div class="eyebrow">Governance · Hatun</div><h1>Admission before action.</h1>
+    <section class="grid three">
+      ${kpi("Runtime",display(runtime.status),display(runtime.mcp_endpoint,"/mcp/"))}
+      ${kpi("Tools declared",catalog.count ?? "—",display(catalog.status))}
+      ${kpi("Invocations",invocations.count ?? "—",display(invocations.status))}
+    </section>
+    <p class="note">${esc(display(hatun.honesty,"No Hatun evidence statement was returned."))}</p>
+    <div class="actions">${link("/mcp/","Open /mcp/",true)}${link("/api/hatun/evidence","Evidence JSON")}</div>`;
+}
+function telemetryRoom(data){
+  const mesh = data.mesh?.json || {};
+  const wires = mesh.wires && typeof mesh.wires === "object" ? mesh.wires : {};
+  const rows = Object.entries(wires).map(([name,value]) =>
+    `<tr><td>${esc(name)}</td><td>${esc(display(value && value.status))}</td><td>${esc(display(value && value.edge))}</td></tr>`
+  ).join("");
+  return `
+    <div class="eyebrow">Telemetry</div><h1>Signals before dashboards.</h1>
+    <div class="table-wrap"><table><thead><tr><th>Wire</th><th>Status</th><th>Edge</th></tr></thead><tbody>${rows || '<tr><td colspan="3">No mesh state was observed.</td></tr>'}</tbody></table></div>
+    <div class="actions">${link("/mesh","Open mesh",true)}${link("/energy","Energy")}</div>`;
+}
+function defenseRoom(){
+  return `
+    <div class="eyebrow">Defense · Killinchu</div><h1>Eyes and decision. Not the trigger.</h1>
+    <p class="lede">The public surface is defensive and evidence-first. Effector authority remains absent unless a separately verifiable receipt proves otherwise.</p>
+    <div class="actions">${link("/killinchu","Open Killinchu",true)}${link("/elite","Legal boundary")}</div>`;
+}
+function marketsRoom(){
+  return `
+    <div class="eyebrow">Markets</div><h1>Three desks. One command room.</h1>
+    <section class="grid three">
+      <article class="card"><div class="label">PURIQ Finance</div><div class="value">Finance</div><div class="detail">advisory analytics</div></article>
+      <article class="card"><div class="label">Terra</div><div class="value">Estate</div><div class="detail">public-record intelligence</div></article>
+      <article class="card"><div class="label">PRISM Counsel</div><div class="value">Counsel</div><div class="detail">matter assurance</div></article>
+    </section>
+    <div class="actions">${link("/finance","Finance")}${link("/estate","Terra",true)}${link("/counsel","Counsel")}</div>`;
+}
+function modelsRoom(data){
+  const version = data.version?.json || {};
+  const capabilities = Array.isArray(version.capabilities) ? version.capabilities : [];
+  const rows = capabilities.map(capability =>
+    `<tr><td>${esc(display(capability && capability.name))}</td><td>${esc(display(capability && capability.label))}</td></tr>`
+  ).join("");
+  return `
+    <div class="eyebrow">Models</div><h1>Registry, kernels and measured execution.</h1>
+    <div class="table-wrap"><table><thead><tr><th>Capability</th><th>Label</th></tr></thead><tbody>${rows || '<tr><td colspan="2">No capability registry was observed.</td></tr>'}</tbody></table></div>
+    <div class="actions">${link("/khipu","Khipu",true)}${link("/models","Model registry")}${link("/kernels","Kernels")}</div>`;
+}
+function diligenceRoom(data){
+  const series = data.series?.json || {};
+  const failures = Array.isArray(series.critical_failures) ? series.critical_failures.join(", ") : "";
+  const version = data.version?.json || {};
+  const readiness = data.readiness?.json || {};
+  return `
+    <div class="eyebrow">Diligence</div><h1>Proved, unavailable and still pending.</h1>
+    <section class="grid three">
+      ${kpi("Series A",display(series.state),failures || "no failure list returned")}
+      ${kpi("Tab matrix",readiness.available === true ? "AVAILABLE" : "—","observed only")}
+      ${kpi("Release",display(version.release_state,"CANDIDATE"),"not a deployment receipt")}
+    </section>
+    <div class="actions">${link("/investor","Investor surface",true)}${link("/api/build-info","Build identity")}</div>`;
+}
+
+function paint(){
+  const renderers = {
+    command:commandRoom,evidence:evidenceRoom,governance:governanceRoom,
+    telemetry:telemetryRoom,defense:defenseRoom,markets:marketsRoom,
+    models:modelsRoom,diligence:diligenceRoom
+  };
+  const content = document.getElementById("content");
+  content.innerHTML = state.loading
+    ? '<div class="eyebrow">Command</div><h1>Reading live state.</h1><p class="lede">The interface will not invent missing values.</p>'
+    : renderers[state.room](state.data);
+}
+
+function chip(id,text,stateName=""){
+  const element = document.getElementById(id);
+  element.textContent = text;
+  if (stateName) element.dataset.state = stateName;
+  else delete element.dataset.state;
+}
+function setChips(data){
+  const lambda = data.lambda?.json || {};
+  const signing = data.signing?.json || {};
+  const ledger = data.ledger?.json || {};
+  const version = data.version?.json || {};
+  const lambdaValue = finite(lambda.lambda);
+  chip("chip-lambda",`Λ ${lambdaValue === null ? "—" : lambdaValue.toFixed(3)}`,lambdaValue === null ? "error" : "ready");
+  chip("chip-signer",signing.non_repudiation === false ? "SIGNER PARTIAL" : (signing.key_persistent === true ? "SIGNER READY" : "SIGNER —"),signing.key_persistent === true ? "ready" : "");
+  chip("chip-receipts",`RECEIPTS ${display(ledger.count)}`,ledger.count === undefined ? "error" : "ready");
+  chip("chip-release",display(version.release_state,"CANDIDATE"),version.release_state ? "ready" : "");
+}
+
+function paletteItems(query){
+  const search = query.trim().toLowerCase();
+  const rooms = ROOMS.map(room => ({kind:"room",label:room.label,detail:room.blurb,id:room.id}));
+  const surfaces = SURFACES.map(surface => ({kind:"surface",...surface}));
+  return [...rooms,...surfaces].filter(item =>
+    !search || `${item.label} ${item.detail}`.toLowerCase().includes(search)
+  ).slice(0,12);
+}
+function renderHits(query){
+  const box = document.getElementById("palette-hits");
+  box.replaceChildren();
+  const items = paletteItems(query);
+  if (!items.length){
+    const empty = document.createElement("div");
+    empty.className = "empty";
+    empty.textContent = "No matching room or surface.";
+    box.append(empty);
+    return;
+  }
+  items.forEach((item,index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "hit";
+    button.setAttribute("role","option");
+    button.setAttribute("aria-selected",index === 0 ? "true" : "false");
+    const label = document.createElement("span");
+    label.textContent = item.label;
+    const detail = document.createElement("small");
+    detail.textContent = item.detail;
+    button.append(label,detail);
+    button.addEventListener("click",() => {
+      if (item.kind === "room"){
+        closePalette();
+        openRoom(item.id,{focus:true});
+      }else{
+        const href = item.href.startsWith("http") ? item.href : ORIGIN + item.href;
+        location.assign(href);
+      }
+    });
+    box.append(button);
+  });
+}
+function openPalette(){
+  state.lastFocus = document.activeElement;
+  const palette = document.getElementById("palette");
+  palette.dataset.open = "true";
+  const query = document.getElementById("palette-query");
+  query.value = "";
+  renderHits("");
+  query.focus();
+}
+function closePalette(){
+  document.getElementById("palette").dataset.open = "false";
+  if (state.lastFocus && typeof state.lastFocus.focus === "function") state.lastFocus.focus();
+}
+function movePaletteSelection(direction){
+  const hits = [...document.querySelectorAll(".hit")];
+  if (!hits.length) return;
+  let index = hits.findIndex(hit => hit.getAttribute("aria-selected") === "true");
+  hits.forEach(hit => hit.setAttribute("aria-selected","false"));
+  index = (index + direction + hits.length) % hits.length;
+  hits[index].setAttribute("aria-selected","true");
+  hits[index].focus();
+}
+
+async function loadState(){
+  state.loading = true;
+  paint();
+  const paths = {
+    lambda:"/api/a11oy/v1/lambda",
+    version:"/api/a11oy/v1/version",
+    ledger:"/api/a11oy/v1/ledger",
+    signing:"/api/a11oy/v1/signing-status",
+    mesh:"/api/a11oy/v1/mesh/state",
+    series:"/api/a11oy/v1/series-a/status",
+    hatun:"/api/hatun/evidence",
+    livez:"/api/livez",
+    readiness:"/api/a11oy/v1/readiness/tab-matrix?view=summary"
+  };
+  const entries = await Promise.all(Object.entries(paths).map(async ([key,path]) => [key,await get(path)]));
+  state.data = Object.fromEntries(entries);
+  state.loading = false;
+  setChips(state.data);
+  paint();
+}
+
+function startField(){
+  const canvas = document.getElementById("field");
+  const context = canvas.getContext("2d");
+  if (!context) return;
+  const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let width = 0;
+  let height = 0;
+  let nodes = [];
+  function resize(){
+    const ratio = Math.min(devicePixelRatio || 1,2);
+    width = canvas.clientWidth;
+    height = canvas.clientHeight;
+    canvas.width = Math.max(1,Math.floor(width * ratio));
+    canvas.height = Math.max(1,Math.floor(height * ratio));
+    context.setTransform(ratio,0,0,ratio,0,0);
+    const count = Math.max(12,Math.min(34,Math.round((width * height) / 38000)));
+    nodes = Array.from({length:count},(_,index) => ({
+      x:(index * 89 % Math.max(width,1)),
+      y:(index * 137 % Math.max(height,1)),
+      vx:((index % 5)-2) * .035,
+      vy:(((index * 3) % 5)-2) * .028
+    }));
+  }
+  function draw(){
+    context.clearRect(0,0,width,height);
+    for (let i=0;i<nodes.length;i++){
+      const node = nodes[i];
+      if (!reduced){
+        node.x = (node.x + node.vx + width) % width;
+        node.y = (node.y + node.vy + height) % height;
+      }
+      for (let j=i+1;j<nodes.length;j++){
+        const other = nodes[j];
+        const distance = Math.hypot(node.x-other.x,node.y-other.y);
+        if (distance < 150){
+          context.globalAlpha = (1-distance/150) * .22;
+          context.strokeStyle = i % 2 ? "#53e6c6" : "#74e8ff";
+          context.beginPath();
+          context.moveTo(node.x,node.y);
+          context.lineTo(other.x,other.y);
+          context.stroke();
+        }
+      }
+      context.globalAlpha = .48;
+      context.fillStyle = i % 2 ? "#53e6c6" : "#74e8ff";
+      context.beginPath();
+      context.arc(node.x,node.y,1.4,0,Math.PI*2);
+      context.fill();
+    }
+    context.globalAlpha = 1;
+    if (!reduced) requestAnimationFrame(draw);
+  }
+  new ResizeObserver(() => {resize();draw();}).observe(canvas);
+  resize();
+  draw();
+}
+
+document.getElementById("palette-open").addEventListener("click",openPalette);
+document.getElementById("palette").addEventListener("click",event => {
+  if (event.target.id === "palette") closePalette();
+});
+document.getElementById("palette-query").addEventListener("input",event => renderHits(event.target.value));
+document.addEventListener("keydown",event => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k"){
+    event.preventDefault();
+    openPalette();
+  }else if (event.key === "Escape" && document.getElementById("palette").dataset.open === "true"){
+    closePalette();
+  }else if (document.getElementById("palette").dataset.open === "true" && event.key === "ArrowDown"){
+    event.preventDefault();
+    movePaletteSelection(1);
+  }else if (document.getElementById("palette").dataset.open === "true" && event.key === "ArrowUp"){
+    event.preventDefault();
+    movePaletteSelection(-1);
+  }else if (document.getElementById("palette").dataset.open === "true" && event.key === "Enter"){
+    const selected = document.querySelector('.hit[aria-selected="true"]');
+    if (selected){event.preventDefault();selected.click();}
+  }
+});
+
+const initialRoom = (location.hash || "#command").slice(1);
+state.room = ROOMS.some(room => room.id === initialRoom) ? initialRoom : "command";
+renderRail();
+renderDock();
+paint();
+startField();
+loadState();
+</script>
+</body>
+</html>
