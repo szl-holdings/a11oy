@@ -1,0 +1,85 @@
+name: Apply HF card resolve transport v2
+
+on:
+  push:
+    branches:
+      - fix/hf-card-resolve-transport-current-main-20260905
+    paths:
+      - .github/workflows/apply-hf-card-resolve-transport-v2.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-hf-card-resolve-transport-v2
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    name: Apply exact transport without weakening inventory evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-card-resolve-transport-current-main-20260905
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Replace only the exact immutable-card transport
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("scripts/audit_huggingface_ecosystem.py")
+          text = path.read_text(encoding="utf-8")
+          old = 'f"https://huggingface.co/{prefix}{encoded_id}/raw/"'
+          new = 'f"https://huggingface.co/{prefix}{encoded_id}/resolve/"'
+          count = text.count(old)
+          if count != 1:
+              raise SystemExit(f"expected exactly one raw transport, found {count}")
+          path.write_text(text.replace(old, new, 1), encoding="utf-8")
+          PY
+
+      - name: Prove the transport and schema-v2 evidence boundary
+        run: |
+          set -euo pipefail
+          python scripts/test_hf_card_resolve_transport_v2.py
+          python scripts/test_hf_gated_public_inventory.py
+          python scripts/test_audit_huggingface_ecosystem.py
+          python -m py_compile \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/test_hf_card_resolve_transport_v2.py \
+            scripts/test_hf_gated_public_inventory.py \
+            scripts/test_audit_huggingface_ecosystem.py
+          python scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+          git diff --check
+
+      - name: Commit only the durable implementation
+        env:
+          BRANCH: fix/hf-card-resolve-transport-current-main-20260905
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/apply-hf-card-resolve-transport-v2.yml
+          git add \
+            scripts/audit_huggingface_ecosystem.py \
+            scripts/test_hf_card_resolve_transport_v2.py
+          git config user.name "SZL Frontier Operator"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit \
+            -m "fix(hf): use exact resolve transport under inventory v2" \
+            -m "Fetch ungated public cards through immutable /resolve/{sha} URLs while preserving the schema-v2 rule that gated repositories remain public-metadata-only and never claim unobserved README bytes." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${BRANCH}"
