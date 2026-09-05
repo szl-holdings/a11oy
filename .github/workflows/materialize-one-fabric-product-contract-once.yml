@@ -1,0 +1,293 @@
+name: Materialize one-fabric product contract once
+
+on:
+  push:
+    branches:
+      - fix/one-fabric-product-contract-v1
+    paths:
+      - .github/workflows/materialize-one-fabric-product-contract-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-one-fabric-product-contract-once
+  cancel-in-progress: false
+
+env:
+  EXPECTED_MAIN: 6949809a08122f92ae5da18b289b0ac1a1d2be00
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Require exact protected-main parent
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN"
+          test "$(git merge-base HEAD origin/main)" = "$EXPECTED_MAIN"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Materialize exact source and taxonomy evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          API = "https://api.github.com"
+          ORG = "szl-holdings"
+          token = os.environ["GITHUB_TOKEN"]
+          headers = {
+              "Accept": "application/vnd.github+json",
+              "Authorization": f"Bearer {token}",
+              "X-GitHub-Api-Version": "2022-11-28",
+              "User-Agent": "SZL-One-Fabric-Materializer/1.0",
+          }
+
+          def get(url: str):
+              request = urllib.request.Request(url, headers=headers)
+              with urllib.request.urlopen(request, timeout=45) as response:
+                  return json.load(response)
+
+          def main_sha(repository: str) -> str:
+              value = get(f"{API}/repos/{repository}/branches/main")
+              sha = value["commit"]["sha"]
+              if len(sha) != 40:
+                  raise RuntimeError(f"invalid main SHA for {repository}")
+              return sha
+
+          repositories = []
+          page = 1
+          while True:
+              rows = get(
+                  f"{API}/orgs/{ORG}/repos?type=all&sort=full_name&direction=asc"
+                  f"&per_page=100&page={page}"
+              )
+              if not isinstance(rows, list):
+                  raise RuntimeError("organization repository API did not return an array")
+              repositories.extend(rows)
+              if len(rows) < 100:
+                  break
+              page += 1
+
+          revisions = {
+              name: main_sha(f"{ORG}/{name}")
+              for name in (
+                  "a11oy",
+                  "szl-formulas",
+                  "lutar-lean",
+                  "anatomy",
+                  "szl-second-brain",
+                  "szl-forge",
+                  "vertical-services",
+                  "killinchu",
+                  "lyte-services",
+              )
+          }
+          if revisions["a11oy"] != os.environ["EXPECTED_MAIN"]:
+              raise RuntimeError("A11oy main advanced before materialization")
+
+          path = Path("docs/strategy/living-command-fabric.v1.json")
+          value = json.loads(path.read_text(encoding="utf-8"))
+          value["generated_at"] = "2026-09-05"
+          value["estate"].update(
+              {
+                  "repository_count": len(repositories),
+                  "active_repository_count": sum(not row.get("archived", False) for row in repositories),
+                  "archived_repository_count": sum(bool(row.get("archived")) for row in repositories),
+                  "public_repository_count": sum(not row.get("private", False) for row in repositories),
+                  "private_repository_count": sum(bool(row.get("private")) for row in repositories),
+                  "census_method": (
+                      "Authenticated GitHub organization repositories API; paginated at "
+                      "materialization time and source-bound to the reviewed candidate."
+                  ),
+              }
+          )
+          value["estate_alignment_contract"] = {
+              "schema": "szl.estate-alignment/v1",
+              "version": "1.0.0",
+              "repository": "szl-holdings/.github",
+              "path": "docs/ESTATE_ALIGNMENT_CONTRACT_V1.json",
+              "product_origin": "https://a-11-oy.com",
+              "proof_origin": "https://a11oy.net",
+              "artifact_registry": "https://huggingface.co/SZLHOLDINGS",
+          }
+
+          authorities = value["authorities"]
+          authorities["a11oy"]["revision_before_wave"] = revisions["a11oy"]
+          authorities["formulas"]["revision"] = revisions["szl-formulas"]
+          authorities["lean_kernel"]["revision"] = revisions["lutar-lean"]
+          authorities["anatomy"]["revision"] = revisions["anatomy"]
+          authorities["second_brain"]["revision"] = revisions["szl-second-brain"]
+          authorities["forge"]["revision"] = revisions["szl-forge"]
+          authorities["vertical_services"]["revision"] = revisions["vertical-services"]
+          authorities["killinchu"]["revision"] = revisions["killinchu"]
+          authorities["lyte"] = {
+              "repository": "szl-holdings/lyte-services",
+              "revision": revisions["lyte-services"],
+              "runtime_version": "3.0.0",
+              "role": "source-owned business, service, journey, and AI-agent observability runtime",
+          }
+
+          taxonomy = value["public_product_taxonomy"]
+          taxonomy["commercial_flagship_count"] = 3
+          taxonomy["commercial_flagships"] = ["a11oy", "killinchu", "forge"]
+          taxonomy["product_origin"] = "https://a-11-oy.com"
+          taxonomy["proof_origin"] = "https://a11oy.net"
+          taxonomy["artifact_registry"] = "https://huggingface.co/SZLHOLDINGS"
+
+          for vertical in value["verticals"]:
+              slug = vertical["slug"]
+              if slug == "lyte":
+                  vertical.update(
+                      {
+                          "canonical_source": "szl-holdings/lyte-services",
+                          "service_source": "szl-holdings/lyte-services",
+                          "service_revision": revisions["lyte-services"],
+                          "service_runtime_version": "3.0.0",
+                      }
+                  )
+              elif slug == "killinchu":
+                  vertical["canonical_revision"] = revisions["killinchu"]
+                  vertical["service_revision"] = revisions["vertical-services"]
+              else:
+                  vertical["service_revision"] = revisions["vertical-services"]
+
+          value["wave_1"]["publisher_repair"] = (
+              "A11oy remains the single Hugging Face writer. Terra, Counsel and Finance "
+              "use vertical-services; Killinchu owns the folded resilience planes; Lyte "
+              "publishes its exact tested lyte-services runtime. Every target requires "
+              "source-tip, runtime revision and live route agreement."
+          )
+          path.write_text(
+              json.dumps(value, indent=2, sort_keys=False) + "\n",
+              encoding="utf-8",
+          )
+
+          test_path = Path("tests/test_estate_one_fabric_alignment.py")
+          test_path.write_text(
+              '''#!/usr/bin/env python3
+          from __future__ import annotations
+
+          import json
+          import unittest
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          MANIFEST = ROOT / "docs" / "strategy" / "living-command-fabric.v1.json"
+          LOCKED = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
+
+
+          class EstateOneFabricAlignmentTests(unittest.TestCase):
+              @classmethod
+              def setUpClass(cls) -> None:
+                  cls.value = json.loads(MANIFEST.read_text(encoding="utf-8"))
+
+              def test_one_authority_graph(self) -> None:
+                  contract = self.value["estate_alignment_contract"]
+                  self.assertEqual(contract["schema"], "szl.estate-alignment/v1")
+                  self.assertEqual(contract["repository"], "szl-holdings/.github")
+                  self.assertEqual(contract["product_origin"], "https://a-11-oy.com")
+                  self.assertEqual(contract["proof_origin"], "https://a11oy.net")
+                  self.assertEqual(contract["artifact_registry"], "https://huggingface.co/SZLHOLDINGS")
+
+              def test_three_five_six_taxonomy(self) -> None:
+                  taxonomy = self.value["public_product_taxonomy"]
+                  self.assertEqual(taxonomy["commercial_flagships"], ["a11oy", "killinchu", "forge"])
+                  self.assertEqual(taxonomy["commercial_flagship_count"], 3)
+                  self.assertEqual(taxonomy["public_domain_bodies"], ["terra", "killinchu", "counsel", "finance", "lyte"])
+                  self.assertEqual(taxonomy["public_domain_body_count"], 5)
+                  self.assertEqual(taxonomy["internal_engines"], ["sentra", "lyte", "killinchu", "finance", "terra", "counsel"])
+                  self.assertEqual(taxonomy["internal_engine_count"], 6)
+                  self.assertEqual(taxonomy["folded_into_killinchu"], ["aegis", "sentra", "immune", "vessels"])
+
+              def test_lyte_uses_source_owned_runtime(self) -> None:
+                  lyte = next(row for row in self.value["verticals"] if row["slug"] == "lyte")
+                  self.assertEqual(lyte["canonical_source"], "szl-holdings/lyte-services")
+                  self.assertEqual(lyte["service_source"], "szl-holdings/lyte-services")
+                  self.assertEqual(lyte["service_runtime_version"], "3.0.0")
+                  self.assertEqual(lyte["service_revision"], self.value["authorities"]["lyte"]["revision"])
+
+              def test_census_and_formula_contract_are_exact(self) -> None:
+                  estate = self.value["estate"]
+                  self.assertEqual(estate["repository_count"], estate["active_repository_count"] + estate["archived_repository_count"])
+                  self.assertEqual(estate["repository_count"], estate["public_repository_count"] + estate["private_repository_count"])
+                  self.assertEqual(self.value["authorities"]["lean_kernel"]["locked_proven_ids"], LOCKED)
+                  self.assertEqual(self.value["authorities"]["lean_kernel"]["locked_proven_count"], 8)
+                  self.assertFalse(self.value["formula_contract"]["lambda"]["authorizes_actions"])
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          '''.replace("          ", ""),
+              encoding="utf-8",
+          )
+          print(
+              json.dumps(
+                  {
+                      "repository_count": len(repositories),
+                      "active": value["estate"]["active_repository_count"],
+                      "archived": value["estate"]["archived_repository_count"],
+                      "public": value["estate"]["public_repository_count"],
+                      "private": value["estate"]["private_repository_count"],
+                      "revisions": revisions,
+                  },
+                  indent=2,
+                  sort_keys=True,
+              )
+          )
+          PY
+
+      - name: Prove permanent product contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
+          python tests/test_living_command_fabric_frontdoor.py
+          python tests/test_estate_one_fabric_alignment.py
+          python -m py_compile tests/test_estate_one_fabric_alignment.py
+          git diff --check
+
+      - name: Remove materializer and commit review candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          test "$(git rev-parse origin/main)" = "$EXPECTED_MAIN"
+          rm .github/workflows/materialize-one-fabric-product-contract-once.yml
+          git add docs/strategy/living-command-fabric.v1.json \
+            tests/test_estate_one_fabric_alignment.py \
+            .github/workflows/materialize-one-fabric-product-contract-once.yml
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit -m 'fix(alignment): bind A11oy to the one-fabric estate contract' \
+            -m 'Refresh the authenticated source census, add the exact three-five-six product taxonomy, bind Lyte to its source-owned runtime, and point product, GitHub, Hugging Face, and proof surfaces at one reviewed movement contract.' \
+            -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/one-fabric-product-contract-v1
