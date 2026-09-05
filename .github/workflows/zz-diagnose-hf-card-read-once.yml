@@ -20,60 +20,50 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
-      - name: Compare anonymous raw, resolve, and revision API reads
+      - name: Separate exact-revision path behavior from request headers
         shell: bash
         run: |
           set -euo pipefail
           python - <<'PY'
           import json
           import urllib.error
-          import urllib.parse
           import urllib.request
 
-          HEADERS = {
+          item_id = 'SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent'
+          revision = 'ebbf0db2732c3b0941512a1c0d5c95b9bcc70a3b'
+          headers = {
               'Accept': '*/*',
               'User-Agent': 'a11oy-public-estate-audit/1.0 (+https://github.com/szl-holdings/a11oy)',
           }
 
-          def read_json(url):
-              request = urllib.request.Request(url, headers=HEADERS)
-              with urllib.request.urlopen(request, timeout=30) as response:
-                  return json.load(response)
-
-          def status(url):
-              request = urllib.request.Request(url, headers=HEADERS)
+          def status(url, *, identified):
+              target = urllib.request.Request(url, headers=headers) if identified else url
               try:
-                  with urllib.request.urlopen(request, timeout=30) as response:
+                  with urllib.request.urlopen(target, timeout=30) as response:
                       response.read(1)
                       return {'status': response.status, 'final_url': response.geturl()}
               except urllib.error.HTTPError as error:
                   return {
                       'status': error.code,
                       'final_url': error.geturl(),
-                      'www_authenticate': error.headers.get('WWW-Authenticate'),
+                      'www_authenticate_present': bool(error.headers.get('WWW-Authenticate')),
                   }
 
-          items = read_json('https://huggingface.co/api/models?author=SZLHOLDINGS&limit=100&full=true')
-          anomalies = []
-          for item in sorted(items, key=lambda value: value.get('id') or value.get('modelId') or ''):
-              item_id = item.get('id') or item.get('modelId')
-              revision = item.get('sha')
-              if not isinstance(item_id, str) or not isinstance(revision, str):
-                  continue
-              encoded_id = urllib.parse.quote(item_id, safe='/')
-              encoded_revision = urllib.parse.quote(revision, safe='')
-              probes = {
-                  'raw': status(f'https://huggingface.co/{encoded_id}/raw/{encoded_revision}/README.md'),
-                  'resolve': status(f'https://huggingface.co/{encoded_id}/resolve/{encoded_revision}/README.md'),
-                  'revision_api': status(f'https://huggingface.co/api/models/{encoded_id}/revision/{encoded_revision}'),
-              }
-              if any(result['status'] not in {200, 404} for result in probes.values()):
-                  anomalies.append({
-                      'id': item_id,
-                      'sha': revision,
-                      'private': bool(item.get('private', False)),
-                      'gated': item.get('gated', False),
-                      'probes': probes,
-                  })
-          print(json.dumps({'models': len(items), 'anomalies': anomalies}, indent=2, sort_keys=True))
+          raw = f'https://huggingface.co/{item_id}/raw/{revision}/README.md'
+          resolve = f'https://huggingface.co/{item_id}/resolve/{revision}/README.md'
+          revision_api = f'https://huggingface.co/api/models/{item_id}/revision/{revision}'
+          evidence = {
+              'item_id': item_id,
+              'revision': revision,
+              'raw_default': status(raw, identified=False),
+              'resolve_default': status(resolve, identified=False),
+              'raw_identified': status(raw, identified=True),
+              'resolve_identified': status(resolve, identified=True),
+              'revision_api_default': status(revision_api, identified=False),
+          }
+          print(json.dumps(evidence, indent=2, sort_keys=True))
+          if evidence['resolve_default']['status'] != 200:
+              raise SystemExit('The anonymous exact-revision resolve path is not readable')
+          if evidence['revision_api_default']['status'] != 200:
+              raise SystemExit('The public exact-revision metadata is not readable')
           PY
