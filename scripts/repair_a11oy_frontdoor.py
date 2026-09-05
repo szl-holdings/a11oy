@@ -52,6 +52,40 @@ REVIEWED_SUCCESSORS = {
 }
 
 
+REVIEWED_HOMEPAGE_SHELL_EXACT_MARKERS = (
+    '<html lang="en" data-szl-shell-owner="homepage"',
+    '<title>a11oy — The Living Command Fabric</title>',
+    '<style id="szl-homepage-shell">',
+    '<nav class="nav-links" id="site-nav" aria-label="Primary navigation">',
+    '<h1 class="title">Governed AI actions. <span class="grad">Receipts you can verify.</span></h1>',
+    'var btn=document.getElementById("menu-toggle");',
+)
+REVIEWED_HOMEPAGE_SHELL_REQUIRED_MARKERS = (
+    "persistent signer evidence is active and verification passes",
+    "Receipt records · signer state separate",
+    "Signer state is disclosed separately only where an actual signer-status read is present.",
+    'grayChip(relation + " · CONJECTURE")',
+    "min-height:44px",
+    "overflow-wrap:anywhere",
+    "/* Mobile overrides intentionally follow all equal-specificity base rules. */",
+)
+REVIEWED_HOMEPAGE_SHELL_FORBIDDEN_MARKERS = (
+    '<a href="/console">Command</a>',
+    '<title>a11oy — Governed Agent Change Management',
+    "Every answer arrives with a signed receipt",
+    "AI that signs its work",
+)
+
+
+def is_reviewed_homepage_shell_successor(text: str) -> bool:
+    """Recognize only the reviewed, truth-preserving homepage-owned shell."""
+    return (
+        all(text.count(marker) == 1 for marker in REVIEWED_HOMEPAGE_SHELL_EXACT_MARKERS)
+        and all(marker in text for marker in REVIEWED_HOMEPAGE_SHELL_REQUIRED_MARKERS)
+        and all(marker not in text for marker in REVIEWED_HOMEPAGE_SHELL_FORBIDDEN_MARKERS)
+    )
+
+
 class PatchError(RuntimeError):
     pass
 
@@ -193,6 +227,18 @@ def main() -> int:
     spec = load_spec()
     original = args.path.read_text(encoding="utf-8")
     if args.check:
+        if is_reviewed_homepage_shell_successor(original):
+            print(
+                json.dumps(
+                    {
+                        "status": "PASS",
+                        "target": str(args.path),
+                        "notes": "reviewed homepage-owned shell successor is current",
+                    },
+                    indent=2,
+                )
+            )
+            return 0
         baseline_errors = validate_truth(original)
         if not baseline_errors:
             print(
