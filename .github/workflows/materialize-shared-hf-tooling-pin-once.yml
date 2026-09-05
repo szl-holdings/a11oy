@@ -1,0 +1,228 @@
+name: Materialize current shared HF tooling pin once
+
+on:
+  push:
+    branches:
+      - fix/pin-shared-hf-tooling-e25adbe-20260904
+    paths:
+      - .github/workflows/materialize-shared-hf-tooling-pin-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-current-shared-hf-tooling-pin
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    name: Pin deploy and parity rails to reviewed shared source
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact pin branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Replace only the reviewed permanent pin closures
+        shell: bash
+        env:
+          OLD_DEPLOY_PIN: e3ec47ad2e99a535839afe0f30fefbd8973d52da
+          OLD_DRIFT_PIN: 0816263f1e83734658d6e5a8a7cd3834f36a2054
+          NEW_PIN: e25adbe3d39b988ced35740a6b58cbfc5ffa920b
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import subprocess
+          from pathlib import Path
+
+          self_path = ".github/workflows/materialize-shared-hf-tooling-pin-once.yml"
+          closures = {
+              os.environ["OLD_DEPLOY_PIN"]: {
+                  ".github/workflows/hf-sync.yml",
+                  "audit/workflow-action-pins.json",
+                  "tests/test_canonical_a11oy_relock.py",
+                  "tests/test_copy_sync_lockstep_source_derived.py",
+                  "tests/test_operational_route_contracts.py",
+                  "tools/check_copy_sync_lockstep.py",
+              },
+              os.environ["OLD_DRIFT_PIN"]: {
+                  ".github/workflows/hf-module-drift.yml",
+                  "scripts/validate_hf_parity_lifecycle.py",
+                  "scripts/validate_frontdoor_source_integrity.py",
+                  "scripts/test_frontdoor_source_integrity.py",
+                  "tests/test_hf_candidate_selector_wiring.py",
+                  "tests/test_hf_source_bound_drift_contract.py",
+              },
+          }
+          new = os.environ["NEW_PIN"]
+
+          for old, expected in closures.items():
+              result = subprocess.run(
+                  ["git", "grep", "-l", old, "--"],
+                  check=False,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+              )
+              if result.returncode not in (0, 1):
+                  raise SystemExit(result.stderr)
+              observed = {
+                  line
+                  for line in result.stdout.splitlines()
+                  if line and line != self_path
+              }
+              if observed != expected:
+                  raise SystemExit(
+                      f"pin closure drift for {old}: "
+                      f"expected={sorted(expected)} observed={sorted(observed)}"
+                  )
+              for relative in sorted(expected):
+                  path = Path(relative)
+                  text = path.read_text(encoding="utf-8")
+                  count = text.count(old)
+                  if count < 1:
+                      raise SystemExit(f"pin absent before replacement: {relative}")
+                  path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
+
+          for old in closures:
+              result = subprocess.run(
+                  ["git", "grep", "-n", old, "--"],
+                  check=False,
+                  text=True,
+                  stdout=subprocess.PIPE,
+                  stderr=subprocess.PIPE,
+              )
+              if result.returncode not in (0, 1):
+                  raise SystemExit(result.stderr)
+              residual = [
+                  line
+                  for line in result.stdout.splitlines()
+                  if line and not line.startswith(self_path + ":")
+              ]
+              if residual:
+                  raise SystemExit(
+                      "obsolete permanent pin remains:\n" + "\n".join(residual)
+                  )
+
+          print("deploy_closure=6 drift_closure=6 new_pin=" + new)
+          PY
+
+      - name: Prove deploy, parity, audit, and integrity contracts
+        shell: bash
+        env:
+          NEW_PIN: e25adbe3d39b988ced35740a6b58cbfc5ffa920b
+        run: |
+          set -euo pipefail
+          python3 -m pip install --disable-pip-version-check --no-cache-dir \
+            "pytest==8.3.5" "PyYAML==6.0.3"
+          python3 -m py_compile \
+            tools/check_copy_sync_lockstep.py \
+            scripts/validate_hf_parity_lifecycle.py \
+            scripts/validate_frontdoor_source_integrity.py \
+            scripts/test_frontdoor_source_integrity.py \
+            tests/test_canonical_a11oy_relock.py \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py \
+            tests/test_hf_candidate_selector_wiring.py \
+            tests/test_hf_source_bound_drift_contract.py
+          python3 tools/check_copy_sync_lockstep.py
+          python3 scripts/validate_hf_parity_lifecycle.py
+          python3 scripts/validate_frontdoor_source_integrity.py
+          python3 scripts/test_frontdoor_source_integrity.py
+          python3 -m pytest -q \
+            tests/test_canonical_a11oy_relock.py \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py \
+            tests/test_hf_candidate_selector_wiring.py \
+            tests/test_hf_source_bound_drift_contract.py
+          python3 -m json.tool audit/workflow-action-pins.json >/dev/null
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          pin = os.environ["NEW_PIN"]
+          deploy = Path(".github/workflows/hf-sync.yml").read_text(encoding="utf-8")
+          drift = Path(".github/workflows/hf-module-drift.yml").read_text(encoding="utf-8")
+          assert deploy.count(
+              "uses: szl-holdings/.github/.github/workflows/reusable-hf-deploy.yml@" + pin
+          ) == 1
+          assert drift.count("ref: " + pin) == 2
+          assert drift.count(
+              "uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@" + pin
+          ) == 1
+          audit = json.loads(
+              Path("audit/workflow-action-pins.json").read_text(encoding="utf-8")
+          )
+          encoded = json.dumps(audit, sort_keys=True)
+          assert pin in encoded
+          PY
+          git diff --check
+
+      - name: Remove transport and commit only permanent pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/materialize-shared-hf-tooling-pin-once.yml
+          git add \
+            .github/workflows/hf-sync.yml \
+            .github/workflows/hf-module-drift.yml \
+            audit/workflow-action-pins.json \
+            scripts/validate_hf_parity_lifecycle.py \
+            scripts/validate_frontdoor_source_integrity.py \
+            scripts/test_frontdoor_source_integrity.py \
+            tests/test_canonical_a11oy_relock.py \
+            tests/test_copy_sync_lockstep_source_derived.py \
+            tests/test_operational_route_contracts.py \
+            tests/test_hf_candidate_selector_wiring.py \
+            tests/test_hf_source_bound_drift_contract.py \
+            tools/check_copy_sync_lockstep.py
+          python3 - <<'PY'
+          import subprocess
+
+          expected = {
+              ".github/workflows/hf-sync.yml",
+              ".github/workflows/hf-module-drift.yml",
+              "audit/workflow-action-pins.json",
+              "scripts/validate_hf_parity_lifecycle.py",
+              "scripts/validate_frontdoor_source_integrity.py",
+              "scripts/test_frontdoor_source_integrity.py",
+              "tests/test_canonical_a11oy_relock.py",
+              "tests/test_copy_sync_lockstep_source_derived.py",
+              "tests/test_operational_route_contracts.py",
+              "tests/test_hf_candidate_selector_wiring.py",
+              "tests/test_hf_source_bound_drift_contract.py",
+              "tools/check_copy_sync_lockstep.py",
+          }
+          observed = set(
+              subprocess.check_output(
+                  ["git", "diff", "--cached", "--name-only"], text=True
+              ).splitlines()
+          )
+          if observed != expected:
+              raise SystemExit(
+                  f"final pin diff drifted: expected={sorted(expected)} "
+                  f"observed={sorted(observed)}"
+              )
+          PY
+          git diff --cached --check
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git commit -s -m "fix(hf): pin current shared deployment and parity tooling" \
+            -m "Bind canonical A11oy publication and both Hugging Face parity rails to szl-holdings/.github@e25adbe3d39b988ced35740a6b58cbfc5ffa920b, the reviewed exact revision with strict checksum-pinned remote ADD semantics."
+          git push origin "HEAD:${GITHUB_REF_NAME}"
