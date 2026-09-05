@@ -59,14 +59,14 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
         self.assertEqual(len(topology), 15)
-        self.assertEqual(inventory_only, ["SZLHOLDINGS/ayllu"])
+        self.assertEqual(inventory_only, ["SZLHOLDINGS/ayllu", "SZLHOLDINGS/yarqa"])
         self.assertEqual(
             sorted(topology + inventory_only, key=str.casefold),
             observed,
         )
 
     def test_ayllu_is_inventory_only_fold_not_a_governed_keeper(self) -> None:
-        ayllu = self.contract["inventoryOnlyHuggingFaceRepositories"]
+        ayllu = [row for row in self.contract["inventoryOnlyHuggingFaceRepositories"] if row["id"] == "SZLHOLDINGS/ayllu"]
         self.assertEqual(
             ayllu,
             [
@@ -94,6 +94,25 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.evidence["keepPolicySha256"],
             hashlib.sha256(alignment.KEEP_POLICY.read_bytes()).hexdigest(),
         )
+
+    def test_yarqa_is_observed_without_promoting_keep_or_topology(self) -> None:
+        rows = self.contract["inventoryOnlyHuggingFaceRepositories"]
+        yarqa = next(row for row in rows if row["id"] == "SZLHOLDINGS/yarqa")
+        self.assertEqual(yarqa, {
+            "id": "SZLHOLDINGS/yarqa", "classification": "INVENTORY_ONLY",
+            "governedKeep": False, "disposition": "FOLD",
+            "policySource": "docs/series-a/hf-space-keep-list.yaml",
+        })
+        self.assertNotIn(yarqa["id"], alignment.governed_keep_spaces())
+        self.assertNotIn(yarqa["id"], alignment.topology_spaces(self.contract))
+        removed = copy.deepcopy(self.contract)
+        removed["inventoryOnlyHuggingFaceRepositories"] = [row for row in rows if row["id"] != yarqa["id"]]
+        with self.assertRaisesRegex(alignment.ContractError, "undeclared=.*yarqa"):
+            alignment.validate(removed, self.manifest)
+        promoted = copy.deepcopy(self.contract)
+        promoted["inventoryOnlyHuggingFaceRepositories"][1]["governedKeep"] = True
+        with self.assertRaisesRegex(alignment.ContractError, "cannot be a governed keeper"):
+            alignment.validate(promoted, self.manifest)
 
     def test_inventory_only_classification_is_strict_and_disjoint(self) -> None:
         for field, value, message in (
@@ -233,6 +252,7 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn("inventory is observational", content)
             self.assertIn("Inventory-only / FOLD", content)
             self.assertIn("`SZLHOLDINGS/ayllu`", content)
+            self.assertIn("`SZLHOLDINGS/yarqa`", content)
 
     def test_product_front_door_names_canonical_origins(self) -> None:
         landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
