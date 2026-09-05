@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Fix Command v2 unavailable truth once
+
+on:
+  push:
+    branches:
+      - fix/command-v2-unavailable-truth-20260905
+    paths:
+      - .github/workflows/_fix_command_v2_unavailable_truth_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fix-command-v2-unavailable-truth-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/command-v2-unavailable-truth-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Apply exact honest-state replacements
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          page = Path("pages/command-v2.html")
+          text = page.read_text(encoding="utf-8")
+          replacements = {
+              'r.json?.count??0': 'r.json?.count??null',
+              'txt(l.lambda_floor,"0.900")': 'txt(l.lambda_floor)',
+              'r.count??0': 'r.count??null',
+              'txt(r.signature_state,"UNSIGNED")': 'txt(r.signature_state)',
+              'txt(m.staticTabs,"0")': 'txt(m.staticTabs)',
+              'txt(q.ok,"0")': 'txt(q.ok)',
+              'txt(q.lies,"0")': 'txt(q.lies)',
+              's.json?.key_persistent?"persistent":s.json?.non_repudiation===false?"partial":"absent"': 's.json?.key_persistent===true?"persistent":s.json?.non_repudiation===false?"partial":null',
+              's.key_persistent?"PERSISTENT":s.non_repudiation===false?"PARTIAL":"ABSENT"': 's.key_persistent===true?"PERSISTENT":s.non_repudiation===false?"PARTIAL":s.key_persistent===false?"ABSENT":null',
+              'm.tabs?`${m.tabs} tabs`:null': 'm.tabs===null||m.tabs===undefined?null:`${m.tabs} tabs`',
+          }
+          for old, new in replacements.items():
+              count = text.count(old)
+              if count < 1:
+                  raise SystemExit(f"expected Command v2 fallback not found: {old}")
+              text = text.replace(old, new)
+          page.write_text(text, encoding="utf-8", newline="\n")
+
+          tests = Path("tests/test_command_center_origin.py")
+          suite = tests.read_text(encoding="utf-8")
+          marker = "def test_v2_does_not_fabricate_missing_operational_values()"
+          if marker not in suite:
+              suite += '''\n\ndef test_v2_does_not_fabricate_missing_operational_values() -> None:\n    html = V2_PAGE.read_text(encoding="utf-8")\n    for prohibited in (\n        'r.json?.count??0',\n        'txt(l.lambda_floor,"0.900")',\n        'r.count??0',\n        'txt(r.signature_state,"UNSIGNED")',\n        'txt(m.staticTabs,"0")',\n        'txt(q.ok,"0")',\n        'txt(q.lies,"0")',\n        's.json?.key_persistent?"persistent":s.json?.non_repudiation===false?"partial":"absent"',\n        's.key_persistent?"PERSISTENT":s.non_repudiation===false?"PARTIAL":"ABSENT"',\n    ):\n        assert prohibited not in html\n    assert 'txt=(v,f="UNAVAILABLE")' in html\n    assert 'r.json?.count??null' in html\n    assert 'r.count??null' in html\n    assert 's.key_persistent===false?"ABSENT":null' in html\n    assert 'm.tabs===null||m.tabs===undefined?null' in html\n'''
+              tests.write_text(suite, encoding="utf-8", newline="\n")
+          PY
+          git diff --check
+
+      - name: Prove focused Command v2 contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir "pytest==9.1.1"
+          python -m pytest -q tests/test_command_center_origin.py
+          python -m py_compile a11oy_command_center.py tests/test_command_center_origin.py
+          git diff --check
+
+      - name: Commit durable correction and retire this controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/_fix_command_v2_unavailable_truth_once.yml
+          git add pages/command-v2.html tests/test_command_center_origin.py
+          git diff --cached --quiet && { echo "no Command v2 correction produced"; exit 1; }
+          git commit -s -m "fix(command): leave unobserved operational values unavailable"
+          git push origin HEAD:fix/command-v2-unavailable-truth-20260905
