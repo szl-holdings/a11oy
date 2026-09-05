@@ -1,0 +1,116 @@
+name: Materialize Command Centre v2 operational source once
+
+"on":
+  push:
+    branches:
+      - fix/command-centre-v2-operational-v1
+    paths:
+      - .github/workflows/materialize-command-v2-operational-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-command-v2-operational-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact materialization branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Merge current protected source and fetch the incomplete candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git fetch --no-tags origin pull/1935/head:refs/remotes/origin/command-v2-candidate
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git merge --no-edit origin/main
+
+      - name: Materialize the reviewed visual surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p web docs/audits
+          git show refs/remotes/origin/command-v2-candidate:web/command_v2.html > web/command_v2.html
+          if git cat-file -e refs/remotes/origin/command-v2-candidate:docs/audits/COMMAND_V2_ROUTE.md 2>/dev/null; then
+            git show refs/remotes/origin/command-v2-candidate:docs/audits/COMMAND_V2_ROUTE.md > docs/audits/COMMAND_V2_ROUTE.md
+          fi
+
+      - name: Complete route, image closure, and tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          serve = Path('serve.py')
+          source = serve.read_text(encoding='utf-8')
+          if 'FileResponse' not in source:
+              match = re.search(r'^from fastapi[.]responses import (?P<names>.+)$', source, re.MULTILINE)
+              if not match:
+                  raise SystemExit('serve.py has no fastapi.responses import to extend safely')
+              names = [item.strip() for item in match.group('names').split(',')]
+              names.append('FileResponse')
+              replacement = 'from fastapi.responses import ' + ', '.join(sorted(set(names)))
+              source = source[:match.start()] + replacement + source[match.end():]
+
+          if '@app.get("/command-v2"' not in source:
+              catch = re.search(
+                  r'^@app[.](?:get|api_route)\([^\n]*\{[^\n}]*(?::path)?[^\n}]*\}[^\n]*\)\s*$',
+                  source,
+                  re.MULTILINE,
+              )
+              if not catch:
+                  raise SystemExit('could not find the SPA catch-all route safely')
+              block = '''@app.get("/command-v2", include_in_schema=False)\n@app.head("/command-v2", include_in_schema=False)\ndef command_v2_surface() -> FileResponse:\n    """Serve the source-owned Command Centre v2 before the SPA catch-all."""\n    return FileResponse(\n        Path(__file__).resolve().parent / "web" / "command_v2.html",\n        media_type="text/html",\n    )\n\n\n'''
+              source = source[:catch.start()] + block + source[catch.start():]
+          serve.write_text(source, encoding='utf-8')
+
+          docker = Path('Dockerfile')
+          docker_source = docker.read_text(encoding='utf-8')
+          explicit = 'web/command_v2.html' in docker_source
+          directory_copy = bool(re.search(r'^COPY\s+web(?:/|\s)', docker_source, re.MULTILINE))
+          if not explicit and not directory_copy:
+              anchor = re.search(r'^(?:CMD|ENTRYPOINT)\b', docker_source, re.MULTILINE)
+              if not anchor:
+                  raise SystemExit('Dockerfile has no CMD/ENTRYPOINT insertion anchor')
+              line = 'COPY web/command_v2.html ./web/command_v2.html\n'
+              docker_source = docker_source[:anchor.start()] + line + docker_source[anchor.start():]
+              docker.write_text(docker_source, encoding='utf-8')
+
+          test = Path('tests/test_command_v2_operational.py')
+          test.write_text('''from pathlib import Path\nimport re\nimport unittest\n\nROOT = Path(__file__).resolve().parents[1]\n\nclass CommandV2OperationalTests(unittest.TestCase):\n    def test_page_is_real_and_honestly_labelled(self):\n        page = (ROOT / "web" / "command_v2.html").read_text(encoding="utf-8")\n        self.assertIn("Command", page)\n        self.assertIn("viewport", page.lower())\n        self.assertNotIn("release 1.1.0 is operational", page.lower())\n        self.assertNotRegex(page, r"(?i)sample[^<]{0,80}live")\n\n    def test_route_precedes_spa_catch_all(self):\n        source = (ROOT / "serve.py").read_text(encoding="utf-8")\n        route = source.index('@app.get("/command-v2"')\n        catches = [match.start() for match in re.finditer(r"^@app[.](?:get|api_route)\\([^\\n]*\\{[^\\n}]*\\}", source, re.MULTILINE)]\n        self.assertTrue(catches, "SPA catch-all missing")\n        self.assertLess(route, min(catches))\n        self.assertIn("FileResponse", source)\n        self.assertIn("web\" / \"command_v2.html", source)\n\n    def test_docker_image_contains_the_page(self):\n        docker = (ROOT / "Dockerfile").read_text(encoding="utf-8")\n        self.assertTrue(\n            "web/command_v2.html" in docker or re.search(r"^COPY\\s+web(?:/|\\s)", docker, re.MULTILINE),\n            "Dockerfile does not close over Command Centre v2",\n        )\n\nif __name__ == "__main__":\n    unittest.main()\n''', encoding='utf-8')
+          PY
+
+      - name: Prove the completed candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile serve.py tests/test_command_v2_operational.py
+          python tests/test_command_v2_operational.py
+          test -s web/command_v2.html
+          git diff --check
+
+      - name: Remove materializer and commit durable source
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-command-v2-operational-once.yml
+          git add -A
+          git commit -m 'feat(command): make Command Centre v2 operational' -m 'Carry the reviewed eight-room surface onto current protected source, register the route before the SPA catch-all, close the Docker image over the page, and add focused runtime contract tests.' -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/command-centre-v2-operational-v1
