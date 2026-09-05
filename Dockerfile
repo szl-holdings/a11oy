@@ -224,6 +224,8 @@ COPY ayni_os/ ./ayni_os/
 # Dockerfile (no `COPY . .`), so copy the corpus explicitly.
 COPY infra/receipts-samples/ ./infra/receipts-samples/
 COPY pages/ ./pages/
+# Additive Command Centre v2 candidate; /command remains on the elite skin.
+COPY web/command_v2.html ./web/command_v2.html
 
 # Readiness contract: serve.py exposes this matrix at
 # /api/a11oy/v1/readiness/tab-matrix. The endpoint previously degraded to
