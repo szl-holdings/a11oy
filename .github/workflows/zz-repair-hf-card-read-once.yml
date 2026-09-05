@@ -1,0 +1,224 @@
+name: Repair public Hugging Face card transport once
+
+on:
+  push:
+    branches: [fix/hf-public-card-read-401-20260905]
+    paths: [.github/workflows/zz-repair-hf-card-read-once.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-hf-public-card-read-once
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/hf-public-card-read-401-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Apply the exact transport repair and executable regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git hash-object scripts/audit_huggingface_ecosystem.py)" = 6a963fdf602fed8705c9bd704705354763d97f92
+          test "$(git hash-object scripts/test_audit_huggingface_ecosystem.py)" = 8d271f3615cfd3a4d774228f4df916aba496953d
+          test "$(git hash-object .github/workflows/zz-diagnose-hf-card-read-once.yml)" = 347745baf912eb6fe8fd27505ccaba92b8782886
+          python - <<'PY'
+          from pathlib import Path
+
+          collector = Path('scripts/audit_huggingface_ecosystem.py')
+          text = collector.read_text(encoding='utf-8')
+          before = '''    url = (
+              f"https://huggingface.co/{prefix}{encoded_id}/raw/"
+              f"{encoded_revision}/README.md"
+          )'''
+          after = '''    url = (
+              f"https://huggingface.co/{prefix}{encoded_id}/resolve/"
+              f"{encoded_revision}/README.md"
+          )'''
+          if text.count(before) != 1:
+              raise SystemExit('Exact card transport boundary changed; refusing broad edit')
+          collector.write_text(text.replace(before, after), encoding='utf-8')
+
+          tests = Path('scripts/test_audit_huggingface_ecosystem.py')
+          text = tests.read_text(encoding='utf-8')
+          marker = '    def test_manifest_has_public_scope_and_no_unrelated_canonical_numbers(self) -> None:\n'
+          if text.count(marker) != 1:
+              raise SystemExit('Test insertion boundary changed; refusing broad edit')
+          addition = '''    def test_card_fetch_uses_anonymous_exact_revision_resolve_path(self) -> None:
+              calls: list[tuple[str, float]] = []
+              original_urlopen = audit.urllib.request.urlopen
+
+              class Response:
+                  def __enter__(self):
+                      return self
+
+                  def __exit__(self, *_: object) -> None:
+                      return None
+
+                  def read(self) -> bytes:
+                      return b"# exact revision\\r\\n"
+
+              def urlopen(url: str, *, timeout: float):
+                  calls.append((url, timeout))
+                  return Response()
+
+              audit.urllib.request.urlopen = urlopen
+              revision = "e" * 40
+              cases = (
+                  ("model", "SZLHOLDINGS/model", ""),
+                  ("dataset", "SZLHOLDINGS/dataset", "datasets/"),
+                  ("space", "SZLHOLDINGS/space", "spaces/"),
+              )
+              try:
+                  for repo_type, item_id, prefix in cases:
+                      with self.subTest(repo_type=repo_type):
+                          self.assertEqual(
+                              self.original_fetch_card_markdown(
+                                  item_id, repo_type, revision
+                              ),
+                              "# exact revision\\r\\n",
+                          )
+                          self.assertEqual(
+                              calls[-1],
+                              (
+                                  f"https://huggingface.co/{prefix}{item_id}/resolve/"
+                                  f"{revision}/README.md",
+                                  30,
+                              ),
+                          )
+              finally:
+                  audit.urllib.request.urlopen = original_urlopen
+
+              self.assertEqual(len(calls), 3)
+              self.assertTrue(all("/raw/" not in url for url, _ in calls))
+
+              def test_card_fetch_treats_only_missing_readme_as_empty(self) -> None:
+                  original_urlopen = audit.urllib.request.urlopen
+                  calls: list[int] = []
+
+                  def missing(url: str, *, timeout: float):
+                      calls.append(404)
+                      raise audit.urllib.error.HTTPError(
+                          url, 404, "Not Found", {}, None
+                      )
+
+                  def unauthorized(url: str, *, timeout: float):
+                      calls.append(401)
+                      raise audit.urllib.error.HTTPError(
+                          url, 401, "Authentication Required", {}, None
+                      )
+
+                  revision = "e" * 40
+                  try:
+                      audit.urllib.request.urlopen = missing
+                      self.assertEqual(
+                          self.original_fetch_card_markdown(
+                              "SZLHOLDINGS/no-card", "model", revision
+                          ),
+                          "",
+                      )
+                      audit.urllib.request.urlopen = unauthorized
+                      with self.assertRaises(audit.urllib.error.HTTPError) as context:
+                          self.original_fetch_card_markdown(
+                              "SZLHOLDINGS/gated", "model", revision
+                          )
+                      self.assertEqual(context.exception.code, 401)
+                  finally:
+                      audit.urllib.request.urlopen = original_urlopen
+
+                  self.assertEqual(calls, [404, 401])
+
+          '''
+          # Correct the nested method indentation before insertion.
+          addition = addition.replace(
+              '              def test_card_fetch_treats_only_missing_readme_as_empty',
+              '    def test_card_fetch_treats_only_missing_readme_as_empty',
+          ).replace(
+              '\n                  original_urlopen', '\n        original_urlopen'
+          ).replace(
+              '\n                  calls:', '\n        calls:'
+          ).replace(
+              '\n                  def missing', '\n        def missing'
+          ).replace(
+              '\n                      calls.append(404)', '\n            calls.append(404)'
+          ).replace(
+              '\n                      raise audit.urllib.error.HTTPError', '\n            raise audit.urllib.error.HTTPError'
+          ).replace(
+              '\n                          url, 404', '\n                url, 404'
+          ).replace(
+              '\n                      )', '\n            )'
+          ).replace(
+              '\n                  def unauthorized', '\n        def unauthorized'
+          ).replace(
+              '\n                      calls.append(401)', '\n            calls.append(401)'
+          ).replace(
+              '\n                          url, 401', '\n                url, 401'
+          ).replace(
+              '\n                  revision =', '\n        revision ='
+          ).replace(
+              '\n                  try:', '\n        try:'
+          ).replace(
+              '\n                      audit.urllib.request.urlopen = missing', '\n            audit.urllib.request.urlopen = missing'
+          ).replace(
+              '\n                      self.assertEqual(', '\n            self.assertEqual('
+          ).replace(
+              '\n                          self.original_fetch_card_markdown(', '\n                self.original_fetch_card_markdown('
+          ).replace(
+              '\n                              "SZLHOLDINGS/no-card"', '\n                    "SZLHOLDINGS/no-card"'
+          ).replace(
+              '\n                          ),', '\n                ),'
+          ).replace(
+              '\n                          "",', '\n                "",'
+          ).replace(
+              '\n                      audit.urllib.request.urlopen = unauthorized', '\n            audit.urllib.request.urlopen = unauthorized'
+          ).replace(
+              '\n                      with self.assertRaises', '\n            with self.assertRaises'
+          ).replace(
+              '\n                          self.original_fetch_card_markdown(', '\n                self.original_fetch_card_markdown('
+          ).replace(
+              '\n                              "SZLHOLDINGS/gated"', '\n                    "SZLHOLDINGS/gated"'
+          ).replace(
+              '\n                      self.assertEqual(context.exception.code, 401)', '\n            self.assertEqual(context.exception.code, 401)'
+          ).replace(
+              '\n                  finally:', '\n        finally:'
+          ).replace(
+              '\n                      audit.urllib.request.urlopen = original_urlopen', '\n            audit.urllib.request.urlopen = original_urlopen'
+          ).replace(
+              '\n                  self.assertEqual(calls, [404, 401])', '\n        self.assertEqual(calls, [404, 401])'
+          )
+          tests.write_text(text.replace(marker, addition + marker), encoding='utf-8')
+          PY
+          python -m py_compile scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py
+          python scripts/test_audit_huggingface_ecosystem.py
+          python scripts/audit_huggingface_ecosystem.py --check --output docs/huggingface-ecosystem-manifest.json
+          python scripts/build_ecosystem_stage_matrix.py --check
+          git diff --check
+      - name: Commit only the durable two-file repair and consume controllers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/hf-public-card-read-401-20260905
+          test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$EXPECTED_HEAD"
+          git rm -- .github/workflows/zz-diagnose-hf-card-read-once.yml .github/workflows/zz-repair-hf-card-read-once.yml
+          git add -- scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py
+          git diff --cached --check
+          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/zz-diagnose-hf-card-read-once.yml .github/workflows/zz-repair-hf-card-read-once.yml scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py "
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'fix(hf): read public cards through exact resolve revisions' -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "HEAD:refs/heads/$branch"
