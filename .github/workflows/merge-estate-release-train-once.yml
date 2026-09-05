@@ -1,0 +1,174 @@
+name: Merge estate release train once
+
+"on":
+  push:
+    branches:
+      - ops/merge-estate-release-train-once
+    paths:
+      - .github/workflows/merge-estate-release-train-once.yml
+
+permissions:
+  actions: read
+  checks: read
+  contents: write
+  pull-requests: write
+  statuses: read
+
+concurrency:
+  group: merge-estate-release-train-once
+  cancel-in-progress: false
+
+jobs:
+  qualify-and-merge:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TARGET_HEAD: feat/estate-release-train-v1
+      TARGET_BASE: main
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Resolve one exact target pull request
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t prs < <(gh pr list --repo "$GITHUB_REPOSITORY" --state open \
+            --head "$TARGET_HEAD" --base "$TARGET_BASE" --json number --jq '.[].number')
+          test "${#prs[@]}" -eq 1
+          number="${prs[0]}"
+          echo "number=$number" >> "$GITHUB_OUTPUT"
+
+      - name: Wait for immutable exact-head admission
+        id: gate
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.target.outputs.number }}
+        run: |
+          set -euo pipefail
+          previous_head=''
+          stable_count=0
+          for attempt in $(seq 1 90); do
+            pr="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}")"
+            state="$(jq -r '.state' <<<"$pr")"
+            draft="$(jq -r '.draft' <<<"$pr")"
+            mergeable="$(jq -r '.mergeable' <<<"$pr")"
+            head="$(jq -r '.head.sha' <<<"$pr")"
+            head_ref="$(jq -r '.head.ref' <<<"$pr")"
+            base_ref="$(jq -r '.base.ref' <<<"$pr")"
+            base_sha="$(jq -r '.base.sha' <<<"$pr")"
+            current_base="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${TARGET_BASE}" --jq '.object.sha')"
+
+            graph="$(gh api graphql \
+              -f owner="${GITHUB_REPOSITORY_OWNER}" \
+              -f name="${GITHUB_REPOSITORY#*/}" \
+              -F number="$PR_NUMBER" \
+              -f query='query($owner:String!,$name:String!,$number:Int!){repository(owner:$owner,name:$name){pullRequest(number:$number){reviewDecision mergeStateStatus isDraft reviewThreads(first:100){nodes{isResolved} pageInfo{hasNextPage}}}}}')"
+            review_decision="$(jq -r '.data.repository.pullRequest.reviewDecision // ""' <<<"$graph")"
+            merge_state="$(jq -r '.data.repository.pullRequest.mergeStateStatus // "UNKNOWN"' <<<"$graph")"
+            unresolved="$(jq '[.data.repository.pullRequest.reviewThreads.nodes[]? | select(.isResolved != true)] | length' <<<"$graph")"
+            has_more="$(jq -r '.data.repository.pullRequest.reviewThreads.pageInfo.hasNextPage // false' <<<"$graph")"
+
+            checks="$(gh api -H 'Accept: application/vnd.github+json' \
+              "repos/${GITHUB_REPOSITORY}/commits/${head}/check-runs?per_page=100")"
+            check_count="$(jq '.total_count' <<<"$checks")"
+            active_checks="$(jq '[.check_runs[] | select(.status != "completed")] | length' <<<"$checks")"
+            bad_checks="$(jq '[.check_runs[] | select(.status == "completed" and ((.conclusion == "success" or .conclusion == "neutral" or .conclusion == "skipped") | not))] | length' <<<"$checks")"
+
+            statuses="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${head}/status")"
+            status_count="$(jq '.total_count' <<<"$statuses")"
+            bad_statuses="$(jq '[.statuses[] | select(.state == "error" or .state == "failure")] | length' <<<"$statuses")"
+            pending_statuses="$(jq '[.statuses[] | select(.state == "pending")] | length' <<<"$statuses")"
+
+            ready=true
+            test "$state" = open || ready=false
+            test "$draft" = false || ready=false
+            test "$mergeable" = true || ready=false
+            test "$head_ref" = "$TARGET_HEAD" || ready=false
+            test "$base_ref" = "$TARGET_BASE" || ready=false
+            test "$base_sha" = "$current_base" || ready=false
+            test "$review_decision" != CHANGES_REQUESTED || ready=false
+            test "$unresolved" -eq 0 || ready=false
+            test "$has_more" = false || ready=false
+            case "$merge_state" in CLEAN|HAS_HOOKS) ;; *) ready=false ;; esac
+            test "$check_count" -gt 0 || ready=false
+            test "$active_checks" -eq 0 || ready=false
+            test "$bad_checks" -eq 0 || ready=false
+            test "$bad_statuses" -eq 0 || ready=false
+            test "$pending_statuses" -eq 0 || ready=false
+
+            if [ "$head" = "$previous_head" ]; then
+              stable_count=$((stable_count + 1))
+            else
+              stable_count=0
+            fi
+            previous_head="$head"
+
+            printf 'attempt=%s ready=%s head=%s base=%s checks=%s active=%s bad=%s status_count=%s bad_statuses=%s pending_statuses=%s merge_state=%s unresolved=%s stable=%s\n' \
+              "$attempt" "$ready" "$head" "$base_sha" "$check_count" "$active_checks" "$bad_checks" "$status_count" "$bad_statuses" "$pending_statuses" "$merge_state" "$unresolved" "$stable_count"
+
+            if [ "$ready" = true ] && [ "$stable_count" -ge 1 ]; then
+              jq -n \
+                --arg repository "$GITHUB_REPOSITORY" \
+                --argjson pr "$PR_NUMBER" \
+                --arg head "$head" \
+                --arg base "$base_sha" \
+                --arg merge_state "$merge_state" \
+                --arg review_decision "$review_decision" \
+                --argjson checks "$check_count" \
+                --argjson statuses "$status_count" \
+                '{schema:"szl.exact-head-merge-gate/v1",repository:$repository,pr:$pr,head_sha:$head,base_sha:$base,merge_state:$merge_state,review_decision:$review_decision,check_count:$checks,status_count:$statuses,unresolved_review_threads:0,qualified:true}' \
+                > /tmp/estate-release-train-merge-gate.json
+              echo "head_sha=$head" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            sleep 20
+          done
+          echo 'Target PR did not reach an immutable admissible state.' >&2
+          exit 1
+
+      - name: Submit normal exact-head squash merge
+        id: merge
+        shell: bash
+        env:
+          PR_NUMBER: ${{ steps.target.outputs.number }}
+          HEAD_SHA: ${{ steps.gate.outputs.head_sha }}
+        run: |
+          set -euo pipefail
+          current_head="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.head.sha')"
+          test "$current_head" = "$HEAD_SHA"
+          response="$(gh api --method PUT "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/merge" \
+            -f sha="$HEAD_SHA" \
+            -f merge_method=squash \
+            -f commit_title='feat(release): make GitHub, Hugging Face, product, and proof move as one' \
+            -f commit_message='Install the source-authoritative cross-plane release vector, permanent drift verifier, canonical-writer repair dispatch, and immutable release receipts.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>')"
+          test "$(jq -r '.merged' <<<"$response")" = true
+          merge_sha="$(jq -r '.sha' <<<"$response")"
+          jq --arg merge_sha "$merge_sha" '. + {merged:true,merge_sha:$merge_sha}' \
+            /tmp/estate-release-train-merge-gate.json \
+            > /tmp/estate-release-train-merge-receipt.json
+          echo "merge_sha=$merge_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Upload exact merge receipt
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: estate-release-train-merge-${{ github.run_id }}-${{ github.run_attempt }}
+          path: /tmp/estate-release-train-merge-receipt.json
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Remove ephemeral control branch
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          encoded="$(python - <<'PY'
+          import urllib.parse
+          print(urllib.parse.quote('heads/ops/merge-estate-release-train-once', safe=''))
+          PY
+          )"
+          gh api --method DELETE "repos/${GITHUB_REPOSITORY}/git/refs/${encoded}"
