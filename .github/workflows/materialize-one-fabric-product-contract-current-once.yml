@@ -1,0 +1,82 @@
+name: Materialize current one-fabric product contract once
+
+on:
+  push:
+    branches:
+      - fix/one-fabric-product-contract-v1-current
+    paths:
+      - .github/workflows/materialize-one-fabric-product-contract-current-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-one-fabric-product-contract-current-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Prove source file has not diverged from current main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          base="$(git merge-base HEAD origin/main)"
+          git diff --quiet "$base" origin/main -- \
+            docs/strategy/living-command-fabric.v1.json \
+            tests/test_estate_one_fabric_alignment.py
+          echo "SOURCE_MAIN=$(git rev-parse origin/main)" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Materialize current source evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          python tools/materialize_estate_alignment_once.py
+          --source-main "$SOURCE_MAIN"
+          --receipt one-fabric-materialization.json
+
+      - name: Prove permanent product contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
+          python tests/test_living_command_fabric_frontdoor.py
+          python tests/test_estate_one_fabric_alignment.py
+          python -m py_compile \
+            tools/materialize_estate_alignment_once.py \
+            tests/test_estate_one_fabric_alignment.py
+          git diff --check
+
+      - name: Remove one-use machinery and commit review candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm tools/materialize_estate_alignment_once.py
+          rm .github/workflows/materialize-one-fabric-product-contract-current-once.yml
+          rm one-fabric-materialization.json
+          git add -A
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit -m 'fix(alignment): bind A11oy to the one-fabric estate contract' \
+            -m 'Refresh the authenticated source census, add the exact three-five-six taxonomy, bind Lyte to its source-owned runtime, and point product, GitHub, Hugging Face, and proof surfaces at one reviewed movement contract.' \
+            -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+          git push origin HEAD:fix/one-fabric-product-contract-v1-current
