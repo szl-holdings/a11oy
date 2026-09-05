@@ -198,6 +198,68 @@ def card_semantic_sha256(markdown: str) -> str:
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
+def _gate_mode(value: Any) -> str | None:
+    """Normalize only provider-documented gate states; unknown states fail closed."""
+    if value is None or value is False:
+        return None
+    if value is True:
+        return "enabled"
+    if isinstance(value, str) and value in {"auto", "manual"}:
+        return value
+    raise ValueError("gated must be false, true, auto, manual, or absent")
+
+
+def _public_metadata_digest(value: Any) -> str:
+    """Commit public API metadata only, never substitute it for README bytes."""
+    if value is not None and not isinstance(value, dict):
+        raise ValueError("public card metadata must be an object or null")
+    encoded = json.dumps(
+        value, sort_keys=True, separators=(",", ":"),
+        ensure_ascii=True, allow_nan=False,
+    ).encode("utf-8")
+    if len(encoded) > 262144:
+        raise ValueError("public card metadata exceeds the 256 KiB evidence budget")
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def _restricted_card_observation(item: dict[str, Any], mode: str) -> dict[str, Any]:
+    """Record the declared gate without attempting any protected file download."""
+    metadata = item.get("cardData")
+    digest = _public_metadata_digest(metadata)
+    # Copy canonical JSON so mutable provider dictionaries cannot alter evidence.
+    metadata = json.loads(json.dumps(metadata, allow_nan=False))
+    return {
+        "state": "ACCESS_RESTRICTED",
+        "scope": "PUBLIC_METADATA_ONLY",
+        "gateMode": mode,
+        "metadata": metadata,
+        "metadataSha256": digest,
+    }
+
+
+def _validate_card_evidence(item: dict[str, Any], *, label: str) -> None:
+    digest = item.get("cardSemanticSha256")
+    observation = item.get("cardObservation")
+    if item.get("gated") is True:
+        if digest is not None:
+            raise ValueError(f"{label} gated card must not claim a README digest")
+        expected_keys = {"state", "scope", "gateMode", "metadata", "metadataSha256"}
+        if not isinstance(observation, dict) or set(observation) != expected_keys:
+            raise ValueError(f"{label} gated card requires explicit restricted evidence")
+        if (observation["state"] != "ACCESS_RESTRICTED"
+                or observation["scope"] != "PUBLIC_METADATA_ONLY"
+                or observation["gateMode"] not in {"auto", "manual", "enabled"}):
+            raise ValueError(f"{label} restricted card scope or gate mode is invalid")
+        actual = _public_metadata_digest(observation["metadata"])
+        if observation["metadataSha256"] != actual:
+            raise ValueError(f"{label} public metadata digest mismatch")
+        return
+    if observation is not None:
+        raise ValueError(f"{label} ungated card cannot declare restricted evidence")
+    if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
+        raise ValueError(f"{label} cardSemanticSha256 must be a SHA-256 digest")
+
+
 def validate_snapshot_revisions(
     existing: dict[str, Any],
     live: dict[str, Any],
@@ -239,13 +301,7 @@ def validate_snapshot_revisions(
                 stored_sha
             ):
                 raise ValueError(f"{item_id} sha must be a 40-character Git SHA")
-            if (
-                not isinstance(stored_card_digest, str)
-                or not SHA256_RE.fullmatch(stored_card_digest)
-            ):
-                raise ValueError(
-                    f"{item_id} cardSemanticSha256 must be a SHA-256 digest"
-                )
+            _validate_card_evidence(item, label=item_id)
             stored_modified_at = parse_rfc3339_utc(
                 stored_last_modified,
                 field=f"{item_id} lastModified",
@@ -260,7 +316,6 @@ def validate_snapshot_revisions(
                 raise ValueError(f"{item_id} is missing from the live inventory")
             live_sha = live_item.get("sha")
             live_last_modified = live_item.get("lastModified")
-            live_card_digest = live_item.get("cardSemanticSha256")
             if live_sha is None or live_last_modified is None:
                 raise ValueError(
                     f"live {item_id} sha and lastModified must both be present"
@@ -269,13 +324,7 @@ def validate_snapshot_revisions(
                 raise ValueError(
                     f"live {item_id} sha must be a 40-character Git SHA"
                 )
-            if (
-                not isinstance(live_card_digest, str)
-                or not SHA256_RE.fullmatch(live_card_digest)
-            ):
-                raise ValueError(
-                    f"live {item_id} cardSemanticSha256 must be a SHA-256 digest"
-                )
+            _validate_card_evidence(live_item, label=f"live {item_id}")
             live_modified_at = parse_rfc3339_utc(
                 live_last_modified,
                 field=f"live {item_id} lastModified",
@@ -284,6 +333,15 @@ def validate_snapshot_revisions(
                 raise ValueError(
                     f"live {item_id} lastModified must not be in the future"
                 )
+            if item.get("gated") or live_item.get("gated"):
+                if item.get("gated") != live_item.get("gated"):
+                    raise ValueError(f"{item_id} gate policy changed; refresh the snapshot")
+                # Unreadable README changes cannot be called source-only changes.
+                # Pin every restricted revision, even when public metadata matches.
+                if live_sha != stored_sha:
+                    raise ValueError(
+                        f"{item_id} restricted revision changed; refresh the snapshot"
+                    )
             if live_sha == stored_sha:
                 if live_modified_at != stored_modified_at:
                     raise ValueError(
@@ -343,20 +401,13 @@ def validate_generated_revision_evidence(
                 raise ValueError(f"inventory.{plural} entry has no repository id")
             sha = item.get("sha")
             last_modified = item.get("lastModified")
-            card_digest = item.get("cardSemanticSha256")
             if sha is None or last_modified is None:
                 raise ValueError(
                     f"{item_id} sha and lastModified must both be present"
                 )
             if not isinstance(sha, str) or not GIT_SHA_RE.fullmatch(sha):
                 raise ValueError(f"{item_id} sha must be a 40-character Git SHA")
-            if (
-                not isinstance(card_digest, str)
-                or not SHA256_RE.fullmatch(card_digest)
-            ):
-                raise ValueError(
-                    f"{item_id} cardSemanticSha256 must be a SHA-256 digest"
-                )
+            _validate_card_evidence(item, label=item_id)
             modified_at = parse_rfc3339_utc(
                 last_modified,
                 field=f"{item_id} lastModified",
@@ -393,8 +444,10 @@ def semantic_manifest(manifest: dict[str, Any]) -> dict[str, Any]:
     stable = json.loads(json.dumps(manifest))
     for repo_type in ("models", "datasets", "spaces"):
         for item in stable.get("inventory", {}).get(repo_type, []):
-            item.pop("sha", None)
-            item.pop("lastModified", None)
+            # A restricted README is unobserved: never ignore revision drift.
+            if item.get("gated") is not True:
+                item.pop("sha", None)
+                item.pop("lastModified", None)
             if repo_type == "datasets" and isinstance(item.get("tags"), list):
                 item["tags"] = [
                     tag
@@ -423,9 +476,16 @@ def item_summary(item: dict[str, Any], repo_type: str) -> dict[str, Any]:
         raise ValueError(
             f"{item_id} sha must be a 40-character Git SHA before card fetch"
         )
-    card_digest = card_semantic_sha256(
-        fetch_card_markdown(str(item_id), repo_type, revision)
-    )
+    mode = _gate_mode(item.get("gated"))
+    if mode is not None:
+        card_fields = {
+            "cardSemanticSha256": None,
+            "cardObservation": _restricted_card_observation(item, mode),
+        }
+    else:
+        card_fields = {"cardSemanticSha256": card_semantic_sha256(
+            fetch_card_markdown(str(item_id), repo_type, revision)
+        )}
     return {
         "id": item_id,
         "repoType": repo_type,
@@ -436,7 +496,7 @@ def item_summary(item: dict[str, Any], repo_type: str) -> dict[str, Any]:
         "license": card.get("license") or next((tag.removeprefix("license:") for tag in tags if isinstance(tag, str) and tag.startswith("license:")), None),
         "sha": item.get("sha"),
         "lastModified": item.get("lastModified"),
-        "cardSemanticSha256": card_digest,
+        **card_fields,
         "createdAt": item.get("createdAt"),
         "tags": tags,
         "claimStatus": "generated-mirror" if item_id == "SZLHOLDINGS/a11oy-v19-substrate" else "inventory",
@@ -476,7 +536,7 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
         "spaces": len(spaces),
     }
     return {
-        "schemaVersion": 1,
+        "schemaVersion": 2,
         "generatedBy": "scripts/audit_huggingface_ecosystem.py",
         "observedAt": observed_at,
         "org": ORG,
@@ -485,9 +545,17 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
             "authenticated": False,
             "privateAssetsIncluded": False,
             "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
+            "cardEvidenceBoundary": (
+                "Gated repositories are inventoried from public API metadata only. "
+                "Their cardObservation is ACCESS_RESTRICTED and cardSemanticSha256 "
+                "is null; metadataSha256 is not a README or weight digest. "
+                "No access request, authentication, or protected download is attempted. "
+                "Restricted revisions remain exact-pinned in --check."
+            ),
             "revisionFields": (
-                "Every item has sha and lastModified snapshot evidence plus a "
-                "cardSemanticSha256 claim digest at observedAt; --check verifies "
+                "Every item has sha and lastModified snapshot evidence. Ungated "
+                "cards have a cardSemanticSha256 claim digest at observedAt; "
+                "gated cards have explicit restricted metadata evidence. --check verifies "
                 "retained revisions, rejects card and curated-tag drift, and "
                 "ignores only complete, valid later source-only revision changes "
                 "and Hugging Face-generated dataset size, modality, format, "

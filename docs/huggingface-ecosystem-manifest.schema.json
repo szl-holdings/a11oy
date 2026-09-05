@@ -2,63 +2,136 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "SZLHOLDINGS Hugging Face ecosystem manifest",
   "type": "object",
-  "required": ["schemaVersion", "generatedBy", "observedAt", "org", "inventoryScope", "counts", "inventory", "guardrails"],
+  "required": [
+    "schemaVersion",
+    "generatedBy",
+    "observedAt",
+    "org",
+    "inventoryScope",
+    "counts",
+    "inventory",
+    "guardrails"
+  ],
   "properties": {
-    "schemaVersion": { "const": 1 },
-    "generatedBy": { "type": "string" },
+    "schemaVersion": {
+      "const": 2
+    },
+    "generatedBy": {
+      "type": "string"
+    },
     "observedAt": {
       "type": "string",
       "format": "date-time",
       "pattern": "(?:Z|\\+00:00)$"
     },
-    "org": { "const": "SZLHOLDINGS" },
+    "org": {
+      "const": "SZLHOLDINGS"
+    },
     "inventoryScope": {
       "type": "object",
-      "required": ["visibility", "authenticated", "privateAssetsIncluded", "countMeaning", "revisionFields"],
+      "required": [
+        "visibility",
+        "authenticated",
+        "privateAssetsIncluded",
+        "countMeaning",
+        "revisionFields",
+        "cardEvidenceBoundary"
+      ],
       "properties": {
-        "visibility": { "const": "public-only" },
-        "authenticated": { "const": false },
-        "privateAssetsIncluded": { "const": false },
-        "countMeaning": { "type": "string" },
-        "revisionFields": { "type": "string" }
+        "visibility": {
+          "const": "public-only"
+        },
+        "authenticated": {
+          "const": false
+        },
+        "privateAssetsIncluded": {
+          "const": false
+        },
+        "countMeaning": {
+          "type": "string"
+        },
+        "revisionFields": {
+          "type": "string"
+        },
+        "cardEvidenceBoundary": {
+          "type": "string"
+        }
       }
     },
-    "canonicalGitHubRepo": { "type": "string" },
-    "canonicalRule": { "type": "string" },
+    "canonicalGitHubRepo": {
+      "type": "string"
+    },
+    "canonicalRule": {
+      "type": "string"
+    },
     "publicApiEndpoints": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "counts": {
       "type": "object",
-      "required": ["models", "datasets", "spaces"],
+      "required": [
+        "models",
+        "datasets",
+        "spaces"
+      ],
       "properties": {
-        "models": { "type": "integer", "minimum": 0 },
-        "datasets": { "type": "integer", "minimum": 0 },
-        "spaces": { "type": "integer", "minimum": 0 }
+        "models": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "datasets": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "spaces": {
+          "type": "integer",
+          "minimum": 0
+        }
       }
     },
     "guardrails": {
       "type": "array",
-      "items": { "type": "string" }
+      "items": {
+        "type": "string"
+      }
     },
     "inventory": {
       "type": "object",
-      "required": ["models", "datasets", "spaces"],
+      "required": [
+        "models",
+        "datasets",
+        "spaces"
+      ],
       "properties": {
-        "models": { "$ref": "#/$defs/items" },
-        "datasets": { "$ref": "#/$defs/items" },
-        "spaces": { "$ref": "#/$defs/items" }
+        "models": {
+          "$ref": "#/$defs/items"
+        },
+        "datasets": {
+          "$ref": "#/$defs/items"
+        },
+        "spaces": {
+          "$ref": "#/$defs/items"
+        }
       }
     },
     "recommendedActions": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["target", "action"],
+        "required": [
+          "target",
+          "action"
+        ],
         "properties": {
-          "target": { "type": "string" },
-          "action": { "type": "string" }
+          "target": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string"
+          }
         }
       }
     }
@@ -68,15 +141,48 @@
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "repoType", "private", "sha", "lastModified", "cardSemanticSha256", "unsafeFlags", "evidenceUrls"],
+        "required": [
+          "id",
+          "repoType",
+          "private",
+          "sha",
+          "lastModified",
+          "cardSemanticSha256",
+          "unsafeFlags",
+          "evidenceUrls"
+        ],
         "properties": {
-          "id": { "type": "string" },
-          "repoType": { "enum": ["model", "dataset", "space"] },
-          "private": { "type": "boolean" },
-          "gated": { "type": "boolean" },
-          "disabled": { "type": "boolean" },
-          "sdk": { "type": ["string", "null"] },
-          "license": { "type": ["string", "null"] },
+          "id": {
+            "type": "string"
+          },
+          "repoType": {
+            "enum": [
+              "model",
+              "dataset",
+              "space"
+            ]
+          },
+          "private": {
+            "type": "boolean"
+          },
+          "gated": {
+            "type": "boolean"
+          },
+          "disabled": {
+            "type": "boolean"
+          },
+          "sdk": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "license": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "sha": {
             "type": "string",
             "pattern": "^[0-9a-f]{40}$"
@@ -87,21 +193,109 @@
             "pattern": "(?:Z|\\+00:00)$"
           },
           "cardSemanticSha256": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "pattern": "^[0-9a-f]{64}$"
           },
-          "createdAt": { "type": ["string", "null"] },
-          "tags": { "type": "array" },
-          "claimStatus": { "type": "string" },
+          "createdAt": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tags": {
+            "type": "array"
+          },
+          "claimStatus": {
+            "type": "string"
+          },
           "evidenceUrls": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
           },
           "unsafeFlags": {
             "type": "array",
-            "items": { "type": "string" }
+            "items": {
+              "type": "string"
+            }
+          },
+          "cardObservation": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "state",
+              "scope",
+              "gateMode",
+              "metadata",
+              "metadataSha256"
+            ],
+            "properties": {
+              "state": {
+                "const": "ACCESS_RESTRICTED"
+              },
+              "scope": {
+                "const": "PUBLIC_METADATA_ONLY"
+              },
+              "gateMode": {
+                "enum": [
+                  "auto",
+                  "manual",
+                  "enabled"
+                ]
+              },
+              "metadata": {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              },
+              "metadataSha256": {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              }
+            }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {
+              "required": [
+                "gated"
+              ],
+              "properties": {
+                "gated": {
+                  "const": true
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "cardObservation"
+              ],
+              "properties": {
+                "cardSemanticSha256": {
+                  "type": "null"
+                }
+              }
+            },
+            "else": {
+              "properties": {
+                "cardSemanticSha256": {
+                  "type": "string"
+                }
+              },
+              "not": {
+                "required": [
+                  "cardObservation"
+                ]
+              }
+            }
+          }
+        ]
       }
     }
   }
