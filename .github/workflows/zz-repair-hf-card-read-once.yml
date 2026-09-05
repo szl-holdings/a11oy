@@ -1,4 +1,4 @@
-name: Repair public Hugging Face card transport once
+name: Diagnose exact Hugging Face semantic delta once
 
 on:
   push:
@@ -6,14 +6,14 @@ on:
     paths: [.github/workflows/zz-repair-hf-card-read-once.yml]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
-  group: repair-hf-public-card-read-once
+  group: diagnose-hf-public-card-semantic-delta-once
   cancel-in-progress: false
 
 jobs:
-  repair:
+  diagnose:
     if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/hf-public-card-read-401-20260905'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -25,118 +25,92 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
-      - name: Apply the exact transport repair and executable regression
+      - name: Generate through the verified resolve transport and print only semantic drift
         shell: bash
         run: |
           set -euo pipefail
           test "$(git hash-object scripts/audit_huggingface_ecosystem.py)" = 6a963fdf602fed8705c9bd704705354763d97f92
-          test "$(git hash-object scripts/test_audit_huggingface_ecosystem.py)" = 8d271f3615cfd3a4d774228f4df916aba496953d
-          test "$(git hash-object .github/workflows/zz-diagnose-hf-card-read-once.yml)" = 347745baf912eb6fe8fd27505ccaba92b8782886
           python - <<'PY'
           from pathlib import Path
-
-          collector = Path('scripts/audit_huggingface_ecosystem.py')
-          source = collector.read_text(encoding='utf-8')
+          path = Path('scripts/audit_huggingface_ecosystem.py')
+          source = path.read_text(encoding='utf-8')
           raw = 'f"https://huggingface.co/{prefix}{encoded_id}/raw/"'
           resolved = 'f"https://huggingface.co/{prefix}{encoded_id}/resolve/"'
           if source.count(raw) != 1 or resolved in source:
-              raise SystemExit('Exact card transport boundary changed; refusing broad edit')
-          collector.write_text(source.replace(raw, resolved), encoding='utf-8')
-
-          tests = Path('scripts/test_audit_huggingface_ecosystem.py')
-          source = tests.read_text(encoding='utf-8')
-          marker = '    def test_manifest_has_public_scope_and_no_unrelated_canonical_numbers(self) -> None:\n'
-          if source.count(marker) != 1:
-              raise SystemExit('Test insertion boundary changed; refusing broad edit')
-          lines = [
-              '    def test_card_fetch_uses_exact_resolve_revision_and_fails_closed(self) -> None:',
-              '        original_urlopen = audit.urllib.request.urlopen',
-              '        calls: list[str] = []',
-              '',
-              '        class Response:',
-              '            def __enter__(self):',
-              '                return self',
-              '',
-              '            def __exit__(self, *_: object) -> None:',
-              '                return None',
-              '',
-              '            def read(self) -> bytes:',
-              '                return b"# exact revision\\r\\n"',
-              '',
-              '        def success(url: str, *, timeout: float):',
-              '            self.assertEqual(timeout, 30)',
-              '            calls.append(url)',
-              '            return Response()',
-              '',
-              '        def missing(url: str, *, timeout: float):',
-              '            self.assertEqual(timeout, 30)',
-              '            calls.append(url)',
-              '            raise audit.urllib.error.HTTPError(url, 404, "Not Found", {}, None)',
-              '',
-              '        def unauthorized(url: str, *, timeout: float):',
-              '            self.assertEqual(timeout, 30)',
-              '            calls.append(url)',
-              '            raise audit.urllib.error.HTTPError(url, 401, "Authentication Required", {}, None)',
-              '',
-              '        revision = "e" * 40',
-              '        cases = (',
-              '            ("model", "SZLHOLDINGS/model", ""),',
-              '            ("dataset", "SZLHOLDINGS/dataset", "datasets/"),',
-              '            ("space", "SZLHOLDINGS/space", "spaces/"),',
-              '        )',
-              '        try:',
-              '            audit.urllib.request.urlopen = success',
-              '            for repo_type, item_id, prefix in cases:',
-              '                with self.subTest(repo_type=repo_type):',
-              '                    self.assertEqual(',
-              '                        self.original_fetch_card_markdown(item_id, repo_type, revision),',
-              '                        "# exact revision\\r\\n",',
-              '                    )',
-              '                    self.assertEqual(',
-              '                        calls[-1],',
-              '                        f"https://huggingface.co/{prefix}{item_id}/resolve/{revision}/README.md",',
-              '                    )',
-              '            audit.urllib.request.urlopen = missing',
-              '            self.assertEqual(',
-              '                self.original_fetch_card_markdown("SZLHOLDINGS/no-card", "model", revision),',
-              '                "",',
-              '            )',
-              '            audit.urllib.request.urlopen = unauthorized',
-              '            with self.assertRaises(audit.urllib.error.HTTPError) as context:',
-              '                self.original_fetch_card_markdown("SZLHOLDINGS/gated", "model", revision)',
-              '            self.assertEqual(context.exception.code, 401)',
-              '        finally:',
-              '            audit.urllib.request.urlopen = original_urlopen',
-              '',
-              '        self.assertEqual(len(calls), 5)',
-              '        self.assertTrue(all("/resolve/" in url for url in calls))',
-              '        self.assertTrue(all("/raw/" not in url for url in calls))',
-              '',
-          ]
-          addition = '\n'.join(lines) + '\n'
-          tests.write_text(source.replace(marker, addition + marker), encoding='utf-8')
+              raise SystemExit('Exact card transport boundary changed')
+          path.write_text(source.replace(raw, resolved), encoding='utf-8')
           PY
-          python -m py_compile scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py
-          python scripts/test_audit_huggingface_ecosystem.py
-          python scripts/audit_huggingface_ecosystem.py --check --output docs/huggingface-ecosystem-manifest.json
-          python scripts/build_ecosystem_stage_matrix.py --check
-          git diff --check
-      - name: Commit only the durable two-file repair and consume controllers
-        env:
-          GH_TOKEN: ${{ github.token }}
-          EXPECTED_HEAD: ${{ github.sha }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          branch=fix/hf-public-card-read-401-20260905
-          test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$EXPECTED_HEAD"
-          git rm -- .github/workflows/zz-diagnose-hf-card-read-once.yml .github/workflows/zz-repair-hf-card-read-once.yml
-          git add -- scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py
-          git diff --cached --check
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/zz-diagnose-hf-card-read-once.yml .github/workflows/zz-repair-hf-card-read-once.yml scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py "
-          git config user.name 'github-actions[bot]'
-          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m 'fix(hf): read public cards through exact resolve revisions' -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
-          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
-          echo "::add-mask::$auth"
-          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "HEAD:refs/heads/$branch"
+          python -m py_compile scripts/audit_huggingface_ecosystem.py
+          python scripts/audit_huggingface_ecosystem.py --output /tmp/hf-candidate.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          existing = json.loads(Path('docs/huggingface-ecosystem-manifest.json').read_text(encoding='utf-8'))
+          candidate = json.loads(Path('/tmp/hf-candidate.json').read_text(encoding='utf-8'))
+
+          def stable_item(item, category):
+              value = json.loads(json.dumps(item))
+              value.pop('sha', None)
+              value.pop('lastModified', None)
+              if category == 'datasets' and isinstance(value.get('tags'), list):
+                  value['tags'] = [
+                      tag for tag in value['tags']
+                      if not (
+                          isinstance(tag, str)
+                          and tag.startswith(('size_categories:', 'modality:', 'format:', 'library:'))
+                      )
+                  ]
+              return value
+
+          report = {
+              'existing_observedAt': existing.get('observedAt'),
+              'candidate_observedAt': candidate.get('observedAt'),
+              'existing_counts': existing.get('counts'),
+              'candidate_counts': candidate.get('counts'),
+              'top_level_changes': {},
+              'inventory': {},
+          }
+          for key in sorted(set(existing) | set(candidate)):
+              if key in {'observedAt', 'inventory'}:
+                  continue
+              if existing.get(key) != candidate.get(key):
+                  report['top_level_changes'][key] = {
+                      'existing': existing.get(key),
+                      'candidate': candidate.get(key),
+                  }
+
+          for category in ('models', 'datasets', 'spaces'):
+              old = {
+                  item['id']: stable_item(item, category)
+                  for item in existing.get('inventory', {}).get(category, [])
+              }
+              new = {
+                  item['id']: stable_item(item, category)
+                  for item in candidate.get('inventory', {}).get(category, [])
+              }
+              changed = []
+              for item_id in sorted(set(old) & set(new)):
+                  if old[item_id] == new[item_id]:
+                      continue
+                  fields = {}
+                  for field in sorted(set(old[item_id]) | set(new[item_id])):
+                      if old[item_id].get(field) != new[item_id].get(field):
+                          fields[field] = {
+                              'existing': old[item_id].get(field),
+                              'candidate': new[item_id].get(field),
+                          }
+                  changed.append({'id': item_id, 'fields': fields})
+              report['inventory'][category] = {
+                  'added': sorted(set(new) - set(old)),
+                  'removed': sorted(set(old) - set(new)),
+                  'changed': changed,
+              }
+
+          print(json.dumps(report, indent=2, sort_keys=True))
+          if not report['top_level_changes'] and all(
+              not block['added'] and not block['removed'] and not block['changed']
+              for block in report['inventory'].values()
+          ):
+              raise SystemExit('No semantic drift found; checker behavior needs separate diagnosis')
+          PY
