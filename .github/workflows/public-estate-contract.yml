@@ -12,6 +12,7 @@ on:
       - scripts/hf_keep_policy.py
       - scripts/hf_consolidate_fleet.py
       - tests/test_public_estate_alignment.py
+      - tests/test_hf_keep_policy_continuations.py
       - .github/workflows/public-estate-contract.yml
   push:
     branches: [main]
@@ -24,6 +25,7 @@ on:
       - scripts/hf_keep_policy.py
       - scripts/hf_consolidate_fleet.py
       - tests/test_public_estate_alignment.py
+      - tests/test_hf_keep_policy_continuations.py
       - .github/workflows/public-estate-contract.yml
   workflow_dispatch: {}
 
@@ -62,9 +64,12 @@ jobs:
           scripts/hf_consolidate_fleet.py
           scripts/render_public_estate_alignment.py
           tests/test_public_estate_alignment.py
+          tests/test_hf_keep_policy_continuations.py
 
       - name: Prove generated consumers are current
         run: python scripts/render_public_estate_alignment.py --check
 
       - name: Prove topology, truth, and authority
-        run: python -m unittest -v tests.test_public_estate_alignment
+        run: >-
+          python -m unittest -v tests.test_public_estate_alignment
+          tests.test_hf_keep_policy_continuations
