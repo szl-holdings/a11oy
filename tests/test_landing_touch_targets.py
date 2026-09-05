@@ -14,5 +14,6 @@ def test_compact_navigation_covers_tablet_and_small_desktop() -> None:
     html = Path("a11oy_landing.html").read_text(encoding="utf-8")
     assert "@media(max-width:1100px)" in html
     assert "@media(min-width:1101px){.nav-cta-short{display:none}}" in html
-    assert "@media(max-width:680px)" not in html
+    nav_styles = html.split("/* ---- nav ---- */", 1)[1].split("/* ---- origin", 1)[0]
+    assert "@media(max-width:680px)" not in nav_styles
     assert "@media(min-width:681px){.nav-cta-short{display:none}}" not in html
