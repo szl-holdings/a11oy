@@ -1200,7 +1200,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         # Record this whole run into the run-of-runs chain. Every caller of
         # _do_run (single-pass and governed-cycle paths) reaches this same atomic
         # append, so concurrent requests cannot observe one predecessor twice.
-        run_record = _append_run_record(
+        _append_run_record(
             _RUN_CHAIN,
             _RUN_CHAIN_LOCK,
             {
