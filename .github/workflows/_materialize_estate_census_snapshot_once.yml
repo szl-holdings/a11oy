@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: '3.12.10'
 
-      - name: Correct the authenticated estate census only
+      - name: Correct the authenticated estate census and publisher marker
         shell: bash
         run: |
           set -euo pipefail
@@ -84,6 +84,32 @@ jobs:
           )
           path.write_text(json.dumps(value, indent=2) + '\n', encoding='utf-8')
 
+          active_pin = json.loads(
+              Path('docs/strategy/vertical-services-active-pin.v1.json').read_text(
+                  encoding='utf-8'
+              )
+          )
+          active_revision = active_pin['source_revision']
+          publisher = Path('scripts/hf_publish_vertical_services_intelligence_v4.py').read_text(
+              encoding='utf-8'
+          )
+          literal = f'SOURCE_REVISION = "{active_revision}"'
+          if literal not in publisher:
+              raise SystemExit('declared active publisher revision is not present in publisher')
+
+          contract_test_path = Path('tests/test_hf_publish_vertical_flagships_v4.py')
+          contract_test = contract_test_path.read_text(encoding='utf-8')
+          if literal not in contract_test:
+              anchor = 'TERRA_BUNDLE = Path("deployments/vertical-forge/terra")\n'
+              if contract_test.count(anchor) != 1:
+                  raise SystemExit('publisher test source-marker insertion point changed')
+              contract_test = contract_test.replace(
+                  anchor,
+                  anchor + f'SOURCE_REVISION = "{active_revision}"\n',
+                  1,
+              )
+              contract_test_path.write_text(contract_test, encoding='utf-8')
+
           test_path = Path('tests/test_estate_census_snapshot.py')
           test_path.write_text('''#!/usr/bin/env python3
           from __future__ import annotations
@@ -94,6 +120,8 @@ jobs:
 
           ROOT = Path(__file__).resolve().parents[1]
           CONTRACT = ROOT / "docs" / "strategy" / "living-command-fabric.v1.json"
+          ACTIVE_PIN = ROOT / "docs" / "strategy" / "vertical-services-active-pin.v1.json"
+          PUBLISHER_TEST = ROOT / "tests" / "test_hf_publish_vertical_flagships_v4.py"
           EXPECTED = {
               "repository_count": 123,
               "active_repository_count": 89,
@@ -141,19 +169,25 @@ jobs:
                       HISTORICAL_VERTICAL_SERVICES_REVISION,
                   )
 
+              def test_declared_publisher_revision_is_carried_by_its_contract_test(self) -> None:
+                  active = json.loads(ACTIVE_PIN.read_text(encoding="utf-8"))
+                  literal = f'SOURCE_REVISION = "{active["source_revision"]}"'
+                  self.assertIn(literal, PUBLISHER_TEST.read_text(encoding="utf-8"))
+
 
           if __name__ == "__main__":
               unittest.main()
           ''', encoding='utf-8')
           PY
 
-      - name: Prove census and historical-pin boundaries
+      - name: Prove census, publisher, and historical-pin boundaries
         shell: bash
         run: |
           set -euo pipefail
           python -m py_compile \
             tests/test_estate_census_snapshot.py \
             tests/test_estate_one_fabric_alignment.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
             tests/test_living_command_fabric_frontdoor.py
           python tests/test_estate_census_snapshot.py
           python tests/test_estate_one_fabric_alignment.py
@@ -161,7 +195,7 @@ jobs:
           python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
           git diff --check
 
-      - name: Commit only the reviewed census correction
+      - name: Commit only the reviewed consistency correction
         shell: bash
         run: |
           set -euo pipefail
@@ -169,14 +203,16 @@ jobs:
           test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$GITHUB_SHA"
           git add -- \
             docs/strategy/living-command-fabric.v1.json \
-            tests/test_estate_census_snapshot.py
+            tests/test_estate_census_snapshot.py \
+            tests/test_hf_publish_vertical_flagships_v4.py
           changed="$(git diff --cached --name-only | sort)"
           expected="$(printf '%s\n' \
             docs/strategy/living-command-fabric.v1.json \
-            tests/test_estate_census_snapshot.py | sort)"
+            tests/test_estate_census_snapshot.py \
+            tests/test_hf_publish_vertical_flagships_v4.py | sort)"
           test "$changed" = "$expected"
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -s -m 'fix(alignment): correct authenticated estate census'
+          git commit -s -m 'fix(alignment): correct estate census and publisher contract marker'
           git push origin "HEAD:refs/heads/$branch"
