@@ -276,6 +276,12 @@ def test_archived_vertical_repositories_remain_out_of_source_links() -> None:
     assert "https://github.com/szl-holdings/szl-fleet-overlay" not in text
     assert "a11oy/tree/main/verticals/counsel" in text
     assert "a11oy/tree/main/verticals/vessels" in text
+    module = load_implementation()
+    sentra = next(item for item in module.FLAGSHIPS if item["slug"] == "sentra")
+    assert sentra["source"] == (
+        "https://github.com/szl-holdings/a11oy/blob/main/"
+        "scripts/hf_publish_vertical_flagships_v4_impl.py"
+    )
 
 
 def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:

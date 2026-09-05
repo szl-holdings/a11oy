@@ -51,7 +51,7 @@ FLAGSHIPS: tuple[dict[str, Any], ...] = (
         "title": "Sentra",
         "vertical": "ASSURANCE COMMAND",
         "short": "Admission, receipt verification, and evidence assurance",
-        "source": "https://github.com/szl-holdings/a11oy/tree/main/organs/sentra",
+        "source": "https://github.com/szl-holdings/a11oy/blob/main/scripts/hf_publish_vertical_flagships_v4_impl.py",
         "upstream": f"{A11OY}/api/a11oy/v1/vert/cyber/feed",
         "workflow": ("EVIDENCE", "ADMISSION", "VERIFY", "REVIEW", "RECEIPT"),
         "lens": "attack",
