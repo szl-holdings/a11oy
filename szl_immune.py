@@ -585,6 +585,8 @@ def _field(now: Optional[float] = None, probe=_probe_json) -> dict:
     field_url = _KERNEL_LATTICE_URL + "/api/field"
     state_url = _KERNEL_SPACE_URL + "/api/immune/state"
     status, data, err = probe(field_url)
+    primary_status = status
+    primary_error = err
     body = data if isinstance(data, dict) else {}
     reachable = status == 200 and isinstance(data, dict)
     fallback_state = False
@@ -648,8 +650,24 @@ def _field(now: Optional[float] = None, probe=_probe_json) -> dict:
         "ledger": body.get("ledger") if reachable else None,
         "upstream_http": status,
         "error": None if reachable else (err or "field unobserved"),
-        "channel": "B",
-        "space": "SZLHOLDINGS/immune-lattice",
+        "fallback_from": (
+            {
+                "channel": "B",
+                "space": "SZLHOLDINGS/immune-lattice",
+                "contract": "/api/field",
+                "url": field_url,
+                "upstream_http": primary_status,
+                "error": primary_error or "field unobserved",
+            }
+            if fallback_state
+            else None
+        ),
+        "channel": "A" if fallback_state else "B",
+        "space": (
+            "SZLHOLDINGS/immune"
+            if fallback_state
+            else "SZLHOLDINGS/immune-lattice"
+        ),
         "contract": "/api/immune/state" if fallback_state else "/api/field",
         "url": state_url if fallback_state else field_url,
         "product_tab": "/immune",
