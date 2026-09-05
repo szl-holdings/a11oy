@@ -1,0 +1,119 @@
+name: Finalize shared runtime payload once
+
+on:
+  push:
+    branches:
+      - fix/runtime-boundary-postmerge-review-20260905
+    paths:
+      - .github/workflows/_finalize_shared_runtime_payload_once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: finalize-shared-runtime-payload-a11oy
+  cancel-in-progress: false
+
+jobs:
+  finalize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/runtime-boundary-postmerge-review-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Remove unused return assignment and regenerate manifest
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          from pathlib import Path
+
+          source = Path("szl_agentic_loop.py")
+          text = source.read_text(encoding="utf-8")
+          old = "        run_record = _append_run_record(\n"
+          new = "        _append_run_record(\n"
+          if text.count(old) != 1:
+              raise SystemExit(f"expected one unused assignment target, found {text.count(old)}")
+          source.write_text(text.replace(old, new, 1), encoding="utf-8")
+
+          files = ("szl_agentic_loop.py", "szl_immune.py")
+          payload = {
+              "files": {
+                  path: hashlib.sha256(Path(path).read_bytes()).hexdigest()
+                  for path in files
+              },
+              "payload_id": "runtime-boundary-1994",
+              "schema": "szl-shared-source-payload/v1",
+          }
+          Path(".github/shared-source-payload-manifest.json").write_text(
+              json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          git diff --check
+
+      - name: Run focused inherited regressions
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_szl_immune_kernel.py \
+            -q
+          python -m py_compile szl_agentic_loop.py szl_immune.py
+
+      - name: Independently verify manifest hashes
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib
+          import json
+          from pathlib import Path
+
+          path = Path(".github/shared-source-payload-manifest.json")
+          manifest = json.loads(path.read_text(encoding="utf-8"))
+          expected = {
+              name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
+              for name in ("szl_agentic_loop.py", "szl_immune.py")
+          }
+          assert manifest == {
+              "files": expected,
+              "payload_id": "runtime-boundary-1994",
+              "schema": "szl-shared-source-payload/v1",
+          }
+          print(hashlib.sha256(path.read_bytes()).hexdigest())
+          PY
+
+      - name: Commit permanent files and self-remove
+        run: |
+          set -euo pipefail
+          rm .github/workflows/_finalize_shared_runtime_payload_once.yml
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            .github/shared-source-payload-manifest.json \
+            .github/workflows/_finalize_shared_runtime_payload_once.yml \
+            szl_agentic_loop.py
+          git commit -m "fix(runtime): remove unused shared-chain return binding
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/runtime-boundary-postmerge-review-20260905
