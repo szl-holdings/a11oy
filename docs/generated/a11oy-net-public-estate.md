@@ -11,5 +11,5 @@ This proof surface follows the A11oy public-estate contract. Product, GitHub sou
 | PRISM Counsel | `szl-holdings/a11oy` | `SZLHOLDINGS/counsel` | `PUBLIC_SOURCE_EVIDENCE` |
 | PURIQ Finance | `szl-holdings/puriq-live` | `SZLHOLDINGS/finance` | `PUBLIC_SOURCE_EVIDENCE` |
 
-Contract alignment SHA-256: `bb19a2af02d27b83f90adaffe20a30b8729ad0cc6a8b720574ea0f14cd36f9e6`.
+Contract alignment SHA-256: `b80b357999d54b447e5b385b444f74be7ceebfdb1591683f6d91e18cd8f0103f`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->

@@ -148,6 +148,11 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
             raise ContractError(f"invalid Hub count: {key}")
 
     payload = {
+        # Bind every rendered mapping, truth state, and authority field, not
+        # just counts: different public claims must produce different hashes.
+        "contractSha256": hashlib.sha256(
+            json.dumps(contract, sort_keys=True, separators=(",", ":")).encode("utf-8")
+        ).hexdigest(),
         "contractSchema": contract["schema"],
         "contractVersion": contract["version"],
         "publicDomainBodies": len(bodies),
