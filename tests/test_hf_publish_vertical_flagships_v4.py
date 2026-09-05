@@ -61,7 +61,7 @@ def test_v4_renderer_retains_six_domain_templates() -> None:
     assert 'PUBLIC_EXPERIENCE_VERSION = "4.0.0"' in text
     assert 'data-szl-domain-experience-v4="true"' in text
     assert '"terra":' in text and "parcel-map" in text and "UNDERWRITING QUEUE" in text
-    assert '"sentra":' in text and "attack path graph" in text and "RESPONSE QUEUE" in text
+    assert '"sentra":' in text and "assurance admission graph" in text and "ASSURANCE EVIDENCE QUEUE" in text
     assert '"counsel":' in text and "AUTHORITY RAIL" in text and "MATTER / WORK PRODUCT" in text
     assert '"finance":' in text and "DECISION TAPE" in text and "STRESS LANES" in text
     assert '"vessels":' in text and "VOYAGE WATCH" in text and "maritime route chart" in text
@@ -192,11 +192,13 @@ def test_demo_visuals_have_visible_illustrative_disclosures() -> None:
     badge = '<span class="illus">Illustrative — schematic, not live data</span>'
 
     assert templates["terra"].count(badge) == 1
+    assert templates["sentra"].count(badge) == 2
     assert templates["counsel"].count(badge) == 1
     assert templates["finance"].count(badge) == 1
     assert templates["lyte"].count(badge) == 2
 
     assert 'class="panel parcel-map" aria-label=' in templates["terra"]
+    assert 'class="panel queue">' + badge in templates["sentra"]
     assert 'class="panel matter">' + badge in templates["counsel"]
     assert 'class="tape" aria-label=' in templates["finance"]
     assert 'class="panel services">' + badge in templates["lyte"]
@@ -238,7 +240,7 @@ def test_cards_are_license_complete_and_short_descriptions_are_bounded() -> None
     assert "tags:" in text
     for phrase in (
         "Parcel-to-portfolio real estate decision intelligence",
-        "Evidence-first cyber attack-path and response intelligence",
+        "Admission, receipt verification, and evidence assurance",
         "Matter workspace for research, drafting, and verification",
         "Provenance-first financial signal and decision console",
         "Fleet route, risk, and voyage intelligence with receipts",
@@ -274,6 +276,12 @@ def test_archived_vertical_repositories_remain_out_of_source_links() -> None:
     assert "https://github.com/szl-holdings/szl-fleet-overlay" not in text
     assert "a11oy/tree/main/verticals/counsel" in text
     assert "a11oy/tree/main/verticals/vessels" in text
+    module = load_implementation()
+    sentra = next(item for item in module.FLAGSHIPS if item["slug"] == "sentra")
+    assert sentra["source"] == (
+        "https://github.com/szl-holdings/a11oy/blob/main/"
+        "scripts/hf_publish_vertical_flagships_v4_impl.py"
+    )
 
 
 def test_owner_dispatch_and_canonical_automatic_writer_point_at_v4() -> None:
