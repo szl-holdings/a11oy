@@ -84,7 +84,9 @@ def test_public_header_is_command_and_proof_registry() -> None:
     assert "text: 'Command'" in BAR_JS
     assert "Proof registry ↗" in BAR_JS
     assert "https://a11oy.net" in BAR_JS
-    assert '<a href="/console">Command</a>' in LANDING
+    landing_header = LANDING.split("<header", 1)[1].split("</header>", 1)[0]
+    assert 'href="/console"' in landing_header
+    assert '<span class="nav-cta-full">Command</span>' in landing_header
     assert "Proof registry ↗" in LANDING
     assert 'href="https://a11oy.net"' in LANDING
     assert ">Command center</span> →" in LANDING
