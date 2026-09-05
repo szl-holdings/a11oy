@@ -1,0 +1,75 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Refresh ecosystem stage matrix once
+
+on:
+  push:
+    branches:
+      - fix/ecosystem-stage-matrix-currentness-20260905
+    paths:
+      - .github/workflows/zz-refresh-ecosystem-stage-matrix-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-ecosystem-stage-matrix-once
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: regenerate dependent matrix and prove operational lockstep
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/ecosystem-stage-matrix-currentness-20260905
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12.10"
+
+      - name: Regenerate and prove the manifest-derived matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/build_ecosystem_stage_matrix.py
+          python scripts/build_ecosystem_stage_matrix.py --check
+          python scripts/test_audit_huggingface_ecosystem.py
+          python -m unittest tests.test_readiness_blocker_repairs -v
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          manifest = json.loads(Path("docs/huggingface-ecosystem-manifest.json").read_text(encoding="utf-8"))
+          matrix = json.loads(Path("docs/ecosystem-stage-matrix.json").read_text(encoding="utf-8"))
+          assert matrix["observedAt"] == manifest["observedAt"]
+          assert matrix["machineGeneratedCounts"]["huggingFacePublic"] == manifest["counts"]
+          expected = sum(len(items) for items in manifest["inventory"].values())
+          assert len(matrix["huggingFace"]) == expected
+          print(f"matrix bound to {expected} public Hugging Face inventory rows")
+          PY
+          git diff --check
+
+      - name: Commit only the dependent generated artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/zz-refresh-ecosystem-stage-matrix-once.yml
+          git add docs/ecosystem-stage-matrix.json
+          git config user.name "SZL Ecosystem Evidence Controller"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit \
+            -m "fix(ci): refresh ecosystem stage matrix with HF manifest" \
+            -m "Regenerate the dependent stage matrix from the exact refreshed public Hugging Face inventory so operational validation and currentness gates consume one evidence snapshot." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/ecosystem-stage-matrix-currentness-20260905
