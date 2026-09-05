@@ -3,8 +3,8 @@
 
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
-**Measured Hub inventory:** 16 public Spaces · 44 models · 33 datasets as of `2026-09-05T01:59:52Z`.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
+**Measured Hub inventory:** 17 public Spaces · 45 models · 34 datasets as of `2026-09-05T19:30:46Z`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
 ### Five public domain bodies
 
@@ -25,5 +25,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `1348327f75547e739f91e66a64e5515385c5270fea718d00289740a15d69c7c7`.
+Alignment receipt: `fdc376cfd8043fab255533a84bb300bd89cf064f28f005a53dd12f11edb23847`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
