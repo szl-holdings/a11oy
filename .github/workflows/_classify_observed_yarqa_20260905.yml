@@ -1,0 +1,121 @@
+name: Classify observed Yarqa without keeper promotion
+
+on:
+  push:
+    branches: [fix/observed-hf-inventory-refresh-20260905]
+    paths: [.github/workflows/_classify_observed_yarqa_20260905.yml]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: classify-observed-yarqa-20260905
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.ref == 'refs/heads/fix/observed-hf-inventory-refresh-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Apply exact inventory-only classification and regression expectations
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          from scripts.hf_keep_policy import load_keep_ids
+          policy = Path('docs/series-a/hf-space-keep-list.yaml')
+          policy_digest = hashlib.sha256(policy.read_bytes()).hexdigest()
+          keep = load_keep_ids(policy)
+          assert 'SZLHOLDINGS/yarqa' not in keep
+          contract_path = Path('static/shared/public-estate-contract.v1.json')
+          original = contract_path.read_text()
+          old = json.loads(original)
+          expected = {'id': 'SZLHOLDINGS/ayllu', 'classification': 'INVENTORY_ONLY', 'governedKeep': False, 'disposition': 'FOLD', 'policySource': str(policy)}
+          assert old['inventoryOnlyHuggingFaceRepositories'] == [expected]
+          needle = '      "policySource": "docs/series-a/hf-space-keep-list.yaml"\n    }\n  ],\n  "historicalBindings"'
+          assert original.count(needle) == 1
+          replacement = '      "policySource": "docs/series-a/hf-space-keep-list.yaml"\n    },\n    {\n      "id": "SZLHOLDINGS/yarqa",\n      "classification": "INVENTORY_ONLY",\n      "governedKeep": false,\n      "disposition": "FOLD",\n      "policySource": "docs/series-a/hf-space-keep-list.yaml"\n    }\n  ],\n  "historicalBindings"'
+          updated = original.replace(needle, replacement)
+          new = json.loads(updated)
+          assert {k:v for k,v in old.items() if k != 'inventoryOnlyHuggingFaceRepositories'} == {k:v for k,v in new.items() if k != 'inventoryOnlyHuggingFaceRepositories'}
+          assert new['inventoryOnlyHuggingFaceRepositories'] == [expected, {**expected, 'id': 'SZLHOLDINGS/yarqa'}]
+          contract_path.write_text(updated)
+          test_path = Path('tests/test_public_estate_alignment.py')
+          text = test_path.read_text()
+          substitutions = [
+              ('self.assertEqual(inventory_only, ["SZLHOLDINGS/ayllu"])', 'self.assertEqual(inventory_only, ["SZLHOLDINGS/ayllu", "SZLHOLDINGS/yarqa"])'),
+              ('        ayllu = self.contract["inventoryOnlyHuggingFaceRepositories"]', '        ayllu = [row for row in self.contract["inventoryOnlyHuggingFaceRepositories"] if row["id"] == "SZLHOLDINGS/ayllu"]'),
+              ('            self.assertIn("`SZLHOLDINGS/ayllu`", content)', '            self.assertIn("`SZLHOLDINGS/ayllu`", content)\n            self.assertIn("`SZLHOLDINGS/yarqa`", content)'),
+          ]
+          for before, after in substitutions:
+              assert text.count(before) == 1, before
+              text = text.replace(before, after)
+          marker = '    def test_inventory_only_classification_is_strict_and_disjoint(self) -> None:\n'
+          assert text.count(marker) == 1
+          regression = '''    def test_yarqa_is_observed_without_promoting_keep_or_topology(self) -> None:
+                  rows = self.contract["inventoryOnlyHuggingFaceRepositories"]
+                  yarqa = next(row for row in rows if row["id"] == "SZLHOLDINGS/yarqa")
+                  self.assertEqual(yarqa, {
+                      "id": "SZLHOLDINGS/yarqa", "classification": "INVENTORY_ONLY",
+                      "governedKeep": False, "disposition": "FOLD",
+                      "policySource": "docs/series-a/hf-space-keep-list.yaml",
+                  })
+                  self.assertNotIn(yarqa["id"], alignment.governed_keep_spaces())
+                  self.assertNotIn(yarqa["id"], alignment.topology_spaces(self.contract))
+                  removed = copy.deepcopy(self.contract)
+                  removed["inventoryOnlyHuggingFaceRepositories"] = [row for row in rows if row["id"] != yarqa["id"]]
+                  with self.assertRaisesRegex(alignment.ContractError, "undeclared=.*yarqa"):
+                      alignment.validate(removed, self.manifest)
+                  promoted = copy.deepcopy(self.contract)
+                  promoted["inventoryOnlyHuggingFaceRepositories"][1]["governedKeep"] = True
+                  with self.assertRaisesRegex(alignment.ContractError, "cannot be a governed keeper"):
+                      alignment.validate(promoted, self.manifest)
+
+          '''
+          # Normalize the embedded method's body to ordinary class indentation.
+          lines = regression.splitlines()
+          regression = lines[0] + '\n' + '\n'.join(line[10:] if line.startswith('          ') else line for line in lines[1:]) + '\n'
+          text = text.replace(marker, regression + marker)
+          test_path.write_text(text)
+          assert hashlib.sha256(policy.read_bytes()).hexdigest() == policy_digest
+          print(json.dumps({'classification': 'INVENTORY_ONLY', 'id': 'SZLHOLDINGS/yarqa', 'governed_keep_unchanged': True, 'policy_sha256': policy_digest, 'provider_mutation': False}))
+          PY
+      - name: Regenerate all public alignment consumers from unchanged renderer
+        run: |
+          set -euo pipefail
+          python scripts/render_public_estate_alignment.py
+          python scripts/render_public_estate_alignment.py --check
+          python scripts/build_ecosystem_stage_matrix.py --check
+          python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+          python -m pytest -q tests/test_public_estate_alignment.py tests/test_hf_keep_policy_continuations.py
+          python -S scripts/test_audit_huggingface_ecosystem.py
+          python -S scripts/test_hf_gated_public_inventory.py
+          python -m py_compile tests/test_public_estate_alignment.py
+          git diff --check
+          git diff --exit-code -- docs/series-a/hf-space-keep-list.yaml scripts/render_public_estate_alignment.py scripts/hf_keep_policy.py
+      - name: Commit only the reviewed classification, tests, and generated consumers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_HEAD: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          branch=fix/observed-hf-inventory-refresh-20260905
+          test "$(git ls-remote origin "refs/heads/$branch" | cut -f1)" = "$EXPECTED_HEAD"
+          git add -- static/shared/public-estate-contract.v1.json tests/test_public_estate_alignment.py docs/generated/github-org-public-estate.md docs/generated/huggingface-org-card.md docs/generated/a11oy-net-public-estate.md
+          test "$(git diff --cached --name-only | wc -l)" -eq 5
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'fix(hf): classify observed Yarqa as inventory-only without keeper promotion'
+          auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
+          echo "::add-mask::$auth"
+          git -c "http.https://github.com/.extraheader=AUTHORIZATION: basic $auth" push origin "HEAD:refs/heads/$branch"
