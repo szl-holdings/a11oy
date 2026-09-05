@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - a11oy_vertical_feeds.py
+      - a11oy_deva_feeds.py
       - tests/test_nyc_dob_recent_source.py
       - .github/workflows/nyc-dob-source-contract.yml
   push:
     branches: [main]
     paths:
       - a11oy_vertical_feeds.py
+      - a11oy_deva_feeds.py
       - tests/test_nyc_dob_recent_source.py
       - .github/workflows/nyc-dob-source-contract.yml
 
@@ -35,7 +37,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
-      - name: Compile the real source module
-        run: python -S -m py_compile a11oy_vertical_feeds.py
-      - name: Exercise the actual source function with offline provider fixtures
+      - name: Compile the real source modules
+        run: python -S -m py_compile a11oy_vertical_feeds.py a11oy_deva_feeds.py
+      - name: Exercise both source functions with offline provider fixtures
         run: python -S -m unittest discover -s tests -p test_nyc_dob_recent_source.py -v
