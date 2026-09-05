@@ -29,7 +29,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import hashlib, json
+          import ast, hashlib, json
           from pathlib import Path
           from scripts.hf_keep_policy import load_keep_ids
           policy = Path('docs/series-a/hf-space-keep-list.yaml')
@@ -61,30 +61,29 @@ jobs:
               text = text.replace(before, after)
           marker = '    def test_inventory_only_classification_is_strict_and_disjoint(self) -> None:\n'
           assert text.count(marker) == 1
-          regression = '''    def test_yarqa_is_observed_without_promoting_keep_or_topology(self) -> None:
-                  rows = self.contract["inventoryOnlyHuggingFaceRepositories"]
-                  yarqa = next(row for row in rows if row["id"] == "SZLHOLDINGS/yarqa")
-                  self.assertEqual(yarqa, {
-                      "id": "SZLHOLDINGS/yarqa", "classification": "INVENTORY_ONLY",
-                      "governedKeep": False, "disposition": "FOLD",
-                      "policySource": "docs/series-a/hf-space-keep-list.yaml",
-                  })
-                  self.assertNotIn(yarqa["id"], alignment.governed_keep_spaces())
-                  self.assertNotIn(yarqa["id"], alignment.topology_spaces(self.contract))
-                  removed = copy.deepcopy(self.contract)
-                  removed["inventoryOnlyHuggingFaceRepositories"] = [row for row in rows if row["id"] != yarqa["id"]]
-                  with self.assertRaisesRegex(alignment.ContractError, "undeclared=.*yarqa"):
-                      alignment.validate(removed, self.manifest)
-                  promoted = copy.deepcopy(self.contract)
-                  promoted["inventoryOnlyHuggingFaceRepositories"][1]["governedKeep"] = True
-                  with self.assertRaisesRegex(alignment.ContractError, "cannot be a governed keeper"):
-                      alignment.validate(promoted, self.manifest)
-
-          '''
-          # Normalize the embedded method's body to ordinary class indentation.
-          lines = regression.splitlines()
-          regression = lines[0] + '\n' + '\n'.join(line[10:] if line.startswith('          ') else line for line in lines[1:]) + '\n'
+          regression = '\n'.join([
+              '    def test_yarqa_is_observed_without_promoting_keep_or_topology(self) -> None:',
+              '        rows = self.contract["inventoryOnlyHuggingFaceRepositories"]',
+              '        yarqa = next(row for row in rows if row["id"] == "SZLHOLDINGS/yarqa")',
+              '        self.assertEqual(yarqa, {',
+              '            "id": "SZLHOLDINGS/yarqa", "classification": "INVENTORY_ONLY",',
+              '            "governedKeep": False, "disposition": "FOLD",',
+              '            "policySource": "docs/series-a/hf-space-keep-list.yaml",',
+              '        })',
+              '        self.assertNotIn(yarqa["id"], alignment.governed_keep_spaces())',
+              '        self.assertNotIn(yarqa["id"], alignment.topology_spaces(self.contract))',
+              '        removed = copy.deepcopy(self.contract)',
+              '        removed["inventoryOnlyHuggingFaceRepositories"] = [row for row in rows if row["id"] != yarqa["id"]]',
+              '        with self.assertRaisesRegex(alignment.ContractError, "undeclared=.*yarqa"):',
+              '            alignment.validate(removed, self.manifest)',
+              '        promoted = copy.deepcopy(self.contract)',
+              '        promoted["inventoryOnlyHuggingFaceRepositories"][1]["governedKeep"] = True',
+              '        with self.assertRaisesRegex(alignment.ContractError, "cannot be a governed keeper"):',
+              '            alignment.validate(promoted, self.manifest)',
+              '', '',
+          ])
           text = text.replace(marker, regression + marker)
+          ast.parse(text)
           test_path.write_text(text)
           assert hashlib.sha256(policy.read_bytes()).hexdigest() == policy_digest
           print(json.dumps({'classification': 'INVENTORY_ONLY', 'id': 'SZLHOLDINGS/yarqa', 'governed_keep_unchanged': True, 'policy_sha256': policy_digest, 'provider_mutation': False}))
