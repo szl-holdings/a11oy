@@ -160,12 +160,10 @@ jobs:
           set -euo pipefail
           python scripts/audit_huggingface_ecosystem.py \
             --output docs/huggingface-ecosystem-manifest.json
-          python scripts/build_ecosystem_stage_matrix.py \
-            --output docs/ecosystem-stage-matrix.json
+          python scripts/build_ecosystem_stage_matrix.py
           python scripts/audit_huggingface_ecosystem.py \
             --check --output docs/huggingface-ecosystem-manifest.json
-          python scripts/build_ecosystem_stage_matrix.py \
-            --check --output docs/ecosystem-stage-matrix.json
+          python scripts/build_ecosystem_stage_matrix.py --check
           node scripts/test_validate_huggingface_ecosystem_schema.mjs
           node scripts/validate_huggingface_ecosystem_schema.mjs
       - name: Prove the bounded semantic delta
