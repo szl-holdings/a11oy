@@ -1,0 +1,185 @@
+name: Bind validated OpenRouter fallback after live convergence
+
+on:
+  push:
+    branches:
+      - ops/finish-live-now-20260904-v1
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bind-openrouter-after-a11oy-live-convergence
+  cancel-in-progress: false
+
+jobs:
+  bind:
+    name: Validate provider credential, bind it to canonical A11oy, restart, and prove health
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_WRITE_TOKEN || secrets.HF_TOKEN || secrets.HUGGINGFACE_TOKEN || secrets.HUGGING_FACE_HUB_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+      CANONICAL_SPACE: SZLHOLDINGS/a11oy
+      HF_ORIGIN: https://szlholdings-a11oy.hf.space
+      PRODUCT_ORIGIN: https://a-11-oy.com
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Wait for exact repair merges and the exact current source to reach Hugging Face
+        id: source
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          python - <<'PY'
+          from __future__ import annotations
+
+          import json
+          import os
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+
+          targets=[("szl-holdings/.github",651),("szl-holdings/a11oy",1897),("szl-holdings/a11oy",1900)]
+          headers={"Accept":"application/vnd.github+json","User-Agent":"SZL-OpenRouter-Bind/1.0","X-GitHub-Api-Version":"2022-11-28"}
+          def get_json(url):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as r:return json.loads(r.read().decode())
+          deadline=time.monotonic()+35*60
+          state=[]
+          while True:
+              state=[]
+              for repo,n in targets:
+                  p=get_json(f"https://api.github.com/repos/{repo}/pulls/{n}")
+                  state.append({"repository":repo,"number":n,"state":p.get("state"),"merged":p.get("merged") is True,"merged_at":p.get("merged_at")})
+              if all(r["merged"] for r in state) or any(r["state"]=="closed" and not r["merged"] for r in state) or time.monotonic()>=deadline:break
+              time.sleep(20)
+          if not all(r["merged"] for r in state):
+              Path("reports/openrouter-bind.json").write_text(json.dumps({"schema":"szl.openrouter-bind/v1","repair_prs":state,"complete":False,"reason":"REPAIR_MERGES_NOT_COMPLETE","secret_values_recorded":False},indent=2,sort_keys=True)+"\n")
+              raise SystemExit(1)
+          repo=get_json("https://api.github.com/repos/szl-holdings/a11oy")
+          branch=repo["default_branch"]
+          b=get_json(f"https://api.github.com/repos/szl-holdings/a11oy/branches/{urllib.parse.quote(branch,safe='')}")
+          sha=b["commit"]["sha"]
+          if b["commit"]["commit"]["verification"].get("verified") is not True:raise SystemExit("A11oy main is not verified")
+          # Wait for the canonical HF runtime to report this exact protected source.
+          origin=os.environ["HF_ORIGIN"].rstrip("/")
+          matched=False
+          for _ in range(160):
+              try:
+                  req=urllib.request.Request(origin+f"/api/build-info?provider_bind={time.time_ns()}",headers={"User-Agent":"SZL-OpenRouter-Bind/1.0","Cache-Control":"no-cache"})
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      body=r.read(1000000).decode("utf-8","replace")
+                  if r.status==200 and sha in body:
+                      matched=True;break
+              except Exception:pass
+              time.sleep(10)
+          if not matched:
+              Path("reports/openrouter-bind.json").write_text(json.dumps({"schema":"szl.openrouter-bind/v1","repair_prs":state,"target_sha":sha,"complete":False,"reason":"HF_SOURCE_NOT_CONVERGED","secret_values_recorded":False},indent=2,sort_keys=True)+"\n")
+              raise SystemExit(1)
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as f:f.write(f"sha={sha}\n")
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned provider control client
+        run: python -m pip install --disable-pip-version-check --no-cache-dir 'huggingface_hub==1.10.1'
+
+      - name: Validate OpenRouter without exposing the key and bind to canonical Space
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import os
+          import ssl
+          import urllib.error
+          import urllib.request
+          from pathlib import Path
+          from huggingface_hub import HfApi
+
+          key=os.environ.get("OPENROUTER_API_KEY","").strip()
+          hf_token=os.environ.get("HF_TOKEN","").strip()
+          if not key:
+              Path("reports/openrouter-bind.json").write_text(json.dumps({"schema":"szl.openrouter-bind/v1","complete":False,"reason":"OPENROUTER_SECRET_UNAVAILABLE","secret_values_recorded":False},indent=2,sort_keys=True)+"\n")
+              raise SystemExit(2)
+          if not hf_token:
+              Path("reports/openrouter-bind.json").write_text(json.dumps({"schema":"szl.openrouter-bind/v1","complete":False,"reason":"HF_WRITER_UNAVAILABLE","secret_values_recorded":False},indent=2,sort_keys=True)+"\n")
+              raise SystemExit(2)
+          print("::add-mask::"+key)
+          req=urllib.request.Request("https://openrouter.ai/api/v1/models",headers={"Authorization":"Bearer "+key,"Accept":"application/json","User-Agent":"SZL-A11oy-OpenRouter-Validation/1.0","HTTP-Referer":"https://a-11-oy.com","X-Title":"A11oy"})
+          try:
+              with urllib.request.urlopen(req,timeout=30,context=ssl.create_default_context()) as r:
+                  payload=json.loads(r.read().decode("utf-8"))
+              valid=r.status==200 and isinstance(payload.get("data"),list) and len(payload["data"])>0
+          except Exception as exc:
+              valid=False;error_type=type(exc).__name__
+          if not valid:
+              Path("reports/openrouter-bind.json").write_text(json.dumps({"schema":"szl.openrouter-bind/v1","complete":False,"reason":"OPENROUTER_VALIDATION_FAILED","error_type":locals().get("error_type"),"secret_values_recorded":False},indent=2,sort_keys=True)+"\n")
+              raise SystemExit(1)
+          api=HfApi(token=hf_token)
+          api.add_space_secret(repo_id=os.environ["CANONICAL_SPACE"],key="OPENROUTER_API_KEY",value=key)
+          api.restart_space(repo_id=os.environ["CANONICAL_SPACE"])
+          report={"schema":"szl.openrouter-bind/v1","generated_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),"target_sha":os.environ.get("TARGET_SHA"),"space":os.environ["CANONICAL_SPACE"],"provider":"openrouter","credential_validated":True,"bound":True,"restart_requested":True,"complete":True,"secret_values_recorded":False}
+          Path("reports/openrouter-bind.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(report,indent=2,sort_keys=True))
+          PY
+
+      - name: Verify exact source returns after restart and health remains honest
+        shell: bash
+        env:
+          TARGET_SHA: ${{ steps.source.outputs.sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,time,urllib.request
+          from pathlib import Path
+          target=os.environ["TARGET_SHA"]
+          origins=[os.environ["HF_ORIGIN"].rstrip("/"),os.environ["PRODUCT_ORIGIN"].rstrip("/")]
+          observations=[]
+          for origin in origins:
+              matched=False;health=None
+              for _ in range(120):
+                  try:
+                      req=urllib.request.Request(origin+f"/api/build-info?openrouter_proof={time.time_ns()}",headers={"User-Agent":"SZL-OpenRouter-Post-Bind/1.0","Cache-Control":"no-cache"})
+                      with urllib.request.urlopen(req,timeout=30) as r:body=r.read(1000000).decode("utf-8","replace")
+                      matched=r.status==200 and target in body
+                      if matched:break
+                  except Exception:pass
+                  time.sleep(10)
+              for path in ("/api/a11oy/v1/llm/sovereign/health","/api/livez"):
+                  try:
+                      req=urllib.request.Request(origin+path+f"?openrouter_proof={time.time_ns()}",headers={"User-Agent":"SZL-OpenRouter-Post-Bind/1.0","Cache-Control":"no-cache"})
+                      with urllib.request.urlopen(req,timeout=30) as r:b=r.read(1000000)
+                      health={"path":path,"status":r.status,"bytes":len(b),"json":json.loads(b.decode()) if "json" in (r.headers.get("content-type") or "") else None};break
+                  except Exception:continue
+              observations.append({"origin":origin,"source_match":matched,"health":health})
+          complete=all(r["source_match"] and r["health"] and r["health"]["status"]==200 for r in observations)
+          path=Path("reports/openrouter-bind.json");report=json.loads(path.read_text());report["post_restart_observations"]=observations;report["post_restart_complete"]=complete;report["complete"]=bool(report.get("complete") and complete);path.write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(report,indent=2,sort_keys=True))
+          if not report["complete"]:raise SystemExit(1)
+          PY
+
+      - name: Upload secret-free provider binding evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: openrouter-bind-after-live-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/openrouter-bind.json
+          if-no-files-found: error
+          retention-days: 90
