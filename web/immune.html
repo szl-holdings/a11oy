@@ -261,6 +261,9 @@ body{
       <div class="card"><div class="lbl">Programs</div><div class="big" id="nProg">—</div><div class="sub" id="nUniq">Conjecture 1 OPEN</div></div>
     </div>
     <div class="kv" id="nexusKv" aria-live="polite"><span class="k">status</span><span class="v">CONNECTING</span></div>
+    <label for="lorenzToken" class="lbl">Operator capability</label>
+    <input id="lorenzToken" type="password" autocomplete="off" spellcheck="false"
+           placeholder="Bearer token (kept in this page only)" />
     <div class="kernel-actions">
       <button class="run" id="lorenzBtn" type="button">Seal Lorenz OP</button>
       <a class="flag" href="https://szlholdings-immune.hf.space/nexus.html" target="_blank" rel="noopener">Open NEXUS plane</a>
@@ -568,30 +571,45 @@ async function loadNexus(){
 function paintLorenz(result){
   const kv = document.getElementById("lorenzKv");
   const s = (result && result.data) || {};
-  const ref = s.reference || {};
-  const sealed = !!(result && result.ok && s.sealed);
-  const reach = sealed ? "REACHABLE" : (result && result.ok === false ? "UNAVAILABLE" : "CONNECTING");
+  const ref = s.reference_only || {};
+  const verified = !!(s.receipt_verification && s.receipt_verification.verified === true && s.receipt_verification.request_binding === true);
+  const sealed = !!(result && result.ok && s.ok === true && s.sealed === true && verified);
+  const reach = sealed ? "REACHABLE" : "UNAVAILABLE";
   kv.innerHTML =
     row("lorenz", sealed ? "SEALED" : reach)+
-    row("mode","OP")+
-    row("steps", s.steps || ref.steps || 320)+
-    row("coefficients", s.coefficients || ref.coefficients)+
-    row("inputHash", s.inputHash || ref.inputHash, "digest")+
-    row("outputHash", s.outputHash || ref.outputHash, "digest")+
-    row("energy", s.energy || ref.energy || "UNAVAILABLE")+
-    row("uniqueness", s.uniqueness || ref.uniqueness || "Conjecture 1 OPEN")+
-    row("truth", s.truth || ref.truth || "MEASURED_SOFTWARE_SIMULATION")+
+    row("mode",s.mode)+
+    row("steps",s.steps)+
+    row("coefficients",s.coefficients)+
+    row("inputHash",s.inputHash,"digest")+
+    row("outputHash",s.outputHash,"digest")+
+    row("invariants",typeof s.invariantsHold==="boolean"?String(s.invariantsHold):null)+
+    row("receipt verified",verified?"true":null)+
+    row("energy",s.energy)+
+    row("uniqueness",s.uniqueness)+
+    row("truth",s.truth)+
     row("error", s.error || (!result || result.ok ? null : requestFailure(result)))+
+    row("reference", "REFERENCE ONLY — not this run")+
+    row("reference inputHash",ref.inputHash,"digest")+
+    row("reference outputHash",ref.outputHash,"digest")+
     '<div><span class="k">this run</span><span class="pill '+(sealed?"green":"red")+'">'+(sealed?"SEALED":esc(reach))+'</span></div>';
 }
 
 document.getElementById("lorenzBtn").addEventListener("click", async function(){
+  const token = document.getElementById("lorenzToken").value.trim();
+  if(!token){
+    paintLorenz({ok:false,status:401,error:"operator capability required",data:{ok:false,sealed:false}});
+    return;
+  }
   this.disabled = true;
-  const prior = this.textContent;
   this.textContent = "Sealing…";
-  const result = await requestJSON(BASE + "/nexus/lorenz", {method:"POST"});
+  const result = await requestJSON(BASE + "/nexus/lorenz", {
+    method:"POST",
+    headers:{Authorization:"Bearer "+token}
+  });
   paintLorenz(result);
-  this.textContent = result.ok ? "Lorenz OP sealed" : "Seal Lorenz OP";
+  const s = result.data || {};
+  const sealed = !!(result.ok && s.ok === true && s.sealed === true && s.receipt_verification && s.receipt_verification.verified === true && s.receipt_verification.request_binding === true);
+  this.textContent = sealed ? "Lorenz OP sealed" : "Seal Lorenz OP";
   this.disabled = false;
 });
 

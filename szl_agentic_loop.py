@@ -38,6 +38,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 import threading
 import time
 import uuid
@@ -48,6 +49,70 @@ from datetime import datetime, timezone
 # that this module actually observed creating. It is deliberately ephemeral: a
 # restart clears the feed, and no GET handler signs or appends anything.
 _HATUN_FEED_LIMIT = 32
+
+# State-changing operator surfaces share one fail-closed bearer boundary and a
+# process-local single-flight/cooldown guard.  Credentials remain secret-managed
+# environment data; this module retains only parsed token digests via gdw_auth.
+_OPERATOR_ACTION_LOCK = threading.Lock()
+_OPERATOR_ACTION_PENDING: set[tuple[str, str, str, str]] = set()
+_OPERATOR_ACTION_LAST: dict[tuple[str, str, str, str], float] = {}
+
+
+def _operator_authenticate(authorization: str | None, ns: str, scope: str):
+    """Authenticate a namespaced operator using the canonical GDW registry."""
+    from gdw_auth import authenticate_bearer, load_credential_registry
+
+    prefix = str(ns or "a11oy").upper().replace("-", "_")
+    registry_json = os.environ.get(prefix + "_OPERATOR_CREDENTIALS_JSON")
+    principals_json = os.environ.get(prefix + "_OPERATOR_PRINCIPALS_JSON")
+    if registry_json is None:
+        registry_json = os.environ.get("GDW_CREDENTIALS_JSON")
+    if principals_json is None:
+        principals_json = os.environ.get("GDW_PRINCIPALS_JSON")
+    namespace = (
+        os.environ.get(prefix + "_OPERATOR_NAMESPACE")
+        or os.environ.get("GDW_NAMESPACE")
+        or str(ns or "a11oy")
+    )
+    registry = load_credential_registry(
+        registry_json,
+        principal_registry_json=principals_json,
+        principal_registry_namespace=namespace,
+    )
+    return authenticate_bearer(
+        authorization,
+        registry,
+        namespace=namespace,
+        required_scopes=(scope,),
+    )
+
+
+def _operator_action_claim(principal, ns: str, action: str) -> tuple[object | None, int | None]:
+    """Claim one process-wide action flight and enforce a per-principal cooldown."""
+    prefix = str(ns or "a11oy").upper().replace("-", "_")
+    try:
+        interval = int(os.environ.get(prefix + "_OPERATOR_MIN_INTERVAL_SEC", "1"))
+    except Exception:
+        interval = 1
+    interval = max(0, min(3600, interval))
+    identity = (str(ns), str(action), principal.owner_id, principal.key_id)
+    now = time.monotonic()
+    with _OPERATOR_ACTION_LOCK:
+        if any(key[:2] == identity[:2] for key in _OPERATOR_ACTION_PENDING):
+            return None, max(1, interval)
+        last = _OPERATOR_ACTION_LAST.get(identity)
+        if last is not None and now - last < interval:
+            return None, max(1, int(interval - (now - last) + 0.999))
+        _OPERATOR_ACTION_PENDING.add(identity)
+    return identity, None
+
+
+def _operator_action_release(identity: object | None) -> None:
+    if identity is None:
+        return
+    with _OPERATOR_ACTION_LOCK:
+        _OPERATOR_ACTION_PENDING.discard(identity)
+        _OPERATOR_ACTION_LAST[identity] = time.monotonic()
 
 # ----------------------------------------------------------------------------
 # FORMULA WIRING (ADDITIVE 2026-06-06): the ~80 kernel-verified theorems wired
@@ -777,7 +842,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
     # the raw Request via positional injection and FastAPI does NOT treat the
     # `request` parameter as a query field to validate (which caused a 422).
     from starlette.routing import Route
-    from starlette.responses import JSONResponse, HTMLResponse
+    from starlette.responses import JSONResponse, HTMLResponse, Response
     from starlette.requests import Request
 
     # In-memory chain of full runs (each run is itself a chained sub-ledger).
@@ -1654,6 +1719,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             return JSONResponse({"jsonrpc": "2.0", "id": None,
                                  "error": {"code": -32700, "message": "Parse error"}},
                                 status_code=200)
+        if not isinstance(body, dict):
+            return JSONResponse({"jsonrpc": "2.0", "id": None,
+                                 "error": {"code": -32600, "message": "Invalid Request"}},
+                                status_code=200)
         rid = body.get("id")
         method = body.get("method", "")
         params = body.get("params") or {}
@@ -1673,9 +1742,9 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                 ),
             }})
         if method in ("notifications/initialized", "initialized") or method.startswith("notifications/"):
-            # MCP notifications may omit id. Acknowledge; do not error the handshake.
+            # Streamable HTTP notifications have no JSON-RPC response body.
             if rid is None:
-                return JSONResponse({"ok": True}, status_code=202)
+                return Response(status_code=202)
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {}})
         if method in ("tools/list", "list_tools"):
             return JSONResponse({"jsonrpc": "2.0", "id": rid,
@@ -1848,55 +1917,108 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse(_verify_chain(run))
 
     async def _agent_cycle(request: Request):
-        # Bounded loop. Env A11OY_OUROBOROS=1 OR body.loop=true with budget<=4.
-        # /agent/run stays single-pass. Convergence remains advisory.
-        import os
+        # Bounded loop. Execution requires BOTH deployment enablement and an
+        # authenticated operator request. /agent/run stays single-pass.
+        env_on = os.environ.get("A11OY_OUROBOROS") == "1"
+        if request.method == "GET":
+            return JSONResponse({
+                "cycle": False,
+                "enabled": env_on,
+                "authorization": "required",
+                "opt_in": "authorized POST with strict boolean loop=true",
+                "bound": 4,
+                "note": "Loop is bounded and advisory. Lambda remains Conjecture 1.",
+                "doctrine": "v11",
+            })
         try:
             b = await request.json()
         except Exception:
             b = {}
         if not isinstance(b, dict):
             b = {}
-        env_on = os.environ.get("A11OY_OUROBOROS") == "1"
-        loop_on = bool(b.get("loop")) or env_on
-        if request.method == "GET":
-            return JSONResponse({
-                "cycle": False,
-                "enabled": env_on,
-                "opt_in": "POST {\"loop\": true, \"budget\": 2}",
-                "bound": 4,
-                "note": "Loop is bounded and advisory. Lambda remains Conjecture 1.",
-                "doctrine": "v11",
-            })
-        if not loop_on:
+        loop_on = b.get("loop") is True
+        if not env_on or not loop_on:
             return JSONResponse({
                 "cycle": False,
                 "enabled": False,
-                "note": ("Ouroboros closed loop is OFF. POST {\"loop\": true, \"budget\": 2} "
-                         "or set A11OY_OUROBOROS=1. /agent/run stays single-pass."),
+                "note": ("Ouroboros closed loop is OFF. Deployment must set "
+                         "A11OY_OUROBOROS=1 and an authorized POST must include "
+                         "the strict boolean loop=true. /agent/run stays single-pass."),
                 "doctrine": "v11",
             }, status_code=200)
-        query = b.get("query") or b.get("goal") or "deploy a low-risk reversible change"
-        action = b.get("action") or query
-        severity = b.get("severity", "low")
-        confidence = float(b.get("confidence", 0.9))
-        reversible = bool(b.get("reversible", True))
-        untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
-        approval_grant = b.get("approval_grant") or b.get("approval")
+        from gdw_auth import AuthConfigurationError, AuthenticationError
         try:
-            budget = int(b.get("budget", 2))
-        except Exception:
-            budget = 2
-        budget = max(1, min(budget, 4))
+            principal = _operator_authenticate(
+                request.headers.get("authorization"), ns, "agent:cycle")
+        except AuthConfigurationError:
+            return JSONResponse({
+                "cycle": False,
+                "state": "unavailable",
+                "error": "operator credential registry is unavailable",
+            }, status_code=503)
+        except AuthenticationError as exc:
+            status = 403 if exc.code in {
+                "credential_revoked", "foreign_namespace", "missing_scopes",
+            } else 401
+            headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+            return JSONResponse({"cycle": False, "state": "denied", "error": exc.code},
+                                status_code=status, headers=headers)
+        identity, retry_after = _operator_action_claim(principal, ns, "agent-cycle")
+        if identity is None:
+            return JSONResponse({
+                "cycle": False,
+                "state": "rate_limited",
+                "error": "an agent cycle is already active or this principal is inside its cooldown",
+                "retry_after_s": retry_after,
+            }, status_code=429, headers={"Retry-After": str(retry_after)})
         try:
-            eps = float(b.get("eps", 0.01))
+            query = b.get("query") or b.get("goal") or "deploy a low-risk reversible change"
+            action = b.get("action") or query
+            severity = b.get("severity", "low")
+            try:
+                confidence = float(b.get("confidence", 0.9))
+            except Exception:
+                return JSONResponse({
+                    "cycle": False,
+                    "state": "denied",
+                    "error": "confidence must be numeric",
+                }, status_code=400)
+            reversible = bool(b.get("reversible", True))
+            untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
+            approval_grant = b.get("approval_grant") or b.get("approval")
+            try:
+                budget = int(b.get("budget", 2))
+            except Exception:
+                budget = 2
+            budget = max(1, min(budget, 4))
+            try:
+                eps = float(b.get("eps", 0.01))
+            except Exception:
+                eps = 0.01
+            import functools
+            import anyio
+            run_cycle = functools.partial(
+                _do_governed_cycle,
+                budget=budget, eps=eps,
+                query=query, action=action, severity=severity, confidence=confidence,
+                reversible=reversible, untrusted_input=untrusted_input,
+                approval_grant=approval_grant,
+            )
+            result = await anyio.to_thread.run_sync(run_cycle)
+            result["operator"] = {
+                "owner_id": principal.owner_id,
+                "namespace": principal.namespace,
+                "key_id": principal.key_id,
+            }
+            return JSONResponse(result)
         except Exception:
-            eps = 0.01
-        return JSONResponse(_do_governed_cycle(
-            budget=budget, eps=eps,
-            query=query, action=action, severity=severity, confidence=confidence,
-            reversible=reversible, untrusted_input=untrusted_input,
-            approval_grant=approval_grant))
+            return JSONResponse({
+                "cycle": False,
+                "state": "unavailable",
+                "error": "governed cycle execution unavailable",
+            }, status_code=503)
+        finally:
+            _operator_action_release(identity)
 
     async def _ask_and_act_ui(request: Request):
         return HTMLResponse(_UI_HTML.replace("__NS__", ns).replace("__SIGNER__", signer_label))

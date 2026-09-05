@@ -5874,17 +5874,18 @@ async def ouroboros_status() -> JSONResponse:
         "schema": "szl.ouroboros.status.v1",
         "truth": "REPORTED",
         "runner_present": bool(found),
-        "runner_path": found,
+        "runner_id": _P(found).name if found else None,
+        "deployment_enabled": os.environ.get("A11OY_OUROBOROS_RUN_ALL") == "1",
+        "authorization": "required",
         "run": "POST /api/a11oy/v1/ouroboros/run-all",
-        "cycle": "POST /api/a11oy/v1/agent/cycle {\"loop\": true, \"budget\": 2}",
+        "cycle": "authorized POST /api/a11oy/v1/agent/cycle with strict boolean loop=true",
         "bound": 4,
         "note": "Loop is bounded. Convergence is advisory. Lambda remains Conjecture 1.",
         "doctrine": "v11",
     })
 
 
-@app.post("/api/a11oy/v1/ouroboros/run-all")
-async def ouroboros_run_all() -> JSONResponse:
+def _ouroboros_run_all_sync() -> dict:
     """
     Ouroboros Run-All endpoint — executes the 32-module self-test suite.
     Returns {tests_run, tests_pass, tests_fail, tests_blocked, verdict, receipts: [...]}.
@@ -6018,7 +6019,7 @@ async def ouroboros_run_all() -> JSONResponse:
         verdict = "BLOCKED"
     else:
         verdict = "GREEN"
-    return JSONResponse({
+    return {
         "tests_run": len(receipts),
         "tests_pass": tests_pass,
         "tests_fail": tests_fail,
@@ -6028,7 +6029,63 @@ async def ouroboros_run_all() -> JSONResponse:
         "doctrine": "v11",
         "canonical": {"declarations": 749, "axioms": 14, "sorries": 163, "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"}},
         "receipts": receipts,
-    })
+    }
+
+
+@app.post("/api/a11oy/v1/ouroboros/run-all")
+async def ouroboros_run_all(request: Request) -> JSONResponse:
+    """Run the bounded suite off-loop for one explicitly authorised operator."""
+    if os.environ.get("A11OY_OUROBOROS_RUN_ALL") != "1":
+        return JSONResponse({
+            "state": "unavailable",
+            "error": "ouroboros run-all is disabled by deployment policy",
+        }, status_code=503)
+
+    from gdw_auth import AuthConfigurationError, AuthenticationError
+    from szl_agentic_loop import (
+        _operator_action_claim,
+        _operator_action_release,
+        _operator_authenticate,
+    )
+    try:
+        principal = _operator_authenticate(
+            request.headers.get("authorization"), "a11oy", "ouroboros:run")
+    except AuthConfigurationError:
+        return JSONResponse({
+            "state": "unavailable",
+            "error": "operator credential registry is unavailable",
+        }, status_code=503)
+    except AuthenticationError as exc:
+        status = 403 if exc.code in {
+            "credential_revoked", "foreign_namespace", "missing_scopes",
+        } else 401
+        headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+        return JSONResponse({"state": "denied", "error": exc.code},
+                            status_code=status, headers=headers)
+
+    identity, retry_after = _operator_action_claim(principal, "a11oy", "ouroboros-run-all")
+    if identity is None:
+        return JSONResponse({
+            "state": "rate_limited",
+            "error": "an ouroboros run is already active or this principal is inside its cooldown",
+            "retry_after_s": retry_after,
+        }, status_code=429, headers={"Retry-After": str(retry_after)})
+    try:
+        import anyio
+        result = await anyio.to_thread.run_sync(_ouroboros_run_all_sync)
+        result["operator"] = {
+            "owner_id": principal.owner_id,
+            "namespace": principal.namespace,
+            "key_id": principal.key_id,
+        }
+        return JSONResponse(result)
+    except Exception:
+        return JSONResponse({
+            "state": "unavailable",
+            "error": "ouroboros run-all execution unavailable",
+        }, status_code=503)
+    finally:
+        _operator_action_release(identity)
 
 
 # ---------------------------------------------------------------------------

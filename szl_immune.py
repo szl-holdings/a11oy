@@ -12,7 +12,7 @@ deny-by-default — and signs a Khipu receipt per verdict into the SHARED
 szl_khipu chain.
 
 USER-VISIBLE ORGAN NAME: "Immune" (Quechua role "Hukulla"). This module NEVER
-emits a codename (sentra / amaru / rosie / jarvis) in any served string.
+emits an internal codename in any served string.
 
 ENDPOINTS (dual-registered under /api/a11oy/v1/immune/* AND /v1/immune/*):
   GET  /healthz  -> liveness + organ identity.
@@ -44,9 +44,10 @@ ENDPOINTS (dual-registered under /api/a11oy/v1/immune/* AND /v1/immune/*):
                     (SZLHOLDINGS/immune /api/immune/nexus/status).
                     EXECUTABLE software simulation. Energy UNAVAILABLE.
                     Lambda = Conjecture 1 OPEN. Never LIVE or PASS.
-  GET/POST /nexus/lorenz -> operator-initiated Lorenz OP seal through
+  POST /nexus/lorenz -> authorized operator-initiated Lorenz OP seal through
                     Channel A POST /api/immune/nexus/run. Returns MEASURED
                     hashes or UNAVAILABLE. Never LIVE or PASS.
+  GET/HEAD /nexus/lorenz -> local status only; never executes or signs.
 
 INSPECTION LOGIC (byte-identical to serve.py's embedded immune block):
   _THREAT_SIGNATURES = ["DROP TABLE","rm -rf","<script","eval(","subprocess","../../etc"]
@@ -122,8 +123,6 @@ _KERNEL_UA = (
 _KERNEL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 _FIELD_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 _NEXUS_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
-_LORENZ_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
-_LORENZ_CACHE_TTL = float(os.environ.get("IMMUNE_LORENZ_CACHE_TTL", "45"))
 _LORENZ_MEASURED = {
     "program": "lorenz",
     "mode": "OP",
@@ -691,9 +690,8 @@ def _nexus(now: Optional[float] = None, probe=_probe_json) -> dict:
     return enveloped
 
 
-def _extract_nexus_receipt(body: dict) -> dict:
-    rec = ((body.get("governed") or {}) if isinstance(body.get("governed"), dict) else {}).get("receipt")
-    payload = rec.get("payload") if isinstance(rec, dict) else None
+def _extract_nexus_receipt(payload: dict) -> dict:
+    """Extract NEXUS fields only from a cryptographically verified payload."""
     if not isinstance(payload, dict):
         return {}
     agent = payload.get("agent") if isinstance(payload.get("agent"), dict) else None
@@ -710,15 +708,45 @@ def _extract_nexus_receipt(body: dict) -> dict:
     return {}
 
 
-def _nexus_lorenz(now: Optional[float] = None, post=_post_json) -> dict:
-    """Operator-initiated Lorenz OP seal. REACHABLE / UNAVAILABLE only."""
-    ts = time.time() if now is None else float(now)
-    cached = _LORENZ_CACHE.get("payload")
-    cached_at = float(_LORENZ_CACHE.get("at") or 0)
-    if cached and (ts - cached_at) < _LORENZ_CACHE_TTL:
-        out = dict(cached)
-        out["cached"] = True
-        return out
+def _verify_nexus_receipt(receipt: dict, verify=None) -> dict:
+    """Verify an upstream DSSE receipt against the configured trusted key set."""
+    if not isinstance(receipt, dict):
+        return {"verified": False, "reason": "receipt unavailable", "payload": None}
+    try:
+        if verify is None:
+            from szl_dsse import verify_envelope
+            verify = verify_envelope
+        verdict = verify(receipt)
+    except Exception:  # noqa: BLE001 - verification failure is an honest deny
+        return {"verified": False, "reason": "receipt verifier unavailable", "payload": None}
+    if not isinstance(verdict, dict):
+        return {"verified": False, "reason": "receipt verifier returned invalid result", "payload": None}
+    payload = verdict.get("payload_decoded")
+    if verdict.get("verified") is not True or not isinstance(payload, dict):
+        return {
+            "verified": False,
+            "reason": str(verdict.get("reason") or "receipt signature not verified"),
+            "payload": None,
+        }
+    return {
+        "verified": True,
+        "reason": None,
+        "payload": payload,
+        "keyid": verdict.get("keyid_expected"),
+    }
+
+
+def _sha256_hex(value: Any) -> bool:
+    return (
+        isinstance(value, str)
+        and len(value) == 64
+        and all(ch in "0123456789abcdefABCDEF" for ch in value)
+    )
+
+
+def _nexus_lorenz(now: Optional[float] = None, post=_post_json, verify=None) -> dict:
+    """Execute one Lorenz OP request and fail closed unless its receipt verifies."""
+    del now  # compatibility for deterministic unit callers; action results are never cached.
 
     request_id = "lorenz-op-" + secrets.token_hex(6)
     status, data, err = post(
@@ -733,29 +761,66 @@ def _nexus_lorenz(now: Optional[float] = None, post=_post_json) -> dict:
     )
     body = data if isinstance(data, dict) else {}
     governed = body.get("governed") if isinstance(body.get("governed"), dict) else {}
-    result = body.get("result") if isinstance(body.get("result"), dict) else {}
-    execution = result.get("execution") if isinstance(result.get("execution"), dict) else {}
-    nexus = _extract_nexus_receipt(body)
-    sealed = bool(status in (200, 201) and governed.get("pass") is True and nexus.get("outputHash"))
+    receipt = governed.get("receipt") if isinstance(governed.get("receipt"), dict) else {}
+    receipt_check = _verify_nexus_receipt(receipt, verify=verify)
+    signed_payload = receipt_check.get("payload") or {}
+    nexus = _extract_nexus_receipt(signed_payload)
+    signed_request_id = signed_payload.get("requestId") or nexus.get("requestId")
+    signed_program = signed_payload.get("program") or nexus.get("program")
+    signed_mode = signed_payload.get("mode") or nexus.get("mode")
+    signed_steps = signed_payload.get("steps") or nexus.get("steps")
+    signed_coefficients = nexus.get("coefficients")
+    if isinstance(signed_coefficients, dict):
+        signed_coefficients = signed_coefficients.get("label")
+    signed_final = nexus.get("final") or nexus.get("finalState")
+    binding_ok = (
+        body.get("requestId") == request_id
+        and signed_request_id == request_id
+        and signed_program == "lorenz"
+        and signed_mode == "OP"
+        and signed_steps == 320
+        and nexus.get("invariantsHold") is True
+        and _sha256_hex(nexus.get("inputHash"))
+        and _sha256_hex(nexus.get("outputHash"))
+    )
+    sealed = bool(
+        status in (200, 201)
+        and governed.get("pass") is True
+        and receipt_check.get("verified") is True
+        and binding_ok
+    )
+    failure = None
+    if not sealed:
+        if receipt_check.get("verified") is not True:
+            failure = receipt_check.get("reason") or "receipt signature not verified"
+        elif not binding_ok:
+            failure = "verified receipt is not bound to the submitted Lorenz request"
+        else:
+            failure = err or body.get("error") or "lorenz request was not governed and sealed"
     payload = {
         "ok": sealed,
         "reachability": "REACHABLE" if sealed else "UNAVAILABLE",
         "sealed": sealed,
-        "requestId": body.get("requestId") or request_id,
+        "requestId": request_id,
         "program": "lorenz",
         "mode": "OP",
-        "steps": execution.get("stepsExecuted") if sealed else None,
+        "steps": signed_steps if sealed else None,
         "inputHash": nexus.get("inputHash") if sealed else None,
         "outputHash": nexus.get("outputHash") if sealed else None,
         "invariantsHold": nexus.get("invariantsHold") if sealed else None,
-        "final": result.get("finalState") if sealed else None,
-        "coefficients": (result.get("coefficients") or {}).get("label") if sealed else None,
-        "energy": (nexus.get("energy") or execution.get("energy") or "UNAVAILABLE") if sealed else None,
-        "uniqueness": (nexus.get("uniqueness") or execution.get("uniqueness")) if sealed else None,
-        "truth": execution.get("truth") if sealed else None,
-        "reference": _LORENZ_MEASURED,
+        "final": signed_final if sealed else None,
+        "coefficients": signed_coefficients if sealed else None,
+        "energy": (nexus.get("energy") or "UNAVAILABLE") if sealed else None,
+        "uniqueness": nexus.get("uniqueness") if sealed else None,
+        "truth": nexus.get("truth") if sealed else None,
+        "receipt_verification": {
+            "verified": bool(receipt_check.get("verified")),
+            "keyid": receipt_check.get("keyid") if sealed else None,
+            "request_binding": binding_ok if receipt_check.get("verified") else False,
+        },
+        "reference_only": _LORENZ_MEASURED,
         "upstream_http": status,
-        "error": None if sealed else (err or body.get("error") or "lorenz unsealed"),
+        "error": failure,
         "channel": "A",
         "space": "SZLHOLDINGS/immune",
         "contract": "POST /api/immune/nexus/run",
@@ -773,10 +838,7 @@ def _nexus_lorenz(now: Optional[float] = None, post=_post_json) -> dict:
         "organ": _ORGAN_NAME,
         "cached": False,
     }
-    enveloped = _gov(payload, status="REAL" if sealed else "DEGRADED")
-    _LORENZ_CACHE["at"] = ts
-    _LORENZ_CACHE["payload"] = enveloped
-    return enveloped
+    return _gov(payload, status="REAL" if sealed else "DEGRADED")
 
 
 def register(app, ns: str = "a11oy") -> dict:
@@ -822,8 +884,69 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _h_nexus():  # noqa: ANN202
         return JSONResponse(_nexus())
 
-    async def _h_nexus_lorenz():  # noqa: ANN202
-        return JSONResponse(_nexus_lorenz())
+    async def _h_nexus_lorenz_status():  # noqa: ANN202
+        """Side-effect-free capability status; never calls the upstream runner."""
+        return JSONResponse({
+            "ok": True,
+            "state": "POST_ONLY",
+            "execution": "authorized POST required",
+            "cached_action_results": False,
+            "receipt_verification": "required",
+            "reference_only": _LORENZ_MEASURED,
+            "doctrine": "v11",
+        })
+
+    async def _h_nexus_lorenz(request: Request):  # noqa: ANN202
+        from gdw_auth import AuthConfigurationError, AuthenticationError
+        from szl_agentic_loop import (
+            _operator_action_claim,
+            _operator_action_release,
+            _operator_authenticate,
+        )
+        try:
+            principal = _operator_authenticate(
+                request.headers.get("authorization"), ns, "immune:lorenz")
+        except AuthConfigurationError:
+            return JSONResponse({
+                "ok": False,
+                "state": "UNAVAILABLE",
+                "error": "operator credential registry is unavailable",
+            }, status_code=503)
+        except AuthenticationError as exc:
+            status = 403 if exc.code in {
+                "credential_revoked", "foreign_namespace", "missing_scopes",
+            } else 401
+            headers = {"WWW-Authenticate": "Bearer"} if status == 401 else None
+            return JSONResponse({"ok": False, "state": "DENIED", "error": exc.code},
+                                status_code=status, headers=headers)
+
+        identity, retry_after = _operator_action_claim(principal, ns, "immune-lorenz")
+        if identity is None:
+            return JSONResponse({
+                "ok": False,
+                "state": "RATE_LIMITED",
+                "error": "a Lorenz action is already active or this principal is inside its cooldown",
+                "retry_after_s": retry_after,
+            }, status_code=429, headers={"Retry-After": str(retry_after)})
+        try:
+            import anyio
+            result = await anyio.to_thread.run_sync(_nexus_lorenz)
+            result["operator"] = {
+                "owner_id": principal.owner_id,
+                "namespace": principal.namespace,
+                "key_id": principal.key_id,
+            }
+            # A reachable but unverified upstream receipt is a service failure,
+            # not an HTTP-successful seal.
+            return JSONResponse(result, status_code=200 if result.get("sealed") else 503)
+        except Exception:  # noqa: BLE001 - never leak an upstream/runtime exception
+            return JSONResponse({
+                "ok": False,
+                "state": "UNAVAILABLE",
+                "error": "Lorenz execution unavailable",
+            }, status_code=503)
+        finally:
+            _operator_action_release(identity)
 
     prefixes = [f"/api/{ns}/v1/immune", "/v1/immune"]
     routes: list[str] = []
@@ -838,7 +961,10 @@ def register(app, ns: str = "a11oy") -> dict:
         app.add_api_route(f"{p}/kernel", _h_kernel, methods=["GET", "HEAD"], include_in_schema=True)
         app.add_api_route(f"{p}/field", _h_field, methods=["GET", "HEAD"], include_in_schema=True)
         app.add_api_route(f"{p}/nexus", _h_nexus, methods=["GET", "HEAD"], include_in_schema=True)
-        app.add_api_route(f"{p}/nexus/lorenz", _h_nexus_lorenz, methods=["GET", "POST", "HEAD"], include_in_schema=True)
+        app.add_api_route(f"{p}/nexus/lorenz", _h_nexus_lorenz_status,
+                          methods=["GET", "HEAD"], include_in_schema=True)
+        app.add_api_route(f"{p}/nexus/lorenz", _h_nexus_lorenz,
+                          methods=["POST"], include_in_schema=True)
         routes.extend([f"{p}/healthz", f"{p}/status", f"{p}/gates", f"{p}/threats",
                        f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel", f"{p}/field", f"{p}/nexus",
                        f"{p}/nexus/lorenz"])
@@ -885,9 +1011,11 @@ def _selftest() -> dict:
     assert chain["ok"], chain
     out["chain_verified"] = True
 
-    # No codename leaks in any served string.
+    # Reuse the canonical gate's token set so this assertion cannot drift.
+    from szl_codename_gate import TOKENS
+
     served = json.dumps([_healthz(), _status(), _gates(), _feed(5), _verify_chain()]).lower()
-    for bad in ("sentra", "amaru", "rosie", "jarvis"):
+    for bad in TOKENS:
         assert bad not in served, f"codename leak: {bad}"
     out["no_codename_leak"] = True
 
