@@ -19,6 +19,7 @@ WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
 SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
 PUBLIC_VERIFY = Path("szl_public_verify.py")
 TERRA_BUNDLE = Path("deployments/vertical-forge/terra")
+SOURCE_REVISION = "c24ef61716f173e48d95dad61408d9fa065f0204"
 
 
 def source(path: Path = SCRIPT) -> str:
