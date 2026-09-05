@@ -1,0 +1,243 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize runtime fallback attribution once
+
+"on":
+  push:
+    branches:
+      - fix/runtime-fallback-source-attribution-20260905
+    paths:
+      - .github/workflows/_materialize_runtime_fallback_attribution_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-runtime-fallback-attribution-a11oy
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/runtime-fallback-source-attribution-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/runtime-fallback-source-attribution-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Materialize permanent source and focused regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge --no-edit origin/main
+
+          python - <<'PY'
+          from __future__ import annotations
+
+          import hashlib
+          import json
+          from pathlib import Path
+
+          source_path = Path("szl_immune.py")
+          source = source_path.read_text(encoding="utf-8")
+          start = source.index("def _field(")
+          end = source.index(
+              "\n\n# ---------------------------------------------------------------------------\n"
+              "# Registration",
+              start,
+          )
+          block = source[start:end]
+
+          if "    primary_status = status\n" not in block:
+              old_probe = (
+                  "    status, data, err = probe(field_url)\n"
+                  "    body = data if isinstance(data, dict) else {}\n"
+                  "    reachable = status == 200 and isinstance(data, dict)\n"
+                  "    fallback_state = False\n"
+              )
+              new_probe = (
+                  "    status, data, err = probe(field_url)\n"
+                  "    primary_status = status\n"
+                  "    primary_error = err\n"
+                  "    body = data if isinstance(data, dict) else {}\n"
+                  "    reachable = status == 200 and isinstance(data, dict)\n"
+                  "    fallback_state = False\n"
+              )
+              if block.count(old_probe) != 1:
+                  raise SystemExit("field probe attribution anchor changed")
+              block = block.replace(old_probe, new_probe, 1)
+
+          if '        "fallback_from": (' not in block:
+              old_payload = (
+                  '        "upstream_http": status,\n'
+                  '        "error": None if reachable else (err or "field unobserved"),\n'
+                  '        "channel": "B",\n'
+                  '        "space": "SZLHOLDINGS/immune-lattice",\n'
+                  '        "contract": "/api/immune/state" if fallback_state else "/api/field",\n'
+              )
+              new_payload = (
+                  '        "upstream_http": status,\n'
+                  '        "error": None if reachable else (err or "field unobserved"),\n'
+                  '        "fallback_from": (\n'
+                  '            {\n'
+                  '                "channel": "B",\n'
+                  '                "space": "SZLHOLDINGS/immune-lattice",\n'
+                  '                "contract": "/api/field",\n'
+                  '                "url": field_url,\n'
+                  '                "upstream_http": primary_status,\n'
+                  '                "error": primary_error or "field unobserved",\n'
+                  '            }\n'
+                  '            if fallback_state\n'
+                  '            else None\n'
+                  '        ),\n'
+                  '        "channel": "A" if fallback_state else "B",\n'
+                  '        "space": (\n'
+                  '            "SZLHOLDINGS/immune"\n'
+                  '            if fallback_state\n'
+                  '            else "SZLHOLDINGS/immune-lattice"\n'
+                  '        ),\n'
+                  '        "contract": "/api/immune/state" if fallback_state else "/api/field",\n'
+              )
+              if block.count(old_payload) != 1:
+                  raise SystemExit("field payload attribution anchor changed")
+              block = block.replace(old_payload, new_payload, 1)
+
+          required = (
+              '        "channel": "A" if fallback_state else "B",',
+              '"SZLHOLDINGS/immune"',
+              '        "fallback_from": (',
+              '"upstream_http": primary_status,',
+          )
+          for marker in required:
+              if marker not in block:
+                  raise SystemExit(f"permanent attribution marker missing: {marker}")
+
+          source_path.write_text(
+              source[:start] + block + source[end:],
+              encoding="utf-8",
+          )
+
+          test_path = Path("tests/test_runtime_fallback_source_attribution.py")
+          test_path.parent.mkdir(parents=True, exist_ok=True)
+          test_path.write_text(
+              '''# SPDX-License-Identifier: Apache-2.0
+"""Regress exact source attribution for the bounded IMMUNE fallback."""
+from __future__ import annotations
+
+import szl_immune as immune
+
+
+def _clear_cache() -> None:
+    immune._FIELD_CACHE.clear()
+
+
+def test_primary_field_response_remains_channel_b() -> None:
+    _clear_cache()
+
+    def probe(url: str):
+        assert url.endswith("/api/field")
+        return 200, {
+            "lambda_status": "Conjecture 1 (NOT a theorem)",
+            "actuation": "SIMULATED",
+            "rule": "observe only",
+            "cells": [],
+            "hunts": [],
+        }, None
+
+    result = immune._field(now=10_000.0, probe=probe)
+
+    assert result["channel"] == "B"
+    assert result["space"] == "SZLHOLDINGS/immune-lattice"
+    assert result["contract"] == "/api/field"
+    assert result["fallback_from"] is None
+    _clear_cache()
+
+
+def test_state_fallback_reports_channel_a_and_primary_failure() -> None:
+    _clear_cache()
+    calls: list[str] = []
+
+    def probe(url: str):
+        calls.append(url)
+        if url.endswith("/api/field"):
+            return 503, None, "field overlay unavailable"
+        assert url.endswith("/api/immune/state")
+        return 200, {
+            "estate": [],
+            "ledger": {"count": 7},
+            "readiness": {"ready": True},
+            "mesh": {"status": "observed"},
+        }, None
+
+    result = immune._field(now=20_000.0, probe=probe)
+
+    assert calls[0].endswith("/api/field")
+    assert calls[1].endswith("/api/immune/state")
+    assert result["channel"] == "A"
+    assert result["space"] == "SZLHOLDINGS/immune"
+    assert result["contract"] == "/api/immune/state"
+    assert result["upstream_http"] == 200
+    assert result["fallback_from"] == {
+        "channel": "B",
+        "space": "SZLHOLDINGS/immune-lattice",
+        "contract": "/api/field",
+        "url": immune._KERNEL_LATTICE_URL + "/api/field",
+        "upstream_http": 503,
+        "error": "field overlay unavailable",
+    }
+    _clear_cache()
+''',
+              encoding="utf-8",
+          )
+
+          files = {
+              name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
+              for name in ("szl_agentic_loop.py", "szl_immune.py")
+          }
+          manifest = {
+              "files": dict(sorted(files.items())),
+              "payload_id": "runtime-boundary-1994-v2",
+              "schema": "szl-shared-source-payload/v1",
+          }
+          Path(".github/shared-source-payload-manifest.json").write_text(
+              json.dumps(
+                  manifest,
+                  ensure_ascii=True,
+                  separators=(",", ":"),
+              )
+              + "\n",
+              encoding="utf-8",
+          )
+          PY
+
+          python -m py_compile \
+            szl_immune.py \
+            tests/test_runtime_fallback_source_attribution.py
+          git diff --check
+
+          rm -f -- .github/workflows/_materialize_runtime_fallback_attribution_once.yml
+
+          git add \
+            .github/shared-source-payload-manifest.json \
+            .github/workflows/_materialize_runtime_fallback_attribution_once.yml \
+            szl_immune.py \
+            tests/test_runtime_fallback_source_attribution.py
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -s -m "fix(runtime): report bounded fallback source exactly"
+          git push origin "HEAD:fix/runtime-fallback-source-attribution-20260905"
