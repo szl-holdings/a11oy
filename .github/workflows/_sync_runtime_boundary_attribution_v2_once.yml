@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 name: Sync runtime boundary attribution v2 once
 
-on:
+"on":
   push:
     branches:
       - fix/runtime-boundary-postmerge-review-20260905
@@ -117,8 +117,39 @@ jobs:
           source = source[:start] + block + source[end:]
           source_path.write_text(source, encoding='utf-8')
 
-          test_path = Path('tests/test_runtime_boundary_fallback_attribution.py')
-          test_path.write_text('''# SPDX-License-Identifier: Apache-2.0
+          files = {
+              name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
+              for name in ('szl_agentic_loop.py', 'szl_immune.py')
+          }
+          manifest = {
+              'files': dict(sorted(files.items())),
+              'payload_id': 'runtime-boundary-1994-v2',
+              'schema': 'szl-shared-source-payload/v1',
+          }
+          Path('.github/shared-source-payload-manifest.json').write_text(
+              json.dumps(manifest, separators=(',', ':'), ensure_ascii=True) + '\n',
+              encoding='utf-8',
+          )
+
+          audit_path = Path('audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md')
+          audit = audit_path.read_text(encoding='utf-8')
+          marker = '## Fallback attribution correction\n'
+          if marker not in audit:
+              audit = audit.rstrip() + '''
+
+## Fallback attribution correction
+
+The compatibility fallback from the IMMUNE Field overlay to
+`/api/immune/state` now identifies the actual Channel A source and retains the
+failed Channel B probe as bounded evidence. Primary `/api/field` responses
+remain Channel B. Both behaviors have focused network-free regressions and the
+shared payload manifest is refreshed.
+'''
+              audit_path.write_text(audit, encoding='utf-8')
+          PY
+
+          cat > tests/test_runtime_boundary_fallback_attribution.py <<'PYTEST'
+          # SPDX-License-Identifier: Apache-2.0
           """Regression coverage for IMMUNE Field fallback source attribution."""
           from __future__ import annotations
 
@@ -186,49 +217,26 @@ jobs:
                   "error": "field overlay unavailable",
               }
               _clear_cache()
-          '''.replace('          ', ''), encoding='utf-8')
-
-          files = {
-              name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
-              for name in ('szl_agentic_loop.py', 'szl_immune.py')
-          }
-          manifest = {
-              'files': dict(sorted(files.items())),
-              'payload_id': 'runtime-boundary-1994-v2',
-              'schema': 'szl-shared-source-payload/v1',
-          }
-          Path('.github/shared-source-payload-manifest.json').write_text(
-              json.dumps(manifest, separators=(',', ':'), ensure_ascii=True) + '\n',
-              encoding='utf-8',
-          )
-
-          audit_path = Path('audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md')
-          audit = audit_path.read_text(encoding='utf-8')
-          if '## Fallback attribution correction\n' not in audit:
-              audit += '''
-
-          ## Fallback attribution correction
-
-          The compatibility fallback from the IMMUNE Field overlay to
-          `/api/immune/state` now identifies the actual Channel A source and
-          retains the failed Channel B probe as bounded evidence. Primary
-          `/api/field` responses remain Channel B. Both behaviors have focused
-          network-free regressions and the shared payload manifest is refreshed.
-          '''.replace('          ', '')
-              audit_path.write_text(audit, encoding='utf-8')
-          PY
+          PYTEST
 
       - name: Prove focused runtime boundaries
         shell: bash
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check --no-cache-dir \
-            'fastapi==0.116.1' 'httpx==0.28.1' 'pytest==9.0.2' 'cryptography==46.0.3'
+            'fastapi==0.116.1' 'httpx==0.28.1' 'pytest==9.0.2' \
+            'cryptography==46.0.3' 'ruff==0.16.6'
           python -m py_compile \
             szl_agentic_loop.py \
             szl_immune.py \
             tests/test_post_merge_1986_review_repairs.py \
             tests/test_runtime_boundary_fallback_attribution.py
+          ruff check \
+            szl_agentic_loop.py \
+            szl_immune.py \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py \
+            --select E9,F
           python -m pytest -q \
             tests/test_post_merge_1986_review_repairs.py \
             tests/test_runtime_boundary_fallback_attribution.py \
