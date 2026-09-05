@@ -28,21 +28,8 @@ jobs:
 
           path = Path('.github/workflows/zz-materialize-hf-resolve-transport-once.yml')
           source = path.read_text(encoding='utf-8')
-          setup = """      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22'
-"""
-          replacement = """      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
-        with:
-          version: '10.33.3'
-          run_install: false
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
-        with:
-          node-version: '22'
-          cache: 'pnpm'
-      - name: Install the exact schema-validator closure
-        run: pnpm install --frozen-lockfile
-"""
+          setup = "      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020\n        with:\n          node-version: '22'\n"
+          replacement = "      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86\n        with:\n          version: '10.33.3'\n          run_install: false\n      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020\n        with:\n          node-version: '22'\n          cache: 'pnpm'\n      - name: Install the exact schema-validator closure\n        run: pnpm install --frozen-lockfile\n"
           if source.count(setup) != 1:
               raise SystemExit('Node setup boundary changed; refusing broad edit')
           path.write_text(source.replace(setup, replacement), encoding='utf-8')
