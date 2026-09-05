@@ -1,0 +1,100 @@
+name: Repair post-merge 1986 review findings
+
+on:
+  push:
+    branches:
+      - fix/runtime-boundary-postmerge-review-20260905
+    paths:
+      - .github/scripts/repair_runtime_postmerge_once.py
+      - .github/workflows/repair-runtime-postmerge-once.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-runtime-postmerge-1986
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Apply four forward repairs and prove focused regressions
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact successor branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/runtime-boundary-postmerge-review-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Apply exact forward transformation
+        run: |
+          set -euo pipefail
+          python .github/scripts/repair_runtime_postmerge_once.py
+          git diff --check
+
+      - name: Install exact focused test dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Run adversarial and inherited runtime regressions
+        run: |
+          set -euo pipefail
+          python -m pytest \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_szl_immune_kernel.py \
+            -q
+          python -m py_compile szl_immune.py szl_agentic_loop.py
+
+      - name: Enforce permanent repair boundary
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import subprocess
+
+          expected = {
+              "audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md",
+              "src/pages/Ouroboros.tsx",
+              "szl_agentic_loop.py",
+              "szl_immune.py",
+              "tests/test_post_merge_1986_review_repairs.py",
+          }
+          rows = subprocess.check_output(
+              ["git", "status", "--porcelain=v1"], text=True
+          ).splitlines()
+          changed = {row[3:] for row in rows if len(row) >= 4}
+          if changed != expected:
+              raise SystemExit(
+                  f"repair boundary mismatch: changed={sorted(changed)} "
+                  f"expected={sorted(expected)}"
+              )
+          PY
+
+      - name: Commit verified forward repair
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md \
+            src/pages/Ouroboros.tsx \
+            szl_agentic_loop.py \
+            szl_immune.py \
+            tests/test_post_merge_1986_review_repairs.py
+          git commit -m "fix(runtime): close Codex post-merge boundary findings
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin HEAD:fix/runtime-boundary-postmerge-review-20260905
