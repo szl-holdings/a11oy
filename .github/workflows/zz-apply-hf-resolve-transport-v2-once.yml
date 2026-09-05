@@ -73,20 +73,18 @@ jobs:
             --output docs/huggingface-ecosystem-manifest.json
           git diff --check
 
-      - name: Commit permanent files and retire the bounded controller
+      - name: Commit source repair and retire the bounded controller
         shell: bash
         run: |
           set -euo pipefail
           git rm .github/workflows/zz-apply-hf-resolve-transport-v2-once.yml
-          git add \
-            scripts/audit_huggingface_ecosystem.py \
-            scripts/test_hf_resolve_transport_schema_v2.py
+          git add scripts/audit_huggingface_ecosystem.py
           changed="$(git diff --cached --name-only | sort)"
           expected="$(printf '%s\n' \
             .github/workflows/zz-apply-hf-resolve-transport-v2-once.yml \
-            scripts/audit_huggingface_ecosystem.py \
-            scripts/test_hf_resolve_transport_schema_v2.py | sort)"
+            scripts/audit_huggingface_ecosystem.py | sort)"
           test "$changed" = "$expected"
+          test -f scripts/test_hf_resolve_transport_schema_v2.py
           git config user.name "SZL Public Evidence Controller"
           git config user.email "stephenlutar2@gmail.com"
           git commit \
