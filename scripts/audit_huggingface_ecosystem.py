@@ -173,7 +173,7 @@ def fetch_card_markdown(
     encoded_id = urllib.parse.quote(item_id, safe="/")
     encoded_revision = urllib.parse.quote(revision, safe="")
     url = (
-        f"https://huggingface.co/{prefix}{encoded_id}/raw/"
+        f"https://huggingface.co/{prefix}{encoded_id}/resolve/"
         f"{encoded_revision}/README.md"
     )
     try:
