@@ -16,11 +16,15 @@ import datetime as dt
 import json
 import os
 from pathlib import Path
-import re
 from typing import Any
 
 from huggingface_hub import HfApi
 from huggingface_hub.utils import HfHubHTTPError
+
+try:
+    from scripts.hf_keep_policy import KeepPolicyError, load_keep_ids
+except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
+    from hf_keep_policy import KeepPolicyError, load_keep_ids
 
 DEFAULT_ORG = "SZLHOLDINGS"
 DEFAULT_POLICY = Path("docs/series-a/hf-space-keep-list.yaml")
@@ -39,14 +43,11 @@ def token_from_env() -> tuple[str | None, str | None]:
 
 
 def load_keep_set(path: Path, org: str) -> set[str]:
-    text = path.read_text(encoding="utf-8")
-    keep = {
-        m.group(1)
-        for m in re.finditer(r"^\s*-\s+id:\s*([A-Za-z0-9._-]+/[A-Za-z0-9._-]+)\s*$", text, re.MULTILINE)
-    }
-    bad = sorted(repo for repo in keep if not repo.startswith(org + "/"))
-    if bad:
-        raise RuntimeError(f"policy contains foreign repo ids: {bad}")
+    try:
+        governed = load_keep_ids(path)
+    except KeepPolicyError as exc:
+        raise RuntimeError(str(exc)) from exc
+    keep = {repo for repo in governed if repo.startswith(org + "/")}
     if not keep:
         raise RuntimeError("policy keep set is empty")
     return keep
