@@ -1,0 +1,111 @@
+{
+  "schema": "szl.estate-release-train.config/v1",
+  "organization": "szl-holdings",
+  "huggingface_organization": "SZLHOLDINGS",
+  "product": {
+    "repository": "szl-holdings/a11oy",
+    "domain_origin": "https://a-11-oy.com",
+    "space_repo_id": "SZLHOLDINGS/a11oy",
+    "space_origin": "https://szlholdings-a11oy.hf.space",
+    "require_semantic_root_parity": true
+  },
+  "proof": {
+    "repository": "szl-holdings/a11oy-net",
+    "origin": "https://a11oy.net",
+    "kind": "github_pages"
+  },
+  "profile": {
+    "repository": "szl-holdings/.github",
+    "path": "profile/README.md"
+  },
+  "components": [
+    {
+      "key": "a11oy",
+      "source_repository": "szl-holdings/a11oy",
+      "hf_repo_id": "SZLHOLDINGS/a11oy",
+      "origin": "https://szlholdings-a11oy.hf.space",
+      "required": true
+    },
+    {
+      "key": "killinchu",
+      "source_repository": "szl-holdings/killinchu",
+      "hf_repo_id": "SZLHOLDINGS/killinchu",
+      "origin": "https://szlholdings-killinchu.hf.space",
+      "required": true
+    },
+    {
+      "key": "lyte",
+      "source_repository": "szl-holdings/lyte-services",
+      "hf_repo_id": "SZLHOLDINGS/lyte",
+      "origin": "https://szlholdings-lyte.hf.space",
+      "required": true
+    },
+    {
+      "key": "vertical-services",
+      "source_repository": "szl-holdings/vertical-services",
+      "hf_repo_id": "SZLHOLDINGS/vertical-services",
+      "origin": "https://szlholdings-vertical-services.hf.space",
+      "required": true
+    },
+    {
+      "key": "terra",
+      "source_repository": "szl-holdings/a11oy",
+      "hf_repo_id": "SZLHOLDINGS/terra",
+      "origin": "https://szlholdings-terra.hf.space",
+      "required": true,
+      "generated_by": "a11oy-domain-publisher"
+    },
+    {
+      "key": "counsel",
+      "source_repository": "szl-holdings/a11oy",
+      "hf_repo_id": "SZLHOLDINGS/counsel",
+      "origin": "https://szlholdings-counsel.hf.space",
+      "required": true,
+      "generated_by": "a11oy-domain-publisher"
+    },
+    {
+      "key": "finance",
+      "source_repository": "szl-holdings/a11oy",
+      "hf_repo_id": "SZLHOLDINGS/finance",
+      "origin": "https://szlholdings-finance.hf.space",
+      "required": true,
+      "generated_by": "a11oy-domain-publisher"
+    },
+    {
+      "key": "sentra",
+      "source_repository": "szl-holdings/szl-defensive-control-plane",
+      "hf_repo_id": "SZLHOLDINGS/sentra",
+      "origin": "https://szlholdings-sentra.hf.space",
+      "required": false
+    },
+    {
+      "key": "david-leads",
+      "source_repository": "szl-holdings/david-leads",
+      "hf_repo_id": "SZLHOLDINGS/david-leads",
+      "origin": "https://szlholdings-david-leads.hf.space",
+      "required": false
+    }
+  ],
+  "build_info_paths": [
+    "/api/build-info",
+    "/.well-known/szl-source.json",
+    "/api/source"
+  ],
+  "truth_states": [
+    "PROVED",
+    "MEASURED",
+    "REPORTED",
+    "MODELED",
+    "SIMULATED",
+    "CONJECTURE",
+    "ROADMAP",
+    "UNKNOWN",
+    "UNAVAILABLE"
+  ],
+  "authority": {
+    "provider_writes": "CANONICAL_WORKFLOWS_ONLY",
+    "external_effectors": [],
+    "production_authorization": false,
+    "human_approval_required": true
+  }
+}

@@ -28,7 +28,9 @@ class LivingCommandFabricContract(unittest.TestCase):
 
     def test_existing_buyer_and_runtime_truth_contracts_are_preserved(self) -> None:
         for literal in (
-            "Every AI action your agents take,",
+            "Governed AI actions.",
+            "Receipts you can verify.",
+            "only when persistent signer evidence is active and verification passes",
             'id="nv-panel"',
             'id="nv-signer"',
             'id="nv-verdict"',

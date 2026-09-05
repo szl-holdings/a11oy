@@ -236,6 +236,8 @@
 
   function addSkipLink() {
     if (document.querySelector(".szl-holo-skip, [data-szl-holo-skip]")) return;
+    if (document.documentElement.dataset.szlShellOwner === "homepage" &&
+        document.querySelector('.skip-link[href="#main"]')) return;
     const main = document.querySelector("main, [role='main'], .content");
     if (!main) return;
     if (!main.id) main.id = "szl-holo-main";
@@ -271,6 +273,7 @@
 
   function buildRail(theme) {
     if (
+      document.documentElement.dataset.szlShellOwner === "homepage" ||
       hasProductCommandBar() ||
       document.querySelector(".szl-holo-rail") ||
       document.documentElement.hasAttribute("data-szl-holo-no-rail")
