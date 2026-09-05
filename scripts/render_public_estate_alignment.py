@@ -5,10 +5,11 @@
 The product topology lives in ``static/shared/public-estate-contract.v1.json``.
 Current public Hub inventory remains measured in
 ``docs/huggingface-ecosystem-manifest.json``. This program combines those two
-sources without contacting a provider, validates that the declared Space
-keep-set equals the measured inventory, and emits deterministic Markdown
-fragments for the GitHub organization, Hugging Face organization card, and
-proof estate.
+sources without contacting a provider, validates every measured Space against
+either a topology binding or an explicit inventory-only classification, and
+emits deterministic Markdown fragments for the GitHub organization, Hugging
+Face organization card, and proof estate. Inventory is observational and never
+promotes a Space into the separately governed keep-list.
 """
 from __future__ import annotations
 
@@ -18,9 +19,15 @@ import json
 from pathlib import Path
 from typing import Any, Iterable
 
+try:
+    from scripts.hf_keep_policy import KeepPolicyError, load_keep_ids
+except ModuleNotFoundError:  # Direct ``python scripts/...`` execution.
+    from hf_keep_policy import KeepPolicyError, load_keep_ids
+
 ROOT = Path(__file__).resolve().parents[1]
 CONTRACT = ROOT / "static/shared/public-estate-contract.v1.json"
 HF_MANIFEST = ROOT / "docs/huggingface-ecosystem-manifest.json"
+KEEP_POLICY = ROOT / "docs/series-a/hf-space-keep-list.yaml"
 OUTPUTS = {
     "github": ROOT / "docs/generated/github-org-public-estate.md",
     "huggingface": ROOT / "docs/generated/huggingface-org-card.md",
@@ -60,14 +67,42 @@ def _unique(values: Iterable[str], label: str) -> list[str]:
     return rows
 
 
-def expected_spaces(contract: dict[str, Any]) -> list[str]:
+def topology_spaces(contract: dict[str, Any]) -> list[str]:
     spaces: list[str] = [contract["fabric"]["huggingFaceRepository"]]
     for row in contract["publicDomainBodies"]:
         spaces.extend(row["huggingFaceRepositories"])
     for row in contract["supportingSystems"]:
         spaces.extend(row["huggingFaceRepositories"])
     spaces.extend(contract["laboratorySurfaces"])
-    return sorted(_unique(spaces, "Hugging Face keep-set"), key=str.casefold)
+    return sorted(_unique(spaces, "Hugging Face topology bindings"), key=str.casefold)
+
+
+def inventory_only_spaces(contract: dict[str, Any]) -> list[str]:
+    rows = contract.get("inventoryOnlyHuggingFaceRepositories")
+    if not isinstance(rows, list):
+        raise ContractError("inventory-only Hub classifications are missing")
+    ids: list[str] = []
+    for row in rows:
+        if not isinstance(row, dict):
+            raise ContractError("inventory-only Hub classification must be an object")
+        if row.get("classification") != "INVENTORY_ONLY":
+            raise ContractError("inventory-only Hub classification drifted")
+        if row.get("governedKeep") is not False:
+            raise ContractError("inventory-only Space cannot be a governed keeper")
+        if row.get("disposition") != "FOLD":
+            raise ContractError("inventory-only Space must retain its FOLD disposition")
+        if row.get("policySource") != str(KEEP_POLICY.relative_to(ROOT)):
+            raise ContractError("inventory-only Space must cite the canonical keep policy")
+        ids.append(row.get("id"))
+    return sorted(_unique(ids, "inventory-only Hub Spaces"), key=str.casefold)
+
+
+def governed_keep_spaces(path: Path = KEEP_POLICY) -> list[str]:
+    """Read the top-level ``keep`` IDs from the dependency-free policy subset."""
+    try:
+        return load_keep_ids(path)
+    except KeepPolicyError as exc:
+        raise ContractError(str(exc)) from exc
 
 
 def measured_spaces(manifest: dict[str, Any]) -> list[str]:
@@ -84,7 +119,7 @@ def measured_spaces(manifest: dict[str, Any]) -> list[str]:
 def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any]:
     if contract.get("schema") != "szl.public-estate/v1":
         raise ContractError("unsupported public-estate schema")
-    if contract.get("version") != "1.0.0":
+    if contract.get("version") != "1.0.1":
         raise ContractError("unsupported public-estate version")
 
     canonical = contract.get("canonical")
@@ -129,13 +164,30 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
     }:
         raise ContractError("public authority boundary drifted")
 
-    expected = expected_spaces(contract)
+    topology = topology_spaces(contract)
+    inventory_only = inventory_only_spaces(contract)
+    governed_keep = governed_keep_spaces()
     observed = measured_spaces(manifest)
-    if expected != observed:
-        missing = sorted(set(expected) - set(observed), key=str.casefold)
-        undeclared = sorted(set(observed) - set(expected), key=str.casefold)
+    overlap = sorted(set(topology) & set(inventory_only), key=str.casefold)
+    if overlap:
         raise ContractError(
-            f"Hub keep-set mismatch; missing={missing}, undeclared={undeclared}"
+            f"inventory-only Spaces cannot be topology bindings; overlap={overlap}"
+        )
+    governed_overlap = sorted(
+        set(inventory_only) & set(governed_keep), key=str.casefold
+    )
+    if governed_overlap:
+        raise ContractError(
+            "inventory-only Spaces cannot be governed keepers; "
+            f"overlap={governed_overlap}"
+        )
+    declared = sorted(topology + inventory_only, key=str.casefold)
+    if declared != observed:
+        missing = sorted(set(declared) - set(observed), key=str.casefold)
+        undeclared = sorted(set(observed) - set(declared), key=str.casefold)
+        raise ContractError(
+            f"Hub inventory classification mismatch; missing={missing}, "
+            f"undeclared={undeclared}"
         )
 
     counts = manifest.get("counts")
@@ -157,7 +209,11 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
         "contractVersion": contract["version"],
         "publicDomainBodies": len(bodies),
         "internalEngines": len(engines),
-        "huggingFaceKeepSet": expected,
+        "huggingFaceTopologyBindings": topology,
+        "huggingFaceInventoryOnly": inventory_only,
+        "governedKeepSet": governed_keep,
+        "governedKeepPolicySource": str(KEEP_POLICY.relative_to(ROOT)),
+        "keepPolicySha256": hashlib.sha256(KEEP_POLICY.read_bytes()).hexdigest(),
         "huggingFaceCounts": counts,
         "huggingFaceObservedAt": manifest.get("observedAt"),
     }
@@ -178,6 +234,18 @@ def _body_lines(contract: dict[str, Any]) -> list[str]:
     return rows
 
 
+def _inventory_policy_line(evidence: dict[str, Any]) -> str:
+    inventory_only = ", ".join(
+        f"`{space}`" for space in evidence["huggingFaceInventoryOnly"]
+    )
+    return (
+        "Measured Hub inventory is observational and is not the governed keep-list. "
+        f"Inventory-only / FOLD (not governed keepers): {inventory_only}. "
+        "Canonical keep policy: "
+        f"`{evidence['governedKeepPolicySource']}`."
+    )
+
+
 def render_github(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
     counts = evidence["huggingFaceCounts"]
     lines = [
@@ -191,6 +259,7 @@ def render_github(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
         f"**Measured Hub inventory:** {counts['spaces']} public Spaces · "
         f"{counts['models']} models · {counts['datasets']} datasets "
         f"as of `{evidence['huggingFaceObservedAt']}`.",
+        _inventory_policy_line(evidence),
         "",
         "### Five public domain bodies",
         "",
@@ -228,6 +297,7 @@ def render_huggingface(contract: dict[str, Any], evidence: dict[str, Any]) -> st
         "",
         f"**Current public inventory:** {counts['spaces']} Spaces · {counts['models']} models · "
         f"{counts['datasets']} datasets (`{evidence['huggingFaceObservedAt']}`).",
+        _inventory_policy_line(evidence),
         "",
         "## Product bodies",
         "",
@@ -253,6 +323,7 @@ def render_proof(contract: dict[str, Any], evidence: dict[str, Any]) -> str:
         "",
         "This proof surface follows the A11oy public-estate contract. Product, GitHub source, "
         "Hugging Face runtime, and evidence state are distinct and must agree before a lane is called current.",
+        _inventory_policy_line(evidence),
         "",
         "| Product body | GitHub source | Hugging Face runtime | Truth class |",
         "|---|---|---|---|",
