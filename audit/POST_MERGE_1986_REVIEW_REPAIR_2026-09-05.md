@@ -33,3 +33,12 @@ The current-main successor now carries the four forward fixes:
 Focused adversarial regressions are in
 `tests/test_post_merge_1986_review_repairs.py`. This state is not a merge or
 deployment claim; exact-head CI and independent review remain required.
+
+## Current-main successor reconciliation
+
+The reviewed functional changes were rematerialized onto current protected
+`main` without the temporary repair workflows or the `sitecustomize.py`
+collection shim from superseded PR #1994. The IMMUNE Field compatibility
+fallback now reports the actual Channel A source while retaining the failed
+Channel B probe as bounded evidence. The coordinated shared-source manifest
+is `sha256:8dd525eab719a20b3d1daebf7cb81ee1510c61b5ae7ebf8b6fa2037194937273` and is verified reciprocally with Killinchu.
