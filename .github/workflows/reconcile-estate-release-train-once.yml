@@ -1,0 +1,58 @@
+name: Reconcile estate release train with current main once
+
+"on":
+  push:
+    branches:
+      - feat/estate-release-train-v1
+    paths:
+      - .github/workflows/reconcile-estate-release-train-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reconcile-estate-release-train-once
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Merge current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git merge --no-edit origin/main
+
+      - name: Prove the reconciled release train
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/verify_estate_release_train.py tests/test_estate_release_train.py
+          python tests/test_estate_release_train.py
+          python -m json.tool config/estate-release-train.v1.json >/dev/null
+          git diff --check
+
+      - name: Remove one-use reconciler and push durable head
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/reconcile-estate-release-train-once.yml
+          git add -A
+          git commit -m 'chore(release): reconcile estate train with current main' -m 'Bring the cross-plane release contract onto the latest protected source, rerun its exact offline gates, and remove the one-use reconciler before review.' -m 'Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>'
+          git push origin HEAD:feat/estate-release-train-v1
