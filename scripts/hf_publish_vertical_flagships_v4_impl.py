@@ -30,9 +30,9 @@ DEPLOYMENT_SOURCE_REPOSITORY = "szl-holdings/a11oy"
 USER_AGENT = "SZLHOLDINGS-Vertical-Publisher/4.0"
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 TERRA_FORGE_BUNDLE = REPOSITORY_ROOT / "deployments" / "vertical-forge" / "terra"
-TERRA_FORGE_MARKER = 'data-szl-vertical-forge="0.2.1"'
+TERRA_FORGE_MARKER = 'data-szl-vertical-forge="0.2.2"'
 TERRA_FORGE_SOURCE_REPOSITORY = "szl-holdings/szl-vertical-forge"
-TERRA_FORGE_GENERATOR = "szl-vertical-forge/0.2.1"
+TERRA_FORGE_GENERATOR = "szl-vertical-forge/0.2.2"
 
 FLAGSHIPS: tuple[dict[str, Any], ...] = (
     {

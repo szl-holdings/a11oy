@@ -1,15 +1,15 @@
 {
   "chain_event": {
-    "artifact_sha256": "37876f7fef0f1bc18b65b508b2f5c5c78376403435843a6c3edfb63be0c5fd92",
-    "chain_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
+    "artifact_sha256": "3970b3ac1065db1c531d141d3d0aa7ae1903546d6b10197b6f03794d72bca5c4",
+    "chain_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
     "kind": "generated-index",
     "path": "terra/index.html",
-    "prev_hash": "e3346f0e8c3df839ad563acd7ba83243fdb46a91634a845bfb0af274f251471f"
+    "prev_hash": "8ff12bb0f4a4786a3952b70117e5cb191fe098d26a04d128af0c2c02dcd9ba93"
   },
   "config_sha256": "c6ba3bd447dafd2bb8dff96d1762718ad392fff121cf04fd64057db5ddac378c",
   "fleet_config_sha256": "4b85cb67e7003cee620119835c91a92e954f3c863fc2faa505b07aeb4a1c2a46",
-  "fleet_master_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
-  "generator": "szl-vertical-forge/0.2.1",
+  "fleet_master_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
+  "generator": "szl-vertical-forge/0.2.2",
   "schema": "szl.vertical-forge.artifact/v1",
   "vertical": "terra"
 }

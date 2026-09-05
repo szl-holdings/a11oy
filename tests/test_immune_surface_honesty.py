@@ -97,8 +97,15 @@ def test_kernel_panel_is_same_origin_and_never_auto_embeds() -> None:
     assert "GET /api/a11oy/v1/immune/nexus" in IMMUNE
     assert 'id="lorenzKv"' in IMMUNE
     assert 'id="lorenzBtn"' in IMMUNE
+    assert 'id="lorenzToken" type="password" autocomplete="off"' in IMMUNE
     assert 'requestJSON(BASE + "/nexus/lorenz"' in IMMUNE
+    assert 'headers:{Authorization:"Bearer "+token}' in IMMUNE
     assert "Seal Lorenz OP" in IMMUNE
+    assert 's.ok === true && s.sealed === true && verified' in IMMUNE
+    assert 's.inputHash||ref.inputHash' not in IMMUNE
+    assert 'REFERENCE ONLY — not this run' in IMMUNE
+    assert 'row("reference inputHash",ref.inputHash,"digest")' in IMMUNE
+    assert 'row("reference outputHash",ref.outputHash,"digest")' in IMMUNE
     assert 'id="lorenzKv" aria-live="polite">CONNECTING<' in IMMUNE or 'id="lorenzKv" aria-live="polite"><span class="k">lorenz</span><span class="v">CONNECTING</span>' in IMMUNE
     assert "hunt / isolate / deceive" in IMMUNE
     assert "never strike people" in IMMUNE
