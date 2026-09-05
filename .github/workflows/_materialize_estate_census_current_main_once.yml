@@ -1,0 +1,218 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize current-main estate census once
+
+on:
+  push:
+    branches:
+      - fix/estate-census-consistency-current-main-20260905
+    paths:
+      - .github/workflows/_materialize_estate_census_current_main_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-current-main-estate-census-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/estate-census-consistency-current-main-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact branch head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/estate-census-consistency-current-main-20260905
+          fetch-depth: 1
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+
+      - name: Correct census and bind the existing publisher contract test
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          contract_path = Path('docs/strategy/living-command-fabric.v1.json')
+          value = json.loads(contract_path.read_text(encoding='utf-8'))
+          estate = value['estate']
+          observed = {
+              key: estate[key]
+              for key in (
+                  'repository_count',
+                  'active_repository_count',
+                  'archived_repository_count',
+                  'public_repository_count',
+                  'private_repository_count',
+              )
+          }
+          expected = {
+              'repository_count': 117,
+              'active_repository_count': 83,
+              'archived_repository_count': 34,
+              'public_repository_count': 117,
+              'private_repository_count': 0,
+          }
+          if observed != expected:
+              raise SystemExit(f'estate census anchor changed: {observed!r}')
+          estate.update(
+              repository_count=123,
+              active_repository_count=89,
+              archived_repository_count=34,
+              public_repository_count=117,
+              private_repository_count=6,
+              census_method=(
+                  'Authenticated GitHub installation inventory observed on 2026-09-05: '
+                  '123 accessible organization repositories, comprising 117 public and '
+                  '6 private repositories; 89 are active and 34 are archived. This is a '
+                  'point-in-time source census for the connected installation.'
+              ),
+          )
+          contract_path.write_text(
+              json.dumps(value, indent=2, ensure_ascii=False) + '\n',
+              encoding='utf-8',
+          )
+
+          active_pin = json.loads(
+              Path('docs/strategy/vertical-services-active-pin.v1.json').read_text(
+                  encoding='utf-8'
+              )
+          )
+          active_revision = active_pin['source_revision']
+          publisher_text = Path(
+              'scripts/hf_publish_vertical_services_intelligence_v4.py'
+          ).read_text(encoding='utf-8')
+          literal = f'SOURCE_REVISION = "{active_revision}"'
+          if literal not in publisher_text:
+              raise SystemExit('active publisher source revision is not present in publisher')
+
+          publisher_test_path = Path('tests/test_hf_publish_vertical_flagships_v4.py')
+          publisher_test = publisher_test_path.read_text(encoding='utf-8')
+          if literal not in publisher_test:
+              anchor = 'TERRA_BUNDLE = Path("deployments/vertical-forge/terra")\n'
+              if publisher_test.count(anchor) != 1:
+                  raise SystemExit('publisher contract-test insertion anchor changed')
+              publisher_test = publisher_test.replace(
+                  anchor,
+                  anchor + literal + '\n',
+                  1,
+              )
+              publisher_test_path.write_text(publisher_test, encoding='utf-8')
+
+          Path('tests/test_estate_census_snapshot.py').write_text('''#!/usr/bin/env python3
+          from __future__ import annotations
+
+          import json
+          import unittest
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          CONTRACT = ROOT / "docs" / "strategy" / "living-command-fabric.v1.json"
+          ACTIVE_PIN = ROOT / "docs" / "strategy" / "vertical-services-active-pin.v1.json"
+          PUBLISHER_TEST = ROOT / "tests" / "test_hf_publish_vertical_flagships_v4.py"
+          EXPECTED = {
+              "repository_count": 123,
+              "active_repository_count": 89,
+              "archived_repository_count": 34,
+              "public_repository_count": 117,
+              "private_repository_count": 6,
+          }
+          HISTORICAL_VERTICAL_SERVICES_REVISION = "83edba5c5e730c91d8f5f0a6531213fb860677af"
+          CURRENT_VERTICAL_SERVICES_AUTHORITY = "895c4de2e8c07236c4adeabc7376ca5367b2b835"
+
+
+          class EstateCensusSnapshotTests(unittest.TestCase):
+              @classmethod
+              def setUpClass(cls) -> None:
+                  cls.value = json.loads(CONTRACT.read_text(encoding="utf-8"))
+
+              def test_authenticated_snapshot_is_exact_and_arithmetic_closes(self) -> None:
+                  estate = self.value["estate"]
+                  self.assertEqual({key: estate[key] for key in EXPECTED}, EXPECTED)
+                  self.assertEqual(
+                      estate["repository_count"],
+                      estate["active_repository_count"] + estate["archived_repository_count"],
+                  )
+                  self.assertEqual(
+                      estate["repository_count"],
+                      estate["public_repository_count"] + estate["private_repository_count"],
+                  )
+                  self.assertIn("Authenticated GitHub installation inventory", estate["census_method"])
+                  self.assertIn("point-in-time", estate["census_method"])
+
+              def test_current_authority_and_historical_strategy_pins_are_distinct(self) -> None:
+                  self.assertEqual(
+                      self.value["authorities"]["vertical_services"]["revision"],
+                      CURRENT_VERTICAL_SERVICES_AUTHORITY,
+                  )
+                  self.assertEqual(
+                      self.value["public_product_taxonomy"]["vertical_services_revision"],
+                      HISTORICAL_VERTICAL_SERVICES_REVISION,
+                  )
+                  self.assertEqual(
+                      self.value["intelligence_fabric"]["source_revision"],
+                      HISTORICAL_VERTICAL_SERVICES_REVISION,
+                  )
+
+              def test_active_publisher_revision_is_carried_by_contract_test(self) -> None:
+                  active = json.loads(ACTIVE_PIN.read_text(encoding="utf-8"))
+                  literal = f'SOURCE_REVISION = "{active["source_revision"]}"'
+                  self.assertIn(literal, PUBLISHER_TEST.read_text(encoding="utf-8"))
+
+
+          if __name__ == "__main__":
+              unittest.main()
+          '''.replace('          ', ''), encoding='utf-8')
+          PY
+
+      - name: Prove current-main consistency boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            tests/test_estate_census_snapshot.py \
+            tests/test_estate_one_fabric_alignment.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            tests/test_living_command_fabric_frontdoor.py
+          python tests/test_estate_census_snapshot.py
+          python tests/test_estate_one_fabric_alignment.py
+          python tests/test_living_command_fabric_frontdoor.py
+          python -m json.tool docs/strategy/living-command-fabric.v1.json >/dev/null
+          git diff --check
+
+      - name: Commit only permanent reviewed files and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/estate-census-consistency-current-main-20260905
+          test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$GITHUB_SHA"
+          git rm -- .github/workflows/_materialize_estate_census_current_main_once.yml
+          git add -- \
+            docs/strategy/living-command-fabric.v1.json \
+            tests/test_estate_census_snapshot.py \
+            tests/test_hf_publish_vertical_flagships_v4.py
+          changed="$(git diff --cached --name-only | sort)"
+          expected="$(printf '%s\n' \
+            .github/workflows/_materialize_estate_census_current_main_once.yml \
+            docs/strategy/living-command-fabric.v1.json \
+            tests/test_estate_census_snapshot.py \
+            tests/test_hf_publish_vertical_flagships_v4.py | sort)"
+          test "$changed" = "$expected"
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'fix(alignment): correct estate census and publisher contract marker'
+          git push origin "HEAD:refs/heads/$branch"
