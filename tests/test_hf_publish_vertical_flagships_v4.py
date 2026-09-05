@@ -16,6 +16,7 @@ INTELLIGENCE = Path("scripts/hf_publish_vertical_services_intelligence_v4.py")
 COMBINED = Path("scripts/hf_publish_vertical_services.py")
 WORKFLOW = Path(".github/workflows/hf-publish-vertical-flagships.yml")
 SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")
+PUBLIC_VERIFY = Path("szl_public_verify.py")
 TERRA_BUNDLE = Path("deployments/vertical-forge/terra")
 
 
@@ -61,7 +62,7 @@ def test_v4_renderer_retains_six_domain_templates() -> None:
     assert 'PUBLIC_EXPERIENCE_VERSION = "4.0.0"' in text
     assert 'data-szl-domain-experience-v4="true"' in text
     assert '"terra":' in text and "parcel-map" in text and "UNDERWRITING QUEUE" in text
-    assert '"sentra":' in text and "assurance admission graph" in text and "ASSURANCE EVIDENCE QUEUE" in text
+    assert '"sentra":' in text and "receipt verification graph" in text and "VERIFICATION EVIDENCE QUEUE" in text
     assert '"counsel":' in text and "AUTHORITY RAIL" in text and "MATTER / WORK PRODUCT" in text
     assert '"finance":' in text and "DECISION TAPE" in text and "STRESS LANES" in text
     assert '"vessels":' in text and "VOYAGE WATCH" in text and "maritime route chart" in text
@@ -73,21 +74,21 @@ def test_terra_forge_bundle_is_chained_to_exact_merged_source() -> None:
     module = load_implementation()
     page, forge = module.load_terra_forge_bundle()
 
-    assert 'data-szl-vertical-forge="0.2.2"' in page
+    assert 'data-szl-vertical-forge="0.2.1"' in page
     assert 'href="/panels"' in page
     assert 'href="/build-receipt.json"' in page
     assert 'const EP="/api/live"' in page
     assert forge == {
         "schema": "szl.vertical-forge.deployment-source/v1",
-        "generator": "szl-vertical-forge/0.2.2",
+        "generator": "szl-vertical-forge/0.2.1",
         "source_repository": "szl-holdings/szl-vertical-forge",
-        "source_revision": "6a05a17004d245f929176e01e29b20a0ab0e8bb3",
-        "source_pull_request": "https://github.com/szl-holdings/szl-vertical-forge/pull/3",
-        "fleet_master_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
+        "source_revision": "5febe88a571cd001cdc5e9d7c5073373dd6d480c",
+        "source_pull_request": "https://github.com/szl-holdings/szl-vertical-forge/pull/1",
+        "fleet_master_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
         "fleet_config_sha256": "4b85cb67e7003cee620119835c91a92e954f3c863fc2faa505b07aeb4a1c2a46",
         "vertical_config_sha256": "c6ba3bd447dafd2bb8dff96d1762718ad392fff121cf04fd64057db5ddac378c",
-        "artifact_sha256": "3970b3ac1065db1c531d141d3d0aa7ae1903546d6b10197b6f03794d72bca5c4",
-        "chain_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
+        "artifact_sha256": "37876f7fef0f1bc18b65b508b2f5c5c78376403435843a6c3edfb63be0c5fd92",
+        "chain_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
     }
 
 
@@ -205,6 +206,36 @@ def test_demo_visuals_have_visible_illustrative_disclosures() -> None:
     assert 'class="panel waterfall">' + badge in templates["lyte"]
 
 
+def test_sentra_binds_to_the_read_only_public_verifier_contract() -> None:
+    module = load_implementation()
+    sentra = next(row for row in module.FLAGSHIPS if row["slug"] == "sentra")
+    verifier = PUBLIC_VERIFY.read_text(encoding="utf-8")
+
+    assert sentra["upstream"] == (
+        "https://szlholdings-a11oy.hf.space/api/a11oy/v1/verify/receipt"
+    )
+    assert sentra["workflow"] == (
+        "RECEIPT",
+        "SIGNATURE",
+        "DIGEST",
+        "CHAIN",
+        "VERDICT",
+    )
+    assert sentra["lens"] == "receipt"
+    assert sentra["labels"] == (
+        "Verifier contract",
+        "Integrity checks",
+        "Evidence verdict",
+    )
+    assert 'app.add_api_route(f"{p}/receipt", _verify_manifest, methods=["GET"]' in verifier
+    assert '"schema": "szl.public-receipt-verifier/manifest/v1"' in verifier
+    assert "vert/cyber/feed" not in sentra["upstream"]
+
+    panel = domain_html()["sentra"]
+    assert "performs no admission or approval" in panel
+    assert "PASS requires an actual caller-supplied receipt" in panel
+
+
 def test_disclosures_remain_accessible_on_counsel_and_narrow_terra() -> None:
     text = source()
     assert '.illus{color:#5b3a12;border-color:#8b5e34}' in text
@@ -240,7 +271,7 @@ def test_cards_are_license_complete_and_short_descriptions_are_bounded() -> None
     assert "tags:" in text
     for phrase in (
         "Parcel-to-portfolio real estate decision intelligence",
-        "Admission, receipt verification, and evidence assurance",
+        "Public receipt verification and assurance evidence",
         "Matter workspace for research, drafting, and verification",
         "Provenance-first financial signal and decision console",
         "Fleet route, risk, and voyage intelligence with receipts",
@@ -323,7 +354,7 @@ def test_entrypoint_publishes_source_owned_lyte_and_folds_vessels() -> None:
         'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
         'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")',
         'SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)',
-        'LYTE_SOURCE_REVISION = "a0479279505aded5c084d1644012829a1d93ad77"',
+        'LYTE_SOURCE_REVISION = "b26e66f18f563f5e9a98f8bdcfa5f28527e3e195"',
         'SENTRA_SPACE = "SZLHOLDINGS/sentra"',
         'LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"',
         'install_existing_space_guard()',
