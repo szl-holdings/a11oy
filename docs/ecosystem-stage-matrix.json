@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-04T20:35:24Z",
+  "observedAt": "2026-09-05T01:59:52Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -27,15 +27,16 @@
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
       "models": 44,
-      "datasets": 32,
-      "spaces": 15
+      "datasets": 33,
+      "spaces": 16
     },
     "huggingFaceScope": {
       "visibility": "public-only",
       "authenticated": false,
       "privateAssetsIncluded": false,
       "countMeaning": "Items returned by the author-filtered public APIs; not the authenticated organization total.",
-      "revisionFields": "Every item has sha and lastModified snapshot evidence plus a cardSemanticSha256 claim digest at observedAt; --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
+      "cardEvidenceBoundary": "Gated repositories are inventoried from public API metadata only. Their cardObservation is ACCESS_RESTRICTED and cardSemanticSha256 is null; metadataSha256 is not a README or weight digest. No access request, authentication, or protected download is attempted. Restricted revisions remain exact-pinned in --check.",
+      "revisionFields": "Every item has sha and lastModified snapshot evidence. Ungated cards have a cardSemanticSha256 claim digest at observedAt; gated cards have explicit restricted metadata evidence. --check verifies retained revisions, rejects card and curated-tag drift, and ignores only complete, valid later source-only revision changes and Hugging Face-generated dataset size, modality, format, or library tags."
     },
     "theoremRuntimeEntries": 46
   },
@@ -1252,6 +1253,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/david-leads-data",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/david-leads-data"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/doctrine-v10-v11",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1539,6 +1550,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/a11oy"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/ayllu",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/ayllu"
       ]
     },
     {

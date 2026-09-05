@@ -433,6 +433,55 @@ def _cached_fetch(key: str, url: str, ttl: float, parser=None,
     return result
 
 
+_READINESS_PUBLIC_FRESHNESS = frozenset({"live", "cached"})
+
+
+def _readiness_public_source(entry: Any) -> Any:
+    """Publish one DEV-A source wrapper under the readiness truth contract.
+
+    No-value failures remain explicit ``UNAVAILABLE`` evidence and carry the
+    instant at which the failure was observed. Last-good values may be served as
+    ``cached`` only when their original observation timestamp is retained.
+    """
+    normalized = entry
+    if _HAS_VF and hasattr(_vf, "_readiness_public_source"):
+        try:
+            normalized = _vf._readiness_public_source(entry)
+        except Exception:
+            normalized = entry
+    if not isinstance(normalized, dict):
+        return normalized
+    freshness = normalized.get("freshness")
+    if not isinstance(freshness, dict):
+        return normalized
+
+    out = dict(normalized)
+    public = dict(freshness)
+    status = str(public.get("status") or "").strip().lower()
+    if out.get("value") is None:
+        public["status"] = "UNAVAILABLE"
+        if public.get("fetched_at") is None:
+            public["fetched_at"] = datetime.now(timezone.utc).isoformat()
+        if not str(public.get("error") or "").strip():
+            public["error"] = "source returned no observed value"
+    elif status not in _READINESS_PUBLIC_FRESHNESS:
+        if public.get("fetched_at") is None:
+            age_s = public.get("age_s")
+            if (
+                isinstance(age_s, (int, float))
+                and not isinstance(age_s, bool)
+                and math.isfinite(float(age_s))
+            ):
+                observed = time.time() - max(0.0, float(age_s))
+                public["fetched_at"] = datetime.fromtimestamp(
+                    observed, tz=timezone.utc
+                ).isoformat()
+        if public.get("fetched_at") is not None:
+            public["status"] = "cached"
+    out["freshness"] = public
+    return out
+
+
 # ===========================================================================
 # GOVERNED TURN — delegate to the proven machinery in a11oy_vertical_feeds.
 # ===========================================================================
@@ -794,18 +843,89 @@ def feed_hpd_violations(limit: int = 200) -> dict[str, Any]:
 
 
 def feed_dob_violations(limit: int = 60) -> dict[str, Any]:
+    """Fetch the newest valid source-reported issue dates, not an unordered sample.
+
+    The DOB field is text and contains malformed values. Provider-side bounds
+    remove non-date prefixes and future-looking values; calendar validation
+    remains local. A recent fetch never proves that a violation is still open.
+    """
     limit = _bounded_limit(limit, 60, 1000)
-    url = "https://data.cityofnewyork.us/resource/3h2n-5cm9.json?%24limit=" + str(limit)
-    def parse(d):
-        return {"items": [{"id": r.get("isn_dob_bis_viol"), "type": r.get("violation_type"),
-                           "category": r.get("violation_category"),
-                           "boro": r.get("boro"), "block": r.get("block"), "lot": r.get("lot"),
-                           "street": (str(r.get("house_number", "")) + " " + str(r.get("street", ""))).strip(),
-                           "issued": r.get("issue_date"),
-                           "desc": (r.get("description") or "")[:120]}
-                          for r in (d if isinstance(d, list) else [])]}
-    return _cached_fetch(_variant_cache_key("dob_viol", limit=limit),
-                         url, ttl=1800, parser=parse)
+    as_of = datetime.now(timezone.utc).date()
+    upper = as_of.strftime("%Y%m%d")
+    order = "issue_date DESC, isn_dob_bis_viol DESC"
+    # Bounded oversampling leaves room to reject invalid calendar dates while
+    # retaining the established maximum of 1,000 upstream rows.
+    fetch_limit = min(1000, limit * 3)
+    url = (
+        "https://data.cityofnewyork.us/resource/3h2n-5cm9.json?%24limit="
+        + str(fetch_limit)
+        + "&%24select=isn_dob_bis_viol,violation_type,house_number,street,boro,issue_date,violation_category,block,lot,description"
+        + "&%24where=issue_date%20between%20%2700010101%27%20and%20%27"
+        + upper
+        + "%27&%24order=issue_date%20DESC%2C%20isn_dob_bis_viol%20DESC"
+    )
+
+    def parse(data):
+        if not isinstance(data, list):
+            raise ValueError("DOB source must return a JSON array")
+        valid = []
+        rejected_dates = 0
+        rejected_rows = 0
+        for row in data[:fetch_limit]:
+            if not isinstance(row, dict):
+                rejected_rows += 1
+                continue
+            issued = row.get("issue_date")
+            if not isinstance(issued, str) or re.fullmatch(r"[0-9]{8}", issued) is None:
+                rejected_dates += 1
+                continue
+            try:
+                issued_date = datetime.strptime(issued, "%Y%m%d").date()
+            except ValueError:
+                rejected_dates += 1
+                continue
+            if issued_date > as_of:
+                rejected_dates += 1
+                continue
+            # Preserve source values; no inference about an open/closed case.
+            valid.append({
+                "id": row.get("isn_dob_bis_viol"),
+                "type": row.get("violation_type"),
+                "street": (
+                    str(row.get("house_number") or "")
+                    + " " + str(row.get("street") or "")
+                ).strip(),
+                "boro": row.get("boro"),
+                "category": row.get("violation_category"),
+                "block": row.get("block"),
+                "lot": row.get("lot"),
+                "desc": str(row.get("description") or "")[:120],
+                "issued": issued,
+            })
+        # Provider order is requested above; repeat it locally to prevent an
+        # unordered/partially cached response from becoming the newest-first UI.
+        valid.sort(key=lambda item: (item["issued"], str(item["id"] or "")), reverse=True)
+        items = valid[:limit]
+        return {
+            "items": items,
+            "selection": {
+                "order": order,
+                "as_of_date": as_of.isoformat(),
+                "upstream_limit": fetch_limit,
+                "rows_observed": min(len(data), fetch_limit),
+                "rows_returned": len(items),
+                "invalid_dates_rejected": rejected_dates,
+                "invalid_rows_rejected": rejected_rows,
+                "source_dates_are_not_case_status": True,
+                "requested_count_met": len(items) == limit,
+            },
+        }
+
+    return _cached_fetch(
+        _variant_cache_key("dob_viol", limit=limit, order=order,
+                           as_of=upper, upstream_limit=fetch_limit),
+        url, ttl=1800, parser=parse,
+    )
 
 
 def feed_sec_realestate(limit: int = 12) -> dict[str, Any]:
@@ -956,12 +1076,17 @@ def register(app: FastAPI, ns: str = "a11oy") -> dict[str, Any]:
             (feed_dob_violations, (60,), {}),
             (feed_treasury, (8,), {}),
         ])
-        return JSONResponse({"tab": "pulse", "hpd": hpd, "dob": dob, "rates": rates, "doctrine": DOCTRINE})
+        return JSONResponse({"tab": "pulse",
+                             "hpd": _readiness_public_source(hpd),
+                             "dob": _readiness_public_source(dob),
+                             "rates": rates, "doctrine": DOCTRINE})
 
     @app.get(base + "/re/distress", include_in_schema=False)
     async def _re_distress(limit: Annotated[int, Query(ge=1, le=1000)] = 300):
         hpd = await _run_blocking(feed_hpd_violations, limit)
-        return JSONResponse({"tab": "distress", "hpd": hpd, "doctrine": DOCTRINE})
+        return JSONResponse({"tab": "distress",
+                             "hpd": _readiness_public_source(hpd),
+                             "doctrine": DOCTRINE})
 
     @app.get(base + "/re/ownership", include_in_schema=False)
     async def _re_ownership():

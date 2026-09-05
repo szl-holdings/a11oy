@@ -197,3 +197,60 @@ def test_lorenz_failed_seal_is_unavailable_and_keeps_reference() -> None:
     assert out["inputHash"] is None
     assert out["reference"]["program"] == "lorenz"
     assert out["honesty"]["reference_is_not_this_run"] is True
+
+
+def test_field_state_fallback_binds_ledger_not_pass() -> None:
+    seen = []
+
+    def probe(url: str):
+        seen.append(url)
+        if url.endswith("/api/field"):
+            return 404, {"error": "not found"}, "HTTP 404"
+        assert url.endswith("/api/immune/state")
+        return 200, {
+            "authority": {"mode": "PASS", "evidenceState": "VERIFIED", "authorityReceiptCount": 17},
+            "readiness": {"status": "READY", "write_ready": True, "ready": True},
+            "ledger": {
+                "count": 2,
+                "lastHash": "5ddcc2a3ba3091c2215164f2526bf98475657586dcd28564b810cef36a6c6bed",
+                "verify": {"ok": True},
+            },
+            "estate": [
+                {"id": "immune", "title": "IMMUNE", "role": "defense kernel", "stage": "WRITE-READY"},
+                {"id": "a11oy", "title": "a11oy", "role": "command center", "stage": "LIVE"},
+            ],
+            "mesh": {"required": 3, "of": 4, "reached": True, "liveCount": 4},
+        }, None
+
+    out = immune._field(now=1.0, probe=probe)
+    assert any(u.endswith("/api/field") for u in seen)
+    assert any(u.endswith("/api/immune/state") for u in seen)
+    assert out["reachability"] == "REACHABLE"
+    assert out["contract"] == "/api/immune/state"
+    assert out["ledger"]["count"] == 2
+    assert out["cell_count"] == 2
+    assert out["cells"][1]["verb"] == "OBSERVED"
+    assert out["actuation"] == "SIMULATED"
+    assert out["status"] == "REAL"
+    assert out["reachability"] != "LIVE"
+    assert out.get("mode") is None
+    assert "PASS" not in str(out["cells"])
+    assert out["honesty"]["never_fabricate"] == ["LIVE", "PASS"]
+
+
+def test_kernel_ledger_dict_count_is_forwarded() -> None:
+    def probe(_url: str):
+        return 200, {
+            "status": "READY",
+            "write_ready": True,
+            "authority": {"evidence_state": "VERIFIED", "key_id": "c841507add86f06c", "receipt_count": 4},
+            "ledger": {"ok": True, "count": 7, "first_bad_seq": None},
+            "blockers": [],
+        }, None
+
+    out = immune._kernel(now=1.0, probe=probe)
+    assert out["reachability"] == "REACHABLE"
+    assert out["ledger"] == 7
+    assert out["key_id"] == "c841507add86f06c"
+    assert out["write_ready"] is True
+    assert out["reachability"] != "LIVE"

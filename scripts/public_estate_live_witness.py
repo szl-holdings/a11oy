@@ -33,6 +33,12 @@ MAX_RESPONSE_BYTES = 1_048_576
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA64 = re.compile(r"^[0-9a-f]{64}$")
 ALLOWED_REVISION_POLICIES = {"exact-default-branch", "declared-commit"}
+ALLOWED_SOURCE_REPOSITORY_POLICIES = {
+    "runtime-declared",
+    "manifest-fixed-runtime-revision",
+    "lyte-source-bound-build",
+}
+ALLOWED_HF_REVISION_POLICIES = {"runtime-declared", "provider-observed"}
 ALLOWED_CAPABILITY_STATES = {
     "folded",
     "portfolio-label",
@@ -163,6 +169,36 @@ def validate_surface(
     require(policy in ALLOWED_REVISION_POLICIES, f"{surface_id} has unknown revision policy")
     if policy == "exact-default-branch":
         require_string(value.get("default_branch"), f"{surface_id}.default_branch")
+
+    source_policy = str(
+        value.get("source_repository_policy", "runtime-declared")
+    ).strip()
+    require(
+        source_policy in ALLOWED_SOURCE_REPOSITORY_POLICIES,
+        f"{surface_id} has unknown source-repository policy",
+    )
+    if source_policy == "manifest-fixed-runtime-revision":
+        require(
+            policy == "exact-default-branch",
+            f"{surface_id} manifest-fixed source policy requires exact-default-branch",
+        )
+    if source_policy == "lyte-source-bound-build":
+        require(
+            surface_id == "lyte"
+            and value["deployment_source_repository"] == "szl-holdings/lyte-services"
+            and policy == "exact-default-branch"
+            and value.get("hf_revision_policy") == "provider-observed",
+            "Lyte source policy requires its canonical repository and exact-default-branch",
+        )
+    value["source_repository_policy"] = source_policy
+
+    hf_policy = str(value.get("hf_revision_policy", "runtime-declared")).strip()
+    require(
+        hf_policy in ALLOWED_HF_REVISION_POLICIES,
+        f"{surface_id} has unknown Hugging Face revision policy",
+    )
+    value["hf_revision_policy"] = hf_policy
+
     required_paths = require_string_list(
         value.get("required_paths"),
         f"{surface_id}.required_paths",
@@ -214,7 +250,7 @@ def load_and_validate_manifest(path: Path) -> dict[str, Any]:
         "public product count drift",
     )
     require(len(platforms) == 1, "exactly one public platform is expected")
-    require(len(products) == 5, "exactly five public vertical products are expected")
+    require(len(products) == 6, "exactly six public vertical products are expected")
 
     surfaces = platforms + products
     surface_ids = [item["id"] for item in surfaces]
@@ -223,7 +259,7 @@ def load_and_validate_manifest(path: Path) -> dict[str, Any]:
     require(len(surface_ids) == len(set(surface_ids)), "public surface IDs must be unique")
     require(len(hf_repositories) == len(set(hf_repositories)), "public HF repositories must be unique")
     require(len(base_urls) == len(set(base_urls)), "public origins must be unique")
-    require({item["id"] for item in products} == {"killinchu", "lyte", "finance", "terra", "counsel"}, "public product identity drift")
+    require({item["id"] for item in products} == {"killinchu", "sentra", "lyte", "finance", "terra", "counsel"}, "public product identity drift")
 
     planes = manifest.get("capability_planes")
     require(isinstance(planes, list), "capability_planes must be a list")
@@ -240,18 +276,20 @@ def load_and_validate_manifest(path: Path) -> dict[str, Any]:
             f"{plane_id} cannot be an independent public product",
         )
         plane_by_id[plane_id] = plane
-    require(set(plane_by_id) == {"sentra", "vessels", "aegis", "immune"}, "capability-plane inventory drift")
+    require(set(plane_by_id) == {"vessels", "aegis", "immune"}, "capability-plane inventory drift")
     require(not set(plane_by_id).intersection(surface_ids), "capability plane leaked into public surfaces")
-    require(plane_by_id["sentra"].get("runtime") == "killinchu", "Sentra must resolve to Killinchu")
     require(plane_by_id["vessels"].get("runtime") == "killinchu", "Vessels must resolve to Killinchu")
     require(plane_by_id["aegis"].get("status") == "portfolio-label", "Aegis must remain a label")
+    require(plane_by_id["aegis"].get("runtime") == "sentra", "Aegis must resolve to Sentra")
     require(plane_by_id["immune"].get("status") == "migration-required", "IMMUNE must remain migration-gated")
     require(plane_by_id["immune"].get("runtime") is None, "IMMUNE cannot silently alias to a runtime")
+    require(plane_by_id["immune"].get("target_runtime") == "sentra", "IMMUNE migration target must be Sentra")
 
     retirement = manifest.get("retirement_candidates")
     require(isinstance(retirement, list), "retirement_candidates must be a list")
     for candidate in retirement:
         require(isinstance(candidate, dict), "retirement candidate must be an object")
+        require(candidate.get("hf_repository") not in hf_repositories, "kept public Space cannot be a retirement candidate")
         require(candidate.get("state") == "evidence-gated", "retirement must remain evidence-gated")
         require_string_list(candidate.get("retire_only_after"), "retire_only_after")
 
@@ -345,7 +383,78 @@ def selected_build_fields(payload: Mapping[str, Any]) -> dict[str, Any]:
             if value not in (None, ""):
                 selected[canonical] = value
                 break
+
     return selected
+
+
+def apply_source_repository_policy(
+    fields: Mapping[str, Any],
+    payload: Mapping[str, Any],
+    surface: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Resolve a repository claim only under an explicit manifest policy.
+
+    ``manifest-fixed-runtime-revision`` is deliberately narrow: the fixed route
+    must identify the expected service, report an OBSERVED 40-hex revision, and
+    disclose that the revision came from the deployer's ``SZL_GIT_SHA``. The
+    manifest then supplies the immutable repository name. Missing or ambiguous
+    evidence fails closed.
+    """
+
+    result = dict(fields)
+    if surface.get("source_repository_policy") == "lyte-source-bound-build":
+        require(surface.get("id") == "lyte", "Lyte source policy surface mismatch")
+        require(
+            surface.get("deployment_source_repository") == "szl-holdings/lyte-services"
+            and payload.get("source_repository") == "szl-holdings/lyte-services"
+            and result.get("source_repository") == "szl-holdings/lyte-services",
+            "Lyte source repository mismatch",
+        )
+        require(payload.get("schema") == "szl.build-info/v1", "Lyte build schema mismatch")
+        require(payload.get("service") == "lyte-signal-lattice", "Lyte service mismatch")
+        build = payload.get("build")
+        binding = payload.get("source_binding")
+        require(isinstance(build, dict), "Lyte source policy requires build object")
+        require(isinstance(binding, dict), "Lyte source policy requires source binding")
+        revision = str(build.get("revision", "")).lower()
+        require(bool(SHA40.fullmatch(revision)), "Lyte source revision is invalid")
+        require(build.get("state") == "OBSERVED", "Lyte source revision is not observed")
+        require(binding.get("bindings_agree") is True, "Lyte source bindings disagree")
+        evidence = require_string_list(binding.get("evidence_sources"), "Lyte evidence_sources")
+        trusted = {"env:LYTE_SOURCE_REVISION", "env:SZL_SOURCE_REVISION", "repository-file", "container-file"}
+        require(
+            "env:LYTE_SOURCE_REVISION" in evidence and set(evidence) <= trusted,
+            "Lyte source binding has an untrusted origin",
+        )
+        require(
+            result.get("source_revision") in (None, "", revision),
+            "Lyte source revisions disagree",
+        )
+        result["source_revision"] = revision
+        result["source_repository_evidence"] = "LYTE_RUNTIME_AGREEING_SOURCE_BINDINGS"
+        return result
+    if result.get("source_repository"):
+        return result
+    if surface.get("source_repository_policy") != "manifest-fixed-runtime-revision":
+        return result
+
+    build = payload.get("build")
+    require(isinstance(build, dict), "manifest-fixed source policy requires build object")
+    require(
+        str(payload.get("service", "")) == str(surface.get("id", "")),
+        "manifest-fixed source policy service mismatch",
+    )
+    revision = str(build.get("revision", "")).lower()
+    require(bool(SHA40.fullmatch(revision)), "manifest-fixed source revision is invalid")
+    require(build.get("state") == "OBSERVED", "manifest-fixed source revision is not observed")
+    require(
+        build.get("revision_source") == "env:SZL_GIT_SHA",
+        "manifest-fixed source revision has an untrusted origin",
+    )
+    result["source_revision"] = revision
+    result["source_repository"] = str(surface["deployment_source_repository"])
+    result["source_repository_evidence"] = "MANIFEST_FIXED_RUNTIME_REVISION"
+    return result
 
 
 def github_token() -> str | None:
@@ -469,6 +578,12 @@ def observe_surface(
             )
 
     fields = selected_build_fields(build_payload or {})
+    try:
+        fields = apply_source_repository_policy(fields, build_payload or {}, surface)
+    except ContractError as exc:
+        # One unavailable or invalid runtime must retain a failed row, not erase
+        # the observations collected for the rest of the public estate.
+        failures.append(f"source identity policy: {exc}")
     expected_repository = str(surface["deployment_source_repository"])
     observed_repository = str(fields.get("source_repository", ""))
     observed_revision = str(fields.get("source_revision", "")).lower()
@@ -522,13 +637,21 @@ def observe_surface(
             str(surface["hf_repository"]),
             timeout=timeout,
         )
+        hf_revision_policy = str(surface["hf_revision_policy"])
         declared_hf_revision = str(fields.get("hf_revision", "")).lower()
         hf_proof = {
+            "policy": hf_revision_policy,
             "current_revision": current_hf_revision,
             "declared_revision": declared_hf_revision or None,
             "metadata": proof,
         }
-        if not SHA40.fullmatch(declared_hf_revision):
+        if hf_revision_policy == "provider-observed":
+            # Provider metadata is evidence of the current Space repository tip,
+            # not a claim that the running process can introspect that tip. Keep
+            # the two facts separate in the receipt.
+            fields["hf_revision_observed_by_witness"] = current_hf_revision
+            fields["hf_revision_evidence"] = "HUGGING_FACE_PROVIDER_API"
+        elif not SHA40.fullmatch(declared_hf_revision):
             failures.append("hf_revision: missing or invalid")
         elif declared_hf_revision != current_hf_revision:
             failures.append(
@@ -565,7 +688,14 @@ def build_receipt(
     attempt: int,
 ) -> dict[str, Any]:
     rows = [dict(item) for item in observations]
-    complete = mode == "live" and bool(rows) and all(row.get("verified") is True for row in rows)
+    expected_ids = {item["id"] for item in manifest["platforms"] + manifest["public_products"]}
+    observed_ids = [row.get("id") for row in rows]
+    inventory_complete = (
+        len(observed_ids) == len(expected_ids)
+        and all(isinstance(value, str) for value in observed_ids)
+        and set(observed_ids) == expected_ids
+    )
+    complete = mode == "live" and inventory_complete and all(row.get("verified") is True for row in rows)
     receipt: dict[str, Any] = {
         "schema": SCHEMA,
         "generated_at": utc_now(),
@@ -579,6 +709,7 @@ def build_receipt(
         "public_vertical_product_count": len(manifest["public_products"]),
         "public_surface_count": len(rows),
         "verified_surface_count": sum(row.get("verified") is True for row in rows),
+        "inventory_complete": inventory_complete,
         "complete": complete,
         "surfaces": rows,
         "capability_planes": manifest["capability_planes"],

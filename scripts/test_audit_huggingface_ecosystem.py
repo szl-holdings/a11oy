@@ -121,6 +121,45 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
         self.assertEqual(calls, 3)
         self.assertEqual(sleeps, [1.0, 2.0])
 
+    def test_live_fetch_honors_numeric_retry_after(self) -> None:
+        calls = 0
+        sleeps: list[float] = []
+        original_urlopen = audit.urllib.request.urlopen
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_: object) -> None:
+                return None
+
+        def rate_limited_urlopen(url: str, *, timeout: float):
+            nonlocal calls
+            calls += 1
+            if calls == 1:
+                raise audit.urllib.error.HTTPError(
+                    url,
+                    429,
+                    "Too Many Requests",
+                    {"Retry-After": "17"},
+                    None,
+                )
+            return Response()
+
+        audit.urllib.request.urlopen = rate_limited_urlopen
+        try:
+            response = audit.open_url_with_retry(
+                "https://huggingface.co/api/models",
+                attempts=2,
+                sleep=sleeps.append,
+            )
+        finally:
+            audit.urllib.request.urlopen = original_urlopen
+
+        self.assertIsInstance(response, Response)
+        self.assertEqual(calls, 2)
+        self.assertEqual(sleeps, [17.0])
+
     def test_live_fetch_fails_closed_after_retry_exhaustion(self) -> None:
         calls = 0
         sleeps: list[float] = []

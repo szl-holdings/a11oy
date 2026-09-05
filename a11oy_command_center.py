@@ -6,31 +6,37 @@
 Product host: a-11-oy.com  (this surface)
 Proof host:   a11oy.net    (do not serve this surface there)
 
-The canonical /command surface now prefers the existing 20-tab Elite Console,
-which is backed by real /api/a11oy/... endpoints through szl_elite_console.py.
-The older public command-center SPA remains an explicit fallback only if the
-Elite Console asset is absent from a constrained build.
-
-/command/constellation is an additive tab: 49 estates probing live /api/a11oy
-endpoints. It does not replace Elite Console and does not steal /console.
-
-Bound path only. Does not edit the landing door and does not steal /console,
-which remains the operator runtime. Mounts:
-
+Additive routes:
   GET+HEAD /command
+  GET+HEAD /command-v2
   GET+HEAD /command/constellation
+  GET+HEAD /command/brain
+  GET+HEAD /command/ops
+  GET+HEAD /operator-pane
+  GET+HEAD /constellation
   GET+HEAD /command/{rest}
 
-/command-center is 307'd onto /command by serve.py.
+The additive router does not steal /console or the host-root /brain route.
+/command remains on elite_console.html; /command-v2 is an independently
+reviewable skin until an explicit, evidence-backed promotion changes that.
 """
 from pathlib import Path
 from typing import List
 
 MOUNTS = ("/command",)
+SPECIFIC = (
+    ("/command-v2", "command-v2.html"),
+    ("/command/constellation", "constellation.html"),
+    ("/command/brain", "second-brain.html"),
+    ("/command/ops", "operator-pane.html"),
+    ("/operator-pane", "operator-pane.html"),
+    ("/constellation", "constellation.html"),
+)
+CATCHALL = "/command/{rest:path}"
+REQUIRED_PAGES = {"command-v2.html"}
 
 
 def _spa_path() -> Path:
-    """Resolve the richest shipped Command Center, fail-soft to legacy UI."""
     here = Path(__file__).resolve().parent
     candidates = (
         here / "web" / "elite_console.html",
@@ -39,96 +45,116 @@ def _spa_path() -> Path:
         Path("/app/pages/command-center.html"),
         here / "command-center.html",
     )
-    for cand in candidates:
-        if cand.is_file():
-            return cand
+    for candidate in candidates:
+        if candidate.is_file():
+            return candidate
     return here / "web" / "elite_console.html"
 
 
-def _constellation_path() -> Path:
+def _page(name: str) -> Path:
     here = Path(__file__).resolve().parent
-    for cand in (
-        here / "pages" / "constellation.html",
-        Path("/app/pages/constellation.html"),
-    ):
-        if cand.is_file():
-            return cand
-    return here / "pages" / "constellation.html"
+    for candidate in (here / "pages" / name, Path("/app/pages") / name):
+        if candidate.is_file():
+            return candidate
+    return here / "pages" / name
 
 
 def _existing_paths(app) -> set:
     try:
         router = getattr(app, "router", app)
-        return {getattr(r, "path", None) for r in getattr(router, "routes", [])}
+        return {getattr(route, "path", None) for route in getattr(router, "routes", [])}
     except Exception:
         return set()
 
 
-def _front_move(app, paths: set) -> None:
+def _drop_paths(app, paths: set) -> None:
+    """Remove exact path registrations so reviewed pages replace SPA stubs."""
     router = getattr(app, "router", app)
     routes = getattr(router, "routes", None)
     if not routes:
         return
-    chosen = [r for r in routes if getattr(r, "path", None) in paths]
-    if not chosen:
+    routes[:] = [route for route in list(routes) if getattr(route, "path", None) not in paths]
+
+
+def _front_move(app, paths: list) -> None:
+    """Park exact routes at the front, in the requested order."""
+    router = getattr(app, "router", app)
+    routes = getattr(router, "routes", None)
+    if not routes:
         return
-    for r in chosen:
+    wanted = set(paths)
+    chosen = [route for route in routes if getattr(route, "path", None) in wanted]
+    order = {path: index for index, path in enumerate(paths)}
+    for route in chosen:
         try:
-            routes.remove(r)
+            routes.remove(route)
         except ValueError:
             pass
-    for r in reversed(chosen):
-        routes.insert(0, r)
+    chosen.sort(key=lambda route: order.get(getattr(route, "path", ""), 99))
+    for route in reversed(chosen):
+        routes.insert(0, route)
 
 
 def register(app, ns: str = "a11oy") -> List[str]:
-    """Mount the canonical Command Center. Additive; skips existing paths."""
-    del ns  # surface is host-level, not namespaced
+    del ns
     spa = _spa_path()
     registered: List[str] = []
     if not spa.is_file():
         return [f"command-center SPA missing at {spa}"]
 
-    from starlette.responses import FileResponse
+    from starlette.responses import FileResponse, JSONResponse
     from starlette.routing import Route
 
     async def _spa(_request=None, rest: str = ""):
         del rest
         return FileResponse(spa, media_type="text/html; charset=utf-8")
 
-    async def _constellation(_request=None):
-        page = _constellation_path()
-        if page.is_file():
-            return FileResponse(page, media_type="text/html; charset=utf-8")
-        return FileResponse(spa, media_type="text/html; charset=utf-8")
+    def _file(name: str):
+        async def _handler(_request=None):
+            page = _page(name)
+            if page.is_file():
+                return FileResponse(page, media_type="text/html; charset=utf-8")
+            required = name in REQUIRED_PAGES
+            return JSONResponse(
+                {
+                    "status": "UNAVAILABLE" if required else "NOT_FOUND",
+                    "reason": (
+                        f"{name} missing from deployed pages closure"
+                        if required
+                        else f"{name} missing from image"
+                    ),
+                    "page": name,
+                },
+                status_code=503 if required else 404,
+            )
 
+        return _handler
+
+    specific_paths = {path for path, _name in SPECIFIC}
+    _drop_paths(app, specific_paths)
     existing = _existing_paths(app)
-    mounted: set = set()
     router = getattr(app, "router", app)
 
     def _add(path: str, handler, methods: List[str]) -> None:
-        if path in existing and path != "/command/{rest:path}":
-            registered.append("%s already registered (skipped)" % path)
+        if path in existing and path != CATCHALL:
+            registered.append(f"{path} already registered (skipped)")
             return
         try:
             router.routes.insert(0, Route(path, handler, methods=methods))
         except Exception:
             app.add_api_route(path, handler, methods=methods, include_in_schema=False)
         existing.add(path)
-        mounted.add(path)
-        registered.append("GET+HEAD %s" % path)
+        registered.append(f"GET+HEAD {path}")
 
     for path in MOUNTS:
         _add(path, _spa, ["GET", "HEAD"])
-    _add("/command/constellation", _constellation, ["GET", "HEAD"])
-    _add("/command/{rest:path}", _spa, ["GET", "HEAD"])
-    _front_move(
-        app,
-        mounted | set(MOUNTS) | {"/command/constellation", "/command/{rest:path}"},
-    )
-    flavor = "elite-20-tab" if spa.name == "elite_console.html" else "legacy-fallback"
+    for path, name in SPECIFIC:
+        _add(path, _file(name), ["GET", "HEAD"])
+    _add(CATCHALL, _spa, ["GET", "HEAD"])
+    _front_move(app, [path for path, _name in SPECIFIC] + list(MOUNTS))
     registered.append(
-        f"command-center {flavor} on /command (does not steal /console; not a landing door)"
+        "command-center on /command; /command-v2 additive; "
+        "constellation/brain/ops beat catch-all; /console and host-root /brain untouched"
     )
     return registered
 
@@ -150,37 +176,57 @@ def _selftest() -> None:
     assert "cdnjs" not in html and "googleapis" not in html and "jsdelivr" not in html
     assert "Conjecture 1" in html
 
-    async def _console(_req):
+    async def _console(_request):
         return HTMLResponse("<html><body>operator console</body></html>")
 
-    app = Starlette(routes=[Route("/console", _console)])
-    out = register(app, ns="a11oy")
-    assert any("/command" in row for row in out), out
-    c = TestClient(app)
-    for path in (
-        "/command",
-        "/command/overview",
-        "/command/gates",
-        "/command/alerts",
-        "/command/anatomy",
-        "/command/honest",
-    ):
-        r = c.get(path)
-        assert r.status_code == 200, (path, r.status_code)
-        assert ("Elite Console" in r.text) or ("a11oy Command Center" in r.text)
-        h = c.head(path)
-        assert h.status_code == 200, (path, h.status_code)
-    page = _constellation_path()
-    if page.is_file():
-        cr = c.get("/command/constellation")
-        assert cr.status_code == 200, cr.status_code
-        assert "Constellation" in cr.text
-        assert "cdnjs" not in cr.text
-    op = c.get("/console")
-    assert op.status_code == 200 and "operator console" in op.text
+    async def _hickok(_request):
+        return HTMLResponse("<html><body>Hickok dual-stream</body></html>")
+
+    app = Starlette(routes=[Route("/console", _console), Route("/brain", _hickok)])
+    output = register(app, ns="a11oy")
+    assert any("/command" in row for row in output), output
+    assert any("/command-v2" in row for row in output), output
+    client = TestClient(app)
+
+    for path in ("/command", "/command/anatomy", "/command/honest"):
+        response = client.get(path)
+        assert response.status_code == 200, (path, response.status_code)
+
+    command_v2 = _page("command-v2.html")
+    if command_v2.is_file():
+        response = client.get("/command-v2")
+        assert response.status_code == 200
+        assert "A11oy Command" in response.text
+        assert "Conjecture 1" in response.text
+        assert "cdnjs" not in response.text
+        assert "googleapis" not in response.text
+        assert "jsdelivr" not in response.text
+
+    if _page("constellation.html").is_file():
+        for path in ("/command/constellation", "/constellation"):
+            body = client.get(path).text
+            assert "Constellation" in body, path
+            assert "Control before capability" not in body
+
+    if _page("second-brain.html").is_file():
+        response = client.get("/command/brain")
+        assert response.status_code == 200
+        assert "Second Brain" in response.text
+        assert "F1" in response.text
+
+    pane = _page("operator-pane.html")
+    if pane.is_file():
+        for path in ("/command/ops", "/operator-pane"):
+            body = client.get(path).text
+            assert "operator pane" in body.lower(), path
+            assert "Conjecture 1" in body
+            assert "cdnjs" not in body and "googleapis" not in body
+
+    assert "Hickok" in client.get("/brain").text
+    assert client.get("/console").status_code == 200
     print(
         "a11oy_command_center: ALL OK "
-        f"({spa.name} on /command; constellation tab additive; /console untouched; 0 runtime CDN)"
+        "(v2 additive; exact pages beat catch-all; /console and /brain untouched)"
     )
 
 

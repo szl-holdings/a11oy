@@ -490,6 +490,30 @@ def observation_passes(
     )
 
 
+
+def ensure_space_repository(api: HfApi, repo_id: str) -> str:
+    """Create only a genuinely absent Space, then prove write access."""
+    try:
+        exists = bool(api.repo_exists(repo_id=repo_id, repo_type="space"))
+    except Exception as exc:
+        raise RuntimeError(
+            f"unable to determine whether target Space exists: {repo_id}"
+        ) from exc
+    if exists:
+        action = "space_existing"
+    else:
+        api.create_repo(
+            repo_id=repo_id,
+            repo_type="space",
+            space_sdk="docker",
+            exist_ok=True,
+            private=False,
+        )
+        action = "space_created"
+    api.auth_check(repo_id=repo_id, repo_type="space", write=True)
+    return action
+
+
 def main() -> int:
     token, token_source = token_from_env()
     api = HfApi(token=token)
@@ -532,8 +556,7 @@ def main() -> int:
         }, indent=2, sort_keys=True) + "\n"
         row: dict[str, Any] = {"id": rid, "slug": slug, "source": item["source"], "source_revision": source_revision, "workflow_run_id": int(workflow_run_id), "artifact_set_sha256": artifacts, "landing_sha256": landing_sha256, "panels_sha256": panels_sha256, "forge": forge, "root_marker": root_marker, "actions": []}
         try:
-            api.create_repo(repo_id=rid, repo_type="space", space_sdk="docker", exist_ok=True, private=False)
-            row["actions"].append("ensure_space")
+            row["actions"].append(ensure_space_repository(api, rid))
             for path, payload in (("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ), ("config.json", config), ("index.html", page), ("panels.html", panels), ("README.md", card)):
                 upload_text(api, rid, path, payload)
             row["actions"].append("publish_source")

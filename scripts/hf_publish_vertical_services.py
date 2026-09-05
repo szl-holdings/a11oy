@@ -173,15 +173,32 @@ def fetch_pinned_controller(destination: Path) -> None:
     destination.write_bytes(payload)
 
 
+
+def ensure_space_repository(api: HfApi, repo_id: str) -> str:
+    """Create only a genuinely absent Space, then prove write access."""
+    try:
+        exists = bool(api.repo_exists(repo_id=repo_id, repo_type="space"))
+    except Exception as exc:
+        raise RuntimeError(
+            f"unable to determine whether target Space exists: {repo_id}"
+        ) from exc
+    if exists:
+        action = "space_existing"
+    else:
+        api.create_repo(
+            repo_id=repo_id,
+            repo_type="space",
+            space_sdk="docker",
+            exist_ok=True,
+            private=False,
+        )
+        action = "space_created"
+    api.auth_check(repo_id=repo_id, repo_type="space", write=True)
+    return action
+
+
 def ensure_runtime_configuration(api: HfApi) -> dict[str, Any]:
-    api.create_repo(
-        repo_id=HF_REPOSITORY,
-        repo_type="space",
-        space_sdk="docker",
-        exist_ok=True,
-        private=False,
-    )
-    api.auth_check(repo_id=HF_REPOSITORY, repo_type="space", write=True)
+    space_action = ensure_space_repository(api, HF_REPOSITORY)
 
     configured = set(api.get_space_secrets(repo_id=HF_REPOSITORY))
     if SIGNING_SECRET in configured:
@@ -205,6 +222,7 @@ def ensure_runtime_configuration(api: HfApi) -> dict[str, Any]:
         description="Exact GitHub revision for fail-closed runtime binding.",
     )
     return {
+        "space_action": space_action,
         "secret": SIGNING_SECRET,
         "secret_action": secret_action,
         "secret_value_recorded": False,
