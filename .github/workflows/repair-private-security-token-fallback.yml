@@ -78,14 +78,15 @@ jobs:
           git diff --check
           python -c 'import subprocess; changed=set(subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines()); expected={".github/scripts/private_security_posture.py", ".github/workflows/private-security-posture.yml", "tests/test_private_security_posture.py"}; assert changed == expected, f"repair boundary mismatch: changed={sorted(changed)} expected={sorted(expected)}"'
 
-      - name: Commit verified permanent repair
+      - name: Commit verified non-workflow portion
         run: |
           set -euo pipefail
+          git restore .github/workflows/private-security-posture.yml
+          python -c 'import subprocess; changed=set(subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines()); expected={".github/scripts/private_security_posture.py", "tests/test_private_security_posture.py"}; assert changed == expected, f"push boundary mismatch: changed={sorted(changed)} expected={sorted(expected)}"'
           git config user.name "Lutar, Stephen P."
           git config user.email "stephenlutar2@gmail.com"
           git add \
             .github/scripts/private_security_posture.py \
-            .github/workflows/private-security-posture.yml \
             tests/test_private_security_posture.py
           git commit -m "fix(security): retry private posture credentials per family
 
