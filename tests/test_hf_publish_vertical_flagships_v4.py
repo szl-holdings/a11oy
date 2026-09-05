@@ -315,7 +315,7 @@ def test_entrypoint_publishes_source_owned_lyte_and_folds_vessels() -> None:
         'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
         'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")',
         'SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)',
-        'LYTE_SOURCE_REVISION = "b26e66f18f563f5e9a98f8bdcfa5f28527e3e195"',
+        'LYTE_SOURCE_REVISION = "a0479279505aded5c084d1644012829a1d93ad77"',
         'SENTRA_SPACE = "SZLHOLDINGS/sentra"',
         'LYTE_IMPL = HERE / "hf_publish_lyte_enterprise.py"',
         'install_existing_space_guard()',
