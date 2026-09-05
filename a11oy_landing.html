@@ -17,7 +17,7 @@
   canonical governed-inference product; a11oy.net is a separately attested estate cockpit.
   © Stephen P. Lutar Jr. (ORCID 0009-0001-0110-4173) · Apache-2.0
 -->
-<html lang="en" data-szl-public-experience-v3="true" data-szl-space-holo-v2="true" data-szl-living-command-fabric-v1="true" data-szl-zoom-tier="normal">
+<html lang="en" data-szl-shell-owner="homepage" data-szl-public-experience-v3="true" data-szl-space-holo-v2="true" data-szl-living-command-fabric-v1="true" data-szl-zoom-tier="normal">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
@@ -115,7 +115,7 @@
   .brand svg{display:block}
   .brand .sub{color:var(--ghost);font-weight:500;font-size:var(--fs-1);letter-spacing:2px;text-transform:uppercase;font-family:var(--sans)}
   .nav nav{margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:nowrap}
-  .nav nav a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;height:auto;padding:8px 11px;border-radius:10px;color:var(--sub);font-size:var(--fs-2);font-weight:500;transition:.15s;position:relative;z-index:1;pointer-events:auto;touch-action:manipulation;white-space:nowrap}
+  .nav nav a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:48px;height:auto;padding:8px 11px;border-radius:10px;color:var(--sub);font-size:var(--fs-2);font-weight:500;transition:.15s;position:relative;z-index:1;pointer-events:auto;touch-action:manipulation;white-space:nowrap}
   .nav nav a:hover{color:var(--ink);background:rgba(255,255,255,0.06)}
   .menu-toggle{display:none;align-items:center;justify-content:center;width:48px;height:48px;min-width:48px;min-height:48px;padding:0;margin-left:auto;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--ink);cursor:pointer;font-size:20px;line-height:1}
   @media(max-width:1100px){
@@ -684,6 +684,110 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
 @media(max-width:760px){.audience-path-grid{grid-template-columns:minmax(0,1fr)}.audience-paths a{min-block-size:112px!important}}
 @media(prefers-reduced-motion:reduce){.audience-paths a{transition:none!important}}
 @media(forced-colors:active){.audience-paths a{forced-color-adjust:auto}}
+</style>
+<style id="szl-homepage-shell">
+/* This route owns its shell. Shared assets still enhance the other surfaces. */
+html[data-szl-shell-owner="homepage"] {
+  --gold:#c9b787!important;--proof:#5fb3a3!important;--sub:#b3bcb9;--ghost:#a1aaa6;
+  --border:rgba(201,183,135,.22);--szl-flow-accent:#5fb3a3;
+  --szl-holo-accent:#5fb3a3;--szl-holo-accent-2:#c9b787;
+  scroll-padding-top:88px;scroll-padding-bottom:24px;
+}
+html[data-szl-shell-owner="homepage"] body {
+  padding-bottom:0;background:#070b0c!important;
+  background-image:radial-gradient(ellipse at 85% 5%,rgba(95,179,163,.07),transparent 42%)!important;
+  color:#eef1ed!important;font-family:var(--sans);
+}
+html[data-szl-shell-owner="homepage"] .origin-banner {
+  display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:0 5px;
+  padding:0 24px;min-height:44px;font-size:11px;background:#0c1011;
+}
+html[data-szl-shell-owner="homepage"] header.nav {
+  background:rgba(7,11,12,.96)!important;border-color:var(--border)!important;
+}
+html[data-szl-shell-owner="homepage"] .nav .wrap {height:auto;min-height:68px!important;gap:16px}
+html[data-szl-shell-owner="homepage"] .brand {flex-shrink:0}
+html[data-szl-shell-owner="homepage"] .brand .sub {color:var(--gold)!important;font-size:10px;letter-spacing:.1em}
+html[data-szl-shell-owner="homepage"] .brand svg {filter:none}
+html[data-szl-shell-owner="homepage"] .nav nav a {padding:8px;font-size:12px;border-radius:4px!important}
+html[data-szl-shell-owner="homepage"] .hero {min-height:0!important;align-items:start}
+html[data-szl-shell-owner="homepage"] .hero .wrap {
+  width:100%;padding-top:clamp(32px,4vw,56px)!important;padding-bottom:48px!important;
+}
+html[data-szl-shell-owner="homepage"] .hero-inner.nv-copy {max-width:none!important}
+html[data-szl-shell-owner="homepage"] .hero .vision-kicker {
+  margin:0 0 16px;gap:8px 14px;font-size:10px!important;line-height:1.5;letter-spacing:.06em;
+}
+html[data-szl-shell-owner="homepage"] .hero .eyebrow {
+  font-size:10px;letter-spacing:.06em!important;padding:6px 10px;margin-bottom:20px;
+  border-color:var(--border)!important;background:rgba(95,179,163,.04)!important;
+}
+html[data-szl-shell-owner="homepage"] .eyebrow .dot {animation:none;box-shadow:none!important}
+html[data-szl-shell-owner="homepage"] .hero h1.title {
+  font-size:clamp(34px,4.2vw,58px)!important;line-height:1.08!important;
+  letter-spacing:-.035em!important;font-weight:600!important;max-width:20ch!important;margin:0 0 20px;
+}
+html[data-szl-shell-owner="homepage"] .hero h1 .grad {color:var(--gold);font-weight:600}
+html[data-szl-shell-owner="homepage"] .hero p.lede {
+  font-size:16px!important;line-height:1.65;max-width:65ch!important;margin:0 0 24px;
+}
+html[data-szl-shell-owner="homepage"] .cta-row {gap:10px;margin-bottom:28px}
+html[data-szl-shell-owner="homepage"] .btn {
+  padding:11px 15px!important;border-radius:4px!important;font-size:12px;white-space:normal;text-align:center;
+}
+html[data-szl-shell-owner="homepage"] .btn-primary {
+  background:#c9b787!important;color:#111614!important;border-color:#c9b787!important;box-shadow:none!important;
+}
+html[data-szl-shell-owner="homepage"] .btn-primary:hover {background:#ddd0ae!important;border-color:#ddd0ae!important}
+html[data-szl-shell-owner="homepage"] .btn-lattice {
+  background:rgba(95,179,163,.06)!important;border-color:#5fb3a3!important;color:#bdE2d9!important;box-shadow:none!important;
+}
+html[data-szl-shell-owner="homepage"] .btn-ghost {color:var(--sub)!important;border-color:var(--border)!important}
+html[data-szl-shell-owner="homepage"] .hero-stats .stat {padding:12px 10px}
+html[data-szl-shell-owner="homepage"] .hero-stats .stat .l {font-size:10px;letter-spacing:.05em;line-height:1.5}
+html[data-szl-shell-owner="homepage"] .nv-panel {
+  background:linear-gradient(150deg,rgba(95,179,163,.06),rgba(201,183,135,.025))!important;
+  border:1px solid var(--border)!important;border-radius:8px!important;box-shadow:0 18px 54px rgba(0,0,0,.16);
+}
+html[data-szl-shell-owner="homepage"] .hero .nv-panel .nv-src {font-size:11px!important;line-height:1.6}
+html[data-szl-shell-owner="homepage"] .hero-scrim {background:linear-gradient(90deg,rgba(7,11,12,.96),rgba(7,11,12,.8))!important}
+html[data-szl-shell-owner="homepage"] #hero-canvas {opacity:.22}
+html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2px solid #c9b787;outline-offset:4px}
+@media(min-width:1101px) {
+  html[data-szl-shell-owner="homepage"] .hero-inner.nv-copy {grid-column:1 / span 8}
+  html[data-szl-shell-owner="homepage"] .nv-panel {grid-column:9 / span 4;margin-top:4px}
+}
+@media(max-width:1100px) {
+  html[data-szl-shell-owner="homepage"] header.nav.nav-open {position:relative;top:auto}
+  html[data-szl-shell-owner="homepage"] .nav .wrap {position:relative;flex-wrap:wrap;padding-inline:20px;gap:0}
+  html[data-szl-shell-owner="homepage"] .nav .brand {flex:1;min-width:0;max-width:calc(100% - 64px)}
+  html[data-szl-shell-owner="homepage"] .nav .brand .sub {white-space:normal;line-height:1.3;max-width:180px}
+  html[data-szl-shell-owner="homepage"] .menu-toggle {display:inline-flex;position:static;margin-left:auto;flex:0 0 48px}
+  html[data-szl-shell-owner="homepage"] .nav #site-nav {display:none}
+  html[data-szl-shell-owner="homepage"] .nav.nav-open #site-nav {
+    display:flex;position:static;flex:1 0 100%;width:100%;max-height:60vh;overflow-y:auto;
+    padding:8px 0 16px;gap:4px;background:transparent;border:0;
+  }
+  html[data-szl-shell-owner="homepage"] .nav.nav-open #site-nav a {min-height:44px;justify-content:flex-start}
+}
+@media(max-width:760px) {
+  html[data-szl-shell-owner="homepage"] .origin-banner {padding:6px 20px;font-size:10px;line-height:1.5}
+  html[data-szl-shell-owner="homepage"] .hero .wrap {padding-top:28px!important;padding-bottom:36px!important}
+  html[data-szl-shell-owner="homepage"] .hero h1.title {font-size:clamp(32px,8.7vw,48px)!important;max-width:20ch!important}
+  html[data-szl-shell-owner="homepage"] .hero p.lede {font-size:15px!important}
+  html[data-szl-shell-owner="homepage"] .hero .vision-kicker span {min-height:20px;padding-block:2px}
+  html[data-szl-shell-owner="homepage"] .hero .eyebrow {font-size:9px;line-height:1.5;letter-spacing:.02em!important}
+  html[data-szl-shell-owner="homepage"] .cta-row {display:grid;grid-template-columns:1fr 1fr}
+  html[data-szl-shell-owner="homepage"] .cta-row .btn:last-child {grid-column:1 / -1}
+  html[data-szl-shell-owner="homepage"] .nv-panel {margin-top:8px}
+}
+@media(prefers-reduced-motion:reduce) {
+  html[data-szl-shell-owner="homepage"] *,html[data-szl-shell-owner="homepage"] *::before,
+  html[data-szl-shell-owner="homepage"] *::after {animation:none!important;transition:none!important}
+}
+@media(forced-colors:active) {
+  html[data-szl-shell-owner="homepage"] .btn {forced-color-adjust:auto;border:1px solid ButtonText!important}
+}
 </style></head>
 <body>
 <a class="skip-link" href="#main">Skip to main content</a>
@@ -708,7 +812,7 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
       <span>a11oy<span class="sub" style="margin-left:9px">Living Command Fabric</span></span>
     </a>
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">☰</button>
-    <nav class="nav-links" id="site-nav">
+    <nav class="nav-links" id="site-nav" aria-label="Primary navigation">
       <a class="hide-sm" href="#products">Products</a>
       <a class="hide-sm" href="/lyte">LYTE</a>
       <a href="/holographic">Holo</a>
@@ -716,7 +820,6 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
       <a href="/immune">IMMUNE</a>
       <a class="hide-sm" href="/trust">Evidence</a>
       <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
-      <a href="/console">Command</a>
       <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Command</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
   </div>
@@ -731,17 +834,16 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
   <div class="wrap">
    <div class="nv-grid">
     <div class="hero-inner nv-copy">
-      <p class="vision-kicker" aria-label="One fabric, six domain bodies, eight locked formula bindings">
+      <p class="vision-kicker" aria-label="One fabric, five public domain bodies, eight locked formula bindings">
         <span>ONE FABRIC</span><span>FIVE PUBLIC DOMAIN BODIES</span><span>EIGHT LOCKED FORMULA BINDINGS</span>
       </p>
       <span class="eyebrow"><span class="dot"></span> Policy-gated · evidence-bound · offline-verifiable</span>
       <!-- audit 2026-08-30: single buyer sentence as the hero (estate audit first-fold fix) -->
-      <h1 class="title">Every AI action your agents take, <span class="grad">policy-gated and signed into a receipt</span> you can verify offline.</h1>
-      <p class="lede">a11oy proves its receipt state — every governed state change produces a hash-chained receipt you can inspect
-        <b>offline, in your own browser</b>. The interface says <b>SIGNED</b> only when persistent
-        signer evidence is active and verification passes; otherwise it reports HASH-LINKED,
-        UNSIGNED, DISABLED, or UNAVAILABLE. When the model is not sure, it returns an honest
-        <b>BLOCKED</b> instead of a confident guess.</p>
+      <h1 class="title">Governed AI actions. <span class="grad">Receipts you can verify.</span></h1>
+      <p class="lede">Inspect governed state changes as hash-chained receipts, <b>offline, in your own browser</b>.
+        The interface says <b>SIGNED</b> only when persistent signer evidence is active and verification passes;
+        otherwise it reports HASH-LINKED, UNSIGNED, DISABLED, or UNAVAILABLE.
+        A policy denial remains <b>BLOCKED</b>.</p>
       <!-- audit 2026-08-30: exactly three buyer CTAs. The mailto reuses the existing contact address already published in pages/pricing.html. -->
       <div class="cta-row">
         <a class="btn btn-primary" href="https://a11oy.net" target="_blank" rel="noopener">Verify a receipt</a>
@@ -1703,10 +1805,20 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
     header.classList.toggle("nav-open", open);
     btn.setAttribute("aria-expanded", String(open));
     btn.setAttribute("aria-label", open ? "Close menu" : "Open menu");
+    btn.textContent = open ? "×" : "☰";
   }
   btn.addEventListener("click", function(){ setOpen(!header.classList.contains("nav-open")); });
   nav.querySelectorAll("a").forEach(function(a){ a.addEventListener("click", function(){ setOpen(false); }); });
-  document.addEventListener("keydown", function(e){ if(e.key==="Escape") setOpen(false); });
+  document.addEventListener("keydown", function(e){
+    if(e.key==="Escape" && header.classList.contains("nav-open")){
+      setOpen(false);btn.focus();
+    }
+  });
+  document.addEventListener("click", function(e){if(!header.contains(e.target)) setOpen(false);});
+  header.addEventListener("focusout", function(e){
+    if(e.relatedTarget && !header.contains(e.relatedTarget)) setOpen(false);
+  });
+  window.matchMedia("(min-width:1101px)").addEventListener("change", function(e){if(e.matches) setOpen(false);});
 })();
 </script>
 <script>

@@ -221,6 +221,7 @@
 
   function build() {
     if (!document.body || document.querySelector(".szl-flow-rail")) return;
+    var ownsShell = document.documentElement.dataset.szlShellOwner === "homepage";
 
     ensureSpectralStyle();
     buildSpectralField();
@@ -282,9 +283,11 @@
       dataset: { open: "false" }
     });
 
-    document.body.appendChild(progress);
-    document.body.appendChild(rail);
-    document.body.appendChild(live);
+    if (!ownsShell) {
+      document.body.appendChild(progress);
+      document.body.appendChild(rail);
+      document.body.appendChild(live);
+    }
     markSpectralCards();
     setThemeAndCurrent();
     updateProgress();
