@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-05T01:59:52Z",
+  "observedAt": "2026-09-05T19:30:46Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 44,
-      "datasets": 33,
-      "spaces": 16
+      "models": 45,
+      "datasets": 34,
+      "spaces": 17
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -991,6 +991,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-clinical-transport-health-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-clinical-transport-health-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/qantu",
       "repoType": "model",
       "stage": "inventory",
@@ -1353,6 +1363,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-clinical-transport-observability-synthetic",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/oac-clinical-transport-observability-synthetic"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/ouroboros-arxiv-preprint",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1702,6 +1722,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/vertical-services"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/yarqa",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/yarqa"
       ]
     }
   ],
