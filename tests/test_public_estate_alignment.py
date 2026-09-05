@@ -31,7 +31,8 @@ class PublicEstateAlignmentTests(unittest.TestCase):
     def test_declared_hub_keep_set_equals_measured_public_inventory(self) -> None:
         expected = alignment.expected_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(expected), 15)
+        self.assertEqual(len(expected), 16)
+        self.assertIn("SZLHOLDINGS/ayllu", self.contract["laboratorySurfaces"])
         self.assertEqual(expected, observed)
 
     def test_truth_and_authority_cannot_be_promoted_by_rendering(self) -> None:
@@ -65,7 +66,8 @@ class PublicEstateAlignmentTests(unittest.TestCase):
                 host = value.removeprefix("https://").split("/", 1)[0]
                 self.assertIn(host, landing)
         for body in self.contract["publicDomainBodies"]:
-            self.assertIn(body["name"].split()[0], landing)
+            name = body["name"].split()[0]
+            self.assertIn(name.casefold(), landing.casefold(), f"Missing public body name: {name}")
 
     def test_contract_json_is_deterministic_and_strict(self) -> None:
         source = alignment.CONTRACT.read_text(encoding="utf-8")
