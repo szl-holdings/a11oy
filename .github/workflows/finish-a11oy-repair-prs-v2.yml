@@ -1,0 +1,184 @@
+name: Rerun and finish exact-green A11oy repair PRs v2
+
+on:
+  push:
+    branches:
+      - ops/finish-live-now-20260904-v1
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+  checks: read
+  actions: write
+
+concurrency:
+  group: rerun-finish-exact-green-a11oy-repair-prs-v2
+  cancel-in-progress: false
+
+jobs:
+  finish:
+    name: Refresh, rerun terminal failures once, and protected-squash merge
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Finish only PRs 1897 and 1900
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p reports
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import os
+          import re
+          import time
+          import urllib.error
+          import urllib.parse
+          import urllib.request
+          from pathlib import Path
+          from typing import Any
+
+          repo=os.environ["GITHUB_REPOSITORY"]
+          token=os.environ["GH_TOKEN"]
+          prs=(1897,1900)
+          success={"success","neutral","skipped"}
+          terminal_failure={"failure","cancelled","timed_out","action_required","startup_failure","stale"}
+          run_pattern=re.compile(r"/actions/runs/(\d+)(?:/|$)")
+
+          def api(method:str,path:str,payload:dict[str,Any]|None=None)->tuple[int,Any]:
+              headers={"Accept":"application/vnd.github+json","Authorization":f"Bearer {token}","X-GitHub-Api-Version":"2022-11-28","User-Agent":"SZL-A11oy-PR-Finisher/2.0"}
+              data=None
+              if payload is not None:
+                  data=json.dumps(payload,separators=(",",":")).encode();headers["Content-Type"]="application/json"
+              req=urllib.request.Request("https://api.github.com"+path,data=data,headers=headers,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read(4000000);return r.status,json.loads(b.decode()) if b else None
+              except urllib.error.HTTPError as e:
+                  b=e.read(1000000)
+                  try:p=json.loads(b.decode()) if b else None
+                  except Exception:p=None
+                  return e.code,p
+
+          def read_pr(n:int)->dict[str,Any]:
+              s,p=api("GET",f"/repos/{repo}/pulls/{n}")
+              if s!=200 or not isinstance(p,dict):raise RuntimeError(f"PR {n} read failed HTTP {s}")
+              return p
+
+          def checks(sha:str)->dict[str,Any]:
+              _,cp=api("GET",f"/repos/{repo}/commits/{sha}/check-runs?per_page=100")
+              _,sp=api("GET",f"/repos/{repo}/commits/{sha}/status")
+              active=[];failed=[];passed=[];run_ids=set()
+              for r in (cp or {}).get("check_runs",[]):
+                  if not isinstance(r,dict):continue
+                  item={"name":r.get("name"),"status":r.get("status"),"conclusion":r.get("conclusion"),"url":r.get("html_url")}
+                  if r.get("status")!="completed":active.append(item)
+                  elif str(r.get("conclusion") or "") in terminal_failure:
+                      failed.append(item)
+                      for key in ("html_url","details_url"):
+                          m=run_pattern.search(str(r.get(key) or ""))
+                          if m:run_ids.add(int(m.group(1)))
+                  elif str(r.get("conclusion") or "") in success:passed.append(str(r.get("name")))
+              for r in (sp or {}).get("statuses",[]):
+                  if not isinstance(r,dict):continue
+                  state=str(r.get("state") or "")
+                  item={"name":r.get("context"),"status":state,"conclusion":state,"url":r.get("target_url")}
+                  if state=="pending":active.append(item)
+                  elif state in {"failure","error"}:failed.append(item)
+                  elif state=="success":passed.append(str(r.get("context")))
+              return {"active":active,"failed":failed,"passed":sorted(set(passed)),"failed_run_ids":sorted(run_ids)}
+
+          report={"schema":"szl.a11oy-exact-green-pr-finisher/v2","generated_at":dt.datetime.now(dt.timezone.utc).isoformat().replace("+00:00","Z"),"repository":repo,"allowlisted_prs":list(prs),"results":[],"branch_protection_bypassed":False,"secret_values_recorded":False}
+
+          for n in prs:
+              row={"number":n,"steps":[]}
+              pr=read_pr(n)
+              if pr.get("state")!="open":
+                  row.update(result="already-closed",merged=pr.get("merged") is True,merged_at=pr.get("merged_at"));report["results"].append(row);continue
+              if pr.get("draft") is True:
+                  row.update(result="blocked-draft",merged=False);report["results"].append(row);continue
+
+              head=str((pr.get("head") or {}).get("sha") or "")
+              base=str((pr.get("base") or {}).get("sha") or "")
+              cs,cmp=api("GET",f"/repos/{repo}/compare/{urllib.parse.quote(base,safe='')}...{urllib.parse.quote(head,safe='')}")
+              behind=int((cmp or {}).get("behind_by") or 0) if cs==200 else 0
+              if behind>0:
+                  us,up=api("PUT",f"/repos/{repo}/pulls/{n}/update-branch",{"expected_head_sha":head})
+                  row["steps"].append({"operation":"update-branch","http":us,"behind_by":behind,"old_head":head,"message":(up or {}).get("message") if isinstance(up,dict) else None})
+                  if us not in {200,202}:
+                      row.update(result="update-branch-rejected",merged=False);report["results"].append(row);continue
+                  old=head
+                  for _ in range(120):
+                      time.sleep(5);pr=read_pr(n);head=str((pr.get("head") or {}).get("sha") or "")
+                      if head and head!=old:break
+
+              # First terminalization window.
+              final={"active":[],"failed":[],"passed":[],"failed_run_ids":[]}
+              first_deadline=time.monotonic()+20*60
+              while time.monotonic()<first_deadline:
+                  pr=read_pr(n)
+                  if pr.get("state")!="open":break
+                  head=str((pr.get("head") or {}).get("sha") or head)
+                  final=checks(head)
+                  if final["failed"] or (not final["active"] and final["passed"]):break
+                  time.sleep(15)
+
+              # Rerun each exact-head failed workflow once, never a deployment on
+              # another SHA. GitHub remains authoritative if the run rejects rerun.
+              rerun_ids=[]
+              if final["failed"]:
+                  for run_id in final["failed_run_ids"]:
+                      rs,_=api("POST",f"/repos/{repo}/actions/runs/{run_id}/rerun-failed-jobs")
+                      if rs not in {201,202}:rs,_=api("POST",f"/repos/{repo}/actions/runs/{run_id}/rerun")
+                      row["steps"].append({"operation":"rerun-failed","run_id":run_id,"http":rs,"head_sha":head})
+                      if rs in {201,202}:rerun_ids.append(run_id)
+
+              if rerun_ids:
+                  second_deadline=time.monotonic()+25*60
+                  while time.monotonic()<second_deadline:
+                      pr=read_pr(n)
+                      if pr.get("state")!="open":break
+                      head=str((pr.get("head") or {}).get("sha") or head)
+                      final=checks(head)
+                      if final["failed"] or (not final["active"] and final["passed"]):break
+                      time.sleep(15)
+
+              pr=read_pr(n);row["head_sha"]=head;row["checks"]=final
+              if pr.get("state")!="open":
+                  row.update(result="closed-during-run",merged=pr.get("merged") is True,merged_at=pr.get("merged_at"));report["results"].append(row);continue
+              if final["failed"]:
+                  row.update(result="terminal-red-after-rerun",merged=False);report["results"].append(row);continue
+              if final["active"] or not final["passed"]:
+                  row.update(result="checks-not-terminal",merged=False);report["results"].append(row);continue
+              exact=str((read_pr(n).get("head") or {}).get("sha") or "")
+              if exact!=head:
+                  row.update(result="head-moved-before-merge",merged=False);report["results"].append(row);continue
+              ms,mp=api("PUT",f"/repos/{repo}/pulls/{n}/merge",{"sha":exact,"merge_method":"squash","commit_title":f"{pr.get('title')} (#{n})","commit_message":"Protected exact-head repair merge after terminal checks.\n\nSigned-off-by: Stephen Lutar <stephenlutar2@gmail.com>"})
+              merged=ms==200 and isinstance(mp,dict) and mp.get("merged") is True
+              row.update(result="merged" if merged else "merge-rejected",merged=merged,merge_http=ms,merge_sha=(mp or {}).get("sha") if isinstance(mp,dict) else None,merge_message=(mp or {}).get("message") if isinstance(mp,dict) else None)
+              report["results"].append(row)
+
+          report["complete"]=all(r.get("merged") is True for r in report["results"])
+          Path("reports/a11oy-pr-finisher-v2.json").write_text(json.dumps(report,indent=2,sort_keys=True)+"\n")
+          print(json.dumps(report,indent=2,sort_keys=True))
+          if not report["complete"]:raise SystemExit(1)
+          PY
+
+      - name: Upload exact-head finisher evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: a11oy-pr-finisher-v2-${{ github.run_id }}-${{ github.run_attempt }}
+          path: reports/a11oy-pr-finisher-v2.json
+          if-no-files-found: error
+          retention-days: 90
