@@ -31,11 +31,11 @@ GLOBS = (
 )
 EXCLUDE_PARTS = {"node_modules", "vendor", "archive", "archives", "fixtures", ".git"}
 SOURCE_MANAGED_PATHS = {"pages/integrations.html"}
-# The Hatun Wires document owns a compact local product-family navigation and is
-# already Holo-bound. Adding the global journey rail would recreate the stacked
-# navigation defect this convergence removes, so the exclusion is explicit and
-# machine-recorded rather than hidden behind a missing asset.
-SELF_CONTAINED_PATHS = {"pages/wires.html"}
+# These reviewed documents own compact local navigation systems already. Adding
+# the global journey rail would recreate stacked navigation rather than improve
+# discoverability, so each exclusion is explicit and machine-recorded. Command
+# v2 owns a top rail, room rail, command palette, and responsive mobile dock.
+SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}
 SOURCE_BOUNDARY_MARKERS = ("DO NOT EDIT HERE.", "VENDORED FROM ")
 
 
