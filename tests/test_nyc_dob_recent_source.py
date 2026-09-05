@@ -18,10 +18,13 @@ class FixedDatetime(dt.datetime):
 
 
 class TestDOBRecentSource(unittest.TestCase):
+    source_path = "a11oy_vertical_feeds.py"
+    function_name = "feed_nyc_dob"
+
     def setUp(self):
-        source = Path("a11oy_vertical_feeds.py").read_text(encoding="utf-8")
+        source = Path(self.source_path).read_text(encoding="utf-8")
         nodes = [n for n in ast.parse(source).body
-                 if isinstance(n, ast.FunctionDef) and n.name == "feed_nyc_dob"]
+                 if isinstance(n, ast.FunctionDef) and n.name == self.function_name]
         self.assertEqual(len(nodes), 1)
         self.calls = []
         self.rows = []
@@ -33,7 +36,7 @@ class TestDOBRecentSource(unittest.TestCase):
             "_cached_fetch": self.fetch,
         }
         exec(compile(ast.Module(body=nodes, type_ignores=[]), "<DOB source>", "exec"), self.ns)
-        self.feed = self.ns["feed_nyc_dob"]
+        self.feed = self.ns[self.function_name]
 
     @staticmethod
     def bound_limit(value, default, maximum):
@@ -136,6 +139,28 @@ class TestDOBRecentSource(unittest.TestCase):
         self.ns["datetime"] = NextDay
         self.feed(3)
         self.assertNotEqual(first, self.calls[-1][0])
+
+
+class TestDOBDeepSource(TestDOBRecentSource):
+    """The detailed Market Pulse feed must satisfy the same date contract."""
+    source_path = "a11oy_deva_feeds.py"
+    function_name = "feed_dob_violations"
+
+    def test_detailed_source_fields_are_preserved_and_description_is_bounded(self):
+        row = self.row("20260903")
+        row.update(violation_category="SOURCE CATEGORY", block="00123", lot="0001",
+                   description="x" * 200)
+        self.rows = [row]
+        value = self.feed()["value"]
+        item = value["items"][0]
+        self.assertEqual(item["category"], "SOURCE CATEGORY")
+        self.assertEqual(item["block"], "00123")
+        self.assertEqual(item["lot"], "0001")
+        self.assertEqual(item["desc"], "x" * 120)
+        self.assertEqual(value["selection"]["upstream_limit"], 180)
+        self.assertEqual(self.calls[-1][0][0], "dob_viol")
+        selected = parse_qs(urlsplit(self.calls[-1][1]).query)["$select"][0].split(",")
+        self.assertTrue({"violation_category", "block", "lot", "description"}.issubset(selected))
 
 
 if __name__ == "__main__":
