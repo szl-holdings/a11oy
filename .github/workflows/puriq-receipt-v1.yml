@@ -60,6 +60,11 @@ jobs:
           node-version: 22
           cache: npm
 
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
       - name: Install locked dependencies
         run: npm ci
 
@@ -68,6 +73,17 @@ jobs:
 
       - name: Cross-check canonical golden bytes independently
         run: python3 scripts/verify_puriq_receipt_v1_golden.py
+
+      - name: Install pinned runtime-test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check --no-cache-dir
+          fastapi==0.141.1
+          httpx==0.28.1
+          starlette==1.6.0
+          pytest==9.0.3
+
+      - name: Verify runtime publication and deny-by-default routes
+        run: python -m pytest -q tests/test_puriq_receipt_runtime.py
 
       - name: Verify schema, hashes, chains, and client behavior
         run: npx jest --runInBand __tests__/compliance/puriq_receipt_v1.test.ts
