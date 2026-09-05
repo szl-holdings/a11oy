@@ -618,6 +618,13 @@ COPY static/3d/surfaces/gateddelta.js static/3d/surfaces/blocksparse.js static/3
 # proxy + first-class GGUF voter package. Dummy Bearer not-a-secret. Λ=Conjecture 1.
 COPY packages/inference/ ./packages/inference/
 
+# GOVERNED INFERENCE BAKEOFF (2026-09-04): source-only, spend-gated benchmark
+# harness. Shipping these files makes the CPU-safe loopback lane reproducible;
+# it does NOT qualify or promote an engine without an immutable benchmark receipt.
+COPY szl_inference_engine_registry.py ./
+COPY scripts/benchmark_inference_engines.py ./scripts/benchmark_inference_engines.py
+COPY schemas/benchmark-result.schema.json ./schemas/benchmark-result.schema.json
+
 # QUANT SIGNALS WALL (2026-07-16): /api/quant/signals + /signals — the quant
 # … (full rationale: docs/DOCKERFILE_NOTES.md §95)
 COPY a11oy_forge_family.py a11oy_khipu_demo.py a11oy_khipu_demo_traces.json a11oy_khipu_demo_nav.py a11oy_khipu_chat.py a11oy_quant_signals.py a11oy_quant_signals_nav.py a11oy_ayllu_wall.py a11oy_decision_integrity.py a11oy_command_center.py ./

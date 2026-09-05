@@ -2,36 +2,212 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://a-11-oy.com/schemas/benchmark-result.schema.json",
   "$comment": "SPDX-License-Identifier: Apache-2.0; (c) 2026 Lutar, Stephen P. - SZL Holdings - ORCID 0009-0001-0110-4173",
-  "title": "Serving benchmark result",
+  "title": "Governed inference benchmark result",
   "type": "object",
   "additionalProperties": false,
-  "required": ["run_id", "engine", "engine_version", "model_revision", "tokenizer_revision", "environment_digest", "workload", "repetition", "status", "started_at", "completed_at", "metrics", "failure"],
+  "required": [
+    "schema_version",
+    "run_id",
+    "engine",
+    "engine_version",
+    "model",
+    "model_revision",
+    "tokenizer_revision",
+    "model_license",
+    "source_revision",
+    "hardware_fingerprint",
+    "environment_digest",
+    "workload",
+    "repetition",
+    "status",
+    "classification",
+    "started_at",
+    "completed_at",
+    "metrics",
+    "request_ids",
+    "errors",
+    "failure",
+    "budget_authorization",
+    "promotion_status",
+    "rollback",
+    "receipt"
+  ],
   "properties": {
+    "schema_version": {"const": "szl.inference-benchmark-result/v1"},
     "run_id": {"type": "string", "format": "uuid"},
-    "engine": {"enum": ["vllm", "sglang"]},
-    "engine_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-.+][A-Za-z0-9.-]+)?$"},
-    "model_revision": {"type": "string", "minLength": 7, "maxLength": 128},
-    "tokenizer_revision": {"type": "string", "minLength": 7, "maxLength": 128},
+    "engine": {
+      "enum": ["vllm", "sglang", "transformers-v5-serve", "llama-cpp", "mlx", "tgi"]
+    },
+    "engine_version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([-.+][A-Za-z0-9.-]+)?$"
+    },
+    "model": {"type": "string", "minLength": 1, "maxLength": 256},
+    "model_revision": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64}|sha256:[0-9a-f]{64})$"
+    },
+    "tokenizer_revision": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64}|sha256:[0-9a-f]{64})$"
+    },
+    "model_license": {"type": "string", "minLength": 1, "maxLength": 256},
+    "source_revision": {
+      "type": "string",
+      "pattern": "^([0-9a-f]{40}|[0-9a-f]{64}|sha256:[0-9a-f]{64})$"
+    },
+    "hardware_fingerprint": {"type": "string", "minLength": 3, "maxLength": 512},
     "environment_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
     "workload": {"type": "string", "minLength": 1, "maxLength": 128},
-    "repetition": {"type": "integer", "minimum": 1},
+    "repetition": {"type": "integer", "minimum": 0},
     "status": {"enum": ["MEASURED", "FAILED", "BLOCKED"]},
+    "classification": {"enum": ["MEASURED", "FAILED", "BLOCKED"]},
     "started_at": {"type": "string", "format": "date-time"},
     "completed_at": {"type": "string", "format": "date-time"},
     "metrics": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "sample_count",
+        "success_count",
+        "failure_count",
+        "end_to_end_latency_ms_p50",
+        "end_to_end_latency_ms_p95",
+        "end_to_end_latency_ms_p99",
+        "mean_output_tokens_per_second",
+        "time_to_first_token_ms_p50",
+        "time_to_first_token_ms_p95",
+        "peak_memory_mb",
+        "structured_output_pass_rate",
+        "refusal_parity_pass",
+        "receipt_overhead_ms",
+        "error_rate"
+      ],
       "properties": {
-        "request_throughput": {"type": "number", "minimum": 0},
-        "output_token_throughput": {"type": "number", "minimum": 0},
-        "ttft_ms_p50": {"type": "number", "minimum": 0},
-        "ttft_ms_p95": {"type": "number", "minimum": 0},
-        "tpot_ms_p50": {"type": "number", "minimum": 0},
-        "tpot_ms_p95": {"type": "number", "minimum": 0},
-        "itl_ms_p95": {"type": "number", "minimum": 0},
-        "error_rate": {"type": "number", "minimum": 0, "maximum": 1}
+        "sample_count": {"type": "integer", "minimum": 0},
+        "success_count": {"type": "integer", "minimum": 0},
+        "failure_count": {"type": "integer", "minimum": 0},
+        "end_to_end_latency_ms_p50": {"type": ["number", "null"], "minimum": 0},
+        "end_to_end_latency_ms_p95": {"type": ["number", "null"], "minimum": 0},
+        "end_to_end_latency_ms_p99": {"type": ["number", "null"], "minimum": 0},
+        "mean_output_tokens_per_second": {"type": ["number", "null"], "minimum": 0},
+        "time_to_first_token_ms_p50": {"type": ["number", "null"], "minimum": 0},
+        "time_to_first_token_ms_p95": {"type": ["number", "null"], "minimum": 0},
+        "peak_memory_mb": {"type": ["number", "null"], "minimum": 0},
+        "structured_output_pass_rate": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "refusal_parity_pass": {"type": ["boolean", "null"]},
+        "receipt_overhead_ms": {"type": ["number", "null"], "minimum": 0},
+        "error_rate": {"type": ["number", "null"], "minimum": 0, "maximum": 1}
       }
     },
-    "failure": {"type": ["string", "null"], "maxLength": 4096}
-  }
+    "request_ids": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 128},
+      "uniqueItems": true
+    },
+    "errors": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1, "maxLength": 256}
+    },
+    "failure": {"type": ["string", "null"], "maxLength": 4096},
+    "budget_authorization": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["allowed", "mode", "budget_usd", "reason"],
+      "properties": {
+        "allowed": {"type": "boolean"},
+        "mode": {
+          "enum": ["LOCAL_UNMETERED", "METERED_OPERATOR_AUTHORIZED", "BLOCKED_BUDGET"]
+        },
+        "budget_usd": {"type": ["number", "null"], "exclusiveMinimum": 0},
+        "reason": {"type": "string", "minLength": 1, "maxLength": 512}
+      }
+    },
+    "promotion_status": {"const": "NOT_EVALUATED"},
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target_engine", "target_model_revision", "instructions"],
+      "properties": {
+        "target_engine": {
+          "enum": ["vllm", "sglang", "transformers-v5-serve", "llama-cpp", "mlx", "tgi"]
+        },
+        "target_model_revision": {
+          "type": "string",
+          "pattern": "^([0-9a-f]{40}|[0-9a-f]{64}|sha256:[0-9a-f]{64})$"
+        },
+        "instructions": {"type": "string", "minLength": 10, "maxLength": 4096}
+      }
+    },
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["signature_status", "payload_sha256", "signature"],
+      "properties": {
+        "signature_status": {"enum": ["SIGNED", "UNSIGNED"]},
+        "payload_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "signature": {"type": ["string", "null"], "minLength": 1, "maxLength": 8192}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"signature_status": {"const": "UNSIGNED"}}},
+          "then": {"properties": {"signature": {"type": "null"}}}
+        },
+        {
+          "if": {"properties": {"signature_status": {"const": "SIGNED"}}},
+          "then": {"properties": {"signature": {"type": "string", "minLength": 1}}}
+        }
+      ]
+    }
+  },
+  "oneOf": [
+    {
+      "properties": {
+        "status": {"const": "MEASURED"},
+        "classification": {"const": "MEASURED"},
+        "repetition": {"minimum": 1},
+        "failure": {"type": "null"},
+        "metrics": {
+          "properties": {
+            "success_count": {"minimum": 1},
+            "failure_count": {"const": 0},
+            "error_rate": {"const": 0}
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "FAILED"},
+        "classification": {"const": "FAILED"},
+        "failure": {"type": "string", "minLength": 1}
+      }
+    },
+    {
+      "properties": {
+        "status": {"const": "BLOCKED"},
+        "classification": {"const": "BLOCKED"},
+        "repetition": {"const": 0},
+        "failure": {"type": "string", "minLength": 1},
+        "budget_authorization": {
+          "properties": {
+            "allowed": {"const": false},
+            "mode": {"const": "BLOCKED_BUDGET"}
+          }
+        },
+        "metrics": {
+          "properties": {
+            "sample_count": {"const": 0},
+            "success_count": {"const": 0},
+            "failure_count": {"const": 0},
+            "error_rate": {"type": "null"}
+          }
+        }
+      }
+    }
+  ]
 }

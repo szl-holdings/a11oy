@@ -81,6 +81,9 @@ REQUIRED_TARGETED_TESTS = (
     "tests/test_finance_feed_readiness.py",
     "tests/test_feed_cache_singleflight.py",
     "tests/test_feed_route_event_loop_responsiveness.py",
+    "tests/test_inference_engine_registry.py",
+    "tests/test_inference_engine_benchmark.py",
+    "tests/test_operation_schemas.py",
 )
 READINESS_MATRIX = "tools/readiness-harness/gen_tabs_matrix.py"
 

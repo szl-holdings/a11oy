@@ -4,12 +4,17 @@ from szl_inference_engine_registry import (
     eligible_for_promotion,
     engine,
     engines,
+    invalid_promotion_evidence,
     missing_promotion_evidence,
 )
 
 
 def _complete_evidence():
     return {
+        "benchmark_status": "MEASURED",
+        "engine_id": "vllm",
+        "model_revision": "1" * 40,
+        "tokenizer_revision": "2" * 40,
         "p50_latency_ms": 10.0,
         "p95_latency_ms": 20.0,
         "p99_latency_ms": 30.0,
@@ -20,8 +25,12 @@ def _complete_evidence():
         "refusal_parity_pass": True,
         "governance_pass": True,
         "reproducibility_pass": True,
-        "source_revision": "abc123",
+        "baseline_improvement_pass": True,
+        "source_revision": "3" * 40,
         "hardware_fingerprint": "gpu:test",
+        "receipt_sha256": "4" * 64,
+        "receipt_signature_status": "UNSIGNED",
+        "rollback_instructions": "Restore the pinned prior engine and model revision.",
     }
 
 
@@ -44,6 +53,40 @@ def test_promotion_requires_governance_and_reproducibility():
     assert eligible_for_promotion(evidence) is False
     evidence = _complete_evidence()
     evidence["reproducibility_pass"] = False
+    assert eligible_for_promotion(evidence) is False
+
+
+def test_promotion_rejects_truthy_strings_and_unavailable_identity():
+    evidence = _complete_evidence()
+    evidence["governance_pass"] = "false"
+    evidence["reproducibility_pass"] = "false"
+    evidence["source_revision"] = "UNAVAILABLE"
+    evidence["hardware_fingerprint"] = "UNAVAILABLE"
+    assert eligible_for_promotion(evidence) is False
+    invalid = invalid_promotion_evidence(evidence)
+    assert "governance_pass" in invalid
+    assert "reproducibility_pass" in invalid
+    assert "source_revision" in invalid
+    assert "hardware_fingerprint" in invalid
+
+
+def test_promotion_rejects_failed_or_compatibility_only_benchmark():
+    evidence = _complete_evidence()
+    evidence["benchmark_status"] = "FAILED"
+    assert eligible_for_promotion(evidence) is False
+
+    evidence = _complete_evidence()
+    evidence["engine_id"] = "tgi"
+    assert eligible_for_promotion(evidence) is False
+
+
+def test_promotion_rejects_non_finite_or_disordered_metrics():
+    evidence = _complete_evidence()
+    evidence["p50_latency_ms"] = float("nan")
+    assert eligible_for_promotion(evidence) is False
+
+    evidence = _complete_evidence()
+    evidence["p50_latency_ms"] = 40.0
     assert eligible_for_promotion(evidence) is False
 
 
