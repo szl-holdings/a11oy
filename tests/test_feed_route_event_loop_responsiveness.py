@@ -185,7 +185,10 @@ def test_network_feed_routes_preserve_event_loop_responsiveness_and_schemas(monk
         "vertical", "equities_official", "equities", "equities_note", "crypto",
         "fx", "fintech_cve", "sources_cited", "doctrine",
     }
-    assert list(finance_payload["equities"]) == ["SPY", "AAPL", "MSFT", "NVDA", "^VIX"]
+    assert finance_payload["equities"] == {}, (
+        "unofficial Yahoo misses without observed_at must be omitted, not exposed "
+        "as if the symbols carried usable evidence"
+    )
     assert list(finance_payload["equities_official"]) == ["SPY", "AAPL", "MSFT", "NVDA"]
     assert list(finance_payload["crypto"]) == ["BTC-USD", "ETH-USD", "SOL-USD"]
 
@@ -194,8 +197,11 @@ def test_network_feed_routes_preserve_event_loop_responsiveness_and_schemas(monk
     assert deva_payload["tab"] == "quant"
 
     devb_payload = _payload(devb_response)
-    assert set(devb_payload) == {"surface", "term", "opinions", "doctrine"}
+    assert set(devb_payload) == {
+        "surface", "term", "opinions", "sources_cited", "doctrine"
+    }
     assert devb_payload["surface"] == "matter"
+    assert devb_payload["sources_cited"], "legal evidence must retain source identity"
 
 
 def test_vertical_cache_distinguishes_cached_from_stale() -> None:

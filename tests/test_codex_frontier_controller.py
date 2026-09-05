@@ -275,6 +275,23 @@ def test_compile_and_secret_gates_inspect_staged_blob_not_only_worktree(
     assert {item["file"] for item in secret_gate.detail["hits"]} == {"index:hidden.py"}
 
 
+def test_docker_copy_parser_accepts_grouped_and_json_sources() -> None:
+    source = """\
+COPY --chown=1000:1000 one.py two.py ./
+COPY ["three.py", "four.py", "/app/"]
+COPY nested/five.py \\
+     nested/six.py /app/nested/
+"""
+    assert controller.docker_copy_sources(source) == {
+        "one.py",
+        "two.py",
+        "three.py",
+        "four.py",
+        "nested/five.py",
+        "nested/six.py",
+    }
+
+
 def test_required_verification_commands_are_never_silently_omitted(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

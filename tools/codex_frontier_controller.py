@@ -20,6 +20,7 @@ import importlib.util
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -1212,8 +1213,53 @@ def check_changed_whitespace(root: Path, files: Iterable[Path]) -> Result:
     )
 
 
+def docker_copy_sources(dockerfile: str) -> set[str]:
+    """Return normalized source operands from shell- and JSON-form COPY lines."""
+    logical_lines: list[str] = []
+    pending = ""
+    for raw_line in dockerfile.splitlines():
+        stripped = raw_line.strip()
+        if not stripped or (not pending and stripped.startswith("#")):
+            continue
+        pending = f"{pending} {stripped}".strip()
+        if pending.endswith("\\"):
+            pending = pending[:-1].rstrip()
+            continue
+        logical_lines.append(pending)
+        pending = ""
+    if pending:
+        logical_lines.append(pending)
+
+    sources: set[str] = set()
+    for line in logical_lines:
+        match = re.match(r"(?i)^COPY\s+(.+)$", line)
+        if match is None:
+            continue
+        payload = match.group(1).strip()
+        operands: list[str]
+        if payload.startswith("["):
+            try:
+                parsed = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+            operands = [str(item) for item in parsed] if isinstance(parsed, list) else []
+        else:
+            try:
+                tokens = shlex.split(payload, posix=True)
+            except ValueError:
+                continue
+            while tokens and tokens[0].startswith("--"):
+                tokens.pop(0)
+            operands = tokens
+        for source in operands[:-1]:
+            normalized = source.replace("\\", "/").removeprefix("./")
+            sources.add(normalized.rstrip("/"))
+    return sources
+
+
 def check_new_top_level_python_copy(root: Path, files: Iterable[Path]) -> Result:
     dockerfile = read_text(root / "Dockerfile")
+    copied_sources = docker_copy_sources(dockerfile)
     missing: list[str] = []
     candidates: list[str] = []
     for path in files:
@@ -1223,10 +1269,7 @@ def check_new_top_level_python_copy(root: Path, files: Iterable[Path]) -> Result
         if relative.startswith("test_"):
             continue
         candidates.append(relative)
-        if not re.search(
-            rf"(?m)^\s*COPY\s+(?:--[^\s]+\s+)*{re.escape(relative)}(?:\s+|$)",
-            dockerfile,
-        ):
+        if relative not in copied_sources:
             missing.append(relative)
     return result(
         "top_level_python_docker_copy",
