@@ -6,6 +6,7 @@
 additive, source-derived eight-room skin. /console remains the separate
 operator runtime and host-root /brain remains Hickok dual-stream.
 """
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -15,6 +16,8 @@ V2_PAGE = ROOT / "pages" / "command-v2.html"
 MOD = ROOT / "a11oy_command_center.py"
 SERVE = ROOT / "serve.py"
 DOCKER = ROOT / "Dockerfile"
+FLOW_ROLLOUT = ROOT / "scripts" / "rollout_frontend_flow_shell.py"
+FLOW_STATE = ROOT / "docs" / "frontend-flow-shell-state.json"
 
 
 def test_elite_command_center_is_real_api_bound_surface() -> None:
@@ -53,6 +56,25 @@ def test_v2_is_additive_source_derived_and_mobile_safe() -> None:
         assert endpoint in html
 
 
+def test_v2_owns_one_reviewed_nonduplicative_navigation_shell() -> None:
+    html = V2_PAGE.read_text(encoding="utf-8")
+    rollout = FLOW_ROLLOUT.read_text(encoding="utf-8")
+    state = json.loads(FLOW_STATE.read_text(encoding="utf-8"))
+
+    assert 'SELF_CONTAINED_PATHS = {"pages/command-v2.html", "pages/wires.html"}' in rollout
+    assert "pages/command-v2.html" in state["self_contained_documents"]
+    assert "pages/command-v2.html" not in state["injected_documents"]
+    assert 'data-szl-flow-asset="style"' not in html
+    assert 'data-szl-flow-asset="script"' not in html
+    for marker in (
+        'aria-label="Command rooms"',
+        'aria-label="Mobile command rooms"',
+        'aria-modal="true"',
+        "palette",
+    ):
+        assert marker in html
+
+
 def test_legacy_public_spa_remains_available_as_fallback() -> None:
     html = LEGACY_SPA.read_text(encoding="utf-8")
     assert html.startswith("<!DOCTYPE html>")
@@ -76,7 +98,9 @@ def test_module_prefers_elite_and_preserves_existing_operator_routes() -> None:
         '"/operator-pane"',
     ):
         assert route in src
-    assert '"command-v2.html"' in src
+    assert 'REQUIRED_PAGES = {"command-v2.html"}' in src
+    assert '"status": "UNAVAILABLE" if required else "NOT_FOUND"' in src
+    assert "status_code=503 if required else 404" in src
     assert "does not steal /console" in src
 
 
