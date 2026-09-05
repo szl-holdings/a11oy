@@ -84,6 +84,42 @@ FAMILIES = (
 )
 
 
+SECURITY_TOKEN_ENV_NAMES = (
+    "SZL_SECURITY_TOKEN",
+    "SZL_SECURITY_TOKEN_1",
+    "SZL_SECURITY_TOKEN_2",
+    "SZL_SECURITY_TOKEN_3",
+    "SZL_SECURITY_TOKEN_4",
+    "SZL_SECURITY_TOKEN_5",
+    "SZL_SECURITY_TOKEN_6",
+    "GITHUB_TOKEN",
+)
+
+
+def security_token_candidates(
+    environ: Mapping[str, str] | None = None,
+) -> list[str]:
+    """Return distinct nonempty credentials in declared priority order.
+
+    Credentials and source names remain process-local and are never added to
+    receipts, logs, issues, or artifacts. Digest-based deduplication prevents
+    retrying aliases that resolve to the same underlying token.
+    """
+    source = os.environ if environ is None else environ
+    tokens: list[str] = []
+    fingerprints: set[bytes] = set()
+    for name in SECURITY_TOKEN_ENV_NAMES:
+        token = str(source.get(name) or "").strip()
+        if not token:
+            continue
+        fingerprint = hashlib.sha256(token.encode("utf-8")).digest()
+        if fingerprint in fingerprints:
+            continue
+        fingerprints.add(fingerprint)
+        tokens.append(token)
+    return tokens
+
+
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
@@ -326,6 +362,82 @@ def collect_workflow_evidence(client: GitHubClient, repository: str) -> dict[str
     }
 
 
+
+def collect_family_with_fallback(
+    clients: Iterable[Any], repository: str, spec: FamilySpec
+) -> dict[str, Any]:
+    """Use the first credential that can observe this alert family."""
+    fallback: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+        "http_status": None,
+        "open_count": None,
+        "severity": None,
+        "pages_observed": 0,
+    }
+    for client in clients:
+        result = collect_family(client, repository, spec)
+        fallback = result
+        if result.get("status") == "OBSERVED":
+            return result
+    return fallback
+
+
+def collect_status_with_fallback(
+    clients: Iterable[Any], collector: Any, *args: Any
+) -> dict[str, Any]:
+    """Retry a status collector without exposing credential identity."""
+    fallback: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+    }
+    for client in clients:
+        result = collector(client, *args)
+        fallback = result
+        if result.get("status") == "OBSERVED":
+            return result
+    return fallback
+
+
+def collect_governance_with_fallback(
+    clients: Iterable[Any], repository: str, default_branch: str
+) -> dict[str, Any]:
+    """Merge independently observable governance families across credentials."""
+    branch: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+    }
+    rulesets: dict[str, Any] = {
+        "status": "UNAVAILABLE",
+        "reason": "TOKEN_UNAVAILABLE",
+        "count": None,
+    }
+    for client in clients:
+        result = collect_governance(client, repository, default_branch)
+        candidate_branch = result.get("branch_protection")
+        if (
+            branch.get("status") != "OBSERVED"
+            and isinstance(candidate_branch, Mapping)
+        ):
+            branch = dict(candidate_branch)
+        candidate_rulesets = result.get("rulesets")
+        if (
+            rulesets.get("status") != "OBSERVED"
+            and isinstance(candidate_rulesets, Mapping)
+        ):
+            rulesets = dict(candidate_rulesets)
+        if (
+            branch.get("status") == "OBSERVED"
+            and rulesets.get("status") == "OBSERVED"
+        ):
+            break
+    return {
+        "default_branch": default_branch,
+        "branch_protection": branch,
+        "rulesets": rulesets,
+    }
+
+
 def build_receipt(
     *,
     repository: str,
@@ -485,22 +597,34 @@ def main() -> int:
     if SHA40.fullmatch(revision) is None:
         raise SystemExit("revision must be an exact 40-character Git SHA")
 
-    token = os.environ.get("SZL_SECURITY_TOKEN") or os.environ.get("GITHUB_TOKEN") or ""
-    client = GitHubClient(token)
+    tokens = security_token_candidates()
+    if not tokens:
+        raise SystemExit("security posture credential unavailable")
+    clients = [GitHubClient(token) for token in tokens]
     family_results = {
-        spec.name: collect_family(client, repository, spec) for spec in FAMILIES
+        spec.name: collect_family_with_fallback(clients, repository, spec)
+        for spec in FAMILIES
     }
     receipt = build_receipt(
         repository=repository,
         revision=revision,
         default_branch=args.default_branch,
         families=family_results,
-        features=collect_repository_features(client, repository),
-        governance=collect_governance(client, repository, args.default_branch),
-        workflows=collect_workflow_evidence(client, repository),
+        features=collect_status_with_fallback(
+            clients, collect_repository_features, repository
+        ),
+        governance=collect_governance_with_fallback(
+            clients, repository, args.default_branch
+        ),
+        workflows=collect_status_with_fallback(
+            clients, collect_workflow_evidence, repository
+        ),
     )
     if args.apply:
-        receipt["incident_action"] = synchronize_issue(client, repository, receipt)
+        issue_token = os.environ.get("SZL_SECURITY_TOKEN_5") or tokens[-1]
+        receipt["incident_action"] = synchronize_issue(
+            GitHubClient(issue_token), repository, receipt
+        )
     else:
         receipt["incident_action"] = "DRY_RUN"
     errors = public_receipt_errors(receipt)
