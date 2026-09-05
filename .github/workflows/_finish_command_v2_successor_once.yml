@@ -45,6 +45,22 @@ jobs:
           set -euo pipefail
           python .github/scripts/finish_command_v2_successor.py
 
+      - name: Bind the regression to the current grouped-copy image layout
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('tests/test_command_v2_shipping.py')
+          text = path.read_text(encoding='utf-8')
+          old = 'docker.index("COPY serve.py ./")'
+          new = 'docker.index("ENV PORT=7860")'
+          if text.count(old) != 1:
+              raise SystemExit(f'expected one obsolete image-order assertion, found {text.count(old)}')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
       - name: Prove route, image, mobile, and accessibility contracts
         shell: bash
         run: |
