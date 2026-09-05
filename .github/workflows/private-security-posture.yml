@@ -31,10 +31,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      # A managed organization credential may expose alert families that the
-      # repository GITHUB_TOKEN cannot. Every family independently reports
-      # OBSERVED or UNAVAILABLE; a fallback token never implies zero alerts.
-      SZL_SECURITY_TOKEN: ${{ secrets.SZL_ORG_ADMIN_TOKEN || secrets.ORG_ADMIN_TOKEN || secrets.SZL_GITHUB_TOKEN || secrets.GH_PAT || github.token }}
+      # Credentials are tried independently per alert family. An under-scoped
+      # earlier token cannot hide a later authorized observation. Credential
+      # identity and raw private-alert data are never persisted.
+      SZL_SECURITY_TOKEN_1: ${{ secrets.SZL_ORG_ADMIN_TOKEN }}
+      SZL_SECURITY_TOKEN_2: ${{ secrets.ORG_ADMIN_TOKEN }}
+      SZL_SECURITY_TOKEN_3: ${{ secrets.SZL_GITHUB_TOKEN }}
+      SZL_SECURITY_TOKEN_4: ${{ secrets.GH_PAT }}
+      SZL_SECURITY_TOKEN_5: ${{ github.token }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
