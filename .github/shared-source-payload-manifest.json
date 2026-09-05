@@ -1,8 +1,9 @@
 {
   "files": {
-    "szl_connectors/bindings.py": "490bed0aa07671c6003c8154a327ede589798cc138f4d9e8f163aed68c2368f9",
-    "szl_connectors/data_sources/security.py": "a81a3ec9c7f9df33aacdb737e41ea5d0c792c6fd1931852e60d8a3749f1ce447"
+    "gdw_auth.py": "c692593e02873f7b71b9a108fa42a9c2ae7f29d455596d9dd0a4236145297e89",
+    "szl_agentic_loop.py": "84b29cbe7db8b8931afcf79c58d8b14f7457dee48c66cb906726dbeb65b74849",
+    "szl_immune.py": "acd3cb1d72cd87e812c80ff25349268b9e46256a1ce4ddd017c28cf9c3805378"
   },
-  "payload_id": "defensive-fusion-wave4-20260904",
+  "payload_id": "runtime-mutation-boundary-20260905",
   "schema": "szl-shared-source-payload/v1"
 }
