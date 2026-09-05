@@ -277,6 +277,7 @@
                 "cardObservation"
               ],
               "properties": {
+                "cardObservation": {},
                 "cardSemanticSha256": {
                   "type": "null"
                 }
@@ -286,12 +287,8 @@
               "properties": {
                 "cardSemanticSha256": {
                   "type": "string"
-                }
-              },
-              "not": {
-                "required": [
-                  "cardObservation"
-                ]
+                },
+                "cardObservation": false
               }
             }
           }
