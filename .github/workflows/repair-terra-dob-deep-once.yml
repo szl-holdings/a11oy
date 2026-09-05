@@ -28,7 +28,7 @@ jobs:
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
-      - name: Apply verified detailed function and continuous test coverage
+      - name: Apply the verified detailed source function only
         shell: bash
         run: |
           set -euo pipefail
@@ -60,15 +60,7 @@ jobs:
           updated = ''.join(lines)
           compile(updated, str(target), 'exec')
           target.write_text(updated, encoding='utf-8')
-          workflow = Path('.github/workflows/nyc-dob-source-contract.yml')
-          content = workflow.read_text(encoding='utf-8')
-          marker = '      - a11oy_vertical_feeds.py\n'
-          if content.count(marker) != 2 or content.count('run: python -S -m py_compile a11oy_vertical_feeds.py') != 1:
-              raise SystemExit('Continuous test workflow shape changed')
-          content = content.replace(marker, marker + '      - a11oy_deva_feeds.py\n')
-          content = content.replace('run: python -S -m py_compile a11oy_vertical_feeds.py', 'run: python -S -m py_compile a11oy_vertical_feeds.py a11oy_deva_feeds.py')
-          workflow.write_text(content, encoding='utf-8')
-          print('Updated exactly one detailed function and its continuous-test inputs')
+          print('Updated one detailed function. Permanent workflow edits belong to the authorized connector, not this contents-only job.')
           PY
           python -S -m unittest discover -s tests -p test_nyc_dob_recent_source.py -v
           git diff --check
@@ -83,7 +75,7 @@ jobs:
           observed="$(git ls-remote origin "refs/heads/$branch" | cut -f1)"
           test "$observed" = "$EXPECTED_HEAD"
           rm .github/workflows/repair-terra-dob-deep-once.yml
-          git add -- a11oy_deva_feeds.py .github/workflows/nyc-dob-source-contract.yml .github/workflows/repair-terra-dob-deep-once.yml
+          git add -- a11oy_deva_feeds.py .github/workflows/repair-terra-dob-deep-once.yml
           git diff --cached --check
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
