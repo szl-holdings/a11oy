@@ -6,6 +6,7 @@ name: Apply homepage shell current-main successor v2
       - fix/homepage-shell-current-main-v2-20260905
     paths:
       - .github/workflows/apply-homepage-shell-current-main-v2.yml
+      - .github/scripts/apply_homepage_shell_successor_v2.py
 
 permissions:
   contents: write
@@ -36,97 +37,15 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Materialize reviewed shell and exact legacy-gate successor
-        env:
-          REVIEWED_COMMIT: eb232693f1b28a732005805318e6ce5e85bc0be6
-        run: |
-          set -euo pipefail
-          git checkout "${REVIEWED_COMMIT}" -- \
-            a11oy_landing.html \
-            console/assets/szl-flow.js \
-            console/assets/szl-holo-v2.js \
-            tests/test_homepage_shell_coherence.py \
-            tests/test_landing_flagship_catalog.py \
-            tests/test_landing_touch_targets.py \
-            tests/test_living_command_fabric_frontdoor.py
-
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path("scripts/repair_a11oy_frontdoor.py")
-          text = path.read_text(encoding="utf-8")
-          class_anchor = "\n\nclass PatchError(RuntimeError):\n    pass\n"
-          helper = r'''
-
-REVIEWED_HOMEPAGE_SHELL_EXACT_MARKERS = (
-    '<html lang="en" data-szl-shell-owner="homepage"',
-    '<title>a11oy — The Living Command Fabric</title>',
-    '<style id="szl-homepage-shell">',
-    '<nav class="nav-links" id="site-nav" aria-label="Primary navigation">',
-    '<h1 class="title">Governed AI actions. <span class="grad">Receipts you can verify.</span></h1>',
-    'var btn=document.getElementById("menu-toggle");',
-)
-REVIEWED_HOMEPAGE_SHELL_REQUIRED_MARKERS = (
-    "persistent signer evidence is active and verification passes",
-    "Receipt records · signer state separate",
-    "Signer state is disclosed separately only where an actual signer-status read is present.",
-    'grayChip(relation + " · CONJECTURE")',
-    "min-height:44px",
-    "overflow-wrap:anywhere",
-    "/* Mobile overrides intentionally follow all equal-specificity base rules. */",
-)
-REVIEWED_HOMEPAGE_SHELL_FORBIDDEN_MARKERS = (
-    '<a href="/console">Command</a>',
-    '<title>a11oy — Governed Agent Change Management',
-    "Every answer arrives with a signed receipt",
-    "AI that signs its work",
-)
-
-
-def is_reviewed_homepage_shell_successor(text: str) -> bool:
-    """Recognize only the reviewed, truth-preserving homepage-owned shell."""
-    return (
-        all(text.count(marker) == 1 for marker in REVIEWED_HOMEPAGE_SHELL_EXACT_MARKERS)
-        and all(marker in text for marker in REVIEWED_HOMEPAGE_SHELL_REQUIRED_MARKERS)
-        and all(marker not in text for marker in REVIEWED_HOMEPAGE_SHELL_FORBIDDEN_MARKERS)
-    )
-'''
-          if "REVIEWED_HOMEPAGE_SHELL_EXACT_MARKERS" in text:
-              raise SystemExit("reviewed homepage successor contract already exists")
-          if text.count(class_anchor) != 1:
-              raise SystemExit("PatchError insertion anchor is missing or ambiguous")
-          text = text.replace(class_anchor, helper + class_anchor, 1)
-
-          old = '''    if args.check:
-        baseline_errors = validate_truth(original)
-        if not baseline_errors:
-'''
-          new = '''    if args.check:
-        if is_reviewed_homepage_shell_successor(original):
-            print(
-                json.dumps(
-                    {
-                        "status": "PASS",
-                        "target": str(args.path),
-                        "notes": "reviewed homepage-owned shell successor is current",
-                    },
-                    indent=2,
-                )
-            )
-            return 0
-        baseline_errors = validate_truth(original)
-        if not baseline_errors:
-'''
-          if text.count(old) != 1:
-              raise SystemExit("--check insertion anchor is missing or ambiguous")
-          text = text.replace(old, new, 1)
-          path.write_text(text, encoding="utf-8")
-          PY
+      - name: Materialize reviewed shell and legacy-gate successor
+        run: python .github/scripts/apply_homepage_shell_successor_v2.py
 
       - name: Prove source, truth, accessibility, and idempotence contracts
         run: |
           set -euo pipefail
-          python -m py_compile scripts/repair_a11oy_frontdoor.py
+          python -m py_compile \
+            .github/scripts/apply_homepage_shell_successor_v2.py \
+            scripts/repair_a11oy_frontdoor.py
           python scripts/check_a11oy_frontdoor_truth.py a11oy_landing.html
           python scripts/repair_a11oy_frontdoor.py a11oy_landing.html --check
           python -m unittest -v \
@@ -146,7 +65,9 @@ def is_reviewed_homepage_shell_successor(text: str) -> bool:
           BRANCH: fix/homepage-shell-current-main-v2-20260905
         run: |
           set -euo pipefail
-          git rm .github/workflows/apply-homepage-shell-current-main-v2.yml
+          git rm \
+            .github/workflows/apply-homepage-shell-current-main-v2.yml \
+            .github/scripts/apply_homepage_shell_successor_v2.py
           git add \
             a11oy_landing.html \
             console/assets/szl-flow.js \
@@ -157,25 +78,24 @@ def is_reviewed_homepage_shell_successor(text: str) -> bool:
             tests/test_landing_touch_targets.py \
             tests/test_living_command_fabric_frontdoor.py
 
-          cat > /tmp/expected-files <<'EOF'
-          a11oy_landing.html
-          console/assets/szl-flow.js
-          console/assets/szl-holo-v2.js
-          scripts/repair_a11oy_frontdoor.py
-          tests/test_homepage_shell_coherence.py
-          tests/test_landing_flagship_catalog.py
-          tests/test_landing_touch_targets.py
-          tests/test_living_command_fabric_frontdoor.py
-          EOF
-          sed -i 's/^          //' /tmp/expected-files
-          git diff --cached --name-only | sort > /tmp/actual-files
-          sort -o /tmp/expected-files /tmp/expected-files
-          diff -u /tmp/expected-files /tmp/actual-files
-
           git config user.name "SZL Frontier Operator"
           git config user.email "stephenlutar2@gmail.com"
           git commit \
             -m "fix(homepage): rebase the reviewed responsive shell" \
             -m "Preserve one homepage-owned navigation shell, accessible responsive behavior, explicit receipt truth states, and guarded shared enhancers while extending the legacy repair controller with an exact fail-closed successor contract." \
             -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+
+          printf '%s\n' \
+            a11oy_landing.html \
+            console/assets/szl-flow.js \
+            console/assets/szl-holo-v2.js \
+            scripts/repair_a11oy_frontdoor.py \
+            tests/test_homepage_shell_coherence.py \
+            tests/test_landing_flagship_catalog.py \
+            tests/test_landing_touch_targets.py \
+            tests/test_living_command_fabric_frontdoor.py \
+            | sort > /tmp/expected-final-files
+          git diff --name-only origin/main...HEAD | sort > /tmp/actual-final-files
+          diff -u /tmp/expected-final-files /tmp/actual-final-files
+          git diff --check origin/main...HEAD
           git push origin "HEAD:${BRANCH}"
