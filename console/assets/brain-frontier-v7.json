@@ -1005,13 +1005,13 @@
   ],
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "6286ccd4bdf2595e1c2ec35c6a5b716d812de318761e590c534b6b5cc7ede81c",
+  "snapshot_sha256": "2b8028cc82045d507a4d84d636767167a3ea64c118127ddf93c9dff3e1c28393",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
       "live_origin": "https://betterwithage-anatomy.hf.space",
       "repository": "szl-holdings/anatomy",
-      "revision": "075a2484c1e520d4e5767c1a2780de9bd8827e6c"
+      "revision": "17e0546a7ea4786a5430be18575e86755b1346c9"
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
