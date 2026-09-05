@@ -53,6 +53,19 @@ KIND_ORDER = {
     "estate-surface": 6,
     "source-document": 7,
 }
+SAFE_DOMAIN = re.compile(r"[a-z0-9][a-z0-9_-]{0,79}")
+SAFE_PATH_SEGMENT = re.compile(r"[A-Za-z0-9_.-]+")
+UNSAFE_TITLE = re.compile(r"[\x00-\x1f\x7f-\x9f\ud800-\udfff]")
+ALLOWED_ADMISSIONS = {
+    "DISCOVERED_REVIEW_REQUIRED",
+    "EXECUTABLE_CONSTRAINT_REVIEW_REQUIRED",
+    "OPEN_NOT_EXECUTION_AUTHORITY",
+    "REFERENCE_AND_CONSTRAINT_INPUT_ONLY",
+    "REFERENCE_ONLY_EXECUTION_AUTHORITY_NONE",
+    "REFERENCE_ONLY_NO_PROVIDER_MUTATION",
+    "REFERENCE_ONLY_UNLESS_EXECUTABLE_MATCH_IS_EXPLICIT",
+    "SOURCE_RECEIPT_REQUIRED_FOR_CURRENT_CLAIM",
+}
 
 
 class MaterializationError(RuntimeError):
@@ -70,6 +83,29 @@ def canonical_bytes(value: Any) -> bytes:
 
 def sha256_bytes(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def validate_metadata(row: dict[str, Any]) -> None:
+    """Accept the same bounded, scalar metadata that the browser can display."""
+    title = row.get("title")
+    if (not isinstance(title, str) or not title.strip() or len(title) > 180
+            or UNSAFE_TITLE.search(title)):
+        raise MaterializationError("frontier candidate title is invalid")
+    path = row.get("source_path")
+    if (not isinstance(path, str) or len(path) > 512
+            or any(part in {".", ".."} or not SAFE_PATH_SEGMENT.fullmatch(part)
+                   for part in path.split("/"))):
+        raise MaterializationError("frontier candidate path is invalid")
+    kind = row.get("source_kind")
+    if not isinstance(kind, str) or kind not in KIND_ORDER:
+        raise MaterializationError("frontier candidate kind is invalid")
+    admission = row.get("admission")
+    if admission not in ALLOWED_ADMISSIONS:
+        raise MaterializationError("frontier candidate admission is invalid")
+    domain = row.get("quant_domain")
+    if "quant_domain" in row or kind == "quant-domain":
+        if not isinstance(domain, str) or not SAFE_DOMAIN.fullmatch(domain):
+            raise MaterializationError("frontier candidate quant domain is invalid")
 
 
 def token_from_environment() -> str | None:
@@ -185,6 +221,7 @@ def validate_frontier(
             raise MaterializationError("frontier candidate is not an object")
         if row.get("schema") != "szl.second-brain.frontier-candidate/v1":
             raise MaterializationError("frontier candidate schema mismatch")
+        validate_metadata(row)
         node_id = str(row.get("id") or "")
         if not FRONTIER_ID.fullmatch(node_id) or node_id in seen:
             raise MaterializationError("frontier candidate id is invalid or duplicated")
@@ -213,7 +250,7 @@ def validate_frontier(
     measured_set = sha256_bytes(b"".join(canonical_lines))
     if measured_set != state.get("candidate_set_sha256"):
         raise MaterializationError("frontier candidate-set digest mismatch")
-    if len(rows) != int(state.get("candidate_count") or -1):
+    if type(state.get("candidate_count")) is not int or len(rows) != state["candidate_count"]:
         raise MaterializationError("frontier candidate count mismatch")
     if kinds["formula-authority"] != 1:
         raise MaterializationError("formula authority is missing")
@@ -224,6 +261,9 @@ def validate_frontier(
     if kinds["quant-domain"] != 9:
         raise MaterializationError("quant domain count drifted")
     if len(domains) != 9:
+        raise MaterializationError("quant domain identity count drifted")
+    domain_ids = {row["quant_domain"] for row in rows if row["source_kind"] == "quant-domain"}
+    if len(domain_ids) != 9 or set(domains) != domain_ids:
         raise MaterializationError("quant domain identity count drifted")
     return state, rows
 
@@ -298,7 +338,7 @@ def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in selected[:MAX_HANDLES]:
         handle: dict[str, Any] = {
             "nodeId": row["id"],
-            "title": str(row.get("title") or "")[:180],
+            "title": row["title"],
             "sha256": row["content_sha256"],
             "repository": row["source_repository"],
             "revision": row["source_revision"],
@@ -321,9 +361,13 @@ def build_snapshot(
     candidates_raw: bytes,
     dependency_revisions: dict[str, str],
 ) -> dict[str, Any]:
+    if not isinstance(second_brain_revision, str) or not HEX_40.fullmatch(second_brain_revision):
+        raise MaterializationError("second brain revision is not exact")
     state, rows = validate_frontier(state_raw, candidates_raw)
+    if set(dependency_revisions) != {ANATOMY_REPOSITORY, FORMULA_REPOSITORY, OUROBOROS_REPOSITORY}:
+        raise MaterializationError("dependency repository set is incomplete or unexpected")
     for repository, revision in dependency_revisions.items():
-        if not HEX_40.fullmatch(revision):
+        if not isinstance(revision, str) or not HEX_40.fullmatch(revision):
             raise MaterializationError(f"dependency revision is not exact: {repository}")
     handles = select_handles(rows)
     snapshot: dict[str, Any] = {

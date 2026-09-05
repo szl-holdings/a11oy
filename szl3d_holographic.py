@@ -627,6 +627,14 @@ def register(app, ns: str = "a11oy") -> Dict[str, Any]:
         )
         _front_move(route)
         registered.append(f"GET,HEAD {route}")
+        app.add_api_route(
+            route + "/",
+            _shell,
+            methods=["GET", "HEAD"],
+            include_in_schema=False,
+        )
+        _front_move(route + "/")
+        registered.append(f"GET,HEAD {route}/")
 
     async def _info():
         return JSONResponse(info(ns))

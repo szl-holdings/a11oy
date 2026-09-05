@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import shutil
+import subprocess
 from pathlib import Path
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -49,6 +54,54 @@ def test_client_uses_one_same_origin_snapshot_without_persistence_or_telemetry()
         "mixpanel",
     ):
         assert forbidden not in source
+
+
+def test_client_accepts_only_the_exact_checked_in_seven_repository_snapshot() -> None:
+    node = shutil.which("node")
+    if node is None:
+        pytest.skip("Node.js is unavailable")
+    source = read("console/assets/brain-frontier-v7.js")
+    marker = "\n})();"
+    assert source.count(marker) == 1
+    instrumented = source.replace(
+        marker,
+        "\n  globalThis.__brainFrontierV7Test = { validatePayload, verifySnapshot };"
+        + marker,
+    )
+    harness = f'''\
+import {{ readFileSync }} from "node:fs";
+import {{ webcrypto }} from "node:crypto";
+globalThis.window = {{
+  crypto: webcrypto,
+  location: {{ origin: "https://a-11-oy.com" }},
+  matchMedia: () => ({{ matches: false, addEventListener() {{}} }}),
+}};
+globalThis.document = {{ readyState: "loading", addEventListener() {{}} }};
+{instrumented}
+const payload = JSON.parse(readFileSync(process.env.BF7_SNAPSHOT, "utf8"));
+if (!globalThis.__brainFrontierV7Test.validatePayload(payload)) process.exit(10);
+if (!await globalThis.__brainFrontierV7Test.verifySnapshot(payload)) process.exit(11);
+payload.handles[0].repository = "szl-holdings/ouroboros";
+if (globalThis.__brainFrontierV7Test.validatePayload(payload)) process.exit(12);
+payload.handles[0].repository = "szl-holdings/szl-formulas";
+payload.handles[0].admission = "EXECUTE_NOW";
+if (globalThis.__brainFrontierV7Test.validatePayload(payload)) process.exit(13);
+'''
+    environment = os.environ.copy()
+    environment["BF7_SNAPSHOT"] = str(
+        ROOT / "console" / "assets" / "brain-frontier-v7.json"
+    )
+    completed = subprocess.run(
+        [node, "--input-type=module", "-"],
+        input=harness,
+        text=True,
+        encoding="utf-8",
+        capture_output=True,
+        env=environment,
+        timeout=20,
+        check=False,
+    )
+    assert completed.returncode == 0, completed.stderr or completed.stdout
 
 
 def test_surface_is_accessible_mobile_safe_and_not_another_global_navigation() -> None:
