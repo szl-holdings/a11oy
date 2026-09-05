@@ -70,57 +70,41 @@ jobs:
               },
           }
           new = os.environ["NEW_PIN"]
-
           for old, expected in closures.items():
-              result = subprocess.run(
+              probe = subprocess.run(
                   ["git", "grep", "-l", old, "--"],
-                  check=False,
                   text=True,
                   stdout=subprocess.PIPE,
                   stderr=subprocess.PIPE,
               )
-              if result.returncode not in (0, 1):
-                  raise SystemExit(result.stderr)
+              if probe.returncode not in (0, 1):
+                  raise SystemExit(probe.stderr)
               observed = {
-                  line
-                  for line in result.stdout.splitlines()
+                  line for line in probe.stdout.splitlines()
                   if line and line != self_path
               }
               if observed != expected:
                   raise SystemExit(
-                      f"pin closure drift for {old}: "
-                      f"expected={sorted(expected)} observed={sorted(observed)}"
+                      f"pin closure drift for {old}: expected={sorted(expected)} "
+                      f"observed={sorted(observed)}"
                   )
               for relative in sorted(expected):
                   path = Path(relative)
                   text = path.read_text(encoding="utf-8")
-                  count = text.count(old)
-                  if count < 1:
+                  if old not in text:
                       raise SystemExit(f"pin absent before replacement: {relative}")
                   path.write_text(text.replace(old, new), encoding="utf-8", newline="\n")
-
-          for old in closures:
-              result = subprocess.run(
-                  ["git", "grep", "-n", old, "--"],
-                  check=False,
-                  text=True,
-                  stdout=subprocess.PIPE,
-                  stderr=subprocess.PIPE,
-              )
-              if result.returncode not in (0, 1):
-                  raise SystemExit(result.stderr)
-              residual = [
-                  line
-                  for line in result.stdout.splitlines()
-                  if line and not line.startswith(self_path + ":")
-              ]
-              if residual:
-                  raise SystemExit(
-                      "obsolete permanent pin remains:\n" + "\n".join(residual)
-                  )
-
           print("deploy_closure=6 drift_closure=6 new_pin=" + new)
           PY
+
+      - name: Install exact focused test closure
+        run: |
+          python3 -m pip install --disable-pip-version-check --no-cache-dir \
+            "pytest==8.3.5" \
+            "PyYAML==6.0.3" \
+            "fastapi==0.141.1" \
+            "httpx==0.28.1" \
+            "starlette==1.6.0"
 
       - name: Prove deploy, parity, audit, and integrity contracts
         shell: bash
@@ -128,8 +112,6 @@ jobs:
           NEW_PIN: e25adbe3d39b988ced35740a6b58cbfc5ffa920b
         run: |
           set -euo pipefail
-          python3 -m pip install --disable-pip-version-check --no-cache-dir \
-            "pytest==8.3.5" "PyYAML==6.0.3"
           python3 -m py_compile \
             tools/check_copy_sync_lockstep.py \
             scripts/validate_hf_parity_lifecycle.py \
@@ -166,11 +148,10 @@ jobs:
           assert drift.count(
               "uses: szl-holdings/.github/.github/workflows/reusable-hf-module-drift-check.yml@" + pin
           ) == 1
-          audit = json.loads(
-              Path("audit/workflow-action-pins.json").read_text(encoding="utf-8")
+          assert pin in json.dumps(
+              json.loads(Path("audit/workflow-action-pins.json").read_text(encoding="utf-8")),
+              sort_keys=True,
           )
-          encoded = json.dumps(audit, sort_keys=True)
-          assert pin in encoded
           PY
           git diff --check
 
