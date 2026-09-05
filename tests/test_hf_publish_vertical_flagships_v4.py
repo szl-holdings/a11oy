@@ -73,21 +73,21 @@ def test_terra_forge_bundle_is_chained_to_exact_merged_source() -> None:
     module = load_implementation()
     page, forge = module.load_terra_forge_bundle()
 
-    assert 'data-szl-vertical-forge="0.2.1"' in page
+    assert 'data-szl-vertical-forge="0.2.2"' in page
     assert 'href="/panels"' in page
     assert 'href="/build-receipt.json"' in page
     assert 'const EP="/api/live"' in page
     assert forge == {
         "schema": "szl.vertical-forge.deployment-source/v1",
-        "generator": "szl-vertical-forge/0.2.1",
+        "generator": "szl-vertical-forge/0.2.2",
         "source_repository": "szl-holdings/szl-vertical-forge",
-        "source_revision": "5febe88a571cd001cdc5e9d7c5073373dd6d480c",
-        "source_pull_request": "https://github.com/szl-holdings/szl-vertical-forge/pull/1",
-        "fleet_master_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
+        "source_revision": "6a05a17004d245f929176e01e29b20a0ab0e8bb3",
+        "source_pull_request": "https://github.com/szl-holdings/szl-vertical-forge/pull/3",
+        "fleet_master_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
         "fleet_config_sha256": "4b85cb67e7003cee620119835c91a92e954f3c863fc2faa505b07aeb4a1c2a46",
         "vertical_config_sha256": "c6ba3bd447dafd2bb8dff96d1762718ad392fff121cf04fd64057db5ddac378c",
-        "artifact_sha256": "37876f7fef0f1bc18b65b508b2f5c5c78376403435843a6c3edfb63be0c5fd92",
-        "chain_hash": "712c20ee1ab8be96b2d8ec7cba120321fb2e2487872c2ce088fce39353e97571",
+        "artifact_sha256": "3970b3ac1065db1c531d141d3d0aa7ae1903546d6b10197b6f03794d72bca5c4",
+        "chain_hash": "26f1316c4c15886ebbb80cd625bc92d741dce83f4ccff02ce04eaefa4c03e34f",
     }
 
 
