@@ -1,35 +1,29 @@
-# Post-merge #1986 review repair workcell
+# Runtime-boundary post-merge review repair — clean successor
 
-- `workcell_id`: `A11OY-1986-POSTMERGE-REVIEW-REPAIR-20260905`
-- `source_base`: `94e129d016a7e82e0b22f11c00ea877b5cc430f5`
+- `workcell_id`: `A11OY-1986-POSTMERGE-REVIEW-REPAIR-20260905-CLEAN`
+- `source_base`: `083f9ff47b512a9ceb90a0a7da17c8f94e47f632`
+- `shared_source_peer`: `szl-holdings/killinchu#421`
+- `peer_merge_commit`: `f2a376f5ea2d55497674a20cd0ab9c199d32d4f5`
 - `state`: `IMPLEMENTED_PENDING_EXACT_HEAD_CI`
-- `objective`: close four substantive Codex findings that remained after PR #1986 merged.
 
-## Required repairs
+## Permanent repairs
 
-1. Bind nested `agent.nexus` request/program metadata to the current request and reject conflicting duplicate bindings before any `SEALED` verdict.
-2. Serialize every `_do_run` mutation of the shared `_RUN_CHAIN`, including `/agent/run` and governed-cycle callers, so the lineage cannot fork under concurrency.
-3. Preserve the protected Ouroboros endpoint while making the registered UI able to send operator bearer authority without persisting or exposing credentials.
-4. Report the actual successful `verified_by_keyid` across receipt-key rotation instead of attributing verification to the current active key.
+1. Nested `agent.nexus` request and program metadata must agree with the current request. Conflicting outer or nested duplicates fail closed before `SEALED`.
+2. Every mutation of the shared run lineage is serialized through one lock-protected append primitive, preventing concurrent lineage forks.
+3. The protected Ouroboros UI sends operator bearer authority only for the active request, never writes it to browser storage, and clears it after completion.
+4. Receipt verification reports the key that actually verified through `verified_by_keyid`, including retained rotation keys.
+5. IMMUNE Field compatibility fallback identifies the actual Channel A source and preserves the failed Channel B probe as bounded evidence.
+
+## Zero-bandaid boundary
+
+The abandoned repair branch used three self-modifying one-shot workflows and an explicitly ephemeral `sitecustomize.py` import shim. None of those files are present in this successor. The permanent regression suite fails if any exact transient path returns.
+
+The shared runtime blobs and payload manifest are byte-identical to the already-merged Killinchu peer. No drift exclusion, provider mutation, secret-value readback, branch-protection weakening, force push, or direct-main write is introduced.
 
 ## Acceptance
 
-- Add focused adversarial regressions for all four defects.
-- Existing authentication, source-binding, receipt-verification, and no-external-effector boundaries remain fail closed.
-- Exact-head hosted tests, security checks, and independent Codex review must be green before merge.
-- No provider mutation, secret-value readback, protection weakening, force push, or direct-main write is authorized.
-
-This file is the append-only workcell/proof anchor. Implementation evidence is completed in the protected successor PR.
-
-## Forward implementation
-
-The current-main successor now carries the four forward fixes:
-
-- nested `agent.nexus` binding is authoritative and conflicting duplicates fail closed;
-- every shared run-ledger append is serialized through one lock-protected primitive;
-- the registered Ouroboros UI sends a session-only bearer credential and clears it after the request;
-- rotated-key verification records the successful `verified_by_keyid`.
-
-Focused adversarial regressions are in
-`tests/test_post_merge_1986_review_repairs.py`. This state is not a merge or
-deployment claim; exact-head CI and independent review remain required.
+- focused adversarial tests cover all five repairs;
+- the shared payload manifest hashes the permanent source bytes exactly;
+- repository-wide exact-head tests, container, security, doctrine, source-drift, and mobile gates pass;
+- independent review finds no remaining high-severity defect;
+- merge uses an unchanged head SHA and the protected pull-request path.
