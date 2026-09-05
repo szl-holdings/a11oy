@@ -1,5 +1,5 @@
 {
-  "examined_documents": 107,
+  "examined_documents": 110,
   "injected_documents": [
     "a11oy_landing.html",
     "cathedral_genius.html",
@@ -26,6 +26,7 @@
     "pages/company.html",
     "pages/compliance.html",
     "pages/console.html",
+    "pages/constellation.html",
     "pages/counter-uas.html",
     "pages/cued-engagement.html",
     "pages/decision.html",
@@ -46,6 +47,7 @@
     "pages/landing.html",
     "pages/mesh.html",
     "pages/observability.html",
+    "pages/operator-pane.html",
     "pages/operator_organ.html",
     "pages/organs-integrity.html",
     "pages/pinn-console.html",
@@ -54,6 +56,7 @@
     "pages/pricing.html",
     "pages/run-all.html",
     "pages/sdk.html",
+    "pages/second-brain.html",
     "pages/security.html",
     "pages/sovereign.html",
     "pages/status.html",
@@ -114,6 +117,7 @@
   "rollout": "workflow_dispatch:.github/workflows/rollout-frontend-flow-shell.yml",
   "schema": "szl.frontend-flow-shell-state/v1",
   "self_contained_documents": [
+    "pages/command-v2.html",
     "pages/wires.html"
   ],
   "source_managed_documents": [

@@ -44,6 +44,9 @@ ENDPOINTS (dual-registered under /api/a11oy/v1/immune/* AND /v1/immune/*):
                     (SZLHOLDINGS/immune /api/immune/nexus/status).
                     EXECUTABLE software simulation. Energy UNAVAILABLE.
                     Lambda = Conjecture 1 OPEN. Never LIVE or PASS.
+  GET/POST /nexus/lorenz -> operator-initiated Lorenz OP seal through
+                    Channel A POST /api/immune/nexus/run. Returns MEASURED
+                    hashes or UNAVAILABLE. Never LIVE or PASS.
 
 INSPECTION LOGIC (byte-identical to serve.py's embedded immune block):
   _THREAT_SIGNATURES = ["DROP TABLE","rm -rf","<script","eval(","subprocess","../../etc"]
@@ -119,6 +122,30 @@ _KERNEL_UA = (
 _KERNEL_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 _FIELD_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
 _NEXUS_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
+_LORENZ_CACHE: dict[str, Any] = {"at": 0.0, "payload": None}
+_LORENZ_CACHE_TTL = float(os.environ.get("IMMUNE_LORENZ_CACHE_TTL", "45"))
+_LORENZ_MEASURED = {
+    "program": "lorenz",
+    "mode": "OP",
+    "steps": 320,
+    "dt": 0.01,
+    "drive": 0.7,
+    "chaos": 0.45,
+    "seed": 0.2,
+    "coefficients": "σ 10 · ρ 27.9 · β 2.67",
+    "initial": {"x": 0.182, "y": -0.046, "z": 23.2, "t": 0},
+    "final": {
+        "x": -7.707920173353,
+        "y": -10.567955419679,
+        "z": 21.305498529338,
+        "t": 3.2,
+    },
+    "inputHash": "c5fcc5029392a5e4f7cd65a655d5379cd65d8f915b2ee96a1db5d44e35ea2358",
+    "outputHash": "4071a2f2faca744907747cb2cc82a9d841e125fa287240505f9f9a8454a399ac",
+    "energy": "UNAVAILABLE",
+    "uniqueness": "Conjecture 1 OPEN",
+    "truth": "MEASURED_SOFTWARE_SIMULATION",
+}
 
 # ---------------------------------------------------------------------------
 # REAL inspection logic — byte-identical to serve.py's embedded immune block.
@@ -442,6 +469,41 @@ def _probe_json(url: str) -> tuple[Optional[int], Any, Optional[str]]:
         return None, None, type(exc).__name__
 
 
+def _post_json(url: str, body: dict) -> tuple[Optional[int], Any, Optional[str]]:
+    """Public POST. Fail closed: never invent a JSON body."""
+    raw_body = json.dumps(body, separators=(",", ":")).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=raw_body,
+        headers={
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "User-Agent": _KERNEL_UA,
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=_KERNEL_TIMEOUT) as resp:  # nosec - public kernel
+            raw = resp.read(262144)
+            status = int(getattr(resp, "status", 200) or 200)
+        text = raw.decode("utf-8", "replace").strip()
+        if not text:
+            return status, None, "empty body"
+        try:
+            return status, json.loads(text), None
+        except json.JSONDecodeError:
+            return status, None, "upstream non-JSON"
+    except urllib.error.HTTPError as exc:
+        detail = None
+        try:
+            detail = json.loads(exc.read().decode("utf-8", "replace") or "")
+        except Exception:  # noqa: BLE001
+            detail = None
+        return int(exc.code), detail, "HTTP " + str(exc.code)
+    except Exception as exc:  # noqa: BLE001
+        return None, None, type(exc).__name__
+
+
 def _kernel(now: Optional[float] = None, probe=_probe_json) -> dict:
     """Same-origin kernel probe. REACHABLE / UNAVAILABLE only — never LIVE or PASS."""
     ts = time.time() if now is None else float(now)
@@ -629,6 +691,94 @@ def _nexus(now: Optional[float] = None, probe=_probe_json) -> dict:
     return enveloped
 
 
+def _extract_nexus_receipt(body: dict) -> dict:
+    rec = ((body.get("governed") or {}) if isinstance(body.get("governed"), dict) else {}).get("receipt")
+    payload = rec.get("payload") if isinstance(rec, dict) else None
+    if not isinstance(payload, dict):
+        return {}
+    agent = payload.get("agent") if isinstance(payload.get("agent"), dict) else None
+    if isinstance(agent, dict) and isinstance(agent.get("nexus"), dict):
+        return agent["nexus"]
+    raw = payload.get("agentJson")
+    if isinstance(raw, str):
+        try:
+            parsed = json.loads(raw)
+        except json.JSONDecodeError:
+            return {}
+        if isinstance(parsed, dict) and isinstance(parsed.get("nexus"), dict):
+            return parsed["nexus"]
+    return {}
+
+
+def _nexus_lorenz(now: Optional[float] = None, post=_post_json) -> dict:
+    """Operator-initiated Lorenz OP seal. REACHABLE / UNAVAILABLE only."""
+    ts = time.time() if now is None else float(now)
+    cached = _LORENZ_CACHE.get("payload")
+    cached_at = float(_LORENZ_CACHE.get("at") or 0)
+    if cached and (ts - cached_at) < _LORENZ_CACHE_TTL:
+        out = dict(cached)
+        out["cached"] = True
+        return out
+
+    request_id = "lorenz-op-" + secrets.token_hex(6)
+    status, data, err = post(
+        _KERNEL_SPACE_URL + "/api/immune/nexus/run",
+        {
+            "program": "lorenz",
+            "mode": "OP",
+            "steps": 320,
+            "actor": "a11oy-immune-tab",
+            "requestId": request_id,
+        },
+    )
+    body = data if isinstance(data, dict) else {}
+    governed = body.get("governed") if isinstance(body.get("governed"), dict) else {}
+    result = body.get("result") if isinstance(body.get("result"), dict) else {}
+    execution = result.get("execution") if isinstance(result.get("execution"), dict) else {}
+    nexus = _extract_nexus_receipt(body)
+    sealed = bool(status in (200, 201) and governed.get("pass") is True and nexus.get("outputHash"))
+    payload = {
+        "ok": sealed,
+        "reachability": "REACHABLE" if sealed else "UNAVAILABLE",
+        "sealed": sealed,
+        "requestId": body.get("requestId") or request_id,
+        "program": "lorenz",
+        "mode": "OP",
+        "steps": execution.get("stepsExecuted") if sealed else None,
+        "inputHash": nexus.get("inputHash") if sealed else None,
+        "outputHash": nexus.get("outputHash") if sealed else None,
+        "invariantsHold": nexus.get("invariantsHold") if sealed else None,
+        "final": result.get("finalState") if sealed else None,
+        "coefficients": (result.get("coefficients") or {}).get("label") if sealed else None,
+        "energy": (nexus.get("energy") or execution.get("energy") or "UNAVAILABLE") if sealed else None,
+        "uniqueness": (nexus.get("uniqueness") or execution.get("uniqueness")) if sealed else None,
+        "truth": execution.get("truth") if sealed else None,
+        "reference": _LORENZ_MEASURED,
+        "upstream_http": status,
+        "error": None if sealed else (err or body.get("error") or "lorenz unsealed"),
+        "channel": "A",
+        "space": "SZLHOLDINGS/immune",
+        "contract": "POST /api/immune/nexus/run",
+        "url": _KERNEL_SPACE_URL + "/api/immune/nexus/run",
+        "product_tab": "/immune",
+        "honesty": {
+            "lambda": "Conjecture 1 OPEN (NOT a theorem)",
+            "never_fabricate": ["LIVE", "PASS"],
+            "first_paint": "CONNECTING",
+            "failed_probe": "UNAVAILABLE",
+            "energy": "UNAVAILABLE",
+            "execution": "MEASURED_SOFTWARE_SIMULATION",
+            "reference_is_not_this_run": True,
+        },
+        "organ": _ORGAN_NAME,
+        "cached": False,
+    }
+    enveloped = _gov(payload, status="REAL" if sealed else "DEGRADED")
+    _LORENZ_CACHE["at"] = ts
+    _LORENZ_CACHE["payload"] = enveloped
+    return enveloped
+
+
 def register(app, ns: str = "a11oy") -> dict:
     async def _h_healthz():  # noqa: ANN202
         return JSONResponse(_healthz())
@@ -672,6 +822,9 @@ def register(app, ns: str = "a11oy") -> dict:
     async def _h_nexus():  # noqa: ANN202
         return JSONResponse(_nexus())
 
+    async def _h_nexus_lorenz():  # noqa: ANN202
+        return JSONResponse(_nexus_lorenz())
+
     prefixes = [f"/api/{ns}/v1/immune", "/v1/immune"]
     routes: list[str] = []
     for p in prefixes:
@@ -685,8 +838,10 @@ def register(app, ns: str = "a11oy") -> dict:
         app.add_api_route(f"{p}/kernel", _h_kernel, methods=["GET", "HEAD"], include_in_schema=True)
         app.add_api_route(f"{p}/field", _h_field, methods=["GET", "HEAD"], include_in_schema=True)
         app.add_api_route(f"{p}/nexus", _h_nexus, methods=["GET", "HEAD"], include_in_schema=True)
+        app.add_api_route(f"{p}/nexus/lorenz", _h_nexus_lorenz, methods=["GET", "POST", "HEAD"], include_in_schema=True)
         routes.extend([f"{p}/healthz", f"{p}/status", f"{p}/gates", f"{p}/threats",
-                       f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel", f"{p}/field", f"{p}/nexus"])
+                       f"{p}/feed", f"{p}/verdict", f"{p}/verify", f"{p}/kernel", f"{p}/field", f"{p}/nexus",
+                       f"{p}/nexus/lorenz"])
 
     print(f"[{ns}] szl_immune routes registered "
           f"(Immune (Hukulla) fail-closed egress gate, {len(routes)} routes)", flush=True)

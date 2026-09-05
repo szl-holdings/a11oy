@@ -64,7 +64,7 @@ Use Python 3.12 only through the pinned WSL2/Linux environment. Native Windows
 Python is an explicit non-retryable refusal for this architecture.
 
 ```bash
-cd /mnt/c/Users/steph/Documents/Codex/2026-07-11/i-w/work/a11oy-frontier-wave18
+cd .
 
 # Network-capable dependency provisioning, with exact official wheel digests.
 bash ./model_release/szl-nemo/setup_wsl_runtime.sh

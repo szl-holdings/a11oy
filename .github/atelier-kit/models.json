@@ -2075,13 +2075,13 @@
     },
     {
       "slug": "nexus-space",
-      "name": "NEXUS Space",
+      "name": "NEXUS plane on IMMUNE",
       "kind": "space",
-      "href": "https://huggingface.co/spaces/SZLHOLDINGS/nexus",
-      "oneLiner": "The analog desk, running. Not a chatbot.",
-      "cut": "A Space that is an instrument, not a demo of a 70B.",
-      "when": "live",
-      "evidence": "Hub Space"
+      "href": "https://szlholdings-immune.hf.space/nexus.html",
+      "oneLiner": "Lorenz OP is MEASURED software simulation inside IMMUNE. Not a second product Space.",
+      "cut": "The analog desk is a kernel plane, not a chatbot and not SZLHOLDINGS/nexus.",
+      "when": "measured",
+      "evidence": "SZLHOLDINGS/immune /nexus.html \u00b7 hashes c5fcc502 / 4071a2f2 \u00b7 energy UNAVAILABLE"
     },
     {
       "slug": "anatomy-space",

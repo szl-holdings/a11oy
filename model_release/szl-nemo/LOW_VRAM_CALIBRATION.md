@@ -68,7 +68,7 @@ memory for this lane.
 
    ```bash
    export SZL_NEMO_PYTHON="$HOME/.venvs/szl-nemo-torch210-cu128/bin/python"
-   BASE=/mnt/c/Users/steph/Documents/Codex/2026-07-11/i-w/work/a11oy-frontier-wave18/model_release/szl-nemo/base-snapshot
+   BASE=model_release/szl-nemo/base-snapshot
    bash ./model_release/szl-nemo/run_wsl_governed.sh \
      --mode calibrate \
      --base-snapshot "$BASE" \
@@ -85,7 +85,7 @@ and is never converted into a pass.
 
    ```bash
    export SZL_NEMO_PYTHON="$HOME/.venvs/szl-nemo-torch210-cu128/bin/python"
-   BASE=/mnt/c/Users/steph/Documents/Codex/2026-07-11/i-w/work/a11oy-frontier-wave18/model_release/szl-nemo/base-snapshot
+   BASE=model_release/szl-nemo/base-snapshot
    bash ./model_release/szl-nemo/run_wsl_governed.sh \
      --mode activation-offload \
      --base-snapshot "$BASE" \

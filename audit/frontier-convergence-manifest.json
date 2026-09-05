@@ -6,8 +6,8 @@
     "claims": "audit/frontier-claims-ledger.json",
     "contradictions": "audit/frontier-contradictions-ledger.json",
     "probes": "audit/frontier-command-probes.json",
-    "article12": "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\evidence\\conformance\\eu-ai-act-article-12.yaml",
-    "schema": "C:\\Users\\steph\\Documents\\Codex\\2026-08-11\\worktrees\\a11oy-pr1285-signed\\schemas\\szl-governed-action-predicate.v1.schema.json",
+    "article12": "evidence/conformance/eu-ai-act-article-12.yaml",
+    "schema": "schemas/szl-governed-action-predicate.v1.schema.json",
     "payload": "SZL_FINAL_FRONTIER_CONVERGENCE_PAYLOAD.md"
   },
   "summaries": {

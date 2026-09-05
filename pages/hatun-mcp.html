@@ -71,6 +71,10 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
 <p class="sub">The initial rows are an explicitly labelled static fallback. A successful <code>GET /mcp/</code> replaces them with the runtime-declared catalog. Neither state is execution proof.</p>
 <div class="table-wrap"><table><thead><tr><th>Tool</th><th>Description</th><th>Evidence class</th></tr></thead><tbody id="tools"></tbody></table></div>
 
+<h2>Organ mesh</h2>
+<p class="sub">Same-origin map of Hatun to second brain, anatomy, ouroboros, and the formula codex. Labels are route presence. Second-brain readiness is whatever that endpoint reports this request.</p>
+<div class="table-wrap"><table><thead><tr><th>Organ</th><th>Job</th><th>Surface</th><th>Label</th></tr></thead><tbody id="mesh"><tr><td colspan="4" class="sub">loading…</td></tr></tbody></table></div>
+
 <h2>Recent invocations</h2>
 <p class="sub">This bounded, ephemeral feed contains only summaries of governed agent runs for which this process actually created a receipt. It does not claim that every MCP discovery or tool call is signed, and reading it never mints a receipt.</p>
 <div class="table-wrap"><table><thead><tr><th>Time (UTC)</th><th>Observed tool</th><th>Outcome</th><th>Receipt evidence</th></tr></thead><tbody id="inv"><tr><td colspan="4" class="sub">loading…</td></tr></tbody></table></div>
@@ -82,7 +86,7 @@ footer{border-top:1px solid var(--line);color:var(--mut);font-size:11.5px;paddin
   "mcpServers": {
     "szl-a11oy": {
       "command": "npx",
-      "args": ["-y", "mcp-remote", "https://szlholdings-a11oy.hf.space/mcp/"]
+      "args": ["-y", "mcp-remote", "/mcp/"]
     }
   }
 }</pre>
@@ -132,6 +136,17 @@ fetch(BASE+"/api/hatun/evidence",{cache:'no-store'}).then(r=>r.ok?r.json():Promi
 
 function paintEmptyInvocation(message){const tb=document.getElementById('inv');tb.textContent='';const tr=document.createElement('tr');
  const td=cell(message,'td');td.colSpan=4;td.className='sub';tr.appendChild(td);tb.appendChild(tr);}
+fetch(BASE+"/api/hatun/mesh",{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(m=>{
+ const tb=document.getElementById('mesh'); if(!tb) return; tb.textContent='';
+ const organs=(m&&m.organs)||[];
+ if(!organs.length){const tr=document.createElement('tr'); const td=cell('UNAVAILABLE — mesh contract empty','td'); td.colSpan=4; td.className='sub'; tr.appendChild(td); tb.appendChild(tr); return;}
+ organs.forEach(o=>{const tr=document.createElement('tr');
+  const id=cell('','td'); const code=document.createElement('code'); code.textContent=o.id||'—'; id.appendChild(code); tr.appendChild(id);
+  tr.appendChild(cell(o.job||'—'));
+  const surf=cell('','td'); const a=document.createElement('a'); a.href=o.href||'#'; a.textContent=o.href||'—'; surf.appendChild(a); tr.appendChild(surf);
+  const lab=cell('','td'); lab.appendChild(pill(o.label||'UNAVAILABLE','n')); tr.appendChild(lab); tb.appendChild(tr);});
+}).catch(()=>{const tb=document.getElementById('mesh'); if(!tb) return; tb.textContent=''; const tr=document.createElement('tr'); const td=cell('UNAVAILABLE — mesh contract could not be read','td'); td.colSpan=4; td.className='sub'; tr.appendChild(td); tb.appendChild(tr);});
+
 fetch(BASE+"/api/hatun/invocations",{cache:'no-store'}).then(r=>r.ok?r.json():Promise.reject()).then(feed=>{
  const items=feed&&Array.isArray(feed.items)?feed.items:[];const tb=document.getElementById('inv');tb.textContent='';
  if(!items.length){paintEmptyInvocation('UNKNOWN — no governed-run receipt has been observed in this process.');return;}

@@ -110,12 +110,12 @@
     backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
     background:linear-gradient(180deg,rgba(0,0,0,0.94),rgba(0,0,0,0.74));
     border-bottom:1px solid var(--border)}
-  .nav .wrap{display:flex;align-items:center;flex-wrap:wrap;gap:18px;min-height:64px;height:auto}
+  .nav .wrap{display:flex;align-items:center;flex-wrap:nowrap;gap:14px;min-height:64px;height:64px}
   .brand{display:flex;align-items:center;gap:11px;font-weight:700;letter-spacing:.2px}
   .brand svg{display:block}
-  .brand .sub{color:var(--ghost);font-weight:500;font-size:12px;letter-spacing:2px;text-transform:uppercase;font-family:var(--sans)}
-  .nav nav{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
-  .nav nav a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;height:auto;padding:10px 14px;border-radius:10px;color:var(--sub);font-size:14px;font-weight:500;transition:.15s;position:relative;z-index:1;pointer-events:auto;touch-action:manipulation}
+  .brand .sub{color:var(--ghost);font-weight:500;font-size:var(--fs-1);letter-spacing:2px;text-transform:uppercase;font-family:var(--sans)}
+  .nav nav{margin-left:auto;display:flex;gap:4px;align-items:center;flex-wrap:nowrap}
+  .nav nav a{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;height:auto;padding:8px 11px;border-radius:10px;color:var(--sub);font-size:var(--fs-2);font-weight:500;transition:.15s;position:relative;z-index:1;pointer-events:auto;touch-action:manipulation;white-space:nowrap}
   .nav nav a:hover{color:var(--ink);background:rgba(255,255,255,0.06)}
   .menu-toggle{display:none;align-items:center;justify-content:center;width:48px;height:48px;min-width:48px;min-height:48px;padding:0;margin-left:auto;border:1px solid var(--border);border-radius:6px;background:rgba(255,255,255,0.04);color:var(--ink);cursor:pointer;font-size:20px;line-height:1}
   @media(max-width:1100px){
@@ -179,17 +179,17 @@
   .hero-inner{max-width:740px}
   .eyebrow{display:inline-flex;align-items:center;gap:9px;padding:6px 14px;border-radius:999px;
     border:1px solid rgba(255,255,255,0.24);background:rgba(255,255,255,0.06);color:var(--proof);
-    font-size:12.5px;font-weight:600;letter-spacing:.4px;margin-bottom:22px}
+    font-size:var(--fs-1);font-weight:600;letter-spacing:.4px;margin-bottom:22px}
   .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--proof);animation:pulse 2.4s infinite}
   @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(255,255,255,0.3)}70%{box-shadow:0 0 0 8px rgba(255,255,255,0)}100%{box-shadow:0 0 0 0 rgba(255,255,255,0)}}
   @media(prefers-reduced-motion:reduce){.eyebrow .dot{animation:none}}
-  h1.title{font-size:clamp(2.4rem,5.8vw,4.3rem);line-height:1.03;margin:0 0 18px;
+  h1.title{font-size:var(--fs-9);line-height:1.03;margin:0 0 18px;
     font-weight:700;letter-spacing:-1.6px;color:var(--ink);
     text-shadow:0 2px 22px rgba(0,0,0,0.8),0 1px 4px rgba(0,0,0,0.6)}
   h1.title .grad{background:linear-gradient(110deg, var(--proof) 0%, var(--lattice) 100%);
     -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
     filter:drop-shadow(0 1px 8px rgba(0,0,0,0.7))}
-  .lede{font-size:clamp(1.06rem,2vw,1.26rem);color:var(--sub);max-width:610px;margin:0 0 28px;
+  .lede{font-size:var(--fs-3);color:var(--sub);max-width:610px;margin:0 0 28px;
     text-shadow:0 1px 8px rgba(0,0,0,0.5)}
   .lede b{color:var(--ink);font-weight:600}
   .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:30px}
@@ -199,8 +199,8 @@
   .stat{padding:13px 17px;border-radius:13px;border:1px solid var(--border);min-width:0;
     background:rgba(255,255,255,0.04);
     backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
-  .stat .k{font-size:1.55rem;font-weight:600;font-family:var(--mono);line-height:1.1;color:var(--ink)}
-  .stat .l{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
+  .stat .k{font-size:var(--fs-5);font-weight:600;font-family:var(--mono);line-height:1.1;color:var(--ink)}
+  .stat .l{font-size:var(--fs-1);color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:3px}
   .stat .l .stat-note{display:block;text-transform:none;letter-spacing:0;font-size:10px;color:var(--ghost);opacity:.8;margin-top:2px;font-weight:400}
   .stat .stat-note a{color:var(--proof);text-decoration:none}
   .stat .stat-note a:hover{text-decoration:underline}
@@ -209,9 +209,9 @@
 
   /* ---- generic section ---- */
   section.band{padding:88px 0;position:relative}
-  .band h2{font-size:clamp(1.7rem,3.4vw,2.5rem);font-weight:700;letter-spacing:-.7px;margin:0 0 14px;line-height:1.1}
-  .band .kick{color:var(--proof);font-weight:600;font-size:13px;letter-spacing:1.7px;text-transform:uppercase;margin:0 0 12px;font-family:var(--mono)}
-  .band p.intro{color:var(--sub);max-width:720px;font-size:1.08rem;margin:0 0 40px}
+  .band h2{font-size:var(--fs-6);font-weight:700;letter-spacing:-.7px;margin:0 0 14px;line-height:1.1}
+  .band .kick{color:var(--proof);font-weight:600;font-size:var(--fs-2);letter-spacing:1.7px;text-transform:uppercase;margin:0 0 12px;font-family:var(--mono)}
+  .band p.intro{color:var(--sub);max-width:720px;font-size:var(--fs-3);margin:0 0 40px}
   .divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent)}
 
   .grid{display:grid;gap:18px}
@@ -229,8 +229,8 @@
     background:linear-gradient(135deg,rgba(255,255,255,0.18),transparent 42%);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
     -webkit-mask-composite:xor;mask-composite:exclude;opacity:.5;pointer-events:none}
-  .card h3{margin:0 0 8px;font-size:1.16rem;font-weight:600}
-  .card p{margin:0;color:var(--sub);font-size:.97rem}
+  .card h3{margin:0 0 8px;font-size:var(--fs-4);font-weight:600}
+  .card p{margin:0;color:var(--sub);font-size:var(--fs-3)}
   .card .ic{width:40px;height:40px;border-radius:11px;display:grid;place-items:center;
     background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.18);
     color:var(--proof);margin-bottom:15px;font-size:19px}
@@ -244,13 +244,13 @@
   @media(max-width:840px){.pillars{grid-template-columns:1fr}}
   .pillar{padding:22px 0;border-top:1px solid var(--border)}
   .pillar .pk{font-family:var(--mono);font-size:12px;color:var(--proof);letter-spacing:1px;margin-bottom:10px}
-  .pillar h3{margin:0 0 8px;font-size:1.12rem;font-weight:600}
-  .pillar p{margin:0;color:var(--sub);font-size:.96rem}
+  .pillar h3{margin:0 0 8px;font-size:var(--fs-4);font-weight:600}
+  .pillar p{margin:0;color:var(--sub);font-size:var(--fs-3)}
 
   /* proof tier cards */
   .tier{padding:24px;border-radius:var(--r);border:1px solid var(--border);
     background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015));position:relative;overflow:hidden}
-  .tier .tnum{font-family:var(--mono);font-size:2.6rem;font-weight:600;line-height:1;color:var(--ink)}
+  .tier .tnum{font-family:var(--mono);font-size:var(--fs-6);font-weight:600;line-height:1;color:var(--ink)}
   .tier .tname{font-family:var(--mono);font-size:12px;letter-spacing:.6px;margin:10px 0 8px;font-weight:600}
   .tier p{margin:0;color:var(--sub);font-size:.92rem}
   .tier.locked{border-color:rgba(255,255,255,0.4)}   .tier.locked .tnum,.tier.locked .tname{color:var(--proof)}
@@ -266,11 +266,11 @@
   .vcard .pmark{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;
     font-family:var(--mono);font-weight:600;font-size:13px;
     background:rgba(255,255,255,0.10);border:1px solid rgba(255,255,255,0.28);color:var(--lattice);margin-bottom:10px}
-  .vcard h3{margin:0;font-size:1.18rem;font-weight:600}
+  .vcard h3{margin:0;font-size:var(--fs-4);font-weight:600}
   .vcard .tag{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px}
-  .vcard p{margin:0;color:var(--sub);font-size:.92rem}
+  .vcard p{margin:0;color:var(--sub);font-size:var(--fs-3)}
   .vcard .lam{display:flex;align-items:baseline;gap:9px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
-  .vcard .lam .val{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--ink)}
+  .vcard .lam .val{font-family:var(--mono);font-size:var(--fs-5);font-weight:600;color:var(--ink)}
   .vcard .lam .cap{font-size:11px;color:var(--ghost);text-transform:uppercase;letter-spacing:1px}
 
   /* living body */
@@ -294,7 +294,7 @@
   @media(max-width:480px){.chainrow{grid-template-columns:1fr}}
   .cstat{padding:22px;border-radius:var(--r);border:1px solid var(--border);
     background:linear-gradient(180deg,rgba(255,255,255,0.045),rgba(255,255,255,0.015))}
-  .cstat .ck{font-family:var(--mono);font-size:1.7rem;font-weight:600;color:var(--proof);word-break:break-all;line-height:1.15}
+  .cstat .ck{font-family:var(--mono);font-size:var(--fs-5);font-weight:600;color:var(--proof);word-break:break-all;line-height:1.15}
   .cstat .cl{font-size:11.5px;color:var(--ghost);text-transform:uppercase;letter-spacing:1.1px;margin-top:6px}
   .cstat .ck.ink{color:var(--ink);font-size:1.05rem}
 
@@ -406,15 +406,17 @@
      ========================================================================== */
   :root{
     /* modular 1.25 (major third) from a 12px base: 12/15/19/24/30/37/46/58/72 */
-    --fs-1:clamp(11px,2.4vw,12px);
-    --fs-2:clamp(13px,3vw,15px);
-    --fs-3:clamp(15px,3.6vw,19px);
-    --fs-4:clamp(18px,4.4vw,24px);
-    --fs-5:clamp(21px,5vw,30px);
-    --fs-6:clamp(25px,5.6vw,37px);
-    --fs-7:clamp(29px,6vw,46px);
-    --fs-8:clamp(33px,6.4vw,58px);
-    --fs-9:clamp(36px,6.8vw,72px);
+    --fs-1:clamp(11px,.28vw + 10.1px,12px);
+    --fs-2:clamp(13px,.42vw + 11.7px,15px);
+    --fs-3:clamp(15px,.75vw + 13.1px,19px);
+    --fs-4:clamp(19px,1.05vw + 16.2px,24px);
+    --fs-5:clamp(22px,1.9vw + 17.1px,30px);
+    --fs-6:clamp(26px,2.9vw + 16.9px,37px);
+    --fs-7:clamp(30px,4.4vw + 13.5px,46px);
+    --fs-8:clamp(34px,6.2vw + 10.7px,58px);
+    --fs-9:clamp(38px,8.4vw + 6.5px,72px);
+    --f1:var(--fs-1);--f2:var(--fs-2);--f3:var(--fs-3);--f4:var(--fs-4);--f5:var(--fs-5);
+    --f6:var(--fs-6);--f7:var(--fs-7);--f8:var(--fs-8);--f9:var(--fs-9);
     --measure:68ch;
   }
   /* optical + numeric discipline (Nvidia "Elements": display/heading/body/label) */
@@ -640,7 +642,7 @@
   #body-finance .body-signal:nth-of-type(1){left:23%;top:35%}#body-finance .body-signal:nth-of-type(2){right:23%;top:62%}
   #body-finance .body-signal:nth-of-type(3){left:50%;top:49%}
 
-  /* Lyte / service lattice */
+  /* LYTE / service lattice */
   #body-lyte .body-visual{background-image:linear-gradient(rgba(255,255,255,.07) 1px,transparent 1px),
     linear-gradient(90deg,rgba(255,255,255,.07) 1px,transparent 1px);background-size:34px 34px}
   #body-lyte .body-visual::before{left:18%;right:18%;top:50%;height:1px;background:linear-gradient(90deg,transparent,#fff,transparent);transform:rotate(-7deg)}
@@ -707,14 +709,15 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
     </a>
     <button type="button" class="menu-toggle" id="menu-toggle" aria-label="Open menu" aria-controls="site-nav" aria-expanded="false">☰</button>
     <nav class="nav-links" id="site-nav">
-      <a class="hide-sm" href="#anatomy">Anatomy</a>
-      <a class="hide-sm" href="#vertical-bodies">Domain bodies</a>
       <a class="hide-sm" href="#products">Products</a>
-      <a href="/console">Command</a>
+      <a class="hide-sm" href="/lyte">LYTE</a>
+      <a href="/holographic">Holo</a>
+      <a href="/frontier-now">Frontier</a>
       <a href="/immune">IMMUNE</a>
+      <a class="hide-sm" href="/trust">Evidence</a>
       <a class="hide-sm" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Proof registry ↗</a>
-      <a href="/trust">Evidence</a>
-      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Open the command center</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
+      <a href="/console">Command</a>
+      <a class="btn btn-primary" href="/console" aria-label="Open the command center"><span class="nav-cta-full">Command</span><span class="nav-cta-short" aria-hidden="true">Command center</span> →</a>
     </nav>
   </div>
 </header>
@@ -883,7 +886,7 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
     </article>
     <article class="body-card" id="body-lyte" data-index="05" data-vertical="lyte" data-motif="service-lattice">
       <div class="body-visual" aria-hidden="true"><span class="body-visual-label">TRACE · DECISION · BUSINESS OUTCOME</span><i class="body-signal"></i><i class="body-signal"></i><i class="body-signal"></i></div>
-      <div class="body-card-copy"><p class="body-domain">Business and agent observability</p><h3>Lyte</h3><p>A business-causality braid linking services, traces, agents, tool calls, customer journeys, cost, risk, decisions and measurable outcomes.</p><p class="body-edge"><b>Unserved job:</b> prove whether technical recovery actually restored the customer journey and business result.</p><div class="body-stack-grid"><div><span>Model route</span><strong>Khipu 1.5B · A11OY-MINI · ReceiptAgent</strong></div><div><span>Kernel route</span><strong>kernel-suite · receipt-attn · block-kv</strong></div></div><div class="body-flow"><span>OBSERVE</span><span>TRACE</span><span>DIAGNOSE</span><span>REPLAY</span><span>VERIFY</span></div><div class="body-truth"><span>OTEL-NATIVE DIRECTION</span><span>OUTCOME RECEIPTS</span><span>HUMAN BIND</span></div><div class="body-links"><a href="https://szlholdings-vertical-services.hf.space/intelligence/lyte" rel="noopener">Enter Lyte intelligence →</a><a href="https://szlholdings-lyte.hf.space/" rel="noopener">Open flagship surface ↗</a></div></div>
+      <div class="body-card-copy"><p class="body-domain">Business and agent observability</p><h3>LYTE</h3><p>A business-causality braid linking services, traces, agents, tool calls, customer journeys, cost, risk, decisions and measurable outcomes.</p><p class="body-edge"><b>Unserved job:</b> prove whether technical recovery actually restored the customer journey and business result.</p><div class="body-stack-grid"><div><span>Model route</span><strong>Khipu 1.5B · A11OY-MINI · ReceiptAgent</strong></div><div><span>Kernel route</span><strong>kernel-suite · receipt-attn · block-kv</strong></div></div><div class="body-flow"><span>OBSERVE</span><span>TRACE</span><span>DIAGNOSE</span><span>REPLAY</span><span>VERIFY</span></div><div class="body-truth"><span>OTEL-NATIVE DIRECTION</span><span>OUTCOME RECEIPTS</span><span>HUMAN BIND</span></div><div class="body-links"><a href="https://szlholdings-vertical-services.hf.space/intelligence/lyte" rel="noopener">Enter LYTE intelligence →</a><a href="https://szlholdings-lyte.hf.space/" rel="noopener">Open flagship surface ↗</a></div></div>
     </article>
   </div>
   <p class="fabric-note"><b>Carlota Jo remains an incubation lane.</b> The visual system recognizes the brand, but the current six-engine publisher does not expose a canonical source/runtime authority for it. It will not be promoted as operational until that authority, domain object and measurable workflow are explicit.</p>
@@ -978,6 +981,12 @@ html[data-szl-zoom-tier="high"] .szl-flow-rail,html[data-szl-zoom-tier="extreme"
       <h3>IMMUNE kernel</h3>
       <p>Fail-closed admission organ (Hukulla). SENTRA / YAWAR / HUKLLA / NEMO on this origin at <span class="mono">/immune</span>. Channel A/B Spaces are kept; a missing Hub runtime is UNAVAILABLE, never fabricated LIVE or PASS. First paint CONNECTING.</p>
       <div class="golinks"><span class="go">Open /immune →</span></div>
+    </a>
+    <a class="card surface-card" href="/five-space" id="bind-five-space">
+      <div class="ic">▦</div>
+      <h3>Five-space operator</h3>
+      <p>BIND package. Command / Loop / Queue / Memory / Ledger on this origin at <span class="mono">/five-space</span>. Does not replace /console. First paint CONNECTING. Energy UNAVAILABLE. sovereign=false. Proof RECORD is a11oy.net/five-space/.</p>
+      <div class="golinks"><span class="go">Open /five-space →</span></div>
     </a>
   </div>
 </section>

@@ -127,6 +127,92 @@ class FamilyCollectionTests(unittest.TestCase):
         )
 
 
+    def test_token_candidates_preserve_priority_and_deduplicate_aliases(self):
+        candidates = posture.security_token_candidates(
+            {
+                "SZL_SECURITY_TOKEN_1": " alpha ",
+                "SZL_SECURITY_TOKEN_2": "alpha",
+                "SZL_SECURITY_TOKEN_4": "beta",
+                "GITHUB_TOKEN": "beta",
+            }
+        )
+        self.assertEqual(candidates, ["alpha", "beta"])
+
+    def test_family_fallback_retries_after_an_under_scoped_credential(self):
+        endpoint = "/repos/szl-holdings/a11oy/code-scanning/alerts?state=open"
+        denied = FakeClient(
+            pages={endpoint: posture.PostureError("HTTP_403", status=403)}
+        )
+        observed = FakeClient(
+            pages={endpoint: [[{"rule": {"security_severity_level": "critical"}}]]}
+        )
+        result = posture.collect_family_with_fallback(
+            [denied, observed], "szl-holdings/a11oy", posture.FAMILIES[1]
+        )
+        self.assertEqual(result["status"], "OBSERVED")
+        self.assertEqual(result["open_count"], 1)
+        self.assertEqual(result["severity"]["critical"], 1)
+        self.assertEqual(len(denied.calls), 1)
+        self.assertEqual(len(observed.calls), 1)
+
+    def test_status_fallback_uses_a_later_authorized_credential(self):
+        endpoint = ("GET", "/repos/szl-holdings/a11oy")
+        denied = FakeClient(
+            requests={endpoint: posture.PostureError("HTTP_403", status=403)}
+        )
+        observed = FakeClient(
+            requests={
+                endpoint: {
+                    "security_and_analysis": {
+                        "advanced_security": {"status": "enabled"}
+                    }
+                }
+            }
+        )
+        result = posture.collect_status_with_fallback(
+            [denied, observed],
+            posture.collect_repository_features,
+            "szl-holdings/a11oy",
+        )
+        self.assertEqual(result["status"], "OBSERVED")
+        self.assertEqual(result["features"], {"advanced_security": "enabled"})
+
+    def test_governance_fallback_merges_independently_visible_subfamilies(self):
+        branch_path = "/repos/szl-holdings/a11oy/branches/main/protection"
+        ruleset_path = "/repos/szl-holdings/a11oy/rulesets?includes_parents=true"
+        ruleset_only = FakeClient(
+            requests={
+                ("GET", branch_path): posture.PostureError("HTTP_403", status=403),
+                ("GET", ruleset_path): [
+                    {
+                        "id": 42,
+                        "name": "protected-main",
+                        "enforcement": "active",
+                        "target": "branch",
+                        "source_type": "Organization",
+                    }
+                ],
+            }
+        )
+        branch_only = FakeClient(
+            requests={
+                ("GET", branch_path): {
+                    "required_status_checks": {"contexts": ["ci"]},
+                    "required_pull_request_reviews": {
+                        "required_approving_review_count": 0
+                    },
+                },
+                ("GET", ruleset_path): posture.PostureError("HTTP_403", status=403),
+            }
+        )
+        result = posture.collect_governance_with_fallback(
+            [ruleset_only, branch_only], "szl-holdings/a11oy", "main"
+        )
+        self.assertEqual(result["branch_protection"]["status"], "OBSERVED")
+        self.assertEqual(result["rulesets"]["status"], "OBSERVED")
+        self.assertEqual(result["rulesets"]["count"], 1)
+
+
 class ReceiptBoundaryTests(unittest.TestCase):
     def setUp(self):
         self.sha = "a" * 40
@@ -391,6 +477,11 @@ class SourceAndWorkflowContractTests(unittest.TestCase):
             "contents: read",
             "actions: read",
             "secrets.SZL_GITHUB_TOKEN",
+            "secrets.SZL_ORG_ADMIN_TOKEN",
+            "secrets.ORG_ADMIN_TOKEN",
+            "secrets.GH_PAT",
+            "SZL_SECURITY_TOKEN_1",
+            "SZL_SECURITY_TOKEN_5",
             "github.token",
             "--revision \"$GITHUB_SHA\"",
             "--apply",
@@ -406,6 +497,7 @@ class SourceAndWorkflowContractTests(unittest.TestCase):
             "packages: write",
             "actions: write",
             "branches-ignore",
+            "SZL_SECURITY_TOKEN: ${{",
         ):
             self.assertNotIn(forbidden, workflow)
 

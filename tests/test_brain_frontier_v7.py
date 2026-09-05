@@ -53,14 +53,15 @@ def fixture() -> tuple[bytes, bytes]:
         rows.append(row(index, "quant-domain", f"domain-{index - 53}"))
     reserve_repositories = (
         "szl-holdings/anatomy",
-        "szl-holdings/ouroboros",
+        "szl-holdings/szl-ouroboros",
         "szl-holdings/a11oy",
         "szl-holdings/szl-forge",
         "szl-holdings/szl-nemo",
+        "szl-holdings/szl-kernels",
     )
     for index, repository in enumerate(reserve_repositories, start=62):
         rows.append(row(index, "source-document", repository=repository))
-    for index in range(67, 82):
+    for index in range(68, 82):
         rows.append(row(index, "source-document"))
     rows.sort(key=lambda item: item["id"])
     candidates = b"".join(canonical_bytes(item) + b"\n" for item in rows)
@@ -69,7 +70,7 @@ def fixture() -> tuple[bytes, bytes]:
         "state": "REVIEW_REQUIRED",
         "candidate_count": len(rows),
         "candidate_set_sha256": hashlib.sha256(candidates).hexdigest(),
-        "source_count": 6,
+        "source_count": 7,
         "sources": [],
         "source_kind_counts": {},
         "quant_domain_counts": {},
@@ -134,10 +135,11 @@ def test_snapshot_is_handles_only_deterministic_and_exact() -> None:
     assert {
         "szl-holdings/szl-formulas",
         "szl-holdings/anatomy",
-        "szl-holdings/ouroboros",
+        "szl-holdings/szl-ouroboros",
         "szl-holdings/a11oy",
         "szl-holdings/szl-forge",
         "szl-holdings/szl-nemo",
+        "szl-holdings/szl-kernels",
     } <= {handle["repository"] for handle in first["handles"]}
 
 

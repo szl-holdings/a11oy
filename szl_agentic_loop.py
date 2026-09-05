@@ -577,8 +577,26 @@ def governance_standards_note() -> dict:
 
 
 def _retrieve(query: str, top_k: int = 3):
-    """Real keyword + token-overlap retrieval over the in-image corpus.
-    Deterministic, dependency-free, always available. Returns scored chunks."""
+    """Prefer the org second-brain index when it is built. Else in-image corpus."""
+    try:
+        import a11oy_org_rag as _org_rag
+        hit = _org_rag.query(query or "", k=max(1, min(int(top_k or 3), 8)))
+        chunks = hit.get("chunks") or []
+        if hit.get("ok") and chunks and not hit.get("i_dont_know"):
+            out = []
+            for c in chunks[:top_k]:
+                out.append({
+                    "chunk_id": c.get("id") or c.get("chunk_id") or "org",
+                    "title": c.get("title") or c.get("path") or "org-rag",
+                    "source": c.get("source") or "org-rag",
+                    "relevance": c.get("lambda") or c.get("score") or 0,
+                    "text": (c.get("text") or "")[:800],
+                    "plane": "second-brain",
+                })
+            if out:
+                return out
+    except Exception:
+        pass
     q = (query or "").lower()
     q_tokens = set(t for t in ''.join(c if c.isalnum() else ' ' for c in q).split() if len(t) > 2)
     scored = []
@@ -622,6 +640,12 @@ def _trust_score(axes: dict) -> float:
 def _tool_catalog(ns: str):
     field = "drone/vessel field operations" if ns == "killinchu" else "governed AI operations"
     tools = [
+        {"name": "search_tools",
+         "title": "Search tools",
+         "description": "Progressive discovery: filter the declared Hatun catalog by query. Does not execute tools.",
+         "inputSchema": {"type": "object", "properties": {
+             "query": {"type": "string"}},
+             "required": ["query"]}},
         {"name": "retrieve_context",
          "title": "Retrieve context",
          "description": f"Search the in-image governance corpus for {field} guidance.",
@@ -1328,6 +1352,90 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                         "the corresponding evidence."),
         }
 
+    def _hatun_mesh_contract() -> dict:
+        """REPORTED organ mesh. Live second-brain/RAG/formulas when importable."""
+        catalog = _tool_catalog(ns)
+        try:
+            import a11oy_org_rag as _org_rag
+            rag = _org_rag.status()
+        except Exception as exc:
+            rag = {"built": False, "state": "UNAVAILABLE", "honesty": type(exc).__name__}
+        try:
+            from ayllu.model_binding import second_brain_binding
+            brain = second_brain_binding(namespace=ns, rag_status=rag)
+        except Exception:
+            brain = {"state": rag.get("state") or "UNAVAILABLE",
+                     "ready_for_grounded_navigation": False}
+        formulas = []
+        try:
+            import szl_formulas as _sf
+            formulas = list(getattr(_sf, "FORMULA_NAMES", None) or [])
+        except Exception:
+            formulas = []
+        chakras = []
+        try:
+            from szl_anatomy_routes import CHAKRAS
+            chakras = [{"n": c.get("n"), "name": c.get("name"), "formula": c.get("formula")}
+                       for c in CHAKRAS]
+        except Exception:
+            chakras = []
+        return {
+            "schema": "szl.hatun.mesh.v1",
+            "truth": "REPORTED",
+            "get_mints_receipt": False,
+            "rule": "Hatun is the governed tool plane. Organs stay themselves.",
+            "mcp": {
+                "endpoint": "/mcp/",
+                "status": "RUNTIME_DECLARED",
+                "tool_count": len(catalog),
+                "tools": [row.get("name") for row in catalog],
+            },
+            "second_brain": {
+                "state": brain.get("state"),
+                "ready_for_grounded_navigation": bool(brain.get("ready_for_grounded_navigation")),
+                "index_built": bool(rag.get("built")),
+                "chunk_count": rag.get("chunk_count") or rag.get("corpus_chunk_count") or 0,
+                "href": "/ayllu#sec-organism",
+                "api": "/api/a11oy/v1/ayllu/second-brain",
+                "ask": "/api/a11oy/v1/rag/query",
+            },
+            "codex": {
+                "href": "/formulas",
+                "api": "/api/a11oy/v1/formulas",
+                "count": len(formulas),
+                "formulas": formulas,
+            },
+            "anatomy": {
+                "href": "/living-anatomy",
+                "chakras": chakras,
+            },
+            "ouroboros": {
+                "href": "/formulas",
+                "api": "/api/a11oy/v1/ouroboros/run-all",
+                "mode": "POST_ONLY",
+                "note": "Bounded converge-or-halt. Advisory only. Lambda remains Conjecture 1.",
+            },
+            "organs": [
+                {"id": "hatun", "job": "governed MCP tool plane", "href": "/hatun-mcp",
+                 "api": "/mcp/", "label": "RUNTIME_DECLARED"},
+                {"id": "second-brain", "job": "compound evidence memory + navigator",
+                 "href": "/ayllu#sec-organism",
+                 "api": "/api/a11oy/v1/ayllu/second-brain",
+                 "label": brain.get("state") or "UNAVAILABLE"},
+                {"id": "anatomy", "job": "living-systems map of organs and formulas",
+                 "href": "/living-anatomy", "api": "/anatomy-v5", "label": "LIVE_PAGE"},
+                {"id": "ouroboros", "job": "bounded loop-tax / converge-or-halt",
+                 "href": "/formulas", "api": "/api/a11oy/v1/ouroboros/run-all",
+                 "label": "POST_ONLY"},
+                {"id": "codex", "job": "formula composer / chakra binding",
+                 "href": "/formulas", "api": "/api/a11oy/v1/formulas",
+                 "label": "LIVE_READ" if formulas else "UNAVAILABLE"},
+            ],
+            "honesty": ("Second-brain ready flag is not upgraded. Formula names are the "
+                        "in-image registry. RAG citations exist only when the seed index "
+                        "is built. Lambda remains Conjecture 1."),
+        }
+
     # ------------------------------------------------------------------ #
     # OUROBOROS CLOSED LOOP (ADDITIVE 2026-07-03, default-OFF, honest).
     # Wraps the single governed pass `_do_run` into a BOUNDED, WITNESSED,
@@ -1552,9 +1660,23 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         if method == "initialize":
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
                 "protocolVersion": "2024-11-05",
-                "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "szl-%s-mcp" % ns, "version": "1.0.0",
-                               "title": "SZL %s governed MCP" % ns}}})
+                "capabilities": {
+                    "tools": {"listChanged": False},
+                    "resources": {"listChanged": False, "subscribe": False},
+                    "prompts": {"listChanged": False},
+                },
+                "serverInfo": {"name": "szl-%s-mcp" % ns, "version": "1.1.0",
+                               "title": "SZL %s governed MCP" % ns},
+                "instructions": (
+                    "Hatun is deny-by-default. Use search_tools then tools/call. "
+                    "GET never mints a receipt. Lambda remains Conjecture 1."
+                ),
+            }})
+        if method in ("notifications/initialized", "initialized") or method.startswith("notifications/"):
+            # MCP notifications may omit id. Acknowledge; do not error the handshake.
+            if rid is None:
+                return JSONResponse({"ok": True}, status_code=202)
+            return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {}})
         if method in ("tools/list", "list_tools"):
             return JSONResponse({"jsonrpc": "2.0", "id": rid,
                                  "result": {"tools": _tool_catalog(ns)}})
@@ -1567,12 +1689,37 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
                 "content": [{"type": "text", "text": json.dumps(result)}],
                 "structuredContent": result, "isError": bool(result.get("_error"))}})
+        if method in ("resources/list", "list_resources"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
+                "resources": [],
+                "honesty": "No MCP resources are published in this runtime.",
+            }})
+        if method in ("resources/read", "read_resource"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid,
+                                 "error": {"code": -32002, "message": "Resource unavailable"}})
+        if method in ("prompts/list", "list_prompts"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {
+                "prompts": [],
+                "honesty": "No MCP prompts are published in this runtime.",
+            }})
+        if method in ("prompts/get", "get_prompt"):
+            return JSONResponse({"jsonrpc": "2.0", "id": rid,
+                                 "error": {"code": -32602, "message": "Prompt unavailable"}})
         if method in ("ping",):
             return JSONResponse({"jsonrpc": "2.0", "id": rid, "result": {}})
         return JSONResponse({"jsonrpc": "2.0", "id": rid,
                              "error": {"code": -32601, "message": "Method not found: %s" % method}})
 
     def _mcp_tool_call(name, args):
+        if name == "search_tools":
+            q = str(args.get("query") or "").lower()
+            hits = []
+            for row in _tool_catalog(ns):
+                blob = " ".join(str(row.get(k) or "") for k in ("name", "title", "description"))
+                if not q or q in blob.lower():
+                    hits.append({"name": row.get("name"), "title": row.get("title")})
+            return {"query": args.get("query"), "matches": hits, "count": len(hits),
+                    "evidence": "RUNTIME_DECLARED"}
         if name == "retrieve_context":
             return {"chunks": _retrieve(args.get("query", ""), int(args.get("top_k", 3)))}
         if name == "policy_check":
@@ -1684,6 +1831,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse(_hatun_invocation_contract(),
                             headers={"Cache-Control": "no-store"})
 
+    async def _agent_mesh(request: Request):
+        return JSONResponse(_hatun_mesh_contract(),
+                            headers={"Cache-Control": "no-store"})
+
     async def _agent_governance_standards(request: Request):
         return JSONResponse(governance_standards_note())
 
@@ -1697,22 +1848,34 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         return JSONResponse(_verify_chain(run))
 
     async def _agent_cycle(request: Request):
-        # OUROBOROS closed loop (ADDITIVE, default-OFF). Gated at request time on
-        # env A11OY_OUROBOROS=1 so the surface exists but is inert by default;
-        # /agent/run is entirely untouched. Honest disabled note when off.
+        # Bounded loop. Env A11OY_OUROBOROS=1 OR body.loop=true with budget<=4.
+        # /agent/run stays single-pass. Convergence remains advisory.
         import os
-        if os.environ.get("A11OY_OUROBOROS") != "1":
-            return JSONResponse({
-                "cycle": False,
-                "enabled": False,
-                "note": ("Ouroboros closed loop is OFF. Set A11OY_OUROBOROS=1 to enable. "
-                         "The single-pass /agent/run path is unaffected."),
-                "doctrine": "v11",
-            }, status_code=200)
         try:
             b = await request.json()
         except Exception:
             b = {}
+        if not isinstance(b, dict):
+            b = {}
+        env_on = os.environ.get("A11OY_OUROBOROS") == "1"
+        loop_on = bool(b.get("loop")) or env_on
+        if request.method == "GET":
+            return JSONResponse({
+                "cycle": False,
+                "enabled": env_on,
+                "opt_in": "POST {\"loop\": true, \"budget\": 2}",
+                "bound": 4,
+                "note": "Loop is bounded and advisory. Lambda remains Conjecture 1.",
+                "doctrine": "v11",
+            })
+        if not loop_on:
+            return JSONResponse({
+                "cycle": False,
+                "enabled": False,
+                "note": ("Ouroboros closed loop is OFF. POST {\"loop\": true, \"budget\": 2} "
+                         "or set A11OY_OUROBOROS=1. /agent/run stays single-pass."),
+                "doctrine": "v11",
+            }, status_code=200)
         query = b.get("query") or b.get("goal") or "deploy a low-risk reversible change"
         action = b.get("action") or query
         severity = b.get("severity", "low")
@@ -1721,9 +1884,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         untrusted_input = b.get("untrusted_input") or b.get("untrusted") or ""
         approval_grant = b.get("approval_grant") or b.get("approval")
         try:
-            budget = int(b.get("budget", 4))
+            budget = int(b.get("budget", 2))
         except Exception:
-            budget = 4
+            budget = 2
+        budget = max(1, min(budget, 4))
         try:
             eps = float(b.get("eps", 0.01))
         except Exception:
@@ -1755,7 +1919,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
         Route("/api/%s/v1/agent/governance-standards" % ns, _agent_governance_standards,
               methods=["GET"], name="%s_agent_gov_standards" % ns),
         Route("/api/%s/v1/agent/verify-chain" % ns, _agent_verify, methods=["POST"], name="%s_agent_verify" % ns),
-        Route("/api/%s/v1/agent/cycle" % ns, _agent_cycle, methods=["POST"], name="%s_agent_cycle" % ns),
+        Route("/api/%s/v1/agent/cycle" % ns, _agent_cycle, methods=["GET", "POST"], name="%s_agent_cycle" % ns),
         Route("/ask-and-act", _ask_and_act_ui, methods=["GET"], name="%s_ask_and_act" % ns),
         Route("/governed-run", _ask_and_act_ui, methods=["GET"], name="%s_governed_run" % ns),
     ]
@@ -1765,6 +1929,10 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                   name="hatun_evidence"),
             Route("/api/hatun/invocations", _agent_invocations, methods=["GET"],
                   name="hatun_invocations"),
+            Route("/api/hatun/mesh", _agent_mesh, methods=["GET"],
+                  name="hatun_mesh"),
+            Route("/api/%s/v1/hatun/mesh" % ns, _agent_mesh, methods=["GET"],
+                  name="hatun_mesh_ns"),
         ])
     # insert at position 0 so they win over the SPA catch-all (the known gotcha).
     for r in reversed(routes):

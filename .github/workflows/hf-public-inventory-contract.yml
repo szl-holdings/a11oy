@@ -1,0 +1,47 @@
+name: Public Hub inventory access contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - scripts/audit_huggingface_ecosystem.py
+      - scripts/test_audit_huggingface_ecosystem.py
+      - scripts/test_hf_gated_public_inventory.py
+      - scripts/test_hf_resolve_transport_schema_v2.py
+      - docs/huggingface-ecosystem-manifest.schema.json
+      - .github/workflows/hf-public-inventory-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - scripts/audit_huggingface_ecosystem.py
+      - scripts/test_audit_huggingface_ecosystem.py
+      - scripts/test_hf_gated_public_inventory.py
+      - scripts/test_hf_resolve_transport_schema_v2.py
+      - docs/huggingface-ecosystem-manifest.schema.json
+      - .github/workflows/hf-public-inventory-contract.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-inventory-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Public, restricted, and immutable transport evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Run all inventory evidence regressions without network or packages
+        run: |
+          python -S scripts/test_audit_huggingface_ecosystem.py
+          python -S scripts/test_hf_gated_public_inventory.py
+          python -S scripts/test_hf_resolve_transport_schema_v2.py
+          python -S -m py_compile scripts/audit_huggingface_ecosystem.py

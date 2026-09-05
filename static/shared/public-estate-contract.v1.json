@@ -1,0 +1,171 @@
+{
+  "schema": "szl.public-estate/v1",
+  "version": "1.0.0",
+  "canonical": {
+    "product": "https://a-11-oy.com",
+    "proof": "https://a11oy.net",
+    "source": "https://github.com/szl-holdings/a11oy",
+    "githubOrganization": "https://github.com/szl-holdings",
+    "huggingFaceOrganization": "https://huggingface.co/SZLHOLDINGS"
+  },
+  "fabric": {
+    "id": "a11oy",
+    "name": "A11oy",
+    "role": "governed intelligence and command fabric",
+    "productPath": "/",
+    "githubRepository": "szl-holdings/a11oy",
+    "huggingFaceRepository": "SZLHOLDINGS/a11oy"
+  },
+  "publicDomainBodies": [
+    {
+      "id": "immune",
+      "name": "IMMUNE",
+      "domain": "defense and cyber resilience",
+      "productPath": "/immune",
+      "githubRepository": "szl-holdings/immune",
+      "huggingFaceRepositories": ["SZLHOLDINGS/immune", "SZLHOLDINGS/immune-lattice"],
+      "truth": "PUBLIC_DEFENSIVE_REFERENCE"
+    },
+    {
+      "id": "lyte",
+      "name": "Lyte",
+      "domain": "business observability",
+      "productPath": "/lyte",
+      "githubRepository": "szl-holdings/lyte-services",
+      "huggingFaceRepositories": ["SZLHOLDINGS/lyte"],
+      "truth": "SOURCE_OWNED_RUNTIME"
+    },
+    {
+      "id": "terra",
+      "name": "Terra",
+      "domain": "real-estate intelligence",
+      "productPath": "/terra",
+      "githubRepository": "szl-holdings/szl-real-estate",
+      "huggingFaceRepositories": ["SZLHOLDINGS/terra"],
+      "truth": "PUBLIC_SOURCE_EVIDENCE"
+    },
+    {
+      "id": "counsel",
+      "name": "PRISM Counsel",
+      "domain": "legal matter intelligence",
+      "productPath": "/counsel",
+      "githubRepository": "szl-holdings/a11oy",
+      "githubPath": "verticals/counsel",
+      "huggingFaceRepositories": ["SZLHOLDINGS/counsel"],
+      "truth": "PUBLIC_SOURCE_EVIDENCE"
+    },
+    {
+      "id": "finance",
+      "name": "PURIQ Finance",
+      "domain": "financial intelligence",
+      "productPath": "/finance",
+      "githubRepository": "szl-holdings/puriq-live",
+      "huggingFaceRepositories": ["SZLHOLDINGS/finance"],
+      "truth": "PUBLIC_SOURCE_EVIDENCE"
+    }
+  ],
+  "internalEngines": [
+    {
+      "id": "living-anatomy",
+      "name": "Living Anatomy",
+      "authority": "ADVISORY_ONLY"
+    },
+    {
+      "id": "formula-kernel",
+      "name": "Locked Formula Kernel",
+      "lockedProvenCount": 8,
+      "lambdaStatus": "CONJECTURE_1_OPEN_ADVISORY_ONLY",
+      "authority": "ADVISORY_ONLY"
+    },
+    {
+      "id": "second-brain",
+      "name": "Governed Second Brain",
+      "publicProjection": "HANDLES_REVISIONS_COUNTS_DIGESTS_ONLY",
+      "authority": "NO_EXECUTION_AUTHORITY"
+    },
+    {
+      "id": "inference",
+      "name": "Governed Inference",
+      "authority": "PROPOSAL_ONLY"
+    },
+    {
+      "id": "hatun-policy",
+      "name": "Hatun and Covenant Policy",
+      "authority": "HUMAN_APPROVAL_REQUIRED"
+    },
+    {
+      "id": "proof-chain",
+      "name": "Proof Chain and Outcome Graph",
+      "authority": "EVIDENCE_AND_VERIFICATION"
+    }
+  ],
+  "supportingSystems": [
+    {
+      "id": "sentra",
+      "name": "Sentra Assurance Command",
+      "githubRepository": "szl-holdings/szl-defensive-control-plane",
+      "huggingFaceRepositories": ["SZLHOLDINGS/sentra"],
+      "classification": "CONTROL_PLANE"
+    },
+    {
+      "id": "killinchu",
+      "name": "Killinchu",
+      "githubRepository": "szl-holdings/killinchu",
+      "huggingFaceRepositories": ["SZLHOLDINGS/killinchu"],
+      "classification": "SYNTHETIC_DEFENSIVE_REFERENCE"
+    },
+    {
+      "id": "vertical-services",
+      "name": "Vertical Services",
+      "githubRepository": "szl-holdings/vertical-services",
+      "huggingFaceRepositories": ["SZLHOLDINGS/vertical-services"],
+      "classification": "SHARED_EVIDENCE_RUNTIME"
+    }
+  ],
+  "laboratorySurfaces": [
+    "SZLHOLDINGS/szl-command-lab",
+    "SZLHOLDINGS/david-leads",
+    "SZLHOLDINGS/szl-constellation",
+    "SZLHOLDINGS/szl-frontier",
+    "SZLHOLDINGS/szl-model-inference-lab"
+  ],
+  "historicalBindings": [
+    {
+      "id": "vessels",
+      "state": "FOLDED_INTO_KILLINCHU",
+      "retirementPolicy": "PRESERVE_UNTIL_SOURCE_BINDING_AND_ROLLBACK_RECEIPTS_EXIST"
+    }
+  ],
+  "truthVocabulary": [
+    "PROVED",
+    "MEASURED",
+    "REPORTED",
+    "MODELED",
+    "SIMULATED",
+    "CONJECTURE",
+    "ROADMAP",
+    "UNKNOWN",
+    "UNAVAILABLE"
+  ],
+  "authority": {
+    "externalWrites": "DISABLED_BY_DEFAULT",
+    "publicEffectors": [],
+    "automaticRemediation": false,
+    "productionAuthorization": false,
+    "humanApprovalRequired": true
+  },
+  "alignmentConsumers": [
+    {
+      "repository": "szl-holdings/a11oy",
+      "surfaces": ["product navigation", "public API", "Hugging Face publisher"]
+    },
+    {
+      "repository": "szl-holdings/.github",
+      "surfaces": ["organization profile", "public surface atlas", "Hugging Face organization card"]
+    },
+    {
+      "repository": "szl-holdings/a11oy-net",
+      "surfaces": ["proof estate", "diligence catalog"]
+    }
+  ]
+}

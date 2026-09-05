@@ -23,6 +23,7 @@ def _stamp(offset_seconds: int = 0) -> str:
 
 def _app(tmp_path: Path, monkeypatch) -> FastAPI:
     monkeypatch.setenv("A11OY_SERIES_A_STARTUP_REFRESH", "0")
+    monkeypatch.setenv("A11OY_OBSERVE_GITHUB_MAIN", "0")
     monkeypatch.setenv("SZL_GIT_SHA", "a" * 40)
     value = FastAPI()
     series_a.register(value, db_path=str(tmp_path / "series-a.sqlite3"))
@@ -126,6 +127,38 @@ def test_summary_projects_observation_without_inventing_runtime_parity(
     assert payload["enforcement"]["effectors"] == []
     assert payload["enforcement"]["external_writes"] == "DISABLED"
     assert payload["private_reasoning_collected"] is False
+
+
+def test_observed_github_drift_holds_claim_gate(
+    tmp_path: Path, monkeypatch
+) -> None:
+    value = _app(tmp_path, monkeypatch)
+    _seed_observed(value)
+    drifted = "c" * 40
+    monkeypatch.setattr(
+        frontier_now, "_observe_github_default_branch", lambda: drifted
+    )
+
+    with TestClient(value) as client:
+        payload = client.get("/api/a11oy/v1/frontier-now/summary").json()
+
+    identity = payload["identity"]
+    assert identity["runtime_reported_source_revision"] == "a" * 40
+    assert identity["github_default_branch_revision"] == drifted
+    assert identity["huggingface_repository_revision"] is None
+    assert identity["runtime_artifact_digest"] is None
+    assert identity["equivalence_state"] == "DRIFT"
+    assert identity["reason"] == (
+        "GITHUB_DEFAULT_BRANCH_DRIFTS_FROM_RUNTIME_REPORTED_REVISION"
+    )
+    assert payload["claim_gate"]["state"] == "FAILED_CLOSED"
+    assert payload["claim_gate"]["public_claim_status"] == "HELD"
+    parity = next(
+        item for item in payload["frontiers"] if item["id"] == "source-runtime-parity"
+    )
+    assert parity["state"] == "DRIFT"
+    assert parity["source"] == "public-github-main"
+    assert payload["enforcement"]["external_writes"] == "DISABLED"
 
 
 def test_receipt_read_failure_isolated_from_manifest_and_inventory(

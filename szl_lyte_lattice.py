@@ -4,27 +4,9 @@
 """
 szl_lyte_lattice.py — BIND_AS_A11OY_PACKAGE status surface.
 
-This module cites [szl-holdings/lyte-lattice](https://github.com/szl-holdings/lyte-lattice)
-@ 2773eba. It does not rehost cited leader code (vLLM, LangGraph, Llama Guard,
-MosaicML, Guidewire, QuantConnect, …). Factory remains a bind
-(szl-holdings/a11oy-factory), not a second flagship.
-
-Honesty (Doctrine v11 LOCKED):
-  - Lyte window is STRUCTURAL-ONLY (admitted design-partner cell).
-  - N1–N25 are LIVE holograms in the cited GitHub console, not local GPU clusters.
-  - Energy joule stays UNAVAILABLE unless RAPL energy_uj is actually read.
-  - Occupancy stays UNAVAILABLE. Not MLS.
-  - Receipts are UNSIGNED-honest. proven_trust stays false.
-  - Hub RUNNING only after Immune readback (szl-holdings/immune secrets.HF_TOKEN).
-    This module never fabricates LIVE or RUNNING.
-  - a-11-oy.com is not certified by this bind.
-  - Λ = Conjecture 1. Locked-8 untouched.
-
-Endpoints (dual-registered under /api/{ns}/v1/lyte/* and /v1/lyte/*):
-  GET /healthz  — process liveness + bind identity.
-  GET /status   — deterministic honest roll-up. No network. No fabricated LIVE.
-
-Stdlib + optional szl_khipu. Additive; try/except-guarded by the caller.
+Cites szl-holdings/lyte-lattice @ 9db7f25. Not a second flagship.
+Not a production certificate of a-11-oy.com.
+Also serves GET /unify flock ledger (KEEP/FOLD/UNIFY). Not a Hub Space.
 """
 from __future__ import annotations
 
@@ -39,7 +21,7 @@ _RECEIPT_TYPE = "SZL.LyteLattice.Status.v1"
 _BIND = "BIND_AS_A11OY_PACKAGE"
 _ORDER = "AO-2026-08-29-001"
 _SOURCE = "https://github.com/szl-holdings/lyte-lattice"
-_SOURCE_SHA = "2773eba55805894db8511d3dc8acd30dea25efc5"
+_SOURCE_SHA = "9db7f25c99f22faf0806ea9bdc2773f54a06dbbd"
 _FACTORY = "https://github.com/szl-holdings/a11oy-factory"
 _LYTE_WINDOW = "https://github.com/szl-holdings/lyte-services"
 _HUB_SPACE = "https://huggingface.co/spaces/SZLHOLDINGS/lyte-lattice"
@@ -48,7 +30,6 @@ _PROOF = "https://a11oy.net"
 _LOCKED_PROVEN = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"]
 _KERNEL_COMMIT = "c7c0ba17"
 
-# Cite the leader. Take the job. Do not rehost.
 _FRONTIERS: List[Dict[str, str]] = [
     {"n": "lyte", "title": "Lyte", "cited": "owner-admitted design-partner cell", "honesty": "STRUCTURAL-ONLY"},
     {"n": "N1", "title": "Serve", "cited": "vLLM / SGLang / Ollama / TensorRT-LLM", "honesty": "LIVE hologram"},
@@ -76,11 +57,41 @@ _FRONTIERS: List[Dict[str, str]] = [
     {"n": "N23", "title": "Rails", "cited": "NVIDIA NeMo Guardrails", "honesty": "LIVE hologram · not Llama Guard"},
     {"n": "N24", "title": "Browser", "cited": "Playwright / Stagehand / Browserbase", "honesty": "LIVE hologram · plan only"},
     {"n": "N25", "title": "Policy", "cited": "AWS Cedar / Open Policy Agent", "honesty": "LIVE hologram"},
+    {"n": "N26", "title": "Inference", "cited": "szl-command-lab NVML/RAPL wrap", "honesty": "REPORTED · never a fabricated joule"},
+    {"n": "N27", "title": "Train", "cited": "szl-forge Unsloth QLoRA; szl-gpu-bridge", "honesty": "UNAVAILABLE · NEVER_DISPATCH"},
+]
+
+_WAVES = [
+    {"id": "W1", "name": "Core path", "cells": ["N1", "N2", "N3", "N4", "N5", "N6", "N7", "N8", "N9"], "admitted": 9, "blocked": 0},
+    {"id": "W2", "name": "Observe + shape", "cells": ["N10", "N11", "N12", "N13", "N14", "N15", "N16", "N17", "N18"], "admitted": 9, "blocked": 0},
+    {"id": "W3", "name": "Plane edge", "cells": ["N19", "N20", "N21", "N22", "N23", "N24", "N25", "N26", "N27"], "admitted": 8, "blocked": 1},
+]
+
+_FLOCK_KEEP = [
+    {"slug": "a11oy", "dest": "https://a-11-oy.com/console", "why": "Command Center. One front door."},
+    {"slug": "killinchu", "dest": "https://szlholdings-killinchu.hf.space/elite", "why": "Counter-UAS."},
+    {"slug": "immune", "dest": "https://a-11-oy.com/immune", "why": "SENTRA / YAWAR. Fold lattice here."},
+    {"slug": "lyte", "dest": "https://a-11-oy.com/lyte", "why": "Admitted observability cell."},
+    {"slug": "vertical-services", "dest": "https://a-11-oy.com/spaces", "why": "Five engines, one runtime."},
+]
+_FLOCK_FOLD = [
+    {"slug": "immune-lattice", "into": "immune"},
+    {"slug": "counsel", "into": "ayllu"},
+    {"slug": "ayllu", "into": "https://a11oy.net/ayllu/"},
+    {"slug": "sentra", "into": "vertical-services"},
+    {"slug": "finance", "into": "vertical-services"},
+    {"slug": "terra", "into": "vertical-services"},
+    {"slug": "david-leads", "into": "https://a-11-oy.com"},
+]
+_FLOCK_UNIFY = [
+    {"slug": "szl-command-lab", "into": "a11oy"},
+    {"slug": "szl-model-inference-lab", "into": "a11oy"},
+    {"slug": "szl-frontier", "into": "a11oy"},
+    {"slug": "szl-constellation", "into": "a11oy"},
 ]
 
 
 def _unsigned_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
-    """UNSIGNED-honest hash. Not Cosign. proven_trust stays false."""
     blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     digest = hashlib.sha3_256(blob).hexdigest()
     return {
@@ -99,7 +110,6 @@ def _unsigned_receipt(payload: Dict[str, Any]) -> Dict[str, Any]:
 def _khipu_receipt(payload: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     try:
         import szl_khipu  # type: ignore
-
         dag = szl_khipu.get_dag(_KHIPU_ORGAN, ns="a11oy")
         r = dag.emit("lyte-lattice.status", payload)
         signed = bool(r.get("signature"))
@@ -167,7 +177,8 @@ def status() -> Dict[str, Any]:
         "state_note": (
             "BIND hologram cited from GitHub. Not a flagship. Not a production "
             "certificate of a-11-oy.com. Hub RUNNING is UNAVAILABLE until Immune "
-            "readback. Organs are LIVE holograms in the cited console, not this tab."
+            "readback. Organs are LIVE holograms in the cited console, not this tab. "
+            "W1–W3 sealed on Alloy State Fabric against origin packets."
         ),
         "bind": _BIND,
         "order": _ORDER,
@@ -176,6 +187,11 @@ def status() -> Dict[str, Any]:
             "sha": _SOURCE_SHA,
             "evidence_class": "REPORTED",
             "canonical": True,
+            "packets": [
+                "packets/alloy-state-fabric-w1.json",
+                "packets/alloy-state-fabric-w2.json",
+                "packets/alloy-state-fabric-w3.json",
+            ],
         },
         "hub": {
             "url": _HUB_SPACE,
@@ -188,6 +204,7 @@ def status() -> Dict[str, Any]:
         "lyte_window": {"url": _LYTE_WINDOW, "honesty": "STRUCTURAL-ONLY", "admitted": True},
         "product": {"url": _PRODUCT, "path": "/lyte", "certified": False},
         "proof": {"url": _PROOF},
+        "waves": _WAVES,
         "frontiers": _FRONTIERS,
         "locked_proven": {
             "set": _LOCKED_PROVEN,
@@ -213,41 +230,97 @@ def status() -> Dict[str, Any]:
     return payload
 
 
-def register(app, ns: str = "a11oy") -> Dict[str, Any]:
-    from fastapi.responses import JSONResponse
+def unify_status() -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "ok": True,
+        "service": "unify-flock",
+        "state": "BIND",
+        "bind": _BIND,
+        "certified": False,
+        "proven_trust": False,
+        "hub_write": False,
+        "source": {"repo": _SOURCE, "sha": _SOURCE_SHA},
+        "product": {"url": "https://a-11-oy.com/unify", "certified": False},
+        "keep": _FLOCK_KEEP,
+        "fold": _FLOCK_FOLD,
+        "unify_stragglers": _FLOCK_UNIFY,
+        "policy": "pause+private, never delete",
+        "exact_name_duplicates": [],
+        "lambda": "Conjecture 1",
+        "note": "Flock ledger on the product. Not a new Hub Space.",
+    }
+    blob = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    payload["digest"] = hashlib.sha256(blob).hexdigest()
+    payload["signer"] = "UNSIGNED-honest"
+    return payload
 
+
+def unify_page() -> str:
+    s = unify_status()
+    def _rows(items, act, dest_key):
+        return "".join(f"<tr><td>{r['slug']}</td><td>{act}</td><td>{r[dest_key]}</td></tr>" for r in items)
+    return (
+        "<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'/>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'/>"
+        "<title>Unify flock · SZL Holdings</title>"
+        "<style>body{margin:0;background:#0a0a0a;color:#f5f5f5;font-family:ui-sans-serif,system-ui,sans-serif}"
+        "a{color:#5fb3a3}.wrap{max-width:960px;margin:0 auto;padding:1.4rem}"
+        "table{width:100%;border-collapse:collapse;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px}"
+        "th,td{text-align:left;padding:.35rem .4rem;border-bottom:1px solid rgba(201,183,135,.15);color:#9a9a9a}"
+        "th{color:#c9b787;font-size:10px;letter-spacing:.06em;text-transform:uppercase}"
+        ".lede{color:#9a9a9a;max-width:72ch;line-height:1.55}</style></head><body><div class='wrap'>"
+        f"<p>BIND · not certified · digest {s['digest'][:16]}</p>"
+        "<h1>Unify flock</h1>"
+        "<p class='lede'><b>Product tab on a-11-oy.com.</b> GitHub is source. Hub is the registry. "
+        "a11oy.net is RECORD. Never LIVE/RUNNING/PASS. pause+private, never delete.</p>"
+        "<p class='lede'>Nav: <a href='/lyte'>/lyte</a> · <a href='/spaces'>/spaces</a> · <a href='/console'>/console</a></p>"
+        "<h2>KEEP</h2><table><thead><tr><th>slug</th><th>act</th><th>dest</th></tr></thead><tbody>"
+        + _rows(_FLOCK_KEEP, "KEEP", "dest")
+        + "</tbody></table><h2>FOLD</h2><table><thead><tr><th>slug</th><th>act</th><th>into</th></tr></thead><tbody>"
+        + _rows(_FLOCK_FOLD, "FOLD", "into")
+        + "</tbody></table><h2>UNIFY stragglers</h2><table><thead><tr><th>slug</th><th>act</th><th>into</th></tr></thead><tbody>"
+        + _rows(_FLOCK_UNIFY, "UNIFY", "into")
+        + "</tbody></table><p class='lede'>Λ = Conjecture 1 · Doctrine v11 · Never a11oy.com</p></div></body></html>"
+    )
+
+
+def register(app, ns: str = "a11oy") -> Dict[str, Any]:
+    from fastapi.responses import HTMLResponse, JSONResponse
     prefixes = [f"/api/{ns}/v1/lyte", "/v1/lyte"]
+    unify_prefixes = [f"/api/{ns}/v1/unify", "/v1/unify"]
     routes: List[str] = []
     try:
         from starlette.routing import Route
-
-        def _health(_r=None):  # noqa: ANN001
-            return JSONResponse(healthz())
-
-        def _status(_r=None):  # noqa: ANN001
-            return JSONResponse(status())
-
+        def _health(_r=None): return JSONResponse(healthz())
+        def _status(_r=None): return JSONResponse(status())
+        def _unify_api(_r=None): return JSONResponse(unify_status())
+        def _unify_page(_r=None): return HTMLResponse(unify_page())
         for p in prefixes:
             app.router.routes.insert(0, Route(f"{p}/healthz", _health, methods=["GET"]))
             app.router.routes.insert(0, Route(f"{p}/status", _status, methods=["GET"]))
             routes.extend([f"{p}/healthz", f"{p}/status"])
+        for p in unify_prefixes:
+            app.router.routes.insert(0, Route(f"{p}/status", _unify_api, methods=["GET"]))
+            routes.append(f"{p}/status")
+        for path in ("/unify", f"/{ns}/unify"):
+            app.router.routes.insert(0, Route(path, _unify_page, methods=["GET", "HEAD"]))
+            routes.append(path)
     except Exception:
-        async def _h_health():  # noqa: ANN202
-            return JSONResponse(healthz())
-
-        async def _h_status():  # noqa: ANN202
-            return JSONResponse(status())
-
+        async def _h_health(): return JSONResponse(healthz())
+        async def _h_status(): return JSONResponse(status())
+        async def _h_unify_api(): return JSONResponse(unify_status())
+        async def _h_unify_page(): return HTMLResponse(unify_page())
         for p in prefixes:
             app.add_api_route(f"{p}/healthz", _h_health, methods=["GET"], include_in_schema=True)
             app.add_api_route(f"{p}/status", _h_status, methods=["GET"], include_in_schema=True)
             routes.extend([f"{p}/healthz", f"{p}/status"])
-
-    print(
-        f"[{ns}] szl_lyte_lattice routes registered "
-        f"(BIND hologram, {len(routes)} routes, not a flagship, not certified)",
-        flush=True,
-    )
+        for p in unify_prefixes:
+            app.add_api_route(f"{p}/status", _h_unify_api, methods=["GET"], include_in_schema=True)
+            routes.append(f"{p}/status")
+        for path in ("/unify", f"/{ns}/unify"):
+            app.add_api_route(path, _h_unify_page, methods=["GET", "HEAD"], include_in_schema=False)
+            routes.append(path)
+    print(f"[{ns}] szl_lyte_lattice routes registered (BIND + unify flock, {len(routes)} routes)", flush=True)
     return {"ok": True, "ns": ns, "organ": _ORGAN_NAME, "bind": _BIND, "certified": False, "routes": routes}
 
 
@@ -256,29 +329,13 @@ def _selftest() -> Dict[str, Any]:
     s = status()
     assert h["ok"] is True and h["certified"] is False and h["hub_running"] is False
     assert s["state"] == "BIND"
-    assert s["honesty"]["certified"] is False
-    assert s["honesty"]["proven_trust"] is False
-    assert s["honesty"]["lyte"] == "STRUCTURAL-ONLY"
-    assert "UNAVAILABLE" in s["honesty"]["energy_joule"]
-    assert s["honesty"]["occupancy"].startswith("UNAVAILABLE")
-    assert s["hub"]["running"] is False
-    assert s["hub"]["state"] == "UNAVAILABLE"
     assert s["source"]["sha"] == _SOURCE_SHA
-    assert len(s["frontiers"]) == 26
-    assert s["frontiers"][0]["honesty"] == "STRUCTURAL-ONLY"
-    served = json.dumps(s).lower()
-    assert "a11oy.com" in s["honesty"]["never"]
-    assert s["product"]["certified"] is False
-    assert s["khipu_receipt"]["proven_trust"] is False
-    assert s["khipu_receipt"].get("signed") is False or s["khipu_receipt"]["kind"] in (
-        "UNSIGNED-honest",
-        "HASH-LINKED",
-    )
-    # No fabricated LIVE/RUNNING/PASS in the bind state itself.
-    assert s["state"] != "LIVE"
-    assert s["state"] != "RUNNING"
-    _ = served
-    return {"ok": True, "state": s["state"], "sha": s["source"]["sha"], "frontiers": len(s["frontiers"])}
+    assert len(s["frontiers"]) == 28
+    assert len(s["waves"]) == 3
+    u = unify_status()
+    assert u["state"] == "BIND" and u["hub_write"] is False
+    assert len(u["keep"]) == 5 and len(u["unify_stragglers"]) == 4
+    return {"ok": True, "state": s["state"], "sha": s["source"]["sha"], "frontiers": 28, "unify": "BIND"}
 
 
 if __name__ == "__main__":

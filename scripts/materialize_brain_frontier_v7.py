@@ -36,11 +36,12 @@ HEX_64 = re.compile(r"^[0-9a-f]{64}$")
 FRONTIER_ID = re.compile(r"^frontier:[0-9a-f]{32}$")
 ALLOWED_SOURCE_REPOSITORIES = {
     "szl-holdings/szl-formulas",
-    "szl-holdings/ouroboros",
+    "szl-holdings/szl-ouroboros",
     "szl-holdings/anatomy",
     "szl-holdings/a11oy",
     "szl-holdings/szl-forge",
     "szl-holdings/szl-nemo",
+    "szl-holdings/szl-kernels",
 }
 KIND_ORDER = {
     "formula-authority": 0,
@@ -256,10 +257,11 @@ def select_handles(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     reserve_repositories = (
         FORMULA_REPOSITORY,
         "szl-holdings/anatomy",
-        "szl-holdings/ouroboros",
+        OUROBOROS_REPOSITORY,
         "szl-holdings/a11oy",
         "szl-holdings/szl-forge",
         "szl-holdings/szl-nemo",
+        "szl-holdings/szl-kernels",
     )
     for repository in reserve_repositories:
         if any(row.get("source_repository") == repository for row in selected):

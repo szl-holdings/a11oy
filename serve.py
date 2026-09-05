@@ -1848,6 +1848,22 @@ try:
 except Exception as _brain_api_e:  # pragma: no cover
     print(f"[a11oy] Brain API NOT registered: {_brain_api_e!r}; SPA + API unaffected", file=__import__("sys").stderr)
 
+# -- OWNED KHIPU GOVERNED CORTEX -- proposal-only CPU inference over the
+# exact SZLHOLDINGS/SZL-Khipu-1.5B-GGUF artifact. Registered after the
+# Brain API and before the SPA fallback; import failure leaves existing
+# routes available and is reported honestly.
+try:
+    import a11oy_governed_cortex as _a11oy_governed_cortex
+    print(
+        "[a11oy] " + _a11oy_governed_cortex.register(app, ns="a11oy"),
+        file=__import__("sys").stderr,
+    )
+except Exception as _a11oy_governed_cortex_e:  # pragma: no cover
+    print(
+        f"[a11oy] owned Khipu cortex NOT registered: {_a11oy_governed_cortex_e!r}",
+        file=__import__("sys").stderr,
+    )
+
 # -- BRAIN CAPABILITIES LEDGER -- exposes the honest capability contract that the
 # holographic brain must obey: OPERATIONAL / PARTIALLY OPERATIONAL / MODELED /
 # SIMULATED / EXPERIMENTAL / UNAVAILABLE. Pure read; never upgrades stubs into
@@ -4304,6 +4320,9 @@ try:
     app.add_api_route("/a11oy/fleet-c2", _ptg_serve("fleet-c2.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
     app.add_api_route("/a11oy/living-anatomy", _ptg_serve("living-anatomy.html"), methods=["GET"], include_in_schema=False)
+    async def _anatomy_alias():
+        return RedirectResponse("/living-anatomy", status_code=302)
+    app.add_api_route("/anatomy", _anatomy_alias, methods=["GET"], include_in_schema=False)
     # ATELIER (2026-08-29): declared product surface. pages/atelier.html rides
     # the wholesale COPY pages/ — no Dockerfile edit (protected admission input).
     # Serve the walk in-app. If the page is missing, 307 to the RUNNING Space.
@@ -4754,7 +4773,13 @@ try:
     from fastapi import FastAPI as _AnatFA
     import szl_anatomy_routes as _anat_mod
     _anat_html_app = _AnatFA()
+    from fastapi.responses import RedirectResponse as _AnatRedirect
     _anat_paths = _anat_mod.register(app, ns="a11oy", api_app=None, html_app=_anat_html_app)
+    # Mount steals exact GET /anatomy from the living-anatomy alias. Put the
+    # 302 on the sub-app root so /anatomy and /anatomy/ both reach the page.
+    async def _anat_mount_root():
+        return _AnatRedirect("/living-anatomy", status_code=302)
+    _anat_html_app.add_api_route("/", _anat_mount_root, methods=["GET"], include_in_schema=False)
     app.mount("/anatomy", _anat_html_app)
     print(f"[a11oy] anatomy run-engine wired ({len(_anat_paths)} routes; HTML at /anatomy/*): {_anat_paths}", file=sys.stderr)
 except Exception as _anat_e:  # additive: never break the Space
@@ -5832,6 +5857,32 @@ async def evidence() -> JSONResponse:
     })
 
 
+@app.get("/api/a11oy/v1/ouroboros")
+@app.get("/api/a11oy/v1/ouroboros/status")
+async def ouroboros_status() -> JSONResponse:
+    """Read-only loop/runner presence. GET never executes the 32-module suite."""
+    from pathlib import Path as _P
+    here = _P(__file__).resolve().parent
+    candidates = [
+        "/app/OUROBOROS_RUN_ALL.py",
+        "/app/ouroboros/OUROBOROS_RUN_ALL.py",
+        str(here / "OUROBOROS_RUN_ALL.py"),
+        str(here / "ouroboros" / "OUROBOROS_RUN_ALL.py"),
+    ]
+    found = next((c for c in candidates if _P(c).is_file()), None)
+    return JSONResponse({
+        "schema": "szl.ouroboros.status.v1",
+        "truth": "REPORTED",
+        "runner_present": bool(found),
+        "runner_path": found,
+        "run": "POST /api/a11oy/v1/ouroboros/run-all",
+        "cycle": "POST /api/a11oy/v1/agent/cycle {\"loop\": true, \"budget\": 2}",
+        "bound": 4,
+        "note": "Loop is bounded. Convergence is advisory. Lambda remains Conjecture 1.",
+        "doctrine": "v11",
+    })
+
+
 @app.post("/api/a11oy/v1/ouroboros/run-all")
 async def ouroboros_run_all() -> JSONResponse:
     """
@@ -5890,9 +5941,12 @@ async def ouroboros_run_all() -> JSONResponse:
 
     # Attempt to locate and execute OUROBOROS_RUN_ALL.py from known paths
     import subprocess, tempfile, os as _os
+    _here = __import__('pathlib').Path(__file__).resolve().parent
     _OUROBOROS_CANDIDATES = [
         "/app/OUROBOROS_RUN_ALL.py",
         "/app/ouroboros/OUROBOROS_RUN_ALL.py",
+        str(_here / "OUROBOROS_RUN_ALL.py"),
+        str(_here / "ouroboros" / "OUROBOROS_RUN_ALL.py"),
     ]
     ouroboros_path = None
     for _c in _OUROBOROS_CANDIDATES:
@@ -7225,9 +7279,13 @@ async def _a11oy_pr_audit_log_v2(limit: int = 50):
 @app.get("/api/a11oy/v1/brain")
 async def _a11oy_pr_brain_route_v2():
     """Unified brain payload — a11oy brand-orchestration role. Doctrine v11 LOCKED."""
+    return JSONResponse(_a11oy_brain_body())
+
+
+def _a11oy_brain_body() -> dict:
     if _A11OY_BRAIN_OK:
-        return JSONResponse(_a11oy_pr_brain.brain_payload("a11oy"))
-    return JSONResponse({
+        return _a11oy_pr_brain.brain_payload("a11oy")
+    return {
         "space": "a11oy", "doctrine": "v11",
         "declarations": 749, "axioms_unique": 14, "sorries_total": 163,
         "experimental_scope": {"kernel_commit": "7885fd9", "lean": "v4.18.0", "declarations": 1304, "axioms_unique": 22, "theorems_ci_green": 36, "note": "CI-green, kernel-verified (Wave5-8 + agentic P1-P6 + airtight Λ + coder); NOT folded into the locked count of 8; Λ stays Conjecture 1"},
@@ -7235,6 +7293,63 @@ async def _a11oy_pr_brain_route_v2():
         "role": "Brand Orchestration / gates",
         "lambda_floor": 0.90,
         "honesty": "szl_brain unavailable in this build; honest stub returned.",
+    }
+
+
+@app.get("/api/a11oy/v1/second-brain")
+async def _a11oy_second_brain_alias():
+    """Alias of GET /api/a11oy/v1/brain. Same-origin Second Brain, not a second corpus."""
+    return JSONResponse({
+        "schema": "szl.second-brain.alias.v1",
+        "truth": "REPORTED",
+        "alias_of": "/api/a11oy/v1/brain",
+        "surfaces": ["/brain", "/holographic#brain", "/living-anatomy"],
+        "note": "Second Brain on this origin is the same-origin /brain surface plus the holographic #brain slot. This path is an alias, not a second index and not a claim the external second-brain Space is LIVE.",
+        "doctrine": "v11",
+        "payload": _a11oy_brain_body(),
+    })
+
+
+@app.get("/api/a11oy/v1/codex")
+async def _a11oy_codex_alias():
+    """Alias envelope for the named-formula registry. Locked-8 stays 8."""
+    return JSONResponse({
+        "schema": "szl.codex.alias.v1",
+        "truth": "REPORTED",
+        "alias_of": "/api/a11oy/v1/formulas",
+        "surfaces": ["/formulas", "/ouroboros", "/living-anatomy"],
+        "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "lambda": "Conjecture 1",
+        "note": "Codex on this origin is the named-formula registry. Extra named rows are not locked-proven. Follow alias_of for the live list.",
+        "doctrine": "v11",
+        "formulas": "/api/a11oy/v1/formulas",
+    })
+
+
+@app.get("/api/a11oy/v1/anatomy")
+async def _a11oy_anatomy_index():
+    """Index only. Does not claim the creator-profile anatomy Space is LIVE."""
+    return JSONResponse({
+        "schema": "szl.anatomy.index.v1",
+        "truth": "REPORTED",
+        "product_surface": "/living-anatomy",
+        "holo": "/holographic",
+        "holo_brain": "/holographic#brain",
+        "loop": "/api/a11oy/v1/anatomy/loop",
+        "vitals": "/api/a11oy/v1/anatomy/vitals",
+        "brain": "/api/a11oy/v1/brain",
+        "second_brain": "/api/a11oy/v1/second-brain",
+        "formulas": "/api/a11oy/v1/formulas",
+        "codex": "/api/a11oy/v1/codex",
+        "ouroboros": "/api/a11oy/v1/ouroboros",
+        "external_estate": {
+            "origin": "https://betterwithage-anatomy.hf.space",
+            "label": "SEPARATE_ORIGIN",
+        },
+        "locked_8": ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"],
+        "lambda": "Conjecture 1",
+        "note": "Index of same-origin anatomy wiring. External estate origin is labelled separately and is not this payload.",
+        "doctrine": "v11",
     })
 
 @app.get("/api/a11oy/v1/llm/tiers")
