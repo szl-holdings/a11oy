@@ -1,0 +1,82 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Reconcile runtime fallback with current main once
+
+on:
+  push:
+    branches:
+      - fix/runtime-boundary-current-main-20260905
+    paths:
+      - .github/workflows/_reconcile_runtime_fallback_current_main_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: reconcile-runtime-fallback-current-main-once
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/runtime-boundary-current-main-20260905'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/runtime-boundary-current-main-20260905
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+
+      - name: Merge the exact current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin main
+          git merge --no-edit origin/main
+
+      - name: Prove only the remaining fallback correction
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir \
+            'fastapi==0.116.1' \
+            'pytest==9.0.2' \
+            'cryptography==46.0.3'
+          python -m py_compile \
+            szl_agentic_loop.py \
+            szl_immune.py \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py
+          python -m pytest -q \
+            tests/test_post_merge_1986_review_repairs.py \
+            tests/test_runtime_boundary_fallback_attribution.py
+          manifest_sha="$(sha256sum .github/shared-source-payload-manifest.json | cut -d' ' -f1)"
+          test "$manifest_sha" = '8dd525eab719a20b3d1daebf7cb81ee1510c61b5ae7ebf8b6fa2037194937273'
+          python .github/validate-shared-payload.py . . \
+            --expected-manifest-sha256="$manifest_sha"
+          git diff --check
+
+      - name: Retire the reconciliation controller
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/runtime-boundary-current-main-20260905
+          git rm -- .github/workflows/_reconcile_runtime_fallback_current_main_once.yml
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'chore(runtime): reconcile fallback repair with merged base'
+          git push origin "HEAD:refs/heads/$branch"
