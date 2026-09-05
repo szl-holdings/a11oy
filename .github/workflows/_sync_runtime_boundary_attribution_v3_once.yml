@@ -20,8 +20,6 @@ jobs:
     if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/runtime-boundary-postmerge-review-20260905'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
-    env:
-      TEST_B64: IyBTUERYLUxpY2Vuc2UtSWRlbnRpZmllcjogQXBhY2hlLTIuMAoiIiJSZWdyZXNzaW9uIGNvdmVyYWdlIGZvciBJTU1VTkUgRmllbGQgZmFsbGJhY2sgc291cmNlIGF0dHJpYnV0aW9uLiIiIgpmcm9tIF9fZnV0dXJlX18gaW1wb3J0IGFubm90YXRpb25zCgppbXBvcnQgc3psX2ltbXVuZSBhcyBpbW11bmUKCgpkZWYgX2NsZWFyX2NhY2hlKCkgLT4gTm9uZToKICAgIGltbXVuZS5fRklFTERfQ0FDSEUuY2xlYXIoKQoKCmRlZiB0ZXN0X3ByaW1hcnlfZmllbGRfcmVzcG9uc2Vfc3RheXNfY2hhbm5lbF9iKCkgLT4gTm9uZToKICAgIF9jbGVhcl9jYWNoZSgpCgogICAgZGVmIHByb2JlKHVybDogc3RyKToKICAgICAgICBhc3NlcnQgdXJsLmVuZHN3aXRoKCIvYXBpL2ZpZWxkIikKICAgICAgICByZXR1cm4gMjAwLCB7CiAgICAgICAgICAgICJsYW1iZGFfc3RhdHVzIjogIkNvbmplY3R1cmUgMSAoTk9UIGEgdGhlb3JlbSkiLAogICAgICAgICAgICAiYWN0dWF0aW9uIjogIlNJTVVMQVRFRCIsCiAgICAgICAgICAgICJydWxlIjogIm9ic2VydmUgb25seSIsCiAgICAgICAgICAgICJjZWxscyI6IFtdLAogICAgICAgICAgICAiaHVudHMiOiBbXSwKICAgICAgICB9LCBOb25lCgogICAgcmVzdWx0ID0gaW1tdW5lLl9maWVsZChub3c9MTBfMDAwLjAsIHByb2JlPXByb2JlKQogICAgYXNzZXJ0IHJlc3VsdFsiY2hhbm5lbCJdID09ICJCIgogICAgYXNzZXJ0IHJlc3VsdFsic3BhY2UiXSA9PSAiU1pMSE9MRElOR1MvaW1tdW5lLWxhdHRpY2UiCiAgICBhc3NlcnQgcmVzdWx0WyJjb250cmFjdCJdID09ICIvYXBpL2ZpZWxkIgogICAgYXNzZXJ0IHJlc3VsdFsiZmFsbGJhY2tfZnJvbSJdIGlzIE5vbmUKICAgIF9jbGVhcl9jYWNoZSgpCgoKZGVmIHRlc3RfZmFsbGJhY2tfcmVwb3J0c19jaGFubmVsX2FfYW5kX3ByZXNlcnZlc19wcmltYXJ5X2ZhaWx1cmUoKSAtPiBOb25lOgogICAgX2NsZWFyX2NhY2hlKCkKICAgIGNhbGxzOiBsaXN0W3N0cl0gPSBbXQoKICAgIGRlZiBwcm9iZSh1cmw6IHN0cik6CiAgICAgICAgY2FsbHMuYXBwZW5kKHVybCkKICAgICAgICBpZiB1cmwuZW5kc3dpdGgoIi9hcGkvZmllbGQiKToKICAgICAgICAgICAgcmV0dXJuIDUwMywgTm9uZSwgImZpZWxkIG92ZXJsYXkgdW5hdmFpbGFibGUiCiAgICAgICAgYXNzZXJ0IHVybC5lbmRzd2l0aCgiL2FwaS9pbW11bmUvc3RhdGUiKQogICAgICAgIHJldHVybiAyMDAsIHsKICAgICAgICAgICAgImVzdGF0ZSI6IFsKICAgICAgICAgICAgICAgIHsiaWQiOiAiY2VsbC0xIiwgInRpdGxlIjogIk9ic2VydmVkIGNlbGwiLCAicm9sZSI6ICJzZW5zb3IifQogICAgICAgICAgICBdLAogICAgICAgICAgICAibGVkZ2VyIjogeyJjb3VudCI6IDd9LAogICAgICAgICAgICAicmVhZGluZXNzIjogIk9CU0VSVkVEIiwKICAgICAgICAgICAgIm1lc2giOiAiREVHUkFERUQiLAogICAgICAgIH0sIE5vbmUKCiAgICByZXN1bHQgPSBpbW11bmUuX2ZpZWxkKG5vdz0yMF8wMDAuMCwgcHJvYmU9cHJvYmUpCiAgICBhc3NlcnQgbGVuKGNhbGxzKSA9PSAyCiAgICBhc3NlcnQgcmVzdWx0WyJvayJdIGlzIFRydWUKICAgIGFzc2VydCByZXN1bHRbImNoYW5uZWwiXSA9PSAiQSIKICAgIGFzc2VydCByZXN1bHRbInNwYWNlIl0gPT0gIlNaTEhPTERJTkdTL2ltbXVuZSIKICAgIGFzc2VydCByZXN1bHRbImNvbnRyYWN0Il0gPT0gIi9hcGkvaW1tdW5lL3N0YXRlIgogICAgYXNzZXJ0IHJlc3VsdFsidXJsIl0uZW5kc3dpdGgoIi9hcGkvaW1tdW5lL3N0YXRlIikKICAgIGFzc2VydCByZXN1bHRbImNlbGxfY291bnQiXSA9PSAxCiAgICBhc3NlcnQgcmVzdWx0WyJsZWRnZXIiXSA9PSB7ImNvdW50IjogN30KICAgIGFzc2VydCByZXN1bHRbImZhbGxiYWNrX2Zyb20iXSA9PSB7CiAgICAgICAgImNoYW5uZWwiOiAiQiIsCiAgICAgICAgInNwYWNlIjogIlNaTEhPTERJTkdTL2ltbXVuZS1sYXR0aWNlIiwKICAgICAgICAiY29udHJhY3QiOiAiL2FwaS9maWVsZCIsCiAgICAgICAgInVybCI6IGNhbGxzWzBdLAogICAgICAgICJ1cHN0cmVhbV9odHRwIjogNTAzLAogICAgICAgICJlcnJvciI6ICJmaWVsZCBvdmVybGF5IHVuYXZhaWxhYmxlIiwKICAgIH0KICAgIF9jbGVhcl9jYWNoZSgpCg==
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -40,7 +38,7 @@ jobs:
         with:
           python-version: '3.12.10'
 
-      - name: Reconcile current protected main
+      - name: Reconcile protected main
         shell: bash
         run: |
           set -euo pipefail
@@ -56,10 +54,8 @@ jobs:
           python - <<'PY'
           from __future__ import annotations
 
-          import base64
           import hashlib
           import json
-          import os
           from pathlib import Path
 
           source_path = Path('szl_immune.py')
@@ -119,9 +115,6 @@ jobs:
               block = block.replace(old, new, 1)
 
           source_path.write_text(source[:start] + block + source[end:], encoding='utf-8')
-          Path('tests/test_runtime_boundary_fallback_attribution.py').write_bytes(
-              base64.b64decode(os.environ['TEST_B64'], validate=True)
-          )
 
           files = {
               name: hashlib.sha256(Path(name).read_bytes()).hexdigest()
@@ -152,6 +145,77 @@ shared payload manifest is refreshed.
 '''
               audit_path.write_text(audit, encoding='utf-8')
           PY
+
+          cat > tests/test_runtime_boundary_fallback_attribution.py <<'PYTEST'
+          # SPDX-License-Identifier: Apache-2.0
+          """Regression coverage for IMMUNE Field fallback source attribution."""
+          from __future__ import annotations
+
+          import szl_immune as immune
+
+
+          def _clear_cache() -> None:
+              immune._FIELD_CACHE.clear()
+
+
+          def test_primary_field_response_stays_channel_b() -> None:
+              _clear_cache()
+
+              def probe(url: str):
+                  assert url.endswith('/api/field')
+                  return 200, {
+                      'lambda_status': 'Conjecture 1 (NOT a theorem)',
+                      'actuation': 'SIMULATED',
+                      'rule': 'observe only',
+                      'cells': [],
+                      'hunts': [],
+                  }, None
+
+              result = immune._field(now=10_000.0, probe=probe)
+              assert result['channel'] == 'B'
+              assert result['space'] == 'SZLHOLDINGS/immune-lattice'
+              assert result['contract'] == '/api/field'
+              assert result['fallback_from'] is None
+              _clear_cache()
+
+
+          def test_fallback_reports_channel_a_and_preserves_primary_failure() -> None:
+              _clear_cache()
+              calls: list[str] = []
+
+              def probe(url: str):
+                  calls.append(url)
+                  if url.endswith('/api/field'):
+                      return 503, None, 'field overlay unavailable'
+                  assert url.endswith('/api/immune/state')
+                  return 200, {
+                      'estate': [
+                          {'id': 'cell-1', 'title': 'Observed cell', 'role': 'sensor'}
+                      ],
+                      'ledger': {'count': 7},
+                      'readiness': 'OBSERVED',
+                      'mesh': 'DEGRADED',
+                  }, None
+
+              result = immune._field(now=20_000.0, probe=probe)
+              assert len(calls) == 2
+              assert result['ok'] is True
+              assert result['channel'] == 'A'
+              assert result['space'] == 'SZLHOLDINGS/immune'
+              assert result['contract'] == '/api/immune/state'
+              assert result['url'].endswith('/api/immune/state')
+              assert result['cell_count'] == 1
+              assert result['ledger'] == {'count': 7}
+              assert result['fallback_from'] == {
+                  'channel': 'B',
+                  'space': 'SZLHOLDINGS/immune-lattice',
+                  'contract': '/api/field',
+                  'url': calls[0],
+                  'upstream_http': 503,
+                  'error': 'field overlay unavailable',
+              }
+              _clear_cache()
+          PYTEST
 
       - name: Prove focused runtime boundaries
         shell: bash
@@ -185,7 +249,7 @@ shared payload manifest is refreshed.
         run: |
           set -euo pipefail
           branch=fix/runtime-boundary-postmerge-review-20260905
-          git rm -- \
+          git rm -f --ignore-unmatch -- \
             .github/workflows/_sync_runtime_boundary_attribution_once.yml \
             .github/workflows/_sync_runtime_boundary_attribution_v2_once.yml \
             .github/workflows/_sync_runtime_boundary_attribution_v3_once.yml
