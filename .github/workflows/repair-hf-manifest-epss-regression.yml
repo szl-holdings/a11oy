@@ -1,0 +1,140 @@
+name: Repair HF manifest and EPSS regression
+
+on:
+  push:
+    branches:
+      - fix/hf-manifest-epss-regression-20260904
+    paths:
+      - .github/workflows/repair-hf-manifest-epss-regression.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+concurrency:
+  group: repair-hf-manifest-epss-regression
+  cancel-in-progress: false
+
+jobs:
+  repair:
+    name: Generate exact manifest and isolate the EPSS stalled-read contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact repair branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.ref_name }}
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact readiness dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Isolate the EPSS stalled-read regression from process-wide urllib traffic
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("tests/test_readiness_blocker_repairs.py")
+          text = path.read_text(encoding="utf-8")
+          start_marker = "def test_epss_stalled_read_has_hard_caller_budget_and_no_thread_buildup("
+          end_marker = "\ndef test_epss_worker_paused_before_merge_cannot_promote_after_deadline("
+          before, found, tail = text.partition(start_marker)
+          if not found:
+              raise SystemExit("EPSS stalled-read regression marker missing")
+          section_tail, next_found, after = tail.partition(end_marker)
+          if not next_found:
+              raise SystemExit("EPSS next-test marker missing")
+          section = found + section_tail
+
+          old_import = "    import urllib.request\n\n"
+          if section.count(old_import) != 1:
+              raise SystemExit(
+                  f"expected one urllib import in stalled-read test, found {section.count(old_import)}"
+              )
+          section = section.replace(old_import, "", 1)
+
+          old_block = '''    def stalled_fetch(*_args, **_kwargs):
+              network_calls.append(True)
+              return StalledResponse()
+
+          monkeypatch.setattr(urllib.request, "urlopen", stalled_fetch)
+          '''.replace("          ", "")
+          new_block = '''    def stalled_fetch_batch(_batch, _timeout, deadline):
+              network_calls.append(True)
+              with StalledResponse() as response:
+                  serve._kl_epss_read_bounded(response, deadline)
+              return {}
+
+          monkeypatch.setattr(serve, "_kl_epss_fetch_batch", stalled_fetch_batch)
+          '''.replace("          ", "")
+          if section.count(old_block) != 1:
+              raise SystemExit(
+                  f"expected one global urllib patch block, found {section.count(old_block)}"
+              )
+          section = section.replace(old_block, new_block, 1)
+          path.write_text(before + section + next_found + after, encoding="utf-8")
+          PY
+
+      - name: Regenerate the public Hugging Face ecosystem manifest
+        run: |
+          set -euo pipefail
+          python3 scripts/test_audit_huggingface_ecosystem.py
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+          python3 scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+
+      - name: Verify the complete readiness regression file
+        run: python -m pytest -q tests/test_readiness_blocker_repairs.py
+
+      - name: Enforce the exact two-file repair boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --check
+          python3 - <<'PY'
+          import subprocess
+
+          changed = set(
+              subprocess.check_output(
+                  ["git", "diff", "--name-only"], text=True
+              ).splitlines()
+          )
+          expected = {
+              "docs/huggingface-ecosystem-manifest.json",
+              "tests/test_readiness_blocker_repairs.py",
+          }
+          if changed != expected:
+              raise SystemExit(
+                  f"repair boundary mismatch: changed={sorted(changed)} expected={sorted(expected)}"
+              )
+          PY
+
+      - name: Commit the verified repair to the feature branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "Lutar, Stephen P."
+          git config user.email "stephenlutar2@gmail.com"
+          git add \
+            docs/huggingface-ecosystem-manifest.json \
+            tests/test_readiness_blocker_repairs.py
+          git commit -m "fix(ci): refresh HF manifest and isolate EPSS regression
+
+          Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
