@@ -1,6 +1,6 @@
 {
   "schema": "szl.public-estate/v1",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "canonical": {
     "product": "https://a-11-oy.com",
     "proof": "https://a11oy.net",
@@ -123,12 +123,20 @@
     }
   ],
   "laboratorySurfaces": [
-    "SZLHOLDINGS/ayllu",
     "SZLHOLDINGS/szl-command-lab",
     "SZLHOLDINGS/david-leads",
     "SZLHOLDINGS/szl-constellation",
     "SZLHOLDINGS/szl-frontier",
     "SZLHOLDINGS/szl-model-inference-lab"
+  ],
+  "inventoryOnlyHuggingFaceRepositories": [
+    {
+      "id": "SZLHOLDINGS/ayllu",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    }
   ],
   "historicalBindings": [
     {

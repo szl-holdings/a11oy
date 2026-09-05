@@ -4,6 +4,7 @@
 This organization is the generated model, dataset, and runtime estate for [A11oy](https://a-11-oy.com). Canonical source and release evidence live in [GitHub](https://github.com/szl-holdings); public proof lives at [a11oy.net](https://a11oy.net).
 
 **Current public inventory:** 16 Spaces · 44 models · 33 datasets (`2026-09-05T01:59:52Z`).
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
 ## Product bodies
 
@@ -17,5 +18,5 @@ This organization is the generated model, dataset, and runtime estate for [A11oy
 
 A repository card is not a production certificate. Runtime, source revision, evidence freshness, and receipt state are verified separately. Λ remains Conjecture 1 and advisory only. No public model or formula may authorize consequential action.
 
-Alignment receipt: `b80b357999d54b447e5b385b444f74be7ceebfdb1591683f6d91e18cd8f0103f`.
+Alignment receipt: `1348327f75547e739f91e66a64e5515385c5270fea718d00289740a15d69c7c7`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
