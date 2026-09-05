@@ -1,0 +1,22 @@
+From: SZL estate fix lane
+Date: 2026-09-05
+Subject: fix(frontend): extend the 44px hit-area floor to hero CTAs at mobile breakpoints
+
+The mobile 44px hit-area floor (`.nav nav .btn{min-height:44px}`) only covers
+nav CTAs. The hero CTA `Book an evidence pilot` (`a.btn.btn-ghost`) sits outside
+`.nav`, so on the 360x800 viewport it renders at 43.17px and trips
+code `PRIMARY_TARGET_UNDERSIZED` (issue #1359, canary 33988320849).
+
+This adds one rule extending the same floor to hero action buttons at <=480px.
+Desktop breakpoints are untouched. Apply with: git apply <this file>
+
+Signed-off-by: SZL estate fix lane <noreply@szl-holdings>
+---
+diff --git a/a11oy_landing.html b/a11oy_landing.html
+index 0000000..0000000 100644
+--- a/a11oy_landing.html
++++ b/a11oy_landing.html
+@@ -0,0 +1,3 @@
++  @media(max-width:480px){
++    .hero .btn, .actions .btn, .cta-row .btn{display:flex;align-items:center;justify-content:center;min-height:44px;min-width:44px}
++  }
