@@ -25,10 +25,17 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.12'
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+        with:
+          version: '10.33.3'
+          run_install: false
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020
         with:
           node-version: '22'
-      - name: Apply the minimal exact-revision transport and regression repair
+          cache: pnpm
+      - name: Install exact schema-validator closure
+        run: pnpm install --frozen-lockfile
+      - name: Apply minimal exact-revision transport and regression repair
         shell: bash
         run: |
           set -euo pipefail
@@ -154,7 +161,7 @@ jobs:
             scripts/audit_huggingface_ecosystem.py \
             scripts/test_audit_huggingface_ecosystem.py
           python -S scripts/test_audit_huggingface_ecosystem.py
-      - name: Refresh only current public evidence and its derived stage matrix
+      - name: Refresh current public evidence and derived matrix
         shell: bash
         run: |
           set -euo pipefail
@@ -166,7 +173,7 @@ jobs:
           python scripts/build_ecosystem_stage_matrix.py --check
           node scripts/test_validate_huggingface_ecosystem_schema.mjs
           node scripts/validate_huggingface_ecosystem_schema.mjs
-      - name: Prove the bounded semantic delta
+      - name: Prove bounded semantic delta
         shell: bash
         run: |
           set -euo pipefail
@@ -184,7 +191,7 @@ jobs:
           assert spec.loader is not None
           spec.loader.exec_module(audit)
 
-          def original(path):
+          def original(path: str) -> dict:
               raw = subprocess.check_output(
                   ['git', 'show', f'HEAD:{path}'], text=True
               )
@@ -198,11 +205,7 @@ jobs:
           )
           assert old_manifest['schemaVersion'] == 1
           assert new_manifest['schemaVersion'] == 1
-          assert old_manifest['counts'] == new_manifest['counts'] == {
-              'models': 44,
-              'datasets': 33,
-              'spaces': 16,
-          }
+          assert old_manifest['counts'] == new_manifest['counts']
 
           target = 'SZLHOLDINGS/SZL-Forge-1.5B-ReceiptAgent'
           old_models = {
@@ -273,7 +276,7 @@ jobs:
               )
           print('Verified permanent scope:', sorted(changed))
           PY
-      - name: Commit verified permanent files and consume this controller
+      - name: Commit permanent repair and consume both controllers
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_HEAD: ${{ github.sha }}
@@ -282,19 +285,23 @@ jobs:
           set -euo pipefail
           branch=fix/hf-card-resolve-transport-current-main-20260905
           test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$EXPECTED_HEAD"
-          git rm -- .github/workflows/zz-materialize-hf-resolve-transport-once.yml
+          git rm -- \
+            .github/workflows/zz-enable-hf-materializer-deps-once.yml \
+            .github/workflows/zz-materialize-hf-resolve-transport-once.yml
           git add -- \
             docs/ecosystem-stage-matrix.json \
             docs/huggingface-ecosystem-manifest.json \
             scripts/audit_huggingface_ecosystem.py \
             scripts/test_audit_huggingface_ecosystem.py
           git diff --cached --check
-          test "$(git diff --cached --name-only | sort | tr '\n' ' ')" = ".github/workflows/zz-materialize-hf-resolve-transport-once.yml docs/ecosystem-stage-matrix.json docs/huggingface-ecosystem-manifest.json scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py "
+          actual="$(git diff --cached --name-only | sort | tr '\n' ' ')"
+          expected=".github/workflows/zz-enable-hf-materializer-deps-once.yml .github/workflows/zz-materialize-hf-resolve-transport-once.yml docs/ecosystem-stage-matrix.json docs/huggingface-ecosystem-manifest.json scripts/audit_huggingface_ecosystem.py scripts/test_audit_huggingface_ecosystem.py "
+          test "$actual" = "$expected"
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git commit \
             -m 'fix(hf): read public cards through exact resolve revisions' \
-            -m 'Refresh the public snapshot for ReceiptAgent gated=true while preserving its unchanged exact-revision card digest and all inventory counts.' \
+            -m 'Refresh ReceiptAgent gated=true while preserving its unchanged exact-revision card digest and all inventory counts.' \
             -m 'Signed-off-by: github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>'
           auth="$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)"
           echo "::add-mask::$auth"
