@@ -31,6 +31,8 @@ def load_keep_ids(path: Path) -> list[str]:
         ) from exc
 
     identifiers: list[str] = []
+    metadata_keys: set[str] = set()
+    metadata_list = False
     for line in lines[start:]:
         stripped = line.strip()
         if not stripped or stripped.startswith("#"):
@@ -42,7 +44,29 @@ def load_keep_ids(path: Path) -> list[str]:
                 "canonical keep policy contains unexpected top-level syntax"
             )
         if not line.startswith("  -"):
-            continue
+            # Metadata is a sibling mapping, not an arbitrary indented scalar.
+            # A list is admitted only directly under an empty metadata field.
+            field = re.fullmatch(
+                r"    (?P<key>[A-Za-z_][A-Za-z0-9_-]*):(?: (?P<value>.*))?",
+                line,
+            )
+            if field is not None and identifiers:
+                key = field.group("key")
+                if key == "id" or key in metadata_keys:
+                    raise KeepPolicyError(
+                        "canonical keep policy contains duplicate keeper metadata"
+                    )
+                metadata_keys.add(key)
+                value = field.group("value")
+                metadata_list = value is None or not value.strip()
+                continue
+            if metadata_list and re.fullmatch(
+                r"      - [A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)?", line
+            ):
+                continue
+            raise KeepPolicyError(
+                "canonical keep policy contains unsupported keeper continuation"
+            )
         if not line.startswith("  - id: "):
             raise KeepPolicyError(
                 "canonical keep policy contains an unrecognized keeper item"
@@ -54,6 +78,8 @@ def load_keep_ids(path: Path) -> list[str]:
                 "canonical keep policy contains an invalid keeper id"
             )
         identifiers.append(match.group("id"))
+        metadata_keys.clear()
+        metadata_list = False
 
     if not identifiers:
         raise KeepPolicyError("canonical keep policy has no keeper ids")
