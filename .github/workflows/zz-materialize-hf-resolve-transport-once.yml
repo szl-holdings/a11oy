@@ -62,107 +62,98 @@ jobs:
           )
           if source.count(marker) != 1:
               raise SystemExit('Test insertion boundary changed; refusing broad edit')
-          addition = r'''    def test_card_fetch_uses_exact_resolve_revision_and_fails_closed(self) -> None:
-              original_urlopen = audit.urllib.request.urlopen
-              calls: list[str] = []
-
-              class Response:
-                  def __enter__(self):
-                      return self
-
-                  def __exit__(self, *_: object) -> None:
-                      return None
-
-                  def read(self) -> bytes:
-                      return b"# exact revision\r\n"
-
-              def success(url: str, *, timeout: float):
-                  self.assertEqual(timeout, 30)
-                  calls.append(url)
-                  return Response()
-
-              def missing(url: str, *, timeout: float):
-                  self.assertEqual(timeout, 30)
-                  calls.append(url)
-                  raise audit.urllib.error.HTTPError(
-                      url, 404, "Not Found", {}, None
-                  )
-
-              def unauthorized(url: str, *, timeout: float):
-                  self.assertEqual(timeout, 30)
-                  calls.append(url)
-                  raise audit.urllib.error.HTTPError(
-                      url, 401, "Authentication Required", {}, None
-                  )
-
-              revision = "e" * 40
-              cases = (
-                  ("model", "SZLHOLDINGS/model", ""),
-                  ("dataset", "SZLHOLDINGS/dataset", "datasets/"),
-                  ("space", "SZLHOLDINGS/space", "spaces/"),
-              )
-              try:
-                  audit.urllib.request.urlopen = success
-                  for repo_type, item_id, prefix in cases:
-                      with self.subTest(repo_type=repo_type):
-                          self.assertEqual(
-                              self.original_fetch_card_markdown(
-                                  item_id, repo_type, revision
-                              ),
-                              "# exact revision\r\n",
-                          )
-                          self.assertEqual(
-                              calls[-1],
-                              f"https://huggingface.co/{prefix}{item_id}/"
-                              f"resolve/{revision}/README.md",
-                          )
-                  audit.urllib.request.urlopen = missing
-                  self.assertEqual(
-                      self.original_fetch_card_markdown(
-                          "SZLHOLDINGS/no-card", "model", revision
-                      ),
-                      "",
-                  )
-                  audit.urllib.request.urlopen = unauthorized
-                  with self.assertRaises(
-                      audit.urllib.error.HTTPError
-                  ) as context:
-                      self.original_fetch_card_markdown(
-                          "SZLHOLDINGS/gated", "model", revision
-                      )
-                  self.assertEqual(context.exception.code, 401)
-              finally:
-                  audit.urllib.request.urlopen = original_urlopen
-
-              self.assertEqual(len(calls), 5)
-              self.assertTrue(all("/resolve/" in url for url in calls))
-              self.assertTrue(all("/raw/" not in url for url in calls))
-
-              def test_auto_gated_public_model_keeps_observed_card_evidence(self) -> None:
-                  model = item("SZLHOLDINGS/gated-model")
-                  model["gated"] = "auto"
-                  fixtures = {"models": [model], "datasets": [], "spaces": []}
-                  audit.api_items = lambda kind: fixtures[kind]
-                  manifest = audit.build_manifest(
-                      observed_at="2026-07-26T00:00:00Z"
-                  )
-                  summary = manifest["inventory"]["models"][0]
-                  self.assertTrue(summary["gated"])
-                  self.assertEqual(len(summary["cardSemanticSha256"]), 64)
-
-          '''
-          # The raw block is aligned to the YAML heredoc; remove its extra
-          # presentation indentation while retaining Python class indentation.
-          addition = '\n'.join(
-              line[10:] if line.startswith('          ') else line
-              for line in addition.splitlines()
-          ) + '\n'
-          addition = addition.replace(
-              '\n    def test_auto_gated_public_model_keeps_observed_card_evidence',
-              '\n    def test_auto_gated_public_model_keeps_observed_card_evidence',
-          )
+          lines = [
+              '    def test_card_fetch_uses_exact_resolve_revision_and_fails_closed(self) -> None:',
+              '        original_urlopen = audit.urllib.request.urlopen',
+              '        calls: list[str] = []',
+              '',
+              '        class Response:',
+              '            def __enter__(self):',
+              '                return self',
+              '',
+              '            def __exit__(self, *_: object) -> None:',
+              '                return None',
+              '',
+              '            def read(self) -> bytes:',
+              '                return b"# exact revision\\r\\n"',
+              '',
+              '        def success(url: str, *, timeout: float):',
+              '            self.assertEqual(timeout, 30)',
+              '            calls.append(url)',
+              '            return Response()',
+              '',
+              '        def missing(url: str, *, timeout: float):',
+              '            self.assertEqual(timeout, 30)',
+              '            calls.append(url)',
+              '            raise audit.urllib.error.HTTPError(',
+              '                url, 404, "Not Found", {}, None',
+              '            )',
+              '',
+              '        def unauthorized(url: str, *, timeout: float):',
+              '            self.assertEqual(timeout, 30)',
+              '            calls.append(url)',
+              '            raise audit.urllib.error.HTTPError(',
+              '                url, 401, "Authentication Required", {}, None',
+              '            )',
+              '',
+              '        revision = "e" * 40',
+              '        cases = (',
+              '            ("model", "SZLHOLDINGS/model", ""),',
+              '            ("dataset", "SZLHOLDINGS/dataset", "datasets/"),',
+              '            ("space", "SZLHOLDINGS/space", "spaces/"),',
+              '        )',
+              '        try:',
+              '            audit.urllib.request.urlopen = success',
+              '            for repo_type, item_id, prefix in cases:',
+              '                with self.subTest(repo_type=repo_type):',
+              '                    self.assertEqual(',
+              '                        self.original_fetch_card_markdown(',
+              '                            item_id, repo_type, revision',
+              '                        ),',
+              '                        "# exact revision\\r\\n",',
+              '                    )',
+              '                    self.assertEqual(',
+              '                        calls[-1],',
+              '                        f"https://huggingface.co/{prefix}{item_id}/"',
+              '                        f"resolve/{revision}/README.md",',
+              '                    )',
+              '            audit.urllib.request.urlopen = missing',
+              '            self.assertEqual(',
+              '                self.original_fetch_card_markdown(',
+              '                    "SZLHOLDINGS/no-card", "model", revision',
+              '                ),',
+              '                "",',
+              '            )',
+              '            audit.urllib.request.urlopen = unauthorized',
+              '            with self.assertRaises(',
+              '                audit.urllib.error.HTTPError',
+              '            ) as context:',
+              '                self.original_fetch_card_markdown(',
+              '                    "SZLHOLDINGS/gated", "model", revision',
+              '                )',
+              '            self.assertEqual(context.exception.code, 401)',
+              '        finally:',
+              '            audit.urllib.request.urlopen = original_urlopen',
+              '',
+              '        self.assertEqual(len(calls), 5)',
+              '        self.assertTrue(all("/resolve/" in url for url in calls))',
+              '        self.assertTrue(all("/raw/" not in url for url in calls))',
+              '',
+              '    def test_auto_gated_public_model_keeps_observed_card_evidence(self) -> None:',
+              '        model = item("SZLHOLDINGS/gated-model")',
+              '        model["gated"] = "auto"',
+              '        fixtures = {"models": [model], "datasets": [], "spaces": []}',
+              '        audit.api_items = lambda kind: fixtures[kind]',
+              '        manifest = audit.build_manifest(',
+              '            observed_at="2026-07-26T00:00:00Z"',
+              '        )',
+              '        summary = manifest["inventory"]["models"][0]',
+              '        self.assertTrue(summary["gated"])',
+              '        self.assertEqual(len(summary["cardSemanticSha256"]), 64)',
+              '',
+          ]
           tests.write_text(
-              source.replace(marker, addition + marker),
+              source.replace(marker, '\n'.join(lines) + '\n' + marker),
               encoding='utf-8',
           )
           PY
