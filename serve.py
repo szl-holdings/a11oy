@@ -13050,6 +13050,7 @@ try:
         "szl_holo3d.js": _VENDOR_JS_CT,
         "szl_command_bar.js": _VENDOR_JS_CT,
         "szl_command_bar.css": _VENDOR_CSS_CT,
+        "puriq_receipt_v1.js": _VENDOR_JS_CT,
     }
 
     @app.get("/static/shared/{fname}")
@@ -13063,9 +13064,40 @@ try:
         return _VendResponse(content=f.read_bytes(), media_type=ct,
                              headers={"Cache-Control": "public, max-age=3600"})
 
+    # Public schema identifiers are served from an explicit allowlist. Keeping
+    # this route ahead of the SPA catch-all prevents a missing schema from being
+    # disguised as an HTML 200 and keeps unrelated repository schemas private.
+    _SCHEMA_DIR = Path("/app/schemas")
+    if not _SCHEMA_DIR.is_dir():
+        _SCHEMA_DIR = Path(__file__).resolve().parent / "schemas"
+    _SCHEMA_ALLOW = {
+        "puriq-receipt-v1.json": "application/schema+json",
+    }
+
+    @app.get("/schemas/{fname}")
+    async def _public_schema(fname: str):
+        ct = _SCHEMA_ALLOW.get(fname)
+        if ct is None:
+            return JSONResponse(
+                {"error": "schema not allowlisted", "file": fname},
+                status_code=404,
+            )
+        f = _SCHEMA_DIR / fname
+        if not f.is_file():
+            return JSONResponse(
+                {"error": "schema missing on disk", "file": fname},
+                status_code=404,
+            )
+        return _VendResponse(
+            content=f.read_bytes(),
+            media_type=ct,
+            headers={"Cache-Control": "public, max-age=31536000, immutable"},
+        )
+
     import sys as _vend_sys
     print("[a11oy] AIR-GAP vendor routes registered: /vendor/{7 libs+KaTeX}, "
-          "/vendor/earth-night.jpg, /vendor/fonts/*, /static/shared/{3 SZL modules} (NO CDN — Warhacker #2 Tychee)", file=_vend_sys.stderr)
+          "/vendor/earth-night.jpg, /vendor/fonts/*, /static/shared/{allowlisted modules}, "
+          "/schemas/{allowlisted schemas} (NO CDN — Warhacker #2 Tychee)", file=_vend_sys.stderr)
 except Exception as _vend_e:  # never crash the app — additive only
     import sys as _vend_sys, traceback as _vend_tb
     print(f"[a11oy] AIR-GAP vendor routes NOT registered: {_vend_e!r}", file=_vend_sys.stderr)
