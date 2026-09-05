@@ -1,11 +1,15 @@
 from __future__ import annotations
 
-import importlib.util
 import copy
+import hashlib
+import importlib.util
 from html.parser import HTMLParser
 import json
 from pathlib import Path
+import tempfile
 import unittest
+
+from scripts.hf_keep_policy import load_keep_ids
 
 ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = ROOT / "scripts" / "render_public_estate_alignment.py"
@@ -50,12 +54,158 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             ["immune", "lyte", "terra", "counsel", "finance"],
         )
 
-    def test_declared_hub_keep_set_equals_measured_public_inventory(self) -> None:
-        expected = alignment.expected_spaces(self.contract)
+    def test_declared_hub_classifications_equal_measured_public_inventory(self) -> None:
+        topology = alignment.topology_spaces(self.contract)
+        inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(expected), 16)
-        self.assertIn("SZLHOLDINGS/ayllu", self.contract["laboratorySurfaces"])
-        self.assertEqual(expected, observed)
+        self.assertEqual(len(topology), 15)
+        self.assertEqual(inventory_only, ["SZLHOLDINGS/ayllu"])
+        self.assertEqual(
+            sorted(topology + inventory_only, key=str.casefold),
+            observed,
+        )
+
+    def test_ayllu_is_inventory_only_fold_not_a_governed_keeper(self) -> None:
+        ayllu = self.contract["inventoryOnlyHuggingFaceRepositories"]
+        self.assertEqual(
+            ayllu,
+            [
+                {
+                    "id": "SZLHOLDINGS/ayllu",
+                    "classification": "INVENTORY_ONLY",
+                    "governedKeep": False,
+                    "disposition": "FOLD",
+                    "policySource": "docs/series-a/hf-space-keep-list.yaml",
+                }
+            ],
+        )
+        governed = alignment.governed_keep_spaces()
+        organization_keepers = [
+            item for item in governed if item.startswith("SZLHOLDINGS/")
+        ]
+        self.assertEqual(len(organization_keepers), 7)
+        self.assertNotIn("SZLHOLDINGS/ayllu", governed)
+        self.assertEqual(governed, load_keep_ids(alignment.KEEP_POLICY))
+        self.assertEqual(
+            self.evidence["governedKeepPolicySource"],
+            "docs/series-a/hf-space-keep-list.yaml",
+        )
+        self.assertEqual(
+            self.evidence["keepPolicySha256"],
+            hashlib.sha256(alignment.KEEP_POLICY.read_bytes()).hexdigest(),
+        )
+
+    def test_inventory_only_classification_is_strict_and_disjoint(self) -> None:
+        for field, value, message in (
+            ("classification", "LABORATORY", "classification drifted"),
+            ("governedKeep", True, "cannot be a governed keeper"),
+            ("disposition", "KEEP", "must retain its FOLD disposition"),
+            ("policySource", "elsewhere.yaml", "must cite the canonical keep policy"),
+        ):
+            with self.subTest(field=field):
+                changed = copy.deepcopy(self.contract)
+                changed["inventoryOnlyHuggingFaceRepositories"][0][field] = value
+                with self.assertRaisesRegex(alignment.ContractError, message):
+                    alignment.validate(changed, self.manifest)
+
+        overlap = copy.deepcopy(self.contract)
+        overlap["laboratorySurfaces"].append("SZLHOLDINGS/ayllu")
+        with self.assertRaisesRegex(alignment.ContractError, "cannot be topology bindings"):
+            alignment.validate(overlap, self.manifest)
+
+    def test_quoted_keeper_ids_are_normalized_before_overlap_checks(self) -> None:
+        policy = alignment.KEEP_POLICY.read_text(encoding="utf-8").replace(
+            "  - id: SZLHOLDINGS/a11oy",
+            '  - id: "SZLHOLDINGS/ayllu"',
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "keep.yaml"
+            path.write_text(policy, encoding="utf-8")
+            keepers = alignment.governed_keep_spaces(path)
+
+        self.assertIn("SZLHOLDINGS/ayllu", keepers)
+        self.assertNotIn('"SZLHOLDINGS/ayllu"', keepers)
+        self.assertTrue(
+            set(alignment.inventory_only_spaces(self.contract)) & set(keepers)
+        )
+
+    def test_keeper_id_parser_rejects_non_repository_scalars(self) -> None:
+        policy = alignment.KEEP_POLICY.read_text(encoding="utf-8").replace(
+            "  - id: SZLHOLDINGS/a11oy",
+            "  - id: [SZLHOLDINGS/a11oy]",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "keep.yaml"
+            path.write_text(policy, encoding="utf-8")
+            with self.assertRaisesRegex(alignment.ContractError, "invalid keeper id"):
+                alignment.governed_keep_spaces(path)
+
+    def test_keeper_parser_rejects_unrecognized_sequence_syntax(self) -> None:
+        original = alignment.KEEP_POLICY.read_text(encoding="utf-8")
+        for replacement in (
+            "  - {id: SZLHOLDINGS/ayllu}",
+            "  - id : SZLHOLDINGS/ayllu",
+        ):
+            with self.subTest(replacement=replacement):
+                policy = original.replace("  - id: SZLHOLDINGS/a11oy", replacement)
+                with tempfile.TemporaryDirectory() as directory:
+                    path = Path(directory) / "keep.yaml"
+                    path.write_text(policy, encoding="utf-8")
+                    with self.assertRaisesRegex(
+                        alignment.ContractError,
+                        "unrecognized keeper item",
+                    ):
+                        alignment.governed_keep_spaces(path)
+
+    def test_keeper_parser_ignores_top_level_comments_without_truncation(self) -> None:
+        expected = alignment.governed_keep_spaces()
+        policy = alignment.KEEP_POLICY.read_text(encoding="utf-8").replace(
+            "  - id: SZLHOLDINGS/terra",
+            "# The comment must not terminate the governed keep section.\n"
+            "  - id: SZLHOLDINGS/terra",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "keep.yaml"
+            path.write_text(policy, encoding="utf-8")
+            keepers = alignment.governed_keep_spaces(path)
+
+        self.assertEqual(keepers, expected)
+
+    def test_keeper_parser_rejects_unexpected_top_level_syntax(self) -> None:
+        policy = alignment.KEEP_POLICY.read_text(encoding="utf-8").replace(
+            "  - id: SZLHOLDINGS/terra",
+            "unexpected scalar\n  - id: SZLHOLDINGS/terra",
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "keep.yaml"
+            path.write_text(policy, encoding="utf-8")
+            with self.assertRaisesRegex(
+                alignment.ContractError,
+                "unexpected top-level syntax",
+            ):
+                alignment.governed_keep_spaces(path)
+
+    def test_operator_and_validator_share_the_bounded_keep_parser(self) -> None:
+        operator = (ROOT / "scripts" / "hf_consolidate_fleet.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("governed = load_keep_ids(path)", operator)
+        self.assertNotIn("re.finditer", operator)
+        governed = load_keep_ids(alignment.KEEP_POLICY)
+        self.assertNotIn("SZLHOLDINGS/sentra", governed)
+        self.assertNotIn("SZLHOLDINGS/ayllu", governed)
+
+    def test_unknown_inventory_space_still_fails_closed(self) -> None:
+        manifest = copy.deepcopy(self.manifest)
+        manifest["inventory"]["spaces"].append(
+            {"id": "SZLHOLDINGS/undeclared", "repoType": "space"}
+        )
+        manifest["counts"]["spaces"] += 1
+        with self.assertRaisesRegex(
+            alignment.ContractError,
+            r"undeclared=\['SZLHOLDINGS/undeclared'\]",
+        ):
+            alignment.validate(self.contract, manifest)
 
     def test_truth_and_authority_cannot_be_promoted_by_rendering(self) -> None:
         formula = next(
@@ -80,6 +230,9 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertEqual(content.count("BEGIN SZL PUBLIC ESTATE"), 1)
             self.assertEqual(content.count("END SZL PUBLIC ESTATE"), 1)
             self.assertIn(self.evidence["alignmentSha256"], content)
+            self.assertIn("inventory is observational", content)
+            self.assertIn("Inventory-only / FOLD", content)
+            self.assertIn("`SZLHOLDINGS/ayllu`", content)
 
     def test_product_front_door_names_canonical_origins(self) -> None:
         landing = (ROOT / "a11oy_landing.html").read_text(encoding="utf-8")
