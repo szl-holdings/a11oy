@@ -83,6 +83,7 @@ jobs:
             scripts/test_hf_resolve_transport_schema_v2.py
           changed="$(git diff --cached --name-only | sort)"
           expected="$(printf '%s\n' \
+            .github/workflows/zz-apply-hf-resolve-transport-v2-once.yml \
             scripts/audit_huggingface_ecosystem.py \
             scripts/test_hf_resolve_transport_schema_v2.py | sort)"
           test "$changed" = "$expected"
