@@ -1,0 +1,195 @@
+name: Estate release train
+
+"on":
+  pull_request:
+    branches: [main]
+    paths:
+      - config/estate-release-train.v1.json
+      - scripts/verify_estate_release_train.py
+      - tests/test_estate_release_train.py
+      - .github/workflows/estate-release-train.yml
+  workflow_run:
+    workflows:
+      - Sync and Relock Canonical Hugging Face Space
+    types: [completed]
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      repair:
+        description: Dispatch the existing canonical HF and product-edge writers before final verification
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  actions: write
+  contents: read
+  issues: write
+
+concurrency:
+  group: estate-release-train
+  cancel-in-progress: false
+
+env:
+  REPORT: reports/estate-release-train.json
+  ISSUE_TITLE: "[ESTATE-ALIGNMENT] GitHub, Hugging Face and product domain diverged"
+
+jobs:
+  verify:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate or current protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.sha || 'main' }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Prove the release-vector controller offline
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/verify_estate_release_train.py
+          python tests/test_estate_release_train.py
+          python -m json.tool config/estate-release-train.v1.json >/dev/null
+          git diff --check
+
+      - name: Observe the current three-plane estate
+        id: initial
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          wait_seconds=0
+          if [ "${{ github.event_name }}" != pull_request ]; then
+            wait_seconds=1200
+          fi
+          python scripts/verify_estate_release_train.py \
+            --config config/estate-release-train.v1.json \
+            --output "$REPORT" \
+            --wait-seconds "$wait_seconds" \
+            --poll-seconds 20 \
+            --soft
+          state="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["state"])')"
+          expected_sha="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["source_vector"]["a11oy"])')"
+          echo "state=$state" >> "$GITHUB_OUTPUT"
+          echo "expected_sha=$expected_sha" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch only the established canonical writers
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          inputs.repair == true &&
+          steps.initial.outputs.state != 'ALIGNED'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SHA: ${{ steps.initial.outputs.expected_sha }}
+        run: |
+          set -euo pipefail
+          current="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/main" --jq .object.sha)"
+          test "$current" = "$EXPECTED_SHA"
+
+          gh workflow view hf-sync.yml --repo "$GITHUB_REPOSITORY" >/dev/null
+          gh workflow run hf-sync.yml --repo "$GITHUB_REPOSITORY" --ref main
+
+          if gh workflow view repair-cloudflare-product-edge.yml \
+            --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh workflow run repair-cloudflare-product-edge.yml \
+              --repo "$GITHUB_REPOSITORY" --ref main
+          fi
+
+          echo "Canonical writer dispatches accepted for exact main $EXPECTED_SHA."
+
+      - name: Reobserve after an explicit repair dispatch
+        if: >-
+          github.event_name == 'workflow_dispatch' &&
+          inputs.repair == true &&
+          steps.initial.outputs.state != 'ALIGNED'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python scripts/verify_estate_release_train.py \
+            --config config/estate-release-train.v1.json \
+            --output "$REPORT" \
+            --wait-seconds 1800 \
+            --poll-seconds 20 \
+            --soft
+
+      - name: Synchronize one deterministic alignment incident
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          state="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["state"])')"
+          number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 100 \
+            --search '"[ESTATE-ALIGNMENT] GitHub, Hugging Face and product domain diverged" in:title' \
+            --json number,title --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -n1)"
+          if [ "$state" = ALIGNED ]; then
+            if [ -n "$number" ]; then
+              gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed \
+                --comment "All required protected-source, runtime, proof-origin, inventory and semantic-parity gates converged. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" || true
+            fi
+            exit 0
+          fi
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('reports/estate-release-train.json').read_text())
+          lines = [
+              '## Cross-plane estate drift',
+              '',
+              f'- Release ID: `{report["release_id"]}`',
+              f'- Source vector: `{json.dumps(report["source_vector"], sort_keys=True)}`',
+              f'- Run: {__import__("os").environ["GITHUB_SERVER_URL"]}/{__import__("os").environ["GITHUB_REPOSITORY"]}/actions/runs/{__import__("os").environ["GITHUB_RUN_ID"]}',
+              '',
+              '### Blocking observations',
+          ]
+          lines.extend(f'- `{item}`' for item in report.get('blockers', []))
+          lines += [
+              '',
+              'No branch, model, dataset, Space, DNS record, Worker, secret, visibility, hardware allocation or public effector was mutated by the verifier.',
+          ]
+          Path('/tmp/estate-alignment-issue.md').write_text('\n'.join(lines) + '\n')
+          PY
+          if [ -z "$number" ]; then
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$ISSUE_TITLE" \
+              --body-file /tmp/estate-alignment-issue.md
+          else
+            gh issue reopen "$number" --repo "$GITHUB_REPOSITORY" || true
+            gh issue edit "$number" --repo "$GITHUB_REPOSITORY" \
+              --body-file /tmp/estate-alignment-issue.md
+          fi
+
+      - name: Upload immutable release-vector evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: estate-release-train-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.REPORT }}
+          if-no-files-found: error
+          retention-days: 180
+
+      - name: Enforce aligned terminal state
+        if: github.event_name != 'pull_request'
+        run: |
+          set -euo pipefail
+          state="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["state"])')"
+          test "$state" = ALIGNED
