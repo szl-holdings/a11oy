@@ -527,6 +527,10 @@ def _kernel(now: Optional[float] = None, probe=_probe_json) -> dict:
     ledger = body.get("receiptCount")
     if ledger is None:
         ledger = body.get("ledger")
+    if isinstance(ledger, dict):
+        ledger = ledger.get("count")
+    if isinstance(ledger, bool) or not isinstance(ledger, int) or ledger < 0:
+        ledger = None
     reachable = status == 200 and isinstance(data, dict)
     payload = {
         "ok": reachable,
@@ -578,9 +582,46 @@ def _field(now: Optional[float] = None, probe=_probe_json) -> dict:
         out["cached"] = True
         return out
 
-    status, data, err = probe(_KERNEL_LATTICE_URL + "/api/field")
+    field_url = _KERNEL_LATTICE_URL + "/api/field"
+    state_url = _KERNEL_SPACE_URL + "/api/immune/state"
+    status, data, err = probe(field_url)
     body = data if isinstance(data, dict) else {}
     reachable = status == 200 and isinstance(data, dict)
+    fallback_state = False
+    if not reachable:
+        state_status, state_data, state_err = probe(state_url)
+        if state_status == 200 and isinstance(state_data, dict):
+            fallback_state = True
+            status, data, err = state_status, state_data, None
+            reachable = True
+            estate = state_data.get("estate")
+            observed_cells = []
+            if isinstance(estate, list):
+                for row in estate:
+                    if not isinstance(row, dict):
+                        continue
+                    observed_cells.append({
+                        "id": row.get("id"),
+                        "title": row.get("title"),
+                        "role": row.get("role"),
+                        "verb": "OBSERVED",
+                    })
+            ledger_state = state_data.get("ledger")
+            body = {
+                "lambda_status": "Conjecture 1 (NOT a theorem)",
+                "actuation": "SIMULATED",
+                "rule": "observe only — never strike people",
+                "cells": observed_cells,
+                "hunts": None,
+                "ledger": ledger_state if isinstance(ledger_state, dict) else None,
+                "doctrine": {
+                    "source": "/api/immune/state",
+                    "readiness": state_data.get("readiness"),
+                    "mesh": state_data.get("mesh"),
+                },
+            }
+        else:
+            err = err or state_err
     raw_cells = body.get("cells") if reachable else None
     cells = raw_cells if isinstance(raw_cells, list) else None
     raw_hunts = body.get("hunts") if reachable else None
@@ -604,12 +645,13 @@ def _field(now: Optional[float] = None, probe=_probe_json) -> dict:
         "cells": cells,
         "hunts": hunts,
         "cell_count": len(cells) if cells is not None else None,
+        "ledger": body.get("ledger") if reachable else None,
         "upstream_http": status,
         "error": None if reachable else (err or "field unobserved"),
         "channel": "B",
         "space": "SZLHOLDINGS/immune-lattice",
-        "contract": "/api/field",
-        "url": _KERNEL_LATTICE_URL + "/api/field",
+        "contract": "/api/immune/state" if fallback_state else "/api/field",
+        "url": state_url if fallback_state else field_url,
         "product_tab": "/immune",
         "honesty": {
             "lambda": "Conjecture 1 (NOT a theorem)",
@@ -708,6 +750,28 @@ def _extract_nexus_receipt(payload: dict) -> dict:
     return {}
 
 
+def _verified_receipt_keyid(verdict: dict) -> str | None:
+    """Return the key that actually verified the receipt, including rotation."""
+    signatures = verdict.get("signatures")
+    if isinstance(signatures, list):
+        for signature in signatures:
+            if not isinstance(signature, dict) or signature.get("verified") is not True:
+                continue
+            verified_by = signature.get("verified_by_keyid")
+            if isinstance(verified_by, str) and verified_by.strip():
+                return verified_by.strip()
+        # A real verifier that returned signature results must identify the
+        # successful key. Do not misattribute it to the current active key.
+        if signatures:
+            return None
+    # Compatibility for narrow injected verifiers used by existing tests and
+    # older peers that predate per-signature rotation attribution.
+    expected = verdict.get("keyid_expected")
+    if isinstance(expected, str) and expected.strip():
+        return expected.strip()
+    return None
+
+
 def _verify_nexus_receipt(receipt: dict, verify=None) -> dict:
     """Verify an upstream DSSE receipt against the configured trusted key set."""
     if not isinstance(receipt, dict):
@@ -728,11 +792,18 @@ def _verify_nexus_receipt(receipt: dict, verify=None) -> dict:
             "reason": str(verdict.get("reason") or "receipt signature not verified"),
             "payload": None,
         }
+    verified_keyid = _verified_receipt_keyid(verdict)
+    if verified_keyid is None:
+        return {
+            "verified": False,
+            "reason": "receipt verifier did not identify the successful key",
+            "payload": None,
+        }
     return {
         "verified": True,
         "reason": None,
         "payload": payload,
-        "keyid": verdict.get("keyid_expected"),
+        "keyid": verified_keyid,
     }
 
 
@@ -765,16 +836,27 @@ def _nexus_lorenz(now: Optional[float] = None, post=_post_json, verify=None) -> 
     receipt_check = _verify_nexus_receipt(receipt, verify=verify)
     signed_payload = receipt_check.get("payload") or {}
     nexus = _extract_nexus_receipt(signed_payload)
-    signed_request_id = signed_payload.get("requestId") or nexus.get("requestId")
-    signed_program = signed_payload.get("program") or nexus.get("program")
-    signed_mode = signed_payload.get("mode") or nexus.get("mode")
-    signed_steps = signed_payload.get("steps") or nexus.get("steps")
+    duplicate_fields = ("requestId", "program", "mode", "steps")
+    duplicates_agree = all(
+        field not in signed_payload
+        or signed_payload.get(field) == nexus.get(field)
+        for field in duplicate_fields
+    )
+    # Execution hashes and final state come from agent.nexus, so the binding
+    # metadata must come from that same signed object. Top-level duplicates are
+    # accepted only when they agree exactly; a substituted nested execution can
+    # never inherit a trusted outer request identity.
+    signed_request_id = nexus.get("requestId")
+    signed_program = nexus.get("program")
+    signed_mode = nexus.get("mode")
+    signed_steps = nexus.get("steps")
     signed_coefficients = nexus.get("coefficients")
     if isinstance(signed_coefficients, dict):
         signed_coefficients = signed_coefficients.get("label")
     signed_final = nexus.get("final") or nexus.get("finalState")
     binding_ok = (
         body.get("requestId") == request_id
+        and duplicates_agree
         and signed_request_id == request_id
         and signed_program == "lorenz"
         and signed_mode == "OP"

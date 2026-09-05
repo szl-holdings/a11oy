@@ -1,7 +1,7 @@
 // ADDITIVE: Ouroboros Runner UI — /ouroboros
 // Doctrine v10/v11 — 32-module self-test runner
 // Shows live progress bar + per-module result table + "Run again" button
-// Fetches from /api/a11oy/v1/ouroboros/run-all (POST {})
+// Authenticated POST to /api/a11oy/v1/ouroboros/run-all
 
 import { useState, useCallback } from 'react';
 
@@ -63,8 +63,18 @@ export function Ouroboros() {
   const [result, setResult] = useState<RunResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [operatorToken, setOperatorToken] = useState('');
 
   const runTests = useCallback(async () => {
+    const bearer = operatorToken.trim();
+    if (!bearer) {
+      setResult(null);
+      setProgress(0);
+      setErrorMsg('Operator bearer credential is required for this protected execution.');
+      setRunState('error');
+      return;
+    }
+
     setRunState('running');
     setResult(null);
     setErrorMsg(null);
@@ -78,7 +88,10 @@ export function Ouroboros() {
     try {
       const resp = await fetch('/api/a11oy/v1/ouroboros/run-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${bearer}`,
+        },
         body: JSON.stringify({}),
       });
       clearInterval(interval);
@@ -95,8 +108,11 @@ export function Ouroboros() {
       setProgress(0);
       setErrorMsg(e instanceof Error ? e.message : String(e));
       setRunState('error');
+    } finally {
+      // Never retain operator authority after the request completes.
+      setOperatorToken('');
     }
-  }, []);
+  }, [operatorToken]);
 
   const statusColor = (s: string) => {
     if (s === 'GREEN') return '#4ade80';
@@ -195,6 +211,48 @@ export function Ouroboros() {
 
         {/* Run button */}
         <div style={{ marginBottom: '2rem' }}>
+          <label style={{ display: 'block', maxWidth: 520, marginBottom: '0.85rem' }}>
+            <span
+              style={{
+                display: 'block',
+                marginBottom: '0.4rem',
+                color: '#c9b787',
+                fontSize: '0.78rem',
+                fontWeight: 700,
+              }}
+            >
+              Operator bearer credential
+            </span>
+            <input
+              aria-label="Operator bearer credential"
+              type="password"
+              autoComplete="off"
+              spellCheck={false}
+              value={operatorToken}
+              onChange={(event) => setOperatorToken(event.target.value)}
+              disabled={runState === 'running'}
+              style={{
+                boxSizing: 'border-box',
+                width: '100%',
+                border: '1px solid rgba(201,183,135,0.35)',
+                borderRadius: 8,
+                background: 'rgba(255,255,255,0.04)',
+                color: '#e8e0f0',
+                padding: '0.65rem 0.75rem',
+                fontFamily: 'JetBrains Mono, monospace',
+              }}
+            />
+            <span
+              style={{
+                display: 'block',
+                marginTop: '0.4rem',
+                color: '#6a5a8a',
+                fontSize: '0.72rem',
+              }}
+            >
+              Used for this request only, never written to storage, and cleared when the request ends.
+            </span>
+          </label>
           <button
             onClick={runTests}
             disabled={runState === 'running'}

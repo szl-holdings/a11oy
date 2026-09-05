@@ -828,6 +828,17 @@ def _sha(obj) -> str:
     return hashlib.sha256(json.dumps(obj, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
 
 
+def _append_run_record(run_chain, lock, record):
+    """Atomically append one run-of-runs record without lineage forks."""
+    with lock:
+        stored = dict(record)
+        stored["prev_run_hash"] = (
+            run_chain[-1]["final_hash"] if run_chain else "GENESIS"
+        )
+        run_chain.append(stored)
+        return stored
+
+
 # ----------------------------------------------------------------------------
 # Registration.  sign_fn(payload_dict) MUST return a DSSE-style envelope dict
 # with at least: payloadType, payload(b64), signatures(list), signed(bool),
@@ -847,6 +858,7 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
 
     # In-memory chain of full runs (each run is itself a chained sub-ledger).
     _RUN_CHAIN = []  # list of {run_id, final_hash, prev_run_hash}
+    _RUN_CHAIN_LOCK = threading.Lock()
 
     # Bounded read model derived only from receipts created by _do_run. This is
     # not a durable ledger and it is never populated by a GET request.
@@ -1185,11 +1197,18 @@ def register(app, ns: str, sign_fn, verify_fn=None, pub_pem_fn=None,
                          "and axis scores — not asserted. Maturity per mechanism."),
             }
 
-        # record this whole run into the run-of-runs chain
-        run_record = {"run_id": tr.trace_id, "final_hash": prev_hash,
-                      "prev_run_hash": (_RUN_CHAIN[-1]["final_hash"] if _RUN_CHAIN else "GENESIS"),
-                      "decision": decision}
-        _RUN_CHAIN.append(run_record)
+        # Record this whole run into the run-of-runs chain. Every caller of
+        # _do_run (single-pass and governed-cycle paths) reaches this same atomic
+        # append, so concurrent requests cannot observe one predecessor twice.
+        run_record = _append_run_record(
+            _RUN_CHAIN,
+            _RUN_CHAIN_LOCK,
+            {
+                "run_id": tr.trace_id,
+                "final_hash": prev_hash,
+                "decision": decision,
+            },
+        )
 
         result = {
             "run_id": tr.trace_id,
