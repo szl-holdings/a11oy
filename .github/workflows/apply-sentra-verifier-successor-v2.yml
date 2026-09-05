@@ -1,0 +1,81 @@
+name: Apply Sentra verifier current-main successor v2
+
+"on":
+  push:
+    branches:
+      - fix/sentra-verifier-current-main-v2-20260905
+    paths:
+      - .github/workflows/apply-sentra-verifier-successor-v2.yml
+      - .github/scripts/apply_sentra_verifier_successor_v2.py
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-sentra-verifier-successor-v2
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    name: Preserve current vertical authority and add Sentra verifier proof
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact successor branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/sentra-verifier-current-main-v2-20260905
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Install exact core test closure
+        run: python -m pip install --disable-pip-version-check --require-hashes -r .github/requirements/ci-core.txt
+
+      - name: Apply exact Sentra implementation and focused current tests
+        run: python .github/scripts/apply_sentra_verifier_successor_v2.py
+
+      - name: Prove full vertical publisher authority
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            .github/scripts/apply_sentra_verifier_successor_v2.py \
+            scripts/hf_publish_vertical_flagships_v4.py \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            scripts/hf_publish_vertical_services.py
+          python -m pytest tests/test_hf_publish_vertical_flagships_v4.py -q
+          git diff --check
+
+      - name: Commit only the two durable files
+        env:
+          BRANCH: fix/sentra-verifier-current-main-v2-20260905
+        run: |
+          set -euo pipefail
+          git rm \
+            .github/workflows/apply-sentra-verifier-successor-v2.yml \
+            .github/scripts/apply_sentra_verifier_successor_v2.py
+          git add \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            tests/test_hf_publish_vertical_flagships_v4.py
+          git config user.name "SZL Frontier Operator"
+          git config user.email "stephenlutar2@gmail.com"
+          git commit \
+            -m "fix(sentra): preserve current publisher tests and bind verifier" \
+            -m "Apply the receipt-verifier implementation while patching only its focused assertions into the current Terra, Lyte, and vertical artifact authority." \
+            -m "Signed-off-by: Stephen Lutar <stephenlutar2@gmail.com>"
+          printf '%s\n' \
+            scripts/hf_publish_vertical_flagships_v4_impl.py \
+            tests/test_hf_publish_vertical_flagships_v4.py \
+            | sort > /tmp/expected-final-files
+          git diff --name-only origin/main...HEAD | sort > /tmp/actual-final-files
+          diff -u /tmp/expected-final-files /tmp/actual-final-files
+          git diff --check origin/main...HEAD
+          git push origin "HEAD:${BRANCH}"
