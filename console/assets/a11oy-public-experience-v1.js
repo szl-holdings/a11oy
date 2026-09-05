@@ -18,6 +18,7 @@
     "https://huggingface.co",
     "https://szlholdings-a11oy.hf.space",
     "https://szlholdings-killinchu.hf.space",
+    "https://szlholdings-sentra.hf.space",
     "https://szlholdings-lyte.hf.space",
     "https://szlholdings-finance.hf.space",
     "https://szlholdings-terra.hf.space",

@@ -49,6 +49,26 @@
       "evidence_path": "/api/build-info"
     },
     {
+      "id": "sentra",
+      "title": "Sentra",
+      "summary": "Public assurance command surface for bounded evidence and control review.",
+      "kind": "flagship",
+      "vertical": "assurance",
+      "public": true,
+      "active": true,
+      "visual_mode": "assurance-mesh",
+      "scenario_ids": [
+        "investigate-outage",
+        "review-contract"
+      ],
+      "tags": [
+        "assurance",
+        "controls",
+        "evidence"
+      ],
+      "evidence_path": "/api/source"
+    },
+    {
       "id": "lyte",
       "title": "Lyte",
       "summary": "Public business-observability surface with source-bound runtime status.",

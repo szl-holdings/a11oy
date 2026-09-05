@@ -347,6 +347,8 @@ assert.equal(publicAsset.livePath, "/verify");
 assert.equal(publicAsset.evidencePath, null);
 assert.equal(test.publicLink("https://szlholdings-killinchu.hf.space/defend", "https://a-11-oy.com"),
   "https://szlholdings-killinchu.hf.space/defend");
+assert.equal(test.publicLink("https://szlholdings-sentra.hf.space/api/source", "https://a-11-oy.com"),
+  "https://szlholdings-sentra.hf.space/api/source");
 for (const url of ["javascript:alert(1)", "https://szlholdings-killinchu.hf.space.evil.test/",
   "https://name:password@szlholdings-killinchu.hf.space/", "https://szlholdings-killinchu.hf.space:8443/"]) {
   assert.equal(test.publicLink(url, "https://a-11-oy.com"), null);
