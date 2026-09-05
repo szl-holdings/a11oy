@@ -1,0 +1,72 @@
+name: Materialize public estate consumers once
+
+on:
+  push:
+    branches:
+      - feat/public-estate-contract-v1-20260905
+    paths:
+      - .github/workflows/materialize-public-estate-contract-once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-public-estate-contract-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Require exact branch and clean ancestry
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/feat/public-estate-contract-v1-20260905
+          git merge-base --is-ancestor de7c36c22182d0f8d1977c397393f142b5bcaa6e HEAD
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Render and prove all consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/render_public_estate_alignment.py
+          python scripts/render_public_estate_alignment.py --check
+          python tests/test_public_estate_alignment.py
+          python -m py_compile scripts/render_public_estate_alignment.py tests/test_public_estate_alignment.py
+
+      - name: Remove one-use materializer and validate durable diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm .github/workflows/materialize-public-estate-contract-once.yml
+          git diff --check
+          test -f docs/generated/github-org-public-estate.md
+          test -f docs/generated/huggingface-org-card.md
+          test -f docs/generated/a11oy-net-public-estate.md
+
+      - name: Commit deterministic generated consumers
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git add -A
+          git commit -m 'build(estate): materialize aligned public consumers' -m 'Generate the GitHub profile, Hugging Face organization card, and a11oy.net proof fragments from one validated A11oy contract and measured Hub inventory; remove the one-use materializer before review.' -m 'Signed-off-by: Lutar, Stephen P. <stephenlutar2@gmail.com>'
+          git push origin HEAD:feat/public-estate-contract-v1-20260905
