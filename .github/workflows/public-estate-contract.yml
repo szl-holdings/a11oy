@@ -1,0 +1,60 @@
+name: Public estate single-source contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - static/shared/public-estate-contract.v1.json
+      - docs/huggingface-ecosystem-manifest.json
+      - docs/generated/**
+      - scripts/render_public_estate_alignment.py
+      - tests/test_public_estate_alignment.py
+      - .github/workflows/public-estate-contract.yml
+  push:
+    branches: [main]
+    paths:
+      - static/shared/public-estate-contract.v1.json
+      - docs/huggingface-ecosystem-manifest.json
+      - docs/generated/**
+      - scripts/render_public_estate_alignment.py
+      - tests/test_public_estate_alignment.py
+      - .github/workflows/public-estate-contract.yml
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: public-estate-contract-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Product, GitHub, Hub, and proof topology
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout exact source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Compile alignment source
+        run: python -m py_compile scripts/render_public_estate_alignment.py tests/test_public_estate_alignment.py
+
+      - name: Prove generated consumers are current
+        run: python scripts/render_public_estate_alignment.py --check
+
+      - name: Prove topology, truth, and authority
+        run: python tests/test_public_estate_alignment.py
