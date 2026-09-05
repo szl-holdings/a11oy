@@ -1,14 +1,14 @@
 {
   "schema": "szl.living-command-fabric/v1",
-  "generated_at": "2026-09-03",
+  "generated_at": "2026-09-05",
   "estate": {
     "github_organization": "szl-holdings",
-    "repository_count": 112,
-    "active_repository_count": 77,
-    "archived_repository_count": 35,
-    "public_repository_count": 106,
-    "private_repository_count": 6,
-    "census_method": "Authenticated GitHub organization search, pages 1-3; pages 1-2 returned 112 unique repositories and page 3 was empty.",
+    "repository_count": 117,
+    "active_repository_count": 83,
+    "archived_repository_count": 34,
+    "public_repository_count": 117,
+    "private_repository_count": 0,
+    "census_method": "Authenticated GitHub organization repositories API; paginated at materialization and source-bound to the reviewed candidate.",
     "product_surface": "https://a-11-oy.com",
     "proof_surface": "https://a11oy.net",
     "artifact_organization": "SZLHOLDINGS"
@@ -16,14 +16,14 @@
   "authorities": {
     "a11oy": {
       "repository": "szl-holdings/a11oy",
-      "revision_before_wave": "d22da22c5ef069b20865b5ac13a5744fb1e391c0",
+      "revision_before_wave": "2120e3d8bf139367005e7adff27f017ebae97387",
       "role": "governed action admission, product front door, receipts and vertical routing",
       "public_taxonomy_revision": "a50b1970bae4383f9760f7146436d424d5101fd3",
       "intelligence_publisher_revision": "55d9336fed3a23da5b1abfed4f7f38dcc5121a06"
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
-      "revision": "46cfa948367e8133eaa8dd6bcfb781b19165b9bb",
+      "revision": "d03536144d2f23ee2da35c356e2558abe5183779",
       "role": "typed callable formula authority; maturity labels are never inferred"
     },
     "lean_kernel": {
@@ -38,26 +38,27 @@
         "F19",
         "F22"
       ],
-      "locked_proven_count": 8
+      "locked_proven_count": 8,
+      "revision": "3d3dfdbbb8e08d67b48ab06ce742a39662212f57"
     },
     "anatomy": {
       "repository": "szl-holdings/anatomy",
-      "revision": "f8be4e148092ee9eabba1ed1d1c5179809233b39",
+      "revision": "17e0546a7ea4786a5430be18575e86755b1346c9",
       "role": "shared embeddable living-system visualization; not an independent governance console"
     },
     "second_brain": {
       "repository": "szl-holdings/szl-second-brain",
-      "revision": "ff03b116a83f2b5302999ab4167d51e35aba3b5e",
+      "revision": "1d3960c69235f117b7ec2b5ea97472f81fb588f5",
       "role": "public retrieval projection that returns evidence handles, not private memory content"
     },
     "forge": {
       "repository": "szl-holdings/szl-forge",
-      "revision": "965f4a4daaf323535f4e742351b896aab4c61560",
+      "revision": "eacffde325fcb88d2dec556647f4549eba7409a3",
       "role": "model lifecycle, qualification, proof-carrying inference and Nemo witness integration"
     },
     "vertical_services": {
       "repository": "szl-holdings/vertical-services",
-      "revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
       "role": "combined Python intelligence fabric for six internal domain engines; published through the protected-main single writer",
       "runtime_version": "2.2.0",
       "publisher": "scripts/hf_publish_vertical_services_intelligence_v4.py",
@@ -65,14 +66,20 @@
     },
     "killinchu": {
       "repository": "szl-holdings/killinchu",
-      "revision": "928a6dace657f8f9e067773d23d5686fe3dcc716",
+      "revision": "d66c1aa6316aff655a005b2ddd06c45c8e190286",
       "role": "sole public cyber-physical resilience runtime; Aegis, Sentra/Defend, IMMUNE, Vessels/Maritime and Counter-UAS/Airspace are capability planes"
+    },
+    "lyte": {
+      "repository": "szl-holdings/lyte-services",
+      "revision": "b26e66f18f563f5e9a98f8bdcfa5f28527e3e195",
+      "runtime_version": "3.0.0",
+      "role": "source-owned business, service, journey, and AI-agent observability runtime"
     }
   },
   "formula_contract": {
     "policy": "Every promoted vertical inherits the complete locked-eight kernel through the shared Anatomy organ map. Domain teams may add evidence-backed measurements but may not invent a new F-number meaning or promote an unproved formula.",
     "lambda": {
-      "symbol": "Λ",
+      "symbol": "\u039b",
       "status": "CONJECTURE_1_ADVISORY",
       "authorizes_actions": false,
       "may_render_as_proven": false
@@ -170,7 +177,7 @@
         "underwriting queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -178,9 +185,9 @@
       "brand": "Killinchu",
       "domain": "cyber_physical_resilience_intelligence",
       "canonical_source": "szl-holdings/killinchu",
-      "canonical_revision": "928a6dace657f8f9e067773d23d5686fe3dcc716",
+      "canonical_revision": "d66c1aa6316aff655a005b2ddd06c45c8e190286",
       "service_source": "szl-holdings/vertical-services",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
       "runtime": "https://szlholdings-killinchu.hf.space",
       "workflow": [
         "DETECT",
@@ -239,7 +246,7 @@
         "work-product queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
       "service_runtime_version": "2.2.0"
     },
     {
@@ -262,15 +269,15 @@
         "evidence ledger"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
+      "service_revision": "895c4de2e8c07236c4adeabc7376ca5367b2b835",
       "service_runtime_version": "2.2.0"
     },
     {
       "slug": "lyte",
       "brand": "Lyte",
       "domain": "business_and_agent_observability",
-      "canonical_source": "szl-holdings/lyte-lattice",
-      "service_source": "szl-holdings/vertical-services",
+      "canonical_source": "szl-holdings/lyte-services",
+      "service_source": "szl-holdings/lyte-services",
       "runtime": "https://szlholdings-lyte.hf.space",
       "workflow": [
         "OBSERVE",
@@ -285,8 +292,8 @@
         "action queue"
       ],
       "formula_binding": "complete_locked_eight_via_shared_anatomy",
-      "service_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
-      "service_runtime_version": "2.2.0"
+      "service_revision": "b26e66f18f563f5e9a98f8bdcfa5f28527e3e195",
+      "service_runtime_version": "3.0.0"
     }
   ],
   "incubation": [
@@ -380,7 +387,7 @@
   },
   "wave_1": {
     "site": "Expose Living Anatomy and five public domain bodies backed by six internal engines, while preserving the buyer hero and runtime evidence instrument.",
-    "publisher_repair": "Bind the canonical single writer to vertical-services@83edba5c5e730c91d8f5f0a6531213fb860677af / runtime 2.2.0 through the intelligence-v4 composition layer; keep Aegis/Sentra/Immune/Vessels inside Killinchu public authority.",
+    "publisher_repair": "A11oy remains the single Hugging Face writer. Terra, Counsel and Finance use vertical-services; Killinchu owns the folded resilience planes; Lyte publishes its exact tested lyte-services runtime. Every target requires source-tip, runtime revision and live route agreement.",
     "next_vertical_order": [
       "killinchu_resilience",
       "lyte",
@@ -423,7 +430,16 @@
     ],
     "rule": "A capability alias or engine is not a separate public product authority.",
     "vertical_services_revision": "83edba5c5e730c91d8f5f0a6531213fb860677af",
-    "vertical_services_runtime_version": "2.2.0"
+    "vertical_services_runtime_version": "2.2.0",
+    "commercial_flagship_count": 3,
+    "commercial_flagships": [
+      "a11oy",
+      "killinchu",
+      "forge"
+    ],
+    "product_origin": "https://a-11-oy.com",
+    "proof_origin": "https://a11oy.net",
+    "artifact_registry": "https://huggingface.co/SZLHOLDINGS"
   },
   "intelligence_fabric": {
     "schema": "szl.vertical-intelligence-live-proof/v4",
@@ -474,5 +490,14 @@
       "lambda": "CONJECTURE_1_ADVISORY"
     },
     "readiness_rule": "A published artifact or reachable route is not current until exact source-revision, route, connector, authority, and receipt checks pass."
+  },
+  "estate_alignment_contract": {
+    "schema": "szl.estate-alignment/v1",
+    "version": "1.0.0",
+    "repository": "szl-holdings/.github",
+    "path": "docs/ESTATE_ALIGNMENT_CONTRACT_V1.json",
+    "product_origin": "https://a-11-oy.com",
+    "proof_origin": "https://a11oy.net",
+    "artifact_registry": "https://huggingface.co/SZLHOLDINGS"
   }
 }
