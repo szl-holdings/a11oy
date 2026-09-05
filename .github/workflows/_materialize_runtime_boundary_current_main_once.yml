@@ -42,9 +42,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          source_head=5ad947d70861085871623cc661a55e2bcf55f99b
-          git fetch --no-tags origin "+refs/heads/fix/runtime-boundary-postmerge-review-20260905:refs/remotes/origin/reviewed-runtime-1994"
-          test "$(git rev-parse refs/remotes/origin/reviewed-runtime-1994)" = "$source_head"
+          source_head=de1b8b15f3f5b51f2a3bfb82fc51f8be97d1b395
+          git fetch --no-tags origin "$source_head"
+          git cat-file -e "$source_head^{commit}"
           git checkout "$source_head" -- \
             audit/POST_MERGE_1986_REVIEW_REPAIR_2026-09-05.md \
             src/pages/Ouroboros.tsx \
