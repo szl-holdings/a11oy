@@ -1,0 +1,130 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Materialize mobile hero CTA hit area once
+
+on:
+  push:
+    branches:
+      - fix/mobile-cta-hit-area-44px
+    paths:
+      - .github/workflows/_materialize_mobile_hero_cta_hit_area_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: materialize-mobile-hero-cta-hit-area-once
+  cancel-in-progress: false
+
+jobs:
+  materialize:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/mobile-cta-hit-area-44px'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact frontend branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/mobile-cta-hit-area-44px
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up exact Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12.10'
+
+      - name: Reconcile current protected main
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git fetch --no-tags origin main
+          git merge --no-edit origin/main
+
+      - name: Apply the permanent mobile hit-area rule and regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          landing = Path('a11oy_landing.html')
+          text = landing.read_text(encoding='utf-8')
+          rule = (
+              '  @media(max-width:480px){\n'
+              '    .hero .btn{min-height:45px;min-width:44px}\n'
+              '  }\n'
+          )
+          anchor = '  @media(max-width:350px){\n'
+          if rule not in text:
+              if text.count(anchor) != 1:
+                  raise SystemExit('mobile navigation media-query anchor changed')
+              text = text.replace(anchor, rule + anchor, 1)
+              landing.write_text(text, encoding='utf-8')
+
+          test = Path('tests/test_mobile_hero_cta_hit_area.py')
+          test.write_text('''# SPDX-License-Identifier: Apache-2.0
+          """Regression for the mobile hero CTA physical hit-area floor."""
+          from __future__ import annotations
+
+          import re
+          from pathlib import Path
+
+          ROOT = Path(__file__).resolve().parents[1]
+          LANDING = ROOT / "a11oy_landing.html"
+
+
+          def test_mobile_hero_cta_has_fractional_rendering_headroom() -> None:
+              html = LANDING.read_text(encoding="utf-8")
+              assert 'Book an evidence pilot' in html
+              match = re.search(
+                  r'@media\(max-width:480px\)\{\s*'
+                  r'\.hero \.btn\{min-height:(\d+)px;min-width:(\d+)px\}\s*\}',
+                  html,
+              )
+              assert match is not None
+              height, width = map(int, match.groups())
+              assert height >= 45
+              assert width >= 44
+
+
+          def test_unapplied_patch_package_is_absent() -> None:
+              assert not (ROOT / "ops/patches/mobile-cta-hit-area-44px.patch").exists()
+              assert not (ROOT / "ops/patches/MOBILE_CTA_HIT_AREA.md").exists()
+          '''.replace('          ', ''), encoding='utf-8')
+          PY
+          git rm -- \
+            ops/patches/mobile-cta-hit-area-44px.patch \
+            ops/patches/MOBILE_CTA_HIT_AREA.md
+
+      - name: Prove the shipped mobile surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check --no-cache-dir 'pytest==9.0.2'
+          python -m py_compile tests/test_mobile_hero_cta_hit_area.py
+          python -m pytest -q \
+            tests/test_mobile_hero_cta_hit_area.py \
+            tests/test_landing_touch_targets.py \
+            tests/test_landing_audit_fixes.py \
+            tests/test_router_constellation_contract.py
+          git diff --check
+
+      - name: Commit only permanent frontend files and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/mobile-cta-hit-area-44px
+          git rm -- .github/workflows/_materialize_mobile_hero_cta_hit_area_once.yml
+          git add -- a11oy_landing.html tests/test_mobile_hero_cta_hit_area.py
+          git diff --cached --check
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -s -m 'fix(frontend): enforce the mobile hero CTA hit-area floor'
+          git push origin "HEAD:refs/heads/$branch"
