@@ -47,6 +47,7 @@ jobs:
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
+          import re
 
           path = Path("tests/test_readiness_blocker_repairs.py")
           text = path.read_text(encoding="utf-8")
@@ -67,25 +68,25 @@ jobs:
               )
           section = section.replace(old_import, "", 1)
 
-          old_block = '''    def stalled_fetch(*_args, **_kwargs):
-              network_calls.append(True)
-              return StalledResponse()
-
-          monkeypatch.setattr(urllib.request, "urlopen", stalled_fetch)
-          '''.replace("          ", "")
-          new_block = '''    def stalled_fetch_batch(_batch, _timeout, deadline):
-              network_calls.append(True)
-              with StalledResponse() as response:
-                  serve._kl_epss_read_bounded(response, deadline)
-              return {}
-
-          monkeypatch.setattr(serve, "_kl_epss_fetch_batch", stalled_fetch_batch)
-          '''.replace("          ", "")
-          if section.count(old_block) != 1:
+          pattern = re.compile(
+              r'    def stalled_fetch\(\*_args, \*\*_kwargs\):\n'
+              r'        network_calls\.append\(True\)\n'
+              r'        return StalledResponse\(\)\n\n'
+              r'    monkeypatch\.setattr\(urllib\.request, "urlopen", stalled_fetch\)\n'
+          )
+          replacement = (
+              "    def stalled_fetch_batch(_batch, _timeout, deadline):\n"
+              "        network_calls.append(True)\n"
+              "        with StalledResponse() as response:\n"
+              "            serve._kl_epss_read_bounded(response, deadline)\n"
+              "        return {}\n\n"
+              "    monkeypatch.setattr(serve, \"_kl_epss_fetch_batch\", stalled_fetch_batch)\n"
+          )
+          section, substitutions = pattern.subn(replacement, section, count=1)
+          if substitutions != 1:
               raise SystemExit(
-                  f"expected one global urllib patch block, found {section.count(old_block)}"
+                  f"expected one global urllib patch block, replaced {substitutions}"
               )
-          section = section.replace(old_block, new_block, 1)
           path.write_text(before + section + next_found + after, encoding="utf-8")
           PY
 
