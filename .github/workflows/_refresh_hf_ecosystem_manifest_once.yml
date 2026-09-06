@@ -138,7 +138,8 @@ jobs:
           git rm -- .github/workflows/_refresh_hf_ecosystem_manifest_once.yml
           git add -- docs/huggingface-ecosystem-manifest.json
           git diff --cached --check
-          test "$(git diff --cached --name-only | sort)" = "docs/huggingface-ecosystem-manifest.json"
+          expected_paths=$'.github/workflows/_refresh_hf_ecosystem_manifest_once.yml\ndocs/huggingface-ecosystem-manifest.json'
+          test "$(git diff --cached --name-only | sort)" = "$expected_paths"
           git config user.name 'Lutar, Stephen P.'
           git config user.email 'stephenlutar2@gmail.com'
           git commit -s -m 'fix(hf): refresh public ecosystem manifest evidence'
