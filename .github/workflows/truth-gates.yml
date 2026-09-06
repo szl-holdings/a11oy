@@ -70,3 +70,42 @@ jobs:
         run: >-
           python3 tools/demo_harness.py --root .
           --conformance evidence/conformance/eu-ai-act-article-12.v1.yaml
+
+  workspace-disposition-contract:
+    name: Workspace receipt identity and proxy contract (${{ matrix.python }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - name: Checkout exact candidate source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install existing locked core test dependencies
+        run: python -m pip install --require-hashes -r .github/requirements/ci-core.txt
+      - name: Verify exact source and run workspace contracts
+        env:
+          EXPECTED_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SOURCE_SHA"
+          python -m pytest -q \
+            tests/test_workspace_disposition.py \
+            tests/test_workspace_disposition_identity.py \
+            tests/test_workspace_disposition_ci.py \
+            --junitxml=workspace-disposition-tests.xml
+      - name: Retain workspace contract results including failures
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: workspace-contract-${{ matrix.python }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: workspace-disposition-tests.xml
+          if-no-files-found: error
+          retention-days: 14
