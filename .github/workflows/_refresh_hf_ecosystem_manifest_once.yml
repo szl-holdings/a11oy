@@ -1,0 +1,145 @@
+# SPDX-License-Identifier: Apache-2.0
+name: Refresh Hugging Face ecosystem manifest once
+
+on:
+  push:
+    branches:
+      - fix/hf-ecosystem-manifest-current-20260906
+    paths:
+      - .github/workflows/_refresh_hf_ecosystem_manifest_once.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-hf-ecosystem-manifest-current-20260906
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/hf-ecosystem-manifest-current-20260906'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Check out exact refresh branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/hf-ecosystem-manifest-current-20260906
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Generate and prove bounded public-manifest refresh
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git ls-remote origin refs/heads/fix/hf-ecosystem-manifest-current-20260906 | cut -f1)" = "$GITHUB_SHA"
+
+          cp docs/huggingface-ecosystem-manifest.json /tmp/hf-ecosystem-manifest.previous.json
+          python scripts/test_audit_huggingface_ecosystem.py
+          python -m py_compile scripts/audit_huggingface_ecosystem.py
+          python scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
+
+          python - <<'PY'
+          from __future__ import annotations
+
+          import datetime as dt
+          import json
+          import re
+          from pathlib import Path
+
+          old = json.loads(Path('/tmp/hf-ecosystem-manifest.previous.json').read_text(encoding='utf-8'))
+          new = json.loads(Path('docs/huggingface-ecosystem-manifest.json').read_text(encoding='utf-8'))
+
+          invariant_top = {
+              key for key in old
+              if key not in {'observedAt', 'inventory'}
+          }
+          if set(old) != set(new):
+              raise SystemExit(f'top-level key drift: old={sorted(old)} new={sorted(new)}')
+          for key in sorted(invariant_top):
+              if old[key] != new[key]:
+                  raise SystemExit(f'unexpected top-level drift: {key}')
+
+          if new.get('schemaVersion') != 2 or new.get('org') != 'SZLHOLDINGS':
+              raise SystemExit('manifest authority drift')
+          if new.get('counts') != {'models': 45, 'datasets': 34, 'spaces': 17}:
+              raise SystemExit(f'unexpected public inventory counts: {new.get("counts")!r}')
+
+          observed = str(new.get('observedAt') or '')
+          try:
+              stamp = dt.datetime.fromisoformat(observed.replace('Z', '+00:00'))
+          except ValueError as exc:
+              raise SystemExit(f'invalid observedAt: {observed!r}') from exc
+          if stamp.tzinfo is None or stamp > dt.datetime.now(dt.timezone.utc):
+              raise SystemExit(f'future or naive observedAt: {observed!r}')
+
+          dynamic = {
+              'sha', 'lastModified', 'cardSemanticSha256', 'cardObservation', 'tags'
+          }
+          sha40 = re.compile(r'[0-9a-f]{40}')
+          for kind in ('models', 'datasets', 'spaces'):
+              before = {row['id']: row for row in old['inventory'][kind]}
+              after = {row['id']: row for row in new['inventory'][kind]}
+              if before.keys() != after.keys():
+                  raise SystemExit(
+                      f'{kind} identity set drift: removed={sorted(before.keys() - after.keys())} '
+                      f'added={sorted(after.keys() - before.keys())}'
+                  )
+              if len(after) != new['counts'][kind]:
+                  raise SystemExit(f'{kind} count does not match inventory')
+              for item_id, current in after.items():
+                  previous = before[item_id]
+                  if current.get('private') is not False:
+                      raise SystemExit(f'private item entered public manifest: {item_id}')
+                  if not sha40.fullmatch(str(current.get('sha') or '')):
+                      raise SystemExit(f'invalid revision for {item_id}')
+                  if current.get('unsafeFlags') != previous.get('unsafeFlags'):
+                      raise SystemExit(f'unsafe-flag drift requires separate review: {item_id}')
+                  keys = set(previous) | set(current)
+                  unexpected = {
+                      key for key in keys
+                      if key not in dynamic and previous.get(key) != current.get(key)
+                  }
+                  if unexpected:
+                      raise SystemExit(
+                          f'unexpected semantic drift for {item_id}: {sorted(unexpected)}'
+                      )
+
+          print(json.dumps({
+              'state': 'BOUNDED_REFRESH',
+              'observedAt': observed,
+              'counts': new['counts'],
+          }, sort_keys=True))
+          PY
+
+          python scripts/audit_huggingface_ecosystem.py \
+            --check \
+            --output docs/huggingface-ecosystem-manifest.json
+          git diff --check
+
+      - name: Commit verified manifest and self-remove
+        shell: bash
+        run: |
+          set -euo pipefail
+          branch=fix/hf-ecosystem-manifest-current-20260906
+          test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$GITHUB_SHA"
+          git rm -- .github/workflows/_refresh_hf_ecosystem_manifest_once.yml
+          git add -- docs/huggingface-ecosystem-manifest.json
+          git diff --cached --check
+          test "$(git diff --cached --name-only | sort)" = "docs/huggingface-ecosystem-manifest.json"
+          git config user.name 'Lutar, Stephen P.'
+          git config user.email 'stephenlutar2@gmail.com'
+          git commit -s -m 'fix(hf): refresh public ecosystem manifest evidence'
+          git push origin "HEAD:refs/heads/$branch"
