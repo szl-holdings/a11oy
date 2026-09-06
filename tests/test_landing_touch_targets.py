@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: Apache-2.0
 from pathlib import Path
 
 
@@ -17,3 +18,19 @@ def test_compact_navigation_covers_tablet_and_small_desktop() -> None:
     nav_styles = html.split("/* ---- nav ---- */", 1)[1].split("/* ---- origin", 1)[0]
     assert "@media(max-width:680px)" not in nav_styles
     assert "@media(min-width:681px){.nav-cta-short{display:none}}" not in html
+
+
+def test_phone_hero_ctas_use_durable_product_css_with_rendering_headroom() -> None:
+    html = Path("a11oy_landing.html").read_text(encoding="utf-8")
+    flow = Path("console/assets/szl-flow.css").read_text(encoding="utf-8")
+    rule = (
+        '@media(max-width:480px){'
+        'html[data-szl-shell-owner="homepage"] .cta-row .btn{min-height:45px}'
+        '}'
+    )
+    assert 'href="/assets/szl-flow.css"' in html
+    assert rule in flow
+    assert "rendering headroom" in flow
+    assert not Path("ops/patches/mobile-cta-hit-area-44px.patch").exists()
+    assert not Path("ops/patches/README-mobile-cta-hit-area.md").exists()
+    assert not Path(".github/workflows/_materialize_mobile_hero_cta_hit_area_once.yml").exists()
