@@ -1,13 +1,42 @@
 #!/usr/bin/env python3
-"""Apply the Sentra receipt-verifier repair without restoring stale tests."""
+"""Apply the Sentra receipt-verifier repair onto the current publisher."""
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 
-SIGNED_SOURCE = "02d6d2c846a07fdbec2caffd16c1a4cf64d378e3"
-IMPLEMENTATION = "scripts/hf_publish_vertical_flagships_v4_impl.py"
+IMPLEMENTATION_PATH = Path("scripts/hf_publish_vertical_flagships_v4_impl.py")
 TEST_PATH = Path("tests/test_hf_publish_vertical_flagships_v4.py")
+
+OLD_SENTRA_ENTRY = """    {
+        "slug": "sentra",
+        "title": "Sentra",
+        "vertical": "ASSURANCE COMMAND",
+        "short": "Admission, receipt verification, and evidence assurance",
+        "source": "https://github.com/szl-holdings/a11oy/blob/main/scripts/hf_publish_vertical_flagships_v4_impl.py",
+        "upstream": f"{A11OY}/api/a11oy/v1/vert/cyber/feed",
+        "workflow": ("EVIDENCE", "ADMISSION", "VERIFY", "REVIEW", "RECEIPT"),
+        "lens": "attack",
+        "labels": ("Admission graph", "Verification chain", "Evidence queue"),
+    },
+"""
+NEW_SENTRA_ENTRY = """    {
+        "slug": "sentra",
+        "title": "Sentra",
+        "vertical": "ASSURANCE COMMAND",
+        "short": "Public receipt verification and assurance evidence",
+        "source": "https://github.com/szl-holdings/a11oy/blob/main/scripts/hf_publish_vertical_flagships_v4_impl.py",
+        "upstream": f"{A11OY}/api/a11oy/v1/verify/receipt",
+        "workflow": ("RECEIPT", "SIGNATURE", "DIGEST", "CHAIN", "VERDICT"),
+        "lens": "receipt",
+        "labels": ("Verifier contract", "Integrity checks", "Evidence verdict"),
+    },
+"""
+OLD_SENTRA_HTML = """    "sentra": '''<div class="domain"><section class="panel attack" aria-label="Illustrative assurance admission graph"><span class="illus">Illustrative — schematic, not live data</span><span class="path x1"></span><span class="path x2"></span><span class="path x3"></span><div class="node n1">EVIDENCE</div><div class="node n2">GATE<br>ADMISSION</div><div class="node n3">YAWAR<br>VERIFY</div><div class="node n4">REVIEW</div></section><aside class="panel queue"><span class="illus">Illustrative — schematic, not live data</span><div class="mono">ASSURANCE EVIDENCE QUEUE</div><div class="incident"><span class="sev">GATE</span><span>Admission remains deny-by-default and advisory only; evidence is required before approval.</span></div><div class="incident"><span class="sev">YAWAR</span><span>A receipt-chain verification requires an actual receipt and verification result.</span></div><div class="incident"><span class="sev">SCOPE</span><span>Sentra is the sole Assurance Command and absorbs Aegis. Immune engine migration remains UNVERIFIED until its contracts and runtime parity are proven.</span></div></aside></div>''',
+"""
+NEW_SENTRA_HTML = """    "sentra": '''<div class="domain"><section class="panel verification" aria-label="Illustrative receipt verification graph"><span class="illus">Illustrative — schematic, not live data</span><span class="path x1"></span><span class="path x2"></span><span class="path x3"></span><div class="node n1">RECEIPT</div><div class="node n2">SIGNATURE</div><div class="node n3">DIGEST</div><div class="node n4">CHAIN</div></section><aside class="panel queue"><span class="illus">Illustrative — schematic, not live data</span><div class="mono">VERIFICATION EVIDENCE QUEUE</div><div class="incident"><span class="sev">CONTRACT</span><span>The live upstream describes the public verifier and its supported checks; it does not claim a receipt verdict.</span></div><div class="incident"><span class="sev">VERDICT</span><span>PASS requires an actual caller-supplied receipt and successful signature, payload-digest, and hash-chain checks.</span></div><div class="incident"><span class="sev">SCOPE</span><span>This read-only surface performs no admission or approval. Immune engine migration remains UNVERIFIED until its contracts and runtime parity are proven.</span></div></aside></div>''',
+"""
+OLD_SENTRA_CSS_SELECTOR = ".attack{min-height:410px"
+NEW_SENTRA_CSS_SELECTOR = ".verification{min-height:410px"
 
 PUBLIC_VERIFY_ANCHOR = 'SYNC_WORKFLOW = Path(".github/workflows/hf-sync.yml")\n'
 PUBLIC_VERIFY_LINE = 'PUBLIC_VERIFY = Path("szl_public_verify.py")\n'
@@ -20,7 +49,7 @@ NEW_RENDERER_ASSERTION = (
     "and \"VERIFICATION EVIDENCE QUEUE\" in text\n"
 )
 DISCLOSURE_ANCHOR = "\ndef test_disclosures_remain_accessible_on_counsel_and_narrow_terra() -> None:\n"
-SENTRA_TEST = '''
+SENTRA_TEST = """
 
 def test_sentra_binds_to_the_read_only_public_verifier_contract() -> None:
     module = load_implementation()
@@ -50,7 +79,7 @@ def test_sentra_binds_to_the_read_only_public_verifier_contract() -> None:
     panel = domain_html()["sentra"]
     assert "performs no admission or approval" in panel
     assert "PASS requires an actual caller-supplied receipt" in panel
-'''
+"""
 OLD_CARD = '        "Admission, receipt verification, and evidence assurance",\n'
 NEW_CARD = '        "Public receipt verification and assurance evidence",\n'
 
@@ -63,10 +92,32 @@ def replace_once(text: str, old: str, new: str, label: str) -> str:
 
 
 def main() -> int:
-    subprocess.run(
-        ["git", "checkout", SIGNED_SOURCE, "--", IMPLEMENTATION],
-        check=True,
+    implementation = IMPLEMENTATION_PATH.read_text(encoding="utf-8")
+    if (
+        'f"{A11OY}/api/a11oy/v1/verify/receipt"' in implementation
+        or "Public receipt verification and assurance evidence" in implementation
+    ):
+        raise SystemExit("Sentra verifier implementation already exists")
+    implementation = replace_once(
+        implementation,
+        OLD_SENTRA_ENTRY,
+        NEW_SENTRA_ENTRY,
+        "Sentra registry entry",
     )
+    implementation = replace_once(
+        implementation,
+        OLD_SENTRA_CSS_SELECTOR,
+        NEW_SENTRA_CSS_SELECTOR,
+        "Sentra semantic CSS selector",
+    )
+    implementation = replace_once(
+        implementation,
+        OLD_SENTRA_HTML,
+        NEW_SENTRA_HTML,
+        "Sentra receipt-verifier panel",
+    )
+    IMPLEMENTATION_PATH.write_text(implementation, encoding="utf-8")
+
     text = TEST_PATH.read_text(encoding="utf-8")
     if PUBLIC_VERIFY_LINE in text or "test_sentra_binds_to_the_read_only_public_verifier_contract" in text:
         raise SystemExit("Sentra focused assertions already exist")
