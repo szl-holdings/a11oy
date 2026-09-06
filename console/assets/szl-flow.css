@@ -49,3 +49,7 @@ body[data-szl-flow] button.szl-holo-menu {
   html[data-szl-shell-owner="homepage"][data-szl-public-experience-v3="true"] .hero .eyebrow{margin-bottom:14px!important}
   html[data-szl-shell-owner="homepage"][data-szl-public-experience-v3="true"] .hero p.lede{margin-bottom:18px!important}
 }
+
+/* Evidence links are controls too: preserve their text and destination while
+   providing a real touch/focus target, including the 768px tablet layout. */
+html[data-szl-shell-owner="homepage"] .stat-note a{display:inline-flex;align-items:center;justify-content:center;min-width:48px;min-height:48px;vertical-align:middle;}
