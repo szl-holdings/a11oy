@@ -4,11 +4,11 @@
 [A11oy](https://a-11-oy.com) is the product and command fabric; [a11oy.net](https://a11oy.net) is the proof and diligence surface. GitHub is canonical source, and Hugging Face is the generated runtime and artifact estate.
 
 **Measured Hub inventory:** 17 public Spaces · 45 models · 34 datasets as of `2026-09-06T15:15:28Z`.
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
 ### Five public domain bodies
 
-- **IMMUNE** — defense and cyber resilience · [`szl-holdings/immune`](https://github.com/szl-holdings/immune) · `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`
+- **Killinchu** — cyber-physical resilience intelligence · [`szl-holdings/killinchu`](https://github.com/szl-holdings/killinchu) · `SZLHOLDINGS/killinchu`
 - **Lyte** — business observability · [`szl-holdings/lyte-services`](https://github.com/szl-holdings/lyte-services) · `SZLHOLDINGS/lyte`
 - **Terra** — real-estate intelligence · [`szl-holdings/szl-real-estate`](https://github.com/szl-holdings/szl-real-estate) · `SZLHOLDINGS/terra`
 - **PRISM Counsel** — legal matter intelligence · [`szl-holdings/a11oy`](https://github.com/szl-holdings/a11oy) · `SZLHOLDINGS/counsel`
@@ -25,5 +25,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 All public claims use explicit truth states. External writes are disabled by default, public effectors are empty, production authorization is false, and consequential action requires human approval.
 
-Alignment receipt: `dda0e0ebe9408bfccc640ea5d5497397a33d690b66c849592199eb1f49f68a67`.
+Alignment receipt: `fec1c77f964ef83979fe1f9ebfcd4fa82a7c0acbb6fe629e0f2e2799a26ff1f8`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
