@@ -56,7 +56,7 @@ jobs:
 
           python scripts/render_public_estate_alignment.py --check
           python scripts/build_ecosystem_stage_matrix.py --check
-          python tests/test_public_estate_alignment.py
+          PYTHONPATH=. python tests/test_public_estate_alignment.py
           python scripts/test_audit_huggingface_ecosystem.py
           python scripts/audit_huggingface_ecosystem.py \
             --check \
@@ -66,6 +66,7 @@ jobs:
           from __future__ import annotations
 
           import json
+          import subprocess
           from pathlib import Path
 
           expected = {
@@ -74,7 +75,6 @@ jobs:
               'docs/generated/a11oy-net-public-estate.md',
               'docs/ecosystem-stage-matrix.json',
           }
-          import subprocess
           changed = {
               row
               for row in subprocess.check_output(
