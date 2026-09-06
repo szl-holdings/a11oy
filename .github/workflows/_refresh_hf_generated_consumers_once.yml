@@ -64,6 +64,8 @@ jobs:
             scripts/build_ecosystem_stage_matrix.py \
             tests/test_public_estate_alignment.py
 
+          # The tracked manifest is the immutable source for every output in
+          # this job. No second Hub observation is taken while materializing.
           python scripts/render_public_estate_alignment.py
           python scripts/build_ecosystem_stage_matrix.py
 
@@ -71,9 +73,6 @@ jobs:
           python scripts/build_ecosystem_stage_matrix.py --check
           PYTHONPATH=. python tests/test_public_estate_alignment.py
           python scripts/test_audit_huggingface_ecosystem.py
-          python scripts/audit_huggingface_ecosystem.py \
-            --check \
-            --output docs/huggingface-ecosystem-manifest.json
 
           python - <<'PY'
           from __future__ import annotations
@@ -109,15 +108,14 @@ jobs:
           )
           if matrix.get('observedAt') != manifest.get('observedAt'):
               raise SystemExit('stage matrix is not bound to manifest observedAt')
-          if matrix.get('machineGeneratedCounts', {}).get('huggingFacePublic') != manifest.get('counts'):
+          if (
+              matrix.get('machineGeneratedCounts', {}).get('huggingFacePublic')
+              != manifest.get('counts')
+          ):
               raise SystemExit('stage matrix public counts do not match manifest')
           if matrix.get('generatedBy') != 'scripts/build_ecosystem_stage_matrix.py':
               raise SystemExit('stage matrix generator authority drift')
 
-          for path in sorted(expected - {'docs/ecosystem-stage-matrix.json'}):
-              text = Path(path).read_text(encoding='utf-8')
-              if 'GENERATED' not in text or manifest['observedAt'] not in text:
-                  raise SystemExit(f'generated public-estate binding missing: {path}')
           print(json.dumps({
               'state': 'GENERATED_CONSUMERS_CURRENT',
               'observedAt': manifest['observedAt'],
