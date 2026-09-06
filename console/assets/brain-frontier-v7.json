@@ -1005,22 +1005,22 @@
   ],
   "schema": "szl.a11oy.brain-frontier-holographic-v7/v1",
   "selected_handle_count": 72,
-  "snapshot_sha256": "6286ccd4bdf2595e1c2ec35c6a5b716d812de318761e590c534b6b5cc7ede81c",
+  "snapshot_sha256": "b263da763f68a4de62dda7c9abe6f18feb626e793707ce03a31ef04a40e53399",
   "sources": {
     "anatomy": {
       "holographic_v7_path": "/api/anatomy/v1/holographic-v7",
       "live_origin": "https://betterwithage-anatomy.hf.space",
       "repository": "szl-holdings/anatomy",
-      "revision": "075a2484c1e520d4e5767c1a2780de9bd8827e6c"
+      "revision": "4a79140d2af942d54b9066ea3523827e406afd59"
     },
     "formulas": {
       "repository": "szl-holdings/szl-formulas",
-      "revision": "d03536144d2f23ee2da35c356e2558abe5183779"
+      "revision": "d0e8110ac815a47612a2b5e7729e4a805335735e"
     },
     "ouroboros": {
       "repository": "szl-holdings/szl-ouroboros",
       "review_workflow": ".github/workflows/codex-frontier-review.yml",
-      "revision": "b6f70624057b7b8554ca1e7b77a27431ecabbbda"
+      "revision": "90f36b387e5f06d869ede41b8c2e1bcbd347c8e4"
     },
     "second_brain": {
       "candidate_count": 129,
