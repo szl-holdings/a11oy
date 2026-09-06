@@ -66,3 +66,31 @@ def test_short_phone_first_fold_compacts_geometry_not_control_size() -> None:
     assert "transform:" not in compact
     assert "zoom:" not in compact
     assert "display:none" not in compact
+
+
+def test_evidence_links_are_real_targets_without_hiding_the_source() -> None:
+    html = Path("a11oy_landing.html").read_text(encoding="utf-8")
+    flow = Path("console/assets/szl-flow.css").read_text(encoding="utf-8")
+    selector = 'html[data-szl-shell-owner="homepage"] .stat-note a{'
+    assert flow.count(selector) == 1
+    rule = flow.split(selector, 1)[1].split("}", 1)[0]
+    for declaration in (
+        "display:inline-flex",
+        "align-items:center",
+        "justify-content:center",
+        "min-width:48px",
+        "min-height:48px",
+        "vertical-align:middle",
+    ):
+        assert declaration in rule
+    for forbidden in (
+        "display:none", "visibility:hidden", "pointer-events:none",
+        "position:absolute", "transform:", "zoom:",
+    ):
+        assert forbidden not in rule
+    assert 'href="/assets/szl-flow.css"' in html
+    assert 'class="stat-note"' in html
+    assert (
+        'href="https://github.com/szl-holdings/platform/blob/main/docs/OVERCLAIM_LEDGER.md">open ledger</a>'
+        in html
+    )
