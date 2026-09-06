@@ -1,6 +1,6 @@
 {
   "schema": "szl.public-estate/v1",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "canonical": {
     "product": "https://a-11-oy.com",
     "proof": "https://a11oy.net",
@@ -18,13 +18,13 @@
   },
   "publicDomainBodies": [
     {
-      "id": "immune",
-      "name": "IMMUNE",
-      "domain": "defense and cyber resilience",
-      "productPath": "/immune",
-      "githubRepository": "szl-holdings/immune",
-      "huggingFaceRepositories": ["SZLHOLDINGS/immune", "SZLHOLDINGS/immune-lattice"],
-      "truth": "PUBLIC_DEFENSIVE_REFERENCE"
+      "id": "killinchu",
+      "name": "Killinchu",
+      "domain": "cyber-physical resilience intelligence",
+      "productPath": "/killinchu",
+      "githubRepository": "szl-holdings/killinchu",
+      "huggingFaceRepositories": ["SZLHOLDINGS/killinchu"],
+      "truth": "SOURCE_OWNED_RUNTIME"
     },
     {
       "id": "lyte",
@@ -108,13 +108,6 @@
       "classification": "CONTROL_PLANE"
     },
     {
-      "id": "killinchu",
-      "name": "Killinchu",
-      "githubRepository": "szl-holdings/killinchu",
-      "huggingFaceRepositories": ["SZLHOLDINGS/killinchu"],
-      "classification": "SYNTHETIC_DEFENSIVE_REFERENCE"
-    },
-    {
       "id": "vertical-services",
       "name": "Vertical Services",
       "githubRepository": "szl-holdings/vertical-services",
@@ -138,6 +131,20 @@
       "policySource": "docs/series-a/hf-space-keep-list.yaml"
     },
     {
+      "id": "SZLHOLDINGS/immune",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
+      "id": "SZLHOLDINGS/immune-lattice",
+      "classification": "INVENTORY_ONLY",
+      "governedKeep": false,
+      "disposition": "FOLD",
+      "policySource": "docs/series-a/hf-space-keep-list.yaml"
+    },
+    {
       "id": "SZLHOLDINGS/yarqa",
       "classification": "INVENTORY_ONLY",
       "governedKeep": false,
@@ -149,6 +156,11 @@
     {
       "id": "vessels",
       "state": "FOLDED_INTO_KILLINCHU",
+      "retirementPolicy": "PRESERVE_UNTIL_SOURCE_BINDING_AND_ROLLBACK_RECEIPTS_EXIST"
+    },
+    {
+      "id": "immune",
+      "state": "FOLDING_INTO_KILLINCHU",
       "retirementPolicy": "PRESERVE_UNTIL_SOURCE_BINDING_AND_ROLLBACK_RECEIPTS_EXIST"
     }
   ],

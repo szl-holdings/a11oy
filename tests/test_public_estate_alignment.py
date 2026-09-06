@@ -51,19 +51,58 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         self.assertEqual(len(self.contract["internalEngines"]), 6)
         self.assertEqual(
             [row["id"] for row in self.contract["publicDomainBodies"]],
-            ["immune", "lyte", "terra", "counsel", "finance"],
+            ["killinchu", "lyte", "terra", "counsel", "finance"],
         )
 
     def test_declared_hub_classifications_equal_measured_public_inventory(self) -> None:
         topology = alignment.topology_spaces(self.contract)
         inventory_only = alignment.inventory_only_spaces(self.contract)
         observed = alignment.measured_spaces(self.manifest)
-        self.assertEqual(len(topology), 15)
-        self.assertEqual(inventory_only, ["SZLHOLDINGS/ayllu", "SZLHOLDINGS/yarqa"])
+        self.assertEqual(len(topology), 13)
+        self.assertEqual(
+            inventory_only,
+            [
+                "SZLHOLDINGS/ayllu",
+                "SZLHOLDINGS/immune",
+                "SZLHOLDINGS/immune-lattice",
+                "SZLHOLDINGS/yarqa",
+            ],
+        )
         self.assertEqual(
             sorted(topology + inventory_only, key=str.casefold),
             observed,
         )
+
+    def test_killinchu_is_public_body_and_governed_keeper(self) -> None:
+        killinchu = next(
+            row for row in self.contract["publicDomainBodies"]
+            if row["id"] == "killinchu"
+        )
+        self.assertEqual(killinchu["githubRepository"], "szl-holdings/killinchu")
+        self.assertEqual(killinchu["huggingFaceRepositories"], ["SZLHOLDINGS/killinchu"])
+        self.assertEqual(killinchu["truth"], "SOURCE_OWNED_RUNTIME")
+        self.assertIn("SZLHOLDINGS/killinchu", alignment.governed_keep_spaces())
+
+    def test_immune_spaces_are_inventory_only_folded_into_killinchu(self) -> None:
+        rows = {
+            row["id"]: row
+            for row in self.contract["inventoryOnlyHuggingFaceRepositories"]
+        }
+        for space in ("SZLHOLDINGS/immune", "SZLHOLDINGS/immune-lattice"):
+            with self.subTest(space=space):
+                self.assertEqual(rows[space]["classification"], "INVENTORY_ONLY")
+                self.assertFalse(rows[space]["governedKeep"])
+                self.assertEqual(rows[space]["disposition"], "FOLD")
+                self.assertEqual(
+                    rows[space]["policySource"],
+                    "docs/series-a/hf-space-keep-list.yaml",
+                )
+                self.assertNotIn(space, alignment.topology_spaces(self.contract))
+                self.assertNotIn(space, alignment.governed_keep_spaces())
+        historical = {
+            row["id"]: row["state"] for row in self.contract["historicalBindings"]
+        }
+        self.assertEqual(historical["immune"], "FOLDING_INTO_KILLINCHU")
 
     def test_ayllu_is_inventory_only_fold_not_a_governed_keeper(self) -> None:
         ayllu = [row for row in self.contract["inventoryOnlyHuggingFaceRepositories"] if row["id"] == "SZLHOLDINGS/ayllu"]
@@ -110,7 +149,11 @@ class PublicEstateAlignmentTests(unittest.TestCase):
         with self.assertRaisesRegex(alignment.ContractError, "undeclared=.*yarqa"):
             alignment.validate(removed, self.manifest)
         promoted = copy.deepcopy(self.contract)
-        promoted["inventoryOnlyHuggingFaceRepositories"][1]["governedKeep"] = True
+        promoted_yarqa = next(
+            row for row in promoted["inventoryOnlyHuggingFaceRepositories"]
+            if row["id"] == "SZLHOLDINGS/yarqa"
+        )
+        promoted_yarqa["governedKeep"] = True
         with self.assertRaisesRegex(alignment.ContractError, "cannot be a governed keeper"):
             alignment.validate(promoted, self.manifest)
 
@@ -252,6 +295,8 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             self.assertIn("inventory is observational", content)
             self.assertIn("Inventory-only / FOLD", content)
             self.assertIn("`SZLHOLDINGS/ayllu`", content)
+            self.assertIn("`SZLHOLDINGS/immune`", content)
+            self.assertIn("`SZLHOLDINGS/immune-lattice`", content)
             self.assertIn("`SZLHOLDINGS/yarqa`", content)
 
     def test_product_front_door_names_canonical_origins(self) -> None:
