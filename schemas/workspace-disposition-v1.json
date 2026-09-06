@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://a-11-oy.com/schemas/workspace-disposition-v1.json",
+  "title": "Workspace Disposition Receipt v1",
+  "description": "Carries what a governed inference route's model was disposed to verbalize, alongside the behavioral output. First artifact of a11oy#2020. Every honesty label is read verbatim and never upgraded; four of five workspace properties are UNAVAILABLE until the provider exposes them.",
+  "type": "object",
+  "required": ["schema", "inference_receipt_id", "bound_route", "workspace_disposition"],
+  "additionalProperties": false,
+  "properties": {
+    "schema": { "const": "szl.workspace-disposition/v1" },
+    "inference_receipt_id": { "type": "string", "minLength": 1 },
+    "bound_route": {
+      "type": "object",
+      "required": ["model_revision", "tokenizer_revision"],
+      "additionalProperties": false,
+      "properties": {
+        "model_revision": { "type": "string", "minLength": 1 },
+        "tokenizer_revision": { "type": "string", "minLength": 1 }
+      }
+    },
+    "workspace_disposition": {
+      "type": "object",
+      "required": ["label", "reportability", "selectivity"],
+      "additionalProperties": false,
+      "properties": {
+        "label": { "enum": ["MEASURED", "MODELED", "UNAVAILABLE"] },
+        "reportability": {
+          "type": "object",
+          "required": ["state"],
+          "properties": {
+            "state": { "enum": ["MEASURED", "UNAVAILABLE"] },
+            "verbalizable_fraction": { "type": ["number", "null"] }
+          }
+        },
+        "selectivity": {
+          "type": "object",
+          "required": ["state"],
+          "properties": {
+            "state": { "enum": ["MEASURED", "UNAVAILABLE"] },
+            "workspace_variance_fraction": { "type": ["number", "null"] }
+          }
+        },
+        "directed_modulation": { "const": "UNAVAILABLE" },
+        "internal_reasoning": { "const": "UNAVAILABLE" },
+        "generalization": { "const": "UNAVAILABLE" }
+      }
+    }
+  }
+}
