@@ -4,11 +4,11 @@
 This organization is the generated model, dataset, and runtime estate for [A11oy](https://a-11-oy.com). Canonical source and release evidence live in [GitHub](https://github.com/szl-holdings); public proof lives at [a11oy.net](https://a11oy.net).
 
 **Current public inventory:** 17 Spaces · 45 models · 34 datasets (`2026-09-06T15:15:28Z`).
-Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
+Measured Hub inventory is observational and is not the governed keep-list. Inventory-only / FOLD (not governed keepers): `SZLHOLDINGS/ayllu`, `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`, `SZLHOLDINGS/yarqa`. Canonical keep policy: `docs/series-a/hf-space-keep-list.yaml`.
 
 ## Product bodies
 
-- **IMMUNE** — defense and cyber resilience · [`szl-holdings/immune`](https://github.com/szl-holdings/immune) · `SZLHOLDINGS/immune`, `SZLHOLDINGS/immune-lattice`
+- **Killinchu** — cyber-physical resilience intelligence · [`szl-holdings/killinchu`](https://github.com/szl-holdings/killinchu) · `SZLHOLDINGS/killinchu`
 - **Lyte** — business observability · [`szl-holdings/lyte-services`](https://github.com/szl-holdings/lyte-services) · `SZLHOLDINGS/lyte`
 - **Terra** — real-estate intelligence · [`szl-holdings/szl-real-estate`](https://github.com/szl-holdings/szl-real-estate) · `SZLHOLDINGS/terra`
 - **PRISM Counsel** — legal matter intelligence · [`szl-holdings/a11oy`](https://github.com/szl-holdings/a11oy) · `SZLHOLDINGS/counsel`
@@ -18,5 +18,5 @@ Measured Hub inventory is observational and is not the governed keep-list. Inven
 
 A repository card is not a production certificate. Runtime, source revision, evidence freshness, and receipt state are verified separately. Λ remains Conjecture 1 and advisory only. No public model or formula may authorize consequential action.
 
-Alignment receipt: `dda0e0ebe9408bfccc640ea5d5497397a33d690b66c849592199eb1f49f68a67`.
+Alignment receipt: `fec1c77f964ef83979fe1f9ebfcd4fa82a7c0acbb6fe629e0f2e2799a26ff1f8`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
