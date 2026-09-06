@@ -20,20 +20,27 @@ def test_compact_navigation_covers_tablet_and_small_desktop() -> None:
     assert "@media(min-width:681px){.nav-cta-short{display:none}}" not in html
 
 
-def test_phone_hero_ctas_use_durable_product_css_with_rendering_headroom() -> None:
+def test_phone_hero_ctas_preserve_full_mobile_target_contract() -> None:
     html = Path("a11oy_landing.html").read_text(encoding="utf-8")
     flow = Path("console/assets/szl-flow.css").read_text(encoding="utf-8")
+    inline_contract = (
+        ".cta-row .btn{width:100%;min-height:52px;border-radius:6px;"
+        "white-space:normal;text-align:center}"
+    )
     size_rule = (
         '@media(max-width:480px){'
-        'html[data-szl-shell-owner="homepage"] .cta-row .btn{min-height:45px}'
+        'html[data-szl-shell-owner="homepage"] .cta-row .btn{min-height:52px}'
         '}'
     )
     assert 'href="/assets/szl-flow.css"' in html
+    assert inline_contract in html
     assert size_rule in flow
-    assert "rendering headroom" in flow
+    assert "52px" in flow and "inside the viewport" in flow
+    assert 'html[data-szl-shell-owner="homepage"] .cta-row .btn{min-height:45px}' not in flow
     assert not Path("ops/patches/mobile-cta-hit-area-44px.patch").exists()
     assert not Path("ops/patches/README-mobile-cta-hit-area.md").exists()
     assert not Path(".github/workflows/_materialize_mobile_hero_cta_hit_area_once.yml").exists()
+    assert not Path(".github/workflows/_reconcile_phone_fold_cta_once.yml").exists()
 
 
 def test_short_phone_first_fold_compacts_geometry_not_control_size() -> None:
@@ -53,8 +60,9 @@ def test_short_phone_first_fold_compacts_geometry_not_control_size() -> None:
     assert "below the first fold" in flow
 
     # The measured failure was viewport clipping (43.17 visible pixels), not an
-    # intrinsically undersized button.  The short-phone contract must not shrink
-    # or transform the CTA itself to manufacture a green result.
+    # intrinsically undersized button. The short-phone contract must not shrink,
+    # transform, zoom, or hide the CTA itself to manufacture a green result.
     assert ".cta-row .btn{" not in compact
     assert "transform:" not in compact
     assert "zoom:" not in compact
+    assert "display:none" not in compact
