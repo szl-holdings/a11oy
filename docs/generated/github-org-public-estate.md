@@ -27,4 +27,3 @@ All public claims use explicit truth states. External writes are disabled by def
 
 Alignment receipt: `09153d812c948a5a579e1f015a063f9b507dbdccbd652f432689d9d32b92a52e`.
 <!-- END SZL PUBLIC ESTATE — GENERATED -->
-
