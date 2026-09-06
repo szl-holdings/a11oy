@@ -119,7 +119,7 @@ def measured_spaces(manifest: dict[str, Any]) -> list[str]:
 def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any]:
     if contract.get("schema") != "szl.public-estate/v1":
         raise ContractError("unsupported public-estate schema")
-    if contract.get("version") != "1.0.1":
+    if contract.get("version") != "1.0.2":
         raise ContractError("unsupported public-estate version")
 
     canonical = contract.get("canonical")
@@ -139,7 +139,7 @@ def validate(contract: dict[str, Any], manifest: dict[str, Any]) -> dict[str, An
     engines = contract.get("internalEngines")
     if not isinstance(bodies, list) or not isinstance(engines, list):
         raise ContractError("public bodies or internal engines are missing")
-    if [row.get("id") for row in bodies] != ["immune", "lyte", "terra", "counsel", "finance"]:
+    if [row.get("id") for row in bodies] != ["killinchu", "lyte", "terra", "counsel", "finance"]:
         raise ContractError("five-domain-body contract drifted")
     if len(engines) != 6:
         raise ContractError("exactly six internal engines are required")
