@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
-name: Refresh Hugging Face generated consumers once
+name: Refresh Hugging Face manifest and consumers once
 
 on:
   push:
@@ -12,14 +12,14 @@ permissions:
   contents: write
 
 concurrency:
-  group: refresh-hf-generated-consumers-current-20260906
+  group: refresh-hf-manifest-consumers-current-20260906
   cancel-in-progress: false
 
 jobs:
   refresh:
     if: github.repository == 'szl-holdings/a11oy' && github.ref == 'refs/heads/fix/hf-ecosystem-manifest-current-20260906'
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
@@ -38,7 +38,7 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Regenerate and prove exact consumers
+      - name: Capture one bounded Hub observation and regenerate consumers
         shell: bash
         run: |
           set -euo pipefail
@@ -46,34 +46,122 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$GITHUB_SHA"
 
+          cp docs/huggingface-ecosystem-manifest.json /tmp/hf-ecosystem-manifest.previous.json
+
           python -m py_compile \
+            scripts/audit_huggingface_ecosystem.py \
             scripts/render_public_estate_alignment.py \
             scripts/build_ecosystem_stage_matrix.py \
             tests/test_public_estate_alignment.py
+          python scripts/test_audit_huggingface_ecosystem.py
 
+          # One public observation is the authority for the manifest and every
+          # generated consumer in this commit. A second live fetch here would
+          # create a time-of-check race rather than strengthen the evidence.
+          python scripts/audit_huggingface_ecosystem.py \
+            --output docs/huggingface-ecosystem-manifest.json
           python scripts/render_public_estate_alignment.py
           python scripts/build_ecosystem_stage_matrix.py
 
           python scripts/render_public_estate_alignment.py --check
           python scripts/build_ecosystem_stage_matrix.py --check
           PYTHONPATH=. python tests/test_public_estate_alignment.py
-          python scripts/test_audit_huggingface_ecosystem.py
-          python scripts/audit_huggingface_ecosystem.py \
-            --check \
-            --output docs/huggingface-ecosystem-manifest.json
 
           python - <<'PY'
           from __future__ import annotations
 
+          import datetime as dt
           import json
+          import re
           import subprocess
           from pathlib import Path
 
-          expected = {
+          old = json.loads(
+              Path('/tmp/hf-ecosystem-manifest.previous.json').read_text(
+                  encoding='utf-8'
+              )
+          )
+          new = json.loads(
+              Path('docs/huggingface-ecosystem-manifest.json').read_text(
+                  encoding='utf-8'
+              )
+          )
+
+          if set(old) != set(new):
+              raise SystemExit(
+                  f'top-level key drift: old={sorted(old)} new={sorted(new)}'
+              )
+          for key in sorted(set(old) - {'observedAt', 'inventory'}):
+              if old[key] != new[key]:
+                  raise SystemExit(f'unexpected top-level drift: {key}')
+
+          if new.get('schemaVersion') != 2 or new.get('org') != 'SZLHOLDINGS':
+              raise SystemExit('manifest authority drift')
+          expected_counts = {'models': 45, 'datasets': 34, 'spaces': 17}
+          if new.get('counts') != expected_counts:
+              raise SystemExit(
+                  f'unexpected public inventory counts: {new.get("counts")!r}'
+              )
+
+          observed = str(new.get('observedAt') or '')
+          try:
+              stamp = dt.datetime.fromisoformat(observed.replace('Z', '+00:00'))
+          except ValueError as exc:
+              raise SystemExit(f'invalid observedAt: {observed!r}') from exc
+          now = dt.datetime.now(dt.timezone.utc)
+          if stamp.tzinfo is None or stamp > now:
+              raise SystemExit(f'future or naive observedAt: {observed!r}')
+
+          dynamic = {
+              'sha',
+              'lastModified',
+              'cardSemanticSha256',
+              'cardObservation',
+              'tags',
+          }
+          sha40 = re.compile(r'[0-9a-f]{40}')
+          for kind in ('models', 'datasets', 'spaces'):
+              before = {row['id']: row for row in old['inventory'][kind]}
+              after = {row['id']: row for row in new['inventory'][kind]}
+              if before.keys() != after.keys():
+                  raise SystemExit(
+                      f'{kind} identity set drift: '
+                      f'removed={sorted(before.keys() - after.keys())} '
+                      f'added={sorted(after.keys() - before.keys())}'
+                  )
+              if len(after) != expected_counts[kind]:
+                  raise SystemExit(f'{kind} count does not match inventory')
+              for item_id, current in after.items():
+                  previous = before[item_id]
+                  if current.get('private') is not False:
+                      raise SystemExit(
+                          f'private item entered public manifest: {item_id}'
+                      )
+                  if not sha40.fullmatch(str(current.get('sha') or '')):
+                      raise SystemExit(f'invalid revision for {item_id}')
+                  if current.get('unsafeFlags') != previous.get('unsafeFlags'):
+                      raise SystemExit(
+                          f'unsafe-flag drift requires separate review: {item_id}'
+                      )
+                  keys = set(previous) | set(current)
+                  unexpected = {
+                      key
+                      for key in keys
+                      if key not in dynamic
+                      and previous.get(key) != current.get(key)
+                  }
+                  if unexpected:
+                      raise SystemExit(
+                          f'unexpected semantic drift for {item_id}: '
+                          f'{sorted(unexpected)}'
+                      )
+
+          expected_files = {
+              'docs/huggingface-ecosystem-manifest.json',
+              'docs/ecosystem-stage-matrix.json',
+              'docs/generated/a11oy-net-public-estate.md',
               'docs/generated/github-org-public-estate.md',
               'docs/generated/huggingface-org-card.md',
-              'docs/generated/a11oy-net-public-estate.md',
-              'docs/ecosystem-stage-matrix.json',
           }
           changed = {
               row
@@ -82,40 +170,57 @@ jobs:
               ).splitlines()
               if row
           }
-          if changed != expected:
+          if changed != expected_files:
               raise SystemExit(
-                  f'generated-consumer drift escaped bounds: '
-                  f'expected={sorted(expected)} observed={sorted(changed)}'
+                  'atomic refresh escaped bounds: '
+                  f'expected={sorted(expected_files)} '
+                  f'observed={sorted(changed)}'
               )
 
           matrix = json.loads(
-              Path('docs/ecosystem-stage-matrix.json').read_text(encoding='utf-8')
+              Path('docs/ecosystem-stage-matrix.json').read_text(
+                  encoding='utf-8'
+              )
           )
-          manifest = json.loads(
-              Path('docs/huggingface-ecosystem-manifest.json').read_text(encoding='utf-8')
-          )
-          if matrix.get('observedAt') != manifest.get('observedAt'):
+          if matrix.get('observedAt') != observed:
               raise SystemExit('stage matrix is not bound to manifest observedAt')
-          if matrix.get('machineGeneratedCounts', {}).get('huggingFacePublic') != manifest.get('counts'):
+          if (
+              matrix.get('machineGeneratedCounts', {}).get('huggingFacePublic')
+              != expected_counts
+          ):
               raise SystemExit('stage matrix public counts do not match manifest')
           if matrix.get('generatedBy') != 'scripts/build_ecosystem_stage_matrix.py':
               raise SystemExit('stage matrix generator authority drift')
 
-          for path in sorted(expected - {'docs/ecosystem-stage-matrix.json'}):
+          for path in sorted(
+              expected_files
+              - {
+                  'docs/huggingface-ecosystem-manifest.json',
+                  'docs/ecosystem-stage-matrix.json',
+              }
+          ):
               text = Path(path).read_text(encoding='utf-8')
-              if 'GENERATED' not in text or manifest['observedAt'] not in text:
-                  raise SystemExit(f'generated public-estate binding missing: {path}')
-          print(json.dumps({
-              'state': 'GENERATED_CONSUMERS_CURRENT',
-              'observedAt': manifest['observedAt'],
-              'counts': manifest['counts'],
-              'files': sorted(expected),
-          }, sort_keys=True))
+              if 'GENERATED' not in text or observed not in text:
+                  raise SystemExit(
+                      f'generated public-estate binding missing: {path}'
+                  )
+
+          print(
+              json.dumps(
+                  {
+                      'state': 'ATOMIC_HF_EVIDENCE_CURRENT',
+                      'observedAt': observed,
+                      'counts': expected_counts,
+                      'files': sorted(expected_files),
+                  },
+                  sort_keys=True,
+              )
+          )
           PY
 
           git diff --check
 
-      - name: Commit verified consumers and self-remove
+      - name: Commit one observation and self-remove
         shell: bash
         run: |
           set -euo pipefail
@@ -123,14 +228,15 @@ jobs:
           test "$(git ls-remote origin refs/heads/$branch | cut -f1)" = "$GITHUB_SHA"
           git rm -- .github/workflows/_refresh_hf_generated_consumers_once.yml
           git add -- \
-            docs/generated/github-org-public-estate.md \
-            docs/generated/huggingface-org-card.md \
+            docs/huggingface-ecosystem-manifest.json \
+            docs/ecosystem-stage-matrix.json \
             docs/generated/a11oy-net-public-estate.md \
-            docs/ecosystem-stage-matrix.json
+            docs/generated/github-org-public-estate.md \
+            docs/generated/huggingface-org-card.md
           git diff --cached --check
-          expected_paths=$'.github/workflows/_refresh_hf_generated_consumers_once.yml\ndocs/ecosystem-stage-matrix.json\ndocs/generated/a11oy-net-public-estate.md\ndocs/generated/github-org-public-estate.md\ndocs/generated/huggingface-org-card.md'
+          expected_paths=$'.github/workflows/_refresh_hf_generated_consumers_once.yml\ndocs/ecosystem-stage-matrix.json\ndocs/generated/a11oy-net-public-estate.md\ndocs/generated/github-org-public-estate.md\ndocs/generated/huggingface-org-card.md\ndocs/huggingface-ecosystem-manifest.json'
           test "$(git diff --cached --name-only | sort)" = "$expected_paths"
           git config user.name 'Lutar, Stephen P.'
           git config user.email 'stephenlutar2@gmail.com'
-          git commit -s -m 'fix(hf): refresh generated ecosystem consumers'
+          git commit -s -m 'fix(hf): atomically refresh manifest evidence and consumers'
           git push origin "HEAD:refs/heads/$branch"
