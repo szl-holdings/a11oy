@@ -1,0 +1,78 @@
+{
+  "schema": "szl.research-evidence-contract.v1",
+  "artifact_class": "EVIDENCE_CONTRACT",
+  "status": "PROPOSED",
+  "created": "2026-09-07",
+  "governing_boundary": {
+    "overlay": "model_release/frontier-qualification/top-choice-wave-2026-09-07.json",
+    "overlay_commit": "c7c430930008025789f92438bb6503099ca36d8b",
+    "rule": "Outputs of any run under this contract are proposal/evidence only. Upstream benchmark claims are not local measurements. Silent substitution is forbidden. Production use requires an explicit A11oy receipt bound to the exact candidate and consumer revisions."
+  },
+  "pairing": {
+    "target": {
+      "role": "authoritative_target_model",
+      "family": "chaski",
+      "base_model": "Qwen/Qwen3.5-0.8B",
+      "estate_artifact": "SZLHOLDINGS/chaski-r2",
+      "adapter_sha256": "440340ce29e19344c0625d0adfe820b277cdb0e24099d4e612f88ad6b3cf49c6",
+      "revision_pin": "REQUIRED_AT_EXECUTION"
+    },
+    "drafter": {
+      "role": "speculative_draft_model",
+      "candidate": "satgeze/Qwen3.5-0.8B-DSpark",
+      "training_data": "r3lax/Qwen3.5-0.8B-selfdistill",
+      "license": "apache-2.0",
+      "revision_pin": "REQUIRED_AT_EXECUTION",
+      "upstream_status": "UNVERIFIED_UPSTREAM_ARTIFACT"
+    },
+    "authority_invariant": "The target model remains the sole authority on emitted tokens. The drafter proposes; the target verifies. Any configuration that lets drafter output bypass target verification is an automatic FAIL regardless of measured speed."
+  },
+  "measurements_required": [
+    {
+      "id": "acceptance_rate",
+      "definition": "Fraction of drafter-proposed tokens accepted by the target under the estate verification loop",
+      "report": ["mean", "p10", "p50", "p90"],
+      "label": "MEASURED only when produced on estate-controlled hardware"
+    },
+    {
+      "id": "decode_uplink",
+      "definition": "End-to-end decode throughput of target+drafter vs. target-only baseline, identical prompts, identical hardware",
+      "report": ["tok_per_s_target_only", "tok_per_s_speculative", "ratio"],
+      "label": "MEASURED only when produced on estate-controlled hardware"
+    },
+    {
+      "id": "output_parity",
+      "definition": "Distribution parity of speculative output vs. target-only output on the estate gate suite (JSON-draft, refusal, honesty corpus)",
+      "report": ["gate_pass_counts", "divergence_examples"],
+      "label": "MEASURED"
+    },
+    {
+      "id": "resource_envelope",
+      "definition": "Peak memory and load-time overhead introduced by the drafter, CPU and GPU recorded separately",
+      "report": ["peak_rss_delta_mb", "load_time_delta_s"],
+      "label": "MEASURED"
+    }
+  ],
+  "gate_thresholds": {
+    "decode_uplink_ratio_min": 1.5,
+    "acceptance_rate_mean_min": 0.6,
+    "output_parity_violations_max": 0,
+    "note": "Thresholds are integration-proposal criteria only. Meeting them authorizes writing a proposal, not shipping."
+  },
+  "non_goals": [
+    "No Hugging Face repository is created, overwritten, or retagged by this contract",
+    "No held frontier choice is promoted or ungated",
+    "No production serving change is authorized",
+    "No upstream benchmark figure may be quoted as a local measurement"
+  ],
+  "receipt_requirement": {
+    "type": "a11oy_receipt",
+    "bound_fields": ["target_revision", "drafter_revision", "consumer_revisions", "hardware_envelope", "raw_measurement_artifact_hash"],
+    "signing_note": "Receipts emit under current signing posture; HMAC PLACEHOLDER labeling applies until A11OY_HMAC_KEY is set, per HONEST_DISCLOSURE.md"
+  },
+  "provenance": {
+    "radar": "frontier-radar-2026-09-07",
+    "authored_by": "Perplexity frontier-radar session, owner-directed",
+    "pattern": "Mirrors docs/research-evidence/szl-frontier-top5-contract.v1.json (PR #2023)"
+  }
+}
