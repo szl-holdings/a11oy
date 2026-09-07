@@ -1,0 +1,108 @@
+{
+  "schema_version": "szl.frontier-top-choice-governance.v1",
+  "as_of": "2026-09-07",
+  "status": "GOVERNED_PLAN_NOT_LOCAL_QUALIFICATION",
+  "owner": "a11oy",
+  "default_effect": "HOLD",
+  "production_authorization_eligible": false,
+  "upstream_claims_are_local_measurements": false,
+  "canonical_frontier": {
+    "repository": "szl-holdings/szl-frontier",
+    "revision": "94a039d086d1343d1fcfe5bca617f601006ca05b",
+    "contract_path": "public/frontier/top-choice-integration-matrix.v1.json",
+    "hugging_face_space": "SZLHOLDINGS/szl-frontier",
+    "hugging_face_dataset": "SZLHOLDINGS/szl-frontier-covenant"
+  },
+  "consumer_revisions": {
+    "szl-serve": "74c2fa12ee3cd17cc8d80ac85801f11683912176",
+    "szl-kernels": "24d06d1f3dc987d82d5920a9e32348a98541799f",
+    "szl-nemo": "fd5bfd21abb7a453506a00dc2d69f7aca7954d1a",
+    "szl-router": "2dd475b6147cb26dbb956e9c3e12530103a16af8",
+    "szl-second-brain": "956a96a6e62d1a6bdf8dd1a37bec6ba18225396c"
+  },
+  "authorization_rule": {
+    "model_or_runtime_output_is_never_action_authority": true,
+    "all_candidate_outputs_are_proposal_or_evidence_only": true,
+    "required_before_any_production_authorization": [
+      "exact upstream identity and admitted license/access posture",
+      "candidate-specific held-out evaluation receipt",
+      "runtime correctness, performance, fallback, and rollback receipt when applicable",
+      "privacy, provenance, tenant/domain isolation, and deletion semantics receipt when applicable",
+      "no unresolved HOLD gate",
+      "explicit A11oy production authorization receipt bound to the exact candidate and consumer revisions"
+    ],
+    "silent_substitution_allowed": false,
+    "upstream_benchmark_claim_can_authorize_promotion": false
+  },
+  "candidates": [
+    {
+      "id": "k2-horizon-mova-36b-a4b-2026-09-03",
+      "class": "agent-model-runtime",
+      "upstream": "IFM/K2-Horizon-MoVA-36B-A4B",
+      "upstream_revision": "05cab0a4d7150c1c460a000b37ff40cc1af2feaa",
+      "artifact_fingerprint": "259e31e5a7143d4f6cca70ed238296e9374b0a51aa497563f62e10af990ec9e2",
+      "current_effect": "HOLD",
+      "required_evidence_sources": ["szl-frontier", "szl-nemo", "szl-serve", "szl-router"],
+      "hard_blockers": [
+        "K2 has not yet produced local held-out SZL task/tool/long-context qualification evidence.",
+        "K2 has not yet produced a pinned local serving SLO, concurrency, fallback, and rollback receipt.",
+        "The router contract intentionally keeps routing_eligibility=false."
+      ]
+    },
+    {
+      "id": "neomme-2026-09-03",
+      "class": "multimodal-retrieval",
+      "upstream": "Hcompany/NeoMME-260M-Retriever",
+      "current_effect": "HOLD",
+      "required_evidence_sources": ["szl-frontier", "szl-second-brain"],
+      "hard_blockers": [
+        "The exact upstream model revision must be pinned at local benchmark time.",
+        "Local qrels, retrieval quality, latency, index economics, and page/span provenance evidence are not yet sealed."
+      ]
+    },
+    {
+      "id": "funes-agent-memory-2026-09-03",
+      "class": "agent-memory-pattern",
+      "upstream": "Hugging Face Funes",
+      "current_effect": "HOLD",
+      "required_evidence_sources": ["szl-frontier", "szl-second-brain"],
+      "hard_blockers": [
+        "The adopted pattern must pass secret-exposure, tenant-isolation, tombstone, sync-divergence, provenance, and recall tests.",
+        "Raw trace evidence must remain authoritative and derived indexes must remain disposable."
+      ],
+      "non_claim": "Funes remains upstream work; SZL's differentiated contribution is the Memory Covenant, governance, evidence contracts, and interoperable implementation around the pattern."
+    },
+    {
+      "id": "hf-webgpu-kernels-2026-09-01",
+      "class": "browser-kernel-runtime",
+      "upstream": "Hugging Face WebGPU kernels",
+      "inventory_baseline": 207,
+      "current_effect": "HOLD",
+      "required_evidence_sources": ["szl-frontier", "szl-kernels", "szl-serve"],
+      "hard_blockers": [
+        "Inventory growth is discovery only; every selected kernel still requires its own revision/license/provenance pin.",
+        "Reference parity, device/runtime performance, memory, device-loss fallback, and rollback evidence must pass per admitted workload."
+      ]
+    },
+    {
+      "id": "vaani-noise-event-2026-08-07",
+      "class": "gated-speech-data",
+      "upstream": "ARTPARK-IISc/Vaani-Noise-Event-Dataset",
+      "upstream_revision": "be488e2ac12fd62bef46b9f83e3a5feded575333",
+      "artifact_fingerprint": "eaaee5703e5288affd9447ffb29feca84df66f0b70eef152a1f8913e8db7d4da",
+      "current_effect": "GATED_HOLD",
+      "required_evidence_sources": ["szl-frontier", "szl-nemo", "szl-serve"],
+      "hard_blockers": [
+        "Hugging Face content access is gated and must not be bypassed or auto-accepted.",
+        "No payload download, training, or redistribution is authorized by this contract.",
+        "After authorized access, only a bounded checksum-pinned sample may enter the first noise/ASR robustness evaluation."
+      ]
+    }
+  ],
+  "non_claims": [
+    "Registering or binding these candidates does not mean their weights, data, kernels, or memory implementation are production deployed.",
+    "Upstream benchmark results are not SZL local measurements.",
+    "No upstream asset is rebranded as an SZL-originated invention.",
+    "No candidate can promote itself or authorize tools, writes, training, routing, or production actions."
+  ]
+}
