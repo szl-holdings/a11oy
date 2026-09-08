@@ -10,7 +10,7 @@ This document is the **single source of truth** for how to contribute. Two lanes
 
 ### Lane A — Community-open surface (PRs welcome, no prior agreement)
 
-PRs are accepted for the following directories without a partnership agreement, under the DCO terms below:
+PRs are accepted for the following directories without a partnership agreement, under the source-provenance terms below:
 
 | Surface | What lives there |
 |---|---|
@@ -28,7 +28,7 @@ If a downstream consumer (e.g. Defense Unicorns) forks A11oy into their own org 
 `packages/a11oy-core/` and `packages/a11oy-connection/` contain the proprietary doctrine implementation. Drive-by PRs touching these files will be closed with a pointer to this section. To contribute here:
 
 1. Open an issue describing what you want to change and **why** (cite the relevant physics or the failing observation).
-2. Wait for a maintainer to label it `core:accept-pr`. We will tell you within 7 days if a PR is wanted.
+2. Wait for the maintainer to label it `core:accept-pr`. We will tell you within 7 days if a PR is wanted.
 3. Then open the PR.
 
 This is not about gatekeeping — it's because changes here can silently violate doctrine invariants (POVM completeness, KS-18 2-cover, Bohr floor) in ways that a smoke test catches but a code review easily misses. We want to be in the loop **before** you spend the time.
@@ -58,17 +58,17 @@ bash scripts/smoke-from-public-url.sh
 
 ---
 
-## DCO sign-off (REQUIRED on every commit)
+## Solo-maintainer source provenance
 
-Every commit must be signed off under the [Developer Certificate of Origin 1.1](https://developercertificate.org/). The DCO is a lightweight per-commit attestation that you wrote the code or have the right to contribute it. Use `git commit -s` to add the trailer automatically:
+DCO and `Signed-off-by` trailers are not required. Repository provenance is preserved through:
 
-```
-Signed-off-by: Real Name <real-email@example.com>
-```
+- GitHub-authenticated commit authorship;
+- pull-request history and current-base checks;
+- exact-head test and policy results;
+- immutable protected merge records;
+- artifact-specific SBOM, attestation, and signature evidence when those workflows succeed.
 
-PRs without a DCO sign-off on every commit will be blocked by CI. We use DCO instead of a CLA so individuals can contribute without paperwork.
-
-By signing off you also grant the project the license terms in [`LICENSE`](./LICENSE) for the contributed change.
+Every contributor remains responsible for submitting only material they wrote or have the legal right to contribute under the repository license and any applicable agreement. Founder-maintainer changes do not require an unavailable second human; external collaborator changes require maintainer review.
 
 ---
 
@@ -178,8 +178,8 @@ Guards run on every PR and push to `main`. Beyond the doctrine pre-flight above,
 guards include: `doctrine-grep.yml` (banned-token scan), `shared-file-drift.yml` (shared
 modules identical across a11oy + killinchu), `copy-sync-lockstep-guard.yml` (every module
 `serve.py` imports is in the Dockerfile COPY set **and** the HF mirror set),
-`overclaim-guard.yml`, `gitleaks.yml`, `dco.yml` (sign-off), `ci.yml`, `codeql.yml`,
-`scorecard.yml`, `slsa-build.yml`. If a guard trips on a comment or doc you added, **fix
-your text — never weaken the gate.**
+`overclaim-guard.yml`, `gitleaks.yml`, `ci.yml`, `codeql.yml`, `scorecard.yml`,
+`slsa-build.yml`, and the source/provenance truth gates. If a guard trips on a comment or
+doc you added, **fix your text — never weaken the gate.**
 
 — A11oy maintainers
