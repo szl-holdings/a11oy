@@ -103,10 +103,13 @@ def test_refresh_loop_can_only_open_a_review_pr() -> None:
     assert 'cron: "7 */2 * * *"' in workflow
     assert "scripts/materialize_brain_frontier_v7.py" in workflow
     assert "git diff --check" in workflow
-    assert "gh pr create" in workflow
-    assert "git push origin" in workflow
+    assert "scripts/brain_frontier_v7_refresh.py reconcile" in workflow
+    reconciler = read("scripts/brain_frontier_v7_refresh.py")
+    assert "def ensure_review_pr(" in reconciler
+    assert '"git", "push", "--porcelain", "origin"' in reconciler
+    assert "EXISTING_BRANCH_NO_FORCE" not in workflow + reconciler
     assert "gh pr merge" not in workflow
-    assert "provider" not in workflow.lower() or "provider_mutation" in workflow
+    assert "provider_mutation" in reconciler
     assert "contents: write" in workflow
     assert "pull-requests: write" in workflow
 
