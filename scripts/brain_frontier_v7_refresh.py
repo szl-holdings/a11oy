@@ -869,6 +869,16 @@ def verify_receipt(path: Path, require_terminal: bool = True) -> dict[str, Any]:
         run = receipt.get("run")
         if not all(isinstance(record, dict) for record in (source, materialization, proposal, run)):
             raise RefreshError("refresh receipt lacks structured source and outcome evidence")
+        run_id = str(run.get("id") or "")
+        attempt = run.get("attempt")
+        if (
+            re.fullmatch(r"[1-9][0-9]*", run_id) is None
+            or type(attempt) is not int
+            or attempt < 1
+            or run.get("url") != f"https://github.com/{REPOSITORY}/actions/runs/{run_id}"
+            or run.get("event") not in {"schedule", "workflow_dispatch"}
+        ):
+            raise RefreshError("refresh receipt run identity is invalid")
         if (
             source.get("repository") != REPOSITORY
             or source.get("branch") != BASE_BRANCH

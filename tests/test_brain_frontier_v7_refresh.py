@@ -158,6 +158,9 @@ def test_old_orphan_terminal_is_rejected_even_with_a_success_job(tmp_path):
     ("materialization", "job_result", "failure"),
     ("authority", "execution", "ALLOWED"),
     ("proposal", "state", "EXISTING_BRANCH_NO_FORCE"),
+    ("run", "id", "bogus"),
+    ("run", "attempt", 0),
+    ("run", "url", "https://example.org/run/100"),
 ])
 def test_recomputed_receipt_cannot_hide_invalid_terminal_semantics(tmp_path, section, field, value):
     receipt = refresh.build_receipt(receipt_args(tmp_path))

@@ -11,7 +11,9 @@ The controller belongs to the supply-chain layer and does not serve a runtime ro
 
 The branch name binds the first 16 hexadecimal characters of the full snapshot
 digest. A pre-existing branch is usable only when its full snapshot digest, candidate
-set, automation commit metadata, source ancestry and changed-file boundary match.
+set, automation commit metadata, source ancestry and aggregate changed-file boundary
+match. This checks the proposed tree against main; it is not a review of every
+historical commit on the automation branch.
 An orphan branch receives a PR. An existing open PR is reused only at the observed
 head. An unmerged closed PR at that head is reopened and read back. An old branch can
 advance using an ordinary push with both the old branch and current main as parents;
