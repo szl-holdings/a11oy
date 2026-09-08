@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173
 """
-a11oy.code — the 7-tier organ-mapped LLM router baked into the anatomy.
+a11oy.code — the integrated 7-tier organ-mapped view of the canonical szl-holdings/szl-router runtime.
 
 Doctrine v11 §14. ADDITIVE, self-contained module dropped beside serve.py in the
 a11oy Space. Maps 7 LLM tiers to 7 organs; selects a tier from the 13-axis Λ trust

@@ -2,8 +2,10 @@
 # © 2026 Lutar, Stephen P. — SZL Holdings · ORCID 0009-0001-0110-4173 · Doctrine v11
 """
 szl_brain — shared per-app BRAIN + UNIFIED LLM ROUTER, deployed identically on
-every SZL Space.  Python port of the canonical TypeScript source-of-truth at
-szl-holdings/platform/packages/llm-router/ (llm_router.ts).
+every SZL Space.  Integrated A11oy adapter for the canonical routing source at
+szl-holdings/szl-router. A11oy owns the portfolio registry and operator
+interface; routing-runtime changes originate in the router repository and
+enter A11oy only through an explicit source-bound integration.
 
 Two things every Space gets from this one module:
 
