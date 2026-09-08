@@ -140,7 +140,7 @@ def test_snapshot_is_handles_only_deterministic_and_exact() -> None:
         "szl-holdings/szl-forge",
         "szl-holdings/szl-nemo",
         "szl-holdings/szl-kernels",
-    } <= {handle["repository"] for handle in first["handles"]}
+    } == {handle["repository"] for handle in first["handles"]}
 
 
 def test_selection_fails_closed_when_72_handles_are_unavailable() -> None:
@@ -278,3 +278,52 @@ def test_dependency_revisions_must_be_exact() -> None:
     broken[ANATOMY_REPOSITORY] = "main"
     with pytest.raises(MaterializationError, match="not exact"):
         build_snapshot("5" * 40, state_raw, candidates_raw, broken)
+
+
+def test_source_and_dependency_revision_sets_must_be_exact() -> None:
+    state_raw, candidates_raw = fixture()
+    with pytest.raises(MaterializationError, match="second brain revision"):
+        build_snapshot("main", state_raw, candidates_raw, dependencies())
+
+    missing = dependencies()
+    del missing[ANATOMY_REPOSITORY]
+    with pytest.raises(MaterializationError, match="dependency repository set"):
+        build_snapshot("5" * 40, state_raw, candidates_raw, missing)
+
+    unexpected = dependencies()
+    unexpected["szl-holdings/a11oy"] = "6" * 40
+    with pytest.raises(MaterializationError, match="dependency repository set"):
+        build_snapshot("5" * 40, state_raw, candidates_raw, unexpected)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    (
+        ("title", "", "title"),
+        ("title", "unsafe\nlabel", "title"),
+        ("source_path", "../private.txt", "path"),
+        ("source_kind", "invented-kind", "kind"),
+        ("admission", "promoted", "admission"),
+        ("admission", "EXECUTE_NOW", "admission"),
+        ("quant_domain", "../private", "quant domain"),
+    ),
+)
+def test_untrusted_display_metadata_fails_closed(
+    field: str, value: str, message: str
+) -> None:
+    state_raw, candidates_raw = fixture()
+    rows = [json.loads(line) for line in candidates_raw.splitlines()]
+    rows[0][field] = value
+    tampered = b"".join(canonical_bytes(item) + b"\n" for item in rows)
+    state = json.loads(state_raw)
+    state["candidate_set_sha256"] = hashlib.sha256(tampered).hexdigest()
+    with pytest.raises(MaterializationError, match=message):
+        validate_frontier(json.dumps(state).encode(), tampered)
+
+
+def test_candidate_count_requires_an_exact_integer() -> None:
+    state_raw, candidates_raw = fixture()
+    state = json.loads(state_raw)
+    state["candidate_count"] = True
+    with pytest.raises(MaterializationError, match="candidate count"):
+        validate_frontier(json.dumps(state).encode(), candidates_raw)

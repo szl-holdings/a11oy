@@ -77,17 +77,33 @@ def test_shell_and_info_routes_also_beat_the_spa_catchall(
     shell_head = client.head("/holographic")
     alias = client.get("/a11oy/holographic")
     alias_head = client.head("/a11oy/holographic")
+    slash_shell = client.get("/holographic/", follow_redirects=False)
+    slash_shell_head = client.head("/holographic/", follow_redirects=False)
+    slash_alias = client.get("/a11oy/holographic/", follow_redirects=False)
+    slash_alias_head = client.head(
+        "/a11oy/holographic/", follow_redirects=False
+    )
     info = client.get("/api/a11oy/v1/holographic/info")
     assert {"GET", "HEAD"}.issubset(_methods(app, "/holographic"))
     assert {"GET", "HEAD"}.issubset(_methods(app, "/a11oy/holographic"))
+    assert {"GET", "HEAD"}.issubset(_methods(app, "/holographic/"))
+    assert {"GET", "HEAD"}.issubset(_methods(app, "/a11oy/holographic/"))
     assert shell.status_code == 200
     assert shell_head.status_code == 200
     assert shell_head.content == b""
     assert alias.status_code == 200
     assert alias_head.status_code == 200
     assert alias_head.content == b""
+    assert slash_shell.status_code == 200
+    assert slash_shell_head.status_code == 200
+    assert slash_shell_head.content == b""
+    assert slash_alias.status_code == 200
+    assert slash_alias_head.status_code == 200
+    assert slash_alias_head.content == b""
     assert "A11oy Holographic Operations" in shell.text
     assert "A11oy Holographic Operations" in alias.text
+    assert "A11oy Holographic Operations" in slash_shell.text
+    assert "A11oy Holographic Operations" in slash_alias.text
     assert info.status_code == 200
     assert info.json()["capability"] == "Shared szl3d 3D toolkit + holographic shell"
 
