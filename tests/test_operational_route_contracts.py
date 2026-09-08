@@ -99,7 +99,12 @@ def test_permanent_sync_uses_the_reusable_source_bound_authority() -> None:
         "/api/a11oy/v1/brain/capabilities",
         "/api/a11oy/v1/readiness/tab-matrix?view=summary",
         "/api/a11oy/v1/series-a/status",
+        "/holographic",
+        "/holographic/",
         "/static/3d/holographic.html",
+        "/assets/brain-frontier-v7.css",
+        "/assets/brain-frontier-v7.js",
+        "/assets/brain-frontier-v7.json",
         "/atelier/frontier",
         "/api/a11oy/v1/atelier/frontier/registry",
         (
