@@ -1,0 +1,44 @@
+name: LLM Router flagship amendment
+
+"on":
+  pull_request:
+    branches: [main]
+    paths:
+      - docs/series-a/LLM_ROUTER_FLAGSHIP_AMENDMENT_20260908.md
+      - .github/workflows/llm-router-flagship-amendment.yml
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  validate:
+    name: Validate flagship authority chain
+    if: github.event.pull_request.head.ref == 'fix/llm-router-flagship-amendment-20260908'
+    runs-on: ubuntu-latest
+    timeout-minutes: 6
+    steps:
+      - name: Harden runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+      - name: Checkout exact PR head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate amendment invariants
+        run: |
+          set -euo pipefail
+          file=docs/series-a/LLM_ROUTER_FLAGSHIP_AMENDMENT_20260908.md
+          test -s "$file"
+          grep -Fq 'szl-holdings/szl-router' "$file"
+          grep -Fq 'SZLHOLDINGS/llm-router-live' "$file"
+          grep -Fq 'https://a-11-oy.com/code' "$file"
+          grep -Fq 'https://a11oy.net' "$file"
+          grep -Fq 'Conjecture 1 — open' "$file"
+      - name: Enable protected squash auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: gh pr merge --auto --squash "$PR_URL"
