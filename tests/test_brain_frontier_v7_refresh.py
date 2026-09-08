@@ -128,6 +128,19 @@ def test_no_change_requires_successful_materialization_and_labels_unsigned(tmp_p
         refresh.verify_receipt(path)
 
 
+def test_successful_review_receipt_binds_the_actual_proposal(tmp_path):
+    refresh.write_json(tmp_path / "proposal.json", {
+        "state": "NEW_REVIEW_PR", "terminal": True,
+        "url": proposal()["url"], "branch": refresh.expected_branch("b" * 64),
+        "head_sha": "a" * 40, "source_sha": "d" * 40,
+        "snapshot_sha256": "b" * 64, "candidate_set_sha256": "c" * 64,
+    })
+    receipt = refresh.build_receipt(receipt_args(tmp_path, changed="true", proposal_result="success"))
+    path = tmp_path / "receipt.json"
+    refresh.write_json(path, receipt)
+    assert refresh.verify_receipt(path)["outcome"] == "REVIEW_PR_OPEN"
+
+
 def test_old_orphan_terminal_is_rejected_even_with_a_success_job(tmp_path):
     refresh.write_json(tmp_path / "proposal.json", {
         "state": "EXISTING_BRANCH_NO_FORCE", "terminal": True,
@@ -137,6 +150,24 @@ def test_old_orphan_terminal_is_rejected_even_with_a_success_job(tmp_path):
     receipt = refresh.build_receipt(receipt_args(tmp_path, changed="true", proposal_result="success"))
     assert receipt["outcome"] == "FAILED_CLOSED"
     assert "proposal_url_missing_or_invalid" in receipt["failures"]
+
+
+@pytest.mark.parametrize("section,field,value", [
+    ("source", "repository", "other/repository"),
+    ("materialization", "changed", "false"),
+    ("materialization", "job_result", "failure"),
+    ("authority", "execution", "ALLOWED"),
+    ("proposal", "state", "EXISTING_BRANCH_NO_FORCE"),
+])
+def test_recomputed_receipt_cannot_hide_invalid_terminal_semantics(tmp_path, section, field, value):
+    receipt = refresh.build_receipt(receipt_args(tmp_path))
+    receipt[section][field] = value
+    receipt.pop("receipt_sha256")
+    receipt["receipt_sha256"] = refresh.sha256(refresh.canonical_bytes(receipt))
+    path = tmp_path / "forged.json"
+    refresh.write_json(path, receipt)
+    with pytest.raises(refresh.RefreshError):
+        refresh.verify_receipt(path)
 
 
 @pytest.fixture

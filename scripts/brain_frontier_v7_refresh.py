@@ -860,6 +860,51 @@ def verify_receipt(path: Path, require_terminal: bool = True) -> dict[str, Any]:
     ):
         failures = receipt.get("failures")
         raise RefreshError(f"refresh transaction failed closed: {failures}")
+    if receipt.get("schema") != RECEIPT_SCHEMA or receipt.get("signature_state") != "UNSIGNED":
+        raise RefreshError("refresh receipt schema or signature classification is invalid")
+    if require_terminal:
+        source = receipt.get("source")
+        materialization = receipt.get("materialization")
+        proposal = receipt.get("proposal")
+        run = receipt.get("run")
+        if not all(isinstance(record, dict) for record in (source, materialization, proposal, run)):
+            raise RefreshError("refresh receipt lacks structured source and outcome evidence")
+        if (
+            source.get("repository") != REPOSITORY
+            or source.get("branch") != BASE_BRANCH
+            or HEX40.fullmatch(str(source.get("revision") or "")) is None
+            or run.get("ref") != "refs/heads/main"
+            or receipt.get("failures") != []
+            or materialization.get("job_result") != "success"
+            or HEX64.fullmatch(str(materialization.get("snapshot_sha256") or "")) is None
+            or HEX64.fullmatch(str(materialization.get("candidate_set_sha256") or "")) is None
+        ):
+            raise RefreshError("refresh receipt source or materialization binding is invalid")
+        if receipt.get("authority") != {
+            "content_access": "HANDLES_ONLY", "training": "NONE", "promotion": "NONE",
+            "execution": "NONE", "merge": "NONE", "provider_mutation": "NONE",
+        }:
+            raise RefreshError("refresh receipt authority boundary is invalid")
+        changed = materialization.get("changed")
+        if changed is True:
+            if (
+                receipt.get("outcome") != "REVIEW_PR_OPEN"
+                or receipt.get("proposal_job_result") != "success"
+                or proposal.get("state") not in SUCCESSFUL_PROPOSAL_STATES
+                or PR_URL.fullmatch(str(proposal.get("url") or "")) is None
+                or HEX40.fullmatch(str(proposal.get("head_sha") or "")) is None
+                or proposal.get("branch") != expected_branch(materialization["snapshot_sha256"])
+            ):
+                raise RefreshError("refresh receipt lacks a bound review PR")
+        elif changed is False:
+            if (
+                receipt.get("outcome") != "NO_CHANGE"
+                or receipt.get("proposal_job_result") not in {"success", "skipped"}
+                or proposal != {"state": "NO_PROPOSAL", "url": None, "branch": None, "head_sha": None}
+            ):
+                raise RefreshError("refresh receipt no-change outcome is inconsistent")
+        else:
+            raise RefreshError("refresh receipt change state is unknown")
     return receipt
 
 
