@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""SZL CPU evidence harness v1 — implements the merged research-evidence contracts.
+"""SZL CPU evidence harness v1.1 — implements the merged research-evidence contracts.
 
 Modes:
   specdec   Contract: docs/research-evidence/szl-specdec-drafter-evidence-contract.v1.json
-            Measures acceptance rate, decode uplift, output parity, resource envelope
-            for a llama.cpp target+drafter pairing on estate-controlled CPU metal.
+            Acceptance rate, decode uplift, output parity, resource envelope for a
+            llama.cpp target+drafter pairing on estate-controlled CPU metal.
   probe     Contract: docs/research-evidence/szl-linear-attention-cpu-probe-contract.v1.json
-            Instrumented wrapper that measures a recorded command's tok/s + peak RSS
-            across context lengths (used for artifacts with their own runtime, e.g.
-            m2r/pytorch, where llama.cpp cannot load the weights).
+            Instrumented wrapper measuring a recorded command's tok/s + peak RSS
+            across the 512..32768 context ladder (artifacts with their own runtime).
+  embed     Contract: docs/research-evidence/szl-secondbrain-embedding-evidence-contract.v1.json
+            recall@[1,5,10] on an estate-held-out query set, embedding throughput,
+            and resource envelope for a pinned baseline vs. pinned GGUF challenger.
 
 Fail-closed rules (doctrine):
   - Refuses to run without explicit revision pins for every external artifact.
@@ -19,9 +21,11 @@ Fail-closed rules (doctrine):
     PLACEHOLDER until A11OY_HMAC_KEY is set (HONEST_DISCLOSURE.md).
 
 Stdlib only. huggingface_hub required solely for pinned downloads.
+v1.1: adds native embed mode (llama-embedding), completing harness coverage
+of every executable contract.
 """
 
-import argparse, hashlib, json, os, platform, re, resource, subprocess
+import argparse, hashlib, json, math, os, platform, re, resource, subprocess
 import sys, tempfile, time
 from datetime import datetime, timezone
 
@@ -32,6 +36,7 @@ GATE_PROMPTS = [
     'Summarize in one sentence what a hash chain proves.',
 ]
 CTX_LADDER = [512, 2048, 8192, 32768]
+K_VALUES = [1, 5, 10]
 
 
 def hw_envelope():
@@ -81,10 +86,11 @@ def rss_children_kb():
     return ru // 1024 if sys.platform == "darwin" else ru  # macOS bytes, Linux kB
 
 
-def run_logged(cmd, logdir, tag):
+def run_logged(cmd, logdir, tag, stdin_text=None):
     rss_before = rss_children_kb()
     t0 = time.time()
-    proc = subprocess.run(cmd, capture_output=True, text=True, timeout=3600)
+    proc = subprocess.run(cmd, input=stdin_text, capture_output=True, text=True,
+                          timeout=3600)
     wall = time.time() - t0
     rss_after = rss_children_kb()
     raw = ("$ " + " ".join(cmd) + "\n\n" + proc.stdout + "\n--- stderr ---\n"
@@ -101,7 +107,7 @@ def run_logged(cmd, logdir, tag):
         "n_drafted": int(drafted.group(1)) if drafted else None,
         "n_accepted": int(accepted.group(1)) if accepted else None,
         "peak_rss_delta_mb": round((rss_after - rss_before) / 1024, 1),
-        "log": logpath,
+        "log": logpath, "stdout": proc.stdout,
         "stdout_tail": proc.stdout[-1500:],
     }
 
@@ -161,8 +167,7 @@ def mode_specdec(args, logdir):
 
 
 def mode_probe(args, logdir):
-    """Instrumented wrapper: measures a RECORDED command per context length.
-    The command must print generated token count to stdout (contract-recorded)."""
+    """Instrumented wrapper: measures a RECORDED command per context length."""
     if not args.probe_cmd:
         raise SystemExit("fail-closed: --probe-cmd required in probe mode "
                          "(use {ctx} placeholder for context length)")
@@ -195,25 +200,118 @@ def mode_probe(args, logdir):
     }
 
 
+def parse_embedding(stdout):
+    m = re.search(r"embedding\s+0\s*:\s*(.*)", stdout, re.S)
+    if not m:
+        return None
+    try:
+        return [float(x) for x in re.findall(r"[-+]?\d*\.\d+(?:[eE][-+]?\d+)?",
+                                             m.group(1))]
+    except ValueError:
+        return None
+
+
+def cosine(a, b):
+    dot = sum(x * y for x, y in zip(a, b))
+    na = math.sqrt(sum(x * x for x in a)); nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def embed_artifact(binary, model_path, texts, threads, logdir, tag):
+    vectors, t0, max_rss = [], 0.0, 0.0
+    for i, text in enumerate(texts):
+        r = run_logged([binary, "-m", model_path, "-t", str(threads),
+                        "-ngl", "0", "--pooling", "cls", "-p", text],
+                       logdir, f"{tag}_emb{i}")
+        t0 += r["wall_s"]; max_rss = max(max_rss, r["peak_rss_delta_mb"])
+        vec = parse_embedding(r["stdout"])
+        if vec is None:
+            return None, None, None
+        vectors.append(vec)
+    return vectors, round(len(texts) / t0, 2) if t0 else None, max_rss
+
+
+def mode_embed(args, logdir):
+    if not (args.query_set and args.corpus):
+        raise SystemExit("fail-closed: embed mode needs --query-set and --corpus "
+                         "(JSONL: {'query','relevant':[ids]} / {'id','text'})")
+    emb_bin = which_llama("llama-embedding")
+    queries = [json.loads(l) for l in open(args.query_set) if l.strip()]
+    docs = [json.loads(l) for l in open(args.corpus) if l.strip()]
+    qhash = hashlib.sha256(open(args.query_set, "rb").read()).hexdigest()
+    doc_ids = [d["id"] for d in docs]
+    texts_all = [d["text"] for d in docs] + [q["query"] for q in queries]
+
+    results = {}
+    for name, repo, rev in (("baseline", args.baseline_repo, args.baseline_revision),
+                            ("candidate", args.candidate_repo, args.candidate_revision)):
+        root = pinned_snapshot(repo, rev, ["*.gguf"])
+        model = find_gguf(root)
+        vecs, tps, rss = embed_artifact(emb_bin, model, texts_all,
+                                        args.threads, logdir, name)
+        if vecs is None:
+            results[name] = {"label": "UNVERIFIED",
+                             "detail": f"embedding output unparseable for {name}"}
+            continue
+        doc_vecs, q_vecs = vecs[:len(docs)], vecs[len(docs):]
+        hits = {k: 0 for k in K_VALUES}
+        for qi, q in enumerate(queries):
+            sims = sorted(((cosine(q_vecs[qi], dv), doc_ids[di])
+                           for di, dv in enumerate(doc_vecs)), reverse=True)
+            ranked = [d for _, d in sims]
+            for k in K_VALUES:
+                if set(q["relevant"]) & set(ranked[:k]):
+                    hits[k] += 1
+        n = max(len(queries), 1)
+        results[name] = {
+            "label": "MEASURED",
+            "recall": {f"recall_at_{k}": round(hits[k] / n, 4) for k in K_VALUES},
+            "texts_per_s": tps, "peak_rss_delta_mb": rss,
+            "revision": rev,
+        }
+
+    b, c = results.get("baseline", {}), results.get("candidate", {})
+    both_ok = b.get("label") == "MEASURED" and c.get("label") == "MEASURED"
+    gate = None
+    if both_ok:
+        parity = c["recall"]["recall_at_5"] >= b["recall"]["recall_at_5"]
+        ratio = round(c["texts_per_s"] / b["texts_per_s"], 3) if b["texts_per_s"] else None
+        gate = {"recall_parity_or_better": parity,
+                "throughput_ratio": ratio,
+                "throughput_ratio_min_1.25": (ratio or 0) >= 1.25,
+                "rule": "recall regression = automatic PARK; parity + >=1.25x "
+                        "authorizes a second-brain proposal write only"}
+    return {
+        "contract": "szl-secondbrain-embedding-evidence-contract.v1",
+        "query_set_hash": qhash, "n_queries": len(queries), "n_docs": len(docs),
+        "measurements": {"retrieval_quality": {k: v for k, v in results.items()},
+                         "label": "MEASURED on estate corpus only; upstream "
+                                  "leaderboard figures are not estate evidence"},
+        "gate_thresholds_check": gate or {"label": "UNVERIFIED"},
+        "revisions": {"baseline_revision": args.baseline_revision,
+                      "candidate_revision": args.candidate_revision},
+    }
+
+
 def main():
-    ap = argparse.ArgumentParser(description="SZL CPU evidence harness v1")
-    ap.add_argument("mode", choices=["specdec", "probe"])
+    ap = argparse.ArgumentParser(description="SZL CPU evidence harness v1.1")
+    ap.add_argument("mode", choices=["specdec", "probe", "embed"])
     ap.add_argument("--out", default="evidence_receipt.json")
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 4)
     ap.add_argument("--tokens", type=int, default=256)
     ap.add_argument("--bench-prompt",
                     default="Write a short honest status report about a hash chain.")
-    ap.add_argument("--target-repo")
-    ap.add_argument("--target-revision")
-    ap.add_argument("--drafter-repo")
-    ap.add_argument("--drafter-revision")
-    ap.add_argument("--subject-revision")
-    ap.add_argument("--probe-cmd")
+    ap.add_argument("--target-repo"); ap.add_argument("--target-revision")
+    ap.add_argument("--drafter-repo"); ap.add_argument("--drafter-revision")
+    ap.add_argument("--subject-revision"); ap.add_argument("--probe-cmd")
+    ap.add_argument("--baseline-repo"); ap.add_argument("--baseline-revision")
+    ap.add_argument("--candidate-repo"); ap.add_argument("--candidate-revision")
+    ap.add_argument("--query-set"); ap.add_argument("--corpus")
     args = ap.parse_args()
 
     logdir = tempfile.mkdtemp(prefix="szl_evidence_")
-    body = (mode_specdec(args, logdir) if args.mode == "specdec"
-            else mode_probe(args, logdir))
+    body = {"specdec": mode_specdec, "probe": mode_probe,
+            "embed": mode_embed}[args.mode](args, logdir)
 
     raw_hash = hashlib.sha256()
     for f in sorted(os.listdir(logdir)):
