@@ -412,15 +412,27 @@ def validate_brain_snapshot(raw: bytes) -> dict[str, Any]:
 class FrontierMountParser(HTMLParser):
     """Read active stylesheet/script mounts, excluding comments and inert markup."""
 
+    TEXT_CONTEXTS = {"textarea", "title", "xmp", "iframe", "noembed", "noframes", "style", "plaintext"}
+    INERT_CONTEXTS = TEXT_CONTEXTS | {"template", "noscript", "svg", "math"}
+
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.mounts: list[tuple[str, tuple[tuple[str, str | None], ...]]] = []
-        self.inert_depth = 0
+        self.inert_contexts: list[str] = []
+        self.base_present = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in {"template", "noscript"}:
-            self.inert_depth += 1
-        if self.inert_depth or tag not in {"link", "script"}:
+        # HTMLParser reports tags inside RCDATA/raw-text elements that browsers
+        # treat as text. Only the matching close can end such a context.
+        if self.inert_contexts and self.inert_contexts[-1] in self.TEXT_CONTEXTS:
+            return
+        if tag in self.INERT_CONTEXTS:
+            self.inert_contexts.append(tag)
+        if self.inert_contexts:
+            return
+        if tag == "base":
+            self.base_present = True
+        if tag not in {"link", "script"}:
             return
         if any(
             key == "data-szl-brain-frontier-v7"
@@ -431,8 +443,12 @@ class FrontierMountParser(HTMLParser):
             self.mounts.append((tag, tuple(sorted(attrs, key=lambda pair: pair[0]))))
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in {"template", "noscript"} and self.inert_depth:
-            self.inert_depth -= 1
+        if (
+            self.inert_contexts
+            and self.inert_contexts[-1] != "plaintext"
+            and tag == self.inert_contexts[-1]
+        ):
+            self.inert_contexts.pop()
 
 
 def validate_exact_source_asset(
@@ -458,6 +474,8 @@ def validate_exact_source_asset(
         if (
             [tag for tag, _ in source_mounts.mounts] != ["link", "script"]
             or live_mounts.mounts != source_mounts.mounts
+            or source_mounts.base_present
+            or live_mounts.base_present
         ):
             raise RelockError("holographic surface lacks the exact active reviewed asset mounts")
         allowed_content_types = ("text/html",)
