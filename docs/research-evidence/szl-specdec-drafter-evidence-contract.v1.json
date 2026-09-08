@@ -4,7 +4,7 @@
   "status": "PROPOSED",
   "created": "2026-09-07",
   "amended": "2026-09-08",
-  "amendment": "v1.1 — binds inspected artifact facts (parameters, serving format, training-data structure) recorded 2026-09-08; adds llama.cpp-native CPU-first execution envelope. No gate threshold, status, or non-goal changes.",
+  "amendment": "v1.2 — adds a long-horizon divergence leg to output parity. Motivation (UPSTREAM, not local evidence): the preregistered, DOI-archived llama.cpp study thc1006/qwen3.8-speculative-decoding-rtx3090 reports draft-MTP decode gains of +59.8% [+57.0, +62.8 CI] with 23-25 of 25 prompts diverging from serial greedy at a 1600-token horizon. A 256-token parity check cannot observe that failure class; the parity horizon is raised accordingly. v1.1 (artifact facts + CPU-first envelope) is retained verbatim. No gate threshold or non-goal changes.",
   "governing_boundary": {
     "overlay": "model_release/frontier-qualification/top-choice-wave-2026-09-07.json",
     "overlay_commit": "c7c430930008025789f92438bb6503099ca36d8b",
@@ -72,6 +72,14 @@
       "label": "MEASURED"
     },
     {
+      "id": "long_horizon_parity",
+      "added_in": "v1.2",
+      "definition": "Gate-suite prompts decoded to a >=1600-token horizon in both modes; divergence counted against serial-greedy target-only output. Short-horizon parity (256 tokens) is necessary but NOT sufficient evidence.",
+      "upstream_motivation": "thc1006/qwen3.8-speculative-decoding-rtx3090 (preregistered, DOI-archived): 23-25/25 prompts diverged from serial greedy at 1600 tokens under draft-MTP despite +59.8% decode uplift. UPSTREAM claim, not a local measurement; the estate reproduces or refutes it locally under this leg.",
+      "report": ["token_horizon", "diverged_prompts", "divergence_examples"],
+      "label": "MEASURED"
+    },
+    {
       "id": "resource_envelope",
       "definition": "Peak memory and load-time overhead introduced by the drafter, CPU and GPU recorded separately",
       "report": ["peak_rss_delta_mb", "load_time_delta_s"],
@@ -82,6 +90,7 @@
     "decode_uplink_ratio_min": 1.5,
     "acceptance_rate_mean_min": 0.6,
     "output_parity_violations_max": 0,
+    "long_horizon_divergences_max": 0,
     "note": "Thresholds are integration-proposal criteria only. Meeting them authorizes writing a proposal, not shipping."
   },
   "non_goals": [
@@ -96,10 +105,11 @@
     "signing_note": "Receipts emit under current signing posture; HMAC PLACEHOLDER labeling applies until A11OY_HMAC_KEY is set, per HONEST_DISCLOSURE.md"
   },
   "provenance": {
-    "radar": "frontier-radar-2026-09-07",
+    "radar": "frontier-radar-2026-09-07; GitHub-surface radar 2026-09-08 (thc1006 divergence study)",
     "authored_by": "Perplexity frontier-radar session, owner-directed",
     "pattern": "Mirrors docs/research-evidence/szl-frontier-top5-contract.v1.json (PR #2023)",
     "v1_merged": "PR #2047, merge commit 9d775839f2985bcb228d3705b271328912a60fcd",
-    "v1_1_inspection": "hub_repo_details overviews of satgeze/Qwen3.5-0.8B-DSpark and r3lax/Qwen3.5-0.8B-selfdistill, 2026-09-08"
+    "v1_1_inspection": "hub_repo_details overviews of satgeze/Qwen3.5-0.8B-DSpark and r3lax/Qwen3.5-0.8B-selfdistill, 2026-09-08 (#2059)",
+    "v1_2_motivation": "upstream preregistered study documents near-universal long-horizon divergence under draft-MTP; parity leg horizon raised to observe it"
   }
 }

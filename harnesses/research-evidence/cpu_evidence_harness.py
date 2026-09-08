@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""SZL CPU evidence harness v1.1 — implements the merged research-evidence contracts.
+"""SZL CPU evidence harness v1.2 — implements the merged research-evidence contracts.
 
 Modes:
   specdec   Contract: docs/research-evidence/szl-specdec-drafter-evidence-contract.v1.json
-            Acceptance rate, decode uplift, output parity, resource envelope for a
-            llama.cpp target+drafter pairing on estate-controlled CPU metal.
+            Acceptance rate, decode uplift, short-horizon AND long-horizon output
+            parity, resource envelope for a llama.cpp target+drafter pairing.
   probe     Contract: docs/research-evidence/szl-linear-attention-cpu-probe-contract.v1.json
             Instrumented wrapper measuring a recorded command's tok/s + peak RSS
             across the 512..32768 context ladder (artifacts with their own runtime).
@@ -21,8 +21,10 @@ Fail-closed rules (doctrine):
     PLACEHOLDER until A11OY_HMAC_KEY is set (HONEST_DISCLOSURE.md).
 
 Stdlib only. huggingface_hub required solely for pinned downloads.
-v1.1: adds native embed mode (llama-embedding), completing harness coverage
-of every executable contract.
+v1.1: native embed mode (llama-embedding), covering every executable contract.
+v1.2: long-horizon parity leg (--parity-tokens, default 1600) per contract v1.2,
+      motivated by the upstream thc1006 preregistered divergence study (UPSTREAM
+      claim; the estate reproduces or refutes locally).
 """
 
 import argparse, hashlib, json, math, os, platform, re, resource, subprocess
@@ -118,11 +120,13 @@ def mode_specdec(args, logdir):
     ddir = pinned_snapshot(args.drafter_repo, args.drafter_revision, ["*.gguf"])
     target, drafter = find_gguf(tdir), find_gguf(ddir)
     base = [cli, "-m", target, "-t", str(args.threads), "--temp", "0",
-            "-n", str(args.tokens), "-ngl", "0", "--no-warmup"]
+            "-ngl", "0", "--no-warmup"]
+    bench = base + ["-n", str(args.tokens)]
+    long_horizon = base + ["-n", str(args.parity_tokens)]
 
     runs = {}
     for mode, extra in (("target_only", []), ("speculative", ["-md", drafter])):
-        runs[mode] = run_logged(base + extra + ["-p", args.bench_prompt],
+        runs[mode] = run_logged(bench + extra + ["-p", args.bench_prompt],
                                 logdir, f"bench_{mode}")
     to, sp = runs["target_only"], runs["speculative"]
     uplift = (round(sp["tok_per_s"] / to["tok_per_s"], 3)
@@ -130,17 +134,18 @@ def mode_specdec(args, logdir):
     accept = (round(sp["n_accepted"] / sp["n_drafted"], 4)
               if sp["n_drafted"] else None)
 
-    parity, violations = [], 0
+    parity, violations, long_div = [], 0, 0
     for i, prompt in enumerate(GATE_PROMPTS):
-        a = run_logged(base + ["-p", prompt], logdir, f"parity_{i}_base")
-        b = run_logged(base + ["-md", drafter, "-p", prompt],
+        a = run_logged(long_horizon + ["-p", prompt], logdir, f"parity_{i}_base")
+        b = run_logged(long_horizon + ["-md", drafter, "-p", prompt],
                        logdir, f"parity_{i}_spec")
         same = a["stdout_tail"].strip() == b["stdout_tail"].strip()
         violations += 0 if same else 1
+        long_div += 0 if same else 1
         parity.append({"prompt": prompt[:60], "identical": same})
 
     return {
-        "contract": "szl-specdec-drafter-evidence-contract.v1",
+        "contract": "szl-specdec-drafter-evidence-contract.v1 (v1.2)",
         "measurements": {
             "acceptance_rate": {"mean": accept,
                                 "label": "MEASURED" if accept is not None
@@ -153,6 +158,14 @@ def mode_specdec(args, logdir):
                                   f"{len(GATE_PROMPTS)-violations}/{len(GATE_PROMPTS)}",
                               "violations": violations, "detail": parity,
                               "label": "MEASURED"},
+            "long_horizon_parity": {"token_horizon": args.parity_tokens,
+                                    "diverged_prompts": long_div,
+                                    "label": "MEASURED",
+                                    "upstream_motivation":
+                                        "thc1006 preregistered study: 23-25/25 "
+                                        "divergence at 1600 tokens under draft-MTP "
+                                        "(UPSTREAM claim, locally reproduced or "
+                                        "refuted here)"},
             "resource_envelope": {"peak_rss_delta_mb": sp["peak_rss_delta_mb"],
                                   "label": "MEASURED"},
         },
@@ -160,6 +173,7 @@ def mode_specdec(args, logdir):
             "decode_uplink_ratio_min_1.5": (uplift or 0) >= 1.5,
             "acceptance_mean_min_0.6": (accept or 0) >= 0.6,
             "parity_violations_max_0": violations == 0,
+            "long_horizon_divergences_max_0": long_div == 0,
             "note": "Threshold pass authorizes writing an integration proposal only."},
         "revisions": {"target_revision": args.target_revision,
                       "drafter_revision": args.drafter_revision},
@@ -294,11 +308,13 @@ def mode_embed(args, logdir):
 
 
 def main():
-    ap = argparse.ArgumentParser(description="SZL CPU evidence harness v1.1")
+    ap = argparse.ArgumentParser(description="SZL CPU evidence harness v1.2")
     ap.add_argument("mode", choices=["specdec", "probe", "embed"])
     ap.add_argument("--out", default="evidence_receipt.json")
     ap.add_argument("--threads", type=int, default=os.cpu_count() or 4)
     ap.add_argument("--tokens", type=int, default=256)
+    ap.add_argument("--parity-tokens", type=int, default=1600,
+                    help="Decode horizon for the parity legs (contract v1.2).")
     ap.add_argument("--bench-prompt",
                     default="Write a short honest status report about a hash chain.")
     ap.add_argument("--target-repo"); ap.add_argument("--target-revision")
