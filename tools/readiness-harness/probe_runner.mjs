@@ -476,9 +476,29 @@ function evaluateEndpointLabels(httpStatus, spec, body) {
     entry.normalized === "observed"
     && /(^|\.)(throughput_state|counter_state)$/i.test(entry.path)
   );
+  // A reviewed supplemental source may fail independently of required market
+  // evidence. Admit only its exact failure envelope; root labels and sibling
+  // sources retain the endpoint's strict allowLabels and freshness gates.
+  const supplementalUnavailable = (entry) => {
+    const sources = spec.degradedRules?.allowUnavailableSources;
+    if (entry.normalized !== "unavailable" || !Array.isArray(sources)) return false;
+    const prefix = sources.find((path) => (
+      typeof path === "string" && path.length > 0
+      && entry.path === `${path}.freshness.status`
+    ));
+    if (!prefix) return false;
+    const candidate = valueAtPath(body, prefix);
+    if (!candidate.found) return false;
+    const source = candidate.value;
+    return isCanonicalUnavailableSource({
+      ...source,
+      freshness: { ...source?.freshness, status: "UNAVAILABLE" },
+    });
+  };
   const disallowed = [
     ...labels.filter(
-      (entry) => !allowed.has(entry.normalized) && !supplementalObserved(entry),
+      (entry) => !allowed.has(entry.normalized)
+        && !supplementalObserved(entry) && !supplementalUnavailable(entry),
     ),
     ...findEvidenceContradictions(spec, body),
   ];

@@ -228,6 +228,66 @@ test("explicit evidence-kind fields remain fail-closed for unknown values", () =
   }]);
 });
 
+test("finance admits only a fresh typed failure of its supplemental NVD source", () => {
+  const spec = readinessMatrix.endpoints["/api/a11oy/v1/vert/finance/feed"];
+  const nowMs = Date.parse("2026-09-07T22:00:00Z");
+  const live = () => ({
+    value: { price: 1 },
+    freshness: { status: "live", fetched_at: nowMs / 1000 - 10 },
+  });
+  const unavailable = () => ({
+    value: null,
+    freshness: {
+      status: "unavailable", fetched_at: nowMs / 1000 - 10,
+      error: "TimeoutError: NVD upstream",
+    },
+  });
+  const body = () => ({
+    equities_official: { SPY: live() }, crypto: { "BTC-USD": live() },
+    fx: live(), fintech_cve: unavailable(),
+  });
+  assert.deepEqual(spec.degradedRules.allowLabels,
+    ["live", "cached", "reference", "unofficial-fallback"]);
+  assert.deepEqual(spec.degradedRules.allowUnavailableSources, ["fintech_cve"]);
+  assert.equal(evaluateEndpointLabels(200, spec, body()).ok, true);
+  assert.equal(evaluateFreshness("/api/a11oy/v1/vert/finance/feed",
+    spec, body(), nowMs).freshOk, true);
+
+  for (const invalid of [
+    { ...unavailable(), value: { items: [] } },
+    { freshness: unavailable().freshness },
+    { value: null, freshness: { status: "unavailable", error: "NVD failed" } },
+    { value: null, freshness: { ...unavailable().freshness, error: " " } },
+    { value: null, freshness: { ...unavailable().freshness, fetched_at: "invalid" } },
+    { value: null, freshness: { ...unavailable().freshness, status: "placeholder" } },
+    { ...unavailable(), data_kind: "fabricated" },
+  ]) {
+    assert.equal(evaluateEndpointLabels(200, spec,
+      { ...body(), fintech_cve: invalid }).ok, false);
+  }
+  for (const requiredFailure of [
+    { ...body(), equities_official: { SPY: unavailable() } },
+    { ...body(), crypto: { "BTC-USD": unavailable() } },
+    { ...body(), fx: unavailable() },
+    { ...body(), freshness: { status: "unavailable" } },
+    { ...body(), another_source: unavailable() },
+  ]) {
+    assert.equal(evaluateEndpointLabels(200, spec, requiredFailure).ok, false);
+  }
+  for (const fetched_at of [nowMs / 1000 - 7200, nowMs / 1000 + 600]) {
+    const expired = body();
+    expired.fintech_cve.freshness.fetched_at = fetched_at;
+    assert.equal(evaluateFreshness("/api/a11oy/v1/vert/finance/feed",
+      spec, expired, nowMs).freshOk, false);
+  }
+  const strictSpec = structuredClone(spec);
+  delete strictSpec.degradedRules.allowUnavailableSources;
+  assert.equal(evaluateEndpointLabels(200, strictSpec, body()).ok, false);
+  const forbiddenSpec = structuredClone(spec);
+  forbiddenSpec.degradedRules.liesIf.push("unavailable");
+  assert.equal(evaluateEndpointLabels(200, forbiddenSpec, body()).ok, false);
+});
+
 test("feed pulse freshness grades its current heartbeat clock", () => {
   const spec = readinessMatrix.endpoints["/api/a11oy/v1/feeds/pulse"];
   const nowMs = Date.parse("2026-09-01T05:30:00Z");

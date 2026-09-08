@@ -3,7 +3,7 @@
   "doctrine": "v11",
   "organ": "a11oy",
   "consoleRoute": "/console",
-  "generatedAt": "2026-09-03T00:00:00Z",
+  "generatedAt": "2026-09-08T00:00:00Z",
   "generator": "tools/readiness-harness/gen_tabs_matrix.py",
   "stateVocabulary": {
     "LIVE": "Fetched from a running source during this session; reachability is not proof of correctness.",
@@ -1043,9 +1043,12 @@
           "mock",
           "fabricated",
           "placeholder"
+        ],
+        "allowUnavailableSources": [
+          "fintech_cve"
         ]
       },
-      "note": "Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."
+      "note": "Market sources remain required; supplemental NVD may report a fresh, typed unavailable failure without inventing CVEs."
     },
     "/api/a11oy/v1/vert/legal/feed": {
       "method": "GET",

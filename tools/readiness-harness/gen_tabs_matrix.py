@@ -62,7 +62,8 @@ STATE_VOCABULARY = {
 # liesIf: response shapes that count as a "lie" (stale/mock/uncited) -> fail.
 def ep(method="GET", schema=None, sla=None, citations=False,
        allow_statuses=(200,), allow_labels=("live", "cached"),
-       lies_if=("mock", "fabricated", "placeholder"), note=""):
+       lies_if=("mock", "fabricated", "placeholder"), note="",
+       unavailable_sources=()):
     return {
         "method": method,
         "schema": schema,
@@ -72,6 +73,8 @@ def ep(method="GET", schema=None, sla=None, citations=False,
             "allowStatuses": list(allow_statuses),
             "allowLabels": list(allow_labels),
             "liesIf": list(lies_if),
+            **({"allowUnavailableSources": list(unavailable_sources)}
+               if unavailable_sources else {}),
         },
         "note": note,
     }
@@ -266,7 +269,8 @@ ENDPOINTS = {
     "/api/a11oy/v1/vert/finance/feed": ep(
         schema="vert_finance_feed", sla=HOUR, citations=True,
         allow_labels=("live", "cached", "reference", "unofficial-fallback"),
-        note="Live Yahoo/macro finance feed; cold-burst 404 tolerated, re-probe."),
+        unavailable_sources=("fintech_cve",),
+        note="Market sources remain required; supplemental NVD may report a fresh, typed unavailable failure without inventing CVEs."),
     "/api/a11oy/v1/vert/legal/feed": ep(
         schema="vert_legal_feed", sla=HOUR, citations=True,
         allow_labels=("live", "cached", "reference", "UNAVAILABLE"),
