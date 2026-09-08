@@ -6564,8 +6564,8 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
           +'<div class="hero-inner">'
           +'<p class="hero-eyebrow mono">GOVERNED-AI SUBSTRATE \u00b7 SZL HOLDINGS</p>'
           +'<h1 class="hero-h1">AI that <span class="hero-accent">signs its work</span><br>and refuses to lie.</h1>'
-          +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built on measured-energy sovereign compute.</p>'
-          +'<div class="hero-counters" role="group" aria-label="live measured platform receipts">'
+          +'<p class="hero-sub">The auditable AI substrate for counter-UAS, maritime threat-intel, supply-chain and governance — built for energy-evidence-aware sovereign compute.</p>'
+          +'<div class="hero-counters" role="group" aria-label="platform evidence and runtime receipts">'
           +'<div class="hctr"><span class="hctr-k mono">ENERGY <em class="mlabel" id="hero-joules-tag">SAMPLE</em></span>'
           +'<span class="hctr-v mono" id="hero-joules" data-maturity="sample">\u2014 J/tok</span>'
           +'<span class="hctr-d">per-token energy \u00b7 NVML</span></div>'
@@ -15298,36 +15298,53 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
     };
     V['energyReceipts']={
       title:'Energy Receipts',
-      badge:'DSSE-SIGNED · KHIPU LAKE · UNAVAILABLE until GPU online',
-      sub:'Every governed inference through a11oy produces a signed energy receipt: '
-         +'measured_joules (or UNAVAILABLE), carbon_gco2eq, sci_score_gco2_per_call, '
-         +'methodology: GSF_SCI_ISO_21031_2024. All fields included in the DSSE-signed '
-         +'payload — offline verifiable. When GPU + meter offline: fields are present but '
-         +'null, labeled UNAVAILABLE. Never fabricated. Λ = Conjecture 1.',
+      badge:'HASH-CHAIN STRUCTURE · MEASUREMENT UNAVAILABLE · SIGNATURE UNAVAILABLE',
+      sub:'The endpoint reports JouleCharge payloads and a structural hash-chain verdict. Its current entry digest '
+         +'does not bind the top-level billing or freshness fields, and the endpoint exposes no signature. '
+         +'This view therefore never promotes a reported joule value to MEASURED. Source labels, dispositions, '
+         +'reasons, and digest presence remain explicitly reported diagnostics; measurement and authenticity evidence '
+         +'stay UNAVAILABLE. Never fabricated. '
+         +'Λ = Conjecture 1.',
       render: function(c){
         c.innerHTML='<div style="padding:1.5rem 2rem">';
-        _szlFetch('/api/a11oy/v1/energy/ledger').then(function(d){
-          var receipts=d.receipts||[];
+        getJSON('/api/a11oy/v1/energy/ledger').then(function(d){
+          if(!d||typeof d!=='object'||Array.isArray(d)) d={};
+          var receipts=Array.isArray(d.receipts)?d.receipts:[];
+          var chainOK=d.chain&&d.chain.ok===true;
+          var chainState=chainOK?'REPORTED OK':(d.chain&&d.chain.ok===false?'FAILED':'UNAVAILABLE');
           var html='<h2 style="font-family:var(--display);color:var(--teal);margin:0 0 .5rem">Energy Receipts</h2>';
           html+='<p style="color:var(--muted);font-size:.8rem;font-family:var(--mono);margin:0 0 1rem">'
-               +receipts.length+' receipts in Khipu lake · chain integrity: '+(d.chain&&d.chain.ok?'<span style="color:var(--teal)">OK</span>':'<span style="color:var(--err)">FAIL</span>')+'</p>';
+               +receipts.length+' entries · chain structure: <span>'+esc(chainState)+'</span> · authenticity: UNAVAILABLE · signature: UNAVAILABLE</p>';
           if(!receipts.length){
             html+='<div style="border:1px solid var(--gold-line);border-radius:8px;padding:1.2rem;color:var(--muted);font-family:var(--mono);font-size:.85rem">';
-            html+='<b style="color:var(--cream)">0 receipts</b> — sovereign GPU + meter are offline.<br>';
-            html+='When the meter is running, every inference turn mints a signed energy receipt here.';
+            html+='<b style="color:var(--cream)">0 entries returned</b> — no receipt decision or MEASURED joule evidence.<br>';
+            html+='A successful read establishes neither an active meter nor signature evidence.';
             html+='</div>';
           } else {
             receipts.slice(0,10).forEach(function(r){
               html+='<div style="border:1px solid var(--gold-line);border-radius:6px;padding:.7rem;margin-bottom:.5rem;font-family:var(--mono);font-size:.78rem">';
-              html+='<div style="display:flex;justify-content:space-between"><span style="color:var(--gold)">'+( r.receipt_id||r.digest||'receipt')+'</span>';
-              var lc=r.joules_label==='MEASURED'?'var(--teal)':r.joules_label==='UNAVAILABLE'?'var(--err)':'var(--warn)';
-              html+='<span style="color:'+lc+'">'+( r.joules_label||'UNAVAILABLE')+'</span></div>';
-              html+='<div style="color:var(--muted)">joules: '+(r.joules_measured_billable||r.measured_joules||'null')+' · gCO₂: '+(r.carbon_gco2eq||'null')+'</div>';
+              var receipt=(r&&r.receipt&&typeof r.receipt==='object')?r.receipt:{};
+              var decision=(receipt.decision&&typeof receipt.decision==='object')?receipt.decision:{};
+              var rawLabel=decision.joules_label;
+              var sourceLabel=(rawLabel==='MEASURED'||rawLabel==='SAMPLE'||rawLabel==='ESTIMATE')?rawLabel:'UNAVAILABLE';
+              var entryDigest=(r&&typeof r.entry_digest==='string'&&/^sha256:[0-9a-f]{64}$/i.test(r.entry_digest))?r.entry_digest:'';
+              var payloadDigest=(typeof receipt.payload_digest==='string'&&/^sha256:[0-9a-f]{64}$/i.test(receipt.payload_digest))?receipt.payload_digest:'';
+              var label='UNAVAILABLE';
+              var digestState=(entryDigest&&payloadDigest)?'REPORTED PRESENT':'UNAVAILABLE';
+              var joules='UNAVAILABLE';
+              var disposition=(r&&r.billable===true?'BILLABLE':(r&&r.billable===false?'REFUSED':'UNAVAILABLE'));
+              var reason=(r&&typeof r.reason==='string'&&r.reason)?r.reason:'UNAVAILABLE';
+              html+='<div style="display:flex;justify-content:space-between"><span style="color:var(--gold)">digest fields: '+esc(digestState)+'</span>';
+              var lc=label==='MEASURED'?'var(--teal)':label==='UNAVAILABLE'?'var(--err)':'var(--warn)';
+              html+='<span style="color:'+lc+'">'+esc(label)+'</span></div>';
+              html+='<div style="color:var(--muted)">joules: '+esc(joules)+' · upstream label (not admitted): '+esc(sourceLabel)
+                   +' · reported disposition: '+esc(disposition)+' · reported reason: '+esc(reason)
+                   +' · authenticity: UNAVAILABLE · signature: UNAVAILABLE</div>';
               html+='</div>';
             });
           }
           c.innerHTML='<div style="padding:1.5rem 2rem">'+html+'</div>';
-        }).catch(function(e){ c.innerHTML='<div style="padding:1.5rem 2rem;color:var(--err);font-family:var(--mono)">'+e+'</div>'; });
+        }).catch(function(e){ c.innerHTML='<div style="padding:1.5rem 2rem;color:var(--err);font-family:var(--mono)">'+esc((e&&e.message)||e)+'</div>'; });
       }
     };
     V['energyGrid']={
@@ -16000,7 +16017,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
      nav groups/items into .side at load (Investor WOW, Organ Substrate,
      Counter-UAS, Sovereignty, Formula Atlas, vertical packs, etc.). Rather
      than patch ~28 injectors, this ONE block runs LAST and rebuilds the
-     sidebar to a tight, decision-grade menu: 5 groups / 18 items.
+     sidebar to one tight, decision-grade menu with a single owner per item.
 
      Every removed view stays registered in window.VIEWS and remains reachable
      via deep-link (/console#<viewkey>) — only the visible menu is slimmed.
@@ -16018,26 +16035,7 @@ window.warboard_init=warboard_init; window.warboard_all=warboard_all;
       ["investor","\u25c7","Investor View"],
       ["mesh","\u22b9","Live System Map"]
     ]],
-    ["Operate", [
-      ["launcher","\u25a6","App Launcher"],
-      ["ask","\u2726","Ask & Act"],
-      ["demo","\u229e","Run a Demo"],
-      ["decision","\u25c8","Governed Decision"]
-    ]],
-    ["Build", [
-      ["llm","\u2687","Model Router"],
-      ["alloy","\u2697","Open-Weight Mesh"],
-      ["mcp","\u2699","Agent Tools"],
-      ["knowledge","\u2b21","Knowledge Ontology"],
-      ["genome","\u2b22","Genome"],
-      ["kbformulas","\u2211","Formulas"]
-    ]],
-    ["Observe", [
-      ["chain","\u26d3","Receipt Chain"],
-      ["evidence","\u2b21","Evidence Ledger"],
-      ["replay","\u25f7","Reasoning Replay"],
-      ["arena","\u229c","Eval Arena"]
-    ]],
+
     ["Operate", [
       ["launcher","\u25a6","App Launcher"],
       ["ask","\u2726","Ask & Act (demo)"],
@@ -16771,15 +16769,21 @@ window.a11oyInvestor = (function(){
     V.investor={
       title:'Investor View',
       badge:'DOCTRINE v11 · LOCKED',
-      sub:'Doctrine, the locked-8, one receipt you can verify, then diligence on a11oy.net. Λ = Conjecture 1 (advisory, gray, never a theorem, never a gate).',
+      sub:'Doctrine, the canonical locked-proven formula set, one receipt you can verify, then diligence on a11oy.net. Λ = Conjecture 1 (advisory, gray, never a theorem, never a gate).',
       render:async function(c){
         var empty = (window.emptyUnknownBlock||function(k,d){ return '<div class="empty-unknown"><span class="empty-unknown-k">'+k+'</span><span class="empty-unknown-d">'+d+'</span></div>'; });
+        async function readJSON(url){
+          if(window.getJSON) return await window.getJSON(url);
+          var response=await fetch(url,{method:'GET',headers:{'Accept':'application/json'},cache:'no-store',credentials:'same-origin'});
+          if(!response.ok) throw new Error('HTTP '+response.status);
+          return await response.json();
+        }
         c.innerHTML='<div class="card"><div class="card-h"><span class="card-t">Doctrine</span><span class="card-ep mono">v11 LOCKED</span></div>'
           +'<p>Every governed state change produces a hash-chained receipt. Signing is claimed only when persistent signer evidence is active and verification passes. Read paths never mint receipts.</p>'
           +'<p class="szl-lambda mono">Λ = Conjecture 1 · advisory, never green, never a theorem, never a gate.</p></div>'
-          +'<div class="card"><div class="card-h"><span class="card-t">Locked-proven</span><span class="card-ep mono">exactly 8</span></div>'
-          +'<p class="mono">{F1, F4, F7, F11, F12, F18, F19, F22}</p>'
-          +'<p class="muted">A proof of rigor, not a traction number. The locked count is not inflated.</p></div>'
+          +'<div class="card"><div class="card-h"><span class="card-t">Locked-proven</span><span class="card-ep mono" id="inv-locked-ep">UNAVAILABLE</span></div>'
+          +'<p class="mono" id="inv-locked-list">UNAVAILABLE</p>'
+          +'<p class="muted">A proof of rigor, not a traction number. Count and IDs render only from the doctrine endpoint.</p></div>'
           +'<div class="card"><div class="card-h"><span class="card-t">One receipt</span><span class="card-ep" id="inv-one-ep">probing</span></div>'
           +'<div id="inv-one-receipt">'+empty('UNKNOWN','live source unavailable')+'</div></div>'
           +'<div class="btns">'
@@ -16787,17 +16791,29 @@ window.a11oyInvestor = (function(){
           +'<a class="btn" href="https://a11oy.net" target="_blank" rel="noopener noreferrer">Open diligence on a11oy.net ↗</a>'
           +'</div>';
         try{
-          var L = await (window.getJSON||window.gjFast||fetch)('/api/a11oy/v1/wow/ledger?limit=1');
-          if(L && L.then) L = await L;
-          if(L && L.data) L = L.data;
+          var H=await readJSON('/api/a11oy/v1/honest');
+          if(H && H.data) H=H.data;
+          var lockedIds=H&&Array.isArray(H.locked_formula_ids)?H.locked_formula_ids:[];
+          var lockedCount=H&&H.locked_formula_count;
+          var idsValid=lockedIds.every(function(id){ return typeof id==='string'&&/^F[0-9]+$/.test(id); });
+          var honestValid=H&&H.doctrine==='v11'&&Number.isInteger(lockedCount)&&lockedCount>0&&lockedIds.length===lockedCount&&idsValid&&(new Set(lockedIds)).size===lockedCount;
+          if(honestValid){
+            var lockedEp=document.getElementById('inv-locked-ep');
+            var lockedList=document.getElementById('inv-locked-list');
+            if(lockedEp) lockedEp.textContent=String(lockedCount)+' locked';
+            if(lockedList) lockedList.textContent='{'+lockedIds.join(', ')+'}';
+          }
+        }catch(_honestUnavailable){}
+        try{
+          var L = await readJSON('/api/a11oy/v1/wow/ledger?limit=1');
+          if(L && L.data) L=L.data;
           var rec=((L&&(L.receipts||L.items))||[])[0];
           var host=document.getElementById('inv-one-receipt');
           var ep=document.getElementById('inv-one-ep');
           if(rec && host){
             var id=rec.receipt_id||rec.hash||rec.id||'';
-            var st=rec.unsigned?'UNSIGNED':((rec.hash||rec.prev_hash)?'HASH-LINKED':'UNSIGNED');
-            host.innerHTML='<div class="row mono"><span class="badge b-teal">'+st+'</span><span>'+String(id).slice(0,48)+'</span></div>';
-            if(ep) ep.textContent='live ledger';
+            host.innerHTML='<div class="row mono"><span class="badge b-teal">REPORTED</span><span>reported id: '+esc(String(id).slice(0,48))+'</span></div>';
+            if(ep) ep.textContent='REPORTED';
           } else {
             if(ep) ep.textContent='UNAVAILABLE';
           }
@@ -17118,7 +17134,7 @@ window.a11oyInvestor = (function(){
 
 <script>
 /* try-khipu-panel — additive, Command-Center-ONLY "Try Khipu" panel.
-   Doctrine v11. Adds NO nav entry (tabs.json 139-tab gate is untouched) and no
+   Doctrine v11. Adds NO nav entry (the generated tab contract is untouched) and no
    new view key: it wraps V.command.render and appends itself to the Command
    Center body only. Deep links (?view=) are honored so it never mounts on a
    non-command surface (e.g. Investor View).
@@ -17128,13 +17144,13 @@ window.a11oyInvestor = (function(){
    Honesty rules enforced here:
      - lab_status is shown verbatim: READY / FAILED / UNAVAILABLE (probe did not
        resolve THIS request). Never a fabricated READY.
-     - elapsed_ms is MEASURED (server-side wall clock). Token counts are shown
-       only as the lab's own REPORTED usage. No throughput marketing number is
-       computed or displayed anywhere in this panel.
-     - signature is UNSIGNED unless the lab returns a real signature; the
-       receipt hash is shown as record_sha256, UNKNOWN when absent.
-     - the pinned GGUF digest is a SNAPSHOT (pin), GPU inference is ROADMAP,
-       energy attestation is 8/8 SIMULATED (never MEASURED without a live meter).
+     - elapsed_ms renders only with explicit MEASURED proxy-wall evidence.
+       Token counts render only with the lab's explicit REPORTED label.
+     - signature state and record_sha256 are upstream-reported fields only.
+       Receipt proof remains UNAVAILABLE without payload, key, and chain verification.
+     - the pinned GGUF digest is a SNAPSHOT (pin), GPU inference is ROADMAP.
+       Energy-attested run evidence is read from the status API and otherwise
+       remains UNAVAILABLE; the browser owns no numeric fallback.
      - the inference lab is a CPU inference lab: not a trainer, not Serve Studio,
        and Ask & Act is not a live control plane.
      - the proxy authenticates to the lab with the dummy Bearer not-a-secret;
@@ -17198,13 +17214,13 @@ window.a11oyInvestor = (function(){
       +'#'+HOST_ID+' .tk-note{font-family:ui-monospace,Menlo,monospace;font-size:10px;line-height:1.7;color:#8f8a7e;margin-top:.55rem}'
       +'#'+HOST_ID+' pre{white-space:pre-wrap;font-size:12px;line-height:1.6;color:#e8e2d4;margin:.4rem 0 0}'
       +'</style>'
-      +'<h2>Try Khipu <span id="tk-state">'+chip('PROBING','PROBING')+'</span></h2>'
+      +'<h2>Try Khipu <span id="tk-state">'+chip('UNAVAILABLE','UNAVAILABLE')+'</span></h2>'
       +'<p class="tk-sub">A same-origin proxy to the pinned CPU inference lab '
       +'(<code>'+esc(LOCKED_LAB_V1)+'</code>). This is an inference lab: '
       +'<b>not a trainer</b>, <b>not Serve Studio</b>, and Ask &amp; Act on this console is '
       +'<b>not a live control plane</b>. Prompts go to '
       +'<code>'+esc(CHAT_URL)+'</code>; posture comes from <code>'+esc(STATUS_URL)+'</code>. '
-      +'Throughput is not reported — we publish only what the lab measures.</p>'
+      +'Throughput is not reported — we display only what the proxy measures and the lab explicitly reports.</p>'
       +'<div class="tk-grid" id="tk-pin"></div>'
       +'<label class="tk-k" for="tk-prompt">PROMPT · CLAMPED SERVER-SIDE (max_tokens 32 · temperature 0)</label>'
       +'<textarea id="tk-prompt" placeholder="What is a khipu receipt?"></textarea>'
@@ -17215,15 +17231,22 @@ window.a11oyInvestor = (function(){
 
   function renderPin(d){
     var pin=(d&&d.pin)||{}, hon=(d&&d.honesty)||{}, doc=(d&&d.doctrine)||{};
-    var st=(d&&d.lab_status)||'UNAVAILABLE';
+    var rawStatus=d&&d.lab_status;
+    var st=(rawStatus==='READY'||rawStatus==='FAILED'||rawStatus==='UNAVAILABLE')?rawStatus:'UNAVAILABLE';
+    var energyRuns='UNAVAILABLE';
+    var lockedIds=Array.isArray(doc.locked_formula_ids)?doc.locked_formula_ids:[];
+    var doctrineValid=doc.version==='v11'&&doc.state==='LOCKED'&&Number.isInteger(doc.locked_formula_count)&&
+      doc.locked_formula_count>0&&lockedIds.length===doc.locked_formula_count&&(new Set(lockedIds)).size===doc.locked_formula_count&&
+      lockedIds.every(function(id){ return typeof id==='string'&&/^F[0-9]+$/.test(id); });
+    var lockedCount=doctrineValid?String(doc.locked_formula_count):'UNAVAILABLE';
     H('tk-state',chip(st,st,'lab posture read from '+STATUS_URL+' this request'));
     var cells=[
       ['LAB POSTURE',chip(st,st)+' '+chip(st==='READY'?'probe resolved':'no live probe','')],
       ['PINNED GGUF sha256','<span class="tk-v">'+esc(pin.gguf_sha256||'UNKNOWN')+'</span> '+chip('SNAPSHOT','SNAPSHOT')],
       ['GPU INFERENCE ENDPOINT',chip(pin.gpu_inference_endpoint||'ROADMAP','ROADMAP')+' '+chip('CPU lab only today','')],
-      ['ENERGY ATTESTED RUNS','<span class="tk-v">'+esc(hon.energy_attested_runs||pin.energy_attested_runs||'8/8 SIMULATED')+'</span> '+chip('SIMULATED','SIMULATED')+chip('not MEASURED — no live meter','')],
+      ['ENERGY ATTESTED RUNS','<span class="tk-v">'+esc(energyRuns)+'</span> '+chip('UNAVAILABLE','UNAVAILABLE')],
       ['LOCKED LAB v1','<span class="tk-v">'+esc(pin.locked_lab_v1||LOCKED_LAB_V1)+'</span>'],
-      ['DOCTRINE','<span class="tk-v">locked-'+esc(doc.locked_formulas!=null?doc.locked_formulas:8)+' &middot; \u039b='+esc(doc.lambda||'Conjecture 1')+'</span> '+chip('Conjecture 1','')]
+      ['DOCTRINE','<span class="tk-v">locked formulas '+esc(lockedCount)+' &middot; \u039b='+esc(doc.lambda||'Conjecture 1')+'</span> '+chip('Conjecture 1','')]
     ];
     H('tk-pin',cells.map(function(c){
       return '<div class="tk-cell"><div class="tk-k">'+esc(c[0])+'</div><div>'+c[1]+'</div></div>';
@@ -17231,7 +17254,7 @@ window.a11oyInvestor = (function(){
     H('tk-honesty','Lab role: '+esc(hon.forge_lab||pin.forge_lab_role||'CPU inference lab \u2014 not a trainer, not Serve Studio')
       +'<br>Ask &amp; Act: '+esc(hon.ask_and_act||'not a live control plane')
       +'<br>Auth: the proxy calls the lab with the dummy header <code>Bearer not-a-secret</code>; no repo or user token reaches the browser.'
-      +'<br>Throughput: not reported \u2014 token counts below are the lab\u2019s own REPORTED usage, elapsed time is MEASURED server-side.');
+      +'<br>Throughput: not derived. Usage and elapsed render only with explicit REPORTED / MEASURED API evidence.');
   }
 
   function renderUnavailable(msg){
@@ -17243,7 +17266,7 @@ window.a11oyInvestor = (function(){
       +'<div class="tk-cell"><div class="tk-k">PINNED GGUF sha256</div><div>'+chip('SNAPSHOT','SNAPSHOT')
       +' '+chip('UNKNOWN','UNKNOWN')+'</div></div>'
       +'<div class="tk-cell"><div class="tk-k">GPU INFERENCE ENDPOINT</div><div>'+chip('ROADMAP','ROADMAP')+'</div></div>'
-      +'<div class="tk-cell"><div class="tk-k">ENERGY ATTESTED RUNS</div><div class="tk-v">8/8 SIMULATED</div></div>');
+      +'<div class="tk-cell"><div class="tk-k">ENERGY ATTESTED RUNS</div><div class="tk-v">UNAVAILABLE</div></div>');
     H('tk-honesty','Lab role: CPU inference lab \u2014 not a trainer, not Serve Studio.'
       +'<br>Ask &amp; Act: not a live control plane.'
       +'<br>Auth: dummy header <code>Bearer not-a-secret</code> is used server-side only.'
@@ -17254,7 +17277,9 @@ window.a11oyInvestor = (function(){
     try{
       var r=await fetch(STATUS_URL,{headers:{accept:'application/json'}});
       if(!r.ok) throw new Error('HTTP '+r.status);
-      renderPin(await r.json());
+      var statusPayload=await r.json();
+      if(!statusPayload||typeof statusPayload!=='object'||Array.isArray(statusPayload)) throw new Error('malformed status response');
+      renderPin(statusPayload);
     }catch(e){ renderUnavailable(String(e&&e.message||e)); }
   }
 
@@ -17268,27 +17293,42 @@ window.a11oyInvestor = (function(){
       var r=await fetch(CHAT_URL,{method:'POST',headers:{'content-type':'application/json',accept:'application/json'},
         body:JSON.stringify({prompt:prompt,max_tokens:32,temperature:0})});
       var d={}; try{ d=await r.json(); }catch(e){ d={}; }
-      var st=d.lab_status||(r.ok?'READY':'FAILED');
-      var sig=d.signature||'UNSIGNED';
-      var rec=d.record_sha256||'UNKNOWN';
-      var usage=d.usage||{};
-      var el=(d.elapsed_ms!=null?d.elapsed_ms+' ms':'UNKNOWN');
-      var body=(d.ok&&d.text)?('<pre>'+esc(d.text)+'</pre>')
+      if(!d||typeof d!=='object'||Array.isArray(d)) d={};
+      var rawStatus=d.lab_status;
+      var st=(rawStatus==='READY'||rawStatus==='FAILED'||rawStatus==='UNAVAILABLE')?rawStatus:(r.ok?'UNAVAILABLE':'FAILED');
+      var responseOK=r.ok&&d.ok===true&&st==='READY';
+      var reportedSig=(responseOK&&(d.signature==='SIGNED'||d.signature==='UNSIGNED'))?d.signature:'UNAVAILABLE';
+      var sig=reportedSig==='UNSIGNED'?'UNSIGNED':'UNAVAILABLE';
+      var recordReported=responseOK&&typeof d.record_sha256==='string'&&/^[0-9a-f]{64}$/i.test(d.record_sha256);
+      var rec=recordReported?d.record_sha256:'UNAVAILABLE';
+      var recordLabel=recordReported?'REPORTED':'UNAVAILABLE';
+      var usage=(d.usage&&typeof d.usage==='object'&&!Array.isArray(d.usage))?d.usage:{};
+      function validTokenCount(v){ return typeof v==='number'&&Number.isFinite(v)&&v>=0&&Number.isInteger(v); }
+      var usageAvailable=responseOK&&d.usage_label==='REPORTED'&&validTokenCount(usage.prompt_tokens)&&
+        validTokenCount(usage.completion_tokens)&&validTokenCount(usage.total_tokens);
+      var usageLabel=usageAvailable?'REPORTED':'UNAVAILABLE';
+      var elapsedMeasured=responseOK&&d.elapsed_ms_label==='MEASURED'&&d.elapsed_ms_source==='PROXY_WALL'&&
+        typeof d.elapsed_ms==='number'&&Number.isFinite(d.elapsed_ms)&&d.elapsed_ms>=0;
+      var elapsedLabel=elapsedMeasured?'MEASURED':'UNAVAILABLE';
+      var el=elapsedMeasured?d.elapsed_ms+' ms':'UNAVAILABLE';
+      var body=(responseOK&&typeof d.text==='string'&&d.text)?('<pre>'+esc(d.text)+'</pre>')
         :('<p class="tk-note">No completion returned \u2014 shown honestly as '+esc(st)+', nothing fabricated.'
           +(d.error?(' Lab detail: '+esc(String(d.error).slice(0,200))):'')+'</p>');
       H('tk-out',body
         +'<div class="tk-grid">'
-        +'<div class="tk-cell"><div class="tk-k">LAB RESULT</div><div>'+chip(st,st)+' '+chip(d.ok?'ok':'no completion','')+'</div></div>'
-        +'<div class="tk-cell"><div class="tk-k">SIGNATURE</div><div>'+chip(sig,sig==='UNSIGNED'?'UNAVAILABLE':sig)
-        +'<div class="tk-v">'+(sig==='UNSIGNED'?'no in-image signing key in this runtime \u2014 honest UNSIGNED':'as returned by the lab')+'</div></div></div>'
-        +'<div class="tk-cell"><div class="tk-k">record_sha256</div><div class="tk-v">'+esc(rec)+'</div></div>'
+        +'<div class="tk-cell"><div class="tk-k">LAB RESULT</div><div>'+chip(st,st)+' '+chip(responseOK?'ok':'no completion','')+'</div></div>'
+        +'<div class="tk-cell"><div class="tk-k">SIGNATURE</div><div>'+chip(sig,'UNAVAILABLE')
+        +'<div class="tk-v">'+(sig==='UNSIGNED'?'upstream reports UNSIGNED; receipt verification remains unavailable':'no verified signature evidence returned')+'</div></div></div>'
+        +'<div class="tk-cell"><div class="tk-k">RECORD HASH FIELD</div><div class="tk-v">'+esc(rec)+'</div>'
+        +'<div>'+chip(recordLabel,recordLabel,'upstream-reported and format-checked only; not cryptographically verified')+'</div></div>'
         +'<div class="tk-cell"><div class="tk-k">ELAPSED</div><div class="tk-v">'+esc(el)+'</div>'
-        +'<div>'+chip(d.elapsed_ms_label||'MEASURED','MEASURED','server-side wall clock for this request')+'</div></div>'
+        +'<div>'+chip(elapsedMeasured?'MEASURED ELAPSED':'ELAPSED UNAVAILABLE',elapsedLabel,'proxy wall clock for this request')
+        +chip('RECEIPT UNAVAILABLE','UNAVAILABLE','no payload, verification key, or chain proof is available to this proxy')+'</div></div>'
         +'<div class="tk-cell"><div class="tk-k">USAGE (LAB-REPORTED)</div><div class="tk-v">prompt '
-        +esc(usage.prompt_tokens!=null?usage.prompt_tokens:'\u2014')+' &middot; completion '
-        +esc(usage.completion_tokens!=null?usage.completion_tokens:'\u2014')+' &middot; total '
-        +esc(usage.total_tokens!=null?usage.total_tokens:'\u2014')+'</div><div>'
-        +chip(d.usage_label||'REPORTED','')+chip('no throughput number derived','')+'</div></div>'
+        +esc(usageAvailable?usage.prompt_tokens:'\u2014')+' &middot; completion '
+        +esc(usageAvailable?usage.completion_tokens:'\u2014')+' &middot; total '
+        +esc(usageAvailable?usage.total_tokens:'\u2014')+'</div><div>'
+        +chip(usageLabel,usageLabel)+chip('no throughput number derived','')+'</div></div>'
         +'<div class="tk-cell"><div class="tk-k">\u039b</div><div>'+chip((d.honesty&&d.honesty.lambda)||'Conjecture 1','')
         +'<div class="tk-v">advisory \u2014 gray, never green, never a theorem</div></div></div>'
         +'</div>');
@@ -17342,4 +17382,3 @@ window.a11oyInvestor = (function(){
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
 </body>
 </html>
-

@@ -12,14 +12,16 @@ proxies:
 
 Auth is the publicly documented dummy Bearer not-a-secret. HF_TOKEN is never
 read or forwarded. GET does not mint a receipt. POST passes through the lab's
-UNSIGNED record_sha256 when present; missing fields are UNKNOWN.
+reported signature state and record_sha256 when present; missing fields are
+UNKNOWN, and receipt verification stays UNAVAILABLE without payload/key/chain.
 
 GPU Inference Endpoint remains ROADMAP. Forge lab is SNAPSHOT — not a
-trainer, not Serve Studio. Energy-attested-runs 8/8 is SIMULATED. Ask & Act
-is not a live control plane. killinchu detector stays SIMULATED.
+trainer, not Serve Studio. Energy-attested runs remain UNAVAILABLE until a
+canonical runtime source is wired. Ask & Act is not a live control plane.
 Λ = Conjecture 1.
 """
 import hashlib
+import re
 import sys
 import time
 from pathlib import Path
@@ -36,7 +38,6 @@ from packages.inference.src.voters.khipu_gguf import (
     KHIPU_LAB_DUMMY_BEARER,
     KHIPU_LAB_V1,
     KHIPU_MAX_TOKENS,
-    KHIPU_MEASURED_PROBE_2026_08_28,
     KHIPU_TEMPERATURE,
     clamp_max_tokens,
     extract_lab_receipt,
@@ -44,24 +45,59 @@ from packages.inference.src.voters.khipu_gguf import (
     khipu_lab_v1,
     khipu_pin,
 )
+from szl_be_hardening import DOCTRINE_LOCK
 
 _STATUS_PATH = "/api/a11oy/v1/khipu/status"
 _CHAT_PATH = "/api/a11oy/v1/khipu/chat"
 _PROMPT_CHAR_CAP = 4000
+_FORMULA_ID_RE = re.compile(r"^F[0-9]+$")
+
+
+def _doctrine_status() -> dict:
+    """Copy the canonical /honest lock only when its count and IDs agree."""
+    doctrine = DOCTRINE_LOCK if isinstance(DOCTRINE_LOCK, dict) else {}
+    raw_ids = doctrine.get("locked_formula_ids")
+    ids = list(raw_ids) if isinstance(raw_ids, list) else []
+    count = doctrine.get("locked_formula_count")
+    lambda_value = doctrine.get("lambda")
+    valid = (
+        doctrine.get("doctrine") == "v11"
+        and doctrine.get("state") == "LOCKED"
+        and isinstance(count, int)
+        and not isinstance(count, bool)
+        and count > 0
+        and len(ids) == count
+        and all(isinstance(item, str) and _FORMULA_ID_RE.fullmatch(item) for item in ids)
+        and len(set(ids)) == count
+    )
+    if not valid:
+        count = None
+        ids = []
+    return {
+        "version": doctrine.get("doctrine") if valid else "UNAVAILABLE",
+        "state": "LOCKED" if valid else "UNAVAILABLE",
+        "source": "szl_be_hardening.DOCTRINE_LOCK",
+        "locked_formula_count": count,
+        "locked_formula_ids": ids,
+        "lambda": lambda_value if isinstance(lambda_value, str) else "UNAVAILABLE",
+    }
 
 
 def _honesty() -> dict:
     return {
-        "lab": "MEASURED this request when /healthz returns READY; else FAILED",
+        "lab": (
+            "MEASURED health HTTP response only; FAILED on resolved non-READY; "
+            "UNAVAILABLE on transport failure"
+        ),
         "lab_v1": KHIPU_LAB_V1,
         "gpu_inference_endpoint": "ROADMAP",
         "forge_lab": "SNAPSHOT — not a trainer, not Serve Studio",
-        "energy_attested_runs": "8/8 SIMULATED",
+        "energy_attested_runs": "UNAVAILABLE",
         "ask_and_act": "not a live control plane",
         "killinchu_detector": "SIMULATED",
         "lambda": "Conjecture 1",
         "tokens_per_second": "not reported",
-        "signing": "UNSIGNED unless the lab returns a signature; never fabricated",
+        "signing": "UNAVAILABLE — upstream signature state is not verified by this proxy",
     }
 
 
@@ -86,7 +122,7 @@ async def _healthz() -> tuple[str, dict | None, str | None]:
             return "READY", body, None
         return "FAILED", body, "healthz HTTP %s status=%s" % (resp.status_code, status or "UNKNOWN")
     except Exception as exc:
-        return "FAILED", None, "%s: %s" % (type(exc).__name__, exc)
+        return "UNAVAILABLE", None, "%s: %s" % (type(exc).__name__, exc)
 
 
 async def _handle_status(request: Request) -> JSONResponse:
@@ -97,12 +133,8 @@ async def _handle_status(request: Request) -> JSONResponse:
         "error": err,
         "pin": khipu_pin(),
         "honesty": _honesty(),
-        "measured_probe_2026_08_28": KHIPU_MEASURED_PROBE_2026_08_28,
-        "doctrine": {
-            "version": "v11",
-            "locked_formulas": 8,
-            "lambda": "Conjecture 1",
-        },
+        "measured_probe": {"label": "UNAVAILABLE", "reason": "no generated benchmark receipt is wired"},
+        "doctrine": _doctrine_status(),
     }
     return JSONResponse(payload)
 
@@ -155,8 +187,8 @@ async def _handle_chat(request: Request) -> JSONResponse:
         extracted = extract_lab_receipt(data)
         ok = resp.status_code == 200 and bool(extracted["text"])
         lab_status = "READY" if ok else "FAILED"
-        # Prefer the lab's elapsed_ms when present; otherwise this proxy's wall.
-        elapsed = extracted["elapsed_ms"] if extracted["elapsed_ms"] is not None else wall_ms
+        # Measure at the proxy boundary; never relabel an untrusted upstream duration.
+        elapsed = wall_ms
         out = {
             "ok": ok,
             "lab_status": lab_status,
@@ -167,7 +199,14 @@ async def _handle_chat(request: Request) -> JSONResponse:
             "usage": extracted["usage"] if ok else {},
             "usage_label": "REPORTED" if (ok and extracted["usage"]) else "UNKNOWN",
             "elapsed_ms": elapsed,
+            "elapsed_ms_source": "PROXY_WALL",
             "elapsed_ms_label": "MEASURED",
+            "receipt_evidence_label": "UNAVAILABLE",
+            "receipt_evidence_reason": (
+                "the proxy does not receive a receipt payload, verification key, or chain proof"
+            ),
+            "signature_evidence_label": "UNAVAILABLE",
+            "record_hash_evidence_label": "UNAVAILABLE",
             "wall_ms": wall_ms,
             "model": extracted["model"],
             "pin": pin,
@@ -182,14 +221,19 @@ async def _handle_chat(request: Request) -> JSONResponse:
         return JSONResponse(
             {
                 "ok": False,
-                "lab_status": "FAILED",
+                "lab_status": "UNAVAILABLE",
                 "text": None,
                 "signature": "UNKNOWN",
                 "record_sha256": "UNKNOWN",
                 "usage": {},
                 "usage_label": "UNKNOWN",
                 "elapsed_ms": wall_ms,
+                "elapsed_ms_source": "PROXY_WALL",
                 "elapsed_ms_label": "MEASURED",
+                "receipt_evidence_label": "UNAVAILABLE",
+                "receipt_evidence_reason": "no upstream response was available to verify",
+                "signature_evidence_label": "UNAVAILABLE",
+                "record_hash_evidence_label": "UNAVAILABLE",
                 "pin": pin,
                 "honesty": _honesty(),
                 "error": "%s: %s" % (type(exc).__name__, exc),

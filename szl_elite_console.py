@@ -4,7 +4,7 @@
 # Co-Authored-By: Perplexity Computer Agent <agent@perplexity.ai>
 # Signed-off-by: Stephen P. Lutar Jr. <stephenlutar2@gmail.com>
 """
-szl_elite_console — New endpoints backing the 20-tab a11oy Elite Console.
+szl_elite_console — Backend endpoints plus a quarantined frontend route.
 
 Adds 8 new backend surfaces (ADDITIVE, no existing routes touched):
 
@@ -17,10 +17,9 @@ Adds 8 new backend surfaces (ADDITIVE, no existing routes touched):
   GET  /api/a11oy/v1/console/verdict-theater — last-N multi-party witnessed verdicts
   GET  /api/a11oy/v1/console/policy-canvas   — full 46-gate policy canvas for drag-n-drop viz
 
-All endpoints are REAL: they read live in-process state (audit ring, DAG, gate manifest,
-formula index). No fixture data is injected.
-
-Doctrine v11 LOCKED — 749/14/163 — c7c0ba17 · Λ = Conjecture 1 (NEVER a theorem).
+The dormant HTML frontend is not release-ready and /elite-console fails closed. API
+responses retain their own in-band labels; importing this module does not prove runtime
+freshness, source binding, or receipt validity. Λ = Conjecture 1 (NEVER a theorem).
 """
 from __future__ import annotations
 
@@ -476,19 +475,18 @@ def register(app: FastAPI, gates_list: list[dict], gates_by_name: dict[str, dict
             "note": "All 46 gates from the canonical gates_manifest.json. Drag-n-drop grouping for the Policy Canvas tab.",
         })
 
-    # ── /console route ────────────────────────────────────────────────────────
+    # ── /elite-console route ──────────────────────────────────────────────────
 
     @app.get("/elite-console")
-    async def elite_console_html() -> HTMLResponse:
-        """Serve the 20-tab elite console HTML."""
-        p = os.path.join(os.path.dirname(__file__), "web", "elite_console.html")
-        if not os.path.exists(p):
-            p = "/app/web/elite_console.html"
-        if os.path.exists(p):
-            with open(p, "r", encoding="utf-8") as fh:
-                content = fh.read()
-            return HTMLResponse(content)
-        return HTMLResponse("<h1>elite_console.html not found</h1>", status_code=404)
+    async def elite_console_unavailable() -> HTMLResponse:
+        """Fail closed while the dormant frontend lacks release-grade contracts."""
+        return HTMLResponse(
+            "<h1>Elite Console: UNAVAILABLE</h1>"
+            "<p>This quarantined surface is not release-ready. "
+            '<a href="/command">Open the reviewed Command Center</a>.</p>',
+            status_code=503,
+            headers={"Cache-Control": "no-store"},
+        )
 
     return {
         "module": "szl_elite_console",

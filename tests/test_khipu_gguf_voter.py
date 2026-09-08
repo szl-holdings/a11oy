@@ -97,7 +97,7 @@ def test_pin_matches_measured_2026_08_28():
     assert pin["gpu_inference_endpoint"] == "ROADMAP"
     assert pin["forge_lab"] == "SNAPSHOT"
     assert pin["forge_lab_role"] == "not a trainer, not Serve Studio"
-    assert pin["energy_attested_runs"] == "8/8 SIMULATED"
+    assert pin["energy_attested_runs"] == "UNAVAILABLE"
     assert pin["lab_v1"] == KHIPU_LAB_V1
     assert pin["locked_lab_v1"] == "https://szlholdings-szl-model-inference-lab.hf.space/v1"
     assert pin["killinchu_detector"] == "SIMULATED"
@@ -176,6 +176,13 @@ def test_extract_lab_receipt_unsigned():
 def test_extract_lab_receipt_missing_fields_are_unknown():
     extracted = extract_lab_receipt({"choices": [{"message": {"content": "x"}}]})
     assert extracted["signature"] == "UNKNOWN"
+    assert extracted["record_sha256"] == "UNKNOWN"
+
+
+def test_extract_lab_receipt_does_not_promote_generic_response_id():
+    extracted = extract_lab_receipt(
+        {"id": "a" * 64, "choices": [{"message": {"content": "x"}}]}
+    )
     assert extracted["record_sha256"] == "UNKNOWN"
 
 

@@ -124,7 +124,12 @@ def test_no_investor_route_stub() -> None:
     assert "go('investor')" in overlay_js
     assert "o.classList.toggle('open', !!open)" not in overlay_js.split("function open()")[1].split("function close()")[0]
     view = CONSOLE.split("V.investor=", 1)[1]
-    assert "{F1, F4, F7, F11, F12, F18, F19, F22}" in view[:2500]
+    investor_view = view[:5000]
+    assert "/api/a11oy/v1/honest" in investor_view
+    assert "locked_formula_count" in investor_view
+    assert "locked_formula_ids" in investor_view
+    assert 'id="inv-locked-ep">UNAVAILABLE' in investor_view
+    assert "{F1, F4, F7, F11, F12, F18, F19, F22}" not in investor_view
     assert "Verify a receipt" in view[:4000]
     assert "Open diligence on a11oy.net" in view[:4000]
     assert "UNAVAILABLE" in view[:4500]

@@ -6,6 +6,10 @@
 Product host: a-11-oy.com  (this surface)
 Proof host:   a11oy.net    (do not serve this surface there)
 
+The canonical /command surface serves the reviewed public Command Center SPA.
+The dormant Elite Console is deliberately not a candidate: its browser-safety,
+API-schema, evidence-source, and canonical-number contracts are not release-ready.
+
 Additive routes:
   GET+HEAD /command
   GET+HEAD /command-v2
@@ -17,7 +21,7 @@ Additive routes:
   GET+HEAD /command/{rest}
 
 The additive router does not steal /console or the host-root /brain route.
-/command remains on elite_console.html; /command-v2 is an independently
+/command-v2 is an independently
 reviewable skin until an explicit, evidence-backed promotion changes that.
 """
 from pathlib import Path
@@ -37,10 +41,9 @@ REQUIRED_PAGES = {"command-v2.html"}
 
 
 def _spa_path() -> Path:
+    """Resolve only the reviewed public Command Center asset."""
     here = Path(__file__).resolve().parent
     candidates = (
-        here / "web" / "elite_console.html",
-        Path("/app/web/elite_console.html"),
         here / "pages" / "command-center.html",
         Path("/app/pages/command-center.html"),
         here / "command-center.html",
@@ -48,7 +51,7 @@ def _spa_path() -> Path:
     for candidate in candidates:
         if candidate.is_file():
             return candidate
-    return here / "web" / "elite_console.html"
+    return here / "pages" / "command-center.html"
 
 
 def _page(name: str) -> Path:
@@ -153,7 +156,7 @@ def register(app, ns: str = "a11oy") -> List[str]:
     _add(CATCHALL, _spa, ["GET", "HEAD"])
     _front_move(app, [path for path, _name in SPECIFIC] + list(MOUNTS))
     registered.append(
-        "command-center on /command; /command-v2 additive; "
+        "command-center reviewed-public on /command (dormant elite excluded); /command-v2 additive; "
         "constellation/brain/ops beat catch-all; /console and host-root /brain untouched"
     )
     return registered
@@ -168,11 +171,8 @@ def _selftest() -> None:
     spa = _spa_path()
     assert spa.is_file(), spa
     html = spa.read_text(encoding="utf-8")
-    assert ("Elite Console" in html) or ("a11oy Command Center" in html)
-    if spa.name == "elite_console.html":
-        assert "20 fully-functional tabs" in html
-        assert "/api/a11oy/" in html
-        assert "zero mocks" in html.lower()
+    assert spa.name == "command-center.html"
+    assert "a11oy Command Center" in html
     assert "cdnjs" not in html and "googleapis" not in html and "jsdelivr" not in html
     assert "Conjecture 1" in html
 
@@ -191,6 +191,8 @@ def _selftest() -> None:
     for path in ("/command", "/command/anatomy", "/command/honest"):
         response = client.get(path)
         assert response.status_code == 200, (path, response.status_code)
+        assert "a11oy Command Center" in response.text
+        assert client.head(path).status_code == 200, path
 
     command_v2 = _page("command-v2.html")
     if command_v2.is_file():
