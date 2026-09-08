@@ -29,6 +29,7 @@ jobs:
       source_sha: ${{ steps.materialize.outputs.source_sha }}
       snapshot_digest: ${{ steps.materialize.outputs.snapshot_digest }}
       candidate_set: ${{ steps.materialize.outputs.candidate_set }}
+      artifact_id: ${{ steps.snapshot_artifact.outputs.artifact-id }}
     steps:
       - name: Harden runner
         uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
@@ -75,6 +76,7 @@ jobs:
           echo "snapshot_digest=$digest" >> "$GITHUB_OUTPUT"
           echo "candidate_set=$candidate_set" >> "$GITHUB_OUTPUT"
       - name: Retain validated inputs for this run only
+        id: snapshot_artifact
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -118,7 +120,8 @@ jobs:
         if: needs.materialize.result == 'success'
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
-          name: brain-frontier-v7-input-${{ github.run_id }}-${{ github.run_attempt }}
+          artifact-ids: ${{ needs.materialize.outputs.artifact_id }}
+          merge-multiple: true
           path: .
       - name: Reconcile one content-addressed branch and open review PR
         id: proposal

@@ -277,6 +277,11 @@ def test_workflow_separates_reader_from_writer_and_always_enforces_receipt():
     assert "permissions" not in reader
     assert writer["permissions"] == {"contents": "write", "pull-requests": "write"}
     assert writer["needs"] == "materialize" and "always()" in writer["if"]
+    assert reader["outputs"]["artifact_id"] == "${{ steps.snapshot_artifact.outputs.artifact-id }}"
+    download = next(step for step in writer["steps"] if step.get("uses", "").startswith("actions/download-artifact@"))
+    assert download["with"]["artifact-ids"] == "${{ needs.materialize.outputs.artifact_id }}"
+    assert download["with"]["merge-multiple"] is True
+    assert "name" not in download["with"]
     for job in [reader, writer]:
         checkout = next(step for step in job["steps"] if step.get("uses", "").startswith("actions/checkout@"))
         assert checkout["with"]["persist-credentials"] is False
