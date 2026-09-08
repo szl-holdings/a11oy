@@ -389,6 +389,11 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
             )),
             '<base href="https://example.org/">' + script,
             "<textarea></noscript>" + script + "</textarea>",
+            *(f"<{tag}/>" + script + f"</{tag}>" for tag in (
+                "textarea", "title", "xmp", "iframe", "noembed", "noframes", "plaintext", "template", "noscript"
+            )),
+            script.replace("></script>", "/>"),
+            script.replace("</script>", ""),
         )
         for name in sorted(relock.HOLOGRAPHIC_ROUTES):
             for replacement in cases:

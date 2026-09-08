@@ -420,6 +420,14 @@ class FrontierMountParser(HTMLParser):
         self.mounts: list[tuple[str, tuple[tuple[str, str | None], ...]]] = []
         self.inert_contexts: list[str] = []
         self.base_present = False
+        self.pending_script = None
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        # Browsers ignore '/>' on non-void HTML elements. Inherited HTMLParser
+        # behavior would incorrectly close a <textarea/> or <template/> wrapper.
+        self.handle_starttag(tag, attrs)
+        if tag in {"script", "style"}:
+            self.set_cdata_mode(tag)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         # HTMLParser reports tags inside RCDATA/raw-text elements that browsers
@@ -440,9 +448,16 @@ class FrontierMountParser(HTMLParser):
             for key, value in attrs
         ):
             # Preserve duplicate attributes: browsers can disagree about which wins.
-            self.mounts.append((tag, tuple(sorted(attrs, key=lambda pair: pair[0]))))
+            mount = (tag, tuple(sorted(attrs, key=lambda pair: pair[0])))
+            if tag == "script":
+                self.pending_script = mount
+            else:
+                self.mounts.append(mount)
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "script" and self.pending_script is not None:
+            self.mounts.append(self.pending_script)
+            self.pending_script = None
         if (
             self.inert_contexts
             and self.inert_contexts[-1] != "plaintext"
