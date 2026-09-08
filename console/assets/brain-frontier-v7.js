@@ -13,11 +13,28 @@
   const SOURCE_REPOSITORIES = new Set([
     "szl-holdings/szl-formulas",
     "szl-holdings/anatomy",
-    "szl-holdings/ouroboros",
+    "szl-holdings/szl-ouroboros",
     "szl-holdings/a11oy",
     "szl-holdings/szl-forge",
     "szl-holdings/szl-nemo",
+    "szl-holdings/szl-kernels",
   ]);
+  const HANDLE_KINDS = new Set([
+    "formula-authority", "quant-domain", "attributed-formula", "executable-formula",
+    "python-contract", "estate-authority", "estate-surface", "source-document",
+  ]);
+  const HANDLE_ADMISSIONS = new Set([
+    "DISCOVERED_REVIEW_REQUIRED",
+    "EXECUTABLE_CONSTRAINT_REVIEW_REQUIRED",
+    "OPEN_NOT_EXECUTION_AUTHORITY",
+    "REFERENCE_AND_CONSTRAINT_INPUT_ONLY",
+    "REFERENCE_ONLY_EXECUTION_AUTHORITY_NONE",
+    "REFERENCE_ONLY_NO_PROVIDER_MUTATION",
+    "REFERENCE_ONLY_UNLESS_EXECUTABLE_MATCH_IS_EXPLICIT",
+    "SOURCE_RECEIPT_REQUIRED_FOR_CURRENT_CLAIM",
+  ]);
+  const LOOP = ["OBSERVE", "ORIENT", "PROPOSE", "VERIFY", "HOLD"];
+  const MAX_SNAPSHOT_BYTES = 256 * 1024;
   const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)");
   const state = {
     open: false,
@@ -48,12 +65,28 @@
     return text.startsWith("szl-holdings/") ? text.slice(13) : text;
   };
 
+  const record = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
+  const matches = (value, pattern) => typeof value === "string" && pattern.test(value);
+  const exactKeys = (value, required, optional = []) => record(value)
+    && required.every((key) => Object.hasOwn(value, key))
+    && Object.keys(value).every((key) => required.includes(key) || optional.includes(key));
+  const safeTitle = (value) => typeof value === "string" && value.trim().length > 0
+    && [...value].length <= 180 && !/[\u0000-\u001f\u007f-\u009f\ud800-\udfff]/u.test(value);
+  const safePath = (value) => typeof value === "string" && value.length <= 512
+    && value.split("/").every((part) => /^[A-Za-z0-9_.-]+$/.test(part) && part !== "." && part !== "..");
+  const safeDomain = (value) => matches(value, /^[a-z0-9][a-z0-9_-]{0,79}$/);
+
   function validateHandle(handle) {
-    if (!handle || typeof handle !== "object") return false;
-    if (!HANDLE_ID.test(String(handle.nodeId ?? ""))) return false;
-    if (!DIGEST.test(String(handle.sha256 ?? ""))) return false;
-    if (!REVISION.test(String(handle.revision ?? ""))) return false;
+    if (!exactKeys(handle, ["nodeId", "title", "sha256", "repository", "revision", "path",
+      "kind", "admission", "candidateState", "contentAccess", "authority"], ["quantDomain"])) return false;
+    if (!matches(handle.nodeId, HANDLE_ID)) return false;
+    if (!matches(handle.sha256, DIGEST) || !matches(handle.revision, REVISION)) return false;
     if (!SOURCE_REPOSITORIES.has(handle.repository)) return false;
+    if (!HANDLE_KINDS.has(handle.kind)) return false;
+    if (!safeTitle(handle.title) || !safePath(handle.path)) return false;
+    if (!HANDLE_ADMISSIONS.has(handle.admission)) return false;
+    if (Object.hasOwn(handle, "quantDomain") && !safeDomain(handle.quantDomain)) return false;
+    if (handle.kind === "quant-domain" && !safeDomain(handle.quantDomain)) return false;
     if (handle.candidateState !== "DISCOVERED_REVIEW_REQUIRED") return false;
     if (handle.contentAccess !== "HANDLES_ONLY") return false;
     if (handle.authority !== "NONE") return false;
@@ -62,30 +95,61 @@
   }
 
   function validatePayload(payload) {
-    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return false;
+    if (!exactKeys(payload, ["schema", "state", "surface", "snapshot_sha256", "handles",
+      "selected_handle_count", "sources", "formula_atlas", "authority", "loop"])) return false;
     if (payload.schema !== "szl.a11oy.brain-frontier-holographic-v7/v1") return false;
     if (payload.state !== "SOURCE_BOUND_REVIEW_MEMORY") return false;
     if (payload.surface !== "A11OY_HOLOGRAPHIC_V7_BRAIN_FRONTIER") return false;
-    if (!DIGEST.test(String(payload.snapshot_sha256 ?? ""))) return false;
+    if (!matches(payload.snapshot_sha256, DIGEST)) return false;
     if (!Array.isArray(payload.handles) || payload.handles.length !== 72) return false;
     if (!payload.handles.every(validateHandle)) return false;
+    if (new Set(payload.handles.map((handle) => handle.nodeId)).size !== 72) return false;
     const repositories = new Set(payload.handles.map((handle) => handle.repository));
     if (![...SOURCE_REPOSITORIES].every((repository) => repositories.has(repository))) return false;
     if (payload.selected_handle_count !== payload.handles.length) return false;
+    const kindCount = (kind) => payload.handles.filter((handle) => handle.kind === kind).length;
+    if (kindCount("formula-authority") !== 1 || kindCount("attributed-formula") !== 30
+      || kindCount("executable-formula") !== 21 || kindCount("quant-domain") !== 9) return false;
+    const domains = new Set(payload.handles.filter((handle) => handle.kind === "quant-domain")
+      .map((handle) => handle.quantDomain));
+    if (domains.size !== 9 || payload.handles.some((handle) => handle.quantDomain
+      && !domains.has(handle.quantDomain))) return false;
+    if (!Array.isArray(payload.loop) || payload.loop.length !== LOOP.length
+      || !payload.loop.every((step, index) => step === LOOP[index])) return false;
+    if (!exactKeys(payload.sources, ["second_brain", "anatomy", "formulas", "ouroboros"])) return false;
     const brain = payload.sources?.second_brain;
     const anatomy = payload.sources?.anatomy;
     const formula = payload.formula_atlas;
     const authority = payload.authority;
-    if (!brain || !REVISION.test(String(brain.revision ?? ""))) return false;
-    if (!DIGEST.test(String(brain.candidate_set_sha256 ?? ""))) return false;
-    if (!anatomy || anatomy.repository !== "szl-holdings/anatomy") return false;
-    if (!REVISION.test(String(anatomy.revision ?? ""))) return false;
-    if (!formula || formula.attributed_formula_count !== 30) return false;
+    if (!exactKeys(brain, ["repository", "revision", "candidate_set_sha256", "candidate_count",
+      "state_sha256", "candidate_file_sha256"])) return false;
+    if (brain.repository !== "szl-holdings/szl-second-brain" || !matches(brain.revision, REVISION)) return false;
+    if (![brain.candidate_set_sha256, brain.state_sha256, brain.candidate_file_sha256]
+      .every((digest) => matches(digest, DIGEST))) return false;
+    if (!Number.isSafeInteger(brain.candidate_count) || brain.candidate_count < 72) return false;
+    if (!exactKeys(anatomy, ["repository", "revision", "live_origin", "holographic_v7_path"])) return false;
+    if (anatomy.repository !== "szl-holdings/anatomy" || !matches(anatomy.revision, REVISION)) return false;
+    if (anatomy.live_origin !== "https://betterwithage-anatomy.hf.space"
+      || anatomy.holographic_v7_path !== "/api/anatomy/v1/holographic-v7") return false;
+    const formulas = payload.sources.formulas;
+    const ouroboros = payload.sources.ouroboros;
+    if (!exactKeys(formulas, ["repository", "revision"]) || formulas.repository !== "szl-holdings/szl-formulas"
+      || !matches(formulas.revision, REVISION)) return false;
+    if (!exactKeys(ouroboros, ["repository", "revision", "review_workflow"])
+      || ouroboros.repository !== "szl-holdings/szl-ouroboros" || !matches(ouroboros.revision, REVISION)
+      || ouroboros.review_workflow !== ".github/workflows/codex-frontier-review.yml") return false;
+    if (!exactKeys(formula, ["attributed_formula_count", "executable_formula_count", "quant_domain_count",
+      "locked_proven_formula_count", "f_number_to_executable_mapping", "lambda"])) return false;
+    if (formula.attributed_formula_count !== 30) return false;
     if (formula.executable_formula_count !== 21 || formula.quant_domain_count !== 9) return false;
     if (formula.locked_proven_formula_count !== 8) return false;
     if (formula.f_number_to_executable_mapping !== "UNKNOWN_NOT_INFERRED") return false;
     if (formula.lambda !== "CONJECTURE_1") return false;
-    if (!authority || authority.public_content_access !== "HANDLES_ONLY") return false;
+    if (!exactKeys(authority, ["public_content_access", "controller_content_access", "training", "promotion",
+      "execution", "merge", "provider_mutation", "private_graph_present", "raw_graph_nodes_admitted_to_gradients",
+      "human_review_required"])) return false;
+    if (authority.public_content_access !== "HANDLES_ONLY"
+      || authority.controller_content_access !== "NOT_EXPOSED_BY_A11OY_HOLOGRAPHIC") return false;
     if (authority.training !== "NONE" || authority.promotion !== "NONE") return false;
     if (authority.execution !== "NONE" || authority.merge !== "NONE") return false;
     if (authority.provider_mutation !== "NONE" || authority.private_graph_present !== false) return false;
@@ -94,10 +158,65 @@
     return true;
   }
 
+  function canonicalJson(value) {
+    // The validated schema has ASCII keys, Unicode scalar strings and safe integers only.
+    // This matches the materializer's sorted compact JSON encoded as UTF-8.
+    if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+    if (record(value)) return `{${Object.keys(value).sort().map((key) =>
+      `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(",")}}`;
+    return JSON.stringify(value);
+  }
+
+  async function verifySnapshot(payload) {
+    if (!validatePayload(payload) || !window.crypto?.subtle) return false;
+    const { snapshot_sha256: expected, ...body } = payload;
+    try {
+      const bytes = new TextEncoder().encode(canonicalJson(body));
+      if (bytes.byteLength > MAX_SNAPSHOT_BYTES) return false;
+      const digest = await window.crypto.subtle.digest("SHA-256", bytes);
+      const measured = [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+      return measured === expected;
+    } catch (_error) {
+      return false;
+    }
+  }
+
+  async function readSnapshot(response) {
+    if (!response.headers.get("content-type")?.split(";", 1)[0].trim().match(/^application\/json$/i)) {
+      throw new Error("SNAPSHOT_CONTENT_TYPE_REJECTED");
+    }
+    if (!response.body) throw new Error("SNAPSHOT_BODY_UNAVAILABLE");
+    const reader = response.body.getReader();
+    const chunks = [];
+    let size = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        size += value.byteLength;
+        if (size > MAX_SNAPSHOT_BYTES) throw new Error("SNAPSHOT_SIZE_REJECTED");
+        chunks.push(value);
+      }
+    } catch (error) {
+      await reader.cancel().catch(() => {});
+      throw error;
+    } finally {
+      reader.releaseLock();
+    }
+    const bytes = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      bytes.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    return JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(bytes));
+  }
+
   async function loadSnapshot() {
     if (state.loading) return;
     state.loading = true;
-    renderCards();
+    state.payload = null;
+    renderAll();
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), 9000);
     try {
@@ -112,8 +231,8 @@
         signal: controller.signal,
       });
       if (!response.ok) throw new Error(`HTTP_${response.status}`);
-      const payload = await response.json();
-      if (!validatePayload(payload)) throw new Error("SNAPSHOT_CONTRACT_REJECTED");
+      const payload = await readSnapshot(response);
+      if (!await verifySnapshot(payload)) throw new Error("SNAPSHOT_CONTRACT_REJECTED");
       state.payload = payload;
     } catch (_error) {
       state.payload = null;
@@ -325,7 +444,7 @@
       const kind = String(handle.kind || "");
       const root = kind.includes("formula") || kind === "quant-domain"
         ? rootPositions.get("formula")
-        : handle.repository === "szl-holdings/ouroboros"
+        : handle.repository === "szl-holdings/szl-ouroboros"
           ? rootPositions.get("loop")
           : handle.repository === "szl-holdings/anatomy"
             ? rootPositions.get("anatomy")
