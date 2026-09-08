@@ -83,7 +83,10 @@ def test_try_khipu_honesty_labels():
     assert "locked_formulas:8" not in compact
     assert "doc.locked_formula_count" in compact
     assert "doc.locked_formula_ids" in compact
-    assert "(newSet(lockedIds)).size===doc.locked_formula_count" in compact
+    assert "doc.locked_formula_count===8" in compact
+    assert "lockedIds.length===8" in compact
+    assert "(newSet(lockedIds)).size===8" in compact
+    assert "['F1','F4','F7','F11','F12','F18','F19','F22']" in compact
 
     # Proxy elapsed time is independent of receipt proof. The former may be
     # MEASURED from the proxy wall clock; the latter stays UNAVAILABLE because
@@ -165,8 +168,8 @@ const status = {
   doctrine: {
     version: 'v11',
     state: 'LOCKED',
-    locked_formula_count: 1,
-    locked_formula_ids: ['F1'],
+    locked_formula_count: 9,
+    locked_formula_ids: ['F1','F2','F3','F4','F5','F6','F7','F8','F9'],
     lambda: 'Conjecture 1',
   },
 };
@@ -204,6 +207,7 @@ async function runChat(payload, ok = true, statusCode = 200) {
   assert.match(element('tk-pin').innerHTML, /ENERGY ATTESTED RUNS/);
   assert.match(element('tk-pin').innerHTML, /UNAVAILABLE/);
   assert.doesNotMatch(element('tk-pin').innerHTML, /99\/99|<img/);
+  assert.match(element('tk-pin').innerHTML, /locked formulas UNAVAILABLE/);
 
   const incomplete = await runChat({...complete, record_sha256: 'not-a-digest'});
   assert.match(incomplete, /RECEIPT UNAVAILABLE/);

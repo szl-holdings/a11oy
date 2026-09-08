@@ -16795,8 +16795,10 @@ window.a11oyInvestor = (function(){
           if(H && H.data) H=H.data;
           var lockedIds=H&&Array.isArray(H.locked_formula_ids)?H.locked_formula_ids:[];
           var lockedCount=H&&H.locked_formula_count;
-          var idsValid=lockedIds.every(function(id){ return typeof id==='string'&&/^F[0-9]+$/.test(id); });
-          var honestValid=H&&H.doctrine==='v11'&&Number.isInteger(lockedCount)&&lockedCount>0&&lockedIds.length===lockedCount&&idsValid&&(new Set(lockedIds)).size===lockedCount;
+          var canonicalLockedIds=['F1','F4','F7','F11','F12','F18','F19','F22'];
+          var idsCanonical=canonicalLockedIds.every(function(id){ return lockedIds.indexOf(id)!==-1; });
+          var honestValid=H&&H.doctrine==='v11'&&lockedCount===8&&lockedIds.length===8&&
+            lockedIds.every(function(id){ return typeof id==='string'; })&&(new Set(lockedIds)).size===8&&idsCanonical;
           if(honestValid){
             var lockedEp=document.getElementById('inv-locked-ep');
             var lockedList=document.getElementById('inv-locked-list');
@@ -17235,9 +17237,10 @@ window.a11oyInvestor = (function(){
     var st=(rawStatus==='READY'||rawStatus==='FAILED'||rawStatus==='UNAVAILABLE')?rawStatus:'UNAVAILABLE';
     var energyRuns='UNAVAILABLE';
     var lockedIds=Array.isArray(doc.locked_formula_ids)?doc.locked_formula_ids:[];
-    var doctrineValid=doc.version==='v11'&&doc.state==='LOCKED'&&Number.isInteger(doc.locked_formula_count)&&
-      doc.locked_formula_count>0&&lockedIds.length===doc.locked_formula_count&&(new Set(lockedIds)).size===doc.locked_formula_count&&
-      lockedIds.every(function(id){ return typeof id==='string'&&/^F[0-9]+$/.test(id); });
+    var canonicalLockedIds=['F1','F4','F7','F11','F12','F18','F19','F22'];
+    var idsCanonical=canonicalLockedIds.every(function(id){ return lockedIds.indexOf(id)!==-1; });
+    var doctrineValid=doc.version==='v11'&&doc.state==='LOCKED'&&doc.locked_formula_count===8&&lockedIds.length===8&&
+      (new Set(lockedIds)).size===8&&lockedIds.every(function(id){ return typeof id==='string'; })&&idsCanonical;
     var lockedCount=doctrineValid?String(doc.locked_formula_count):'UNAVAILABLE';
     H('tk-state',chip(st,st,'lab posture read from '+STATUS_URL+' this request'));
     var cells=[

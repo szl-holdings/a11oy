@@ -165,9 +165,10 @@ def test_investor_locked_formulas_use_canonical_doctrine_payload() -> None:
     assert "locked_formula_count" in investor
     assert "locked_formula_ids" in investor
     assert "H.doctrine==='v11'" in compact
-    assert "Number.isInteger(lockedCount)" in compact
-    assert "lockedIds.length===lockedCount" in compact
-    assert "(newSet(lockedIds)).size===lockedCount" in compact
+    assert "lockedCount===8" in compact
+    assert "lockedIds.length===8" in compact
+    assert "(newSet(lockedIds)).size===8" in compact
+    assert "['F1','F4','F7','F11','F12','F18','F19','F22']" in compact
     assert "HASH-LINKED" not in investor
     assert "reported id:" in investor
     assert "exactly 8" not in investor
@@ -192,6 +193,8 @@ function element(id) {
   return elements.get(id);
 }
 ['inv-locked-ep', 'inv-locked-list', 'inv-one-receipt', 'inv-one-ep'].forEach(element);
+element('inv-locked-ep').textContent = 'UNAVAILABLE';
+element('inv-locked-list').textContent = 'UNAVAILABLE';
 global.document = {getElementById: (id) => element(id)};
 global.esc = (value) => String(value == null ? '' : value).replace(/[&<>"']/g, (char) => ({
   '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -200,7 +203,11 @@ global.window = {
   VIEWS: {},
   getJSON: async (url) => {
     if (url === '/api/a11oy/v1/honest') {
-      return {doctrine: 'v11', locked_formula_count: 1, locked_formula_ids: ['F1']};
+      return {
+        doctrine: 'v11',
+        locked_formula_count: 9,
+        locked_formula_ids: ['F1','F2','F3','F4','F5','F6','F7','F8','F9'],
+      };
     }
     if (url === '/api/a11oy/v1/wow/ledger?limit=1') {
       return {receipts: [{receipt_id: '<img src=x onerror=alert(1)>', hash: 'reported'}]};
@@ -217,7 +224,8 @@ vm.runInThisContext(logic);
   assert.match(rendered, /&lt;img src=x onerror=alert\(1\)&gt;/);
   assert.match(rendered, /REPORTED/);
   assert.equal(element('inv-one-ep').textContent, 'REPORTED');
-  assert.equal(element('inv-locked-ep').textContent, '1 locked');
+  assert.equal(element('inv-locked-ep').textContent, 'UNAVAILABLE');
+  assert.equal(element('inv-locked-list').textContent, 'UNAVAILABLE');
 })().catch((error) => {
   console.error(error && error.stack || error);
   process.exitCode = 1;

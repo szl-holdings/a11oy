@@ -134,6 +134,8 @@ def test_status_ready_no_sign(proxy_client):
     (["F1", "F1"], 2),
     (["invalid"], 1),
     (["F1"], 2),
+    (["F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9"], 9),
+    (["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F23"], 8),
 ])
 def test_malformed_doctrine_is_unavailable(proxy_client, monkeypatch, ids, count):
     client, chat = proxy_client

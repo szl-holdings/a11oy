@@ -21,7 +21,6 @@ canonical runtime source is wired. Ask & Act is not a live control plane.
 Λ = Conjecture 1.
 """
 import hashlib
-import re
 import sys
 import time
 from pathlib import Path
@@ -50,11 +49,12 @@ from szl_be_hardening import DOCTRINE_LOCK
 _STATUS_PATH = "/api/a11oy/v1/khipu/status"
 _CHAT_PATH = "/api/a11oy/v1/khipu/chat"
 _PROMPT_CHAR_CAP = 4000
-_FORMULA_ID_RE = re.compile(r"^F[0-9]+$")
+_CANONICAL_LOCKED_FORMULA_IDS = frozenset({"F1", "F4", "F7", "F11", "F12", "F18", "F19", "F22"})
+_CANONICAL_LOCKED_FORMULA_COUNT = len(_CANONICAL_LOCKED_FORMULA_IDS)
 
 
 def _doctrine_status() -> dict:
-    """Copy the canonical /honest lock only when its count and IDs agree."""
+    """Copy the lock only when it is exactly the canonical locked-eight set."""
     doctrine = DOCTRINE_LOCK if isinstance(DOCTRINE_LOCK, dict) else {}
     raw_ids = doctrine.get("locked_formula_ids")
     ids = list(raw_ids) if isinstance(raw_ids, list) else []
@@ -63,12 +63,11 @@ def _doctrine_status() -> dict:
     valid = (
         doctrine.get("doctrine") == "v11"
         and doctrine.get("state") == "LOCKED"
-        and isinstance(count, int)
+        and count == _CANONICAL_LOCKED_FORMULA_COUNT
         and not isinstance(count, bool)
-        and count > 0
         and len(ids) == count
-        and all(isinstance(item, str) and _FORMULA_ID_RE.fullmatch(item) for item in ids)
-        and len(set(ids)) == count
+        and all(isinstance(item, str) for item in ids)
+        and frozenset(ids) == _CANONICAL_LOCKED_FORMULA_IDS
     )
     if not valid:
         count = None
