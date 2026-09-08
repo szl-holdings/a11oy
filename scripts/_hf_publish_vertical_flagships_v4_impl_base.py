@@ -591,31 +591,54 @@ def get_json(url: str, *, timeout: int = 20) -> tuple[int | None, Any]:
 
 def evidence_markup_contract(body: str) -> dict[str, bool]:
     class EvidenceParser(HTMLParser):
+        TEXT_CONTEXTS = {"textarea", "title", "xmp", "iframe", "noembed", "noframes", "style", "script", "plaintext"}
+        INERT_CONTEXTS = TEXT_CONTEXTS | {"template", "svg", "math"}
+
         def __init__(self) -> None:
             super().__init__()
             self.evidence = []
-            self.no_js_depth = 0
+            self.contexts = []
+            self.base_present = False
+            self.invalid_attributes = False
             self.fallback = False
 
         def handle_starttag(self, tag, attrs):
+            # HTMLParser also reports tags in raw/RCDATA elements where a browser
+            # treats them as text. Only that element's own close can end it.
+            if self.contexts and self.contexts[-1] in self.TEXT_CONTEXTS:
+                return
+            if tag in self.INERT_CONTEXTS | {"noscript"}:
+                self.contexts.append(tag)
+            if any(context in self.INERT_CONTEXTS for context in self.contexts):
+                return
+            if tag == "base":
+                self.base_present = True
             attributes = dict(attrs)
-            if tag == "noscript":
-                self.no_js_depth += 1
-            if attributes.get("id") == "evidence":
+            if len(attributes) != len(attrs):
+                self.invalid_attributes = True
+                return
+            if not self.contexts and attributes.get("id") == "evidence":
                 self.evidence.append(attributes)
-            if self.no_js_depth and attributes.get("data-szl-evidence-fallback") == "true":
+            if self.contexts == ["noscript"] and tag == "p" and attributes.get("data-szl-evidence-fallback") == "true":
                 self.fallback = True
 
         def handle_endtag(self, tag):
-            if tag == "noscript":
-                self.no_js_depth = max(0, self.no_js_depth - 1)
+            if self.contexts and self.contexts[-1] != "plaintext" and tag == self.contexts[-1]:
+                self.contexts.pop()
+
+        def handle_startendtag(self, tag, attrs):
+            # A trailing slash does not close non-void HTML elements. Foreign
+            # SVG/MathML roots are the only tracked contexts where it does.
+            self.handle_starttag(tag, attrs)
+            if tag in {"svg", "math"}:
+                self.handle_endtag(tag)
 
     parser = EvidenceParser()
     parser.feed(body)
     expected = {"data-provenance": "UNAVAILABLE", "data-mode": "unavailable", "data-observed-at": "UNAVAILABLE", "data-source-revision": "UNAVAILABLE"}
     return {
-        "evidence_attributes_present": len(parser.evidence) == 1 and all(parser.evidence[0].get(key) == value for key, value in expected.items()),
-        "no_js_fallback_present": parser.fallback,
+        "evidence_attributes_present": not parser.base_present and not parser.invalid_attributes and len(parser.evidence) == 1 and all(parser.evidence[0].get(key) == value for key, value in expected.items()),
+        "no_js_fallback_present": not parser.base_present and not parser.invalid_attributes and parser.fallback,
     }
 
 

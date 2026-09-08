@@ -558,3 +558,57 @@ global.fetch=async()=>({ok:true,headers:{get:()=> 'application/json'},json:async
     script = tmp_path / "evidence-browser-test.cjs"
     script.write_text(harness, encoding="utf-8")
     subprocess.run([node, str(script)], check=True, capture_output=True, text=True, timeout=30)
+
+
+@pytest.mark.parametrize("tag", ["template", "textarea", "title", "xmp", "iframe", "noembed", "noframes", "style", "script", "plaintext", "svg", "math"])
+def test_markup_admission_rejects_inert_or_text_wrapped_evidence(tag):
+    module = load_overlay()
+    page = module.html(module.FLAGSHIPS[0])
+    start = page.index('<section id="evidence"')
+    end = page.index('</section>', start) + len('</section>')
+    # A whole document contains its own </title>/<style> closes, which really
+    # would end an outer raw-text wrapper before the evidence in a browser.
+    contract = module.evidence_markup_contract(f"<{tag}>" + page[start:end] + f"</{tag}>")
+    assert contract == {"evidence_attributes_present": False, "no_js_fallback_present": False}
+
+
+def test_noscript_can_supply_fallback_but_not_the_live_evidence_region():
+    module = load_overlay()
+    page = module.html(module.FLAGSHIPS[0])
+    contract = module.evidence_markup_contract("<noscript>" + page + "</noscript>")
+    assert contract["evidence_attributes_present"] is False
+    assert contract["no_js_fallback_present"] is False
+    fallback = '<noscript><p data-szl-evidence-fallback="true">Unavailable</p></noscript>'
+    assert module.evidence_markup_contract(fallback)["no_js_fallback_present"] is True
+    assert module.evidence_markup_contract("<template>" + fallback + "</template>")["no_js_fallback_present"] is False
+
+
+def test_raw_context_cannot_be_escaped_by_an_unrelated_close():
+    module = load_overlay()
+    page = module.html(module.FLAGSHIPS[0])
+    wrapped = "<textarea></template></noscript>" + page + "</textarea>"
+    assert module.evidence_markup_contract(wrapped) == {"evidence_attributes_present": False, "no_js_fallback_present": False}
+    assert module.evidence_markup_contract("<plaintext></plaintext>" + page)["evidence_attributes_present"] is False
+
+
+@pytest.mark.parametrize("base", ['<base href="https://elsewhere.example/">', '<base target="_blank">', '<noscript><base href="https://elsewhere.example/"></noscript>'])
+def test_markup_admission_rejects_active_document_base(base):
+    module = load_overlay()
+    page = module.html(module.FLAGSHIPS[0])
+    assert module.evidence_markup_contract(base + page) == {"evidence_attributes_present": False, "no_js_fallback_present": False}
+    assert module.evidence_markup_contract('<template><base href="https://elsewhere.example/"></template>' + page) == {"evidence_attributes_present": True, "no_js_fallback_present": True}
+
+
+@pytest.mark.parametrize("tag", ["template", "textarea", "noscript", "plaintext"])
+def test_slash_does_not_close_a_non_void_html_context(tag):
+    module = load_overlay()
+    page = module.html(module.FLAGSHIPS[0])
+    contract = module.evidence_markup_contract(f"<{tag}/>" + page)
+    assert contract == {"evidence_attributes_present": False, "no_js_fallback_present": False}
+
+
+def test_duplicate_attributes_cannot_hide_an_earlier_evidence_region():
+    module = load_overlay()
+    page = module.html(module.FLAGSHIPS[0])
+    duplicate = '<section id="evidence" id="ignored"></section>'
+    assert module.evidence_markup_contract(duplicate + page) == {"evidence_attributes_present": False, "no_js_fallback_present": False}
