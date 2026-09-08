@@ -201,13 +201,17 @@ KNOWN_GOTCHAS.md).
 
 - [ ] `pnpm -F @a11oy/core test:doctrine` — all six invariants must pass
 - [ ] `pytest tests/ -v` — no regressions
-- [ ] DCO sign-off: `git commit -s`
+- [ ] Commit author and source rights are accurate; no DCO or `Signed-off-by` trailer is required
+- [ ] Exact-head CI, policy, and source-drift checks pass on the current base
 - [ ] Do NOT change doctrine numbers (749/14/163) without a doctrine version bump
 - [ ] Do NOT call Lambda uniqueness "proven" or "theorem"
 - [ ] New Python module? Add a matching `COPY` line in Dockerfile
 
 ---
 
-*Authored by Perplexity Computer Agent on behalf of Yachay (CTO).*
+Repository provenance is supplied by GitHub-authenticated authorship, pull-request
+history, exact-head checks, and immutable merge records. Founder-maintainer changes
+do not require an unavailable second human; external collaborator changes require
+maintainer review.
+
 *Doctrine v11 LOCKED · 749/14/163 · Λ = Conjecture 1.*
-*Signed-off-by: stephenlutar2-hash <stephenlutar2@gmail.com>*
