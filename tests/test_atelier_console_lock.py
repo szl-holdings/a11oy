@@ -5,8 +5,9 @@
 """ATELIER lock for /console: inference-lab /v1 only; honest labels.
 
 Try Khipu must call szl-model-inference-lab /v1. Forge lab is SNAPSHOT — not a
-trainer, not Serve Studio. Energy-attested-runs 8/8 is SIMULATED. Ask & Act is
-not a live control plane. Λ = Conjecture 1.
+trainer, not Serve Studio. Energy-attested runs stay UNAVAILABLE until a
+dedicated evidence contract is implemented. Ask & Act is not a live control plane.
+Λ = Conjecture 1.
 """
 
 from __future__ import annotations
@@ -50,18 +51,19 @@ def test_forge_lab_not_wired_as_trainer_or_serve_studio() -> None:
         assert banned not in lowered
 
 
-def test_energy_attested_runs_labeled_simulated_if_present() -> None:
+def test_energy_attested_runs_fail_closed_without_evidence_contract() -> None:
     html = _console()
-    if "energy-attested-runs" not in html.lower() and "energy-attested" not in html.lower():
-        # Honesty strip on Try Khipu names the 8/8 SIMULATED lock even without a tile.
-        assert "8/8" in html
-        assert "SIMULATED" in html
-        return
-    assert "8/8" in html
-    assert "SIMULATED" in html
-    idx = html.lower().find("energy-attested")
-    window = html[max(0, idx - 400) : idx + 400]
-    assert "SIMULATED" in window
+    start = html.find("/* try-khipu-panel")
+    stop = html.find("/* end try-khipu-panel */")
+    assert start >= 0 and stop > start
+    panel = html[start:stop]
+    compact = "".join(panel.split())
+
+    assert "varenergyRuns='UNAVAILABLE'" in compact
+    assert "hon.energy_attested_runs" not in panel
+    assert "pin.energy_attested_runs" not in panel
+    assert "chip('UNAVAILABLE','UNAVAILABLE')" in compact
+    assert "||'8/8 SIMULATED'" not in compact
 
 
 def test_ask_and_act_is_not_a_live_control_plane() -> None:
@@ -82,9 +84,10 @@ def test_ask_and_act_is_not_a_live_control_plane() -> None:
 
 
 def test_does_not_retune_nawi_command_bar_or_rail() -> None:
-    """PR 1396 owns KANCHAY bar, 7-module rail, Command|Proof, Proof registry."""
+    """The KANCHAY bar may name Ask & Act only with its explicit demo boundary."""
     html = _console()
-    assert '["ask","\\u2726","Ask & Act (demo)"]' not in html
+    assert html.count('["ask","\\u2726","Ask & Act (demo)"]') == 1
+    assert '["ask","\\u2726","Ask & Act"]' not in html
     panel = html[html.find("/* try-khipu-panel") : html.find("/* end try-khipu-panel */")]
     assert "Proof registry" not in panel
     assert "mod-home" not in panel
