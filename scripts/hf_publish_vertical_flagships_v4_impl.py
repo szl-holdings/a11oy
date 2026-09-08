@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: Apache-2.0
-"""Policy overlay for the immutable Domain Experience v4 renderer.
+"""Sentra policy overlay for the shared Domain Experience v4 renderer.
 
-The generated renderer stays byte-identical in the adjacent base module. This
+The adjacent base module owns the shared evidence gateway and renderer. This
 module applies the reviewed Sentra receipt-verifier semantics while preserving
-Terra forge 0.2.2, the current Lyte source pin, every non-Sentra vertical, and
-the canonical single-writer publisher contract.
+the pinned Terra forge 0.2.2 artifact, the current Lyte source pin, non-Sentra
+domain templates, and the canonical single-writer publisher contract.
 
 Importing this module performs no network or provider mutation.
 """

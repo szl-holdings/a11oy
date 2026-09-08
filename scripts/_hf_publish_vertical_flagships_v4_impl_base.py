@@ -11,11 +11,13 @@ from __future__ import annotations
 
 import datetime as dt
 import hashlib
+import html as html_tools
 import json
 import os
 import time
 import urllib.error
 import urllib.request
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
 
@@ -103,7 +105,7 @@ FLAGSHIPS: tuple[dict[str, Any], ...] = (
     },
 )
 
-APP = r'''import hashlib,json,time,urllib.request
+APP = r'''import datetime,hashlib,json,math,threading,time,urllib.request
 from pathlib import Path
 import httpx
 from fastapi import FastAPI
@@ -112,6 +114,11 @@ CFG=json.loads(Path("config.json").read_text(encoding="utf-8"))
 INDEX=Path("index.html").read_text(encoding="utf-8")
 PANELS=Path("panels.html").read_text(encoding="utf-8")
 app=FastAPI(title=CFG["title"]+" - SZL Holdings")
+UPSTREAM_LIMIT=262144
+UPSTREAM_TIMEOUT=10
+UPSTREAM_SLOTS=threading.BoundedSemaphore(4)
+EVIDENCE_STATES={"LIVE","OBSERVED","CACHED","STALE","PARTIAL","UNAVAILABLE","UNKNOWN","BLOCKED","FAILED","FAILED_CLOSED","INVALID","DEGRADED","SAMPLE","MODELED","ROADMAP"}
+OBSERVED_STATES={"LIVE","OBSERVED","CACHED","STALE"}
 
 def sha256_text(value):
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
@@ -122,16 +129,138 @@ def local_integrity():
         "panels_sha256":sha256_text(PANELS)==CFG["panels_sha256"],
     }
     ready=all(checks.values())
-    return {"schema":"szl.vertical-shell-readiness/v1","ready":ready,"state":"MEASURED" if ready else "INVALID","checks":checks,"routes":{"landing":"/","panels":"/panels","live":"/api/live","receipt":"/build-receipt.json"}}
+    return {"schema":"szl.vertical-shell-readiness/v1","ready":ready,"state":"MEASURED" if ready else "INVALID","scope":"local_artifact_integrity_only","upstream_evidence_checked":False,"checks":checks,"routes":{"landing":"/","panels":"/panels","live":"/api/live","receipt":"/build-receipt.json"}}
+
+def source_timestamp(value):
+    try:
+        if isinstance(value,(int,float)) and not isinstance(value,bool) and math.isfinite(value):
+            stamp=datetime.datetime.fromtimestamp(value,datetime.timezone.utc)
+        elif isinstance(value,str):
+            stamp=datetime.datetime.fromisoformat(value.replace("Z","+00:00"))
+            if stamp.tzinfo is None:
+                return None
+        else:
+            return None
+        return stamp.astimezone(datetime.timezone.utc).isoformat().replace("+00:00","Z")
+    except (ValueError,OverflowError,OSError):
+        return None
+
+def source_revision(value):
+    return value if isinstance(value,str) and len(value)==40 and all(ch in "0123456789abcdef" for ch in value) else None
+
+def finite_json_float(value):
+    number=float(value)
+    if not math.isfinite(number):
+        raise ValueError("non-finite JSON")
+    return number
+
+def evidence_contract(body):
+    records=[]
+    budget=[4096]
+    def visit(value,path="$",depth=0):
+        budget[0]-=1
+        if depth>12 or budget[0]<0:
+            raise ValueError("evidence structure exceeds limit")
+        if isinstance(value,list):
+            for index,child in enumerate(value):
+                visit(child,path+"["+str(index)+"]",depth+1)
+            return
+        if not isinstance(value,dict):
+            return
+        freshness=value.get("freshness")
+        metadata=freshness if isinstance(freshness,dict) else value
+        declared=[record[key].strip().upper() for record in (value,metadata) for key in ("observation_state","mode","status","state") if isinstance(record.get(key),str)]
+        recognized=[state for state in declared if state in EVIDENCE_STATES]
+        state=next((state for state in recognized if state not in OBSERVED_STATES),None)
+        if state is None:
+            state="STALE" if "STALE" in recognized else "CACHED" if metadata.get("cached") is True or "CACHED" in recognized else next(iter(recognized),None)
+        if value.get("observed") is False or metadata.get("observed") is False:
+            if state is None or state in OBSERVED_STATES or state=="PARTIAL":
+                state="UNAVAILABLE"
+        elif state is None and metadata.get("observed") is True:
+            state="OBSERVED"
+        if isinstance(freshness,dict) and "value" in value and value["value"] is None:
+            state="UNAVAILABLE"
+        # Only the envelope or explicit observation metadata can speak for
+        # evidence. A nested business object's generic status is not authority.
+        if path!="$" and not isinstance(freshness,dict) and "observation_state" not in value and not isinstance(value.get("observed"),bool):
+            state=None
+        if state:
+            stamp=source_timestamp(metadata.get("observed_at",metadata.get("fetched_at")))
+            declared_state=state
+            if state in OBSERVED_STATES and stamp is None:
+                state="UNAVAILABLE"
+            records.append({"path":path,"status":state,"upstream_status":declared_state,"observed_at":stamp,"source_revision":source_revision(metadata.get("source_revision"))})
+        # Business values and individual records cannot declare gateway authority.
+        for key,child in value.items():
+            if key not in {"freshness","value","items","records","sources_cited","doctrine"} and isinstance(child,(dict,list)):
+                visit(child,path+"."+key,depth+1)
+    visit(body)
+    root=next((record for record in records if record["path"]=="$"),None)
+    statuses={record["status"] for record in records}
+    if root and root["status"] not in OBSERVED_STATES:
+        status=root["status"]
+    elif not statuses:
+        status="UNAVAILABLE"
+    elif len(statuses)==1:
+        status=next(iter(statuses))
+    elif statuses.issubset(OBSERVED_STATES):
+        status="STALE" if "STALE" in statuses else "CACHED" if "CACHED" in statuses else "OBSERVED"
+    else:
+        status="PARTIAL" if statuses.intersection(OBSERVED_STATES) else "UNAVAILABLE"
+    observed=status in OBSERVED_STATES or (status=="PARTIAL" and bool(statuses.intersection(OBSERVED_STATES)))
+    stamps=[record["observed_at"] for record in records if record["status"] in OBSERVED_STATES]
+    stamp=min(stamps,key=lambda value: datetime.datetime.fromisoformat(value.replace("Z","+00:00"))) if observed and stamps and all(stamps) else None
+    revisions={record["source_revision"] for record in records}
+    revision=source_revision(body.get("source_revision"))
+    if revision is None and len(revisions)==1:
+        revision=next(iter(revisions))
+    return {"status":status,"observation_state":status,"observed":observed,"mode":status.lower(),"provenance":"UPSTREAM_REPORTED" if records else "UNAVAILABLE","freshness_policy":"upstream_reported_only","observed_at":stamp,"source_revision":revision,"cached":any(record["status"]=="CACHED" for record in records),"source_states":records}
 
 def probe():
-    started=time.time()
+    started=time.monotonic()
+    result={"schema":"szl.vertical-evidence/v1","status":"UNAVAILABLE","observation_state":"UNAVAILABLE","observed":False,"mode":"unavailable","provenance":"UNAVAILABLE","observed_at":None,"source_revision":None,"cached":False,"gateway_cached":False,"source_states":[],"source":CFG["upstream"],"http_status":None,"data":None}
+    acquired=UPSTREAM_SLOTS.acquire(blocking=False)
     try:
-        r=httpx.get(CFG["upstream"],timeout=15,headers={"User-Agent":"SZLHOLDINGS-Flagship/4.0"})
-        body=r.json() if "json" in r.headers.get("content-type","") else {"text":r.text[:4000]}
-        return {"status":"LIVE" if r.is_success else "UNAVAILABLE","http_status":r.status_code,"latency_ms":round((time.time()-started)*1000,1),"source":CFG["upstream"],"data":body}
+        if not acquired:
+            result["error"]="upstream_probe_busy"
+            return result
+        with httpx.stream("GET",CFG["upstream"],timeout=httpx.Timeout(UPSTREAM_TIMEOUT,read=2),follow_redirects=False,headers={"User-Agent":"SZLHOLDINGS-Flagship/4.0","Accept":"application/json","Accept-Encoding":"identity","Cache-Control":"no-cache"}) as response:
+            result["http_status"]=response.status_code
+            if not response.is_success:
+                result["error"]="upstream_http_error"
+                return result
+            content_type=response.headers.get("content-type","").split(";",1)[0].strip().lower()
+            if content_type!="application/json" and not content_type.endswith("+json"):
+                result["error"]="upstream_not_json"
+                return result
+            if response.headers.get("content-encoding", "identity").strip().lower()!="identity":
+                result["error"]="upstream_compressed_response"
+                return result
+            raw=bytearray()
+            for chunk in response.iter_bytes(chunk_size=8192):
+                if time.monotonic()-started>UPSTREAM_TIMEOUT:
+                    raise TimeoutError("upstream response exceeded time budget")
+                if len(raw)+len(chunk)>UPSTREAM_LIMIT:
+                    raise ValueError("upstream response exceeds byte limit")
+                raw.extend(chunk)
+            if time.monotonic()-started>UPSTREAM_TIMEOUT:
+                raise TimeoutError("upstream response exceeded time budget")
+            body=json.loads(raw,parse_float=finite_json_float,parse_constant=lambda _value: (_ for _ in ()).throw(ValueError("non-finite JSON")))
+            if not isinstance(body,dict):
+                result["error"]="upstream_not_object"
+                return result
+            result.update(evidence_contract(body))
+            result["data"]=body
+            return result
     except Exception as exc:
-        return {"status":"UNAVAILABLE","error":type(exc).__name__,"source":CFG["upstream"],"data":None}
+        result["error"]=type(exc).__name__
+        return result
+    finally:
+        if acquired:
+            UPSTREAM_SLOTS.release()
+        result["latency_ms"]=round((time.monotonic()-started)*1000,1)
+        result["checked_at"]=datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00","Z")
 
 def hf_revision():
     try:
@@ -153,7 +282,7 @@ def readyz():
     return JSONResponse(status,status_code=200 if status["ready"] else 503)
 
 @app.get("/api/live")
-def live(): return probe()
+def live(): return JSONResponse(probe(),headers={"Cache-Control":"no-store"})
 
 @app.get("/api/source")
 def source():
@@ -359,13 +488,55 @@ def load_terra_forge_bundle() -> tuple[str, dict[str, Any]]:
     return page, forge
 
 
+EVIDENCE_JS = r'''let evidencePending=false;
+async function loadEvidence(){
+  if(evidencePending)return;
+  evidencePending=true;
+  const s=document.getElementById('st'),o=document.getElementById('out'),p=document.getElementById('evidence');
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+  const reset=()=>{s.className='status';p.dataset.provenance='UNAVAILABLE';p.dataset.mode='unavailable';p.dataset.observedAt='UNAVAILABLE';p.dataset.sourceRevision='UNAVAILABLE';};
+  reset();s.children[1].textContent='CHECKING / UNAVAILABLE UNTIL OBSERVED';
+  try{
+    const r=await fetch('/api/live',{cache:'no-store',signal:controller.signal});
+    if(!r.ok)throw new Error('Evidence HTTP '+r.status);
+    if(!(r.headers.get('content-type')||'').toLowerCase().startsWith('application/json'))throw new Error('Evidence response is not JSON');
+    const j=await r.json();
+    const states=['LIVE','OBSERVED','CACHED','STALE','PARTIAL','UNAVAILABLE','UNKNOWN','BLOCKED','FAILED','FAILED_CLOSED','INVALID','DEGRADED','SAMPLE','MODELED','ROADMAP'];
+    if(j.schema!=='szl.vertical-evidence/v1'||!states.includes(j.status)||j.observation_state!==j.status)throw new Error('Invalid evidence envelope');
+    const observed=j.observed===true&&typeof j.observed_at==='string'&&Number.isFinite(Date.parse(j.observed_at))&&j.provenance==='UPSTREAM_REPORTED';
+    const live=observed&&['LIVE','OBSERVED'].includes(j.status);
+    if(['LIVE','OBSERVED','CACHED','STALE'].includes(j.status)&&!observed)throw new Error('Missing source observation');
+    s.className='status '+(live?'is-live':'');
+    s.children[1].textContent=j.status+' / '+(j.provenance==='UPSTREAM_REPORTED'?'UPSTREAM REPORTED':'NO SOURCE OBSERVATION')+' / '+(j.latency_ms??'-')+' ms';
+    p.dataset.provenance=j.provenance==='UPSTREAM_REPORTED'?'UPSTREAM_REPORTED':'UNAVAILABLE';
+    p.dataset.mode=j.status.toLowerCase();
+    p.dataset.observedAt=observed?j.observed_at:'UNAVAILABLE';
+    p.dataset.sourceRevision=/^[0-9a-f]{40}$/.test(j.source_revision||'')?j.source_revision:'UNAVAILABLE';
+    o.textContent=JSON.stringify(j,null,2);
+  }catch(e){reset();s.children[1].textContent='UNAVAILABLE';o.textContent='Evidence unavailable: '+String(e);}
+  finally{clearTimeout(timer);evidencePending=false;}
+}
+loadEvidence();setInterval(loadEvidence,60000);'''
+
+
 def html(item: dict[str, Any]) -> str:
-    flow = "".join(f"<span>{step}</span>" for step in item["workflow"])
-    labels = item["labels"]
+    escape = html_tools.escape
+    safe = {key: escape(str(item[key]), quote=True) for key in ("slug", "title", "vertical", "short", "source")}
+    flow = "".join(f"<span>{escape(step)}</span>" for step in item["workflow"])
+    labels = tuple(escape(label) for label in item["labels"])
     return f'''<!doctype html>
-<html lang="en" data-szl-public-experience-v3="true" data-szl-domain-experience-v4="true" data-domain="{item['slug']}">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05070a"><title>{item['title']} — SZL Holdings</title><style>{BASE_CSS}{DOMAIN_CSS[item['slug']]}</style></head>
-<body><main class="shell"><header class="top"><div class="brand">SZL HOLDINGS / {item['title'].upper()}</div><div class="mono">DOMAIN EXPERIENCE V4 · SOURCE BOUND</div></header><section style="margin-top:clamp(52px,9vw,112px)"><div class="eyebrow">{item['vertical']}</div><h1>{item['title']}</h1><p class="lede">{item['short']}. One governed runtime underneath; a domain-native workbench above it. Observed evidence, modeled analysis, human authority, and audit receipts remain separate states.</p><div class="flow">{flow}</div></section>{DOMAIN_HTML[item['slug']]}<section class="panel" style="margin-top:14px"><div class="livebar"><div id="st" class="status"><span class="dot"></span><span>PROBING GOVERNED EVIDENCE</span></div><button type="button" onclick="loadEvidence()">Refresh evidence</button></div><pre id="out">Loading governed evidence…</pre></section><footer class="footer"><div class="panel"><b>{labels[0]}</b><span>Domain-specific visualization remains distinct from the shared execution contract.</span></div><div class="panel"><b>{labels[1]}</b><span>Every decision surface keeps provenance and evidence status visible.</span></div><div class="panel"><b>{labels[2]}</b><div class="truth"><span>MEASURED</span><span>REPORTED</span><span>MODELED</span><span>UNAVAILABLE</span></div></div></footer><p class="mono" style="margin-top:18px;color:var(--muted)">Canonical product source: <a href="{item['source']}" target="_blank" rel="noopener">{item['source']}</a> · Portfolio: <a href="https://a-11-oy.com/products/" target="_blank" rel="noopener">a-11-oy.com/products/</a></p></main><script>async function loadEvidence(){{const s=document.getElementById('st'),o=document.getElementById('out');try{{const r=await fetch('/api/live',{{cache:'no-store'}}),j=await r.json();s.className='status '+(j.status==='LIVE'?'is-live':'');s.children[1].textContent=j.status+' / '+(j.latency_ms??'-')+' ms';o.textContent=JSON.stringify(j,null,2)}}catch(e){{s.children[1].textContent='UNAVAILABLE';o.textContent=String(e)}}}}loadEvidence();setInterval(loadEvidence,60000)</script></body></html>'''
+<html lang="en" data-szl-public-experience-v3="true" data-szl-domain-experience-v4="true" data-domain="{safe['slug']}">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#05070a"><title>{safe['title']} — SZL Holdings</title><style>{BASE_CSS}{DOMAIN_CSS[item['slug']]}</style></head>
+<body><main class="shell"><header class="top"><div class="brand">SZL HOLDINGS / {safe['title'].upper()}</div><div class="mono">DOMAIN EXPERIENCE V4 · SOURCE BOUND</div></header>
+<section style="margin-top:clamp(52px,9vw,112px)"><div class="eyebrow">{safe['vertical']}</div><h1>{safe['title']}</h1><p class="lede">{safe['short']}. One governed runtime underneath; a domain-native workbench above it. Observed evidence, modeled analysis, human authority, and audit receipts remain separate states.</p><div class="flow">{flow}</div></section>
+<div data-provenance="ILLUSTRATIVE" data-mode="modeled" data-observed-at="UNAVAILABLE" data-source-revision="UNAVAILABLE">{DOMAIN_HTML[item['slug']]}</div>
+<section id="evidence" class="panel" style="margin-top:14px" data-provenance="UNAVAILABLE" data-mode="unavailable" data-observed-at="UNAVAILABLE" data-source-revision="UNAVAILABLE">
+<div class="livebar"><div id="st" class="status" role="status" aria-live="polite"><span class="dot"></span><span>UNAVAILABLE — NO OBSERVATION YET</span></div><button type="button" onclick="loadEvidence()">Refresh evidence</button></div>
+<p>Source-declared observations only; transport success alone is not evidence. Freshness is reported by the upstream, not independently verified here.</p>
+<noscript><p data-szl-evidence-fallback="true">JavaScript is disabled. Evidence is UNAVAILABLE in this view. <a href="/api/live">Read the evidence JSON</a> and <a href="/build-receipt.json">inspect the source-bound build receipt</a>. The diagrams above remain illustrative.</p></noscript>
+<pre id="out">Evidence has not been fetched. Observation time and source revision are UNAVAILABLE until supplied by the upstream.</pre></section>
+<footer class="footer"><div class="panel"><b>{labels[0]}</b><span>Domain-specific visualization remains distinct from the shared execution contract.</span></div><div class="panel"><b>{labels[1]}</b><span>Every decision surface keeps provenance and evidence status visible.</span></div><div class="panel"><b>{labels[2]}</b><div class="truth"><span>MEASURED</span><span>REPORTED</span><span>MODELED</span><span>UNAVAILABLE</span></div></div></footer>
+<p class="mono" style="margin-top:18px;color:var(--muted)">Canonical product source: <a href="{safe['source']}" target="_blank" rel="noopener">{safe['source']}</a> · Portfolio: <a href="https://a-11-oy.com/products/" target="_blank" rel="noopener">a-11-oy.com/products/</a></p></main><script>{EVIDENCE_JS}</script></body></html>'''
 
 
 def readme(item: dict[str, Any]) -> str:
@@ -418,13 +589,43 @@ def get_json(url: str, *, timeout: int = 20) -> tuple[int | None, Any]:
         return None, {"error": f"{type(exc).__name__}: {exc}"}
 
 
+def evidence_markup_contract(body: str) -> dict[str, bool]:
+    class EvidenceParser(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.evidence = []
+            self.no_js_depth = 0
+            self.fallback = False
+
+        def handle_starttag(self, tag, attrs):
+            attributes = dict(attrs)
+            if tag == "noscript":
+                self.no_js_depth += 1
+            if attributes.get("id") == "evidence":
+                self.evidence.append(attributes)
+            if self.no_js_depth and attributes.get("data-szl-evidence-fallback") == "true":
+                self.fallback = True
+
+        def handle_endtag(self, tag):
+            if tag == "noscript":
+                self.no_js_depth = max(0, self.no_js_depth - 1)
+
+    parser = EvidenceParser()
+    parser.feed(body)
+    expected = {"data-provenance": "UNAVAILABLE", "data-mode": "unavailable", "data-observed-at": "UNAVAILABLE", "data-source-revision": "UNAVAILABLE"}
+    return {
+        "evidence_attributes_present": len(parser.evidence) == 1 and all(parser.evidence[0].get(key) == value for key, value in expected.items()),
+        "no_js_fallback_present": parser.fallback,
+    }
+
+
 def probe_html(slug: str, path: str, marker: str, *, timeout: int = 20) -> dict[str, Any]:
     url = f"https://szlholdings-{slug}.hf.space{path}"
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Cache-Control": "no-cache"})
     try:
         with urllib.request.urlopen(req, timeout=timeout) as response:
             body = response.read().decode("utf-8", errors="replace")
-            return {"url": url, "http_status": response.status, "marker_present": marker in body}
+            return {"url": url, "http_status": response.status, "marker_present": marker in body, **evidence_markup_contract(body)}
     except urllib.error.HTTPError as exc:
         return {"url": url, "http_status": exc.code, "marker_present": False}
     except Exception as exc:
@@ -440,10 +641,33 @@ def observe_flagship(row: dict[str, Any]) -> None:
         ("build_info", "/api/build-info"),
         ("readyz", "/readyz"),
         ("deployment_receipt", "/build-receipt.json"),
+        ("evidence", "/api/live"),
     ):
         status, payload = get_json(origin + path)
         row[f"{name}_http"] = status
         row[name] = payload
+
+
+def gateway_envelope_passes(payload: Any, upstream: Any) -> bool:
+    if not isinstance(payload, dict) or not isinstance(upstream, str):
+        return False
+    states = {"LIVE", "OBSERVED", "CACHED", "STALE", "PARTIAL", "UNAVAILABLE", "UNKNOWN", "BLOCKED", "FAILED", "FAILED_CLOSED", "INVALID", "DEGRADED", "SAMPLE", "MODELED", "ROADMAP"}
+    observed_states = {"LIVE", "OBSERVED", "CACHED", "STALE"}
+    state = payload.get("status")
+    if not isinstance(state, str) or state not in states:
+        return False
+    if payload.get("schema") != "szl.vertical-evidence/v1" or payload.get("source") != upstream or payload.get("observation_state") != state or payload.get("mode") != state.lower() or payload.get("gateway_cached") is not False or not isinstance(payload.get("observed"), bool):
+        return False
+    revision = payload.get("source_revision")
+    if revision is not None and (not isinstance(revision, str) or len(revision) != 40 or any(ch not in "0123456789abcdef" for ch in revision)):
+        return False
+    if payload["observed"]:
+        try:
+            stamp = dt.datetime.fromisoformat(payload["observed_at"].replace("Z", "+00:00"))
+        except (KeyError, AttributeError, TypeError, ValueError):
+            return False
+        return state in observed_states | {"PARTIAL"} and stamp.tzinfo is not None and payload.get("provenance") == "UPSTREAM_REPORTED" and isinstance(payload.get("data"), dict)
+    return state not in observed_states and payload.get("observed_at") is None
 
 
 def observation_passes(
@@ -463,8 +687,18 @@ def observation_passes(
     return bool(
         root.get("http_status") == 200
         and root.get("marker_present") is True
+        # Terra's pinned forge landing has its own exact-byte artifact contract.
+        # Its generated /panels route still requires this evidence contract.
+        and (
+            (row.get("slug") == "terra" and row.get("root_marker") == TERRA_FORGE_MARKER)
+            or (root.get("evidence_attributes_present") is True and root.get("no_js_fallback_present") is True)
+        )
         and panels.get("http_status") == 200
         and panels.get("marker_present") is True
+        and panels.get("evidence_attributes_present") is True
+        and panels.get("no_js_fallback_present") is True
+        and row.get("evidence_http") == 200
+        and gateway_envelope_passes(row.get("evidence"), row.get("upstream"))
         and row.get("build_info_http") == 200
         and build.get("schema") == "szl.build-info/v1"
         and build.get("source_repository") == DEPLOYMENT_SOURCE_REPOSITORY
@@ -554,7 +788,7 @@ def main() -> int:
             "upstream": item["upstream"],
             "public_experience": PUBLIC_EXPERIENCE_VERSION,
         }, indent=2, sort_keys=True) + "\n"
-        row: dict[str, Any] = {"id": rid, "slug": slug, "source": item["source"], "source_revision": source_revision, "workflow_run_id": int(workflow_run_id), "artifact_set_sha256": artifacts, "landing_sha256": landing_sha256, "panels_sha256": panels_sha256, "forge": forge, "root_marker": root_marker, "actions": []}
+        row: dict[str, Any] = {"id": rid, "slug": slug, "source": item["source"], "upstream": item["upstream"], "source_revision": source_revision, "workflow_run_id": int(workflow_run_id), "artifact_set_sha256": artifacts, "landing_sha256": landing_sha256, "panels_sha256": panels_sha256, "forge": forge, "root_marker": root_marker, "actions": []}
         try:
             row["actions"].append(ensure_space_repository(api, rid))
             for path, payload in (("app.py", APP), ("Dockerfile", DOCKER), ("requirements.txt", REQ), ("config.json", config), ("index.html", page), ("panels.html", panels), ("README.md", card)):
@@ -589,6 +823,7 @@ def main() -> int:
             )
         )
         row["operational"] = ok
+        row["operational_scope"] = "source_bound_shell_and_evidence_api_contract_only"
         complete = complete and ok
 
     receipt = {
