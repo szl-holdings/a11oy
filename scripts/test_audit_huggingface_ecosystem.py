@@ -9,6 +9,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
 from contextlib import redirect_stdout
 from datetime import datetime, timezone
 from pathlib import Path
@@ -66,6 +67,48 @@ class HuggingFaceEcosystemAuditTests(unittest.TestCase):
             return result, stdout.getvalue()
         finally:
             os.sys.argv = original_argv
+
+    def test_model_rename_requires_new_identity_and_exact_revision(self) -> None:
+        old_id = "SZLHOLDINGS/old-model"
+        new_id = "SZLHOLDINGS/new-model"
+        rename = [old_id, new_id, "a" * 40]
+        audit.validate_model_rename({"inventory": {"models": [item(new_id)]}}, rename)
+        for entries in (
+            [],
+            [item(old_id)],
+            [item(old_id), item(new_id)],
+            [item(new_id), item(new_id)],
+            [{**item(new_id), "sha": "b" * 40}],
+        ):
+            with self.subTest(entries=entries), self.assertRaises(ValueError):
+                audit.validate_model_rename({"inventory": {"models": entries}}, rename)
+
+    def test_model_rename_rejects_ambiguous_identity_or_revision(self) -> None:
+        for rename in (
+            ["SZLHOLDINGS/model", "SZLHOLDINGS/model", "a" * 40],
+            ["other/old-model", "SZLHOLDINGS/new-model", "a" * 40],
+            ["SZLHOLDINGS/old-model", "other/new-model", "a" * 40],
+            ["SZLHOLDINGS/old-model", "SZLHOLDINGS/new-model", "main"],
+        ):
+            with self.subTest(rename=rename), self.assertRaises(ValueError):
+                audit.validate_model_rename({"inventory": {"models": []}}, rename)
+
+    def test_pending_model_rename_does_not_replace_snapshot(self) -> None:
+        old_id, new_id = "SZLHOLDINGS/old-model", "SZLHOLDINGS/new-model"
+        manifest = {"inventory": {"models": [item(old_id)]}}
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "inventory.json"
+            original = b'{"retained":"historical evidence"}\n'
+            output.write_bytes(original)
+            argv = [
+                "audit", "--output", str(output), "--model-rename",
+                old_id, new_id, "a" * 40,
+            ]
+            with patch.object(os.sys, "argv", argv), patch.object(
+                audit, "build_manifest", return_value=manifest
+            ), redirect_stdout(io.StringIO()):
+                self.assertEqual(1, audit.main())
+            self.assertEqual(original, output.read_bytes())
 
     def test_api_items_follows_next_link_and_deduplicates(self) -> None:
         pages = {

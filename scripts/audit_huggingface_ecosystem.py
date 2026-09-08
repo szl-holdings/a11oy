@@ -602,10 +602,39 @@ def build_manifest(*, observed_at: str | None) -> dict[str, Any]:
     }
 
 
+def validate_model_rename(
+    manifest: dict[str, Any], rename: list[str] | None
+) -> None:
+    """Require provider-observed identity before updating a rename snapshot."""
+    if rename is None:
+        return
+    old_id, new_id, expected_revision = rename
+    repo_pattern = rf"{re.escape(ORG)}/[A-Za-z0-9][A-Za-z0-9_.-]*"
+    if (
+        old_id == new_id
+        or re.fullmatch(repo_pattern, old_id) is None
+        or re.fullmatch(repo_pattern, new_id) is None
+        or GIT_SHA_RE.fullmatch(expected_revision) is None
+    ):
+        raise ValueError("model rename requires distinct organization IDs and an exact 40-hex revision")
+    models = manifest["inventory"]["models"]
+    if any(item["id"] == old_id for item in models):
+        raise ValueError(f"model rename is not reflected in the public inventory: {old_id}")
+    matches = [item for item in models if item["id"] == new_id]
+    if len(matches) != 1 or matches[0].get("sha") != expected_revision:
+        raise ValueError(f"renamed model is absent or revision differs: {new_id}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--check", action="store_true")
+    parser.add_argument(
+        "--model-rename",
+        nargs=3,
+        metavar=("OLD_ID", "NEW_ID", "EXPECTED_REVISION"),
+        help="Require a completed public model rename and exact destination revision before writing or checking.",
+    )
     parser.add_argument(
         "--observed-at",
         help="Explicit RFC 3339 observation time for deterministic generation.",
@@ -625,6 +654,7 @@ def main() -> int:
             return 1
         live = build_manifest(observed_at=observed_at)
         try:
+            validate_model_rename(live, args.model_rename)
             validate_snapshot_revisions(
                 existing,
                 live,
@@ -651,6 +681,7 @@ def main() -> int:
             return 1
     manifest = build_manifest(observed_at=observed_at)
     try:
+        validate_model_rename(manifest, args.model_rename)
         parsed_observed_at = validate_observed_at(manifest["observedAt"])
         validate_generated_revision_evidence(
             manifest,
