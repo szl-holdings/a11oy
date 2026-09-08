@@ -426,6 +426,8 @@ class FrontierMountParser(HTMLParser):
         # Browsers ignore '/>' on non-void HTML elements. Inherited HTMLParser
         # behavior would incorrectly close a <textarea/> or <template/> wrapper.
         self.handle_starttag(tag, attrs)
+        if tag in {"svg", "math"}:
+            self.handle_endtag(tag)
         if tag in {"script", "style"}:
             self.set_cdata_mode(tag)
 

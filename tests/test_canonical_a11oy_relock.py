@@ -407,6 +407,18 @@ class CanonicalA11oyRelockTests(unittest.TestCase):
                 ):
                     relock.evaluate_once(FakeApi(self.source), session, self.contract)
 
+    def test_self_closing_foreign_elements_do_not_hide_the_following_mount(self) -> None:
+        for tag in ("svg", "math"):
+            session = success_session(self.origin, self.source)
+            response = session.responses[("GET", self.origin + relock.ROUTES["holographic"])]
+            response.content = response.content.replace(
+                b'<script src="/assets/brain-frontier-v7.js"',
+                f'<{tag}/><script src="/assets/brain-frontier-v7.js"'.encode(),
+            )
+            response.text = response.content.decode("utf-8")
+            report = relock.evaluate_once(FakeApi(self.source), session, self.contract)
+            self.assertTrue(report["routes"]["holographic"]["reviewed_asset_mounts"])
+
     def test_brain_snapshot_semantics_are_independently_verified(self) -> None:
         source = (ROOT / relock.BRAIN_SOURCE_PATHS["brain_frontier_snapshot"]).read_bytes()
         evidence = relock.validate_brain_snapshot(source)
