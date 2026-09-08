@@ -9,12 +9,15 @@ It performs no Hugging Face or GitHub mutation.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import re
 import time
+from collections import Counter
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any, Mapping
 from urllib.parse import urlsplit
@@ -25,12 +28,72 @@ from huggingface_hub import HfApi
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 REPO_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*/[A-Za-z0-9][A-Za-z0-9._-]*$")
 REPORT_SCHEMA = "szl.a11oy-deployment-relock/v4"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 HOLOGRAPHIC_SOURCE_PATH = "static/3d/holographic.html"
 HOLOGRAPHIC_SOURCE_MARKERS = (
     "A11oy Holographic Operations",
     "The estate, observed—not assumed.",
 )
-REQUIRED_REMOTE_FILES = {"Dockerfile", HOLOGRAPHIC_SOURCE_PATH}
+BRAIN_SOURCE_PATHS = {
+    "brain_frontier_css": "console/assets/brain-frontier-v7.css",
+    "brain_frontier_js": "console/assets/brain-frontier-v7.js",
+    "brain_frontier_snapshot": "console/assets/brain-frontier-v7.json",
+}
+REQUIRED_REMOTE_FILES = {
+    "Dockerfile",
+    HOLOGRAPHIC_SOURCE_PATH,
+    *BRAIN_SOURCE_PATHS.values(),
+}
+HOLOGRAPHIC_ROUTES = {"holographic", "holographic_slash"}
+ASSET_CONTENT_TYPES = {
+    "brain_frontier_css": ("text/css",),
+    "brain_frontier_js": (
+        "application/javascript",
+        "text/javascript",
+    ),
+    "brain_frontier_snapshot": ("application/json",),
+}
+BRAIN_SCHEMA = "szl.a11oy.brain-frontier-holographic-v7/v1"
+BRAIN_STATE = "SOURCE_BOUND_REVIEW_MEMORY"
+BRAIN_SURFACE = "A11OY_HOLOGRAPHIC_V7_BRAIN_FRONTIER"
+BRAIN_HANDLE_COUNT = 72
+BRAIN_SOURCE_REPOSITORIES = {
+    "szl-holdings/a11oy",
+    "szl-holdings/anatomy",
+    "szl-holdings/szl-forge",
+    "szl-holdings/szl-formulas",
+    "szl-holdings/szl-kernels",
+    "szl-holdings/szl-nemo",
+    "szl-holdings/szl-ouroboros",
+}
+BRAIN_ALLOWED_KINDS = {
+    "attributed-formula",
+    "estate-authority",
+    "estate-surface",
+    "executable-formula",
+    "formula-authority",
+    "python-contract",
+    "quant-domain",
+    "source-document",
+}
+BRAIN_REQUIRED_KIND_COUNTS = {
+    "attributed-formula": 30,
+    "executable-formula": 21,
+    "formula-authority": 1,
+    "quant-domain": 9,
+}
+BRAIN_ALLOWED_ADMISSIONS = {
+    "DISCOVERED_REVIEW_REQUIRED",
+    "EXECUTABLE_CONSTRAINT_REVIEW_REQUIRED",
+    "OPEN_NOT_EXECUTION_AUTHORITY",
+    "REFERENCE_AND_CONSTRAINT_INPUT_ONLY",
+    "REFERENCE_ONLY_EXECUTION_AUTHORITY_NONE",
+    "REFERENCE_ONLY_NO_PROVIDER_MUTATION",
+    "REFERENCE_ONLY_UNLESS_EXECUTABLE_MATCH_IS_EXPLICIT",
+    "SOURCE_RECEIPT_REQUIRED_FOR_CURRENT_CLAIM",
+}
+HEX64 = re.compile(r"^[0-9a-f]{64}$")
+FRONTIER_NODE_ID = re.compile(r"^frontier:[0-9a-f]{32}$")
 CANONICAL_SIGNING_SECRET = "SZL_COSIGN_PRIVATE_PEM"
 CANONICAL_SERIES_A_BUCKET = "SZLHOLDINGS/szl-evidence"
 SERIES_A_VARIABLES = {
@@ -50,7 +113,11 @@ ROUTES = {
     "brain_capabilities": "/api/a11oy/v1/brain/capabilities",
     "readiness": "/api/a11oy/v1/readiness/tab-matrix?view=summary",
     "series_a_status": "/api/a11oy/v1/series-a/status",
-    "holographic": "/static/3d/holographic.html",
+    "holographic": "/holographic",
+    "holographic_slash": "/holographic/",
+    "brain_frontier_css": "/assets/brain-frontier-v7.css",
+    "brain_frontier_js": "/assets/brain-frontier-v7.js",
+    "brain_frontier_snapshot": "/assets/brain-frontier-v7.json",
 }
 
 
@@ -149,6 +216,311 @@ def require_json(response: requests.Response) -> Mapping[str, Any]:
     if not isinstance(payload, Mapping):
         raise RelockError(f"{response.url} JSON is not an object")
     return payload
+
+
+def canonical_bytes(value: Any) -> bytes:
+    return json.dumps(
+        value,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def source_bytes(path: str) -> bytes:
+    candidate = (REPOSITORY_ROOT / path).resolve()
+    try:
+        candidate.relative_to(REPOSITORY_ROOT.resolve())
+    except ValueError as exc:
+        raise RelockError(f"reviewed source path escaped the repository: {path}") from exc
+    try:
+        return candidate.read_bytes()
+    except OSError as exc:
+        raise RelockError(f"reviewed source file is unavailable: {path}") from exc
+
+
+def parse_json_object(raw: bytes, *, label: str) -> Mapping[str, Any]:
+    try:
+        payload = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise RelockError(f"{label} is not strict UTF-8 JSON") from exc
+    if not isinstance(payload, Mapping):
+        raise RelockError(f"{label} JSON is not an object")
+    return payload
+
+
+def validate_no_private_content_keys(value: Any) -> None:
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if str(key).casefold() in {"content", "text"}:
+                raise RelockError("Brain snapshot exposes a forbidden content field")
+            validate_no_private_content_keys(item)
+    elif isinstance(value, list):
+        for item in value:
+            validate_no_private_content_keys(item)
+
+
+def validate_brain_snapshot(raw: bytes) -> dict[str, Any]:
+    payload = parse_json_object(raw, label="Brain frontier snapshot")
+    validate_no_private_content_keys(payload)
+
+    handles = payload.get("handles")
+    if (
+        payload.get("schema") != BRAIN_SCHEMA
+        or payload.get("state") != BRAIN_STATE
+        or payload.get("surface") != BRAIN_SURFACE
+        or payload.get("selected_handle_count") != BRAIN_HANDLE_COUNT
+        or not isinstance(handles, list)
+        or len(handles) != BRAIN_HANDLE_COUNT
+    ):
+        raise RelockError("Brain snapshot identity or 72-handle contract drifted")
+
+    claimed_digest = str(payload.get("snapshot_sha256") or "").lower()
+    unsigned_snapshot = dict(payload)
+    unsigned_snapshot.pop("snapshot_sha256", None)
+    measured_digest = hashlib.sha256(canonical_bytes(unsigned_snapshot)).hexdigest()
+    if HEX64.fullmatch(claimed_digest) is None or claimed_digest != measured_digest:
+        raise RelockError("Brain snapshot self-digest is absent or invalid")
+
+    expected_formula_atlas = {
+        "attributed_formula_count": 30,
+        "executable_formula_count": 21,
+        "f_number_to_executable_mapping": "UNKNOWN_NOT_INFERRED",
+        "lambda": "CONJECTURE_1",
+        "locked_proven_formula_count": 8,
+        "quant_domain_count": 9,
+    }
+    if payload.get("formula_atlas") != expected_formula_atlas:
+        raise RelockError("Brain formula-atlas contract drifted")
+    if payload.get("loop") != ["OBSERVE", "ORIENT", "PROPOSE", "VERIFY", "HOLD"]:
+        raise RelockError("Brain review loop drifted")
+
+    expected_authority = {
+        "controller_content_access": "NOT_EXPOSED_BY_A11OY_HOLOGRAPHIC",
+        "execution": "NONE",
+        "human_review_required": True,
+        "merge": "NONE",
+        "private_graph_present": False,
+        "promotion": "NONE",
+        "provider_mutation": "NONE",
+        "public_content_access": "HANDLES_ONLY",
+        "raw_graph_nodes_admitted_to_gradients": 0,
+        "training": "NONE",
+    }
+    if payload.get("authority") != expected_authority:
+        raise RelockError("Brain snapshot authority boundary drifted")
+
+    sources = payload.get("sources")
+    expected_source_repositories = {
+        "anatomy": "szl-holdings/anatomy",
+        "formulas": "szl-holdings/szl-formulas",
+        "ouroboros": "szl-holdings/szl-ouroboros",
+        "second_brain": "szl-holdings/szl-second-brain",
+    }
+    if not isinstance(sources, Mapping) or set(sources) != set(expected_source_repositories):
+        raise RelockError("Brain snapshot source authority set drifted")
+    for name, expected_repository in expected_source_repositories.items():
+        record = sources.get(name)
+        if (
+            not isinstance(record, Mapping)
+            or record.get("repository") != expected_repository
+            or SHA40.fullmatch(str(record.get("revision") or "").lower()) is None
+        ):
+            raise RelockError(f"Brain snapshot source is not immutable: {name}")
+    second_brain = sources["second_brain"]
+    for field in (
+        "candidate_file_sha256",
+        "candidate_set_sha256",
+        "state_sha256",
+    ):
+        if HEX64.fullmatch(str(second_brain.get(field) or "").lower()) is None:
+            raise RelockError(f"Brain Second Brain source lacks {field}")
+    candidate_count = second_brain.get("candidate_count")
+    if (
+        not isinstance(candidate_count, int)
+        or isinstance(candidate_count, bool)
+        or candidate_count < BRAIN_HANDLE_COUNT
+    ):
+        raise RelockError("Brain candidate count cannot support the selected handles")
+
+    node_ids: set[str] = set()
+    observed_repositories: set[str] = set()
+    kind_counts: Counter[str] = Counter()
+    allowed_handle_keys = {
+        "admission",
+        "authority",
+        "candidateState",
+        "contentAccess",
+        "kind",
+        "nodeId",
+        "path",
+        "quantDomain",
+        "repository",
+        "revision",
+        "sha256",
+        "title",
+    }
+    for index, handle in enumerate(handles):
+        if not isinstance(handle, Mapping) or not set(handle).issubset(allowed_handle_keys):
+            raise RelockError(f"Brain handle {index} has an invalid shape")
+        node_id = str(handle.get("nodeId") or "")
+        repository = str(handle.get("repository") or "")
+        revision = str(handle.get("revision") or "").lower()
+        digest = str(handle.get("sha256") or "").lower()
+        kind = str(handle.get("kind") or "")
+        path = str(handle.get("path") or "")
+        if (
+            FRONTIER_NODE_ID.fullmatch(node_id) is None
+            or node_id in node_ids
+            or repository not in BRAIN_SOURCE_REPOSITORIES
+            or SHA40.fullmatch(revision) is None
+            or HEX64.fullmatch(digest) is None
+            or kind not in BRAIN_ALLOWED_KINDS
+            or not path
+            or path.startswith("/")
+            or "\\" in path
+            or ".." in path.split("/")
+            or not str(handle.get("title") or "").strip()
+            or handle.get("admission") not in BRAIN_ALLOWED_ADMISSIONS
+            or handle.get("candidateState") != "DISCOVERED_REVIEW_REQUIRED"
+            or handle.get("contentAccess") != "HANDLES_ONLY"
+            or handle.get("authority") != "NONE"
+        ):
+            raise RelockError(f"Brain handle {index} violates the handles-only contract")
+        node_ids.add(node_id)
+        observed_repositories.add(repository)
+        kind_counts[kind] += 1
+
+    if observed_repositories != BRAIN_SOURCE_REPOSITORIES:
+        raise RelockError("Brain handle repository distribution is incomplete")
+    for kind, expected in BRAIN_REQUIRED_KIND_COUNTS.items():
+        if kind_counts[kind] != expected:
+            raise RelockError(f"Brain handle kind distribution drifted: {kind}")
+
+    return {
+        "schema": BRAIN_SCHEMA,
+        "state": BRAIN_STATE,
+        "selected_handle_count": BRAIN_HANDLE_COUNT,
+        "snapshot_sha256": claimed_digest,
+        "source_repositories": sorted(observed_repositories),
+        "kind_distribution": dict(sorted(kind_counts.items())),
+        "handles_only": True,
+        "authority": "NONE",
+    }
+
+
+class FrontierMountParser(HTMLParser):
+    """Read active stylesheet/script mounts, excluding comments and inert markup."""
+
+    TEXT_CONTEXTS = {"textarea", "title", "xmp", "iframe", "noembed", "noframes", "style", "plaintext"}
+    INERT_CONTEXTS = TEXT_CONTEXTS | {"template", "noscript", "svg", "math"}
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.mounts: list[tuple[str, tuple[tuple[str, str | None], ...]]] = []
+        self.inert_contexts: list[str] = []
+        self.base_present = False
+        self.pending_script = None
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        # Browsers ignore '/>' on non-void HTML elements. Inherited HTMLParser
+        # behavior would incorrectly close a <textarea/> or <template/> wrapper.
+        self.handle_starttag(tag, attrs)
+        if tag in {"svg", "math"}:
+            self.handle_endtag(tag)
+        if tag in {"script", "style"}:
+            self.set_cdata_mode(tag)
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        # HTMLParser reports tags inside RCDATA/raw-text elements that browsers
+        # treat as text. Only the matching close can end such a context.
+        if self.inert_contexts and self.inert_contexts[-1] in self.TEXT_CONTEXTS:
+            return
+        if tag in self.INERT_CONTEXTS:
+            self.inert_contexts.append(tag)
+        if self.inert_contexts:
+            return
+        if tag == "base":
+            self.base_present = True
+        if tag not in {"link", "script"}:
+            return
+        if any(
+            key == "data-szl-brain-frontier-v7"
+            or (key in {"src", "href"} and "brain-frontier-v7" in (value or ""))
+            for key, value in attrs
+        ):
+            # Preserve duplicate attributes: browsers can disagree about which wins.
+            mount = (tag, tuple(sorted(attrs, key=lambda pair: pair[0])))
+            if tag == "script":
+                self.pending_script = mount
+            else:
+                self.mounts.append(mount)
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "script" and self.pending_script is not None:
+            self.mounts.append(self.pending_script)
+            self.pending_script = None
+        if (
+            self.inert_contexts
+            and self.inert_contexts[-1] != "plaintext"
+            and tag == self.inert_contexts[-1]
+        ):
+            self.inert_contexts.pop()
+
+
+def validate_exact_source_asset(
+    name: str,
+    response: requests.Response,
+) -> dict[str, Any]:
+    source_path = (
+        HOLOGRAPHIC_SOURCE_PATH if name in HOLOGRAPHIC_ROUTES else BRAIN_SOURCE_PATHS[name]
+    )
+    expected = source_bytes(source_path)
+    if name in HOLOGRAPHIC_ROUTES:
+        try:
+            text = response.content.decode("utf-8")
+            source_text = expected.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise RelockError("holographic surface is not strict UTF-8") from exc
+        if not all(marker in text for marker in HOLOGRAPHIC_SOURCE_MARKERS):
+            raise RelockError("holographic surface lacks the reviewed source markers")
+        source_mounts = FrontierMountParser()
+        source_mounts.feed(source_text)
+        live_mounts = FrontierMountParser()
+        live_mounts.feed(text)
+        if (
+            [tag for tag, _ in source_mounts.mounts] != ["link", "script"]
+            or live_mounts.mounts != source_mounts.mounts
+            or source_mounts.base_present
+            or live_mounts.base_present
+        ):
+            raise RelockError("holographic surface lacks the exact active reviewed asset mounts")
+        allowed_content_types = ("text/html",)
+    else:
+        allowed_content_types = ASSET_CONTENT_TYPES[name]
+
+    observed_content_type = str(response.headers.get("content-type") or "")
+    media_type = observed_content_type.split(";", 1)[0].strip().lower()
+    if media_type not in allowed_content_types:
+        raise RelockError(f"{ROUTES[name]} returned an invalid content type")
+    if name not in HOLOGRAPHIC_ROUTES and response.content != expected:
+        raise RelockError(f"{ROUTES[name]} does not match reviewed source bytes")
+
+    evidence: dict[str, Any] = {
+        "source_path": source_path,
+        "source_bytes_matched": response.content == expected,
+        "sha256": hashlib.sha256(response.content).hexdigest(),
+        "source_sha256": hashlib.sha256(expected).hexdigest(),
+    }
+    if name in HOLOGRAPHIC_ROUTES:
+        # The production HTML middleware injects a shared operator widget. Verify
+        # the reviewed surface and mounts without mislabeling transformed HTML
+        # as a byte-identical source artifact. The linked assets remain exact.
+        evidence["source_markers"] = True
+        evidence["reviewed_asset_mounts"] = True
+    elif name == "brain_frontier_snapshot":
+        evidence["snapshot"] = validate_brain_snapshot(response.content)
+    return evidence
 
 
 def validate_readiness_summary(
@@ -251,11 +623,8 @@ def validate_route(
         "content_type": response.headers.get("content-type"),
         "bytes": len(response.content),
     }
-    if name == "holographic":
-        text = response.text
-        if not all(marker in text for marker in HOLOGRAPHIC_SOURCE_MARKERS):
-            raise RelockError("holographic surface lacks the reviewed source markers")
-        evidence["source_markers"] = True
+    if name in HOLOGRAPHIC_ROUTES or name in BRAIN_SOURCE_PATHS:
+        evidence.update(validate_exact_source_asset(name, response))
         return evidence
 
     payload = require_json(response)
