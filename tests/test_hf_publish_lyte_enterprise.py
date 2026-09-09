@@ -49,8 +49,8 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
     }.issubset(function_names(PUBLISHER))
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/lyte-services"',
-        'SOURCE_REVISION = "a6a653b0d93a0d150b868a044642ce4f5c71d766"',
-        'EXPECTED_VERSION = "3.0.0"',
+        'SOURCE_REVISION = "dbe2465223809853981fbdf776552cae37dac665"',
+        'EXPECTED_VERSION = "4.0.0"',
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
         'SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"',
@@ -167,7 +167,7 @@ def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:
 def test_estate_receipt_binds_the_exact_lyte_source_revision() -> None:
     publisher = PUBLISHER.read_text(encoding="utf-8")
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
-    expected = "a6a653b0d93a0d150b868a044642ce4f5c71d766"
+    expected = "dbe2465223809853981fbdf776552cae37dac665"
     assert f'SOURCE_REVISION = "{expected}"' in publisher
     assert f'LYTE_SOURCE_REVISION = "{expected}"' in entrypoint
     assert 'lyte.get("source_revision") == LYTE_SOURCE_REVISION' in entrypoint
