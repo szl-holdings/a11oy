@@ -1,0 +1,111 @@
+name: Patch Lyte Forecast Loom pin
+
+on:
+  push:
+    branches:
+      - feat/lyte-forecast-loom-pin
+    paths:
+      - .github/workflows/patch-lyte-forecast-pin.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: feat/lyte-forecast-loom-pin
+          fetch-depth: 0
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+
+      - name: Patch exact source-bound publisher pins
+        env:
+          OLD_SHA: a6a653b0d93a0d150b868a044642ce4f5c71d766
+          NEW_SHA: dbe2465223809853981fbdf776552cae37dac665
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          old = os.environ['OLD_SHA']
+          new = os.environ['NEW_SHA']
+          files = [
+              Path('scripts/hf_publish_lyte_enterprise.py'),
+              Path('scripts/hf_publish_vertical_flagships_v4.py'),
+              Path('tests/test_hf_publish_lyte_enterprise.py'),
+              Path('tests/test_hf_publish_vertical_flagships_v4.py'),
+          ]
+          total = 0
+          for path in files:
+              text = path.read_text(encoding='utf-8')
+              count = text.count(old)
+              if count == 0:
+                  raise SystemExit(f'{path}: expected old Lyte pin not found')
+              text = text.replace(old, new)
+              path.write_text(text, encoding='utf-8')
+              total += count
+              print(f'{path}: replaced {count} Lyte source pin(s)')
+
+          publisher = Path('scripts/hf_publish_lyte_enterprise.py')
+          text = publisher.read_text(encoding='utf-8')
+          if 'EXPECTED_VERSION = "3.0.0"' not in text:
+              raise SystemExit('publisher expected version pin 3.0.0 not found')
+          publisher.write_text(
+              text.replace('EXPECTED_VERSION = "3.0.0"', 'EXPECTED_VERSION = "4.0.0"'),
+              encoding='utf-8',
+          )
+
+          test = Path('tests/test_hf_publish_lyte_enterprise.py')
+          text = test.read_text(encoding='utf-8')
+          text = text.replace('EXPECTED_VERSION = "3.0.0"', 'EXPECTED_VERSION = "4.0.0"')
+          text = text.replace('"3.0.0"', '"4.0.0"')
+          test.write_text(text, encoding='utf-8')
+
+          for path in files:
+              if old in path.read_text(encoding='utf-8'):
+                  raise SystemExit(f'{path}: stale source pin remains')
+          if total < 4:
+              raise SystemExit(f'expected at least four source-pin replacements, observed {total}')
+          PY
+
+      - name: Record projection evidence
+        run: |
+          mkdir -p docs/frontier
+          cat > docs/frontier/2026-09-09-forecast-loom-projection.json <<'JSON'
+          {
+            "schema": "szl.forecast-loom-projection/v1",
+            "lyte_source_revision": "dbe2465223809853981fbdf776552cae37dac665",
+            "lyte_version": "4.0.0",
+            "hf_schema_job": "6aa1ee2d5527934177ebe848",
+            "hf_challenger_job": "6aa1eed621047bf1b037119e",
+            "granite_admission": "ADMITTED_FOR_EVALUATION",
+            "granite_relative_mae_improvement": 0.8973236913362297,
+            "production_granite_enabled": false,
+            "publisher": "canonical hf-sync single writer",
+            "execution_authority": "NONE"
+          }
+          JSON
+
+      - name: Self-remove transient patch workflow
+        run: git rm .github/workflows/patch-lyte-forecast-pin.yml
+
+      - name: Commit patched source pins
+        run: |
+          set -euo pipefail
+          git config user.name "SZL Source Pin Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add scripts/hf_publish_lyte_enterprise.py \
+                  scripts/hf_publish_vertical_flagships_v4.py \
+                  tests/test_hf_publish_lyte_enterprise.py \
+                  tests/test_hf_publish_vertical_flagships_v4.py \
+                  docs/frontier/2026-09-09-forecast-loom-projection.json \
+                  .github/workflows/patch-lyte-forecast-pin.yml
+          git diff --cached --check
+          git commit -m "chore(lyte): bind Forecast Loom source revision"
+          git push origin HEAD:feat/lyte-forecast-loom-pin
