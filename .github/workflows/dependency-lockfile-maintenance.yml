@@ -77,6 +77,13 @@ jobs:
           npm[new] = '4.3.2'
           assert npm['@istanbuljs/load-nyc-config']['js-yaml'] in ('4.3.1', '4.3.2')
           npm['@istanbuljs/load-nyc-config']['js-yaml'] = '4.3.2'
+          # Both committed locks already used browserslist 4.28.8; the
+          # conditional 4.28.7 override let npm prune that required closure.
+          # Use one exact reviewed version rather than re-solving a range.
+          for overrides in (pnpm, npm):
+              previous = overrides.pop('browserslist@<=4.28.6', None)
+              assert previous == '4.28.7' or overrides.get('browserslist') == '4.28.8'
+              overrides['browserslist'] = '4.28.8'
           Path('package.json').write_text(json.dumps(doc, indent=2) + '\n')
           Path('/tmp/dependency-before.json').write_text(json.dumps(before, sort_keys=True))
           PY
@@ -88,6 +95,7 @@ jobs:
             npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           fi
           pnpm install --lockfile-only --ignore-scripts --frozen-lockfile
+          npm ci --ignore-scripts --dry-run --no-audit --no-fund
       - name: Verify repaired versions and record exact candidate bytes
         run: |
           set -euo pipefail
