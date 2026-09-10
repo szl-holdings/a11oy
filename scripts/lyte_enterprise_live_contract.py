@@ -25,6 +25,8 @@ ENTITY_PATHS = (
     "playback", "second-brain", "evidence", "receipts",
 )
 SHA256 = re.compile(r"^[0-9a-f]{64}$")
+MAX_METRICS_BYTES = 2_000_000
+_METRIC_NUMBER = r"[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?"
 
 
 def digest(payload: Any) -> str:
@@ -45,6 +47,45 @@ def identity_matches(body: Any, revision: str, version: str) -> bool:
         and body.get("effectors_enabled") is False
         and body.get("human_approval_required") is True
     )
+
+
+def metrics_identity_matches(body: Any, *, revision: str, version: str) -> bool:
+    """Require the two source-owned gauges, not merely a nonempty HTTP 200.
+
+    This is deliberately a bounded critical-gauge contract, not a general
+    Prometheus parser or validation of every exported series. Other families
+    are preserved. Required gauges may not be duplicated, timestamped, renamed,
+    relabelled, replaced with comments, or populated with non-finite values.
+    Run after readiness, which performs the actual database health probe.
+    """
+    if not isinstance(body, str) or not body.endswith("\n"):
+        return False
+    if len(body) > MAX_METRICS_BYTES or len(body.encode("utf-8")) > MAX_METRICS_BYTES:
+        return False
+    if re.fullmatch(r"[0-9a-f]{40}", revision) is None:
+        return False
+    if re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_.:-]{0,63}", version) is None:
+        return False
+    lines = [line.strip() for line in body.splitlines()]
+    if len(lines) > 20_000 or any(len(line) > 4_096 for line in lines):
+        return False
+    rv, vv = re.escape(revision), re.escape(version)
+    labels = rf'(?:revision="{rv}",version="{vv}"|version="{vv}",revision="{rv}")'
+    patterns = {
+        "lyte_build_info": rf'lyte_build_info\{{{labels}\}}[ \t]+({_METRIC_NUMBER})',
+        "lyte_db_pool_healthy": rf'lyte_db_pool_healthy[ \t]+({_METRIC_NUMBER})',
+    }
+    for name, pattern in patterns.items():
+        declarations = [line for line in lines if re.match(rf"# TYPE[ \t]+{name}(?:[ \t]|$)", line)]
+        if declarations != [f"# TYPE {name} gauge"]:
+            return False
+        samples = [line for line in lines if re.match(rf"{name}(?:[{{ \t]|$)", line)]
+        if len(samples) != 1:
+            return False
+        match = re.fullmatch(pattern, samples[0])
+        if match is None or not math.isfinite(float(match[1])) or float(match[1]) != 1.0:
+            return False
+    return True
 
 
 def forecast_matches(body: Any, *, keys: set[str], horizon: int) -> bool:
@@ -101,6 +142,25 @@ def verify_current_contract(
         observations[name] = {"http_status": status, "body": body}
         return body if isinstance(body, dict) else {}
 
+    def observe_metrics(phase: str) -> None:
+        # Keep failed transport observable without recording arbitrary error bodies.
+        try:
+            status, body = request_text("/metrics")
+        except Exception as exc:
+            checks[f"metrics {phase} source and readiness"] = False
+            observations[f"metrics_{phase}"] = {"http_status": None, "error_type": type(exc).__name__}
+            return
+        encoded = body.encode("utf-8") if isinstance(body, str) else b""
+        checks[f"metrics {phase} source and readiness"] = (
+            status == 200 and metrics_identity_matches(body, revision=revision, version=version)
+        )
+        observations[f"metrics_{phase}"] = {
+            "http_status": status, "bytes": len(encoded),
+            "response_sha256": hashlib.sha256(encoded).hexdigest(),
+            "critical_gauges_match": checks[f"metrics {phase} source and readiness"],
+            "all_metric_families_validated": False,
+        }
+
     identities = {path: get(path) for path in IDENTITY_PATHS}
     for path, body in identities.items():
         checks[path + " exact identity"] = identity_matches(body, revision, version)
@@ -122,6 +182,7 @@ def verify_current_contract(
         and build.get("persistence", {}).get("tenant_workspace_scoped") is True
         and build.get("data_mode") == "SAMPLE"
     )
+    observe_metrics("initial")
 
     catalogs = {name: get(f"{PREFIX}/{name}") for name in CATALOG_PATHS}
     lenses = catalogs["catalog"].get("lenses", [])
@@ -244,10 +305,11 @@ def verify_current_contract(
         "root_sha256": hashlib.sha256(root.encode()).hexdigest(),
         "css_sha256": hashlib.sha256(css.encode()).hexdigest(),
         "js_sha256": hashlib.sha256(js.encode()).hexdigest()}
+    observe_metrics("final")
     failed = [name for name, passed in checks.items() if not passed]
     return {"schema": "szl.lyte-live-contract/v4", "complete": not failed,
         "checks": checks, "failed_checks": failed, "observations": observations,
         "source_revision": revision, "expected_version": version, "data_mode": "SAMPLE",
         "production_telemetry_verified": False, "production_granite_admitted": False,
         "execution_authority": "NONE", "secret_values_recorded": False,
-        "limitations": ["Content hashes are not signatures.", "This is public SAMPLE runtime verification, not production telemetry or SLO qualification.", "CSS contract checks are not a substitute for browser accessibility testing."]}
+        "limitations": ["Content hashes are not signatures.", "This is public SAMPLE runtime verification, not production telemetry or SLO qualification.", "CSS contract checks are not a substitute for browser accessibility testing.", "Metrics checks validate two critical gauges, not every exported series."]}
