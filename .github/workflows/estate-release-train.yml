@@ -8,6 +8,7 @@ name: Estate release train
       - scripts/verify_estate_release_train.py
       - scripts/hf_public_inventory.py
       - tests/test_hf_public_inventory.py
+      - tests/test_estate_pr_concurrency.py
       - tests/test_estate_release_train.py
       - .github/workflows/estate-release-train.yml
   workflow_run:
@@ -30,7 +31,9 @@ permissions:
   issues: write
 
 concurrency:
-  group: estate-release-train
+  # PRs only observe. Do not queue them behind up to 50 minutes of canonical repair.
+  # Preserve the existing canonical writer/incident serialization group exactly.
+  group: ${{ github.event_name == 'pull_request' && format('estate-release-train-pr-{0}', github.event.pull_request.number) || 'estate-release-train' }}
   cancel-in-progress: false
 
 env:
@@ -68,6 +71,7 @@ jobs:
           python -m py_compile scripts/verify_estate_release_train.py
           python tests/test_estate_release_train.py
           python tests/test_hf_public_inventory.py
+          python tests/test_estate_pr_concurrency.py
           python -m json.tool config/estate-release-train.v1.json >/dev/null
           git diff --check
 
