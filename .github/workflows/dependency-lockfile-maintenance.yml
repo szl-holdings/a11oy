@@ -1,0 +1,154 @@
+name: Reviewed dependency lockfile maintenance
+
+on:
+  push:
+    branches: ['maintenance/dependencies/**']
+    paths: ['.github/workflows/dependency-lockfile-maintenance.yml']
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact maintenance-branch source SHA; never main
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: dependency-lockfile-maintenance-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  regenerate:
+    if: >-
+      github.repository == 'szl-holdings/a11oy' &&
+      github.actor == 'stephenlutar2-hash' &&
+      startsWith(github.ref, 'refs/heads/maintenance/dependencies/')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: '22'
+      - name: Verify source and refuse package hooks
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha || github.sha }}
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "${GITHUB_REF#refs/heads/}" != main
+          test -z "$(git status --porcelain)"
+          for hook in .pnpmfile.cjs pnpmfile.cjs; do
+            test ! -e "$hook"
+          done
+          corepack enable
+          corepack install -g pnpm@10.33.3
+          test "$(pnpm --version)" = 10.33.3
+      - name: Update reviewed js-yaml overrides without downgrading direct v5
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json
+          from pathlib import Path
+          files = ['package.json', 'pnpm-lock.yaml', 'package-lock.json']
+          before = {p: hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in files if Path(p).is_file()}
+          doc = json.loads(Path('package.json').read_text())
+          assert doc['devDependencies']['js-yaml'] == '^5.4.1'
+          pnpm = doc['pnpm']['overrides']
+          old, new = 'js-yaml@<4.3.1', 'js-yaml@<4.3.2'
+          if old in pnpm:
+              assert pnpm.pop(old) == '4.3.1'
+          else:
+              assert pnpm.get(new) == '4.3.2'
+          pnpm[new] = '4.3.2'
+          npm = doc['overrides']
+          old, new = 'js-yaml@>=4.0.0 <4.3.1', 'js-yaml@>=4.0.0 <4.3.2'
+          if old in npm:
+              assert npm.pop(old) == '4.3.1'
+          else:
+              assert npm.get(new) == '4.3.2'
+          npm[new] = '4.3.2'
+          assert npm['@istanbuljs/load-nyc-config']['js-yaml'] in ('4.3.1', '4.3.2')
+          npm['@istanbuljs/load-nyc-config']['js-yaml'] = '4.3.2'
+          Path('package.json').write_text(json.dumps(doc, indent=2) + '\n')
+          Path('/tmp/dependency-before.json').write_text(json.dumps(before, sort_keys=True))
+          PY
+      - name: Regenerate actual package-manager locks with lifecycle scripts disabled
+        run: |
+          set -euo pipefail
+          pnpm install --lockfile-only --ignore-scripts --no-frozen-lockfile
+          if test -f package-lock.json; then
+            npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          fi
+          pnpm install --lockfile-only --ignore-scripts --frozen-lockfile
+      - name: Verify repaired versions and record exact candidate bytes
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import hashlib, json, os, re, subprocess
+          from pathlib import Path
+          allowed = {'package.json', 'pnpm-lock.yaml', 'package-lock.json'}
+          changed = set(subprocess.check_output(['git','diff','--name-only'], text=True).splitlines())
+          assert changed <= allowed, sorted(changed - allowed)
+          assert not subprocess.check_output(['git','ls-files','--others','--exclude-standard'], text=True).strip()
+          text = Path('pnpm-lock.yaml').read_text()
+          versions = set(re.findall(r'^\s+js-yaml@(\d+\.\d+\.\d+):', text, re.M))
+          assert versions and '4.3.2' in versions, versions
+          def fixed(version):
+              parts = tuple(map(int, version.split('.')))
+              return (parts[0] == 3 and parts >= (3,15,2)) or (parts[0] == 4 and parts >= (4,3,2)) or parts[0] >= 5
+          assert all(fixed(v) for v in versions), versions
+          npm_versions = []
+          if Path('package-lock.json').is_file():
+              npm = json.loads(Path('package-lock.json').read_text())
+              npm_versions = [r['version'] for p,r in npm.get('packages', {}).items() if p.endswith('node_modules/js-yaml')]
+              assert npm_versions and all(fixed(v) for v in npm_versions), npm_versions
+          before = json.loads(Path('/tmp/dependency-before.json').read_text())
+          report = {'schema':'szl.dependency-lockfile-repair/v1','source_revision':os.environ['GITHUB_SHA'],
+              'source_branch':os.environ['GITHUB_REF'],'advisory':'GHSA-2883-xcg3-v3hh',
+              'before_sha256':before,'after_sha256':{p:hashlib.sha256(Path(p).read_bytes()).hexdigest() for p in before},
+              'changed_files':sorted(changed),'pnpm_js_yaml_versions':sorted(versions),'npm_js_yaml_versions':npm_versions,
+              'package_scripts_executed':False,'production_deployment_performed':False,'automatic_merge':False,
+              'pnpm_version':subprocess.check_output(['pnpm','--version'],text=True).strip(),
+              'node_version':subprocess.check_output(['node','--version'],text=True).strip()}
+          Path('/tmp/dependency-repair.json').write_text(json.dumps(report,indent=2,sort_keys=True)+'\n')
+          PY
+          git diff --check
+          git diff --binary > /tmp/dependency-repair.patch
+      - name: Commit only lockfile closure to the unchanged maintenance branch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch="${GITHUB_REF#refs/heads/}"
+          case "$branch" in maintenance/dependencies/*) ;; *) exit 2;; esac
+          remote="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/$branch" --jq .object.sha)"
+          test "$remote" = "$GITHUB_SHA"
+          if git diff --quiet; then exit 0; fi
+          git add -- package.json pnpm-lock.yaml
+          if test -f package-lock.json; then git add -- package-lock.json; fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --signoff -m 'fix(deps): regenerate js-yaml patched lockfile closure'
+          gh auth setup-git
+          git push origin "HEAD:refs/heads/$branch"
+          git rev-parse HEAD > /tmp/dependency-repair-commit.txt
+      - name: Preserve source-bound repair evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: dependency-repair-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            /tmp/dependency-before.json
+            /tmp/dependency-repair.json
+            /tmp/dependency-repair.patch
+            /tmp/dependency-repair-commit.txt
+          if-no-files-found: error
+          retention-days: 90
