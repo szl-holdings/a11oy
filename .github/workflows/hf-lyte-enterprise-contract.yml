@@ -6,7 +6,9 @@ name: HF Lyte Enterprise source-owned contract
     paths:
       - scripts/hf_publish_vertical_flagships_v4.py
       - scripts/hf_publish_lyte_enterprise.py
+      - scripts/lyte_enterprise_live_contract.py
       - tests/test_hf_publish_lyte_enterprise.py
+      - tests/test_lyte_enterprise_live_contract.py
       - .github/workflows/hf-lyte-enterprise-contract.yml
   workflow_dispatch: {}
 
@@ -47,6 +49,10 @@ jobs:
           python -m py_compile
           scripts/hf_publish_vertical_flagships_v4.py
           scripts/hf_publish_lyte_enterprise.py
+          scripts/lyte_enterprise_live_contract.py
 
-      - name: Prove Lyte publication contract
-        run: python -m pytest tests/test_hf_publish_lyte_enterprise.py -q
+      - name: Prove Lyte publication contract and behavioral negative controls
+        run: >-
+          python -m pytest
+          tests/test_hf_publish_lyte_enterprise.py
+          tests/test_lyte_enterprise_live_contract.py -q
