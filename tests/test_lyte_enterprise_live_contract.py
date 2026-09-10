@@ -19,6 +19,15 @@ CONTRACT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CONTRACT)
 REVISION = "7cd4305014ee638f773d6e128f345ad6a545be58"
 PREFIX = "/api/lyte/v2"
+PUBLIC_METRICS = "/api/lyte/v2/metrics"
+METRICS = (
+    '# HELP lyte_build_info Static build identity.\n'
+    '# TYPE lyte_build_info gauge\n'
+    f'lyte_build_info{{revision="{REVISION}",version="4.0.0"}} 1.0\n'
+    '# HELP lyte_db_pool_healthy Last database probe.\n'
+    '# TYPE lyte_db_pool_healthy gauge\n'
+    'lyte_db_pool_healthy 1.0\n'
+)
 
 
 class FixtureTransport:
@@ -95,6 +104,9 @@ class FixtureTransport:
         raise AssertionError(f"unexpected verifier path: {path}")
 
     def text(self, path):
+        if path == PUBLIC_METRICS:
+            self.calls.append(("GET", path))
+            return 200, METRICS
         if path == "/":
             return 200, ('Business Observability Command id="ask-open" id="main-content" '
                          'href="/static/lyte/styles.css" src="/static/lyte/app.js" viewport-fit=cover')
@@ -212,3 +224,92 @@ def test_returned_fixture_mutations_do_not_leak_between_runs():
     first = verify(FixtureTransport())
     second = verify(FixtureTransport())
     assert copy.deepcopy(first) == second
+
+
+@pytest.mark.parametrize("body", [
+    "", "\n", "<html>status ok</html>\n", "# exporter healthy\n",
+    METRICS.replace(REVISION, "a" * 40),
+    METRICS.replace('version="4.0.0"', 'version="4.0"'),
+    METRICS.replace('version="4.0.0"', 'version=4.0'),
+    METRICS.replace('} 1.0', '} 0.0'),
+    METRICS.replace('} 1.0', '} NaN'),
+    METRICS.replace('} 1.0', '} 1e999'),
+    METRICS.replace('} 1.0', '} 1.0 1234567890'),
+    METRICS.replace('lyte_db_pool_healthy 1.0', 'lyte_db_pool_healthy 0.0'),
+    METRICS.replace('lyte_db_pool_healthy 1.0\n', ''),
+    METRICS.replace('# TYPE lyte_build_info gauge\n', ''),
+    METRICS.replace('# TYPE lyte_build_info gauge', '# TYPE lyte_build_info counter'),
+    METRICS + '# TYPE lyte_build_info gauge\n',
+    METRICS + f'lyte_build_info{{revision="{REVISION}",version="4.0.0"}} 1.0\n',
+    METRICS.replace('version="4.0.0"}', 'version="4.0.0",owner="other"}'),
+    METRICS.rstrip('\n'),
+    METRICS + '#' * (CONTRACT.MAX_METRICS_BYTES + 1) + '\n',
+])
+def test_invalid_metrics_cannot_be_hidden_by_passing_json_contract(body):
+    transport = FixtureTransport()
+    original = transport.text
+    transport.text = lambda path: (200, body) if path == PUBLIC_METRICS else original(path)
+    result = verify(transport)
+    assert result['complete'] is False
+    assert result['checks']['metrics initial source and readiness'] is False
+    assert result['checks']['metrics final source and readiness'] is False
+
+
+@pytest.mark.parametrize('status', [404, 500, 503])
+def test_non_success_metrics_status_fails_even_with_valid_body(status):
+    transport = FixtureTransport()
+    original = transport.text
+    transport.text = lambda path: (status, METRICS) if path == PUBLIC_METRICS else original(path)
+    assert verify(transport)['complete'] is False
+
+
+@pytest.mark.parametrize('value', ['1', '1.0', '1.000', '1e0', '1E+00'])
+def test_metrics_accept_equal_numeric_values_and_reordered_labels(value):
+    body = METRICS.replace(' 1.0\n', f' {value}\n').replace(
+        f'revision="{REVISION}",version="4.0.0"',
+        f'version="4.0.0",revision="{REVISION}"',
+    )
+    assert CONTRACT.metrics_identity_matches(body, revision=REVISION, version='4.0.0')
+
+
+def test_metrics_failure_after_advisory_work_is_detected():
+    transport = FixtureTransport()
+    original = transport.text
+    calls = []
+    def text(path):
+        if path == PUBLIC_METRICS:
+            calls.append(path)
+            return (200, METRICS) if len(calls) == 1 else (500, 'Internal Server Error')
+        return original(path)
+    transport.text = text
+    result = verify(transport)
+    assert len(calls) == 2
+    assert result['checks']['metrics initial source and readiness'] is True
+    assert result['checks']['metrics final source and readiness'] is False
+    assert result['complete'] is False
+
+
+def test_metrics_transport_error_is_recorded_without_private_message():
+    transport = FixtureTransport()
+    original = transport.text
+    def text(path):
+        if path == PUBLIC_METRICS:
+            raise RuntimeError('private deployment detail')
+        return original(path)
+    transport.text = text
+    result = verify(transport)
+    assert result['complete'] is False
+    assert result['observations']['metrics_initial']['error_type'] == 'RuntimeError'
+    assert 'private deployment detail' not in str(result)
+
+
+def test_successful_metrics_are_hashed_without_rehosting_metric_bodies():
+    import hashlib
+    transport = FixtureTransport()
+    result = verify(transport)
+    assert transport.calls.count(('GET', PUBLIC_METRICS)) == 2
+    assert ('GET', '/metrics') not in transport.calls
+    assert result['observations']['metrics_final']['path'] == PUBLIC_METRICS
+    assert result['observations']['metrics_final']['response_sha256'] == hashlib.sha256(METRICS.encode()).hexdigest()
+    assert result['observations']['metrics_final']['all_metric_families_validated'] is False
+    assert 'body' not in result['observations']['metrics_final']
