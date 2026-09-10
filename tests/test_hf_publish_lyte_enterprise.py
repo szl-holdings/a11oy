@@ -44,7 +44,7 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
     }.issubset(function_names(PUBLISHER))
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/lyte-services"',
-        'SOURCE_REVISION = "7cd4305014ee638f773d6e128f345ad6a545be58"',
+        'SOURCE_REVISION = "9af99c9fa92fe4bd2f5f3f7e61f4521eb692d2a7"',
         'EXPECTED_VERSION = "4.0.0"',
         'HF_REPOSITORY = "SZLHOLDINGS/lyte"',
         'ORIGIN = "https://szlholdings-lyte.hf.space"',
@@ -67,8 +67,10 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
         assert forbidden not in source
     smoke = module_constant(PUBLISHER, "SMOKE_PATHS")
     assert all("/api/lyte/v3" not in path for path in smoke)
+    assert "/metrics" not in smoke
     assert {"/api/lyte/v2/catalog", "/api/lyte/v2/second-brain", "/api/lyte/v2/receipts",
-            "/api/build-info", "/api/source", "/static/lyte/styles.css", "/static/lyte/app.js"} <= set(smoke)
+            "/api/lyte/v2/metrics", "/api/build-info", "/api/source",
+            "/static/lyte/styles.css", "/static/lyte/app.js"} <= set(smoke)
 
 
 def test_lyte_live_admission_requires_business_observability_and_non_authority() -> None:
@@ -86,6 +88,7 @@ def test_lyte_live_admission_requires_business_observability_and_non_authority()
         '"external responsive assets"', '"complete": not failed',
         '"production_telemetry_verified": False', '"production_granite_admitted": False',
         '"execution_authority": "NONE"',
+        'path = "/api/lyte/v2/metrics"', 'observe_metrics("initial")', 'observe_metrics("final")',
     ):
         assert fragment in source
 
@@ -132,7 +135,7 @@ def test_source_owned_lyte_does_not_change_other_vertical_authority() -> None:
 def test_estate_receipt_binds_the_exact_lyte_source_revision() -> None:
     publisher = PUBLISHER.read_text(encoding="utf-8")
     entrypoint = ENTRYPOINT.read_text(encoding="utf-8")
-    expected = "7cd4305014ee638f773d6e128f345ad6a545be58"
+    expected = "9af99c9fa92fe4bd2f5f3f7e61f4521eb692d2a7"
     assert f'SOURCE_REVISION = "{expected}"' in publisher
     assert f'LYTE_SOURCE_REVISION = "{expected}"' in entrypoint
     assert 'lyte.get("source_revision") == LYTE_SOURCE_REVISION' in entrypoint

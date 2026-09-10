@@ -19,6 +19,7 @@ CONTRACT = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(CONTRACT)
 REVISION = "7cd4305014ee638f773d6e128f345ad6a545be58"
 PREFIX = "/api/lyte/v2"
+PUBLIC_METRICS = "/api/lyte/v2/metrics"
 METRICS = (
     '# HELP lyte_build_info Static build identity.\n'
     '# TYPE lyte_build_info gauge\n'
@@ -103,7 +104,7 @@ class FixtureTransport:
         raise AssertionError(f"unexpected verifier path: {path}")
 
     def text(self, path):
-        if path == "/metrics":
+        if path == PUBLIC_METRICS:
             self.calls.append(("GET", path))
             return 200, METRICS
         if path == "/":
@@ -247,7 +248,7 @@ def test_returned_fixture_mutations_do_not_leak_between_runs():
 def test_invalid_metrics_cannot_be_hidden_by_passing_json_contract(body):
     transport = FixtureTransport()
     original = transport.text
-    transport.text = lambda path: (200, body) if path == '/metrics' else original(path)
+    transport.text = lambda path: (200, body) if path == PUBLIC_METRICS else original(path)
     result = verify(transport)
     assert result['complete'] is False
     assert result['checks']['metrics initial source and readiness'] is False
@@ -258,7 +259,7 @@ def test_invalid_metrics_cannot_be_hidden_by_passing_json_contract(body):
 def test_non_success_metrics_status_fails_even_with_valid_body(status):
     transport = FixtureTransport()
     original = transport.text
-    transport.text = lambda path: (status, METRICS) if path == '/metrics' else original(path)
+    transport.text = lambda path: (status, METRICS) if path == PUBLIC_METRICS else original(path)
     assert verify(transport)['complete'] is False
 
 
@@ -276,7 +277,7 @@ def test_metrics_failure_after_advisory_work_is_detected():
     original = transport.text
     calls = []
     def text(path):
-        if path == '/metrics':
+        if path == PUBLIC_METRICS:
             calls.append(path)
             return (200, METRICS) if len(calls) == 1 else (500, 'Internal Server Error')
         return original(path)
@@ -292,7 +293,7 @@ def test_metrics_transport_error_is_recorded_without_private_message():
     transport = FixtureTransport()
     original = transport.text
     def text(path):
-        if path == '/metrics':
+        if path == PUBLIC_METRICS:
             raise RuntimeError('private deployment detail')
         return original(path)
     transport.text = text
@@ -306,7 +307,9 @@ def test_successful_metrics_are_hashed_without_rehosting_metric_bodies():
     import hashlib
     transport = FixtureTransport()
     result = verify(transport)
-    assert transport.calls.count(('GET', '/metrics')) == 2
+    assert transport.calls.count(('GET', PUBLIC_METRICS)) == 2
+    assert ('GET', '/metrics') not in transport.calls
+    assert result['observations']['metrics_final']['path'] == PUBLIC_METRICS
     assert result['observations']['metrics_final']['response_sha256'] == hashlib.sha256(METRICS.encode()).hexdigest()
     assert result['observations']['metrics_final']['all_metric_families_validated'] is False
     assert 'body' not in result['observations']['metrics_final']

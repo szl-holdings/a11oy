@@ -25,7 +25,7 @@ from typing import Any
 from huggingface_hub import HfApi
 
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
-SOURCE_REVISION = "7cd4305014ee638f773d6e128f345ad6a545be58"
+SOURCE_REVISION = "9af99c9fa92fe4bd2f5f3f7e61f4521eb692d2a7"
 EXPECTED_VERSION = "4.0.0"
 HF_REPOSITORY = "SZLHOLDINGS/lyte"
 ORIGIN = "https://szlholdings-lyte.hf.space"
@@ -41,9 +41,10 @@ USER_AGENT = "SZLHOLDINGS-Lyte-Enterprise-Publisher/4.0"
 
 # API version and package version are distinct. The current 4.0.0 application
 # owns /api/lyte/v2; the removed v3 application must never be its smoke target.
+# Public metrics use the source-owned API alias, not a hosting ingress path.
 SMOKE_PATHS = (
     "/", "/healthz", "/readyz", "/api/build-info", "/api/source",
-    "/.well-known/szl-source.json", "/metrics",
+    "/.well-known/szl-source.json", "/api/lyte/v2/metrics",
     "/static/lyte/styles.css", "/static/lyte/app.js",
     "/api/lyte/v2/catalog", "/api/lyte/v2/capabilities",
     "/api/lyte/v2/anatomy", "/api/lyte/v2/formulas", "/api/lyte/v2/sources",

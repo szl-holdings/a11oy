@@ -143,19 +143,23 @@ def verify_current_contract(
         return body if isinstance(body, dict) else {}
 
     def observe_metrics(phase: str) -> None:
-        # Keep failed transport observable without recording arbitrary error bodies.
+        # The public application alias returns the same registry as local /metrics.
+        # No infrastructure token or successful fallback is supplied to the probe.
+        path = "/api/lyte/v2/metrics"
         try:
-            status, body = request_text("/metrics")
+            status, body = request_text(path)
         except Exception as exc:
             checks[f"metrics {phase} source and readiness"] = False
-            observations[f"metrics_{phase}"] = {"http_status": None, "error_type": type(exc).__name__}
+            observations[f"metrics_{phase}"] = {
+                "path": path, "http_status": None, "error_type": type(exc).__name__,
+            }
             return
         encoded = body.encode("utf-8") if isinstance(body, str) else b""
         checks[f"metrics {phase} source and readiness"] = (
             status == 200 and metrics_identity_matches(body, revision=revision, version=version)
         )
         observations[f"metrics_{phase}"] = {
-            "http_status": status, "bytes": len(encoded),
+            "path": path, "http_status": status, "bytes": len(encoded),
             "response_sha256": hashlib.sha256(encoded).hexdigest(),
             "critical_gauges_match": checks[f"metrics {phase} source and readiness"],
             "all_metric_families_validated": False,

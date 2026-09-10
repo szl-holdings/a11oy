@@ -1,60 +1,76 @@
-# Lyte metrics verification and supported recovery
+# Lyte metrics verification and application-owned recovery
 
-Layer: supply-chain, in the existing source-owned Lyte live verifier. No runtime
-module, Space writer, model provider, secret, hardware, or authorization change.
+Layer: supply-chain, in the existing source-owned Lyte publisher and live
+verifier. Runtime source is the normal protected merge of lyte-services PR 22:
+`9af99c9fa92fe4bd2f5f3f7e61f4521eb692d2a7`. Its complete source CI passed
+137 tests and all 17 applicable jobs in run 34433289098. The PR-only live probe
+was intentionally skipped and is not deployment evidence.
 
 ## Reproduce before patching
 
-The historical aggregate publication for A11oy bda66daa67aaa2c7bd9a94bb43537f22bc6c89d7
-was not a terminal estate success. Its Lyte metrics failure must not be hidden
-by a successful forecast-only check. Read the actual failing job/receipt and
-then recapture the current app; a previous failure is not a current diagnosis.
+The downloaded historical aggregate artifact 10133081896 has ZIP SHA-256
+`bf83c7109b91f3636b0af85ce44809f5bac972751cf9b7de8a6f044bd8274281`.
+Its combined service completed successfully; only Lyte attestation failed.
+The combined service has no Prometheus GET metrics route and is not changed
+by this repair. Earlier descriptions of a combined metrics failure were not
+supported by the downloaded artifact and must not be used as its diagnosis.
 
-Fresh bounded diagnostic job 6aa21e655527934177ebf0ad independently downloaded
-Lyte source 7cd4305014ee638f773d6e128f345ad6a545be58, verified the metrics/app/
-project Git blobs, and installed the actual pinned dependencies in Python 3.12.
-Its public Lyte metrics response was HTTP 200 with 1,126 bytes and exact build
-revision/version labels. The clean-environment app also rendered successfully
-before and after readiness. The collector inspection found string identity
-labels and the same metrics object shared by telemetry and Runtime.
+Fresh bounded diagnostics independently downloaded exact Lyte source, matched
+its Git blobs, and rendered the existing metrics registry successfully in a
+clean Python environment, including warm histograms. Public observations also
+returned valid metrics. No application numeric-label defect was reproduced;
+this repair does not pretend one was established or fixed.
 
-Therefore this change does NOT claim to have repaired an application-side
-numeric-label defect. No such defect was reproduced in the current exact
-source. It closes a demonstrated verification gap: the deeper verifier did
-not read metrics at all, although the independent Dockerfile controller did.
-The diagnostic also observed an unregistered /metrics on the combined vertical
-service; that is a different application, not evidence of a Lyte exporter fault.
-No unrelated source or contract is rewritten to force one service's shape on
-another.
+The demonstrated coverage gap was narrower: the deeper live verifier never
+read metrics, although the Dockerfile controller required a public metrics
+smoke. Consequently a deeper-verifier PASS did not independently establish
+metrics availability. Historical failed observations remain failed evidence.
 
-## Permanent contract
+## Application-owned route
 
-The same canonical Lyte verifier now checks metrics twice: after actual
-readiness, and after its advisory workload. Both observations require HTTP 200,
-exactly one gauge declaration/sample for lyte_build_info with the expected
-revision/version, and exactly one lyte_db_pool_healthy gauge sample equal to 1.
-Labels must be quoted and exact; duplicates, wrong source, missing metadata,
-comments-only output, invalid numeric values, timestamps, unhealthy database,
-HTML, failures, and oversized bodies cannot establish success.
+Lyte PR 22 adds `/api/lyte/v2/metrics` as a second decorator on the existing
+real-registry handler. Local `/metrics` remains compatible. This makes the
+public application route explicit and avoids depending on generic hosting
+infrastructure paths. It is not a claim that every hosting provider reserves
+`/metrics`, and it does not bypass authentication or supply infrastructure
+credentials to anonymous probes.
 
-This is a bounded critical-gauge contract, explicitly not a full Prometheus
-parser or verification of every series. Unrelated metric families are not
-rewritten or discarded. Observations retain status, byte count, and content
-hash, not arbitrary error details or raw metrics bodies.
+Both canonical smoke and the deeper verifier now use that application-owned
+alias. Both return or inspect actual registry data; no empty response, canned
+health message, or synthetic gauge substitutes for the exporter. Real app tests
+cover exact build identity, local/public parity, populated histogram labels,
+failed-database health reporting, cache/security headers, and non-mutation.
 
-The existing /metrics smoke path, pinned deployment controller, source guards,
-all prior forecast/identity/authority checks, and canonical single writer remain
-unchanged. New negative controls run inside the existing Lyte contract test
-file and therefore the existing CI job; no additional workflow is required.
+## Permanent verification
 
-## Recovery sequence
+The same canonical verifier checks metrics after readiness and after its
+advisory workload. Both observations require HTTP 200, exactly one gauge
+sample/declaration for lyte_build_info with the expected revision/version,
+and exactly one lyte_db_pool_healthy gauge equal to 1. Quoted labels must be
+exact. Duplicates, wrong source, missing metadata, comments-only output, invalid
+numeric values, timestamps, unhealthy database, HTML, transport failures,
+oversized output, and exporter failure after the workload cannot establish PASS.
 
-After exact-head tests and normal protected merge, use the existing hf-sync
-publication from current protected source. Read its terminal aggregate receipt,
-not merely the core deployment job or an older source run. Independently verify
-both metrics observations, forecast digests, source identity and live Space
-revision, then record the result. Failed evidence remains historical evidence.
+This is a bounded critical-gauge contract, not a full Prometheus parser or
+validation of every series. Unrelated metric families are not rewritten or
+discarded. Evidence retains the actual route, status, byte count and content
+hash, not arbitrary error details or raw metric bodies.
 
-Production Granite admission is still false. Public SAMPLE data is not promoted
-to production telemetry; persistence, calibration, and SLO qualification remain
-separate obligations. No approval, status, or receipt is manufactured here.
+All previous forecast/identity/authority checks, the byte-pinned Dockerfile
+controller, source-tip guards, existing-Space guard and single canonical
+writer remain. No workflow trigger, allocation, DNS, secret, model default,
+combined service, or execution authority changes. Updated source-pin regression
+expectations track the separately tested and merged producer revision.
+
+## Completion criteria
+
+After exact-head consumer tests and normal protected merge, inspect the
+existing hf-sync run's terminal aggregate receipt, not only its deployment
+job. Verify the exact new Lyte source and HF runtime, both public metrics
+observations, forecast digests, and product-source projection. Record observed
+success only after actual probes finish. Candidate test completion and future
+deployment are not asserted by this implementation note.
+
+Production Granite remains disabled and execution authority NONE. Public
+SAMPLE data is not production telemetry; durability, calibration and SLO
+qualification remain separate obligations. No approval or status is invented.
