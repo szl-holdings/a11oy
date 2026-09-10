@@ -2,7 +2,7 @@
   "name": "workspace",
   "version": "1.1.0",
   "private": true,
-  "description": "A11oy governed-AI execution fabric — Apache-2.0, signed receipts, fail-closed evidence states, sovereign/self-hosted inference, and formal-artifact lineage.",
+  "description": "A11oy governed-AI execution fabric \u2014 Apache-2.0, signed receipts, fail-closed evidence states, sovereign/self-hosted inference, and formal-artifact lineage.",
   "main": "index.js",
   "directories": {
     "doc": "docs"
@@ -77,20 +77,20 @@
     "overrides": {
       "vite": "^6.4.2",
       "esbuild": "0.28.1",
-      "js-yaml@<4.3.1": "4.3.1",
       "brace-expansion": "5.0.9",
       "fast-uri@<3.1.6": "3.1.6",
-      "browserslist@<=4.28.6": "4.28.7"
+      "browserslist@<=4.28.6": "4.28.7",
+      "js-yaml@<4.3.2": "4.3.2"
     }
   },
   "overrides": {
     "esbuild": "0.28.1",
-    "js-yaml@>=4.0.0 <4.3.1": "4.3.1",
     "brace-expansion": "5.0.9",
     "fast-uri@<3.1.6": "3.1.6",
     "@istanbuljs/load-nyc-config": {
-      "js-yaml": "4.3.1"
+      "js-yaml": "4.3.2"
     },
-    "browserslist@<=4.28.6": "4.28.7"
+    "browserslist@<=4.28.6": "4.28.7",
+    "js-yaml@>=4.0.0 <4.3.2": "4.3.2"
   }
 }
