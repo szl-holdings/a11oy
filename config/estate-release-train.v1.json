@@ -107,5 +107,21 @@
     "external_effectors": [],
     "production_authorization": false,
     "human_approval_required": true
+  },
+  "public_inventory_scope": {
+    "id": "hf-public-author-membership/v1",
+    "authentication": "none",
+    "visibility": "public-only",
+    "kinds": [
+      "models",
+      "datasets",
+      "spaces"
+    ],
+    "include_gated_metadata": true,
+    "include_disabled_metadata": true,
+    "include_reserved_readme_if_public": true,
+    "kernel_policy": "count-once-as-model-repository-not-a-fourth-kind",
+    "collections_and_buckets": "outside-repository-membership-scope",
+    "portfolio_and_operational_policy": false
   }
 }
