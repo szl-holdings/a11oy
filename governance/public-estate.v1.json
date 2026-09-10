@@ -97,9 +97,9 @@
         "/readyz",
         "/api/build-info",
         "/.well-known/szl-source.json",
-        "/api/lyte/v3/catalog",
-        "/api/lyte/v3/capabilities",
-        "/api/lyte/v3/formulas"
+        "/api/lyte/v2/catalog",
+        "/api/lyte/v2/capabilities",
+        "/api/lyte/v2/formulas"
       ]
     },
     {
