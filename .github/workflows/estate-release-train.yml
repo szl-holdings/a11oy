@@ -6,6 +6,9 @@ name: Estate release train
     paths:
       - config/estate-release-train.v1.json
       - scripts/verify_estate_release_train.py
+      - scripts/hf_public_inventory.py
+      - tests/test_hf_public_inventory.py
+      - tests/test_estate_pr_concurrency.py
       - tests/test_estate_release_train.py
       - .github/workflows/estate-release-train.yml
   workflow_run:
@@ -28,7 +31,9 @@ permissions:
   issues: write
 
 concurrency:
-  group: estate-release-train
+  # PRs only observe. Do not queue them behind up to 50 minutes of canonical repair.
+  # Preserve the existing canonical writer/incident serialization group exactly.
+  group: ${{ github.event_name == 'pull_request' && format('estate-release-train-pr-{0}', github.event.pull_request.number) || 'estate-release-train' }}
   cancel-in-progress: false
 
 env:
@@ -65,6 +70,8 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/verify_estate_release_train.py
           python tests/test_estate_release_train.py
+          python tests/test_hf_public_inventory.py
+          python tests/test_estate_pr_concurrency.py
           python -m json.tool config/estate-release-train.v1.json >/dev/null
           git diff --check
 
@@ -131,6 +138,16 @@ jobs:
             --poll-seconds 20 \
             --soft
 
+      - name: Observe one explicit public membership predicate
+        run: |
+          set -euo pipefail
+          python scripts/hf_public_inventory.py \
+            --config config/estate-release-train.v1.json \
+            --manifest docs/huggingface-ecosystem-manifest.json \
+            --estate-report "$REPORT" \
+            --output reports/hf-public-inventory-preflight.json \
+            --soft
+
       - name: Synchronize one deterministic alignment incident
         if: github.event_name != 'pull_request'
         env:
@@ -138,10 +155,11 @@ jobs:
         run: |
           set -euo pipefail
           state="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["state"])')"
+          inventory_state="$(python -c 'import json; print(json.load(open("reports/hf-public-inventory-preflight.json"))["state"])')"
           number="$(gh issue list --repo "$GITHUB_REPOSITORY" --state all --limit 100 \
             --search '"[ESTATE-ALIGNMENT] GitHub, Hugging Face and product domain diverged" in:title' \
             --json number,title --jq '.[] | select(.title == env.ISSUE_TITLE) | .number' | head -n1)"
-          if [ "$state" = ALIGNED ]; then
+          if [ "$state" = ALIGNED ] && [ "$inventory_state" = ALIGNED ]; then
             if [ -n "$number" ]; then
               gh issue close "$number" --repo "$GITHUB_REPOSITORY" --reason completed \
                 --comment "All required protected-source, runtime, proof-origin, inventory and semantic-parity gates converged. Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" || true
@@ -163,6 +181,22 @@ jobs:
               '### Blocking observations',
           ]
           lines.extend(f'- `{item}`' for item in report.get('blockers', []))
+          public = json.loads(Path('reports/hf-public-inventory-preflight.json').read_text())
+          lines += ['', '### Explicit public inventory predicate',
+              f'- State: `{public["state"]}`',
+              f'- Scope: `{public["scope"]["id"]}`; anonymous public-only; kernels counted once as model repositories.',
+              f'- Scope digest: `{public["scope_sha256"]}`',
+              f'- Profile counts: `{json.dumps(public.get("declared_counts"), sort_keys=True)}`',
+              f'- Manifest counts: `{json.dumps(public.get("manifest_counts"), sort_keys=True)}`',
+              f'- Public counts: `{json.dumps(public.get("inventory", {}).get("counts"), sort_keys=True)}`',
+              '- Authenticated official-inventory-v2 is a separate scope and is not replaced.',
+          ]
+          comparison = public.get('comparison', {})
+          lines.extend(f'- `{item}`' for item in comparison.get('blockers', []))
+          if public.get('error'):
+              lines.append(f'- Observation unavailable: `{public["error"]}`')
+          for kind, delta in comparison.get('delta', {}).items():
+              lines.append(f'- {kind}: `{json.dumps(delta, sort_keys=True)}`')
           lines += [
               '',
               'No branch, model, dataset, Space, DNS record, Worker, secret, visibility, hardware allocation or public effector was mutated by the verifier.',
@@ -183,7 +217,9 @@ jobs:
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: estate-release-train-${{ github.run_id }}-${{ github.run_attempt }}
-          path: ${{ env.REPORT }}
+          path: |
+            ${{ env.REPORT }}
+            reports/hf-public-inventory-preflight.json
           if-no-files-found: error
           retention-days: 180
 
@@ -192,4 +228,6 @@ jobs:
         run: |
           set -euo pipefail
           state="$(python -c 'import json; print(json.load(open("reports/estate-release-train.json"))["state"])')"
+          inventory_state="$(python -c 'import json; print(json.load(open("reports/hf-public-inventory-preflight.json"))["state"])')"
           test "$state" = ALIGNED
+          test "$inventory_state" = ALIGNED
