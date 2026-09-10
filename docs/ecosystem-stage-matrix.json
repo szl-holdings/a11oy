@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "generatedBy": "scripts/build_ecosystem_stage_matrix.py",
-  "observedAt": "2026-09-06T15:15:28Z",
+  "observedAt": "2026-09-10T03:20:41Z",
   "doctrine": {
     "noFakeGreen": true,
     "noFakeSignedAssets": true,
@@ -26,9 +26,9 @@
   "machineGeneratedCounts": {
     "githubReadinessEntries": 19,
     "huggingFacePublic": {
-      "models": 45,
-      "datasets": 34,
-      "spaces": 17
+      "models": 46,
+      "datasets": 35,
+      "spaces": 21
     },
     "huggingFaceScope": {
       "visibility": "public-only",
@@ -1001,6 +1001,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/oac-system-health-v1",
+      "repoType": "model",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/SZLHOLDINGS/oac-system-health-v1"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/qantu",
       "repoType": "model",
       "stage": "inventory",
@@ -1463,6 +1473,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/szl-frontier-evaluation-receipts",
+      "repoType": "dataset",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/datasets/SZLHOLDINGS/szl-frontier-evaluation-receipts"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/szl-lake",
       "repoType": "dataset",
       "stage": "inventory",
@@ -1613,6 +1633,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/holographic-unify",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/holographic-unify"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/immune",
       "repoType": "space",
       "stage": "inventory",
@@ -1643,6 +1673,16 @@
       ]
     },
     {
+      "id": "SZLHOLDINGS/llm-router-live",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live"
+      ]
+    },
+    {
       "id": "SZLHOLDINGS/lyte",
       "repoType": "space",
       "stage": "inventory",
@@ -1662,6 +1702,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/sentra"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-atelier",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-atelier"
       ]
     },
     {
@@ -1692,6 +1742,16 @@
       "unsafeFlags": [],
       "evidenceUrls": [
         "https://huggingface.co/spaces/SZLHOLDINGS/szl-frontier"
+      ]
+    },
+    {
+      "id": "SZLHOLDINGS/szl-khipu",
+      "repoType": "space",
+      "stage": "inventory",
+      "private": false,
+      "unsafeFlags": [],
+      "evidenceUrls": [
+        "https://huggingface.co/spaces/SZLHOLDINGS/szl-khipu"
       ]
     },
     {
