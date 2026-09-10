@@ -63,8 +63,12 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             inventory_only,
             [
                 "SZLHOLDINGS/ayllu",
+                "SZLHOLDINGS/holographic-unify",
                 "SZLHOLDINGS/immune",
                 "SZLHOLDINGS/immune-lattice",
+                "SZLHOLDINGS/llm-router-live",
+                "SZLHOLDINGS/szl-atelier",
+                "SZLHOLDINGS/szl-khipu",
                 "SZLHOLDINGS/yarqa",
             ],
         )
@@ -72,6 +76,27 @@ class PublicEstateAlignmentTests(unittest.TestCase):
             sorted(topology + inventory_only, key=str.casefold),
             observed,
         )
+
+    def test_new_public_inventory_is_not_a_keeper_or_runtime_promotion(self) -> None:
+        for name in ('holographic-unify', 'llm-router-live', 'szl-atelier', 'szl-khipu'):
+            repo_id = 'SZLHOLDINGS/' + name
+            with self.subTest(repo_id=repo_id):
+                row = next(r for r in self.contract['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)
+                self.assertEqual(row, {
+                    'id': repo_id, 'classification': 'INVENTORY_ONLY',
+                    'governedKeep': False, 'disposition': 'FOLD',
+                    'policySource': 'docs/series-a/hf-space-keep-list.yaml',
+                })
+                self.assertNotIn(repo_id, alignment.topology_spaces(self.contract))
+                self.assertNotIn(repo_id, alignment.governed_keep_spaces())
+                missing = copy.deepcopy(self.contract)
+                missing['inventoryOnlyHuggingFaceRepositories'] = [r for r in missing['inventoryOnlyHuggingFaceRepositories'] if r['id'] != repo_id]
+                with self.assertRaisesRegex(alignment.ContractError, 'undeclared='):
+                    alignment.validate(missing, self.manifest)
+                promoted = copy.deepcopy(self.contract)
+                next(r for r in promoted['inventoryOnlyHuggingFaceRepositories'] if r['id'] == repo_id)['governedKeep'] = True
+                with self.assertRaisesRegex(alignment.ContractError, 'cannot be a governed keeper'):
+                    alignment.validate(promoted, self.manifest)
 
     def test_killinchu_is_public_body_and_governed_keeper(self) -> None:
         killinchu = next(
