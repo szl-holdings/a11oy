@@ -309,6 +309,18 @@ def register(app) -> dict:
             "effectors": [],
         }
 
+    try:
+        from routers import hf_tooling_evidence as _hf_tooling_evidence
+
+        hf_tooling = _hf_tooling_evidence.register(app, ns="a11oy")
+    except Exception as exc:  # evidence projection must never take down A11oy
+        hf_tooling = {
+            "ok": False,
+            "state": "UNAVAILABLE",
+            "reason": type(exc).__name__,
+            "effectors": [],
+        }
+
     return {
         "ok": True,
         "ns": "a11oy",
@@ -316,6 +328,7 @@ def register(app) -> dict:
         "series_a": series_a,
         "frontier_now": frontier_now,
         "atelier_frontier": atelier_frontier,
+        "hf_tooling": hf_tooling,
         "routes": [
             "/api/a11oy/v1/forecast-baseline", "/v1/forecast-baseline",
             "/api/a11oy/v1/vertical-packs", "/v1/vertical-packs",
@@ -327,5 +340,6 @@ def register(app) -> dict:
             "/atelier/frontier",
             "/api/a11oy/v1/atelier/frontier/registry",
             "/api/a11oy/v1/atelier/frontier/evaluate",
+            "/frontier-tooling", "/api/a11oy/v1/frontier-tooling",
         ],
     }

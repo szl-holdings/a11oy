@@ -32,6 +32,10 @@ scheduler, passport authority, or effectors.
 candidate evaluator. It copies no third-party source or identity and binds no
 signer, credential, persistence layer, scheduler, or effector.
 
+`hf_tooling_evidence` is the read-only product view of archived Forge tooling
+measurements and separately observed current-process distribution metadata. It
+confers no model, provider, training, deployment or billable-job authority.
+
 The package top-level name is `routers` (not szl_*/a11oy_*), so it is intentionally
 OUTSIDE the guarded-import-liveness first-party scan — and the files exist anyway.
 
@@ -45,4 +49,5 @@ __all__ = [
     "frontier_now_control_plane",
     "atelier_frontier",
     "series_a_control_plane",
+    "hf_tooling_evidence",
 ]

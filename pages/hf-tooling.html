@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <title>Tooling observatory · A11oy</title>
+  <meta name="description" content="Executed Forge evaluations, exact source receipts and the packages installed in this A11oy process. Evaluation is not production authorization.">
+  <link rel="stylesheet" href="/frontier-tooling/assets/view.css">
+  <script type="module" src="/frontier-tooling/assets/view.js"></script>
+</head>
+<body>
+<a class="skip" href="#main">Skip to evidence</a>
+<header class="shell topbar"><a class="brand" href="/">A11oy <span>/ TOOLING</span></a><nav aria-label="Product navigation"><a href="/frontier-now">Frontier</a><a href="https://a11oy.net/">Proof ↗</a></nav></header>
+<main id="main" class="shell">
+  <section class="hero" aria-labelledby="title">
+    <p class="eyebrow">FORGE → PRODUCT · READ ONLY</p>
+    <div class="hero-line"><h1 id="title">Tested.<br><span>Traceable.</span></h1><div class="orbit" aria-hidden="true"><div></div><div></div><div></div><span>HF</span></div></div>
+    <p class="intro">Executed evaluations. Installed packages. One honest view.</p>
+    <div class="hero-bottom"><span class="pill hold">Production HOLD</span><span id="status" role="status" aria-live="polite">Loading evidence…</span><button id="refresh" type="button">Refresh observation</button></div>
+  </section>
+  <ol class="chain" aria-label="Source and publication order"><li><b>01</b> GitHub <span>source</span></li><li><b>02</b> Hugging Face <span>projection</span></li><li><b>03</b> a-11-oy.com <span>product</span></li><li><b>04</b> a11oy.net <span>proof</span></li></ol>
+  <p class="note">This diagram describes the publication order. It does not assert that every deployment is aligned.</p>
+  <section id="error" class="error" hidden role="alert"><h2>Evidence unavailable</h2><p id="error-text">No measurements are displayed without a valid archive.</p></section>
+  <div id="content" hidden>
+    <section aria-labelledby="eval-title"><div class="section-heading"><div><p class="eyebrow">EXECUTED IN FORGE</p><h2 id="eval-title">Evaluation archive</h2></div><span class="pill">Dated measurement</span></div><p id="archive-date" class="note"></p><div id="lane-filters" class="filters" role="group" aria-label="Filter evaluation lanes"></div><div id="lanes" class="lanes"></div></section>
+    <section class="runtime" aria-labelledby="runtime-title"><div class="section-heading"><div><p class="eyebrow">OBSERVED IN THIS PROCESS</p><h2 id="runtime-title">Installed now</h2></div><span class="pill">Version metadata only</span></div><p class="note">Missing training or agent packages can be intentional. A version match is not exact-source attestation or production qualification.</p><div id="packages" class="packages"></div><p id="runtime-observed" class="note mono"></p></section>
+    <section aria-labelledby="source-title" class="provenance"><div><p class="eyebrow">FOLLOW THE EVIDENCE</p><h2 id="source-title">Source, not a slogan.</h2><p class="note">The backend checks the committed archive bytes and four exact-run receipt hashes on every read. These receipts are unsigned.</p><div id="source-links" class="source-links"></div></div><details><summary>Boundaries & verification</summary><ul id="bounds"></ul><dl><dt>Forge source</dt><dd id="forge-source" class="mono"></dd><dt>Bundled archive SHA-256</dt><dd id="archive-hash" class="mono"></dd><dt>Product source · runtime-reported</dt><dd id="product-source" class="mono"></dd></dl></details></section>
+  </div>
+  <noscript><p class="error">JavaScript is disabled. Read the <a href="/api/a11oy/v1/frontier-tooling">Python evidence API</a> directly.</p></noscript>
+</main>
+<footer class="shell">SZL Holdings <span>No training, model routing, deployment or billable jobs are initiated by this view.</span></footer>
+</body>
+</html>
