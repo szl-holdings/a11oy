@@ -12,11 +12,13 @@ export const LOCKED_FORMULAS = ["F1", "F4", "F7", "F11", "F12", "F18", "F19", "F
 
 export const NAV = [
   { to: "/console", label: "Console" },
+  { to: "/frontiers", label: "Frontiers" },
   { to: "/superpowers", label: "Superpowers" },
   { to: "/formulas", label: "Formulas" },
   { to: "/evidence", label: "Evidence" },
   { to: "/observability", label: "Observability" },
   { to: "/immune", label: "IMMUNE" },
+  { to: "/verify", label: "Verify" },
 ] as const;
 
 export const SURFACES = [
@@ -29,6 +31,7 @@ export const SURFACES = [
   { to: "/evidence", title: "Evidence", blurb: "Theorem U vs Conjecture 1, SLSA posture, offline verify." },
   { to: "/immune", title: "IMMUNE", blurb: "Fail-closed Hukulla. Hunt / isolate / deceive — never strike people." },
   { to: "/verify", title: "Verify", blurb: "Re-hash a receipt in this browser. SHA-256 UNSIGNED-honest." },
+  { to: "/frontiers", title: "Frontiers", blurb: "What is shipped, replica-only, conjecture, roadmap, or out of scope — no inflated LIVE." },
 ] as const;
 
 export const VERTICALS = [
