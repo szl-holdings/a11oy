@@ -54,13 +54,30 @@ def test_upstream_eligibility_and_sandbox_labels_do_not_grant_authority() -> Non
     assert MODULE.sandbox_job_authorized(labels_valid=False, explicit_job_authority=True) is True
 
 
-def test_current_repository_drift_remains_explicit_hold() -> None:
-    result = MODULE.evaluate_repository(ROOT)
+def test_historic_129_130_mismatch_remains_synthetic_hold() -> None:
+    """Preserve the former live drift as a negative fixture, not the desired pin."""
+    result = MODULE.evaluate_runtime_alignment(
+        audit_text="huggingface_hub==1.30.0",
+        docker_text='RUN pip install "huggingface_hub==1.29.0"',
+    )
     assert result["auditPin"] == "1.30.0"
     assert result["runtimePin"] == "1.29.0"
     assert result["requiredVersion"] == "1.31.0"
     assert result["aligned"] is False
     assert result["disposition"] == "HOLD"
+    assert result["productionAuthorized"] is False
+    assert result["automaticPromotionAuthorized"] is False
+    assert result["hubPublicationAuthorized"] is False
+    assert result["sandboxJobCreationAuthorized"] is False
+
+
+def test_current_repository_canonical_pins_match_admitted_131() -> None:
+    result = MODULE.evaluate_repository(ROOT)
+    assert result["auditPin"] == "1.31.0"
+    assert result["runtimePin"] == "1.31.0"
+    assert result["requiredVersion"] == "1.31.0"
+    assert result["aligned"] is True
+    assert result["disposition"] == "EVALUATION"
     assert result["productionAuthorized"] is False
     assert result["automaticPromotionAuthorized"] is False
     assert result["hubPublicationAuthorized"] is False
