@@ -410,44 +410,17 @@ def _front_move_new_routes(app: Any, previous_ids: set[int]) -> None:
 
 
 def _install_landing_honest_bind(app: Any) -> None:
-    """Inject the product-origin instrument binder on the public front door only."""
+    """Inject the product-origin instrument binder on the public front door only.
+
+    Uses the lossless bounded ASGI candidate. The previous Starlette buffer
+    truncated bodies past two million bytes. Do not register both copies.
+    """
     if getattr(app.state, "szl_landing_honest_bind", False):
         return
 
-    marker = b"landing-honest-bind.js"
-    tag = (
-        b'<script src="/static/landing-honest-bind.js" defer '
-        b'data-szl-honest-bind="1"></script>'
-    )
+    from szl_html_injection import LandingInjectionMiddleware
 
-    @app.middleware("http")
-    async def _landing_honest_bind_inject(request, call_next):
-        response = await call_next(request)
-        if request.method not in {"GET", "HEAD"}:
-            return response
-        if request.url.path not in {"/", ""}:
-            return response
-        content_type = str(response.headers.get("content-type", "")).lower()
-        if "text/html" not in content_type:
-            return response
-        body = b""
-        async for chunk in response.body_iterator:
-            body += chunk
-            if len(body) > 2_000_000:
-                break
-        if marker not in body and b"</body>" in body:
-            body = body.replace(b"</body>", tag + b"</body>", 1)
-        headers = dict(response.headers)
-        headers.pop("content-length", None)
-        from starlette.responses import Response
-
-        return Response(
-            content=body,
-            status_code=response.status_code,
-            headers=headers,
-            media_type=content_type.split(";")[0] or "text/html",
-        )
-
+    app.add_middleware(LandingInjectionMiddleware)
     app.state.szl_landing_honest_bind = True
 
 
