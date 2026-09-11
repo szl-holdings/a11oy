@@ -1684,6 +1684,7 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
   var EP_HEALTH   = "/api/a11oy/healthz";
   var EP_SURFACES = "/api/a11oy/v1/frontier/surfaces";
   var EP_ATTEST   = "/api/a11oy/v1/attest/manifest";
+  var EP_HONEST   = "/api/a11oy/v1/honest";
 
   function get(url){
     return fetch(url, { cache:"no-store", credentials:"omit" }).then(function(r){
@@ -1699,14 +1700,15 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
   var RAMP = { "MEASURED":"#ffffff", "LIVE":"#e8e8ea", "MODELED":"#9a9a9e",
                "STRUCTURAL-ONLY":"#6c6c70", "ROADMAP":"#4a4a4e", "UNAVAILABLE":"#2a2a2e" };
 
-  Promise.all([soft(EP_HEALTH), soft(EP_SURFACES), soft(EP_ATTEST)]).then(function(res){
-    var health = res[0], surf = res[1], att = res[2];
+  Promise.all([soft(EP_HEALTH), soft(EP_SURFACES), soft(EP_ATTEST), soft(EP_HONEST)]).then(function(res){
+    var health = res[0], surf = res[1], att = res[2], honest = res[3];
     var answered = 0, i;
     for(i = 0; i < res.length; i++) if(res[i]) answered++;
 
     // --- service (healthz) ---
     if(health){
-      var svc = str(health.service), ver = str(health.version);
+      var svc = str(health.service) || str(health.organ), ver = str(health.version);
+      if(!svc && honest) svc = str(honest.organ) || str(honest.service);
       if(svc) txt("nv-service", ver ? (svc + " " + ver) : svc);
       var sg = health.rollup && health.rollup.signer;
       if(sg && str(sg.status)) txt("nv-signer", sg.status);   // verbatim, never upgraded
@@ -1714,14 +1716,34 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
 
     // --- doctrine: attest predicate first, healthz second ---
     var doctrine = null;
-    if(att && att.statement && att.statement.predicate) doctrine = str(att.statement.predicate.doctrine);
+    var doctrineState = null;
+    if(honest && honest.doctrine_lock){
+      doctrine = str(honest.doctrine_lock.doctrine) || str(honest.doctrine);
+      doctrineState = str(honest.doctrine_lock.state);
+    }
+    if(!doctrine && att && att.statement && att.statement.predicate) doctrine = str(att.statement.predicate.doctrine);
     if(!doctrine && health) doctrine = str(health.doctrine);
-    if(doctrine) txt("nv-doctrine", doctrine);
+    if(doctrine) txt("nv-doctrine", doctrineState ? (doctrine + " " + doctrineState) : doctrine);
+    var lockedN = null;
+    if(honest){
+      var rawCount = null;
+      if(honest.doctrine_lock && honest.doctrine_lock.locked_formula_count != null){
+        rawCount = honest.doctrine_lock.locked_formula_count;
+      } else if(honest.locked_formula_count != null){
+        rawCount = honest.locked_formula_count;
+      }
+      if(typeof rawCount === "number" && isFinite(rawCount)) lockedN = rawCount;
+    }
+    if(lockedN === 8) txt("nv-kernel", "locked-8");
+    else if(lockedN !== null) txt("nv-kernel", String(lockedN) + " locked");
 
-    // --- kernel pin (attest subject digest) ---
+    // --- kernel pin: locked formula count from /honest, never a git SHA ---
     if(att && att.statement && att.statement.subject && att.statement.subject.length){
       var d0 = att.statement.subject[0] && att.statement.subject[0].digest;
-      if(d0 && str(d0.gitCommit)) txt("nv-kernel", d0.gitCommit);
+      if(d0 && str(d0.sha256)) {
+        var hex = String(d0.sha256);
+        txt("nv-digest", hex.slice(0,8) + "\u2026" + hex.slice(-8));
+      }
     }
 
     // --- frontier surfaces + honesty-label spectrum ---
@@ -2185,15 +2207,17 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
         out.textContent = " sha256:" + h;
       }).catch(function () { out.textContent = " hash failed \u2014 use the curl line instead"; });
   });
-  fetch("https://api.github.com/repos/szl-holdings/a11oy/commits/main", { headers: { Accept: "application/vnd.github+json" } })
-    .then(function (r) { return r.ok ? r.json() : null; })
-    .then(function (j) { if (j && j.sha) document.getElementById("fw-main-sha").textContent = " (live main = " + j.sha.slice(0, 12) + ")"; })
-    .catch(function () {});
+  var retired = document.getElementById("fw-main-sha");
+  if (retired) {
+    retired.id = "fw-main-sha-retired";
+    retired.textContent = "";
+    retired.setAttribute("hidden", "hidden");
+  }
 })();
 </script>
 <!-- SZL-FOURTH-WALL:v1:END -->
 
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
-<script id="szl-public-experience-v3-runtime">(function(){'use strict';var r=document.documentElement,f=0;function s(){f=0;var z=Number.parseFloat(r.style.zoom||'1');if(!Number.isFinite(z)||z<=0)z=1;r.dataset.szlPublicExperienceV3='true';r.dataset.szlSpaceHoloV2='true';r.dataset.szlZoomTier=z>=3?'extreme':(z>=1.5?'high':'normal')}function q(){if(!f)f=window.requestAnimationFrame(s)}s();if(window.MutationObserver)new MutationObserver(q).observe(r,{attributes:true,attributeFilter:['style']});window.addEventListener('resize',q,{passive:true})}());</script></body>
+<script id="szl-public-experience-v3-runtime">(function(){'use strict';var r=document.documentElement,f=0;function s(){f=0;var z=Number.parseFloat(r.style.zoom||'1');if(!Number.isFinite(z)||z<=0)z=1;r.dataset.szlPublicExperienceV3='true';r.dataset.szlSpaceHoloV2='true';r.dataset.szlZoomTier=z>=3?'extreme':(z>=1.5?'high':'normal')}function q(){if(!f)f=window.requestAnimationFrame(s)}s();if(window.MutationObserver)new MutationObserver(q).observe(r,{attributes:true,attributeFilter:['style']});window.addEventListener('resize',q,{passive:true})}());</script><script src="/static/landing-honest-bind.js" defer data-szl-honest-bind="1"></script></body>
 </html>
