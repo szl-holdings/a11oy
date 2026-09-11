@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Fail-closed Hugging Face Hub 1.30 provenance/runtime contract.
+"""Fail-closed Hugging Face Hub 1.31 provenance/runtime contract.
 
-This module does not publish, deploy, download weights, or authorize a model.
-It makes the canonical Hub-client version drift and revision-identity boundary
-machine-readable so a dependency bump cannot silently become production proof.
+This module records the successor stable release and the current canonical
+client drift. It does not publish, deploy, create Sandbox Jobs, download model
+weights, or authorize any model/provider/product route.
 """
 from __future__ import annotations
 
@@ -12,15 +12,18 @@ import re
 from pathlib import Path
 from typing import Iterable
 
-HF_HUB_130_VERSION = "1.30.0"
-HF_HUB_130_RELEASE_COMMIT = "48ef2781c2c4c2247431c97efcd5487e89d42732"
-HF_HUB_130_TAG_OBJECT = "103720584dcc9865259dc5165f1a42e0bdea15d5"
+HF_HUB_VERSION = "1.31.0"
+HF_HUB_RELEASE_COMMIT = "495b17c8529614759ae0f1ccf1ebe9a61c148b7c"
+HF_HUB_TAG_OBJECT = "32ccc9ee57f3b3546165de105b4a0d8eba1b7446"
+HF_HUB_TAG_SIGNATURE_VERIFIED = False
+HF_HUB_TAG_SIGNATURE_REASON = "unsigned"
+FORGE_EVALUATION_MERGE = "74a8a07ced6c6b8697b31b7d0e482c4241d55880"
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 PIN = re.compile(r"huggingface[_-]hub==([0-9]+(?:\.[0-9]+){2})", re.IGNORECASE)
 
 
 class ContractError(ValueError):
-    """Malformed evidence cannot become authority."""
+    """Malformed or incomplete evidence cannot become authority."""
 
 
 def _pin(text: str) -> str:
@@ -48,7 +51,6 @@ class RevisionBinding:
             raise ContractError("resolved_revision must be an exact lowercase SHA-40")
 
     def same_authority(self, other: "RevisionBinding") -> bool:
-        """A commit oid alone never proves two bindings have the same authority."""
         return (
             self.repo_id == other.repo_id
             and self.repo_type == other.repo_type
@@ -57,27 +59,38 @@ class RevisionBinding:
         )
 
 
-def serving_authorized(*, upstream_chat_eligible: bool, szl_allowlisted: bool,
+def serving_authorized(*, upstream_eligible: bool, szl_allowlisted: bool,
                        evaluation_passed: bool, policy_passed: bool) -> bool:
-    """Provider eligibility is availability only; SZL gates remain authoritative."""
-    del upstream_chat_eligible
+    """Upstream eligibility is availability metadata, never SZL route authority."""
+    del upstream_eligible
     return bool(szl_allowlisted and evaluation_passed and policy_passed)
+
+
+def sandbox_job_authorized(*, labels_valid: bool, explicit_job_authority: bool) -> bool:
+    """Valid 1.31 Sandbox labels cannot themselves authorize a billable Job."""
+    del labels_valid
+    return bool(explicit_job_authority)
 
 
 def evaluate_runtime_alignment(*, audit_text: str, docker_text: str) -> dict[str, object]:
     audit = _pin(audit_text)
     runtime = _pin(docker_text)
-    aligned = audit == runtime == HF_HUB_130_VERSION
+    aligned = audit == runtime == HF_HUB_VERSION
     return {
         "auditPin": audit,
         "runtimePin": runtime,
-        "requiredVersion": HF_HUB_130_VERSION,
-        "exactReleaseCommit": HF_HUB_130_RELEASE_COMMIT,
-        "annotatedTagObject": HF_HUB_130_TAG_OBJECT,
+        "requiredVersion": HF_HUB_VERSION,
+        "exactReleaseCommit": HF_HUB_RELEASE_COMMIT,
+        "annotatedTagObject": HF_HUB_TAG_OBJECT,
+        "tagSignatureVerified": HF_HUB_TAG_SIGNATURE_VERIFIED,
+        "tagSignatureReason": HF_HUB_TAG_SIGNATURE_REASON,
+        "forgeEvaluationMerge": FORGE_EVALUATION_MERGE,
         "aligned": aligned,
         "disposition": "EVALUATION" if aligned else "HOLD",
         "productionAuthorized": False,
         "automaticPromotionAuthorized": False,
+        "hubPublicationAuthorized": False,
+        "sandboxJobCreationAuthorized": False,
     }
 
 
@@ -93,7 +106,6 @@ def main(argv: Iterable[str] | None = None) -> int:
     result = evaluate_repository(Path(__file__).resolve().parents[1])
     for key in sorted(result):
         print(f"{key}={result[key]}")
-    # Drift is evidence, not an exception: the caller receives a deterministic HOLD.
     return 0
 
 
