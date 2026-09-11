@@ -33,6 +33,7 @@ button{background:transparent;color:var(--teal);border:1px solid var(--line);pad
 <label for="q">Retrieve (same-origin). A miss abstains. Nothing is invented LIVE.</label>
 <input id="q" type="text" value="second brain fold" autocomplete="off"/>
 <button id="go" type="button">Retrieve or abstain</button>
+<ol id="handles"></ol>
 <pre id="raw">probing Lean-8 and brain capabilities</pre>
 </main>
 <script>
@@ -80,10 +81,24 @@ async function retrieve(){
   const out={
     query:q,
     uncertainty:{ok:unc.ok,label:uj.label||null,verdict:uj.verdict||null,abstain_recommended:uj.abstain_recommended,results_retrieved:uj.results_retrieved,uncertainty:uj.uncertainty},
+    handles:(uj.top_results||[]).map(function(r){return {id:r.id||null,title:r.title||null,score:r.score||null};}),
     answer:{ok:ans.ok,label:aj.label||null,governed_verdict:aj.governed_verdict||null,answer:aj.answer===null?"ABSTAIN":aj.answer,reason:aj.governed_verdict_reason||null},
     contract:"handle or ABSTAIN — a miss is a miss",
     certified_production_ready:false
   };
+  const hl=document.getElementById("handles");
+  hl.textContent="";
+  if(out.handles.length){
+    out.handles.forEach(function(h){
+      const li=document.createElement("li");
+      li.textContent=(h.id||"unknown")+" — "+(h.title||"");
+      hl.appendChild(li);
+    });
+  }else{
+    const li=document.createElement("li");
+    li.textContent="ABSTAIN — no handles";
+    hl.appendChild(li);
+  }
   document.getElementById("raw").textContent=JSON.stringify({probe:window.__probe||null,retrieve:out},null,2);
 }
 document.getElementById("go").addEventListener("click",retrieve);
