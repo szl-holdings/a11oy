@@ -89,7 +89,7 @@ RUN pip install --no-cache-dir \
     "uvicorn[standard]==0.52.4" \
     "httpx==0.28.1" \
     "starlette==1.6.0" \
-    "huggingface_hub==1.29.0" \
+    "huggingface_hub==1.31.0" \
     "openai==2.43.0" \
     "python-multipart==0.0.32" \
     "cryptography==50.0.1" \
