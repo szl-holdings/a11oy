@@ -172,7 +172,7 @@ jobs:
       restart-space: true
       source-revision-variable: SZL_GIT_SHA
       source-revision-probe-path: /api/build-info
-      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
+      smoke-paths: '["/","/api/livez","/api/build-info","/api/a11oy/v1/honest","/api/a11oy/healthz","/api/a11oy/v1/brain/capabilities","/api/a11oy/v1/readiness/tab-matrix?view=summary","/api/a11oy/v1/series-a/status","/holographic","/holographic/","/static/3d/holographic.html","/assets/brain-frontier-v7.css","/assets/brain-frontier-v7.js","/assets/brain-frontier-v7.json","/static/landing-honest-bind.js","/atelier/frontier","/api/a11oy/v1/atelier/frontier/registry","/api/a11oy/v1/atelier/frontier/evaluate?evidence=90&repeatability=90&coverage=90&governance=90&safety=1&energy_state=UNAVAILABLE","/api/a11oy/v1/atelier/frontier/evaluate?safety=0"]'
     secrets:
       HF_TOKEN: ${{ secrets.HF_ORG_TOKEN || secrets.HF_TOKEN }}
 
@@ -235,7 +235,7 @@ jobs:
         if: ${{ steps.exact_main_owner.outputs.publish == 'true' }}
         run: >-
           python -m pip install --disable-pip-version-check --no-cache-dir
-          "huggingface_hub==1.10.1"
+          "huggingface_hub==1.31.0"
 
       - name: Publish and verify the v4 vertical estate
         if: ${{ steps.exact_main_owner.outputs.publish == 'true' }}

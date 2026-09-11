@@ -65,6 +65,39 @@ def _read_json(path: Path) -> Any:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def _vessels_ais_standards_pack() -> dict[str, Any] | None:
+    path = VERTICALS_DIR / "vessels" / "ais_standards.json"
+    if not path.is_file():
+        return None
+    packed = _read_json(path)
+    return packed if isinstance(packed, dict) else None
+
+
+def _vessels_ais_standards_echo(pack: dict[str, Any] | None = None) -> dict[str, Any]:
+    standards = pack if isinstance(pack, dict) else _vessels_ais_standards_pack() or {}
+    instruments = [
+        row.get("id")
+        for row in (standards.get("instruments") or [])
+        if isinstance(row, dict) and row.get("id")
+    ]
+    return {
+        "honesty": "CITATION_ONLY",
+        "licensed_ais_admitted": False,
+        "licensed_ais_queries": 0,
+        "ais_equipment_class": "NONE",
+        "ais_transmit": False,
+        "solas_v19_applies": False,
+        "aton_provider": False,
+        "vhf_data_link_occupied": False,
+        "vessels_e03_licensed_ais_tpr": standards.get("vessels_e03_licensed_ais_tpr", "OUTSTANDING"),
+        "fail_closed_eval": "VESSELS-E-DENY-AIS",
+        "proof": "https://a11oy.net/vessels/ais-standards.json",
+        "instruments": instruments,
+        "stamps_live": False,
+        "production_ready": False,
+    }
+
+
 def load_vertical(vertical_id: str) -> dict[str, Any]:
     folder = VERTICALS_DIR / vertical_id
     manifest = _read_json(folder / "vertical_manifest.json")
@@ -76,7 +109,7 @@ def load_vertical(vertical_id: str) -> dict[str, Any]:
             item = _read_json(path)
             item.setdefault("eval_id", path.stem)
             cases.append(item)
-    return {
+    packed = {
         "id": vertical_id,
         "display_name": manifest.get("display_name", vertical_id),
         "wedge": manifest.get("wedge", ""),
@@ -85,6 +118,11 @@ def load_vertical(vertical_id: str) -> dict[str, Any]:
         "policy": policy,
         "cases": cases,
     }
+    if vertical_id == "vessels":
+        standards = _vessels_ais_standards_pack()
+        if standards is not None:
+            packed["ais_standards"] = standards
+    return packed
 
 
 def catalog() -> dict[str, Any]:
@@ -118,6 +156,15 @@ def catalog() -> dict[str, Any]:
                 "wedge": item["wedge"],
                 "role": item["role"],
                 "case_count": len(item["cases"]),
+                **(
+                    {
+                        "ais_standards_honesty": "CITATION_ONLY",
+                        "licensed_ais_admitted": False,
+                        "vessels_e03_licensed_ais_tpr": "OUTSTANDING",
+                    }
+                    if item["id"] == "vessels"
+                    else {}
+                ),
             }
             for item in verticals
         ],
@@ -126,6 +173,7 @@ def catalog() -> dict[str, Any]:
             "demo": "/demo",
             "evaluations": "/evaluations",
             "vessels": "/vessels",
+            "ais_standards": "https://a11oy.net/vessels/ais-standards.json",
             "proof": "https://a11oy.net/decision/",
         },
     }
@@ -143,6 +191,9 @@ def evaluate_case(vertical_id: str, payload: dict[str, Any]) -> dict[str, Any]:
     result["data_label"] = DATA_LABEL
     result["vertical_id"] = vertical_id
     result["runtime_claimed"] = False
+    if vertical_id == "vessels":
+        result["licensed_ais_admitted"] = False
+        result["ais_standards"] = _vessels_ais_standards_echo()
     return result
 
 
@@ -193,20 +244,22 @@ def register(app, ns: str = "a11oy") -> dict[str, Any]:
             packed = load_vertical(vertical_id)
         except FileNotFoundError as exc:
             return _json({"error": str(exc), "status": STATUS}, 503)
-        return _json(
-            {
-                "id": packed["id"],
-                "display_name": packed["display_name"],
-                "wedge": packed["wedge"],
-                "role": packed["role"],
-                "status": STATUS,
-                "data_label": DATA_LABEL,
-                "formula_authority": "NONE",
-                "manifest": packed["manifest"],
-                "policy": packed["policy"],
-                "cases": packed["cases"],
-            }
-        )
+        body = {
+            "id": packed["id"],
+            "display_name": packed["display_name"],
+            "wedge": packed["wedge"],
+            "role": packed["role"],
+            "status": STATUS,
+            "data_label": DATA_LABEL,
+            "formula_authority": "NONE",
+            "manifest": packed["manifest"],
+            "policy": packed["policy"],
+            "cases": packed["cases"],
+        }
+        if packed.get("ais_standards") is not None:
+            body["licensed_ais_admitted"] = False
+            body["ais_standards"] = packed["ais_standards"]
+        return _json(body)
 
     async def _evaluate(request):
         vertical_id = request.path_params["vertical"]

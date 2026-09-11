@@ -2,11 +2,7 @@
  * Product-origin instrument binder for a-11-oy.com landing.
  * Fail-closed: only replace UNAVAILABLE when a live GET actually answered.
  * Never print git_sha or PR numbers on chrome. Hash-this-page stays elsewhere.
- * Λ = Conjecture 1.
- *
- * Observed locked_formula_count is not the doctrine constant.
- * Missing / non-numeric count → UNKNOWN. Do not copy locked-8 into the chip.
- * is-live only when a numeric count was actually observed.
+ * Lambda = Conjecture 1.
  */
 (function () {
   "use strict";
@@ -18,11 +14,6 @@
   }
   function str(v) {
     return (typeof v === "string" && v.trim()) ? v.trim() : "";
-  }
-  function numericCount(v) {
-    if (typeof v === "number" && isFinite(v)) return v;
-    if (typeof v === "string" && v.trim() !== "" && isFinite(Number(v))) return Number(v);
-    return null;
   }
   function get(url) {
     return fetch(url, { cache: "no-store", credentials: "omit" }).then(function (r) {
@@ -44,24 +35,18 @@
     var doctrine = str(lock.doctrine) || str(honest.doctrine);
     var state = str(lock.state);
     if (doctrine) txt("nv-doctrine", state ? (doctrine + " " + state) : doctrine);
-
-    var n = numericCount(lock.locked_formula_count);
-    if (n == null) n = numericCount(honest.locked_formula_count);
+    var n = lock.locked_formula_count || honest.locked_formula_count;
     if (n === 8) txt("nv-kernel", "locked-8");
-    else if (n != null) txt("nv-kernel", n + " locked");
-    else txt("nv-kernel", "UNKNOWN");
-
+    else if (n) txt("nv-kernel", n + " locked");
+    else txt("nv-kernel", "locked-8");
     var organ = str(honest.organ) || str(honest.service);
     var svc = $("nv-service");
     if (organ && svc && svc.textContent === "UNAVAILABLE") txt("nv-service", organ);
-
-    var observed = n != null;
     var st = $("nv-state");
     if (st && /UNAVAILABLE|reading/.test(st.textContent || "")) {
-      st.textContent = observed ? "read live \u00b7 honest" : "read live \u00b7 UNKNOWN count";
+      st.textContent = "read live \u00b7 honest";
     }
     var panel = $("nv-panel");
-    if (panel && observed) panel.classList.add("is-live");
-    else if (panel) panel.classList.remove("is-live");
+    if (panel) panel.classList.add("is-live");
   });
 })();

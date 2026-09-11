@@ -58,6 +58,9 @@ pre { background:var(--ink-3); border-radius:10px; padding:1rem; overflow:auto; 
 .rail b { display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); }
 .rail.on { box-shadow:0 0 0 1px var(--cord); }
 .rail.done b { color:var(--ok); }
+#ais-panel table { width:100%; border-collapse:collapse; font-size:12px; }
+#ais-panel td { padding:.35rem .4rem; border-top:1px solid var(--line); vertical-align:top; color:var(--paper-dim); }
+#ais-panel td:first-child { color:var(--paper); font-family:var(--font-mono); white-space:nowrap; }
 footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
@@ -100,15 +103,21 @@ footer { margin-top:3rem; font-size:.8rem; color:var(--muted); }
       <p>One primary action. Execute is not offered on this desk. The kernel evaluates and refuses. It does not stamp LIVE.</p>
       <p><button class="primary" id="primary" type="button" disabled>Select a frozen case</button></p>
       <h2>Receipt</h2>
-      <pre id="out">Select a frozen case. The kernel is fail-closed. Licensed AIS is CLOSED. No Hugging Face Space is required for this desk.</pre>
+      <pre id="out">Select a frozen case. The kernel is fail-closed. Licensed AIS is CLOSED. AIS standards are CITATION_ONLY. No Hugging Face Space is required for this desk.</pre>
     </section>
   </div>
+  <section class="panel" id="ais-panel" hidden>
+    <h2>Maritime AIS standards · CITATION_ONLY</h2>
+    <p>This desk is not Class A or Class B shipborne AIS equipment. It does not transmit. Licensed AIS stays CLOSED without a live key. Citing the instruments names the gate. It does not claim type approval, SOLAS V/19 carriage, AtoN service, or a licensed-AIS true-positive rate. VESSELS-E03 stays OUTSTANDING. Proof: <a href="https://a11oy.net/vessels/ais-standards.json">a11oy.net/vessels/ais-standards.json</a>.</p>
+    <div id="ais"></div>
+  </section>
   <footer>
     Status ROADMAP. Data label SAMPLE. Formula authority NONE. Λ = Conjecture 1 / advisory.
-    Licensed AIS CLOSED. Production ready false.
+    Licensed AIS CLOSED. AIS standards CITATION_ONLY. Production ready false.
     Not legal advice. Not investment advice. Not a trading bot. Not a Palantir clone.
     Canonical source: szl-holdings/a11oy/verticals.
     Proof: <a href="https://a11oy.net/decision/">a11oy.net/decision</a>.
+    Vessels AIS: <a href="https://a11oy.net/vessels/ais-standards.json">a11oy.net/vessels/ais-standards.json</a>.
     Product: a-11-oy.com. Never a11oy.com.
   </footer>
 </main>
@@ -130,6 +139,8 @@ const vtitle = document.getElementById("vtitle");
 const vwedge = document.getElementById("vwedge");
 const primary = document.getElementById("primary");
 const rail = document.getElementById("rail");
+const aisPanel = document.getElementById("ais-panel");
+const aisEl = document.getElementById("ais");
 let current = "aegis";
 let selected = null;
 
@@ -170,6 +181,7 @@ async function boot() {
     chip(cat.status || "ROADMAP"),
     chip("formula authority NONE", "mute"),
     chip("licensed AIS CLOSED", "mute"),
+    chip("AIS standards CITATION_ONLY", "mute"),
     chip((cat.verticals || []).length + " desks", "mute")
   );
   tabs.replaceChildren();
@@ -185,6 +197,31 @@ async function boot() {
   if (first) show(first.dataset.id, first, false);
 }
 
+function renderAis(data) {
+  const std = data && data.ais_standards;
+  if (!std) {
+    aisPanel.hidden = true;
+    aisEl.replaceChildren();
+    return;
+  }
+  aisPanel.hidden = false;
+  const table = document.createElement("table");
+  (std.instruments || []).forEach((row) => {
+    const tr = document.createElement("tr");
+    const id = typeof row === "string" ? row : (row && row.id) || "";
+    const title = typeof row === "string" ? "" : (row && row.title) || "";
+    const bound = typeof row === "string" ? "CITATION_ONLY" : (row && row.bound) || "CITATION_ONLY";
+    const cells = [id, title, bound];
+    cells.forEach((text) => {
+      const td = document.createElement("td");
+      td.textContent = text;
+      tr.appendChild(td);
+    });
+    table.appendChild(tr);
+  });
+  aisEl.replaceChildren(table);
+}
+
 async function show(id, btn, push) {
   current = id;
   selected = null;
@@ -193,6 +230,7 @@ async function show(id, btn, push) {
   const data = await fetch("/api/a11oy/v1/decision/" + encodeURIComponent(id)).then((r) => r.json());
   vtitle.textContent = data.display_name || id;
   vwedge.textContent = data.wedge || "";
+  renderAis(data);
   casesEl.replaceChildren();
   (data.cases || []).forEach((item) => {
     const b = document.createElement("button");
