@@ -25,7 +25,7 @@ from typing import Any
 from huggingface_hub import HfApi
 
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
-SOURCE_REVISION = "9af99c9fa92fe4bd2f5f3f7e61f4521eb692d2a7"
+SOURCE_REVISION = "dd17d9f524b76c8f0e260d7ec1e084cc079dfc43"
 EXPECTED_VERSION = "4.0.0"
 HF_REPOSITORY = "SZLHOLDINGS/lyte"
 ORIGIN = "https://szlholdings-lyte.hf.space"
