@@ -662,9 +662,34 @@ def harden(app: Any, organ: str, ns: Optional[str] = None,
     @app.get(f"{base}/healthz", tags=["health"])
     @app.get("/healthz", tags=["health"])
     async def _healthz():
-        return {"status": "ok", "organ": organ, "doctrine": DOCTRINE,
-                "lock": "749/14/163", "commit": "c7c0ba17",
-                "signer": dict(_SIGNER_ABSENT)}
+        live = {
+            "status": "UNKNOWN",
+            "signing_available": False,
+            "scheme": "UNAVAILABLE",
+            "mint": "POST /api/a11oy/khipu/sign",
+            "rollup": "/api/a11oy/healthz",
+            "pubkey": "/cosign.pub",
+        }
+        try:
+            import szl_dsse as _dsse
+            avail = bool(_dsse.signing_available())
+            live.update({
+                "status": "DSSE-LIVE" if avail else "ABSENT",
+                "signing_available": avail,
+                "scheme": "DSSEv1 / ECDSA-P256" if avail else "UNAVAILABLE",
+                "public_key_fingerprint": _dsse.public_key_fingerprint(),
+            })
+        except Exception as exc:  # noqa: BLE001
+            live["error"] = type(exc).__name__
+        return {
+            "status": "ok",
+            "organ": organ,
+            "doctrine": DOCTRINE,
+            "lock": "749/14/163",
+            "commit": "c7c0ba17",
+            "signer": dict(_SIGNER_ABSENT),
+            "dsse_live": live,
+        }
 
     @app.get(f"{base}/readyz", tags=["health"])
     @app.get("/readyz", tags=["health"])
