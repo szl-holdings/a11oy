@@ -21,7 +21,7 @@ import os
 from pathlib import Path
 import re
 import time
-from typing import Any, Iterable, Mapping, Sequence
+from typing import Any, Callable, Iterable, Mapping, Sequence
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -42,6 +42,14 @@ SOURCE_KEYS = (
     "commit_sha",
     "revision",
 )
+INVENTORY_KINDS = ("models", "datasets", "spaces")
+MAX_INVENTORY_PAGES = 20
+MAX_INVENTORY_ITEMS = 2_000
+MAX_INVENTORY_SECONDS = 90
+REPO_ID_RE = re.compile(
+    r"^[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$"
+)
+ORG_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
 
 class AlignmentError(RuntimeError):
@@ -148,6 +156,7 @@ def fetch(
                     "json": decoded,
                     "text": text if decoded is None else None,
                     "redirect": None,
+                    "link": response.headers.get("Link"),
                 }
         except urllib.error.HTTPError as exc:
             last_error = exc
@@ -161,6 +170,7 @@ def fetch(
                     "json": None,
                     "text": None,
                     "redirect": exc.headers.get("Location"),
+                    "link": None,
                 }
             if exc.code not in RETRYABLE or attempt + 1 == attempts:
                 body = exc.read(4096)
@@ -173,6 +183,7 @@ def fetch(
                     "json": None,
                     "text": body.decode("utf-8", "replace")[:500],
                     "redirect": None,
+                    "link": None,
                 }
         except (urllib.error.URLError, ConnectionError, TimeoutError) as exc:
             last_error = exc
@@ -189,6 +200,7 @@ def fetch(
         "json": None,
         "text": None,
         "redirect": None,
+        "link": None,
         "error": f"{type(last_error).__name__}: {last_error}",
     }
 
@@ -253,32 +265,156 @@ def hf_space(repo_id: str) -> dict[str, Any]:
     }
 
 
-def hf_inventory(org: str) -> dict[str, Any]:
-    result: dict[str, Any] = {"organization": org, "counts": {}, "items": {}}
-    for kind in ("models", "datasets", "spaces"):
-        query = urllib.parse.urlencode(
-            {"author": org, "limit": 100, "full": "true"}
+def _inventory_error(code: str) -> AlignmentError:
+    return AlignmentError(code)
+
+
+def _validate_inventory_url(url: str, org: str, kind: str) -> None:
+    parsed = urllib.parse.urlsplit(url)
+    query = urllib.parse.parse_qs(parsed.query, keep_blank_values=True)
+    if (
+        parsed.scheme != "https"
+        or parsed.netloc != "huggingface.co"
+        or parsed.path != f"/api/{kind}"
+        or parsed.fragment
+        or parsed.username
+        or parsed.password
+        or set(query) - {"author", "limit", "full", "cursor"}
+        or query.get("author") != [org]
+        or query.get("limit") != ["100"]
+        or query.get("full") != ["true"]
+        or (
+            "cursor" in query
+            and (len(query["cursor"]) != 1 or not query["cursor"][0])
         )
-        response = fetch(
-            f"https://huggingface.co/api/{kind}?{query}",
-            huggingface=True,
+    ):
+        raise _inventory_error("UNSAFE_OR_CHANGED_PAGINATION_SCOPE")
+
+
+def _inventory_next_url(link: Any, org: str, kind: str) -> str | None:
+    if link is None or link == "":
+        return None
+    if not isinstance(link, str) or len(link) > 16_384:
+        raise _inventory_error("MALFORMED_LINK_HEADER")
+    found: list[str] = []
+    for field in link.split(","):
+        match = re.fullmatch(r'\s*<([^<>]+)>\s*;\s*rel="([a-z ]+)"\s*', field)
+        if not match:
+            raise _inventory_error("MALFORMED_LINK_HEADER")
+        target, relations = match.groups()
+        if "next" in relations.split():
+            _validate_inventory_url(target, org, kind)
+            found.append(target)
+    if len(found) > 1:
+        raise _inventory_error("MULTIPLE_NEXT_LINKS")
+    return found[0] if found else None
+
+
+def hf_inventory(
+    org: str,
+    fetch_fn: Callable[..., dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    """Paginated Hub listing. A malformed 200 is UNAVAILABLE, never an observed zero.
+
+    A reached page/item/time cap is PARTIAL, not completion. Duplicate IDs,
+    foreign namespaces and non-list bodies fail closed. This listing is not
+    authenticated whole-organization membership.
+    """
+    getter = fetch if fetch_fn is None else fetch_fn
+    result: dict[str, Any] = {
+        "organization": org,
+        "counts": {},
+        "items": {},
+        "page_evidence": {},
+        "errors": {},
+        "enumeration_state": {},
+        "observed": False,
+        "membership_class": "PAGINATED_LISTING_NOT_AUTHENTICATED_ORG_CENSUS",
+    }
+    if not isinstance(org, str) or not ORG_RE.fullmatch(org):
+        result["errors"]["_org"] = "INVALID_ORGANIZATION"
+        result["observed"] = False
+        return result
+    started = time.monotonic()
+    for kind in INVENTORY_KINDS:
+        url = (
+            f"https://huggingface.co/api/{kind}?"
+            f"{urllib.parse.urlencode({'author': org, 'limit': 100, 'full': 'true'})}"
         )
-        payload = response.get("json")
-        rows = payload if isinstance(payload, list) else []
-        result["counts"][kind] = len(rows) if response.get("status") == 200 else None
-        result["items"][kind] = [
-            {
-                "id": row.get("id"),
-                "sha": row.get("sha"),
-                "last_modified": row.get("lastModified"),
-                "private": row.get("private"),
-            }
-            for row in rows
-            if isinstance(row, Mapping)
-        ]
+        seen_urls: set[str] = set()
+        members: dict[str, dict[str, Any]] = {}
+        pages: list[dict[str, Any]] = []
+        state = "UNAVAILABLE"
+        try:
+            while url is not None:
+                if time.monotonic() - started > MAX_INVENTORY_SECONDS:
+                    raise _inventory_error("INVENTORY_TIME_BUDGET")
+                _validate_inventory_url(url, org, kind)
+                if url in seen_urls:
+                    raise _inventory_error("PAGINATION_CYCLE")
+                if len(seen_urls) >= MAX_INVENTORY_PAGES:
+                    raise _inventory_error("PAGE_BUDGET")
+                seen_urls.add(url)
+                try:
+                    response = getter(url, huggingface=True)
+                except TypeError:
+                    response = getter(url)
+                if response.get("status") != 200:
+                    raise _inventory_error("HTTP_UNAVAILABLE")
+                rows = response.get("json")
+                if not isinstance(rows, list):
+                    raise _inventory_error("INVALID_LIST_RESPONSE")
+                if len(rows) > 100:
+                    raise _inventory_error("PAGE_OVERFLOW")
+                for row in rows:
+                    if not isinstance(row, Mapping):
+                        raise _inventory_error("MALFORMED_REPOSITORY_ROW")
+                    name = row.get("id")
+                    if (
+                        not isinstance(name, str)
+                        or not REPO_ID_RE.fullmatch(name)
+                        or name.split("/", 1)[0] != org
+                    ):
+                        raise _inventory_error("FOREIGN_OR_MALFORMED_ID")
+                    if name in members:
+                        raise _inventory_error("DUPLICATE_ID")
+                    members[name] = {
+                        "id": name,
+                        "sha": row.get("sha"),
+                        "last_modified": row.get("lastModified"),
+                        "private": row.get("private"),
+                    }
+                if len(members) > MAX_INVENTORY_ITEMS:
+                    raise _inventory_error("ITEM_BUDGET")
+                continuation = _inventory_next_url(response.get("link"), org, kind)
+                if continuation and not rows:
+                    raise _inventory_error("EMPTY_CONTINUATION_PAGE")
+                pages.append(
+                    {
+                        "index": len(pages) + 1,
+                        "count": len(rows),
+                        "response_sha256": response.get("sha256"),
+                        "has_next": continuation is not None,
+                    }
+                )
+                url = continuation
+            state = "COMPLETE"
+            result["items"][kind] = [members[name] for name in sorted(members)]
+            result["counts"][kind] = len(members)
+        except AlignmentError as exc:
+            message = str(exc)
+            if message in {"PAGE_BUDGET", "ITEM_BUDGET", "INVENTORY_TIME_BUDGET"}:
+                state = "PARTIAL"
+            else:
+                state = "UNAVAILABLE"
+            result["counts"][kind] = None
+            result["items"][kind] = []
+            result["errors"][kind] = message
+        result["page_evidence"][kind] = pages
+        result["enumeration_state"][kind] = state
     result["observed"] = all(
-        isinstance(result["counts"].get(kind), int)
-        for kind in ("models", "datasets", "spaces")
+        result["enumeration_state"].get(kind) == "COMPLETE"
+        for kind in INVENTORY_KINDS
     )
     return result
 
@@ -291,51 +427,107 @@ def _candidate_revision(value: Any) -> str | None:
 
 
 def extract_source_revision(payload: Any) -> tuple[str | None, str | None]:
-    """Extract only recognized source-identity fields from a bounded JSON object."""
+    """Collect recognized source-identity fields. Conflicts and invalid aliases fail closed.
+
+    A producer Git commit, Hub repository commit, image digest and runtime
+    environment declaration remain different objects. This helper only extracts
+    SHA-40 Git-like source aliases; it does not compare them to image digests.
+    """
     if not isinstance(payload, Mapping):
         return None, None
-    for key in SOURCE_KEYS:
-        candidate = _candidate_revision(payload.get(key))
-        if candidate:
-            return candidate, key
+    observed: list[tuple[str, str]] = []
+    invalid = False
+
+    def consider(container: Mapping[str, Any], prefix: str) -> None:
+        nonlocal invalid
+        for key in SOURCE_KEYS:
+            if key not in container:
+                continue
+            value = container.get(key)
+            if value is None:
+                continue
+            candidate = _candidate_revision(value)
+            if candidate is None:
+                invalid = True
+                return
+            observed.append((candidate, f"{prefix}{key}"))
+
+    consider(payload, "")
+    if invalid:
+        return None, "INVALID"
     for parent_key in ("build", "source", "git", "deployment", "release"):
         child = payload.get(parent_key)
         if not isinstance(child, Mapping):
             continue
-        for key in SOURCE_KEYS:
-            candidate = _candidate_revision(child.get(key))
-            if candidate:
-                return candidate, f"{parent_key}.{key}"
-    return None, None
+        consider(child, f"{parent_key}.")
+        if invalid:
+            return None, "INVALID"
+    if not observed:
+        return None, None
+    shas = {sha for sha, _ in observed}
+    if len(shas) != 1:
+        return None, "CONFLICT"
+    return observed[0][0], observed[0][1]
 
 
 def probe_source(origin: str, paths: Sequence[str]) -> dict[str, Any]:
+    """Observe every declared identity endpoint. First-success ordering cannot hide conflict."""
     observations: list[dict[str, Any]] = []
+    found: list[tuple[str, str, str]] = []
+    identity_state = "UNAVAILABLE"
     for path in paths:
         response = fetch(origin.rstrip("/") + path)
         revision, field = extract_source_revision(response.get("json"))
-        row = {
-            "path": path,
-            "status": response.get("status"),
-            "sha256": response.get("sha256"),
-            "revision": revision,
-            "revision_field": field,
-            "redirect": response.get("redirect"),
-        }
-        observations.append(row)
-        if revision:
-            return {
-                "observed": True,
+        observations.append(
+            {
+                "path": path,
+                "status": response.get("status"),
+                "sha256": response.get("sha256"),
                 "revision": revision,
                 "revision_field": field,
-                "selected_path": path,
-                "observations": observations,
+                "redirect": response.get("redirect"),
             }
+        )
+        if field in {"INVALID", "CONFLICT"}:
+            identity_state = field
+            continue
+        if response.get("status") == 200 and revision:
+            found.append((revision, field or "unknown", path))
+    if identity_state in {"INVALID", "CONFLICT"}:
+        return {
+            "observed": False,
+            "revision": None,
+            "revision_field": identity_state,
+            "selected_path": None,
+            "identity_state": identity_state,
+            "observations": observations,
+        }
+    if not found:
+        return {
+            "observed": False,
+            "revision": None,
+            "revision_field": None,
+            "selected_path": None,
+            "identity_state": "UNAVAILABLE",
+            "observations": observations,
+        }
+    shas = {item[0] for item in found}
+    if len(shas) != 1:
+        return {
+            "observed": False,
+            "revision": None,
+            "revision_field": "ENDPOINT_DISAGREEMENT",
+            "selected_path": None,
+            "identity_state": "ENDPOINT_DISAGREEMENT",
+            "observations": observations,
+        }
+    revision, field, path = found[0]
     return {
-        "observed": False,
-        "revision": None,
-        "revision_field": None,
-        "selected_path": None,
+        "observed": True,
+        "revision": revision,
+        "revision_field": field,
+        "selected_path": path,
+        "identity_state": "OBSERVED",
         "observations": observations,
     }
 
@@ -434,7 +626,11 @@ def inspect_component(component: Mapping[str, Any], paths: Sequence[str]) -> dic
     if root.get("status") != 200:
         blockers.append(f"ROOT_HTTP_{root.get('status')}")
     if not runtime.get("observed"):
-        blockers.append("SOURCE_WITNESS_UNAVAILABLE")
+        state = str(runtime.get("identity_state") or "UNAVAILABLE")
+        if state in {"CONFLICT", "INVALID", "ENDPOINT_DISAGREEMENT"}:
+            blockers.append(f"SOURCE_WITNESS_{state}")
+        else:
+            blockers.append("SOURCE_WITNESS_UNAVAILABLE")
     elif expected != observed:
         blockers.append("SOURCE_REVISION_MISMATCH")
     return {
@@ -469,6 +665,13 @@ def profile_inventory_contract(
     if match:
         declared = {key: int(value) for key, value in match.groupdict().items()}
     actual = inventory.get("counts") if isinstance(inventory, Mapping) else None
+    enumeration = (
+        inventory.get("enumeration_state") if isinstance(inventory, Mapping) else None
+    )
+    enumeration_complete = enumeration is None or (
+        isinstance(enumeration, Mapping)
+        and all(enumeration.get(kind) == "COMPLETE" for kind in INVENTORY_KINDS)
+    )
 
     manifest = None
     if a11oy_sha:
@@ -485,16 +688,24 @@ def profile_inventory_contract(
         and declared
         and actual
         and manifest
+        and enumeration_complete
         and declared == actual == manifest
     )
+    blockers: list[str] = []
+    if not aligned:
+        if enumeration is not None and not enumeration_complete:
+            blockers.append("HF_INVENTORY_ENUMERATION_INCOMPLETE_OR_UNAVAILABLE")
+        else:
+            blockers.append("HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE")
     return {
         "profile_repository": repository,
         "profile_sha": head.get("sha"),
         "declared_counts": declared,
         "manifest_counts": manifest,
         "observed_counts": actual,
+        "enumeration_state": enumeration,
         "aligned": aligned,
-        "blockers": [] if aligned else ["HF_INVENTORY_COUNT_MISMATCH_OR_UNAVAILABLE"],
+        "blockers": blockers,
     }
 
 
@@ -519,20 +730,23 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
         pages_sha = _candidate_revision(commit)
         pages_status = pages_json.get("status")
 
-    exact_witness = health_revision or pages_sha
+    exact_pages = pages_sha if pages_status == "built" else None
     aligned = bool(
         source.get("observed")
         and root.get("status") == 200
-        and exact_witness == source.get("sha")
-        and (pages_status in {None, "built"})
+        and exact_pages == source.get("sha")
     )
     blockers: list[str] = []
     if root.get("status") != 200:
         blockers.append(f"PROOF_ROOT_HTTP_{root.get('status')}")
-    if not exact_witness:
-        blockers.append("PROOF_SOURCE_WITNESS_UNAVAILABLE")
-    elif exact_witness != source.get("sha"):
-        blockers.append("PROOF_SOURCE_REVISION_MISMATCH")
+    if pages_status not in {None, "built"}:
+        blockers.append(f"PROOF_PAGES_STATUS_{pages_status}")
+    if not exact_pages:
+        blockers.append("PROOF_PAGES_REVISION_UNAVAILABLE")
+    elif exact_pages != source.get("sha"):
+        blockers.append("PROOF_PAGES_REVISION_MISMATCH")
+    if health_field in {"INVALID", "CONFLICT"}:
+        blockers.append(f"PROOF_HEALTH_DOCUMENT_{health_field}")
     return {
         "source": source,
         "origin": origin,
@@ -540,6 +754,7 @@ def proof_contract(config: Mapping[str, Any]) -> dict[str, Any]:
         "health_status": health.get("status"),
         "health_revision": health_revision,
         "health_revision_field": health_field,
+        "health_is_not_pages_deployment": True,
         "pages_status": pages.get("status"),
         "pages_build_status": pages_status,
         "pages_revision": pages_sha,
