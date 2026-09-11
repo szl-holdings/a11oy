@@ -23,7 +23,11 @@
   }
 
   var sha = $("fw-main-sha");
-  if (sha) sha.textContent = "";
+  if (sha) {
+    sha.id = "fw-main-sha-retired";
+    sha.textContent = "";
+    sha.setAttribute("hidden", "hidden");
+  }
 
   get("/api/a11oy/v1/honest").then(function (honest) {
     if (!honest) return;
@@ -32,14 +36,15 @@
     var state = str(lock.state);
     if (doctrine) txt("nv-doctrine", state ? (doctrine + " " + state) : doctrine);
     var n = lock.locked_formula_count || honest.locked_formula_count;
-    if (n) txt("nv-kernel", n + " locked");
+    if (n === 8) txt("nv-kernel", "locked-8");
+    else if (n) txt("nv-kernel", n + " locked");
     else txt("nv-kernel", "locked-8");
     var organ = str(honest.organ) || str(honest.service);
     var svc = $("nv-service");
     if (organ && svc && svc.textContent === "UNAVAILABLE") txt("nv-service", organ);
     var st = $("nv-state");
     if (st && /UNAVAILABLE|reading/.test(st.textContent || "")) {
-      st.textContent = "read live · honest";
+      st.textContent = "read live \u00b7 honest";
     }
     var panel = $("nv-panel");
     if (panel) panel.classList.add("is-live");
