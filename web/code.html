@@ -126,6 +126,26 @@ hr{border:0;border-top:1px solid var(--gold-line);margin:14px 0;}
     <span class="badge">Doctrine v11 LOCKED 749/14/163</span>
   </div>
 
+  <div class="panel" id="routerFlagship">
+    <h2>SZL Router — source authority</h2>
+    <p class="sub" style="margin:0 0 10px">SZL Router is the canonical source-owned inference gateway. A11oy provides the integrated operator and governance interface. A11oy does not replace the Router source.</p>
+    <div class="kv">
+      <span>source <b>szl-holdings/szl-router</b></span>
+      <span>projection <b>SZLHOLDINGS/llm-router-live</b></span>
+      <span>proof <b>a11oy.net/proof/router</b></span>
+    </div>
+    <div class="kv" id="routerLive">
+      <span>status surface <b id="routerStatus">probing</b></span>
+      <span>inference fabric <b id="routerInference">probing</b></span>
+      <span>source SHA <b class="mono" id="routerSha">probing</b></span>
+    </div>
+    <p class="note">
+      <a href="https://github.com/szl-holdings/szl-router">GitHub source</a>
+      · <a href="https://huggingface.co/spaces/SZLHOLDINGS/llm-router-live">Public Space</a>
+      · <a href="https://a11oy.net/proof/router/">Proof record</a>
+    </p>
+  </div>
+
   <div class="panel">
     <h2>1 · Describe the task</h2>
     <label for="task">Task (what should the governed loop do?)</label>
@@ -253,6 +273,29 @@ function setBadge(id, text, cls){
   const el = document.getElementById(id); if(!el) return;
   el.textContent = text; el.className = "badge" + (cls ? " "+cls : "");
 }
+
+async function probeRouter(){
+  const statusEl = document.getElementById("routerStatus");
+  const infEl = document.getElementById("routerInference");
+  const shaEl = document.getElementById("routerSha");
+  try{
+    const r = await fetch("https://szlholdings-llm-router-live.hf.space/.well-known/szl-source.json", {
+      method: "GET",
+      headers: { "Accept": "application/json" }
+    });
+    if(!r.ok) throw new Error("status");
+    const j = await r.json();
+    const commit = (j.source && j.source.commit) || "UNAVAILABLE";
+    if(statusEl) statusEl.textContent = j.transport_state || "NOT_VERIFIED";
+    if(shaEl) shaEl.textContent = String(commit).slice(0,12);
+    if(infEl) infEl.textContent = "OFFLINE_UNTIL_KEYED";
+  }catch(e){
+    if(statusEl) statusEl.textContent = "NOT_VERIFIED";
+    if(infEl) infEl.textContent = "NOT_VERIFIED";
+    if(shaEl) shaEl.textContent = "UNAVAILABLE";
+  }
+}
+
 
 // ---- build plan, then render step cards ready to run ----------------------
 async function doPlan(){
@@ -471,7 +514,9 @@ function showErr(m){ const e=document.getElementById("err"); e.style.display="bl
 function hideErr(){ document.getElementById("err").style.display="none"; }
 
 probe();
+probeRouter();
 loadProfiles();
+
 </script>
   <script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>
   <script src="/assets/szl-holo-v2.js" defer data-szl-holo-asset="script-v2"></script>
