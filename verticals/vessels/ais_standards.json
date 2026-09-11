@@ -1,0 +1,48 @@
+{
+  "schema": "szl.vessels-ais-standards/v8",
+  "surface": "https://a-11-oy.com/api/a11oy/v1/decision/vessels",
+  "parent": "https://a-11-oy.com/vessels",
+  "product_desk": "https://a-11-oy.com/vessels",
+  "proof_surface": "https://a11oy.net/vessels/ais-standards.json",
+  "status": "ROADMAP",
+  "data_label": "SAMPLE",
+  "formula_authority": "NONE",
+  "lambda": "Conjecture 1 / ADVISORY_CONJECTURAL",
+  "kernel_version": "8.0.0",
+  "kernel_run_here": true,
+  "honesty": "CITATION_ONLY. This product desk is not Class A or Class B shipborne AIS equipment. It does not transmit on AIS1/AIS2. It does not hold a licensed AIS subscription. Citing the standards names the gate. It does not claim measured conformance, type approval, or a licensed-AIS true-positive rate.",
+  "ais_equipment_class": "NONE",
+  "ais_transmit": false,
+  "licensed_ais_admitted": false,
+  "licensed_ais_queries": 0,
+  "solas_v19_applies": false,
+  "aton_provider": false,
+  "vhf_data_link_occupied": false,
+  "public_web_aggregator_is_not_licensed_shipborne_ais": true,
+  "vessels_e03_licensed_ais_tpr": "OUTSTANDING",
+  "stamps_live": false,
+  "fail_closed": {
+    "licensed_ais_query": "DENIED / PROHIBITED_ACTION",
+    "stale_or_missing_source": "ABSTAINED / STALE_OR_UNAVAILABLE_SOURCE",
+    "no_live_key": "licensed_ais_admitted false",
+    "eval": "VESSELS-E-DENY-AIS"
+  },
+  "instruments": [
+    {"id": "ITU-R M.1371", "title": "Technical characteristics for a universal shipborne automatic identification system using time division multiple access in the VHF maritime mobile band", "bound": "CITATION_ONLY", "note": "No VHF radio. No TDMA slot map. No MMSI station."},
+    {"id": "IEC 61993-2:2018", "title": "Class A shipborne equipment of the automatic identification system — operational and performance requirements, methods of test and required test results", "bound": "CITATION_ONLY", "note": "This origin is not Class A equipment. Not a test laboratory."},
+    {"id": "IMO MSC.74(69) Annex 3", "title": "Recommendation on performance standards for a universal shipborne automatic identification system (AIS)", "bound": "CITATION_ONLY", "note": "Not type-approved equipment."},
+    {"id": "IMO A.1106(29)", "title": "Revised guidelines for the onboard operational use of shipborne automatic identification systems (AIS)", "bound": "CITATION_ONLY", "note": "AIS is an aid with limits. No bridge watch on this desk."},
+    {"id": "IMO MSC.347(91)", "title": "Recommendation for the protection of the AIS VHF data link", "bound": "CITATION_ONLY", "note": "We do not transmit. Queries = 0."},
+    {"id": "SOLAS V/19", "title": "Carriage requirements for shipborne navigational systems and equipment", "bound": "CITATION_ONLY", "note": "Does not apply to this software desk. solas_v19_applies false."},
+    {"id": "IALA G1082 Ed 2.1", "title": "An overview of AIS", "bound": "CITATION_ONLY", "note": "Shore-authority overview, June 2016. Not an AtoN service manual."},
+    {"id": "IALA A-126", "title": "The use of the Automatic Identification System (AIS) in Marine Aids to Navigation Services", "bound": "CITATION_ONLY", "note": "This origin is not an AtoN provider."}
+  ],
+  "boundaries": {
+    "stamps_live": false,
+    "licensed_ais_admitted": false,
+    "formula_grants_authority": false,
+    "fifth_flagship": false,
+    "lambda_uniqueness": "Conjecture 1 OPEN",
+    "never": "a11oy.com"
+  }
+}
