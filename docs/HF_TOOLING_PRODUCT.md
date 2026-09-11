@@ -31,7 +31,8 @@ removed from the view on any failed refresh. No ZIP is fetched on a public GET.
 for Hub, Transformers, Accelerate, TRL and tau-ai. The handler neither imports nor
 installs these libraries. `VERSION_MATCH_ONLY` is not exact-source verification;
 `VERSION_DIFFERS`, `NOT_INSTALLED` and `UNAVAILABLE` remain visible. The product
-source SHA is reported from the runtime's existing identity variable, not inferred
+source SHA is reported from canonical `SZL_GIT_SHA` and compatible `A11OY_GIT_SHA`
+metadata, with conflicts exposed rather than silently selecting a revision, not inferred
 from the archived Forge source. A missing SHA remains null.
 
 A package not installed in A11oy does not invalidate its historical Forge
@@ -50,7 +51,9 @@ Same-origin CSS/JavaScript under an explicit CSP; no third-party scripts, inline
 script policy, `innerHTML`, local storage or dynamic external destinations. The
 page offers keyboard-operable filters and native detail disclosure, reduced-motion
 and high-contrast support, narrow mobile layout, explicit loading/error states and
-raw evidence links. Refresh observes; it does not dispatch evaluation or training.
+raw evidence links. The page includes the existing local Flow Shell and its five
+journeys, rather than bypassing the estate navigation contract. Refresh observes;
+it does not dispatch evaluation or training.
 
 ## Verification
 
@@ -61,9 +64,12 @@ python scripts/test_hf_tooling_browser.py
 ```
 
 The dedicated read-only workflow runs the real Python HTTP application and browser
-together at 320×568, 375×812, 768×1024 and 1440×900. Success uses the actual local
+together, loading the real shared Flow Shell assets from `console/assets`, at 320×568, 375×812, 768×1024 and 1440×900. Success uses the actual local
 API; a simulated 503 is used only to test removal of stale successes and recovery.
-Captures and a source/file-bound JSON test report are retained as GitHub artifacts.
+Shared mobile navigation is exercised by keyboard, including Escape-to-close.
+Loaded-page captures and overflow diagnostics are saved before assertions, so
+failures preserve useful evidence. A source/file-bound JSON report is written only
+after all assertions pass. Artifacts are retained in GitHub Actions.
 This local-application browser test is not a production deployment witness.
 
 The initial development container blocked browser access to loopback by policy.

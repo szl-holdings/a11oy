@@ -154,6 +154,23 @@ def installed_packages() -> list[dict[str, Any]]:
     return rows
 
 
+def runtime_source() -> tuple[str | None, str]:
+    """Read the canonical publisher identity; conflicting aliases stay unknown.
+
+    hf-sync.yml publishes SZL_GIT_SHA. Older image builds can also carry
+    A11OY_GIT_SHA. Do not silently choose one when both report different sources.
+    """
+    values = {os.environ.get(key, "").strip() for key in ("SZL_GIT_SHA", "A11OY_GIT_SHA")}
+    values.discard("")
+    if not values:
+        return None, "UNAVAILABLE"
+    if not all(re.fullmatch(r"[0-9a-f]{40}", value) for value in values):
+        return None, "INVALID"
+    if len(values) != 1:
+        return None, "CONFLICT"
+    return values.pop(), "REPORTED"
+
+
 def project(bundle: dict[str, Any]) -> dict[str, Any]:
     lanes = []
     for row in bundle["rows"]:
@@ -164,13 +181,13 @@ def project(bundle: dict[str, Any]) -> dict[str, Any]:
                       "checks": report["checks"], "remaining": list(report["remainingEvaluation"]),
                       "receiptSha256": report["reportSha256"], "archiveSha256": row["archiveSha256"],
                       "artifactId": row["artifactId"]})
-    revision = os.environ.get("A11OY_GIT_SHA", "")
+    revision, source_state = runtime_source()
     return {"schema": SCHEMA, "available": True, "kind": "ARCHIVED_MEASUREMENT",
             "authorityChain": CHAIN, "archiveSha256": BUNDLE_SHA256,
             "sourceRepository": FORGE_REPOSITORY, "sourceRevision": FORGE_SOURCE,
             "workflowRun": WORKFLOW_RUN, "signatureState": "UNSIGNED", "lanes": lanes,
             "runtime": {"observedAt": datetime.now(timezone.utc).isoformat(),
-                        "productSourceRevision": revision if re.fullmatch(r"[0-9a-f]{40}", revision) else None,
+                        "productSourceRevision": revision, "productSourceState": source_state,
                         "packages": installed_packages(), "sourceBinding": "RUNTIME_REPORTED_NOT_INDEPENDENTLY_ATTESTED"},
             "productionDisposition": "HOLD", "authority": AUTHORITY,
             "bounds": ["Archived smoke tests, not a live model-quality or uptime measurement.",

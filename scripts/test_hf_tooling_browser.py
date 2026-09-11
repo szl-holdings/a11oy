@@ -13,6 +13,7 @@ from pathlib import Path
 
 import uvicorn
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,6 +24,9 @@ from routers.hf_tooling_evidence import BUNDLE_SHA256, FORGE_SOURCE, register
 def main() -> None:
     app = FastAPI()
     register(app)
+    # Match production /assets/* using the actual existing source assets.
+    # No new production writer or second copy of the shared flow shell.
+    app.mount("/assets", StaticFiles(directory=ROOT / "console" / "assets"), name="assets")
     # Reserve the listening socket before starting the server to avoid port races.
     listener = socket.socket()
     listener.bind(('127.0.0.1', 0))
@@ -52,12 +56,30 @@ def main() -> None:
                 context = browser.new_context(viewport={'width': width, 'height': height}, reduced_motion='reduce')
                 page = context.new_page()
                 page.on('pageerror', lambda error: errors.append(str(error)))
+                assets = {}
+                page.on('response', lambda response: assets.update({response.url.split('/')[-1]: response.status})
+                        if '/assets/szl-' in response.url else None)
                 page.goto(f'http://127.0.0.1:{port}/frontier-tooling', wait_until='networkidle')
                 page.locator('#content').wait_for(state='visible')
+                page.locator('.szl-flow-rail').wait_for(state='visible')
+                assert all(assets.get(name) == 200 for name in ('szl-flow.js', 'szl-flow.css', 'szl-spectral-v2.css')), assets
+                assert page.locator('.szl-flow-link').count() == 5
+                if width <= 820:
+                    toggle = page.get_by_role('button', name='Open journey navigation')
+                    toggle.focus()
+                    page.keyboard.press('Enter')
+                    assert toggle.get_attribute('aria-expanded') == 'true'
+                    assert page.get_by_role('link', name='Products & Demos', exact=True).is_visible()
+                    page.keyboard.press('Escape')
+                    assert toggle.get_attribute('aria-expanded') == 'false'
                 assert page.locator('.lane').count() == 4
                 assert page.locator('.package').count() == 5
                 assert page.locator('#status').inner_text() == 'Archive verified · process metadata observed'
-                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), 'Horizontal overflow'
+                page.screenshot(path=str(output / f'loaded-{width}.png'), full_page=True)
+                overflow = page.evaluate("""[...document.body.querySelectorAll('*')].map(el => ({tag:el.tagName,
+                    className:el.className, right:el.getBoundingClientRect().right})).filter(row => row.right > innerWidth)""")
+                (output / f'layout-{width}.json').write_text(json.dumps(overflow, indent=2))
+                assert page.evaluate('document.documentElement.scrollWidth <= innerWidth'), f'Horizontal overflow: {overflow}'
                 assert page.locator('.orbit div').first.evaluate('(el) => getComputedStyle(el).animationName') == 'none'
                 page.get_by_role('button', name='Memory', exact=True).click()
                 assert page.locator('.lane').count() == 1
@@ -84,7 +106,8 @@ def main() -> None:
                 assert page.locator('.lane').count() == 4
                 observations.append({'width': width, 'height': height, 'horizontalOverflow': False,
                     'livePythonApi': True, 'keyboardControls': 'PASS', 'filter': 'PASS',
-                    'reducedMotion': 'PASS', 'failedRefreshClearsSuccess': 'PASS'})
+                    'reducedMotion': 'PASS', 'failedRefreshClearsSuccess': 'PASS',
+                    'sharedFlowShell': 'PASS', 'sharedAssetStatus': assets})
                 context.close()
             browser.close()
         assert not errors, errors
@@ -97,7 +120,8 @@ def main() -> None:
             'forgeEvaluationSource': FORGE_SOURCE, 'archiveSha256': BUNDLE_SHA256,
             'observations': observations, 'pageErrors': errors,
             'fileSha256': {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in
-               ('routers/hf_tooling_evidence.py', 'pages/hf-tooling.html', 'pages/hf-tooling.js', 'pages/hf-tooling.css')}}
+               ('routers/hf_tooling_evidence.py', 'pages/hf-tooling.html', 'pages/hf-tooling.js', 'pages/hf-tooling.css',
+                'console/assets/szl-flow.js', 'console/assets/szl-flow.css', 'console/assets/szl-spectral-v2.css')}}
         (output / 'browser-report.json').write_text(json.dumps(report, indent=2) + '\n')
         print(json.dumps(report, indent=2))
     finally:

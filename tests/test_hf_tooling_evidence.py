@@ -110,14 +110,26 @@ class RuntimeTests(unittest.TestCase):
             self.assertEqual(tooling.installed_packages()[0]['state'], 'VERSION_DIFFERS')
 
     def test_runtime_source_is_not_archive_source(self):
-        with patch.dict(os.environ, {'A11OY_GIT_SHA': 'a' * 40}):
+        with patch.dict(os.environ, {'A11OY_GIT_SHA': 'a' * 40, 'SZL_GIT_SHA': ''}):
             data = tooling.project(tooling.load_bundle())
         self.assertEqual(data['sourceRevision'], tooling.FORGE_SOURCE)
         self.assertEqual(data['runtime']['productSourceRevision'], 'a' * 40)
         self.assertEqual(data['productionDisposition'], 'HOLD')
 
+    def test_canonical_publisher_source_variable_is_observed(self):
+        with patch.dict(os.environ, {'SZL_GIT_SHA': 'b' * 40, 'A11OY_GIT_SHA': ''}):
+            self.assertEqual(tooling.runtime_source(), ('b' * 40, 'REPORTED'))
+
+    def test_conflicting_runtime_source_aliases_not_silently_selected(self):
+        with patch.dict(os.environ, {'SZL_GIT_SHA': 'b' * 40, 'A11OY_GIT_SHA': 'a' * 40}):
+            self.assertEqual(tooling.runtime_source(), (None, 'CONFLICT'))
+
+    def test_matching_source_aliases_are_reported_not_attested(self):
+        with patch.dict(os.environ, {'SZL_GIT_SHA': 'b' * 40, 'A11OY_GIT_SHA': 'b' * 40}):
+            self.assertEqual(tooling.runtime_source(), ('b' * 40, 'REPORTED'))
+
     def test_invalid_runtime_source_not_invented(self):
-        with patch.dict(os.environ, {'A11OY_GIT_SHA': 'main'}):
+        with patch.dict(os.environ, {'A11OY_GIT_SHA': 'main', 'SZL_GIT_SHA': ''}):
             self.assertIsNone(tooling.project(tooling.load_bundle())['runtime']['productSourceRevision'])
 
 
@@ -175,6 +187,8 @@ class HTTPTests(unittest.TestCase):
     def test_page_assets_real_and_csp_no_inline(self):
         r = self.client.get('/frontier-tooling')
         self.assertIn('Tooling observatory', r.text)
+        self.assertIn('<link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />', r.text)
+        self.assertIn('<script src="/assets/szl-flow.js" defer data-szl-flow-asset="script"></script>', r.text)
         self.assertNotIn("unsafe-inline", r.headers['content-security-policy'])
         self.assertIn("script-src 'self'", r.headers['content-security-policy'])
         for path in ('/frontier-tooling/assets/view.js', '/frontier-tooling/assets/view.css'):

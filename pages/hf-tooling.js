@@ -89,7 +89,7 @@ function render(data) {
   $('packages').replaceChildren(packages);
   $('runtime-observed').textContent = `Process observation: ${data.runtime.observedAt}`;
   $('forge-source').textContent = data.sourceRevision; $('archive-hash').textContent = data.archiveSha256;
-  $('product-source').textContent = data.runtime.productSourceRevision || 'UNAVAILABLE';
+  $('product-source').textContent = data.runtime.productSourceRevision || data.runtime.productSourceState || 'UNAVAILABLE';
   $('bounds').replaceChildren(...data.bounds.map((text) => element('li', text)));
   const base = 'https://github.com/szl-holdings/szl-forge';
   $('source-links').replaceChildren(link('Merged implementation ↗', `${base}/pull/216`), link('Executed workflow ↗', `${base}/actions/runs/${data.workflowRun}`), link('Product API →', endpoint));
