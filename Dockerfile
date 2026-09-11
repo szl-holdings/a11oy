@@ -657,6 +657,7 @@ COPY verticals/terra ./verticals/terra
 COPY verticals/aegis ./verticals/aegis
 COPY verticals/puriq-markets ./verticals/puriq-markets
 COPY verticals/counsel ./verticals/counsel
+COPY verticals/vessels ./verticals/vessels
 
 # git_sha wireup (FORGE-INSTRUCTION-gitsha-quiet-window): surface the deployed commit
 # … (full rationale: docs/DOCKERFILE_NOTES.md §96)
