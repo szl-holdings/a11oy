@@ -1,8 +1,12 @@
 export const GENESIS = "0".repeat(64);
 
 export async function sha256Hex(canonical: string): Promise<string> {
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) {
+    throw new Error("Web Crypto unavailable. Cannot seal or verify.");
+  }
   const bytes = new TextEncoder().encode(canonical);
-  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  const digest = await subtle.digest("SHA-256", bytes);
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
@@ -31,11 +35,4 @@ export function canonicalReceipt(parts: {
     "lambda=Conjecture 1",
     `at=${parts.at}`,
   ].join("\n");
-}
-
-export function geometricMean(values: number[]): number {
-  if (!values.length) return 0;
-  if (values.some((v) => v <= 0)) return 0;
-  const logSum = values.reduce((s, v) => s + Math.log(v), 0);
-  return Math.min(0.97, Math.exp(logSum / values.length));
 }
