@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -12,6 +13,28 @@ assert SPEC and SPEC.loader
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE
 SPEC.loader.exec_module(MODULE)
+
+AUDIT_EQ = re.compile(r"^([A-Za-z0-9_.-]+)==([0-9][^#\s]*)$")
+DOCKER_EQ = re.compile(r'"([A-Za-z0-9_.-]+)(?:\[[a-z]+\])?==([0-9][^"]*)"')
+
+
+def overlapping_equality_pins(audit_text: str, docker_text: str) -> dict[str, tuple[str, str]]:
+    """Return pkg -> (audit, docker) for equality pins present in both files."""
+    audit_pins: dict[str, str] = {}
+    for line in audit_text.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        match = AUDIT_EQ.fullmatch(stripped)
+        if match is not None:
+            audit_pins[match.group(1)] = match.group(2)
+    docker_pins: dict[str, str] = {}
+    for match in DOCKER_EQ.finditer(docker_text):
+        docker_pins[match.group(1)] = match.group(2)
+    return {
+        name: (audit_pins[name], docker_pins[name])
+        for name in sorted(set(audit_pins) & set(docker_pins))
+    }
 
 
 def test_exact_upstream_release_is_fixed_and_unsigned_tag_is_honest() -> None:
@@ -93,3 +116,28 @@ def test_synthetic_131_alignment_still_only_reaches_evaluation() -> None:
     assert result["disposition"] == "EVALUATION"
     assert result["productionAuthorized"] is False
     assert result["automaticPromotionAuthorized"] is False
+
+
+def test_overlapping_audit_and_dockerfile_equality_pins_match() -> None:
+    pairs = overlapping_equality_pins(
+        (ROOT / "requirements-audit.txt").read_text(encoding="utf-8"),
+        (ROOT / "Dockerfile").read_text(encoding="utf-8"),
+    )
+    assert "huggingface_hub" in pairs
+    assert "openai" in pairs
+    drifted = {name: versions for name, versions in pairs.items() if versions[0] != versions[1]}
+    assert drifted == {}, drifted
+
+
+def test_historic_openai_audit_380_versus_runtime_243_is_synthetic_hold() -> None:
+    """Former live openai audit pin is not an admitted successor and is not the runtime."""
+    historic = overlapping_equality_pins(
+        "openai==3.8.0\n",
+        'RUN pip install "openai==2.43.0"\n',
+    )
+    assert historic["openai"] == ("3.8.0", "2.43.0")
+    current = overlapping_equality_pins(
+        (ROOT / "requirements-audit.txt").read_text(encoding="utf-8"),
+        (ROOT / "Dockerfile").read_text(encoding="utf-8"),
+    )
+    assert current["openai"] == ("2.43.0", "2.43.0")
