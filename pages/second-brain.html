@@ -14,6 +14,9 @@ a{color:var(--teal)}header,main{max-width:1100px;margin:0 auto;padding:1.25rem}
 .chip{border:1px solid var(--line);padding:.7rem;min-height:2.75rem}
 canvas{display:block;width:100%;height:320px;border:1px solid var(--line);background:#070b0c}
 pre{white-space:pre-wrap;border:1px solid var(--line);padding:.75rem;font:12px ui-monospace,monospace;color:var(--muted)}
+label{display:block;color:var(--muted);font-size:.8rem;margin:.8rem 0 .35rem}
+input[type=text]{width:100%;max-width:42rem;background:#061014;color:var(--fg);border:1px solid var(--line);padding:.65rem .7rem}
+button{background:transparent;color:var(--teal);border:1px solid var(--line);padding:.55rem .8rem;margin-top:.5rem;cursor:pointer}
 </style>
   <link rel="stylesheet" href="/assets/szl-flow.css" data-szl-flow-asset="style" />
 </head>
@@ -21,19 +24,25 @@ pre{white-space:pre-wrap;border:1px solid var(--line);padding:.75rem;font:12px u
 <header>
 <p class="sub">a-11-oy.com / command / brain</p>
 <h1>Second Brain</h1>
-<p>Kernel formulas from /api/a11oy/v1/honest. Locked-proven is exactly 8. Capabilities from /api/a11oy/v1/brain/capabilities. Source: szl-holdings/szl-second-brain and szl-formulas. Lambda is Conjecture 1.</p>
-<p><a href="/command">Elite Console</a> / <a href="/command/constellation">Constellation</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/api/a11oy/v1/formulas/selftest">Formulas selftest</a></p>
+<p>Kernel formulas from /api/a11oy/v1/honest. Locked-proven is exactly 8. Capabilities from /api/a11oy/v1/brain/capabilities. Retrieve is handle-or-ABSTAIN against the live product brain and the public corpus <a href="https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo">SZLHOLDINGS/szl-second-brain-inrepo</a>. Product <code>/brain</code> is Hickok Dual-Stream and is not this page. Proof fold: <a href="https://a11oy.net/estate/thread-ops/">a11oy.net/estate/thread-ops/</a>. Lambda is Conjecture 1. certified_production_ready false.</p>
+<p><a href="/command">Elite Console</a> / <a href="/command/constellation">Constellation</a> / <a href="/command/anatomy">Anatomy</a> / <a href="/api/a11oy/v1/formulas/selftest">Formulas selftest</a> / <a href="/brain">Hickok /brain</a></p>
 </header>
 <main>
 <canvas id="brain" width="1100" height="320" aria-label="Second brain"></canvas>
 <div class="row" id="chips"></div>
+<label for="q">Retrieve (same-origin). A miss abstains. Nothing is invented LIVE.</label>
+<input id="q" type="text" value="second brain fold" autocomplete="off"/>
+<button id="go" type="button">Retrieve or abstain</button>
 <pre id="raw">probing Lean-8 and brain capabilities</pre>
 </main>
 <script>
 const LOCKED=["F1","F4","F7","F11","F12","F18","F19","F22"];
 async function load(url){
-  try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return {ok:false};return {ok:true,json:await r.json().catch(function(){return null})};}
+  try{const r=await fetch(url,{cache:"no-store"});if(!r.ok)return {ok:false,status:r.status};return {ok:true,status:r.status,json:await r.json().catch(function(){return null})};}
   catch(e){return {ok:false};}
+}
+function chip(box, text){
+  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:text}));
 }
 (async function(){
   const honest=await load("/api/a11oy/v1/honest");
@@ -42,20 +51,42 @@ async function load(url){
   const box=document.getElementById("chips");
   const ids=(honest.json&&honest.json.locked_formula_ids)||LOCKED;
   const count=honest.json&&honest.json.locked_formula_count;
-  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"honest · "+(honest.ok?"MEASURED":"UNAVAILABLE")}));
-  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"brain · "+(brain.ok?"MEASURED":"UNAVAILABLE")}));
-  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"formulas · "+(formulas.ok?"MEASURED":"UNAVAILABLE")}));
-  box.appendChild(Object.assign(document.createElement("span"),{className:"chip",textContent:"locked_formula_count · "+(count===8?"8":"UNAVAILABLE")}));
-  ids.forEach(function(id){const s=document.createElement("span");s.className="chip";s.textContent=id;box.appendChild(s);});
-  document.getElementById("raw").textContent=JSON.stringify({
+  chip(box,"honest · "+(honest.ok?"MEASURED":"UNAVAILABLE"));
+  chip(box,"brain · "+(brain.ok?"MEASURED":"UNAVAILABLE"));
+  chip(box,"formulas · "+(formulas.ok?"MEASURED":"UNAVAILABLE"));
+  chip(box,"locked_formula_count · "+(count===8?"8":"UNAVAILABLE"));
+  chip(box,"corpus · SZLHOLDINGS/szl-second-brain-inrepo");
+  chip(box,"minting · DENY");
+  ids.forEach(function(id){chip(box,id);});
+  window.__probe={
     locked_formula_count:count||null,
     locked_formula_ids:ids,
     brain_ok:brain.ok,
     formulas_ok:formulas.ok,
     lambda:"Conjecture 1",
-    source:"szl-holdings/szl-formulas + szl-second-brain"
-  },null,2);
+    source:"szl-holdings/szl-formulas + szl-second-brain",
+    public_corpus:"https://huggingface.co/datasets/SZLHOLDINGS/szl-second-brain-inrepo",
+    proof_fold:"https://a11oy.net/estate/thread-ops/",
+    hickok_untouched:true
+  };
+  document.getElementById("raw").textContent=JSON.stringify(window.__probe,null,2);
 })();
+async function retrieve(){
+  const q=(document.getElementById("q").value||"").trim()||"second brain fold";
+  const unc=await load("/api/a11oy/v1/brain/uncertainty?k=3&q="+encodeURIComponent(q));
+  const ans=await load("/api/a11oy/v1/brain/answer?q="+encodeURIComponent(q));
+  const uj=unc.json||{};
+  const aj=ans.json||{};
+  const out={
+    query:q,
+    uncertainty:{ok:unc.ok,label:uj.label||null,verdict:uj.verdict||null,abstain_recommended:uj.abstain_recommended,results_retrieved:uj.results_retrieved,uncertainty:uj.uncertainty},
+    answer:{ok:ans.ok,label:aj.label||null,governed_verdict:aj.governed_verdict||null,answer:aj.answer===null?"ABSTAIN":aj.answer,reason:aj.governed_verdict_reason||null},
+    contract:"handle or ABSTAIN — a miss is a miss",
+    certified_production_ready:false
+  };
+  document.getElementById("raw").textContent=JSON.stringify({probe:window.__probe||null,retrieve:out},null,2);
+}
+document.getElementById("go").addEventListener("click",retrieve);
 const c=document.getElementById("brain");const x=c.getContext("2d");let t=0;
 function draw(){
   t+=0.012;const w=c.width,h=c.height;
