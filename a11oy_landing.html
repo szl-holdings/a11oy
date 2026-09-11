@@ -1726,10 +1726,16 @@ html[data-szl-shell-owner="homepage"] :where(a,button):focus-visible {outline:2p
     if(doctrine) txt("nv-doctrine", doctrineState ? (doctrine + " " + doctrineState) : doctrine);
     var lockedN = null;
     if(honest){
-      lockedN = (honest.doctrine_lock && honest.doctrine_lock.locked_formula_count) || honest.locked_formula_count;
+      var rawCount = null;
+      if(honest.doctrine_lock && honest.doctrine_lock.locked_formula_count != null){
+        rawCount = honest.doctrine_lock.locked_formula_count;
+      } else if(honest.locked_formula_count != null){
+        rawCount = honest.locked_formula_count;
+      }
+      if(typeof rawCount === "number" && isFinite(rawCount)) lockedN = rawCount;
     }
     if(lockedN === 8) txt("nv-kernel", "locked-8");
-    else if(lockedN) txt("nv-kernel", lockedN + " locked");
+    else if(lockedN !== null) txt("nv-kernel", String(lockedN) + " locked");
 
     // --- kernel pin: locked formula count from /honest, never a git SHA ---
     if(att && att.statement && att.statement.subject && att.statement.subject.length){
