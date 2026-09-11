@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: Apache-2.0 — SZL Holdings
  * Source-owned replacement for #2100's binder. HTTP success != readiness.
  * Absent counts never become 8. This script grants no formula or action authority.
+ * Last writer for #nv-kernel / #nv-state / .is-live. Inline landing scripts must not win.
  */
 (function (root, factory) {
   'use strict';
@@ -41,7 +42,8 @@
         const { value, done } = await reader.read();
         if (done) break;
         size += value.byteLength;
-        if (size > limit) { await reader.cancel(); throw new Error('oversized'); }
+        if (size > limit) { await reader.cancel(); throw new Error('oversized');
+        }
         chunks.push(value);
       }
     } finally { reader.releaseLock(); }
@@ -50,14 +52,35 @@
     return JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(raw));
   }
 
+  function paint(document, view) {
+    const $ = (id) => document.getElementById(id);
+    const write = (id, value) => { const el = $(id); if (el) el.textContent = value; };
+    write('nv-doctrine', view.doctrine || 'UNAVAILABLE');
+    write('nv-service', view.service || 'UNAVAILABLE');
+    write('nv-kernel', view.countState === 'REPORTED' ? `${view.count} locked · reported` : view.countState);
+    write('nv-state', view.state === 'OBSERVED_METADATA' ? 'metadata observed · not readiness' : 'UNAVAILABLE');
+    const panel = $('nv-panel');
+    if (panel) {
+      panel.classList.remove('is-live');
+      panel.dataset.observation = view.state;
+    }
+  }
+
   function mount(document, fetcher) {
     if (!document || typeof fetcher !== 'function') return;
     const $ = (id) => document.getElementById(id);
-    const write = (id, value) => { const el = $(id); if (el) el.textContent = value; };
-    let sequence = 0, active;
+    let sequence = 0, active, lastView = derive(null), painting = false;
     function reset() {
-      for (const id of ['nv-doctrine', 'nv-kernel', 'nv-service', 'nv-state']) write(id, 'UNAVAILABLE');
-      const panel = $('nv-panel'); if (panel) { panel.classList.remove('is-live'); panel.dataset.observation = 'UNAVAILABLE'; }
+      lastView = derive(null);
+      painting = true;
+      paint(document, lastView);
+      painting = false;
+    }
+    function apply(view) {
+      lastView = view;
+      painting = true;
+      paint(document, view);
+      painting = false;
     }
     async function refresh() {
       const run = ++sequence; active?.abort(); active = new AbortController(); const request = active;
@@ -67,18 +90,24 @@
         const response = await fetcher('/api/a11oy/v1/honest', { signal: request.signal, cache: 'no-store', credentials: 'omit' });
         const view = derive(await readBounded(response));
         if (run !== sequence) return;
-        write('nv-doctrine', view.doctrine || 'UNAVAILABLE');
-        write('nv-service', view.service || 'UNAVAILABLE');
-        write('nv-kernel', view.countState === 'REPORTED' ? `${view.count} locked · reported` : view.countState);
-        write('nv-state', view.state === 'OBSERVED_METADATA' ? 'metadata observed · not readiness' : 'UNAVAILABLE');
-        const panel = $('nv-panel'); if (panel) panel.dataset.observation = view.state;
+        apply(view);
       } catch (_) { if (run === sequence) reset(); }
       finally { clearTimeout(timer); }
+    }
+    const panel = $('nv-panel');
+    if (panel && typeof MutationObserver === 'function') {
+      const watch = new MutationObserver(() => {
+        if (painting) return;
+        if (panel.classList.contains('is-live') || ($('nv-kernel') && /locked-8|read live/i.test(($('nv-kernel').textContent || '') + ($('nv-state')?.textContent || ''))) || ($('nv-state') && /read live/i.test($('nv-state').textContent || ''))) {
+          apply(lastView);
+        }
+      });
+      watch.observe(panel, { attributes: true, childList: true, subtree: true, characterData: true });
     }
     const legacy = $('fw-main-sha');
     if (legacy) { legacy.id = 'fw-main-sha-retired'; legacy.textContent = ''; legacy.hidden = true; }
     document.addEventListener('szl:refresh-observation', refresh);
     void refresh();
   }
-  return { derive, readBounded, mount };
+  return { derive, readBounded, mount, paint };
 });
