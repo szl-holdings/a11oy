@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<!-- SPDX-License-Identifier: Apache-2.0
+     Killinchu on-origin twin status. Eyes and decision, not the trigger.
+     Does not hand canonical to huggingface.co. -->
+<html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>a11oy · Killinchu</title>
+<style>
+:root{--bg:#0a0a0a;--s1:#111;--ink:#f4f1ea;--dim:#c8c5bc;--mute:#7a776f;--rule:#2a2a2a}
+*{box-sizing:border-box;margin:0;padding:0}html,body{background:var(--bg);color:var(--ink);font:16px/1.5 system-ui,sans-serif}
+main{max-width:720px;margin:0 auto;padding:48px 24px}
+.chip{display:inline-block;border:1px solid var(--rule);padding:4px 8px;font:11px/1 ui-monospace,monospace;color:var(--dim);margin-right:8px}
+h1{font-weight:500;font-size:36px;letter-spacing:-.03em;margin:16px 0}
+p{color:var(--dim);max-width:60ch;margin:12px 0}
+a{color:var(--ink)}
+</style></head>
+<body>
+<main>
+<p><span class="chip" id="st">PROBING</span><span class="chip">ON ORIGIN</span></p>
+<h1>Killinchu</h1>
+<p>Eyes and decision. Not the trigger. Effectors stay SIMULATED. This page stays on a-11-oy.com so the product origin does not hand canonical to Hugging Face.</p>
+<p>Twin Space runtime is reported honestly. If the Space is down, this page stays up.</p>
+<p id="detail" class="chip">…</p>
+<p><a href="/command-v2#defense">Command · Defense</a> · <a href="/hatun-mcp">Hatun</a></p>
+</main>
+<script>
+const ORIGIN = (location.hostname.endsWith('a-11-oy.com')||location.hostname.includes('hf.space')) ? '' : 'https://a-11-oy.com';
+async function boot(){
+  const el=document.getElementById('st');
+  const d=document.getElementById('detail');
+  try{
+    const r=await fetch(ORIGIN+'/healthz',{headers:{accept:'application/json'}});
+    const j=await r.json();
+    const sig=(j.signer&&j.signer.status)||'UNKNOWN';
+    el.textContent='ORIGIN '+ (j.status||r.status);
+    d.textContent='healthz signer '+sig+' · doctrine '+(j.doctrine||'v11');
+  }catch(e){
+    el.textContent='ORIGIN DEGRADED';
+    d.textContent=String(e);
+  }
+}
+boot();
+</script>
+</body></html>

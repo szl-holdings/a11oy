@@ -13,6 +13,7 @@ API-schema, evidence-source, and canonical-number contracts are not release-read
 Additive routes:
   GET+HEAD /command
   GET+HEAD /command-v2
+  GET+HEAD /killinchu
   GET+HEAD /command/constellation
   GET+HEAD /command/brain
   GET+HEAD /command/ops
@@ -30,6 +31,8 @@ from typing import List
 MOUNTS = ("/command",)
 SPECIFIC = (
     ("/command-v2", "command-v2.html"),
+    ("/killinchu", "killinchu.html"),
+    ("/killinchu/", "killinchu.html"),
     ("/command/constellation", "constellation.html"),
     ("/command/brain", "second-brain.html"),
     ("/command/ops", "operator-pane.html"),
@@ -156,8 +159,9 @@ def register(app, ns: str = "a11oy") -> List[str]:
     _add(CATCHALL, _spa, ["GET", "HEAD"])
     _front_move(app, [path for path, _name in SPECIFIC] + list(MOUNTS))
     registered.append(
-        "command-center reviewed-public on /command (dormant elite excluded); /command-v2 additive; "
-        "constellation/brain/ops beat catch-all; /console and host-root /brain untouched"
+        "command-center reviewed-public on /command; /command-v2 additive; "
+        "/killinchu on-origin; constellation/brain/ops beat catch-all; "
+        "/console and host-root /brain untouched"
     )
     return registered
 
@@ -204,6 +208,12 @@ def _selftest() -> None:
         assert "googleapis" not in response.text
         assert "jsdelivr" not in response.text
 
+    if _page("killinchu.html").is_file():
+        response = client.get("/killinchu")
+        assert response.status_code == 200
+        assert "Killinchu" in response.text
+        assert "huggingface.co/spaces" not in response.text
+
     if _page("constellation.html").is_file():
         for path in ("/command/constellation", "/constellation"):
             body = client.get(path).text
@@ -228,7 +238,7 @@ def _selftest() -> None:
     assert client.get("/console").status_code == 200
     print(
         "a11oy_command_center: ALL OK "
-        "(v2 additive; exact pages beat catch-all; /console and /brain untouched)"
+        "(v2 additive; killinchu on-origin; exact pages beat catch-all)"
     )
 
 
