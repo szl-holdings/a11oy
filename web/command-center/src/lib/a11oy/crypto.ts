@@ -1,3 +1,5 @@
+export { geometricMean, TRUST_CEILING, LAMBDA_FLOOR, lambdaVerdict } from "./lambda.ts";
+
 export const GENESIS = "0".repeat(64);
 
 export async function sha256Hex(canonical: string): Promise<string> {
