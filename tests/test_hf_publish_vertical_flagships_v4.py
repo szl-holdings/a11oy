@@ -291,7 +291,7 @@ def test_entrypoint_preserves_current_topology_and_lyte_pin() -> None:
         'PUBLIC_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance", "lyte")',
         'GENERATED_FLAGSHIP_SLUGS = ("terra", "sentra", "counsel", "finance")',
         'SOURCE_OWNED_FLAGSHIP_SLUGS = ("lyte",)',
-        'LYTE_SOURCE_REVISION = "9af99c9fa92fe4bd2f5f3f7e61f4521eb692d2a7"',
+        'LYTE_SOURCE_REVISION = "dd17d9f524b76c8f0e260d7ec1e084cc079dfc43"',
         'FOLDED_INTO_KILLINCHU = ("vessels",)',
         'KILLINCHU_SPACE = "SZLHOLDINGS/killinchu"',
         'SENTRA_SPACE = "SZLHOLDINGS/sentra"',
