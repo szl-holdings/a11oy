@@ -8,7 +8,8 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 0.0.0.0 --port 4173"
+    "preview": "vite preview --host 0.0.0.0 --port 4173",
+    "test": "node --experimental-strip-types --test src/lib/a11oy/kernel.test.ts"
   },
   "dependencies": {
     "lucide-react": "^0.510.0",
