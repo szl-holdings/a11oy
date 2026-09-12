@@ -146,10 +146,53 @@ def test_zenodo_metadata_and_company_page_tag_both_domains_and_existing_dois():
     assert "a11oy:software-version-doi" in company
 
 
+def test_hf_space_sha_readback_fails_closed(monkeypatch):
+    monkeypatch.setattr(
+        release.urllib.request,
+        "urlopen",
+        lambda *args, **kwargs: (_ for _ in ()).throw(OSError("no hub")),
+    )
+    monkeypatch.delenv("SZL_HF_SHA", raising=False)
+    payload = release.hf_space_sha_readback(timeout=0.1)
+    assert payload["sha"] == "UNKNOWN"
+    assert payload["status"] == "UNKNOWN"
+    assert payload["source"] == "probe_failed"
+
+
+def test_hf_space_sha_readback_observes_hub_sha(monkeypatch):
+    class _Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+        def read(self):
+            return b'{"sha":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa","runtime":{"sha":"bbbbbbbbbbbb"}}'
+
+    monkeypatch.setattr(release.urllib.request, "urlopen", lambda *a, **k: _Resp())
+    payload = release.hf_space_sha_readback(timeout=0.1)
+    assert payload["sha"] == "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    assert payload["status"] == "OBSERVED"
+    assert payload["source"] == "huggingface_api"
+
+
 def test_live_version_route_uses_canonical_release_identity(monkeypatch):
     monkeypatch.delenv("A11OY_VERSION_DOI", raising=False)
     monkeypatch.delenv("A11OY_RELEASE_TAG", raising=False)
     monkeypatch.delenv("SZL_GIT_SHA", raising=False)
+    monkeypatch.setattr(
+        release,
+        "hf_space_sha_readback",
+        lambda **kwargs: {
+            "sha": "UNKNOWN",
+            "status": "UNKNOWN",
+            "source": "probe_failed",
+            "space": release.HF_SPACE_ID,
+            "configured_env": None,
+            "env_matches_live": False,
+        },
+    )
 
     from fastapi.testclient import TestClient
     import serve
@@ -161,10 +204,39 @@ def test_live_version_route_uses_canonical_release_identity(monkeypatch):
     payload = response.json()
     assert payload["version"] == release.SOFTWARE_VERSION
     assert payload["release_state"] == "CANDIDATE"
+    assert payload["honesty"]["configured_is_operational"] is False
     assert payload["git_sha"] == "UNKNOWN"
+    assert payload["hf_space_sha"] == "UNKNOWN"
     assert payload["surfaces"]["canonical"] == release.CANONICAL_URL
     assert payload["surfaces"]["registry"] == release.REGISTRY_URL
     assert payload["surfaces"]["legacy_alias"] == release.LEGACY_ALIAS
     assert payload["surfaces"]["legacy_alias_policy"] == "SEPARATE_REGISTRY_ORIGIN"
     assert payload["doi"]["software_version"]["status"] == "PENDING_ZENODO_READBACK"
     assert payload["verify"]["release_assets_status"] == "PENDING_RELEASE"
+
+
+def test_public_ledger_get_does_not_mint_and_reads_khipu():
+    from fastapi.testclient import TestClient
+    import serve
+
+    with TestClient(serve.app) as client:
+        before = client.get("/api/a11oy/v1/ledger")
+        assert before.status_code == 200
+        start = before.json()
+        assert start["honesty"].find("GET never mints") >= 0 or "never" in start["honesty"].lower()
+        again = client.get("/api/a11oy/v1/ledger")
+        assert again.json()["count"] == start["count"]
+
+        minted = client.post(
+            "/api/a11oy/khipu/sign",
+            json={"actor": "operator", "intent": "measured-agent-loop"},
+        )
+        assert minted.status_code == 200
+        after = client.get("/api/a11oy/v1/ledger")
+        body = after.json()
+        assert body["count"] >= 1
+        assert body["receipt_minted"] is True
+        assert body["signature_state"] in {"SIGNED", "UNSIGNED"}
+        assert body["book"] == "public_operator_khipu"
+        third = client.get("/api/a11oy/v1/ledger")
+        assert third.json()["count"] == body["count"]

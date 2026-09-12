@@ -8209,15 +8209,20 @@ async def a11oy_mcp_call_inline(request: Request):
 async def a11oy_version():
     """Founder inspection: what build is live, when was it deployed, provenance."""
     import os as _szlv_os
-    from szl_release_identity import release_identity as _release_identity
+    from szl_release_identity import (
+        hf_space_sha_readback as _hf_space_sha_readback,
+        release_identity as _release_identity,
+    )
 
     _identity = _release_identity()
     _release_tag = _identity.get("release_tag")
     _release_assets_ready = bool(_release_tag)
+    _space_sha = _hf_space_sha_readback()
     return {
         **_identity,
         "git_sha": _szlv_os.getenv("SZL_GIT_SHA") or "UNKNOWN",
-        "hf_space_sha": _szlv_os.getenv("SZL_HF_SHA") or "UNKNOWN",
+        "hf_space_sha": _space_sha.get("sha") or "UNKNOWN",
+        "hf_space_sha_readback": _space_sha,
         "build_time": _szlv_os.getenv("SZL_BUILD_TIME") or "UNKNOWN",
         "doctrine": "v11",
         "kernel_commit": "c7c0ba17",
@@ -10027,28 +10032,63 @@ except Exception as _r3d_e:  # pragma: no cover — guarded; never take down the
           file=sys.stderr)
 
 
+def _public_khipu_nodes(limit: int = 32) -> list[dict]:
+    """Read-only view of the operator Khipu DAG. GET never mints."""
+    dag = getattr(app.state, "szl_khipu_dag", None)
+    if dag is None:
+        return []
+    try:
+        nodes = list(dag.recent(max(1, min(int(limit), 64))))
+    except Exception:
+        return []
+    out = []
+    for node in nodes:
+        receipt = node.get("receipt") if isinstance(node, dict) else None
+        if not isinstance(receipt, dict):
+            receipt = {}
+        out.append({
+            "index": node.get("index"),
+            "digest": node.get("digest"),
+            "signed": bool(node.get("signed")),
+            "keyid": node.get("keyid"),
+            "schema": receipt.get("schema") or receipt.get("intent") or receipt.get("op"),
+            "actor": receipt.get("actor"),
+            "ts_utc": node.get("ts_utc") or receipt.get("ts_utc"),
+        })
+    return out
+
+
 @app.get("/api/a11oy/v1/ledger")
 async def a11oy_ledger_v2() -> JSONResponse:
-    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain."""
+    """Operational receipt ledger. Empty is live-empty, never a SAMPLE chain.
+
+    GET is forbidden from minting. Operator POSTs (agent loop, khipu/sign)
+    append to the Khipu DAG; this route only reads it. Series-A SAMPLE
+    rows stay on GET /api/a11oy/v2/command-log.
+    """
     observed_at = _gov_now_iso()
     if observed_at.endswith("+00:00"):
         observed_at = observed_at[:-6] + "Z"
+    receipts = _public_khipu_nodes()
+    signed_any = any(item.get("signed") for item in receipts)
     return JSONResponse({
-        "count": 0,
+        "count": len(receipts),
         "state": "live",
         "data_kind": "live",
         "operational": True,
         "hash_algorithm": "sha256-hex",
         "structure_verified": True,
         "chain_verified": True,
-        "signed": False,
-        "signature_state": "UNSIGNED",
-        "receipt_minted": False,
+        "signed": signed_any,
+        "signature_state": "SIGNED" if signed_any else "UNSIGNED",
+        "receipt_minted": bool(receipts),
         "observed_at": observed_at,
-        "honesty": ("Live operational ledger. Zero receipts means none have been "
-                    "minted in this process; this is not the deterministic SAMPLE "
-                    "chain (see GET /api/a11oy/v2/command-log)."),
-        "receipts": [],
+        "book": "public_operator_khipu",
+        "honesty": ("Live operational ledger read from the in-process Khipu DAG. "
+                    "GET never mints. Zero receipts means none have been minted "
+                    "in this process; this is not the deterministic SAMPLE chain "
+                    "(see GET /api/a11oy/v2/command-log)."),
+        "receipts": receipts,
     })
 
 
