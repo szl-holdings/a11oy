@@ -11,9 +11,20 @@ const html = fs.readFileSync(
   path.join(__dirname, "..", "pages", "killinchu.html"),
   "utf8",
 );
-const match = html.match(/<script>([\s\S]*?)<\/script>/);
-assert.ok(match, "Killinchu page must contain one executable inline script");
-const source = match[1].replace(/\nboot\(\);\s*$/, "\n");
+function inlineScriptSource(documentHtml) {
+  const match = documentHtml.match(/<script>([\s\S]*?)<\/script>/i);
+  assert.ok(match, "Killinchu page must contain one executable inline script");
+  return match[1].replace(/\nboot\(\);\s*$/, "\n");
+}
+
+const source = inlineScriptSource(html);
+
+test("inline script extraction is case-insensitive for HTML tags", () => {
+  assert.equal(
+    inlineScriptSource("<SCRIPT>const marker = 1;\nboot();</SCRIPT>"),
+    "const marker = 1;\n",
+  );
+});
 
 function livePayload() {
   return {
