@@ -24,6 +24,17 @@ from typing import Any
 
 from huggingface_hub import HfApi
 
+_SCRIPTS = Path(__file__).resolve().parent
+if str(_SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(_SCRIPTS))
+
+from szl_release_guard import (  # noqa: E402
+    ReleaseJournal,
+    digest,
+    retain_manifest_metadata,
+    run_bounded,
+)
+
 SOURCE_REPOSITORY = "szl-holdings/lyte-services"
 SOURCE_REVISION = "dd17d9f524b76c8f0e260d7ec1e084cc079dfc43"
 EXPECTED_VERSION = "4.0.0"
@@ -31,6 +42,7 @@ HF_REPOSITORY = "SZLHOLDINGS/lyte"
 ORIGIN = "https://szlholdings-lyte.hf.space"
 SOURCE_VARIABLE = "LYTE_SOURCE_REVISION"
 RECEIPT_PATH = Path("hf-lyte-enterprise-receipt.json")
+EVIDENCE_PATH = Path("hf-lyte-enterprise-evidence")
 CONTRACT_PATH = Path(__file__).resolve().with_name("lyte_enterprise_live_contract.py")
 
 CONTROLLER_REPOSITORY = "szl-holdings/.github"
@@ -38,6 +50,22 @@ CONTROLLER_REVISION = "c889276e51e7d954c4bba8b216f86fc7577721fa"
 CONTROLLER_PATH = ".github/scripts/hf_deploy_from_dockerfile.py"
 CONTROLLER_BLOB_SHA1 = "9d5b90b8bbf04e6d46ef0f971fc65604e1323b1b"
 USER_AGENT = "SZLHOLDINGS-Lyte-Enterprise-Publisher/4.0"
+
+# Custom journal order matches the current writer. Default kit PHASES place
+# bind-source after publish-files; that reorder waits on the marker strategy.
+WRITER_PHASES = (
+    "qualify-source",
+    "controller-preflight",
+    "bind-source",
+    "publish-files",
+    "restart",
+    "attest-runtime",
+    "verify-existing",
+)
+CHECKOUT_TIMEOUT = 180.0
+PUBLISH_TIMEOUT = 3600.0
+RESTART_TIMEOUT = 600.0
+ATTEST_TIMEOUT = 3600.0
 
 # API version and package version are distinct. The current 4.0.0 application
 # owns /api/lyte/v2; the removed v3 application must never be its smoke target.
@@ -70,29 +98,65 @@ def token_from_env() -> tuple[str, str]:
     raise RuntimeError("no Hugging Face write token available to canonical writer")
 
 
-def run_checked(command: list[str], *, cwd: Path | None = None) -> None:
-    result = subprocess.run(command, cwd=cwd, check=False)
-    if result.returncode:
+def phase_pass(payload: Any, *, reason_code: str = "OBSERVED_PASS") -> dict[str, Any]:
+    """Public journal callback result: digests only, never process output."""
+    body = payload if isinstance(payload, dict) else {"observed": True}
+    return {
+        "executed": True,
+        "passed": True,
+        "reason_code": reason_code,
+        "evidence_sha256": digest(body),
+    }
+
+
+def observed_publisher_revision() -> str:
+    root = Path(__file__).resolve().parents[1]
+    try:
+        observed = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], cwd=root, text=True, timeout=30,
+        ).strip()
+    except (OSError, subprocess.SubprocessError) as exc:
+        raise RuntimeError("publisher revision is UNAVAILABLE") from exc
+    if len(observed) != 40 or any(ch not in "0123456789abcdef" for ch in observed):
+        raise RuntimeError("publisher revision is not a git sha")
+    return observed
+
+
+def run_checked(
+    command: list[str],
+    *,
+    cwd: Path | None = None,
+    timeout: float = 120.0,
+) -> dict[str, Any]:
+    """Adapter over the admitted POSIX run_bounded primitive.
+
+    Preserves the fail-closed command contract. Public results are reason codes
+    and stream digests; raw child output is not returned.
+    """
+    observation = run_bounded(command, cwd=cwd or Path.cwd(), timeout=timeout)
+    if not observation["passed"]:
         raise RuntimeError(
-            f"command failed with exit {result.returncode}: " + " ".join(command[:5])
+            f"command failed with {observation['reason_code']} "
+            f"exit {observation['exit_code']}: " + " ".join(command[:5])
         )
+    return observation
 
 
 def checkout_exact_source(destination: Path) -> None:
-    run_checked(["git", "init", "--quiet", str(destination)])
+    run_checked(["git", "init", "--quiet", str(destination)], timeout=CHECKOUT_TIMEOUT)
     run_checked([
         "git", "-C", str(destination), "remote", "add", "origin",
         f"https://github.com/{SOURCE_REPOSITORY}.git",
-    ])
+    ], timeout=CHECKOUT_TIMEOUT)
     run_checked([
         "git", "-C", str(destination), "fetch", "--quiet", "--depth=1",
         "origin", SOURCE_REVISION,
-    ])
+    ], timeout=CHECKOUT_TIMEOUT)
     run_checked([
         "git", "-C", str(destination), "checkout", "--quiet", "--detach", "FETCH_HEAD",
-    ])
+    ], timeout=CHECKOUT_TIMEOUT)
     observed = subprocess.check_output(
-        ["git", "-C", str(destination), "rev-parse", "HEAD"], text=True,
+        ["git", "-C", str(destination), "rev-parse", "HEAD"], text=True, timeout=30,
     ).strip()
     if observed != SOURCE_REVISION:
         raise RuntimeError(
@@ -206,26 +270,49 @@ def request_text(path: str, *, attempts: int = 4) -> tuple[int, str]:
     )
 
 
-def deploy_with_controller(source: Path, controller: Path, manifest: Path) -> None:
+def deploy_with_controller(
+    source: Path,
+    controller: Path,
+    manifest: Path,
+    journal: ReleaseJournal | None = None,
+) -> None:
     smoke_json = json.dumps(SMOKE_PATHS, separators=(",", ":"))
     base = [
         sys.executable, str(controller), "--repo-root", str(source),
         "--github-repo", SOURCE_REPOSITORY, "--hf-repo", HF_REPOSITORY,
     ]
-    run_checked(base + [
+    publish_cmd = base + [
         "--ref", SOURCE_REVISION, "--source-sha", SOURCE_REVISION,
         "--dockerfile-path", "Dockerfile", "--include-readme", "true",
         "--smoke-paths", smoke_json, "--manifest-out", str(manifest),
         "--prune", "--require-default-branch-tip",
-    ])
-    run_checked([
+    ]
+    restart_cmd = [
         sys.executable, str(controller), "--restart-space", "--manifest", str(manifest),
         "--hf-repo", HF_REPOSITORY,
-    ])
-    run_checked([
+    ]
+    attest_cmd = [
         sys.executable, str(controller), "--attest", "--manifest", str(manifest),
         "--hf-repo", HF_REPOSITORY, "--wait-running", "1200", "--smoke-retries", "24",
-    ])
+    ]
+
+    def publish_files() -> dict[str, Any]:
+        return phase_pass(run_checked(publish_cmd, timeout=PUBLISH_TIMEOUT))
+
+    def restart() -> dict[str, Any]:
+        return phase_pass(run_checked(restart_cmd, timeout=RESTART_TIMEOUT))
+
+    def attest_runtime() -> dict[str, Any]:
+        return phase_pass(run_checked(attest_cmd, timeout=ATTEST_TIMEOUT))
+
+    if journal is None:
+        publish_files()
+        restart()
+        attest_runtime()
+        return
+    journal.perform("publish-files", publish_files)
+    journal.perform("restart", restart)
+    journal.perform("attest-runtime", attest_runtime)
 
 
 def verify_contract() -> dict[str, Any]:
@@ -252,22 +339,63 @@ def main() -> int:
         "token_source_name": token_source, "token_value_recorded": False,
         "secret_values_recorded": False, "sentra_signing_key_touched": False,
         "space_created": False, "delete_operations": 0, "complete": False,
+        "raw_manifest_published": False, "writer_dispatched": False,
     }
+    journal: ReleaseJournal | None = None
     try:
         api = HfApi(token=token)
+        publisher_sha = observed_publisher_revision()
+        receipt["publisher_revision"] = publisher_sha
         with tempfile.TemporaryDirectory(prefix="szl-lyte-enterprise-") as td:
             root = Path(td)
             source, controller, manifest = root / "source", root / "controller.py", root / "manifest.json"
-            checkout_exact_source(source)
-            fetch_pinned_controller(controller)
-            # Verify source and controller bytes before any runtime configuration write.
-            receipt["configuration"] = ensure_runtime_configuration(api)
-            deploy_with_controller(source, controller, manifest)
-            receipt["deployment_manifest"] = json.loads(manifest.read_text(encoding="utf-8"))
-        receipt["verification"] = verify_contract()
-        receipt["complete"] = receipt["verification"]["complete"]
+            journal = ReleaseJournal(
+                EVIDENCE_PATH, source=SOURCE_REVISION, publisher=publisher_sha,
+                phases=WRITER_PHASES,
+            )
+            try:
+                def qualify_source() -> dict[str, Any]:
+                    checkout_exact_source(source)
+                    return phase_pass({"source_revision": SOURCE_REVISION})
+
+                def controller_preflight() -> dict[str, Any]:
+                    fetch_pinned_controller(controller)
+                    return phase_pass({"controller_blob_sha1": CONTROLLER_BLOB_SHA1})
+
+                def bind_source() -> dict[str, Any]:
+                    # Verify source and controller bytes before any runtime configuration write.
+                    receipt["configuration"] = ensure_runtime_configuration(api)
+                    return phase_pass(receipt["configuration"])
+
+                journal.perform("qualify-source", qualify_source)
+                journal.perform("controller-preflight", controller_preflight)
+                journal.perform("bind-source", bind_source)
+                deploy_with_controller(source, controller, manifest, journal=journal)
+
+                def verify_existing() -> dict[str, Any]:
+                    receipt["verification"] = verify_contract()
+                    complete = receipt["verification"].get("complete") is True
+                    receipt["complete"] = complete
+                    if complete is not True:
+                        raise RuntimeError("live contract is not complete")
+                    return phase_pass({
+                        "complete": True,
+                        "execution_authority": receipt["verification"].get(
+                            "execution_authority", "NONE",
+                        ),
+                    })
+
+                journal.perform("verify-existing", verify_existing)
+            finally:
+                # Observe the controller manifest before the temporary workspace exits.
+                receipt["controller_manifest"] = retain_manifest_metadata(
+                    manifest, EVIDENCE_PATH,
+                )
+                receipt["phase_journal"] = journal.summary()
     except Exception as exc:
         receipt["error"] = f"{type(exc).__name__}: {exc}"
+        if journal is not None and "phase_journal" not in receipt:
+            receipt["phase_journal"] = journal.summary()
     finally:
         receipt["finished_at"] = utc_now()
         RECEIPT_PATH.write_text(json.dumps(receipt, indent=2, sort_keys=True) + "\n", encoding="utf-8")

@@ -2,9 +2,23 @@
 from __future__ import annotations
 
 import ast
+import importlib.util
+import json
+import os
+import sys
+import tempfile
+import types
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
+SCRIPTS = ROOT / "scripts"
+if str(SCRIPTS) not in sys.path:
+    sys.path.insert(0, str(SCRIPTS))
+
+from szl_release_guard import inspect_publisher
+
 PUBLISHER = ROOT / "scripts" / "hf_publish_lyte_enterprise.py"
 CONTRACT = ROOT / "scripts" / "lyte_enterprise_live_contract.py"
 ENTRYPOINT = ROOT / "scripts" / "hf_publish_vertical_flagships_v4.py"
@@ -41,6 +55,7 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
     assert {
         "token_from_env", "checkout_exact_source", "fetch_pinned_controller",
         "ensure_runtime_configuration", "deploy_with_controller", "verify_contract", "main",
+        "run_checked",
     }.issubset(function_names(PUBLISHER))
     for fragment in (
         'SOURCE_REPOSITORY = "szl-holdings/lyte-services"',
@@ -58,6 +73,10 @@ def test_source_owned_publisher_is_exact_reviewable_and_non_destructive() -> Non
         '"delete_operations": 0', '"sentra_signing_key_touched": False',
         '"space_created": False', '"token_value_recorded": False',
         '"secret_values_recorded": False',
+        "from szl_release_guard import",
+        "run_bounded",
+        "ReleaseJournal",
+        "retain_manifest_metadata",
     ):
         assert fragment in source
     for forbidden in (
@@ -139,3 +158,117 @@ def test_estate_receipt_binds_the_exact_lyte_source_revision() -> None:
     assert f'SOURCE_REVISION = "{expected}"' in publisher
     assert f'LYTE_SOURCE_REVISION = "{expected}"' in entrypoint
     assert 'lyte.get("source_revision") == LYTE_SOURCE_REVISION' in entrypoint
+
+
+def named_calls(tree: ast.AST) -> list[tuple[int, str]]:
+    calls = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            calls.append((node.lineno, node.func.id))
+    calls.sort()
+    return calls
+
+
+def function_def(tree: ast.AST, name: str) -> ast.FunctionDef:
+    for node in ast.walk(tree):
+        if isinstance(node, ast.FunctionDef) and node.name == name:
+            return node
+    raise AssertionError(f"missing function {name}")
+
+
+def load_publisher():
+    """Load the writer without requiring huggingface_hub in the contract job."""
+    try:
+        import huggingface_hub  # noqa: F401
+    except ImportError:
+        stub = types.ModuleType("huggingface_hub")
+        stub.HfApi = type("HfApi", (), {})
+        sys.modules["huggingface_hub"] = stub
+    spec = importlib.util.spec_from_file_location(
+        "szl_hf_publish_lyte_enterprise_under_test", PUBLISHER,
+    )
+    module = importlib.util.module_from_spec(spec)
+    assert spec is not None and spec.loader is not None
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_run_checked_is_the_run_bounded_adapter() -> None:
+    tree = ast.parse(PUBLISHER.read_text(encoding="utf-8"))
+    run_checked = function_def(tree, "run_checked")
+    names = [name for _, name in named_calls(run_checked)]
+    assert "run_bounded" in names
+    assert "subprocess" not in {
+        node.attr for node in ast.walk(run_checked) if isinstance(node, ast.Attribute)
+    }
+
+
+def test_kit_journal_preserves_config_before_deploy_and_default_tip() -> None:
+    source = PUBLISHER.read_text(encoding="utf-8")
+    inspection = inspect_publisher(source)
+    assert inspection["constants"]["SOURCE_REVISION"] == (
+        "dd17d9f524b76c8f0e260d7ec1e084cc079dfc43"
+    )
+    assert inspection["config_call_lexically_before_deploy"] is True
+    phases = module_constant(PUBLISHER, "WRITER_PHASES")
+    assert phases.index("bind-source") < phases.index("publish-files")
+    assert '"--require-default-branch-tip"' in source
+    tree = ast.parse(source)
+    main = function_def(tree, "main")
+    names = [name for _, name in named_calls(main)]
+    assert "ReleaseJournal" in names
+    assert "retain_manifest_metadata" in names
+    assert "ensure_runtime_configuration" in names
+    assert "deploy_with_controller" in names
+    finally_names: list[str] = []
+    for node in ast.walk(main):
+        if isinstance(node, ast.Try):
+            for handler in node.finalbody:
+                for call in ast.walk(handler):
+                    if isinstance(call, ast.Call) and isinstance(call.func, ast.Name):
+                        finally_names.append(call.func.id)
+    assert "retain_manifest_metadata" in finally_names
+
+
+def test_failure_manifest_observation_is_retained() -> None:
+    from szl_release_guard import retain_manifest_metadata
+
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        missing = retain_manifest_metadata(root / "manifest.json", root / "out")
+        assert missing["state"] == "ABSENT"
+        assert missing["raw_manifest_published"] is False
+        manifest = root / "manifest.json"
+        manifest.write_text(json.dumps({
+            "ref": "a" * 40,
+            "hf_commit_oid": "b" * 40,
+            "files": {"secret.file": {"generated_content_utf8": "DO_NOT_DISCLOSE"}},
+        }), encoding="utf-8")
+        parsed = retain_manifest_metadata(manifest, root / "out")
+        assert parsed["state"] == "PARSED_METADATA_ONLY"
+        dumped = json.dumps(parsed)
+        assert "DO_NOT_DISCLOSE" not in dumped
+        assert parsed["ref"] == "a" * 40
+
+
+@pytest.mark.skipif(os.name != "posix", reason="run_bounded requires POSIX")
+def test_run_checked_adapter_bounds_real_children() -> None:
+    module = load_publisher()
+    ok = module.run_checked([sys.executable, "-c", "pass"], cwd=Path.cwd())
+    assert ok["passed"] is True
+    assert ok["raw_output_recorded"] is False
+    assert "stdout" not in ok or "captured_sha256" in ok["streams"]["stdout"]
+    with pytest.raises(RuntimeError) as failed:
+        module.run_checked(
+            [sys.executable, "-c", 'print("private-token"); raise SystemExit(2)'],
+            cwd=Path.cwd(),
+        )
+    assert "private-token" not in str(failed.value)
+    with pytest.raises(RuntimeError) as timed:
+        module.run_checked(
+            [sys.executable, "-c", "import time; time.sleep(20)"],
+            cwd=Path.cwd(),
+            timeout=0.15,
+        )
+    assert "TIMEOUT" in str(timed.value)
+    assert timed.value.__cause__ is None or "private-token" not in str(timed.value)
