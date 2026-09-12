@@ -1,0 +1,51 @@
+name: SZL Router governed consumer contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: szl-router-consumer-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  contract:
+    name: Governed gateway contract (${{ matrix.peer }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        peer: [fixture, pinned-router]
+    steps:
+      - name: Checkout A11oy
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Checkout immutable router source
+        if: matrix.peer == 'pinned-router'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: szl-holdings/szl-router
+          ref: 091346fd29b8fec4e0f1ce056a97b66933a6a8f2
+          path: .router-contract-peer
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+      - name: Install isolated contract dependencies
+        run: python -m pip install fastapi==0.140.13 httpx==0.28.1 pydantic==2.13.4 pytest==9.1.1
+      - name: Exercise standalone contract
+        if: matrix.peer == 'fixture'
+        run: python -m pytest -q tests/test_szl_router_client.py
+      - name: Exercise pinned gateway and isolated provider
+        if: matrix.peer == 'pinned-router'
+        env:
+          SZL_ROUTER_CONTRACT_CHECKOUT: ${{ github.workspace }}/.router-contract-peer
+        run: python -m pytest -q tests/test_szl_router_client.py
